@@ -1,0 +1,102 @@
+/* Generic MRT + Mantine table typography + alignment
+   Apply to any MRT by setting:
+   mantineTableContainerProps={{ className: "financeTable" }}
+   and then use per-column className like:
+   mantineTableHeadCellProps: { className: "table-head-cell table-head-right" }
+*/
+
+:root {
+  --table-head-font-size: 12.5px;
+  --table-body-font-size: 12.5px;
+
+  --table-head-font-weight: 600;
+  --table-body-font-weight: 400;
+
+  --table-head-bold-weight: 700;
+  --table-body-bold-weight: 600;
+}
+
+/* Base head cell */
+.financeTable .table-head-cell {
+  font-size: var(--table-head-font-size) !important;
+  font-weight: var(--table-head-font-weight) !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+/* Head alignment */
+.financeTable .table-head-left { text-align: left !important; }
+.financeTable .table-head-right { text-align: right !important; }
+
+/* Head bold variants */
+.financeTable .table-head-left-bold,
+.financeTable .table-head-right-bold {
+  font-weight: var(--table-head-bold-weight) !important;
+}
+.financeTable .table-head-left-bold { text-align: left !important; }
+.financeTable .table-head-right-bold { text-align: right !important; }
+
+/* Base body cell */
+.financeTable .table-body-cell {
+  font-size: var(--table-body-font-size) !important;
+  font-weight: var(--table-body-font-weight) !important;
+}
+
+/* Body alignment helpers (use on Text components too) */
+.financeTable .table-body-left { 
+  font-size: var(--table-body-font-size) !important;
+  font-weight: var(--table-body-font-weight) !important;
+  text-align: left !important; 
+}
+.financeTable .table-body-right { 
+  font-size: var(--table-body-font-size) !important;
+  font-weight: var(--table-body-font-weight) !important;
+  text-align: right !important; 
+  width: 100%;
+}
+
+/* Body bold variants */
+.financeTable .table-body-left-bold,
+.financeTable .table-body-right-bold {
+  font-size: var(--table-body-font-size) !important;
+  font-weight: var(--table-body-bold-weight) !important;
+}
+.financeTable .table-body-left-bold { text-align: left !important; }
+.financeTable .table-body-right-bold { text-align: right !important; width: 100%; }
+
+/* Make sure the wrapper flex doesn’t fight alignment */
+.financeTable .table-head-right .mrt-table-head-cell-content,
+.financeTable .table-head-right-bold .mrt-table-head-cell-content {
+  justify-content: flex-end !important;
+}
+
+/* NumberInput alignment: pass classNames={{ input: "table-number-input" }} */
+.financeTable .table-number-input {
+  text-align: right !important;
+  font-size: var(--table-body-font-size) !important;
+  font-weight: var(--table-body-font-weight) !important;
+  padding-right: 6px !important;
+}
+
+/* Optional: compact header icon buttons (sort/filter/menu) */
+.financeTable th .mantine-ActionIcon-root {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  padding: 2px !important;
+  background: transparent !important;
+}
+
+/* ===== Budget-specific tweaks ===== */
+
+/* Keep internal sorting, but hide sort button UI */
+.budgetTable .mrt-table-head-sort-button {
+  display: none !important;
+}
+
+/* Hide “expand all” and row expand column if it ever shows up */
+.budgetTable .mrt-table-head-cell-expand,
+.budgetTable .mrt-table-body-cell-expand {
+  display: none !important;
+}
