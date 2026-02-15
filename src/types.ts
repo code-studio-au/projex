@@ -3,6 +3,7 @@ export type Id = string;
 export type Company = {
   id: Id;
   name: string;
+  archived?: boolean;
 };
 
 export type Project = {
@@ -17,6 +18,7 @@ export type User = {
   id: Id;
   email: string;
   name: string;
+  disabled?: boolean;
 };
 
 export type CompanyRole = "superadmin" | "admin" | "executive" | "management" | "member";

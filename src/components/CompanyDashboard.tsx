@@ -29,6 +29,12 @@ export default function CompanyDashboard(props: { onOpenProject: (projectId: str
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<Id | null>(isOwner ? null : userCompanyId);
 
+  React.useEffect(() => {
+    const h = () => setSelectedCompanyId(null);
+    window.addEventListener("superadmin:resetCompanySelection", h as any);
+    return () => window.removeEventListener("superadmin:resetCompanySelection", h as any);
+  }, []);
+
   const effectiveCompanyId = (isOwner ? selectedCompanyId : userCompanyId) ?? userCompanyId;
   const effectiveCompany = store.companies.find((c) => c.id === effectiveCompanyId);
 
@@ -37,7 +43,7 @@ const canSeeCompanySettingsTab = companyRole === "superadmin" || companyRole ===
 const canAddProjects = companyRole === "superadmin" || companyRole === "admin" || companyRole === "executive" || companyRole === "management";
 
   const visibleProjects = useMemo(() => {
-    const inCompany = store.projects.filter((p) => p.companyId === effectiveCompanyId);
+    const inCompany = store.projects.filter((p) => p.companyId === effectiveCompanyId && p.status === "active");
     if (isOwner) return inCompany;
     return inCompany.filter((p) =>
       can({
@@ -67,7 +73,7 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
 
-  const companyList = useMemo(() => store.companies.filter((c) => c.id !== "co_projex"), [store.companies]);
+  const companyList = useMemo(() => store.companies.filter((c) => c.id !== "co_projex" && !c.archived), [store.companies]);
 
   // Owner landing: list companies
   if (isOwner && !selectedCompanyId) {

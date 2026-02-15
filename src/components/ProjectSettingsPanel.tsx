@@ -123,7 +123,23 @@ export default function ProjectSettingsPanel() {
                   if (!companyUsers.some((cu) => cu.id === m.userId)) return null;
                   return (
                     <Table.Tr key={`${m.projectId}:${m.userId}:${m.role}:${idx}`}>
-                      <Table.Td>{u ? `${u.name} (${u.email})` : m.userId}</Table.Td>
+                      <Table.Td>
+                          <Stack gap={4}>
+                            <Text fw={600}>{u ? u.name : m.userId}</Text>
+                            <Group gap={6}>
+                              {store.getUserProjectRoles(projectId, m.userId).map((r) => (
+                                <Badge key={r} variant="light" size="sm">
+                                  {r}
+                                </Badge>
+                              ))}
+                            </Group>
+                            {u && (
+                              <Text size="xs" c="dimmed">
+                                {u.email}
+                              </Text>
+                            )}
+                          </Stack>
+                        </Table.Td>
                       <Table.Td>{m.role}</Table.Td>
                       <Table.Td>
                         <Button

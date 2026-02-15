@@ -24,6 +24,7 @@ type AuthedRoute = "dashboard" | "workspace" | "appSettings";
 function AuthedShell(props: { onLogout: () => void }) {
   const { onLogout } = props;
   const store = useAppStore();
+  const activeCompany = useMemo(() => store.companies.find((c) => c.id === store.activeCompanyId), [store.companies, store.activeCompanyId]);
 
   const companyId = store.getUserCompanyId(store.currentUser.id) ?? store.activeCompanyId;
   const company = useMemo(() => store.companies.find((c) => c.id === companyId), [store.companies, companyId]);

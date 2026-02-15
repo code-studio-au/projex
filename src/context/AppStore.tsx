@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type {
   BudgetLine,
   Category,
@@ -68,6 +68,8 @@ type StoreState = {
   getPrimaryCompanyForUser: (userId: Id) => { companyId: Id; role: CompanyRole } | null;
   getUserCompanyId: (userId: Id) => Id | null;
   getUserCompanyRole: (userId: Id) => CompanyRole | null;
+  getUserCompanyRoles: (userId: Id) => CompanyRole[];
+  getUserProjectRoles: (projectId: Id, userId: Id) => ProjectRole[];
   getCompanyUserIds: (companyId: Id) => Id[];
   getCompanyUsers: (companyId: Id) => User[];
   addUserToCompany: (companyId: Id, name: string, email: string, role?: CompanyRole) => Id;
@@ -92,10 +94,37 @@ const companyRoleRank: Record<CompanyRole, number> = {
 };
 
 export function AppStoreProvider(props: { children: React.ReactNode }) {
+  // --- persistence
+  const PROJEX_STATE_V1 = "projex_state_v1";
+  type PersistedState = {
+    users: User[];
+    companies: Company[];
+    projects: Project[];
+    companyMemberships: CompanyMembership[];
+    projectMemberships: ProjectMembership[];
+    dataByProjectId: Record<Id, ProjectDataSlice>;
+    activeCompanyId: Id;
+    activeProjectId: Id | null;
+  };
+
+  const loadPersistedState = (): PersistedState | null => {
+    try {
+      const raw = localStorage.getItem(PROJEX_STATE_V1);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as PersistedState;
+      if (!parsed || !parsed.users || !parsed.companies || !parsed.projects) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const persisted = loadPersistedState();
+
   // --- mock auth/users
   const appOwnerUserId: Id = "u_superadmin";
 
-  const [users, setUsers] = useState<User[]>([
+  const [users, setUsers] = useState<User[]>(() => persisted?.users ?? [
     { id: appOwnerUserId, email: "owner@projex.app", name: "Super Admin" },
     { id: "u_exec", email: "exec@acme.co", name: "Ava Exec" },
     { id: "u_mgmt", email: "mgmt@acme.co", name: "Max Management" },
@@ -104,20 +133,20 @@ export function AppStoreProvider(props: { children: React.ReactNode }) {
     { id: "u_viewer", email: "viewer@globex.com", name: "Gina Viewer" },
   ]);
 
-  const [companies, setCompanies] = useState<Company[]>([
+  const [companies, setCompanies] = useState<Company[]>(() => persisted?.companies ?? [
     { id: "co_projex", name: "Projex" },
     { id: "co_acme", name: "Acme Co" },
     { id: "co_globex", name: "Globex" },
   ]);
 
-  const [projects, setProjects] = useState<Project[]>([
+  const [projects, setProjects] = useState<Project[]>(() => persisted?.projects ?? [
     { id: "prj_acme_alpha", companyId: "co_acme", name: "Alpha", currency: "AUD", status: "active" },
     { id: "prj_acme_beta", companyId: "co_acme", name: "Beta", currency: "AUD", status: "active" },
     { id: "prj_globex_ops", companyId: "co_globex", name: "Ops Modernisation", currency: "AUD", status: "active" },
   ]);
 
   // memberships: allow multiple roles
-  const [companyMemberships, setCompanyMemberships] = useState<CompanyMembership[]>([
+  const [companyMemberships, setCompanyMemberships] = useState<CompanyMembership[]>(() => persisted?.companyMemberships ?? [
     { companyId: "co_projex", userId: appOwnerUserId, role: "superadmin" },
 
     { companyId: "co_acme", userId: "u_exec", role: "executive" },
@@ -128,12 +157,10 @@ export function AppStoreProvider(props: { children: React.ReactNode }) {
     { companyId: "co_globex", userId: "u_viewer", role: "member" },
   ]);
 
-  const [projectMemberships, setProjectMemberships] = useState<ProjectMembership[]>([
+  const [projectMemberships, setProjectMemberships] = useState<ProjectMembership[]>(() => persisted?.projectMemberships ?? [
     { projectId: "prj_acme_alpha", userId: "u_lead", role: "lead" },
     { projectId: "prj_acme_alpha", userId: "u_member", role: "member" },
-
-    { projectId: "prj_acme_beta", userId: "u_lead", role: "owner" },
-
+    { projectId: "prj_acme_beta", userId: "u_member", role: "lead" },
     { projectId: "prj_globex_ops", userId: "u_viewer", role: "viewer" },
   ]);
 
@@ -157,6 +184,16 @@ export function AppStoreProvider(props: { children: React.ReactNode }) {
   const getUserCompanyId = (userId: Id): Id | null => getPrimaryCompanyForUser(userId)?.companyId ?? null;
   const getUserCompanyRole = (userId: Id): CompanyRole | null => getPrimaryCompanyForUser(userId)?.role ?? null;
 
+  const getUserCompanyRoles = (userId: Id): CompanyRole[] => {
+    const cid = getUserCompanyId(userId);
+    if (!cid) return [];
+    return companyMemberships.filter((m) => m.userId === userId && m.companyId === cid).map((m) => m.role);
+  };
+
+  const getUserProjectRoles = (projectId: Id, userId: Id): ProjectRole[] =>
+    projectMemberships.filter((m) => m.projectId === projectId && m.userId === userId).map((m) => m.role);
+
+
   const getCompanyUserIds = (companyId: Id): Id[] =>
     companyMemberships
       .filter((m) => m.companyId === companyId)
@@ -164,7 +201,7 @@ export function AppStoreProvider(props: { children: React.ReactNode }) {
 
   const getCompanyUsers = (companyId: Id): User[] => {
     const ids = new Set(getCompanyUserIds(companyId));
-    return users.filter((u) => ids.has(u.id));
+    return users.filter((u) => ids.has(u.id) && !u.disabled);
   };
 
 
@@ -189,6 +226,7 @@ const defaultCompanyId = useMemo(() => {
 
   // project data
   const [dataByProjectId, setDataByProjectId] = useState<Record<Id, ProjectDataSlice>>(() => {
+    if (persisted?.dataByProjectId) return persisted.dataByProjectId;
     const out: Record<Id, ProjectDataSlice> = {};
     for (const p of projects) {
       if (p.id === "prj_acme_alpha") out[p.id] = stampSeedToProject(p.companyId, p.id);
@@ -196,6 +234,24 @@ const defaultCompanyId = useMemo(() => {
     }
     return out;
   });
+
+  useEffect(() => {
+    try {
+      const payload: PersistedState = {
+        users,
+        companies,
+        projects,
+        companyMemberships,
+        projectMemberships,
+        dataByProjectId,
+        activeCompanyId,
+        activeProjectId,
+      };
+      localStorage.setItem(PROJEX_STATE_V1, JSON.stringify(payload));
+    } catch {
+      // ignore
+    }
+  }, [users, companies, projects, companyMemberships, projectMemberships, dataByProjectId, activeCompanyId, activeProjectId]);
 
   const getProjectData = (projectId: Id): ProjectDataSlice =>
     dataByProjectId[projectId] ?? { budgets: [], transactions: [], categories: [], subCategories: [] };
@@ -246,14 +302,7 @@ const defaultCompanyId = useMemo(() => {
   };
 
   const removeProject = (projectId: Id) => {
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
-    setProjectMemberships((prev) => prev.filter((m) => m.projectId !== projectId));
-    setDataByProjectId((prev) => {
-      const next = { ...prev };
-      delete next[projectId];
-      return next;
-    });
-    if (activeProjectId === projectId) setActiveProjectId(null);
+    setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, status: "archived" } : p)));
   };
 
   const addUser = (name: string, email: string) => {
@@ -301,7 +350,16 @@ const defaultCompanyId = useMemo(() => {
   };
 
   const removeProjectMembership = (projectId: Id, userId: Id, role: ProjectRole) => {
-    setProjectMemberships((prev) => prev.filter((m) => !(m.projectId === projectId && m.userId === userId && m.role === role)));
+    setProjectMemberships((prev) => {
+      if (role === "owner") {
+        const owners = prev.filter((m) => m.projectId === projectId && m.role === "owner");
+        if (owners.length <= 1 && owners.some((m) => m.userId === userId)) {
+          console.warn("Refusing to remove last owner for project", projectId);
+          return prev;
+        }
+      }
+      return prev.filter((m) => !(m.projectId === projectId && m.userId === userId && m.role === role));
+    });
   };
 
   const value: StoreState = {
@@ -342,6 +400,8 @@ const defaultCompanyId = useMemo(() => {
     getPrimaryCompanyForUser,
     getUserCompanyId,
     getUserCompanyRole,
+    getUserCompanyRoles,
+    getUserProjectRoles,
     getCompanyUserIds,
     getCompanyUsers,
     addUserToCompany,
