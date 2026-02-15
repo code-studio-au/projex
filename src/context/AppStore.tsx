@@ -15,6 +15,7 @@ import type {
 } from "../types";
 import { seedBudgets, seedCategories, seedSubCategories, seedTransactions } from "../data/seedData";
 import { uid } from "../utils/id";
+import { PROJEX_STATE_KEY, seedState, type PersistedStateV1 } from "../seed";
 
 export type ProjectDataSlice = {
   budgets: BudgetLine[];
@@ -73,6 +74,10 @@ type StoreState = {
   getCompanyUserIds: (companyId: Id) => Id[];
   getCompanyUsers: (companyId: Id) => User[];
   addUserToCompany: (companyId: Id, name: string, email: string, role?: CompanyRole) => Id;
+
+  // local state controls (super admin)
+  clearLocalState: () => void;
+  applySeedState: () => void;
 };
 
 const StoreCtx = createContext<StoreState | null>(null);
@@ -94,24 +99,33 @@ const companyRoleRank: Record<CompanyRole, number> = {
 };
 
 export function AppStoreProvider(props: { children: React.ReactNode }) {
-  // --- persistence
-  const PROJEX_STATE_V1 = "projex_state_v1";
-  type PersistedState = {
-    users: User[];
-    companies: Company[];
-    projects: Project[];
-    companyMemberships: CompanyMembership[];
-    projectMemberships: ProjectMembership[];
-    dataByProjectId: Record<Id, ProjectDataSlice>;
-    activeCompanyId: Id;
-    activeProjectId: Id | null;
+  // --- mock auth/users
+  const appOwnerUserId: Id = "u_superadmin";
+
+  const clearLocalState = () => {
+    try {
+      localStorage.removeItem(PROJEX_STATE_KEY);
+    } catch {
+      // ignore
+    }
+    window.location.reload();
   };
 
-  const loadPersistedState = (): PersistedState | null => {
+  const applySeedState = () => {
     try {
-      const raw = localStorage.getItem(PROJEX_STATE_V1);
+      localStorage.setItem(PROJEX_STATE_KEY, JSON.stringify(seedState));
+    } catch {
+      // ignore
+    }
+    window.location.reload();
+  };
+
+
+  const loadState = (): PersistedStateV1 | null => {
+    try {
+      const raw = localStorage.getItem(PROJEX_STATE_KEY);
       if (!raw) return null;
-      const parsed = JSON.parse(raw) as PersistedState;
+      const parsed = JSON.parse(raw) as PersistedStateV1;
       if (!parsed || !parsed.users || !parsed.companies || !parsed.projects) return null;
       return parsed;
     } catch {
@@ -119,10 +133,15 @@ export function AppStoreProvider(props: { children: React.ReactNode }) {
     }
   };
 
-  const persisted = loadPersistedState();
+  const saveState = (state: PersistedStateV1) => {
+    try {
+      localStorage.setItem(PROJEX_STATE_KEY, JSON.stringify(state));
+    } catch {
+      // ignore
+    }
+  };
 
-  // --- mock auth/users
-  const appOwnerUserId: Id = "u_superadmin";
+  const persisted = loadState();
 
   const [users, setUsers] = useState<User[]>(() => persisted?.users ?? [
     { id: appOwnerUserId, email: "owner@projex.app", name: "Super Admin" },
@@ -226,7 +245,8 @@ const defaultCompanyId = useMemo(() => {
 
   // project data
   const [dataByProjectId, setDataByProjectId] = useState<Record<Id, ProjectDataSlice>>(() => {
-    if (persisted?.dataByProjectId) return persisted.dataByProjectId;
+    if (persisted?.dataByProjectId) return persisted.dataByProjectId as any;
+    return seedState.dataByProjectId as any;
     const out: Record<Id, ProjectDataSlice> = {};
     for (const p of projects) {
       if (p.id === "prj_acme_alpha") out[p.id] = stampSeedToProject(p.companyId, p.id);
@@ -236,21 +256,17 @@ const defaultCompanyId = useMemo(() => {
   });
 
   useEffect(() => {
-    try {
-      const payload: PersistedState = {
-        users,
-        companies,
-        projects,
-        companyMemberships,
-        projectMemberships,
-        dataByProjectId,
-        activeCompanyId,
-        activeProjectId,
-      };
-      localStorage.setItem(PROJEX_STATE_V1, JSON.stringify(payload));
-    } catch {
-      // ignore
-    }
+    const payload: PersistedStateV1 = {
+      users,
+      companies,
+      projects,
+      companyMemberships,
+      projectMemberships,
+      dataByProjectId: dataByProjectId as any,
+      activeCompanyId,
+      activeProjectId,
+    };
+    saveState(payload);
   }, [users, companies, projects, companyMemberships, projectMemberships, dataByProjectId, activeCompanyId, activeProjectId]);
 
   const getProjectData = (projectId: Id): ProjectDataSlice =>
@@ -377,6 +393,9 @@ const defaultCompanyId = useMemo(() => {
 
     activeCompanyId,
     activeProjectId,
+    clearLocalState,
+    applySeedState,
+
     setActiveCompanyId: (id) => {
       setActiveCompanyId(id);
       const first = projects.find((x) => x.companyId === id);

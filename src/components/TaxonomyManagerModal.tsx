@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ActionIcon, Button, Divider, Group, Modal, Select, Stack, Text, TextInput } from "@mantine/core";
-import { IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconArrowRight } from "@tabler/icons-react";
 import type { TaxonomyHook } from "../hooks/useTaxonomy";
 
 export default function TaxonomyManagerModal(props: {
@@ -23,7 +23,7 @@ export default function TaxonomyManagerModal(props: {
             label="Add category"
             placeholder="e.g. Travel"
             value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e?.currentTarget?.value ?? "")}
+            onChange={(e) => setNewCategoryName(e.currentTarget.value)}
             style={{ flex: 1 }}
           />
           <Button
@@ -44,14 +44,13 @@ export default function TaxonomyManagerModal(props: {
         <Stack gap="lg">
           {taxonomy.categories.map((cat) => {
             const subcats = taxonomy.subCategories.filter((s) => s.categoryId === cat.id);
-
             return (
               <Stack key={cat.id} gap="xs">
                 <Group justify="space-between" align="flex-end">
                   <TextInput
                     label="Category"
                     value={cat.name}
-                    onChange={(e) => taxonomy.renameCategory(cat.id, e?.currentTarget?.value ?? "")}
+                    onChange={(e) => taxonomy.renameCategory(cat.id, e.currentTarget.value)}
                     style={{ flex: 1 }}
                   />
                   <ActionIcon
@@ -59,12 +58,7 @@ export default function TaxonomyManagerModal(props: {
                     variant="subtle"
                     title="Delete category"
                     onClick={() => {
-                      if (
-                        !confirm(
-                          `Delete category "${cat.name}"? This will remove its subcategories and un-code affected transactions.`
-                        )
-                      )
-                        return;
+                      if (!confirm(`Delete category "${cat.name}"? This will remove its subcategories and un-code affected transactions.`)) return;
                       taxonomy.deleteCategory(cat.id);
                     }}
                   >
@@ -77,10 +71,9 @@ export default function TaxonomyManagerModal(props: {
                     label="Add subcategory"
                     placeholder="e.g. Flights"
                     value={newSubNameByCat[cat.id] ?? ""}
-                    onChange={(e) => {
-                      const v = e?.currentTarget?.value ?? "";
-                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: v }));
-                    }}
+                    onChange={(e) =>
+                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: e.currentTarget.value }))
+                    }
                     style={{ flex: 1 }}
                   />
                   <Button
@@ -111,27 +104,22 @@ export default function TaxonomyManagerModal(props: {
                           onChange={(e) => taxonomy.renameSubCategory(sc.id, e?.currentTarget?.value ?? "")}
                           style={{ flex: 1 }}
                         />
-
                         <Select
                           label="Move to"
                           data={categoryOptions}
                           value={sc.categoryId}
-                          onChange={(nextCategoryId) => {
-                            if (!nextCategoryId || nextCategoryId === sc.categoryId) return;
-
-                            // ✅ This should MOVE the subcategory, not rename it
-                            taxonomy.moveSubCategory(sc.id, nextCategoryId);
+                          onChange={(v) => {
+                            if (!v || v === sc.categoryId) return;
+                            taxonomy.moveSubCategory(sc.id, v);
                           }}
                           style={{ width: 220 }}
                         />
-
                         <ActionIcon
                           color="red"
                           variant="subtle"
                           title="Delete subcategory"
                           onClick={() => {
-                            if (!confirm(`Delete subcategory "${sc.name}"? Transactions coded to it will become uncoded.`))
-                              return;
+                            if (!confirm(`Delete subcategory "${sc.name}"? Transactions coded to it will become uncoded.`)) return;
                             taxonomy.deleteSubCategory(sc.id);
                           }}
                         >
