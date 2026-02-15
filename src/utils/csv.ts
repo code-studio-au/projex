@@ -1,4 +1,6 @@
 import type { ImportTxn, Txn } from "../types";
+
+type UnscopedTxn = Omit<Txn, "companyId" | "projectId">;
 import { uid } from "./id";
 
 /**
@@ -165,12 +167,12 @@ export function deriveStableTxnId(
 export function finalizeImportTxns(
   importTxns: ImportTxn[],
   opts?: { existingIds?: Set<string>; skipDuplicates?: boolean }
-): { txns: Txn[]; skipped: number } {
+): { txns: UnscopedTxn[]; skipped: number } {
   const existingIds = opts?.existingIds ?? new Set<string>();
   const skipDuplicates = opts?.skipDuplicates ?? true;
 
   const seen = new Map<string, number>();
-  const out: Txn[] = [];
+  const out: UnscopedTxn[] = [];
   let skipped = 0;
 
   for (const t of importTxns) {

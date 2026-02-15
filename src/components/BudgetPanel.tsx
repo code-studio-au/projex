@@ -11,8 +11,9 @@ export default function BudgetPanel(props: {
   budgets: BudgetsHook;
   taxonomy: TaxonomyHook;
   uncodedSummary: { count: number; amount: number };
+  readOnly?: boolean;
 }) {
-  const { rollups, budgets, taxonomy, uncodedSummary } = props;
+  const { rollups, budgets, taxonomy, uncodedSummary, readOnly = false } = props;
 
   const [collapsedYears, setCollapsedYears] = useState<Set<number>>(() => new Set());
   const [collapsedQuarters, setCollapsedQuarters] = useState<Set<string>>(() => new Set());
@@ -182,6 +183,7 @@ export default function BudgetPanel(props: {
             fixedDecimalScale
             hideControls
             classNames={{ input: "table-number-input" }}
+            disabled={readOnly}
             onChange={(val) => budgets.updateAllocated(row.original.id, Number(val ?? 0))}
           />
         ),

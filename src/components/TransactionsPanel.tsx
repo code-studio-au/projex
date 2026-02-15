@@ -15,6 +15,7 @@ export default function TransactionsPanel(props: {
   showUncodedOnly: boolean;
   setShowUncodedOnly: (v: boolean) => void;
   uncodedSummary: { count: number; amount: number };
+  readOnly?: boolean;
 }) {
   const {
     txns,
@@ -25,6 +26,7 @@ export default function TransactionsPanel(props: {
     showUncodedOnly,
     setShowUncodedOnly,
     uncodedSummary,
+    readOnly = false,
   } = props;
 
   const [manageOpen, setManageOpen] = useState(false);
@@ -53,7 +55,7 @@ export default function TransactionsPanel(props: {
         id: "category",
         header: "Category",
         size: 220,
-        enableEditing: true,
+        enableEditing: !readOnly,
         Edit: ({ row }) => {
           const current = row.original.categoryId ?? null;
           return (
@@ -63,6 +65,7 @@ export default function TransactionsPanel(props: {
               placeholder="Select category"
               searchable
               clearable
+              disabled={readOnly}
               onChange={(v) => {
                 txns.updateTxn(row.original.id, { categoryId: v ?? undefined, subCategoryId: undefined });
               }}
@@ -78,7 +81,7 @@ export default function TransactionsPanel(props: {
         id: "subCategory",
         header: "Subcategory",
         size: 260,
-        enableEditing: true,
+        enableEditing: !readOnly,
         Edit: ({ row }) => {
           const catId = row.original.categoryId;
           const options = catId ? taxonomy.subCategoryOptionsForCategory(catId) : [];
@@ -90,7 +93,7 @@ export default function TransactionsPanel(props: {
               placeholder={catId ? "Select subcategory" : "Pick category first"}
               searchable
               clearable
-              disabled={!catId}
+              disabled={!catId || readOnly}
               onChange={(v) => {
                 txns.updateTxn(row.original.id, { subCategoryId: v ?? undefined });
               }}
@@ -145,7 +148,7 @@ export default function TransactionsPanel(props: {
               value={showUncodedOnly ? "uncoded" : "all"}
               onChange={(v) => setShowUncodedOnly(v === "uncoded")}
             />
-            <Button variant="light" onClick={() => setManageOpen(true)}>
+            <Button variant="light" disabled={readOnly} onClick={() => setManageOpen(true)}>
               Manage categories
             </Button>
           </Group>
@@ -161,7 +164,7 @@ export default function TransactionsPanel(props: {
       <MantineReactTable
         columns={txnColumns}
         data={filteredTxns}
-        enableEditing
+        enableEditing={!readOnly}
         editDisplayMode="cell"
         enableColumnResizing
         enableSorting

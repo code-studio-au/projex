@@ -5,14 +5,35 @@ import type { BudgetsHook } from "./useBudgets";
 import type { TransactionsHook } from "./useTransactions";
 
 export function useTaxonomy(params: {
-  initialCategories: Category[];
-  initialSubCategories: SubCategory[];
+  initialCategories?: Category[];
+  initialSubCategories?: SubCategory[];
+  valueCategories?: Category[];
+  valueSubCategories?: SubCategory[];
+  onChangeCategories?: (next: Category[]) => void;
+  onChangeSubCategories?: (next: SubCategory[]) => void;
+  companyId?: Id;
+  projectId?: Id;
   budgets: BudgetsHook;
   txns: TransactionsHook;
 }){
-  const { initialCategories, initialSubCategories, budgets, txns } = params;
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [subCategories, setSubCategories] = useState<SubCategory[]>(initialSubCategories);
+  const { initialCategories = [], initialSubCategories = [], budgets, txns } = params;
+  const [innerCats, setInnerCats] = useState<Category[]>(initialCategories);
+  const [innerSubs, setInnerSubs] = useState<SubCategory[]>(initialSubCategories);
+
+  const categories = params.valueCategories ?? innerCats;
+  const subCategories = params.valueSubCategories ?? innerSubs;
+
+  const setCategories = (next: Category[] | ((prev: Category[]) => Category[])) => {
+    const compute = typeof next === "function" ? (next as (p: Category[]) => Category[])(categories) : next;
+    if (params.onChangeCategories) params.onChangeCategories(compute);
+    else setInnerCats(compute);
+  };
+
+  const setSubCategories = (next: SubCategory[] | ((prev: SubCategory[]) => SubCategory[])) => {
+    const compute = typeof next === "function" ? (next as (p: SubCategory[]) => SubCategory[])(subCategories) : next;
+    if (params.onChangeSubCategories) params.onChangeSubCategories(compute);
+    else setInnerSubs(compute);
+  };
 
   const categoryOptions = useMemo(
     () => categories.map((c) => ({ value: c.id, label: c.name })).sort((a, b) => a.label.localeCompare(b.label)),
@@ -36,7 +57,7 @@ export function useTaxonomy(params: {
   const addCategory = (name: string): Id | null => {
     const trimmed = name.trim();
     if (!trimmed) return null;
-    const c: Category = { id: uid(), name: trimmed };
+    const c: Category = { id: uid(), companyId: params.companyId ?? "unknown", projectId: params.projectId ?? "unknown", name: trimmed };
     setCategories((prev) => [...prev, c]);
     return c.id;
   };
@@ -50,7 +71,7 @@ export function useTaxonomy(params: {
   const addSubCategory = (categoryId: Id, name: string): Id | null => {
     const trimmed = name.trim();
     if (!trimmed) return null;
-    const sc: SubCategory = { id: uid(), categoryId, name: trimmed };
+    const sc: SubCategory = { id: uid(), companyId: params.companyId ?? "unknown", projectId: params.projectId ?? "unknown", categoryId, name: trimmed };
     setSubCategories((prev) => [...prev, sc]);
     budgets.upsertBudgetForSubCategory(sc.id, categoryId);
     return sc.id;

@@ -13,10 +13,13 @@ import { parseCsv, rowsToImportTxns, finalizeImportTxns } from "../utils/csv";
 export default function CsvImporterPanel(props: {
   taxonomy: TaxonomyHook;
   existingTxns: Txn[];
+  companyId: string;
+  projectId: string;
+  canEditTaxonomy: boolean;
   onAppend: (txns: Txn[]) => void;
   onReplaceAll: (txns: Txn[]) => void;
 }) {
-  const { taxonomy, existingTxns, onAppend, onReplaceAll } = props;
+  const { taxonomy, existingTxns, companyId, projectId, canEditTaxonomy, onAppend, onReplaceAll } = props;
 
   const [file, setFile] = useState<File | null>(null);
   const [csvText, setCsvText] = useState("");
@@ -134,6 +137,7 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
             <Switch
               label="Auto-create missing categories/subcategories"
               checked={autoCreate}
+              disabled={!canEditTaxonomy}
               onChange={(e) => setAutoCreate(e.currentTarget.checked)}
             />
             <Switch
@@ -158,6 +162,7 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
             </Text>
            <Group>
 <Button
+  disabled={!importTxns.length}
   onClick={() => {
     const mapped = applyMapping();
 
@@ -166,7 +171,7 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
       skipDuplicates,
     });
 
-    onAppend(txns);
+    onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
 
     if (skipped > 0) alert(`Skipped ${skipped} duplicate(s).`);
   }}
@@ -184,7 +189,7 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
       skipDuplicates: false,
     });
 
-    onReplaceAll(txns);
+    onReplaceAll(txns.map((t) => ({ ...t, companyId, projectId })));
   }}
   disabled={!importTxns.length}
 >

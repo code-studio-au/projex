@@ -4,7 +4,13 @@
 
 import type { Category, SubCategory, Txn, BudgetLine } from "../types";
 
-export const seedCategories: Category[] = [
+type SeedCategory = Omit<Category, "companyId" | "projectId">;
+type SeedSubCategory = Omit<SubCategory, "companyId" | "projectId">;
+type SeedBudgetLine = Omit<BudgetLine, "companyId" | "projectId">;
+type SeedTxn = Omit<Txn, "companyId" | "projectId">;
+
+
+export const seedCategories: SeedCategory[] = [
   { id: "cat_travel", name: "Travel" },
   { id: "cat_meals", name: "Meals" },
   { id: "cat_transport", name: "Transport" },
@@ -14,7 +20,7 @@ export const seedCategories: Category[] = [
   { id: "cat_ops", name: "Operations" },
 ];
 
-export const seedSubCategories: SubCategory[] = [
+export const seedSubCategories: SeedSubCategory[] = [
   { id: "sub_travel_flights", categoryId: "cat_travel", name: "Flights" },
   { id: "sub_travel_accom", categoryId: "cat_travel", name: "Accommodation" },
   { id: "sub_travel_ground", categoryId: "cat_travel", name: "Ground transport" },
@@ -37,7 +43,7 @@ export const seedSubCategories: SubCategory[] = [
   { id: "sub_ops_events", categoryId: "cat_ops", name: "Events" },
 ];
 
-export const seedBudgets: BudgetLine[] = [
+export const seedBudgets: SeedBudgetLine[] = [
   { id: "b001", categoryId: "cat_travel", subCategoryId: "sub_travel_flights", allocated: 7000 },
   { id: "b002", categoryId: "cat_travel", subCategoryId: "sub_travel_accom", allocated: 7000 },
   { id: "b003", categoryId: "cat_travel", subCategoryId: "sub_travel_ground", allocated: 7000 },
@@ -60,7 +66,7 @@ export const seedBudgets: BudgetLine[] = [
   { id: "b020", categoryId: "cat_ops", subCategoryId: "sub_ops_events", allocated: 6000 },
 ];
 
-export const seedTransactions: Txn[] = [
+export const seedTransactions: SeedTxn[] = [
   {
     id: "EXP-202407-1000000",
     date: "2024-07-24",

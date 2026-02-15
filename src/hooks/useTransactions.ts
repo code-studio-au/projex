@@ -3,9 +3,16 @@ import type { Id, Txn } from "../types";
 import { uid } from "../utils/id";
 import { parseISODate, monthKeyFromStart, monthStart } from "../utils/finance";
 
-export function useTransactions(initial: Txn[]) {
+export function useTransactions(params: { initial?: Txn[]; value?: Txn[]; onChange?: (next: Txn[]) => void }) {
 
-  const [transactions, setTransactions] = useState<Txn[]>(initial);
+  const [inner, setInner] = useState<Txn[]>(params.initial ?? []);
+
+  const transactions = params.value ?? inner;
+  const setTransactions = (next: Txn[] | ((prev: Txn[]) => Txn[])) => {
+    const compute = typeof next === "function" ? (next as (p: Txn[]) => Txn[])(transactions) : next;
+    if (params.onChange) params.onChange(compute);
+    else setInner(compute);
+  };
 
   const updateTxn = (id: Id, patch: Partial<Txn>) => {
     setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
