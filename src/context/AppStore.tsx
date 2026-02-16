@@ -13,7 +13,7 @@ import type {
   Txn,
   User,
 } from "../types";
-import { seedBudgets, seedCategories, seedSubCategories, seedTransactions } from "../data/seedData";
+import { seedBudgets, seedCategories, seedSubCategories, seedTransactions } from "../seed/fixtures/concurSeedData";
 import { uid } from "../utils/id";
 import { PROJEX_STATE_KEY, seedState, type PersistedStateV1 } from "../seed";
 

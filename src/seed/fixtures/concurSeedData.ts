@@ -2,7 +2,7 @@
 // Date range: 2024 Q3 (Jul 2024) through 2026 Q2 (Jun 2026)
 // Most transactions are coded to a category/subcategory; some are intentionally left uncoded.
 
-import type { Category, SubCategory, Txn, BudgetLine } from "../types";
+import type { Category, SubCategory, Txn, BudgetLine } from "../../types";
 
 type SeedCategory = Omit<Category, "companyId" | "projectId">;
 type SeedSubCategory = Omit<SubCategory, "companyId" | "projectId">;
