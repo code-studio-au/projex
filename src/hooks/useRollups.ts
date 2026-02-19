@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo } from 'react';
 
 /**
  * Rollup computations for budgets vs actuals.
@@ -10,9 +10,15 @@ import { useMemo } from "react";
  * implementation later (TanStack Start server functions / SQL rollups),
  * while preserving the same UI contract.
  */
-import type { BudgetLine, RollupRow, SubCategoryId, Txn } from "../types";
-import { monthKeyFromStart, monthStart, nextMonthStart, parseISODate, sum } from "../utils/finance";
-import type { TaxonomyHook } from "./useTaxonomy";
+import type { BudgetLine, RollupRow, SubCategoryId, Txn } from '../types';
+import {
+  monthKeyFromStart,
+  monthStart,
+  nextMonthStart,
+  parseISODate,
+  sum,
+} from '../utils/finance';
+import type { TaxonomyHook } from './useTaxonomy';
 
 /**
  * Parses a month key used in the UI ("YYYY-MM") into a Date.
@@ -66,12 +72,21 @@ export function useRollups(params: {
     return [monthStart(parseMonthKeyToDate(monthFilterKey))];
   }, [monthStarts, monthFilterKey]);
 
-  const visibleMonthKeys = useMemo(() => visibleMonthStarts.map(monthKeyFromStart), [visibleMonthStarts]);
+  const visibleMonthKeys = useMemo(
+    () => visibleMonthStarts.map(monthKeyFromStart),
+    [visibleMonthStarts]
+  );
 
-  const validSubIds = useMemo(() => new Set<SubCategoryId>(taxonomy.subCategories.map((s) => s.id)), [taxonomy.subCategories]);
+  const validSubIds = useMemo(
+    () => new Set<SubCategoryId>(taxonomy.subCategories.map((s) => s.id)),
+    [taxonomy.subCategories]
+  );
 
   const codedTxns = useMemo(
-    () => transactions.filter((t) => t.subCategoryId && validSubIds.has(t.subCategoryId)),
+    () =>
+      transactions.filter(
+        (t) => t.subCategoryId && validSubIds.has(t.subCategoryId)
+      ),
     [transactions, validSubIds]
   );
 

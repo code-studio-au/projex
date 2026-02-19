@@ -1,9 +1,24 @@
-import React, { useMemo, useState } from "react";
-import { Badge, Button, Container, Group, Paper, Select, Stack, Table, Text, TextInput, Title } from "@mantine/core";
-import { useAppStore } from "../context/AppStore";
-import { can } from "../utils/auth";
+import React, { useMemo, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Container,
+  Group,
+  Paper,
+  Select,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
+import { useAppStore } from '../context/AppStore';
+import { can } from '../utils/auth';
 
-export default function CompanySettingsPage(props: { onBack: () => void; onOpenProjectSettings: () => void }) {
+export default function CompanySettingsPage(props: {
+  onBack: () => void;
+  onOpenProjectSettings: () => void;
+}) {
   const { onBack, onOpenProjectSettings } = props;
   const store = useAppStore();
 
@@ -12,19 +27,33 @@ export default function CompanySettingsPage(props: { onBack: () => void; onOpenP
   const canManageProjects = can({
     userId: store.currentUser.id,
     companyId: store.activeCompanyId,
-    action: "project:edit",
+    action: 'project:edit',
     companyMemberships: store.companyMemberships,
     projectMemberships: store.projectMemberships,
   });
 
-  const projects = useMemo(() => store.projects.filter((p) => p.companyId === store.activeCompanyId), [store.projects, store.activeCompanyId]);
+  const projects = useMemo(
+    () => store.projects.filter((p) => p.companyId === store.activeCompanyId),
+    [store.projects, store.activeCompanyId]
+  );
 
-  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectName, setNewProjectName] = useState('');
 
   // assign lead
-  const userOptions = useMemo(() => store.users.map((u) => ({ value: u.id, label: `${u.name} (${u.email})` })), [store.users]);
-  const [leadProjectId, setLeadProjectId] = useState<string | null>(store.activeProjectId);
-  const [leadUserId, setLeadUserId] = useState<string | null>(store.currentUser.id);
+  const userOptions = useMemo(
+    () =>
+      store.users.map((u) => ({
+        value: u.id,
+        label: `${u.name} (${u.email})`,
+      })),
+    [store.users]
+  );
+  const [leadProjectId, setLeadProjectId] = useState<string | null>(
+    store.activeProjectId
+  );
+  const [leadUserId, setLeadUserId] = useState<string | null>(
+    store.currentUser.id
+  );
 
   return (
     <Container size="xl" py={24}>
@@ -33,7 +62,8 @@ export default function CompanySettingsPage(props: { onBack: () => void; onOpenP
           <Stack gap={2}>
             <Title order={3}>Company settings</Title>
             <Text c="dimmed" size="sm">
-              {company?.name ?? store.activeCompanyId} • create projects and assign project leads
+              {company?.name ?? store.activeCompanyId} • create projects and
+              assign project leads
             </Text>
           </Stack>
           <Group gap="sm">
@@ -47,8 +77,8 @@ export default function CompanySettingsPage(props: { onBack: () => void; onOpenP
           <Stack gap="sm">
             <Group justify="space-between">
               <Title order={5}>Create project</Title>
-              <Badge variant="light" color={canManageProjects ? "gray" : "red"}>
-                {canManageProjects ? "Allowed" : "Not allowed"}
+              <Badge variant="light" color={canManageProjects ? 'gray' : 'red'}>
+                {canManageProjects ? 'Allowed' : 'Not allowed'}
               </Badge>
             </Group>
             <TextInput
@@ -64,7 +94,7 @@ export default function CompanySettingsPage(props: { onBack: () => void; onOpenP
                 if (!name) return;
                 const id = store.addProject(store.activeCompanyId, name);
                 store.setActiveProjectId(id);
-                setNewProjectName("");
+                setNewProjectName('');
               }}
             >
               Create project
@@ -96,12 +126,20 @@ export default function CompanySettingsPage(props: { onBack: () => void; onOpenP
                 disabled={!canManageProjects || !leadProjectId || !leadUserId}
                 onClick={() => {
                   if (!leadProjectId || !leadUserId) return;
-                  store.upsertProjectMembership(leadProjectId, leadUserId, "lead");
+                  store.upsertProjectMembership(
+                    leadProjectId,
+                    leadUserId,
+                    'lead'
+                  );
                 }}
               >
                 Make lead
               </Button>
-              <Button variant="light" onClick={onOpenProjectSettings} disabled={!store.activeProjectId}>
+              <Button
+                variant="light"
+                onClick={onOpenProjectSettings}
+                disabled={!store.activeProjectId}
+              >
                 Project settings →
               </Button>
             </Group>
@@ -125,9 +163,17 @@ export default function CompanySettingsPage(props: { onBack: () => void; onOpenP
               <Table.Tbody>
                 {projects.map((p) => {
                   const leads = store.projectMemberships
-                    .filter((m) => m.projectId === p.id && (m.role === "lead" || m.role === "owner"))
-                    .map((m) => store.users.find((u) => u.id === m.userId)?.name ?? m.userId)
-                    .join(", ");
+                    .filter(
+                      (m) =>
+                        m.projectId === p.id &&
+                        (m.role === 'lead' || m.role === 'owner')
+                    )
+                    .map(
+                      (m) =>
+                        store.users.find((u) => u.id === m.userId)?.name ??
+                        m.userId
+                    )
+                    .join(', ');
                   return (
                     <Table.Tr key={p.id}>
                       <Table.Td>{p.name}</Table.Td>

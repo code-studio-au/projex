@@ -1,6 +1,6 @@
-import React from "react";
-import { Button, Group, Paper, Stack, Text } from "@mantine/core";
-import { useAppStore } from "../../context/AppStore";
+import React from 'react';
+import { Button, Group, Paper, Stack, Text } from '@mantine/core';
+import { useAppStore } from '../../context/AppStore';
 
 export default function AppTab() {
   const store = useAppStore();
@@ -10,7 +10,8 @@ export default function AppTab() {
         <Stack gap="xs">
           <Text fw={600}>Local state</Text>
           <Text size="sm" c="dimmed">
-            These buttons wipe or reset your localStorage state. Useful during development.
+            These buttons wipe or reset your localStorage state. Useful during
+            development.
           </Text>
           <Group>
             <Button color="red" variant="light" onClick={store.clearLocalState}>

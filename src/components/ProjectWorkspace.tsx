@@ -1,16 +1,25 @@
-import React, { useMemo, useState } from "react";
-import { Badge, Group, Paper, Stack, Tabs, Text, Title, Select } from "@mantine/core";
-import TransactionsPanel from "./TransactionsPanel";
-import BudgetPanel from "./BudgetPanel";
-import CsvImporterPanel from "./CsvImporterPanel";
-import ProjectSettingsPanel from "./ProjectSettingsPanel";
-import { useAppStore } from "../context/AppStore";
-import { useBudgets } from "../hooks/useBudgets";
-import { useTransactions } from "../hooks/useTransactions";
-import { useTaxonomy } from "../hooks/useTaxonomy";
-import { useRollups } from "../hooks/useRollups";
-import { currency } from "../utils/finance";
-import { can } from "../utils/auth";
+import React, { useMemo, useState } from 'react';
+import {
+  Badge,
+  Group,
+  Paper,
+  Stack,
+  Tabs,
+  Text,
+  Title,
+  Select,
+} from '@mantine/core';
+import TransactionsPanel from './TransactionsPanel';
+import BudgetPanel from './BudgetPanel';
+import CsvImporterPanel from './CsvImporterPanel';
+import ProjectSettingsPanel from './ProjectSettingsPanel';
+import { useAppStore } from '../context/AppStore';
+import { useBudgets } from '../hooks/useBudgets';
+import { useTransactions } from '../hooks/useTransactions';
+import { useTaxonomy } from '../hooks/useTaxonomy';
+import { useRollups } from '../hooks/useRollups';
+import { currency } from '../utils/finance';
+import { can } from '../utils/auth';
 
 export default function ProjectWorkspace() {
   const store = useAppStore();
@@ -48,8 +57,10 @@ export default function ProjectWorkspace() {
     projectId,
     valueCategories: data.categories,
     valueSubCategories: data.subCategories,
-    onChangeCategories: (next) => store.setProjectData(projectId, { categories: next }),
-    onChangeSubCategories: (next) => store.setProjectData(projectId, { subCategories: next }),
+    onChangeCategories: (next) =>
+      store.setProjectData(projectId, { categories: next }),
+    onChangeSubCategories: (next) =>
+      store.setProjectData(projectId, { subCategories: next }),
     budgets,
     txns,
   });
@@ -68,20 +79,23 @@ export default function ProjectWorkspace() {
     () =>
       rollups.monthStarts.map((d) => {
         const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const m = String(d.getMonth() + 1).padStart(2, '0');
         const mk = `${y}-${m}`;
         return { value: mk, label: mk };
       }),
     [rollups.monthStarts]
   );
 
-  const uncoded = useMemo(() => txns.getUncodedSummary(taxonomy.validSubIds), [txns, taxonomy.validSubIds]);
+  const uncoded = useMemo(
+    () => txns.getUncodedSummary(taxonomy.validSubIds),
+    [txns, taxonomy.validSubIds]
+  );
 
   const canProjectEdit = can({
     userId: store.currentUser.id,
     companyId: store.activeCompanyId,
     projectId,
-    action: "project:edit",
+    action: 'project:edit',
     companyMemberships: store.companyMemberships,
     projectMemberships: store.projectMemberships,
   });
@@ -90,7 +104,7 @@ export default function ProjectWorkspace() {
     userId: store.currentUser.id,
     companyId: store.activeCompanyId,
     projectId,
-    action: "project:import",
+    action: 'project:import',
     companyMemberships: store.companyMemberships,
     projectMemberships: store.projectMemberships,
   });
@@ -99,7 +113,7 @@ export default function ProjectWorkspace() {
     userId: store.currentUser.id,
     companyId: store.activeCompanyId,
     projectId,
-    action: "budget:edit",
+    action: 'budget:edit',
     companyMemberships: store.companyMemberships,
     projectMemberships: store.projectMemberships,
   });
@@ -109,7 +123,7 @@ export default function ProjectWorkspace() {
       <Group justify="space-between" align="flex-end">
         <Stack gap={2}>
           <Title order={3}>
-            {company?.name ?? "Company"} • {project?.name ?? "Project"}
+            {company?.name ?? 'Company'} • {project?.name ?? 'Project'}
           </Title>
           <Text c="dimmed" size="sm">
             Project workspace (transactions, budgets, import)
@@ -117,7 +131,11 @@ export default function ProjectWorkspace() {
         </Stack>
 
         <Group gap="sm">
-          <Badge size="lg" variant="light" color={uncoded.count ? "red" : "gray"}>
+          <Badge
+            size="lg"
+            variant="light"
+            color={uncoded.count ? 'red' : 'gray'}
+          >
             Uncoded: {uncoded.count} ({currency(uncoded.amount)})
           </Badge>
         </Group>
@@ -145,7 +163,16 @@ export default function ProjectWorkspace() {
               showUncodedOnly={showUncodedOnly}
               setShowUncodedOnly={setShowUncodedOnly}
               uncodedSummary={uncoded}
-              readOnly={!can({ userId: store.currentUser.id, companyId: store.activeCompanyId, projectId, action: "txns:edit", companyMemberships: store.companyMemberships, projectMemberships: store.projectMemberships })}
+              readOnly={
+                !can({
+                  userId: store.currentUser.id,
+                  companyId: store.activeCompanyId,
+                  projectId,
+                  action: 'txns:edit',
+                  companyMemberships: store.companyMemberships,
+                  projectMemberships: store.projectMemberships,
+                })
+              }
             />
           </Tabs.Panel>
 
@@ -164,16 +191,22 @@ export default function ProjectWorkspace() {
               existingTxns={txns.transactions}
               companyId={store.activeCompanyId}
               projectId={projectId}
-              canEditTaxonomy={can({ userId: store.currentUser.id, companyId: store.activeCompanyId, projectId, action: "taxonomy:edit", companyMemberships: store.companyMemberships, projectMemberships: store.projectMemberships })}
+              canEditTaxonomy={can({
+                userId: store.currentUser.id,
+                companyId: store.activeCompanyId,
+                projectId,
+                action: 'taxonomy:edit',
+                companyMemberships: store.companyMemberships,
+                projectMemberships: store.projectMemberships,
+              })}
               onReplaceAll={(next) => txns.replaceAll(next)}
               onAppend={(next) => txns.appendMany(next)}
             />
           </Tabs.Panel>
-        
+
           <Tabs.Panel value="settings" pt="md">
             <ProjectSettingsPanel />
           </Tabs.Panel>
-
         </Tabs>
       </Paper>
     </Stack>

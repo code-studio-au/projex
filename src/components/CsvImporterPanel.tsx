@@ -1,8 +1,22 @@
-import React, { useMemo, useState } from "react";
-import { Button, FileInput, Group, Paper, Stack, Switch, Text, Textarea } from "@mantine/core";
-import type { CompanyId, ImportTxnWithTaxonomy, ProjectId, Txn } from "../types";
-import type { TaxonomyHook } from "../hooks/useTaxonomy";
-import { parseCsv, rowsToImportTxns, finalizeImportTxns } from "../utils/csv";
+import React, { useMemo, useState } from 'react';
+import {
+  Button,
+  FileInput,
+  Group,
+  Paper,
+  Stack,
+  Switch,
+  Text,
+  Textarea,
+} from '@mantine/core';
+import type {
+  CompanyId,
+  ImportTxnWithTaxonomy,
+  ProjectId,
+  Txn,
+} from '../types';
+import type { TaxonomyHook } from '../hooks/useTaxonomy';
+import { parseCsv, rowsToImportTxns, finalizeImportTxns } from '../utils/csv';
 
 /**
  * CSV Import panel.
@@ -29,17 +43,27 @@ export default function CsvImporterPanel(props: {
   onAppend: (txns: Txn[]) => void;
   onReplaceAll: (txns: Txn[]) => void;
 }) {
-  const { taxonomy, existingTxns, companyId, projectId, canEditTaxonomy, onAppend, onReplaceAll } = props;
+  const {
+    taxonomy,
+    existingTxns,
+    companyId,
+    projectId,
+    canEditTaxonomy,
+    onAppend,
+    onReplaceAll,
+  } = props;
 
   const [file, setFile] = useState<File | null>(null);
-  const [csvText, setCsvText] = useState("");
+  const [csvText, setCsvText] = useState('');
   const [autoCreate, setAutoCreate] = useState(true);
 
   const [previewCount, setPreviewCount] = useState<number | null>(null);
 
   const [skipDuplicates, setSkipDuplicates] = useState(true);
-const existingIds = useMemo(() => new Set(existingTxns.map((t) => t.id)), [existingTxns]);
-
+  const existingIds = useMemo(
+    () => new Set(existingTxns.map((t) => t.id)),
+    [existingTxns]
+  );
 
   const exampleCsv = `id,date,item,description,amount,category,subcategory
 EXP-1002345,2024-01-08,Uber,Taxi from airport to hotel,-46.80,Transport,Rideshare
@@ -70,18 +94,20 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
   const applyMapping = () => {
     // map category/subcategory names to IDs
     // if autoCreate: create missing taxonomy entries
-    const catByName = new Map(taxonomy.categories.map((c) => [c.name.trim().toLowerCase(), c]));
+    const catByName = new Map(
+      taxonomy.categories.map((c) => [c.name.trim().toLowerCase(), c])
+    );
     const subByKey = new Map(
       taxonomy.subCategories.map((s) => {
         const cat = taxonomy.categories.find((c) => c.id === s.categoryId);
-        const key = `${(cat?.name ?? "").trim().toLowerCase()}|||${s.name.trim().toLowerCase()}`;
+        const key = `${(cat?.name ?? '').trim().toLowerCase()}|||${s.name.trim().toLowerCase()}`;
         return [key, s] as const;
       })
     );
 
     const mapped = importTxns.map((t) => {
-      const catName = String(t.category ?? "").trim();
-      const subName = String(t.subcategory ?? "").trim();
+      const catName = String(t.category ?? '').trim();
+      const subName = String(t.subcategory ?? '').trim();
 
       let categoryId: string | undefined;
       let subCategoryId: string | undefined;
@@ -129,7 +155,8 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
         <Stack gap="sm">
           <Text fw={600}>CSV Import</Text>
           <Text size="sm" c="dimmed">
-            Supports headers: date,item,description,amount,(optional) category, subcategory
+            Supports headers: date,item,description,amount,(optional) category,
+            subcategory
           </Text>
 
           <Group align="flex-end">
@@ -151,11 +178,10 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
               onChange={(e) => setAutoCreate(e.currentTarget.checked)}
             />
             <Switch
-  label="Skip duplicates (stable IDs)"
-  checked={skipDuplicates}
-  onChange={(e) => setSkipDuplicates(e.currentTarget.checked)}
-/>
-
+              label="Skip duplicates (stable IDs)"
+              checked={skipDuplicates}
+              onChange={(e) => setSkipDuplicates(e.currentTarget.checked)}
+            />
           </Group>
 
           <Textarea
@@ -170,50 +196,52 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
             <Text size="sm" c="dimmed">
               Preview rows: {previewCount ?? 0}
             </Text>
-           <Group>
-<Button
-  disabled={!importTxns.length}
-  onClick={() => {
-    const mapped = applyMapping();
+            <Group>
+              <Button
+                disabled={!importTxns.length}
+                onClick={() => {
+                  const mapped = applyMapping();
 
-    const { txns, skipped } = finalizeImportTxns(mapped, {
-      existingIds,
-      skipDuplicates,
-    });
+                  const { txns, skipped } = finalizeImportTxns(mapped, {
+                    existingIds,
+                    skipDuplicates,
+                  });
 
-    onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
+                  onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
 
-    if (skipped > 0) alert(`Skipped ${skipped} duplicate(s).`);
-  }}
->
-  Append
-</Button>
-<Button
-  color="red"
-  onClick={() => {
-    if (!confirm("Replace ALL transactions with imported CSV?")) return;
+                  if (skipped > 0) alert(`Skipped ${skipped} duplicate(s).`);
+                }}
+              >
+                Append
+              </Button>
+              <Button
+                color="red"
+                onClick={() => {
+                  if (!confirm('Replace ALL transactions with imported CSV?'))
+                    return;
 
-    const mapped = applyMapping();
+                  const mapped = applyMapping();
 
-    const { txns } = finalizeImportTxns(mapped, {
-      skipDuplicates: false,
-    });
+                  const { txns } = finalizeImportTxns(mapped, {
+                    skipDuplicates: false,
+                  });
 
-    onReplaceAll(txns.map((t) => ({ ...t, companyId, projectId })));
-  }}
-  disabled={!importTxns.length}
->
-  Replace all
-</Button>
-
-</Group>
+                  onReplaceAll(
+                    txns.map((t) => ({ ...t, companyId, projectId }))
+                  );
+                }}
+                disabled={!importTxns.length}
+              >
+                Replace all
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </Paper>
 
       <Paper withBorder radius="md" p="md">
         <Text fw={600}>Example CSV</Text>
-        <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{exampleCsv}</pre>
+        <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{exampleCsv}</pre>
       </Paper>
     </Stack>
   );

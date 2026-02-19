@@ -1,23 +1,36 @@
-import React, { useMemo, useState } from "react";
-import { Button, Group, Modal, Stack, Table, Text, TextInput } from "@mantine/core";
-import { useAppStore } from "../../context/AppStore";
+import React, { useMemo, useState } from 'react';
+import {
+  Button,
+  Group,
+  Modal,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+} from '@mantine/core';
+import { useAppStore } from '../../context/AppStore';
 
 export default function UsersTab() {
   const store = useAppStore();
   const users = useMemo(() => store.users, [store.users]);
 
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
 
   const rows = users.map((u) => (
     <Table.Tr key={u.id}>
       <Table.Td>{u.name}</Table.Td>
       <Table.Td>{u.email}</Table.Td>
-      <Table.Td>{u.disabled ? "Disabled" : "Active"}</Table.Td>
+      <Table.Td>{u.disabled ? 'Disabled' : 'Active'}</Table.Td>
       <Table.Td>
         <Group justify="flex-end">
-          <Button size="xs" color="red" variant="subtle" onClick={() => store.removeUser(u.id)}>
+          <Button
+            size="xs"
+            color="red"
+            variant="subtle"
+            onClick={() => store.removeUser(u.id)}
+          >
             Remove
           </Button>
         </Group>
@@ -44,10 +57,23 @@ export default function UsersTab() {
         <Table.Tbody>{rows}</Table.Tbody>
       </Table>
 
-      <Modal opened={open} onClose={() => setOpen(false)} title="Create User" centered>
+      <Modal
+        opened={open}
+        onClose={() => setOpen(false)}
+        title="Create User"
+        centered
+      >
         <Stack>
-          <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} />
-          <TextInput label="Email" value={email} onChange={(e) => setEmail(e.currentTarget.value)} />
+          <TextInput
+            label="Name"
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+          />
+          <TextInput
+            label="Email"
+            value={email}
+            onChange={(e) => setEmail(e.currentTarget.value)}
+          />
           <Group justify="flex-end">
             <Button
               onClick={() => {
@@ -55,8 +81,8 @@ export default function UsersTab() {
                 const e = email.trim();
                 if (!n || !e) return;
                 store.addUser(n, e);
-                setName("");
-                setEmail("");
+                setName('');
+                setEmail('');
                 setOpen(false);
               }}
             >

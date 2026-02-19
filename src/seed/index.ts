@@ -1,12 +1,12 @@
-import type { CompanyId, ProjectId } from "../types";
-import { asCompanyId, asProjectId } from "../types";
-import { seedCompanies } from "./companies";
-import { seedUsers } from "./users";
-import { seedProjects } from "./projects";
-import { seedCompanyMemberships, seedProjectMemberships } from "./memberships";
-import { seedDataByProjectId, type SeedProjectDataSlice } from "./projectData";
+import type { CompanyId, ProjectId } from '../types';
+import { asCompanyId, asProjectId } from '../types';
+import { seedCompanies } from './companies';
+import { seedUsers } from './users';
+import { seedProjects } from './projects';
+import { seedCompanyMemberships, seedProjectMemberships } from './memberships';
+import { seedDataByProjectId, type SeedProjectDataSlice } from './projectData';
 
-export const PROJEX_STATE_KEY = "projex_state_v1";
+export const PROJEX_STATE_KEY = 'projex_state_v1';
 
 export type PersistedStateV1 = {
   users: typeof seedUsers;
@@ -31,8 +31,8 @@ export function buildSeedState(): PersistedStateV1 {
     companyMemberships: seedCompanyMemberships,
     projectMemberships: seedProjectMemberships,
     dataByProjectId: seedDataByProjectId,
-    activeCompanyId: asCompanyId("co_acme"),
-    activeProjectId: asProjectId("prj_acme_alpha"),
+    activeCompanyId: asCompanyId('co_acme'),
+    activeProjectId: asProjectId('prj_acme_alpha'),
   };
 }
 

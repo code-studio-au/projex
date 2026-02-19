@@ -1,7 +1,17 @@
-import React, { useMemo, useState } from "react";
-import { ActionIcon, Button, Divider, Group, Modal, Select, Stack, Text, TextInput } from "@mantine/core";
-import { IconPlus, IconTrash, IconArrowRight } from "@tabler/icons-react";
-import type { TaxonomyHook } from "../hooks/useTaxonomy";
+import React, { useMemo, useState } from 'react';
+import {
+  ActionIcon,
+  Button,
+  Divider,
+  Group,
+  Modal,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+} from '@mantine/core';
+import { IconPlus, IconTrash, IconArrowRight } from '@tabler/icons-react';
+import type { TaxonomyHook } from '../hooks/useTaxonomy';
 
 export default function TaxonomyManagerModal(props: {
   opened: boolean;
@@ -10,13 +20,20 @@ export default function TaxonomyManagerModal(props: {
 }) {
   const { opened, onClose, taxonomy } = props;
 
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [newSubNameByCat, setNewSubNameByCat] = useState<Record<string, string>>({});
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newSubNameByCat, setNewSubNameByCat] = useState<
+    Record<string, string>
+  >({});
 
   const categoryOptions = taxonomy.categoryOptions;
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Manage categories & subcategories" size="lg">
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title="Manage categories & subcategories"
+      size="lg"
+    >
       <Stack gap="md">
         <Group align="flex-end">
           <TextInput
@@ -32,7 +49,7 @@ export default function TaxonomyManagerModal(props: {
               const name = newCategoryName.trim();
               if (!name) return;
               taxonomy.addCategory(name);
-              setNewCategoryName("");
+              setNewCategoryName('');
             }}
           >
             Add
@@ -43,14 +60,18 @@ export default function TaxonomyManagerModal(props: {
 
         <Stack gap="lg">
           {taxonomy.categories.map((cat) => {
-            const subcats = taxonomy.subCategories.filter((s) => s.categoryId === cat.id);
+            const subcats = taxonomy.subCategories.filter(
+              (s) => s.categoryId === cat.id
+            );
             return (
               <Stack key={cat.id} gap="xs">
                 <Group justify="space-between" align="flex-end">
                   <TextInput
                     label="Category"
                     value={cat.name}
-                    onChange={(e) => taxonomy.renameCategory(cat.id, e.currentTarget.value)}
+                    onChange={(e) =>
+                      taxonomy.renameCategory(cat.id, e.currentTarget.value)
+                    }
                     style={{ flex: 1 }}
                   />
                   <ActionIcon
@@ -58,7 +79,12 @@ export default function TaxonomyManagerModal(props: {
                     variant="subtle"
                     title="Delete category"
                     onClick={() => {
-                      if (!confirm(`Delete category "${cat.name}"? This will remove its subcategories and un-code affected transactions.`)) return;
+                      if (
+                        !confirm(
+                          `Delete category "${cat.name}"? This will remove its subcategories and un-code affected transactions.`
+                        )
+                      )
+                        return;
                       taxonomy.deleteCategory(cat.id);
                     }}
                   >
@@ -70,9 +96,12 @@ export default function TaxonomyManagerModal(props: {
                   <TextInput
                     label="Add subcategory"
                     placeholder="e.g. Flights"
-                    value={newSubNameByCat[cat.id] ?? ""}
+                    value={newSubNameByCat[cat.id] ?? ''}
                     onChange={(e) =>
-                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: e.currentTarget.value }))
+                      setNewSubNameByCat((prev) => ({
+                        ...prev,
+                        [cat.id]: e.currentTarget.value,
+                      }))
                     }
                     style={{ flex: 1 }}
                   />
@@ -80,10 +109,10 @@ export default function TaxonomyManagerModal(props: {
                     variant="light"
                     leftSection={<IconPlus size={16} />}
                     onClick={() => {
-                      const name = (newSubNameByCat[cat.id] ?? "").trim();
+                      const name = (newSubNameByCat[cat.id] ?? '').trim();
                       if (!name) return;
                       taxonomy.addSubCategory(cat.id, name);
-                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: "" }));
+                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: '' }));
                     }}
                   >
                     Add
@@ -101,7 +130,12 @@ export default function TaxonomyManagerModal(props: {
                         <TextInput
                           label="Subcategory"
                           value={sc.name}
-                          onChange={(e) => taxonomy.renameSubCategory(sc.id, e?.currentTarget?.value ?? "")}
+                          onChange={(e) =>
+                            taxonomy.renameSubCategory(
+                              sc.id,
+                              e?.currentTarget?.value ?? ''
+                            )
+                          }
                           style={{ flex: 1 }}
                         />
                         <Select
@@ -119,7 +153,12 @@ export default function TaxonomyManagerModal(props: {
                           variant="subtle"
                           title="Delete subcategory"
                           onClick={() => {
-                            if (!confirm(`Delete subcategory "${sc.name}"? Transactions coded to it will become uncoded.`)) return;
+                            if (
+                              !confirm(
+                                `Delete subcategory "${sc.name}"? Transactions coded to it will become uncoded.`
+                              )
+                            )
+                              return;
                             taxonomy.deleteSubCategory(sc.id);
                           }}
                         >

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -11,46 +11,66 @@ import {
   Text,
   TextInput,
   Title,
-} from "@mantine/core";
-import { useAppStore } from "../context/AppStore";
-import { can } from "../utils/auth";
-import { currency } from "../utils/finance";
-import CompanySettingsPanel from "./CompanySettingsPanel";
-import type { CompanyId, ProjectId } from "../types";
+} from '@mantine/core';
+import { useAppStore } from '../context/AppStore';
+import { can } from '../utils/auth';
+import { currency } from '../utils/finance';
+import CompanySettingsPanel from './CompanySettingsPanel';
+import type { CompanyId, ProjectId } from '../types';
 
-export default function CompanyDashboard(props: { onOpenProject: (projectId: ProjectId) => void }) {
+export default function CompanyDashboard(props: {
+  onOpenProject: (projectId: ProjectId) => void;
+}) {
   const { onOpenProject } = props;
   const store = useAppStore();
 
   const isOwner = store.isAppOwner(store.currentUser.id);
 
   // For normal users: company is fixed. For owner: allow selecting a company to "impersonate" its dashboard.
-  const userCompanyId = store.getUserCompanyId(store.currentUser.id) ?? store.activeCompanyId;
+  const userCompanyId =
+    store.getUserCompanyId(store.currentUser.id) ?? store.activeCompanyId;
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<CompanyId | null>(isOwner ? null : userCompanyId);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<CompanyId | null>(
+    isOwner ? null : userCompanyId
+  );
 
   React.useEffect(() => {
     const h = () => setSelectedCompanyId(null);
-    window.addEventListener("superadmin:resetCompanySelection", h as any);
-    return () => window.removeEventListener("superadmin:resetCompanySelection", h as any);
+    window.addEventListener('superadmin:resetCompanySelection', h as any);
+    return () =>
+      window.removeEventListener('superadmin:resetCompanySelection', h as any);
   }, []);
 
-  const effectiveCompanyId = (isOwner ? selectedCompanyId : userCompanyId) ?? userCompanyId;
-  const effectiveCompany = store.companies.find((c) => c.id === effectiveCompanyId);
+  const effectiveCompanyId =
+    (isOwner ? selectedCompanyId : userCompanyId) ?? userCompanyId;
+  const effectiveCompany = store.companies.find(
+    (c) => c.id === effectiveCompanyId
+  );
 
-  const companyRole = store.getUserCompanyRole(store.currentUser.id) ?? "member";
-const canSeeCompanySettingsTab = companyRole === "superadmin" || companyRole === "admin" || companyRole === "executive" || companyRole === "management";
-const canAddProjects = companyRole === "superadmin" || companyRole === "admin" || companyRole === "executive" || companyRole === "management";
+  const companyRole =
+    store.getUserCompanyRole(store.currentUser.id) ?? 'member';
+  const canSeeCompanySettingsTab =
+    companyRole === 'superadmin' ||
+    companyRole === 'admin' ||
+    companyRole === 'executive' ||
+    companyRole === 'management';
+  const canAddProjects =
+    companyRole === 'superadmin' ||
+    companyRole === 'admin' ||
+    companyRole === 'executive' ||
+    companyRole === 'management';
 
   const visibleProjects = useMemo(() => {
-    const inCompany = store.projects.filter((p) => p.companyId === effectiveCompanyId && p.status === "active");
+    const inCompany = store.projects.filter(
+      (p) => p.companyId === effectiveCompanyId && p.status === 'active'
+    );
     if (isOwner) return inCompany;
     return inCompany.filter((p) =>
       can({
         userId: store.currentUser.id,
         companyId: effectiveCompanyId,
         projectId: p.id,
-        action: "project:view",
+        action: 'project:view',
         companyMemberships: store.companyMemberships,
         projectMemberships: store.projectMemberships,
       })
@@ -68,12 +88,15 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
 
   // Add company / project modals (best UX for now)
   const [addCompanyOpen, setAddCompanyOpen] = useState(false);
-  const [newCompanyName, setNewCompanyName] = useState("");
+  const [newCompanyName, setNewCompanyName] = useState('');
 
   const [addProjectOpen, setAddProjectOpen] = useState(false);
-  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectName, setNewProjectName] = useState('');
 
-  const companyList = useMemo(() => store.companies.filter((c) => c.id !== "co_projex" && !c.archived), [store.companies]);
+  const companyList = useMemo(
+    () => store.companies.filter((c) => c.id !== 'co_projex' && !c.archived),
+    [store.companies]
+  );
 
   // Owner landing: list companies
   if (isOwner && !selectedCompanyId) {
@@ -82,7 +105,9 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
         <Group justify="space-between" align="flex-end">
           <Stack gap={2}>
             <Title order={3}>Companies</Title>
-            <Text c="dimmed">Select a company to view its projects and settings.</Text>
+            <Text c="dimmed">
+              Select a company to view its projects and settings.
+            </Text>
           </Stack>
           <Button onClick={() => setAddCompanyOpen(true)}>Add company</Button>
         </Group>
@@ -94,7 +119,7 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
               withBorder
               radius="lg"
               p="lg"
-              style={{ cursor: "pointer" }}
+              style={{ cursor: 'pointer' }}
               onClick={() => {
                 setSelectedCompanyId(c.id);
                 store.setActiveCompanyId(c.id);
@@ -106,14 +131,20 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
                   {c.id}
                 </Text>
                 <Badge variant="light">
-                  {store.projects.filter((p) => p.companyId === c.id).length} projects
+                  {store.projects.filter((p) => p.companyId === c.id).length}{' '}
+                  projects
                 </Badge>
               </Stack>
             </Paper>
           ))}
         </SimpleGrid>
 
-        <Modal opened={addCompanyOpen} onClose={() => setAddCompanyOpen(false)} title="Add company" centered>
+        <Modal
+          opened={addCompanyOpen}
+          onClose={() => setAddCompanyOpen(false)}
+          title="Add company"
+          centered
+        >
           <Stack>
             <TextInput
               label="Company name"
@@ -126,7 +157,7 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
                 const name = newCompanyName.trim();
                 if (!name) return;
                 const id = store.addCompany(name);
-                setNewCompanyName("");
+                setNewCompanyName('');
                 setAddCompanyOpen(false);
                 // jump straight into the company
                 setSelectedCompanyId(id);
@@ -145,9 +176,10 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
     <Stack gap="md">
       <Group justify="space-between" align="flex-end">
         <Stack gap={2}>
-          <Title order={3}>{effectiveCompany?.name ?? "Company"}</Title>
+          <Title order={3}>{effectiveCompany?.name ?? 'Company'}</Title>
           <Text c="dimmed">
-            {isOwner ? "Super Admin view" : "Your projects and reporting"} • Click a project card to open workspace
+            {isOwner ? 'Super Admin view' : 'Your projects and reporting'} •
+            Click a project card to open workspace
           </Text>
         </Stack>
 
@@ -166,7 +198,9 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
       <Tabs defaultValue="projects">
         <Tabs.List>
           <Tabs.Tab value="projects">Projects</Tabs.Tab>
-          {(isOwner || canSeeCompanySettingsTab) && <Tabs.Tab value="companySettings">Company settings</Tabs.Tab>}
+          {(isOwner || canSeeCompanySettingsTab) && (
+            <Tabs.Tab value="companySettings">Company settings</Tabs.Tab>
+          )}
         </Tabs.List>
 
         <Tabs.Panel value="projects" pt="md">
@@ -177,7 +211,7 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
                 withBorder
                 radius="lg"
                 p="lg"
-                style={{ cursor: "pointer" }}
+                style={{ cursor: 'pointer' }}
                 onClick={() => {
                   store.setActiveCompanyId(effectiveCompanyId);
                   store.setActiveProjectId(c.project.id);
@@ -187,13 +221,16 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
                 <Stack gap={6}>
                   <Group justify="space-between">
                     <Text fw={700}>{c.project.name}</Text>
-                    <Badge variant="light">{currency(c.project.currency)}</Badge>
+                    <Badge variant="light">
+                      {currency(c.project.currency)}
+                    </Badge>
                   </Group>
                   <Text size="sm" c="dimmed">
                     Transactions: {c.count} • Uncoded: {c.uncoded}
                   </Text>
                   <Text fw={700}>
-                    Total spend: {currency(c.project.currency)} {Math.round(c.total).toLocaleString()}
+                    Total spend: {currency(c.project.currency)}{' '}
+                    {Math.round(c.total).toLocaleString()}
                   </Text>
                 </Stack>
               </Paper>
@@ -213,7 +250,12 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
         )}
       </Tabs>
 
-      <Modal opened={addProjectOpen} onClose={() => setAddProjectOpen(false)} title="Add project" centered>
+      <Modal
+        opened={addProjectOpen}
+        onClose={() => setAddProjectOpen(false)}
+        title="Add project"
+        centered
+      >
         <Stack>
           <TextInput
             label="Project name"
@@ -228,7 +270,7 @@ const canAddProjects = companyRole === "superadmin" || companyRole === "admin" |
               const id = store.addProject(effectiveCompanyId, name);
               store.setActiveCompanyId(effectiveCompanyId);
               store.setActiveProjectId(id);
-              setNewProjectName("");
+              setNewProjectName('');
               setAddProjectOpen(false);
             }}
           >

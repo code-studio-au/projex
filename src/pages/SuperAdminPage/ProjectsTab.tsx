@@ -1,13 +1,25 @@
-import React, { useMemo, useState } from "react";
-import { Button, Group, Modal, Select, Stack, Table, Text, TextInput } from "@mantine/core";
-import { useAppStore } from "../../context/AppStore";
+import React, { useMemo, useState } from 'react';
+import {
+  Button,
+  Group,
+  Modal,
+  Select,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+} from '@mantine/core';
+import { useAppStore } from '../../context/AppStore';
 
 export default function ProjectsTab() {
   const store = useAppStore();
-  const companies = useMemo(() => store.companies.filter((c) => !c.archived), [store.companies]);
+  const companies = useMemo(
+    () => store.companies.filter((c) => !c.archived),
+    [store.companies]
+  );
 
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const [companyId, setCompanyId] = useState<string>(store.activeCompanyId);
 
   const companyOptions = companies.map((c) => ({ value: c.id, label: c.name }));
@@ -17,15 +29,24 @@ export default function ProjectsTab() {
     return (
       <Table.Tr key={p.id}>
         <Table.Td>{p.name}</Table.Td>
-        <Table.Td>{c?.name ?? "-"}</Table.Td>
+        <Table.Td>{c?.name ?? '-'}</Table.Td>
         <Table.Td>{p.currency}</Table.Td>
         <Table.Td>{p.status}</Table.Td>
         <Table.Td>
           <Group justify="flex-end">
-            <Button size="xs" variant="subtle" onClick={() => store.setActiveProjectId(p.id)}>
+            <Button
+              size="xs"
+              variant="subtle"
+              onClick={() => store.setActiveProjectId(p.id)}
+            >
               Select
             </Button>
-            <Button size="xs" color="red" variant="subtle" onClick={() => store.removeProject(p.id)}>
+            <Button
+              size="xs"
+              color="red"
+              variant="subtle"
+              onClick={() => store.removeProject(p.id)}
+            >
               Remove
             </Button>
           </Group>
@@ -54,7 +75,12 @@ export default function ProjectsTab() {
         <Table.Tbody>{rows}</Table.Tbody>
       </Table>
 
-      <Modal opened={open} onClose={() => setOpen(false)} title="Create Project" centered>
+      <Modal
+        opened={open}
+        onClose={() => setOpen(false)}
+        title="Create Project"
+        centered
+      >
         <Stack>
           <Select
             label="Tenant"
@@ -63,7 +89,11 @@ export default function ProjectsTab() {
             onChange={(v) => v && setCompanyId(v)}
             searchable
           />
-          <TextInput label="Project name" value={name} onChange={(e) => setName(e.currentTarget.value)} />
+          <TextInput
+            label="Project name"
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+          />
           <Group justify="flex-end">
             <Button
               onClick={() => {
@@ -71,7 +101,7 @@ export default function ProjectsTab() {
                 if (!n) return;
                 const id = store.addProject(asCompanyId(companyId), n);
                 store.setActiveProjectId(id);
-                setName("");
+                setName('');
                 setOpen(false);
               }}
             >

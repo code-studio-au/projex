@@ -1,6 +1,28 @@
-import type { BudgetLine, Category, CategoryId, CompanyId, ProjectId, SubCategory, SubCategoryId, Txn, TxnId } from "../types";
-import { asBudgetLineId, asCategoryId, asCompanyId, asProjectId, asSubCategoryId, asTxnId } from "../types";
-import { seedBudgets, seedCategories, seedSubCategories, seedTransactions } from "./fixtures/concurSeedData";
+import type {
+  BudgetLine,
+  Category,
+  CategoryId,
+  CompanyId,
+  ProjectId,
+  SubCategory,
+  SubCategoryId,
+  Txn,
+  TxnId,
+} from '../types';
+import {
+  asBudgetLineId,
+  asCategoryId,
+  asCompanyId,
+  asProjectId,
+  asSubCategoryId,
+  asTxnId,
+} from '../types';
+import {
+  seedBudgets,
+  seedCategories,
+  seedSubCategories,
+  seedTransactions,
+} from './fixtures/concurSeedData';
 
 export type SeedProjectDataSlice = {
   budgets: BudgetLine[];
@@ -10,15 +32,18 @@ export type SeedProjectDataSlice = {
 };
 
 const projectCompany: Record<ProjectId, CompanyId> = {
-  [asProjectId("prj_acme_alpha")]: asCompanyId("co_acme"),
-  [asProjectId("prj_acme_beta")]: asCompanyId("co_acme"),
-  [asProjectId("prj_globex_ops")]: asCompanyId("co_globex"),
+  [asProjectId('prj_acme_alpha')]: asCompanyId('co_acme'),
+  [asProjectId('prj_acme_beta')]: asCompanyId('co_acme'),
+  [asProjectId('prj_globex_ops')]: asCompanyId('co_globex'),
 };
 
 // Namespace helpers so IDs are globally unique across the entire app state
-const catId = (projectId: ProjectId, baseId: string): CategoryId => asCategoryId(`${projectId}:${baseId}`);
-const subId = (projectId: ProjectId, baseId: string): SubCategoryId => asSubCategoryId(`${projectId}:${baseId}`);
-const budgetId = (projectId: ProjectId, baseId: string) => asBudgetLineId(`${projectId}:${baseId}`);
+const catId = (projectId: ProjectId, baseId: string): CategoryId =>
+  asCategoryId(`${projectId}:${baseId}`);
+const subId = (projectId: ProjectId, baseId: string): SubCategoryId =>
+  asSubCategoryId(`${projectId}:${baseId}`);
+const budgetId = (projectId: ProjectId, baseId: string) =>
+  asBudgetLineId(`${projectId}:${baseId}`);
 
 // Deterministic assignment of a txn to a seed project.
 // Keeps IDs Concur-like (no prefixing), but ensures each txn only appears in one project.
@@ -27,10 +52,10 @@ const pickProjectForTxn = (txnId: string): ProjectId => {
   let s = 0;
   for (let i = 0; i < txnId.length; i++) s = (s + txnId.charCodeAt(i)) % 3;
   return s === 0
-    ? asProjectId("prj_acme_alpha")
+    ? asProjectId('prj_acme_alpha')
     : s === 1
-      ? asProjectId("prj_acme_beta")
-      : asProjectId("prj_globex_ops");
+      ? asProjectId('prj_acme_beta')
+      : asProjectId('prj_globex_ops');
 };
 
 function makeProjectSlice(projectId: ProjectId): SeedProjectDataSlice {
@@ -67,15 +92,25 @@ function makeProjectSlice(projectId: ProjectId): SeedProjectDataSlice {
       id: asTxnId(String(t.id)),
       companyId,
       projectId,
-      categoryId: t.categoryId ? catId(projectId, t.categoryId as unknown as string) : undefined,
-      subCategoryId: t.subCategoryId ? subId(projectId, t.subCategoryId as unknown as string) : undefined,
+      categoryId: t.categoryId
+        ? catId(projectId, t.categoryId as unknown as string)
+        : undefined,
+      subCategoryId: t.subCategoryId
+        ? subId(projectId, t.subCategoryId as unknown as string)
+        : undefined,
     }));
 
   return { budgets, transactions, categories, subCategories };
 }
 
 export const seedDataByProjectId: Record<ProjectId, SeedProjectDataSlice> = {
-  [asProjectId("prj_acme_alpha")]: makeProjectSlice(asProjectId("prj_acme_alpha")),
-  [asProjectId("prj_acme_beta")]: makeProjectSlice(asProjectId("prj_acme_beta")),
-  [asProjectId("prj_globex_ops")]: makeProjectSlice(asProjectId("prj_globex_ops")),
+  [asProjectId('prj_acme_alpha')]: makeProjectSlice(
+    asProjectId('prj_acme_alpha')
+  ),
+  [asProjectId('prj_acme_beta')]: makeProjectSlice(
+    asProjectId('prj_acme_beta')
+  ),
+  [asProjectId('prj_globex_ops')]: makeProjectSlice(
+    asProjectId('prj_globex_ops')
+  ),
 };

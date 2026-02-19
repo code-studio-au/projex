@@ -1,4 +1,4 @@
-import type { ProjectId } from "../types";
+import type { ProjectId } from '../types';
 
 /**
  * UI preference persistence.
@@ -10,7 +10,7 @@ import type { ProjectId } from "../types";
  * IMPORTANT: These preferences are non-authoritative and may be cleared at any time.
  */
 
-const BUDGET_COLLAPSE_KEY_VERSION = "projex_budget_collapse_v1";
+const BUDGET_COLLAPSE_KEY_VERSION = 'projex_budget_collapse_v1';
 
 /**
  * Returns the storage key for budget collapse state.
@@ -30,7 +30,9 @@ export type BudgetCollapseState = {
   collapsedQuarters: Record<string, true>;
 };
 
-export function loadBudgetCollapseState(projectId: ProjectId): BudgetCollapseState | null {
+export function loadBudgetCollapseState(
+  projectId: ProjectId
+): BudgetCollapseState | null {
   try {
     const raw = localStorage.getItem(budgetCollapseKey(projectId));
     if (!raw) return null;
@@ -39,14 +41,20 @@ export function loadBudgetCollapseState(projectId: ProjectId): BudgetCollapseSta
 
     return {
       collapsedYears: (parsed.collapsedYears ?? {}) as Record<string, true>,
-      collapsedQuarters: (parsed.collapsedQuarters ?? {}) as Record<string, true>,
+      collapsedQuarters: (parsed.collapsedQuarters ?? {}) as Record<
+        string,
+        true
+      >,
     };
   } catch {
     return null;
   }
 }
 
-export function saveBudgetCollapseState(projectId: ProjectId, state: BudgetCollapseState) {
+export function saveBudgetCollapseState(
+  projectId: ProjectId,
+  state: BudgetCollapseState
+) {
   try {
     localStorage.setItem(budgetCollapseKey(projectId), JSON.stringify(state));
   } catch {

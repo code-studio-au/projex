@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from 'react';
 import {
   AppShell,
   Badge,
@@ -10,27 +10,34 @@ import {
   Stack,
   Text,
   ThemeIcon,
-} from "@mantine/core";
-import { AppStoreProvider, useAppStore } from "./context/AppStore";
-import CompanyDashboard from "./components/CompanyDashboard";
-import ProjectWorkspace from "./components/ProjectWorkspace";
-import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
-import SuperAdminPage from "./pages/SuperAdminPage";
-import { can } from "./utils/auth";
+} from '@mantine/core';
+import { AppStoreProvider, useAppStore } from './context/AppStore';
+import CompanyDashboard from './components/CompanyDashboard';
+import ProjectWorkspace from './components/ProjectWorkspace';
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import SuperAdminPage from './pages/SuperAdminPage';
+import { can } from './utils/auth';
 
-type AuthedRoute = "dashboard" | "workspace" | "appSettings";
+type AuthedRoute = 'dashboard' | 'workspace' | 'appSettings';
 
 function AuthedShell(props: { onLogout: () => void }) {
   const { onLogout } = props;
   const store = useAppStore();
-  const activeCompany = useMemo(() => store.companies.find((c) => c.id === store.activeCompanyId), [store.companies, store.activeCompanyId]);
+  const activeCompany = useMemo(
+    () => store.companies.find((c) => c.id === store.activeCompanyId),
+    [store.companies, store.activeCompanyId]
+  );
 
-  const companyId = store.getUserCompanyId(store.currentUser.id) ?? store.activeCompanyId;
-  const company = useMemo(() => store.companies.find((c) => c.id === companyId), [store.companies, companyId]);
+  const companyId =
+    store.getUserCompanyId(store.currentUser.id) ?? store.activeCompanyId;
+  const company = useMemo(
+    () => store.companies.find((c) => c.id === companyId),
+    [store.companies, companyId]
+  );
   const companyRole = store.getUserCompanyRole(store.currentUser.id);
 
-  const [route, setRoute] = useState<AuthedRoute>("dashboard");
+  const [route, setRoute] = useState<AuthedRoute>('dashboard');
 
   const projectsForCompany = useMemo(
     () => store.projects.filter((p) => p.companyId === companyId),
@@ -43,7 +50,7 @@ function AuthedShell(props: { onLogout: () => void }) {
       userId: store.currentUser.id,
       companyId,
       projectId: store.activeProjectId,
-      action: "project:view",
+      action: 'project:view',
       companyMemberships: store.companyMemberships,
       projectMemberships: store.projectMemberships,
     });
@@ -52,18 +59,18 @@ function AuthedShell(props: { onLogout: () => void }) {
   const isOwner = store.isAppOwner(store.currentUser.id);
 
   let body: React.ReactNode = null;
-  if (route === "dashboard") {
+  if (route === 'dashboard') {
     body = (
       <CompanyDashboard
         onOpenProject={(_projectId) => {
-          setRoute("workspace");
+          setRoute('workspace');
         }}
       />
     );
-  } else if (route === "workspace") {
-    body = <ProjectWorkspace key={store.activeProjectId ?? "none"} />;
-  } else if (route === "appSettings") {
-    body = <SuperAdminPage onBack={() => setRoute("dashboard")} />;
+  } else if (route === 'workspace') {
+    body = <ProjectWorkspace key={store.activeProjectId ?? 'none'} />;
+  } else if (route === 'appSettings') {
+    body = <SuperAdminPage onBack={() => setRoute('dashboard')} />;
   }
 
   const header = (
@@ -75,19 +82,22 @@ function AuthedShell(props: { onLogout: () => void }) {
               PX
             </ThemeIcon>
             <Stack gap={0}>
-              <Text fw={800}>{company?.name ?? "Company"}</Text>
+              <Text fw={800}>{company?.name ?? 'Company'}</Text>
               <Text size="xs" c="dimmed">
                 Projex
               </Text>
             </Stack>
 
             <Group gap="sm" ml="md">
-              <Button variant={route === "dashboard" ? "filled" : "light"} onClick={() => setRoute("dashboard")}>
+              <Button
+                variant={route === 'dashboard' ? 'filled' : 'light'}
+                onClick={() => setRoute('dashboard')}
+              >
                 Dashboard
               </Button>
               <Button
-                variant={route === "workspace" ? "filled" : "light"}
-                onClick={() => setRoute("workspace")}
+                variant={route === 'workspace' ? 'filled' : 'light'}
+                onClick={() => setRoute('workspace')}
                 disabled={!canOpenWorkspace}
               >
                 Workspace
@@ -96,18 +106,22 @@ function AuthedShell(props: { onLogout: () => void }) {
           </Group>
 
           <Group gap="sm">
-<Menu position="bottom-end" withinPortal>
+            <Menu position="bottom-end" withinPortal>
               <Menu.Target>
                 <Button variant="subtle">
                   <Group gap="xs">
                     <Text fw={600}>{store.currentUser.name}</Text>
-                    <Badge variant="light">{companyRole ?? "member"}</Badge>
+                    <Badge variant="light">{companyRole ?? 'member'}</Badge>
                   </Group>
                 </Button>
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Label>Account</Menu.Label>
-                {isOwner && <Menu.Item onClick={() => setRoute("appSettings")}>App settings</Menu.Item>}
+                {isOwner && (
+                  <Menu.Item onClick={() => setRoute('appSettings')}>
+                    App settings
+                  </Menu.Item>
+                )}
                 {isOwner && <Menu.Divider />}
                 <Menu.Item color="red" onClick={onLogout}>
                   Logout
@@ -133,29 +147,34 @@ function AuthedShell(props: { onLogout: () => void }) {
 }
 
 function Root() {
-  const [route, setRoute] = useState<"landing" | "login">("landing");
+  const [route, setRoute] = useState<'landing' | 'login'>('landing');
   const [isAuthed, setAuthed] = useState(false);
 
   if (!isAuthed) {
-    if (route === "login") {
+    if (route === 'login') {
       return (
         <LoginPage
           onSuccess={() => {
             setAuthed(true);
-            setRoute("landing");
+            setRoute('landing');
           }}
-          onCancel={() => setRoute("landing")}
+          onCancel={() => setRoute('landing')}
         />
       );
     }
-    return <LandingPage onLogin={() => setRoute("login")} onSignUp={() => setRoute("login")} />;
+    return (
+      <LandingPage
+        onLogin={() => setRoute('login')}
+        onSignUp={() => setRoute('login')}
+      />
+    );
   }
 
   return (
     <AuthedShell
       onLogout={() => {
         setAuthed(false);
-        setRoute("landing");
+        setRoute('landing');
       }}
     />
   );

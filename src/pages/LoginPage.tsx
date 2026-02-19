@@ -1,16 +1,32 @@
-import React, { useMemo, useState } from "react";
-import { Badge, Button, Container, Group, Paper, Select, Stack, Text, Title } from "@mantine/core";
-import { useAppStore } from "../context/AppStore";
+import React, { useMemo, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Container,
+  Group,
+  Paper,
+  Select,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
+import { useAppStore } from '../context/AppStore';
 
-export default function LoginPage(props: { onSuccess: () => void; onCancel: () => void }) {
+export default function LoginPage(props: {
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
   const { onSuccess, onCancel } = props;
   const store = useAppStore();
 
   const userOptions = useMemo(() => {
     return store.users.map((u) => {
       const primary = store.getPrimaryCompanyForUser(u.id);
-      const company = primary ? store.companies.find((c) => c.id === primary.companyId)?.name ?? primary.companyId : "—";
-      const role = primary?.role ?? "—";
+      const company = primary
+        ? (store.companies.find((c) => c.id === primary.companyId)?.name ??
+          primary.companyId)
+        : '—';
+      const role = primary?.role ?? '—';
       return {
         value: u.id,
         label: `${u.name} (${u.email})`,
@@ -42,8 +58,8 @@ export default function LoginPage(props: { onSuccess: () => void; onCancel: () =
           />
 
           <Group gap="sm">
-            <Badge variant="light">Company: {selected?.company ?? "—"}</Badge>
-            <Badge variant="light">Role: {selected?.role ?? "—"}</Badge>
+            <Badge variant="light">Company: {selected?.company ?? '—'}</Badge>
+            <Badge variant="light">Role: {selected?.role ?? '—'}</Badge>
           </Group>
 
           <Button

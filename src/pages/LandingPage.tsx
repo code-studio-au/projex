@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   Anchor,
   Badge,
@@ -13,9 +13,12 @@ import {
   Text,
   ThemeIcon,
   Title,
-} from "@mantine/core";
+} from '@mantine/core';
 
-export default function LandingPage(props: { onLogin: () => void; onSignUp: () => void }) {
+export default function LandingPage(props: {
+  onLogin: () => void;
+  onSignUp: () => void;
+}) {
   const { onLogin, onSignUp } = props;
 
   return (
@@ -55,8 +58,8 @@ export default function LandingPage(props: { onLogin: () => void; onSignUp: () =
               Budget clarity across every company project.
             </Title>
             <Text c="dimmed" size="lg">
-              Track spend, keep budgets tight, and give executives a portfolio dashboard — without losing the day-to-day
-              project workflow.
+              Track spend, keep budgets tight, and give executives a portfolio
+              dashboard — without losing the day-to-day project workflow.
             </Text>
             <Group>
               <Button size="md" onClick={onSignUp}>
@@ -112,9 +115,18 @@ export default function LandingPage(props: { onLogin: () => void; onSignUp: () =
           <Title order={2}>Features</Title>
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             {[
-              { title: "Multi-project workflow", body: "Switch between projects without losing context." },
-              { title: "Role-based access", body: "Exec + project lead combinations work as expected." },
-              { title: "Clean reporting", body: "Uncoded summaries and budget rollups drive action." },
+              {
+                title: 'Multi-project workflow',
+                body: 'Switch between projects without losing context.',
+              },
+              {
+                title: 'Role-based access',
+                body: 'Exec + project lead combinations work as expected.',
+              },
+              {
+                title: 'Clean reporting',
+                body: 'Uncoded summaries and budget rollups drive action.',
+              },
             ].map((f) => (
               <Paper key={f.title} withBorder radius="lg" p="lg">
                 <Text fw={700}>{f.title}</Text>
@@ -130,9 +142,24 @@ export default function LandingPage(props: { onLogin: () => void; onSignUp: () =
           <Title order={2}>Pricing</Title>
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             {[
-              { tier: "Starter", price: "$0", blurb: "Prototype / personal use.", cta: "Try demo" },
-              { tier: "Team", price: "$19", blurb: "Per project/month with RBAC.", cta: "Start trial" },
-              { tier: "Enterprise", price: "Custom", blurb: "SSO, audit, automation & support.", cta: "Contact" },
+              {
+                tier: 'Starter',
+                price: '$0',
+                blurb: 'Prototype / personal use.',
+                cta: 'Try demo',
+              },
+              {
+                tier: 'Team',
+                price: '$19',
+                blurb: 'Per project/month with RBAC.',
+                cta: 'Start trial',
+              },
+              {
+                tier: 'Enterprise',
+                price: 'Custom',
+                blurb: 'SSO, audit, automation & support.',
+                cta: 'Contact',
+              },
             ].map((p) => (
               <Paper key={p.tier} withBorder radius="lg" p="lg">
                 <Group justify="space-between" align="flex-start">
@@ -147,7 +174,12 @@ export default function LandingPage(props: { onLogin: () => void; onSignUp: () =
                 <Text size="sm" c="dimmed" mt="sm">
                   {p.blurb}
                 </Text>
-                <Button mt="md" variant={p.tier === "Team" ? "filled" : "light"} onClick={onSignUp} fullWidth>
+                <Button
+                  mt="md"
+                  variant={p.tier === 'Team' ? 'filled' : 'light'}
+                  onClick={onSignUp}
+                  fullWidth
+                >
                   {p.cta}
                 </Button>
               </Paper>
@@ -158,7 +190,7 @@ export default function LandingPage(props: { onLogin: () => void; onSignUp: () =
         <Stack gap="md" pb={56}>
           <Title order={2}>Partners & testimonials</Title>
           <Group gap="sm" wrap="wrap">
-            {["Concur", "Xero", "Atlassian", "Slack", "AWS"].map((x) => (
+            {['Concur', 'Xero', 'Atlassian', 'Slack', 'AWS'].map((x) => (
               <Badge key={x} variant="light" size="lg">
                 {x}
               </Badge>
@@ -166,8 +198,16 @@ export default function LandingPage(props: { onLogin: () => void; onSignUp: () =
           </Group>
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="sm">
             {[
-              { quote: "We finally see project variance early — before it becomes a surprise.", name: "Finance Ops" },
-              { quote: "Exec overview + project ownership in one workflow. Exactly what we needed.", name: "COO" },
+              {
+                quote:
+                  'We finally see project variance early — before it becomes a surprise.',
+                name: 'Finance Ops',
+              },
+              {
+                quote:
+                  'Exec overview + project ownership in one workflow. Exactly what we needed.',
+                name: 'COO',
+              },
             ].map((t) => (
               <Paper key={t.name} withBorder radius="lg" p="lg">
                 <Text fw={600}>&ldquo;{t.quote}&rdquo;</Text>

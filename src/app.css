@@ -25,16 +25,24 @@
 }
 
 /* Head alignment */
-.financeTable .table-head-left { text-align: left !important; }
-.financeTable .table-head-right { text-align: right !important; }
+.financeTable .table-head-left {
+  text-align: left !important;
+}
+.financeTable .table-head-right {
+  text-align: right !important;
+}
 
 /* Head bold variants */
 .financeTable .table-head-left-bold,
 .financeTable .table-head-right-bold {
   font-weight: var(--table-head-bold-weight) !important;
 }
-.financeTable .table-head-left-bold { text-align: left !important; }
-.financeTable .table-head-right-bold { text-align: right !important; }
+.financeTable .table-head-left-bold {
+  text-align: left !important;
+}
+.financeTable .table-head-right-bold {
+  text-align: right !important;
+}
 
 /* Base body cell */
 .financeTable .table-body-cell {
@@ -43,15 +51,15 @@
 }
 
 /* Body alignment helpers (use on Text components too) */
-.financeTable .table-body-left { 
+.financeTable .table-body-left {
   font-size: var(--table-body-font-size) !important;
   font-weight: var(--table-body-font-weight) !important;
-  text-align: left !important; 
+  text-align: left !important;
 }
-.financeTable .table-body-right { 
+.financeTable .table-body-right {
   font-size: var(--table-body-font-size) !important;
   font-weight: var(--table-body-font-weight) !important;
-  text-align: right !important; 
+  text-align: right !important;
   width: 100%;
 }
 
@@ -61,8 +69,13 @@
   font-size: var(--table-body-font-size) !important;
   font-weight: var(--table-body-bold-weight) !important;
 }
-.financeTable .table-body-left-bold { text-align: left !important; }
-.financeTable .table-body-right-bold { text-align: right !important; width: 100%; }
+.financeTable .table-body-left-bold {
+  text-align: left !important;
+}
+.financeTable .table-body-right-bold {
+  text-align: right !important;
+  width: 100%;
+}
 
 /* Make sure the wrapper flex doesn’t fight alignment */
 .financeTable .table-head-right .mrt-table-head-cell-content,

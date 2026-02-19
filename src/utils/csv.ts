@@ -1,8 +1,8 @@
-import type { ImportTxnWithTaxonomy, Txn, TxnId } from "../types";
-import { asTxnId } from "../types";
-import { uid } from "./id";
+import type { ImportTxnWithTaxonomy, Txn, TxnId } from '../types';
+import { asTxnId } from '../types';
+import { uid } from './id';
 
-type UnscopedTxn = Omit<Txn, "companyId" | "projectId">;
+type UnscopedTxn = Omit<Txn, 'companyId' | 'projectId'>;
 
 /**
  * Minimal CSV parser (handles quotes, commas, newlines).
@@ -20,13 +20,13 @@ type UnscopedTxn = Omit<Txn, "companyId" | "projectId">;
  */
 export function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
-  let cur = "";
+  let cur = '';
   let row: string[] = [];
   let inQuotes = false;
 
   const pushCell = () => {
     row.push(cur);
-    cur = "";
+    cur = '';
   };
 
   for (let i = 0; i < text.length; i++) {
@@ -52,19 +52,19 @@ export function parseCsv(text: string): Record<string, string>[] {
       continue;
     }
 
-    if (ch === ",") {
+    if (ch === ',') {
       pushCell();
       continue;
     }
 
-    if (ch === "\n") {
+    if (ch === '\n') {
       pushCell();
       rows.push(row);
       row = [];
       continue;
     }
 
-    if (ch === "\r") {
+    if (ch === '\r') {
       // ignore CR; LF handles row end
       continue;
     }
@@ -75,42 +75,46 @@ export function parseCsv(text: string): Record<string, string>[] {
   // final cell
   pushCell();
   // final row if any content
-  if (row.length > 1 || row.some((c) => c.trim() !== "")) rows.push(row);
+  if (row.length > 1 || row.some((c) => c.trim() !== '')) rows.push(row);
 
   if (!rows.length) return [];
 
   const headers = rows[0].map((h) => h.trim());
   const out: Record<string, string>[] = [];
   for (const r of rows.slice(1)) {
-    if (r.every((c) => c.trim() === "")) continue;
+    if (r.every((c) => c.trim() === '')) continue;
     const obj: Record<string, string> = {};
-    for (let i = 0; i < headers.length; i++) obj[headers[i]] = (r[i] ?? "").trim();
+    for (let i = 0; i < headers.length; i++)
+      obj[headers[i]] = (r[i] ?? '').trim();
     out.push(obj);
   }
   return out;
 }
 
 export function normalizeHeader(h: string) {
-  return h.trim().toLowerCase().replace(/\s+/g, "");
+  return h.trim().toLowerCase().replace(/\s+/g, '');
 }
 
-export function rowsToImportTxns(rows: Record<string, string>[]): ImportTxnWithTaxonomy[] {
+export function rowsToImportTxns(
+  rows: Record<string, string>[]
+): ImportTxnWithTaxonomy[] {
   return rows.map((r) => {
     const map: Record<string, string> = {};
     for (const k of Object.keys(r)) map[normalizeHeader(k)] = r[k];
 
     const id =
-      map["id"] ||
-      map["transactionid"] ||
-      map["txn_id"] ||
-      map["reference"] ||
-      "";
+      map['id'] ||
+      map['transactionid'] ||
+      map['txn_id'] ||
+      map['reference'] ||
+      '';
 
-    const date = map["date"] || map["transactiondate"] || map["posteddate"] || "";
-    const item = map["item"] || map["merchant"] || map["payee"] || "";
-    const description = map["description"] || map["memo"] || "";
-    const amountRaw = map["amount"] || map["debit"] || "";
-    const amount = Number(String(amountRaw).replace(/[^0-9.\-]/g, "")) || 0;
+    const date =
+      map['date'] || map['transactiondate'] || map['posteddate'] || '';
+    const item = map['item'] || map['merchant'] || map['payee'] || '';
+    const description = map['description'] || map['memo'] || '';
+    const amountRaw = map['amount'] || map['debit'] || '';
+    const amount = Number(String(amountRaw).replace(/[^0-9.\-]/g, '')) || 0;
 
     return {
       id: id.trim() || undefined, // optional (many CSVs won't have it)
@@ -118,18 +122,18 @@ export function rowsToImportTxns(rows: Record<string, string>[]): ImportTxnWithT
       item,
       description,
       amount,
-      category: map["category"] || "",
-      subcategory: map["subcategory"] || "",
+      category: map['category'] || '',
+      subcategory: map['subcategory'] || '',
     };
   });
 }
 
 /** Normalize text so tiny differences don't change IDs */
 function normText(s: string) {
-  return (s ?? "")
+  return (s ?? '')
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, ' ')
     .replace(/[’‘]/g, "'");
 }
 
@@ -147,8 +151,15 @@ function fnv1a32(str: string) {
   return h >>> 0;
 }
 
-function fingerprint(t: Pick<ImportTxnWithTaxonomy, "date" | "item" | "description" | "amount">) {
-  return [t.date || "", normAmount(t.amount), normText(t.item), normText(t.description)].join("|");
+function fingerprint(
+  t: Pick<ImportTxnWithTaxonomy, 'date' | 'item' | 'description' | 'amount'>
+) {
+  return [
+    t.date || '',
+    normAmount(t.amount),
+    normText(t.item),
+    normText(t.description),
+  ].join('|');
 }
 
 export /**
@@ -158,7 +169,10 @@ export /**
  * The returned value is a plain string; branding to `TxnId` should happen at the object boundary.
  */
 function deriveStableTxnId(
-  t: Pick<ImportTxnWithTaxonomy, "id" | "date" | "item" | "description" | "amount">,
+  t: Pick<
+    ImportTxnWithTaxonomy,
+    'id' | 'date' | 'item' | 'description' | 'amount'
+  >,
   occurrence = 1
 ): TxnId | string {
   // Prefer bank-provided / CSV id if present
@@ -213,7 +227,11 @@ export function finalizeImportTxns(
     id: String(t.id), // normalize to string for dedupe lookup
   }));
 
-  const { kept, skipped } = filterDuplicatesById(withIds, existingIds, skipDuplicates);
+  const { kept, skipped } = filterDuplicatesById(
+    withIds,
+    existingIds,
+    skipDuplicates
+  );
 
   const out: UnscopedTxn[] = kept.map((t) => ({
     id: asTxnId(t.id || uid()),

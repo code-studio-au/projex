@@ -1,1 +1,1 @@
-export { default } from "./SuperAdminPage/SuperAdminPage";
+export { default } from './SuperAdminPage/SuperAdminPage';

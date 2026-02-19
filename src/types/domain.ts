@@ -6,8 +6,8 @@ import type {
   SubCategoryId,
   TxnId,
   UserId,
-} from "./ids";
-import type { CompanyRole, ProjectRole } from "./roles";
+} from './ids';
+import type { CompanyRole, ProjectRole } from './roles';
 
 export type Company = {
   id: CompanyId;
@@ -19,8 +19,8 @@ export type Project = {
   id: ProjectId;
   companyId: CompanyId;
   name: string;
-  currency: "AUD" | "USD" | "EUR" | "GBP";
-  status: "active" | "archived";
+  currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
+  status: 'active' | 'archived';
 };
 
 export type User = {
@@ -42,7 +42,12 @@ export type ProjectMembership = {
   role: ProjectRole;
 };
 
-export type Category = { id: CategoryId; companyId: CompanyId; projectId: ProjectId; name: string };
+export type Category = {
+  id: CategoryId;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  name: string;
+};
 export type SubCategory = {
   id: SubCategoryId;
   companyId: CompanyId;

@@ -1,13 +1,24 @@
-import React, { useMemo, useState } from "react";
-import { Button, Group, Modal, Stack, Table, Text, TextInput } from "@mantine/core";
-import { useAppStore } from "../../context/AppStore";
+import React, { useMemo, useState } from 'react';
+import {
+  Button,
+  Group,
+  Modal,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+} from '@mantine/core';
+import { useAppStore } from '../../context/AppStore';
 
 export default function TenantsTab() {
   const store = useAppStore();
-  const companies = useMemo(() => store.companies.filter((c) => !c.archived), [store.companies]);
+  const companies = useMemo(
+    () => store.companies.filter((c) => !c.archived),
+    [store.companies]
+  );
 
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
 
   const rows = companies.map((c) => (
     <Table.Tr key={c.id}>
@@ -23,7 +34,12 @@ export default function TenantsTab() {
           >
             Select
           </Button>
-          <Button size="xs" color="red" variant="subtle" onClick={() => store.removeCompany(c.id)}>
+          <Button
+            size="xs"
+            color="red"
+            variant="subtle"
+            onClick={() => store.removeCompany(c.id)}
+          >
             Remove
           </Button>
         </Group>
@@ -48,9 +64,18 @@ export default function TenantsTab() {
         <Table.Tbody>{rows}</Table.Tbody>
       </Table>
 
-      <Modal opened={open} onClose={() => setOpen(false)} title="Create Tenant" centered>
+      <Modal
+        opened={open}
+        onClose={() => setOpen(false)}
+        title="Create Tenant"
+        centered
+      >
         <Stack>
-          <TextInput label="Tenant name" value={name} onChange={(e) => setName(e.currentTarget.value)} />
+          <TextInput
+            label="Tenant name"
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+          />
           <Group justify="flex-end">
             <Button
               onClick={() => {
@@ -58,7 +83,7 @@ export default function TenantsTab() {
                 if (!n) return;
                 const id = store.addCompany(n);
                 store.setActiveCompanyId(id);
-                setName("");
+                setName('');
                 setOpen(false);
               }}
             >
