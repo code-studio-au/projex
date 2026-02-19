@@ -1,8 +1,23 @@
 import { useMemo } from "react";
+
+/**
+ * Rollup computations for budgets vs actuals.
+ *
+ * This hook is intentionally UI-agnostic: it produces a normalized model
+ * (rows + month keys + aggregations) that a table component can render.
+ *
+ * Keeping the computation isolated makes it easy to migrate to a backend
+ * implementation later (TanStack Start server functions / SQL rollups),
+ * while preserving the same UI contract.
+ */
 import type { BudgetLine, RollupRow, SubCategoryId, Txn } from "../types";
 import { monthKeyFromStart, monthStart, nextMonthStart, parseISODate, sum } from "../utils/finance";
 import type { TaxonomyHook } from "./useTaxonomy";
 
+/**
+ * Parses a month key used in the UI ("YYYY-MM") into a Date.
+ * Accepts full ISO date strings as a convenience (we normalize to month start).
+ */
 function parseMonthKeyToDate(input: string) {
   // Accept "YYYY-MM" or a full ISO date.
   const key = /^\d{4}-\d{2}$/.test(input) ? `${input}-01` : input;

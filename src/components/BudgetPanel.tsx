@@ -3,7 +3,7 @@ import { Badge, Group, NumberInput, Stack, Text, Title } from "@mantine/core";
 import { MantineReactTable, type MRT_ColumnDef } from "mantine-react-table";
 import type { RollupsHook } from "../hooks/useRollups";
 import type { BudgetsHook } from "../hooks/useBudgets";
-import type { TaxonomyHook } from "../hooks/useTaxonomy";
+import { loadBudgetCollapseState, saveBudgetCollapseState } from "../store/uiPrefs";
 import type { ProjectId, RollupRow } from "../types";
 import {
   currency,
@@ -15,52 +15,26 @@ import {
   type Quarter,
 } from "../utils/finance";
 
-type BudgetCollapseState = {
-  collapsedYears: number[];
-  collapsedQuarters: string[];
-};
-
-function loadBudgetCollapseState(storageKey: string): BudgetCollapseState | null {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<BudgetCollapseState>;
-
-    const years = Array.isArray(parsed.collapsedYears) ? parsed.collapsedYears.filter((y) => Number.isFinite(y)) : null;
-    const quarters = Array.isArray(parsed.collapsedQuarters)
-      ? parsed.collapsedQuarters.filter((q) => typeof q === "string")
-      : null;
-
-    if (!years || !quarters) return null;
-    return { collapsedYears: years, collapsedQuarters: quarters };
-  } catch {
-    return null;
-  }
-}
-
-function saveBudgetCollapseState(storageKey: string, state: BudgetCollapseState) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(state));
-  } catch {
-    // ignore storage errors (private mode / quota / disabled)
-  }
-}
+/**
+ * Budget rollup table.
+ *
+ * This component is intentionally "UI-only":
+ * - It renders the time-series table (Year -> Quarter -> Month).
+ * - It owns column visibility/collapse UX.
+ *
+ * The heavy lifting (computing rollup rows and month keys) lives in `useRollups`.
+ * That separation makes it straightforward to migrate rollup computation server-side
+ * later (TanStack Start/server functions/DB queries) without rewriting the table.
+ */
 
 export default function BudgetPanel(props: {
   projectId: ProjectId;
   rollups: RollupsHook;
   budgets: BudgetsHook;
-  taxonomy: TaxonomyHook;
   uncodedSummary: { count: number; amount: number };
   readOnly?: boolean;
 }) {
   const { projectId, rollups, budgets, uncodedSummary, readOnly = false } = props;
-
-  // TODO(auth):
-  // Collapse state is currently persisted per-project only.
-  // When real authentication is added, include userId in this key so preferences are per-user per-project, e.g.:
-  // `projex_budget_collapse_v2:${userId}:${projectId}`
-  const storageKey = useMemo(() => `projex_budget_collapse_v1:${projectId}`, [projectId]);
 
   const [collapsedYears, setCollapsedYears] = useState<Set<number>>(() => new Set());
   const [collapsedQuarters, setCollapsedQuarters] = useState<Set<string>>(() => new Set());
@@ -70,10 +44,10 @@ export default function BudgetPanel(props: {
 
   // Persisted collapse state is scoped per project.
   useEffect(() => {
-    const saved = loadBudgetCollapseState(storageKey);
+    const saved = loadBudgetCollapseState(projectId);
     if (saved) {
-      setCollapsedYears(new Set(saved.collapsedYears));
-      setCollapsedQuarters(new Set(saved.collapsedQuarters));
+      setCollapsedYears(new Set(Object.keys(saved.collapsedYears).map((y) => Number(y)).filter((y) => Number.isFinite(y))));
+      setCollapsedQuarters(new Set(Object.keys(saved.collapsedQuarters)));
       setHasSavedCollapseState(true);
     } else {
       setHasSavedCollapseState(false);
@@ -81,7 +55,7 @@ export default function BudgetPanel(props: {
       setCollapsedQuarters(new Set());
     }
     setCollapseHydrated(true);
-  }, [storageKey]);
+  }, [projectId]);
 
   // Default collapse behavior (only when there is no saved state).
   // NOTE: The budget table's entire time dimension is derived from rollups.visibleMonthKeys.
@@ -141,11 +115,11 @@ export default function BudgetPanel(props: {
   // Persist collapse state per project so returning to a project keeps the same view.
   useEffect(() => {
     if (!collapseHydrated) return;
-    saveBudgetCollapseState(storageKey, {
-      collapsedYears: Array.from(collapsedYears.values()),
-      collapsedQuarters: Array.from(collapsedQuarters.values()),
+    saveBudgetCollapseState(projectId, {
+      collapsedYears: Object.fromEntries(Array.from(collapsedYears.values()).map((y) => [String(y), true])),
+      collapsedQuarters: Object.fromEntries(Array.from(collapsedQuarters.values()).map((qk) => [qk, true])),
     });
-  }, [collapseHydrated, storageKey, collapsedYears, collapsedQuarters]);
+  }, [collapseHydrated, projectId, collapsedYears, collapsedQuarters]);
 
   const columnVisibility = useMemo(() => {
     const vis: Record<string, boolean> = {};

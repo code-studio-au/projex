@@ -6,6 +6,11 @@ import { seedState, PROJEX_STATE_KEY, type PersistedStateV1 } from "../seed";
  * Keep these helpers pure-ish and isolated so AppStore doesn't become a god object.
  */
 
+/**
+ * Clears the entire persisted app state.
+ *
+ * Used by SuperAdmin tools and during development.
+ */
 export function clearPersistedState() {
   try {
     localStorage.removeItem(PROJEX_STATE_KEY);
@@ -14,6 +19,11 @@ export function clearPersistedState() {
   }
 }
 
+/**
+ * Replaces persisted state with the current seed state.
+ *
+ * Useful for demo resets and for ensuring seeded fixtures stay deterministic.
+ */
 export function applySeedToPersistence() {
   try {
     localStorage.setItem(PROJEX_STATE_KEY, JSON.stringify(seedState));
@@ -22,6 +32,12 @@ export function applySeedToPersistence() {
   }
 }
 
+/**
+ * Loads persisted state from localStorage.
+ *
+ * This function performs minimal shape validation to avoid hard crashes when
+ * the stored data is missing or from an older version.
+ */
 export function loadPersistedState(): PersistedStateV1 | null {
   try {
     const raw = localStorage.getItem(PROJEX_STATE_KEY);
@@ -68,6 +84,12 @@ export function loadPersistedState(): PersistedStateV1 | null {
   }
 }
 
+/**
+ * Persists state to localStorage.
+ *
+ * NOTE: In a TanStack backend migration, this becomes an API call and/or
+ * server-side persistence; keeping it isolated reduces refactor risk.
+ */
 export function savePersistedState(state: PersistedStateV1) {
   try {
     localStorage.setItem(PROJEX_STATE_KEY, JSON.stringify(state));

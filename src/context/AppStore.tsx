@@ -19,6 +19,16 @@ import { seedState, type PersistedStateV1 } from "../seed";
 import { applySeedToPersistence, clearPersistedState, loadPersistedState, savePersistedState } from "../store/persistence";
 import { getPrimaryCompanyForUser as getPrimaryCompanyForUserFn } from "../store/access";
 
+/**
+ * AppStore: in-memory client-side store for the demo/prototype.
+ *
+ * Design goals:
+ * - Keep domain state (companies/projects/txns/budgets/taxonomy) in one place.
+ * - Isolate side-effects (localStorage persistence, UI preferences) into `src/store/*`.
+ * - Provide a stable, backend-friendly API surface so the UI can later swap to
+ *   TanStack Start server functions without large component rewrites.
+ */
+
 export type ProjectDataSlice = {
   budgets: BudgetLine[];
   transactions: Txn[];

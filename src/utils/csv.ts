@@ -151,7 +151,13 @@ function fingerprint(t: Pick<ImportTxnWithTaxonomy, "date" | "item" | "descripti
   return [t.date || "", normAmount(t.amount), normText(t.item), normText(t.description)].join("|");
 }
 
-export function deriveStableTxnId(
+export /**
+ * Derives a deterministic ID string from stable row fields.
+ *
+ * This is used to avoid re-import duplicates when the same bank export is imported multiple times.
+ * The returned value is a plain string; branding to `TxnId` should happen at the object boundary.
+ */
+function deriveStableTxnId(
   t: Pick<ImportTxnWithTaxonomy, "id" | "date" | "item" | "description" | "amount">,
   occurrence = 1
 ): TxnId | string {

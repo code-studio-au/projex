@@ -11,6 +11,14 @@ import type {
   UserId,
 } from "../types";
 
+/**
+ * Access-control helper utilities for the demo app.
+ *
+ * Today, access rules are computed client-side from seeded memberships.
+ * When you migrate to a real backend (TanStack Start + Postgres), this module
+ * becomes a useful reference for server-side authorization checks.
+ */
+
 const companyRoleRank: Record<CompanyRole, number> = {
   superadmin: 4,
   executive: 3,
@@ -18,6 +26,12 @@ const companyRoleRank: Record<CompanyRole, number> = {
   member: 1,
 };
 
+/**
+ * Picks a "primary" company for a given user.
+ *
+ * This is a UX convenience used to pick the default company in the UI.
+ * For deterministic behavior, we rank roles and then fall back to stable ordering.
+ */
 export function getPrimaryCompanyForUser(userId: UserId, companyMemberships: CompanyMembership[]) {
   const ms = companyMemberships.filter((m) => m.userId === userId);
   if (!ms.length) return null;

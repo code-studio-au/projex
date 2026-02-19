@@ -5,6 +5,16 @@ import type { TaxonomyHook } from "../hooks/useTaxonomy";
 import { parseCsv, rowsToImportTxns, finalizeImportTxns } from "../utils/csv";
 
 /**
+ * CSV Import panel.
+ *
+ * This component handles user interaction (paste/upload, options toggles) and delegates
+ * parsing/normalization to `src/utils/csv.ts`.
+ *
+ * Keeping parsing logic out of the component makes it easier to:
+ * - unit test
+ * - migrate to a server-side import pipeline later
+ * - reuse the same normalization for API ingestion
+ *
  * Importer notes:
  * - You can paste CSV text OR upload a .csv file.
  * - By default, imported rows are appended.

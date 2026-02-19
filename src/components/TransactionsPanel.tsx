@@ -3,7 +3,7 @@ import { Badge, Box, Button, Group, Paper, Select, Stack, Text, Title } from "@m
 import { MantineReactTable, type MRT_ColumnDef } from "mantine-react-table";
 import type { TransactionsHook } from "../hooks/useTransactions";
 import type { TaxonomyHook } from "../hooks/useTaxonomy";
-import { currency } from "../utils/finance";
+import { currency, monthKeyFromStart, monthStart, parseISODate } from "../utils/finance";
 import TaxonomyManagerModal from "./TaxonomyManagerModal";
 
 export default function TransactionsPanel(props: {
@@ -31,9 +31,37 @@ export default function TransactionsPanel(props: {
 
   const [manageOpen, setManageOpen] = useState(false);
 
+  /**
+   * Count invalid transaction dates so the UI can surface problems early.
+   * We keep this local (UI concern) rather than making the store reject rows,
+   * because CSV imports and manual edits can be messy during prototyping.
+   */
+  const invalidDateCount = useMemo(() => {
+    let bad = 0;
+    for (const t of txns.transactions) {
+      try {
+        parseISODate(t.date);
+      } catch {
+        bad += 1;
+      }
+    }
+    return bad;
+  }, [txns.transactions]);
+
+
   const filteredTxns = useMemo(() => {
     let out = txns.transactions;
-    if (monthFilterKey) out = out.filter((t) => t.date.slice(0, 7) === monthFilterKey);
+    if (monthFilterKey) {
+      out = out.filter((t) => {
+        try {
+          const mk = monthKeyFromStart(monthStart(parseISODate(t.date)));
+          return mk === monthFilterKey;
+        } catch {
+          // Invalid dates never match a specific month filter.
+          return false;
+        }
+      });
+    }
     if (showUncodedOnly) out = out.filter((t) => !t.subCategoryId || !taxonomy.validSubIds.has(t.subCategoryId));
     return out;
   }, [txns.transactions, monthFilterKey, showUncodedOnly, taxonomy.validSubIds]);
@@ -128,6 +156,11 @@ export default function TransactionsPanel(props: {
             <Text size="sm" c="dimmed">
               Filter a month, then assign category + subcategory
             </Text>
+            {invalidDateCount > 0 && (
+              <Text size="sm" c="dimmed">
+                ⚠️ {invalidDateCount} transaction(s) have invalid dates. They may be excluded from month filters/rollups.
+              </Text>
+            )}
           </Stack>
 
           <Group gap="sm" align="flex-end">

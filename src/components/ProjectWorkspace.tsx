@@ -139,7 +139,6 @@ export default function ProjectWorkspace() {
           <Tabs.Panel value="transactions" pt="md">
             <TransactionsPanel
               txns={txns}
-              taxonomy={taxonomy}
               monthFilterKey={monthFilterKey}
               setMonthFilterKey={setMonthFilterKey}
               monthFilterOptions={monthFilterOptions}
@@ -155,7 +154,6 @@ export default function ProjectWorkspace() {
               projectId={projectId}
               rollups={rollups}
               budgets={budgets}
-              taxonomy={taxonomy}
               uncodedSummary={uncoded}
               readOnly={!canEditBudgets}
             />
@@ -163,7 +161,6 @@ export default function ProjectWorkspace() {
 
           <Tabs.Panel value="import" pt="md">
             <CsvImporterPanel
-              taxonomy={taxonomy}
               existingTxns={txns.transactions}
               companyId={store.activeCompanyId}
               projectId={projectId}
