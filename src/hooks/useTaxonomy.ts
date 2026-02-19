@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { Category, SubCategory, Id } from "../types";
+import type { Category, CategoryId, CompanyId, ProjectId, SubCategory, SubCategoryId } from "../types";
+import { asCategoryId, asSubCategoryId, asCompanyId, asProjectId } from "../types";
 import { uid } from "../utils/id";
 import type { BudgetsHook } from "./useBudgets";
 import type { TransactionsHook } from "./useTransactions";
@@ -11,8 +12,8 @@ export function useTaxonomy(params: {
   valueSubCategories?: SubCategory[];
   onChangeCategories?: (next: Category[]) => void;
   onChangeSubCategories?: (next: SubCategory[]) => void;
-  companyId?: Id;
-  projectId?: Id;
+  companyId?: CompanyId;
+  projectId?: ProjectId;
   budgets: BudgetsHook;
   txns: TransactionsHook;
 }){
@@ -40,13 +41,13 @@ export function useTaxonomy(params: {
     [categories]
   );
 
-  const getCategory = (id?: Id) => categories.find((c) => c.id === id);
-  const getSubCategory = (id?: Id) => subCategories.find((s) => s.id === id);
+  const getCategory = (id?: CategoryId) => categories.find((c) => c.id === id);
+  const getSubCategory = (id?: SubCategoryId) => subCategories.find((s) => s.id === id);
 
-  const getCategoryName = (id?: Id) => getCategory(id)?.name ?? "";
-  const getSubCategoryName = (id?: Id) => getSubCategory(id)?.name ?? "";
+  const getCategoryName = (id?: CategoryId) => getCategory(id)?.name ?? "";
+  const getSubCategoryName = (id?: SubCategoryId) => getSubCategory(id)?.name ?? "";
 
-  const subCategoryOptionsForCategory = (categoryId?: Id) => {
+  const subCategoryOptionsForCategory = (categoryId?: CategoryId) => {
     if (!categoryId) return [];
     return subCategories
       .filter((s) => s.categoryId === categoryId)
@@ -54,48 +55,54 @@ export function useTaxonomy(params: {
       .sort((a, b) => a.label.localeCompare(b.label));
   };
 
-  const addCategory = (name: string): Id | null => {
+  const addCategory = (name: string): CategoryId | null => {
     const trimmed = name.trim();
     if (!trimmed) return null;
-    const c: Category = { id: uid(), companyId: params.companyId ?? "unknown", projectId: params.projectId ?? "unknown", name: trimmed };
+    const c: Category = { id: asCategoryId(uid("cat")), companyId: params.companyId ?? asCompanyId("co_unknown"), projectId: params.projectId ?? asProjectId("prj_unknown"), name: trimmed };
     setCategories((prev) => [...prev, c]);
     return c.id;
   };
 
-  const renameCategory = (categoryId: Id, name: string) => {
+  const renameCategory = (categoryId: CategoryId, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     setCategories((prev) => prev.map((c) => (c.id === categoryId ? { ...c, name: trimmed } : c)));
   };
 
-  const addSubCategory = (categoryId: Id, name: string): Id | null => {
+  const addSubCategory = (categoryId: CategoryId, name: string): SubCategoryId | null => {
     const trimmed = name.trim();
     if (!trimmed) return null;
-    const sc: SubCategory = { id: uid(), companyId: params.companyId ?? "unknown", projectId: params.projectId ?? "unknown", categoryId, name: trimmed };
+    const sc: SubCategory = {
+      id: asSubCategoryId(uid("sub")),
+      companyId: params.companyId ?? asCompanyId("co_unknown"),
+      projectId: params.projectId ?? asProjectId("prj_unknown"),
+      categoryId,
+      name: trimmed,
+    };
     setSubCategories((prev) => [...prev, sc]);
     budgets.upsertBudgetForSubCategory(sc.id, categoryId);
     return sc.id;
   };
 
-  const renameSubCategory = (subCategoryId: Id, name: string) => {
+  const renameSubCategory = (subCategoryId: SubCategoryId, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     setSubCategories((prev) => prev.map((s) => (s.id === subCategoryId ? { ...s, name: trimmed } : s)));
   };
 
-  const moveSubCategory = (subCategoryId: Id, toCategoryId: Id) => {
+  const moveSubCategory = (subCategoryId: SubCategoryId, toCategoryId: CategoryId) => {
     setSubCategories((prev) => prev.map((s) => (s.id === subCategoryId ? { ...s, categoryId: toCategoryId } : s)));
     budgets.updateBudgetCategoryForSubCategory(subCategoryId, toCategoryId);
     txns.setTransactions((prev) => prev.map((t) => (t.subCategoryId === subCategoryId ? { ...t, categoryId: toCategoryId } : t)));
   };
 
-  const deleteSubCategory = (subCategoryId: Id) => {
+  const deleteSubCategory = (subCategoryId: SubCategoryId) => {
     txns.stripCodingForSubCategoryIds([subCategoryId]);
     budgets.deleteBudgetLinesForSubCategoryIds([subCategoryId]);
     setSubCategories((prev) => prev.filter((s) => s.id !== subCategoryId));
   };
 
-  const deleteCategory = (categoryId: Id) => {
+  const deleteCategory = (categoryId: CategoryId) => {
     const contained = subCategories.filter((s) => s.categoryId === categoryId).map((s) => s.id);
 
     txns.stripCodingForCategoryIds([categoryId]);

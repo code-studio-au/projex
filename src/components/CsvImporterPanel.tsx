@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Button, FileInput, Group, Paper, Stack, Switch, Text, Textarea } from "@mantine/core";
-import type { ImportTxn, Txn } from "../types";
+import type { CompanyId, ImportTxnWithTaxonomy, ProjectId, Txn } from "../types";
 import type { TaxonomyHook } from "../hooks/useTaxonomy";
 import { parseCsv, rowsToImportTxns, finalizeImportTxns } from "../utils/csv";
 
@@ -13,8 +13,8 @@ import { parseCsv, rowsToImportTxns, finalizeImportTxns } from "../utils/csv";
 export default function CsvImporterPanel(props: {
   taxonomy: TaxonomyHook;
   existingTxns: Txn[];
-  companyId: string;
-  projectId: string;
+  companyId: CompanyId;
+  projectId: ProjectId;
   canEditTaxonomy: boolean;
   onAppend: (txns: Txn[]) => void;
   onReplaceAll: (txns: Txn[]) => void;
@@ -45,7 +45,7 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
     setCsvText(t);
   }
 
-  const importTxns = useMemo(() => {
+  const importTxns = useMemo<ImportTxnWithTaxonomy[]>(() => {
     try {
       const rows = parseCsv(csvText);
       const imp = rowsToImportTxns(rows);
@@ -69,7 +69,7 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
       })
     );
 
-    const mapped = importTxns.map((t: any) => {
+    const mapped = importTxns.map((t) => {
       const catName = String(t.category ?? "").trim();
       const subName = String(t.subcategory ?? "").trim();
 
@@ -107,7 +107,7 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
         amount: t.amount,
         categoryId,
         subCategoryId,
-      } satisfies ImportTxn;
+      } satisfies ImportTxnWithTaxonomy;
     });
 
     return mapped;

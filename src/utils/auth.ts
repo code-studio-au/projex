@@ -1,4 +1,4 @@
-import type { CompanyMembership, CompanyRole, Id, ProjectMembership, ProjectRole } from "../types";
+import type { CompanyId, CompanyMembership, CompanyRole, ProjectId, ProjectMembership, ProjectRole, UserId } from "../types";
 
 export type Action =
   | "company:view"
@@ -26,13 +26,13 @@ const projectRank: Record<ProjectRole, number> = {
   viewer: 1,
 };
 
-function bestCompanyRole(memberships: CompanyMembership[], companyId: Id, userId: Id): CompanyRole | null {
+function bestCompanyRole(memberships: CompanyMembership[], companyId: CompanyId, userId: UserId): CompanyRole | null {
   const roles = memberships.filter((m) => m.companyId === companyId && m.userId === userId).map((m) => m.role);
   if (!roles.length) return null;
   return roles.sort((a, b) => companyRank[b] - companyRank[a])[0];
 }
 
-function bestProjectRole(memberships: ProjectMembership[], projectId: Id, userId: Id): ProjectRole | null {
+function bestProjectRole(memberships: ProjectMembership[], projectId: ProjectId, userId: UserId): ProjectRole | null {
   const roles = memberships.filter((m) => m.projectId === projectId && m.userId === userId).map((m) => m.role);
   if (!roles.length) return null;
   return roles.sort((a, b) => projectRank[b] - projectRank[a])[0];
@@ -43,9 +43,9 @@ function bestProjectRole(memberships: ProjectMembership[], projectId: Id, userId
  * we take the highest privilege applicable to the resource.
  */
 export function can(params: {
-  userId: Id;
-  companyId: Id;
-  projectId?: Id;
+  userId: UserId;
+  companyId: CompanyId;
+  projectId?: ProjectId;
   action: Action;
   companyMemberships: CompanyMembership[];
   projectMemberships: ProjectMembership[];

@@ -1,7 +1,8 @@
-import type { ImportTxn, Txn } from "../types";
+import type { ImportTxnWithTaxonomy, Txn, TxnId } from "../types";
+import { asTxnId } from "../types";
+import { uid } from "./id";
 
 type UnscopedTxn = Omit<Txn, "companyId" | "projectId">;
-import { uid } from "./id";
 
 /**
  * Minimal CSV parser (handles quotes, commas, newlines).
@@ -15,7 +16,7 @@ import { uid } from "./id";
  * - category
  * - subcategory
  *
- * NOTE: category/subcategory mapping to IDs is handled elsewhere (taxonomy lookup).
+ * NOTE: mapping category/subcategory -> IDs is handled elsewhere (taxonomy lookup).
  */
 export function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
@@ -93,7 +94,7 @@ export function normalizeHeader(h: string) {
   return h.trim().toLowerCase().replace(/\s+/g, "");
 }
 
-export function rowsToImportTxns(rows: Record<string, string>[]): ImportTxn[] {
+export function rowsToImportTxns(rows: Record<string, string>[]): ImportTxnWithTaxonomy[] {
   return rows.map((r) => {
     const map: Record<string, string> = {};
     for (const k of Object.keys(r)) map[normalizeHeader(k)] = r[k];
@@ -112,14 +113,12 @@ export function rowsToImportTxns(rows: Record<string, string>[]): ImportTxn[] {
     const amount = Number(String(amountRaw).replace(/[^0-9.\-]/g, "")) || 0;
 
     return {
-      id: id.trim() || undefined, // ✅ keep optional
+      id: id.trim() || undefined, // optional (many CSVs won't have it)
       date,
       item,
       description,
       amount,
-      // @ts-expect-error: allow extra fields for mapping
       category: map["category"] || "",
-      // @ts-expect-error
       subcategory: map["subcategory"] || "",
     };
   });
@@ -148,55 +147,77 @@ function fnv1a32(str: string) {
   return h >>> 0;
 }
 
-function fingerprint(t: Pick<ImportTxn, "date" | "item" | "description" | "amount">) {
+function fingerprint(t: Pick<ImportTxnWithTaxonomy, "date" | "item" | "description" | "amount">) {
   return [t.date || "", normAmount(t.amount), normText(t.item), normText(t.description)].join("|");
 }
 
 export function deriveStableTxnId(
-  t: Pick<ImportTxn, "id" | "date" | "item" | "description" | "amount">,
+  t: Pick<ImportTxnWithTaxonomy, "id" | "date" | "item" | "description" | "amount">,
   occurrence = 1
-) {
+): TxnId | string {
   // Prefer bank-provided / CSV id if present
-  if (t.id && t.id.trim()) return t.id.trim();
+  if (t.id && String(t.id).trim()) return String(t.id).trim();
 
   // Otherwise, derive from content fingerprint
   const hash = fnv1a32(fingerprint(t)).toString(36);
   return occurrence === 1 ? `txn_${hash}` : `txn_${hash}_${occurrence}`;
 }
 
+/** Assign stable IDs using fingerprint + occurrence count */
+export function assignStableIds(
+  importTxns: ImportTxnWithTaxonomy[]
+): Array<ImportTxnWithTaxonomy & { id: TxnId | string }> {
+  const seen = new Map<string, number>();
+  return importTxns.map((t) => {
+    const fp = fingerprint(t);
+    const occ = (seen.get(fp) ?? 0) + 1;
+    seen.set(fp, occ);
+    return { ...t, id: deriveStableTxnId(t, occ) };
+  });
+}
+
+/** Filter out transactions whose IDs already exist in the destination list */
+export function filterDuplicatesById<T extends { id: string }>(
+  items: T[],
+  existingIds: Set<string>,
+  skipDuplicates: boolean
+): { kept: T[]; skipped: number } {
+  if (!skipDuplicates) return { kept: items, skipped: 0 };
+  const kept: T[] = [];
+  let skipped = 0;
+  for (const it of items) {
+    if (existingIds.has(it.id)) {
+      skipped++;
+      continue;
+    }
+    kept.push(it);
+  }
+  return { kept, skipped };
+}
+
 export function finalizeImportTxns(
-  importTxns: ImportTxn[],
+  importTxns: ImportTxnWithTaxonomy[],
   opts?: { existingIds?: Set<string>; skipDuplicates?: boolean }
 ): { txns: UnscopedTxn[]; skipped: number } {
   const existingIds = opts?.existingIds ?? new Set<string>();
   const skipDuplicates = opts?.skipDuplicates ?? true;
 
-  const seen = new Map<string, number>();
-  const out: UnscopedTxn[] = [];
-  let skipped = 0;
+  const withIds = assignStableIds(importTxns).map((t) => ({
+    ...t,
+    id: String(t.id), // normalize to string for dedupe lookup
+  }));
 
-  for (const t of importTxns) {
-    const fp = fingerprint(t);
-    const occ = (seen.get(fp) ?? 0) + 1;
-    seen.set(fp, occ);
+  const { kept, skipped } = filterDuplicatesById(withIds, existingIds, skipDuplicates);
 
-    const id = deriveStableTxnId(t, occ);
-
-    if (skipDuplicates && existingIds.has(id)) {
-      skipped++;
-      continue;
-    }
-
-    out.push({
-      id: id || uid(), // uid only as a last resort
-      date: t.date,
-      item: t.item,
-      description: t.description,
-      amount: t.amount,
-      categoryId: (t as any).categoryId,
-      subCategoryId: (t as any).subCategoryId,
-    });
-  }
+  const out: UnscopedTxn[] = kept.map((t) => ({
+    id: asTxnId(t.id || uid()),
+    date: t.date,
+    item: t.item,
+    description: t.description,
+    amount: t.amount,
+    categoryId: t.categoryId,
+    subCategoryId: t.subCategoryId,
+  }));
 
   return { txns: out, skipped };
 }

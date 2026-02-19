@@ -151,7 +151,14 @@ export default function ProjectWorkspace() {
           </Tabs.Panel>
 
           <Tabs.Panel value="budget" pt="md">
-            <BudgetPanel rollups={rollups} budgets={budgets} taxonomy={taxonomy} uncodedSummary={uncoded} readOnly={!canEditBudgets} />
+            <BudgetPanel
+              projectId={projectId}
+              rollups={rollups}
+              budgets={budgets}
+              taxonomy={taxonomy}
+              uncodedSummary={uncoded}
+              readOnly={!canEditBudgets}
+            />
           </Tabs.Panel>
 
           <Tabs.Panel value="import" pt="md">

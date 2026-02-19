@@ -1,4 +1,5 @@
-import type { Id } from "../types";
+import type { CompanyId, ProjectId } from "../types";
+import { asCompanyId, asProjectId } from "../types";
 import { seedCompanies } from "./companies";
 import { seedUsers } from "./users";
 import { seedProjects } from "./projects";
@@ -13,18 +14,26 @@ export type PersistedStateV1 = {
   projects: typeof seedProjects;
   companyMemberships: typeof seedCompanyMemberships;
   projectMemberships: typeof seedProjectMemberships;
-  dataByProjectId: Record<Id, SeedProjectDataSlice>;
-  activeCompanyId: Id;
-  activeProjectId: Id | null;
+  dataByProjectId: Record<ProjectId, SeedProjectDataSlice>;
+  activeCompanyId: CompanyId;
+  activeProjectId: ProjectId | null;
 };
 
-export const seedState: PersistedStateV1 = {
-  users: seedUsers,
-  companies: seedCompanies,
-  projects: seedProjects,
-  companyMemberships: seedCompanyMemberships,
-  projectMemberships: seedProjectMemberships,
-  dataByProjectId: seedDataByProjectId,
-  activeCompanyId: "co_acme",
-  activeProjectId: "prj_acme_alpha",
-};
+/**
+ * Build the seed state.
+ * Keep this pure (no access to window/localStorage) so it is reusable in tests and tooling later.
+ */
+export function buildSeedState(): PersistedStateV1 {
+  return {
+    users: seedUsers,
+    companies: seedCompanies,
+    projects: seedProjects,
+    companyMemberships: seedCompanyMemberships,
+    projectMemberships: seedProjectMemberships,
+    dataByProjectId: seedDataByProjectId,
+    activeCompanyId: asCompanyId("co_acme"),
+    activeProjectId: asProjectId("prj_acme_alpha"),
+  };
+}
+
+export const seedState: PersistedStateV1 = buildSeedState();

@@ -16,9 +16,9 @@ import { useAppStore } from "../context/AppStore";
 import { can } from "../utils/auth";
 import { currency } from "../utils/finance";
 import CompanySettingsPanel from "./CompanySettingsPanel";
-import type { Id } from "../types";
+import type { CompanyId, ProjectId } from "../types";
 
-export default function CompanyDashboard(props: { onOpenProject: (projectId: string) => void }) {
+export default function CompanyDashboard(props: { onOpenProject: (projectId: ProjectId) => void }) {
   const { onOpenProject } = props;
   const store = useAppStore();
 
@@ -27,7 +27,7 @@ export default function CompanyDashboard(props: { onOpenProject: (projectId: str
   // For normal users: company is fixed. For owner: allow selecting a company to "impersonate" its dashboard.
   const userCompanyId = store.getUserCompanyId(store.currentUser.id) ?? store.activeCompanyId;
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<Id | null>(isOwner ? null : userCompanyId);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<CompanyId | null>(isOwner ? null : userCompanyId);
 
   React.useEffect(() => {
     const h = () => setSelectedCompanyId(null);

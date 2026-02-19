@@ -1,33 +1,104 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Badge, Group, NumberInput, Paper, Stack, Text, Title } from "@mantine/core";
+import { Badge, Group, NumberInput, Stack, Text, Title } from "@mantine/core";
 import { MantineReactTable, type MRT_ColumnDef } from "mantine-react-table";
 import type { RollupsHook } from "../hooks/useRollups";
 import type { BudgetsHook } from "../hooks/useBudgets";
 import type { TaxonomyHook } from "../hooks/useTaxonomy";
-import { currency, parseYearMonth, quarterKey, quarterOfMonth, formatMonthLabel, sum, type Quarter } from "../utils/finance";
+import type { ProjectId, RollupRow } from "../types";
+import {
+  currency,
+  parseYearMonth,
+  quarterKey,
+  quarterOfMonth,
+  formatMonthLabel,
+  sum,
+  type Quarter,
+} from "../utils/finance";
+
+type BudgetCollapseState = {
+  collapsedYears: number[];
+  collapsedQuarters: string[];
+};
+
+function loadBudgetCollapseState(storageKey: string): BudgetCollapseState | null {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<BudgetCollapseState>;
+
+    const years = Array.isArray(parsed.collapsedYears) ? parsed.collapsedYears.filter((y) => Number.isFinite(y)) : null;
+    const quarters = Array.isArray(parsed.collapsedQuarters)
+      ? parsed.collapsedQuarters.filter((q) => typeof q === "string")
+      : null;
+
+    if (!years || !quarters) return null;
+    return { collapsedYears: years, collapsedQuarters: quarters };
+  } catch {
+    return null;
+  }
+}
+
+function saveBudgetCollapseState(storageKey: string, state: BudgetCollapseState) {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  } catch {
+    // ignore storage errors (private mode / quota / disabled)
+  }
+}
 
 export default function BudgetPanel(props: {
+  projectId: ProjectId;
   rollups: RollupsHook;
   budgets: BudgetsHook;
   taxonomy: TaxonomyHook;
   uncodedSummary: { count: number; amount: number };
   readOnly?: boolean;
 }) {
-  const { rollups, budgets, taxonomy, uncodedSummary, readOnly = false } = props;
+  const { projectId, rollups, budgets, uncodedSummary, readOnly = false } = props;
+
+  // TODO(auth):
+  // Collapse state is currently persisted per-project only.
+  // When real authentication is added, include userId in this key so preferences are per-user per-project, e.g.:
+  // `projex_budget_collapse_v2:${userId}:${projectId}`
+  const storageKey = useMemo(() => `projex_budget_collapse_v1:${projectId}`, [projectId]);
 
   const [collapsedYears, setCollapsedYears] = useState<Set<number>>(() => new Set());
   const [collapsedQuarters, setCollapsedQuarters] = useState<Set<string>>(() => new Set());
 
-  // Default: collapse other years; keep current quarter open for current year
+  const [collapseHydrated, setCollapseHydrated] = useState(false);
+  const [hasSavedCollapseState, setHasSavedCollapseState] = useState(false);
+
+  // Persisted collapse state is scoped per project.
   useEffect(() => {
+    const saved = loadBudgetCollapseState(storageKey);
+    if (saved) {
+      setCollapsedYears(new Set(saved.collapsedYears));
+      setCollapsedQuarters(new Set(saved.collapsedQuarters));
+      setHasSavedCollapseState(true);
+    } else {
+      setHasSavedCollapseState(false);
+      setCollapsedYears(new Set());
+      setCollapsedQuarters(new Set());
+    }
+    setCollapseHydrated(true);
+  }, [storageKey]);
+
+  // Default collapse behavior (only when there is no saved state).
+  // NOTE: The budget table's entire time dimension is derived from rollups.visibleMonthKeys.
+  // If visibleMonthKeys is empty, the table will have no year/quarter/month columns.
+  useEffect(() => {
+    if (!collapseHydrated) return;
+    if (hasSavedCollapseState) return;
     if (!rollups.visibleMonthKeys.length) return;
+
+    // Default: collapse other years; keep current quarter open for current year
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentQuarter = quarterOfMonth(now.getMonth() + 1);
 
-    const yearsInData = Array.from(new Set(rollups.visibleMonthKeys.map((mk) => parseYearMonth(mk).year))).sort(
-      (a, b) => a - b
-    );
+    const yearsInData = Array.from(
+      new Set(rollups.visibleMonthKeys.map((mk) => parseYearMonth(mk).year))
+    ).sort((a, b) => a - b);
 
     setCollapsedYears(new Set(yearsInData.filter((y) => y !== currentYear)));
 
@@ -39,7 +110,42 @@ export default function BudgetPanel(props: {
       if (!(year === currentYear && q === currentQuarter)) nextCollapsedQuarters.add(qk);
     }
     setCollapsedQuarters(nextCollapsedQuarters);
-  }, [rollups.visibleMonthKeys]);
+  }, [collapseHydrated, hasSavedCollapseState, rollups.visibleMonthKeys]);
+
+  // Prune collapse state when the data range changes (and persist).
+  useEffect(() => {
+    if (!collapseHydrated) return;
+    if (!rollups.visibleMonthKeys.length) return;
+
+    const yearsInData = new Set<number>(rollups.visibleMonthKeys.map((mk) => parseYearMonth(mk).year));
+    const quartersInData = new Set<string>(
+      rollups.visibleMonthKeys.map((mk) => {
+        const { year, month } = parseYearMonth(mk);
+        return quarterKey(year, quarterOfMonth(month));
+      })
+    );
+
+    setCollapsedYears((prev) => {
+      const next = new Set<number>();
+      for (const y of prev) if (yearsInData.has(y)) next.add(y);
+      return next;
+    });
+
+    setCollapsedQuarters((prev) => {
+      const next = new Set<string>();
+      for (const qk of prev) if (quartersInData.has(qk)) next.add(qk);
+      return next;
+    });
+  }, [collapseHydrated, rollups.visibleMonthKeys]);
+
+  // Persist collapse state per project so returning to a project keeps the same view.
+  useEffect(() => {
+    if (!collapseHydrated) return;
+    saveBudgetCollapseState(storageKey, {
+      collapsedYears: Array.from(collapsedYears.values()),
+      collapsedQuarters: Array.from(collapsedQuarters.values()),
+    });
+  }, [collapseHydrated, storageKey, collapsedYears, collapsedQuarters]);
 
   const columnVisibility = useMemo(() => {
     const vis: Record<string, boolean> = {};
@@ -59,6 +165,9 @@ export default function BudgetPanel(props: {
   }, [rollups.visibleMonthKeys, collapsedYears, collapsedQuarters]);
 
   const budgetColumns = useMemo<MRT_ColumnDef<(typeof rollups.rollupRows)[number]>[]>(() => {
+    // Time columns (Year -> Quarter -> Months) are derived here.
+    // Invariant: rollups.visibleMonthKeys must be non-empty for the table to have a time dimension.
+
     // build year->quarter->months
     const years = new Map<number, Map<Quarter, string[]>>();
     for (const mk of rollups.visibleMonthKeys) {
@@ -71,22 +180,36 @@ export default function BudgetPanel(props: {
     }
     for (const [, qm] of years) for (const [q, arr] of qm) qm.set(q, [...arr].sort());
 
-    const sumQuarter = (row: any, months: string[]) => months.reduce((acc, mk) => acc + (row.actualByMonthKey[mk] ?? 0), 0);
-    const sumYear = (row: any, months: string[]) => months.reduce((acc, mk) => acc + (row.actualByMonthKey[mk] ?? 0), 0);
+    const sumQuarter = (row: RollupRow, months: string[]) =>
+      months.reduce((acc, mk) => acc + (row.actualByMonthKey[mk] ?? 0), 0);
+    const sumYear = (row: RollupRow, months: string[]) =>
+      months.reduce((acc, mk) => acc + (row.actualByMonthKey[mk] ?? 0), 0);
 
-    const yearGroups: MRT_ColumnDef<any>[] = Array.from(years.entries())
+    const yearGroups: MRT_ColumnDef<RollupRow>[] = Array.from(years.entries())
       .sort(([a], [b]) => a - b)
       .map(([year, quarterMap]) => {
         const yearMonthKeys = Array.from(quarterMap.values()).flat();
+        const isYearCollapsed = collapsedYears.has(year);
 
-        const yearTotalCol: MRT_ColumnDef<any> = {
+        const yearHeader = (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+            <span>{year} Total</span>
+            <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>
+              {isYearCollapsed ? "▸" : "▾"}
+            </span>
+          </span>
+        );
+
+        const yearTotalCol: MRT_ColumnDef<RollupRow> = {
           id: `yt_${year}`,
-          header: `${year} Total`,
+          header: yearHeader,
           size: 140,
           accessorFn: (row) => sumYear(row, yearMonthKeys),
           Cell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
           aggregationFn: "sum",
-          AggregatedCell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
+          AggregatedCell: ({ cell }) => (
+            <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>
+          ),
           mantineTableHeadCellProps: {
             className: "table-head-cell table-head-right-bold",
             onClick: (e) => {
@@ -98,28 +221,41 @@ export default function BudgetPanel(props: {
               });
             },
             title: "Click to collapse/expand year",
+            style: { cursor: "pointer", userSelect: "none" },
           },
           mantineTableBodyCellProps: { className: "table-body-right" },
         };
 
-        const quarterGroups: MRT_ColumnDef<any>[] = (["Q1","Q2","Q3","Q4"] as Quarter[])
+        const quarterGroups: MRT_ColumnDef<RollupRow>[] = (["Q1", "Q2", "Q3", "Q4"] as Quarter[])
           .filter((q) => quarterMap.has(q))
           .map((q) => {
             const months = quarterMap.get(q)!;
+            const qk = quarterKey(year, q);
+            const isQuarterCollapsed = collapsedQuarters.has(qk);
 
-            const qTotalCol: MRT_ColumnDef<any> = {
+            const quarterHeader = (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                <span>{q} Total</span>
+                <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>
+                  {isQuarterCollapsed ? "▸" : "▾"}
+                </span>
+              </span>
+            );
+
+            const qTotalCol: MRT_ColumnDef<RollupRow> = {
               id: `qt_${year}_${q}`,
-              header: `${q} Total`,
+              header: quarterHeader,
               size: 130,
               accessorFn: (row) => sumQuarter(row, months),
               Cell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
               aggregationFn: "sum",
-              AggregatedCell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
+              AggregatedCell: ({ cell }) => (
+                <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>
+              ),
               mantineTableHeadCellProps: {
                 className: "table-head-cell table-head-right-bold",
                 onClick: (e) => {
                   e.stopPropagation();
-                  const qk = quarterKey(year, q);
                   setCollapsedQuarters((prev) => {
                     const next = new Set(prev);
                     next.has(qk) ? next.delete(qk) : next.add(qk);
@@ -127,26 +263,29 @@ export default function BudgetPanel(props: {
                   });
                 },
                 title: "Click to collapse/expand quarter months",
+                style: { cursor: "pointer", userSelect: "none" },
               },
               mantineTableBodyCellProps: { className: "table-body-right" },
             };
 
-            const monthCols: MRT_ColumnDef<any>[] = months.map((mk) => ({
+            const monthCols: MRT_ColumnDef<RollupRow>[] = months.map((mk) => ({
               id: `m_${mk}`,
               header: formatMonthLabel(mk),
               size: 110,
               accessorFn: (row) => row.actualByMonthKey[mk] ?? 0,
               Cell: ({ cell }) => <Text className="table-body-right">{currency(cell.getValue<number>())}</Text>,
               aggregationFn: "sum",
-              AggregatedCell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
+              AggregatedCell: ({ cell }) => (
+                <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>
+              ),
               mantineTableHeadCellProps: { className: "table-head-cell table-head-right" },
               mantineTableBodyCellProps: { className: "table-body-right" },
             }));
 
-            return { id: `qgrp_${year}_${q}`, header: q, columns: [qTotalCol, ...monthCols] } as any;
+            return { id: `qgrp_${year}_${q}`, header: q, columns: [qTotalCol, ...monthCols] };
           });
 
-        return { id: `ygrp_${year}`, header: String(year), columns: [yearTotalCol, ...quarterGroups] } as any;
+        return { id: `ygrp_${year}`, header: String(year), columns: [yearTotalCol, ...quarterGroups] };
       });
 
     return [
@@ -188,7 +327,9 @@ export default function BudgetPanel(props: {
           />
         ),
         aggregationFn: "sum",
-        AggregatedCell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
+        AggregatedCell: ({ cell }) => (
+          <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>
+        ),
       },
       ...yearGroups,
       {
@@ -199,7 +340,9 @@ export default function BudgetPanel(props: {
         mantineTableBodyCellProps: { className: "table-body-right" },
         Cell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
         aggregationFn: "sum",
-        AggregatedCell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
+        AggregatedCell: ({ cell }) => (
+          <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>
+        ),
       },
       {
         id: "remaining",
@@ -210,14 +353,16 @@ export default function BudgetPanel(props: {
         mantineTableBodyCellProps: { className: "table-body-right" },
         Cell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
         aggregationFn: (_columnId, leafRows) => {
-          const alloc = sum(leafRows.map((lr) => (lr.original as any).allocated));
-          const act = sum(leafRows.map((lr) => (lr.original as any).totalActual));
+          const alloc = sum(leafRows.map((lr) => lr.original.allocated));
+          const act = sum(leafRows.map((lr) => lr.original.totalActual));
           return alloc - act;
         },
-        AggregatedCell: ({ cell }) => <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>,
+        AggregatedCell: ({ cell }) => (
+          <Text className="table-body-right-bold">{currency(cell.getValue<number>())}</Text>
+        ),
       },
     ];
-  }, [rollups.visibleMonthKeys, budgets, collapsedYears, collapsedQuarters]);
+  }, [rollups.visibleMonthKeys, budgets, collapsedYears, collapsedQuarters, readOnly]);
 
   return (
     <Stack gap="md">
@@ -227,6 +372,11 @@ export default function BudgetPanel(props: {
           <Text size="sm" c="dimmed">
             Click a year total or quarter total to collapse/expand time columns.
           </Text>
+          {rollups.badDateCount > 0 && (
+            <Text size="sm" c="dimmed">
+              ⚠️ {rollups.badDateCount} transaction(s) have invalid dates and were excluded from monthly rollups.
+            </Text>
+          )}
         </Stack>
         <Badge size="lg" variant="light" color={uncodedSummary.count ? "red" : "gray"}>
           Uncoded: {uncodedSummary.count} ({currency(uncodedSummary.amount)})

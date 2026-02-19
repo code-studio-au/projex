@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Id, Txn } from "../types";
+import type { CategoryId, SubCategoryId, Txn, TxnId } from "../types";
 import { uid } from "../utils/id";
 import { parseISODate, monthKeyFromStart, monthStart } from "../utils/finance";
 
@@ -14,11 +14,11 @@ export function useTransactions(params: { initial?: Txn[]; value?: Txn[]; onChan
     else setInner(compute);
   };
 
-  const updateTxn = (id: Id, patch: Partial<Txn>) => {
+  const updateTxn = (id: TxnId, patch: Partial<Txn>) => {
     setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   };
 
-  const stripCodingForSubCategoryIds = (subCategoryIds: Id[]) => {
+  const stripCodingForSubCategoryIds = (subCategoryIds: SubCategoryId[]) => {
     const setIds = new Set(subCategoryIds);
     setTransactions((prev) =>
       prev.map((t) =>
@@ -29,7 +29,7 @@ export function useTransactions(params: { initial?: Txn[]; value?: Txn[]; onChan
     );
   };
 
-  const stripCodingForCategoryIds = (categoryIds: Id[]) => {
+  const stripCodingForCategoryIds = (categoryIds: CategoryId[]) => {
     const setIds = new Set(categoryIds);
     setTransactions((prev) =>
       prev.map((t) =>
@@ -45,7 +45,7 @@ export function useTransactions(params: { initial?: Txn[]; value?: Txn[]; onChan
 
   const appendMany = (next: Txn[]) => setTransactions((prev) => [...prev, ...next]);
 
-  const getUncodedSummary = (validSubIds: Set<Id>) => {
+  const getUncodedSummary = (validSubIds: Set<SubCategoryId>) => {
     const bad = transactions.filter((t) => !t.subCategoryId || !validSubIds.has(t.subCategoryId));
     return { count: bad.length, amount: bad.reduce((a, b) => a + (b.amount ?? 0), 0) };
   };

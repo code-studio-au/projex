@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Badge, Button, Group, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title } from "@mantine/core";
 import { useAppStore } from "../context/AppStore";
 import { can } from "../utils/auth";
-import type { CompanyRole, Id } from "../types";
+import type { CompanyId, CompanyRole, ProjectId, ProjectRole, UserId } from "../types";
+import { asProjectId, asUserId } from "../types";
 
 const companyRoleRank: Record<CompanyRole, number> = {
   superadmin: 5,
@@ -12,7 +13,7 @@ const companyRoleRank: Record<CompanyRole, number> = {
   member: 1,
 };
 
-export default function CompanySettingsPanel(props: { companyId: Id }) {
+export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
   const store = useAppStore();
 
@@ -46,13 +47,13 @@ export default function CompanySettingsPanel(props: { companyId: Id }) {
   const [newProjectName, setNewProjectName] = useState("");
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserRole, setNewUserRole] = useState<string | null>("member");
+  const [newUserRole, setNewUserRole] = useState<CompanyRole | null>("member");
 
   // Assign project role
-  const [roleProjectId, setRoleProjectId] = useState<string | null>(projects[0]?.id ?? null);
-  const [roleUserId, setRoleUserId] = useState<string | null>(userOptions[0]?.value ?? null);
-  const [roleValue, setRoleValue] = useState<string | null>("member");
-  const [membershipCompanyRole, setMembershipCompanyRole] = useState<string | null>("member");
+  const [roleProjectId, setRoleProjectId] = useState<ProjectId | null>((projects[0]?.id ?? null) as ProjectId | null);
+  const [roleUserId, setRoleUserId] = useState<UserId | null>((userOptions[0]?.value ?? null) as UserId | null);
+  const [roleValue, setRoleValue] = useState<ProjectRole | null>("member");
+  const [membershipCompanyRole, setMembershipCompanyRole] = useState<CompanyRole | null>("member");
   const highestRoleBadge = (
     <Badge variant="light">Your company role: {currentCompanyRole} (rank {companyRoleRank[currentCompanyRole]})</Badge>
   );
@@ -118,7 +119,7 @@ export default function CompanySettingsPanel(props: { companyId: Id }) {
                 { value: "admin", label: "admin" },
               ]}
               value={newUserRole}
-              onChange={setNewUserRole}
+              onChange={(v) => setNewUserRole((v as CompanyRole | null) ?? null)}
             />
             <Button
               disabled={!canAddProjects}
@@ -126,7 +127,7 @@ export default function CompanySettingsPanel(props: { companyId: Id }) {
                 const name = newUserName.trim();
                 const email = newUserEmail.trim();
                 if (!name || !email) return;
-                store.addUserToCompany(companyId, name, email, (newUserRole as any) ?? "member");
+                store.addUserToCompany(companyId, name, email, newUserRole ?? "member");
                 setNewUserName("");
                 setNewUserEmail("");
                 setNewUserRole("member");
@@ -149,7 +150,7 @@ export default function CompanySettingsPanel(props: { companyId: Id }) {
               label="Project"
               data={projects.map((p) => ({ value: p.id, label: p.name }))}
               value={roleProjectId}
-              onChange={setRoleProjectId}
+              onChange={(v) => setRoleProjectId(v ? asProjectId(v) : null)}
               searchable
               style={{ minWidth: 220 }}
             />
@@ -157,7 +158,7 @@ export default function CompanySettingsPanel(props: { companyId: Id }) {
               label="User (this company)"
               data={userOptions}
               value={roleUserId}
-              onChange={setRoleUserId}
+              onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
               searchable
               style={{ minWidth: 320 }}
             />
@@ -170,14 +171,14 @@ export default function CompanySettingsPanel(props: { companyId: Id }) {
                 { value: "viewer", label: "viewer" },
               ]}
               value={roleValue}
-              onChange={setRoleValue}
+              onChange={(v) => setRoleValue((v as ProjectRole | null) ?? null)}
               style={{ minWidth: 200 }}
             />
             <Button
               disabled={!canAssignProjectRoles || !roleProjectId || !roleUserId || !roleValue}
               onClick={() => {
                 if (!roleProjectId || !roleUserId || !roleValue) return;
-                store.upsertProjectMembership(roleProjectId, roleUserId, roleValue as any);
+                store.upsertProjectMembership(roleProjectId, roleUserId, roleValue ?? "member");
               }}
             >
               Assign
@@ -240,7 +241,7 @@ export default function CompanySettingsPanel(props: { companyId: Id }) {
               label="User (this company)"
               data={userOptions}
               value={roleUserId}
-              onChange={setRoleUserId}
+              onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
               searchable
               style={{ minWidth: 320 }}
             />
@@ -253,14 +254,14 @@ export default function CompanySettingsPanel(props: { companyId: Id }) {
                 { value: "admin", label: "admin" },
               ]}
               value={membershipCompanyRole}
-              onChange={setMembershipCompanyRole}
+              onChange={(v) => setMembershipCompanyRole((v as CompanyRole | null) ?? null)}
               style={{ minWidth: 220 }}
             />
             <Button
               disabled={!canAddCompanyUsers || !roleUserId || !membershipCompanyRole}
               onClick={() => {
                 if (!roleUserId || !membershipCompanyRole) return;
-                store.upsertCompanyMembership(companyId, roleUserId, membershipCompanyRole as any);
+                store.upsertCompanyMembership(companyId, roleUserId, membershipCompanyRole ?? "member");
               }}
             >
               Add role

@@ -2,12 +2,22 @@
 // Date range: 2024 Q3 (Jul 2024) through 2026 Q2 (Jun 2026)
 // Most transactions are coded to a category/subcategory; some are intentionally left uncoded.
 
-import type { Category, SubCategory, Txn, BudgetLine } from "../types";
-
-type SeedCategory = Omit<Category, "companyId" | "projectId">;
-type SeedSubCategory = Omit<SubCategory, "companyId" | "projectId">;
-type SeedBudgetLine = Omit<BudgetLine, "companyId" | "projectId">;
-type SeedTxn = Omit<Txn, "companyId" | "projectId">;
+/**
+ * Fixture IDs are plain strings on purpose.
+ * They get namespaced + branded when stamped into a Company/Project.
+ */
+export type SeedCategory = { id: string; name: string };
+export type SeedSubCategory = { id: string; categoryId: string; name: string };
+export type SeedBudgetLine = { id: string; categoryId: string; subCategoryId: string; allocated: number };
+export type SeedTxn = {
+  id: string;
+  date: string;
+  item: string;
+  description: string;
+  amount: number;
+  categoryId?: string;
+  subCategoryId?: string;
+};
 
 
 export const seedCategories: SeedCategory[] = [

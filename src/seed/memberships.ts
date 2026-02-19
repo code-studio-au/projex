@@ -1,19 +1,20 @@
 import type { CompanyMembership, ProjectMembership } from "../types";
+import { asCompanyId, asProjectId, asUserId } from "../types";
 
 export const seedCompanyMemberships: CompanyMembership[] = [
-  { companyId: "co_projex", userId: "u_superadmin", role: "superadmin" },
+  { companyId: asCompanyId("co_projex"), userId: asUserId("u_superadmin"), role: "superadmin" },
 
-  { companyId: "co_acme", userId: "u_exec", role: "executive" },
-  { companyId: "co_acme", userId: "u_mgmt", role: "management" },
-  { companyId: "co_acme", userId: "u_lead", role: "member" },
-  { companyId: "co_acme", userId: "u_member", role: "member" },
+  { companyId: asCompanyId("co_acme"), userId: asUserId("u_exec"), role: "executive" },
+  { companyId: asCompanyId("co_acme"), userId: asUserId("u_mgmt"), role: "management" },
+  { companyId: asCompanyId("co_acme"), userId: asUserId("u_lead"), role: "member" },
+  { companyId: asCompanyId("co_acme"), userId: asUserId("u_member"), role: "member" },
 
-  { companyId: "co_globex", userId: "u_viewer", role: "member" },
+  { companyId: asCompanyId("co_globex"), userId: asUserId("u_viewer"), role: "member" },
 ];
 
 export const seedProjectMemberships: ProjectMembership[] = [
-  { projectId: "prj_acme_alpha", userId: "u_lead", role: "lead" },
-  { projectId: "prj_acme_alpha", userId: "u_member", role: "member" },
-  { projectId: "prj_acme_beta", userId: "u_member", role: "lead" },
-  { projectId: "prj_globex_ops", userId: "u_viewer", role: "viewer" },
+  { projectId: asProjectId("prj_acme_alpha"), userId: asUserId("u_lead"), role: "lead" },
+  { projectId: asProjectId("prj_acme_alpha"), userId: asUserId("u_member"), role: "member" },
+  { projectId: asProjectId("prj_acme_beta"), userId: asUserId("u_member"), role: "lead" },
+  { projectId: asProjectId("prj_globex_ops"), userId: asUserId("u_viewer"), role: "viewer" },
 ];
