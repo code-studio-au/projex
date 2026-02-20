@@ -1,86 +1,63 @@
-import { useState } from 'react';
-import type {
-  BudgetLine,
-  BudgetLineId,
-  CategoryId,
-  CompanyId,
-  ProjectId,
-  SubCategoryId,
-} from '../types';
-import { asBudgetLineId, asCompanyId, asProjectId } from '../types';
+import { useMemo } from 'react';
+
+import type { BudgetLineId, CategoryId, CompanyId, ProjectId, SubCategoryId } from '../types';
+import type { BudgetLine } from '../types';
+import { asCompanyId, asProjectId } from '../types';
+
 import { uid } from '../utils/id';
+import { useBudgetsQuery, useCreateBudgetMutation, useDeleteBudgetMutation, useUpdateBudgetMutation } from '../queries/budgets';
 
+/**
+ * Query-backed budgets model.
+ *
+ * Keeps the same surface area as the earlier local-state hook so UI components stay stable.
+ *
+ * On the server migration path, these mutations become server writes.
+ */
 export function useBudgets(params: {
-  companyId?: CompanyId;
-  projectId?: ProjectId;
-  initial?: BudgetLine[];
-  value?: BudgetLine[];
-  onChange?: (next: BudgetLine[]) => void;
+  companyId: CompanyId;
+  projectId: ProjectId;
 }) {
-  const [inner, setInner] = useState<BudgetLine[]>(params.initial ?? []);
+  const { companyId, projectId } = params;
 
-  const budgets = params.value ?? inner;
-  const setBudgets = (
-    next: BudgetLine[] | ((prev: BudgetLine[]) => BudgetLine[])
-  ) => {
-    const compute =
-      typeof next === 'function'
-        ? (next as (p: BudgetLine[]) => BudgetLine[])(budgets)
-        : next;
-    if (params.onChange) params.onChange(compute);
-    else setInner(compute);
-  };
+  const q = useBudgetsQuery(projectId);
+  const create = useCreateBudgetMutation(projectId);
+  const update = useUpdateBudgetMutation(projectId);
+  const del = useDeleteBudgetMutation(projectId);
+
+  const budgets = useMemo(() => q.data ?? [], [q.data]);
 
   const updateAllocated = (budgetId: BudgetLineId, allocated: number) => {
-    setBudgets((prev) =>
-      prev.map((b) =>
-        b.id === budgetId ? { ...b, allocated: Number(allocated ?? 0) } : b
-      )
-    );
+    update.mutate({ id: budgetId, allocated: Number(allocated ?? 0) });
   };
 
-  const upsertBudgetForSubCategory = (
-    subCategoryId: SubCategoryId,
-    categoryId: CategoryId
-  ) => {
-    setBudgets((prev) => {
-      const exists = prev.find((b) => b.subCategoryId === subCategoryId);
-      if (exists)
-        return prev.map((b) =>
-          b.subCategoryId === subCategoryId ? { ...b, categoryId } : b
-        );
-      return [
-        ...prev,
-        {
-          id: asBudgetLineId(uid('bud')),
-          companyId: params.companyId ?? asCompanyId('co_unknown'),
-          projectId: params.projectId ?? asProjectId('prj_unknown'),
-          categoryId,
-          subCategoryId,
-          allocated: 0,
-        },
-      ];
+  const upsertBudgetForSubCategory = (subCategoryId: SubCategoryId, categoryId: CategoryId) => {
+    const existing = budgets.find((b) => b.subCategoryId === subCategoryId);
+    if (existing) {
+      update.mutate({ id: existing.id, categoryId });
+      return;
+    }
+    create.mutate({
+      id: uid('bud') as BudgetLine['id'],
+      companyId: companyId ?? asCompanyId('co_unknown'),
+      projectId: projectId ?? asProjectId('prj_unknown'),
+      categoryId,
+      subCategoryId,
+      allocated: 0,
     });
   };
 
-  const deleteBudgetLinesForSubCategoryIds = (
-    subCategoryIds: SubCategoryId[]
-  ) => {
+  const deleteBudgetLinesForSubCategoryIds = (subCategoryIds: SubCategoryId[]) => {
     const setIds = new Set(subCategoryIds);
-    setBudgets((prev) => prev.filter((b) => !setIds.has(b.subCategoryId)));
+    for (const b of budgets) {
+      if (setIds.has(b.subCategoryId)) del.mutate(b.id);
+    }
   };
 
-  const updateBudgetCategoryForSubCategory = (
-    subCategoryId: SubCategoryId,
-    newCategoryId: CategoryId
-  ) => {
-    setBudgets((prev) =>
-      prev.map((b) =>
-        b.subCategoryId === subCategoryId
-          ? { ...b, categoryId: newCategoryId }
-          : b
-      )
-    );
+  const updateBudgetCategoryForSubCategory = (subCategoryId: SubCategoryId, newCategoryId: CategoryId) => {
+    const existing = budgets.find((b) => b.subCategoryId === subCategoryId);
+    if (!existing) return;
+    update.mutate({ id: existing.id, categoryId: newCategoryId });
   };
 
   return {
@@ -89,6 +66,8 @@ export function useBudgets(params: {
     upsertBudgetForSubCategory,
     deleteBudgetLinesForSubCategoryIds,
     updateBudgetCategoryForSubCategory,
+    isLoading: q.isLoading,
+    error: q.error,
   };
 }
 

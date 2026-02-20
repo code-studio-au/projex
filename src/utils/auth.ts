@@ -10,6 +10,7 @@ import type {
 
 export type Action =
   | 'company:view'
+  | 'company:edit'
   | 'company:manage_members'
   | 'project:list'
   | 'project:view'
@@ -80,6 +81,8 @@ export function can(params: {
   } = params;
 
   // Global superadmin: allow everything across all companies/projects.
+  // In local mode we treat a user as superadmin if they hold the role in *any* company.
+  // On a real backend, this would be a claim on the session and enforced server-side.
   const isSuper = companyMemberships.some(
     (m) => m.userId === userId && m.role === 'superadmin'
   );
@@ -91,6 +94,7 @@ export function can(params: {
   if (action.startsWith('company:')) {
     if (!cRole) return false;
     if (action === 'company:view') return true;
+    if (action === 'company:edit') return cRole === 'admin' || cRole === 'executive' || cRole === 'management';
     if (action === 'company:manage_members')
       return cRole === 'superadmin' || cRole === 'admin';
     return false;
@@ -101,44 +105,31 @@ export function can(params: {
 
   const pRole = bestProjectRole(projectMemberships, projectId, userId);
 
-  // If you are exec/management/admin at company level, you can view/list all projects.
-  const companyCanViewAll =
-    cRole === 'superadmin' ||
-    cRole === 'admin' ||
-    cRole === 'executive' ||
-    cRole === 'management';
+  // Company exec/admin can view all company projects.
+  // "Management" behaves like a normal member for project visibility unless you decide otherwise.
+  const companyCanViewAll = cRole === 'admin' || cRole === 'executive';
 
   if (action === 'project:list' || action === 'project:view') {
     return companyCanViewAll || !!pRole;
   }
 
   // Mutations require either high company role or adequate project role
-  const companyCanEdit =
-    cRole === 'superadmin' ||
-    cRole === 'admin' ||
-    cRole === 'executive' ||
-    cRole === 'management';
+  // Company exec/admin can edit everything within the company and its projects.
+  const companyCanEdit = cRole === 'admin' || cRole === 'executive';
 
-  if (action === 'project:edit')
-    return companyCanEdit || pRole === 'owner' || pRole === 'lead';
-  if (action === 'project:import')
-    return (
-      companyCanEdit ||
-      pRole === 'owner' ||
-      pRole === 'lead' ||
-      pRole === 'member'
-    );
+  // Project leads can do all actions for projects they lead.
+  // Team members can work in txns + budget only.
+  if (action === 'project:edit') return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+
+  // Import + taxonomy are restricted to company exec/admin or project lead/owner.
+  if (action === 'project:import') return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+  if (action === 'taxonomy:edit') return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+
+  // Budgets + transactions can be edited by leads AND members (within projects they belong to).
   if (action === 'budget:edit')
-    return companyCanEdit || pRole === 'owner' || pRole === 'lead';
-  if (action === 'taxonomy:edit')
-    return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+    return companyCanEdit || pRole === 'owner' || pRole === 'lead' || pRole === 'member';
   if (action === 'txns:edit')
-    return (
-      companyCanEdit ||
-      pRole === 'owner' ||
-      pRole === 'lead' ||
-      pRole === 'member'
-    );
+    return companyCanEdit || pRole === 'owner' || pRole === 'lead' || pRole === 'member';
 
   return false;
 }

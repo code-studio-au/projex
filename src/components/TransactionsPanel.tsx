@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   Badge,
-  Box,
   Button,
   Group,
   Paper,
@@ -88,103 +87,100 @@ export default function TransactionsPanel(props: {
     taxonomy.validSubIds,
   ]);
 
-  const txnColumns = useMemo<
-    MRT_ColumnDef<(typeof txns.transactions)[number]>[]
-  >(
-    () => [
-      { accessorKey: 'date', header: 'Date', size: 110 },
-      { accessorKey: 'item', header: 'Item', size: 160 },
-      { accessorKey: 'description', header: 'Description', size: 360 },
-      {
-        accessorKey: 'amount',
-        header: 'Amount',
-        size: 130,
-        Cell: ({ cell }) => (
-          <Text className="table-body-right-bold">
-            {currency(cell.getValue<number>())}
-          </Text>
-        ),
-        mantineTableBodyCellProps: { className: 'table-body-right' },
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-right',
-        },
+  // Note: keep columns as a plain value (no manual memoization).
+  // This avoids conflicts with the React Compiler's memoization preservation rule.
+  const txnColumns: MRT_ColumnDef<(typeof txns.transactions)[number]>[] = [
+    { accessorKey: 'date', header: 'Date', size: 110 },
+    { accessorKey: 'item', header: 'Item', size: 160 },
+    { accessorKey: 'description', header: 'Description', size: 360 },
+    {
+      accessorKey: 'amount',
+      header: 'Amount',
+      size: 130,
+      Cell: ({ cell }) => (
+        <Text className="table-body-right-bold">
+          {currency(cell.getValue<number>())}
+        </Text>
+      ),
+      mantineTableBodyCellProps: { className: 'table-body-right' },
+      mantineTableHeadCellProps: {
+        className: 'table-head-cell table-head-right',
       },
-      {
-        id: 'category',
-        header: 'Category',
-        size: 220,
-        enableEditing: !readOnly,
-        Edit: ({ row }) => {
-          const current = row.original.categoryId ?? null;
-          return (
-            <Select
-              data={taxonomy.categoryOptions}
-              value={current}
-              placeholder="Select category"
-              searchable
-              clearable
-              disabled={readOnly}
-              onChange={(v) => {
-                txns.updateTxn(row.original.id, {
-                  categoryId: v ?? undefined,
-                  subCategoryId: undefined,
-                });
-              }}
-            />
-          );
-        },
-        Cell: ({ row }) => {
-          const cat = taxonomy.getCategoryName(row.original.categoryId);
-          return <Text>{cat}</Text>;
-        },
+    },
+    {
+      id: 'category',
+      header: 'Category',
+      size: 220,
+      enableEditing: !readOnly,
+      Edit: ({ row }) => {
+        const current = row.original.categoryId ?? null;
+        return (
+          <Select
+            data={taxonomy.categoryOptions}
+            value={current}
+            placeholder="Select category"
+            searchable
+            clearable
+            disabled={readOnly}
+            onChange={(v) => {
+              txns.updateTxn(row.original.id, {
+                categoryId: v ?? undefined,
+                subCategoryId: undefined,
+              });
+            }}
+          />
+        );
       },
-      {
-        id: 'subCategory',
-        header: 'Subcategory',
-        size: 260,
-        enableEditing: !readOnly,
-        Edit: ({ row }) => {
-          const catId = row.original.categoryId;
-          const options = catId
-            ? taxonomy.subCategoryOptionsForCategory(catId)
-            : [];
-          const current = row.original.subCategoryId ?? null;
-          return (
-            <Select
-              data={options}
-              value={current}
-              placeholder={catId ? 'Select subcategory' : 'Pick category first'}
-              searchable
-              clearable
-              disabled={!catId || readOnly}
-              onChange={(v) => {
-                txns.updateTxn(row.original.id, {
-                  subCategoryId: v ?? undefined,
-                });
-              }}
-            />
-          );
-        },
-        Cell: ({ row }) => {
-          const sub = taxonomy.getSubCategoryName(row.original.subCategoryId);
-          const ok =
-            !!row.original.subCategoryId &&
-            taxonomy.validSubIds.has(row.original.subCategoryId);
-          return (
-            <Group gap="xs" wrap="nowrap">
-              <Text>{sub}</Text>
-              {!ok && (
-                <Badge color="red" variant="light">
-                  Uncoded
-                </Badge>
-              )}
-            </Group>
-          );
-        },
+      Cell: ({ row }) => {
+        const cat = taxonomy.getCategoryName(row.original.categoryId);
+        return <Text>{cat}</Text>;
       },
-    ],
-    [taxonomy, txns]
-  );
+    },
+    {
+      id: 'subCategory',
+      header: 'Subcategory',
+      size: 260,
+      enableEditing: !readOnly,
+      Edit: ({ row }) => {
+        const catId = row.original.categoryId;
+        const options = catId
+          ? taxonomy.subCategoryOptionsForCategory(catId)
+          : [];
+        const current = row.original.subCategoryId ?? null;
+        return (
+          <Select
+            data={options}
+            value={current}
+            placeholder={catId ? 'Select subcategory' : 'Pick category first'}
+            searchable
+            clearable
+            disabled={!catId || readOnly}
+            onChange={(v) => {
+              txns.updateTxn(row.original.id, {
+                subCategoryId: v ?? undefined,
+              });
+            }}
+          />
+        );
+      },
+      Cell: ({ row }) => {
+        const sub = taxonomy.getSubCategoryName(row.original.subCategoryId);
+        const ok =
+          !!row.original.subCategoryId &&
+          taxonomy.validSubIds.has(row.original.subCategoryId);
+        return (
+          <Group gap="xs" wrap="nowrap">
+            <Text>{sub}</Text>
+            {!ok && (
+              <Badge color="red" variant="light">
+                Uncoded
+              </Badge>
+            )}
+          </Group>
+        );
+      },
+    },
+  ];
 
   return (
     <Stack gap="md">

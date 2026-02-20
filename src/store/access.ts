@@ -1,12 +1,10 @@
 import type {
-  Company,
   CompanyId,
   CompanyMembership,
   CompanyRole,
   Project,
   ProjectId,
   ProjectMembership,
-  ProjectRole,
   User,
   UserId,
 } from '../types';
@@ -20,7 +18,8 @@ import type {
  */
 
 const companyRoleRank: Record<CompanyRole, number> = {
-  superadmin: 4,
+  superadmin: 5,
+  admin: 4,
   executive: 3,
   management: 2,
   member: 1,
@@ -115,7 +114,7 @@ export function canManageCompany(
   companyMemberships: CompanyMembership[]
 ) {
   const role = getUserCompanyRole(userId, companyId, companyMemberships);
-  return role === 'superadmin' || role === 'executive' || role === 'management';
+  return role === 'superadmin' || role === 'admin' || role === 'executive';
 }
 
 export function canManageProject(

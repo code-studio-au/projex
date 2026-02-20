@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActionIcon,
   Button,
@@ -10,7 +10,7 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
-import { IconPlus, IconTrash, IconArrowRight } from '@tabler/icons-react';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 
 export default function TaxonomyManagerModal(props: {

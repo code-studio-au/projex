@@ -10,6 +10,7 @@ import {
 import type { ProjectId, RollupRow } from '../types';
 import {
   currency,
+  formatMonthLabel,
   parseYearMonth,
   quarterKey,
   quarterOfMonth,
@@ -184,7 +185,7 @@ export default function BudgetPanel(props: {
             const months = quarterMap.get(q)!;
             const qk = quarterKey(year, q);
 
-            return {
+            const quarterTotal: MRT_ColumnDef<RollupRow> = {
               id: `qt_${year}_${q}`,
               header: `${q} Total`,
               Header: () => (
@@ -196,9 +197,8 @@ export default function BudgetPanel(props: {
                 </span>
               ),
               accessorFn: (row) => sumMonths(row, months),
-              Cell: ({ cell }) => (
-                <Text fw={700}>{currency(cell.getValue<number>())}</Text>
-              ),
+              Cell: ({ cell }) => <Text fw={700}>{currency(cell.getValue<number>())}</Text>,
+              aggregationFn: 'sum',
               mantineTableHeadCellProps: {
                 title: 'Click to collapse / expand quarter',
                 onClick: () =>
@@ -210,6 +210,20 @@ export default function BudgetPanel(props: {
                   }),
                 style: { cursor: 'pointer' },
               },
+            };
+
+            const monthCols: MRT_ColumnDef<RollupRow>[] = months.map((mk) => ({
+              id: `m_${mk}`,
+              header: formatMonthLabel(mk),
+              accessorFn: (row) => row.actualByMonthKey[mk] ?? 0,
+              Cell: ({ cell }) => <Text>{currency(cell.getValue<number>())}</Text>,
+              aggregationFn: 'sum',
+            }));
+
+            return {
+              id: `qgrp_${year}_${q}`,
+              header: q,
+              columns: [quarterTotal, ...monthCols],
             };
           });
 

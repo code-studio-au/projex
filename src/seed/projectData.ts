@@ -7,7 +7,6 @@ import type {
   SubCategory,
   SubCategoryId,
   Txn,
-  TxnId,
 } from '../types';
 import {
   asBudgetLineId,

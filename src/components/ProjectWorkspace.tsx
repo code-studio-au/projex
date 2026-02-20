@@ -1,69 +1,35 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Badge,
-  Group,
-  Paper,
-  Stack,
-  Tabs,
-  Text,
-  Title,
-  Select,
-} from '@mantine/core';
-import TransactionsPanel from './TransactionsPanel';
-import BudgetPanel from './BudgetPanel';
-import CsvImporterPanel from './CsvImporterPanel';
-import ProjectSettingsPanel from './ProjectSettingsPanel';
-import { useAppStore } from '../context/AppStore';
+import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
+
+import type { CompanyId, ProjectId } from '../types';
+
+import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useBudgets } from '../hooks/useBudgets';
 import { useTransactions } from '../hooks/useTransactions';
 import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useRollups } from '../hooks/useRollups';
 import { currency } from '../utils/finance';
-import { can } from '../utils/auth';
 
-export default function ProjectWorkspace() {
-  const store = useAppStore();
-  const projectId = store.activeProjectId;
+import { useCompanyQuery, useProjectQuery } from '../queries/reference';
 
-  if (!projectId) {
-    return (
-      <Stack>
-        <Title order={3}>No project selected</Title>
-        <Text c="dimmed">Select a company/project to begin.</Text>
-      </Stack>
-    );
-  }
+import TransactionsPanel from './TransactionsPanel';
+import BudgetPanel from './BudgetPanel';
+import CsvImporterPanel from './CsvImporterPanel';
+import ProjectSettingsPanel from './ProjectSettingsPanel';
 
-  const project = store.projects.find((p) => p.id === projectId);
-  const company = store.companies.find((c) => c.id === store.activeCompanyId);
+export default function ProjectWorkspace(props: {
+  companyId: CompanyId;
+  projectId: ProjectId;
+}) {
+  const { companyId, projectId } = props;
 
-  const data = store.getProjectData(projectId);
+  const access = useCompanyAccess(companyId);
+  const company = useCompanyQuery(companyId);
+  const project = useProjectQuery(projectId);
 
-  // project-scoped models, backed by store
-  const budgets = useBudgets({
-    companyId: store.activeCompanyId,
-    projectId,
-    value: data.budgets,
-    onChange: (next) => store.setProjectData(projectId, { budgets: next }),
-  });
-
-  const txns = useTransactions({
-    value: data.transactions,
-    onChange: (next) => store.setProjectData(projectId, { transactions: next }),
-  });
-
-  const taxonomy = useTaxonomy({
-    companyId: store.activeCompanyId,
-    projectId,
-    valueCategories: data.categories,
-    valueSubCategories: data.subCategories,
-    onChangeCategories: (next) =>
-      store.setProjectData(projectId, { categories: next }),
-    onChangeSubCategories: (next) =>
-      store.setProjectData(projectId, { subCategories: next }),
-    budgets,
-    txns,
-  });
+  const budgets = useBudgets({ companyId, projectId });
+  const txns = useTransactions({ projectId });
+  const taxonomy = useTaxonomy({ companyId, projectId, budgets, txns });
 
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(null);
   const [showUncodedOnly, setShowUncodedOnly] = useState(false);
@@ -91,39 +57,17 @@ export default function ProjectWorkspace() {
     [txns, taxonomy.validSubIds]
   );
 
-  const canProjectEdit = can({
-    userId: store.currentUser.id,
-    companyId: store.activeCompanyId,
-    projectId,
-    action: 'project:edit',
-    companyMemberships: store.companyMemberships,
-    projectMemberships: store.projectMemberships,
-  });
-
-  const canImport = can({
-    userId: store.currentUser.id,
-    companyId: store.activeCompanyId,
-    projectId,
-    action: 'project:import',
-    companyMemberships: store.companyMemberships,
-    projectMemberships: store.projectMemberships,
-  });
-
-  const canEditBudgets = can({
-    userId: store.currentUser.id,
-    companyId: store.activeCompanyId,
-    projectId,
-    action: 'budget:edit',
-    companyMemberships: store.companyMemberships,
-    projectMemberships: store.projectMemberships,
-  });
+  const canProjectEdit = access.can('project:edit', projectId);
+  const canImport = access.can('project:import', projectId);
+  const canEditBudgets = access.can('budget:edit', projectId);
+  const canEditTxns = access.can('txns:edit', projectId);
 
   return (
     <Stack gap="md">
       <Group justify="space-between" align="flex-end">
         <Stack gap={2}>
           <Title order={3}>
-            {company?.name ?? 'Company'} • {project?.name ?? 'Project'}
+            {company.data?.name ?? 'Company'} • {project.data?.name ?? 'Project'}
           </Title>
           <Text c="dimmed" size="sm">
             Project workspace (transactions, budgets, import)
@@ -131,11 +75,7 @@ export default function ProjectWorkspace() {
         </Stack>
 
         <Group gap="sm">
-          <Badge
-            size="lg"
-            variant="light"
-            color={uncoded.count ? 'red' : 'gray'}
-          >
+          <Badge size="lg" variant="light" color={uncoded.count ? 'red' : 'gray'}>
             Uncoded: {uncoded.count} ({currency(uncoded.amount)})
           </Badge>
         </Group>
@@ -157,22 +97,14 @@ export default function ProjectWorkspace() {
           <Tabs.Panel value="transactions" pt="md">
             <TransactionsPanel
               txns={txns}
+              taxonomy={taxonomy}
               monthFilterKey={monthFilterKey}
               setMonthFilterKey={setMonthFilterKey}
               monthFilterOptions={monthFilterOptions}
               showUncodedOnly={showUncodedOnly}
               setShowUncodedOnly={setShowUncodedOnly}
               uncodedSummary={uncoded}
-              readOnly={
-                !can({
-                  userId: store.currentUser.id,
-                  companyId: store.activeCompanyId,
-                  projectId,
-                  action: 'txns:edit',
-                  companyMemberships: store.companyMemberships,
-                  projectMemberships: store.projectMemberships,
-                })
-              }
+              readOnly={!canEditTxns}
             />
           </Tabs.Panel>
 
@@ -188,24 +120,14 @@ export default function ProjectWorkspace() {
 
           <Tabs.Panel value="import" pt="md">
             <CsvImporterPanel
-              existingTxns={txns.transactions}
-              companyId={store.activeCompanyId}
-              projectId={projectId}
-              canEditTaxonomy={can({
-                userId: store.currentUser.id,
-                companyId: store.activeCompanyId,
-                projectId,
-                action: 'taxonomy:edit',
-                companyMemberships: store.companyMemberships,
-                projectMemberships: store.projectMemberships,
-              })}
+              taxonomy={taxonomy}
               onReplaceAll={(next) => txns.replaceAll(next)}
               onAppend={(next) => txns.appendMany(next)}
             />
           </Tabs.Panel>
 
           <Tabs.Panel value="settings" pt="md">
-            <ProjectSettingsPanel />
+            <ProjectSettingsPanel companyId={companyId} projectId={projectId} />
           </Tabs.Panel>
         </Tabs>
       </Paper>

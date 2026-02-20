@@ -12,16 +12,23 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { useAppStore } from '../context/AppStore';
-import { can } from '../utils/auth';
-import type {
-  CompanyId,
-  CompanyRole,
-  ProjectId,
-  ProjectRole,
-  UserId,
-} from '../types';
+
+import type { CompanyId, CompanyRole, ProjectId, ProjectRole, UserId } from '../types';
 import { asProjectId, asUserId } from '../types';
+
+import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import { getCompanyUsers } from '../store/access';
+import { useUsersQuery, useCompanyQuery, useProjectsQuery } from '../queries/reference';
+import {
+  useCompanyMembershipsQuery,
+  useProjectMembershipsQuery,
+  useUpsertCompanyMembershipMutation,
+  useUpsertProjectMembershipMutation,
+} from '../queries/memberships';
+import {
+  useCreateProjectMutation,
+  useCreateUserInCompanyMutation,
+} from '../queries/admin';
 
 const companyRoleRank: Record<CompanyRole, number> = {
   superadmin: 5,
@@ -33,16 +40,21 @@ const companyRoleRank: Record<CompanyRole, number> = {
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
-  const store = useAppStore();
 
-  const company = store.companies.find((c) => c.id === companyId);
+  const access = useCompanyAccess(companyId);
+  const company = useCompanyQuery(companyId);
+  const usersQ = useUsersQuery();
+  const projectsQ = useProjectsQuery(companyId);
+  const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
 
-  const currentCompanyRole =
-    store.getUserCompanyRole(store.currentUser.id) ?? 'member';
+  const createProject = useCreateProjectMutation(companyId);
+  const createUser = useCreateUserInCompanyMutation(companyId);
+  const upsertCompanyMembership = useUpsertCompanyMembershipMutation(companyId);
 
   // Permissions requested:
   // - Execs can access company settings and add company users
   // - Execs + Managers can add projects
+  const currentCompanyRole = access.companyRole;
   const canAddProjects =
     currentCompanyRole === 'superadmin' ||
     currentCompanyRole === 'admin' ||
@@ -54,13 +66,16 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     currentCompanyRole === 'admin' ||
     currentCompanyRole === 'executive';
 
-  const canAssignProjectRoles = canAddProjects; // keep simple for now
+  const canAssignProjectRoles = canAddProjects;
 
-  // Only show members of THIS company (hard rule)
-  const companyUsers = useMemo(
-    () => store.getCompanyUsers(companyId),
-    [store, companyId]
-  );
+  const companyUsers = useMemo(() => {
+    return getCompanyUsers(
+      companyId,
+      usersQ.data ?? [],
+      companyMembershipsQ.data ?? []
+    );
+  }, [companyId, usersQ.data, companyMembershipsQ.data]);
+
   const userOptions = useMemo(
     () =>
       companyUsers.map((u) => ({
@@ -70,10 +85,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     [companyUsers]
   );
 
-  const projects = useMemo(
-    () => store.projects.filter((p) => p.companyId === companyId),
-    [store.projects, companyId]
-  );
+  const projects = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
 
   const [newProjectName, setNewProjectName] = useState('');
   const [newUserName, setNewUserName] = useState('');
@@ -90,10 +102,14 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [roleValue, setRoleValue] = useState<ProjectRole | null>('member');
   const [membershipCompanyRole, setMembershipCompanyRole] =
     useState<CompanyRole | null>('member');
+
+  const upsertProjectMembership = useUpsertProjectMembershipMutation(
+    (roleProjectId ?? projects[0]?.id ?? 'prj_unknown') as ProjectId
+  );
+
   const highestRoleBadge = (
     <Badge variant="light">
-      Your company role: {currentCompanyRole} (rank{' '}
-      {companyRoleRank[currentCompanyRole]})
+      Your company role: {currentCompanyRole} (rank {companyRoleRank[currentCompanyRole] ?? 0})
     </Badge>
   );
 
@@ -103,8 +119,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         <Stack gap={2}>
           <Title order={4}>Company settings</Title>
           <Text size="sm" c="dimmed">
-            {company?.name ?? companyId} • Manage projects, users, and project
-            roles
+            {company.data?.name ?? companyId} • Manage projects, users, and project roles
           </Text>
         </Stack>
         {highestRoleBadge}
@@ -115,11 +130,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           <Stack gap="sm">
             <Group justify="space-between">
               <Title order={5}>Create project</Title>
-              <Badge
-                variant="light"
-                color={canAddCompanyUsers ? 'gray' : 'red'}
-              >
-                {canAddCompanyUsers ? 'Allowed' : 'Not allowed'}
+              <Badge variant="light" color={canAddProjects ? 'gray' : 'red'}>
+                {canAddProjects ? 'Allowed' : 'Not allowed'}
               </Badge>
             </Group>
             <TextInput
@@ -129,12 +141,11 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               placeholder="e.g. Website Refresh"
             />
             <Button
-              disabled={!canAddCompanyUsers}
-              onClick={() => {
+              disabled={!canAddProjects || createProject.isPending}
+              onClick={async () => {
                 const name = newProjectName.trim();
                 if (!name) return;
-                const id = store.addProject(companyId, name);
-                store.setActiveProjectId(id);
+                await createProject.mutateAsync({ name });
                 setNewProjectName('');
               }}
             >
@@ -147,8 +158,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           <Stack gap="sm">
             <Group justify="space-between">
               <Title order={5}>Add user (company)</Title>
-              <Badge variant="light" color={canAddProjects ? 'gray' : 'red'}>
-                {canAddProjects ? 'Allowed' : 'Not allowed'}
+              <Badge variant="light" color={canAddCompanyUsers ? 'gray' : 'red'}>
+                {canAddCompanyUsers ? 'Allowed' : 'Not allowed'}
               </Badge>
             </Group>
             <TextInput
@@ -170,22 +181,15 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                 { value: 'admin', label: 'admin' },
               ]}
               value={newUserRole}
-              onChange={(v) =>
-                setNewUserRole((v as CompanyRole | null) ?? null)
-              }
+              onChange={(v) => setNewUserRole((v as CompanyRole | null) ?? null)}
             />
             <Button
-              disabled={!canAddProjects}
-              onClick={() => {
+              disabled={!canAddCompanyUsers || createUser.isPending}
+              onClick={async () => {
                 const name = newUserName.trim();
                 const email = newUserEmail.trim();
                 if (!name || !email) return;
-                store.addUserToCompany(
-                  companyId,
-                  name,
-                  email,
-                  newUserRole ?? 'member'
-                );
+                await createUser.mutateAsync({ name, email, role: newUserRole ?? 'member' });
                 setNewUserName('');
                 setNewUserEmail('');
                 setNewUserRole('member');
@@ -233,19 +237,11 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               style={{ minWidth: 200 }}
             />
             <Button
-              disabled={
-                !canAssignProjectRoles ||
-                !roleProjectId ||
-                !roleUserId ||
-                !roleValue
-              }
-              onClick={() => {
+              disabled={!canAssignProjectRoles || !roleProjectId || !roleUserId || !roleValue}
+              onClick={async () => {
                 if (!roleProjectId || !roleUserId || !roleValue) return;
-                store.upsertProjectMembership(
-                  roleProjectId,
-                  roleUserId,
-                  roleValue ?? 'member'
-                );
+                // ensure mutation is bound to current project
+                await upsertProjectMembership.mutateAsync({ userId: roleUserId, role: roleValue });
               }}
             >
               Assign
@@ -258,50 +254,12 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                 <Table.Th>Project</Table.Th>
                 <Table.Th>User</Table.Th>
                 <Table.Th>Role</Table.Th>
-                <Table.Th />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {store.projectMemberships
-                .filter((m) => {
-                  const p = store.projects.find((x) => x.id === m.projectId);
-                  return p?.companyId === companyId;
-                })
-                .map((m, idx) => {
-                  const p = store.projects.find((x) => x.id === m.projectId);
-                  const u = store.users.find((x) => x.id === m.userId);
-                  // hide users outside company
-                  if (!companyUsers.some((cu) => cu.id === m.userId))
-                    return null;
-                  return (
-                    <Table.Tr
-                      key={`${m.projectId}:${m.userId}:${m.role}:${idx}`}
-                    >
-                      <Table.Td>{p?.name ?? m.projectId}</Table.Td>
-                      <Table.Td>
-                        {u ? `${u.name} (${u.email})` : m.userId}
-                      </Table.Td>
-                      <Table.Td>{m.role}</Table.Td>
-                      <Table.Td>
-                        <Button
-                          size="xs"
-                          color="red"
-                          variant="light"
-                          disabled={!canAddProjects}
-                          onClick={() =>
-                            store.removeProjectMembership(
-                              m.projectId,
-                              m.userId,
-                              m.role
-                            )
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
+              {(projectsQ.data ?? []).map((p) => (
+                <ProjectMembershipRows key={p.id} companyId={companyId} projectId={p.id} />
+              ))}
             </Table.Tbody>
           </Table>
         </Stack>
@@ -309,14 +267,10 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
-          <Title order={5}>Assign company roles</Title>
-          <Text size="sm" c="dimmed">
-            Users can hold multiple company roles (e.g. executive + member).
-            Permissions use the highest role.
-          </Text>
+          <Title order={5}>Company roles</Title>
           <Group align="flex-end" wrap="wrap">
             <Select
-              label="User (this company)"
+              label="User"
               data={userOptions}
               value={roleUserId}
               onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
@@ -332,25 +286,20 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                 { value: 'admin', label: 'admin' },
               ]}
               value={membershipCompanyRole}
-              onChange={(v) =>
-                setMembershipCompanyRole((v as CompanyRole | null) ?? null)
-              }
-              style={{ minWidth: 220 }}
+              onChange={(v) => setMembershipCompanyRole((v as CompanyRole | null) ?? null)}
+              style={{ minWidth: 200 }}
             />
             <Button
-              disabled={
-                !canAddCompanyUsers || !roleUserId || !membershipCompanyRole
-              }
-              onClick={() => {
+              disabled={!roleUserId || !membershipCompanyRole}
+              onClick={async () => {
                 if (!roleUserId || !membershipCompanyRole) return;
-                store.upsertCompanyMembership(
-                  companyId,
-                  roleUserId,
-                  membershipCompanyRole ?? 'member'
-                );
+                await upsertCompanyMembership.mutateAsync({
+                  userId: roleUserId,
+                  role: membershipCompanyRole,
+                });
               }}
             >
-              Add role
+              Set
             </Button>
           </Group>
 
@@ -359,100 +308,49 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               <Table.Tr>
                 <Table.Th>User</Table.Th>
                 <Table.Th>Role</Table.Th>
-                <Table.Th />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {store.companyMemberships
-                .filter(
-                  (m) =>
-                    m.companyId === companyId &&
-                    companyUsers.some((cu) => cu.id === m.userId)
-                )
-                .map((m, idx) => {
-                  const u = store.users.find((x) => x.id === m.userId);
-                  return (
-                    <Table.Tr
-                      key={`${m.companyId}:${m.userId}:${m.role}:${idx}`}
-                    >
-                      <Table.Td>
-                        {u ? `${u.name} (${u.email})` : m.userId}
-                      </Table.Td>
-                      <Table.Td>{m.role}</Table.Td>
-                      <Table.Td>
-                        <Button
-                          size="xs"
-                          color="red"
-                          variant="light"
-                          disabled={!canAddCompanyUsers}
-                          onClick={() =>
-                            store.removeCompanyMembership(
-                              m.companyId,
-                              m.userId,
-                              m.role
-                            )
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
+              {(companyMembershipsQ.data ?? []).map((m) => {
+                const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
+                return (
+                  <Table.Tr key={`${m.companyId}:${m.userId}`}>
+                    <Table.Td>{u ? `${u.name} (${u.email})` : m.userId}</Table.Td>
+                    <Table.Td>
+                      <Badge variant="light">{m.role}</Badge>
+                    </Table.Td>
+                  </Table.Tr>
+                );
+              })}
             </Table.Tbody>
           </Table>
         </Stack>
       </Paper>
-
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="sm">
-            <Title order={5}>Projects</Title>
-            <Table withTableBorder>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Name</Table.Th>
-                  <Table.Th>ID</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {projects.map((p) => (
-                  <Table.Tr key={p.id}>
-                    <Table.Td>{p.name}</Table.Td>
-                    <Table.Td>
-                      <Text size="sm" c="dimmed">
-                        {p.id}
-                      </Text>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Stack>
-        </Paper>
-
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="sm">
-            <Title order={5}>Company users</Title>
-            <Table withTableBorder>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Name</Table.Th>
-                  <Table.Th>Email</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {companyUsers.map((u) => (
-                  <Table.Tr key={u.id}>
-                    <Table.Td>{u.name}</Table.Td>
-                    <Table.Td>{u.email}</Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Stack>
-        </Paper>
-      </SimpleGrid>
     </Stack>
+  );
+}
+
+function ProjectMembershipRows(props: { companyId: CompanyId; projectId: ProjectId }) {
+  const { projectId } = props;
+  const usersQ = useUsersQuery();
+  const membershipsQ = useProjectMembershipsQuery(projectId);
+
+  const members = membershipsQ.data ?? [];
+
+  return (
+    <>
+      {members.map((m) => {
+        const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
+        return (
+          <Table.Tr key={`${m.projectId}:${m.userId}`}>
+            <Table.Td>{projectId}</Table.Td>
+            <Table.Td>{u ? `${u.name} (${u.email})` : m.userId}</Table.Td>
+            <Table.Td>
+              <Badge variant="light">{m.role}</Badge>
+            </Table.Td>
+          </Table.Tr>
+        );
+      })}
+    </>
   );
 }
