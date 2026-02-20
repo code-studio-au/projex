@@ -24,10 +24,6 @@ type AuthedRoute = 'dashboard' | 'workspace' | 'appSettings';
 function AuthedShell(props: { onLogout: () => void }) {
   const { onLogout } = props;
   const store = useAppStore();
-  const activeCompany = useMemo(
-    () => store.companies.find((c) => c.id === store.activeCompanyId),
-    [store.companies, store.activeCompanyId]
-  );
 
   const companyId =
     store.getUserCompanyId(store.currentUser.id) ?? store.activeCompanyId;
@@ -38,11 +34,6 @@ function AuthedShell(props: { onLogout: () => void }) {
   const companyRole = store.getUserCompanyRole(store.currentUser.id);
 
   const [route, setRoute] = useState<AuthedRoute>('dashboard');
-
-  const projectsForCompany = useMemo(
-    () => store.projects.filter((p) => p.companyId === companyId),
-    [store.projects, companyId]
-  );
 
   const canOpenWorkspace = useMemo(() => {
     if (!store.activeProjectId) return false;
@@ -61,11 +52,12 @@ function AuthedShell(props: { onLogout: () => void }) {
   let body: React.ReactNode = null;
   if (route === 'dashboard') {
     body = (
-      <CompanyDashboard
-        onOpenProject={(_projectId) => {
-          setRoute('workspace');
-        }}
-      />
+<CompanyDashboard
+  onOpenProject={(projectId) => {
+    store.setActiveProjectId(projectId);
+    setRoute("workspace");
+  }}
+/>
     );
   } else if (route === 'workspace') {
     body = <ProjectWorkspace key={store.activeProjectId ?? 'none'} />;
