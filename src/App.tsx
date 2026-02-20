@@ -52,12 +52,14 @@ function AuthedShell(props: { onLogout: () => void }) {
   let body: React.ReactNode = null;
   if (route === 'dashboard') {
     body = (
-<CompanyDashboard
-  onOpenProject={(projectId) => {
-    store.setActiveProjectId(projectId);
-    setRoute("workspace");
-  }}
-/>
+      <CompanyDashboard
+        companyId={companyId}
+        onOpenProject={(companyId, projectId) => {
+          store.setActiveCompanyId(companyId);
+          store.setActiveProjectId(projectId);
+          setRoute('workspace');
+        }}
+      />
     );
   } else if (route === 'workspace') {
     body = <ProjectWorkspace key={store.activeProjectId ?? 'none'} />;

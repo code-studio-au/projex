@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Button,
   FileInput,
@@ -10,9 +10,11 @@ import {
   Textarea,
 } from '@mantine/core';
 import type {
+  CategoryId,
   CompanyId,
   ImportTxnWithTaxonomy,
   ProjectId,
+  SubCategoryId,
   Txn,
 } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
@@ -21,18 +23,14 @@ import { parseCsv, rowsToImportTxns, finalizeImportTxns } from '../utils/csv';
 /**
  * CSV Import panel.
  *
- * This component handles user interaction (paste/upload, options toggles) and delegates
- * parsing/normalization to `src/utils/csv.ts`.
+ * UI-only component:
+ * - Handles file/paste input and user options.
+ * - Delegates parsing + normalization to csv utilities.
  *
- * Keeping parsing logic out of the component makes it easier to:
- * - unit test
- * - migrate to a server-side import pipeline later
- * - reuse the same normalization for API ingestion
- *
- * Importer notes:
+ * Notes:
  * - You can paste CSV text OR upload a .csv file.
- * - By default, imported rows are appended.
- * - Optional: auto-create missing categories/subcategories by name.
+ * - Imported rows are appended or replace all.
+ * - Optional: auto-create missing categories/subcategories.
  */
 export default function CsvImporterPanel(props: {
   taxonomy: TaxonomyHook;
@@ -56,10 +54,8 @@ export default function CsvImporterPanel(props: {
   const [file, setFile] = useState<File | null>(null);
   const [csvText, setCsvText] = useState('');
   const [autoCreate, setAutoCreate] = useState(true);
-
-  const [previewCount, setPreviewCount] = useState<number | null>(null);
-
   const [skipDuplicates, setSkipDuplicates] = useState(true);
+
   const existingIds = useMemo(
     () => new Set(existingTxns.map((t) => t.id)),
     [existingTxns]
@@ -75,78 +71,110 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
 `;
 
   async function loadFileText(f: File) {
-    const t = await f.text();
-    setCsvText(t);
+    const text = await f.text();
+    setCsvText(text);
   }
 
+  /**
+   * Option A:
+   * Invalid CSV → empty array.
+   * No setState inside useMemo.
+   */
   const importTxns = useMemo<ImportTxnWithTaxonomy[]>(() => {
     try {
       const rows = parseCsv(csvText);
-      const imp = rowsToImportTxns(rows);
-      setPreviewCount(imp.length);
-      return imp;
+      return rowsToImportTxns(rows);
     } catch {
-      setPreviewCount(null);
       return [];
     }
   }, [csvText]);
 
-  const applyMapping = () => {
-    // map category/subcategory names to IDs
-    // if autoCreate: create missing taxonomy entries
-    const catByName = new Map(
-      taxonomy.categories.map((c) => [c.name.trim().toLowerCase(), c])
+  const previewCount = importTxns.length;
+
+  /**
+   * Apply taxonomy mapping and optional auto-creation.
+   * Normalizes all IDs to branded types.
+   */
+  const applyMapping = (): ImportTxnWithTaxonomy[] => {
+    type CategoryLookup = { id: CategoryId; name: string };
+    type SubCategoryLookup = {
+      id: SubCategoryId;
+      categoryId: CategoryId;
+      name: string;
+    };
+
+    const catByName = new Map<string, CategoryLookup>(
+      taxonomy.categories.map((c) => [
+        c.name.trim().toLowerCase(),
+        { id: c.id, name: c.name },
+      ])
     );
-    const subByKey = new Map(
+
+    const subByKey = new Map<string, SubCategoryLookup>(
       taxonomy.subCategories.map((s) => {
         const cat = taxonomy.categories.find((c) => c.id === s.categoryId);
-        const key = `${(cat?.name ?? '').trim().toLowerCase()}|||${s.name.trim().toLowerCase()}`;
-        return [key, s] as const;
+        const key = `${(cat?.name ?? '').trim().toLowerCase()}|||${s.name
+          .trim()
+          .toLowerCase()}`;
+
+        return [key, { id: s.id, categoryId: s.categoryId, name: s.name }];
       })
     );
 
-    const mapped = importTxns.map((t) => {
+    return importTxns.map((t) => {
       const catName = String(t.category ?? '').trim();
       const subName = String(t.subcategory ?? '').trim();
 
-      let categoryId: string | undefined;
-      let subCategoryId: string | undefined;
+      let categoryId: CategoryId | undefined;
+      let subCategoryId: SubCategoryId | undefined;
 
       if (catName) {
         const cKey = catName.toLowerCase();
-        const cat = catByName.get(cKey);
-        if (cat) categoryId = cat.id;
-        else if (autoCreate) {
-          const newCatId = taxonomy.addCategory(catName);
-          categoryId = newCatId;
-          catByName.set(cKey, { id: newCatId, name: catName });
+        const existing = catByName.get(cKey);
+
+        if (existing) {
+          categoryId = existing.id;
+        } else if (autoCreate) {
+          const created = taxonomy.addCategory(catName);
+          if (created) {
+            categoryId = created;
+            catByName.set(cKey, { id: created, name: catName });
+          }
         }
       }
 
       if (categoryId && subName) {
         const catNameResolved = taxonomy.getCategoryName(categoryId);
         const key = `${catNameResolved.trim().toLowerCase()}|||${subName.toLowerCase()}`;
-        const sub = subByKey.get(key);
-        if (sub) subCategoryId = sub.id;
-        else if (autoCreate) {
-          const newSubId = taxonomy.addSubCategory(categoryId, subName);
-          subCategoryId = newSubId;
-          subByKey.set(key, { id: newSubId, categoryId, name: subName });
+        const existing = subByKey.get(key);
+
+        if (existing) {
+          subCategoryId = existing.id;
+        } else if (autoCreate) {
+          const created = taxonomy.addSubCategory(categoryId, subName);
+          if (created) {
+            subCategoryId = created;
+            subByKey.set(key, {
+              id: created,
+              categoryId,
+              name: subName,
+            });
+          }
         }
       }
 
+      const id = typeof t.id === 'string' ? t.id : String(t.id ?? '').trim();
+
       return {
-        id: t.id,
+        id,
         date: t.date,
         item: t.item,
         description: t.description,
         amount: t.amount,
         categoryId,
         subCategoryId,
-      } satisfies ImportTxnWithTaxonomy;
+      };
     });
-
-    return mapped;
   };
 
   return (
@@ -171,12 +199,14 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
               accept=".csv,text/csv"
               style={{ flex: 1 }}
             />
+
             <Switch
               label="Auto-create missing categories/subcategories"
               checked={autoCreate}
               disabled={!canEditTaxonomy}
               onChange={(e) => setAutoCreate(e.currentTarget.checked)}
             />
+
             <Switch
               label="Skip duplicates (stable IDs)"
               checked={skipDuplicates}
@@ -194,14 +224,14 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
 
           <Group justify="space-between">
             <Text size="sm" c="dimmed">
-              Preview rows: {previewCount ?? 0}
+              Preview rows: {previewCount}
             </Text>
+
             <Group>
               <Button
                 disabled={!importTxns.length}
                 onClick={() => {
                   const mapped = applyMapping();
-
                   const { txns, skipped } = finalizeImportTxns(mapped, {
                     existingIds,
                     skipDuplicates,
@@ -209,19 +239,23 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
 
                   onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
 
-                  if (skipped > 0) alert(`Skipped ${skipped} duplicate(s).`);
+                  if (skipped > 0) {
+                    alert(`Skipped ${skipped} duplicate(s).`);
+                  }
                 }}
               >
                 Append
               </Button>
+
               <Button
                 color="red"
+                disabled={!importTxns.length}
                 onClick={() => {
-                  if (!confirm('Replace ALL transactions with imported CSV?'))
+                  if (!confirm('Replace ALL transactions with imported CSV?')) {
                     return;
+                  }
 
                   const mapped = applyMapping();
-
                   const { txns } = finalizeImportTxns(mapped, {
                     skipDuplicates: false,
                   });
@@ -230,7 +264,6 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
                     txns.map((t) => ({ ...t, companyId, projectId }))
                   );
                 }}
-                disabled={!importTxns.length}
               >
                 Replace all
               </Button>

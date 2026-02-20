@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -16,12 +16,20 @@ import { useAppStore } from '../context/AppStore';
 import { can } from '../utils/auth';
 import { currency } from '../utils/finance';
 import CompanySettingsPanel from './CompanySettingsPanel';
-import type { CompanyId, ProjectId } from '../types';
+import type { CompanyId, Project, ProjectId } from '../types';
+
+type ProjectCard = {
+  project: Project;
+  total: number;
+  uncoded: number;
+  count: number;
+};
 
 export default function CompanyDashboard(props: {
-  onOpenProject: (projectId: ProjectId) => void;
+  companyId: CompanyId;
+  onOpenProject: (companyId: CompanyId, projectId: ProjectId) => void;
 }) {
-  const { onOpenProject } = props;
+  const { companyId, onOpenProject } = props;
   const store = useAppStore();
 
   const isOwner = store.isAppOwner(store.currentUser.id);
@@ -34,11 +42,11 @@ export default function CompanyDashboard(props: {
     isOwner ? null : userCompanyId
   );
 
-  React.useEffect(() => {
-    const h = () => setSelectedCompanyId(null);
-    window.addEventListener('superadmin:resetCompanySelection', h as any);
+  useEffect(() => {
+    const handler: EventListener = () => setSelectedCompanyId(null);
+    window.addEventListener('superadmin:resetCompanySelection', handler);
     return () =>
-      window.removeEventListener('superadmin:resetCompanySelection', h as any);
+      window.removeEventListener('superadmin:resetCompanySelection', handler);
   }, []);
 
   const effectiveCompanyId =
@@ -77,7 +85,7 @@ export default function CompanyDashboard(props: {
     );
   }, [store, effectiveCompanyId, isOwner]);
 
-  const cards = useMemo(() => {
+  const cards = useMemo<ProjectCard[]>(() => {
     return visibleProjects.map((p) => {
       const data = store.getProjectData(p.id);
       const total = data.transactions.reduce((a, b) => a + (b.amount ?? 0), 0);
@@ -213,24 +221,21 @@ export default function CompanyDashboard(props: {
                 p="lg"
                 style={{ cursor: 'pointer' }}
                 onClick={() => {
-                  store.setActiveCompanyId(effectiveCompanyId);
-                  store.setActiveProjectId(c.project.id);
-                  onOpenProject(c.project.id);
+                  onOpenProject(effectiveCompanyId, c.project.id);
                 }}
               >
                 <Stack gap={6}>
                   <Group justify="space-between">
                     <Text fw={700}>{c.project.name}</Text>
-                    <Badge variant="light">
-                      {currency(c.project.currency)}
-                    </Badge>
+                    <Badge variant="light">{c.project.currency}</Badge>
                   </Group>
+
                   <Text size="sm" c="dimmed">
                     Transactions: {c.count} • Uncoded: {c.uncoded}
                   </Text>
+
                   <Text fw={700}>
-                    Total spend: {currency(c.project.currency)}{' '}
-                    {Math.round(c.total).toLocaleString()}
+                    Total spend: {currency(c.total, c.project.currency)}
                   </Text>
                 </Stack>
               </Paper>
