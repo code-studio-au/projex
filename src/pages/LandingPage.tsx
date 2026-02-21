@@ -62,9 +62,13 @@ export default function LandingPage() {
                 </Button>
               </>
             ) : (
-              <Button component={Link} to="/login">
-                Login
-              </Button>
+              <Link to="/login">
+                {(linkProps) => (
+                  <Button component="a" {...linkProps}>
+                    Login
+                  </Button>
+                )}
+              </Link>
             )}
           </Group>
 
@@ -82,14 +86,13 @@ export default function LandingPage() {
                       </Text>
 
                       <Group justify="flex-end" mt="xs">
-                        <Button
-                          component={Link}
-                          to={companyRoute.to}
-                          params={{ companyId: c.id }}
-                          variant="filled"
-                        >
-                          Open
-                        </Button>
+                        <Link to={companyRoute.to} params={{ companyId: c.id }}>
+                          {(linkProps) => (
+                            <Button component="a" {...linkProps} variant="filled">
+                              Open
+                            </Button>
+                          )}
+                        </Link>
                       </Group>
                     </Stack>
                   </Card>

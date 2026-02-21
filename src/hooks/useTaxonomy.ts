@@ -92,13 +92,16 @@ export function useTaxonomy(params: {
 
   const validSubIds = useMemo(() => new Set(subCategories.map((s) => s.id)), [subCategories]);
 
-  const addCategory = (name: string) => {
-    createCat.mutate({
-      id: uid('cat') as CategoryId,
-      companyId,
-      projectId,
-      name,
-    });
+  /**
+   * Creates a category and returns the generated branded ID immediately.
+   *
+   * This keeps the UI deterministic (important for CSV import) while remaining
+   * compatible with a future TanStack Start / Postgres backend.
+   */
+  const addCategory = (name: string): CategoryId => {
+    const id = uid('cat') as CategoryId;
+    createCat.mutate({ id, companyId, projectId, name });
+    return id;
   };
 
   const renameCategory = (categoryId: CategoryId, name: string) => {
@@ -113,17 +116,13 @@ export function useTaxonomy(params: {
     deleteCat.mutate(categoryId);
   };
 
-  const addSubCategory = (categoryId: CategoryId, name: string) => {
-    createSub.mutate({
-      id: uid('sub') as SubCategoryId,
-      companyId,
-      projectId,
-      categoryId,
-      name,
-    });
-    // ensure budget line exists
-    // We'll upsert after creation is reflected, but this keeps parity UX when local.
-    // (In server mode, you'd do this as a transaction.)
+  /**
+   * Creates a subcategory and returns the generated branded ID immediately.
+   */
+  const addSubCategory = (categoryId: CategoryId, name: string): SubCategoryId => {
+    const id = uid('sub') as SubCategoryId;
+    createSub.mutate({ id, companyId, projectId, categoryId, name });
+    return id;
   };
 
   const renameSubCategory = (subCategoryId: SubCategoryId, name: string) => {

@@ -7,6 +7,7 @@ import type {
   ProjectRole,
   Project,
   ProjectId,
+  ProjectVisibility,
   BudgetLine,
   Category,
   SubCategory,
@@ -68,22 +69,32 @@ function writeJson(key: string, value: unknown) {
 
 function ensureState(): PersistedStateV1 {
   const existing = readJson<PersistedStateV1>(PROJEX_STATE_KEY);
-if (existing) {
-  // Lightweight schema migration for local-first development.
-  // Keep this minimal so swapping to TanStack Start later is mechanical.
-  let changed = false;
-  const projects = existing.projects.map((p) => {
-    const vis = (p as unknown as { visibility?: string }).visibility;
-              if (!vis) {
-      changed = true;
-      return { ...p, visibility: 'company' };
-    }
-    return p;
-  });
-  const next = changed ? { ...existing, projects } : existing;
-  if (changed) writeJson(PROJEX_STATE_KEY, next);
-  return next;
-}
+  if (existing) {
+    // Lightweight schema migration for local-first development.
+    // Keep this minimal so swapping to TanStack Start later is mechanical.
+    let changed = false;
+
+    const projects: Project[] = existing.projects.map((p) => {
+      const rawVis = (p as unknown as { visibility?: unknown }).visibility;
+      const visibility: ProjectVisibility | null =
+        rawVis === 'company' || rawVis === 'private'
+          ? (rawVis as ProjectVisibility)
+          : null;
+
+      // Default + repair invalid values.
+      if (!visibility) {
+        changed = true;
+        return { ...p, visibility: 'company' };
+      }
+
+      // Ensure the resulting array remains strongly typed as Project[].
+      return { ...p, visibility };
+    });
+
+    const next: PersistedStateV1 = changed ? { ...existing, projects } : existing;
+    if (changed) writeJson(PROJEX_STATE_KEY, next);
+    return next;
+  }
   const seed = buildSeedState();
   writeJson(PROJEX_STATE_KEY, seed);
   return seed;

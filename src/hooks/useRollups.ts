@@ -120,6 +120,10 @@ export function useRollups(params: {
   const rollupRows: RollupRow[] = useMemo(() => {
     return budgets
       .map((b) => {
+        // Rollups are subcategory-scoped. If a budget line is missing a subCategoryId,
+        // we can't bucket actuals reliably.
+        if (!b.subCategoryId) return null;
+
         const rec = actualsBySubMonth.get(b.subCategoryId) ?? {};
         const actualByMonthKey: Record<string, number> = {};
         for (const mk of visibleMonthKeys) actualByMonthKey[mk] = rec[mk] ?? 0;
@@ -134,7 +138,7 @@ export function useRollups(params: {
           remaining: b.allocated - totalActual,
         };
       })
-      .filter((r) => r.categoryName && r.subCategoryName);
+      .filter((r): r is RollupRow => !!r && !!r.categoryName && !!r.subCategoryName);
   }, [budgets, actualsBySubMonth, visibleMonthKeys, taxonomy]);
 
   const totals = useMemo(() => {

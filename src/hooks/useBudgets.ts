@@ -50,7 +50,7 @@ export function useBudgets(params: {
   const deleteBudgetLinesForSubCategoryIds = (subCategoryIds: SubCategoryId[]) => {
     const setIds = new Set(subCategoryIds);
     for (const b of budgets) {
-      if (setIds.has(b.subCategoryId)) del.mutate(b.id);
+      if (b.subCategoryId && setIds.has(b.subCategoryId)) del.mutate(b.id);
     }
   };
 

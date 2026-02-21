@@ -61,6 +61,7 @@ export default function ProjectWorkspace(props: {
   const canImport = access.can('project:import', projectId);
   const canEditBudgets = access.can('budget:edit', projectId);
   const canEditTxns = access.can('txns:edit', projectId);
+  const canEditTaxonomy = access.can('taxonomy:edit', projectId);
 
   return (
     <Stack gap="md">
@@ -121,6 +122,10 @@ export default function ProjectWorkspace(props: {
           <Tabs.Panel value="import" pt="md">
             <CsvImporterPanel
               taxonomy={taxonomy}
+              existingTxns={txns.transactions}
+              companyId={companyId}
+              projectId={projectId}
+              canEditTaxonomy={canEditTaxonomy}
               onReplaceAll={(next) => txns.replaceAll(next)}
               onAppend={(next) => txns.appendMany(next)}
             />
