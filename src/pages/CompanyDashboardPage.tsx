@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Button, Card, Group, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
+import { useMemo } from 'react';
+import { Badge, Button, Card, Group, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import type { CompanyId } from '../types';
@@ -45,19 +45,32 @@ export default function CompanyDashboardPage() {
             {rows.map((p) => (
               <Card key={p.id} withBorder radius="lg" p="md">
                 <Stack gap={6}>
-                  <Text fw={700}>{p.name}</Text>
+                  <Group justify="space-between" align="center">
+                      <Text fw={700}>{p.name}</Text>
+                      {p.visibility === 'private' ? (
+                        <Badge variant="light">Private</Badge>
+                      ) : !access.can('project:view', p.id) ? (
+                        <Badge variant="light">Company</Badge>
+                      ) : null}
+                    </Group>
                   <Text size="sm" c="dimmed" lineClamp={2}>
                     {p.description || p.id}
                   </Text>
                   <Group justify="space-between" mt="sm">
-                    <Button
-                      component={Link}
-                      to={projectRoute.fullPath}
-                      params={{ companyId, projectId: p.id }}
-                      variant="light"
-                    >
-                      Open workspace
-                    </Button>
+                    {access.can('project:view', p.id) ? (
+                      <Button
+                        component={Link}
+                        to={projectRoute.fullPath}
+                        params={{ companyId, projectId: p.id }}
+                        variant="light"
+                      >
+                        Open workspace
+                      </Button>
+                    ) : (
+                      <Button disabled variant="light">
+                        Open workspace
+                      </Button>
+                    )}
                   </Group>
                 </Stack>
               </Card>

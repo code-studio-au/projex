@@ -32,7 +32,7 @@ export function useUpdateCompanyMutation() {
     mutationFn: (input: CompanyUpdateInput) => api.updateCompany(input),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: qk.company(vars.id) });
-      qc.invalidateQueries({ queryKey: qk.companies() });
+      qc.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'companies' });
     },
   });
 }

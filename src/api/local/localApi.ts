@@ -68,7 +68,22 @@ function writeJson(key: string, value: unknown) {
 
 function ensureState(): PersistedStateV1 {
   const existing = readJson<PersistedStateV1>(PROJEX_STATE_KEY);
-  if (existing) return existing;
+if (existing) {
+  // Lightweight schema migration for local-first development.
+  // Keep this minimal so swapping to TanStack Start later is mechanical.
+  let changed = false;
+  const projects = existing.projects.map((p) => {
+    const vis = (p as unknown as { visibility?: string }).visibility;
+              if (!vis) {
+      changed = true;
+      return { ...p, visibility: 'company' };
+    }
+    return p;
+  });
+  const next = changed ? { ...existing, projects } : existing;
+  if (changed) writeJson(PROJEX_STATE_KEY, next);
+  return next;
+}
   const seed = buildSeedState();
   writeJson(PROJEX_STATE_KEY, seed);
   return seed;
@@ -174,11 +189,21 @@ export class LocalApi implements ProjexApi {
     )?.role;
     if (cRole === 'admin' || cRole === 'executive') return all;
 
-    // Regular company members only see projects they are explicitly a part of.
+    // Option A: company members can SEE (list) all company-visible projects,
+    // but can only OPEN (view) projects they're a member of (enforced by getProject + other endpoints).
+    const isCompanyMember = st.companyMemberships.some(
+      (m) => m.companyId === companyId && m.userId === s.userId
+    );
+
     const mine = new Set(
       st.projectMemberships.filter((m) => m.userId === s.userId).map((m) => m.projectId)
     );
-    return all.filter((p) => mine.has(p.id));
+
+    return all.filter((p) => {
+      if (mine.has(p.id)) return true;
+      if (!isCompanyMember) return false;
+      return p.visibility === 'company';
+    });
   }
 
   async getProject(projectId: ProjectId): Promise<Project | null> {
@@ -570,8 +595,10 @@ export class LocalApi implements ProjexApi {
       id,
       companyId,
       name: input.name,
-      description: '',
-    } as Project;
+      currency: 'AUD',
+      status: 'active',
+      visibility: 'private',
+    };
     // Start with an empty slice (taxonomy/budgets/txns can be added later).
     const slice = st.dataByProjectId[id] ?? {
       budgets: [],

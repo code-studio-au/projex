@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   ActionIcon,
   Button,
@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
+import { asCategoryId } from '../types/ids';
 
 export default function TaxonomyManagerModal(props: {
   opened: boolean;
@@ -144,7 +145,7 @@ export default function TaxonomyManagerModal(props: {
                           value={sc.categoryId}
                           onChange={(v) => {
                             if (!v || v === sc.categoryId) return;
-                            taxonomy.moveSubCategory(sc.id, v);
+                            taxonomy.moveSubCategory(sc.id, asCategoryId(v));
                           }}
                           style={{ width: 220 }}
                         />

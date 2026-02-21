@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -19,6 +19,7 @@ import {
   parseISODate,
 } from '../utils/finance';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
+import { asCategoryId, asSubCategoryId } from '../types/ids';
 
 export default function TransactionsPanel(props: {
   txns: TransactionsHook;
@@ -124,7 +125,7 @@ export default function TransactionsPanel(props: {
             disabled={readOnly}
             onChange={(v) => {
               txns.updateTxn(row.original.id, {
-                categoryId: v ?? undefined,
+                categoryId: v ? asCategoryId(v) : undefined,
                 subCategoryId: undefined,
               });
             }}
@@ -157,7 +158,7 @@ export default function TransactionsPanel(props: {
             disabled={!catId || readOnly}
             onChange={(v) => {
               txns.updateTxn(row.original.id, {
-                subCategoryId: v ?? undefined,
+                subCategoryId: v ? asSubCategoryId(v) : undefined,
               });
             }}
           />

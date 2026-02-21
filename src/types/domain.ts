@@ -15,12 +15,17 @@ export type Company = {
   archived?: boolean;
 };
 
+export type ProjectVisibility = 'company' | 'private';
+
 export type Project = {
   id: ProjectId;
   companyId: CompanyId;
   name: string;
+  description?: string;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
+  /** Visibility within the company. */
+  visibility: ProjectVisibility;
 };
 
 export type User = {
@@ -72,8 +77,8 @@ export type BudgetLine = {
   id: BudgetLineId;
   companyId: CompanyId;
   projectId: ProjectId;
-  categoryId: CategoryId;
-  subCategoryId: SubCategoryId;
+  categoryId?: CategoryId;
+  subCategoryId?: SubCategoryId;
   allocated: number;
 };
 

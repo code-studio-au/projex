@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 
 import type { CompanyId, ProjectId } from '../types';

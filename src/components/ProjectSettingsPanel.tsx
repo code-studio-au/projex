@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -15,6 +15,7 @@ import type { CompanyId, ProjectId, ProjectRole, UserId } from '../types';
 import { asUserId } from '../types';
 
 import { useCompanyQuery, useProjectQuery, useUsersQuery } from '../queries/reference';
+import { useUpdateProjectMutation } from '../queries/admin';
 import { useCompanyMembershipsQuery, useProjectMembershipsQuery, useUpsertProjectMembershipMutation, useDeleteProjectMembershipMutation } from '../queries/memberships';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { getCompanyUsers } from '../store/access';
@@ -32,6 +33,7 @@ export default function ProjectSettingsPanel(props: {
   const projectMembershipsQ = useProjectMembershipsQuery(projectId);
 
   const access = useCompanyAccess(companyId);
+  const updateProject = useUpdateProjectMutation(companyId);
 
   const canManageMembers =
     access.can('project:edit', projectId) || access.can('txns:edit', projectId);
@@ -71,6 +73,33 @@ export default function ProjectSettingsPanel(props: {
       </Paper>
     );
   }
+
+
+<Paper withBorder radius="lg" p="lg">
+  <Stack gap="sm">
+    <Title order={4}>Project</Title>
+    <Group justify="space-between" align="flex-end">
+      <Stack gap={2}>
+        <Text size="sm" c="dimmed">Name</Text>
+        <Text fw={700}>{project.data.name}</Text>
+      </Stack>
+      <Select
+        label="Visibility"
+        description="Controls whether non-members can see this project in the company project list."
+        value={project.data.visibility}
+        onChange={(v) => {
+          if (!v) return;
+          updateProject.mutate({ id: projectId, visibility: v as 'private' | 'company' });
+        }}
+        data={[
+          { value: 'private', label: 'Private (members only)' },
+          { value: 'company', label: 'Company-wide (visible to all company users)' },
+        ]}
+        disabled={!access.can('project:edit', projectId)}
+      />
+    </Group>
+  </Stack>
+</Paper>
 
   const members = projectMembershipsQ.data ?? [];
 

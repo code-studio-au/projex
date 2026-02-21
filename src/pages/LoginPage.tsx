@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Card, Container, Group, Select, Stack, Text, Title } from '@mantine/core';
 import { useRouter } from '@tanstack/react-router';
 

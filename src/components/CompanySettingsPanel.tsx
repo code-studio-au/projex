@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -107,9 +107,10 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     (roleProjectId ?? projects[0]?.id ?? 'prj_unknown') as ProjectId
   );
 
+  const roleRank = currentCompanyRole === 'none' ? 0 : companyRoleRank[currentCompanyRole];
   const highestRoleBadge = (
     <Badge variant="light">
-      Your company role: {currentCompanyRole} (rank {companyRoleRank[currentCompanyRole] ?? 0})
+      Your company role: {currentCompanyRole} (rank {roleRank ?? 0})
     </Badge>
   );
 

@@ -32,7 +32,7 @@ const loginRoute = createRoute({
       const companyId = await api.getDefaultCompanyIdForUser(session.userId);
       if (companyId)
         throw redirect({
-          to: companyRoute.fullPath,
+          to: companyRoute.to,
           params: { companyId },
         });
       throw redirect({ to: '/' });
@@ -70,8 +70,3 @@ export const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({ routeTree });
 
-declare module '@tanstack/react-router' {
-  interface Register {
-    router: typeof router;
-  }
-}

@@ -1,5 +1,6 @@
-import React from 'react';
 import { Outlet, useRouter } from '@tanstack/react-router';
+import { api } from './api';
+import { companyRoute } from './router';
 import {
   AppShell,
   Badge,
@@ -40,6 +41,26 @@ export function AuthedLayout() {
           <Container size="xl">
             <Group justify="space-between">
               <Group gap="sm">
+{userId && (
+  <Button
+    variant="light"
+    onClick={async () => {
+      // Prefer current company from URL, otherwise fall back to user's default company.
+      const path = router.state.location.pathname;
+      const m = path.match(/\/c\/([^/]+)/);
+      const companyId = m?.[1] ?? (await api.getDefaultCompanyIdForUser(userId));
+      if (companyId) {
+        router.navigate({ to: companyRoute.fullPath, params: { companyId } });
+      } else {
+        router.navigate({ to: '/' });
+      }
+    }}
+  >
+    Projects
+  </Button>
+)}
+
+
                 <ThemeIcon radius="md" size="lg" variant="light">
                   PX
                 </ThemeIcon>
@@ -52,6 +73,26 @@ export function AuthedLayout() {
               </Group>
 
               <Group gap="sm">
+{userId && (
+  <Button
+    variant="light"
+    onClick={async () => {
+      // Prefer current company from URL, otherwise fall back to user's default company.
+      const path = router.state.location.pathname;
+      const m = path.match(/\/c\/([^/]+)/);
+      const companyId = m?.[1] ?? (await api.getDefaultCompanyIdForUser(userId));
+      if (companyId) {
+        router.navigate({ to: companyRoute.fullPath, params: { companyId } });
+      } else {
+        router.navigate({ to: '/' });
+      }
+    }}
+  >
+    Projects
+  </Button>
+)}
+
+
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
                     <Button variant="subtle">
