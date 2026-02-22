@@ -1,22 +1,17 @@
 import { useMemo, useState } from 'react';
-import {
-  Badge,
-  Button,
-  Group,
-  Paper,
-  Select,
-  Stack,
-  Table,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Badge, Button, Group, Paper, Select, Stack, Table, Text, Title } from '@mantine/core';
 
 import type { CompanyId, ProjectId, ProjectRole, UserId } from '../types';
 import { asUserId } from '../types';
 
 import { useCompanyQuery, useProjectQuery, useUsersQuery } from '../queries/reference';
 import { useUpdateProjectMutation } from '../queries/admin';
-import { useCompanyMembershipsQuery, useProjectMembershipsQuery, useUpsertProjectMembershipMutation, useDeleteProjectMembershipMutation } from '../queries/memberships';
+import {
+  useCompanyMembershipsQuery,
+  useProjectMembershipsQuery,
+  useUpsertProjectMembershipMutation,
+  useDeleteProjectMembershipMutation,
+} from '../queries/memberships';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { getCompanyUsers } from '../store/access';
 
@@ -35,8 +30,7 @@ export default function ProjectSettingsPanel(props: {
   const access = useCompanyAccess(companyId);
   const updateProject = useUpdateProjectMutation(companyId);
 
-  const canManageMembers =
-    access.can('project:edit', projectId) || access.can('txns:edit', projectId);
+  const canEditProject = access.can('project:edit', projectId);
 
   const companyUsers = useMemo(
     () =>
@@ -63,6 +57,8 @@ export default function ProjectSettingsPanel(props: {
   const upsert = useUpsertProjectMembershipMutation(projectId);
   const del = useDeleteProjectMembershipMutation(projectId);
 
+  const members = projectMembershipsQ.data ?? [];
+
   if (!project.data) {
     return (
       <Paper withBorder radius="lg" p="lg">
@@ -74,35 +70,6 @@ export default function ProjectSettingsPanel(props: {
     );
   }
 
-
-<Paper withBorder radius="lg" p="lg">
-  <Stack gap="sm">
-    <Title order={4}>Project</Title>
-    <Group justify="space-between" align="flex-end">
-      <Stack gap={2}>
-        <Text size="sm" c="dimmed">Name</Text>
-        <Text fw={700}>{project.data.name}</Text>
-      </Stack>
-      <Select
-        label="Visibility"
-        description="Controls whether non-members can see this project in the company project list."
-        value={project.data.visibility}
-        onChange={(v) => {
-          if (!v) return;
-          updateProject.mutate({ id: projectId, visibility: v as 'private' | 'company' });
-        }}
-        data={[
-          { value: 'private', label: 'Private (members only)' },
-          { value: 'company', label: 'Company-wide (visible to all company users)' },
-        ]}
-        disabled={!access.can('project:edit', projectId)}
-      />
-    </Group>
-  </Stack>
-</Paper>
-
-  const members = projectMembershipsQ.data ?? [];
-
   return (
     <Stack gap="lg">
       <Group justify="space-between">
@@ -112,10 +79,39 @@ export default function ProjectSettingsPanel(props: {
             {company.data?.name ?? companyId} • {project.data.name}
           </Text>
         </Stack>
-        <Badge variant="light" color={canManageMembers ? 'gray' : 'red'}>
-          {canManageMembers ? 'Can manage members' : 'Read-only'}
+        <Badge variant="light" color={canEditProject ? 'gray' : 'red'}>
+          {canEditProject ? 'Can edit project' : 'Read-only'}
         </Badge>
       </Group>
+
+      <Paper withBorder radius="lg" p="lg">
+        <Stack gap="sm">
+          <Title order={5}>Project</Title>
+          <Group justify="space-between" align="flex-end" wrap="wrap">
+            <Stack gap={2}>
+              <Text size="sm" c="dimmed">
+                Name
+              </Text>
+              <Text fw={700}>{project.data.name}</Text>
+            </Stack>
+            <Select
+              label="Visibility"
+              description="Controls whether non-members can see this project in the company project list. Opening still requires membership unless you are Admin/Exec/Superadmin."
+              value={project.data.visibility}
+              onChange={(v) => {
+                if (!v) return;
+                updateProject.mutate({ id: projectId, visibility: v as 'private' | 'company' });
+              }}
+              data={[
+                { value: 'private', label: 'Private (members only)' },
+                { value: 'company', label: 'Company-wide (visible to all company users)' },
+              ]}
+              disabled={!canEditProject}
+              style={{ minWidth: 360 }}
+            />
+          </Group>
+        </Stack>
+      </Paper>
 
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
@@ -142,7 +138,7 @@ export default function ProjectSettingsPanel(props: {
               style={{ minWidth: 200 }}
             />
             <Button
-              disabled={!canManageMembers || !memberUserId || !memberRole}
+              disabled={!canEditProject || !memberUserId || !memberRole}
               onClick={async () => {
                 if (!memberUserId || !memberRole) return;
                 await upsert.mutateAsync({ userId: memberUserId, role: memberRole });
@@ -152,7 +148,7 @@ export default function ProjectSettingsPanel(props: {
             </Button>
           </Group>
           <Text size="sm" c="dimmed">
-            Users can hold multiple roles across different projects.
+            Manage membership per project. Company settings manages company-level roles only.
           </Text>
         </Stack>
       </Paper>
@@ -171,6 +167,7 @@ export default function ProjectSettingsPanel(props: {
             <Table.Tbody>
               {members.map((m, idx) => {
                 const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
+                // Only render users that actually belong to this company.
                 if (!companyUsers.some((cu) => cu.id === m.userId)) return null;
                 return (
                   <Table.Tr key={`${m.projectId}:${m.userId}:${m.role}:${idx}`}>
@@ -192,10 +189,8 @@ export default function ProjectSettingsPanel(props: {
                         size="xs"
                         color="red"
                         variant="light"
-                        disabled={!canManageMembers}
-                        onClick={() =>
-                          del.mutate({ userId: m.userId, role: m.role })
-                        }
+                        disabled={!canEditProject}
+                        onClick={() => del.mutate({ userId: m.userId, role: m.role })}
                       >
                         Remove
                       </Button>

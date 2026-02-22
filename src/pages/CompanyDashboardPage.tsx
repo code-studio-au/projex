@@ -1,10 +1,23 @@
-import { useMemo } from 'react';
-import { Badge, Button, Card, Group, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
+import { useMemo, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Card,
+  Group,
+  Modal,
+  SimpleGrid,
+  Stack,
+  Tabs,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 
 import type { CompanyId } from '../types';
 import { asCompanyId } from '../types';
 import { useCompanyQuery, useProjectsQuery } from '../queries/reference';
+import { useCreateProjectMutation } from '../queries/admin';
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
 import { companyRoute, projectRoute } from '../router';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
@@ -20,6 +33,11 @@ export default function CompanyDashboardPage() {
   const access = useCompanyAccess(companyId);
   const canEditCompany = access.can('company:edit');
 
+  const createProject = useCreateProjectMutation(companyId);
+  const canAddProjects = canEditCompany;
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
 
   return (
@@ -29,13 +47,56 @@ export default function CompanyDashboardPage() {
           <Title order={2}>{companyQ.data?.name ?? 'Company'}</Title>
           <Text c="dimmed">Projects and settings</Text>
         </Stack>
-        <Link to="/">
-          {(linkProps) => (
-            <Button component="a" {...linkProps} variant="light">
+        <Group gap="sm">
+          {canAddProjects && (
+            <>
+              <Button variant="filled" onClick={() => setNewProjectOpen(true)}>
+                New project
+              </Button>
+              <Modal
+                opened={newProjectOpen}
+                onClose={() => setNewProjectOpen(false)}
+                title="Create project"
+              >
+                <Stack>
+                  <TextInput
+                    label="Project name"
+                    placeholder="e.g. Website Refresh"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.currentTarget.value)}
+                    autoFocus
+                  />
+                  <Group justify="flex-end">
+                    <Button
+                      variant="light"
+                      onClick={() => setNewProjectOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      disabled={!newProjectName.trim() || createProject.isPending}
+                      onClick={async () => {
+                        const name = newProjectName.trim();
+                        if (!name) return;
+                        await createProject.mutateAsync({ name });
+                        setNewProjectName('');
+                        setNewProjectOpen(false);
+                      }}
+                    >
+                      Create
+                    </Button>
+                  </Group>
+                </Stack>
+              </Modal>
+            </>
+          )}
+
+          <Link to="/">
+            <Button component="span" variant="light">
               Switch company
             </Button>
-          )}
-        </Link>
+          </Link>
+        </Group>
       </Group>
 
       <Tabs defaultValue="projects" keepMounted={false}>
@@ -65,11 +126,9 @@ export default function CompanyDashboardPage() {
                   <Group justify="space-between" mt="sm">
                     {access.can('project:view', p.id) ? (
                       <Link to={projectRoute.to} params={{ companyId, projectId: p.id }}>
-                        {(linkProps) => (
-                          <Button component="a" {...linkProps} variant="light">
-                            Open workspace
-                          </Button>
-                        )}
+                        <Button component="span" variant="light">
+                          Open workspace
+                        </Button>
                       </Link>
                     ) : (
                       <Button disabled variant="light">

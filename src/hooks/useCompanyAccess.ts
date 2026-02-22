@@ -5,7 +5,7 @@ import { can, type Action } from '../utils/auth';
 import { getUserCompanyRole } from '../store/access';
 
 import { useSessionQuery } from '../queries/session';
-import { useCompanyMembershipsQuery, useAllProjectMembershipsQuery } from '../queries/memberships';
+import { useAllCompanyMembershipsQuery, useAllProjectMembershipsQuery } from '../queries/memberships';
 
 export type CompanyAccess = {
   userId: UserId;
@@ -29,7 +29,7 @@ export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
   const session = useSessionQuery();
   const userId = (session.data?.userId ?? 'usr_unknown') as UserId;
 
-  const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
+  const companyMembershipsQ = useAllCompanyMembershipsQuery();
   const allProjectMembershipsQ = useAllProjectMembershipsQuery(companyId);
 
   // Keep these references stable so downstream useMemo/useCallback dependencies

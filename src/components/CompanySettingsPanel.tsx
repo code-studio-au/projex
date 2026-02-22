@@ -13,30 +13,19 @@ import {
   Title,
 } from '@mantine/core';
 
-import type { CompanyId, CompanyRole, ProjectId, ProjectRole, UserId } from '../types';
-import { asProjectId, asUserId } from '../types';
+import type { CompanyId, CompanyRole, UserId } from '../types';
+import { asUserId } from '../types';
 
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { getCompanyUsers } from '../store/access';
-import { useUsersQuery, useCompanyQuery, useProjectsQuery } from '../queries/reference';
+import { useUsersQuery, useCompanyQuery } from '../queries/reference';
 import {
   useCompanyMembershipsQuery,
-  useProjectMembershipsQuery,
   useUpsertCompanyMembershipMutation,
-  useUpsertProjectMembershipMutation,
 } from '../queries/memberships';
 import {
-  useCreateProjectMutation,
   useCreateUserInCompanyMutation,
 } from '../queries/admin';
-
-const companyRoleRank: Record<CompanyRole, number> = {
-  superadmin: 5,
-  admin: 4,
-  executive: 3,
-  management: 2,
-  member: 1,
-};
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
@@ -44,29 +33,15 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const access = useCompanyAccess(companyId);
   const company = useCompanyQuery(companyId);
   const usersQ = useUsersQuery();
-  const projectsQ = useProjectsQuery(companyId);
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
 
-  const createProject = useCreateProjectMutation(companyId);
   const createUser = useCreateUserInCompanyMutation(companyId);
   const upsertCompanyMembership = useUpsertCompanyMembershipMutation(companyId);
 
-  // Permissions requested:
-  // - Execs can access company settings and add company users
-  // - Execs + Managers can add projects
+  // Permissions are evaluated via `access.can(...)` so that global superadmin
+  // works across companies even without explicit membership.
   const currentCompanyRole = access.companyRole;
-  const canAddProjects =
-    currentCompanyRole === 'superadmin' ||
-    currentCompanyRole === 'admin' ||
-    currentCompanyRole === 'executive' ||
-    currentCompanyRole === 'management';
-
-  const canAddCompanyUsers =
-    currentCompanyRole === 'superadmin' ||
-    currentCompanyRole === 'admin' ||
-    currentCompanyRole === 'executive';
-
-  const canAssignProjectRoles = canAddProjects;
+  const canAddCompanyUsers = access.can('company:manage_members');
 
   const companyUsers = useMemo(() => {
     return getCompanyUsers(
@@ -85,32 +60,19 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     [companyUsers]
   );
 
-  const projects = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
-
-  const [newProjectName, setNewProjectName] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<CompanyRole | null>('member');
-
-  // Assign project role
-  const [roleProjectId, setRoleProjectId] = useState<ProjectId | null>(
-    (projects[0]?.id ?? null) as ProjectId | null
-  );
   const [roleUserId, setRoleUserId] = useState<UserId | null>(
     (userOptions[0]?.value ?? null) as UserId | null
   );
-  const [roleValue, setRoleValue] = useState<ProjectRole | null>('member');
   const [membershipCompanyRole, setMembershipCompanyRole] =
     useState<CompanyRole | null>('member');
 
-  const upsertProjectMembership = useUpsertProjectMembershipMutation(
-    (roleProjectId ?? projects[0]?.id ?? 'prj_unknown') as ProjectId
-  );
-
-  const roleRank = currentCompanyRole === 'none' ? 0 : companyRoleRank[currentCompanyRole];
   const highestRoleBadge = (
     <Badge variant="light">
-      Your company role: {currentCompanyRole} (rank {roleRank ?? 0})
+      Your company role: {currentCompanyRole}
+      {access.isSuperadmin ? ' (global superadmin)' : ''}
     </Badge>
   );
 
@@ -127,34 +89,6 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
       </Group>
 
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Title order={5}>Create project</Title>
-              <Badge variant="light" color={canAddProjects ? 'gray' : 'red'}>
-                {canAddProjects ? 'Allowed' : 'Not allowed'}
-              </Badge>
-            </Group>
-            <TextInput
-              label="Project name"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.currentTarget.value)}
-              placeholder="e.g. Website Refresh"
-            />
-            <Button
-              disabled={!canAddProjects || createProject.isPending}
-              onClick={async () => {
-                const name = newProjectName.trim();
-                if (!name) return;
-                await createProject.mutateAsync({ name });
-                setNewProjectName('');
-              }}
-            >
-              Create project
-            </Button>
-          </Stack>
-        </Paper>
-
         <Paper withBorder radius="lg" p="lg">
           <Stack gap="sm">
             <Group justify="space-between">
@@ -204,67 +138,6 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           </Stack>
         </Paper>
       </SimpleGrid>
-
-      <Paper withBorder radius="lg" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Assign users to projects</Title>
-          <Group align="flex-end" wrap="wrap">
-            <Select
-              label="Project"
-              data={projects.map((p) => ({ value: p.id, label: p.name }))}
-              value={roleProjectId}
-              onChange={(v) => setRoleProjectId(v ? asProjectId(v) : null)}
-              searchable
-              style={{ minWidth: 220 }}
-            />
-            <Select
-              label="User (this company)"
-              data={userOptions}
-              value={roleUserId}
-              onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
-              searchable
-              style={{ minWidth: 320 }}
-            />
-            <Select
-              label="Role"
-              data={[
-                { value: 'owner', label: 'owner' },
-                { value: 'lead', label: 'lead' },
-                { value: 'member', label: 'member' },
-                { value: 'viewer', label: 'viewer' },
-              ]}
-              value={roleValue}
-              onChange={(v) => setRoleValue((v as ProjectRole | null) ?? null)}
-              style={{ minWidth: 200 }}
-            />
-            <Button
-              disabled={!canAssignProjectRoles || !roleProjectId || !roleUserId || !roleValue}
-              onClick={async () => {
-                if (!roleProjectId || !roleUserId || !roleValue) return;
-                // ensure mutation is bound to current project
-                await upsertProjectMembership.mutateAsync({ userId: roleUserId, role: roleValue });
-              }}
-            >
-              Assign
-            </Button>
-          </Group>
-
-          <Table withTableBorder>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Project</Table.Th>
-                <Table.Th>User</Table.Th>
-                <Table.Th>Role</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {(projectsQ.data ?? []).map((p) => (
-                <ProjectMembershipRows key={p.id} companyId={companyId} projectId={p.id} />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Stack>
-      </Paper>
 
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
@@ -328,30 +201,5 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         </Stack>
       </Paper>
     </Stack>
-  );
-}
-
-function ProjectMembershipRows(props: { companyId: CompanyId; projectId: ProjectId }) {
-  const { projectId } = props;
-  const usersQ = useUsersQuery();
-  const membershipsQ = useProjectMembershipsQuery(projectId);
-
-  const members = membershipsQ.data ?? [];
-
-  return (
-    <>
-      {members.map((m) => {
-        const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
-        return (
-          <Table.Tr key={`${m.projectId}:${m.userId}`}>
-            <Table.Td>{projectId}</Table.Td>
-            <Table.Td>{u ? `${u.name} (${u.email})` : m.userId}</Table.Td>
-            <Table.Td>
-              <Badge variant="light">{m.role}</Badge>
-            </Table.Td>
-          </Table.Tr>
-        );
-      })}
-    </>
   );
 }

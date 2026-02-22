@@ -59,6 +59,14 @@ export interface ProjexApi {
   getProject(projectId: ProjectId): Promise<Project | null>;
 
   // memberships / access
+  /**
+   * Returns memberships across all companies.
+   *
+   * Local mode uses this for "global" superadmin UX gating.
+   * In a real backend, superadmin would typically be a session claim and
+   * the server would enforce access regardless of what the client thinks.
+   */
+  listAllCompanyMemberships(): Promise<CompanyMembership[]>;
   listCompanyMemberships(companyId: CompanyId): Promise<CompanyMembership[]>;
   listProjectMemberships(projectId: ProjectId): Promise<ProjectMembership[]>;
   upsertCompanyMembership(

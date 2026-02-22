@@ -30,6 +30,7 @@ export default function TransactionsPanel(props: {
   showUncodedOnly: boolean;
   setShowUncodedOnly: (v: boolean) => void;
   uncodedSummary: { count: number; amount: number };
+  canEditTaxonomy: boolean;
   readOnly?: boolean;
 }) {
   const {
@@ -41,6 +42,7 @@ export default function TransactionsPanel(props: {
     showUncodedOnly,
     setShowUncodedOnly,
     uncodedSummary,
+    canEditTaxonomy,
     readOnly = false,
   } = props;
 
@@ -220,7 +222,7 @@ export default function TransactionsPanel(props: {
             />
             <Button
               variant="light"
-              disabled={readOnly}
+              disabled={readOnly || !canEditTaxonomy}
               onClick={() => setManageOpen(true)}
             >
               Manage categories
@@ -268,6 +270,7 @@ export default function TransactionsPanel(props: {
         opened={manageOpen}
         onClose={() => setManageOpen(false)}
         taxonomy={taxonomy}
+        readOnly={!canEditTaxonomy}
       />
     </Stack>
   );

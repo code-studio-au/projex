@@ -162,6 +162,12 @@ export class LocalApi implements ProjexApi {
     return ensureState().users;
   }
 
+  async listAllCompanyMemberships(): Promise<CompanyMembership[]> {
+    // Local mode helper for client-side UX gating.
+    // Server-backed mode should treat authorization as server-truth.
+    return ensureState().companyMemberships;
+  }
+
   async listCompanies(): Promise<Company[]> {
     const st = ensureState();
     const s = readSession();

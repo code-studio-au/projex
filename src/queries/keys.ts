@@ -6,6 +6,7 @@ export const qk = {
   company: (companyId: string) => ['company', companyId] as const,
   companyMemberships: (companyId: string) =>
     ['companyMemberships', companyId] as const,
+  allCompanyMemberships: () => ['allCompanyMemberships'] as const,
   projects: (companyId: string) => ['projects', companyId] as const,
   project: (projectId: string) => ['project', projectId] as const,
   projectMemberships: (projectId: string) =>

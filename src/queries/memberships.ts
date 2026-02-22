@@ -12,6 +12,13 @@ export function useCompanyMembershipsQuery(companyId: CompanyId) {
   });
 }
 
+export function useAllCompanyMembershipsQuery() {
+  return useQuery({
+    queryKey: qk.allCompanyMemberships(),
+    queryFn: () => api.listAllCompanyMemberships(),
+  });
+}
+
 export function useProjectMembershipsQuery(projectId: ProjectId) {
   return useQuery({
     queryKey: qk.projectMemberships(projectId),

@@ -105,6 +105,7 @@ export default function ProjectWorkspace(props: {
               showUncodedOnly={showUncodedOnly}
               setShowUncodedOnly={setShowUncodedOnly}
               uncodedSummary={uncoded}
+              canEditTaxonomy={canEditTaxonomy}
               readOnly={!canEditTxns}
             />
           </Tabs.Panel>
