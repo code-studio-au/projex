@@ -1,7 +1,8 @@
-import type { Company } from "../types";
+import type { Company } from '../types';
+import { asCompanyId } from '../types';
 
 export const seedCompanies: Company[] = [
-  { id: "co_projex", name: "Projex" },
-  { id: "co_acme", name: "Acme Co" },
-  { id: "co_globex", name: "Globex" },
+  { id: asCompanyId('co_projex'), name: 'Projex' },
+  { id: asCompanyId('co_acme'), name: 'Acme Co' },
+  { id: asCompanyId('co_globex'), name: 'Globex' },
 ];

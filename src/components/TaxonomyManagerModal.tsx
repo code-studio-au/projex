@@ -1,23 +1,47 @@
-import React, { useMemo, useState } from "react";
-import { ActionIcon, Button, Divider, Group, Modal, Select, Stack, Text, TextInput } from "@mantine/core";
-import { IconPlus, IconTrash, IconArrowRight } from "@tabler/icons-react";
-import type { TaxonomyHook } from "../hooks/useTaxonomy";
+import { useState } from 'react';
+import {
+  ActionIcon,
+  Button,
+  Divider,
+  Group,
+  Modal,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+} from '@mantine/core';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
+import type { TaxonomyHook } from '../hooks/useTaxonomy';
+import { asCategoryId } from '../types/ids';
 
 export default function TaxonomyManagerModal(props: {
   opened: boolean;
   onClose: () => void;
   taxonomy: TaxonomyHook;
+  readOnly?: boolean;
 }) {
-  const { opened, onClose, taxonomy } = props;
+  const { opened, onClose, taxonomy, readOnly = false } = props;
 
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [newSubNameByCat, setNewSubNameByCat] = useState<Record<string, string>>({});
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newSubNameByCat, setNewSubNameByCat] = useState<
+    Record<string, string>
+  >({});
 
   const categoryOptions = taxonomy.categoryOptions;
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Manage categories & subcategories" size="lg">
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title="Manage categories & subcategories"
+      size="lg"
+    >
       <Stack gap="md">
+        {readOnly && (
+          <Text size="sm" c="dimmed">
+            You don’t have permission to edit categories in this project.
+          </Text>
+        )}
         <Group align="flex-end">
           <TextInput
             label="Add category"
@@ -25,14 +49,16 @@ export default function TaxonomyManagerModal(props: {
             value={newCategoryName}
             onChange={(e) => setNewCategoryName(e.currentTarget.value)}
             style={{ flex: 1 }}
+            disabled={readOnly}
           />
           <Button
             leftSection={<IconPlus size={16} />}
+            disabled={readOnly}
             onClick={() => {
               const name = newCategoryName.trim();
               if (!name) return;
               taxonomy.addCategory(name);
-              setNewCategoryName("");
+              setNewCategoryName('');
             }}
           >
             Add
@@ -43,22 +69,33 @@ export default function TaxonomyManagerModal(props: {
 
         <Stack gap="lg">
           {taxonomy.categories.map((cat) => {
-            const subcats = taxonomy.subCategories.filter((s) => s.categoryId === cat.id);
+            const subcats = taxonomy.subCategories.filter(
+              (s) => s.categoryId === cat.id
+            );
             return (
               <Stack key={cat.id} gap="xs">
                 <Group justify="space-between" align="flex-end">
                   <TextInput
                     label="Category"
                     value={cat.name}
-                    onChange={(e) => taxonomy.renameCategory(cat.id, e.currentTarget.value)}
+                    onChange={(e) =>
+                      taxonomy.renameCategory(cat.id, e.currentTarget.value)
+                    }
                     style={{ flex: 1 }}
+                    disabled={readOnly}
                   />
                   <ActionIcon
                     color="red"
                     variant="subtle"
                     title="Delete category"
+                    disabled={readOnly}
                     onClick={() => {
-                      if (!confirm(`Delete category "${cat.name}"? This will remove its subcategories and un-code affected transactions.`)) return;
+                      if (
+                        !confirm(
+                          `Delete category "${cat.name}"? This will remove its subcategories and un-code affected transactions.`
+                        )
+                      )
+                        return;
                       taxonomy.deleteCategory(cat.id);
                     }}
                   >
@@ -70,20 +107,25 @@ export default function TaxonomyManagerModal(props: {
                   <TextInput
                     label="Add subcategory"
                     placeholder="e.g. Flights"
-                    value={newSubNameByCat[cat.id] ?? ""}
-                    onChange={(e) =>
-                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: e.currentTarget.value }))
-                    }
+                    value={newSubNameByCat[cat.id] ?? ''}
+                    onChange={(e) => {
+                      // Defensive: in some environments/input methods the event target can be null.
+                      // Avoid capturing the synthetic event inside the state updater.
+                      const value = e?.currentTarget?.value ?? '';
+                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: value }));
+                    }}
                     style={{ flex: 1 }}
+                    disabled={readOnly}
                   />
                   <Button
                     variant="light"
                     leftSection={<IconPlus size={16} />}
+                    disabled={readOnly}
                     onClick={() => {
-                      const name = (newSubNameByCat[cat.id] ?? "").trim();
+                      const name = (newSubNameByCat[cat.id] ?? '').trim();
                       if (!name) return;
                       taxonomy.addSubCategory(cat.id, name);
-                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: "" }));
+                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: '' }));
                     }}
                   >
                     Add
@@ -101,8 +143,14 @@ export default function TaxonomyManagerModal(props: {
                         <TextInput
                           label="Subcategory"
                           value={sc.name}
-                          onChange={(e) => taxonomy.renameSubCategory(sc.id, e?.currentTarget?.value ?? "")}
+                          onChange={(e) =>
+                            taxonomy.renameSubCategory(
+                              sc.id,
+                              e?.currentTarget?.value ?? ''
+                            )
+                          }
                           style={{ flex: 1 }}
+                          disabled={readOnly}
                         />
                         <Select
                           label="Move to"
@@ -110,16 +158,23 @@ export default function TaxonomyManagerModal(props: {
                           value={sc.categoryId}
                           onChange={(v) => {
                             if (!v || v === sc.categoryId) return;
-                            taxonomy.moveSubCategory(sc.id, v);
+                            taxonomy.moveSubCategory(sc.id, asCategoryId(v));
                           }}
                           style={{ width: 220 }}
+                          disabled={readOnly}
                         />
                         <ActionIcon
                           color="red"
                           variant="subtle"
                           title="Delete subcategory"
+                          disabled={readOnly}
                           onClick={() => {
-                            if (!confirm(`Delete subcategory "${sc.name}"? Transactions coded to it will become uncoded.`)) return;
+                            if (
+                              !confirm(
+                                `Delete subcategory "${sc.name}"? Transactions coded to it will become uncoded.`
+                              )
+                            )
+                              return;
                             taxonomy.deleteSubCategory(sc.id);
                           }}
                         >

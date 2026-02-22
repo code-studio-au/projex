@@ -1,7 +1,34 @@
-import { useMemo,useState,useEffect } from "react";
-import type { Id,Txn, BudgetLine, RollupRow } from "../types";
-import { parseISODate, monthKeyFromStart, monthStart, nextMonthStart, sum, quarterOfMonth,parseYearMonth,quarterKey } from "../utils/finance";
-import type { TaxonomyHook } from "./useTaxonomy";
+import { useMemo } from 'react';
+
+/**
+ * Rollup computations for budgets vs actuals.
+ *
+ * This hook is intentionally UI-agnostic: it produces a normalized model
+ * (rows + month keys + aggregations) that a table component can render.
+ *
+ * Keeping the computation isolated makes it easy to migrate to a backend
+ * implementation later (TanStack Start server functions / SQL rollups),
+ * while preserving the same UI contract.
+ */
+import type { BudgetLine, RollupRow, SubCategoryId, Txn } from '../types';
+import {
+  monthKeyFromStart,
+  monthStart,
+  nextMonthStart,
+  parseISODate,
+  sum,
+} from '../utils/finance';
+import type { TaxonomyHook } from './useTaxonomy';
+
+/**
+ * Parses a month key used in the UI ("YYYY-MM") into a Date.
+ * Accepts full ISO date strings as a convenience (we normalize to month start).
+ */
+function parseMonthKeyToDate(input: string) {
+  // Accept "YYYY-MM" or a full ISO date.
+  const key = /^\d{4}-\d{2}$/.test(input) ? `${input}-01` : input;
+  return parseISODate(key);
+}
 
 export function useRollups(params: {
   transactions: Txn[];
@@ -13,9 +40,24 @@ export function useRollups(params: {
 
   const monthStarts = useMemo(() => {
     if (!transactions.length) return [];
-    const times = transactions.map((t) => parseISODate(t.date).getTime());
+
+    // Be resilient to malformed dates (e.g., from CSV imports).
+    // A single NaN in Math.min/Math.max would poison the whole range.
+    const times = transactions
+      .map((t) => {
+        try {
+          return parseISODate(t.date).getTime();
+        } catch {
+          return NaN;
+        }
+      })
+      .filter((ms) => Number.isFinite(ms)) as number[];
+
+    if (!times.length) return [];
+
     const minD = monthStart(new Date(Math.min(...times)));
     const maxD = monthStart(new Date(Math.max(...times)));
+
     const out: Date[] = [];
     let d = new Date(minD);
     while (d <= maxD) {
@@ -27,87 +69,61 @@ export function useRollups(params: {
 
   const visibleMonthStarts = useMemo(() => {
     if (!monthFilterKey) return monthStarts;
-    return [monthStart(parseISODate(monthFilterKey))];
+    return [monthStart(parseMonthKeyToDate(monthFilterKey))];
   }, [monthStarts, monthFilterKey]);
 
-  const visibleMonthKeys = useMemo(() => visibleMonthStarts.map(monthKeyFromStart), [visibleMonthStarts]);
+  const visibleMonthKeys = useMemo(
+    () => visibleMonthStarts.map(monthKeyFromStart),
+    [visibleMonthStarts]
+  );
 
-  const validSubIds = useMemo(() => new Set(taxonomy.subCategories.map((s) => s.id)), [taxonomy.subCategories]);
+  const validSubIds = useMemo(
+    () => new Set<SubCategoryId>(taxonomy.subCategories.map((s) => s.id)),
+    [taxonomy.subCategories]
+  );
 
-
-  // ======== Time column collapse (Year + Quarter) ========
-  const [collapsedYears, setCollapsedYears] = useState<Set<number>>(() => new Set());
-  const [collapsedQuarters, setCollapsedQuarters] = useState<Set<string>>(() => new Set());
-
-  // Default behavior:
-  // - Other years collapsed (show year total only)
-  // - Current year: current quarter expanded, other quarters collapsed
-  useEffect(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentQuarter = quarterOfMonth(now.getMonth() + 1);
-
-    const yearsInData = Array.from(
-      new Set(visibleMonthKeys.map((mk) => parseYearMonth(mk).year))
-    ).sort((a, b) => a - b);
-
-    // Collapse all years except current year
-    const nextCollapsedYears = new Set<number>(yearsInData.filter((y) => y !== currentYear));
-
-    // Collapse all quarters except current quarter of current year
-    const nextCollapsedQuarters = new Set<string>();
-    for (const mk of visibleMonthKeys) {
-      const { year, month } = parseYearMonth(mk);
-      const q = quarterOfMonth(month);
-      const qk = quarterKey(year, q);
-      if (!(year === currentYear && q === currentQuarter)) nextCollapsedQuarters.add(qk);
-    }
-
-    setCollapsedYears(nextCollapsedYears);
-    setCollapsedQuarters(nextCollapsedQuarters);
-  }, [visibleMonthKeys]);
-
-  const budgetColumnVisibility = useMemo(() => {
-    const vis: Record<string, boolean> = {};
-
-    for (const mk of visibleMonthKeys) {
-      const { year, month } = parseYearMonth(mk);
-      const q = quarterOfMonth(month);
-      const qk = quarterKey(year, q);
-
-      const yearCollapsed = collapsedYears.has(year);
-      const quarterCollapsed = collapsedQuarters.has(qk);
-
-      vis[`m_${mk}`] = !(yearCollapsed || quarterCollapsed);
-      vis[`qt_${year}_${q}`] = !yearCollapsed; // hide quarter totals when year collapsed
-      vis[`yt_${year}`] = true; // always show year totals
-    }
-
-    return vis;
-  }, [visibleMonthKeys, collapsedYears, collapsedQuarters]);
   const codedTxns = useMemo(
-    () => transactions.filter((t) => t.subCategoryId && validSubIds.has(t.subCategoryId)),
+    () =>
+      transactions.filter(
+        (t) => t.subCategoryId && validSubIds.has(t.subCategoryId)
+      ),
     [transactions, validSubIds]
   );
 
-const actualsBySubMonth = useMemo(() => {
-  const map = new Map<Id, Record<string, number>>();
+  const { actualsBySubMonth, badDateCount } = useMemo(() => {
+    const map = new Map<SubCategoryId, Record<string, number>>();
+    let bad = 0;
 
-  for (const t of codedTxns) {
-    const scId = t.subCategoryId!;
-    if (!map.has(scId)) map.set(scId, {});
-    const rec = map.get(scId)!;
+    for (const t of codedTxns) {
+      const scId = t.subCategoryId!;
+      if (!map.has(scId)) map.set(scId, {});
+      const rec = map.get(scId)!;
 
-    const mk = t.date.slice(0, 7); // yyyy-mm
-    rec[mk] = (rec[mk] ?? 0) + t.amount;
-  }
+      // Derive the month key from an actual parsed date instead of string slicing.
+      // This avoids silently mis-bucketing dates like "2025/01/05" or empty strings.
+      let mk: string | null = null;
+      try {
+        const d = parseISODate(t.date);
+        mk = monthKeyFromStart(monthStart(d));
+      } catch {
+        bad += 1;
+      }
 
-  return map;
-}, [codedTxns]);
+      if (!mk) continue;
+
+      rec[mk] = (rec[mk] ?? 0) + t.amount;
+    }
+
+    return { actualsBySubMonth: map, badDateCount: bad };
+  }, [codedTxns]);
 
   const rollupRows: RollupRow[] = useMemo(() => {
     return budgets
       .map((b) => {
+        // Rollups are subcategory-scoped. If a budget line is missing a subCategoryId,
+        // we can't bucket actuals reliably.
+        if (!b.subCategoryId) return null;
+
         const rec = actualsBySubMonth.get(b.subCategoryId) ?? {};
         const actualByMonthKey: Record<string, number> = {};
         for (const mk of visibleMonthKeys) actualByMonthKey[mk] = rec[mk] ?? 0;
@@ -122,7 +138,7 @@ const actualsBySubMonth = useMemo(() => {
           remaining: b.allocated - totalActual,
         };
       })
-      .filter((r) => r.categoryName && r.subCategoryName);
+      .filter((r): r is RollupRow => !!r && !!r.categoryName && !!r.subCategoryName);
   }, [budgets, actualsBySubMonth, visibleMonthKeys, taxonomy]);
 
   const totals = useMemo(() => {
@@ -131,9 +147,7 @@ const actualsBySubMonth = useMemo(() => {
     return { allocated, actual, remaining: allocated - actual };
   }, [rollupRows]);
 
-  return { monthStarts, visibleMonthKeys, rollupRows, totals };
+  return { monthStarts, visibleMonthKeys, rollupRows, totals, badDateCount };
 }
-
-
 
 export type RollupsHook = ReturnType<typeof useRollups>;

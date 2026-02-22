@@ -1,205 +1,107 @@
-import React from "react";
-import {
-  Anchor,
-  Badge,
-  Box,
-  Button,
-  Container,
-  Divider,
-  Group,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  ThemeIcon,
-  Title,
-} from "@mantine/core";
+import { useMemo } from 'react';
+import { Button, Card, Container, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Link, useRouter } from '@tanstack/react-router';
+import { api } from '../api';
+import { companyRoute } from '../router';
+import { useCompaniesQuery } from '../queries/reference';
+import { useLogoutMutation, useSessionQuery } from '../queries/session';
 
-export default function LandingPage(props: { onLogin: () => void; onSignUp: () => void }) {
-  const { onLogin, onSignUp } = props;
+export default function LandingPage() {
+  const router = useRouter();
+
+  const sessionQ = useSessionQuery();
+  const userId = sessionQ.data?.userId;
+
+  const logout = useLogoutMutation();
+  const companiesQ = useCompaniesQuery(userId);
+
+  const companies = useMemo(() => companiesQ.data ?? [], [companiesQ.data]);
 
   return (
-    <Box>
-      <Paper withBorder radius={0} p="md">
-        <Container size="xl">
-          <Group justify="space-between">
-            <Group gap="sm">
-              <ThemeIcon radius="md" size="lg" variant="light">
-                PX
-              </ThemeIcon>
-              <Stack gap={0}>
-                <Text fw={700}>Projex</Text>
-                <Text size="xs" c="dimmed">
-                  Multi-tenant budgets & transactions
-                </Text>
-              </Stack>
-            </Group>
+    <Container size="sm">
+      <Card withBorder radius="lg" p="xl">
+        <Stack gap="md">
+          <Title order={2}>Projex</Title>
+          <Text c="dimmed">
+            Local-first build with a clean API boundary + TanStack Router/Query. When you swap to
+            TanStack Start later, the UI keeps the same shape.
+          </Text>
 
-            <Group gap="sm">
-              <Button variant="subtle" onClick={onLogin}>
-                Log in
-              </Button>
-              <Button onClick={onSignUp}>Sign up</Button>
-            </Group>
-          </Group>
-        </Container>
-      </Paper>
-
-      <Container size="xl">
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl" py={64}>
-          <Stack gap="md">
-            <Badge variant="light" w="fit-content">
-              CSV import • Dedupe IDs • RBAC
-            </Badge>
-            <Title order={1} style={{ lineHeight: 1.1 }}>
-              Budget clarity across every company project.
-            </Title>
-            <Text c="dimmed" size="lg">
-              Track spend, keep budgets tight, and give executives a portfolio dashboard — without losing the day-to-day
-              project workflow.
-            </Text>
-            <Group>
-              <Button size="md" onClick={onSignUp}>
-                Get started
-              </Button>
-              <Button size="md" variant="light" onClick={onLogin}>
-                Log in
-              </Button>
-            </Group>
-            <Text size="sm" c="dimmed">
-              Prototype mode: demo users + roles, no real password required.
-            </Text>
-          </Stack>
-
-          <Paper withBorder radius="lg" p="lg">
-            <Stack gap="sm">
-              <Title order={4}>What you can do</Title>
-              <SimpleGrid cols={2} spacing="sm">
-                <Paper withBorder radius="md" p="md">
-                  <Text fw={600}>Import</Text>
-                  <Text size="sm" c="dimmed">
-                    stable IDs + dedupe
-                  </Text>
-                </Paper>
-                <Paper withBorder radius="md" p="md">
-                  <Text fw={600}>Code</Text>
-                  <Text size="sm" c="dimmed">
-                    fast uncoded workflow
-                  </Text>
-                </Paper>
-                <Paper withBorder radius="md" p="md">
-                  <Text fw={600}>Budget</Text>
-                  <Text size="sm" c="dimmed">
-                    allocated vs actual
-                  </Text>
-                </Paper>
-                <Paper withBorder radius="md" p="md">
-                  <Text fw={600}>Portfolio</Text>
-                  <Text size="sm" c="dimmed">
-                    exec dashboard
-                  </Text>
-                </Paper>
-              </SimpleGrid>
-              <Divider />
-              <Text size="sm" c="dimmed">
-                Next: persistence, real auth, background import jobs.
-              </Text>
-            </Stack>
-          </Paper>
-        </SimpleGrid>
-
-        <Stack gap="md" pb={56}>
-          <Title order={2}>Features</Title>
-          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
-            {[
-              { title: "Multi-project workflow", body: "Switch between projects without losing context." },
-              { title: "Role-based access", body: "Exec + project lead combinations work as expected." },
-              { title: "Clean reporting", body: "Uncoded summaries and budget rollups drive action." },
-            ].map((f) => (
-              <Paper key={f.title} withBorder radius="lg" p="lg">
-                <Text fw={700}>{f.title}</Text>
-                <Text size="sm" c="dimmed" mt={6}>
-                  {f.body}
-                </Text>
-              </Paper>
-            ))}
-          </SimpleGrid>
-        </Stack>
-
-        <Stack gap="md" pb={56}>
-          <Title order={2}>Pricing</Title>
-          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
-            {[
-              { tier: "Starter", price: "$0", blurb: "Prototype / personal use.", cta: "Try demo" },
-              { tier: "Team", price: "$19", blurb: "Per project/month with RBAC.", cta: "Start trial" },
-              { tier: "Enterprise", price: "Custom", blurb: "SSO, audit, automation & support.", cta: "Contact" },
-            ].map((p) => (
-              <Paper key={p.tier} withBorder radius="lg" p="lg">
-                <Group justify="space-between" align="flex-start">
-                  <Stack gap={0}>
-                    <Text fw={700}>{p.tier}</Text>
-                    <Text size="xl" fw={800}>
-                      {p.price}
-                    </Text>
-                  </Stack>
-                  <Badge variant="light">Monthly</Badge>
-                </Group>
-                <Text size="sm" c="dimmed" mt="sm">
-                  {p.blurb}
-                </Text>
-                <Button mt="md" variant={p.tier === "Team" ? "filled" : "light"} onClick={onSignUp} fullWidth>
-                  {p.cta}
+          <Group justify="flex-end">
+            {userId ? (
+              <>
+                <Button
+                  variant="light"
+                  onClick={async () => {
+                    const companyId = await api.getDefaultCompanyIdForUser(userId);
+                    if (companyId) {
+                      router.navigate({
+                        to: companyRoute.to,
+                        params: { companyId },
+                      });
+                    } else {
+                      router.navigate({ to: '/login' });
+                    }
+                  }}
+                >
+                  Continue
                 </Button>
-              </Paper>
-            ))}
-          </SimpleGrid>
-        </Stack>
 
-        <Stack gap="md" pb={56}>
-          <Title order={2}>Partners & testimonials</Title>
-          <Group gap="sm" wrap="wrap">
-            {["Concur", "Xero", "Atlassian", "Slack", "AWS"].map((x) => (
-              <Badge key={x} variant="light" size="lg">
-                {x}
-              </Badge>
-            ))}
+                <Button
+                  color="red"
+                  variant="subtle"
+                  onClick={() => {
+                    logout.mutate(undefined, {
+                      onSuccess: () => {
+                        router.navigate({ to: '/' });
+                      },
+                    });
+                  }}
+                >
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Link to="/login">
+                <Button component="span">Login</Button>
+              </Link>
+            )}
           </Group>
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="sm">
-            {[
-              { quote: "We finally see project variance early — before it becomes a surprise.", name: "Finance Ops" },
-              { quote: "Exec overview + project ownership in one workflow. Exactly what we needed.", name: "COO" },
-            ].map((t) => (
-              <Paper key={t.name} withBorder radius="lg" p="lg">
-                <Text fw={600}>&ldquo;{t.quote}&rdquo;</Text>
-                <Text size="sm" c="dimmed" mt="sm">
-                  — {t.name}
+
+          {userId && (
+            <Stack gap="sm" mt="md">
+              <Text fw={700}>Companies</Text>
+
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                {companies.map((c) => (
+                  <Card key={c.id} withBorder radius="lg" p="md">
+                    <Stack gap={6}>
+                      <Text fw={700}>{c.name}</Text>
+                      <Text size="sm" c="dimmed" lineClamp={2}>
+                        {c.id}
+                      </Text>
+
+                      <Group justify="flex-end" mt="xs">
+                        <Link to={companyRoute.to} params={{ companyId: c.id }}>
+                          <Button component="span" variant="filled">
+                            Open
+                          </Button>
+                        </Link>
+                      </Group>
+                    </Stack>
+                  </Card>
+                ))}
+              </SimpleGrid>
+
+              {companies.length === 0 && (
+                <Text c="dimmed" size="sm">
+                  No companies available for this user.
                 </Text>
-              </Paper>
-            ))}
-          </SimpleGrid>
+              )}
+            </Stack>
+          )}
         </Stack>
-      </Container>
-
-      <Paper withBorder radius={0} p="md">
-        <Container size="xl">
-          <Group justify="space-between">
-            <Text size="sm" c="dimmed">
-              © {new Date().getFullYear()} Projex
-            </Text>
-            <Group gap="md">
-              <Anchor size="sm" c="dimmed">
-                Privacy
-              </Anchor>
-              <Anchor size="sm" c="dimmed">
-                Terms
-              </Anchor>
-              <Anchor size="sm" c="dimmed" onClick={onLogin}>
-                Login
-              </Anchor>
-            </Group>
-          </Group>
-        </Container>
-      </Paper>
-    </Box>
+      </Card>
+    </Container>
   );
 }

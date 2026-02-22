@@ -1,133 +1,182 @@
-import { useMemo, useState } from "react";
-import type { Category, SubCategory, Id } from "../types";
-import { uid } from "../utils/id";
-import type { BudgetsHook } from "./useBudgets";
-import type { TransactionsHook } from "./useTransactions";
+import { useMemo } from 'react';
 
+import type {
+  Category,
+  CategoryId,
+  CompanyId,
+  ProjectId,
+  SubCategory,
+  SubCategoryId,
+} from '../types';
+import { uid } from '../utils/id';
+import {
+  useCategoriesQuery,
+  useCreateCategoryMutation,
+  useCreateSubCategoryMutation,
+  useDeleteCategoryMutation,
+  useDeleteSubCategoryMutation,
+  useSubCategoriesQuery,
+  useUpdateCategoryMutation,
+  useUpdateSubCategoryMutation,
+} from '../queries/taxonomy';
+import type { BudgetsHook } from './useBudgets';
+import type { TransactionsHook } from './useTransactions';
+
+/**
+ * Query-backed taxonomy model.
+ *
+ * Keeps the older UI surface area so components like TaxonomyManagerModal and
+ * TransactionsPanel remain mostly unchanged.
+ */
 export function useTaxonomy(params: {
-  initialCategories?: Category[];
-  initialSubCategories?: SubCategory[];
-  valueCategories?: Category[];
-  valueSubCategories?: SubCategory[];
-  onChangeCategories?: (next: Category[]) => void;
-  onChangeSubCategories?: (next: SubCategory[]) => void;
-  companyId?: Id;
-  projectId?: Id;
+  companyId: CompanyId;
+  projectId: ProjectId;
   budgets: BudgetsHook;
   txns: TransactionsHook;
-}){
-  const { initialCategories = [], initialSubCategories = [], budgets, txns } = params;
-  const [innerCats, setInnerCats] = useState<Category[]>(initialCategories);
-  const [innerSubs, setInnerSubs] = useState<SubCategory[]>(initialSubCategories);
+}) {
+  const { companyId, projectId, budgets, txns } = params;
 
-  const categories = params.valueCategories ?? innerCats;
-  const subCategories = params.valueSubCategories ?? innerSubs;
+  const catsQ = useCategoriesQuery(projectId);
+  const subsQ = useSubCategoriesQuery(projectId);
 
-  const setCategories = (next: Category[] | ((prev: Category[]) => Category[])) => {
-    const compute = typeof next === "function" ? (next as (p: Category[]) => Category[])(categories) : next;
-    if (params.onChangeCategories) params.onChangeCategories(compute);
-    else setInnerCats(compute);
-  };
+  const createCat = useCreateCategoryMutation(projectId);
+  const updateCat = useUpdateCategoryMutation(projectId);
+  const deleteCat = useDeleteCategoryMutation(projectId);
 
-  const setSubCategories = (next: SubCategory[] | ((prev: SubCategory[]) => SubCategory[])) => {
-    const compute = typeof next === "function" ? (next as (p: SubCategory[]) => SubCategory[])(subCategories) : next;
-    if (params.onChangeSubCategories) params.onChangeSubCategories(compute);
-    else setInnerSubs(compute);
-  };
+  const createSub = useCreateSubCategoryMutation(projectId);
+  const updateSub = useUpdateSubCategoryMutation(projectId);
+  const deleteSub = useDeleteSubCategoryMutation(projectId);
+
+  const categories = useMemo(() => catsQ.data ?? [], [catsQ.data]);
+  const subCategories = useMemo(() => subsQ.data ?? [], [subsQ.data]);
+
+  const categoryById = useMemo(() => {
+    const m = new Map<CategoryId, Category>();
+    for (const c of categories) m.set(c.id, c);
+    return m;
+  }, [categories]);
+
+  const subById = useMemo(() => {
+    const m = new Map<SubCategoryId, SubCategory>();
+    for (const s of subCategories) m.set(s.id, s);
+    return m;
+  }, [subCategories]);
 
   const categoryOptions = useMemo(
-    () => categories.map((c) => ({ value: c.id, label: c.name })).sort((a, b) => a.label.localeCompare(b.label)),
+    () => categories.map((c) => ({ value: c.id, label: c.name })),
     [categories]
   );
 
-  const getCategory = (id?: Id) => categories.find((c) => c.id === id);
-  const getSubCategory = (id?: Id) => subCategories.find((s) => s.id === id);
+  const subCategoryOptions = useMemo(
+    () =>
+      subCategories.map((s) => ({
+        value: s.id,
+        label: `${categoryById.get(s.categoryId)?.name ?? 'Unknown'} • ${s.name}`,
+      })),
+    [subCategories, categoryById]
+  );
 
-  const getCategoryName = (id?: Id) => getCategory(id)?.name ?? "";
-  const getSubCategoryName = (id?: Id) => getSubCategory(id)?.name ?? "";
+  // Options scoped to a single category (used by TransactionsPanel when a category is selected)
+  const subCategoryOptionsByCategory = useMemo(() => {
+    const m = new Map<CategoryId, { value: SubCategoryId; label: string }[]>();
+    for (const s of subCategories) {
+      const arr = m.get(s.categoryId) ?? [];
+      arr.push({ value: s.id, label: s.name });
+      m.set(s.categoryId, arr);
+    }
+    return m;
+  }, [subCategories]);
 
-  const subCategoryOptionsForCategory = (categoryId?: Id) => {
-    if (!categoryId) return [];
-    return subCategories
-      .filter((s) => s.categoryId === categoryId)
-      .map((s) => ({ value: s.id, label: s.name }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  };
-
-  const addCategory = (name: string): Id | null => {
-    const trimmed = name.trim();
-    if (!trimmed) return null;
-    const c: Category = { id: uid(), companyId: params.companyId ?? "unknown", projectId: params.projectId ?? "unknown", name: trimmed };
-    setCategories((prev) => [...prev, c]);
-    return c.id;
-  };
-
-  const renameCategory = (categoryId: Id, name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setCategories((prev) => prev.map((c) => (c.id === categoryId ? { ...c, name: trimmed } : c)));
-  };
-
-  const addSubCategory = (categoryId: Id, name: string): Id | null => {
-    const trimmed = name.trim();
-    if (!trimmed) return null;
-    const sc: SubCategory = { id: uid(), companyId: params.companyId ?? "unknown", projectId: params.projectId ?? "unknown", categoryId, name: trimmed };
-    setSubCategories((prev) => [...prev, sc]);
-    budgets.upsertBudgetForSubCategory(sc.id, categoryId);
-    return sc.id;
-  };
-
-  const renameSubCategory = (subCategoryId: Id, name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setSubCategories((prev) => prev.map((s) => (s.id === subCategoryId ? { ...s, name: trimmed } : s)));
-  };
-
-  const moveSubCategory = (subCategoryId: Id, toCategoryId: Id) => {
-    setSubCategories((prev) => prev.map((s) => (s.id === subCategoryId ? { ...s, categoryId: toCategoryId } : s)));
-    budgets.updateBudgetCategoryForSubCategory(subCategoryId, toCategoryId);
-    txns.setTransactions((prev) => prev.map((t) => (t.subCategoryId === subCategoryId ? { ...t, categoryId: toCategoryId } : t)));
-  };
-
-  const deleteSubCategory = (subCategoryId: Id) => {
-    txns.stripCodingForSubCategoryIds([subCategoryId]);
-    budgets.deleteBudgetLinesForSubCategoryIds([subCategoryId]);
-    setSubCategories((prev) => prev.filter((s) => s.id !== subCategoryId));
-  };
-
-  const deleteCategory = (categoryId: Id) => {
-    const contained = subCategories.filter((s) => s.categoryId === categoryId).map((s) => s.id);
-
-    txns.stripCodingForCategoryIds([categoryId]);
-    if (contained.length) txns.stripCodingForSubCategoryIds(contained);
-    if (contained.length) budgets.deleteBudgetLinesForSubCategoryIds(contained);
-
-    setSubCategories((prev) => prev.filter((s) => s.categoryId !== categoryId));
-    setCategories((prev) => prev.filter((c) => c.id !== categoryId));
-  };
-
+  const subCategoryOptionsForCategory = (categoryId?: CategoryId) =>
+    categoryId ? subCategoryOptionsByCategory.get(categoryId) ?? [] : [];
 
   const validSubIds = useMemo(() => new Set(subCategories.map((s) => s.id)), [subCategories]);
+
+  /**
+   * Creates a category and returns the generated branded ID immediately.
+   *
+   * This keeps the UI deterministic (important for CSV import) while remaining
+   * compatible with a future TanStack Start / Postgres backend.
+   */
+  const addCategory = (name: string): CategoryId => {
+    const id = uid('cat') as CategoryId;
+    createCat.mutate({ id, companyId, projectId, name });
+    return id;
+  };
+
+  const renameCategory = (categoryId: CategoryId, name: string) => {
+    updateCat.mutate({ id: categoryId, name });
+  };
+
+  const deleteCategory = (categoryId: CategoryId) => {
+    // Local UX: also strip coding immediately (server will enforce too later)
+    const subsToDelete = subCategories.filter((s) => s.categoryId === categoryId).map((s) => s.id);
+    budgets.deleteBudgetLinesForSubCategoryIds(subsToDelete);
+    txns.stripCodingForCategoryIds([categoryId]);
+    deleteCat.mutate(categoryId);
+  };
+
+  /**
+   * Creates a subcategory and returns the generated branded ID immediately.
+   */
+  const addSubCategory = (categoryId: CategoryId, name: string): SubCategoryId => {
+    const id = uid('sub') as SubCategoryId;
+    createSub.mutate({ id, companyId, projectId, categoryId, name });
+    return id;
+  };
+
+  const renameSubCategory = (subCategoryId: SubCategoryId, name: string) => {
+    updateSub.mutate({ id: subCategoryId, name });
+  };
+
+  const moveSubCategory = (subCategoryId: SubCategoryId, newCategoryId: CategoryId) => {
+    const existing = subById.get(subCategoryId);
+    if (!existing) return;
+    updateSub.mutate({ id: subCategoryId, categoryId: newCategoryId });
+    budgets.updateBudgetCategoryForSubCategory(subCategoryId, newCategoryId);
+    // Update txn categoryId to match (keep subCategoryId)
+    const next = txns.transactions.map((t) =>
+      t.subCategoryId === subCategoryId ? { ...t, categoryId: newCategoryId } : t
+    );
+    txns.replaceAll(next);
+  };
+
+  const deleteSubCategory = (subCategoryId: SubCategoryId) => {
+    budgets.deleteBudgetLinesForSubCategoryIds([subCategoryId]);
+    txns.stripCodingForSubCategoryIds([subCategoryId]);
+    deleteSub.mutate(subCategoryId);
+  };
+
+  // Helpers used by the Transactions table
+  const getCategoryName = (categoryId?: CategoryId) =>
+    categoryId ? categoryById.get(categoryId)?.name ?? '' : '';
+
+  const getSubCategoryName = (subId?: SubCategoryId) =>
+    subId ? subById.get(subId)?.name ?? '' : '';
+
+  const getSubCategory = (subId?: SubCategoryId) => (subId ? subById.get(subId) ?? null : null);
+
   return {
+    companyId,
+    projectId,
     categories,
     subCategories,
-    validSubIds,
     categoryOptions,
+    subCategoryOptions,
     subCategoryOptionsForCategory,
-    getCategoryName,
-    getSubCategoryName,
-    getCategory,
-    getSubCategory,
+    validSubIds,
     addCategory,
     renameCategory,
+    deleteCategory,
     addSubCategory,
     renameSubCategory,
     moveSubCategory,
     deleteSubCategory,
-    deleteCategory,
+    getCategoryName,
+    getSubCategoryName,
+    getSubCategory,
+    isLoading: catsQ.isLoading || subsQ.isLoading,
   };
 }
-
-
 
 export type TaxonomyHook = ReturnType<typeof useTaxonomy>;

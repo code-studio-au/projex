@@ -1,58 +1,80 @@
-import { useMemo, useState } from "react";
-import type { Id, Txn } from "../types";
-import { uid } from "../utils/id";
-import { parseISODate, monthKeyFromStart, monthStart } from "../utils/finance";
+import { useMemo } from 'react';
 
-export function useTransactions(params: { initial?: Txn[]; value?: Txn[]; onChange?: (next: Txn[]) => void }) {
+import type { CategoryId, ProjectId, SubCategoryId, Txn, TxnId } from '../types';
+import { useImportTransactionsMutation } from '../queries/admin';
+import { useTransactionsQuery, useUpdateTxnMutation } from '../queries/transactions';
 
-  const [inner, setInner] = useState<Txn[]>(params.initial ?? []);
+/**
+ * Query-backed transactions model.
+ *
+ * Provides a mostly compatible surface area with the earlier local-state hook.
+ *
+ * Notes:
+ * - For batch operations (strip coding / replaceAll / appendMany) we use the
+ *   import endpoint in local mode. On the future backend, you'd likely replace
+ *   this with real batch mutations.
+ */
+export function useTransactions(params: { projectId: ProjectId }) {
+  const { projectId } = params;
+  const q = useTransactionsQuery(projectId);
+  const update = useUpdateTxnMutation(projectId);
+  const importMut = useImportTransactionsMutation(projectId);
 
-  const transactions = params.value ?? inner;
-  const setTransactions = (next: Txn[] | ((prev: Txn[]) => Txn[])) => {
-    const compute = typeof next === "function" ? (next as (p: Txn[]) => Txn[])(transactions) : next;
-    if (params.onChange) params.onChange(compute);
-    else setInner(compute);
+  const transactions = useMemo(() => q.data ?? [], [q.data]);
+
+  const updateTxn = (id: TxnId, patch: Partial<Txn>) => {
+    update.mutate({ id, ...patch });
   };
 
-  const updateTxn = (id: Id, patch: Partial<Txn>) => {
-    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const replaceAll = (next: Txn[]) => {
+    importMut.mutate({ txns: next, mode: 'replaceAll' });
   };
 
-  const stripCodingForSubCategoryIds = (subCategoryIds: Id[]) => {
+  const appendMany = (next: Txn[]) => {
+    importMut.mutate({ txns: next, mode: 'append' });
+  };
+
+  const stripCodingForSubCategoryIds = (subCategoryIds: SubCategoryId[]) => {
     const setIds = new Set(subCategoryIds);
-    setTransactions((prev) =>
-      prev.map((t) =>
-        t.subCategoryId && setIds.has(t.subCategoryId)
-          ? { ...t, categoryId: undefined, subCategoryId: undefined }
-          : t
-      )
+    const next = transactions.map((t) =>
+      t.subCategoryId && setIds.has(t.subCategoryId)
+        ? { ...t, categoryId: undefined, subCategoryId: undefined }
+        : t
     );
+    replaceAll(next);
   };
 
-  const stripCodingForCategoryIds = (categoryIds: Id[]) => {
+  const stripCodingForCategoryIds = (categoryIds: CategoryId[]) => {
     const setIds = new Set(categoryIds);
-    setTransactions((prev) =>
-      prev.map((t) =>
-        t.categoryId && setIds.has(t.categoryId)
-          ? { ...t, categoryId: undefined, subCategoryId: undefined }
-          : t
-      )
+    const next = transactions.map((t) =>
+      t.categoryId && setIds.has(t.categoryId)
+        ? { ...t, categoryId: undefined, subCategoryId: undefined }
+        : t
     );
+    replaceAll(next);
   };
 
-
-  const replaceAll = (next: Txn[]) => setTransactions(next);
-
-  const appendMany = (next: Txn[]) => setTransactions((prev) => [...prev, ...next]);
-
-  const getUncodedSummary = (validSubIds: Set<Id>) => {
-    const bad = transactions.filter((t) => !t.subCategoryId || !validSubIds.has(t.subCategoryId));
-    return { count: bad.length, amount: bad.reduce((a, b) => a + (b.amount ?? 0), 0) };
+  const getUncodedSummary = (validSubIds: Set<SubCategoryId>) => {
+    const bad = transactions.filter(
+      (t) => !t.subCategoryId || !validSubIds.has(t.subCategoryId)
+    );
+    return {
+      count: bad.length,
+      amount: bad.reduce((a, b) => a + (b.amount ?? 0), 0),
+    };
   };
 
-  return { transactions, updateTxn, stripCodingForSubCategoryIds, stripCodingForCategoryIds, setTransactions, replaceAll, appendMany, getUncodedSummary };
+  return {
+    transactions,
+    updateTxn,
+    stripCodingForSubCategoryIds,
+    stripCodingForCategoryIds,
+    replaceAll,
+    appendMany,
+    getUncodedSummary,
+    isLoading: q.isLoading,
+    error: q.error,
+  };
 }
-
-
 
 export type TransactionsHook = ReturnType<typeof useTransactions>;
