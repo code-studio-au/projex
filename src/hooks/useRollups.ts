@@ -111,7 +111,9 @@ export function useRollups(params: {
 
       if (!mk) continue;
 
-      rec[mk] = (rec[mk] ?? 0) + t.amount;
+      // Projex treats expense amounts as positive. Be resilient to Concur-style
+      // exports (negative expenses) and any legacy data.
+      rec[mk] = (rec[mk] ?? 0) + Math.abs(t.amount);
     }
 
     return { actualsBySubMonth: map, badDateCount: bad };

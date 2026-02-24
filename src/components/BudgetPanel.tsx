@@ -259,20 +259,25 @@ export default function BudgetPanel(props: {
         ),
         aggregationFn: 'sum',
       },
-      ...yearGroups,
       {
         accessorKey: 'totalActual',
         header: 'Actual (Total)',
+        Cell: ({ cell }) => <Text fw={700}>{currency(cell.getValue<number>())}</Text>,
         aggregationFn: 'sum',
       },
       {
         id: 'remaining',
         header: 'Remaining',
         accessorFn: (row) => row.remaining,
+        Cell: ({ cell }) => {
+          const v = cell.getValue<number>();
+          return <Text fw={700} c={v < 0 ? 'red' : undefined}>{currency(v)}</Text>;
+        },
         aggregationFn: (_id, rows) =>
           sum(rows.map((r) => r.original.allocated)) -
           sum(rows.map((r) => r.original.totalActual)),
       },
+      ...yearGroups,
     ];
   }, [
     rollups.visibleMonthKeys,

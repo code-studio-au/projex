@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+
 import { api } from '../api';
 import { qk } from './keys';
+import { useQueryScopeUserId } from './scope';
 import type { CompanyId, ProjectId, UserId } from '../types';
 
 export function useUsersQuery() {
@@ -23,22 +25,25 @@ export function useCompaniesQuery(userId?: UserId) {
 }
 
 export function useCompanyQuery(companyId: CompanyId) {
+  const scopeUserId = useQueryScopeUserId();
   return useQuery({
-    queryKey: qk.company(companyId),
+    queryKey: qk.company(scopeUserId, companyId),
     queryFn: () => api.getCompany(companyId),
   });
 }
 
 export function useProjectsQuery(companyId: CompanyId) {
+  const scopeUserId = useQueryScopeUserId();
   return useQuery({
-    queryKey: qk.projects(companyId),
+    queryKey: qk.projects(scopeUserId, companyId),
     queryFn: () => api.listProjects(companyId),
   });
 }
 
 export function useProjectQuery(projectId: ProjectId) {
+  const scopeUserId = useQueryScopeUserId();
   return useQuery({
-    queryKey: qk.project(projectId),
+    queryKey: qk.project(scopeUserId, projectId),
     queryFn: () => api.getProject(projectId),
   });
 }

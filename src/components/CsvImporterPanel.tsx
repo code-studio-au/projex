@@ -18,6 +18,7 @@ import type {
   Txn,
 } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
+import type { BudgetsHook } from '../hooks/useBudgets';
 import { parseCsv, rowsToImportTxns, finalizeImportTxns } from '../utils/csv';
 
 /**
@@ -34,19 +35,23 @@ import { parseCsv, rowsToImportTxns, finalizeImportTxns } from '../utils/csv';
  */
 export default function CsvImporterPanel(props: {
   taxonomy: TaxonomyHook;
+  budgets: BudgetsHook;
   existingTxns: Txn[];
   companyId: CompanyId;
   projectId: ProjectId;
   canEditTaxonomy: boolean;
+  canEditBudgets: boolean;
   onAppend: (txns: Txn[]) => void;
   onReplaceAll: (txns: Txn[]) => void;
 }) {
   const {
     taxonomy,
+    budgets,
     existingTxns,
     companyId,
     projectId,
     canEditTaxonomy,
+    canEditBudgets,
     onAppend,
     onReplaceAll,
   } = props;
@@ -54,6 +59,7 @@ export default function CsvImporterPanel(props: {
   const [file, setFile] = useState<File | null>(null);
   const [csvText, setCsvText] = useState('');
   const [autoCreate, setAutoCreate] = useState(true);
+  const [autoCreateBudgets, setAutoCreateBudgets] = useState(true);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
 
   const existingIds = useMemo(
@@ -61,13 +67,13 @@ export default function CsvImporterPanel(props: {
     [existingTxns]
   );
 
-  const exampleCsv = `id,date,item,description,amount,category,subcategory
-EXP-1002345,2024-01-08,Uber,Taxi from airport to hotel,-46.80,Transport,Rideshare
-EXP-1002346,2024-01-08,Hyatt Regency,Accommodation - Sydney,-389.00,Travel,Accommodation
-EXP-1002347,2024-01-09,Qantas Airways,Flight SYD to MEL,-245.60,Travel,Flights
-EXP-1002348,2024-01-09,Starbucks,Coffee with client,-7.50,Meals,Client Meals
-EXP-1002349,2024-01-10,Officeworks,USB-C adapter,-29.95,Work Supplies,Electronics
-EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
+  const exampleCsv = `date,description,amount,category,subcategory
+2024-01-08,Taxi from airport to hotel,46.80,Transport,Rideshare
+2024-01-08,Accommodation - Sydney,389.00,Travel,Accommodation
+2024-01-09,Flight SYD to MEL,245.60,Travel,Flights
+2024-01-09,Coffee with client,7.50,Meals,Client Meals
+2024-01-10,USB-C adapter,29.95,Work Supplies,Electronics
+2024-01-10,Snacks for team meeting,18.40,Meals,Team Catering
 `;
 
   async function loadFileText(f: File) {
@@ -91,6 +97,29 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
 
   const previewCount = importTxns.length;
 
+  const ensureBudgetLinesForImportedSubCategories = (
+    next: Array<{ categoryId?: CategoryId; subCategoryId?: SubCategoryId }>
+  ) => {
+    if (!autoCreateBudgets || !canEditBudgets) return;
+
+    // Avoid duplicate creates within a single import even if query state hasn't refreshed yet.
+    const existing = new Set(
+      budgets.budgets
+        .map((b) => b.subCategoryId)
+        .filter((id): id is SubCategoryId => Boolean(id))
+    );
+    const createdThisRun = new Set<SubCategoryId>();
+
+    for (const t of next) {
+      const subId = t.subCategoryId;
+      const catId = t.categoryId;
+      if (!subId || !catId) continue;
+      if (existing.has(subId) || createdThisRun.has(subId)) continue;
+      createdThisRun.add(subId);
+      budgets.upsertBudgetForSubCategory(subId, catId);
+    }
+  };
+
   /**
    * Apply taxonomy mapping and optional auto-creation.
    * Normalizes all IDs to branded types.
@@ -103,6 +132,9 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
       name: string;
     };
 
+    // Build fast lookups from the current taxonomy snapshot.
+    // Important: during CSV import we may optimistically "create" categories/subcategories
+    // before queries refetch, so we must not rely on taxonomy.getCategoryName() here.
     const catByName = new Map<string, CategoryLookup>(
       taxonomy.categories.map((c) => [
         c.name.trim().toLowerCase(),
@@ -110,13 +142,14 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
       ])
     );
 
+    const catNameById = new Map<CategoryId, string>(
+      taxonomy.categories.map((c) => [c.id, c.name])
+    );
+
     const subByKey = new Map<string, SubCategoryLookup>(
       taxonomy.subCategories.map((s) => {
-        const cat = taxonomy.categories.find((c) => c.id === s.categoryId);
-        const key = `${(cat?.name ?? '').trim().toLowerCase()}|||${s.name
-          .trim()
-          .toLowerCase()}`;
-
+        const catName = (catNameById.get(s.categoryId) ?? '').trim().toLowerCase();
+        const key = `${catName}|||${s.name.trim().toLowerCase()}`;
         return [key, { id: s.id, categoryId: s.categoryId, name: s.name }];
       })
     );
@@ -139,13 +172,14 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
           if (created) {
             categoryId = created;
             catByName.set(cKey, { id: created, name: catName });
+            catNameById.set(created, catName);
           }
         }
       }
 
       if (categoryId && subName) {
-        const catNameResolved = taxonomy.getCategoryName(categoryId);
-        const key = `${catNameResolved.trim().toLowerCase()}|||${subName.toLowerCase()}`;
+        const catNameResolved = (catNameById.get(categoryId) ?? catName).trim();
+        const key = `${catNameResolved.toLowerCase()}|||${subName.toLowerCase()}`;
         const existing = subByKey.get(key);
 
         if (existing) {
@@ -154,11 +188,7 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
           const created = taxonomy.addSubCategory(categoryId, subName);
           if (created) {
             subCategoryId = created;
-            subByKey.set(key, {
-              id: created,
-              categoryId,
-              name: subName,
-            });
+            subByKey.set(key, { id: created, categoryId, name: subName });
           }
         }
       }
@@ -175,7 +205,7 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
         subCategoryId,
       };
     });
-  };
+  };;
 
   return (
     <Stack gap="md">
@@ -208,6 +238,13 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
             />
 
             <Switch
+              label="Auto-create budget lines for imported subcategories (allocated = 0)"
+              checked={autoCreateBudgets}
+              disabled={!canEditBudgets}
+              onChange={(e) => setAutoCreateBudgets(e.currentTarget.checked)}
+            />
+
+            <Switch
               label="Skip duplicates (stable IDs)"
               checked={skipDuplicates}
               onChange={(e) => setSkipDuplicates(e.currentTarget.checked)}
@@ -237,6 +274,8 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
                     skipDuplicates,
                   });
 
+                  ensureBudgetLinesForImportedSubCategories(txns);
+
                   onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
 
                   if (skipped > 0) {
@@ -259,6 +298,8 @@ EXP-1002350,2024-01-10,Coles,Snacks for team meeting,-18.40,Meals,Team Catering
                   const { txns } = finalizeImportTxns(mapped, {
                     skipDuplicates: false,
                   });
+
+                  ensureBudgetLinesForImportedSubCategories(txns);
 
                   onReplaceAll(
                     txns.map((t) => ({ ...t, companyId, projectId }))

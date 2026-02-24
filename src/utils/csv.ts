@@ -114,7 +114,8 @@ export function rowsToImportTxns(
     const item = map['item'] || map['merchant'] || map['payee'] || '';
     const description = map['description'] || map['memo'] || '';
     const amountRaw = map['amount'] || map['debit'] || '';
-    const amount = Number(String(amountRaw).replace(/[^0-9.-]/g, '')) || 0;
+    const amountParsed = Number(String(amountRaw).replace(/[^0-9.-]/g, '')) || 0;
+    const amount = Math.abs(amountParsed);
 
     return {
       id: id.trim() || undefined, // optional (many CSVs won't have it)

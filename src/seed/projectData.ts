@@ -62,26 +62,26 @@ function makeProjectSlice(projectId: ProjectId): SeedProjectDataSlice {
 
   const categories: Category[] = seedCategories.map((c) => ({
     ...c,
-    id: catId(projectId, c.id as unknown as string),
+    id: catId(projectId, c.id),
     companyId,
     projectId,
   }));
 
   const subCategories: SubCategory[] = seedSubCategories.map((s) => ({
     ...s,
-    id: subId(projectId, s.id as unknown as string),
+    id: subId(projectId, s.id),
     companyId,
     projectId,
-    categoryId: catId(projectId, s.categoryId as unknown as string),
+    categoryId: catId(projectId, s.categoryId),
   }));
 
   const budgets: BudgetLine[] = seedBudgets.map((b) => ({
     ...b,
-    id: budgetId(projectId, b.id as unknown as string),
+    id: budgetId(projectId, b.id),
     companyId,
     projectId,
-    categoryId: catId(projectId, b.categoryId as unknown as string),
-    subCategoryId: subId(projectId, b.subCategoryId as unknown as string),
+    categoryId: catId(projectId, b.categoryId),
+    subCategoryId: subId(projectId, b.subCategoryId),
   }));
 
   const transactions: Txn[] = seedTransactions

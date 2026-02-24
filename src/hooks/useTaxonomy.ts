@@ -8,6 +8,7 @@ import type {
   SubCategory,
   SubCategoryId,
 } from '../types';
+import { asCategoryId, asSubCategoryId } from "../types";
 import { uid } from '../utils/id';
 import {
   useCategoriesQuery,
@@ -33,8 +34,9 @@ export function useTaxonomy(params: {
   projectId: ProjectId;
   budgets: BudgetsHook;
   txns: TransactionsHook;
+  canEditBudgets: boolean;
 }) {
-  const { companyId, projectId, budgets, txns } = params;
+  const { companyId, projectId, budgets, txns, canEditBudgets } = params;
 
   const catsQ = useCategoriesQuery(projectId);
   const subsQ = useSubCategoriesQuery(projectId);
@@ -99,7 +101,7 @@ export function useTaxonomy(params: {
    * compatible with a future TanStack Start / Postgres backend.
    */
   const addCategory = (name: string): CategoryId => {
-    const id = uid('cat') as CategoryId;
+    const id = asCategoryId(uid('cat'));
     createCat.mutate({ id, companyId, projectId, name });
     return id;
   };
@@ -120,8 +122,22 @@ export function useTaxonomy(params: {
    * Creates a subcategory and returns the generated branded ID immediately.
    */
   const addSubCategory = (categoryId: CategoryId, name: string): SubCategoryId => {
-    const id = uid('sub') as SubCategoryId;
-    createSub.mutate({ id, companyId, projectId, categoryId, name });
+    const id = asSubCategoryId(uid('sub'));
+    createSub.mutate(
+      { id, companyId, projectId, categoryId, name },
+      {
+        onSuccess: () => {
+          // Keep budgets in sync with taxonomy: when a new subcategory is created,
+          // ensure there is a budget line (allocated = 0) so it appears immediately.
+          //
+          // Important: do this *after* the subcategory exists, otherwise an API adapter
+          // (or future server validation) may reject the budget create.
+          if (canEditBudgets) {
+            budgets.upsertBudgetForSubCategory(id, categoryId);
+          }
+        },
+      }
+    );
     return id;
   };
 

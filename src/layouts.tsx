@@ -1,6 +1,4 @@
-import { Outlet, useRouter } from '@tanstack/react-router';
-import { api } from './api';
-import { companyRoute } from './router';
+import { Outlet, useRouter, useRouterState } from '@tanstack/react-router';
 import {
   AppShell,
   Badge,
@@ -14,6 +12,9 @@ import {
   ThemeIcon,
 } from '@mantine/core';
 
+import { api } from './api';
+import { companyRoute, landingRoute } from './router';
+import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
 
 /** Root layout: intentionally minimal to keep route config clean. */
@@ -34,6 +35,21 @@ export function AuthedLayout() {
 
   const userId = session.data?.userId ?? null;
 
+  // Prefer companyId from the active route match (project route also includes companyId).
+  // We avoid route.useMatch() here to keep types aligned across router versions and to
+  // prevent throwing when the current route doesn't match.
+  const companyIdFromUrl = useRouterState({
+    select: (s) => {
+      // Search from deepest match outward.
+      for (let i = s.matches.length - 1; i >= 0; i--) {
+        const params = s.matches[i]?.params as Record<string, unknown> | undefined;
+        const raw = params?.companyId;
+        if (typeof raw === 'string') return asCompanyId(raw);
+      }
+      return null;
+    },
+  });
+
   return (
     <AppShell padding={0} header={{ height: 84 }}>
       <AppShell.Header>
@@ -41,25 +57,24 @@ export function AuthedLayout() {
           <Container size="xl">
             <Group justify="space-between">
               <Group gap="sm">
-{userId && (
-  <Button
-    variant="light"
-    onClick={async () => {
-      // Prefer current company from URL, otherwise fall back to user's default company.
-      const path = router.state.location.pathname;
-      const m = path.match(/\/c\/([^/]+)/);
-      const companyId = m?.[1] ?? (await api.getDefaultCompanyIdForUser(userId));
-      if (companyId) {
-        router.navigate({ to: companyRoute.fullPath, params: { companyId } });
-      } else {
-        router.navigate({ to: '/' });
-      }
-    }}
-  >
-    Projects
-  </Button>
-)}
+                {userId && (
+                  <Button
+                    variant="light"
+                    onClick={async () => {
+                      // Prefer current company from URL, otherwise fall back to user's default company.
+                      const companyId =
+                        companyIdFromUrl ?? (await api.getDefaultCompanyIdForUser(userId));
 
+                      if (companyId) {
+                        router.navigate({ to: companyRoute.to, params: { companyId } });
+                      } else {
+                        router.navigate({ to: landingRoute.to });
+                      }
+                    }}
+                  >
+                    Projects
+                  </Button>
+                )}
 
                 <ThemeIcon radius="md" size="lg" variant="light">
                   PX
@@ -73,26 +88,6 @@ export function AuthedLayout() {
               </Group>
 
               <Group gap="sm">
-{userId && (
-  <Button
-    variant="light"
-    onClick={async () => {
-      // Prefer current company from URL, otherwise fall back to user's default company.
-      const path = router.state.location.pathname;
-      const m = path.match(/\/c\/([^/]+)/);
-      const companyId = m?.[1] ?? (await api.getDefaultCompanyIdForUser(userId));
-      if (companyId) {
-        router.navigate({ to: companyRoute.fullPath, params: { companyId } });
-      } else {
-        router.navigate({ to: '/' });
-      }
-    }}
-  >
-    Projects
-  </Button>
-)}
-
-
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
                     <Button variant="subtle">
@@ -109,7 +104,7 @@ export function AuthedLayout() {
                       onClick={() => {
                         logout.mutate(undefined, {
                           onSuccess: () => {
-                            router.navigate({ to: '/' });
+                            router.navigate({ to: landingRoute.to });
                           },
                         });
                       }}

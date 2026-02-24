@@ -19,7 +19,7 @@ import { asCompanyId } from '../types';
 import { useCompanyQuery, useProjectsQuery } from '../queries/reference';
 import { useCreateProjectMutation } from '../queries/admin';
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
-import { companyRoute, projectRoute } from '../router';
+import { companyRoute, landingRoute, projectRoute } from '../router';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 
 export default function CompanyDashboardPage() {
@@ -91,7 +91,7 @@ export default function CompanyDashboardPage() {
             </>
           )}
 
-          <Link to="/">
+          <Link to={landingRoute.to}>
             <Button component="span" variant="light">
               Switch company
             </Button>

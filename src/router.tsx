@@ -1,5 +1,5 @@
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
   lazyRouteComponent,
@@ -7,35 +7,53 @@ import {
 } from '@tanstack/react-router';
 
 import { api } from './api';
+import { queryClient } from './queryClient';
 import { AuthedLayout, RootLayout } from './layouts';
+import { RootErrorComponent, RootNotFoundComponent } from './components/routerErrors';
+import { sessionQueryOptions } from './queries/session';
+import type { ProjexApi } from './api/contract';
+import type { QueryClient } from '@tanstack/react-query';
+
+export type RouterContext = {
+  api: ProjexApi;
+  queryClient: QueryClient;
+};
 
 // Route tree
-const rootRoute = createRootRoute({ component: RootLayout });
+const rootRoute = createRootRouteWithContext<RouterContext>()({
+  component: RootLayout,
+  errorComponent: RootErrorComponent,
+  notFoundComponent: RootNotFoundComponent,
+});
 
-const landingRoute = createRoute({
+export const landingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: lazyRouteComponent(() => import('./pages/LandingPage')),
 });
 
-const loginRoute = createRoute({
+export const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   // Child routes should use relative paths (no leading slash).
   // Using absolute paths under a parent can lead to confusing match stacks
   // and invariants during navigation.
   path: 'login',
   component: lazyRouteComponent(() => import('./pages/LoginPage')),
-  beforeLoad: async () => {
+  beforeLoad: async ({ context }) => {
     // Optional: if already authed, skip login.
-    const session = await api.getSession();
+    const session = await context.queryClient.ensureQueryData(
+      sessionQueryOptions(context.api)
+    );
+
     if (session) {
-      const companyId = await api.getDefaultCompanyIdForUser(session.userId);
+      const companyId = await context.api.getDefaultCompanyIdForUser(session.userId);
       if (companyId)
         throw redirect({
           to: companyRoute.to,
           params: { companyId },
         });
-      throw redirect({ to: '/' });
+
+      throw redirect({ to: landingRoute.to });
     }
   },
 });
@@ -43,9 +61,11 @@ const loginRoute = createRoute({
 const authedRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'authed',
-  beforeLoad: async () => {
-    const session = await api.getSession();
-    if (!session) throw redirect({ to: '/login' });
+  beforeLoad: async ({ context }) => {
+    const session = await context.queryClient.ensureQueryData(
+      sessionQueryOptions(context.api)
+    );
+    if (!session) throw redirect({ to: loginRoute.to });
   },
   component: AuthedLayout,
 });
@@ -68,5 +88,10 @@ export const routeTree = rootRoute.addChildren([
   authedRoute.addChildren([companyRoute, projectRoute]),
 ]);
 
-export const router = createRouter({ routeTree });
-
+export const router = createRouter({
+  routeTree,
+  context: {
+    api,
+    queryClient,
+  },
+});

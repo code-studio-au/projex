@@ -60,14 +60,25 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     [companyUsers]
   );
 
+
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<CompanyRole | null>('member');
-  const [roleUserId, setRoleUserId] = useState<UserId | null>(
-    (userOptions[0]?.value ?? null) as UserId | null
-  );
+  const [roleUserId, setRoleUserId] = useState<UserId | null>(null);
+
+  // Derive a sensible default selection without synchronously setting state in an effect.
+  // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
+  const effectiveRoleUserId: UserId | null =
+    roleUserId ?? (userOptions[0]?.value ? asUserId(userOptions[0].value) : null);
+
   const [membershipCompanyRole, setMembershipCompanyRole] =
     useState<CompanyRole | null>('member');
+
+  const companyRoleValues = ['member', 'management', 'executive', 'admin'] as const;
+  const toCompanyRole = (v: string | null): CompanyRole | null => {
+    if (!v) return null;
+    return (companyRoleValues as readonly string[]).includes(v) ? (v as CompanyRole) : null;
+  };
 
   const highestRoleBadge = (
     <Badge variant="light">
@@ -146,7 +157,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             <Select
               label="User"
               data={userOptions}
-              value={roleUserId}
+              value={effectiveRoleUserId}
               onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
               searchable
               style={{ minWidth: 320 }}
@@ -160,15 +171,15 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                 { value: 'admin', label: 'admin' },
               ]}
               value={membershipCompanyRole}
-              onChange={(v) => setMembershipCompanyRole((v as CompanyRole | null) ?? null)}
+              onChange={(v) => setMembershipCompanyRole(toCompanyRole(v))}
               style={{ minWidth: 200 }}
             />
             <Button
-              disabled={!roleUserId || !membershipCompanyRole}
+              disabled={!effectiveRoleUserId || !membershipCompanyRole}
               onClick={async () => {
-                if (!roleUserId || !membershipCompanyRole) return;
+                if (!effectiveRoleUserId || !membershipCompanyRole) return;
                 await upsertCompanyMembership.mutateAsync({
-                  userId: roleUserId,
+                  userId: effectiveRoleUserId,
                   role: membershipCompanyRole,
                 });
               }}

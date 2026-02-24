@@ -6,7 +6,8 @@ import { useUsersQuery } from '../queries/reference';
 import { useLoginMutation } from '../queries/session';
 import { api } from '../api';
 import type { UserId } from '../types';
-import { companyRoute } from '../router';
+import { asUserId } from '../types';
+import { companyRoute, landingRoute } from '../router';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,11 +27,11 @@ export default function LoginPage() {
     const defaultCompanyId = await api.getDefaultCompanyIdForUser(selected);
     if (defaultCompanyId) {
       router.navigate({
-        to: companyRoute.fullPath,
+        to: companyRoute.to,
         params: { companyId: defaultCompanyId },
       });
     } else {
-      router.navigate({ to: '/' });
+      router.navigate({ to: landingRoute.to });
     }
   }
 
@@ -39,21 +40,19 @@ export default function LoginPage() {
       <Card withBorder radius="lg" p="xl">
         <Stack gap="md">
           <Title order={3}>Login (local)</Title>
-          <Text c="dimmed">
-            Pick a seeded user. Later this becomes Better Auth.
-          </Text>
+          <Text c="dimmed">Pick a seeded user. Later this becomes Better Auth.</Text>
           <Select
             label="User"
             placeholder={users.isLoading ? 'Loading...' : 'Select a user'}
             data={options}
             value={selected}
-            onChange={(v) => setSelected(v as UserId)}
+            onChange={(v) => setSelected(v ? asUserId(v) : null)}
             searchable
             nothingFoundMessage="No users"
           />
 
           <Group justify="space-between">
-            <Button variant="light" onClick={() => router.navigate({ to: '/' })}>
+            <Button variant="light" onClick={() => router.navigate({ to: landingRoute.to })}>
               Back
             </Button>
             <Button onClick={handleLogin} disabled={!selected || login.isPending}>

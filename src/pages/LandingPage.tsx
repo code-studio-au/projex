@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Button, Card, Container, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { Link, useRouter } from '@tanstack/react-router';
+
 import { api } from '../api';
-import { companyRoute } from '../router';
+import { companyRoute, landingRoute, loginRoute } from '../router';
 import { useCompaniesQuery } from '../queries/reference';
 import { useLogoutMutation, useSessionQuery } from '../queries/session';
 
@@ -40,7 +41,7 @@ export default function LandingPage() {
                         params: { companyId },
                       });
                     } else {
-                      router.navigate({ to: '/login' });
+                      router.navigate({ to: loginRoute.to });
                     }
                   }}
                 >
@@ -53,7 +54,7 @@ export default function LandingPage() {
                   onClick={() => {
                     logout.mutate(undefined, {
                       onSuccess: () => {
-                        router.navigate({ to: '/' });
+                        router.navigate({ to: landingRoute.to });
                       },
                     });
                   }}
@@ -62,7 +63,7 @@ export default function LandingPage() {
                 </Button>
               </>
             ) : (
-              <Link to="/login">
+              <Link to={loginRoute.to}>
                 <Button component="span">Login</Button>
               </Link>
             )}

@@ -27,9 +27,15 @@ export default function ProjectWorkspace(props: {
   const company = useCompanyQuery(companyId);
   const project = useProjectQuery(projectId);
 
+  const canProjectEdit = access.can('project:edit', projectId);
+  const canImport = access.can('project:import', projectId);
+  const canEditBudgets = access.can('budget:edit', projectId);
+  const canEditTxns = access.can('txns:edit', projectId);
+  const canEditTaxonomy = access.can('taxonomy:edit', projectId);
+
   const budgets = useBudgets({ companyId, projectId });
   const txns = useTransactions({ projectId });
-  const taxonomy = useTaxonomy({ companyId, projectId, budgets, txns });
+  const taxonomy = useTaxonomy({ companyId, projectId, budgets, txns, canEditBudgets });
 
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(null);
   const [showUncodedOnly, setShowUncodedOnly] = useState(false);
@@ -56,12 +62,6 @@ export default function ProjectWorkspace(props: {
     () => txns.getUncodedSummary(taxonomy.validSubIds),
     [txns, taxonomy.validSubIds]
   );
-
-  const canProjectEdit = access.can('project:edit', projectId);
-  const canImport = access.can('project:import', projectId);
-  const canEditBudgets = access.can('budget:edit', projectId);
-  const canEditTxns = access.can('txns:edit', projectId);
-  const canEditTaxonomy = access.can('taxonomy:edit', projectId);
 
   return (
     <Stack gap="md">
@@ -123,10 +123,12 @@ export default function ProjectWorkspace(props: {
           <Tabs.Panel value="import" pt="md">
             <CsvImporterPanel
               taxonomy={taxonomy}
+              budgets={budgets}
               existingTxns={txns.transactions}
               companyId={companyId}
               projectId={projectId}
               canEditTaxonomy={canEditTaxonomy}
+              canEditBudgets={canEditBudgets}
               onReplaceAll={(next) => txns.replaceAll(next)}
               onAppend={(next) => txns.appendMany(next)}
             />

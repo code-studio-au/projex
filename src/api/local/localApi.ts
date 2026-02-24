@@ -7,7 +7,6 @@ import type {
   ProjectRole,
   Project,
   ProjectId,
-  ProjectVisibility,
   BudgetLine,
   Category,
   SubCategory,
@@ -22,6 +21,8 @@ import {
   asCompanyId,
   asProjectId,
   asSubCategoryId,
+  asTxnId,
+  asUserId,
 } from '../../types';
 import { can, type Action } from '../../utils/auth';
 import { uid } from '../../utils/id';
@@ -69,32 +70,8 @@ function writeJson(key: string, value: unknown) {
 
 function ensureState(): PersistedStateV1 {
   const existing = readJson<PersistedStateV1>(PROJEX_STATE_KEY);
-  if (existing) {
-    // Lightweight schema migration for local-first development.
-    // Keep this minimal so swapping to TanStack Start later is mechanical.
-    let changed = false;
+  if (existing) return existing;
 
-    const projects: Project[] = existing.projects.map((p) => {
-      const rawVis = (p as unknown as { visibility?: unknown }).visibility;
-      const visibility: ProjectVisibility | null =
-        rawVis === 'company' || rawVis === 'private'
-          ? (rawVis as ProjectVisibility)
-          : null;
-
-      // Default + repair invalid values.
-      if (!visibility) {
-        changed = true;
-        return { ...p, visibility: 'company' };
-      }
-
-      // Ensure the resulting array remains strongly typed as Project[].
-      return { ...p, visibility };
-    });
-
-    const next: PersistedStateV1 = changed ? { ...existing, projects } : existing;
-    if (changed) writeJson(PROJEX_STATE_KEY, next);
-    return next;
-  }
   const seed = buildSeedState();
   writeJson(PROJEX_STATE_KEY, seed);
   return seed;
@@ -252,8 +229,8 @@ export class LocalApi implements ProjexApi {
     if (!slice) throw new Error('Unknown project');
     const next: Txn = {
       ...input,
-      id: (input.id ?? uid('txn')) as TxnId,
-    } as Txn;
+      id: input.id ?? asTxnId(uid('txn')),
+    };
     const nextState: PersistedStateV1 = {
       ...st,
       dataByProjectId: {
@@ -274,7 +251,7 @@ export class LocalApi implements ProjexApi {
     if (!slice) throw new Error('Unknown project');
     const idx = slice.transactions.findIndex((t) => t.id === input.id);
     if (idx < 0) throw new Error('Unknown transaction');
-    const updated: Txn = { ...slice.transactions[idx], ...input } as Txn;
+    const updated: Txn = { ...slice.transactions[idx], ...input };
 
     const nextTxns = slice.transactions.slice();
     nextTxns[idx] = updated;
@@ -324,12 +301,29 @@ export class LocalApi implements ProjexApi {
     return st.projectMemberships.filter((m) => m.projectId === projectId);
   }
 
+  async listMyProjectMemberships(companyId: CompanyId): Promise<ProjectMembership[]> {
+    const st = ensureState();
+    const { userId } = this.requireSession();
+
+    // Explicit memberships only (no synthetic/implicit memberships).
+    // Company-wide access for admin/executive/superadmin is enforced via `can(...)`
+    // and endpoint-level checks (e.g. getProject asserts project:view).
+    const projectIdsInCompany = new Set(
+      st.projects.filter((p) => p.companyId === companyId).map((p) => p.id)
+    );
+
+    return st.projectMemberships.filter(
+      (m) => m.userId === userId && projectIdsInCompany.has(m.projectId)
+    );
+  }
+
   async upsertCompanyMembership(
     companyId: CompanyId,
     userId: UserId,
     role: CompanyRole
   ): Promise<CompanyMembership> {
     const st = ensureState();
+    this.assertCan('company:manage_members', companyId);
     const idx = st.companyMemberships.findIndex(
       (m) => m.companyId === companyId && m.userId === userId
     );
@@ -343,6 +337,7 @@ export class LocalApi implements ProjexApi {
 
   async deleteCompanyMembership(companyId: CompanyId, userId: UserId): Promise<void> {
     const st = ensureState();
+    this.assertCan('company:manage_members', companyId);
     writeState({
       ...st,
       companyMemberships: st.companyMemberships.filter(
@@ -357,6 +352,9 @@ export class LocalApi implements ProjexApi {
     role: ProjectRole
   ): Promise<ProjectMembership> {
     const st = ensureState();
+    const p = st.projects.find((x) => x.id === projectId);
+    if (!p) throw new Error('Unknown project');
+    this.assertCan('project:edit', p.companyId, projectId);
     const idx = st.projectMemberships.findIndex(
       (m) => m.projectId === projectId && m.userId === userId
     );
@@ -374,6 +372,9 @@ export class LocalApi implements ProjexApi {
     role: ProjectRole
   ): Promise<void> {
     const st = ensureState();
+    const p = st.projects.find((x) => x.id === projectId);
+    if (!p) throw new Error('Unknown project');
+    this.assertCan('project:edit', p.companyId, projectId);
     writeState({
       ...st,
       projectMemberships: st.projectMemberships.filter(
@@ -405,8 +406,8 @@ export class LocalApi implements ProjexApi {
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new Error('Unknown project');
-    const id = (input.id ?? asCategoryId(uid('cat'))) as Category['id'];
-    const next: Category = { ...input, id } as Category;
+    const id = input.id ?? asCategoryId(uid('cat'));
+    const next: Category = { ...input, id };
     writeState({
       ...st,
       dataByProjectId: {
@@ -426,7 +427,7 @@ export class LocalApi implements ProjexApi {
     if (!slice) throw new Error('Unknown project');
     const idx = slice.categories.findIndex((c) => c.id === input.id);
     if (idx < 0) throw new Error('Unknown category');
-    const updated: Category = { ...slice.categories[idx], ...input } as Category;
+    const updated: Category = { ...slice.categories[idx], ...input };
     const categories = slice.categories.slice();
     categories[idx] = updated;
     writeState({
@@ -448,12 +449,12 @@ export class LocalApi implements ProjexApi {
     // Clear references on budgets + transactions
     const budgets: BudgetLine[] = slice.budgets.map((b) =>
       b.categoryId === categoryId
-        ? ({ ...b, categoryId: undefined, subCategoryId: undefined } as BudgetLine)
+        ? ({ ...b, categoryId: undefined, subCategoryId: undefined })
         : b
     );
     const transactions: Txn[] = slice.transactions.map((t) =>
       t.categoryId === categoryId
-        ? ({ ...t, categoryId: undefined, subCategoryId: undefined } as Txn)
+        ? ({ ...t, categoryId: undefined, subCategoryId: undefined })
         : t
     );
     writeState({
@@ -481,8 +482,8 @@ export class LocalApi implements ProjexApi {
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new Error('Unknown project');
-    const id = (input.id ?? asSubCategoryId(uid('sub'))) as SubCategory['id'];
-    const next: SubCategory = { ...input, id } as SubCategory;
+    const id = input.id ?? asSubCategoryId(uid('sub'));
+    const next: SubCategory = { ...input, id };
     writeState({
       ...st,
       dataByProjectId: {
@@ -505,7 +506,7 @@ export class LocalApi implements ProjexApi {
     if (!slice) throw new Error('Unknown project');
     const idx = slice.subCategories.findIndex((s) => s.id === input.id);
     if (idx < 0) throw new Error('Unknown subcategory');
-    const updated: SubCategory = { ...slice.subCategories[idx], ...input } as SubCategory;
+    const updated: SubCategory = { ...slice.subCategories[idx], ...input };
     const subCategories = slice.subCategories.slice();
     subCategories[idx] = updated;
     writeState({
@@ -525,12 +526,12 @@ export class LocalApi implements ProjexApi {
     const subCategories = slice.subCategories.filter((s) => s.id !== subCategoryId);
     const budgets = slice.budgets.map((b) =>
       b.subCategoryId === subCategoryId
-        ? ({ ...b, subCategoryId: undefined } as BudgetLine)
+        ? ({ ...b, subCategoryId: undefined })
         : b
     );
     const transactions = slice.transactions.map((t) =>
       t.subCategoryId === subCategoryId
-        ? ({ ...t, subCategoryId: undefined } as Txn)
+        ? ({ ...t, subCategoryId: undefined })
         : t
     );
     writeState({
@@ -557,8 +558,8 @@ export class LocalApi implements ProjexApi {
     this.assertCan('budget:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new Error('Unknown project');
-    const id = (input.id ?? asBudgetLineId(uid('bud'))) as BudgetLine['id'];
-    const next: BudgetLine = { ...input, id } as BudgetLine;
+    const id = input.id ?? asBudgetLineId(uid('bud'));
+    const next: BudgetLine = { ...input, id };
     writeState({
       ...st,
       dataByProjectId: {
@@ -578,7 +579,7 @@ export class LocalApi implements ProjexApi {
     if (!slice) throw new Error('Unknown project');
     const idx = slice.budgets.findIndex((b) => b.id === input.id);
     if (idx < 0) throw new Error('Unknown budget');
-    const updated: BudgetLine = { ...slice.budgets[idx], ...input } as BudgetLine;
+    const updated: BudgetLine = { ...slice.budgets[idx], ...input };
     const budgets = slice.budgets.slice();
     budgets[idx] = updated;
     writeState({
@@ -637,7 +638,7 @@ export class LocalApi implements ProjexApi {
     const idx = st.projects.findIndex((p) => p.id === input.id);
     if (idx < 0) throw new Error('Unknown project');
     this.assertCan('project:edit', st.projects[idx].companyId, st.projects[idx].id);
-    const updated: Project = { ...st.projects[idx], ...input } as Project;
+    const updated: Project = { ...st.projects[idx], ...input };
     const projects = st.projects.slice();
     projects[idx] = updated;
     writeState({ ...st, projects });
@@ -649,7 +650,7 @@ export class LocalApi implements ProjexApi {
     const idx = st.companies.findIndex((c) => c.id === input.id);
     if (idx < 0) throw new Error('Unknown company');
     this.assertCan('company:edit', st.companies[idx].id);
-    const updated: Company = { ...st.companies[idx], ...input } as Company;
+    const updated: Company = { ...st.companies[idx], ...input };
     const companies = st.companies.slice();
     companies[idx] = updated;
     writeState({ ...st, companies });
@@ -664,7 +665,7 @@ export class LocalApi implements ProjexApi {
   ): Promise<User> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
-    const next: User = { id: uid('usr') as UserId, name, email } as User;
+    const next: User = { id: asUserId(uid('usr')), name, email };
     writeState({ ...st, users: [...st.users, next] });
     // add membership
     await this.upsertCompanyMembership(companyId, next.id, role);

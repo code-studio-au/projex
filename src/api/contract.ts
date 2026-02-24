@@ -69,6 +69,14 @@ export interface ProjexApi {
   listAllCompanyMemberships(): Promise<CompanyMembership[]>;
   listCompanyMemberships(companyId: CompanyId): Promise<CompanyMembership[]>;
   listProjectMemberships(projectId: ProjectId): Promise<ProjectMembership[]>;
+
+  /**
+   * Returns ONLY the current user's project memberships within the company.
+   *
+   * This is the safe/efficient shape the UI needs for gating and listings,
+   * especially when project visibility allows listing without membership.
+   */
+  listMyProjectMemberships(companyId: CompanyId): Promise<ProjectMembership[]>;
   upsertCompanyMembership(
     companyId: CompanyId,
     userId: UserId,

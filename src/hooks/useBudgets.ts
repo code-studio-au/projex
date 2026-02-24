@@ -1,10 +1,7 @@
 import { useMemo } from 'react';
 
 import type { BudgetLineId, CategoryId, CompanyId, ProjectId, SubCategoryId } from '../types';
-import type { BudgetLine } from '../types';
-import { asCompanyId, asProjectId } from '../types';
-
-import { uid } from '../utils/id';
+// IDs are assigned by the API adapter (LocalApi / future server functions).
 import { useBudgetsQuery, useCreateBudgetMutation, useDeleteBudgetMutation, useUpdateBudgetMutation } from '../queries/budgets';
 
 /**
@@ -38,9 +35,8 @@ export function useBudgets(params: {
       return;
     }
     create.mutate({
-      id: uid('bud') as BudgetLine['id'],
-      companyId: companyId ?? asCompanyId('co_unknown'),
-      projectId: projectId ?? asProjectId('prj_unknown'),
+      companyId,
+      projectId,
       categoryId,
       subCategoryId,
       allocated: 0,

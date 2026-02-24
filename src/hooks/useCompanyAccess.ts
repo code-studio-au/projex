@@ -4,8 +4,8 @@ import type { CompanyId, CompanyRole, ProjectId, UserId } from '../types';
 import { can, type Action } from '../utils/auth';
 import { getUserCompanyRole } from '../store/access';
 
-import { useSessionQuery } from '../queries/session';
-import { useAllCompanyMembershipsQuery, useAllProjectMembershipsQuery } from '../queries/memberships';
+import { useAllCompanyMembershipsQuery, useMyProjectMembershipsQuery } from '../queries/memberships';
+import { useRequiredSession } from './useRequiredSession';
 
 export type CompanyAccess = {
   userId: UserId;
@@ -26,11 +26,11 @@ export type CompanyAccess = {
  * client-side UX gating, while the server remains the source of truth.
  */
 export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
-  const session = useSessionQuery();
-  const userId = (session.data?.userId ?? 'usr_unknown') as UserId;
+  const session = useRequiredSession();
+  const userId = session.userId;
 
   const companyMembershipsQ = useAllCompanyMembershipsQuery();
-  const allProjectMembershipsQ = useAllProjectMembershipsQuery(companyId);
+  const myProjectMembershipsQ = useMyProjectMembershipsQuery(companyId);
 
   // Keep these references stable so downstream useMemo/useCallback dependencies
   // don't appear to change every render (eslint exhaustive-deps warning).
@@ -39,8 +39,8 @@ export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
     [companyMembershipsQ.data]
   );
   const projectMemberships = useMemo(
-    () => allProjectMembershipsQ.data ?? [],
-    [allProjectMembershipsQ.data]
+    () => myProjectMembershipsQ.data ?? [],
+    [myProjectMembershipsQ.data]
   );
 
   const companyRole = useMemo(() => {

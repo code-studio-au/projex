@@ -1,20 +1,24 @@
 export const qk = {
   session: () => ['session'] as const,
   users: () => ['users'] as const,
-  // Companies are user-scoped (superadmin vs regular user returns different sets)
+
+  // Everything else is session-scoped because visibility/permissions depend on who is logged in.
   companies: (userId: string) => ['companies', userId] as const,
-  company: (companyId: string) => ['company', companyId] as const,
-  companyMemberships: (companyId: string) =>
-    ['companyMemberships', companyId] as const,
-  allCompanyMemberships: () => ['allCompanyMemberships'] as const,
-  projects: (companyId: string) => ['projects', companyId] as const,
-  project: (projectId: string) => ['project', projectId] as const,
-  projectMemberships: (projectId: string) =>
-    ['projectMemberships', projectId] as const,
-  allProjectMemberships: (companyId: string) =>
-    ['allProjectMemberships', companyId] as const,
-  transactions: (projectId: string) => ['transactions', projectId] as const,
-  budgets: (projectId: string) => ['budgets', projectId] as const,
-  categories: (projectId: string) => ['categories', projectId] as const,
-  subCategories: (projectId: string) => ['subCategories', projectId] as const,
+  company: (userId: string, companyId: string) => ['company', userId, companyId] as const,
+  companyMemberships: (userId: string, companyId: string) =>
+    ['companyMemberships', userId, companyId] as const,
+  allCompanyMemberships: (userId: string) => ['allCompanyMemberships', userId] as const,
+
+  projects: (userId: string, companyId: string) => ['projects', userId, companyId] as const,
+  project: (userId: string, projectId: string) => ['project', userId, projectId] as const,
+
+  projectMemberships: (userId: string, projectId: string) =>
+    ['projectMemberships', userId, projectId] as const,
+  myProjectMemberships: (userId: string, companyId: string) =>
+    ['myProjectMemberships', userId, companyId] as const,
+
+  transactions: (userId: string, projectId: string) => ['transactions', userId, projectId] as const,
+  budgets: (userId: string, projectId: string) => ['budgets', userId, projectId] as const,
+  categories: (userId: string, projectId: string) => ['categories', userId, projectId] as const,
+  subCategories: (userId: string, projectId: string) => ['subCategories', userId, projectId] as const,
 };
