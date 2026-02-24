@@ -95,14 +95,14 @@ export function useTaxonomy(params: {
   const validSubIds = useMemo(() => new Set(subCategories.map((s) => s.id)), [subCategories]);
 
   /**
-   * Creates a category and returns the generated branded ID immediately.
+   * Creates a category and resolves with the generated branded ID after success.
    *
    * This keeps the UI deterministic (important for CSV import) while remaining
    * compatible with a future TanStack Start / Postgres backend.
    */
-  const addCategory = (name: string): CategoryId => {
+  const addCategory = async (name: string): Promise<CategoryId> => {
     const id = asCategoryId(uid('cat'));
-    createCat.mutate({ id, companyId, projectId, name });
+    await createCat.mutateAsync({ id, companyId, projectId, name });
     return id;
   };
 
@@ -119,25 +119,21 @@ export function useTaxonomy(params: {
   };
 
   /**
-   * Creates a subcategory and returns the generated branded ID immediately.
+   * Creates a subcategory and resolves with the generated branded ID after success.
    */
-  const addSubCategory = (categoryId: CategoryId, name: string): SubCategoryId => {
+  const addSubCategory = async (categoryId: CategoryId, name: string): Promise<SubCategoryId> => {
     const id = asSubCategoryId(uid('sub'));
-    createSub.mutate(
-      { id, companyId, projectId, categoryId, name },
-      {
-        onSuccess: () => {
-          // Keep budgets in sync with taxonomy: when a new subcategory is created,
-          // ensure there is a budget line (allocated = 0) so it appears immediately.
-          //
-          // Important: do this *after* the subcategory exists, otherwise an API adapter
-          // (or future server validation) may reject the budget create.
-          if (canEditBudgets) {
-            budgets.upsertBudgetForSubCategory(id, categoryId);
-          }
-        },
-      }
-    );
+    await createSub.mutateAsync({ id, companyId, projectId, categoryId, name });
+
+    // Keep budgets in sync with taxonomy: when a new subcategory is created,
+    // ensure there is a budget line (allocated = 0) so it appears immediately.
+    //
+    // Important: do this *after* the subcategory exists, otherwise an API adapter
+    // (or future server validation) may reject the budget create.
+    if (canEditBudgets) {
+      budgets.upsertBudgetForSubCategory(id, categoryId);
+    }
+
     return id;
   };
 

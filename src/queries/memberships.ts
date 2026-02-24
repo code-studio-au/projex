@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { api } from '../api';
+import { useApi } from '../hooks/useApi';
 import type { CompanyId, ProjectId, UserId } from '../types';
 import type { CompanyRole, ProjectRole } from '../types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 
 export function useCompanyMembershipsQuery(companyId: CompanyId) {
+  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.companyMemberships(scopeUserId, companyId),
@@ -15,6 +16,7 @@ export function useCompanyMembershipsQuery(companyId: CompanyId) {
 }
 
 export function useAllCompanyMembershipsQuery() {
+  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.allCompanyMemberships(scopeUserId),
@@ -23,6 +25,7 @@ export function useAllCompanyMembershipsQuery() {
 }
 
 export function useProjectMembershipsQuery(projectId: ProjectId) {
+  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.projectMemberships(scopeUserId, projectId),
@@ -38,6 +41,7 @@ export function useProjectMembershipsQuery(projectId: ProjectId) {
  * UI only needs *my* memberships to compute which projects are openable.
  */
 export function useMyProjectMembershipsQuery(companyId: CompanyId) {
+  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.myProjectMemberships(scopeUserId, companyId),
@@ -46,6 +50,7 @@ export function useMyProjectMembershipsQuery(companyId: CompanyId) {
 }
 
 export function useUpsertCompanyMembershipMutation(companyId: CompanyId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
 
@@ -63,6 +68,7 @@ export function useUpsertCompanyMembershipMutation(companyId: CompanyId) {
 }
 
 export function useDeleteCompanyMembershipMutation(companyId: CompanyId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
 
@@ -78,6 +84,7 @@ export function useDeleteCompanyMembershipMutation(companyId: CompanyId) {
 }
 
 export function useUpsertProjectMembershipMutation(projectId: ProjectId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
 
@@ -98,6 +105,7 @@ export function useUpsertProjectMembershipMutation(projectId: ProjectId) {
 }
 
 export function useDeleteProjectMembershipMutation(projectId: ProjectId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
 

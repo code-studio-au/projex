@@ -550,7 +550,6 @@ export class LocalApi implements ProjexApi {
     this.assertCan('project:view', p.companyId, projectId);
     return st.dataByProjectId[projectId]?.budgets ?? [];
   }
-
   async createBudget(projectId: ProjectId, input: BudgetCreateInput): Promise<BudgetLine> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
@@ -558,6 +557,27 @@ export class LocalApi implements ProjexApi {
     this.assertCan('budget:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new Error('Unknown project');
+
+    // Idempotency: budget lines are unique per (projectId, subCategoryId).
+    // This mirrors a future DB uniqueness constraint and prevents duplicate
+    // creation due to racing invalidations or optimistic UI.
+    const existingIdx = slice.budgets.findIndex((b) => b.subCategoryId === input.subCategoryId);
+    if (existingIdx >= 0) {
+      const existing = slice.budgets[existingIdx];
+      // If the caller is trying to associate the subcategory to a different
+      // category (e.g. after a move), keep the budget consistent.
+      if (existing.categoryId !== input.categoryId) {
+        const budgets = slice.budgets.slice();
+        budgets[existingIdx] = { ...existing, categoryId: input.categoryId };
+        writeState({
+          ...st,
+          dataByProjectId: { ...st.dataByProjectId, [projectId]: { ...slice, budgets } },
+        });
+        return budgets[existingIdx];
+      }
+      return existing;
+    }
+
     const id = input.id ?? asBudgetLineId(uid('bud'));
     const next: BudgetLine = { ...input, id };
     writeState({

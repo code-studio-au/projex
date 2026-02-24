@@ -2,14 +2,15 @@ import { useMemo, useState } from 'react';
 import { Button, Card, Container, Group, Select, Stack, Text, Title } from '@mantine/core';
 import { useRouter } from '@tanstack/react-router';
 
+import { useApi } from '../hooks/useApi';
 import { useUsersQuery } from '../queries/reference';
 import { useLoginMutation } from '../queries/session';
-import { api } from '../api';
 import type { UserId } from '../types';
 import { asUserId } from '../types';
 import { companyRoute, landingRoute } from '../router';
 
 export default function LoginPage() {
+  const api = useApi();
   const router = useRouter();
   const users = useUsersQuery();
   const login = useLoginMutation();

@@ -1,9 +1,9 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { ProjexApi } from '../api/contract';
-import { api } from '../api';
+import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
-import { queryClient } from '../queryClient';
 import type { UserId } from '../types';
 
 export function sessionQueryOptions(boundary: ProjexApi) {
@@ -16,6 +16,7 @@ export function sessionQueryOptions(boundary: ProjexApi) {
 }
 
 export function useSessionQuery() {
+  const api = useApi();
   return useQuery(sessionQueryOptions(api));
 }
 
@@ -23,7 +24,7 @@ export function useSessionQuery() {
  * When auth changes, user-scoped queries (companies/projects/etc) must be refreshed.
  * We keep the seeded users list warm, but invalidate everything else.
  */
-async function refreshAfterAuthChange() {
+async function refreshAfterAuthChange(queryClient: QueryClient) {
   // Drop any anonymous companies cache (pre-login), otherwise staleTime can keep it “fresh” post-login.
   queryClient.removeQueries({
     predicate: (q) =>
@@ -38,23 +39,29 @@ async function refreshAfterAuthChange() {
 }
 
 export function useLoginMutation() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (userId: UserId) => api.loginAs(userId),
     onSuccess: async (session) => {
       // Ensure route guards see the new session immediately (router loaders use ensureQueryData).
       queryClient.setQueryData(qk.session(), session);
-      await refreshAfterAuthChange();
+      await refreshAfterAuthChange(queryClient);
     },
   });
 }
 
 export function useLogoutMutation() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: () => api.logout(),
     onSuccess: async () => {
       // Clear session cache immediately so guards stop treating the user as authed.
       queryClient.setQueryData(qk.session(), null);
-      await refreshAfterAuthChange();
+      await refreshAfterAuthChange(queryClient);
     },
   });
 }

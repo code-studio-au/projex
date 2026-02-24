@@ -2,12 +2,13 @@ import { useMemo } from 'react';
 import { Button, Card, Container, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { Link, useRouter } from '@tanstack/react-router';
 
-import { api } from '../api';
+import { useApi } from '../hooks/useApi';
 import { companyRoute, landingRoute, loginRoute } from '../router';
 import { useCompaniesQuery } from '../queries/reference';
 import { useLogoutMutation, useSessionQuery } from '../queries/session';
 
 export default function LandingPage() {
+  const api = useApi();
   const router = useRouter();
 
   const sessionQ = useSessionQuery();

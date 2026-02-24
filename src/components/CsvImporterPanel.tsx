@@ -124,7 +124,7 @@ export default function CsvImporterPanel(props: {
    * Apply taxonomy mapping and optional auto-creation.
    * Normalizes all IDs to branded types.
    */
-  const applyMapping = (): ImportTxnWithTaxonomy[] => {
+  const applyMapping = async (): Promise<ImportTxnWithTaxonomy[]> => {
     type CategoryLookup = { id: CategoryId; name: string };
     type SubCategoryLookup = {
       id: SubCategoryId;
@@ -133,8 +133,6 @@ export default function CsvImporterPanel(props: {
     };
 
     // Build fast lookups from the current taxonomy snapshot.
-    // Important: during CSV import we may optimistically "create" categories/subcategories
-    // before queries refetch, so we must not rely on taxonomy.getCategoryName() here.
     const catByName = new Map<string, CategoryLookup>(
       taxonomy.categories.map((c) => [
         c.name.trim().toLowerCase(),
@@ -154,7 +152,9 @@ export default function CsvImporterPanel(props: {
       })
     );
 
-    return importTxns.map((t) => {
+    const out: ImportTxnWithTaxonomy[] = [];
+
+    for (const t of importTxns) {
       const catName = String(t.category ?? '').trim();
       const subName = String(t.subcategory ?? '').trim();
 
@@ -168,12 +168,10 @@ export default function CsvImporterPanel(props: {
         if (existing) {
           categoryId = existing.id;
         } else if (autoCreate) {
-          const created = taxonomy.addCategory(catName);
-          if (created) {
-            categoryId = created;
-            catByName.set(cKey, { id: created, name: catName });
-            catNameById.set(created, catName);
-          }
+          const created = await taxonomy.addCategory(catName);
+          categoryId = created;
+          catByName.set(cKey, { id: created, name: catName });
+          catNameById.set(created, catName);
         }
       }
 
@@ -185,17 +183,15 @@ export default function CsvImporterPanel(props: {
         if (existing) {
           subCategoryId = existing.id;
         } else if (autoCreate) {
-          const created = taxonomy.addSubCategory(categoryId, subName);
-          if (created) {
-            subCategoryId = created;
-            subByKey.set(key, { id: created, categoryId, name: subName });
-          }
+          const created = await taxonomy.addSubCategory(categoryId, subName);
+          subCategoryId = created;
+          subByKey.set(key, { id: created, categoryId, name: subName });
         }
       }
 
       const id = typeof t.id === 'string' ? t.id : String(t.id ?? '').trim();
 
-      return {
+      out.push({
         id,
         date: t.date,
         item: t.item,
@@ -203,9 +199,11 @@ export default function CsvImporterPanel(props: {
         amount: t.amount,
         categoryId,
         subCategoryId,
-      };
-    });
-  };;
+      });
+    }
+
+    return out;
+  };
 
   return (
     <Stack gap="md">
@@ -267,8 +265,8 @@ export default function CsvImporterPanel(props: {
             <Group>
               <Button
                 disabled={!importTxns.length}
-                onClick={() => {
-                  const mapped = applyMapping();
+                onClick={async () => {
+                  const mapped = await applyMapping();
                   const { txns, skipped } = finalizeImportTxns(mapped, {
                     existingIds,
                     skipDuplicates,
@@ -289,12 +287,12 @@ export default function CsvImporterPanel(props: {
               <Button
                 color="red"
                 disabled={!importTxns.length}
-                onClick={() => {
+                onClick={async () => {
                   if (!confirm('Replace ALL transactions with imported CSV?')) {
                     return;
                   }
 
-                  const mapped = applyMapping();
+                  const mapped = await applyMapping();
                   const { txns } = finalizeImportTxns(mapped, {
                     skipDuplicates: false,
                   });

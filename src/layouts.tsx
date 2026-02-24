@@ -12,7 +12,7 @@ import {
   ThemeIcon,
 } from '@mantine/core';
 
-import { api } from './api';
+import { useApi } from './hooks/useApi';
 import { companyRoute, landingRoute } from './router';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
@@ -29,6 +29,7 @@ export function RootLayout() {
  * component defensive for smoother local/dev behavior.
  */
 export function AuthedLayout() {
+  const api = useApi();
   const session = useSessionQuery();
   const logout = useLogoutMutation();
   const router = useRouter();
@@ -62,8 +63,7 @@ export function AuthedLayout() {
                     variant="light"
                     onClick={async () => {
                       // Prefer current company from URL, otherwise fall back to user's default company.
-                      const companyId =
-                        companyIdFromUrl ?? (await api.getDefaultCompanyIdForUser(userId));
+                      const companyId = companyIdFromUrl ?? (await api.getDefaultCompanyIdForUser(userId));
 
                       if (companyId) {
                         router.navigate({ to: companyRoute.to, params: { companyId } });

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { api } from '../api';
-import type { CompanyId, ProjectId } from '../types';
+import { useApi } from '../hooks/useApi';
+import type { CompanyId, ProjectId, Txn } from '../types';
 import type { CompanyRole } from '../types';
 import type {
   CompanyUpdateInput,
@@ -10,10 +10,10 @@ import type {
   CsvImportMode,
 } from '../api/contract';
 import { qk } from './keys';
-import type { Txn } from '../types';
 import { useQueryScopeUserId } from './scope';
 
 export function useCreateProjectMutation(companyId: CompanyId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
@@ -23,6 +23,7 @@ export function useCreateProjectMutation(companyId: CompanyId) {
 }
 
 export function useUpdateProjectMutation(companyId: CompanyId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
@@ -35,6 +36,7 @@ export function useUpdateProjectMutation(companyId: CompanyId) {
 }
 
 export function useUpdateCompanyMutation() {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
@@ -49,6 +51,7 @@ export function useUpdateCompanyMutation() {
 }
 
 export function useCreateUserInCompanyMutation(companyId: CompanyId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
@@ -63,6 +66,7 @@ export function useCreateUserInCompanyMutation(companyId: CompanyId) {
 }
 
 export function useImportTransactionsMutation(projectId: ProjectId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
@@ -75,6 +79,7 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
 }
 
 export function useResetToSeedMutation() {
+  const api = useApi();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.resetToSeed(),

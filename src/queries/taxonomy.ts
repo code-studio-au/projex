@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { api } from '../api';
+import { useApi } from '../hooks/useApi';
 import type { Category, ProjectId, SubCategory } from '../types';
 import type {
   CategoryCreateInput,
@@ -12,6 +12,7 @@ import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 
 export function useCategoriesQuery(projectId: ProjectId) {
+  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.categories(scopeUserId, projectId),
@@ -22,6 +23,7 @@ export function useCategoriesQuery(projectId: ProjectId) {
 }
 
 export function useSubCategoriesQuery(projectId: ProjectId) {
+  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.subCategories(scopeUserId, projectId),
@@ -32,6 +34,7 @@ export function useSubCategoriesQuery(projectId: ProjectId) {
 }
 
 export function useCreateCategoryMutation(projectId: ProjectId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
@@ -41,6 +44,7 @@ export function useCreateCategoryMutation(projectId: ProjectId) {
 }
 
 export function useUpdateCategoryMutation(projectId: ProjectId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
@@ -50,6 +54,7 @@ export function useUpdateCategoryMutation(projectId: ProjectId) {
 }
 
 export function useDeleteCategoryMutation(projectId: ProjectId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
@@ -64,31 +69,31 @@ export function useDeleteCategoryMutation(projectId: ProjectId) {
 }
 
 export function useCreateSubCategoryMutation(projectId: ProjectId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: SubCategoryCreateInput) => api.createSubCategory(projectId, input),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) }),
   });
 }
 
 export function useUpdateSubCategoryMutation(projectId: ProjectId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: SubCategoryUpdateInput) => api.updateSubCategory(projectId, input),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) }),
   });
 }
 
 export function useDeleteSubCategoryMutation(projectId: ProjectId) {
+  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (subCategoryId: SubCategory['id']) =>
-      api.deleteSubCategory(projectId, subCategoryId),
+    mutationFn: (subCategoryId: SubCategory['id']) => api.deleteSubCategory(projectId, subCategoryId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });

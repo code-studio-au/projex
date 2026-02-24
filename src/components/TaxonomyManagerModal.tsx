@@ -57,7 +57,7 @@ export default function TaxonomyManagerModal(props: {
             onClick={() => {
               const name = newCategoryName.trim();
               if (!name) return;
-              taxonomy.addCategory(name);
+              void taxonomy.addCategory(name);
               setNewCategoryName('');
             }}
           >
@@ -124,7 +124,7 @@ export default function TaxonomyManagerModal(props: {
                     onClick={() => {
                       const name = (newSubNameByCat[cat.id] ?? '').trim();
                       if (!name) return;
-                      taxonomy.addSubCategory(cat.id, name);
+                      void taxonomy.addSubCategory(cat.id, name);
                       setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: '' }));
                     }}
                   >
