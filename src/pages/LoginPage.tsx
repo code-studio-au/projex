@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, Container, Group, Select, Stack, Text, Title } from '@mantine/core';
+import { Badge, Button, Container, Group, Paper, Select, Stack, Text, Title } from '@mantine/core';
 import { useRouter } from '@tanstack/react-router';
+import { useMediaQuery } from '@mantine/hooks';
 
 import { useApi } from '../hooks/useApi';
 import { useUsersQuery } from '../queries/reference';
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const router = useRouter();
   const users = useUsersQuery();
   const login = useLoginMutation();
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
   const options = useMemo(
     () => (users.data ?? []).map((u) => ({ value: u.id, label: `${u.name} (${u.id})` })),
@@ -37,11 +39,14 @@ export default function LoginPage() {
   }
 
   return (
-    <Container size="sm">
-      <Card withBorder radius="lg" p="xl">
+    <Container size="sm" px={isMobile ? 'xs' : 'md'}>
+      <Paper withBorder radius="lg" p={isMobile ? 'md' : 'xl'}>
         <Stack gap="md">
-          <Title order={3}>Login (local)</Title>
-          <Text c="dimmed">Pick a seeded user. Later this becomes Better Auth.</Text>
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Title order={3}>Local Login</Title>
+            <Badge variant="light">seeded users</Badge>
+          </Group>
+          <Text c="dimmed">Select a seeded user to enter the workspace.</Text>
           <Select
             label="User"
             placeholder={users.isLoading ? 'Loading...' : 'Select a user'}
@@ -52,16 +57,16 @@ export default function LoginPage() {
             nothingFoundMessage="No users"
           />
 
-          <Group justify="space-between">
+          <Group justify="space-between" wrap="wrap">
             <Button variant="light" onClick={() => router.navigate({ to: landingRoute.to })}>
               Back
             </Button>
             <Button onClick={handleLogin} disabled={!selected || login.isPending}>
-              Login
+              Continue
             </Button>
           </Group>
         </Stack>
-      </Card>
+      </Paper>
     </Container>
   );
 }

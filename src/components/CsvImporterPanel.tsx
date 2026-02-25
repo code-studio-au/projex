@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react';
 import {
+  Badge,
   Button,
+  Divider,
   FileInput,
   Group,
+  Modal,
   Paper,
   Stack,
   Switch,
   Text,
   Textarea,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import type {
   CategoryId,
   CompanyId,
@@ -61,9 +65,17 @@ export default function CsvImporterPanel(props: {
   const [autoCreate, setAutoCreate] = useState(true);
   const [autoCreateBudgets, setAutoCreateBudgets] = useState(true);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
-  const existingIds = useMemo(
-    () => new Set(existingTxns.map((t) => t.id)),
+  const existingKeys = useMemo(
+    () =>
+      new Set(
+        existingTxns.map((t) =>
+          t.externalId?.trim() ? `external:${t.externalId.trim()}` : `id:${t.id}`
+        )
+      ),
     [existingTxns]
   );
 
@@ -193,6 +205,7 @@ export default function CsvImporterPanel(props: {
 
       out.push({
         id,
+        externalId: t.externalId?.trim() || undefined,
         date: t.date,
         item: t.item,
         description: t.description,
@@ -209,13 +222,15 @@ export default function CsvImporterPanel(props: {
     <Stack gap="md">
       <Paper withBorder radius="md" p="md">
         <Stack gap="sm">
-          <Text fw={600}>CSV Import</Text>
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Text fw={600}>CSV Import</Text>
+            <Badge variant="light">{previewCount} rows parsed</Badge>
+          </Group>
           <Text size="sm" c="dimmed">
-            Supports headers: date,item,description,amount,(optional) category,
-            subcategory
+            Supports headers: date, item, description, amount, and optional category/subcategory.
           </Text>
 
-          <Group align="flex-end">
+          <Group align="flex-end" wrap="wrap">
             <FileInput
               label="Upload CSV"
               placeholder="Select file"
@@ -225,14 +240,17 @@ export default function CsvImporterPanel(props: {
                 if (f) void loadFileText(f);
               }}
               accept=".csv,text/csv"
-              style={{ flex: 1 }}
+              style={{ width: '100%' }}
             />
+          </Group>
 
+          <Group gap="lg" align="center" wrap="wrap">
             <Switch
               label="Auto-create missing categories/subcategories"
               checked={autoCreate}
               disabled={!canEditTaxonomy}
               onChange={(e) => setAutoCreate(e.currentTarget.checked)}
+              style={{ width: isMobile ? '100%' : 'auto' }}
             />
 
             <Switch
@@ -240,14 +258,17 @@ export default function CsvImporterPanel(props: {
               checked={autoCreateBudgets}
               disabled={!canEditBudgets}
               onChange={(e) => setAutoCreateBudgets(e.currentTarget.checked)}
+              style={{ width: isMobile ? '100%' : 'auto' }}
             />
 
             <Switch
-              label="Skip duplicates (stable IDs)"
+              label="Skip duplicates (external ID / stable key)"
               checked={skipDuplicates}
               onChange={(e) => setSkipDuplicates(e.currentTarget.checked)}
+              style={{ width: isMobile ? '100%' : 'auto' }}
             />
           </Group>
+          <Divider />
 
           <Textarea
             label="Or paste CSV"
@@ -257,18 +278,17 @@ export default function CsvImporterPanel(props: {
             placeholder={exampleCsv}
           />
 
-          <Group justify="space-between">
-            <Text size="sm" c="dimmed">
-              Preview rows: {previewCount}
-            </Text>
+          <Group justify="space-between" wrap="wrap">
+            <Text size="sm" c="dimmed">Preview rows: {previewCount}</Text>
 
-            <Group>
+            <Group wrap="wrap">
               <Button
+                fullWidth={isMobile}
                 disabled={!importTxns.length}
                 onClick={async () => {
                   const mapped = await applyMapping();
                   const { txns, skipped } = finalizeImportTxns(mapped, {
-                    existingIds,
+                    existingKeys,
                     skipDuplicates,
                   });
 
@@ -276,9 +296,11 @@ export default function CsvImporterPanel(props: {
 
                   onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
 
-                  if (skipped > 0) {
-                    alert(`Skipped ${skipped} duplicate(s).`);
-                  }
+                  setImportNotice(
+                    skipped > 0
+                      ? `Imported ${txns.length} rows. Skipped ${skipped} duplicate(s).`
+                      : `Imported ${txns.length} rows.`
+                  );
                 }}
               >
                 Append
@@ -286,22 +308,10 @@ export default function CsvImporterPanel(props: {
 
               <Button
                 color="red"
+                fullWidth={isMobile}
                 disabled={!importTxns.length}
                 onClick={async () => {
-                  if (!confirm('Replace ALL transactions with imported CSV?')) {
-                    return;
-                  }
-
-                  const mapped = await applyMapping();
-                  const { txns } = finalizeImportTxns(mapped, {
-                    skipDuplicates: false,
-                  });
-
-                  ensureBudgetLinesForImportedSubCategories(txns);
-
-                  onReplaceAll(
-                    txns.map((t) => ({ ...t, companyId, projectId }))
-                  );
+                  setConfirmReplaceOpen(true);
                 }}
               >
                 Replace all
@@ -313,8 +323,49 @@ export default function CsvImporterPanel(props: {
 
       <Paper withBorder radius="md" p="md">
         <Text fw={600}>Example CSV</Text>
-        <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{exampleCsv}</pre>
+        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowX: 'auto' }}>{exampleCsv}</pre>
       </Paper>
+
+      <Modal
+        opened={confirmReplaceOpen}
+        onClose={() => setConfirmReplaceOpen(false)}
+        title="Replace all transactions?"
+        fullScreen={isMobile}
+      >
+        <Stack>
+          <Text size="sm" c="dimmed">
+            This will replace all existing transactions in this project with imported rows. This cannot be undone.
+          </Text>
+          <Group justify="flex-end" wrap="wrap">
+            <Button variant="light" fullWidth={isMobile} onClick={() => setConfirmReplaceOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              fullWidth={isMobile}
+              onClick={async () => {
+                const mapped = await applyMapping();
+                const { txns } = finalizeImportTxns(mapped, {
+                  skipDuplicates: false,
+                });
+
+                ensureBudgetLinesForImportedSubCategories(txns);
+                onReplaceAll(txns.map((t) => ({ ...t, companyId, projectId })));
+                setConfirmReplaceOpen(false);
+                setImportNotice(`Replaced transactions with ${txns.length} imported rows.`);
+              }}
+            >
+              Replace all
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {importNotice && (
+        <Paper withBorder radius="md" p="sm">
+          <Text size="sm">{importNotice}</Text>
+        </Paper>
+      )}
     </Stack>
   );
 }

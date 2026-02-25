@@ -16,6 +16,19 @@ npm install
 npm run dev
 ```
 
+## Server transition utilities
+
+```bash
+# Apply SQL migrations to DATABASE_URL
+npm run db:migrate
+
+# Run adapter contract checks (LocalApi + ServerApi stubs)
+npm run test:contracts
+```
+
+- Transition map: `docs/server-transition-map.md`
+- DB migrations: `src/server/db/migrations`
+
 ## Where to swap backend later
 
 1. Keep `ProjexApi` stable (`src/api/contract.ts`).

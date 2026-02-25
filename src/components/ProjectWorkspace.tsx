@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, ProjectId } from '../types';
 
@@ -22,6 +23,7 @@ export default function ProjectWorkspace(props: {
   projectId: ProjectId;
 }) {
   const { companyId, projectId } = props;
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
   const access = useCompanyAccess(companyId);
   const company = useCompanyQuery(companyId);
@@ -64,27 +66,32 @@ export default function ProjectWorkspace(props: {
   );
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="flex-end">
-        <Stack gap={2}>
-          <Title order={3}>
-            {company.data?.name ?? 'Company'} • {project.data?.name ?? 'Project'}
-          </Title>
-          <Text c="dimmed" size="sm">
-            Project workspace (transactions, budgets, import)
-          </Text>
-        </Stack>
+    <Stack gap="lg">
+      <Paper withBorder p={isMobile ? 'md' : 'lg'} radius="lg">
+        <Group justify="space-between" align="flex-end" wrap="wrap">
+          <Stack gap={2}>
+            <Title order={3}>
+              {company.data?.name ?? 'Company'} • {project.data?.name ?? 'Project'}
+            </Title>
+            <Text c="dimmed" size="sm">
+              Operational workspace for coding, budgeting, imports, and project controls.
+            </Text>
+          </Stack>
 
-        <Group gap="sm">
-          <Badge size="lg" variant="light" color={uncoded.count ? 'red' : 'gray'}>
-            Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, project.data?.currency ?? 'AUD')})
-          </Badge>
+          <Group gap="sm" wrap="wrap">
+            <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
+              Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, project.data?.currency ?? 'AUD')})
+            </Badge>
+            <Badge size={isMobile ? 'md' : 'lg'} color={project.data?.status === 'archived' ? 'gray' : 'blue'}>
+              {project.data?.status === 'archived' ? 'Deactivated' : 'Active'}
+            </Badge>
+          </Group>
         </Group>
-      </Group>
+      </Paper>
 
-      <Paper withBorder radius="md" p="md">
-        <Tabs defaultValue="transactions" keepMounted={false}>
-          <Tabs.List>
+      <Paper withBorder radius="lg" p="md">
+        <Tabs defaultValue="transactions" keepMounted={false} variant="outline">
+          <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
             <Tabs.Tab value="transactions">Transactions</Tabs.Tab>
             <Tabs.Tab value="budget">Budget</Tabs.Tab>
             <Tabs.Tab value="import" disabled={!canImport}>

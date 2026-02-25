@@ -10,6 +10,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "db:migrate": "node --experimental-strip-types src/server/db/migrate.ts",
+    "test:contracts": "node scripts/run-contract-tests.mjs",
     "preview": "vite preview",
     "format": "prettier . --write",
     "format:check": "prettier . --check"

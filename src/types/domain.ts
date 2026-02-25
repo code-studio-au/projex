@@ -71,6 +71,13 @@ export type SubCategory = {
 
 export type Txn = {
   id: TxnId;
+  /**
+   * Internal DB PK (BIGINT) for server mode.
+   * Represented as decimal string to avoid bigint JSON/localStorage issues.
+   */
+  internalId?: string;
+  /** External/imported transaction reference used for dedupe + audit. */
+  externalId?: string;
   companyId: CompanyId;
   projectId: ProjectId;
   date: string; // ISO yyyy-mm-dd

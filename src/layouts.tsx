@@ -11,6 +11,7 @@ import {
   Text,
   ThemeIcon,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 
 import { useApi } from './hooks/useApi';
 import { companyRoute, landingRoute } from './router';
@@ -35,6 +36,7 @@ export function AuthedLayout() {
   const router = useRouter();
 
   const userId = session.data?.userId ?? null;
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
   // Prefer companyId from the active route match (project route also includes companyId).
   // We avoid route.useMatch() here to keep types aligned across router versions and to
@@ -52,11 +54,11 @@ export function AuthedLayout() {
   });
 
   return (
-    <AppShell padding={0} header={{ height: 72 }}>
+    <AppShell padding={0} header={{ height: isMobile ? 64 : 70 }}>
       <AppShell.Header>
-        <Paper withBorder radius={0} p="sm" bg="white">
+        <Paper withBorder radius={0} p="sm" bg="rgba(255,255,255,0.9)">
           <Container size="xl">
-            <Group justify="space-between">
+            <Group justify="space-between" wrap="nowrap">
               <Group gap="sm">
                 {userId && (
                   <Button
@@ -72,20 +74,20 @@ export function AuthedLayout() {
                       }
                     }}
                   >
-                    Projects
+                    Workspace
                   </Button>
                 )}
 
                 <Group gap="sm">
-                  <ThemeIcon radius="md" size="lg" variant="light">
+                  <ThemeIcon radius="md" size="lg" variant="gradient" gradient={{ from: 'blue.6', to: 'cyan.5' }}>
                     PX
                   </ThemeIcon>
                   <Stack gap={0}>
-                    <Text fw={800} lh={1.1} size="lg">
+                    <Text fw={800} lh={1.1} size={isMobile ? 'md' : 'lg'}>
                       Projex
                     </Text>
-                    <Text size="xs" c="dimmed" lh={1.1}>
-                      Local mode · Start-ready
+                    <Text size="xs" c="dimmed" lh={1.1} visibleFrom="sm">
+                      Local mode · server-aligned
                     </Text>
                   </Stack>
                 </Group>
@@ -96,7 +98,7 @@ export function AuthedLayout() {
                   <Menu.Target>
                     <Button variant="subtle" px="sm">
                       <Group gap="xs">
-                        <Text fw={600}>{userId ?? 'User'}</Text>
+                        <Text fw={600}>{isMobile ? 'Account' : userId ?? 'User'}</Text>
                         <Badge variant="light">local</Badge>
                       </Group>
                     </Button>

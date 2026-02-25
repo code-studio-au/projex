@@ -1,18 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
-  Card,
   Container,
   Group,
   Modal,
-  SimpleGrid,
+  Paper,
   Stack,
   Text,
   TextInput,
   Title,
 } from '@mantine/core';
 import { Link, useRouter } from '@tanstack/react-router';
+import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId } from '../types';
 
@@ -30,6 +31,7 @@ import {
 export default function LandingPage() {
   const api = useApi();
   const router = useRouter();
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
   const sessionQ = useSessionQuery();
   const userId = sessionQ.data?.userId;
@@ -44,12 +46,6 @@ export default function LandingPage() {
     return (membershipsQ.data ?? []).some((m) => m.userId === userId && m.role === 'superadmin');
   }, [membershipsQ.data, userId]);
 
-  const activeCompanies = useMemo(() => companies.filter((c) => c.status === 'active'), [companies]);
-  const deactivatedCompanies = useMemo(
-    () => companies.filter((c) => c.status === 'deactivated'),
-    [companies]
-  );
-
   const deactivateCompany = useDeactivateCompanyMutation();
   const reactivateCompany = useReactivateCompanyMutation();
   const deleteCompany = useDeleteCompanyMutation();
@@ -63,11 +59,11 @@ export default function LandingPage() {
     | null
   >(null);
 
-  const openConfirm = (target: NonNullable<typeof confirmTarget>) => {
+  const openConfirm = useCallback((target: NonNullable<typeof confirmTarget>) => {
     setConfirmTarget(target);
     setConfirmText('');
     setConfirmOpen(true);
-  };
+  }, []);
 
   const closeConfirm = () => {
     setConfirmOpen(false);
@@ -98,9 +94,106 @@ export default function LandingPage() {
     return confirmText.trim() === confirmTarget.companyName;
   }, [confirmText, confirmTarget]);
 
+  const companyColumns = useMemo<MRT_ColumnDef<(typeof companies)[number]>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Company',
+      },
+      {
+        accessorKey: 'id',
+        header: 'ID',
+        Cell: ({ cell }) => (
+          <Text size="sm" c="dimmed">
+            {cell.getValue<string>()}
+          </Text>
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        Cell: ({ row }) =>
+          row.original.status === 'active' ? (
+            <Badge variant="light">Active</Badge>
+          ) : (
+            <Badge variant="light" color="gray">
+              Deactivated
+            </Badge>
+          ),
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        Cell: ({ row }) => {
+          const company = row.original;
+          return (
+            <Group gap="xs" wrap="wrap">
+              <Link to={companyRoute.to} params={{ companyId: company.id }}>
+                <Button component="span" size="xs" variant={company.status === 'active' ? 'filled' : 'light'}>
+                  {company.status === 'active' ? 'Open' : 'View'}
+                </Button>
+              </Link>
+
+              {isSuperadmin &&
+                (company.status === 'active' ? (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="orange"
+                    onClick={() =>
+                      openConfirm({
+                        kind: 'deactivate_company',
+                        companyId: company.id,
+                        companyName: company.name,
+                      })
+                    }
+                  >
+                    Deactivate
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="green"
+                      onClick={() =>
+                        openConfirm({
+                          kind: 'reactivate_company',
+                          companyId: company.id,
+                          companyName: company.name,
+                        })
+                      }
+                    >
+                      Reactivate
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="filled"
+                      color="red"
+                      onClick={() =>
+                        openConfirm({
+                          kind: 'delete_company',
+                          companyId: company.id,
+                          companyName: company.name,
+                        })
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </>
+                ))}
+            </Group>
+          );
+        },
+      },
+    ],
+    [isSuperadmin, openConfirm]
+  );
+
   return (
-    <Container size="sm">
-      <Card withBorder radius="lg" p="xl">
+    <Container size="lg" px={isMobile ? 'xs' : 'md'}>
+      <Paper withBorder radius="lg" p={isMobile ? 'md' : 'xl'}>
         <Stack gap="md">
           <Title order={2}>Projex</Title>
           <Text c="dimmed">
@@ -108,7 +201,7 @@ export default function LandingPage() {
             TanStack Start later, the UI keeps the same shape.
           </Text>
 
-          <Group justify="flex-end">
+          <Group justify="flex-end" wrap="wrap">
             {userId ? (
               <>
                 <Button
@@ -151,137 +244,41 @@ export default function LandingPage() {
 
           {userId && (
             <Stack gap="sm" mt="md">
-              <Text fw={700}>Companies</Text>
+              <Group justify="space-between" align="center" wrap="wrap">
+                <Text fw={700}>Company Directory</Text>
+                <Badge variant="light">{companies.length} total</Badge>
+              </Group>
 
-              {activeCompanies.length > 0 && (
-                <>
-                  <Text size="sm" c="dimmed">
-                    Active
-                  </Text>
-                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                    {activeCompanies.map((c) => (
-                      <Card key={c.id} withBorder radius="lg" p="md">
-                        <Stack gap={6}>
-                          <Group justify="space-between" align="center">
-                            <Text fw={700}>{c.name}</Text>
-                            <Badge variant="light">Active</Badge>
-                          </Group>
-
-                          <Text size="sm" c="dimmed" lineClamp={2}>
-                            {c.id}
-                          </Text>
-
-                          <Group justify="space-between" mt="xs">
-                            <Link to={companyRoute.to} params={{ companyId: c.id }}>
-                              <Button component="span" variant="filled">
-                                Open
-                              </Button>
-                            </Link>
-
-                            {isSuperadmin && (
-                              <Button
-                                variant="light"
-                                color="orange"
-                                onClick={() =>
-                                  openConfirm({
-                                    kind: 'deactivate_company',
-                                    companyId: c.id,
-                                    companyName: c.name,
-                                  })
-                                }
-                              >
-                                Deactivate
-                              </Button>
-                            )}
-                          </Group>
-                        </Stack>
-                      </Card>
-                    ))}
-                  </SimpleGrid>
-                </>
-              )}
-
-              {isSuperadmin && (
-                <>
-                  <Text size="sm" c="dimmed" mt="md">
-                    Deactivated
-                  </Text>
-                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                    {deactivatedCompanies.map((c) => (
-                      <Card key={c.id} withBorder radius="lg" p="md">
-                        <Stack gap={6}>
-                          <Group justify="space-between" align="center">
-                            <Text fw={700}>{c.name}</Text>
-                            <Badge variant="light" color="gray">
-                              Deactivated
-                            </Badge>
-                          </Group>
-
-                          <Text size="sm" c="dimmed" lineClamp={2}>
-                            {c.id}
-                          </Text>
-
-                          <Group justify="space-between" mt="xs">
-                            <Link to={companyRoute.to} params={{ companyId: c.id }}>
-                              <Button component="span" variant="light">
-                                View
-                              </Button>
-                            </Link>
-
-                            <Group gap="xs">
-                              <Button
-                                variant="light"
-                                color="green"
-                                onClick={() =>
-                                  openConfirm({
-                                    kind: 'reactivate_company',
-                                    companyId: c.id,
-                                    companyName: c.name,
-                                  })
-                                }
-                              >
-                                Reactivate
-                              </Button>
-
-                              <Button
-                                variant="filled"
-                                color="red"
-                                onClick={() =>
-                                  openConfirm({
-                                    kind: 'delete_company',
-                                    companyId: c.id,
-                                    companyName: c.name,
-                                  })
-                                }
-                              >
-                                Delete
-                              </Button>
-                            </Group>
-                          </Group>
-                        </Stack>
-                      </Card>
-                    ))}
-                  </SimpleGrid>
-
-                  {deactivatedCompanies.length === 0 && (
-                    <Text c="dimmed" size="sm">
-                      No deactivated companies.
-                    </Text>
-                  )}
-                </>
-              )}
-
-              {!isSuperadmin && activeCompanies.length === 0 && (
+              {companies.length > 0 ? (
+                <MantineReactTable
+                  columns={companyColumns}
+                  data={companies}
+                  mantineTableContainerProps={{ className: 'financeTable' }}
+                  enableColumnActions={false}
+                  enableColumnFilters={false}
+                  enableDensityToggle={false}
+                  enableFullScreenToggle={false}
+                  enableTopToolbar={false}
+                  enablePagination
+                  enableSorting
+                  initialState={{
+                    density: 'xs',
+                    pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+                    sorting: [{ id: 'name', desc: false }],
+                  }}
+                  mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+                />
+              ) : (
                 <Text c="dimmed" size="sm">
-                  No active companies available for this user.
+                  No companies available for this user.
                 </Text>
               )}
             </Stack>
           )}
         </Stack>
-      </Card>
+      </Paper>
 
-      <Modal opened={confirmOpen} onClose={closeConfirm} title={confirmLabel}>
+      <Modal opened={confirmOpen} onClose={closeConfirm} title={confirmLabel} fullScreen={isMobile}>
         <Stack>
           <Text size="sm" c="dimmed">
             {confirmDescription}
@@ -298,11 +295,12 @@ export default function LandingPage() {
             autoFocus
           />
 
-          <Group justify="flex-end">
-            <Button variant="light" onClick={closeConfirm}>
+          <Group justify="flex-end" wrap="wrap">
+            <Button variant="light" onClick={closeConfirm} fullWidth={isMobile}>
               Cancel
             </Button>
             <Button
+              fullWidth={isMobile}
               color={
                 confirmTarget?.kind === 'delete_company'
                   ? 'red'

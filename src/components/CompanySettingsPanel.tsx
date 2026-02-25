@@ -3,15 +3,17 @@ import {
   Badge,
   Button,
   Group,
+  Divider,
   Paper,
   Select,
   SimpleGrid,
   Stack,
-  Table,
   Text,
   TextInput,
   Title,
 } from '@mantine/core';
+import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, CompanyRole, UserId } from '../types';
 import { asUserId } from '../types';
@@ -29,6 +31,7 @@ import {
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
   const access = useCompanyAccess(companyId);
   const company = useCompanyQuery(companyId);
@@ -87,9 +90,48 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     </Badge>
   );
 
+  const membershipRows = useMemo(
+    () =>
+      (companyMembershipsQ.data ?? []).map((m) => {
+        const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
+        return {
+          key: `${m.companyId}:${m.userId}`,
+          userName: u?.name ?? String(m.userId),
+          userEmail: u?.email ?? '',
+          role: m.role,
+        };
+      }),
+    [companyMembershipsQ.data, usersQ.data]
+  );
+
+  const membershipColumns = useMemo<MRT_ColumnDef<(typeof membershipRows)[number]>[]>(
+    () => [
+      {
+        accessorKey: 'userName',
+        header: 'User',
+        Cell: ({ row }) => (
+          <Stack gap={2}>
+            <Text fw={600}>{row.original.userName}</Text>
+            {row.original.userEmail ? (
+              <Text size="xs" c="dimmed">
+                {row.original.userEmail}
+              </Text>
+            ) : null}
+          </Stack>
+        ),
+      },
+      {
+        accessorKey: 'role',
+        header: 'Role',
+        Cell: ({ row }) => <Badge variant="light">{row.original.role}</Badge>,
+      },
+    ],
+    []
+  );
+
   return (
     <Stack gap="lg">
-      <Group justify="space-between" align="flex-end">
+      <Group justify="space-between" align="flex-end" wrap="wrap">
         <Stack gap={2}>
           <Title order={4}>Company settings</Title>
           <Text size="sm" c="dimmed">
@@ -160,7 +202,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               value={effectiveRoleUserId}
               onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
               searchable
-              style={{ minWidth: 320 }}
+              style={{ width: '100%', maxWidth: 420 }}
             />
             <Select
               label="Company role"
@@ -172,7 +214,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               ]}
               value={membershipCompanyRole}
               onChange={(v) => setMembershipCompanyRole(toCompanyRole(v))}
-              style={{ minWidth: 200 }}
+              style={{ width: '100%', maxWidth: 220 }}
             />
             <Button
               disabled={!effectiveRoleUserId || !membershipCompanyRole}
@@ -187,28 +229,21 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               Set
             </Button>
           </Group>
-
-          <Table withTableBorder>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>User</Table.Th>
-                <Table.Th>Role</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {(companyMembershipsQ.data ?? []).map((m) => {
-                const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
-                return (
-                  <Table.Tr key={`${m.companyId}:${m.userId}`}>
-                    <Table.Td>{u ? `${u.name} (${u.email})` : m.userId}</Table.Td>
-                    <Table.Td>
-                      <Badge variant="light">{m.role}</Badge>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+          <Divider />
+          <MantineReactTable
+            columns={membershipColumns}
+            data={membershipRows}
+            getRowId={(row) => row.key}
+            mantineTableContainerProps={{ className: 'financeTable' }}
+            mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+            enableColumnActions={false}
+            enableColumnFilters={false}
+            enableSorting
+            enableTopToolbar={false}
+            enableDensityToggle={false}
+            enableFullScreenToggle={false}
+            initialState={{ density: 'xs', pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 } }}
+          />
         </Stack>
       </Paper>
     </Stack>

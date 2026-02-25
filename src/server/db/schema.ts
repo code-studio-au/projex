@@ -3,8 +3,49 @@ import type { Generated } from 'kysely';
 // Minimal DB schema types for the Start + Kysely migration.
 // Extend as you move more logic server-side.
 
-export interface TxnTable {
+export interface CompanyTable {
   id: string;
+  name: string;
+  status: 'active' | 'deactivated';
+  deactivated_at: string | null;
+}
+
+export interface ProjectTable {
+  id: string;
+  company_id: string;
+  name: string;
+  description: string | null;
+  currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
+  status: 'active' | 'archived';
+  visibility: 'company' | 'private';
+}
+
+export interface UserTable {
+  id: string;
+  email: string;
+  name: string;
+  disabled: boolean;
+}
+
+export interface CompanyMembershipTable {
+  company_id: string;
+  user_id: string;
+  role: 'superadmin' | 'admin' | 'executive' | 'management' | 'member';
+}
+
+export interface ProjectMembershipTable {
+  project_id: string;
+  user_id: string;
+  role: 'owner' | 'lead' | 'member' | 'viewer';
+}
+
+export interface TxnTable {
+  /** Internal PK (BIGINT). */
+  id: Generated<string>;
+  /** Public/client transaction ID. */
+  public_id: string;
+  /** External/import source reference used for dedupe. */
+  external_id: string | null;
   company_id: string;
   project_id: string;
   txn_date: string; // Postgres DATE (YYYY-MM-DD)
@@ -48,6 +89,11 @@ export interface SubCategoryTable {
 }
 
 export interface DB {
+  companies: CompanyTable;
+  projects: ProjectTable;
+  users: UserTable;
+  company_memberships: CompanyMembershipTable;
+  project_memberships: ProjectMembershipTable;
   txns: TxnTable;
   budget_lines: BudgetLineTable;
   categories: CategoryTable;

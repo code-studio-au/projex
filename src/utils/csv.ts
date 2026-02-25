@@ -103,7 +103,7 @@ export function rowsToImportTxns(
     const map: Record<string, string> = {};
     for (const k of Object.keys(r)) map[normalizeHeader(k)] = r[k];
 
-    const id =
+    const externalId =
       map['id'] ||
       map['transactionid'] ||
       map['txn_id'] ||
@@ -119,7 +119,7 @@ export function rowsToImportTxns(
     const amountCents = Math.abs(toCents(amountParsed));
 
     return {
-      id: id.trim() || undefined, // optional (many CSVs won't have it)
+      externalId: externalId.trim() || undefined, // optional (many CSVs won't have it)
       date,
       item,
       description,
@@ -174,11 +174,15 @@ export /**
 function deriveStableTxnId(
   t: Pick<
     ImportTxnWithTaxonomy,
-    'id' | 'date' | 'item' | 'description' | 'amountCents'
+    'id' | 'externalId' | 'date' | 'item' | 'description' | 'amountCents'
   >,
   occurrence = 1
 ): TxnId | string {
-  // Prefer bank-provided / CSV id if present
+  // Prefer external/bank-provided reference for deterministic local IDs.
+  if (t.externalId && String(t.externalId).trim()) {
+    const hash = fnv1a32(String(t.externalId).trim().toLowerCase()).toString(36);
+    return occurrence === 1 ? `txn_ext_${hash}` : `txn_ext_${hash}_${occurrence}`;
+  }
   if (t.id && String(t.id).trim()) return String(t.id).trim();
 
   // Otherwise, derive from content fingerprint
@@ -199,20 +203,27 @@ export function assignStableIds(
   });
 }
 
-/** Filter out transactions whose IDs already exist in the destination list */
-export function filterDuplicatesById<T extends { id: string }>(
+function dedupeKeyForTxn(t: { id: string; externalId?: string }) {
+  const ext = (t.externalId ?? '').trim();
+  return ext ? `external:${ext}` : `id:${t.id}`;
+}
+
+/** Filter out transactions whose dedupe keys already exist in the destination list */
+export function filterDuplicatesByKey<T extends { id: string; externalId?: string }>(
   items: T[],
-  existingIds: Set<string>,
+  existingKeys: Set<string>,
   skipDuplicates: boolean
 ): { kept: T[]; skipped: number } {
   if (!skipDuplicates) return { kept: items, skipped: 0 };
   const kept: T[] = [];
   let skipped = 0;
   for (const it of items) {
-    if (existingIds.has(it.id)) {
+    const key = dedupeKeyForTxn(it);
+    if (existingKeys.has(key)) {
       skipped++;
       continue;
     }
+    existingKeys.add(key);
     kept.push(it);
   }
   return { kept, skipped };
@@ -220,24 +231,26 @@ export function filterDuplicatesById<T extends { id: string }>(
 
 export function finalizeImportTxns(
   importTxns: ImportTxnWithTaxonomy[],
-  opts?: { existingIds?: Set<string>; skipDuplicates?: boolean }
+  opts?: { existingKeys?: Set<string>; skipDuplicates?: boolean }
 ): { txns: UnscopedTxn[]; skipped: number } {
-  const existingIds = opts?.existingIds ?? new Set<string>();
+  const existingKeys = new Set(opts?.existingKeys ?? []);
   const skipDuplicates = opts?.skipDuplicates ?? true;
 
   const withIds = assignStableIds(importTxns).map((t) => ({
     ...t,
     id: String(t.id), // normalize to string for dedupe lookup
+    externalId: t.externalId?.trim() || undefined,
   }));
 
-  const { kept, skipped } = filterDuplicatesById(
+  const { kept, skipped } = filterDuplicatesByKey(
     withIds,
-    existingIds,
+    existingKeys,
     skipDuplicates
   );
 
   const out: UnscopedTxn[] = kept.map((t) => ({
     id: asTxnId(t.id || uid()),
+    externalId: t.externalId,
     date: t.date,
     item: t.item,
     description: t.description,

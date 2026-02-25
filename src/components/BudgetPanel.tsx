@@ -163,7 +163,7 @@ export default function BudgetPanel(props: {
           ),
           accessorFn: (row) => sumMonths(row, yearMonths),
           Cell: ({ cell }) => (
-            <Text fw={700}>
+            <Text className="table-body-emphasis">
               {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
             </Text>
           ),
@@ -202,7 +202,7 @@ export default function BudgetPanel(props: {
               ),
               accessorFn: (row) => sumMonths(row, months),
               Cell: ({ cell }) => (
-                <Text fw={700}>
+                <Text className="table-body-emphasis">
                   {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
                 </Text>
               ),
@@ -225,7 +225,7 @@ export default function BudgetPanel(props: {
               header: formatMonthLabel(mk),
               accessorFn: (row) => row.actualByMonthKey[mk] ?? 0,
               Cell: ({ cell }) => (
-                <Text>
+                <Text className="table-body-right">
                   {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
                 </Text>
               ),
@@ -275,7 +275,7 @@ export default function BudgetPanel(props: {
         accessorKey: 'totalActualCents',
         header: 'Actual (Total)',
         Cell: ({ cell }) => (
-          <Text fw={700}>
+          <Text className="table-body-emphasis">
             {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
           </Text>
         ),
@@ -288,7 +288,7 @@ export default function BudgetPanel(props: {
         Cell: ({ cell }) => {
           const v = cell.getValue<number>();
           return (
-            <Text fw={700} c={v < 0 ? 'red' : undefined}>
+            <Text className="table-body-emphasis" c={v < 0 ? 'red' : undefined}>
               {formatCurrencyFromCents(v, currencyCode)}
             </Text>
           );
@@ -321,8 +321,13 @@ export default function BudgetPanel(props: {
         columns={budgetColumns}
         data={rollups.rollupRows}
         state={{ columnVisibility }}
+        mantineTableContainerProps={{ className: 'financeTable budgetTable' }}
+        mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
         enablePagination={false}
         enableSorting={false}
+        enableTopToolbar={false}
+        enableDensityToggle={false}
+        enableFullScreenToggle={false}
       />
     </Stack>
   );

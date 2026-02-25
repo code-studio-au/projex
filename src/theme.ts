@@ -11,10 +11,12 @@ import { createTheme } from '@mantine/core';
 export const theme = createTheme({
   primaryColor: 'blue',
   defaultRadius: 'md',
-  fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
+  fontFamily:
+    '"Plus Jakarta Sans", "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif',
   headings: {
-    fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
-    fontWeight: '700',
+    fontFamily:
+      '"Plus Jakarta Sans", "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif',
+    fontWeight: '650',
   },
   spacing: {
     xs: '0.625rem', // 10px
@@ -39,7 +41,8 @@ export const theme = createTheme({
     AppShell: {
       styles: {
         main: {
-          background: 'var(--mantine-color-gray-0)',
+          background:
+            'radial-gradient(circle at top right, rgba(226, 232, 240, 0.45), transparent 35%), var(--mantine-color-gray-0)',
         },
       },
     },
@@ -54,6 +57,12 @@ export const theme = createTheme({
       defaultProps: {
         radius: 'lg',
         withBorder: true,
+      },
+      styles: {
+        root: {
+          backgroundColor: 'rgba(255,255,255,0.92)',
+          backdropFilter: 'blur(2px)',
+        },
       },
     },
     Button: {

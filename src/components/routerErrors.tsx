@@ -1,4 +1,4 @@
-import { Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
+import { Badge, Button, Container, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { Link, isNotFound, useRouter } from '@tanstack/react-router';
 
 import { landingRoute } from '../router';
@@ -6,9 +6,14 @@ import { landingRoute } from '../router';
 export function RootNotFoundComponent() {
   return (
     <Container size="sm" py="xl">
-      <Card withBorder radius="lg" p="xl">
+      <Paper withBorder radius="lg" p="xl">
         <Stack gap="md">
-          <Title order={2}>Page not found</Title>
+          <Group justify="space-between" align="center">
+            <Title order={2}>Page not found</Title>
+            <Badge variant="light" color="gray">
+              404
+            </Badge>
+          </Group>
           <Text c="dimmed">
             That route doesn’t exist. If you followed a link, it may be outdated.
           </Text>
@@ -18,7 +23,7 @@ export function RootNotFoundComponent() {
             </Link>
           </Group>
         </Stack>
-      </Card>
+      </Paper>
     </Container>
   );
 }
@@ -37,9 +42,14 @@ export function RootErrorComponent(props: { error: unknown }) {
 
   return (
     <Container size="sm" py="xl">
-      <Card withBorder radius="lg" p="xl">
+      <Paper withBorder radius="lg" p="xl">
         <Stack gap="md">
-          <Title order={2}>{is404 ? 'Not found' : 'Something went wrong'}</Title>
+          <Group justify="space-between" align="center">
+            <Title order={2}>{is404 ? 'Not found' : 'Something went wrong'}</Title>
+            <Badge variant="light" color={is404 ? 'gray' : 'red'}>
+              {is404 ? '404' : 'error'}
+            </Badge>
+          </Group>
           <Text c="dimmed">{message}</Text>
 
           <Group justify="flex-end">
@@ -56,7 +66,7 @@ export function RootErrorComponent(props: { error: unknown }) {
             </Link>
           </Group>
         </Stack>
-      </Card>
+      </Paper>
     </Container>
   );
 }

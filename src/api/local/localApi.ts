@@ -96,6 +96,77 @@ function clearSession() {
   writeSession(null);
 }
 
+function normalizeExternalId(value: string | undefined): string | undefined {
+  const next = value?.trim();
+  return next ? next : undefined;
+}
+
+function isIsoDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function assertNonEmptyTrimmed(value: string, label: string) {
+  if (!value.trim()) {
+    throw new AppError('VALIDATION_ERROR', `${label} is required`);
+  }
+}
+
+function assertLengthMax(value: string, label: string, max: number) {
+  if (value.length > max) {
+    throw new AppError('VALIDATION_ERROR', `${label} must be at most ${max} characters`);
+  }
+}
+
+function assertValidEmail(value: string) {
+  const email = value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new AppError('VALIDATION_ERROR', 'Email is invalid');
+  }
+}
+
+function assertAmountCents(value: number, label: string) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new AppError('VALIDATION_ERROR', `${label} must be a non-negative integer`);
+  }
+}
+
+function assertTxnInputShape(input: Pick<Txn, 'date' | 'item' | 'description' | 'amountCents'>) {
+  if (!isIsoDateOnly(input.date)) {
+    throw new AppError('VALIDATION_ERROR', 'Transaction date must be YYYY-MM-DD');
+  }
+  assertNonEmptyTrimmed(input.item, 'Transaction item');
+  assertNonEmptyTrimmed(input.description, 'Transaction description');
+  assertLengthMax(input.item, 'Transaction item', 160);
+  assertLengthMax(input.description, 'Transaction description', 500);
+  assertAmountCents(input.amountCents, 'Transaction amount');
+}
+
+function assertUniqueTransactionKeysInProject(transactions: Txn[]) {
+  const ids = new Set<string>();
+  const externalIds = new Set<string>();
+
+  for (const t of transactions) {
+    const idKey = String(t.id);
+    if (ids.has(idKey)) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `Duplicate transaction id in project: ${idKey}`
+      );
+    }
+    ids.add(idKey);
+
+    const ext = normalizeExternalId(t.externalId);
+    if (!ext) continue;
+    if (externalIds.has(ext)) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `Duplicate transaction externalId in project: ${ext}`
+      );
+    }
+    externalIds.add(ext);
+  }
+}
+
 export class LocalApi implements ProjexApi {
   private nowIso() {
     return new Date().toISOString();
@@ -133,7 +204,7 @@ export class LocalApi implements ProjexApi {
     // validate user exists
     const st = ensureState();
     const found = st.users.find((u) => u.id === userId);
-    if (!found) throw new Error('Unknown user');
+    if (!found) throw new AppError('NOT_FOUND', 'Unknown user');
     const session: Session = { userId };
     writeSession(session);
     return session;
@@ -144,13 +215,40 @@ export class LocalApi implements ProjexApi {
   }
 
   async listUsers(): Promise<User[]> {
-    return ensureState().users;
+    const st = ensureState();
+    const s = readSession();
+
+    // Local login bootstrap: allow reading seed users before auth.
+    if (!s) return st.users;
+    if (this.isSuperadmin(s.userId, st)) return st.users;
+
+    const allowedCompanyIds = new Set(
+      st.companyMemberships
+        .filter((m) => m.userId === s.userId)
+        .map((m) => m.companyId)
+    );
+
+    const allowedUserIds = new Set(
+      st.companyMemberships
+        .filter((m) => allowedCompanyIds.has(m.companyId))
+        .map((m) => m.userId)
+    );
+
+    return st.users.filter((u) => allowedUserIds.has(u.id));
   }
 
   async listAllCompanyMemberships(): Promise<CompanyMembership[]> {
-    // Local mode helper for client-side UX gating.
-    // Server-backed mode should treat authorization as server-truth.
-    return ensureState().companyMemberships;
+    const st = ensureState();
+    const { userId } = this.requireSession();
+    if (this.isSuperadmin(userId, st)) return st.companyMemberships;
+
+    const allowedCompanyIds = new Set(
+      st.companyMemberships
+        .filter((m) => m.userId === userId)
+        .map((m) => m.companyId)
+    );
+
+    return st.companyMemberships.filter((m) => allowedCompanyIds.has(m.companyId));
   }
 
   async listCompanies(): Promise<Company[]> {
@@ -240,7 +338,7 @@ export class LocalApi implements ProjexApi {
   async listTransactions(projectId: ProjectId): Promise<Txn[]> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('project:view', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     return slice?.transactions ?? [];
@@ -249,17 +347,20 @@ export class LocalApi implements ProjexApi {
   async createTxn(projectId: ProjectId, input: TxnCreateInput): Promise<Txn> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('txns:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
+    assertTxnInputShape(input);
     const now = this.nowIso();
     const next: Txn = {
       ...input,
       id: input.id ?? asTxnId(uid('txn')),
+      externalId: normalizeExternalId(input.externalId),
       createdAt: input.createdAt ?? now,
       updatedAt: now,
     };
+    assertUniqueTransactionKeysInProject([...slice.transactions, next]);
     const nextState: PersistedStateV1 = {
       ...st,
       dataByProjectId: {
@@ -274,16 +375,26 @@ export class LocalApi implements ProjexApi {
   async updateTxn(projectId: ProjectId, input: TxnUpdateInput): Promise<Txn> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('txns:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     const idx = slice.transactions.findIndex((t) => t.id === input.id);
-    if (idx < 0) throw new Error('Unknown transaction');
-    const updated: Txn = { ...slice.transactions[idx], ...input, updatedAt: this.nowIso() };
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown transaction');
+    const nextExternalId = Object.prototype.hasOwnProperty.call(input, 'externalId')
+      ? normalizeExternalId(input.externalId)
+      : normalizeExternalId(slice.transactions[idx].externalId);
+    const updated: Txn = {
+      ...slice.transactions[idx],
+      ...input,
+      externalId: nextExternalId,
+      updatedAt: this.nowIso(),
+    };
+    assertTxnInputShape(updated);
 
     const nextTxns = slice.transactions.slice();
     nextTxns[idx] = updated;
+    assertUniqueTransactionKeysInProject(nextTxns);
 
     writeState({
       ...st,
@@ -298,10 +409,10 @@ export class LocalApi implements ProjexApi {
   async deleteTxn(projectId: ProjectId, txnId: TxnId): Promise<void> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('txns:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     writeState({
       ...st,
       dataByProjectId: {
@@ -316,9 +427,7 @@ export class LocalApi implements ProjexApi {
 
   async listCompanyMemberships(companyId: CompanyId): Promise<CompanyMembership[]> {
     const st = ensureState();
-    // only admins/execs/superadmin can manage members; regular members can view company but not list members
-    // For simplicity in local mode we allow all company members to read memberships.
-    this.requireSession();
+    this.assertCan('company:view', companyId);
     return st.companyMemberships.filter((m) => m.companyId === companyId);
   }
 
@@ -345,7 +454,7 @@ export class LocalApi implements ProjexApi {
   async listProjectMemberships(projectId: ProjectId): Promise<ProjectMembership[]> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('project:view', p.companyId, projectId);
     return st.projectMemberships.filter((m) => m.projectId === projectId);
   }
@@ -402,7 +511,7 @@ export class LocalApi implements ProjexApi {
   ): Promise<ProjectMembership> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('project:edit', p.companyId, projectId);
     const idx = st.projectMemberships.findIndex(
       (m) => m.projectId === projectId && m.userId === userId
@@ -422,7 +531,7 @@ export class LocalApi implements ProjexApi {
   ): Promise<void> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('project:edit', p.companyId, projectId);
     writeState({
       ...st,
@@ -435,7 +544,7 @@ export class LocalApi implements ProjexApi {
   async listCategories(projectId: ProjectId): Promise<Category[]> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('project:view', p.companyId, projectId);
     return st.dataByProjectId[projectId]?.categories ?? [];
   }
@@ -443,7 +552,7 @@ export class LocalApi implements ProjexApi {
   async listSubCategories(projectId: ProjectId): Promise<SubCategory[]> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('project:view', p.companyId, projectId);
     return st.dataByProjectId[projectId]?.subCategories ?? [];
   }
@@ -455,6 +564,8 @@ export class LocalApi implements ProjexApi {
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
+    assertNonEmptyTrimmed(input.name, 'Category name');
+    assertLengthMax(input.name, 'Category name', 120);
 
     // Idempotency: categories are unique by name per project (case-insensitive).
     const nameKey = input.name.trim().toLowerCase();
@@ -477,12 +588,16 @@ export class LocalApi implements ProjexApi {
   async updateCategory(projectId: ProjectId, input: CategoryUpdateInput): Promise<Category> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
+    if (typeof input.name === 'string') {
+      assertNonEmptyTrimmed(input.name, 'Category name');
+      assertLengthMax(input.name, 'Category name', 120);
+    }
     const idx = slice.categories.findIndex((c) => c.id === input.id);
-    if (idx < 0) throw new Error('Unknown category');
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown category');
     const updated: Category = { ...slice.categories[idx], ...input, updatedAt: this.nowIso() };
     const categories = slice.categories.slice();
     categories[idx] = updated;
@@ -496,10 +611,10 @@ export class LocalApi implements ProjexApi {
   async deleteCategory(projectId: ProjectId, categoryId: Category['id']): Promise<void> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     const remainingCats = slice.categories.filter((c) => c.id !== categoryId);
     const remainingSubs = slice.subCategories.filter((s) => s.categoryId !== categoryId);
     // Clear references on budgets + transactions
@@ -538,6 +653,8 @@ export class LocalApi implements ProjexApi {
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
+    assertNonEmptyTrimmed(input.name, 'Subcategory name');
+    assertLengthMax(input.name, 'Subcategory name', 120);
 
     // Idempotency: subcategories are unique per (categoryId, name) within a project.
     const nameKey = input.name.trim().toLowerCase();
@@ -565,12 +682,16 @@ export class LocalApi implements ProjexApi {
   ): Promise<SubCategory> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
+    if (typeof input.name === 'string') {
+      assertNonEmptyTrimmed(input.name, 'Subcategory name');
+      assertLengthMax(input.name, 'Subcategory name', 120);
+    }
     const idx = slice.subCategories.findIndex((s) => s.id === input.id);
-    if (idx < 0) throw new Error('Unknown subcategory');
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown subcategory');
     const updated: SubCategory = { ...slice.subCategories[idx], ...input, updatedAt: this.nowIso() };
     const subCategories = slice.subCategories.slice();
     subCategories[idx] = updated;
@@ -584,10 +705,10 @@ export class LocalApi implements ProjexApi {
   async deleteSubCategory(projectId: ProjectId, subCategoryId: SubCategory['id']): Promise<void> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     const subCategories = slice.subCategories.filter((s) => s.id !== subCategoryId);
     const budgets = slice.budgets.map((b) =>
       b.subCategoryId === subCategoryId
@@ -611,17 +732,18 @@ export class LocalApi implements ProjexApi {
   async listBudgets(projectId: ProjectId): Promise<BudgetLine[]> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('project:view', p.companyId, projectId);
     return st.dataByProjectId[projectId]?.budgets ?? [];
   }
   async createBudget(projectId: ProjectId, input: BudgetCreateInput): Promise<BudgetLine> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('budget:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
+    assertAmountCents(input.allocatedCents, 'Budget allocated amount');
 
     // Idempotency: budget lines are unique per (projectId, subCategoryId).
     // This mirrors a future DB uniqueness constraint and prevents duplicate
@@ -659,12 +781,15 @@ export class LocalApi implements ProjexApi {
   async updateBudget(projectId: ProjectId, input: BudgetUpdateInput): Promise<BudgetLine> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('budget:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     const idx = slice.budgets.findIndex((b) => b.id === input.id);
-    if (idx < 0) throw new Error('Unknown budget');
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown budget');
+    if (typeof input.allocatedCents !== 'undefined') {
+      assertAmountCents(input.allocatedCents, 'Budget allocated amount');
+    }
     const updated: BudgetLine = { ...slice.budgets[idx], ...input, updatedAt: this.nowIso() };
     const budgets = slice.budgets.slice();
     budgets[idx] = updated;
@@ -678,10 +803,10 @@ export class LocalApi implements ProjexApi {
   async deleteBudget(projectId: ProjectId, budgetId: BudgetLine['id']): Promise<void> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('budget:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     writeState({
       ...st,
       dataByProjectId: {
@@ -694,6 +819,8 @@ export class LocalApi implements ProjexApi {
   async createProject(companyId: CompanyId, input: ProjectCreateInput): Promise<Project> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
+    assertNonEmptyTrimmed(input.name, 'Project name');
+    assertLengthMax(input.name, 'Project name', 120);
     const id = input.id ?? asProjectId(uid('prj'));
     const next: Project = {
       id,
@@ -722,7 +849,11 @@ export class LocalApi implements ProjexApi {
   async updateProject(input: ProjectUpdateInput): Promise<Project> {
     const st = ensureState();
     const idx = st.projects.findIndex((p) => p.id === input.id);
-    if (idx < 0) throw new Error('Unknown project');
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown project');
+    if (typeof input.name === 'string') {
+      assertNonEmptyTrimmed(input.name, 'Project name');
+      assertLengthMax(input.name, 'Project name', 120);
+    }
     this.assertCan('project:edit', st.projects[idx].companyId, st.projects[idx].id);
     const updated: Project = { ...st.projects[idx], ...input };
     const projects = st.projects.slice();
@@ -749,7 +880,11 @@ export class LocalApi implements ProjexApi {
   async updateCompany(input: CompanyUpdateInput): Promise<Company> {
     const st = ensureState();
     const idx = st.companies.findIndex((c) => c.id === input.id);
-    if (idx < 0) throw new Error('Unknown company');
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown company');
+    if (typeof input.name === 'string') {
+      assertNonEmptyTrimmed(input.name, 'Company name');
+      assertLengthMax(input.name, 'Company name', 120);
+    }
     this.assertCan('company:edit', st.companies[idx].id);
     const updated: Company = { ...st.companies[idx], ...input };
     const companies = st.companies.slice();
@@ -805,8 +940,7 @@ export class LocalApi implements ProjexApi {
 
     // Reactivate company
     const companies = st.companies.slice();
-    const { deactivatedAt, ...rest } = company;
-    companies[idx] = { ...rest, status: 'active' };
+    companies[idx] = { ...company, status: 'active', deactivatedAt: undefined };
 
     // Reactivate all projects in the company
     const projects: Project[] = st.projects.map((p) =>
@@ -928,7 +1062,14 @@ export class LocalApi implements ProjexApi {
   ): Promise<User> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
-    const next: User = { id: asUserId(uid('usr')), name, email };
+    assertNonEmptyTrimmed(name, 'User name');
+    assertLengthMax(name, 'User name', 120);
+    assertValidEmail(email);
+    const emailNorm = email.trim().toLowerCase();
+    if (st.users.some((u) => u.email.trim().toLowerCase() === emailNorm)) {
+      throw new AppError('CONFLICT', 'A user with this email already exists');
+    }
+    const next: User = { id: asUserId(uid('usr')), name: name.trim(), email: email.trim() };
     writeState({ ...st, users: [...st.users, next] });
     // add membership
     await this.upsertCompanyMembership(companyId, next.id, role);
@@ -941,19 +1082,36 @@ export class LocalApi implements ProjexApi {
   ): Promise<{ count: number }> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
-    if (!p) throw new Error('Unknown project');
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('project:import', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    if (!slice) throw new Error('Unknown project');
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
+    const normalizedIncoming = input.txns.map((t) => {
+      if (t.projectId !== projectId) {
+        throw new AppError('VALIDATION_ERROR', 'Transaction projectId does not match import target');
+      }
+      if (t.companyId !== p.companyId) {
+        throw new AppError('VALIDATION_ERROR', 'Transaction companyId does not match project company');
+      }
+      return {
+        ...t,
+        externalId: normalizeExternalId(t.externalId),
+      };
+    });
+    normalizedIncoming.forEach((txn) => assertTxnInputShape(txn));
+
     const nextTxns =
       input.mode === 'replaceAll'
-        ? input.txns
-        : [...slice.transactions, ...input.txns];
+        ? normalizedIncoming
+        : [...slice.transactions, ...normalizedIncoming];
+
+    assertUniqueTransactionKeysInProject(nextTxns);
+
     writeState({
       ...st,
       dataByProjectId: { ...st.dataByProjectId, [projectId]: { ...slice, transactions: nextTxns } },
     });
-    return { count: input.txns.length };
+    return { count: normalizedIncoming.length };
   }
 
   async resetToSeed(): Promise<void> {

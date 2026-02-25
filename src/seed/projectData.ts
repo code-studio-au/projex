@@ -89,6 +89,7 @@ function makeProjectSlice(projectId: ProjectId): SeedProjectDataSlice {
     .filter((t) => pickProjectForTxn(String(t.id)) === projectId)
     .map((t) => ({
       id: asTxnId(String(t.id)),
+      externalId: String(t.id),
       companyId,
       projectId,
       date: t.date,

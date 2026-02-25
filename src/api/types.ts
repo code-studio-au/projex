@@ -24,6 +24,8 @@ import type {
  * - Prefer coarse-grained, command-shaped methods.
  * - All money is in minor units (cents).
  * - txn.date is a date-only string (YYYY-MM-DD) mapped to Postgres DATE.
+ * - Txn.internalId is a server-managed BIGINT (exposed as decimal string if needed).
+ * - Txn.externalId stores source/import reference for dedupe and audit.
  * - createdAt/updatedAt are ISO strings mapped to Postgres TIMESTAMPTZ.
  */
 
@@ -34,8 +36,8 @@ export type Session = {
 export type CsvImportMode = 'append' | 'replaceAll';
 
 // Inputs (command-style)
-export type TxnCreateInput = Omit<Txn, 'id'> & { id?: TxnId };
-export type TxnUpdateInput = Partial<Omit<Txn, 'id'>> & { id: TxnId };
+export type TxnCreateInput = Omit<Txn, 'id' | 'internalId'> & { id?: TxnId };
+export type TxnUpdateInput = Partial<Omit<Txn, 'id' | 'internalId'>> & { id: TxnId };
 
 export type BudgetCreateInput = Omit<BudgetLine, 'id'> & {
   id?: BudgetLine['id'];

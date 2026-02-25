@@ -9,6 +9,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
@@ -49,6 +50,7 @@ export default function TransactionsPanel(props: {
   } = props;
 
   const [manageOpen, setManageOpen] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
   /**
    * Count invalid transaction dates so the UI can surface problems early.
@@ -97,13 +99,18 @@ export default function TransactionsPanel(props: {
   const txnColumns: MRT_ColumnDef<(typeof txns.transactions)[number]>[] = [
     { accessorKey: 'date', header: 'Date', size: 110 },
     { accessorKey: 'item', header: 'Item', size: 160 },
-    { accessorKey: 'description', header: 'Description', size: 360 },
+    {
+      accessorKey: 'description',
+      header: 'Description',
+      size: 360,
+      Cell: ({ cell }) => <Text className="table-body-left">{cell.getValue<string>()}</Text>,
+    },
     {
       accessorKey: 'amountCents',
       header: 'Amount',
       size: 130,
       Cell: ({ cell }) => (
-        <Text className="table-body-right-bold">
+        <Text className="table-body-emphasis">
           {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
         </Text>
       ),
@@ -138,7 +145,7 @@ export default function TransactionsPanel(props: {
       },
       Cell: ({ row }) => {
         const cat = taxonomy.getCategoryName(row.original.categoryId);
-        return <Text>{cat}</Text>;
+        return <Text className="table-body-left">{cat}</Text>;
       },
     },
     {
@@ -174,8 +181,8 @@ export default function TransactionsPanel(props: {
           !!row.original.subCategoryId &&
           taxonomy.validSubIds.has(row.original.subCategoryId);
         return (
-          <Group gap="xs" wrap="nowrap">
-            <Text>{sub}</Text>
+          <Group gap="xs" wrap="wrap">
+            <Text className="table-body-left">{sub}</Text>
             {!ok && (
               <Badge color="red" variant="light">
                 Uncoded
@@ -190,7 +197,7 @@ export default function TransactionsPanel(props: {
   return (
     <Stack gap="md">
       <Paper withBorder radius="md" p="md">
-        <Group justify="space-between" align="flex-end">
+        <Group justify="space-between" align="flex-end" wrap="wrap">
           <Stack gap={4}>
             <Title order={5}>Transaction coding</Title>
             <Text size="sm" c="dimmed">
@@ -204,7 +211,7 @@ export default function TransactionsPanel(props: {
             )}
           </Stack>
 
-          <Group gap="sm" align="flex-end">
+          <Group gap="sm" align="flex-end" wrap="wrap">
             <Select
               label="Month"
               placeholder="All months"
@@ -212,6 +219,7 @@ export default function TransactionsPanel(props: {
               value={monthFilterKey}
               clearable
               onChange={setMonthFilterKey}
+              style={{ width: isMobile ? '100%' : 180 }}
             />
             <Select
               label="View"
@@ -221,9 +229,11 @@ export default function TransactionsPanel(props: {
               ]}
               value={showUncodedOnly ? 'uncoded' : 'all'}
               onChange={(v) => setShowUncodedOnly(v === 'uncoded')}
+              style={{ width: isMobile ? '100%' : 170 }}
             />
             <Button
               variant="light"
+              fullWidth={isMobile}
               disabled={readOnly || !canEditTaxonomy}
               onClick={() => setManageOpen(true)}
             >
@@ -254,10 +264,13 @@ export default function TransactionsPanel(props: {
         enablePagination
         initialState={{
           density: 'xs',
-          pagination: { pageIndex: 0, pageSize: 10 },
+          pagination: { pageIndex: 0, pageSize: isMobile ? 6 : 10 },
         }}
         mantineTableContainerProps={{ className: 'financeTable txnTable' }}
-        mantineTableProps={{ highlightOnHover: true }}
+        mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+        enableTopToolbar={false}
+        enableDensityToggle={false}
+        enableFullScreenToggle={false}
         mantineTableBodyRowProps={({ row }) => {
           const ok =
             !!row.original.subCategoryId &&

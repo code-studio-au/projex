@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Badge, Button, Group, Paper, Select, Stack, Table, Text, Title } from '@mantine/core';
+import { Badge, Button, Group, Paper, Select, Stack, Text, Title } from '@mantine/core';
+import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, ProjectId, ProjectRole, UserId } from '../types';
 import { asUserId } from '../types';
@@ -20,6 +22,7 @@ export default function ProjectSettingsPanel(props: {
   projectId: ProjectId;
 }) {
   const { companyId, projectId } = props;
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
   const company = useCompanyQuery(companyId);
   const project = useProjectQuery(projectId);
@@ -57,7 +60,64 @@ export default function ProjectSettingsPanel(props: {
   const upsert = useUpsertProjectMembershipMutation(projectId);
   const del = useDeleteProjectMembershipMutation(projectId);
 
-  const members = projectMembershipsQ.data ?? [];
+  const members = useMemo(() => projectMembershipsQ.data ?? [], [projectMembershipsQ.data]);
+  const memberRows = useMemo(
+    () =>
+      members
+        .filter((m) => companyUsers.some((cu) => cu.id === m.userId))
+        .map((m, idx) => {
+          const user = (usersQ.data ?? []).find((x) => x.id === m.userId);
+          return {
+            key: `${m.projectId}:${m.userId}:${m.role}:${idx}`,
+            userId: m.userId,
+            role: m.role,
+            name: user?.name ?? String(m.userId),
+            email: user?.email ?? '',
+          };
+        }),
+    [members, companyUsers, usersQ.data]
+  );
+
+  const memberColumns = useMemo<MRT_ColumnDef<(typeof memberRows)[number]>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'User',
+        Cell: ({ row }) => (
+          <Stack gap={2}>
+            <Text fw={600}>{row.original.name}</Text>
+            {row.original.email ? (
+              <Text size="xs" c="dimmed">
+                {row.original.email}
+              </Text>
+            ) : null}
+          </Stack>
+        ),
+      },
+      {
+        accessorKey: 'role',
+        header: 'Role',
+        Cell: ({ row }) => <Badge variant="light">{row.original.role}</Badge>,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        Cell: ({ row }) => (
+          <Button
+            size="xs"
+            color="red"
+            variant="light"
+            disabled={!canEditProject}
+            onClick={() => del.mutate({ userId: row.original.userId, role: row.original.role })}
+          >
+            Remove
+          </Button>
+        ),
+      },
+    ],
+    [canEditProject, del]
+  );
 
   if (!project.data) {
     return (
@@ -72,7 +132,7 @@ export default function ProjectSettingsPanel(props: {
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between">
+      <Group justify="space-between" wrap="wrap">
         <Stack gap={2}>
           <Title order={4}>Project settings</Title>
           <Text c="dimmed" size="sm">
@@ -107,7 +167,7 @@ export default function ProjectSettingsPanel(props: {
                 { value: 'company', label: 'Company-wide (visible to all company users)' },
               ]}
               disabled={!canEditProject}
-              style={{ minWidth: 360 }}
+              style={{ width: '100%', maxWidth: 460 }}
             />
           </Group>
         </Stack>
@@ -123,7 +183,7 @@ export default function ProjectSettingsPanel(props: {
               value={memberUserId}
               onChange={(v) => setMemberUserId(v ? asUserId(v) : null)}
               searchable
-              style={{ minWidth: 320 }}
+              style={{ width: '100%', maxWidth: 420 }}
             />
             <Select
               label="Role"
@@ -135,7 +195,7 @@ export default function ProjectSettingsPanel(props: {
               ]}
               value={memberRole}
               onChange={(v) => setMemberRole((v as ProjectRole | null) ?? null)}
-              style={{ minWidth: 200 }}
+              style={{ width: '100%', maxWidth: 220 }}
             />
             <Button
               disabled={!canEditProject || !memberUserId || !memberRole}
@@ -156,50 +216,20 @@ export default function ProjectSettingsPanel(props: {
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
           <Title order={5}>Current members</Title>
-          <Table withTableBorder>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>User</Table.Th>
-                <Table.Th>Role</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {members.map((m, idx) => {
-                const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
-                // Only render users that actually belong to this company.
-                if (!companyUsers.some((cu) => cu.id === m.userId)) return null;
-                return (
-                  <Table.Tr key={`${m.projectId}:${m.userId}:${m.role}:${idx}`}>
-                    <Table.Td>
-                      <Stack gap={4}>
-                        <Text fw={600}>{u ? u.name : m.userId}</Text>
-                        {u && (
-                          <Text size="xs" c="dimmed">
-                            {u.email}
-                          </Text>
-                        )}
-                      </Stack>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge variant="light">{m.role}</Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Button
-                        size="xs"
-                        color="red"
-                        variant="light"
-                        disabled={!canEditProject}
-                        onClick={() => del.mutate({ userId: m.userId, role: m.role })}
-                      >
-                        Remove
-                      </Button>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+          <MantineReactTable
+            columns={memberColumns}
+            data={memberRows}
+            getRowId={(row) => row.key}
+            mantineTableContainerProps={{ className: 'financeTable' }}
+            mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+            enableColumnActions={false}
+            enableColumnFilters={false}
+            enableSorting
+            enableTopToolbar={false}
+            enableDensityToggle={false}
+            enableFullScreenToggle={false}
+            initialState={{ density: 'xs', pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 } }}
+          />
         </Stack>
       </Paper>
     </Stack>

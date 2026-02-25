@@ -1,11 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
-  Card,
   Group,
   Modal,
-  SimpleGrid,
   Stack,
   Tabs,
   Text,
@@ -13,6 +11,8 @@ import {
   Title,
 } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
+import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, ProjectId } from '../types';
 import { asCompanyId } from '../types';
@@ -30,6 +30,7 @@ import { useCompanyAccess } from '../hooks/useCompanyAccess';
 export default function CompanyDashboardPage() {
   const { companyId: rawCompanyId } = companyRoute.useParams();
   const companyId: CompanyId = asCompanyId(rawCompanyId);
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
   const companyQ = useCompanyQuery(companyId);
   const projectsQ = useProjectsQuery(companyId);
@@ -61,11 +62,11 @@ export default function CompanyDashboardPage() {
     | null
   >(null);
 
-  const openConfirm = (target: NonNullable<typeof confirmTarget>) => {
+  const openConfirm = useCallback((target: NonNullable<typeof confirmTarget>) => {
     setConfirmTarget(target);
     setConfirmText('');
     setConfirmOpen(true);
-  };
+  }, []);
 
   const closeConfirm = () => {
     setConfirmOpen(false);
@@ -96,83 +97,131 @@ export default function CompanyDashboardPage() {
     return confirmText.trim() === confirmTarget.projectName;
   }, [confirmText, confirmTarget]);
 
-  const renderProjectCard = (p: (typeof rows)[number]) => (
-    <Card key={p.id} withBorder radius="lg" p="md">
-      <Stack gap={6}>
-        <Group justify="space-between" align="center">
-          <Text fw={700}>{p.name}</Text>
-          <Group gap={6}>
-            {p.status === 'archived' ? (
-              <Badge variant="light" color="gray">
-                Deactivated
-              </Badge>
-            ) : null}
-            {p.visibility === 'private' ? (
-              <Badge variant="light">Private</Badge>
-            ) : !access.can('project:view', p.id) ? (
-              <Badge variant="light">Company</Badge>
-            ) : null}
-          </Group>
-        </Group>
-        <Text size="sm" c="dimmed" lineClamp={2}>
-          {p.description || p.id}
-        </Text>
-        <Group justify="space-between" mt="sm">
-          {p.status === 'active' && access.can('project:view', p.id) ? (
-            <Link to={projectRoute.to} params={{ companyId, projectId: p.id }}>
-              <Button component="span" variant="light">
-                Open workspace
-              </Button>
-            </Link>
+  const projectColumns = useMemo<MRT_ColumnDef<(typeof rows)[number]>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Project',
+      },
+      {
+        accessorKey: 'description',
+        header: 'Description',
+        Cell: ({ row }) => (
+          <Text size="sm" c="dimmed">
+            {row.original.description || row.original.id}
+          </Text>
+        ),
+      },
+      {
+        accessorKey: 'visibility',
+        header: 'Visibility',
+        Cell: ({ row }) =>
+          row.original.visibility === 'private' ? (
+            <Badge variant="light">Private</Badge>
           ) : (
-            <Button disabled variant="light">
-              Open workspace
-            </Button>
-          )}
+            <Badge variant="light" color="blue">
+              Company
+            </Badge>
+          ),
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        Cell: ({ row }) =>
+          row.original.status === 'active' ? (
+            <Badge variant="light">Active</Badge>
+          ) : (
+            <Badge variant="light" color="gray">
+              Deactivated
+            </Badge>
+          ),
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        Cell: ({ row }) => {
+          const project = row.original;
+          const canOpen = project.status === 'active' && access.can('project:view', project.id);
 
-          {canManageProjects && (
-            <Group gap="xs">
-              {p.status === 'active' ? (
-                <Button
-                  variant="light"
-                  color="orange"
-                  onClick={() => openConfirm({ kind: 'deactivate_project', projectId: p.id, projectName: p.name })}
-                >
-                  Deactivate
-                </Button>
+          return (
+            <Group gap="xs" wrap="wrap">
+              {canOpen ? (
+                <Link to={projectRoute.to} params={{ companyId, projectId: project.id }}>
+                  <Button component="span" size="xs" variant="filled">
+                    Open
+                  </Button>
+                </Link>
               ) : (
-                <>
-                  <Button
-                    variant="light"
-                    color="green"
-                    onClick={() => openConfirm({ kind: 'reactivate_project', projectId: p.id, projectName: p.name })}
-                  >
-                    Reactivate
-                  </Button>
-                  <Button
-                    variant="filled"
-                    color="red"
-                    onClick={() => openConfirm({ kind: 'delete_project', projectId: p.id, projectName: p.name })}
-                  >
-                    Delete
-                  </Button>
-                </>
+                <Button size="xs" variant="light" disabled>
+                  Open
+                </Button>
               )}
+
+              {canManageProjects &&
+                (project.status === 'active' ? (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="orange"
+                    onClick={() =>
+                      openConfirm({
+                        kind: 'deactivate_project',
+                        projectId: project.id,
+                        projectName: project.name,
+                      })
+                    }
+                  >
+                    Deactivate
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="green"
+                      onClick={() =>
+                        openConfirm({
+                          kind: 'reactivate_project',
+                          projectId: project.id,
+                          projectName: project.name,
+                        })
+                      }
+                    >
+                      Reactivate
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="filled"
+                      color="red"
+                      onClick={() =>
+                        openConfirm({
+                          kind: 'delete_project',
+                          projectId: project.id,
+                          projectName: project.name,
+                        })
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </>
+                ))}
             </Group>
-          )}
-        </Group>
-      </Stack>
-    </Card>
+          );
+        },
+      },
+    ],
+    [access, canManageProjects, companyId, openConfirm]
   );
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between" align="flex-end">
+      <Group justify="space-between" align="flex-end" wrap="wrap">
         <Stack gap={2}>
           <Title order={2}>{companyQ.data?.name ?? 'Company'}</Title>
           <Text c="dimmed">Projects and settings</Text>
         </Stack>
-        <Group gap="sm">
+        <Group gap="sm" wrap="wrap">
           {canAddProjects && (
             <>
               <Button variant="filled" onClick={() => setNewProjectOpen(true)}>
@@ -218,7 +267,7 @@ export default function CompanyDashboardPage() {
       </Group>
 
       <Tabs defaultValue="projects" keepMounted={false}>
-        <Tabs.List>
+        <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
           <Tabs.Tab value="projects">Projects</Tabs.Tab>
           <Tabs.Tab value="settings" disabled={!canEditCompany}>
             Settings
@@ -226,37 +275,67 @@ export default function CompanyDashboardPage() {
         </Tabs.List>
 
         <Tabs.Panel value="projects" pt="md">
-          {activeProjects.length > 0 && (
-            <>
-              <Text size="sm" c="dimmed">
-                Active
-              </Text>
-              <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="md">
-                {activeProjects.map(renderProjectCard)}
-              </SimpleGrid>
-            </>
-          )}
+          {rows.length > 0 ? (
+            <Stack gap="md">
+              <Group justify="space-between" align="center">
+                <Text size="sm" c="dimmed">
+                  Active projects
+                </Text>
+                <Badge variant="light">{activeProjects.length}</Badge>
+              </Group>
 
-          {canManageProjects && (
-            <>
-              <Text size="sm" c="dimmed" mt="md">
-                Deactivated
-              </Text>
-              <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="md">
-                {archivedProjects.map(renderProjectCard)}
-              </SimpleGrid>
-              {archivedProjects.length === 0 && (
-                <Card withBorder radius="lg" p="md" mt="md">
-                  <Text c="dimmed">No deactivated projects.</Text>
-                </Card>
+              <MantineReactTable
+                columns={projectColumns}
+                data={activeProjects}
+                mantineTableContainerProps={{ className: 'financeTable' }}
+                enableColumnActions={false}
+                enableColumnFilters={false}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+                enableTopToolbar={false}
+                enablePagination
+                enableSorting
+                initialState={{
+                  density: 'xs',
+                  pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+                  sorting: [{ id: 'name', desc: false }],
+                }}
+                mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+              />
+
+              {canManageProjects && (
+                <>
+                  <Group justify="space-between" align="center">
+                    <Text size="sm" c="dimmed">
+                      Deactivated projects
+                    </Text>
+                    <Badge variant="light" color="gray">
+                      {archivedProjects.length}
+                    </Badge>
+                  </Group>
+                  <MantineReactTable
+                    columns={projectColumns}
+                    data={archivedProjects}
+                    mantineTableContainerProps={{ className: 'financeTable' }}
+                    enableColumnActions={false}
+                    enableColumnFilters={false}
+                    enableDensityToggle={false}
+                    enableFullScreenToggle={false}
+                    enableTopToolbar={false}
+                    enablePagination
+                    enableSorting
+                    initialState={{
+                      density: 'xs',
+                      pagination: { pageIndex: 0, pageSize: isMobile ? 4 : 6 },
+                      sorting: [{ id: 'name', desc: false }],
+                    }}
+                    mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+                  />
+                </>
               )}
-            </>
-          )}
-
-          {rows.length === 0 && (
-            <Card withBorder radius="lg" p="md" mt="md">
-              <Text c="dimmed">No projects found for this company.</Text>
-            </Card>
+            </Stack>
+          ) : (
+            <Text c="dimmed">No projects found for this company.</Text>
           )}
         </Tabs.Panel>
 
@@ -265,7 +344,7 @@ export default function CompanyDashboardPage() {
         </Tabs.Panel>
       </Tabs>
 
-      <Modal opened={confirmOpen} onClose={closeConfirm} title={confirmLabel}>
+      <Modal opened={confirmOpen} onClose={closeConfirm} title={confirmLabel} fullScreen={isMobile}>
         <Stack>
           <Text size="sm" c="dimmed">
             {confirmDescription}
@@ -282,11 +361,12 @@ export default function CompanyDashboardPage() {
             autoFocus
           />
 
-          <Group justify="flex-end">
-            <Button variant="light" onClick={closeConfirm}>
+          <Group justify="flex-end" wrap="wrap">
+            <Button variant="light" onClick={closeConfirm} fullWidth={isMobile}>
               Cancel
             </Button>
             <Button
+              fullWidth={isMobile}
               color={
                 confirmTarget?.kind === 'delete_project'
                   ? 'red'

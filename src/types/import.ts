@@ -3,10 +3,12 @@ import type { Txn } from './domain';
 
 /**
  * Import-only transaction shape (no company/project scoping yet).
- * `id` is optional because many CSVs don't provide a stable transaction ID.
+ * `externalId` is optional because many CSVs don't provide a stable source ID.
+ * `id` is optional and may be synthesized later for local/client identity.
  */
-export type ImportTxn = Omit<Txn, 'id' | 'companyId' | 'projectId'> & {
+export type ImportTxn = Omit<Txn, 'id' | 'internalId' | 'companyId' | 'projectId'> & {
   id?: TxnId | string;
+  externalId?: string;
 };
 
 /**

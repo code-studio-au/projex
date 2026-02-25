@@ -14,6 +14,7 @@
 
   --table-head-bold-weight: 700;
   --table-body-bold-weight: 600;
+  --table-body-emphasis-weight: 500;
 }
 
 /* ===== App-level look & feel ===== */
@@ -25,12 +26,12 @@ body {
 
 body {
   margin: 0;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
-    sans-serif;
+  font-family: "Plus Jakarta Sans", "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--mantine-color-gray-0);
+  background: radial-gradient(circle at top right, rgba(226, 232, 240, 0.45), transparent 35%),
+    var(--mantine-color-gray-0);
 }
 
 /* Subtle, consistent focus ring for keyboard navigation */
@@ -107,6 +108,14 @@ a {
   width: 100%;
 }
 
+/* Shared monetary emphasis style used across tables (easy single-point tuning). */
+.financeTable .table-body-emphasis {
+  font-size: var(--table-body-font-size) !important;
+  font-weight: var(--table-body-emphasis-weight) !important;
+  text-align: right !important;
+  width: 100%;
+}
+
 /* Make sure the wrapper flex doesn’t fight alignment */
 .financeTable .table-head-right .mrt-table-head-cell-content,
 .financeTable .table-head-right-bold .mrt-table-head-cell-content {
@@ -129,6 +138,30 @@ a {
   min-height: 22px !important;
   padding: 2px !important;
   background: transparent !important;
+}
+
+/* Shared MRT shell look */
+.financeTable .mantine-ScrollArea-root {
+  border-radius: 10px;
+  border: 1px solid var(--mantine-color-gray-3);
+}
+
+.financeTable thead th {
+  background: rgba(248, 250, 252, 0.95);
+}
+
+@media (max-width: 48em) {
+  :root {
+    --table-head-font-size: 11.5px;
+    --table-body-font-size: 11.5px;
+  }
+
+  .financeTable th .mantine-ActionIcon-root {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+  }
 }
 
 /* ===== Budget-specific tweaks ===== */

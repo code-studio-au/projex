@@ -7,7 +7,9 @@
 
 export const INVARIANTS: readonly string[] = [
   // IDs
-  'All IDs are branded strings generated client-side; server may also generate but must return branded IDs.',
+  'Domain/public IDs are branded strings (e.g. Txn.id) used by the client/API boundary.',
+  'Transactions also have a server-managed internal BIGINT primary key (Txn.internalId in API shape as decimal string).',
+  'Imported transaction references are stored as Txn.externalId (nullable text) for dedupe/audit.',
 
   // Money
   'All money fields are stored in cents (minor units) as integers.',
@@ -18,6 +20,8 @@ export const INVARIANTS: readonly string[] = [
   'createdAt/updatedAt are ISO strings (UTC) and map to Postgres TIMESTAMPTZ.',
 
   // Uniqueness
+  'Transaction public IDs are unique per project.',
+  'Transaction external IDs are unique per project when present (NULL/empty allowed).',
   'Budget lines are unique per (projectId, subCategoryId).',
   'Company membership is unique per (companyId, userId).',
   'Project membership is unique per (projectId, userId).',
