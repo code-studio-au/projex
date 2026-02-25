@@ -20,7 +20,7 @@ export function useCreateTxnMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (input: TxnCreateInput) => api.createTransaction(projectId, input),
+    mutationFn: (input: TxnCreateInput) => api.createTxn(projectId, input),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
     },
@@ -32,7 +32,7 @@ export function useUpdateTxnMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (input: TxnUpdateInput) => api.updateTransaction(projectId, input),
+    mutationFn: (input: TxnUpdateInput) => api.updateTxn(projectId, input),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
     },
@@ -44,7 +44,7 @@ export function useDeleteTxnMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (txnId: TxnId) => api.deleteTransaction(projectId, txnId),
+    mutationFn: (txnId: TxnId) => api.deleteTxn(projectId, txnId),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
     },

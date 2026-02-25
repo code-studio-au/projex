@@ -22,6 +22,7 @@ import {
   seedSubCategories,
   seedTransactions,
 } from './fixtures/concurSeedData';
+import { toCents } from '../utils/money';
 
 export type SeedProjectDataSlice = {
   budgets: BudgetLine[];
@@ -76,27 +77,26 @@ function makeProjectSlice(projectId: ProjectId): SeedProjectDataSlice {
   }));
 
   const budgets: BudgetLine[] = seedBudgets.map((b) => ({
-    ...b,
     id: budgetId(projectId, b.id),
     companyId,
     projectId,
     categoryId: catId(projectId, b.categoryId),
     subCategoryId: subId(projectId, b.subCategoryId),
+    allocatedCents: Math.abs(toCents(b.allocated)),
   }));
 
   const transactions: Txn[] = seedTransactions
     .filter((t) => pickProjectForTxn(String(t.id)) === projectId)
     .map((t) => ({
-      ...t,
       id: asTxnId(String(t.id)),
       companyId,
       projectId,
-      categoryId: t.categoryId
-        ? catId(projectId, t.categoryId as unknown as string)
-        : undefined,
-      subCategoryId: t.subCategoryId
-        ? subId(projectId, t.subCategoryId as unknown as string)
-        : undefined,
+      date: t.date,
+      item: t.item,
+      description: t.description,
+      amountCents: Math.abs(toCents(t.amount)),
+      categoryId: t.categoryId ? catId(projectId, t.categoryId) : undefined,
+      subCategoryId: t.subCategoryId ? subId(projectId, t.subCategoryId) : undefined,
     }));
 
   return { budgets, transactions, categories, subCategories };

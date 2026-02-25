@@ -9,10 +9,14 @@ import type {
 } from './ids';
 import type { CompanyRole, ProjectRole } from './roles';
 
+export type CompanyStatus = 'active' | 'deactivated';
+
 export type Company = {
   id: CompanyId;
   name: string;
-  archived?: boolean;
+  status: CompanyStatus;
+  /** Audit timestamps as ISO strings (UTC). */
+  deactivatedAt?: string;
 };
 
 export type ProjectVisibility = 'company' | 'private';
@@ -52,6 +56,8 @@ export type Category = {
   companyId: CompanyId;
   projectId: ProjectId;
   name: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 export type SubCategory = {
   id: SubCategoryId;
@@ -59,6 +65,8 @@ export type SubCategory = {
   projectId: ProjectId;
   categoryId: CategoryId;
   name: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Txn = {
@@ -68,9 +76,13 @@ export type Txn = {
   date: string; // ISO yyyy-mm-dd
   item: string;
   description: string;
-  amount: number;
+  /** Monetary amount in minor units (e.g. cents). Expenses are positive. */
+  amountCents: number;
   categoryId?: CategoryId;
   subCategoryId?: SubCategoryId;
+  /** Audit timestamps as ISO strings (UTC). */
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type BudgetLine = {
@@ -79,13 +91,18 @@ export type BudgetLine = {
   projectId: ProjectId;
   categoryId?: CategoryId;
   subCategoryId?: SubCategoryId;
-  allocated: number;
+  /** Monetary amount in minor units (e.g. cents). */
+  allocatedCents: number;
+  /** Audit timestamps as ISO strings (UTC). */
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type RollupRow = BudgetLine & {
   categoryName: string;
   subCategoryName: string;
+  /** Monetary amounts in minor units (e.g. cents). */
   actualByMonthKey: Record<string, number>;
-  totalActual: number;
-  remaining: number;
+  totalActualCents: number;
+  remainingCents: number;
 };

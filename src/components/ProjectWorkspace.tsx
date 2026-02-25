@@ -8,7 +8,7 @@ import { useBudgets } from '../hooks/useBudgets';
 import { useTransactions } from '../hooks/useTransactions';
 import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useRollups } from '../hooks/useRollups';
-import { currency } from '../utils/finance';
+import { formatCurrencyFromCents } from '../utils/money';
 
 import { useCompanyQuery, useProjectQuery } from '../queries/reference';
 
@@ -50,8 +50,8 @@ export default function ProjectWorkspace(props: {
   const monthFilterOptions = useMemo(
     () =>
       rollups.monthStarts.map((d) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
         const mk = `${y}-${m}`;
         return { value: mk, label: mk };
       }),
@@ -77,7 +77,7 @@ export default function ProjectWorkspace(props: {
 
         <Group gap="sm">
           <Badge size="lg" variant="light" color={uncoded.count ? 'red' : 'gray'}>
-            Uncoded: {uncoded.count} ({currency(uncoded.amount)})
+            Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, project.data?.currency ?? 'AUD')})
           </Badge>
         </Group>
       </Group>
@@ -99,6 +99,7 @@ export default function ProjectWorkspace(props: {
             <TransactionsPanel
               txns={txns}
               taxonomy={taxonomy}
+              currencyCode={project.data?.currency ?? 'AUD'}
               monthFilterKey={monthFilterKey}
               setMonthFilterKey={setMonthFilterKey}
               monthFilterOptions={monthFilterOptions}
@@ -113,6 +114,7 @@ export default function ProjectWorkspace(props: {
           <Tabs.Panel value="budget" pt="md">
             <BudgetPanel
               projectId={projectId}
+              currencyCode={project.data?.currency ?? 'AUD'}
               rollups={rollups}
               budgets={budgets}
               uncodedSummary={uncoded}

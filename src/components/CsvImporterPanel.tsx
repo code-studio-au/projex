@@ -196,7 +196,7 @@ export default function CsvImporterPanel(props: {
         date: t.date,
         item: t.item,
         description: t.description,
-        amount: t.amount,
+        amountCents: t.amountCents,
         categoryId,
         subCategoryId,
       });

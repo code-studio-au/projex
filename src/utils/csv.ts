@@ -1,6 +1,7 @@
 import type { ImportTxnWithTaxonomy, Txn, TxnId } from '../types';
 import { asTxnId } from '../types';
 import { uid } from './id';
+import { toCents } from './money';
 
 type UnscopedTxn = Omit<Txn, 'companyId' | 'projectId'>;
 
@@ -115,14 +116,14 @@ export function rowsToImportTxns(
     const description = map['description'] || map['memo'] || '';
     const amountRaw = map['amount'] || map['debit'] || '';
     const amountParsed = Number(String(amountRaw).replace(/[^0-9.-]/g, '')) || 0;
-    const amount = Math.abs(amountParsed);
+    const amountCents = Math.abs(toCents(amountParsed));
 
     return {
       id: id.trim() || undefined, // optional (many CSVs won't have it)
       date,
       item,
       description,
-      amount,
+      amountCents,
       category: map['category'] || '',
       subcategory: map['subcategory'] || '',
     };
@@ -138,8 +139,9 @@ function normText(s: string) {
     .replace(/[’‘]/g, "'");
 }
 
-function normAmount(n: number) {
-  return (Math.round((n || 0) * 100) / 100).toFixed(2);
+function normAmountCents(cents: number) {
+  // Use a stable integer representation for fingerprinting.
+  return String(Math.round(Number(cents || 0)));
 }
 
 /** FNV-1a 32-bit hash (fast + deterministic) */
@@ -153,11 +155,11 @@ function fnv1a32(str: string) {
 }
 
 function fingerprint(
-  t: Pick<ImportTxnWithTaxonomy, 'date' | 'item' | 'description' | 'amount'>
+  t: Pick<ImportTxnWithTaxonomy, 'date' | 'item' | 'description' | 'amountCents'>
 ) {
   return [
     t.date || '',
-    normAmount(t.amount),
+    normAmountCents(t.amountCents),
     normText(t.item),
     normText(t.description),
   ].join('|');
@@ -172,7 +174,7 @@ export /**
 function deriveStableTxnId(
   t: Pick<
     ImportTxnWithTaxonomy,
-    'id' | 'date' | 'item' | 'description' | 'amount'
+    'id' | 'date' | 'item' | 'description' | 'amountCents'
   >,
   occurrence = 1
 ): TxnId | string {
@@ -239,7 +241,7 @@ export function finalizeImportTxns(
     date: t.date,
     item: t.item,
     description: t.description,
-    amount: t.amount,
+    amountCents: t.amountCents,
     categoryId: t.categoryId,
     subCategoryId: t.subCategoryId,
   }));

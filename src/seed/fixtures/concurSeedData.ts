@@ -12,6 +12,7 @@ export type SeedBudgetLine = {
   id: string;
   categoryId: string;
   subCategoryId: string;
+  /** Budget allocation in major units (e.g. dollars) for fixture readability. */
   allocated: number;
 };
 export type SeedTxn = {
@@ -19,6 +20,7 @@ export type SeedTxn = {
   date: string;
   item: string;
   description: string;
+  /** Transaction amount in major units (e.g. dollars). Fixtures may be negative (Concur-style). */
   amount: number;
   categoryId?: string;
   subCategoryId?: string;

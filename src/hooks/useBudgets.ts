@@ -24,8 +24,8 @@ export function useBudgets(params: {
 
   const budgets = useMemo(() => q.data ?? [], [q.data]);
 
-  const updateAllocated = (budgetId: BudgetLineId, allocated: number) => {
-    update.mutate({ id: budgetId, allocated: Number(allocated ?? 0) });
+  const updateAllocated = (budgetId: BudgetLineId, allocatedCents: number) => {
+    update.mutate({ id: budgetId, allocatedCents: Number(allocatedCents ?? 0) });
   };
 
   const upsertBudgetForSubCategory = (subCategoryId: SubCategoryId, categoryId: CategoryId) => {
@@ -39,7 +39,7 @@ export function useBudgets(params: {
       projectId,
       categoryId,
       subCategoryId,
-      allocated: 0,
+      allocatedCents: 0,
     });
   };
 

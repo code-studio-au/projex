@@ -9,7 +9,6 @@ import {
 } from '../store/uiPrefs';
 import type { ProjectId, RollupRow } from '../types';
 import {
-  currency,
   formatMonthLabel,
   parseYearMonth,
   quarterKey,
@@ -17,6 +16,7 @@ import {
   sum,
   type Quarter,
 } from '../utils/finance';
+import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 
 type CollapseState = {
   collapsedYears: Set<number>;
@@ -44,13 +44,15 @@ const HEADER_STYLE = {
  */
 export default function BudgetPanel(props: {
   projectId: ProjectId;
+  currencyCode: string;
   rollups: RollupsHook;
   budgets: BudgetsHook;
-  uncodedSummary: { count: number; amount: number };
+  uncodedSummary: { count: number; amountCents: number };
   readOnly?: boolean;
 }) {
   const {
     projectId,
+    currencyCode,
     rollups,
     budgets,
     uncodedSummary,
@@ -161,7 +163,9 @@ export default function BudgetPanel(props: {
           ),
           accessorFn: (row) => sumMonths(row, yearMonths),
           Cell: ({ cell }) => (
-            <Text fw={700}>{currency(cell.getValue<number>())}</Text>
+            <Text fw={700}>
+              {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
+            </Text>
           ),
           aggregationFn: 'sum',
           mantineTableHeadCellProps: {
@@ -197,7 +201,11 @@ export default function BudgetPanel(props: {
                 </span>
               ),
               accessorFn: (row) => sumMonths(row, months),
-              Cell: ({ cell }) => <Text fw={700}>{currency(cell.getValue<number>())}</Text>,
+              Cell: ({ cell }) => (
+                <Text fw={700}>
+                  {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
+                </Text>
+              ),
               aggregationFn: 'sum',
               mantineTableHeadCellProps: {
                 title: 'Click to collapse / expand quarter',
@@ -216,7 +224,11 @@ export default function BudgetPanel(props: {
               id: `m_${mk}`,
               header: formatMonthLabel(mk),
               accessorFn: (row) => row.actualByMonthKey[mk] ?? 0,
-              Cell: ({ cell }) => <Text>{currency(cell.getValue<number>())}</Text>,
+              Cell: ({ cell }) => (
+                <Text>
+                  {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
+                </Text>
+              ),
               aggregationFn: 'sum',
             }));
 
@@ -238,12 +250,12 @@ export default function BudgetPanel(props: {
       { accessorKey: 'categoryName', header: 'Category' },
       { accessorKey: 'subCategoryName', header: 'Subcategory' },
       {
-        accessorKey: 'allocated',
+        accessorKey: 'allocatedCents',
         header: 'Allocated',
-        accessorFn: (row) => row.allocated,
+        accessorFn: (row) => row.allocatedCents,
         Cell: ({ row }) => (
           <NumberInput
-            value={row.original.allocated}
+            value={fromCents(row.original.allocatedCents)}
             min={0}
             size="xs"
             thousandSeparator=","
@@ -253,29 +265,37 @@ export default function BudgetPanel(props: {
             hideControls
             disabled={readOnly}
             onChange={(v) =>
-              updateAllocated(row.original.id, Number(v ?? 0))
+              updateAllocated(row.original.id, toCents(Number(v ?? 0)))
             }
           />
         ),
         aggregationFn: 'sum',
       },
       {
-        accessorKey: 'totalActual',
+        accessorKey: 'totalActualCents',
         header: 'Actual (Total)',
-        Cell: ({ cell }) => <Text fw={700}>{currency(cell.getValue<number>())}</Text>,
+        Cell: ({ cell }) => (
+          <Text fw={700}>
+            {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
+          </Text>
+        ),
         aggregationFn: 'sum',
       },
       {
-        id: 'remaining',
+        id: 'remainingCents',
         header: 'Remaining',
-        accessorFn: (row) => row.remaining,
+        accessorFn: (row) => row.remainingCents,
         Cell: ({ cell }) => {
           const v = cell.getValue<number>();
-          return <Text fw={700} c={v < 0 ? 'red' : undefined}>{currency(v)}</Text>;
+          return (
+            <Text fw={700} c={v < 0 ? 'red' : undefined}>
+              {formatCurrencyFromCents(v, currencyCode)}
+            </Text>
+          );
         },
         aggregationFn: (_id, rows) =>
-          sum(rows.map((r) => r.original.allocated)) -
-          sum(rows.map((r) => r.original.totalActual)),
+          sum(rows.map((r) => r.original.allocatedCents)) -
+          sum(rows.map((r) => r.original.totalActualCents)),
       },
       ...yearGroups,
     ];
@@ -283,6 +303,7 @@ export default function BudgetPanel(props: {
     rollups.visibleMonthKeys,
     collapsedYears,
     collapsedQuarters,
+    currencyCode,
     updateAllocated,
     readOnly,
   ]);
@@ -292,7 +313,7 @@ export default function BudgetPanel(props: {
       <Group justify="space-between">
         <Title order={5}>Budget rollups</Title>
         <Badge color={uncodedSummary.count ? 'red' : 'gray'}>
-          Uncoded: {uncodedSummary.count} ({currency(uncodedSummary.amount)})
+          Uncoded: {uncodedSummary.count} ({formatCurrencyFromCents(uncodedSummary.amountCents, currencyCode)})
         </Badge>
       </Group>
 

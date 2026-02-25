@@ -13,29 +13,31 @@ import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import {
-  currency,
   monthKeyFromStart,
   monthStart,
   parseISODate,
 } from '../utils/finance';
+import { formatCurrencyFromCents } from '../utils/money';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
 
 export default function TransactionsPanel(props: {
   txns: TransactionsHook;
   taxonomy: TaxonomyHook;
+  currencyCode: string;
   monthFilterKey: string | null;
   setMonthFilterKey: (v: string | null) => void;
   monthFilterOptions: { value: string; label: string }[];
   showUncodedOnly: boolean;
   setShowUncodedOnly: (v: boolean) => void;
-  uncodedSummary: { count: number; amount: number };
+  uncodedSummary: { count: number; amountCents: number };
   canEditTaxonomy: boolean;
   readOnly?: boolean;
 }) {
   const {
     txns,
     taxonomy,
+    currencyCode,
     monthFilterKey,
     setMonthFilterKey,
     monthFilterOptions,
@@ -97,12 +99,12 @@ export default function TransactionsPanel(props: {
     { accessorKey: 'item', header: 'Item', size: 160 },
     { accessorKey: 'description', header: 'Description', size: 360 },
     {
-      accessorKey: 'amount',
+      accessorKey: 'amountCents',
       header: 'Amount',
       size: 130,
       Cell: ({ cell }) => (
         <Text className="table-body-right-bold">
-          {currency(cell.getValue<number>())}
+          {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
         </Text>
       ),
       mantineTableBodyCellProps: { className: 'table-body-right' },
@@ -236,7 +238,7 @@ export default function TransactionsPanel(props: {
             variant="light"
             color={uncodedSummary.count ? 'red' : 'gray'}
           >
-            Uncoded: {uncodedSummary.count} ({currency(uncodedSummary.amount)})
+            Uncoded: {uncodedSummary.count} ({formatCurrencyFromCents(uncodedSummary.amountCents, currencyCode)})
           </Badge>
         </Group>
       </Paper>

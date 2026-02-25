@@ -71,7 +71,7 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (vars: { txns: Txn[]; mode: CsvImportMode }) =>
-      api.importTransactions(projectId, vars.txns, vars.mode),
+      api.importTransactions(projectId, vars),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
     },
@@ -85,6 +85,62 @@ export function useResetToSeedMutation() {
     mutationFn: () => api.resetToSeed(),
     onSuccess: () => {
       qc.invalidateQueries();
+    },
+  });
+}
+
+export function useDeactivateCompanyMutation() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (companyId: CompanyId) => api.deactivateCompany(companyId),
+    onSuccess: (_, companyId) => {
+      qc.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "companies" });
+      qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) });
+      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+    },
+  });
+}
+
+export function useDeleteCompanyMutation() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (companyId: CompanyId) => api.deleteCompany(companyId),
+    onSuccess: (_, companyId) => {
+      qc.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "companies" });
+      qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) });
+      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+      qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
+      qc.invalidateQueries({ queryKey: qk.users() });
+    },
+  });
+}
+
+export function useDeactivateProjectMutation(companyId: CompanyId) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (projectId: ProjectId) => api.deactivateProject(projectId),
+    onSuccess: (_, projectId) => {
+      qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+    },
+  });
+}
+
+export function useDeleteProjectMutation(companyId: CompanyId) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (projectId: ProjectId) => api.deleteProject(projectId),
+    onSuccess: (_, projectId) => {
+      qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
     },
   });
 }

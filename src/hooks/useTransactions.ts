@@ -60,7 +60,7 @@ export function useTransactions(params: { projectId: ProjectId }) {
     );
     return {
       count: bad.length,
-      amount: bad.reduce((a, b) => a + Math.abs(b.amount ?? 0), 0),
+      amountCents: bad.reduce((a, b) => a + Math.abs(b.amountCents ?? 0), 0),
     };
   };
 

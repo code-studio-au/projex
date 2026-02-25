@@ -113,7 +113,7 @@ export function useRollups(params: {
 
       // Projex treats expense amounts as positive. Be resilient to Concur-style
       // exports (negative expenses) and any legacy data.
-      rec[mk] = (rec[mk] ?? 0) + Math.abs(t.amount);
+      rec[mk] = (rec[mk] ?? 0) + Math.abs(t.amountCents);
     }
 
     return { actualsBySubMonth: map, badDateCount: bad };
@@ -129,24 +129,28 @@ export function useRollups(params: {
         const rec = actualsBySubMonth.get(b.subCategoryId) ?? {};
         const actualByMonthKey: Record<string, number> = {};
         for (const mk of visibleMonthKeys) actualByMonthKey[mk] = rec[mk] ?? 0;
-        const totalActual = sum(Object.values(actualByMonthKey));
+        const totalActualCents = sum(Object.values(actualByMonthKey));
 
         return {
           ...b,
           categoryName: taxonomy.getCategoryName(b.categoryId),
           subCategoryName: taxonomy.getSubCategoryName(b.subCategoryId),
           actualByMonthKey,
-          totalActual,
-          remaining: b.allocated - totalActual,
+          totalActualCents,
+          remainingCents: b.allocatedCents - totalActualCents,
         };
       })
       .filter((r): r is RollupRow => !!r && !!r.categoryName && !!r.subCategoryName);
   }, [budgets, actualsBySubMonth, visibleMonthKeys, taxonomy]);
 
   const totals = useMemo(() => {
-    const allocated = sum(rollupRows.map((r) => r.allocated));
-    const actual = sum(rollupRows.map((r) => r.totalActual));
-    return { allocated, actual, remaining: allocated - actual };
+    const allocatedCents = sum(rollupRows.map((r) => r.allocatedCents));
+    const actualCents = sum(rollupRows.map((r) => r.totalActualCents));
+    return {
+      allocatedCents,
+      actualCents,
+      remainingCents: allocatedCents - actualCents,
+    };
   }, [rollupRows]);
 
   return { monthStarts, visibleMonthKeys, rollupRows, totals, badDateCount };

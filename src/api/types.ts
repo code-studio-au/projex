@@ -1,0 +1,150 @@
+import type {
+  BudgetLine,
+  Category,
+  Company,
+  CompanyId,
+  CompanyMembership,
+  CompanyRole,
+  Project,
+  ProjectId,
+  ProjectMembership,
+  ProjectRole,
+  SubCategory,
+  Txn,
+  TxnId,
+  User,
+  UserId,
+} from '../types';
+
+/**
+ * API boundary.
+ *
+ * Rules:
+ * - Pure TypeScript types only (no React Query types).
+ * - Prefer coarse-grained, command-shaped methods.
+ * - All money is in minor units (cents).
+ * - txn.date is a date-only string (YYYY-MM-DD) mapped to Postgres DATE.
+ * - createdAt/updatedAt are ISO strings mapped to Postgres TIMESTAMPTZ.
+ */
+
+export type Session = {
+  userId: UserId;
+};
+
+export type CsvImportMode = 'append' | 'replaceAll';
+
+// Inputs (command-style)
+export type TxnCreateInput = Omit<Txn, 'id'> & { id?: TxnId };
+export type TxnUpdateInput = Partial<Omit<Txn, 'id'>> & { id: TxnId };
+
+export type BudgetCreateInput = Omit<BudgetLine, 'id'> & {
+  id?: BudgetLine['id'];
+};
+export type BudgetUpdateInput = Partial<Omit<BudgetLine, 'id'>> & {
+  id: BudgetLine['id'];
+};
+
+export type CategoryCreateInput = Omit<Category, 'id'> & { id?: Category['id'] };
+export type CategoryUpdateInput = Partial<Omit<Category, 'id'>> & {
+  id: Category['id'];
+};
+
+export type SubCategoryCreateInput = Omit<SubCategory, 'id'> & {
+  id?: SubCategory['id'];
+};
+export type SubCategoryUpdateInput = Partial<Omit<SubCategory, 'id'>> & {
+  id: SubCategory['id'];
+};
+
+export type ProjectCreateInput = Pick<Project, 'name'> & { id?: ProjectId };
+export type ProjectUpdateInput = Partial<Omit<Project, 'id'>> & { id: ProjectId };
+
+export type CompanyUpdateInput = Partial<Omit<Company, 'id'>> & { id: CompanyId };
+
+export interface ProjexApi {
+  // session
+  getSession(): Promise<Session | null>;
+  loginAs(userId: UserId): Promise<Session>;
+  logout(): Promise<void>;
+
+  // reference data
+  listUsers(): Promise<User[]>;
+  listCompanies(): Promise<Company[]>;
+  listProjects(companyId: CompanyId): Promise<Project[]>;
+  getCompany(companyId: CompanyId): Promise<Company | null>;
+  getProject(projectId: ProjectId): Promise<Project | null>;
+
+  // memberships / permissions
+  listCompanyMemberships(companyId: CompanyId): Promise<CompanyMembership[]>;
+  listProjectMemberships(projectId: ProjectId): Promise<ProjectMembership[]>;
+  listMyProjectMemberships(companyId: CompanyId): Promise<ProjectMembership[]>;
+
+  /**
+   * Legacy membership mutation helpers used by the current UI.
+   *
+   * In Start/server mode these should be implemented as command-style server
+   * functions that validate session and enforce authorization.
+   */
+  listAllCompanyMemberships(): Promise<CompanyMembership[]>;
+  upsertCompanyMembership(companyId: CompanyId, userId: UserId, role: CompanyRole): Promise<CompanyMembership>;
+  deleteCompanyMembership(companyId: CompanyId, userId: UserId): Promise<void>;
+  upsertProjectMembership(projectId: ProjectId, userId: UserId, role: ProjectRole): Promise<ProjectMembership>;
+  deleteProjectMembership(projectId: ProjectId, userId: UserId, role: ProjectRole): Promise<void>;
+
+  /** Convenience wrappers (command-ish) */
+  setCompanyRole(companyId: CompanyId, userId: UserId, role: CompanyRole): Promise<void>;
+  setProjectRole(projectId: ProjectId, userId: UserId, role: ProjectRole): Promise<void>;
+  removeCompanyMember(companyId: CompanyId, userId: UserId): Promise<void>;
+  removeProjectMember(projectId: ProjectId, userId: UserId): Promise<void>;
+
+  // taxonomy
+  listCategories(projectId: ProjectId): Promise<Category[]>;
+  listSubCategories(projectId: ProjectId): Promise<SubCategory[]>;
+  createCategory(projectId: ProjectId, input: CategoryCreateInput): Promise<Category>;
+  updateCategory(projectId: ProjectId, input: CategoryUpdateInput): Promise<Category>;
+  deleteCategory(projectId: ProjectId, categoryId: Category['id']): Promise<void>;
+  createSubCategory(projectId: ProjectId, input: SubCategoryCreateInput): Promise<SubCategory>;
+  updateSubCategory(projectId: ProjectId, input: SubCategoryUpdateInput): Promise<SubCategory>;
+  deleteSubCategory(projectId: ProjectId, subCategoryId: SubCategory['id']): Promise<void>;
+
+  // budgets
+  listBudgets(projectId: ProjectId): Promise<BudgetLine[]>;
+  createBudget(projectId: ProjectId, input: BudgetCreateInput): Promise<BudgetLine>;
+  updateBudget(projectId: ProjectId, input: BudgetUpdateInput): Promise<BudgetLine>;
+  deleteBudget(projectId: ProjectId, budgetId: BudgetLine['id']): Promise<void>;
+
+  // transactions
+  listTransactions(projectId: ProjectId): Promise<Txn[]>;
+  createTxn(projectId: ProjectId, input: TxnCreateInput): Promise<Txn>;
+  updateTxn(projectId: ProjectId, input: TxnUpdateInput): Promise<Txn>;
+  deleteTxn(projectId: ProjectId, txnId: TxnId): Promise<void>;
+
+  /**
+   * Batch import.
+   *
+   * In server mode this should be one transactional command.
+   */
+  importTransactions(
+    projectId: ProjectId,
+    input: { txns: Txn[]; mode: CsvImportMode }
+  ): Promise<{ count: number }>;
+
+  // admin
+  resetToSeed(): Promise<void>;
+
+  // helpers
+  getDefaultCompanyIdForUser(userId: UserId): Promise<CompanyId | null>;
+  createUserInCompany(companyId: CompanyId, name: string, email: string, role: CompanyRole): Promise<User>;
+
+  // projects / companies
+  createProject(companyId: CompanyId, input: ProjectCreateInput): Promise<Project>;
+  updateProject(input: ProjectUpdateInput): Promise<Project>;
+  createCompany(input: Pick<Company, 'name'> & { id?: CompanyId }): Promise<Company>;
+  updateCompany(input: CompanyUpdateInput): Promise<Company>;
+
+  // lifecycle management (superadmin; exec/admin for projects)
+  deactivateCompany(companyId: CompanyId): Promise<void>;
+  deleteCompany(companyId: CompanyId): Promise<void>;
+  deactivateProject(projectId: ProjectId): Promise<void>;
+  deleteProject(projectId: ProjectId): Promise<void>;
+}

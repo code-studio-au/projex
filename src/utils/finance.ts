@@ -2,28 +2,25 @@ export function sum(nums: number[]) {
   return nums.reduce((a, b) => a + b, 0);
 }
 
-export function currency(n: number, ccy: string = 'AUD') {
-  return n.toLocaleString(undefined, { style: 'currency', currency: ccy });
-}
-
 export function parseISODate(iso: string) {
-  // Accept yyyy-mm-dd OR yyyy-mm (treated as first of month)
+  // Accept yyyy-mm-dd OR yyyy-mm (treated as first of month).
+  // Use UTC to avoid local timezone/DST surprises when deriving month keys.
   const d = iso.length === 7 ? `${iso}-01` : iso;
   const [y, m, day] = d.split('-').map((x) => Number(x));
-  return new Date(y, m - 1, day);
+  return new Date(Date.UTC(y, m - 1, day));
 }
 
 export function monthStart(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
 export function nextMonthStart(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
 }
 
 export function monthKeyFromStart(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
   return `${y}-${m}`; // yyyy-mm
 }
 
