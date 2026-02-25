@@ -21,7 +21,11 @@ import { companyRoute, landingRoute, loginRoute } from '../router';
 import { useCompaniesQuery } from '../queries/reference';
 import { useLogoutMutation, useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
-import { useDeactivateCompanyMutation, useDeleteCompanyMutation } from '../queries/admin';
+import {
+  useDeactivateCompanyMutation,
+  useDeleteCompanyMutation,
+  useReactivateCompanyMutation,
+} from '../queries/admin';
 
 export default function LandingPage() {
   const api = useApi();
@@ -47,12 +51,14 @@ export default function LandingPage() {
   );
 
   const deactivateCompany = useDeactivateCompanyMutation();
+  const reactivateCompany = useReactivateCompanyMutation();
   const deleteCompany = useDeleteCompanyMutation();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [confirmTarget, setConfirmTarget] = useState<
     | { kind: 'deactivate_company'; companyId: CompanyId; companyName: string }
+    | { kind: 'reactivate_company'; companyId: CompanyId; companyName: string }
     | { kind: 'delete_company'; companyId: CompanyId; companyName: string }
     | null
   >(null);
@@ -71,13 +77,18 @@ export default function LandingPage() {
 
   const confirmLabel = useMemo(() => {
     if (!confirmTarget) return '';
-    return confirmTarget.kind === 'deactivate_company' ? 'Deactivate company' : 'Delete company';
+    if (confirmTarget.kind === 'deactivate_company') return 'Deactivate company';
+    if (confirmTarget.kind === 'reactivate_company') return 'Reactivate company';
+    return 'Delete company';
   }, [confirmTarget]);
 
   const confirmDescription = useMemo(() => {
     if (!confirmTarget) return '';
     if (confirmTarget.kind === 'deactivate_company') {
       return 'This will deactivate the company and archive all of its projects. Company users will be unable to use the company until reactivated (server mode can implement membership-level disable).';
+    }
+    if (confirmTarget.kind === 'reactivate_company') {
+      return 'This will reactivate the company and reactivate all of its projects. Company users will be re-enabled for this company.';
     }
     return 'This permanently deletes the company and all related projects, budgets, transactions, taxonomy, and memberships. This cannot be undone.';
   }, [confirmTarget]);
@@ -217,19 +228,35 @@ export default function LandingPage() {
                               </Button>
                             </Link>
 
-                            <Button
-                              variant="filled"
-                              color="red"
-                              onClick={() =>
-                                openConfirm({
-                                  kind: 'delete_company',
-                                  companyId: c.id,
-                                  companyName: c.name,
-                                })
-                              }
-                            >
-                              Delete
-                            </Button>
+                            <Group gap="xs">
+                              <Button
+                                variant="light"
+                                color="green"
+                                onClick={() =>
+                                  openConfirm({
+                                    kind: 'reactivate_company',
+                                    companyId: c.id,
+                                    companyName: c.name,
+                                  })
+                                }
+                              >
+                                Reactivate
+                              </Button>
+
+                              <Button
+                                variant="filled"
+                                color="red"
+                                onClick={() =>
+                                  openConfirm({
+                                    kind: 'delete_company',
+                                    companyId: c.id,
+                                    companyName: c.name,
+                                  })
+                                }
+                              >
+                                Delete
+                              </Button>
+                            </Group>
                           </Group>
                         </Stack>
                       </Card>
@@ -276,12 +303,25 @@ export default function LandingPage() {
               Cancel
             </Button>
             <Button
-              color={confirmTarget?.kind === 'delete_company' ? 'red' : 'orange'}
-              disabled={!isConfirmMatch || deactivateCompany.isPending || deleteCompany.isPending}
+              color={
+                confirmTarget?.kind === 'delete_company'
+                  ? 'red'
+                  : confirmTarget?.kind === 'reactivate_company'
+                    ? 'green'
+                    : 'orange'
+              }
+              disabled={
+                !isConfirmMatch ||
+                deactivateCompany.isPending ||
+                reactivateCompany.isPending ||
+                deleteCompany.isPending
+              }
               onClick={async () => {
                 if (!confirmTarget) return;
                 if (confirmTarget.kind === 'deactivate_company') {
                   await deactivateCompany.mutateAsync(confirmTarget.companyId);
+                } else if (confirmTarget.kind === 'reactivate_company') {
+                  await reactivateCompany.mutateAsync(confirmTarget.companyId);
                 } else {
                   await deleteCompany.mutateAsync(confirmTarget.companyId);
                 }

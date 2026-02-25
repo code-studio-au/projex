@@ -103,6 +103,22 @@ export function useDeactivateCompanyMutation() {
   });
 }
 
+export function useReactivateCompanyMutation() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (companyId: CompanyId) => api.reactivateCompany(companyId),
+    onSuccess: (_, companyId) => {
+      qc.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'companies' });
+      qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) });
+      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+      qc.invalidateQueries({ queryKey: qk.users() });
+      qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
+    },
+  });
+}
+
 export function useDeleteCompanyMutation() {
   const api = useApi();
   const qc = useQueryClient();
@@ -125,6 +141,19 @@ export function useDeactivateProjectMutation(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (projectId: ProjectId) => api.deactivateProject(projectId),
+    onSuccess: (_, projectId) => {
+      qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+    },
+  });
+}
+
+export function useReactivateProjectMutation(companyId: CompanyId) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (projectId: ProjectId) => api.reactivateProject(projectId),
     onSuccess: (_, projectId) => {
       qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });

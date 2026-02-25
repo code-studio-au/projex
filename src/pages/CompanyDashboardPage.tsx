@@ -21,6 +21,7 @@ import {
   useCreateProjectMutation,
   useDeactivateProjectMutation,
   useDeleteProjectMutation,
+  useReactivateProjectMutation,
 } from '../queries/admin';
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
 import { companyRoute, landingRoute, projectRoute } from '../router';
@@ -41,6 +42,7 @@ export default function CompanyDashboardPage() {
 
   const canManageProjects = canEditCompany; // exec/admin/superadmin
   const deactivateProject = useDeactivateProjectMutation(companyId);
+  const reactivateProject = useReactivateProjectMutation(companyId);
   const deleteProject = useDeleteProjectMutation(companyId);
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -54,6 +56,7 @@ export default function CompanyDashboardPage() {
   const [confirmText, setConfirmText] = useState('');
   const [confirmTarget, setConfirmTarget] = useState<
     | { kind: 'deactivate_project'; projectId: ProjectId; projectName: string }
+    | { kind: 'reactivate_project'; projectId: ProjectId; projectName: string }
     | { kind: 'delete_project'; projectId: ProjectId; projectName: string }
     | null
   >(null);
@@ -72,13 +75,18 @@ export default function CompanyDashboardPage() {
 
   const confirmLabel = useMemo(() => {
     if (!confirmTarget) return '';
-    return confirmTarget.kind === 'deactivate_project' ? 'Deactivate project' : 'Delete project';
+    if (confirmTarget.kind === 'deactivate_project') return 'Deactivate project';
+    if (confirmTarget.kind === 'reactivate_project') return 'Reactivate project';
+    return 'Delete project';
   }, [confirmTarget]);
 
   const confirmDescription = useMemo(() => {
     if (!confirmTarget) return '';
     if (confirmTarget.kind === 'deactivate_project') {
       return 'This will archive the project. Archived projects cannot be opened by regular members.';
+    }
+    if (confirmTarget.kind === 'reactivate_project') {
+      return 'This will reactivate the project so it becomes active again.';
     }
     return 'This permanently deletes the project and all related budgets, transactions, and taxonomy. This cannot be undone.';
   }, [confirmTarget]);
@@ -133,13 +141,22 @@ export default function CompanyDashboardPage() {
                   Deactivate
                 </Button>
               ) : (
-                <Button
-                  variant="filled"
-                  color="red"
-                  onClick={() => openConfirm({ kind: 'delete_project', projectId: p.id, projectName: p.name })}
-                >
-                  Delete
-                </Button>
+                <>
+                  <Button
+                    variant="light"
+                    color="green"
+                    onClick={() => openConfirm({ kind: 'reactivate_project', projectId: p.id, projectName: p.name })}
+                  >
+                    Reactivate
+                  </Button>
+                  <Button
+                    variant="filled"
+                    color="red"
+                    onClick={() => openConfirm({ kind: 'delete_project', projectId: p.id, projectName: p.name })}
+                  >
+                    Delete
+                  </Button>
+                </>
               )}
             </Group>
           )}
@@ -270,12 +287,25 @@ export default function CompanyDashboardPage() {
               Cancel
             </Button>
             <Button
-              color={confirmTarget?.kind === 'delete_project' ? 'red' : 'orange'}
-              disabled={!isConfirmMatch || deactivateProject.isPending || deleteProject.isPending}
+              color={
+                confirmTarget?.kind === 'delete_project'
+                  ? 'red'
+                  : confirmTarget?.kind === 'reactivate_project'
+                    ? 'green'
+                    : 'orange'
+              }
+              disabled={
+                !isConfirmMatch ||
+                deactivateProject.isPending ||
+                reactivateProject.isPending ||
+                deleteProject.isPending
+              }
               onClick={async () => {
                 if (!confirmTarget) return;
                 if (confirmTarget.kind === 'deactivate_project') {
                   await deactivateProject.mutateAsync(confirmTarget.projectId);
+                } else if (confirmTarget.kind === 'reactivate_project') {
+                  await reactivateProject.mutateAsync(confirmTarget.projectId);
                 } else {
                   await deleteProject.mutateAsync(confirmTarget.projectId);
                 }

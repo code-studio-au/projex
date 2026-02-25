@@ -144,7 +144,11 @@ export interface ProjexApi {
 
   // lifecycle management (superadmin; exec/admin for projects)
   deactivateCompany(companyId: CompanyId): Promise<void>;
+  /** Reactivate a deactivated company (and associated projects/users). Superadmin only. */
+  reactivateCompany(companyId: CompanyId): Promise<void>;
   deleteCompany(companyId: CompanyId): Promise<void>;
   deactivateProject(projectId: ProjectId): Promise<void>;
+  /** Reactivate an archived project. Requires company edit access. */
+  reactivateProject(projectId: ProjectId): Promise<void>;
   deleteProject(projectId: ProjectId): Promise<void>;
 }

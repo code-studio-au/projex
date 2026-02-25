@@ -793,6 +793,33 @@ export class LocalApi implements ProjexApi {
     writeState({ ...st, companies, projects, users });
   }
 
+  async reactivateCompany(companyId: CompanyId): Promise<void> {
+    const st = ensureState();
+    const { userId } = this.requireSession();
+    if (!this.isSuperadmin(userId, st)) throw new AppError('FORBIDDEN', 'Forbidden');
+
+    const idx = st.companies.findIndex((c) => c.id === companyId);
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Company not found');
+    const company = st.companies[idx];
+    if (company.status === 'active') return;
+
+    // Reactivate company
+    const companies = st.companies.slice();
+    const { deactivatedAt, ...rest } = company;
+    companies[idx] = { ...rest, status: 'active' };
+
+    // Reactivate all projects in the company
+    const projects: Project[] = st.projects.map((p) =>
+      p.companyId === companyId && p.status !== 'active' ? { ...p, status: 'active' } : p
+    );
+
+    // Re-enable users that are members of this company (local-mode simplification).
+    const memberUserIds = new Set(st.companyMemberships.filter((m) => m.companyId === companyId).map((m) => m.userId));
+    const users = st.users.map((u) => (memberUserIds.has(u.id) ? { ...u, disabled: false } : u));
+
+    writeState({ ...st, companies, projects, users });
+  }
+
   async deleteCompany(companyId: CompanyId): Promise<void> {
     const st = ensureState();
     const { userId } = this.requireSession();
@@ -850,6 +877,26 @@ export class LocalApi implements ProjexApi {
     if (p.status === 'archived') return;
     const projects = st.projects.slice();
     projects[pIdx] = { ...p, status: 'archived' };
+    writeState({ ...st, projects });
+  }
+
+  async reactivateProject(projectId: ProjectId): Promise<void> {
+    const st = ensureState();
+    const pIdx = st.projects.findIndex((p) => p.id === projectId);
+    if (pIdx < 0) throw new AppError('NOT_FOUND', 'Project not found');
+    const p = st.projects[pIdx];
+
+    this.assertCan('company:edit', p.companyId);
+
+    const company = st.companies.find((c) => c.id === p.companyId);
+    if (!company) throw new AppError('NOT_FOUND', 'Company not found');
+    if (company.status !== 'active') {
+      throw new AppError('VALIDATION_ERROR', 'Company must be active to reactivate a project');
+    }
+
+    if (p.status === 'active') return;
+    const projects = st.projects.slice();
+    projects[pIdx] = { ...p, status: 'active' };
     writeState({ ...st, projects });
   }
 

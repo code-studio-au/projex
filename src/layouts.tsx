@@ -52,9 +52,9 @@ export function AuthedLayout() {
   });
 
   return (
-    <AppShell padding={0} header={{ height: 84 }}>
+    <AppShell padding={0} header={{ height: 72 }}>
       <AppShell.Header>
-        <Paper withBorder radius={0} p="md">
+        <Paper withBorder radius={0} p="sm" bg="white">
           <Container size="xl">
             <Group justify="space-between">
               <Group gap="sm">
@@ -76,21 +76,25 @@ export function AuthedLayout() {
                   </Button>
                 )}
 
-                <ThemeIcon radius="md" size="lg" variant="light">
-                  PX
-                </ThemeIcon>
-                <Stack gap={0}>
-                  <Text fw={800}>Projex</Text>
-                  <Text size="xs" c="dimmed">
-                    Local mode (TanStack-ready)
-                  </Text>
-                </Stack>
+                <Group gap="sm">
+                  <ThemeIcon radius="md" size="lg" variant="light">
+                    PX
+                  </ThemeIcon>
+                  <Stack gap={0}>
+                    <Text fw={800} lh={1.1} size="lg">
+                      Projex
+                    </Text>
+                    <Text size="xs" c="dimmed" lh={1.1}>
+                      Local mode · Start-ready
+                    </Text>
+                  </Stack>
+                </Group>
               </Group>
 
               <Group gap="sm">
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
-                    <Button variant="subtle">
+                    <Button variant="subtle" px="sm">
                       <Group gap="xs">
                         <Text fw={600}>{userId ?? 'User'}</Text>
                         <Badge variant="light">local</Badge>
@@ -119,7 +123,7 @@ export function AuthedLayout() {
         </Paper>
       </AppShell.Header>
       <AppShell.Main>
-        <Container size="xl" py="lg">
+        <Container size="xl" py="xl">
           <Outlet />
         </Container>
       </AppShell.Main>

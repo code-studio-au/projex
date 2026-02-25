@@ -166,10 +166,16 @@ export class ServerApi implements ProjexApi {
   async deactivateCompany() {
     return this.notImplemented();
   }
+  async reactivateCompany() {
+    return this.notImplemented();
+  }
   async deleteCompany() {
     return this.notImplemented();
   }
   async deactivateProject() {
+    return this.notImplemented();
+  }
+  async reactivateProject() {
     return this.notImplemented();
   }
   async deleteProject() {
