@@ -28,6 +28,8 @@ export type Project = {
   description?: string;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
+  /** Audit timestamp as ISO string (UTC). */
+  deactivatedAt?: string;
   /** Visibility within the company. */
   visibility: ProjectVisibility;
 };

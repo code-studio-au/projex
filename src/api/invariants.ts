@@ -18,6 +18,7 @@ export const INVARIANTS: readonly string[] = [
   // Dates & time
   'Txn.date is YYYY-MM-DD and maps to Postgres DATE.',
   'createdAt/updatedAt are ISO strings (UTC) and map to Postgres TIMESTAMPTZ.',
+  'deactivatedAt is an ISO string (UTC) set when a company or project is deactivated.',
 
   // Uniqueness
   'Transaction public IDs are unique per project.',

@@ -17,6 +17,7 @@ export interface ProjectTable {
   description: string | null;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
+  deactivated_at: string | null;
   visibility: 'company' | 'private';
 }
 

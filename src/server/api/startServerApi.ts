@@ -1,0 +1,291 @@
+import { AppError } from '../../api/errors';
+import type {
+  CsvImportMode,
+  ProjectCreateInput,
+  ProjectUpdateInput,
+  ProjexApi,
+  Session,
+} from '../../api/types';
+import type {
+  Company,
+  CompanyId,
+  CompanyRole,
+  ProjectId,
+  ProjectRole,
+  Txn,
+  TxnId,
+  UserId,
+} from '../../types';
+import type { ServerFnContextInput } from '../fns/runtime';
+import { toServerSession } from '../auth/session';
+import {
+  createCompanyServer,
+  deactivateCompanyServer,
+  deleteCompanyServer,
+  createUserInCompanyServer,
+  getCompanyServer,
+  getDefaultCompanyIdForUserServer,
+  listCompaniesServer,
+  listUsersServer,
+  reactivateCompanyServer,
+  updateCompanyServer,
+} from '../fns/companies';
+import {
+  deleteCompanyMembershipServer,
+  deleteProjectMembershipServer,
+  listAllCompanyMembershipsServer,
+  listCompanyMembershipsServer,
+  listMyProjectMembershipsServer,
+  listProjectMembershipsServer,
+  upsertCompanyMembershipServer,
+  upsertProjectMembershipServer,
+} from '../fns/memberships';
+import {
+  createProjectServer,
+  deactivateProjectServer,
+  deleteProjectServer,
+  getProjectServer,
+  listProjectsServer,
+  reactivateProjectServer,
+  updateProjectServer,
+} from '../fns/projects';
+import {
+  createTxnServer,
+  deleteTxnServer,
+  importTransactionsServer,
+  listTransactionsServer,
+  updateTxnServer,
+} from '../fns/transactions';
+import {
+  createCategoryServer,
+  createSubCategoryServer,
+  deleteCategoryServer,
+  deleteSubCategoryServer,
+  listCategoriesServer,
+  listSubCategoriesServer,
+  updateCategoryServer,
+  updateSubCategoryServer,
+} from '../fns/taxonomy';
+import {
+  createBudgetServer,
+  deleteBudgetServer,
+  listBudgetsServer,
+  updateBudgetServer,
+} from '../fns/budgets';
+
+/**
+ * Server-only adapter for TanStack Start server functions/routes.
+ *
+ * Keep this out of client bundles. It wires the `ProjexApi` contract directly
+ * to server function implementations with auth context.
+ */
+export class StartServerApi implements ProjexApi {
+  private readonly context: ServerFnContextInput;
+
+  constructor(context: ServerFnContextInput) {
+    this.context = context;
+  }
+
+  private notImplemented(): never {
+    throw new AppError('NOT_IMPLEMENTED', 'Not implemented in StartServerApi yet.');
+  }
+
+  // session
+  async getSession() {
+    const session = toServerSession(this.context.auth ?? this.context.session ?? null);
+    if (!session) return null;
+    const value: Session = { userId: session.userId };
+    return value;
+  }
+  async loginAs() {
+    return this.notImplemented();
+  }
+  async logout() {
+    // Auth logout is owned by the auth provider; keep this as a no-op for now.
+    return;
+  }
+
+  // reference data
+  async listUsers() {
+    return listUsersServer({ context: this.context });
+  }
+  async listCompanies() {
+    return listCompaniesServer({ context: this.context });
+  }
+  async listProjects(companyId: CompanyId) {
+    return listProjectsServer({ context: this.context, companyId });
+  }
+  async getCompany(companyId: CompanyId) {
+    return getCompanyServer({ context: this.context, companyId });
+  }
+  async getProject(projectId: ProjectId) {
+    return getProjectServer({ context: this.context, projectId });
+  }
+
+  // memberships
+  async listCompanyMemberships(companyId: CompanyId) {
+    return listCompanyMembershipsServer({ context: this.context, companyId });
+  }
+  async listAllCompanyMemberships() {
+    return listAllCompanyMembershipsServer({ context: this.context });
+  }
+  async listProjectMemberships(projectId: ProjectId) {
+    return listProjectMembershipsServer({ context: this.context, projectId });
+  }
+  async listMyProjectMemberships(companyId: CompanyId) {
+    return listMyProjectMembershipsServer({ context: this.context, companyId });
+  }
+  async upsertCompanyMembership(companyId: CompanyId, userId: UserId, role: CompanyRole) {
+    return upsertCompanyMembershipServer({ context: this.context, companyId, userId, role });
+  }
+  async deleteCompanyMembership(companyId: CompanyId, userId: UserId) {
+    return deleteCompanyMembershipServer({ context: this.context, companyId, userId });
+  }
+  async upsertProjectMembership(projectId: ProjectId, userId: UserId, role: ProjectRole) {
+    return upsertProjectMembershipServer({ context: this.context, projectId, userId, role });
+  }
+  async deleteProjectMembership(projectId: ProjectId, userId: UserId, role: ProjectRole) {
+    return deleteProjectMembershipServer({ context: this.context, projectId, userId, role });
+  }
+  async setCompanyRole(companyId: CompanyId, userId: UserId, role: CompanyRole) {
+    await this.upsertCompanyMembership(companyId, userId, role);
+  }
+  async setProjectRole(projectId: ProjectId, userId: UserId, role: ProjectRole) {
+    await this.upsertProjectMembership(projectId, userId, role);
+  }
+  async removeCompanyMember(companyId: CompanyId, userId: UserId) {
+    await this.deleteCompanyMembership(companyId, userId);
+  }
+  async removeProjectMember(projectId: ProjectId, userId: UserId) {
+    const memberships = await this.listProjectMemberships(projectId);
+    const existing = memberships.find((m) => m.userId === userId);
+    if (!existing) return;
+    await this.deleteProjectMembership(projectId, userId, existing.role);
+  }
+
+  // taxonomy
+  async listCategories(projectId: ProjectId) {
+    return listCategoriesServer({ context: this.context, projectId });
+  }
+  async listSubCategories(projectId: ProjectId) {
+    return listSubCategoriesServer({ context: this.context, projectId });
+  }
+  async createCategory(projectId: ProjectId, input: Parameters<ProjexApi['createCategory']>[1]) {
+    return createCategoryServer({ context: this.context, projectId, input });
+  }
+  async updateCategory(projectId: ProjectId, input: Parameters<ProjexApi['updateCategory']>[1]) {
+    return updateCategoryServer({ context: this.context, projectId, input });
+  }
+  async deleteCategory(projectId: ProjectId, categoryId: Parameters<ProjexApi['deleteCategory']>[1]) {
+    return deleteCategoryServer({ context: this.context, projectId, categoryId });
+  }
+  async createSubCategory(projectId: ProjectId, input: Parameters<ProjexApi['createSubCategory']>[1]) {
+    return createSubCategoryServer({ context: this.context, projectId, input });
+  }
+  async updateSubCategory(projectId: ProjectId, input: Parameters<ProjexApi['updateSubCategory']>[1]) {
+    return updateSubCategoryServer({ context: this.context, projectId, input });
+  }
+  async deleteSubCategory(
+    projectId: ProjectId,
+    subCategoryId: Parameters<ProjexApi['deleteSubCategory']>[1]
+  ) {
+    return deleteSubCategoryServer({ context: this.context, projectId, subCategoryId });
+  }
+
+  // budgets
+  async listBudgets(projectId: ProjectId) {
+    return listBudgetsServer({ context: this.context, projectId });
+  }
+  async createBudget(projectId: ProjectId, input: Parameters<ProjexApi['createBudget']>[1]) {
+    return createBudgetServer({ context: this.context, projectId, input });
+  }
+  async updateBudget(projectId: ProjectId, input: Parameters<ProjexApi['updateBudget']>[1]) {
+    return updateBudgetServer({ context: this.context, projectId, input });
+  }
+  async deleteBudget(projectId: ProjectId, budgetId: Parameters<ProjexApi['deleteBudget']>[1]) {
+    return deleteBudgetServer({ context: this.context, projectId, budgetId });
+  }
+
+  // transactions
+  async listTransactions(projectId: ProjectId) {
+    return listTransactionsServer({ context: this.context, projectId });
+  }
+  async createTxn(projectId: ProjectId, input: Parameters<ProjexApi['createTxn']>[1]) {
+    return createTxnServer({
+      context: this.context,
+      projectId,
+      input,
+    });
+  }
+  async updateTxn(projectId: ProjectId, input: Parameters<ProjexApi['updateTxn']>[1]) {
+    return updateTxnServer({
+      context: this.context,
+      projectId,
+      input,
+    });
+  }
+  async deleteTxn(projectId: ProjectId, txnId: TxnId) {
+    return deleteTxnServer({ context: this.context, projectId, txnId });
+  }
+  async importTransactions(projectId: ProjectId, input: { txns: Txn[]; mode: CsvImportMode }) {
+    return importTransactionsServer({
+      context: this.context,
+      projectId,
+      txns: input.txns,
+      mode: input.mode,
+    });
+  }
+
+  // admin
+  async resetToSeed() {
+    return this.notImplemented();
+  }
+
+  // helpers
+  async getDefaultCompanyIdForUser(userId: UserId) {
+    void userId;
+    return getDefaultCompanyIdForUserServer({ context: this.context });
+  }
+  async createUserInCompany(companyId: CompanyId, name: string, email: string, role: CompanyRole) {
+    return createUserInCompanyServer({
+      context: this.context,
+      companyId,
+      name,
+      email,
+      role,
+    });
+  }
+
+  // projects / companies
+  async createProject(companyId: CompanyId, input: ProjectCreateInput) {
+    return createProjectServer({ context: this.context, companyId, input });
+  }
+  async updateProject(input: ProjectUpdateInput) {
+    return updateProjectServer({ context: this.context, input });
+  }
+  async createCompany(input: Pick<Company, 'name'> & { id?: CompanyId }) {
+    return createCompanyServer({ context: this.context, input });
+  }
+  async updateCompany(input: Parameters<ProjexApi['updateCompany']>[0]) {
+    return updateCompanyServer({ context: this.context, input });
+  }
+
+  async deactivateCompany(companyId: CompanyId) {
+    return deactivateCompanyServer({ context: this.context, companyId });
+  }
+  async reactivateCompany(companyId: CompanyId) {
+    return reactivateCompanyServer({ context: this.context, companyId });
+  }
+  async deleteCompany(companyId: CompanyId) {
+    return deleteCompanyServer({ context: this.context, companyId });
+  }
+  async deactivateProject(projectId: ProjectId) {
+    return deactivateProjectServer({ context: this.context, projectId });
+  }
+  async reactivateProject(projectId: ProjectId) {
+    return reactivateProjectServer({ context: this.context, projectId });
+  }
+  async deleteProject(projectId: ProjectId) {
+    return deleteProjectServer({ context: this.context, projectId });
+  }
+}

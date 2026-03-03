@@ -1,7 +1,7 @@
 import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 import type { DB } from './schema';
-import { AppError } from '../../api/errors';
+import { requireDatabaseUrl, validateServerStartupEnv } from '../env.ts';
 
 let _db: Kysely<DB> | null = null;
 
@@ -13,10 +13,8 @@ let _db: Kysely<DB> | null = null;
 export function getDb(): Kysely<DB> {
   if (_db) return _db;
 
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new AppError('INTERNAL_ERROR', 'DATABASE_URL is not set');
-  }
+  validateServerStartupEnv();
+  const connectionString = requireDatabaseUrl();
 
   const pool = new Pool({ connectionString });
 

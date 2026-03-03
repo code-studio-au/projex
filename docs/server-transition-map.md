@@ -7,8 +7,13 @@ This map is the migration checklist from `LocalApi` commands to TanStack Start s
 | LocalApi command | Server function target | DB tables | Notes |
 |---|---|---|---|
 | `getSession` | `getSessionServer` | n/a | Read Better Auth session only |
-| `loginAs` (local only) | n/a | n/a | Removed in prod (Better Auth handles login) |
-| `logout` | Better Auth logout handler | n/a | No local emulation in server adapter |
+| `loginAs` (dev only) | `/api/dev/session` | `users` | Enabled only with `PROJEX_ENABLE_DEV_ENDPOINTS=true` and non-production |
+| `logout` | Better Auth logout handler + dev-cookie clear | n/a | Server route clears dev session cookie for local server-mode |
+
+Production auth integration options:
+
+1. `BETTER_AUTH_SESSION_URL` (HTTP session endpoint), or
+2. `BETTER_AUTH_DIRECT_SESSION_FN` (`modulePath#exportName`) direct resolver hook.
 
 ## Reference
 
@@ -63,3 +68,33 @@ This map is the migration checklist from `LocalApi` commands to TanStack Start s
 3. Migrate read commands (list/get) first.
 4. Migrate mutation commands with invariant parity.
 5. Switch adapter mode from local to server per route surface.
+
+## Start Wiring (Server-only)
+
+Use the server bridge + Start server API to keep route files minimal:
+
+- Bridge: `src/server/api/startBridge.ts`
+- API adapter: `src/server/api/startServerApi.ts`
+- API routes: `src/routes/api.*.ts`
+
+Example route/server-function shape:
+
+```ts
+import { withApi } from '@/routes/-api-shared';
+import { createFileRoute } from '@tanstack/react-router';
+
+export const Route = createFileRoute('/api/companies')({
+  server: {
+    handlers: {
+      GET: ({ request }) => withApi(request, (api) => api.listCompanies()),
+    },
+  },
+})
+```
+
+Rules:
+
+1. Keep `src/api/server/serverApi.ts` client-safe (no DB/Node imports).
+2. Route files should call `withApi()` and never import DB modules directly.
+3. Pass `request` through bridge so session comes from Better Auth.
+4. Keep `/api/dev/*` endpoints disabled in production.

@@ -1,4 +1,5 @@
 import type { Session } from '../api/contract';
+import { AppError } from '../api/errors';
 import { useSessionQuery } from '../queries/session';
 
 /**
@@ -8,6 +9,6 @@ import { useSessionQuery } from '../queries/session';
  */
 export function useRequiredSession(): Session {
   const q = useSessionQuery();
-  if (!q.data) throw new Error('Not authenticated');
+  if (!q.data) throw new AppError('UNAUTHENTICATED', 'Not authenticated');
   return q.data;
 }

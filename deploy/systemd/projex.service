@@ -1,0 +1,18 @@
+[Unit]
+Description=Projex TanStack Start Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/projex
+EnvironmentFile=/etc/projex/projex.env
+ExecStart=/usr/bin/npm run start:server
+Restart=always
+RestartSec=3
+User=ec2-user
+Group=ec2-user
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

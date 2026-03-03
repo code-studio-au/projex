@@ -3,14 +3,19 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-   "overrides": {
+  "overrides": {
     "minimatch": "^10.2.1"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
+    "typecheck": "tsc -b --noemit",
     "lint": "eslint .",
     "db:migrate": "node --experimental-strip-types src/server/db/migrate.ts",
+    "auth:create-user": "node --experimental-strip-types src/server/auth/createAuthUser.ts",
+    "auth:link-user": "node scripts/link-auth-user.mjs",
+    "start:server": "node scripts/start-server.mjs",
+    "smoke:server": "node scripts/smoke-server.mjs",
     "test:contracts": "node scripts/run-contract-tests.mjs",
     "preview": "vite preview",
     "format": "prettier . --write",
@@ -21,22 +26,31 @@
     "@mantine/core": "^7.17.8",
     "@mantine/hooks": "^7.17.8",
     "@tabler/icons-react": "^3.34.0",
+    "@tanstack/react-devtools": "^0.9.6",
     "@tanstack/react-query": "^5.62.7",
     "@tanstack/react-query-devtools": "^5.62.7",
-    "@tanstack/react-router": "^1.91.1",
+    "@tanstack/react-router": "^1.163.3",
+    "@tanstack/react-router-devtools": "^1.163.3",
+    "@tanstack/react-router-ssr-query": "^1.163.3",
+    "@tanstack/react-start": "^1.164.0",
     "@tanstack/router-devtools": "^1.91.1",
-    "mantine-react-table": "^2.0.0-beta.9",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "@tanstack/router-plugin": "^1.164.0",
+    "better-auth": "^1.5.1",
     "kysely": "^0.27.6",
-    "pg": "^8.12.0"
+    "mantine-react-table": "^2.0.0-beta.9",
+    "nitro": "npm:nitro-nightly@^3.0.1-20260227-181935-bfbb207c",
+    "pg": "^8.12.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.7",
+    "@tanstack/devtools-vite": "^0.5.2",
+    "@types/node": "^24.11.0",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.1",
+    "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -44,6 +58,7 @@
     "prettier": "^3.8.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vite-tsconfig-paths": "^6.1.1"
   }
 }

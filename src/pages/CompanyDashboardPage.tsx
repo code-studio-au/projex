@@ -26,6 +26,7 @@ import {
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
 import { companyRoute, landingRoute, projectRoute } from '../router';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 
 export default function CompanyDashboardPage() {
   const { companyId: rawCompanyId } = companyRoute.useParams();
@@ -37,6 +38,7 @@ export default function CompanyDashboardPage() {
 
   const access = useCompanyAccess(companyId);
   const canEditCompany = access.can('company:edit');
+  const membershipsQ = useAllCompanyMembershipsQuery();
 
   const createProject = useCreateProjectMutation(companyId);
   const canAddProjects = canEditCompany;
@@ -52,6 +54,18 @@ export default function CompanyDashboardPage() {
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
   const activeProjects = useMemo(() => rows.filter((p) => p.status === 'active'), [rows]);
   const archivedProjects = useMemo(() => rows.filter((p) => p.status === 'archived'), [rows]);
+  const memberships = useMemo(() => membershipsQ.data ?? [], [membershipsQ.data]);
+  const userCompanyCount = useMemo(() => {
+    const ids = new Set(
+      memberships.filter((m) => m.userId === access.userId).map((m) => m.companyId)
+    );
+    return ids.size;
+  }, [memberships, access.userId]);
+  const isGlobalSuperadmin = useMemo(
+    () => memberships.some((m) => m.userId === access.userId && m.role === 'superadmin'),
+    [memberships, access.userId]
+  );
+  const showSwitchCompany = isGlobalSuperadmin || userCompanyCount > 1;
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -258,11 +272,13 @@ export default function CompanyDashboardPage() {
             </>
           )}
 
-          <Link to={landingRoute.to}>
-            <Button component="span" variant="light">
-              Switch company
-            </Button>
-          </Link>
+          {showSwitchCompany && (
+            <Link to={landingRoute.to}>
+              <Button component="span" variant="light">
+                Switch company
+              </Button>
+            </Link>
+          )}
         </Group>
       </Group>
 

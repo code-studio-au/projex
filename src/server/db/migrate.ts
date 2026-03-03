@@ -2,8 +2,10 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
+import { getMigrations } from 'better-auth/db/migration';
 
-import { AppError } from '../../api/errors';
+import { requireDatabaseUrl } from '../env.ts';
+import { buildBetterAuthOptions } from '../auth/betterAuthInstance.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,10 +41,20 @@ function splitSqlStatements(sql: string): string[] {
 }
 
 async function run() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new AppError('INTERNAL_ERROR', 'DATABASE_URL is not set');
+  const hasBetterAuthEnv =
+    Boolean(process.env.BETTER_AUTH_SECRET?.trim()) &&
+    Boolean(process.env.BETTER_AUTH_URL?.trim());
+
+  if (hasBetterAuthEnv) {
+    const { runMigrations } = await getMigrations(buildBetterAuthOptions());
+    await runMigrations();
+  } else {
+    console.warn(
+      '[db:migrate] Skipping BetterAuth migrations (set BETTER_AUTH_SECRET and BETTER_AUTH_URL to enable)'
+    );
   }
+
+  const connectionString = requireDatabaseUrl();
 
   const pool = new Pool({ connectionString }) as unknown as Queryable;
   try {

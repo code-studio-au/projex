@@ -1,184 +1,394 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { ProjexApi } from '../types';
-import { AppError } from '../errors';
+import { AppError, type AppErrorCode } from '../errors';
+import type {
+  BudgetLine,
+  Category,
+  Company,
+  CompanyId,
+  CompanyMembership,
+  CompanyRole,
+  Project,
+  ProjectId,
+  ProjectMembership,
+  ProjectRole,
+  SubCategory,
+  Txn,
+  TxnId,
+  User,
+  UserId,
+} from '../../types';
+import type {
+  BudgetCreateInput,
+  BudgetUpdateInput,
+  CategoryCreateInput,
+  CategoryUpdateInput,
+  CompanyUpdateInput,
+  CsvImportMode,
+  ProjectCreateInput,
+  ProjectUpdateInput,
+  Session,
+  SubCategoryCreateInput,
+  SubCategoryUpdateInput,
+  TxnCreateInput,
+  TxnUpdateInput,
+} from '../types';
+
+type ApiErrorBody = {
+  code?: AppErrorCode;
+  message?: string;
+  meta?: Record<string, unknown> | null;
+};
 
 /**
- * Server-backed API adapter stub.
- *
- * When migrating to TanStack Start, this adapter becomes a thin client wrapper
- * around Start server functions (or HTTP endpoints), keeping the UI code
- * unchanged.
+ * Server-backed API adapter that talks to Start file routes under `/api/*`.
  */
 export class ServerApi implements ProjexApi {
-  private notImplemented(): never {
-    throw new AppError('NOT_IMPLEMENTED', 'Server API is not wired yet.');
+  private resolveUrl(path: string): string {
+    if (/^https?:\/\//.test(path)) return path;
+    if (typeof window !== 'undefined') return path;
+    return new URL(path, 'http://localhost').toString();
+  }
+
+  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(this.resolveUrl(path), {
+      credentials: 'include',
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+    });
+
+    const text = await res.text();
+    const body = text ? (JSON.parse(text) as unknown) : null;
+
+    if (!res.ok) {
+      const errBody = (body ?? {}) as ApiErrorBody;
+      const code = errBody.code ?? this.statusToCode(res.status);
+      const message = errBody.message ?? `Request failed (${res.status})`;
+      throw new AppError(code, message, errBody.meta ?? undefined);
+    }
+
+    return body as T;
+  }
+
+  private statusToCode(status: number): AppErrorCode {
+    if (status === 401) return 'UNAUTHENTICATED';
+    if (status === 403) return 'FORBIDDEN';
+    if (status === 404) return 'NOT_FOUND';
+    if (status === 409) return 'CONFLICT';
+    if (status === 422) return 'VALIDATION_ERROR';
+    if (status === 501) return 'NOT_IMPLEMENTED';
+    return 'INTERNAL_ERROR';
   }
 
   // session
-  async getSession() {
-    return this.notImplemented();
+  async getSession(): Promise<Session | null> {
+    return this.request<Session | null>('/api/session');
   }
-  async loginAs() {
-    return this.notImplemented();
+  async loginAs(_userId: UserId): Promise<Session> {
+    return this.request<Session>('/api/dev/session', {
+      method: 'POST',
+      body: JSON.stringify({ userId: _userId }),
+    });
   }
-  async logout() {
-    return this.notImplemented();
+  async logout(): Promise<void> {
+    await this.request<void>('/api/session', { method: 'DELETE' });
   }
 
   // reference data
-  async listUsers() {
-    return this.notImplemented();
+  async listUsers(): Promise<User[]> {
+    return this.request<User[]>('/api/users');
   }
-  async listCompanies() {
-    return this.notImplemented();
+  async listCompanies(): Promise<Company[]> {
+    return this.request<Company[]>('/api/companies');
   }
-  async listProjects() {
-    return this.notImplemented();
+  async listProjects(companyId: CompanyId): Promise<Project[]> {
+    return this.request<Project[]>(`/api/companies/${encodeURIComponent(companyId)}/projects`);
   }
-  async getCompany() {
-    return this.notImplemented();
+  async getCompany(companyId: CompanyId): Promise<Company | null> {
+    return this.request<Company | null>(`/api/companies/${encodeURIComponent(companyId)}`);
   }
-  async getProject() {
-    return this.notImplemented();
+  async getProject(projectId: ProjectId): Promise<Project | null> {
+    return this.request<Project | null>(`/api/projects/${encodeURIComponent(projectId)}`);
   }
 
   // memberships
-  async listCompanyMemberships() {
-    return this.notImplemented();
+  async listCompanyMemberships(_companyId: CompanyId): Promise<CompanyMembership[]> {
+    return this.request<CompanyMembership[]>(
+      `/api/companies/${encodeURIComponent(_companyId)}/memberships`
+    );
   }
-  async listAllCompanyMemberships() {
-    return this.notImplemented();
+  async listAllCompanyMemberships(): Promise<CompanyMembership[]> {
+    return this.request<CompanyMembership[]>('/api/memberships/companies');
   }
-  async listProjectMemberships() {
-    return this.notImplemented();
+  async listProjectMemberships(_projectId: ProjectId): Promise<ProjectMembership[]> {
+    return this.request<ProjectMembership[]>(
+      `/api/projects/${encodeURIComponent(_projectId)}/memberships`
+    );
   }
-  async listMyProjectMemberships() {
-    return this.notImplemented();
+  async listMyProjectMemberships(_companyId: CompanyId): Promise<ProjectMembership[]> {
+    return this.request<ProjectMembership[]>(
+      `/api/companies/${encodeURIComponent(_companyId)}/my-project-memberships`
+    );
   }
-  async upsertCompanyMembership() {
-    return this.notImplemented();
+  async upsertCompanyMembership(
+    _companyId: CompanyId,
+    _userId: UserId,
+    _role: CompanyRole
+  ): Promise<CompanyMembership> {
+    return this.request<CompanyMembership>(
+      `/api/companies/${encodeURIComponent(_companyId)}/memberships`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ userId: _userId, role: _role }),
+      }
+    );
   }
-  async deleteCompanyMembership() {
-    return this.notImplemented();
+  async deleteCompanyMembership(_companyId: CompanyId, _userId: UserId): Promise<void> {
+    await this.request<{ ok: true }>(
+      `/api/companies/${encodeURIComponent(_companyId)}/memberships?userId=${encodeURIComponent(_userId)}`,
+      { method: 'DELETE' }
+    );
   }
-  async upsertProjectMembership() {
-    return this.notImplemented();
+  async upsertProjectMembership(
+    _projectId: ProjectId,
+    _userId: UserId,
+    _role: ProjectRole
+  ): Promise<ProjectMembership> {
+    return this.request<ProjectMembership>(
+      `/api/projects/${encodeURIComponent(_projectId)}/memberships`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ userId: _userId, role: _role }),
+      }
+    );
   }
-  async deleteProjectMembership() {
-    return this.notImplemented();
+  async deleteProjectMembership(
+    _projectId: ProjectId,
+    _userId: UserId,
+    _role: ProjectRole
+  ): Promise<void> {
+    await this.request<{ ok: true }>(
+      `/api/projects/${encodeURIComponent(_projectId)}/memberships?userId=${encodeURIComponent(_userId)}&role=${encodeURIComponent(_role)}`,
+      { method: 'DELETE' }
+    );
   }
-  async setCompanyRole() {
-    return this.notImplemented();
+  async setCompanyRole(companyId: CompanyId, userId: UserId, role: CompanyRole): Promise<void> {
+    await this.upsertCompanyMembership(companyId, userId, role);
   }
-  async setProjectRole() {
-    return this.notImplemented();
+  async setProjectRole(projectId: ProjectId, userId: UserId, role: ProjectRole): Promise<void> {
+    await this.upsertProjectMembership(projectId, userId, role);
   }
-  async removeCompanyMember() {
-    return this.notImplemented();
+  async removeCompanyMember(companyId: CompanyId, userId: UserId): Promise<void> {
+    await this.deleteCompanyMembership(companyId, userId);
   }
-  async removeProjectMember() {
-    return this.notImplemented();
+  async removeProjectMember(projectId: ProjectId, userId: UserId): Promise<void> {
+    const existing = await this.listProjectMemberships(projectId);
+    const membership = existing.find((m) => m.userId === userId);
+    if (!membership) return;
+    await this.deleteProjectMembership(projectId, userId, membership.role);
   }
 
   // taxonomy
-  async listCategories() {
-    return this.notImplemented();
+  async listCategories(_projectId: ProjectId): Promise<Category[]> {
+    return this.request<Category[]>(`/api/projects/${encodeURIComponent(_projectId)}/categories`);
   }
-  async listSubCategories() {
-    return this.notImplemented();
+  async listSubCategories(_projectId: ProjectId): Promise<SubCategory[]> {
+    return this.request<SubCategory[]>(
+      `/api/projects/${encodeURIComponent(_projectId)}/sub-categories`
+    );
   }
-  async createCategory() {
-    return this.notImplemented();
+  async createCategory(_projectId: ProjectId, _input: CategoryCreateInput): Promise<Category> {
+    return this.request<Category>(`/api/projects/${encodeURIComponent(_projectId)}/categories`, {
+      method: 'POST',
+      body: JSON.stringify(_input),
+    });
   }
-  async updateCategory() {
-    return this.notImplemented();
+  async updateCategory(_projectId: ProjectId, _input: CategoryUpdateInput): Promise<Category> {
+    return this.request<Category>(`/api/projects/${encodeURIComponent(_projectId)}/categories`, {
+      method: 'PATCH',
+      body: JSON.stringify(_input),
+    });
   }
-  async deleteCategory() {
-    return this.notImplemented();
+  async deleteCategory(_projectId: ProjectId, _categoryId: Category['id']): Promise<void> {
+    await this.request<{ ok: true }>(
+      `/api/projects/${encodeURIComponent(_projectId)}/categories/${encodeURIComponent(_categoryId)}`,
+      { method: 'DELETE' }
+    );
   }
-  async createSubCategory() {
-    return this.notImplemented();
+  async createSubCategory(
+    _projectId: ProjectId,
+    _input: SubCategoryCreateInput
+  ): Promise<SubCategory> {
+    return this.request<SubCategory>(
+      `/api/projects/${encodeURIComponent(_projectId)}/sub-categories`,
+      {
+        method: 'POST',
+        body: JSON.stringify(_input),
+      }
+    );
   }
-  async updateSubCategory() {
-    return this.notImplemented();
+  async updateSubCategory(
+    _projectId: ProjectId,
+    _input: SubCategoryUpdateInput
+  ): Promise<SubCategory> {
+    return this.request<SubCategory>(
+      `/api/projects/${encodeURIComponent(_projectId)}/sub-categories`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(_input),
+      }
+    );
   }
-  async deleteSubCategory() {
-    return this.notImplemented();
+  async deleteSubCategory(_projectId: ProjectId, _subCategoryId: SubCategory['id']): Promise<void> {
+    await this.request<{ ok: true }>(
+      `/api/projects/${encodeURIComponent(_projectId)}/sub-categories/${encodeURIComponent(_subCategoryId)}`,
+      { method: 'DELETE' }
+    );
   }
 
   // budgets
-  async listBudgets() {
-    return this.notImplemented();
+  async listBudgets(_projectId: ProjectId): Promise<BudgetLine[]> {
+    return this.request<BudgetLine[]>(`/api/projects/${encodeURIComponent(_projectId)}/budgets`);
   }
-  async createBudget() {
-    return this.notImplemented();
+  async createBudget(_projectId: ProjectId, _input: BudgetCreateInput): Promise<BudgetLine> {
+    return this.request<BudgetLine>(`/api/projects/${encodeURIComponent(_projectId)}/budgets`, {
+      method: 'POST',
+      body: JSON.stringify(_input),
+    });
   }
-  async updateBudget() {
-    return this.notImplemented();
+  async updateBudget(_projectId: ProjectId, _input: BudgetUpdateInput): Promise<BudgetLine> {
+    return this.request<BudgetLine>(`/api/projects/${encodeURIComponent(_projectId)}/budgets`, {
+      method: 'PATCH',
+      body: JSON.stringify(_input),
+    });
   }
-  async deleteBudget() {
-    return this.notImplemented();
+  async deleteBudget(_projectId: ProjectId, _budgetId: BudgetLine['id']): Promise<void> {
+    await this.request<{ ok: true }>(
+      `/api/projects/${encodeURIComponent(_projectId)}/budgets/${encodeURIComponent(_budgetId)}`,
+      { method: 'DELETE' }
+    );
   }
 
   // transactions
-  async listTransactions() {
-    return this.notImplemented();
+  async listTransactions(projectId: ProjectId): Promise<Txn[]> {
+    return this.request<Txn[]>(`/api/projects/${encodeURIComponent(projectId)}/transactions`);
   }
-  async createTxn() {
-    return this.notImplemented();
+  async createTxn(projectId: ProjectId, txn: TxnCreateInput): Promise<Txn> {
+    return this.request<Txn>(`/api/projects/${encodeURIComponent(projectId)}/transactions`, {
+      method: 'POST',
+      body: JSON.stringify({ txn }),
+    });
   }
-  async updateTxn() {
-    return this.notImplemented();
+  async updateTxn(projectId: ProjectId, txn: TxnUpdateInput): Promise<Txn> {
+    return this.request<Txn>(`/api/projects/${encodeURIComponent(projectId)}/transactions`, {
+      method: 'PATCH',
+      body: JSON.stringify({ txn }),
+    });
   }
-  async deleteTxn() {
-    return this.notImplemented();
+  async deleteTxn(projectId: ProjectId, txnId: TxnId): Promise<void> {
+    await this.request<{ ok: true }>(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(txnId)}`,
+      { method: 'DELETE' }
+    );
   }
-  async importTransactions() {
-    return this.notImplemented();
+  async importTransactions(
+    projectId: ProjectId,
+    input: { txns: Txn[]; mode: CsvImportMode }
+  ): Promise<{ count: number }> {
+    return this.request<{ count: number }>(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/import`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
   }
 
   // admin
-  async resetToSeed() {
-    return this.notImplemented();
+  async resetToSeed(): Promise<void> {
+    await this.request<{ ok: true }>('/api/dev/reset-seed', { method: 'POST' });
   }
 
   // helpers
-  async getDefaultCompanyIdForUser() {
-    return this.notImplemented();
+  async getDefaultCompanyIdForUser(_userId: UserId): Promise<CompanyId | null> {
+    const res = await this.request<{ companyId: CompanyId | null }>('/api/me/default-company');
+    return res.companyId;
   }
-  async createUserInCompany() {
-    return this.notImplemented();
+  async createUserInCompany(
+    _companyId: CompanyId,
+    _name: string,
+    _email: string,
+    _role: CompanyRole
+  ): Promise<User> {
+    return this.request<User>(`/api/companies/${encodeURIComponent(_companyId)}/users`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name: _name,
+        email: _email,
+        role: _role,
+      }),
+    });
   }
 
   // projects / companies
-  async createProject() {
-    return this.notImplemented();
+  async createProject(_companyId: CompanyId, _input: ProjectCreateInput): Promise<Project> {
+    return this.request<Project>(`/api/companies/${encodeURIComponent(_companyId)}/projects`, {
+      method: 'POST',
+      body: JSON.stringify(_input),
+    });
   }
-  async updateProject() {
-    return this.notImplemented();
+  async updateProject(_input: ProjectUpdateInput): Promise<Project> {
+    const { id, ...patch } = _input;
+    return this.request<Project>(`/api/projects/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
   }
-  async createCompany() {
-    return this.notImplemented();
+  async createCompany(_input: Pick<Company, 'name'> & { id?: CompanyId }): Promise<Company> {
+    return this.request<Company>('/api/companies', {
+      method: 'POST',
+      body: JSON.stringify(_input),
+    });
   }
-  async updateCompany() {
-    return this.notImplemented();
+  async updateCompany(_input: CompanyUpdateInput): Promise<Company> {
+    const { id, ...patch } = _input;
+    return this.request<Company>(`/api/companies/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
   }
 
-  async deactivateCompany() {
-    return this.notImplemented();
+  async deactivateCompany(_companyId: CompanyId): Promise<void> {
+    await this.request<{ ok: true }>(`/api/companies/${encodeURIComponent(_companyId)}/deactivate`, {
+      method: 'POST',
+    });
   }
-  async reactivateCompany() {
-    return this.notImplemented();
+  async reactivateCompany(_companyId: CompanyId): Promise<void> {
+    await this.request<{ ok: true }>(`/api/companies/${encodeURIComponent(_companyId)}/reactivate`, {
+      method: 'POST',
+    });
   }
-  async deleteCompany() {
-    return this.notImplemented();
+  async deleteCompany(_companyId: CompanyId): Promise<void> {
+    await this.request<{ ok: true }>(`/api/companies/${encodeURIComponent(_companyId)}`, {
+      method: 'DELETE',
+    });
   }
-  async deactivateProject() {
-    return this.notImplemented();
+  async deactivateProject(_projectId: ProjectId): Promise<void> {
+    await this.request<{ ok: true }>(`/api/projects/${encodeURIComponent(_projectId)}/deactivate`, {
+      method: 'POST',
+    });
   }
-  async reactivateProject() {
-    return this.notImplemented();
+  async reactivateProject(_projectId: ProjectId): Promise<void> {
+    await this.request<{ ok: true }>(`/api/projects/${encodeURIComponent(_projectId)}/reactivate`, {
+      method: 'POST',
+    });
   }
-  async deleteProject() {
-    return this.notImplemented();
+  async deleteProject(_projectId: ProjectId): Promise<void> {
+    await this.request<{ ok: true }>(`/api/projects/${encodeURIComponent(_projectId)}`, {
+      method: 'DELETE',
+    });
   }
 }

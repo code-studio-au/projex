@@ -33,6 +33,17 @@ import {
 } from '../../seed';
 import { getPrimaryCompanyForUser } from '../../store/access';
 import { AppError } from '../errors';
+import {
+  budgetAllocatedCentsSchema,
+  categoryNameSchema,
+  companyNameSchema,
+  emailSchema,
+  projectNameSchema,
+  subCategoryNameSchema,
+  txnInputSchema,
+  userNameSchema,
+} from '../../validation/schemas';
+import { validateOrThrow } from '../../validation/validate';
 
 import type {
   BudgetCreateInput,
@@ -99,46 +110,6 @@ function clearSession() {
 function normalizeExternalId(value: string | undefined): string | undefined {
   const next = value?.trim();
   return next ? next : undefined;
-}
-
-function isIsoDateOnly(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
-function assertNonEmptyTrimmed(value: string, label: string) {
-  if (!value.trim()) {
-    throw new AppError('VALIDATION_ERROR', `${label} is required`);
-  }
-}
-
-function assertLengthMax(value: string, label: string, max: number) {
-  if (value.length > max) {
-    throw new AppError('VALIDATION_ERROR', `${label} must be at most ${max} characters`);
-  }
-}
-
-function assertValidEmail(value: string) {
-  const email = value.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new AppError('VALIDATION_ERROR', 'Email is invalid');
-  }
-}
-
-function assertAmountCents(value: number, label: string) {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new AppError('VALIDATION_ERROR', `${label} must be a non-negative integer`);
-  }
-}
-
-function assertTxnInputShape(input: Pick<Txn, 'date' | 'item' | 'description' | 'amountCents'>) {
-  if (!isIsoDateOnly(input.date)) {
-    throw new AppError('VALIDATION_ERROR', 'Transaction date must be YYYY-MM-DD');
-  }
-  assertNonEmptyTrimmed(input.item, 'Transaction item');
-  assertNonEmptyTrimmed(input.description, 'Transaction description');
-  assertLengthMax(input.item, 'Transaction item', 160);
-  assertLengthMax(input.description, 'Transaction description', 500);
-  assertAmountCents(input.amountCents, 'Transaction amount');
 }
 
 function assertUniqueTransactionKeysInProject(transactions: Txn[]) {
@@ -255,7 +226,9 @@ export class LocalApi implements ProjexApi {
     const st = ensureState();
     const s = readSession();
     if (!s) return [];
-    if (this.isSuperadmin(s.userId, st)) return st.companies;
+    if (this.isSuperadmin(s.userId, st)) {
+      return st.companies.filter((c) => c.id !== asCompanyId('co_projex'));
+    }
     const allowed = new Set(
       st.companyMemberships.filter((m) => m.userId === s.userId).map((m) => m.companyId)
     );
@@ -351,7 +324,7 @@ export class LocalApi implements ProjexApi {
     this.assertCan('txns:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
-    assertTxnInputShape(input);
+    validateOrThrow(txnInputSchema, input);
     const now = this.nowIso();
     const next: Txn = {
       ...input,
@@ -390,7 +363,7 @@ export class LocalApi implements ProjexApi {
       externalId: nextExternalId,
       updatedAt: this.nowIso(),
     };
-    assertTxnInputShape(updated);
+    validateOrThrow(txnInputSchema, updated);
 
     const nextTxns = slice.transactions.slice();
     nextTxns[idx] = updated;
@@ -564,8 +537,7 @@ export class LocalApi implements ProjexApi {
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
-    assertNonEmptyTrimmed(input.name, 'Category name');
-    assertLengthMax(input.name, 'Category name', 120);
+    validateOrThrow(categoryNameSchema, input.name);
 
     // Idempotency: categories are unique by name per project (case-insensitive).
     const nameKey = input.name.trim().toLowerCase();
@@ -593,8 +565,7 @@ export class LocalApi implements ProjexApi {
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     if (typeof input.name === 'string') {
-      assertNonEmptyTrimmed(input.name, 'Category name');
-      assertLengthMax(input.name, 'Category name', 120);
+      validateOrThrow(categoryNameSchema, input.name);
     }
     const idx = slice.categories.findIndex((c) => c.id === input.id);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown category');
@@ -653,8 +624,7 @@ export class LocalApi implements ProjexApi {
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
-    assertNonEmptyTrimmed(input.name, 'Subcategory name');
-    assertLengthMax(input.name, 'Subcategory name', 120);
+    validateOrThrow(subCategoryNameSchema, input.name);
 
     // Idempotency: subcategories are unique per (categoryId, name) within a project.
     const nameKey = input.name.trim().toLowerCase();
@@ -687,8 +657,7 @@ export class LocalApi implements ProjexApi {
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     if (typeof input.name === 'string') {
-      assertNonEmptyTrimmed(input.name, 'Subcategory name');
-      assertLengthMax(input.name, 'Subcategory name', 120);
+      validateOrThrow(subCategoryNameSchema, input.name);
     }
     const idx = slice.subCategories.findIndex((s) => s.id === input.id);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown subcategory');
@@ -743,7 +712,7 @@ export class LocalApi implements ProjexApi {
     this.assertCan('budget:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
-    assertAmountCents(input.allocatedCents, 'Budget allocated amount');
+    validateOrThrow(budgetAllocatedCentsSchema, input.allocatedCents);
 
     // Idempotency: budget lines are unique per (projectId, subCategoryId).
     // This mirrors a future DB uniqueness constraint and prevents duplicate
@@ -788,7 +757,7 @@ export class LocalApi implements ProjexApi {
     const idx = slice.budgets.findIndex((b) => b.id === input.id);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown budget');
     if (typeof input.allocatedCents !== 'undefined') {
-      assertAmountCents(input.allocatedCents, 'Budget allocated amount');
+      validateOrThrow(budgetAllocatedCentsSchema, input.allocatedCents);
     }
     const updated: BudgetLine = { ...slice.budgets[idx], ...input, updatedAt: this.nowIso() };
     const budgets = slice.budgets.slice();
@@ -819,8 +788,7 @@ export class LocalApi implements ProjexApi {
   async createProject(companyId: CompanyId, input: ProjectCreateInput): Promise<Project> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    assertNonEmptyTrimmed(input.name, 'Project name');
-    assertLengthMax(input.name, 'Project name', 120);
+    validateOrThrow(projectNameSchema, input.name);
     const id = input.id ?? asProjectId(uid('prj'));
     const next: Project = {
       id,
@@ -851,8 +819,7 @@ export class LocalApi implements ProjexApi {
     const idx = st.projects.findIndex((p) => p.id === input.id);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown project');
     if (typeof input.name === 'string') {
-      assertNonEmptyTrimmed(input.name, 'Project name');
-      assertLengthMax(input.name, 'Project name', 120);
+      validateOrThrow(projectNameSchema, input.name);
     }
     this.assertCan('project:edit', st.projects[idx].companyId, st.projects[idx].id);
     const updated: Project = { ...st.projects[idx], ...input };
@@ -866,6 +833,7 @@ export class LocalApi implements ProjexApi {
     const st = ensureState();
     const { userId } = this.requireSession();
     if (!this.isSuperadmin(userId, st)) throw new AppError('FORBIDDEN', 'Forbidden');
+    validateOrThrow(companyNameSchema, input.name);
 
     const id = input.id ?? asCompanyId(uid('co'));
     const next: Company = { id, name: input.name, status: 'active' };
@@ -882,8 +850,7 @@ export class LocalApi implements ProjexApi {
     const idx = st.companies.findIndex((c) => c.id === input.id);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown company');
     if (typeof input.name === 'string') {
-      assertNonEmptyTrimmed(input.name, 'Company name');
-      assertLengthMax(input.name, 'Company name', 120);
+      validateOrThrow(companyNameSchema, input.name);
     }
     this.assertCan('company:edit', st.companies[idx].id);
     const updated: Company = { ...st.companies[idx], ...input };
@@ -1010,7 +977,7 @@ export class LocalApi implements ProjexApi {
 
     if (p.status === 'archived') return;
     const projects = st.projects.slice();
-    projects[pIdx] = { ...p, status: 'archived' };
+    projects[pIdx] = { ...p, status: 'archived', deactivatedAt: this.nowIso() };
     writeState({ ...st, projects });
   }
 
@@ -1030,7 +997,7 @@ export class LocalApi implements ProjexApi {
 
     if (p.status === 'active') return;
     const projects = st.projects.slice();
-    projects[pIdx] = { ...p, status: 'active' };
+    projects[pIdx] = { ...p, status: 'active', deactivatedAt: undefined };
     writeState({ ...st, projects });
   }
 
@@ -1062,9 +1029,8 @@ export class LocalApi implements ProjexApi {
   ): Promise<User> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
-    assertNonEmptyTrimmed(name, 'User name');
-    assertLengthMax(name, 'User name', 120);
-    assertValidEmail(email);
+    validateOrThrow(userNameSchema, name);
+    validateOrThrow(emailSchema, email);
     const emailNorm = email.trim().toLowerCase();
     if (st.users.some((u) => u.email.trim().toLowerCase() === emailNorm)) {
       throw new AppError('CONFLICT', 'A user with this email already exists');
@@ -1098,7 +1064,7 @@ export class LocalApi implements ProjexApi {
         externalId: normalizeExternalId(t.externalId),
       };
     });
-    normalizedIncoming.forEach((txn) => assertTxnInputShape(txn));
+    normalizedIncoming.forEach((txn) => validateOrThrow(txnInputSchema, txn));
 
     const nextTxns =
       input.mode === 'replaceAll'

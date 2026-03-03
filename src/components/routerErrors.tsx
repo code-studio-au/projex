@@ -1,7 +1,7 @@
 import { Badge, Button, Container, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { Link, isNotFound, useRouter } from '@tanstack/react-router';
 
-import { landingRoute } from '../router';
+import { homeRoute } from '../router';
 
 export function RootNotFoundComponent() {
   return (
@@ -18,7 +18,7 @@ export function RootNotFoundComponent() {
             That route doesn’t exist. If you followed a link, it may be outdated.
           </Text>
           <Group justify="flex-end">
-            <Link to={landingRoute.to}>
+            <Link to={homeRoute.to}>
               <Button component="span">Go home</Button>
             </Link>
           </Group>
@@ -61,7 +61,7 @@ export function RootErrorComponent(props: { error: unknown }) {
             >
               Retry
             </Button>
-            <Link to={landingRoute.to}>
+            <Link to={homeRoute.to}>
               <Button component="span">Home</Button>
             </Link>
           </Group>

@@ -2,14 +2,42 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { ProjexApi } from '../api/contract';
+import { getAuthSession, signOutAuth } from '../auth/client';
 import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
 import type { UserId } from '../types';
+import type { Session } from '../api/types';
+
+const env = (import.meta as unknown as { env?: Record<string, string> }).env;
+const isServerMode = env?.VITE_API_MODE === 'server';
+
+function toSessionFromAuthClientResult(value: unknown): Session | null | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const root = value as Record<string, unknown>;
+  const data = (root.data ?? root) as Record<string, unknown> | null;
+  if (!data || typeof data !== 'object') return undefined;
+
+  const user = (data.user ?? null) as Record<string, unknown> | null;
+  const userId =
+    (user?.id as string | undefined) ??
+    (data.userId as string | undefined) ??
+    ((data.session as Record<string, unknown> | null)?.userId as string | undefined);
+
+  if (!userId) return null;
+  return { userId: userId as UserId };
+}
 
 export function sessionQueryOptions(boundary: ProjexApi) {
   return {
     queryKey: qk.session(),
-    queryFn: () => boundary.getSession(),
+    queryFn: async () => {
+      if (isServerMode) {
+        const result = await getAuthSession();
+        const session = toSessionFromAuthClientResult(result);
+        if (typeof session !== 'undefined') return session;
+      }
+      return boundary.getSession();
+    },
     // Session is an auth boundary; do not treat it as fresh for long.
     staleTime: 0,
   } as const;
@@ -57,7 +85,13 @@ export function useLogoutMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => api.logout(),
+    mutationFn: async () => {
+      if (isServerMode) {
+        await signOutAuth();
+        return;
+      }
+      await api.logout();
+    },
     onSuccess: async () => {
       // Clear session cache immediately so guards stop treating the user as authed.
       queryClient.setQueryData(qk.session(), null);

@@ -14,9 +14,11 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 
 import { useApi } from './hooks/useApi';
-import { companyRoute, landingRoute } from './router';
+import { companyRoute, homeRoute, landingRoute } from './router';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
+import { useAllCompanyMembershipsQuery } from './queries/memberships';
+import { useCompaniesQuery } from './queries/reference';
 
 /** Root layout: intentionally minimal to keep route config clean. */
 export function RootLayout() {
@@ -37,6 +39,13 @@ export function AuthedLayout() {
 
   const userId = session.data?.userId ?? null;
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const membershipsQ = useAllCompanyMembershipsQuery();
+  const companiesQ = useCompaniesQuery(userId ?? undefined);
+
+  const isSuperadmin = (membershipsQ.data ?? []).some(
+    (m) => m.userId === userId && m.role === 'superadmin'
+  );
+  const companyCount = (companiesQ.data ?? []).length;
 
   // Prefer companyId from the active route match (project route also includes companyId).
   // We avoid route.useMatch() here to keep types aligned across router versions and to
@@ -60,40 +69,41 @@ export function AuthedLayout() {
           <Container size="xl">
             <Group justify="space-between" wrap="nowrap">
               <Group gap="sm">
+                <ThemeIcon radius="md" size="lg" variant="gradient" gradient={{ from: 'blue.6', to: 'cyan.5' }}>
+                  PX
+                </ThemeIcon>
+                <Stack gap={0}>
+                  <Text fw={800} lh={1.1} size={isMobile ? 'md' : 'lg'}>
+                    Projex
+                  </Text>
+                  <Text size="xs" c="dimmed" lh={1.1} visibleFrom="sm">
+                    Local mode · server-aligned
+                  </Text>
+                </Stack>
+              </Group>
+
+              <Group gap="sm">
                 {userId && (
                   <Button
                     variant="light"
                     onClick={async () => {
+                      if (isSuperadmin || companyCount > 1) {
+                        router.navigate({ to: landingRoute.to });
+                        return;
+                      }
+
                       // Prefer current company from URL, otherwise fall back to user's default company.
                       const companyId = companyIdFromUrl ?? (await api.getDefaultCompanyIdForUser(userId));
-
                       if (companyId) {
                         router.navigate({ to: companyRoute.to, params: { companyId } });
                       } else {
-                        router.navigate({ to: landingRoute.to });
+                        router.navigate({ to: homeRoute.to });
                       }
                     }}
                   >
                     Workspace
                   </Button>
                 )}
-
-                <Group gap="sm">
-                  <ThemeIcon radius="md" size="lg" variant="gradient" gradient={{ from: 'blue.6', to: 'cyan.5' }}>
-                    PX
-                  </ThemeIcon>
-                  <Stack gap={0}>
-                    <Text fw={800} lh={1.1} size={isMobile ? 'md' : 'lg'}>
-                      Projex
-                    </Text>
-                    <Text size="xs" c="dimmed" lh={1.1} visibleFrom="sm">
-                      Local mode · server-aligned
-                    </Text>
-                  </Stack>
-                </Group>
-              </Group>
-
-              <Group gap="sm">
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
                     <Button variant="subtle" px="sm">
@@ -110,7 +120,7 @@ export function AuthedLayout() {
                       onClick={() => {
                         logout.mutate(undefined, {
                           onSuccess: () => {
-                            router.navigate({ to: landingRoute.to });
+                            router.navigate({ to: homeRoute.to });
                           },
                         });
                       }}

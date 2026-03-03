@@ -1,16 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import {
-  Badge,
-  Button,
-  Container,
-  Group,
-  Modal,
-  Paper,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Badge, Button, Group, Modal, Stack, Text, TextInput, Title } from '@mantine/core';
 import { Link, useRouter } from '@tanstack/react-router';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
@@ -18,9 +7,9 @@ import { useMediaQuery } from '@mantine/hooks';
 import type { CompanyId } from '../types';
 
 import { useApi } from '../hooks/useApi';
-import { companyRoute, landingRoute, loginRoute } from '../router';
+import { companyRoute } from '../router';
 import { useCompaniesQuery } from '../queries/reference';
-import { useLogoutMutation, useSessionQuery } from '../queries/session';
+import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import {
   useDeactivateCompanyMutation,
@@ -36,7 +25,6 @@ export default function LandingPage() {
   const sessionQ = useSessionQuery();
   const userId = sessionQ.data?.userId;
 
-  const logout = useLogoutMutation();
   const companiesQ = useCompaniesQuery(userId);
   const membershipsQ = useAllCompanyMembershipsQuery();
 
@@ -45,6 +33,30 @@ export default function LandingPage() {
     if (!userId) return false;
     return (membershipsQ.data ?? []).some((m) => m.userId === userId && m.role === 'superadmin');
   }, [membershipsQ.data, userId]);
+  const userCompanyCount = useMemo(() => {
+    if (!userId) return 0;
+    const ids = new Set(
+      (membershipsQ.data ?? []).filter((m) => m.userId === userId).map((m) => m.companyId)
+    );
+    return ids.size;
+  }, [membershipsQ.data, userId]);
+  const shouldRedirect = useMemo(
+    () => !!userId && !isSuperadmin && userCompanyCount === 1,
+    [isSuperadmin, userCompanyCount, userId]
+  );
+
+  useEffect(() => {
+    if (!shouldRedirect || !userId) return;
+    let cancelled = false;
+    (async () => {
+      const companyId = await api.getDefaultCompanyIdForUser(userId);
+      if (!companyId || cancelled) return;
+      router.navigate({ to: companyRoute.to, params: { companyId } });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api, router, shouldRedirect, userId]);
 
   const deactivateCompany = useDeactivateCompanyMutation();
   const reactivateCompany = useReactivateCompanyMutation();
@@ -192,91 +204,47 @@ export default function LandingPage() {
   );
 
   return (
-    <Container size="lg" px={isMobile ? 'xs' : 'md'}>
-      <Paper withBorder radius="lg" p={isMobile ? 'md' : 'xl'}>
-        <Stack gap="md">
-          <Title order={2}>Projex</Title>
-          <Text c="dimmed">
-            Local-first build with a clean API boundary + TanStack Router/Query. When you swap to
-            TanStack Start later, the UI keeps the same shape.
-          </Text>
+    <Stack gap="md">
+      <Stack gap={2}>
+        <Title order={2}>Company Directory</Title>
+        <Text c="dimmed">Manage companies and jump into a workspace.</Text>
+      </Stack>
 
-          <Group justify="flex-end" wrap="wrap">
-            {userId ? (
-              <>
-                <Button
-                  variant="light"
-                  onClick={async () => {
-                    const companyId = await api.getDefaultCompanyIdForUser(userId);
-                    if (companyId) {
-                      router.navigate({
-                        to: companyRoute.to,
-                        params: { companyId },
-                      });
-                    } else {
-                      router.navigate({ to: loginRoute.to });
-                    }
-                  }}
-                >
-                  Continue
-                </Button>
-
-                <Button
-                  color="red"
-                  variant="subtle"
-                  onClick={() => {
-                    logout.mutate(undefined, {
-                      onSuccess: () => {
-                        router.navigate({ to: landingRoute.to });
-                      },
-                    });
-                  }}
-                >
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <Link to={loginRoute.to}>
-                <Button component="span">Login</Button>
-              </Link>
-            )}
+      {shouldRedirect ? (
+        <Text c="dimmed">Redirecting to your company...</Text>
+      ) : (
+        <>
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Text fw={700}>Companies</Text>
+            <Badge variant="light">{companies.length} total</Badge>
           </Group>
 
-          {userId && (
-            <Stack gap="sm" mt="md">
-              <Group justify="space-between" align="center" wrap="wrap">
-                <Text fw={700}>Company Directory</Text>
-                <Badge variant="light">{companies.length} total</Badge>
-              </Group>
-
-              {companies.length > 0 ? (
-                <MantineReactTable
-                  columns={companyColumns}
-                  data={companies}
-                  mantineTableContainerProps={{ className: 'financeTable' }}
-                  enableColumnActions={false}
-                  enableColumnFilters={false}
-                  enableDensityToggle={false}
-                  enableFullScreenToggle={false}
-                  enableTopToolbar={false}
-                  enablePagination
-                  enableSorting
-                  initialState={{
-                    density: 'xs',
-                    pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
-                    sorting: [{ id: 'name', desc: false }],
-                  }}
-                  mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
-                />
-              ) : (
-                <Text c="dimmed" size="sm">
-                  No companies available for this user.
-                </Text>
-              )}
-            </Stack>
+          {companies.length > 0 ? (
+            <MantineReactTable
+              columns={companyColumns}
+              data={companies}
+              mantineTableContainerProps={{ className: 'financeTable' }}
+              enableColumnActions={false}
+              enableColumnFilters={false}
+              enableDensityToggle={false}
+              enableFullScreenToggle={false}
+              enableTopToolbar={false}
+              enablePagination
+              enableSorting
+              initialState={{
+                density: 'xs',
+                pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+                sorting: [{ id: 'name', desc: false }],
+              }}
+              mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+            />
+          ) : (
+            <Text c="dimmed" size="sm">
+              No companies available for this user.
+            </Text>
           )}
-        </Stack>
-      </Paper>
+        </>
+      )}
 
       <Modal opened={confirmOpen} onClose={closeConfirm} title={confirmLabel} fullScreen={isMobile}>
         <Stack>
@@ -331,6 +299,6 @@ export default function LandingPage() {
           </Group>
         </Stack>
       </Modal>
-    </Container>
+    </Stack>
   );
 }
