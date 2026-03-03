@@ -10,11 +10,14 @@ import {
   Stack,
   Text,
   ThemeIcon,
+  MantineProvider,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
+import { QueryClientProvider } from '@tanstack/react-query';
 
 import { useApi } from './hooks/useApi';
 import { companyRoute, homeRoute, landingRoute } from './router';
+import { theme } from './theme';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
 import { useAllCompanyMembershipsQuery } from './queries/memberships';
@@ -22,7 +25,15 @@ import { useCompaniesQuery } from './queries/reference';
 
 /** Root layout: intentionally minimal to keep route config clean. */
 export function RootLayout() {
-  return <Outlet />;
+  const router = useRouter();
+
+  return (
+    <MantineProvider theme={theme} defaultColorScheme="light">
+      <QueryClientProvider client={router.options.context.queryClient}>
+        <Outlet />
+      </QueryClientProvider>
+    </MantineProvider>
+  );
 }
 
 /**
