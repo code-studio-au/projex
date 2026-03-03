@@ -1,5 +1,5 @@
-import type { Project } from '../types';
-import { asCompanyId, asProjectId } from '../types';
+import type { Project } from '../types/index.ts';
+import { asCompanyId, asProjectId } from '../types/index.ts';
 
 export const seedProjects: Project[] = [
   {

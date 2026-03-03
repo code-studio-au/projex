@@ -7,7 +7,7 @@ import type {
   SubCategory,
   SubCategoryId,
   Txn,
-} from '../types';
+} from '../types/index.ts';
 import {
   asBudgetLineId,
   asCategoryId,
@@ -15,14 +15,14 @@ import {
   asProjectId,
   asSubCategoryId,
   asTxnId,
-} from '../types';
+} from '../types/index.ts';
 import {
   seedBudgets,
   seedCategories,
   seedSubCategories,
   seedTransactions,
-} from './fixtures/concurSeedData';
-import { toCents } from '../utils/money';
+} from './fixtures/concurSeedData.ts';
+import { toCents } from '../utils/money.ts';
 
 export type SeedProjectDataSlice = {
   budgets: BudgetLine[];

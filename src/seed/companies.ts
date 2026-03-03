@@ -1,5 +1,5 @@
-import type { Company } from '../types';
-import { asCompanyId } from '../types';
+import type { Company } from '../types/index.ts';
+import { asCompanyId } from '../types/index.ts';
 
 export const seedCompanies: Company[] = [
   { id: asCompanyId('co_projex'), name: 'Projex', status: 'active' },

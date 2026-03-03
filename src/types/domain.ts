@@ -6,8 +6,8 @@ import type {
   SubCategoryId,
   TxnId,
   UserId,
-} from './ids';
-import type { CompanyRole, ProjectRole } from './roles';
+} from './ids.ts';
+import type { CompanyRole, ProjectRole } from './roles.ts';
 
 export type CompanyStatus = 'active' | 'deactivated';
 

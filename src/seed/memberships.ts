@@ -1,5 +1,5 @@
-import type { CompanyMembership, ProjectMembership } from '../types';
-import { asCompanyId, asProjectId, asUserId } from '../types';
+import type { CompanyMembership, ProjectMembership } from '../types/index.ts';
+import { asCompanyId, asProjectId, asUserId } from '../types/index.ts';
 
 export const seedCompanyMemberships: CompanyMembership[] = [
   {

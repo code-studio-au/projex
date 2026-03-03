@@ -1,5 +1,5 @@
-import type { Brand } from './brand';
-import { brand } from './brand';
+import type { Brand } from './brand.ts';
+import { brand } from './brand.ts';
 
 /**
  * Branded IDs: compile-time safety for foreign-key-like strings.

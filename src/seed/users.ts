@@ -1,5 +1,5 @@
-import type { User } from '../types';
-import { asUserId } from '../types';
+import type { User } from '../types/index.ts';
+import { asUserId } from '../types/index.ts';
 
 export const seedUsers: User[] = [
   {

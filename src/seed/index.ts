@@ -1,10 +1,10 @@
-import type { CompanyId, ProjectId } from '../types';
-import { asCompanyId, asProjectId } from '../types';
-import { seedCompanies } from './companies';
-import { seedUsers } from './users';
-import { seedProjects } from './projects';
-import { seedCompanyMemberships, seedProjectMemberships } from './memberships';
-import { seedDataByProjectId, type SeedProjectDataSlice } from './projectData';
+import type { CompanyId, ProjectId } from '../types/index.ts';
+import { asCompanyId, asProjectId } from '../types/index.ts';
+import { seedCompanies } from './companies.ts';
+import { seedUsers } from './users.ts';
+import { seedProjects } from './projects.ts';
+import { seedCompanyMemberships, seedProjectMemberships } from './memberships.ts';
+import { seedDataByProjectId, type SeedProjectDataSlice } from './projectData.ts';
 
 export const PROJEX_STATE_KEY = 'projex_state_v1';
 

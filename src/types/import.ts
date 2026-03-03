@@ -1,5 +1,5 @@
-import type { CategoryId, SubCategoryId, TxnId } from './ids';
-import type { Txn } from './domain';
+import type { CategoryId, SubCategoryId, TxnId } from './ids.ts';
+import type { Txn } from './domain.ts';
 
 /**
  * Import-only transaction shape (no company/project scoping yet).
