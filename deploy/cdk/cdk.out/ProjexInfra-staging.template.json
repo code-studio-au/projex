@@ -1,0 +1,906 @@
+{
+ "Resources": {
+  "ProjexVpcCB3A565C": {
+   "Type": "AWS::EC2::VPC",
+   "Properties": {
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsHostnames": true,
+    "EnableDnsSupport": true,
+    "InstanceTenancy": "default",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/Resource"
+   }
+  },
+  "ProjexVpcpublicSubnet1Subnet362C5EFC": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "ap-southeast-2a",
+    "CidrBlock": "10.0.0.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/publicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet1/Subnet"
+   }
+  },
+  "ProjexVpcpublicSubnet1RouteTable7C57B31A": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/publicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet1/RouteTable"
+   }
+  },
+  "ProjexVpcpublicSubnet1RouteTableAssociationA6F35343": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ProjexVpcpublicSubnet1RouteTable7C57B31A"
+    },
+    "SubnetId": {
+     "Ref": "ProjexVpcpublicSubnet1Subnet362C5EFC"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet1/RouteTableAssociation"
+   }
+  },
+  "ProjexVpcpublicSubnet1DefaultRoute1B63A41F": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "ProjexVpcIGW5C3FEC0A"
+    },
+    "RouteTableId": {
+     "Ref": "ProjexVpcpublicSubnet1RouteTable7C57B31A"
+    }
+   },
+   "DependsOn": [
+    "ProjexVpcVPCGW234CA34C"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet1/DefaultRoute"
+   }
+  },
+  "ProjexVpcpublicSubnet1EIP789A9E33": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/publicSubnet1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet1/EIP"
+   }
+  },
+  "ProjexVpcpublicSubnet1NATGateway7B780076": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "ProjexVpcpublicSubnet1EIP789A9E33",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "ProjexVpcpublicSubnet1Subnet362C5EFC"
+    },
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/publicSubnet1"
+     }
+    ]
+   },
+   "DependsOn": [
+    "ProjexVpcpublicSubnet1DefaultRoute1B63A41F",
+    "ProjexVpcpublicSubnet1RouteTableAssociationA6F35343"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet1/NATGateway"
+   }
+  },
+  "ProjexVpcpublicSubnet2Subnet82EDECCD": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "ap-southeast-2b",
+    "CidrBlock": "10.0.1.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/publicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet2/Subnet"
+   }
+  },
+  "ProjexVpcpublicSubnet2RouteTable0BC8D82F": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/publicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet2/RouteTable"
+   }
+  },
+  "ProjexVpcpublicSubnet2RouteTableAssociation11AEDFEC": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ProjexVpcpublicSubnet2RouteTable0BC8D82F"
+    },
+    "SubnetId": {
+     "Ref": "ProjexVpcpublicSubnet2Subnet82EDECCD"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet2/RouteTableAssociation"
+   }
+  },
+  "ProjexVpcpublicSubnet2DefaultRouteDC4F6478": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "ProjexVpcIGW5C3FEC0A"
+    },
+    "RouteTableId": {
+     "Ref": "ProjexVpcpublicSubnet2RouteTable0BC8D82F"
+    }
+   },
+   "DependsOn": [
+    "ProjexVpcVPCGW234CA34C"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet2/DefaultRoute"
+   }
+  },
+  "ProjexVpcappprivateSubnet1Subnet5A1FA1B7": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "ap-southeast-2a",
+    "CidrBlock": "10.0.2.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "app-private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1/Subnet"
+   }
+  },
+  "ProjexVpcappprivateSubnet1RouteTable3A9E7FCF": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1/RouteTable"
+   }
+  },
+  "ProjexVpcappprivateSubnet1RouteTableAssociation68AFCF56": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ProjexVpcappprivateSubnet1RouteTable3A9E7FCF"
+    },
+    "SubnetId": {
+     "Ref": "ProjexVpcappprivateSubnet1Subnet5A1FA1B7"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1/RouteTableAssociation"
+   }
+  },
+  "ProjexVpcappprivateSubnet1DefaultRoute26FBE0B5": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "ProjexVpcpublicSubnet1NATGateway7B780076"
+    },
+    "RouteTableId": {
+     "Ref": "ProjexVpcappprivateSubnet1RouteTable3A9E7FCF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1/DefaultRoute"
+   }
+  },
+  "ProjexVpcappprivateSubnet2SubnetB087AED0": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "ap-southeast-2b",
+    "CidrBlock": "10.0.3.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "app-private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2/Subnet"
+   }
+  },
+  "ProjexVpcappprivateSubnet2RouteTable810EA159": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2/RouteTable"
+   }
+  },
+  "ProjexVpcappprivateSubnet2RouteTableAssociation20B83C6C": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ProjexVpcappprivateSubnet2RouteTable810EA159"
+    },
+    "SubnetId": {
+     "Ref": "ProjexVpcappprivateSubnet2SubnetB087AED0"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2/RouteTableAssociation"
+   }
+  },
+  "ProjexVpcappprivateSubnet2DefaultRouteAA446C35": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "ProjexVpcpublicSubnet1NATGateway7B780076"
+    },
+    "RouteTableId": {
+     "Ref": "ProjexVpcappprivateSubnet2RouteTable810EA159"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2/DefaultRoute"
+   }
+  },
+  "ProjexVpcdbisolatedSubnet1Subnet227E91A6": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "ap-southeast-2a",
+    "CidrBlock": "10.0.4.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "db-isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet1/Subnet"
+   }
+  },
+  "ProjexVpcdbisolatedSubnet1RouteTableC3BD7D2A": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet1/RouteTable"
+   }
+  },
+  "ProjexVpcdbisolatedSubnet1RouteTableAssociation69AA2B8F": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ProjexVpcdbisolatedSubnet1RouteTableC3BD7D2A"
+    },
+    "SubnetId": {
+     "Ref": "ProjexVpcdbisolatedSubnet1Subnet227E91A6"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet1/RouteTableAssociation"
+   }
+  },
+  "ProjexVpcdbisolatedSubnet2Subnet3700F906": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "ap-southeast-2b",
+    "CidrBlock": "10.0.5.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "db-isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet2/Subnet"
+   }
+  },
+  "ProjexVpcdbisolatedSubnet2RouteTable7583E20C": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet2/RouteTable"
+   }
+  },
+  "ProjexVpcdbisolatedSubnet2RouteTableAssociationD9ECB8F6": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ProjexVpcdbisolatedSubnet2RouteTable7583E20C"
+    },
+    "SubnetId": {
+     "Ref": "ProjexVpcdbisolatedSubnet2Subnet3700F906"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/db-isolatedSubnet2/RouteTableAssociation"
+   }
+  },
+  "ProjexVpcIGW5C3FEC0A": {
+   "Type": "AWS::EC2::InternetGateway",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexVpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/IGW"
+   }
+  },
+  "ProjexVpcVPCGW234CA34C": {
+   "Type": "AWS::EC2::VPCGatewayAttachment",
+   "Properties": {
+    "InternetGatewayId": {
+     "Ref": "ProjexVpcIGW5C3FEC0A"
+    },
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/VPCGW"
+   }
+  },
+  "ProjexAppSg6D2CECB1": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Projex app server SG",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "HTTP",
+      "FromPort": 80,
+      "IpProtocol": "tcp",
+      "ToPort": 80
+     },
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "HTTPS",
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexAppSg/Resource"
+   }
+  },
+  "ProjexDbSg3D618562": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Projex postgres SG",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ProjexVpcCB3A565C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexDbSg/Resource"
+   }
+  },
+  "ProjexDbSgfromProjexInfrastagingProjexAppSg4F5C7AD1543240206C3F": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "App to Postgres",
+    "FromPort": 5432,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "ProjexDbSg3D618562",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::GetAtt": [
+      "ProjexAppSg6D2CECB1",
+      "GroupId"
+     ]
+    },
+    "ToPort": 5432
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexDbSg/from ProjexInfrastagingProjexAppSg4F5C7AD1:5432"
+   }
+  },
+  "ProjexEc2RoleBF099E3E": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ec2.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/AmazonSSMManagedInstanceCore"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexEc2Role/Resource"
+   }
+  },
+  "ProjexEc2InstanceProfile0AD1F7C3": {
+   "Type": "AWS::IAM::InstanceProfile",
+   "Properties": {
+    "Roles": [
+     {
+      "Ref": "ProjexEc2RoleBF099E3E"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexEc2/InstanceProfile"
+   }
+  },
+  "ProjexEc278808BF5": {
+   "Type": "AWS::EC2::Instance",
+   "Properties": {
+    "AvailabilityZone": "ap-southeast-2a",
+    "BlockDeviceMappings": [
+     {
+      "DeviceName": "/dev/xvda",
+      "Ebs": {
+       "Encrypted": true,
+       "VolumeSize": 40,
+       "VolumeType": "gp3"
+      }
+     }
+    ],
+    "IamInstanceProfile": {
+     "Ref": "ProjexEc2InstanceProfile0AD1F7C3"
+    },
+    "ImageId": {
+     "Ref": "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter"
+    },
+    "InstanceType": "t3.small",
+    "SecurityGroupIds": [
+     {
+      "Fn::GetAtt": [
+       "ProjexAppSg6D2CECB1",
+       "GroupId"
+      ]
+     }
+    ],
+    "SubnetId": {
+     "Ref": "ProjexVpcpublicSubnet1Subnet362C5EFC"
+    },
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ProjexInfra-staging/ProjexEc2"
+     }
+    ],
+    "UserData": {
+     "Fn::Base64": "#!/bin/bash\nset -euxo pipefail\ndnf update -y || yum update -y\ndnf install -y git nginx || yum install -y git nginx\ncurl -fsSL https://rpm.nodesource.com/setup_22.x | bash -\ndnf install -y nodejs || yum install -y nodejs\nsystemctl enable nginx\nsystemctl start nginx\necho \"Projex instance bootstrap complete\" > /var/log/projex-bootstrap.log"
+    }
+   },
+   "DependsOn": [
+    "ProjexEc2RoleBF099E3E"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexEc2/Resource"
+   }
+  },
+  "ProjexEip": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexEip"
+   }
+  },
+  "ProjexEipAssociation": {
+   "Type": "AWS::EC2::EIPAssociation",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "ProjexEip",
+      "AllocationId"
+     ]
+    },
+    "InstanceId": {
+     "Ref": "ProjexEc278808BF5"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexEipAssociation"
+   }
+  },
+  "ProjexPostgresSubnetGroupA91668E2": {
+   "Type": "AWS::RDS::DBSubnetGroup",
+   "Properties": {
+    "DBSubnetGroupDescription": "Subnet group for ProjexPostgres database",
+    "SubnetIds": [
+     {
+      "Ref": "ProjexVpcdbisolatedSubnet1Subnet227E91A6"
+     },
+     {
+      "Ref": "ProjexVpcdbisolatedSubnet2Subnet3700F906"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexPostgres/SubnetGroup/Default"
+   }
+  },
+  "ProjexInfrastagingProjexPostgresSecretDC68C0623fdaad7efa858a3daf9490cf0a702aeb": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": {
+     "Fn::Join": [
+      "",
+      [
+       "Generated by the CDK for stack: ",
+       {
+        "Ref": "AWS::StackName"
+       }
+      ]
+     ]
+    },
+    "GenerateSecretString": {
+     "ExcludeCharacters": " %+~`#$&*()|[]{}:;<>?!'/@\"\\",
+     "GenerateStringKey": "password",
+     "PasswordLength": 30,
+     "SecretStringTemplate": "{\"username\":\"projex_app\"}"
+    },
+    "Name": "projex/staging/db-credentials"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexPostgres/Secret/Resource"
+   }
+  },
+  "ProjexPostgresSecretAttachmentF6621C78": {
+   "Type": "AWS::SecretsManager::SecretTargetAttachment",
+   "Properties": {
+    "SecretId": {
+     "Ref": "ProjexInfrastagingProjexPostgresSecretDC68C0623fdaad7efa858a3daf9490cf0a702aeb"
+    },
+    "TargetId": {
+     "Ref": "ProjexPostgres418F02DE"
+    },
+    "TargetType": "AWS::RDS::DBInstance"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexPostgres/Secret/Attachment/Resource"
+   }
+  },
+  "ProjexPostgres418F02DE": {
+   "Type": "AWS::RDS::DBInstance",
+   "Properties": {
+    "AllocatedStorage": "20",
+    "BackupRetentionPeriod": 1,
+    "CopyTagsToSnapshot": true,
+    "DBInstanceClass": "db.t3.micro",
+    "DBName": "projex",
+    "DBSubnetGroupName": {
+     "Ref": "ProjexPostgresSubnetGroupA91668E2"
+    },
+    "DeleteAutomatedBackups": true,
+    "DeletionProtection": false,
+    "Engine": "postgres",
+    "EngineVersion": "16",
+    "MasterUserPassword": {
+     "Fn::Join": [
+      "",
+      [
+       "{{resolve:secretsmanager:",
+       {
+        "Ref": "ProjexInfrastagingProjexPostgresSecretDC68C0623fdaad7efa858a3daf9490cf0a702aeb"
+       },
+       ":SecretString:password::}}"
+      ]
+     ]
+    },
+    "MasterUsername": "projex_app",
+    "MaxAllocatedStorage": 100,
+    "MultiAZ": false,
+    "PubliclyAccessible": false,
+    "StorageEncrypted": true,
+    "StorageType": "gp2",
+    "VPCSecurityGroups": [
+     {
+      "Fn::GetAtt": [
+       "ProjexDbSg3D618562",
+       "GroupId"
+      ]
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexPostgres/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/31QTW/CMAz9LdxDNqrtB/Al1MtWtYjr5AbDAm2CbAeEqv73qWRt0Q47Pfvl2X4viU7eZvp1Ajeemv15WtlSN4WAOSu48VeDJtHN7mLU8uB22VJloaysKULpUDpurHIfBLdQVjjyIzdn9saCWO8GcVes06yDD5ANCN7grjKyVxAcF6dOkBwOgujkt5uLgPmu0Ykq0ASyct+QD5eHh3+J1B0JmVXqWMAZjKfGep1mT6ZbZaHWTe5jvB77gYz8wVbYKtqzblYgUALjsC6GGXysFs9Ery7QUEy8WvSTreIHyzU4OCLpJsbohBG2QEeUp28YBH9f2lblyD5QzJcBQY2C1DWfQS5BWuX8HvWJX67Ju070bHJia6cUnNgadR7xB7B0FGkzAgAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/CDKMetadata/Default"
+   }
+  }
+ },
+ "Parameters": {
+  "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter": {
+   "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+   "Default": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64"
+  },
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Outputs": {
+  "VpcId": {
+   "Value": {
+    "Ref": "ProjexVpcCB3A565C"
+   }
+  },
+  "Ec2InstanceId": {
+   "Value": {
+    "Ref": "ProjexEc278808BF5"
+   }
+  },
+  "Ec2PublicIp": {
+   "Value": {
+    "Ref": "ProjexEip"
+   }
+  },
+  "DbEndpointAddress": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ProjexPostgres418F02DE",
+     "Endpoint.Address"
+    ]
+   }
+  },
+  "DbEndpointPort": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ProjexPostgres418F02DE",
+     "Endpoint.Port"
+    ]
+   }
+  },
+  "DbSecretArn": {
+   "Description": "Secrets Manager ARN containing db username/password",
+   "Value": {
+    "Ref": "ProjexPostgresSecretAttachmentF6621C78"
+   }
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,21 @@
+{
+  "version": "52.0.0",
+  "files": {
+    "11f3b0641c571dd2d786dd627b28e9ac131e5c4af8734cce4246be7d5b489a54": {
+      "displayName": "ProjexInfra-staging Template",
+      "source": {
+        "path": "ProjexInfra-staging.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "839629613667-ap-southeast-2-bf18ac50": {
+          "bucketName": "cdk-hnb659fds-assets-839629613667-ap-southeast-2",
+          "objectKey": "11f3b0641c571dd2d786dd627b28e9ac131e5c4af8734cce4246be7d5b489a54.json",
+          "region": "ap-southeast-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::839629613667:role/cdk-hnb659fds-file-publishing-role-839629613667-ap-southeast-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

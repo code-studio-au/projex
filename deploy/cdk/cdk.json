@@ -1,0 +1,14 @@
+{
+  "app": "node --enable-source-maps --loader ts-node/esm bin/projex-infra.ts",
+  "watch": {
+    "include": ["bin/**/*.ts", "lib/**/*.ts"],
+    "exclude": ["README.md", "cdk*.json", "package*.json", "tsconfig.json"]
+  },
+  "context": {
+    "envName": "staging",
+    "instanceType": "t3.small",
+    "dbName": "projex",
+    "dbUsername": "projex_app",
+    "sshCidr": ""
+  }
+}
