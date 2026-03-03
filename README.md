@@ -22,6 +22,9 @@ npm run dev
 # Apply BetterAuth + app SQL migrations to DATABASE_URL
 npm run db:migrate
 
+# Reset app-domain tables to full baseline seed data
+npm run db:seed:baseline
+
 # Create BetterAuth user (email/password)
 PROJEX_AUTH_EMAIL=... PROJEX_AUTH_PASSWORD=... PROJEX_AUTH_NAME=... npm run auth:create-user
 

@@ -132,6 +132,10 @@ export class ProjexInfraStack extends Stack {
       publiclyAccessible: false,
     });
 
+    if (db.secret) {
+      db.secret.grantRead(role);
+    }
+
     new CfnOutput(this, 'VpcId', { value: vpc.vpcId });
     new CfnOutput(this, 'Ec2InstanceId', { value: instance.instanceId });
     new CfnOutput(this, 'Ec2PublicIp', { value: eip.ref });

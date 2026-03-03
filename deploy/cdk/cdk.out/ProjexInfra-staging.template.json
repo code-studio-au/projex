@@ -620,6 +620,35 @@
     "aws:cdk:path": "ProjexInfra-staging/ProjexEc2Role/Resource"
    }
   },
+  "ProjexEc2RoleDefaultPolicyD46A742A": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "ProjexPostgresSecretAttachmentF6621C78"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "ProjexEc2RoleDefaultPolicyD46A742A",
+    "Roles": [
+     {
+      "Ref": "ProjexEc2RoleBF099E3E"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexEc2Role/DefaultPolicy/Resource"
+   }
+  },
   "ProjexEc2InstanceProfile0AD1F7C3": {
    "Type": "AWS::IAM::InstanceProfile",
    "Properties": {
@@ -676,6 +705,7 @@
     }
    },
    "DependsOn": [
+    "ProjexEc2RoleDefaultPolicyD46A742A",
     "ProjexEc2RoleBF099E3E"
    ],
    "Metadata": {
@@ -819,7 +849,7 @@
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/31QTW/CMAz9LdxDNqrtB/Al1MtWtYjr5AbDAm2CbAeEqv73qWRt0Q47Pfvl2X4viU7eZvp1Ajeemv15WtlSN4WAOSu48VeDJtHN7mLU8uB22VJloaysKULpUDpurHIfBLdQVjjyIzdn9saCWO8GcVes06yDD5ANCN7grjKyVxAcF6dOkBwOgujkt5uLgPmu0Ykq0ASyct+QD5eHh3+J1B0JmVXqWMAZjKfGep1mT6ZbZaHWTe5jvB77gYz8wVbYKtqzblYgUALjsC6GGXysFs9Ery7QUEy8WvSTreIHyzU4OCLpJsbohBG2QEeUp28YBH9f2lblyD5QzJcBQY2C1DWfQS5BWuX8HvWJX67Ju070bHJia6cUnNgadR7xB7B0FGkzAgAA"
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/31Qy27CMBD8Fu7GLVH7AbyEcmmtBHGtNmahhsRG6zURivLvVeImQT30NOPxeD2ziUzeFvJ1BrWf6+N1XppCNjmDvgqo/VeDOpHN4abF+mQPai1UKEqj81BY5E6bWOYC4x6KEid90pbeO22AjbOjuSPbVHXwAbwDxhoeQpG5A+M0OLWMZHE0xCS/pyUz6O8KLYscdSDDjx25cOsz/Cuk9kzovUitZ7Aa41cT36bqKXQrDFSyyVys16NypdF9nokNExS5kymxFXT0stkAQwEex/mx3Rhss3oWBneOmuIKNqvhZSt8r/oKLJyRZBN7dcYIe6Az8tNeRsPfm7YVGXoXKBZWQFAhI3WHz8C3wK2w7ojy4l/uybtM5GJ28cbMKVg2Fcos4g8MgCyNRAIAAA=="
    },
    "Metadata": {
     "aws:cdk:path": "ProjexInfra-staging/CDKMetadata/Default"
