@@ -12,6 +12,7 @@ import { useRollups } from '../hooks/useRollups';
 import { formatCurrencyFromCents } from '../utils/money';
 
 import { useCompanyQuery, useProjectQuery } from '../queries/reference';
+import { useUpdateProjectMutation } from '../queries/admin';
 
 import TransactionsPanel from './TransactionsPanel';
 import BudgetPanel from './BudgetPanel';
@@ -28,6 +29,7 @@ export default function ProjectWorkspace(props: {
   const access = useCompanyAccess(companyId);
   const company = useCompanyQuery(companyId);
   const project = useProjectQuery(projectId);
+  const updateProject = useUpdateProjectMutation(companyId);
 
   const canProjectEdit = access.can('project:edit', projectId);
   const canImport = access.can('project:import', projectId);
@@ -79,6 +81,9 @@ export default function ProjectWorkspace(props: {
           </Stack>
 
           <Group gap="sm" wrap="wrap">
+            <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="gray">
+              {project.data?.currency ?? 'AUD'}
+            </Badge>
             <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
               Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, project.data?.currency ?? 'AUD')})
             </Badge>
@@ -90,10 +95,10 @@ export default function ProjectWorkspace(props: {
       </Paper>
 
       <Paper withBorder radius="lg" p="md">
-        <Tabs defaultValue="transactions" keepMounted={false} variant="outline">
+        <Tabs defaultValue="budget" keepMounted={false} variant="outline">
           <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
-            <Tabs.Tab value="transactions">Transactions</Tabs.Tab>
             <Tabs.Tab value="budget">Budget</Tabs.Tab>
+            <Tabs.Tab value="transactions">Transactions</Tabs.Tab>
             <Tabs.Tab value="import" disabled={!canImport}>
               Import
             </Tabs.Tab>
@@ -112,7 +117,6 @@ export default function ProjectWorkspace(props: {
               monthFilterOptions={monthFilterOptions}
               showUncodedOnly={showUncodedOnly}
               setShowUncodedOnly={setShowUncodedOnly}
-              uncodedSummary={uncoded}
               canEditTaxonomy={canEditTaxonomy}
               readOnly={!canEditTxns}
             />
@@ -122,9 +126,14 @@ export default function ProjectWorkspace(props: {
             <BudgetPanel
               projectId={projectId}
               currencyCode={project.data?.currency ?? 'AUD'}
+              projectBudgetTotalCents={project.data?.budgetTotalCents ?? 0}
+              onUpdateProjectBudgetTotal={async (budgetTotalCents) => {
+                await updateProject.mutateAsync({ id: projectId, budgetTotalCents });
+              }}
               rollups={rollups}
               budgets={budgets}
               uncodedSummary={uncoded}
+              canEditProjectBudgetTotal={canEditBudgets}
               readOnly={!canEditBudgets}
             />
           </Tabs.Panel>

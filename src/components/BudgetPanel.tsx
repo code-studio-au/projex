@@ -1,32 +1,33 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Badge, Group, NumberInput, Stack, Text, Title } from '@mantine/core';
-import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import { useMemo, useState } from 'react';
+import { ActionIcon, Alert, Group, Menu, NumberInput, Paper, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
+import {
+  MantineReactTable,
+  type MRT_ColumnDef,
+} from 'mantine-react-table';
+import { IconCheck, IconColumns, IconPencil, IconX } from '@tabler/icons-react';
 import type { RollupsHook } from '../hooks/useRollups';
 import type { BudgetsHook } from '../hooks/useBudgets';
-import {
-  loadBudgetCollapseState,
-  saveBudgetCollapseState,
-} from '../store/uiPrefs';
 import type { ProjectId, RollupRow } from '../types';
 import {
   formatMonthLabel,
   parseYearMonth,
-  quarterKey,
   quarterOfMonth,
   sum,
   type Quarter,
 } from '../utils/finance';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 
-type CollapseState = {
-  collapsedYears: Set<number>;
-  collapsedQuarters: Set<string>;
+type BudgetDisplayRow = RollupRow & {
+  rowKind: 'category' | 'subcategory';
+  rowId: string;
 };
+
+type VisibilityState = Record<string, boolean>;
 
 const HEADER_STYLE = {
   display: 'inline-flex',
   alignItems: 'center',
-  gap: 6,
+  gap: 4,
   justifyContent: 'flex-end',
 } as const;
 
@@ -34,257 +35,394 @@ const HEADER_STYLE = {
  * Budget rollup table (UI-only).
  *
  * Responsibilities:
- * - Renders hierarchical time columns (Year → Quarter).
- * - Owns collapse / expand UX.
- * - Persists collapse state per project.
- *
- * NOTE:
- * All state is initialized lazily.
- * Effects are used ONLY for side-effects (persistence).
+ * - Renders category rollup rows plus always-visible subcategory rows.
+ * - Keeps time columns aligned via explicit sizing and fixed table layout.
  */
 export default function BudgetPanel(props: {
   projectId: ProjectId;
   currencyCode: string;
+  projectBudgetTotalCents: number;
+  onUpdateProjectBudgetTotal?: (budgetTotalCents: number) => Promise<void>;
   rollups: RollupsHook;
   budgets: BudgetsHook;
   uncodedSummary: { count: number; amountCents: number };
+  canEditProjectBudgetTotal?: boolean;
   readOnly?: boolean;
 }) {
   const {
-    projectId,
     currencyCode,
+    projectBudgetTotalCents,
+    onUpdateProjectBudgetTotal,
     rollups,
     budgets,
     uncodedSummary,
+    canEditProjectBudgetTotal = false,
     readOnly = false,
   } = props;
 
   const { updateAllocated } = budgets;
+  const [collapsedYears, setCollapsedYears] = useState<Set<number>>(new Set());
+  const [collapsedQuarters, setCollapsedQuarters] = useState<Set<string>>(new Set());
+  const [userColumnVisibility, setUserColumnVisibility] = useState<Record<string, boolean>>({});
+  const [projectBudgetDraft, setProjectBudgetDraft] = useState<number | ''>('');
+  const [isEditingProjectBudget, setIsEditingProjectBudget] = useState(false);
 
-  /**
-   * Collapse state scoped per project.
-   * Initialized once via lazy initializer.
-   */
-  const [{ collapsedYears, collapsedQuarters }, setCollapse] =
-    useState<CollapseState>(() => {
-      const saved = loadBudgetCollapseState(projectId);
+  const projectAllocatedCents = rollups.totals.allocatedCents;
+  const projectActualCents = rollups.totals.actualCents;
+  const projectRemainingCents = projectBudgetTotalCents - projectAllocatedCents;
+  const allocatedVsActualCents = projectAllocatedCents - projectActualCents;
+  const projectVsActualCents = projectBudgetTotalCents - projectActualCents;
+  const remainingAfterUncodedCents = projectRemainingCents - uncodedSummary.amountCents;
+  const allocatedCoveragePct =
+    projectBudgetTotalCents > 0
+      ? (projectAllocatedCents / projectBudgetTotalCents) * 100
+      : 0;
+  const actualCoveragePct =
+    projectBudgetTotalCents > 0
+      ? (projectActualCents / projectBudgetTotalCents) * 100
+      : 0;
 
-      if (saved) {
-        return {
-          collapsedYears: new Set(
-            Object.keys(saved.collapsedYears)
-              .map(Number)
-              .filter(Number.isFinite)
-          ),
-          collapsedQuarters: new Set(Object.keys(saved.collapsedQuarters)),
-        };
-      }
+  async function commitProjectBudgetTotal() {
+    if (!onUpdateProjectBudgetTotal) return;
+    const nextCents = toCents(Number(projectBudgetDraft === '' ? fromCents(projectBudgetTotalCents) : projectBudgetDraft));
+    if (!Number.isFinite(nextCents) || nextCents < 0 || nextCents === projectBudgetTotalCents) {
+      setProjectBudgetDraft('');
+      setIsEditingProjectBudget(false);
+      return;
+    }
+    await onUpdateProjectBudgetTotal(nextCents);
+    setProjectBudgetDraft('');
+    setIsEditingProjectBudget(false);
+  }
 
-      return {
-        collapsedYears: new Set<number>(),
-        collapsedQuarters: new Set<string>(),
-      };
-    });
-
-  /**
-   * Persist collapse state per project.
-   */
-  useEffect(() => {
-    saveBudgetCollapseState(projectId, {
-      collapsedYears: Object.fromEntries(
-        Array.from(collapsedYears).map((y) => [String(y), true])
-      ),
-      collapsedQuarters: Object.fromEntries(
-        Array.from(collapsedQuarters).map((qk) => [qk, true])
-      ),
-    });
-  }, [projectId, collapsedYears, collapsedQuarters]);
-
-  /**
-   * Column visibility derived from collapse state.
-   */
   const columnVisibility = useMemo(() => {
-    const vis: Record<string, boolean> = {};
+    const visibility: Record<string, boolean> = { ...userColumnVisibility };
 
     for (const mk of rollups.visibleMonthKeys) {
       const { year, month } = parseYearMonth(mk);
-      const q = quarterOfMonth(month);
-      const qk = quarterKey(year, q);
+      const quarter = quarterOfMonth(month);
+      const quarterKey = `${year}_${quarter}`;
+      const isYearCollapsed = collapsedYears.has(year);
+      const isQuarterCollapsed = collapsedQuarters.has(quarterKey);
 
-      const yearCollapsed = collapsedYears.has(year);
-      const quarterCollapsed = collapsedQuarters.has(qk);
+      const quarterId = `qt_${year}_${quarter}`;
+      const monthId = `m_${mk}`;
 
-      vis[`m_${mk}`] = !(yearCollapsed || quarterCollapsed);
-      vis[`qt_${year}_${q}`] = !yearCollapsed;
-      vis[`yt_${year}`] = true;
+      visibility[quarterId] = (userColumnVisibility[quarterId] ?? true) && !isYearCollapsed;
+      visibility[monthId] =
+        (userColumnVisibility[monthId] ?? true) &&
+        !(isYearCollapsed || isQuarterCollapsed);
     }
 
-    return vis;
-  }, [rollups.visibleMonthKeys, collapsedYears, collapsedQuarters]);
+    return visibility;
+  }, [collapsedQuarters, collapsedYears, rollups.visibleMonthKeys, userColumnVisibility]);
 
-  const budgetColumns = useMemo<
-    MRT_ColumnDef<(typeof rollups.rollupRows)[number]>[]
-  >(() => {
+  const displayRows = useMemo<BudgetDisplayRow[]>(() => {
+    const grouped = new Map<string, { categoryId: string; categoryName: string; rows: RollupRow[] }>();
+
+    for (const row of rollups.rollupRows) {
+      const key = row.categoryId ?? `uncategorized:${row.categoryName.trim()}`;
+      const existing = grouped.get(key) ?? {
+        categoryId: key,
+        categoryName: row.categoryName.trim(),
+        rows: [] as RollupRow[],
+      };
+      existing.rows.push(row);
+      grouped.set(key, existing);
+    }
+
+    return Array.from(grouped.values()).flatMap(({ categoryId, categoryName, rows }) => {
+      const actualByMonthKey = Object.fromEntries(
+        rollups.visibleMonthKeys.map((mk) => [
+          mk,
+          sum(rows.map((row) => row.actualByMonthKey[mk] ?? 0)),
+        ])
+      );
+
+      const categoryRow: BudgetDisplayRow = {
+        ...rows[0],
+        id: rows[0].id,
+        categoryName,
+        subCategoryName: 'Total',
+        allocatedCents: sum(rows.map((row) => row.allocatedCents)),
+        totalActualCents: sum(rows.map((row) => row.totalActualCents)),
+        remainingCents: sum(rows.map((row) => row.remainingCents)),
+        actualByMonthKey,
+        rowKind: 'category',
+        rowId: `category:${categoryId}`,
+      };
+
+      const subRows = rows
+        .slice()
+        .sort((a, b) => a.subCategoryName.localeCompare(b.subCategoryName))
+        .map<BudgetDisplayRow>((row) => ({
+          ...row,
+          rowKind: 'subcategory',
+          rowId: `subcategory:${row.id}`,
+        }));
+
+      return [categoryRow, ...subRows];
+    });
+  }, [rollups.rollupRows, rollups.visibleMonthKeys]);
+
+  const timeHierarchy = useMemo(() => {
+    const byYear = new Map<number, { quarterIds: string[]; monthIds: string[] }>();
+    const byQuarter = new Map<string, { monthIds: string[] }>();
+
+    for (const mk of rollups.visibleMonthKeys) {
+      const { year, month } = parseYearMonth(mk);
+      const quarter = quarterOfMonth(month);
+      const quarterId = `qt_${year}_${quarter}`;
+      const monthId = `m_${mk}`;
+
+      const yearEntry = byYear.get(year) ?? { quarterIds: [], monthIds: [] };
+      if (!yearEntry.quarterIds.includes(quarterId)) yearEntry.quarterIds.push(quarterId);
+      yearEntry.monthIds.push(monthId);
+      byYear.set(year, yearEntry);
+
+      const quarterEntry = byQuarter.get(quarterId) ?? { monthIds: [] };
+      quarterEntry.monthIds.push(monthId);
+      byQuarter.set(quarterId, quarterEntry);
+    }
+
+    return { byYear, byQuarter };
+  }, [rollups.visibleMonthKeys]);
+
+  function handleColumnVisibilityChange(
+    updater: VisibilityState | ((old: VisibilityState) => VisibilityState)
+  ) {
+    setUserColumnVisibility((current) => {
+      const next =
+        typeof updater === 'function' ? updater(current) : updater;
+      return { ...next };
+    });
+  }
+
+  function toggleYearVisibility(year: number, visible: boolean) {
+    handleColumnVisibilityChange((current) => {
+      const next = { ...current };
+      const yearId = `yt_${year}`;
+      next[yearId] = visible;
+      const entry = timeHierarchy.byYear.get(year);
+      if (entry) {
+        for (const quarterId of entry.quarterIds) next[quarterId] = visible;
+        for (const monthId of entry.monthIds) next[monthId] = visible;
+      }
+      return next;
+    });
+  }
+
+  function toggleQuarterVisibility(quarterId: string, visible: boolean) {
+    handleColumnVisibilityChange((current) => {
+      const next = { ...current };
+      next[quarterId] = visible;
+      const entry = timeHierarchy.byQuarter.get(quarterId);
+      if (entry) {
+        for (const monthId of entry.monthIds) next[monthId] = visible;
+      }
+      return next;
+    });
+  }
+
+  const timeColumns = useMemo<MRT_ColumnDef<BudgetDisplayRow>[]>(() => {
     const years = new Map<number, Map<Quarter, string[]>>();
 
     for (const mk of rollups.visibleMonthKeys) {
       const { year, month } = parseYearMonth(mk);
-      const q = quarterOfMonth(month);
-      if (!years.has(year)) years.set(year, new Map());
-      const qm = years.get(year)!;
-      if (!qm.has(q)) qm.set(q, []);
-      qm.get(q)!.push(mk);
+      const quarter = quarterOfMonth(month);
+      const yearEntry = years.get(year) ?? new Map<Quarter, string[]>();
+      const existing = yearEntry.get(quarter) ?? [];
+      existing.push(mk);
+      yearEntry.set(quarter, existing);
+      years.set(year, yearEntry);
     }
 
-    for (const [, qm] of years) {
-      for (const [q, arr] of qm) {
-        qm.set(q, [...arr].sort());
-      }
-    }
-
-    const sumMonths = (row: RollupRow, months: string[]) =>
+    const sumMonths = (row: BudgetDisplayRow, months: string[]) =>
       months.reduce((acc, mk) => acc + (row.actualByMonthKey[mk] ?? 0), 0);
 
-    const yearGroups: MRT_ColumnDef<RollupRow>[] = Array.from(years.entries())
+    return Array.from(years.entries())
       .sort(([a], [b]) => a - b)
-      .map(([year, quarterMap]) => {
-        const yearMonths = Array.from(quarterMap.values()).flat();
-
-        const yearTotal: MRT_ColumnDef<RollupRow> = {
-          id: `yt_${year}`,
-          header: `${year} Total`,
-          Header: () => (
-            <span style={HEADER_STYLE}>
-              <span>{year} Total</span>
-              <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>
-                {collapsedYears.has(year) ? '▸' : '▾'}
-              </span>
-            </span>
-          ),
-          accessorFn: (row) => sumMonths(row, yearMonths),
-          Cell: ({ cell }) => (
-            <Text className="table-body-emphasis">
-              {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
-            </Text>
-          ),
-          aggregationFn: 'sum',
-          mantineTableHeadCellProps: {
-            title: 'Click to collapse / expand year',
-            onClick: () =>
-              setCollapse((s) => {
-                const next = new Set(s.collapsedYears);
-                if (next.has(year)) next.delete(year);
-                else next.add(year);
-                return { ...s, collapsedYears: next };
-              }),
-            style: { cursor: 'pointer' },
+      .flatMap(([year, quarterMap]) => {
+        const yearMonths = Array.from(quarterMap.values()).flat().sort();
+        return [
+          {
+            id: `yt_${year}`,
+            header: `${year} Total`,
+            size: 128,
+            minSize: 128,
+            enableHiding: true,
+            Header: () => <span style={HEADER_STYLE}>{year} Total</span>,
+            accessorFn: (row) => sumMonths(row, yearMonths),
+            Cell: ({ cell }) => (
+              <Text className="table-body-emphasis">
+                {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
+              </Text>
+            ),
+            mantineTableHeadCellProps: {
+              className: 'table-head-cell table-head-right budgetTable-head',
+              title: 'Click to collapse or expand this year',
+              onClick: () =>
+                setCollapsedYears((current) => {
+                  const next = new Set(current);
+                  if (next.has(year)) next.delete(year);
+                  else next.add(year);
+                  return next;
+                }),
+              style: { cursor: 'pointer' },
+            },
+            mantineTableBodyCellProps: {
+              className: 'table-body-right budgetTable-cell',
+            },
           },
-        };
-
-        const quarterCols: MRT_ColumnDef<RollupRow>[] = (
-          ['Q1', 'Q2', 'Q3', 'Q4'] as Quarter[]
-        )
-          .filter((q) => quarterMap.has(q))
-          .map((q) => {
-            const months = quarterMap.get(q)!;
-            const qk = quarterKey(year, q);
-
-            const quarterTotal: MRT_ColumnDef<RollupRow> = {
-              id: `qt_${year}_${q}`,
-              header: `${q} Total`,
-              Header: () => (
-                <span style={HEADER_STYLE}>
-                  <span>{q} Total</span>
-                  <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>
-                    {collapsedQuarters.has(qk) ? '▸' : '▾'}
-                  </span>
-                </span>
-              ),
-              accessorFn: (row) => sumMonths(row, months),
-              Cell: ({ cell }) => (
-                <Text className="table-body-emphasis">
-                  {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
-                </Text>
-              ),
-              aggregationFn: 'sum',
-              mantineTableHeadCellProps: {
-                title: 'Click to collapse / expand quarter',
-                onClick: () =>
-                  setCollapse((s) => {
-                    const next = new Set(s.collapsedQuarters);
-                    if (next.has(qk)) next.delete(qk);
-                    else next.add(qk);
-                    return { ...s, collapsedQuarters: next };
-                  }),
-                style: { cursor: 'pointer' },
-              },
-            };
-
-            const monthCols: MRT_ColumnDef<RollupRow>[] = months.map((mk) => ({
-              id: `m_${mk}`,
-              header: formatMonthLabel(mk),
-              accessorFn: (row) => row.actualByMonthKey[mk] ?? 0,
-              Cell: ({ cell }) => (
-                <Text className="table-body-right">
-                  {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
-                </Text>
-              ),
-              aggregationFn: 'sum',
-            }));
-
-            return {
-              id: `qgrp_${year}_${q}`,
-              header: q,
-              columns: [quarterTotal, ...monthCols],
-            };
-          });
-
-        return {
-          id: `ygrp_${year}`,
-          header: String(year),
-          columns: [yearTotal, ...quarterCols],
-        };
+          ...(['Q1', 'Q2', 'Q3', 'Q4'] as Quarter[])
+            .filter((quarter) => quarterMap.has(quarter))
+            .flatMap<MRT_ColumnDef<BudgetDisplayRow>>((quarter) => {
+              const months = (quarterMap.get(quarter) ?? []).slice().sort();
+              return [
+                {
+                  id: `qt_${year}_${quarter}`,
+                  header: `${quarter} Total`,
+                  size: 124,
+                  minSize: 124,
+                  enableHiding: true,
+                  Header: () => <span style={HEADER_STYLE}>{quarter} Total</span>,
+                  accessorFn: (row) => sumMonths(row, months),
+                  Cell: ({ cell }) => (
+                    <Text className="table-body-emphasis">
+                      {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
+                    </Text>
+                  ),
+                  mantineTableHeadCellProps: {
+                    className: 'table-head-cell table-head-right budgetTable-head',
+                    title: 'Click to collapse or expand this quarter',
+                    onClick: () =>
+                      setCollapsedQuarters((current) => {
+                        const next = new Set(current);
+                        const key = `${year}_${quarter}`;
+                        if (next.has(key)) next.delete(key);
+                        else next.add(key);
+                        return next;
+                      }),
+                    style: { cursor: 'pointer' },
+                  },
+                  mantineTableBodyCellProps: {
+                    className: 'table-body-right budgetTable-cell',
+                  },
+                },
+                ...months.map<MRT_ColumnDef<BudgetDisplayRow>>((mk) => ({
+                  id: `m_${mk}`,
+                  header: formatMonthLabel(mk),
+                  size: 112,
+                  minSize: 112,
+                  enableHiding: false,
+                  Header: () => <span style={HEADER_STYLE}>{formatMonthLabel(mk)}</span>,
+                  accessorFn: (row) => row.actualByMonthKey[mk] ?? 0,
+                  Cell: ({ cell }) => (
+                    <Text className="table-body-right">
+                      {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
+                    </Text>
+                  ),
+                  mantineTableHeadCellProps: {
+                    className: 'table-head-cell table-head-right budgetTable-head',
+                  },
+                  mantineTableBodyCellProps: {
+                    className: 'table-body-right budgetTable-cell',
+                  },
+                })),
+              ];
+            }),
+        ];
       });
+  }, [currencyCode, rollups.visibleMonthKeys]);
 
+  const budgetColumns = useMemo<MRT_ColumnDef<BudgetDisplayRow>[]>(() => {
     return [
-      { accessorKey: 'categoryName', header: 'Category' },
-      { accessorKey: 'subCategoryName', header: 'Subcategory' },
+      {
+        accessorKey: 'categoryName',
+        header: 'Category',
+        size: 112,
+        minSize: 96,
+        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left budgetTable-head' },
+        mantineTableBodyCellProps: { className: 'budgetTable-cell' },
+        Cell: ({ row }) => (
+          <Text className={row.original.rowKind === 'category' ? 'table-body-left-bold' : 'table-body-left'}>
+            {row.original.rowKind === 'category' ? row.original.categoryName : ''}
+          </Text>
+        ),
+      },
+      {
+        accessorKey: 'subCategoryName',
+        header: 'Subcategory',
+        size: 156,
+        minSize: 136,
+        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left budgetTable-head' },
+        mantineTableBodyCellProps: { className: 'budgetTable-cell' },
+        Cell: ({ row }) => (
+          <Text className={row.original.rowKind === 'category' ? 'table-body-left-bold' : 'budgetTable-subcategory'}>
+            {row.original.rowKind === 'category' ? '' : row.original.subCategoryName}
+          </Text>
+        ),
+      },
       {
         accessorKey: 'allocatedCents',
         header: 'Allocated',
         accessorFn: (row) => row.allocatedCents,
+        size: 132,
+        minSize: 120,
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-right budgetTable-head',
+        },
+        mantineTableBodyCellProps: {
+          className: 'table-body-right budgetTable-cell',
+        },
         Cell: ({ row }) => (
-          <NumberInput
-            value={fromCents(row.original.allocatedCents)}
-            min={0}
-            size="xs"
-            thousandSeparator=","
-            prefix="$"
-            decimalScale={2}
-            fixedDecimalScale
-            hideControls
-            disabled={readOnly}
-            onChange={(v) =>
-              updateAllocated(row.original.id, toCents(Number(v ?? 0)))
-            }
-          />
+          row.original.rowKind === 'category' ? (
+            <Text className="table-body-emphasis">
+              {formatCurrencyFromCents(row.original.allocatedCents, currencyCode)}
+            </Text>
+          ) : (
+            <NumberInput
+              value={fromCents(row.original.allocatedCents)}
+              min={0}
+              size="xs"
+              thousandSeparator=","
+              prefix="$"
+              decimalScale={2}
+              fixedDecimalScale
+              hideControls
+              disabled={readOnly}
+              classNames={{ input: 'budgetTable-numberInput' }}
+              styles={{ input: { textAlign: 'right' } }}
+              onChange={(v) =>
+                updateAllocated(row.original.id, toCents(Number(v ?? 0)))
+              }
+            />
+          )
         ),
-        aggregationFn: 'sum',
       },
       {
         accessorKey: 'totalActualCents',
         header: 'Actual (Total)',
+        size: 132,
+        minSize: 120,
         Cell: ({ cell }) => (
           <Text className="table-body-emphasis">
             {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
           </Text>
         ),
-        aggregationFn: 'sum',
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-right budgetTable-head',
+        },
+        mantineTableBodyCellProps: {
+          className: 'table-body-right budgetTable-cell',
+        },
       },
       {
         id: 'remainingCents',
         header: 'Remaining',
         accessorFn: (row) => row.remainingCents,
+        size: 132,
+        minSize: 120,
         Cell: ({ cell }) => {
           const v = cell.getValue<number>();
           return (
@@ -293,41 +431,241 @@ export default function BudgetPanel(props: {
             </Text>
           );
         },
-        aggregationFn: (_id, rows) =>
-          sum(rows.map((r) => r.original.allocatedCents)) -
-          sum(rows.map((r) => r.original.totalActualCents)),
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-right budgetTable-head',
+        },
+        mantineTableBodyCellProps: {
+          className: 'table-body-right budgetTable-cell',
+        },
       },
-      ...yearGroups,
+      ...timeColumns,
     ];
   }, [
-    rollups.visibleMonthKeys,
-    collapsedYears,
-    collapsedQuarters,
     currencyCode,
     updateAllocated,
     readOnly,
+    timeColumns,
   ]);
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={5}>Budget rollups</Title>
-        <Badge color={uncodedSummary.count ? 'red' : 'gray'}>
-          Uncoded: {uncodedSummary.count} ({formatCurrencyFromCents(uncodedSummary.amountCents, currencyCode)})
-        </Badge>
-      </Group>
+      <Paper withBorder radius="md" p="md" className="budgetSummaryCard">
+        <Stack gap="xs">
+          <Text fw={700} size="sm">
+            Project totals
+          </Text>
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
+            <Paper withBorder radius="md" p="sm" className="budgetMetricCard budgetSummaryPrimary">
+              <Stack gap={4}>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Total project budget
+                </Text>
+                {canEditProjectBudgetTotal && isEditingProjectBudget ? (
+                  <Group gap="xs" align="center" wrap="nowrap">
+                    <NumberInput
+                      value={projectBudgetDraft === '' ? fromCents(projectBudgetTotalCents) : projectBudgetDraft}
+                      min={0}
+                      thousandSeparator=","
+                      prefix="$"
+                      decimalScale={2}
+                      fixedDecimalScale
+                      hideControls
+                      classNames={{ input: 'budgetSummaryInput' }}
+                      styles={{ input: { textAlign: 'right' } }}
+                      onChange={(value) => setProjectBudgetDraft(typeof value === 'number' ? value : Number(value ?? 0))}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          void commitProjectBudgetTotal();
+                        }
+                        if (event.key === 'Escape') {
+                          setProjectBudgetDraft('');
+                          setIsEditingProjectBudget(false);
+                        }
+                      }}
+                    />
+                    <ActionIcon
+                      variant="light"
+                      color="green"
+                      aria-label="Save project budget total"
+                      onClick={() => {
+                        void commitProjectBudgetTotal();
+                      }}
+                    >
+                      <IconCheck size={16} />
+                    </ActionIcon>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      aria-label="Cancel editing project budget total"
+                      onClick={() => {
+                        setProjectBudgetDraft('');
+                        setIsEditingProjectBudget(false);
+                      }}
+                    >
+                      <IconX size={16} />
+                    </ActionIcon>
+                  </Group>
+                ) : (
+                  <Group gap="xs" align="center" wrap="nowrap">
+                    <Text fw={800} size="xl">
+                      {formatCurrencyFromCents(projectBudgetTotalCents, currencyCode)}
+                    </Text>
+                    {canEditProjectBudgetTotal ? (
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label="Edit project budget total"
+                        onClick={() => {
+                          setProjectBudgetDraft(fromCents(projectBudgetTotalCents));
+                          setIsEditingProjectBudget(true);
+                        }}
+                      >
+                        <IconPencil size={16} />
+                      </ActionIcon>
+                    ) : null}
+                  </Group>
+                )}
+              </Stack>
+            </Paper>
+
+            <Paper withBorder radius="md" p="sm" className="budgetMetricCard">
+              <Stack gap={4}>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Allocated
+                </Text>
+                <Text fw={800} size="lg">
+                  {formatCurrencyFromCents(projectAllocatedCents, currencyCode)}
+                </Text>
+                <Text size="sm" c={allocatedCoveragePct > 100 ? 'red' : 'dimmed'}>
+                  {allocatedCoveragePct.toFixed(1)}% of project budget
+                </Text>
+                <Text size="sm" c={allocatedVsActualCents < 0 ? 'red' : 'dimmed'}>
+                  vs actual: {formatCurrencyFromCents(allocatedVsActualCents, currencyCode)}
+                </Text>
+              </Stack>
+            </Paper>
+
+            <Paper withBorder radius="md" p="sm" className="budgetMetricCard">
+              <Stack gap={4}>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Actual
+                </Text>
+                <Text fw={800} size="lg">
+                  {formatCurrencyFromCents(projectActualCents, currencyCode)}
+                </Text>
+                <Text size="sm" c={actualCoveragePct > 100 ? 'red' : 'dimmed'}>
+                  {actualCoveragePct.toFixed(1)}% of project budget
+                </Text>
+                <Text size="sm" c={projectVsActualCents < 0 ? 'red' : 'dimmed'}>
+                  budget headroom: {formatCurrencyFromCents(projectVsActualCents, currencyCode)}
+                </Text>
+              </Stack>
+            </Paper>
+
+            <Paper withBorder radius="md" p="sm" className="budgetMetricCard">
+              <Stack gap={4}>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Remaining
+                </Text>
+                <Text fw={800} size="lg" c={projectRemainingCents < 0 ? 'red' : undefined}>
+                  {formatCurrencyFromCents(projectRemainingCents, currencyCode)}
+                </Text>
+                <Text size="sm" c={remainingAfterUncodedCents < 0 ? 'red' : 'dimmed'}>
+                  after uncoded: {formatCurrencyFromCents(remainingAfterUncodedCents, currencyCode)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  uncoded impact: {formatCurrencyFromCents(uncodedSummary.amountCents, currencyCode)}
+                </Text>
+              </Stack>
+            </Paper>
+          </SimpleGrid>
+
+          {projectAllocatedCents > projectBudgetTotalCents ? (
+            <Alert color="red" variant="light" radius="md">
+              Budget allocations exceed the project budget by{' '}
+              {formatCurrencyFromCents(
+                projectAllocatedCents - projectBudgetTotalCents,
+                currencyCode
+              )}
+              .
+            </Alert>
+          ) : null}
+
+        </Stack>
+      </Paper>
 
       <MantineReactTable
         columns={budgetColumns}
-        data={rollups.rollupRows}
+        data={displayRows}
+        getRowId={(row) => row.rowId}
         state={{ columnVisibility }}
+        onColumnVisibilityChange={handleColumnVisibilityChange}
         mantineTableContainerProps={{ className: 'financeTable budgetTable' }}
-        mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+        renderToolbarInternalActions={() => (
+          <Menu withinPortal position="bottom-end" shadow="md">
+            <Menu.Target>
+              <ActionIcon
+                variant="light"
+                color="gray"
+                aria-label="Show or hide budget columns"
+              >
+                <IconColumns size={16} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown className="budgetColumnMenu">
+              {Array.from(timeHierarchy.byYear.entries())
+                .sort(([a], [b]) => a - b)
+                .map(([year, entry]) => {
+                  const yearId = `yt_${year}`;
+                  return (
+                    <Stack key={yearId} gap={4} p="xs">
+                      <Switch
+                        checked={userColumnVisibility[yearId] ?? true}
+                        label={`${year} Total`}
+                        onChange={(event) =>
+                          toggleYearVisibility(year, event.currentTarget.checked)
+                        }
+                      />
+                      {entry.quarterIds.map((quarterId) => (
+                        <Switch
+                          key={quarterId}
+                          checked={userColumnVisibility[quarterId] ?? true}
+                          label={quarterId.replace(/^qt_\d+_/, '') + ' Total'}
+                          onChange={(event) =>
+                            toggleQuarterVisibility(
+                              quarterId,
+                              event.currentTarget.checked
+                            )
+                          }
+                          ml="lg"
+                        />
+                      ))}
+                      <Menu.Divider />
+                    </Stack>
+                  );
+                })}
+            </Menu.Dropdown>
+          </Menu>
+        )}
+        mantineTableBodyRowProps={({ row }) => ({
+          className:
+            row.original.rowKind === 'category'
+              ? 'budgetTable-row budgetTable-row-category'
+              : 'budgetTable-row budgetTable-row-subcategory',
+        })}
+        mantineTableProps={{
+          highlightOnHover: false,
+          withTableBorder: true,
+          style: { tableLayout: 'fixed' },
+        }}
+        mantineTopToolbarProps={{ className: 'budgetTable-toolbar' }}
         enablePagination={false}
         enableSorting={false}
-        enableTopToolbar={false}
+        enableTopToolbar
         enableDensityToggle={false}
         enableFullScreenToggle={false}
+        enableColumnActions={false}
       />
     </Stack>
   );

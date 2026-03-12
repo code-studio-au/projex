@@ -26,6 +26,7 @@ import { Route as ApiDevResetSeedRouteImport } from './routes/api.dev.reset-seed
 import { Route as ApiCompaniesCompanyIdRouteImport } from './routes/api.companies.$companyId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as AuthedCCompanyIdRouteImport } from './routes/_authed.c.$companyId'
+import { Route as AuthedCCompanyIdIndexRouteImport } from './routes/_authed.c.$companyId.index'
 import { Route as ApiProjectsProjectIdTransactionsRouteImport } from './routes/api.projects.$projectId.transactions'
 import { Route as ApiProjectsProjectIdSubCategoriesRouteImport } from './routes/api.projects.$projectId.sub-categories'
 import { Route as ApiProjectsProjectIdReactivateRouteImport } from './routes/api.projects.$projectId.reactivate'
@@ -129,6 +130,11 @@ const AuthedCCompanyIdRoute = AuthedCCompanyIdRouteImport.update({
   id: '/c/$companyId',
   path: '/c/$companyId',
   getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedCCompanyIdIndexRoute = AuthedCCompanyIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthedCCompanyIdRoute,
 } as any)
 const ApiProjectsProjectIdTransactionsRoute =
   ApiProjectsProjectIdTransactionsRouteImport.update({
@@ -275,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/reactivate': typeof ApiProjectsProjectIdReactivateRoute
   '/api/projects/$projectId/sub-categories': typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
   '/api/projects/$projectId/transactions': typeof ApiProjectsProjectIdTransactionsRouteWithChildren
+  '/c/$companyId/': typeof AuthedCCompanyIdIndexRoute
   '/c/$companyId/p/$projectId': typeof AuthedCCompanyIdPProjectIdRoute
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
@@ -291,7 +298,6 @@ export interface FileRoutesByTo {
   '/api/ready': typeof ApiReadyRoute
   '/api/session': typeof ApiSessionRoute
   '/api/users': typeof ApiUsersRoute
-  '/c/$companyId': typeof AuthedCCompanyIdRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
@@ -312,6 +318,7 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/reactivate': typeof ApiProjectsProjectIdReactivateRoute
   '/api/projects/$projectId/sub-categories': typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
   '/api/projects/$projectId/transactions': typeof ApiProjectsProjectIdTransactionsRouteWithChildren
+  '/c/$companyId': typeof AuthedCCompanyIdIndexRoute
   '/c/$companyId/p/$projectId': typeof AuthedCCompanyIdPProjectIdRoute
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
@@ -351,6 +358,7 @@ export interface FileRoutesById {
   '/api/projects/$projectId/reactivate': typeof ApiProjectsProjectIdReactivateRoute
   '/api/projects/$projectId/sub-categories': typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
   '/api/projects/$projectId/transactions': typeof ApiProjectsProjectIdTransactionsRouteWithChildren
+  '/_authed/c/$companyId/': typeof AuthedCCompanyIdIndexRoute
   '/_authed/c/$companyId/p/$projectId': typeof AuthedCCompanyIdPProjectIdRoute
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
@@ -390,6 +398,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/reactivate'
     | '/api/projects/$projectId/sub-categories'
     | '/api/projects/$projectId/transactions'
+    | '/c/$companyId/'
     | '/c/$companyId/p/$projectId'
     | '/api/projects/$projectId/budgets/$budgetId'
     | '/api/projects/$projectId/categories/$categoryId'
@@ -406,7 +415,6 @@ export interface FileRouteTypes {
     | '/api/ready'
     | '/api/session'
     | '/api/users'
-    | '/c/$companyId'
     | '/api/auth/$'
     | '/api/companies/$companyId'
     | '/api/dev/reset-seed'
@@ -427,6 +435,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/reactivate'
     | '/api/projects/$projectId/sub-categories'
     | '/api/projects/$projectId/transactions'
+    | '/c/$companyId'
     | '/c/$companyId/p/$projectId'
     | '/api/projects/$projectId/budgets/$budgetId'
     | '/api/projects/$projectId/categories/$categoryId'
@@ -465,6 +474,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/reactivate'
     | '/api/projects/$projectId/sub-categories'
     | '/api/projects/$projectId/transactions'
+    | '/_authed/c/$companyId/'
     | '/_authed/c/$companyId/p/$projectId'
     | '/api/projects/$projectId/budgets/$budgetId'
     | '/api/projects/$projectId/categories/$categoryId'
@@ -611,6 +621,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedCCompanyIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/c/$companyId/': {
+      id: '/_authed/c/$companyId/'
+      path: '/'
+      fullPath: '/c/$companyId/'
+      preLoaderRoute: typeof AuthedCCompanyIdIndexRouteImport
+      parentRoute: typeof AuthedCCompanyIdRoute
+    }
     '/api/projects/$projectId/transactions': {
       id: '/api/projects/$projectId/transactions'
       path: '/transactions'
@@ -748,10 +765,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedCCompanyIdRouteChildren {
+  AuthedCCompanyIdIndexRoute: typeof AuthedCCompanyIdIndexRoute
   AuthedCCompanyIdPProjectIdRoute: typeof AuthedCCompanyIdPProjectIdRoute
 }
 
 const AuthedCCompanyIdRouteChildren: AuthedCCompanyIdRouteChildren = {
+  AuthedCCompanyIdIndexRoute: AuthedCCompanyIdIndexRoute,
   AuthedCCompanyIdPProjectIdRoute: AuthedCCompanyIdPProjectIdRoute,
 }
 

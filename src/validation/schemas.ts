@@ -51,6 +51,7 @@ export const companyNameSchema = nonEmptyTrimmed('Company name', 120);
 export const userNameSchema = nonEmptyTrimmed('User name', 120);
 
 export const budgetAllocatedCentsSchema = nonNegativeInt('Budget allocated amount');
+export const projectBudgetTotalCentsSchema = nonNegativeInt('Project budget total');
 
 export const emailSchema = z.string().superRefine((value, ctx) => {
   const email = value.trim();

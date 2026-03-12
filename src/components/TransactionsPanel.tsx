@@ -31,7 +31,6 @@ export default function TransactionsPanel(props: {
   monthFilterOptions: { value: string; label: string }[];
   showUncodedOnly: boolean;
   setShowUncodedOnly: (v: boolean) => void;
-  uncodedSummary: { count: number; amountCents: number };
   canEditTaxonomy: boolean;
   readOnly?: boolean;
 }) {
@@ -44,7 +43,6 @@ export default function TransactionsPanel(props: {
     monthFilterOptions,
     showUncodedOnly,
     setShowUncodedOnly,
-    uncodedSummary,
     canEditTaxonomy,
     readOnly = false,
   } = props;
@@ -97,32 +95,54 @@ export default function TransactionsPanel(props: {
   // Note: keep columns as a plain value (no manual memoization).
   // This avoids conflicts with the React Compiler's memoization preservation rule.
   const txnColumns: MRT_ColumnDef<(typeof txns.transactions)[number]>[] = [
-    { accessorKey: 'date', header: 'Date', size: 110 },
-    { accessorKey: 'item', header: 'Item', size: 160 },
+    {
+      accessorKey: 'date',
+      header: 'Date',
+      size: 96,
+      mantineTableHeadCellProps: {
+        className: 'table-head-cell table-head-left txnTable-head',
+      },
+      mantineTableBodyCellProps: { className: 'txnTable-cell' },
+      Cell: ({ cell }) => <Text className="table-body-left">{cell.getValue<string>()}</Text>,
+    },
+    {
+      accessorKey: 'item',
+      header: 'Item',
+      size: 136,
+      mantineTableHeadCellProps: {
+        className: 'table-head-cell table-head-left txnTable-head',
+      },
+      mantineTableBodyCellProps: { className: 'txnTable-cell' },
+      Cell: ({ cell }) => <Text className="table-body-left">{cell.getValue<string>()}</Text>,
+    },
     {
       accessorKey: 'description',
       header: 'Description',
-      size: 360,
+      size: 240,
       Cell: ({ cell }) => <Text className="table-body-left">{cell.getValue<string>()}</Text>,
+      mantineTableHeadCellProps: {
+        className: 'table-head-cell table-head-left txnTable-head',
+      },
+      mantineTableBodyCellProps: { className: 'txnTable-cell' },
     },
     {
       accessorKey: 'amountCents',
       header: 'Amount',
-      size: 130,
+      size: 124,
       Cell: ({ cell }) => (
         <Text className="table-body-emphasis">
           {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
         </Text>
       ),
-      mantineTableBodyCellProps: { className: 'table-body-right' },
+      mantineTableBodyCellProps: { className: 'table-body-right txnTable-cell' },
       mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-right',
+        className: 'table-head-cell table-head-right txnTable-head',
       },
     },
     {
       id: 'category',
       header: 'Category',
-      size: 220,
+      size: 156,
       enableEditing: !readOnly,
       Edit: ({ row }) => {
         const current = row.original.categoryId ?? null;
@@ -147,11 +167,15 @@ export default function TransactionsPanel(props: {
         const cat = taxonomy.getCategoryName(row.original.categoryId);
         return <Text className="table-body-left">{cat}</Text>;
       },
+      mantineTableHeadCellProps: {
+        className: 'table-head-cell table-head-left txnTable-head',
+      },
+      mantineTableBodyCellProps: { className: 'txnTable-cell' },
     },
     {
       id: 'subCategory',
       header: 'Subcategory',
-      size: 260,
+      size: 188,
       enableEditing: !readOnly,
       Edit: ({ row }) => {
         const catId = row.original.categoryId;
@@ -191,6 +215,10 @@ export default function TransactionsPanel(props: {
           </Group>
         );
       },
+      mantineTableHeadCellProps: {
+        className: 'table-head-cell table-head-left txnTable-head',
+      },
+      mantineTableBodyCellProps: { className: 'txnTable-cell' },
     },
   ];
 
@@ -241,16 +269,6 @@ export default function TransactionsPanel(props: {
             </Button>
           </Group>
         </Group>
-
-        <Group mt="sm">
-          <Badge
-            size="lg"
-            variant="light"
-            color={uncodedSummary.count ? 'red' : 'gray'}
-          >
-            Uncoded: {uncodedSummary.count} ({formatCurrencyFromCents(uncodedSummary.amountCents, currencyCode)})
-          </Badge>
-        </Group>
       </Paper>
 
       <MantineReactTable
@@ -264,10 +282,15 @@ export default function TransactionsPanel(props: {
         enablePagination
         initialState={{
           density: 'xs',
-          pagination: { pageIndex: 0, pageSize: isMobile ? 6 : 10 },
+          pagination: { pageIndex: 0, pageSize: isMobile ? 10 : 20 },
         }}
         mantineTableContainerProps={{ className: 'financeTable txnTable' }}
-        mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+        mantineTableProps={{
+          highlightOnHover: true,
+          striped: 'odd',
+          withTableBorder: true,
+          style: { tableLayout: 'auto' },
+        }}
         enableTopToolbar={false}
         enableDensityToggle={false}
         enableFullScreenToggle={false}

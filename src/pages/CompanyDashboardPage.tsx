@@ -24,7 +24,7 @@ import {
   useReactivateProjectMutation,
 } from '../queries/admin';
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
-import { companyRoute, landingRoute, projectRoute } from '../router';
+import { companyRoute, landingRoute } from '../router';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 
@@ -161,11 +161,15 @@ export default function CompanyDashboardPage() {
           return (
             <Group gap="xs" wrap="wrap">
               {canOpen ? (
-                <Link to={projectRoute.to} params={{ companyId, projectId: project.id }}>
-                  <Button component="span" size="xs" variant="filled">
-                    Open
-                  </Button>
-                </Link>
+                <Button
+                  size="xs"
+                  variant="filled"
+                  onClick={() => {
+                    window.location.assign(`/c/${companyId}/p/${project.id}`);
+                  }}
+                >
+                  Open
+                </Button>
               ) : (
                 <Button size="xs" variant="light" disabled>
                   Open

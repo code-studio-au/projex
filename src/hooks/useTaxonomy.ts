@@ -23,6 +23,50 @@ import {
 import type { BudgetsHook } from './useBudgets';
 import type { TransactionsHook } from './useTransactions';
 
+function normalizeTaxonomyName(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
+
+function ensureUniqueCategoryName(
+  categories: Category[],
+  categoryId: CategoryId | null,
+  name: string
+) {
+  const normalizedName = normalizeTaxonomyName(name);
+  if (!normalizedName) throw new Error('Category name is required.');
+
+  const duplicate = categories.find(
+    (category) =>
+      category.id !== categoryId &&
+      normalizeTaxonomyName(category.name) === normalizedName
+  );
+
+  if (duplicate) {
+    throw new Error(`Category "${name.trim()}" already exists in this project.`);
+  }
+}
+
+function ensureUniqueSubCategoryName(
+  subCategories: SubCategory[],
+  categoryId: CategoryId,
+  subCategoryId: SubCategoryId | null,
+  name: string
+) {
+  const normalizedName = normalizeTaxonomyName(name);
+  if (!normalizedName) throw new Error('Subcategory name is required.');
+
+  const duplicate = subCategories.find(
+    (subCategory) =>
+      subCategory.categoryId === categoryId &&
+      subCategory.id !== subCategoryId &&
+      normalizeTaxonomyName(subCategory.name) === normalizedName
+  );
+
+  if (duplicate) {
+    throw new Error(`Subcategory "${name.trim()}" already exists in this category.`);
+  }
+}
+
 /**
  * Query-backed taxonomy model.
  *
@@ -101,13 +145,16 @@ export function useTaxonomy(params: {
    * compatible with a future TanStack Start / Postgres backend.
    */
   const addCategory = async (name: string): Promise<CategoryId> => {
+    ensureUniqueCategoryName(categories, null, name);
+
     const id = asCategoryId(uid('cat'));
-    await createCat.mutateAsync({ id, companyId, projectId, name });
+    await createCat.mutateAsync({ id, companyId, projectId, name: name.trim() });
     return id;
   };
 
-  const renameCategory = (categoryId: CategoryId, name: string) => {
-    updateCat.mutate({ id: categoryId, name });
+  const renameCategory = async (categoryId: CategoryId, name: string) => {
+    ensureUniqueCategoryName(categories, categoryId, name);
+    await updateCat.mutateAsync({ id: categoryId, name: name.trim() });
   };
 
   const deleteCategory = (categoryId: CategoryId) => {
@@ -122,8 +169,16 @@ export function useTaxonomy(params: {
    * Creates a subcategory and resolves with the generated branded ID after success.
    */
   const addSubCategory = async (categoryId: CategoryId, name: string): Promise<SubCategoryId> => {
+    ensureUniqueSubCategoryName(subCategories, categoryId, null, name);
+
     const id = asSubCategoryId(uid('sub'));
-    await createSub.mutateAsync({ id, companyId, projectId, categoryId, name });
+    await createSub.mutateAsync({
+      id,
+      companyId,
+      projectId,
+      categoryId,
+      name: name.trim(),
+    });
 
     // Keep budgets in sync with taxonomy: when a new subcategory is created,
     // ensure there is a budget line (allocated = 0) so it appears immediately.
@@ -137,14 +192,23 @@ export function useTaxonomy(params: {
     return id;
   };
 
-  const renameSubCategory = (subCategoryId: SubCategoryId, name: string) => {
-    updateSub.mutate({ id: subCategoryId, name });
-  };
-
-  const moveSubCategory = (subCategoryId: SubCategoryId, newCategoryId: CategoryId) => {
+  const renameSubCategory = async (subCategoryId: SubCategoryId, name: string) => {
     const existing = subById.get(subCategoryId);
     if (!existing) return;
-    updateSub.mutate({ id: subCategoryId, categoryId: newCategoryId });
+    ensureUniqueSubCategoryName(subCategories, existing.categoryId, subCategoryId, name);
+    await updateSub.mutateAsync({ id: subCategoryId, name: name.trim() });
+  };
+
+  const moveSubCategory = async (subCategoryId: SubCategoryId, newCategoryId: CategoryId) => {
+    const existing = subById.get(subCategoryId);
+    if (!existing) return;
+    ensureUniqueSubCategoryName(
+      subCategories,
+      newCategoryId,
+      subCategoryId,
+      existing.name
+    );
+    await updateSub.mutateAsync({ id: subCategoryId, categoryId: newCategoryId });
     budgets.updateBudgetCategoryForSubCategory(subCategoryId, newCategoryId);
     // Update txn categoryId to match (keep subCategoryId)
     const next = txns.transactions.map((t) =>

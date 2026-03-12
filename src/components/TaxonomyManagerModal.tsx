@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import {
   ActionIcon,
+  Alert,
   Button,
   Divider,
   Group,
   Modal,
+  Paper,
   Select,
   Stack,
   Text,
@@ -24,10 +26,13 @@ export default function TaxonomyManagerModal(props: {
   const { opened, onClose, taxonomy, readOnly = false } = props;
 
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>({});
   const [newSubNameByCat, setNewSubNameByCat] = useState<
     Record<string, string>
   >({});
+  const [subCategoryDrafts, setSubCategoryDrafts] = useState<Record<string, string>>({});
   const [pendingDelete, setPendingDelete] = useState<
     | { kind: 'category'; id: string; name: string }
     | { kind: 'subcategory'; id: string; name: string }
@@ -36,6 +41,66 @@ export default function TaxonomyManagerModal(props: {
 
   const categoryOptions = taxonomy.categoryOptions;
 
+  async function commitCategoryName(categoryId: string, fallbackName: string) {
+    const nextName = (categoryDrafts[categoryId] ?? fallbackName).trim();
+    const currentName = fallbackName.trim();
+    if (!nextName || nextName === currentName) {
+      setCategoryDrafts((prev) => {
+        const next = { ...prev };
+        delete next[categoryId];
+        return next;
+      });
+      return;
+    }
+
+    try {
+      setError(null);
+      await taxonomy.renameCategory(asCategoryId(categoryId), nextName);
+      setCategoryDrafts((prev) => {
+        const next = { ...prev };
+        delete next[categoryId];
+        return next;
+      });
+    } catch (err) {
+      setCategoryDrafts((prev) => {
+        const next = { ...prev };
+        delete next[categoryId];
+        return next;
+      });
+      setError(err instanceof Error ? err.message : 'Could not rename category.');
+    }
+  }
+
+  async function commitSubCategoryName(subCategoryId: string, fallbackName: string) {
+    const nextName = (subCategoryDrafts[subCategoryId] ?? fallbackName).trim();
+    const currentName = fallbackName.trim();
+    if (!nextName || nextName === currentName) {
+      setSubCategoryDrafts((prev) => {
+        const next = { ...prev };
+        delete next[subCategoryId];
+        return next;
+      });
+      return;
+    }
+
+    try {
+      setError(null);
+      await taxonomy.renameSubCategory(asSubCategoryId(subCategoryId), nextName);
+      setSubCategoryDrafts((prev) => {
+        const next = { ...prev };
+        delete next[subCategoryId];
+        return next;
+      });
+    } catch (err) {
+      setSubCategoryDrafts((prev) => {
+        const next = { ...prev };
+        delete next[subCategoryId];
+        return next;
+      });
+      setError(err instanceof Error ? err.message : 'Could not rename subcategory.');
+    }
+  }
+
   return (
     <Modal
       opened={opened}
@@ -43,9 +108,10 @@ export default function TaxonomyManagerModal(props: {
       title="Manage categories & subcategories"
       size={isMobile ? '100%' : 'lg'}
     >
-      <Stack gap="md">
+      <Stack gap="md" className="taxonomyModal">
+        {error ? <Alert color="red">{error}</Alert> : null}
         {readOnly && (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="dimmed" className="panelHelperText">
             You don’t have permission to edit categories in this project.
           </Text>
         )}
@@ -54,7 +120,10 @@ export default function TaxonomyManagerModal(props: {
             label="Add category"
             placeholder="e.g. Travel"
             value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.currentTarget.value)}
+            onChange={(e) => {
+              setError(null);
+              setNewCategoryName(e.currentTarget.value);
+            }}
             style={{ width: '100%' }}
             disabled={readOnly}
           />
@@ -62,11 +131,16 @@ export default function TaxonomyManagerModal(props: {
             leftSection={<IconPlus size={16} />}
             disabled={readOnly}
             fullWidth={isMobile}
-            onClick={() => {
+            onClick={async () => {
               const name = newCategoryName.trim();
               if (!name) return;
-              void taxonomy.addCategory(name);
-              setNewCategoryName('');
+              try {
+                setError(null);
+                await taxonomy.addCategory(name);
+                setNewCategoryName('');
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Could not add category.');
+              }
             }}
           >
             Add
@@ -81,14 +155,33 @@ export default function TaxonomyManagerModal(props: {
               (s) => s.categoryId === cat.id
             );
             return (
-              <Stack key={cat.id} gap="xs">
+              <Paper key={cat.id} withBorder radius="md" p="md" className="taxonomyCategoryCard">
+                <Stack gap="sm">
                 <Group justify="space-between" align="flex-end">
                   <TextInput
                     label="Category"
-                    value={cat.name}
-                    onChange={(e) =>
-                      taxonomy.renameCategory(cat.id, e.currentTarget.value)
-                    }
+                    value={categoryDrafts[cat.id] ?? cat.name}
+                    onChange={(e) => {
+                      setError(null);
+                      setCategoryDrafts((prev) => ({ ...prev, [cat.id]: e.currentTarget.value }));
+                    }}
+                    onBlur={() => {
+                      void commitCategoryName(cat.id, cat.name);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void commitCategoryName(cat.id, cat.name);
+                      }
+                      if (e.key === 'Escape') {
+                        setCategoryDrafts((prev) => {
+                          const next = { ...prev };
+                          delete next[cat.id];
+                          return next;
+                        });
+                        setError(null);
+                      }
+                    }}
                     style={{ flex: 1, minWidth: isMobile ? '100%' : 0 }}
                     disabled={readOnly}
                   />
@@ -122,6 +215,7 @@ export default function TaxonomyManagerModal(props: {
                     placeholder="e.g. Flights"
                     value={newSubNameByCat[cat.id] ?? ''}
                     onChange={(e) => {
+                      setError(null);
                       // Defensive: in some environments/input methods the event target can be null.
                       // Avoid capturing the synthetic event inside the state updater.
                       const value = e?.currentTarget?.value ?? '';
@@ -135,11 +229,16 @@ export default function TaxonomyManagerModal(props: {
                     leftSection={<IconPlus size={16} />}
                     disabled={readOnly}
                     fullWidth={isMobile}
-                    onClick={() => {
+                    onClick={async () => {
                       const name = (newSubNameByCat[cat.id] ?? '').trim();
                       if (!name) return;
-                      void taxonomy.addSubCategory(cat.id, name);
-                      setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: '' }));
+                      try {
+                        setError(null);
+                        await taxonomy.addSubCategory(cat.id, name);
+                        setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: '' }));
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Could not add subcategory.');
+                      }
                     }}
                   >
                     Add
@@ -147,7 +246,7 @@ export default function TaxonomyManagerModal(props: {
                 </Group>
 
                 {subcats.length === 0 ? (
-                  <Text size="sm" c="dimmed">
+                  <Text size="sm" c="dimmed" className="panelHelperText">
                     No subcategories yet.
                   </Text>
                 ) : (
@@ -156,13 +255,31 @@ export default function TaxonomyManagerModal(props: {
                       <Group key={sc.id} align="flex-end" wrap="wrap">
                         <TextInput
                           label="Subcategory"
-                          value={sc.name}
-                          onChange={(e) =>
-                            taxonomy.renameSubCategory(
-                              sc.id,
-                              e?.currentTarget?.value ?? ''
-                            )
-                          }
+                          value={subCategoryDrafts[sc.id] ?? sc.name}
+                          onChange={(e) => {
+                            setError(null);
+                            setSubCategoryDrafts((prev) => ({
+                              ...prev,
+                              [sc.id]: e?.currentTarget?.value ?? '',
+                            }));
+                          }}
+                          onBlur={() => {
+                            void commitSubCategoryName(sc.id, sc.name);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              void commitSubCategoryName(sc.id, sc.name);
+                            }
+                            if (e.key === 'Escape') {
+                              setSubCategoryDrafts((prev) => {
+                                const next = { ...prev };
+                                delete next[sc.id];
+                                return next;
+                              });
+                              setError(null);
+                            }
+                          }}
                           style={{ width: '100%', flex: 1 }}
                           disabled={readOnly}
                         />
@@ -170,9 +287,18 @@ export default function TaxonomyManagerModal(props: {
                           label="Move to"
                           data={categoryOptions}
                           value={sc.categoryId}
-                          onChange={(v) => {
+                          onChange={async (v) => {
                             if (!v || v === sc.categoryId) return;
-                            taxonomy.moveSubCategory(sc.id, asCategoryId(v));
+                            try {
+                              setError(null);
+                              await taxonomy.moveSubCategory(sc.id, asCategoryId(v));
+                            } catch (err) {
+                              setError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Could not move subcategory.'
+                              );
+                            }
                           }}
                           style={{ width: '100%', maxWidth: isMobile ? '100%' : 220 }}
                           disabled={readOnly}
@@ -215,7 +341,8 @@ export default function TaxonomyManagerModal(props: {
                     ))}
                   </Stack>
                 )}
-              </Stack>
+                </Stack>
+              </Paper>
             );
           })}
         </Stack>
@@ -227,8 +354,8 @@ export default function TaxonomyManagerModal(props: {
         title={pendingDelete?.kind === 'category' ? 'Delete category?' : 'Delete subcategory?'}
         fullScreen={isMobile}
       >
-        <Stack>
-          <Text size="sm" c="dimmed">
+        <Stack gap="md">
+          <Text size="sm" c="dimmed" className="panelHelperText">
             {pendingDelete?.kind === 'category'
               ? `Deleting "${pendingDelete.name}" will remove its subcategories and uncoded affected transactions and budgets.`
               : `Deleting "${pendingDelete?.name ?? ''}" will uncode affected transactions and budgets.`}

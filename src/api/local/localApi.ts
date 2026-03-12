@@ -38,6 +38,7 @@ import {
   categoryNameSchema,
   companyNameSchema,
   emailSchema,
+  projectBudgetTotalCentsSchema,
   projectNameSchema,
   subCategoryNameSchema,
   txnInputSchema,
@@ -794,6 +795,7 @@ export class LocalApi implements ProjexApi {
       id,
       companyId,
       name: input.name,
+      budgetTotalCents: 0,
       currency: 'AUD',
       status: 'active',
       visibility: 'private',
@@ -820,6 +822,9 @@ export class LocalApi implements ProjexApi {
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown project');
     if (typeof input.name === 'string') {
       validateOrThrow(projectNameSchema, input.name);
+    }
+    if (typeof input.budgetTotalCents !== 'undefined') {
+      validateOrThrow(projectBudgetTotalCentsSchema, input.budgetTotalCents);
     }
     this.assertCan('project:edit', st.projects[idx].companyId, st.projects[idx].id);
     const updated: Project = { ...st.projects[idx], ...input };

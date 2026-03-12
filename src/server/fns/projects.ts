@@ -3,7 +3,7 @@ import type { ProjectCreateInput, ProjectUpdateInput } from '../../api/types';
 import type { CompanyId, Project, ProjectId, UserId } from '../../types';
 import { asProjectId } from '../../types';
 import { uid } from '../../utils/id';
-import { projectNameSchema } from '../../validation/schemas';
+import { projectBudgetTotalCentsSchema, projectNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
@@ -19,6 +19,7 @@ type ProjectRow = {
   company_id: string;
   name: string;
   description: string | null;
+  budget_total_cents: number;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
   deactivated_at: string | null;
@@ -31,6 +32,7 @@ function toProject(row: ProjectRow): Project {
     companyId: row.company_id as CompanyId,
     name: row.name,
     description: row.description ?? undefined,
+    budgetTotalCents: Number(row.budget_total_cents),
     currency: row.currency,
     status: row.status,
     deactivatedAt: row.deactivated_at ?? undefined,
@@ -82,6 +84,7 @@ export async function listProjectsServer(args: {
         'company_id',
         'name',
         'description',
+        'budget_total_cents',
         'currency',
         'status',
         'deactivated_at',
@@ -134,6 +137,7 @@ export async function getProjectServer(args: {
         'company_id',
         'name',
         'description',
+        'budget_total_cents',
         'currency',
         'status',
         'deactivated_at',
@@ -195,6 +199,7 @@ export async function createProjectServer(args: {
         company_id: args.companyId,
         name: args.input.name.trim(),
         description: null,
+        budget_total_cents: 0,
         currency: 'AUD',
         status: 'active',
         deactivated_at: null,
@@ -205,6 +210,7 @@ export async function createProjectServer(args: {
         'company_id',
         'name',
         'description',
+        'budget_total_cents',
         'currency',
         'status',
         'deactivated_at',
@@ -230,6 +236,7 @@ export async function updateProjectServer(args: {
         'company_id',
         'name',
         'description',
+        'budget_total_cents',
         'currency',
         'status',
         'deactivated_at',
@@ -241,6 +248,9 @@ export async function updateProjectServer(args: {
 
     if (typeof args.input.name === 'string') {
       validateOrThrow(projectNameSchema, args.input.name);
+    }
+    if (typeof args.input.budgetTotalCents !== 'undefined') {
+      validateOrThrow(projectBudgetTotalCentsSchema, args.input.budgetTotalCents);
     }
 
     const userId = await requireServerUserId(args.context);
@@ -255,6 +265,9 @@ export async function updateProjectServer(args: {
     const patch: Record<string, unknown> = {};
     if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
     if ('description' in args.input) patch.description = args.input.description ?? null;
+    if (typeof args.input.budgetTotalCents !== 'undefined') {
+      patch.budget_total_cents = args.input.budgetTotalCents;
+    }
     if (typeof args.input.currency !== 'undefined') patch.currency = args.input.currency;
     if (typeof args.input.status !== 'undefined') patch.status = args.input.status;
     if ('deactivatedAt' in args.input) patch.deactivated_at = args.input.deactivatedAt ?? null;
@@ -271,6 +284,7 @@ export async function updateProjectServer(args: {
         'company_id',
         'name',
         'description',
+        'budget_total_cents',
         'currency',
         'status',
         'deactivated_at',

@@ -75,8 +75,21 @@ export function AuthedLayout() {
 
   return (
     <AppShell padding={0} header={{ height: isMobile ? 64 : 70 }}>
-      <AppShell.Header>
-        <Paper withBorder radius={0} p="sm" bg="rgba(255,255,255,0.9)">
+      <AppShell.Header
+        style={{
+          borderBottom: 'none',
+          background: 'rgba(255,255,255,0.9)',
+          overflow: 'hidden',
+        }}
+      >
+        <Paper
+          withBorder={false}
+          radius={0}
+          p="sm"
+          h="100%"
+          bg="rgba(255,255,255,0.9)"
+          style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}
+        >
           <Container size="xl">
             <Group justify="space-between" wrap="nowrap">
               <Group gap="sm">

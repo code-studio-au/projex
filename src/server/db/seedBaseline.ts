@@ -53,6 +53,7 @@ export async function seedDatabaseToBaseline(): Promise<void> {
           company_id: p.companyId,
           name: p.name,
           description: p.description ?? null,
+          budget_total_cents: p.budgetTotalCents,
           currency: p.currency,
           status: p.status,
           deactivated_at: p.deactivatedAt ?? null,

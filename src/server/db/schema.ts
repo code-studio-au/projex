@@ -15,6 +15,7 @@ export interface ProjectTable {
   company_id: string;
   name: string;
   description: string | null;
+  budget_total_cents: number;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
   deactivated_at: string | null;

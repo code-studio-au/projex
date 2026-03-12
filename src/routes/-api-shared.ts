@@ -1,6 +1,5 @@
 import type { ProjexApi } from '../api/types';
 import { AppError } from '../api/errors';
-import { buildCorsHeaders, isOriginAllowed } from '../server/http/security';
 
 function appErrorStatus(code: AppError['code']): number {
   if (code === 'UNAUTHENTICATED') return 401;
@@ -16,6 +15,7 @@ export async function withApi(
   request: Request,
   run: (api: ProjexApi) => Promise<unknown>
 ): Promise<Response> {
+  const { buildCorsHeaders, isOriginAllowed } = await import('../server/http/security');
   const requestId =
     request.headers.get('x-request-id') ??
     (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'

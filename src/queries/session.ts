@@ -2,7 +2,6 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { ProjexApi } from '../api/contract';
-import { getAuthSession, signOutAuth } from '../auth/client';
 import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
 import type { UserId } from '../types';
@@ -32,6 +31,7 @@ export function sessionQueryOptions(boundary: ProjexApi) {
     queryKey: qk.session(),
     queryFn: async () => {
       if (isServerMode) {
+        const { getAuthSession } = await import('../auth/client');
         const result = await getAuthSession();
         const session = toSessionFromAuthClientResult(result);
         if (typeof session !== 'undefined') return session;
@@ -87,6 +87,7 @@ export function useLogoutMutation() {
   return useMutation({
     mutationFn: async () => {
       if (isServerMode) {
+        const { signOutAuth } = await import('../auth/client');
         await signOutAuth();
         return;
       }

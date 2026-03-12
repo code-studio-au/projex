@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Badge,
@@ -7,7 +7,6 @@ import {
   Group,
   Paper,
   PasswordInput,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -21,11 +20,10 @@ import { useApi } from '../hooks/useApi';
 import { useUsersQuery } from '../queries/reference';
 import { useLoginMutation } from '../queries/session';
 import type { UserId } from '../types';
-import { asUserId } from '../types';
-import { companyRoute, homeRoute, landingRoute } from '../router';
-import { authClient } from '../auth/client';
+import { homeRoute } from '../router';
 import { sessionQueryOptions } from '../queries/session';
 import { getPostLoginTarget } from '../routes/-postLogin';
+import { seedUsers } from '../seed/users';
 
 const env = (import.meta as unknown as { env?: Record<string, string> }).env;
 const isServerMode = env?.VITE_API_MODE === 'server';
@@ -40,40 +38,26 @@ function LocalLoginPanel() {
   const users = useUsersQuery();
   const login = useLoginMutation();
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const availableUsers = users.data?.length ? users.data : seedUsers;
+  const [selected, setSelected] = useState<UserId | null>(availableUsers[0]?.id ?? null);
+  const [error, setError] = useState<string | null>(null);
 
-  const options = useMemo(
-    () => (users.data ?? []).map((u) => ({ value: u.id, label: `${u.name} (${u.id})` })),
-    [users.data]
-  );
+  async function handleLogin(userId: UserId) {
+    try {
+      setError(null);
+      setSelected(userId);
+      await login.mutateAsync(userId);
 
-  const [selected, setSelected] = useState<UserId | null>(null);
+      const target = await getPostLoginTarget(api, userId);
+      const href =
+        target.to === '/c/$companyId' && target.params?.companyId
+          ? `/c/${target.params.companyId}`
+          : '/companies';
 
-  async function handleLogin() {
-    if (!selected) return;
-    await login.mutateAsync(selected);
-    const memberships = await api.listAllCompanyMemberships();
-    const isSuperadmin = memberships.some((m) => m.userId === selected && m.role === 'superadmin');
-    if (isSuperadmin) {
-      router.navigate({ to: landingRoute.to });
-      return;
+      window.location.assign(href);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Local login failed.');
     }
-
-    const companies = await api.listCompanies();
-    if (companies.length > 1) {
-      router.navigate({ to: landingRoute.to });
-      return;
-    }
-
-    const defaultCompanyId = await api.getDefaultCompanyIdForUser(selected);
-    if (defaultCompanyId) {
-      router.navigate({
-        to: companyRoute.to,
-        params: { companyId: defaultCompanyId },
-      });
-      return;
-    }
-
-    router.navigate({ to: landingRoute.to });
   }
 
   return (
@@ -85,22 +69,36 @@ function LocalLoginPanel() {
             <Badge variant="light">seeded users</Badge>
           </Group>
           <Text c="dimmed">Select a seeded user to enter the workspace.</Text>
-          <Select
-            label="User"
-            placeholder={users.isLoading ? 'Loading...' : 'Select a user'}
-            data={options}
-            value={selected}
-            onChange={(v) => setSelected(v ? asUserId(v) : null)}
-            searchable
-            nothingFoundMessage="No users"
-          />
+          {error ? <Alert color="red">{error}</Alert> : null}
+          {users.isError ? (
+            <Alert color="yellow">
+              Could not read local users from the current session state. Falling back to bundled seed users.
+            </Alert>
+          ) : null}
+          {users.isLoading ? <Text size="sm" c="dimmed">Loading local users...</Text> : null}
+          <Stack gap="xs">
+            {availableUsers.map((user) => (
+              <Group key={user.id} justify="space-between" wrap="wrap">
+                <div>
+                  <Text fw={600}>{user.name}</Text>
+                  <Text size="sm" c="dimmed">
+                    {user.email} · {user.id}
+                  </Text>
+                </div>
+                <Button
+                  onClick={() => handleLogin(user.id)}
+                  loading={login.isPending && selected === user.id}
+                  disabled={login.isPending}
+                >
+                  Continue as {user.name}
+                </Button>
+              </Group>
+            ))}
+          </Stack>
 
           <Group justify="space-between" wrap="wrap">
             <Button variant="light" onClick={() => router.navigate({ to: homeRoute.to })}>
               Back
-            </Button>
-            <Button onClick={handleLogin} disabled={!selected || login.isPending}>
-              Continue
             </Button>
           </Group>
         </Stack>
@@ -124,6 +122,7 @@ function ServerLoginPanel() {
     setPending(true);
     setError(null);
     try {
+      const { authClient } = await import('../auth/client');
       const result = await authClient.signIn.email({
         email: email.trim(),
         password,

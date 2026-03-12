@@ -6,7 +6,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import type { CompanyId, ProjectId, ProjectRole, UserId } from '../types';
 import { asUserId } from '../types';
 
-import { useCompanyQuery, useProjectQuery, useUsersQuery } from '../queries/reference';
+import { useProjectQuery, useUsersQuery } from '../queries/reference';
 import { useUpdateProjectMutation } from '../queries/admin';
 import {
   useCompanyMembershipsQuery,
@@ -24,7 +24,6 @@ export default function ProjectSettingsPanel(props: {
   const { companyId, projectId } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
 
-  const company = useCompanyQuery(companyId);
   const project = useProjectQuery(projectId);
   const usersQ = useUsersQuery();
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
@@ -132,28 +131,31 @@ export default function ProjectSettingsPanel(props: {
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between" wrap="wrap">
-        <Stack gap={2}>
-          <Title order={4}>Project settings</Title>
-          <Text c="dimmed" size="sm">
-            {company.data?.name ?? companyId} • {project.data.name}
-          </Text>
-        </Stack>
-        <Badge variant="light" color={canEditProject ? 'gray' : 'red'}>
-          {canEditProject ? 'Can edit project' : 'Read-only'}
-        </Badge>
-      </Group>
-
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
-          <Title order={5}>Project</Title>
-          <Group justify="space-between" align="flex-end" wrap="wrap">
-            <Stack gap={2}>
-              <Text size="sm" c="dimmed">
-                Name
-              </Text>
-              <Text fw={700}>{project.data.name}</Text>
-            </Stack>
+          <Group justify="space-between" align="flex-start" wrap="wrap">
+            <Title order={5}>Project settings</Title>
+            <Badge variant="light" color={canEditProject ? 'gray' : 'red'}>
+              {canEditProject ? 'Can edit project' : 'Read-only'}
+            </Badge>
+          </Group>
+          <Stack gap="sm" style={{ width: '100%', maxWidth: 460 }}>
+            <Select
+              label="Currency"
+              description="Controls how money is formatted throughout this project workspace."
+              value={project.data.currency}
+              onChange={(v) => {
+                if (!v) return;
+                updateProject.mutate({ id: projectId, currency: v as 'AUD' | 'USD' | 'EUR' | 'GBP' });
+              }}
+              data={[
+                { value: 'AUD', label: 'AUD' },
+                { value: 'USD', label: 'USD' },
+                { value: 'EUR', label: 'EUR' },
+                { value: 'GBP', label: 'GBP' },
+              ]}
+              disabled={!canEditProject}
+            />
             <Select
               label="Visibility"
               description="Controls whether non-members can see this project in the company project list. Opening still requires membership unless you are Admin/Exec/Superadmin."
@@ -167,9 +169,8 @@ export default function ProjectSettingsPanel(props: {
                 { value: 'company', label: 'Company-wide (visible to all company users)' },
               ]}
               disabled={!canEditProject}
-              style={{ width: '100%', maxWidth: 460 }}
             />
-          </Group>
+          </Stack>
         </Stack>
       </Paper>
 

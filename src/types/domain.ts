@@ -26,6 +26,7 @@ export type Project = {
   companyId: CompanyId;
   name: string;
   description?: string;
+  budgetTotalCents: number;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
   /** Audit timestamp as ISO string (UTC). */

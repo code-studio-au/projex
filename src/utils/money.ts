@@ -26,8 +26,11 @@ export function formatCurrencyFromCents(
   cents: number,
   ccy: string = 'AUD'
 ): string {
-  return fromCents(cents).toLocaleString(undefined, {
+  const normalizedCurrency = ccy.toUpperCase();
+
+  return fromCents(cents).toLocaleString(normalizedCurrency === 'AUD' ? 'en-AU' : undefined, {
     style: 'currency',
-    currency: ccy,
+    currency: normalizedCurrency,
+    currencyDisplay: 'narrowSymbol',
   });
 }

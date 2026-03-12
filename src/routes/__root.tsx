@@ -1,4 +1,7 @@
 import { createRootRouteWithContext } from '@tanstack/react-router';
+import '@mantine/core/styles.css';
+import 'mantine-react-table/styles.css';
+import '../app.css';
 
 import { RootErrorComponent, RootNotFoundComponent } from '../components/routerErrors';
 import { RootLayout } from '../layouts';

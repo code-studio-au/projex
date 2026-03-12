@@ -2,12 +2,6 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { AppError } from '../api/errors';
 import { withApi } from './-api-shared';
-import { getDb } from '../server/db/db';
-import {
-  assertDevEndpointsEnabled,
-  clearDevSessionSetCookie,
-  createDevSessionSetCookie,
-} from '../server/dev/devSession';
 import { asUserId } from '../types';
 
 export const Route = createFileRoute('/api/dev/session')({
@@ -15,6 +9,14 @@ export const Route = createFileRoute('/api/dev/session')({
     handlers: {
       POST: ({ request }) =>
         withApi(request, async () => {
+          const [{ getDb }, devSession] = await Promise.all([
+            import('../server/db/db'),
+            import('../server/dev/devSession'),
+          ]);
+          const {
+            assertDevEndpointsEnabled,
+            createDevSessionSetCookie,
+          } = devSession;
           assertDevEndpointsEnabled();
           const body = (await request.json()) as { userId?: string };
           const userId = body.userId?.trim();
@@ -41,6 +43,9 @@ export const Route = createFileRoute('/api/dev/session')({
         }),
       DELETE: ({ request }) =>
         withApi(request, async () => {
+          const { assertDevEndpointsEnabled, clearDevSessionSetCookie } = await import(
+            '../server/dev/devSession'
+          );
           assertDevEndpointsEnabled();
           return new Response(JSON.stringify({ ok: true }), {
             status: 200,

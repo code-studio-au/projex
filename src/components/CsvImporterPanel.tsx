@@ -220,13 +220,13 @@ export default function CsvImporterPanel(props: {
 
   return (
     <Stack gap="md">
-      <Paper withBorder radius="md" p="md">
-        <Stack gap="sm">
+      <Paper withBorder radius="lg" p="lg" className="importPanelCard">
+        <Stack gap="md">
           <Group justify="space-between" align="center" wrap="wrap">
-            <Text fw={600}>CSV Import</Text>
+            <Text fw={700}>CSV import</Text>
             <Badge variant="light">{previewCount} rows parsed</Badge>
           </Group>
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="dimmed" className="panelHelperText">
             Supports headers: date, item, description, amount, and optional category/subcategory.
           </Text>
 
@@ -244,7 +244,7 @@ export default function CsvImporterPanel(props: {
             />
           </Group>
 
-          <Group gap="lg" align="center" wrap="wrap">
+          <Group gap="md" align="center" wrap="wrap">
             <Switch
               label="Auto-create missing categories/subcategories"
               checked={autoCreate}
@@ -321,9 +321,11 @@ export default function CsvImporterPanel(props: {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="md" p="md">
-        <Text fw={600}>Example CSV</Text>
-        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowX: 'auto' }}>{exampleCsv}</pre>
+      <Paper withBorder radius="lg" p="lg" className="importPanelCard importExampleCard">
+        <Stack gap="sm">
+          <Text fw={700}>Example CSV</Text>
+          <pre className="importExamplePre">{exampleCsv}</pre>
+        </Stack>
       </Paper>
 
       <Modal
@@ -332,8 +334,8 @@ export default function CsvImporterPanel(props: {
         title="Replace all transactions?"
         fullScreen={isMobile}
       >
-        <Stack>
-          <Text size="sm" c="dimmed">
+        <Stack gap="md">
+          <Text size="sm" c="dimmed" className="panelHelperText">
             This will replace all existing transactions in this project with imported rows. This cannot be undone.
           </Text>
           <Group justify="flex-end" wrap="wrap">
@@ -361,11 +363,11 @@ export default function CsvImporterPanel(props: {
         </Stack>
       </Modal>
 
-      {importNotice && (
-        <Paper withBorder radius="md" p="sm">
+      {importNotice ? (
+        <Paper withBorder radius="md" p="sm" className="importNoticeCard">
           <Text size="sm">{importNotice}</Text>
         </Paper>
-      )}
+      ) : null}
     </Stack>
   );
 }
