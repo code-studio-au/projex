@@ -1,4 +1,5 @@
-import { createRootRouteWithContext } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
+import { createRootRouteWithContext, HeadContent, Scripts } from '@tanstack/react-router';
 import '@mantine/core/styles.css';
 import 'mantine-react-table/styles.css';
 import '../app.css';
@@ -7,8 +8,32 @@ import { RootErrorComponent, RootNotFoundComponent } from '../components/routerE
 import { RootLayout } from '../layouts';
 import type { RouterContext } from '../router-context';
 
+function Document({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
+}
+
+function RootDocument() {
+  return (
+    <Document>
+      <RootLayout />
+    </Document>
+  );
+}
+
 export const Route = createRootRouteWithContext<RouterContext>()({
-  component: RootLayout,
+  component: RootDocument,
   errorComponent: RootErrorComponent,
   notFoundComponent: RootNotFoundComponent,
 });
