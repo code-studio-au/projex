@@ -75,7 +75,7 @@ function resolveStaticFile(pathname) {
 
 const app = createApp();
 
-app.use('/assets', eventHandler(async (event) => {
+app.use('/assets/**', eventHandler(async (event) => {
   const filePath = resolveStaticFile(event.url.pathname);
   if (!filePath) {
     return new Response('Not found', { status: 404 });
