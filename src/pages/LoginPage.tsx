@@ -49,12 +49,8 @@ function LocalLoginPanel() {
       await login.mutateAsync(userId);
 
       const target = await getPostLoginTarget(api, userId);
-      const href =
-        target.to === '/c/$companyId' && target.params?.companyId
-          ? `/c/${target.params.companyId}`
-          : '/companies';
-
-      window.location.assign(href);
+      await router.invalidate();
+      await router.navigate(target);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Local login failed.');
     }
