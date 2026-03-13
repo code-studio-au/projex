@@ -16,6 +16,8 @@
     "auth:create-user": "node --experimental-strip-types src/server/auth/createAuthUser.ts",
     "auth:link-user": "node scripts/link-auth-user.mjs",
     "start:server": "node scripts/start-server.mjs",
+    "deploy:ec2": "bash scripts/deploy-ec2.sh",
+    "deploy:ec2:quick": "SKIP_INSTALL=true bash scripts/deploy-ec2.sh",
     "smoke:server": "node scripts/smoke-server.mjs",
     "cdk:install": "npm --prefix deploy/cdk install",
     "cdk:bootstrap": "npm --prefix deploy/cdk exec cdk -- bootstrap",
