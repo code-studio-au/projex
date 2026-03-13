@@ -24,15 +24,23 @@ import { useAllCompanyMembershipsQuery } from './queries/memberships';
 import { useCompaniesQuery } from './queries/reference';
 
 /** Root layout: intentionally minimal to keep route config clean. */
-export function RootLayout() {
+export function RootProviders({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   return (
     <MantineProvider theme={theme} defaultColorScheme="light">
       <QueryClientProvider client={router.options.context.queryClient}>
-        <Outlet />
+        {children}
       </QueryClientProvider>
     </MantineProvider>
+  );
+}
+
+export function RootLayout() {
+  return (
+    <RootProviders>
+      <Outlet />
+    </RootProviders>
   );
 }
 

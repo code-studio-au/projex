@@ -5,7 +5,7 @@ import 'mantine-react-table/styles.css';
 import '../app.css';
 
 import { RootErrorComponent, RootNotFoundComponent } from '../components/routerErrors';
-import { RootLayout } from '../layouts';
+import { RootLayout, RootProviders } from '../layouts';
 import type { RouterContext } from '../router-context';
 
 function Document({ children }: { children: ReactNode }) {
@@ -32,8 +32,28 @@ function RootDocument() {
   );
 }
 
+function RootErrorDocument(props: { error: unknown }) {
+  return (
+    <Document>
+      <RootProviders>
+        <RootErrorComponent {...props} />
+      </RootProviders>
+    </Document>
+  );
+}
+
+function RootNotFoundDocument() {
+  return (
+    <Document>
+      <RootProviders>
+        <RootNotFoundComponent />
+      </RootProviders>
+    </Document>
+  );
+}
+
 export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootDocument,
-  errorComponent: RootErrorComponent,
-  notFoundComponent: RootNotFoundComponent,
+  errorComponent: RootErrorDocument,
+  notFoundComponent: RootNotFoundDocument,
 });
