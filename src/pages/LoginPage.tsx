@@ -102,12 +102,37 @@ function LocalLoginPanel() {
 }
 
 function ServerLoginPanel() {
+  const api = useApi();
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width: 48em)');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  async function waitForServerSession(userEmail: string) {
+    const { getAuthSession } = await import('../auth/client');
+    const attempts = 12;
+
+    for (let i = 0; i < attempts; i += 1) {
+      const result = await getAuthSession();
+      const data = (result?.data ?? result) as
+        | {
+            user?: { id?: string | null; email?: string | null } | null;
+            session?: { userId?: string | null } | null;
+          }
+        | null
+        | undefined;
+      const userId = data?.user?.id ?? data?.session?.userId ?? null;
+      const email = data?.user?.email?.trim().toLowerCase() ?? null;
+      if (userId && email === userEmail.trim().toLowerCase()) {
+        return userId as UserId;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+    }
+
+    return null;
+  }
 
   async function handleServerLogin() {
     if (!email.trim() || !password) return;
@@ -124,9 +149,15 @@ function ServerLoginPanel() {
         setError(result.error.message ?? 'Sign in failed');
         return;
       }
-      // After BetterAuth writes the session cookie, do a full navigation so the
-      // next request is resolved server-side with the fresh auth state.
-      window.location.assign('/');
+      const userId = await waitForServerSession(email);
+      if (!userId) {
+        setError('Sign in succeeded but the browser session was not ready yet. Please try again.');
+        return;
+      }
+
+      const target = await getPostLoginTarget(api, userId);
+      await router.invalidate();
+      await router.navigate(target);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed');
     } finally {
