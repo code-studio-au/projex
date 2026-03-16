@@ -14,14 +14,12 @@ import {
 } from '@mantine/core';
 import { useRouter } from '@tanstack/react-router';
 import { useMediaQuery } from '@mantine/hooks';
-import { useQueryClient } from '@tanstack/react-query';
 
 import { useApi } from '../hooks/useApi';
 import { useUsersQuery } from '../queries/reference';
 import { useLoginMutation } from '../queries/session';
 import type { UserId } from '../types';
 import { homeRoute } from '../router';
-import { sessionQueryOptions } from '../queries/session';
 import { getPostLoginTarget } from '../routes/-postLogin';
 import { seedUsers } from '../seed/users';
 
@@ -104,9 +102,7 @@ function LocalLoginPanel() {
 }
 
 function ServerLoginPanel() {
-  const api = useApi();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 48em)');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -128,14 +124,9 @@ function ServerLoginPanel() {
         setError(result.error.message ?? 'Sign in failed');
         return;
       }
-
-      const session = await queryClient.fetchQuery(sessionQueryOptions(api));
-      if (!session) {
-        setError('Sign in succeeded but no session was returned.');
-        return;
-      }
-      const target = await getPostLoginTarget(api, session.userId);
-      router.navigate(target);
+      // After BetterAuth writes the session cookie, do a full navigation so the
+      // next request is resolved server-side with the fresh auth state.
+      window.location.assign('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed');
     } finally {
