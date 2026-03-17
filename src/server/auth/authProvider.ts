@@ -1,6 +1,6 @@
 import type { ServerSession } from './session';
 
-import { getBetterAuthInstance } from './betterAuthInstance';
+import { getBetterAuthInstance } from './betterAuthInstance.ts';
 
 /**
  * Direct auth resolver hook used by `BETTER_AUTH_DIRECT_SESSION_FN`.
