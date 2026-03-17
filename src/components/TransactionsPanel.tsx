@@ -92,6 +92,14 @@ export default function TransactionsPanel(props: {
     taxonomy.validSubIds,
   ]);
 
+  function moveToSubcategoryCell(args: {
+    row: Parameters<NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>>[0]['row'];
+    table: Parameters<NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>>[0]['table'];
+  }) {
+    const nextCell = args.row.getAllCells().find((cell) => cell.column.id === 'subCategory');
+    args.table.setEditingCell(nextCell ?? null);
+  }
+
   // Note: keep columns as a plain value (no manual memoization).
   // This avoids conflicts with the React Compiler's memoization preservation rule.
   const txnColumns: MRT_ColumnDef<(typeof txns.transactions)[number]>[] = [
@@ -144,6 +152,7 @@ export default function TransactionsPanel(props: {
       header: 'Category',
       size: 156,
       enableEditing: !readOnly,
+      enableSorting: false,
       Edit: ({ row, table }) => {
         const current = row.original.categoryId ?? null;
         return (
@@ -160,7 +169,7 @@ export default function TransactionsPanel(props: {
                   categoryId: v ? asCategoryId(v) : undefined,
                   subCategoryId: undefined,
                 })
-                .then(() => table.setEditingCell(null));
+                .then(() => moveToSubcategoryCell({ row, table }));
             }}
           />
         );
@@ -179,6 +188,7 @@ export default function TransactionsPanel(props: {
       header: 'Subcategory',
       size: 188,
       enableEditing: !readOnly,
+      enableSorting: false,
       Edit: ({ row, table }) => {
         const catId = row.original.categoryId;
         const options = catId
