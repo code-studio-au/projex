@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
@@ -47,6 +48,11 @@ import { Route as ApiProjectsProjectIdCategoriesCategoryIdRouteImport } from './
 import { Route as ApiProjectsProjectIdBudgetsBudgetIdRouteImport } from './routes/api.projects.$projectId.budgets.$budgetId'
 import { Route as AuthedCCompanyIdPProjectIdRouteImport } from './routes/_authed.c.$companyId.p.$projectId'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -254,6 +260,7 @@ const AuthedCCompanyIdPProjectIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/companies': typeof AuthedCompaniesRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
   '/api/health': typeof ApiHealthRoute
@@ -292,6 +299,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/companies': typeof AuthedCompaniesRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
   '/api/health': typeof ApiHealthRoute
@@ -331,6 +339,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_authed/companies': typeof AuthedCompaniesRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
   '/api/health': typeof ApiHealthRoute
@@ -371,6 +380,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/reset-password'
     | '/companies'
     | '/api/companies'
     | '/api/health'
@@ -409,6 +419,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/reset-password'
     | '/companies'
     | '/api/companies'
     | '/api/health'
@@ -447,6 +458,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authed'
     | '/login'
+    | '/reset-password'
     | '/_authed/companies'
     | '/api/companies'
     | '/api/health'
@@ -487,6 +499,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ApiCompaniesRoute: typeof ApiCompaniesRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
   ApiReadyRoute: typeof ApiReadyRoute
@@ -502,6 +515,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -920,6 +940,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ApiCompaniesRoute: ApiCompaniesRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
   ApiReadyRoute: ApiReadyRoute,

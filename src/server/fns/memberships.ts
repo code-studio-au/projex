@@ -173,11 +173,31 @@ export async function deleteCompanyMembershipServer(args: {
       companyId: args.companyId,
     });
 
-    await db
-      .deleteFrom('company_memberships')
-      .where('company_id', '=', args.companyId)
-      .where('user_id', '=', args.userId)
-      .execute();
+    await db.transaction().execute(async (trx) => {
+      const projectIds = await trx
+        .selectFrom('projects')
+        .select('id')
+        .where('company_id', '=', args.companyId)
+        .execute();
+
+      if (projectIds.length) {
+        await trx
+          .deleteFrom('project_memberships')
+          .where('user_id', '=', args.userId)
+          .where(
+            'project_id',
+            'in',
+            projectIds.map((p) => p.id)
+          )
+          .execute();
+      }
+
+      await trx
+        .deleteFrom('company_memberships')
+        .where('company_id', '=', args.companyId)
+        .where('user_id', '=', args.userId)
+        .execute();
+    });
   });
 }
 

@@ -1,13 +1,16 @@
+import { randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
 
 import { AppError } from '../../api/errors';
-import type { CompanyUpdateInput } from '../../api/types';
+import type { CompanyUpdateInput, CompanyUserInviteResult } from '../../api/types';
 import type { Company, CompanyId, CompanyRole, User, UserId } from '../../types';
 import { asCompanyId, asUserId } from '../../types';
 import { uid } from '../../utils/id';
 import { companyNameSchema, emailSchema, userNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
+import { getBetterAuthInstance } from '../auth/betterAuthInstance';
+import { getAuthEmailDeliveryMode } from '../auth/email.ts';
 import { getDb } from '../db/db';
 import {
   assertContextProvided,
@@ -47,6 +50,181 @@ async function isSuperadminUser(userId: UserId): Promise<boolean> {
     .where('role', '=', 'superadmin')
     .executeTakeFirst();
   return !!row;
+}
+
+type BetterAuthUserRow = {
+  id: string;
+  email: string;
+  name: string;
+};
+
+async function findBetterAuthUserByEmail(emailNorm: string): Promise<BetterAuthUserRow | null> {
+  const db = getDb();
+  const result = await sql<BetterAuthUserRow>`
+    select id, email, name
+    from ba_user
+    where lower(email) = ${emailNorm}
+    limit 1
+  `.execute(db);
+  return result.rows[0] ?? null;
+}
+
+async function createBetterAuthUser(email: string, name: string): Promise<BetterAuthUserRow> {
+  const auth = getBetterAuthInstance();
+  const response = await auth.api.signUpEmail({
+    body: {
+      email,
+      name,
+      password: randomBytes(24).toString('hex'),
+    },
+  });
+  const payload = response as { user?: { id?: string; email?: string; name?: string } };
+  const userId = payload.user?.id?.trim();
+  if (!userId) {
+    throw new AppError('INTERNAL_ERROR', 'BetterAuth user creation returned no user id');
+  }
+  return {
+    id: userId,
+    email: payload.user?.email?.trim() || email,
+    name: payload.user?.name?.trim() || name,
+  };
+}
+
+function getResetPasswordRedirectUrl(): string {
+  const configured = process.env.PROJEX_AUTH_RESET_REDIRECT_URL?.trim();
+  if (configured) return configured;
+  const base = process.env.BETTER_AUTH_URL?.trim();
+  if (!base) {
+    throw new AppError(
+      'INTERNAL_ERROR',
+      'Missing BETTER_AUTH_URL while preparing invite password setup redirect'
+    );
+  }
+  return new URL('/reset-password', base).toString();
+}
+
+async function requestPasswordSetupEmail(email: string): Promise<'email' | 'log'> {
+  const auth = getBetterAuthInstance();
+  await auth.api.requestPasswordReset({
+    body: {
+      email,
+      redirectTo: getResetPasswordRedirectUrl(),
+    },
+  });
+  return getAuthEmailDeliveryMode();
+}
+
+async function reconcileAppUserToAuthIdentity(args: {
+  authUser: BetterAuthUserRow;
+  preferredName: string;
+}): Promise<User> {
+  const db = getDb();
+  const emailNorm = args.authUser.email.trim().toLowerCase();
+  const existingByEmail = await db
+    .selectFrom('users')
+    .select(['id', 'email', 'name', 'disabled'])
+    .where(sql<boolean>`lower(email) = ${emailNorm}`)
+    .executeTakeFirst();
+
+  if (!existingByEmail) {
+    await db
+      .insertInto('users')
+      .values({
+        id: args.authUser.id,
+        email: args.authUser.email,
+        name: args.preferredName,
+        disabled: false,
+      })
+      .onConflict((oc) =>
+        oc.column('id').doUpdateSet({
+          email: args.authUser.email,
+          name: args.preferredName,
+        })
+      )
+      .execute();
+
+    return {
+      id: asUserId(args.authUser.id),
+      email: args.authUser.email,
+      name: args.preferredName,
+    };
+  }
+
+  if (existingByEmail.id === args.authUser.id) {
+    await db
+      .updateTable('users')
+      .set({
+        email: args.authUser.email,
+        name: args.preferredName,
+        disabled: false,
+      })
+      .where('id', '=', args.authUser.id)
+      .execute();
+
+    return {
+      id: asUserId(args.authUser.id),
+      email: args.authUser.email,
+      name: args.preferredName,
+    };
+  }
+
+  const conflictingById = await db
+    .selectFrom('users')
+    .select(['id', 'email'])
+    .where('id', '=', args.authUser.id)
+    .executeTakeFirst();
+
+  if (conflictingById && conflictingById.email.trim().toLowerCase() !== emailNorm) {
+    throw new AppError(
+      'CONFLICT',
+      'A different app user already uses the BetterAuth account id for this email'
+    );
+  }
+
+  await db.transaction().execute(async (trx) => {
+    await trx
+      .insertInto('users')
+      .values({
+        id: args.authUser.id,
+        email: args.authUser.email,
+        name: args.preferredName,
+        disabled: false,
+      })
+      .onConflict((oc) =>
+        oc.column('id').doUpdateSet({
+          email: args.authUser.email,
+          name: args.preferredName,
+          disabled: false,
+        })
+      )
+      .execute();
+
+    await sql`
+      insert into company_memberships (company_id, user_id, role)
+      select company_id, ${args.authUser.id}, role
+      from company_memberships
+      where user_id = ${existingByEmail.id}
+      on conflict (company_id, user_id) do update
+      set role = excluded.role
+    `.execute(trx);
+
+    await sql`
+      insert into project_memberships (project_id, user_id, role)
+      select project_id, ${args.authUser.id}, role
+      from project_memberships
+      where user_id = ${existingByEmail.id}
+      on conflict (project_id, user_id) do update
+      set role = excluded.role
+    `.execute(trx);
+
+    await trx.deleteFrom('users').where('id', '=', existingByEmail.id).execute();
+  });
+
+  return {
+    id: asUserId(args.authUser.id),
+    email: args.authUser.email,
+    name: args.preferredName,
+  };
 }
 
 export async function listCompaniesServer(args: {
@@ -208,7 +386,7 @@ export async function createUserInCompanyServer(args: {
   name: string;
   email: string;
   role: CompanyRole;
-}): Promise<User> {
+}): Promise<CompanyUserInviteResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
     const db = getDb();
@@ -224,41 +402,50 @@ export async function createUserInCompanyServer(args: {
     });
 
     const emailNorm = args.email.trim().toLowerCase();
-    const dup = await db
-      .selectFrom('users')
-      .select('id')
-      .where(sql<boolean>`lower(email) = ${emailNorm}`)
-      .executeTakeFirst();
-    if (dup) {
-      throw new AppError('CONFLICT', 'A user with this email already exists');
+    const trimmedName = args.name.trim();
+    const trimmedEmail = args.email.trim();
+
+    let authUser = await findBetterAuthUserByEmail(emailNorm);
+    let createdAuthUser = false;
+    if (!authUser) {
+      authUser = await createBetterAuthUser(trimmedEmail, trimmedName);
+      createdAuthUser = true;
     }
 
-    const userId = asUserId(uid('usr'));
-    await db.transaction().execute(async (trx) => {
-      await trx
-        .insertInto('users')
-        .values({
-          id: userId,
-          name: args.name.trim(),
-          email: args.email.trim(),
-          disabled: false,
-        })
-        .execute();
-
-      await trx
-        .insertInto('company_memberships')
-        .values({
-          company_id: args.companyId,
-          user_id: userId,
-          role: args.role,
-        })
-        .execute();
+    const user = await reconcileAppUserToAuthIdentity({
+      authUser,
+      preferredName: trimmedName,
     });
 
+    await db
+      .insertInto('company_memberships')
+      .values({
+        company_id: args.companyId,
+        user_id: user.id,
+        role: args.role,
+      })
+      .onConflict((oc) =>
+        oc.columns(['company_id', 'user_id']).doUpdateSet({
+          role: args.role,
+        })
+      )
+      .execute();
+
+    if (!createdAuthUser) {
+      return {
+        user,
+        createdAuthUser: false,
+        onboardingEmailSent: false,
+        onboardingDelivery: 'none',
+      };
+    }
+
+    const onboardingDelivery = await requestPasswordSetupEmail(trimmedEmail);
     return {
-      id: userId,
-      name: args.name.trim(),
-      email: args.email.trim(),
+      user,
+      createdAuthUser: true,
+      onboardingEmailSent: true,
+      onboardingDelivery,
     };
   });
 }

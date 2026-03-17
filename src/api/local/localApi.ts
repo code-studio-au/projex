@@ -51,6 +51,7 @@ import type {
   BudgetUpdateInput,
   CategoryCreateInput,
   CategoryUpdateInput,
+  CompanyUserInviteResult,
   CompanyUpdateInput,
   CsvImportMode,
   ProjectCreateInput,
@@ -470,10 +471,16 @@ export class LocalApi implements ProjexApi {
   async deleteCompanyMembership(companyId: CompanyId, userId: UserId): Promise<void> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
+    const companyProjectIds = new Set(
+      st.projects.filter((p) => p.companyId === companyId).map((p) => p.id)
+    );
     writeState({
       ...st,
       companyMemberships: st.companyMemberships.filter(
         (m) => !(m.companyId === companyId && m.userId === userId)
+      ),
+      projectMemberships: st.projectMemberships.filter(
+        (m) => !(m.userId === userId && companyProjectIds.has(m.projectId))
       ),
     });
   }
@@ -1031,7 +1038,7 @@ export class LocalApi implements ProjexApi {
     name: string,
     email: string,
     role: CompanyRole
-  ): Promise<User> {
+  ): Promise<CompanyUserInviteResult> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
     validateOrThrow(userNameSchema, name);
@@ -1044,7 +1051,12 @@ export class LocalApi implements ProjexApi {
     writeState({ ...st, users: [...st.users, next] });
     // add membership
     await this.upsertCompanyMembership(companyId, next.id, role);
-    return next;
+    return {
+      user: next,
+      createdAuthUser: false,
+      onboardingEmailSent: false,
+      onboardingDelivery: 'none',
+    };
   }
 
   async importTransactions(

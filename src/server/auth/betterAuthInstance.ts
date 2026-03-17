@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { tanstackStartCookies } from 'better-auth/tanstack-start';
 import type { BetterAuthOptions } from 'better-auth';
 import { getDb } from '../db/db.ts';
+import { sendAuthEmail } from './email.ts';
 
 export type BetterAuthSessionApi = ReturnType<typeof betterAuth>;
 
@@ -51,7 +52,30 @@ export function buildBetterAuthOptions(): BetterAuthOptions {
     account: { modelName: 'ba_account' },
     verification: { modelName: 'ba_verification' },
     rateLimit: { modelName: 'ba_rate_limit' },
-    emailAndPassword: { enabled: true },
+    emailAndPassword: {
+      enabled: true,
+      async sendResetPassword({ user, url }) {
+        await sendAuthEmail({
+          to: user.email,
+          subject: 'Set up your Projex password',
+          text: [
+            `Hi ${user.name || user.email},`,
+            '',
+            'You have been invited to Projex.',
+            'Use the link below to set your password:',
+            url,
+            '',
+            'If you were not expecting this email, you can ignore it.',
+          ].join('\n'),
+          html: [
+            `<p>Hi ${user.name || user.email},</p>`,
+            '<p>You have been invited to Projex.</p>',
+            `<p><a href="${url}">Set your password</a></p>`,
+            '<p>If you were not expecting this email, you can ignore it.</p>',
+          ].join(''),
+        });
+      },
+    },
     plugins: [tanstackStartCookies()],
   };
 }

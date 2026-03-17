@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Badge,
   Button,
   Group,
@@ -23,11 +24,11 @@ import { getCompanyUsers } from '../store/access';
 import { useUsersQuery, useCompanyQuery } from '../queries/reference';
 import {
   useCompanyMembershipsQuery,
+  useDeleteCompanyMembershipMutation,
   useUpsertCompanyMembershipMutation,
 } from '../queries/memberships';
-import {
-  useCreateUserInCompanyMutation,
-} from '../queries/admin';
+import { useCreateUserInCompanyMutation } from '../queries/admin';
+import { isServerAuthMode } from '../routes/-authMode';
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
@@ -39,6 +40,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
 
   const createUser = useCreateUserInCompanyMutation(companyId);
+  const removeCompanyMember = useDeleteCompanyMembershipMutation(companyId);
   const upsertCompanyMembership = useUpsertCompanyMembershipMutation(companyId);
 
   // Permissions are evaluated via `access.can(...)` so that global superadmin
@@ -67,6 +69,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<CompanyRole | null>('member');
+  const [inviteStatus, setInviteStatus] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [roleUserId, setRoleUserId] = useState<UserId | null>(null);
 
   // Derive a sensible default selection without synchronously setting state in an effect.
@@ -98,6 +102,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           key: `${m.companyId}:${m.userId}`,
           userName: u?.name ?? String(m.userId),
           userEmail: u?.email ?? '',
+          userId: m.userId,
           role: m.role,
         };
       }),
@@ -125,8 +130,24 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         header: 'Role',
         Cell: ({ row }) => <Badge variant="light">{row.original.role}</Badge>,
       },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        Cell: ({ row }) => (
+          <Button
+            size="xs"
+            color="red"
+            variant="light"
+            disabled={!canAddCompanyUsers || row.original.userId === access.userId}
+            onClick={() => removeCompanyMember.mutate(row.original.userId)}
+          >
+            Remove
+          </Button>
+        ),
+      },
     ],
-    []
+    [access.userId, canAddCompanyUsers, removeCompanyMember]
   );
 
   return (
@@ -145,11 +166,13 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         <Paper withBorder radius="lg" p="lg">
           <Stack gap="sm">
             <Group justify="space-between">
-              <Title order={5}>Add user (company)</Title>
+              <Title order={5}>{isServerAuthMode ? 'Invite user' : 'Add user (company)'}</Title>
               <Badge variant="light" color={canAddCompanyUsers ? 'gray' : 'red'}>
                 {canAddCompanyUsers ? 'Allowed' : 'Not allowed'}
               </Badge>
             </Group>
+            {inviteError ? <Alert color="red">{inviteError}</Alert> : null}
+            {inviteStatus ? <Alert color="green">{inviteStatus}</Alert> : null}
             <TextInput
               label="Name"
               value={newUserName}
@@ -177,16 +200,41 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                 const name = newUserName.trim();
                 const email = newUserEmail.trim();
                 if (!name || !email) return;
-                await createUser.mutateAsync({ name, email, role: newUserRole ?? 'member' });
-                setNewUserName('');
-                setNewUserEmail('');
-                setNewUserRole('member');
+                setInviteError(null);
+                setInviteStatus(null);
+                try {
+                  const result = await createUser.mutateAsync({
+                    name,
+                    email,
+                    role: newUserRole ?? 'member',
+                  });
+                  setNewUserName('');
+                  setNewUserEmail('');
+                  setNewUserRole('member');
+                  if (!isServerAuthMode) {
+                    setInviteStatus(`${result.user.name} was added to the company.`);
+                    return;
+                  }
+                  if (result.onboardingEmailSent) {
+                    setInviteStatus(
+                      result.onboardingDelivery === 'email'
+                        ? `${result.user.email} was invited and received a password setup email.`
+                        : `${result.user.email} was invited. Email delivery is not configured, so the password setup link was logged on the server.`
+                    );
+                    return;
+                  }
+                  setInviteStatus(`${result.user.email} was added to the company.`);
+                } catch (err) {
+                  setInviteError(err instanceof Error ? err.message : 'Could not invite user.');
+                }
               }}
             >
-              Create user
+              {isServerAuthMode ? 'Send invite' : 'Create user'}
             </Button>
             <Text size="xs" c="dimmed">
-              Users created here belong only to this company.
+              {isServerAuthMode
+                ? 'New users get a BetterAuth account, are linked to this company, and receive a password setup link.'
+                : 'Users created here belong only to this company.'}
             </Text>
           </Stack>
         </Paper>

@@ -472,6 +472,41 @@ test('LocalApi createUserInCompany enforces duplicate email conflict', async () 
   );
 });
 
+test('LocalApi createUserInCompany returns invite metadata for local mode', async () => {
+  installMemoryLocalStorage();
+  const api = new LocalApi();
+  await api.loginAs(asUserId('u_superadmin'));
+
+  const result = await api.createUserInCompany(
+    asCompanyId('co_acme'),
+    'New Local User',
+    'new-local-user@example.com',
+    'member'
+  );
+
+  assert.equal(result.user.email, 'new-local-user@example.com');
+  assert.equal(result.createdAuthUser, false);
+  assert.equal(result.onboardingEmailSent, false);
+  assert.equal(result.onboardingDelivery, 'none');
+});
+
+test('LocalApi removeCompanyMember also removes project memberships in that company', async () => {
+  installMemoryLocalStorage();
+  const api = new LocalApi();
+  await api.loginAs(asUserId('u_superadmin'));
+
+  const before = await api.listProjectMemberships(asProjectId('prj_acme_alpha'));
+  assert.ok(before.some((m) => String(m.userId) === 'u_member'));
+
+  await api.removeCompanyMember(asCompanyId('co_acme'), asUserId('u_member'));
+
+  const companyMemberships = await api.listCompanyMemberships(asCompanyId('co_acme'));
+  assert.ok(!companyMemberships.some((m) => String(m.userId) === 'u_member'));
+
+  const after = await api.listProjectMemberships(asProjectId('prj_acme_alpha'));
+  assert.ok(!after.some((m) => String(m.userId) === 'u_member'));
+});
+
 test('Server runtime requires authenticated session context', async () => {
   await assert.rejects(
     () => requireServerUserId({}),

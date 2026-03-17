@@ -23,6 +23,7 @@ import type {
   BudgetUpdateInput,
   CategoryCreateInput,
   CategoryUpdateInput,
+  CompanyUserInviteResult,
   CompanyUpdateInput,
   CsvImportMode,
   ProjectCreateInput,
@@ -350,8 +351,8 @@ export class ServerApi implements ProjexApi {
     _name: string,
     _email: string,
     _role: CompanyRole
-  ): Promise<User> {
-    return this.request<User>(`/api/companies/${encodeURIComponent(_companyId)}/users`, {
+  ): Promise<CompanyUserInviteResult> {
+    return this.request<CompanyUserInviteResult>(`/api/companies/${encodeURIComponent(_companyId)}/users`, {
       method: 'POST',
       body: JSON.stringify({
         name: _name,

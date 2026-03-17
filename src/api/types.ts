@@ -63,6 +63,13 @@ export type ProjectUpdateInput = Partial<Omit<Project, 'id'>> & { id: ProjectId 
 
 export type CompanyUpdateInput = Partial<Omit<Company, 'id'>> & { id: CompanyId };
 
+export type CompanyUserInviteResult = {
+  user: User;
+  createdAuthUser: boolean;
+  onboardingEmailSent: boolean;
+  onboardingDelivery: 'email' | 'log' | 'none';
+};
+
 export interface ProjexApi {
   // session
   getSession(): Promise<Session | null>;
@@ -136,7 +143,12 @@ export interface ProjexApi {
 
   // helpers
   getDefaultCompanyIdForUser(userId: UserId): Promise<CompanyId | null>;
-  createUserInCompany(companyId: CompanyId, name: string, email: string, role: CompanyRole): Promise<User>;
+  createUserInCompany(
+    companyId: CompanyId,
+    name: string,
+    email: string,
+    role: CompanyRole
+  ): Promise<CompanyUserInviteResult>;
 
   // projects / companies
   createProject(companyId: CompanyId, input: ProjectCreateInput): Promise<Project>;

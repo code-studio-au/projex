@@ -35,6 +35,12 @@ CORS_ALLOWED_ORIGINS=http://54.66.124.216
 
 BETTER_AUTH_DIRECT_SESSION_FN=src/server/auth/authProvider.ts#getSessionFromRequest
 
+# Optional invite/reset delivery webhook.
+# If unset, reset/setup links are logged on the server.
+PROJEX_AUTH_EMAIL_WEBHOOK_URL=
+PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN=
+PROJEX_AUTH_RESET_REDIRECT_URL=http://54.66.124.216/reset-password
+
 PROJEX_ENABLE_DEV_ENDPOINTS=false
 ```
 
@@ -97,6 +103,15 @@ sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@ex
 ```
 
 Use a less privileged template user if you want a narrower staging role.
+
+## Company Invites
+
+- Inviting a user from company settings will:
+  - create or reuse a BetterAuth user
+  - reconcile/link the app `users` row to the BetterAuth user id
+  - add company membership
+  - send a password setup email for newly-created auth users
+- If `PROJEX_AUTH_EMAIL_WEBHOOK_URL` is not configured, the password setup link is logged on the server instead.
 
 ## Rotate BetterAuth Secret
 
