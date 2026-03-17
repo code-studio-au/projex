@@ -21,13 +21,11 @@ import { useLoginMutation } from '../queries/session';
 import type { UserId } from '../types';
 import { homeRoute } from '../router';
 import { getPostLoginTarget } from '../routes/-postLogin';
+import { isServerAuthMode } from '../routes/-authMode';
 import { seedUsers } from '../seed/users';
 
-const env = (import.meta as unknown as { env?: Record<string, string> }).env;
-const isServerMode = env?.VITE_API_MODE === 'server';
-
 export default function LoginPage() {
-  return isServerMode ? <ServerLoginPanel /> : <LocalLoginPanel />;
+  return isServerAuthMode ? <ServerLoginPanel /> : <LocalLoginPanel />;
 }
 
 function LocalLoginPanel() {

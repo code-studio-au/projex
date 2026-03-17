@@ -18,19 +18,33 @@ Create `/etc/projex/projex.env`:
 
 ```bash
 NODE_ENV=production
+VITE_API_MODE=server
 DATABASE_URL=postgres://user:password@host:5432/projex
 
-# Choose one auth mode:
-BETTER_AUTH_SESSION_URL=https://auth.example.com/api/session
-# OR
-# BETTER_AUTH_DIRECT_SESSION_FN=./dist/server/auth/authProvider.js#getSessionFromRequest
+# BetterAuth
+BETTER_AUTH_SECRET=replace-with-long-random-secret
+BETTER_AUTH_URL=https://app.example.com
+BETTER_AUTH_TRUSTED_ORIGINS=https://app.example.com
 
-# Security
+# Browser/API origin allowlist
 CORS_ALLOWED_ORIGINS=https://app.example.com
 
-# Must remain false/unset in production
+# Prefer direct request-scoped session resolution for SSR:
+BETTER_AUTH_DIRECT_SESSION_FN=src/server/auth/authProvider.ts#getSessionFromRequest
+
+# Optional fallback if you prefer an internal HTTP session check instead:
+# BETTER_AUTH_SESSION_URL=http://127.0.0.1:3000/api/auth/get-session
+
+# Must remain false in staging/production
 PROJEX_ENABLE_DEV_ENDPOINTS=false
 ```
+
+Notes:
+
+- Staging/production should run in `VITE_API_MODE=server`.
+- Local seeded-user auth is for true local development only. Do not deploy staging in local mode.
+- Set `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to the canonical public origin users will actually visit.
+- If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 
 ## 4) Build + run
 
@@ -55,7 +69,34 @@ Check logs:
 sudo journalctl -u projex -f
 ```
 
-`start:server` runs database migrations and then starts `vite preview` (host/port via `HOST` and `PORT`, default `0.0.0.0:3000`).
+`start:server` runs database migrations, serves built client assets, and starts the SSR app server (host/port via `HOST` and `PORT`, default `0.0.0.0:3000`).
+
+If you front the app with nginx, proxy to `http://127.0.0.1:3000` and preserve `Host` plus standard forwarded headers.
+
+## 4.1) Repeatable deploy commands
+
+Once the service is installed and `/etc/projex/projex.env` is configured, use one of these from `/opt/projex`:
+
+```bash
+# Full deploy: pull, install deps, migrate, build, restart, health checks
+npm run deploy:ec2
+
+# Faster deploy when dependencies did not change
+npm run deploy:ec2:quick
+```
+
+The full deploy command performs:
+
+- `git pull --ff-only`
+- `npm ci`
+- env load from `/etc/projex/projex.env`
+- `npm run db:migrate`
+- `npm run build`
+- `sudo systemctl restart projex`
+- `/api/health` and `/api/ready` checks
+- recent `journalctl` output
+
+Use `deploy:ec2:quick` only when `package-lock.json` and runtime dependencies have not changed.
 
 ## 5) Health checks
 
@@ -73,3 +114,8 @@ Use `/api/ready` for ALB target group health checks only if DB connectivity is r
 
 - `npm run smoke:server` (from trusted network against deployed URL)
 - Confirm auth/session, company scoping, transaction CRUD, taxonomy/budget CRUD.
+- Refresh test:
+  - `/companies`
+  - a company page
+  - a project page
+  - a budget page
