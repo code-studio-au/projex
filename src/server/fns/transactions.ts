@@ -27,7 +27,7 @@ type TxnRow = {
   external_id: string | null;
   company_id: string;
   project_id: string;
-  txn_date: string;
+  txn_date: string | Date;
   item: string;
   description: string;
   amount_cents: number;
@@ -42,6 +42,17 @@ function normalizeExternalId(value: string | null | undefined): string | undefin
   return next ? next : undefined;
 }
 
+function normalizeTxnDate(value: string | Date): string {
+  if (value instanceof Date) {
+    const year = value.getUTCFullYear();
+    const month = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(value.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  return value.slice(0, 10);
+}
+
 function toTxn(row: TxnRow): Txn {
   return {
     id: row.public_id as TxnId,
@@ -49,7 +60,7 @@ function toTxn(row: TxnRow): Txn {
     externalId: normalizeExternalId(row.external_id),
     companyId: row.company_id as CompanyId,
     projectId: row.project_id as ProjectId,
-    date: row.txn_date,
+    date: normalizeTxnDate(row.txn_date),
     item: row.item,
     description: row.description,
     amountCents: Number(row.amount_cents),
