@@ -5,7 +5,7 @@ import { can, type Action } from '../utils/auth';
 import { getUserCompanyRole } from '../store/access';
 
 import { useAllCompanyMembershipsQuery, useMyProjectMembershipsQuery } from '../queries/memberships';
-import { useRequiredSession } from './useRequiredSession';
+import { useSessionQuery } from '../queries/session';
 
 export type CompanyAccess = {
   userId: UserId;
@@ -26,8 +26,8 @@ export type CompanyAccess = {
  * client-side UX gating, while the server remains the source of truth.
  */
 export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
-  const session = useRequiredSession();
-  const userId = session.userId;
+  const sessionQ = useSessionQuery();
+  const userId = (sessionQ.data?.userId ?? '') as UserId;
 
   const companyMembershipsQ = useAllCompanyMembershipsQuery();
   const myProjectMembershipsQ = useMyProjectMembershipsQuery(companyId);
