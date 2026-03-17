@@ -10,7 +10,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { Link } from '@tanstack/react-router';
+import { Link, useRouter } from '@tanstack/react-router';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
 
@@ -24,7 +24,7 @@ import {
   useReactivateProjectMutation,
 } from '../queries/admin';
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
-import { companyRoute, landingRoute } from '../router';
+import { companyRoute, landingRoute, projectRoute } from '../router';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 
@@ -32,6 +32,7 @@ export default function CompanyDashboardPage() {
   const { companyId: rawCompanyId } = companyRoute.useParams();
   const companyId: CompanyId = asCompanyId(rawCompanyId);
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const router = useRouter();
 
   const companyQ = useCompanyQuery(companyId);
   const projectsQ = useProjectsQuery(companyId);
@@ -164,9 +165,12 @@ export default function CompanyDashboardPage() {
                 <Button
                   size="xs"
                   variant="filled"
-                  onClick={() => {
-                    window.location.assign(`/c/${companyId}/p/${project.id}`);
-                  }}
+                  onClick={() =>
+                    router.navigate({
+                      to: projectRoute.to,
+                      params: { companyId, projectId: project.id },
+                    })
+                  }
                 >
                   Open
                 </Button>
