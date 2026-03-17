@@ -2,14 +2,23 @@
 
 This checklist is for the TanStack Start + EC2 + RDS cutover path.
 
+Status:
+
+- This is still useful as a deploy/readiness checklist.
+- Current preferred auth path is `BETTER_AUTH_DIRECT_SESSION_FN`.
+- `BETTER_AUTH_SESSION_URL` remains a supported fallback, not the default recommendation.
+
 ## 1) Environment
 
 - `DATABASE_URL` points to the target RDS Postgres instance.
 - `NODE_ENV=production` in deployed runtime.
-- `BETTER_AUTH_SESSION_URL` is configured to your BetterAuth server/session endpoint.
-- Or `BETTER_AUTH_DIRECT_SESSION_FN` is configured for direct BetterAuth SDK/session resolver module.
+- `VITE_API_MODE=server` in deployed runtime.
+- `BETTER_AUTH_SECRET` is configured.
+- `BETTER_AUTH_URL` is configured to the canonical public app origin.
+- `BETTER_AUTH_DIRECT_SESSION_FN` is configured for direct BetterAuth SDK/session resolver module.
+- Or `BETTER_AUTH_SESSION_URL` is configured as a fallback BetterAuth session endpoint.
 - At least one auth mode must be configured in production.
-- `PROJEX_ENABLE_DEV_ENDPOINTS` is **unset** (or not `true`) in production/staging.
+- `PROJEX_ENABLE_DEV_ENDPOINTS` is `false` (or at minimum not `true`) in production/staging.
 - Startup validator (`src/server/env.ts`) will fail fast in production if required vars are missing.
 - `CORS_ALLOWED_ORIGINS` configured for explicit browser cross-origin allowlist.
   Cross-origin requests are denied by default unless listed.
@@ -28,12 +37,14 @@ This checklist is for the TanStack Start + EC2 + RDS cutover path.
 
 ## 3) Auth
 
-- BetterAuth endpoint returns a session payload compatible with:
+- BetterAuth direct resolver or endpoint returns a session payload compatible with:
   - `{ userId: string }` or
   - `{ user: { id: string } }`
-- App server forwards request cookies to `BETTER_AUTH_SESSION_URL`.
+- App server resolves auth from the incoming request, preferably through `BETTER_AUTH_DIRECT_SESSION_FN`.
+- If `BETTER_AUTH_SESSION_URL` is used, app server forwards request cookies to that endpoint.
 - Unauthorized requests return `401` and do not leak data.
 - BetterAuth user IDs are linked to app `users.id` and memberships (e.g. via `npm run auth:link-user`).
+- Header-based auth impersonation must not be enabled on public traffic.
 
 ## 4) Authorization & Scope
 
@@ -44,7 +55,7 @@ This checklist is for the TanStack Start + EC2 + RDS cutover path.
 
 ## 5) Dev-only Endpoints
 
-Dev endpoints exist for local/server-mode workflows only:
+Dev endpoints exist for local or controlled non-production workflows only:
 
 - `POST /api/dev/session` (`loginAs`)
 - `POST /api/dev/reset-seed` (`resetToSeed`)
@@ -71,7 +82,8 @@ They are enabled only when:
 
 ## 7) Cutover Notes
 
-- Keep local mode available temporarily for rollback confidence.
+- Keep local mode available for true local development only.
+- Do not deploy staging in local mode or with seeded-user auth semantics.
 - Run smoke checks after deploy:
   - login/logout
   - company directory scoping

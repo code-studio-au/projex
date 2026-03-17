@@ -2,6 +2,12 @@
 
 This map is the migration checklist from `LocalApi` commands to TanStack Start server functions + Postgres tables.
 
+Status:
+
+- This document is still useful as an architectural map.
+- Large parts of the server route layer are now live, so read this as a reference map, not a future-only plan.
+- Current preferred auth integration is `BETTER_AUTH_DIRECT_SESSION_FN`.
+
 ## Session/Auth
 
 | LocalApi command | Server function target | DB tables | Notes |
@@ -12,8 +18,13 @@ This map is the migration checklist from `LocalApi` commands to TanStack Start s
 
 Production auth integration options:
 
-1. `BETTER_AUTH_SESSION_URL` (HTTP session endpoint), or
-2. `BETTER_AUTH_DIRECT_SESSION_FN` (`modulePath#exportName`) direct resolver hook.
+1. `BETTER_AUTH_DIRECT_SESSION_FN` (`modulePath#exportName`) direct resolver hook, or
+2. `BETTER_AUTH_SESSION_URL` (HTTP session endpoint fallback).
+
+Notes:
+
+- Staging/production should run with `VITE_API_MODE=server`.
+- Local seeded-user auth is intentionally limited to local development.
 
 ## Reference
 
@@ -64,12 +75,12 @@ Production auth integration options:
 ## Migration order
 
 1. Apply SQL migrations (`npm run db:migrate`).
-2. Implement server fn auth/session extraction with `toServerSession` + `requireAuthorized`.
-3. Migrate read commands (list/get) first.
-4. Migrate mutation commands with invariant parity.
-5. Switch adapter mode from local to server per route surface.
+2. Keep server fn auth/session extraction request-scoped with `toServerSession` + `requireAuthorized`.
+3. Maintain read command parity (list/get) with membership and status checks.
+4. Maintain mutation parity with local invariants and server-side authorization.
+5. Keep adapter mode split explicit: local for local dev, server for deployed runtime.
 
-## Start Wiring (Server-only)
+## Start Wiring (Current shape)
 
 Use the server bridge + Start server API to keep route files minimal:
 

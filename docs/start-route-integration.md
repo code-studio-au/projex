@@ -1,15 +1,21 @@
 # TanStack Start Route Integration
 
-This repo now has a server-only bridge and endpoint layer you can wire into TanStack Start routes.
+This repo already uses a TanStack Start route + bridge layer for server-backed API calls.
+
+Status:
+
+- Keep this doc as a boundary/reference note.
+- It is no longer just planning material; much of this wiring is active.
 
 ## Server modules already prepared
 
 - `src/server/api/startBridge.ts`
 - `src/server/api/startServerApi.ts`
+- `src/routes/-api-shared.ts`
 
-## Recommended Start route mapping
+## Current route mapping
 
-Use these file routes:
+Representative file routes:
 
 - `src/routes/api.companies.ts`
 - `src/routes/api.companies.$companyId.projects.ts`
@@ -18,7 +24,9 @@ Use these file routes:
 - `src/routes/api.projects.$projectId.transactions.import.ts`
 - `src/routes/api.projects.$projectId.transactions.$txnId.ts`
 
-## Example Start route file
+Additional domains are also already routed through `src/routes/api.*.ts`.
+
+## Route shape
 
 Each file route uses `server.handlers` and calls `withApi(request, run)` in
 `src/routes/-api-shared.ts`.
@@ -30,8 +38,9 @@ Do not import `src/server/*` from client modules.
 - Keep client adapter: `src/api/server/serverApi.ts` client-safe.
 - Keep DB/auth imports in `src/server/*` only.
 
-## Next migration actions
+## Current guidance
 
-1. Install TanStack Start runtime dependencies in your environment.
-2. Continue replacing client `ServerApi` stub calls with Start API route calls when enabling server mode in production.
-3. Extend `src/routes/api.*` coverage for remaining domains (budgets/taxonomy/admin lifecycle).
+1. Keep `src/api/server/serverApi.ts` as the client-safe browser/SSR adapter.
+2. Keep request-scoped auth/session resolution in the Start bridge layer.
+3. Add new server-backed capabilities by extending `src/routes/api.*.ts` plus `src/server/fns/*`.
+4. Do not reintroduce environment-specific shortcuts that let staging behave like local mode.
