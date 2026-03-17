@@ -84,7 +84,11 @@ export function useUpdateSubCategoryMutation(projectId: ProjectId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: SubCategoryUpdateInput) => api.updateSubCategory(projectId, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
+    },
   });
 }
 

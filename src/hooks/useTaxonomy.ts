@@ -214,7 +214,7 @@ export function useTaxonomy(params: {
     const next = txns.transactions.map((t) =>
       t.subCategoryId === subCategoryId ? { ...t, categoryId: newCategoryId } : t
     );
-    txns.replaceAll(next);
+    await txns.replaceAll(next);
   };
 
   const deleteSubCategory = (subCategoryId: SubCategoryId) => {

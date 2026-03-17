@@ -69,11 +69,26 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
   const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
+  const queryKey = qk.transactions(scopeUserId, projectId);
   return useMutation({
     mutationFn: (vars: { txns: Txn[]; mode: CsvImportMode }) =>
       api.importTransactions(projectId, vars),
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueryData<Txn[]>(queryKey);
+      qc.setQueryData<Txn[]>(
+        queryKey,
+        vars.mode === 'replaceAll'
+          ? vars.txns
+          : [...(previous ?? []), ...vars.txns]
+      );
+      return { previous };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) qc.setQueryData(queryKey, context.previous);
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey });
     },
   });
 }

@@ -144,7 +144,7 @@ export default function TransactionsPanel(props: {
       header: 'Category',
       size: 156,
       enableEditing: !readOnly,
-      Edit: ({ row }) => {
+      Edit: ({ row, table }) => {
         const current = row.original.categoryId ?? null;
         return (
           <Select
@@ -155,10 +155,12 @@ export default function TransactionsPanel(props: {
             clearable
             disabled={readOnly}
             onChange={(v) => {
-              txns.updateTxn(row.original.id, {
-                categoryId: v ? asCategoryId(v) : undefined,
-                subCategoryId: undefined,
-              });
+              void txns
+                .updateTxn(row.original.id, {
+                  categoryId: v ? asCategoryId(v) : undefined,
+                  subCategoryId: undefined,
+                })
+                .then(() => table.setEditingCell(null));
             }}
           />
         );
@@ -177,7 +179,7 @@ export default function TransactionsPanel(props: {
       header: 'Subcategory',
       size: 188,
       enableEditing: !readOnly,
-      Edit: ({ row }) => {
+      Edit: ({ row, table }) => {
         const catId = row.original.categoryId;
         const options = catId
           ? taxonomy.subCategoryOptionsForCategory(catId)
@@ -192,9 +194,11 @@ export default function TransactionsPanel(props: {
             clearable
             disabled={!catId || readOnly}
             onChange={(v) => {
-              txns.updateTxn(row.original.id, {
-                subCategoryId: v ? asSubCategoryId(v) : undefined,
-              });
+              void txns
+                .updateTxn(row.original.id, {
+                  subCategoryId: v ? asSubCategoryId(v) : undefined,
+                })
+                .then(() => table.setEditingCell(null));
             }}
           />
         );

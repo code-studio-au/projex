@@ -39,8 +39,6 @@ export function useRollups(params: {
   const { transactions, budgets, taxonomy, monthFilterKey } = params;
 
   const monthStarts = useMemo(() => {
-    if (!transactions.length) return [];
-
     // Be resilient to malformed dates (e.g., from CSV imports).
     // A single NaN in Math.min/Math.max would poison the whole range.
     const times = transactions
@@ -53,7 +51,18 @@ export function useRollups(params: {
       })
       .filter((ms) => Number.isFinite(ms)) as number[];
 
-    if (!times.length) return [];
+    if (!times.length) {
+      if (!budgets.length) return [];
+
+      // Keep the budget time-axis usable even before transaction dates exist.
+      // This gives budgeting screens a stable year/quarter/month scaffold and
+      // makes column visibility controls meaningful for newly created projects.
+      const now = new Date();
+      const start = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+      return Array.from({ length: 12 }, (_, idx) =>
+        new Date(Date.UTC(start.getUTCFullYear(), idx, 1))
+      );
+    }
 
     const minD = monthStart(new Date(Math.min(...times)));
     const maxD = monthStart(new Date(Math.max(...times)));
@@ -65,7 +74,7 @@ export function useRollups(params: {
       d = nextMonthStart(d);
     }
     return out;
-  }, [transactions]);
+  }, [budgets.length, transactions]);
 
   const visibleMonthStarts = useMemo(() => {
     if (!monthFilterKey) return monthStarts;

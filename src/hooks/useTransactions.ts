@@ -22,36 +22,36 @@ export function useTransactions(params: { projectId: ProjectId }) {
 
   const transactions = useMemo(() => q.data ?? [], [q.data]);
 
-  const updateTxn = (id: TxnId, patch: Partial<Txn>) => {
-    update.mutate({ id, ...patch });
+  const updateTxn = async (id: TxnId, patch: Partial<Txn>) => {
+    await update.mutateAsync({ id, ...patch });
   };
 
-  const replaceAll = (next: Txn[]) => {
-    importMut.mutate({ txns: next, mode: 'replaceAll' });
+  const replaceAll = async (next: Txn[]) => {
+    await importMut.mutateAsync({ txns: next, mode: 'replaceAll' });
   };
 
-  const appendMany = (next: Txn[]) => {
-    importMut.mutate({ txns: next, mode: 'append' });
+  const appendMany = async (next: Txn[]) => {
+    await importMut.mutateAsync({ txns: next, mode: 'append' });
   };
 
-  const stripCodingForSubCategoryIds = (subCategoryIds: SubCategoryId[]) => {
+  const stripCodingForSubCategoryIds = async (subCategoryIds: SubCategoryId[]) => {
     const setIds = new Set(subCategoryIds);
     const next = transactions.map((t) =>
       t.subCategoryId && setIds.has(t.subCategoryId)
         ? { ...t, categoryId: undefined, subCategoryId: undefined }
         : t
     );
-    replaceAll(next);
+    await replaceAll(next);
   };
 
-  const stripCodingForCategoryIds = (categoryIds: CategoryId[]) => {
+  const stripCodingForCategoryIds = async (categoryIds: CategoryId[]) => {
     const setIds = new Set(categoryIds);
     const next = transactions.map((t) =>
       t.categoryId && setIds.has(t.categoryId)
         ? { ...t, categoryId: undefined, subCategoryId: undefined }
         : t
     );
-    replaceAll(next);
+    await replaceAll(next);
   };
 
   const getUncodedSummary = (validSubIds: Set<SubCategoryId>) => {
