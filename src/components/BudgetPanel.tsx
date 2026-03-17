@@ -537,7 +537,7 @@ export default function BudgetPanel(props: {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Allocated
                 </Text>
-                <Text fw={800} size="lg">
+                <Text component="div" fw={800} size="lg">
                   {isLoading ? <LoadingLine width={120} height={28} radius="md" /> : formatCurrencyFromCents(projectAllocatedCents, currencyCode)}
                 </Text>
                 {isLoading ? (
@@ -563,7 +563,7 @@ export default function BudgetPanel(props: {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Actual
                 </Text>
-                <Text fw={800} size="lg">
+                <Text component="div" fw={800} size="lg">
                   {isLoading ? <LoadingLine width={120} height={28} radius="md" /> : formatCurrencyFromCents(projectActualCents, currencyCode)}
                 </Text>
                 {isLoading ? (
@@ -589,7 +589,7 @@ export default function BudgetPanel(props: {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Remaining
                 </Text>
-                <Text fw={800} size="lg" c={projectRemainingCents < 0 ? 'red' : undefined}>
+                <Text component="div" fw={800} size="lg" c={projectRemainingCents < 0 ? 'red' : undefined}>
                   {isLoading ? <LoadingLine width={120} height={28} radius="md" /> : formatCurrencyFromCents(projectRemainingCents, currencyCode)}
                 </Text>
                 {isLoading ? (
