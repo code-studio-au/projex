@@ -106,10 +106,10 @@ export function AuthedLayout() {
                 </ThemeIcon>
                 <Stack gap={0}>
                   <Text fw={800} lh={1.1} size={isMobile ? 'md' : 'lg'}>
-                    Projex
+                    ProjEx
                   </Text>
                   <Text size="xs" c="dimmed" lh={1.1} visibleFrom="sm">
-                    Local mode · server-aligned
+                    Project Expense Tracker
                   </Text>
                 </Stack>
               </Group>
