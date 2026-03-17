@@ -288,6 +288,7 @@ export default function TransactionsPanel(props: {
       <MantineReactTable
         columns={txnColumns}
         data={filteredTxns}
+        getRowId={(row) => row.id}
         enableEditing={!readOnly}
         editDisplayMode="cell"
         enableColumnResizing
