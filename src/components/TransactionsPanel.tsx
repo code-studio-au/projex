@@ -226,6 +226,7 @@ export default function TransactionsPanel(props: {
             onChange={(v) => {
               void txns
                 .updateTxn(row.original.id, {
+                  categoryId: catId ?? null,
                   subCategoryId: v ? asSubCategoryId(v) : null,
                 })
                 .then(() => table.setEditingCell(null));
