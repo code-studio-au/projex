@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
 import type { CategoryId, ProjectId, SubCategoryId, Txn, TxnId } from '../types';
+import type { TxnUpdateInput } from '../api/contract';
 import { useImportTransactionsMutation } from '../queries/admin';
 import { useTransactionsQuery, useUpdateTxnMutation } from '../queries/transactions';
 
@@ -22,7 +23,7 @@ export function useTransactions(params: { projectId: ProjectId }) {
 
   const transactions = useMemo(() => q.data ?? [], [q.data]);
 
-  const updateTxn = async (id: TxnId, patch: Partial<Txn>) => {
+  const updateTxn = async (id: TxnId, patch: Omit<TxnUpdateInput, 'id'>) => {
     await update.mutateAsync({ id, ...patch });
   };
 

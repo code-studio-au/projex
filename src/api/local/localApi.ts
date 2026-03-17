@@ -114,6 +114,15 @@ function normalizeExternalId(value: string | undefined): string | undefined {
   return next ? next : undefined;
 }
 
+function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } {
+  return {
+    ...input,
+    externalId: input.externalId ?? undefined,
+    categoryId: input.categoryId ?? undefined,
+    subCategoryId: input.subCategoryId ?? undefined,
+  };
+}
+
 function assertUniqueTransactionKeysInProject(transactions: Txn[]) {
   const ids = new Set<string>();
   const externalIds = new Set<string>();
@@ -356,12 +365,13 @@ export class LocalApi implements ProjexApi {
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     const idx = slice.transactions.findIndex((t) => t.id === input.id);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown transaction');
-    const nextExternalId = Object.prototype.hasOwnProperty.call(input, 'externalId')
-      ? normalizeExternalId(input.externalId)
+    const normalizedInput = normalizeTxnPatch(input);
+    const nextExternalId = Object.prototype.hasOwnProperty.call(normalizedInput, 'externalId')
+      ? normalizeExternalId(normalizedInput.externalId ?? undefined)
       : normalizeExternalId(slice.transactions[idx].externalId);
     const updated: Txn = {
       ...slice.transactions[idx],
-      ...input,
+      ...normalizedInput,
       externalId: nextExternalId,
       updatedAt: this.nowIso(),
     };

@@ -42,6 +42,15 @@ function normalizeExternalId(value: string | null | undefined): string | undefin
   return next ? next : undefined;
 }
 
+function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } {
+  return {
+    ...input,
+    externalId: input.externalId ?? undefined,
+    categoryId: input.categoryId ?? undefined,
+    subCategoryId: input.subCategoryId ?? undefined,
+  };
+}
+
 function normalizeTxnDate(value: string | Date): string {
   if (value instanceof Date) {
     const year = value.getUTCFullYear();
@@ -291,13 +300,14 @@ export async function updateTxnServer(args: {
     }
 
     const prev = toTxn(existing as TxnRow);
-    const nextExternalId = Object.prototype.hasOwnProperty.call(args.input, 'externalId')
-      ? normalizeExternalId(args.input.externalId)
+    const normalizedInput = normalizeTxnPatch(args.input);
+    const nextExternalId = Object.prototype.hasOwnProperty.call(normalizedInput, 'externalId')
+      ? normalizeExternalId(normalizedInput.externalId ?? undefined)
       : normalizeExternalId(prev.externalId);
     const now = new Date().toISOString();
     const next: Txn = {
       ...prev,
-      ...args.input,
+      ...normalizedInput,
       externalId: nextExternalId,
       updatedAt: now,
     };

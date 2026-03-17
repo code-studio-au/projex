@@ -167,6 +167,8 @@ export default function TransactionsPanel(props: {
       enableSorting: false,
       Edit: ({ row, table }) => {
         const current = row.original.categoryId ?? null;
+        const shouldAutoAdvance =
+          !row.original.subCategoryId || !taxonomy.validSubIds.has(row.original.subCategoryId);
         return (
           <Select
             data={taxonomy.categoryOptions}
@@ -178,11 +180,11 @@ export default function TransactionsPanel(props: {
             onChange={(v) => {
               void txns
                 .updateTxn(row.original.id, {
-                  categoryId: v ? asCategoryId(v) : undefined,
-                  subCategoryId: undefined,
+                  categoryId: v ? asCategoryId(v) : null,
+                  subCategoryId: null,
                 })
                 .then(() => {
-                  if (!v) {
+                  if (!v || !shouldAutoAdvance) {
                     table.setEditingCell(null);
                     return;
                   }
@@ -224,7 +226,7 @@ export default function TransactionsPanel(props: {
             onChange={(v) => {
               void txns
                 .updateTxn(row.original.id, {
-                  subCategoryId: v ? asSubCategoryId(v) : undefined,
+                  subCategoryId: v ? asSubCategoryId(v) : null,
                 })
                 .then(() => table.setEditingCell(null));
             }}

@@ -6,6 +6,15 @@ import { useQueryScopeUserId } from './scope';
 import type { ProjectId, Txn, TxnId } from '../types';
 import type { TxnCreateInput, TxnUpdateInput } from '../api/contract';
 
+function normalizeTxnUpdateForCache(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } {
+  return {
+    ...input,
+    externalId: input.externalId ?? undefined,
+    categoryId: input.categoryId ?? undefined,
+    subCategoryId: input.subCategoryId ?? undefined,
+  };
+}
+
 export function useTransactionsQuery(projectId: ProjectId) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
@@ -38,10 +47,13 @@ export function useUpdateTxnMutation(projectId: ProjectId) {
     onMutate: async (input) => {
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueryData<Txn[]>(queryKey);
+      const normalizedInput = normalizeTxnUpdateForCache(input);
       if (previous) {
         qc.setQueryData<Txn[]>(
           queryKey,
-          previous.map((txn) => (txn.id === input.id ? { ...txn, ...input } : txn))
+          previous.map((txn) =>
+            txn.id === normalizedInput.id ? { ...txn, ...normalizedInput } : txn
+          )
         );
       }
       return { previous };

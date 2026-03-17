@@ -37,7 +37,12 @@ export type CsvImportMode = 'append' | 'replaceAll';
 
 // Inputs (command-style)
 export type TxnCreateInput = Omit<Txn, 'id' | 'internalId'> & { id?: TxnId };
-export type TxnUpdateInput = Partial<Omit<Txn, 'id' | 'internalId'>> & { id: TxnId };
+export type TxnUpdateInput = Partial<Omit<Txn, 'id' | 'internalId' | 'externalId' | 'categoryId' | 'subCategoryId'>> & {
+  id: TxnId;
+  externalId?: string | null;
+  categoryId?: Txn['categoryId'] | null;
+  subCategoryId?: Txn['subCategoryId'] | null;
+};
 
 export type BudgetCreateInput = Omit<BudgetLine, 'id'> & {
   id?: BudgetLine['id'];
