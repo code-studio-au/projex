@@ -30,7 +30,7 @@ export function sessionQueryOptions(boundary: ProjexApi) {
   return {
     queryKey: qk.session(),
     queryFn: async () => {
-      if (isServerMode) {
+      if (isServerMode && typeof window !== 'undefined') {
         const { getAuthSession } = await import('../auth/client');
         const result = await getAuthSession();
         const session = toSessionFromAuthClientResult(result);
