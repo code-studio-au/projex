@@ -24,6 +24,8 @@ export function validateServerStartupEnv(): void {
 
   const missing = listMissing([
     { key: 'DATABASE_URL', ok: nonEmpty(process.env.DATABASE_URL) },
+    { key: 'BETTER_AUTH_SECRET', ok: nonEmpty(process.env.BETTER_AUTH_SECRET) },
+    { key: 'BETTER_AUTH_URL', ok: nonEmpty(process.env.BETTER_AUTH_URL) },
   ]);
   const hasEndpointAuth = nonEmpty(process.env.BETTER_AUTH_SESSION_URL);
   const hasDirectAuth = nonEmpty(process.env.BETTER_AUTH_DIRECT_SESSION_FN);

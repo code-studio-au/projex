@@ -205,6 +205,33 @@ test('Auth adapter falls back to dev cookie session', async () => {
   }
 });
 
+test('Auth adapter ignores spoofed x-projex-user-id header', async () => {
+  const prevDirect = process.env.BETTER_AUTH_DIRECT_SESSION_FN;
+  const prevUrl = process.env.BETTER_AUTH_SESSION_URL;
+  const prevBase = process.env.BETTER_AUTH_URL;
+  const prevEnable = process.env.PROJEX_ENABLE_DEV_ENDPOINTS;
+  const prevNodeEnv = process.env.NODE_ENV;
+  try {
+    process.env.BETTER_AUTH_DIRECT_SESSION_FN = '';
+    process.env.BETTER_AUTH_SESSION_URL = '';
+    process.env.BETTER_AUTH_URL = '';
+    process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
+    process.env.NODE_ENV = 'production';
+    const session = await getAuthSessionFromRequest(
+      new Request('http://localhost/x', {
+        headers: { 'x-projex-user-id': 'u_superadmin' },
+      })
+    );
+    assert.equal(session, null);
+  } finally {
+    restoreEnv('BETTER_AUTH_DIRECT_SESSION_FN', prevDirect);
+    restoreEnv('BETTER_AUTH_SESSION_URL', prevUrl);
+    restoreEnv('BETTER_AUTH_URL', prevBase);
+    restoreEnv('PROJEX_ENABLE_DEV_ENDPOINTS', prevEnable);
+    restoreEnv('NODE_ENV', prevNodeEnv);
+  }
+});
+
 test('Auth adapter resolves direct BetterAuth resolver module when configured', async () => {
   const prevDirect = process.env.BETTER_AUTH_DIRECT_SESSION_FN;
   const prevUrl = process.env.BETTER_AUTH_SESSION_URL;
@@ -264,12 +291,16 @@ test('Server runtime request path rejects unauthenticated requests', async () =>
 test('Startup env validator requires prod env vars and blocks dev endpoints in prod', () => {
   const prevNodeEnv = process.env.NODE_ENV;
   const prevDb = process.env.DATABASE_URL;
+  const prevSecret = process.env.BETTER_AUTH_SECRET;
+  const prevBase = process.env.BETTER_AUTH_URL;
   const prevAuth = process.env.BETTER_AUTH_SESSION_URL;
   const prevDirect = process.env.BETTER_AUTH_DIRECT_SESSION_FN;
   const prevDev = process.env.PROJEX_ENABLE_DEV_ENDPOINTS;
   try {
     process.env.NODE_ENV = 'production';
     process.env.DATABASE_URL = '';
+    process.env.BETTER_AUTH_SECRET = '';
+    process.env.BETTER_AUTH_URL = '';
     process.env.BETTER_AUTH_SESSION_URL = '';
     process.env.BETTER_AUTH_DIRECT_SESSION_FN = '';
     process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
@@ -280,6 +311,32 @@ test('Startup env validator requires prod env vars and blocks dev endpoints in p
     );
 
     process.env.DATABASE_URL = 'postgres://example';
+    process.env.BETTER_AUTH_SECRET = '';
+    process.env.BETTER_AUTH_URL = 'https://app.example.test';
+    process.env.BETTER_AUTH_SESSION_URL = 'https://auth.example.test/session';
+    process.env.BETTER_AUTH_DIRECT_SESSION_FN = '';
+    process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
+    __resetServerStartupEnvValidationForTests();
+    assert.throws(
+      () => validateServerStartupEnv(),
+      (err) => isAppError(err) && err.code === 'INTERNAL_ERROR'
+    );
+
+    process.env.DATABASE_URL = 'postgres://example';
+    process.env.BETTER_AUTH_SECRET = 'secret';
+    process.env.BETTER_AUTH_URL = '';
+    process.env.BETTER_AUTH_SESSION_URL = 'https://auth.example.test/session';
+    process.env.BETTER_AUTH_DIRECT_SESSION_FN = '';
+    process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
+    __resetServerStartupEnvValidationForTests();
+    assert.throws(
+      () => validateServerStartupEnv(),
+      (err) => isAppError(err) && err.code === 'INTERNAL_ERROR'
+    );
+
+    process.env.DATABASE_URL = 'postgres://example';
+    process.env.BETTER_AUTH_SECRET = 'secret';
+    process.env.BETTER_AUTH_URL = 'https://app.example.test';
     process.env.BETTER_AUTH_SESSION_URL = 'https://auth.example.test/session';
     process.env.BETTER_AUTH_DIRECT_SESSION_FN = '';
     process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'true';
@@ -291,6 +348,8 @@ test('Startup env validator requires prod env vars and blocks dev endpoints in p
   } finally {
     restoreEnv('NODE_ENV', prevNodeEnv);
     restoreEnv('DATABASE_URL', prevDb);
+    restoreEnv('BETTER_AUTH_SECRET', prevSecret);
+    restoreEnv('BETTER_AUTH_URL', prevBase);
     restoreEnv('BETTER_AUTH_SESSION_URL', prevAuth);
     restoreEnv('BETTER_AUTH_DIRECT_SESSION_FN', prevDirect);
     restoreEnv('PROJEX_ENABLE_DEV_ENDPOINTS', prevDev);

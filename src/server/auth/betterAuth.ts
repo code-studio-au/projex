@@ -91,10 +91,6 @@ async function resolveFromLocalBetterAuthEndpoint(req: Request): Promise<ServerS
 export async function getAuthSessionFromRequest(
   req: Request
 ): Promise<ServerSession | null> {
-  // Optional trusted-proxy header override for internal environments.
-  const userIdHeader = req.headers.get('x-projex-user-id');
-  if (userIdHeader) return { userId: userIdHeader as ServerSession['userId'] };
-
   // Primary path: direct Better Auth resolver module hook.
   try {
     const direct = await resolveFromBetterAuthDirect(req);
