@@ -110,24 +110,12 @@ function ServerLoginPanel() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function waitForServerSession(userEmail: string) {
-    const { getAuthSession } = await import('../auth/client');
+  async function waitForServerSession() {
     const attempts = 12;
 
     for (let i = 0; i < attempts; i += 1) {
-      const result = await getAuthSession();
-      const data = (result?.data ?? result) as
-        | {
-            user?: { id?: string | null; email?: string | null } | null;
-            session?: { userId?: string | null } | null;
-          }
-        | null
-        | undefined;
-      const userId = data?.user?.id ?? data?.session?.userId ?? null;
-      const email = data?.user?.email?.trim().toLowerCase() ?? null;
-      if (userId && email === userEmail.trim().toLowerCase()) {
-        return userId as UserId;
-      }
+      const session = await api.getSession();
+      if (session?.userId) return session.userId;
       await new Promise((resolve) => window.setTimeout(resolve, 250));
     }
 
@@ -149,7 +137,7 @@ function ServerLoginPanel() {
         setError(result.error.message ?? 'Sign in failed');
         return;
       }
-      const userId = await waitForServerSession(email);
+      const userId = await waitForServerSession();
       if (!userId) {
         setError('Sign in succeeded but the browser session was not ready yet. Please try again.');
         return;
