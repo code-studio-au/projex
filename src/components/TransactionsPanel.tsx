@@ -10,7 +10,12 @@ import {
   Title,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import {
+  MantineReactTable,
+  type MRT_ColumnDef,
+  type MRT_PaginationState,
+  type MRT_SortingState,
+} from 'mantine-react-table';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import {
@@ -49,6 +54,13 @@ export default function TransactionsPanel(props: {
 
   const [manageOpen, setManageOpen] = useState(false);
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const [pagination, setPagination] = useState<MRT_PaginationState>({
+    pageIndex: 0,
+    pageSize: isMobile ? 10 : 20,
+  });
+  const [sorting, setSorting] = useState<MRT_SortingState>([
+    { id: 'date', desc: true },
+  ]);
 
   /**
    * Count invalid transaction dates so the UI can surface problems early.
@@ -169,7 +181,13 @@ export default function TransactionsPanel(props: {
                   categoryId: v ? asCategoryId(v) : undefined,
                   subCategoryId: undefined,
                 })
-                .then(() => moveToSubcategoryCell({ row, table }));
+                .then(() => {
+                  if (!v) {
+                    table.setEditingCell(null);
+                    return;
+                  }
+                  moveToSubcategoryCell({ row, table });
+                });
             }}
           />
         );
@@ -291,13 +309,17 @@ export default function TransactionsPanel(props: {
         getRowId={(row) => row.id}
         enableEditing={!readOnly}
         editDisplayMode="cell"
+        state={{ pagination, sorting }}
+        onPaginationChange={setPagination}
+        onSortingChange={setSorting}
         enableColumnResizing
         enableSorting
+        enableSortingRemoval={false}
         enableGlobalFilter
         enablePagination
+        autoResetPageIndex={false}
         initialState={{
           density: 'xs',
-          pagination: { pageIndex: 0, pageSize: isMobile ? 10 : 20 },
         }}
         mantineTableContainerProps={{ className: 'financeTable txnTable' }}
         mantineTableProps={{
