@@ -1,13 +1,18 @@
-# Projex (local-first, TanStack-ready)
+# Projex
 
-This build runs fully **local** (localStorage + seed data) but is structured so you can later swap to a TanStack Start + Query + Router backend with minimal UI churn.
+Projex supports two intentional runtime modes:
+
+- local development: seeded users + local data state
+- server mode: TanStack Start routes, BetterAuth, and Postgres-backed runtime
+
+The UI stays behind a stable `ProjexApi` boundary so local and server-backed flows can share the same pages/components.
 
 ## How it works
 
 - **UI** uses TanStack Router for routes and TanStack Query for all data access.
 - **API boundary**: the UI talks only to `src/api/contract.ts` (`ProjexApi`).
-- **Current implementation**: `src/api/local/localApi.ts` stores state in localStorage using your existing seed state (`src/seed`).
-- **Later implementation**: replace `api` in `src/api/index.ts` with a server-backed adapter that calls TanStack Start server functions.
+- **Local implementation**: `src/api/local/localApi.ts` stores state in localStorage using seed state (`src/seed`).
+- **Server implementation**: `src/api/server/serverApi.ts` talks to TanStack Start file routes under `src/routes/api.*.ts`.
 
 ## Dev
 
@@ -52,10 +57,24 @@ npm run smoke:server
 
 Use one of:
 
-- `BETTER_AUTH_SESSION_URL` (session endpoint integration), or
-- `BETTER_AUTH_DIRECT_SESSION_FN` (`modulePath#exportName` direct resolver hook).
+- `BETTER_AUTH_DIRECT_SESSION_FN` (`modulePath#exportName` direct resolver hook), or
+- `BETTER_AUTH_SESSION_URL` (session endpoint fallback).
 
-In production, startup validation requires `DATABASE_URL` plus one auth mode.
+Recommended server setup:
+
+- `VITE_API_MODE=server`
+- `DATABASE_URL`
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_URL`
+- `BETTER_AUTH_DIRECT_SESSION_FN`
+
+In production, startup validation requires:
+
+- `DATABASE_URL`
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_URL`
+- one auth session resolution mode
+
 Starter direct resolver file: `src/server/auth/authProvider.ts`.
 If using direct resolver with local BetterAuth instance, also set:
 - `BETTER_AUTH_SECRET`
@@ -63,7 +82,7 @@ If using direct resolver with local BetterAuth instance, also set:
 - `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated, optional)
 
 TanStack Start BetterAuth handler route is mounted at `/api/auth/$`.
-Session query/logout in `VITE_API_MODE=server` prefer BetterAuth client methods (`getSession`/`signOut`) with adapter fallback.
+Staging/production should use real server auth, not seeded local login behavior.
 `npm run db:migrate` now runs BetterAuth schema migration + app SQL migrations.
 
 ## Security defaults
@@ -80,11 +99,10 @@ Session query/logout in `VITE_API_MODE=server` prefer BetterAuth client methods 
 - File-based API routes live under `src/routes/api.*.ts`.
 - Server function implementations live under `src/server/fns/*`.
 - Request-scoped adapter wiring lives under `src/server/api/*`.
-- BetterAuth-compatible session resolution is wired via `BETTER_AUTH_SESSION_URL`.
+- BetterAuth session resolution is wired through request-scoped server auth, with `BETTER_AUTH_DIRECT_SESSION_FN` as the preferred path.
 - Dev-only session/reset endpoints are explicitly gated by `PROJEX_ENABLE_DEV_ENDPOINTS=true` and disabled in production.
 
-Current app still runs with the existing client bootstrap while Start route files are
-migrated incrementally.
+Current app still supports local-first development while the server-backed route layer is active for deployed runtime.
 
 ## Where to swap backend later
 
