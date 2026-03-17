@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   Alert,
-  Badge,
   Button,
   Container,
   Group,
@@ -56,10 +55,7 @@ function LocalLoginPanel() {
     <Container size="sm" px={isMobile ? 'xs' : 'md'}>
       <Paper withBorder radius="lg" p={isMobile ? 'md' : 'xl'}>
         <Stack gap="md">
-          <Group justify="space-between" align="center" wrap="wrap">
-            <Title order={3}>Local Login</Title>
-            <Badge variant="light">seeded users</Badge>
-          </Group>
+          <Title order={3}>Local Login</Title>
           <Text c="dimmed">Select a seeded user to enter the workspace.</Text>
           {error ? <Alert color="red">{error}</Alert> : null}
           {users.isError ? (
@@ -155,10 +151,7 @@ function ServerLoginPanel() {
     <Container size="sm" px={isMobile ? 'xs' : 'md'}>
       <Paper withBorder radius="lg" p={isMobile ? 'md' : 'xl'}>
         <Stack gap="md">
-          <Group justify="space-between" align="center" wrap="wrap">
-            <Title order={3}>Sign In</Title>
-            <Badge variant="light">server auth</Badge>
-          </Group>
+          <Title order={3}>Sign In</Title>
           <Text c="dimmed">Sign in with your BetterAuth account.</Text>
           {error ? <Alert color="red">{error}</Alert> : null}
           <TextInput

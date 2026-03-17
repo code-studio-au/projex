@@ -4,6 +4,7 @@ import {
   Button,
   Group,
   Modal,
+  Paper,
   Stack,
   Tabs,
   Text,
@@ -246,9 +247,21 @@ export default function CompanyDashboardPage() {
           ) : (
             <Title order={2}>{companyQ.data?.name}</Title>
           )}
-          <Text c="dimmed">Projects and settings</Text>
+          <Text c="dimmed">Projects, access, and company settings.</Text>
         </Stack>
         <Group gap="sm" wrap="wrap">
+          {projectsQ.isLoading ? (
+            <LoadingChip width={84} height={28} />
+          ) : (
+            <>
+              <Badge variant="light">{activeProjects.length} active</Badge>
+              {canManageProjects ? (
+                <Badge variant="light" color="gray">
+                  {archivedProjects.length} deactivated
+                </Badge>
+              ) : null}
+            </>
+          )}
           {canAddProjects && (
             <>
               <Button variant="filled" onClick={() => setNewProjectOpen(true)}>
@@ -372,7 +385,9 @@ export default function CompanyDashboardPage() {
               )}
             </Stack>
           ) : (
-            <Text c="dimmed">No projects found for this company.</Text>
+            <Paper withBorder radius="lg" p="lg">
+              <Text c="dimmed">No projects found for this company yet.</Text>
+            </Paper>
           )}
         </Tabs.Panel>
 

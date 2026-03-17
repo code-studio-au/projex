@@ -168,7 +168,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             <Group justify="space-between">
               <Title order={5}>{isServerAuthMode ? 'Invite user' : 'Add user (company)'}</Title>
               <Badge variant="light" color={canAddCompanyUsers ? 'gray' : 'red'}>
-                {canAddCompanyUsers ? 'Allowed' : 'Not allowed'}
+                {canAddCompanyUsers ? 'Ready' : 'Not allowed'}
               </Badge>
             </Group>
             {inviteError ? <Alert color="red">{inviteError}</Alert> : null}
@@ -278,6 +278,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             </Button>
           </Group>
           <Divider />
+          <Text size="sm" c="dimmed">
+            Update a teammate’s company role or remove them from the company entirely.
+          </Text>
           <MantineReactTable
             columns={membershipColumns}
             data={membershipRows}

@@ -1,7 +1,7 @@
+import { useMemo } from 'react';
 import { Outlet, useRouter, useRouterState } from '@tanstack/react-router';
 import {
   AppShell,
-  Badge,
   Button,
   Container,
   Group,
@@ -21,7 +21,7 @@ import { theme } from './theme';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
 import { useAllCompanyMembershipsQuery } from './queries/memberships';
-import { useCompaniesQuery } from './queries/reference';
+import { useCompaniesQuery, useUsersQuery } from './queries/reference';
 
 /** Root layout: intentionally minimal to keep route config clean. */
 export function RootProviders({ children }: { children: React.ReactNode }) {
@@ -60,11 +60,19 @@ export function AuthedLayout() {
   const isMobile = useMediaQuery('(max-width: 48em)');
   const membershipsQ = useAllCompanyMembershipsQuery();
   const companiesQ = useCompaniesQuery(userId ?? undefined);
+  const usersQ = useUsersQuery();
 
   const isSuperadmin = (membershipsQ.data ?? []).some(
     (m) => m.userId === userId && m.role === 'superadmin'
   );
   const companyCount = (companiesQ.data ?? []).length;
+  const currentUser = useMemo(
+    () => (usersQ.data ?? []).find((user) => user.id === userId) ?? null,
+    [userId, usersQ.data]
+  );
+  const accountLabel = isMobile
+    ? currentUser?.name?.split(' ')[0] ?? 'Account'
+    : currentUser?.name ?? 'Account';
 
   // Prefer companyId from the active route match (project route also includes companyId).
   // We avoid route.useMatch() here to keep types aligned across router versions and to
@@ -139,14 +147,23 @@ export function AuthedLayout() {
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
                     <Button variant="subtle" px="sm">
-                      <Group gap="xs">
-                        <Text fw={600}>{isMobile ? 'Account' : userId ?? 'User'}</Text>
-                        <Badge variant="light">local</Badge>
-                      </Group>
+                      <Text fw={600}>{accountLabel}</Text>
                     </Button>
                   </Menu.Target>
                   <Menu.Dropdown>
                     <Menu.Label>Account</Menu.Label>
+                    {currentUser ? (
+                      <Menu.Item disabled>
+                        <Stack gap={0}>
+                          <Text fw={600} size="sm">
+                            {currentUser.name}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {currentUser.email}
+                          </Text>
+                        </Stack>
+                      </Menu.Item>
+                    ) : null}
                     <Menu.Item
                       color="red"
                       onClick={() => {

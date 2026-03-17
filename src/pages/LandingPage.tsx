@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Group, Modal, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Badge, Button, Group, Modal, Paper, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
 import { Link, useRouter } from '@tanstack/react-router';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
@@ -29,6 +29,11 @@ export default function LandingPage() {
   const membershipsQ = useAllCompanyMembershipsQuery();
 
   const companies = useMemo(() => companiesQ.data ?? [], [companiesQ.data]);
+  const activeCount = useMemo(
+    () => companies.filter((company) => company.status === 'active').length,
+    [companies]
+  );
+  const deactivatedCount = companies.length - activeCount;
   const isSuperadmin = useMemo(() => {
     if (!userId) return false;
     return (membershipsQ.data ?? []).some((m) => m.userId === userId && m.role === 'superadmin');
@@ -206,14 +211,41 @@ export default function LandingPage() {
   return (
     <Stack gap="md">
       <Stack gap={2}>
-        <Title order={2}>Company Directory</Title>
-        <Text c="dimmed">Manage companies and jump into a workspace.</Text>
+        <Title order={2}>Companies</Title>
+        <Text c="dimmed">Choose a workspace, manage company lifecycle, and jump straight into delivery.</Text>
       </Stack>
 
       {shouldRedirect ? (
         <Text c="dimmed">Redirecting to your company...</Text>
       ) : (
         <>
+          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+            <Paper withBorder radius="lg" p="md">
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Total companies
+              </Text>
+              <Text fw={800} size="xl">
+                {companies.length}
+              </Text>
+            </Paper>
+            <Paper withBorder radius="lg" p="md">
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Active
+              </Text>
+              <Text fw={800} size="xl">
+                {activeCount}
+              </Text>
+            </Paper>
+            <Paper withBorder radius="lg" p="md">
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Deactivated
+              </Text>
+              <Text fw={800} size="xl">
+                {deactivatedCount}
+              </Text>
+            </Paper>
+          </SimpleGrid>
+
           <Group justify="space-between" align="center" wrap="wrap">
             <Text fw={700}>Companies</Text>
             <Badge variant="light">{companies.length} total</Badge>
@@ -239,9 +271,11 @@ export default function LandingPage() {
               mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
             />
           ) : (
-            <Text c="dimmed" size="sm">
-              No companies available for this user.
-            </Text>
+            <Paper withBorder radius="lg" p="lg">
+              <Text c="dimmed" size="sm">
+                No companies are available for this account yet.
+              </Text>
+            </Paper>
           )}
         </>
       )}

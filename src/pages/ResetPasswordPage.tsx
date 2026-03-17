@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
   Alert,
-  Badge,
   Button,
   Container,
   Group,
@@ -83,10 +82,7 @@ export default function ResetPasswordPage() {
     <Container size="sm" px={isMobile ? 'xs' : 'md'}>
       <Paper withBorder radius="lg" p={isMobile ? 'md' : 'xl'}>
         <Stack gap="md">
-          <Group justify="space-between" align="center" wrap="wrap">
-            <Title order={3}>Set Password</Title>
-            <Badge variant="light">server auth</Badge>
-          </Group>
+          <Title order={3}>Set Password</Title>
           <Text c="dimmed">
             Finish your Projex invite by choosing a password for your BetterAuth account.
           </Text>
