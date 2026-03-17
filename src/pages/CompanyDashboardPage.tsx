@@ -24,6 +24,7 @@ import {
   useReactivateProjectMutation,
 } from '../queries/admin';
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
+import { LoadingChip, LoadingLine } from '../components/LoadingValue';
 import { companyRoute, landingRoute, projectRoute } from '../router';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
@@ -240,7 +241,11 @@ export default function CompanyDashboardPage() {
     <Stack gap="lg">
       <Group justify="space-between" align="flex-end" wrap="wrap">
         <Stack gap={2}>
-          <Title order={2}>{companyQ.data?.name ?? 'Company'}</Title>
+          {companyQ.isLoading ? (
+            <LoadingLine width={220} height={34} radius="md" />
+          ) : (
+            <Title order={2}>{companyQ.data?.name}</Title>
+          )}
           <Text c="dimmed">Projects and settings</Text>
         </Stack>
         <Group gap="sm" wrap="wrap">
@@ -305,7 +310,11 @@ export default function CompanyDashboardPage() {
                 <Text size="sm" c="dimmed">
                   Active projects
                 </Text>
-                <Badge variant="light">{activeProjects.length}</Badge>
+                {projectsQ.isLoading ? (
+                  <LoadingChip width={44} height={24} />
+                ) : (
+                  <Badge variant="light">{activeProjects.length}</Badge>
+                )}
               </Group>
 
               <MantineReactTable
@@ -333,9 +342,13 @@ export default function CompanyDashboardPage() {
                     <Text size="sm" c="dimmed">
                       Deactivated projects
                     </Text>
-                    <Badge variant="light" color="gray">
-                      {archivedProjects.length}
-                    </Badge>
+                    {projectsQ.isLoading ? (
+                      <LoadingChip width={44} height={24} />
+                    ) : (
+                      <Badge variant="light" color="gray">
+                        {archivedProjects.length}
+                      </Badge>
+                    )}
                   </Group>
                   <MantineReactTable
                     columns={projectColumns}

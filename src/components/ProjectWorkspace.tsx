@@ -18,6 +18,7 @@ import TransactionsPanel from './TransactionsPanel';
 import BudgetPanel from './BudgetPanel';
 import CsvImporterPanel from './CsvImporterPanel';
 import ProjectSettingsPanel from './ProjectSettingsPanel';
+import { LoadingChip, LoadingLine } from './LoadingValue';
 
 export default function ProjectWorkspace(props: {
   companyId: CompanyId;
@@ -66,30 +67,49 @@ export default function ProjectWorkspace(props: {
     () => txns.getUncodedSummary(taxonomy.validSubIds),
     [txns, taxonomy.validSubIds]
   );
+  const headerReady = Boolean(company.data && project.data);
+  const summaryReady = headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
+  const currencyCode = project.data?.currency ?? 'AUD';
 
   return (
     <Stack gap="lg">
       <Paper withBorder p={isMobile ? 'md' : 'lg'} radius="lg">
         <Group justify="space-between" align="flex-end" wrap="wrap">
           <Stack gap={2}>
-            <Title order={3}>
-              {company.data?.name ?? 'Company'} • {project.data?.name ?? 'Project'}
-            </Title>
+            {headerReady ? (
+              <Title order={3}>
+                {company.data?.name} • {project.data?.name}
+              </Title>
+            ) : (
+              <LoadingLine width={320} height={30} radius="md" />
+            )}
             <Text c="dimmed" size="sm">
               Operational workspace for coding, budgeting, imports, and project controls.
             </Text>
           </Stack>
 
           <Group gap="sm" wrap="wrap">
-            <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="gray">
-              {project.data?.currency ?? 'AUD'}
-            </Badge>
-            <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
-              Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, project.data?.currency ?? 'AUD')})
-            </Badge>
-            <Badge size={isMobile ? 'md' : 'lg'} color={project.data?.status === 'archived' ? 'gray' : 'blue'}>
-              {project.data?.status === 'archived' ? 'Deactivated' : 'Active'}
-            </Badge>
+            {project.data ? (
+              <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="gray">
+                {currencyCode}
+              </Badge>
+            ) : (
+              <LoadingChip width={64} height={30} />
+            )}
+            {summaryReady ? (
+              <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
+                Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
+              </Badge>
+            ) : (
+              <LoadingChip width={190} height={30} />
+            )}
+            {project.data ? (
+              <Badge size={isMobile ? 'md' : 'lg'} color={project.data.status === 'archived' ? 'gray' : 'blue'}>
+                {project.data.status === 'archived' ? 'Deactivated' : 'Active'}
+              </Badge>
+            ) : (
+              <LoadingChip width={88} height={30} />
+            )}
           </Group>
         </Group>
       </Paper>
@@ -111,7 +131,7 @@ export default function ProjectWorkspace(props: {
             <TransactionsPanel
               txns={txns}
               taxonomy={taxonomy}
-              currencyCode={project.data?.currency ?? 'AUD'}
+              currencyCode={currencyCode}
               monthFilterKey={monthFilterKey}
               setMonthFilterKey={setMonthFilterKey}
               monthFilterOptions={monthFilterOptions}
@@ -125,7 +145,7 @@ export default function ProjectWorkspace(props: {
           <Tabs.Panel value="budget" pt="md">
             <BudgetPanel
               projectId={projectId}
-              currencyCode={project.data?.currency ?? 'AUD'}
+              currencyCode={currencyCode}
               projectBudgetTotalCents={project.data?.budgetTotalCents ?? 0}
               onUpdateProjectBudgetTotal={async (budgetTotalCents) => {
                 await updateProject.mutateAsync({ id: projectId, budgetTotalCents });
@@ -133,6 +153,7 @@ export default function ProjectWorkspace(props: {
               rollups={rollups}
               budgets={budgets}
               uncodedSummary={uncoded}
+              isLoading={!summaryReady}
               canEditProjectBudgetTotal={canEditBudgets}
               readOnly={!canEditBudgets}
             />

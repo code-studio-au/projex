@@ -16,6 +16,7 @@ import {
   type Quarter,
 } from '../utils/finance';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
+import { LoadingLine } from './LoadingValue';
 
 type BudgetDisplayRow = RollupRow & {
   rowKind: 'category' | 'subcategory';
@@ -46,6 +47,7 @@ export default function BudgetPanel(props: {
   rollups: RollupsHook;
   budgets: BudgetsHook;
   uncodedSummary: { count: number; amountCents: number };
+  isLoading?: boolean;
   canEditProjectBudgetTotal?: boolean;
   readOnly?: boolean;
 }) {
@@ -56,6 +58,7 @@ export default function BudgetPanel(props: {
     rollups,
     budgets,
     uncodedSummary,
+    isLoading = false,
     canEditProjectBudgetTotal = false,
     readOnly = false,
   } = props;
@@ -535,14 +538,23 @@ export default function BudgetPanel(props: {
                   Allocated
                 </Text>
                 <Text fw={800} size="lg">
-                  {formatCurrencyFromCents(projectAllocatedCents, currencyCode)}
+                  {isLoading ? <LoadingLine width={120} height={28} radius="md" /> : formatCurrencyFromCents(projectAllocatedCents, currencyCode)}
                 </Text>
-                <Text size="sm" c={allocatedCoveragePct > 100 ? 'red' : 'dimmed'}>
-                  {allocatedCoveragePct.toFixed(1)}% of project budget
-                </Text>
-                <Text size="sm" c={allocatedVsActualCents < 0 ? 'red' : 'dimmed'}>
-                  vs actual: {formatCurrencyFromCents(allocatedVsActualCents, currencyCode)}
-                </Text>
+                {isLoading ? (
+                  <>
+                    <LoadingLine width={150} height={16} />
+                    <LoadingLine width={120} height={16} />
+                  </>
+                ) : (
+                  <>
+                    <Text size="sm" c={allocatedCoveragePct > 100 ? 'red' : 'dimmed'}>
+                      {allocatedCoveragePct.toFixed(1)}% of project budget
+                    </Text>
+                    <Text size="sm" c={allocatedVsActualCents < 0 ? 'red' : 'dimmed'}>
+                      vs actual: {formatCurrencyFromCents(allocatedVsActualCents, currencyCode)}
+                    </Text>
+                  </>
+                )}
               </Stack>
             </Paper>
 
@@ -552,14 +564,23 @@ export default function BudgetPanel(props: {
                   Actual
                 </Text>
                 <Text fw={800} size="lg">
-                  {formatCurrencyFromCents(projectActualCents, currencyCode)}
+                  {isLoading ? <LoadingLine width={120} height={28} radius="md" /> : formatCurrencyFromCents(projectActualCents, currencyCode)}
                 </Text>
-                <Text size="sm" c={actualCoveragePct > 100 ? 'red' : 'dimmed'}>
-                  {actualCoveragePct.toFixed(1)}% of project budget
-                </Text>
-                <Text size="sm" c={projectVsActualCents < 0 ? 'red' : 'dimmed'}>
-                  budget headroom: {formatCurrencyFromCents(projectVsActualCents, currencyCode)}
-                </Text>
+                {isLoading ? (
+                  <>
+                    <LoadingLine width={150} height={16} />
+                    <LoadingLine width={130} height={16} />
+                  </>
+                ) : (
+                  <>
+                    <Text size="sm" c={actualCoveragePct > 100 ? 'red' : 'dimmed'}>
+                      {actualCoveragePct.toFixed(1)}% of project budget
+                    </Text>
+                    <Text size="sm" c={projectVsActualCents < 0 ? 'red' : 'dimmed'}>
+                      budget headroom: {formatCurrencyFromCents(projectVsActualCents, currencyCode)}
+                    </Text>
+                  </>
+                )}
               </Stack>
             </Paper>
 
@@ -569,14 +590,23 @@ export default function BudgetPanel(props: {
                   Remaining
                 </Text>
                 <Text fw={800} size="lg" c={projectRemainingCents < 0 ? 'red' : undefined}>
-                  {formatCurrencyFromCents(projectRemainingCents, currencyCode)}
+                  {isLoading ? <LoadingLine width={120} height={28} radius="md" /> : formatCurrencyFromCents(projectRemainingCents, currencyCode)}
                 </Text>
-                <Text size="sm" c={remainingAfterUncodedCents < 0 ? 'red' : 'dimmed'}>
-                  after uncoded: {formatCurrencyFromCents(remainingAfterUncodedCents, currencyCode)}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  uncoded impact: {formatCurrencyFromCents(uncodedSummary.amountCents, currencyCode)}
-                </Text>
+                {isLoading ? (
+                  <>
+                    <LoadingLine width={140} height={16} />
+                    <LoadingLine width={135} height={16} />
+                  </>
+                ) : (
+                  <>
+                    <Text size="sm" c={remainingAfterUncodedCents < 0 ? 'red' : 'dimmed'}>
+                      after uncoded: {formatCurrencyFromCents(remainingAfterUncodedCents, currencyCode)}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      uncoded impact: {formatCurrencyFromCents(uncodedSummary.amountCents, currencyCode)}
+                    </Text>
+                  </>
+                )}
               </Stack>
             </Paper>
           </SimpleGrid>
