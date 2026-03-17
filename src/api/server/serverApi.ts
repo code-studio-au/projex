@@ -50,12 +50,40 @@ export class ServerApi implements ProjexApi {
     return new URL(path, 'http://localhost').toString();
   }
 
+  private async getServerRequestHeaders(): Promise<HeadersInit | null> {
+    if (typeof window !== 'undefined') return null;
+
+    try {
+      const loadStartServer = new Function(
+        'return import("@tanstack/start-server-core")'
+      ) as () => Promise<{ getRequest?: () => Request | undefined }>;
+      const mod = await loadStartServer();
+      const request = mod.getRequest?.();
+      if (!request) return null;
+
+      const headers = new Headers();
+      const cookie = request.headers.get('cookie');
+      if (cookie) headers.set('cookie', cookie);
+      const authorization = request.headers.get('authorization');
+      if (authorization) headers.set('authorization', authorization);
+      const origin = request.headers.get('origin');
+      if (origin) headers.set('origin', origin);
+      const referer = request.headers.get('referer');
+      if (referer) headers.set('referer', referer);
+      return headers;
+    } catch {
+      return null;
+    }
+  }
+
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const serverHeaders = await this.getServerRequestHeaders();
     const res = await fetch(this.resolveUrl(path), {
       credentials: 'include',
       ...init,
       headers: {
         'Content-Type': 'application/json',
+        ...(serverHeaders ? Object.fromEntries(new Headers(serverHeaders).entries()) : {}),
         ...(init?.headers ?? {}),
       },
     });
