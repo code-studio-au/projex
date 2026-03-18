@@ -6,17 +6,17 @@ It is intentionally short, opinionated, and ordered. The goal is to help us pick
 
 ## Near-Term
 
-### 1. Add an explicit `Send invite email` admin action pattern
+### 1. Refine existing-user invite behavior
 
 Current state:
 
-- adding an existing BetterAuth user to a company now also sends a password setup/reset email
-- this works, but it is broader behavior than we may want long term
+- company settings now supports re-sending invite/setup emails explicitly
+- adding an existing BetterAuth user to a company also triggers the email flow
 
 Recommended refinement:
 
 - keep the current working behavior for now
-- later, add an explicit `Send invite email` action in company settings so admins can resend onboarding deliberately
+- later, separate "add member" from "send invite email" more explicitly if admin noise becomes a concern
 
 Why this matters:
 
@@ -127,32 +127,7 @@ Why this matters:
 
 ## Infra / Operations
 
-### 9. Remove the `NODE_ENV=production` Vite warning at build time
-
-Current state:
-
-- builds succeed
-- Vite still warns that `NODE_ENV=production` in env files is not the supported pattern
-
-Why this matters:
-
-- reduces noise during deploys
-- makes future debugging cleaner
-
-### 10. Finish domain hardening
-
-Examples:
-
-- move from `http://projectexpensetracker.com` to HTTPS everywhere
-- align canonical auth/reset URLs to HTTPS only
-- confirm nginx/server config matches the canonical public origin
-
-Why this matters:
-
-- reduces mixed-origin/auth confusion
-- production auth should not stay on plain HTTP
-
-### 11. Add a short operational runbook for email delivery
+### 9. Add a short operational runbook for email delivery
 
 Examples:
 

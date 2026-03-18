@@ -51,7 +51,7 @@ npm run smoke:server
 - Start integration wiring: `docs/start-route-integration.md`
 - Server readiness checklist: `docs/server-readiness-checklist.md`
 - EC2 deployment guide: `docs/deployment-ec2.md`
-- Staging runbook: `docs/staging-runbook.md`
+- Production runbook: `docs/staging-runbook.md`
 - Product backlog: `docs/product-backlog.md`
 
 ## Auth modes (server)

@@ -1,24 +1,24 @@
-# Staging Runbook
+# Production Runbook
 
-This runbook captures the current known-good staging setup after the server-auth stabilization work.
+This runbook captures the current known-good deployed setup on the canonical production domain after the server-auth and HTTPS cutover work.
 
 ## Checkpoint
 
 - Current stable checkpoint tag: `staging-auth-stable-2026-03-17`
 
-## Canonical Staging URL
+## Canonical Production URL
 
-- Use the public nginx-fronted origin, not direct `:3000`, for normal staging access.
-- Example:
-  - `http://54.66.124.216`
+- Use the public nginx-fronted HTTPS origin, not direct `:3000`, for normal access.
+- Canonical URL:
+  - `https://projectexpensetracker.com`
 
 ## Auth Model
 
-- Staging runs in real server auth mode.
+- Production runs in real server auth mode.
 - Local seeded-user auth remains available for local development only.
-- Do not deploy staging with local auth semantics.
+- Do not deploy production with local auth semantics.
 
-## Required Staging Env
+## Required Production Env
 
 `/etc/projex/projex.env` should include at least:
 
@@ -29,9 +29,9 @@ VITE_API_MODE=server
 DATABASE_URL=postgres://...
 
 BETTER_AUTH_SECRET=replace-with-long-random-secret
-BETTER_AUTH_URL=http://54.66.124.216
-BETTER_AUTH_TRUSTED_ORIGINS=http://54.66.124.216
-CORS_ALLOWED_ORIGINS=http://54.66.124.216
+BETTER_AUTH_URL=https://projectexpensetracker.com
+BETTER_AUTH_TRUSTED_ORIGINS=https://projectexpensetracker.com,https://www.projectexpensetracker.com
+CORS_ALLOWED_ORIGINS=https://projectexpensetracker.com,https://www.projectexpensetracker.com
 
 BETTER_AUTH_DIRECT_SESSION_FN=src/server/auth/authProvider.ts#getSessionFromRequest
 
@@ -43,7 +43,7 @@ RESEND_FROM=
 # Alternative invite/reset delivery webhook.
 PROJEX_AUTH_EMAIL_WEBHOOK_URL=
 PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN=
-PROJEX_AUTH_RESET_REDIRECT_URL=http://54.66.124.216/reset-password
+PROJEX_AUTH_RESET_REDIRECT_URL=https://projectexpensetracker.com/reset-password
 
 PROJEX_ENABLE_DEV_ENDPOINTS=false
 ```
@@ -54,7 +54,7 @@ Notes:
 - If you need direct port testing temporarily, you can include both origins in:
   - `BETTER_AUTH_TRUSTED_ORIGINS`
   - `CORS_ALLOWED_ORIGINS`
-- For normal staging use, prefer the canonical public origin only.
+- For normal production use, prefer the canonical public origin only.
 
 ## Deploy
 
@@ -96,7 +96,7 @@ sudo systemctl status projex --no-pager -l
    - open the link
    - set a new password
 
-## Create A Staging Login
+## Create A Production Login
 
 Create a BetterAuth user:
 
@@ -112,7 +112,7 @@ cd /opt/projex
 sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_APP_TEMPLATE_USER_ID="u_superadmin" npm run auth:link-user'
 ```
 
-Use a less privileged template user if you want a narrower staging role.
+Use a less privileged template user if you want a narrower production role.
 
 ## Company Invites
 
@@ -160,7 +160,7 @@ If the app is up locally on EC2 but not from the browser:
 
 ```bash
 curl -i http://127.0.0.1:3000/login
-curl -i http://54.66.124.216/login
+curl -i https://projectexpensetracker.com/login
 sudo systemctl status projex --no-pager -l
 sudo journalctl -u projex -n 100 --no-pager
 ```
@@ -177,9 +177,9 @@ If login works but refresh breaks:
 - Local development:
   - local seeded auth
   - local data state
-- Staging/production:
+- Production:
   - BetterAuth sign-in
   - request-scoped server session checks
   - no dev endpoints
 
-That split is intentional. Avoid “server pretending to be local” configuration in staging.
+That split is intentional. Avoid “server pretending to be local” configuration in production.
