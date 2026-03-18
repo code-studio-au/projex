@@ -35,8 +35,12 @@ BETTER_AUTH_DIRECT_SESSION_FN=src/server/auth/authProvider.ts#getSessionFromRequ
 # Optional fallback if you prefer an internal HTTP session check instead:
 # BETTER_AUTH_SESSION_URL=http://127.0.0.1:3000/api/auth/get-session
 
-# Optional invite/reset email delivery webhook.
-# If unset, reset/setup links are logged on the server.
+# Preferred: direct Resend delivery.
+RESEND_API_KEY=
+RESEND_BASE_URL=https://api.resend.com
+RESEND_FROM=
+
+# Alternative invite/reset email delivery webhook.
 PROJEX_AUTH_EMAIL_WEBHOOK_URL=
 PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN=
 PROJEX_AUTH_RESET_REDIRECT_URL=https://app.example.com/reset-password
@@ -52,6 +56,7 @@ Notes:
 - Set `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to the canonical public origin users will actually visit.
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.
+- `RESEND_FROM` should be a verified sender, for example `Projex <noreply@projectexpensetracker.com>`.
 
 ## 4) Build + run
 

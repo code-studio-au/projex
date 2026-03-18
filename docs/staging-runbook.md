@@ -35,8 +35,12 @@ CORS_ALLOWED_ORIGINS=http://54.66.124.216
 
 BETTER_AUTH_DIRECT_SESSION_FN=src/server/auth/authProvider.ts#getSessionFromRequest
 
-# Optional invite/reset delivery webhook.
-# If unset, reset/setup links are logged on the server.
+# Preferred: direct Resend delivery.
+RESEND_API_KEY=
+RESEND_BASE_URL=https://api.resend.com
+RESEND_FROM=
+
+# Alternative invite/reset delivery webhook.
 PROJEX_AUTH_EMAIL_WEBHOOK_URL=
 PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN=
 PROJEX_AUTH_RESET_REDIRECT_URL=http://54.66.124.216/reset-password
@@ -111,7 +115,11 @@ Use a less privileged template user if you want a narrower staging role.
   - reconcile/link the app `users` row to the BetterAuth user id
   - add company membership
   - send a password setup email for newly-created auth users
-- If `PROJEX_AUTH_EMAIL_WEBHOOK_URL` is not configured, the password setup link is logged on the server instead.
+- Prefer direct Resend delivery with:
+  - `RESEND_API_KEY`
+  - `RESEND_BASE_URL=https://api.resend.com`
+  - `RESEND_FROM` as the verified sender address
+- If neither Resend nor `PROJEX_AUTH_EMAIL_WEBHOOK_URL` is configured, the password setup link is logged on the server instead.
 
 ## Rotate BetterAuth Secret
 
