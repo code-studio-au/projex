@@ -104,13 +104,36 @@ function getResetPasswordRedirectUrl(): string {
 }
 
 async function requestPasswordSetupEmail(email: string): Promise<'email' | 'log'> {
-  const auth = getBetterAuthInstance();
-  await auth.api.requestPasswordReset({
-    body: {
+  const base = process.env.BETTER_AUTH_URL?.trim();
+  if (!base) {
+    throw new AppError(
+      'INTERNAL_ERROR',
+      'Missing BETTER_AUTH_URL while requesting invite password setup email'
+    );
+  }
+
+  const endpoint = new URL('/api/auth/request-password-reset', base).toString();
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: base,
+      referer: base,
+    },
+    body: JSON.stringify({
       email,
       redirectTo: getResetPasswordRedirectUrl(),
-    },
+    }),
   });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new AppError(
+      'INTERNAL_ERROR',
+      `Could not request invite password setup email (${res.status}): ${text || 'empty response'}`
+    );
+  }
+
   return getAuthEmailDeliveryMode();
 }
 
@@ -431,19 +454,10 @@ export async function createUserInCompanyServer(args: {
       )
       .execute();
 
-    if (!createdAuthUser) {
-      return {
-        user,
-        createdAuthUser: false,
-        onboardingEmailSent: false,
-        onboardingDelivery: 'none',
-      };
-    }
-
     const onboardingDelivery = await requestPasswordSetupEmail(trimmedEmail);
     return {
       user,
-      createdAuthUser: true,
+      createdAuthUser,
       onboardingEmailSent: true,
       onboardingDelivery,
     };
