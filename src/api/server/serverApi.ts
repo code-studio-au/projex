@@ -45,13 +45,7 @@ type ApiErrorBody = {
  * Server-backed API adapter that talks to Start file routes under `/api/*`.
  */
 export class ServerApi implements ProjexApi {
-  private resolveUrl(path: string): string {
-    if (/^https?:\/\//.test(path)) return path;
-    if (typeof window !== 'undefined') return path;
-    return new URL(path, 'http://localhost').toString();
-  }
-
-  private async getServerRequestHeaders(): Promise<HeadersInit | null> {
+  private async getStartServerRequest(): Promise<Request | null> {
     if (typeof window !== 'undefined') return null;
 
     try {
@@ -59,7 +53,27 @@ export class ServerApi implements ProjexApi {
         'return import("@tanstack/start-server-core")'
       ) as () => Promise<{ getRequest?: () => Request | undefined }>;
       const mod = await loadStartServer();
-      const request = mod.getRequest?.();
+      return mod.getRequest?.() ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async resolveUrl(path: string): Promise<string> {
+    if (/^https?:\/\//.test(path)) return path;
+    if (typeof window !== 'undefined') return path;
+
+    const request = await this.getStartServerRequest();
+    if (request) return new URL(path, request.url).toString();
+
+    return new URL(path, 'http://127.0.0.1:3000').toString();
+  }
+
+  private async getServerRequestHeaders(): Promise<HeadersInit | null> {
+    if (typeof window !== 'undefined') return null;
+
+    try {
+      const request = await this.getStartServerRequest();
       if (!request) return null;
 
       const headers = new Headers();
@@ -79,7 +93,7 @@ export class ServerApi implements ProjexApi {
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const serverHeaders = await this.getServerRequestHeaders();
-    const res = await fetch(this.resolveUrl(path), {
+    const res = await fetch(await this.resolveUrl(path), {
       credentials: 'include',
       ...init,
       headers: {
