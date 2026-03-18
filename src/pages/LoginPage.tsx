@@ -18,7 +18,7 @@ import { useApi } from '../hooks/useApi';
 import { useUsersQuery } from '../queries/reference';
 import { useLoginMutation } from '../queries/session';
 import type { UserId } from '../types';
-import { homeRoute } from '../router';
+import { forgotPasswordRoute, homeRoute } from '../router';
 import { getPostLoginTarget } from '../routes/-postLogin';
 import { isServerAuthMode } from '../routes/-authMode';
 import { seedUsers } from '../seed/users';
@@ -168,6 +168,15 @@ function ServerLoginPanel() {
             autoComplete="current-password"
             required
           />
+          <Group justify="flex-end">
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              onClick={() => router.navigate({ to: forgotPasswordRoute.to })}
+            >
+              Forgot password?
+            </Button>
+          </Group>
           <Group justify="space-between" wrap="wrap">
             <Button variant="light" onClick={() => router.navigate({ to: homeRoute.to })}>
               Back
