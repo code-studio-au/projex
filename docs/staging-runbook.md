@@ -50,6 +50,7 @@ PROJEX_ENABLE_DEV_ENDPOINTS=false
 
 Notes:
 
+- Keep `NODE_ENV=production` in `/etc/projex/projex.env` for deployed runtime, but do not rely on repo `.env.production` / `.env.staging` files for that setting during Vite builds.
 - If you need direct port testing temporarily, you can include both origins in:
   - `BETTER_AUTH_TRUSTED_ORIGINS`
   - `CORS_ALLOWED_ORIGINS`
