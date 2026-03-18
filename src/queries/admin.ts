@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useApi } from '../hooks/useApi';
-import type { CompanyId, ProjectId, Txn } from '../types';
+import type { Company, CompanyId, ProjectId, Txn } from '../types';
 import type { CompanyRole } from '../types';
 import type {
   CompanyUpdateInput,
@@ -11,6 +11,19 @@ import type {
 } from '../api/contract';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
+
+export function useCreateCompanyMutation() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Pick<Company, 'name'> & { id?: CompanyId }) => api.createCompany(input),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
+      });
+    },
+  });
+}
 
 export function useCreateProjectMutation(companyId: CompanyId) {
   const api = useApi();

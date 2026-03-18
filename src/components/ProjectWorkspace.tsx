@@ -89,26 +89,12 @@ export default function ProjectWorkspace(props: {
           </Stack>
 
           <Group gap="sm" wrap="wrap">
-            {project.data ? (
-              <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="gray">
-                {currencyCode}
-              </Badge>
-            ) : (
-              <LoadingChip width={64} height={30} />
-            )}
             {summaryReady ? (
               <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
                 Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
               </Badge>
             ) : (
               <LoadingChip width={190} height={30} />
-            )}
-            {project.data ? (
-              <Badge size={isMobile ? 'md' : 'lg'} color={project.data.status === 'archived' ? 'gray' : 'blue'}>
-                {project.data.status === 'archived' ? 'Deactivated' : 'Active'}
-              </Badge>
-            ) : (
-              <LoadingChip width={88} height={30} />
             )}
           </Group>
         </Group>

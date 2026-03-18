@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Group, Modal, Paper, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Badge, Button, Group, Modal, Paper, Stack, Text, TextInput, Title } from '@mantine/core';
 import { Link, useRouter } from '@tanstack/react-router';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
@@ -12,6 +12,7 @@ import { useCompaniesQuery } from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import {
+  useCreateCompanyMutation,
   useDeactivateCompanyMutation,
   useDeleteCompanyMutation,
   useReactivateCompanyMutation,
@@ -29,11 +30,14 @@ export default function LandingPage() {
   const membershipsQ = useAllCompanyMembershipsQuery();
 
   const companies = useMemo(() => companiesQ.data ?? [], [companiesQ.data]);
-  const activeCount = useMemo(
-    () => companies.filter((company) => company.status === 'active').length,
+  const sortedCompanies = useMemo(
+    () =>
+      [...companies].sort((a, b) => {
+        if (a.status !== b.status) return a.status.localeCompare(b.status);
+        return a.name.localeCompare(b.name);
+      }),
     [companies]
   );
-  const deactivatedCount = companies.length - activeCount;
   const isSuperadmin = useMemo(() => {
     if (!userId) return false;
     return (membershipsQ.data ?? []).some((m) => m.userId === userId && m.role === 'superadmin');
@@ -66,6 +70,10 @@ export default function LandingPage() {
   const deactivateCompany = useDeactivateCompanyMutation();
   const reactivateCompany = useReactivateCompanyMutation();
   const deleteCompany = useDeleteCompanyMutation();
+  const createCompany = useCreateCompanyMutation();
+
+  const [newCompanyOpen, setNewCompanyOpen] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState('');
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -142,10 +150,12 @@ export default function LandingPage() {
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
+        size: 280,
+        minSize: 280,
         Cell: ({ row }) => {
           const company = row.original;
           return (
-            <Group gap="xs" wrap="wrap">
+            <Group gap="xs" wrap="nowrap">
               <Link to={companyRoute.to} params={{ companyId: company.id }}>
                 <Button component="span" size="xs" variant={company.status === 'active' ? 'filled' : 'light'}>
                   {company.status === 'active' ? 'Open' : 'View'}
@@ -210,51 +220,56 @@ export default function LandingPage() {
 
   return (
     <Stack gap="md">
-      <Stack gap={2}>
-        <Title order={2}>Companies</Title>
-        <Text c="dimmed">Choose a workspace, manage company lifecycle, and jump straight into delivery.</Text>
-      </Stack>
+      <Group justify="space-between" align="flex-end" wrap="wrap">
+        <Stack gap={2}>
+          <Title order={2}>Companies</Title>
+          <Text c="dimmed">Choose a workspace, manage company lifecycle, and jump straight into delivery.</Text>
+        </Stack>
+        {isSuperadmin ? (
+          <>
+            <Button variant="filled" onClick={() => setNewCompanyOpen(true)}>
+              New company
+            </Button>
+            <Modal opened={newCompanyOpen} onClose={() => setNewCompanyOpen(false)} title="Create company" fullScreen={isMobile}>
+              <Stack>
+                <TextInput
+                  label="Company name"
+                  placeholder="e.g. Northwind"
+                  value={newCompanyName}
+                  onChange={(e) => setNewCompanyName(e.currentTarget.value)}
+                  autoFocus
+                />
+                <Group justify="flex-end">
+                  <Button variant="light" onClick={() => setNewCompanyOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={!newCompanyName.trim() || createCompany.isPending}
+                    onClick={async () => {
+                      const name = newCompanyName.trim();
+                      if (!name) return;
+                      await createCompany.mutateAsync({ name });
+                      setNewCompanyName('');
+                      setNewCompanyOpen(false);
+                    }}
+                  >
+                    Create
+                  </Button>
+                </Group>
+              </Stack>
+            </Modal>
+          </>
+        ) : null}
+      </Group>
 
       {shouldRedirect ? (
         <Text c="dimmed">Redirecting to your company...</Text>
       ) : (
         <>
-          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-            <Paper withBorder radius="lg" p="md">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                Total companies
-              </Text>
-              <Text fw={800} size="xl">
-                {companies.length}
-              </Text>
-            </Paper>
-            <Paper withBorder radius="lg" p="md">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                Active
-              </Text>
-              <Text fw={800} size="xl">
-                {activeCount}
-              </Text>
-            </Paper>
-            <Paper withBorder radius="lg" p="md">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                Deactivated
-              </Text>
-              <Text fw={800} size="xl">
-                {deactivatedCount}
-              </Text>
-            </Paper>
-          </SimpleGrid>
-
-          <Group justify="space-between" align="center" wrap="wrap">
-            <Text fw={700}>Companies</Text>
-            <Badge variant="light">{companies.length} total</Badge>
-          </Group>
-
           {companies.length > 0 ? (
             <MantineReactTable
               columns={companyColumns}
-              data={companies}
+              data={sortedCompanies}
               mantineTableContainerProps={{ className: 'financeTable' }}
               enableColumnActions={false}
               enableColumnFilters={false}
@@ -266,7 +281,6 @@ export default function LandingPage() {
               initialState={{
                 density: 'xs',
                 pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
-                sorting: [{ id: 'name', desc: false }],
               }}
               mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
             />

@@ -25,7 +25,7 @@ import {
   useReactivateProjectMutation,
 } from '../queries/admin';
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
-import { LoadingChip, LoadingLine } from '../components/LoadingValue';
+import { LoadingLine } from '../components/LoadingValue';
 import { companyRoute, landingRoute, projectRoute } from '../router';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
@@ -55,8 +55,14 @@ export default function CompanyDashboardPage() {
   const [newProjectName, setNewProjectName] = useState('');
 
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
-  const activeProjects = useMemo(() => rows.filter((p) => p.status === 'active'), [rows]);
-  const archivedProjects = useMemo(() => rows.filter((p) => p.status === 'archived'), [rows]);
+  const sortedProjects = useMemo(
+    () =>
+      [...rows].sort((a, b) => {
+        if (a.status !== b.status) return a.status.localeCompare(b.status);
+        return a.name.localeCompare(b.name);
+      }),
+    [rows]
+  );
   const memberships = useMemo(() => membershipsQ.data ?? [], [membershipsQ.data]);
   const userCompanyCount = useMemo(() => {
     const ids = new Set(
@@ -157,12 +163,14 @@ export default function CompanyDashboardPage() {
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
+        size: 320,
+        minSize: 320,
         Cell: ({ row }) => {
           const project = row.original;
           const canOpen = project.status === 'active' && access.can('project:view', project.id);
 
           return (
-            <Group gap="xs" wrap="wrap">
+            <Group gap="xs" wrap="nowrap">
               {canOpen ? (
                 <Button
                   size="xs"
@@ -250,18 +258,6 @@ export default function CompanyDashboardPage() {
           <Text c="dimmed">Projects, access, and company settings.</Text>
         </Stack>
         <Group gap="sm" wrap="wrap">
-          {projectsQ.isLoading ? (
-            <LoadingChip width={84} height={28} />
-          ) : (
-            <>
-              <Badge variant="light">{activeProjects.length} active</Badge>
-              {canManageProjects ? (
-                <Badge variant="light" color="gray">
-                  {archivedProjects.length} deactivated
-                </Badge>
-              ) : null}
-            </>
-          )}
           {canAddProjects && (
             <>
               <Button variant="filled" onClick={() => setNewProjectOpen(true)}>
@@ -319,20 +315,9 @@ export default function CompanyDashboardPage() {
         <Tabs.Panel value="projects" pt="md">
           {rows.length > 0 ? (
             <Stack gap="md">
-              <Group justify="space-between" align="center">
-                <Text size="sm" c="dimmed">
-                  Active projects
-                </Text>
-                {projectsQ.isLoading ? (
-                  <LoadingChip width={44} height={24} />
-                ) : (
-                  <Badge variant="light">{activeProjects.length}</Badge>
-                )}
-              </Group>
-
               <MantineReactTable
                 columns={projectColumns}
-                data={activeProjects}
+                data={sortedProjects}
                 mantineTableContainerProps={{ className: 'financeTable' }}
                 enableColumnActions={false}
                 enableColumnFilters={false}
@@ -344,45 +329,9 @@ export default function CompanyDashboardPage() {
                 initialState={{
                   density: 'xs',
                   pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
-                  sorting: [{ id: 'name', desc: false }],
                 }}
                 mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
               />
-
-              {canManageProjects && (
-                <>
-                  <Group justify="space-between" align="center">
-                    <Text size="sm" c="dimmed">
-                      Deactivated projects
-                    </Text>
-                    {projectsQ.isLoading ? (
-                      <LoadingChip width={44} height={24} />
-                    ) : (
-                      <Badge variant="light" color="gray">
-                        {archivedProjects.length}
-                      </Badge>
-                    )}
-                  </Group>
-                  <MantineReactTable
-                    columns={projectColumns}
-                    data={archivedProjects}
-                    mantineTableContainerProps={{ className: 'financeTable' }}
-                    enableColumnActions={false}
-                    enableColumnFilters={false}
-                    enableDensityToggle={false}
-                    enableFullScreenToggle={false}
-                    enableTopToolbar={false}
-                    enablePagination
-                    enableSorting
-                    initialState={{
-                      density: 'xs',
-                      pagination: { pageIndex: 0, pageSize: isMobile ? 4 : 6 },
-                      sorting: [{ id: 'name', desc: false }],
-                    }}
-                    mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
-                  />
-                </>
-              )}
             </Stack>
           ) : (
             <Paper withBorder radius="lg" p="lg">
