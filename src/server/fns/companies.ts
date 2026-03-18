@@ -464,6 +464,57 @@ export async function createUserInCompanyServer(args: {
   });
 }
 
+export async function sendCompanyUserInviteEmailServer(args: {
+  context: ServerFnContextInput;
+  companyId: CompanyId;
+  userId: UserId;
+}): Promise<CompanyUserInviteResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const db = getDb();
+
+    const sessionUserId = await requireServerUserId(args.context);
+    await requireAuthorized({
+      db,
+      userId: sessionUserId,
+      action: 'company:manage_members',
+      companyId: args.companyId,
+    });
+
+    const membership = await db
+      .selectFrom('company_memberships')
+      .select(['company_id', 'user_id'])
+      .where('company_id', '=', args.companyId)
+      .where('user_id', '=', args.userId)
+      .executeTakeFirst();
+    if (!membership) {
+      throw new AppError('NOT_FOUND', 'User is not a member of this company');
+    }
+
+    const user = await db
+      .selectFrom('users')
+      .select(['id', 'email', 'name', 'disabled'])
+      .where('id', '=', args.userId)
+      .executeTakeFirst();
+    if (!user) {
+      throw new AppError('NOT_FOUND', 'User not found');
+    }
+
+    const onboardingDelivery = await requestPasswordSetupEmail(user.email.trim());
+    return {
+      user: {
+        id: asUserId(user.id),
+        email: user.email,
+        name: user.name,
+        disabled: user.disabled,
+      },
+      createdAuthUser: false,
+      onboardingEmailSent: true,
+      onboardingDelivery,
+    };
+  });
+}
+
 export async function createCompanyServer(args: {
   context: ServerFnContextInput;
   input: Pick<Company, 'name'> & { id?: CompanyId };

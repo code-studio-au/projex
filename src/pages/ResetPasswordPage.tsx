@@ -68,7 +68,7 @@ export default function ResetPasswordPage() {
         setError(body?.message ?? 'Could not set your password.');
         return;
       }
-      setSuccess('Password set. You can sign in now.');
+      setSuccess('Password set. Return to sign in with your updated credentials.');
       setPassword('');
       setConfirmPassword('');
     } catch (err) {

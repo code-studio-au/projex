@@ -1069,6 +1069,21 @@ export class LocalApi implements ProjexApi {
     };
   }
 
+  async sendCompanyUserInviteEmail(companyId: CompanyId, userId: UserId): Promise<CompanyUserInviteResult> {
+    const st = ensureState();
+    this.assertCan('company:manage_members', companyId);
+    const user = st.users.find((u) => u.id === userId);
+    if (!user) throw new AppError('NOT_FOUND', 'User not found');
+    const hasMembership = st.companyMemberships.some((m) => m.companyId === companyId && m.userId === userId);
+    if (!hasMembership) throw new AppError('NOT_FOUND', 'User is not a member of this company');
+    return {
+      user,
+      createdAuthUser: false,
+      onboardingEmailSent: false,
+      onboardingDelivery: 'none',
+    };
+  }
+
   async importTransactions(
     projectId: ProjectId,
     input: { txns: Txn[]; mode: CsvImportMode }

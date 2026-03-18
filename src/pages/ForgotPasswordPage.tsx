@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
         setError(body?.message ?? 'Could not request a password reset.');
         return;
       }
-      setSuccess('If that email exists, check your inbox for the password reset link.');
+      setSuccess('If that email exists, a password reset link is on its way. Check spam or junk if it does not appear soon.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not request a password reset.');
     } finally {

@@ -89,6 +89,11 @@ sudo systemctl status projex --no-pager -l
    - company page
    - project page
    - budget page
+7. Password reset:
+   - click `Forgot password?`
+   - request a reset email
+   - open the link
+   - set a new password
 
 ## Create A Staging Login
 
@@ -114,7 +119,8 @@ Use a less privileged template user if you want a narrower staging role.
   - create or reuse a BetterAuth user
   - reconcile/link the app `users` row to the BetterAuth user id
   - add company membership
-  - send a password setup email for newly-created auth users
+  - send a password setup email
+- Existing company members can also be re-sent an invite email from company settings.
 - Prefer direct Resend delivery with:
   - `RESEND_API_KEY`
   - `RESEND_BASE_URL=https://api.resend.com`

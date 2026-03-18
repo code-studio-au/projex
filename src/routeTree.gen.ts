@@ -9,9 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiUsersRouteImport } from './routes/api.users'
@@ -48,12 +48,8 @@ import { Route as ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport } fr
 import { Route as ApiProjectsProjectIdCategoriesCategoryIdRouteImport } from './routes/api.projects.$projectId.categories.$categoryId'
 import { Route as ApiProjectsProjectIdBudgetsBudgetIdRouteImport } from './routes/api.projects.$projectId.budgets.$budgetId'
 import { Route as AuthedCCompanyIdPProjectIdRouteImport } from './routes/_authed.c.$companyId.p.$projectId'
+import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
 
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -62,6 +58,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedRoute = AuthedRouteImport.update({
@@ -262,6 +263,12 @@ const AuthedCCompanyIdPProjectIdRoute =
     path: '/p/$projectId',
     getParentRoute: () => AuthedCCompanyIdRoute,
   } as any)
+const ApiCompaniesCompanyIdUsersUserIdInviteRoute =
+  ApiCompaniesCompanyIdUsersUserIdInviteRouteImport.update({
+    id: '/$userId/invite',
+    path: '/$userId/invite',
+    getParentRoute: () => ApiCompaniesCompanyIdUsersRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -287,7 +294,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
-  '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRoute
+  '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -302,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
   '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRoute
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
+  '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -326,7 +334,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
-  '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRoute
+  '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -341,6 +349,7 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
   '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRoute
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
+  '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -368,7 +377,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
-  '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRoute
+  '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -383,6 +392,7 @@ export interface FileRoutesById {
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
   '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRoute
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
+  '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -425,6 +435,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/sub-categories/$subCategoryId'
     | '/api/projects/$projectId/transactions/$txnId'
     | '/api/projects/$projectId/transactions/import'
+    | '/api/companies/$companyId/users/$userId/invite'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -464,6 +475,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/sub-categories/$subCategoryId'
     | '/api/projects/$projectId/transactions/$txnId'
     | '/api/projects/$projectId/transactions/import'
+    | '/api/companies/$companyId/users/$userId/invite'
   id:
     | '__root__'
     | '/'
@@ -505,6 +517,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/sub-categories/$subCategoryId'
     | '/api/projects/$projectId/transactions/$txnId'
     | '/api/projects/$projectId/transactions/import'
+    | '/api/companies/$companyId/users/$userId/invite'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -528,13 +541,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -547,6 +553,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed': {
@@ -801,6 +814,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedCCompanyIdPProjectIdRouteImport
       parentRoute: typeof AuthedCCompanyIdRoute
     }
+    '/api/companies/$companyId/users/$userId/invite': {
+      id: '/api/companies/$companyId/users/$userId/invite'
+      path: '/$userId/invite'
+      fullPath: '/api/companies/$companyId/users/$userId/invite'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdUsersUserIdInviteRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdUsersRoute
+    }
   }
 }
 
@@ -830,13 +850,28 @@ const AuthedRouteChildren: AuthedRouteChildren = {
 const AuthedRouteWithChildren =
   AuthedRoute._addFileChildren(AuthedRouteChildren)
 
+interface ApiCompaniesCompanyIdUsersRouteChildren {
+  ApiCompaniesCompanyIdUsersUserIdInviteRoute: typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+}
+
+const ApiCompaniesCompanyIdUsersRouteChildren: ApiCompaniesCompanyIdUsersRouteChildren =
+  {
+    ApiCompaniesCompanyIdUsersUserIdInviteRoute:
+      ApiCompaniesCompanyIdUsersUserIdInviteRoute,
+  }
+
+const ApiCompaniesCompanyIdUsersRouteWithChildren =
+  ApiCompaniesCompanyIdUsersRoute._addFileChildren(
+    ApiCompaniesCompanyIdUsersRouteChildren,
+  )
+
 interface ApiCompaniesCompanyIdRouteChildren {
   ApiCompaniesCompanyIdDeactivateRoute: typeof ApiCompaniesCompanyIdDeactivateRoute
   ApiCompaniesCompanyIdMembershipsRoute: typeof ApiCompaniesCompanyIdMembershipsRoute
   ApiCompaniesCompanyIdMyProjectMembershipsRoute: typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   ApiCompaniesCompanyIdProjectsRoute: typeof ApiCompaniesCompanyIdProjectsRoute
   ApiCompaniesCompanyIdReactivateRoute: typeof ApiCompaniesCompanyIdReactivateRoute
-  ApiCompaniesCompanyIdUsersRoute: typeof ApiCompaniesCompanyIdUsersRoute
+  ApiCompaniesCompanyIdUsersRoute: typeof ApiCompaniesCompanyIdUsersRouteWithChildren
 }
 
 const ApiCompaniesCompanyIdRouteChildren: ApiCompaniesCompanyIdRouteChildren = {
@@ -846,7 +881,7 @@ const ApiCompaniesCompanyIdRouteChildren: ApiCompaniesCompanyIdRouteChildren = {
     ApiCompaniesCompanyIdMyProjectMembershipsRoute,
   ApiCompaniesCompanyIdProjectsRoute: ApiCompaniesCompanyIdProjectsRoute,
   ApiCompaniesCompanyIdReactivateRoute: ApiCompaniesCompanyIdReactivateRoute,
-  ApiCompaniesCompanyIdUsersRoute: ApiCompaniesCompanyIdUsersRoute,
+  ApiCompaniesCompanyIdUsersRoute: ApiCompaniesCompanyIdUsersRouteWithChildren,
 }
 
 const ApiCompaniesCompanyIdRouteWithChildren =

@@ -27,7 +27,10 @@ import {
   useDeleteCompanyMembershipMutation,
   useUpsertCompanyMembershipMutation,
 } from '../queries/memberships';
-import { useCreateUserInCompanyMutation } from '../queries/admin';
+import {
+  useCreateUserInCompanyMutation,
+  useSendCompanyUserInviteEmailMutation,
+} from '../queries/admin';
 import { isServerAuthMode } from '../routes/-authMode';
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
@@ -40,6 +43,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
 
   const createUser = useCreateUserInCompanyMutation(companyId);
+  const sendInviteEmail = useSendCompanyUserInviteEmailMutation(companyId);
   const removeCompanyMember = useDeleteCompanyMembershipMutation(companyId);
   const upsertCompanyMembership = useUpsertCompanyMembershipMutation(companyId);
 
@@ -104,9 +108,10 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           userEmail: u?.email ?? '',
           userId: m.userId,
           role: m.role,
+          isSelf: m.userId === access.userId,
         };
       }),
-    [companyMembershipsQ.data, usersQ.data]
+    [access.userId, companyMembershipsQ.data, usersQ.data]
   );
 
   const membershipColumns = useMemo<MRT_ColumnDef<(typeof membershipRows)[number]>[]>(
@@ -134,20 +139,49 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
+        size: 280,
+        minSize: 280,
         Cell: ({ row }) => (
-          <Button
-            size="xs"
-            color="red"
-            variant="light"
-            disabled={!canAddCompanyUsers || row.original.userId === access.userId}
-            onClick={() => removeCompanyMember.mutate(row.original.userId)}
-          >
-            Remove
-          </Button>
+          <Group gap="xs" wrap="nowrap">
+            {isServerAuthMode ? (
+              <Button
+                size="xs"
+                variant="light"
+                disabled={!canAddCompanyUsers || sendInviteEmail.isPending}
+                onClick={async () => {
+                  setInviteError(null);
+                  setInviteStatus(null);
+                  try {
+                    const result = await sendInviteEmail.mutateAsync(row.original.userId);
+                    setInviteStatus(
+                      result.onboardingDelivery === 'email'
+                        ? `${result.user.email} was sent a password setup email.`
+                        : `${result.user.email} was sent a password setup email request, but delivery is not configured so the link was logged on the server.`
+                    );
+                  } catch (err) {
+                    setInviteError(
+                      err instanceof Error ? err.message : 'Could not send invite email.'
+                    );
+                  }
+                }}
+              >
+                Send invite
+              </Button>
+            ) : null}
+            <Button
+              size="xs"
+              color="red"
+              variant="light"
+              disabled={!canAddCompanyUsers || row.original.isSelf}
+              onClick={() => removeCompanyMember.mutate(row.original.userId)}
+            >
+              Remove
+            </Button>
+          </Group>
         ),
       },
     ],
-    [access.userId, canAddCompanyUsers, removeCompanyMember]
+    [canAddCompanyUsers, removeCompanyMember, sendInviteEmail]
   );
 
   return (
@@ -218,7 +252,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                   if (result.onboardingEmailSent) {
                     setInviteStatus(
                       result.onboardingDelivery === 'email'
-                        ? `${result.user.email} was invited and received a password setup email.`
+                        ? `${result.user.email} was invited and sent a password setup email.`
                         : `${result.user.email} was invited. Email delivery is not configured, so the password setup link was logged on the server.`
                     );
                     return;
@@ -233,7 +267,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             </Button>
             <Text size="xs" c="dimmed">
               {isServerAuthMode
-                ? 'New users get a BetterAuth account, are linked to this company, and receive a password setup link.'
+                ? 'New users get a BetterAuth account, are linked to this company, and receive a password setup link. Existing users can also be re-sent an invite from the member list.'
                 : 'Users created here belong only to this company.'}
             </Text>
           </Stack>

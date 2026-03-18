@@ -72,6 +72,7 @@ async function main() {
   const email = process.env.PROJEX_SMOKE_EMAIL?.trim();
   const password = process.env.PROJEX_SMOKE_PASSWORD?.trim();
   const forceReset = process.env.PROJEX_SMOKE_FORCE_RESET === 'true';
+  const resetEmail = process.env.PROJEX_SMOKE_RESET_EMAIL?.trim() || email;
 
   if (!email || !password || forceReset) {
     assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
@@ -96,6 +97,17 @@ async function main() {
   const session = await request('/api/session');
   assertOk(session, 'session');
   if (!session.body?.userId) throw new Error('No session userId returned');
+
+  if (resetEmail) {
+    const forgotPassword = await request('/api/auth/request-password-reset', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: resetEmail,
+        redirectTo: `${baseUrl}/reset-password`,
+      }),
+    });
+    assertOk(forgotPassword, 'request password reset');
+  }
 
   const companies = await request('/api/companies');
   assertOk(companies, 'companies');

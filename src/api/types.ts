@@ -154,6 +154,7 @@ export interface ProjexApi {
     email: string,
     role: CompanyRole
   ): Promise<CompanyUserInviteResult>;
+  sendCompanyUserInviteEmail(companyId: CompanyId, userId: UserId): Promise<CompanyUserInviteResult>;
 
   // projects / companies
   createProject(companyId: CompanyId, input: ProjectCreateInput): Promise<Project>;

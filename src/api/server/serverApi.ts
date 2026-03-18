@@ -361,6 +361,14 @@ export class ServerApi implements ProjexApi {
       }),
     });
   }
+  async sendCompanyUserInviteEmail(_companyId: CompanyId, _userId: UserId): Promise<CompanyUserInviteResult> {
+    return this.request<CompanyUserInviteResult>(
+      `/api/companies/${encodeURIComponent(_companyId)}/users/${encodeURIComponent(_userId)}/invite`,
+      {
+        method: 'POST',
+      }
+    );
+  }
 
   // projects / companies
   async createProject(_companyId: CompanyId, _input: ProjectCreateInput): Promise<Project> {

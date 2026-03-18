@@ -23,6 +23,7 @@ import {
   deactivateCompanyServer,
   deleteCompanyServer,
   createUserInCompanyServer,
+  sendCompanyUserInviteEmailServer,
   getCompanyServer,
   getDefaultCompanyIdForUserServer,
   listCompaniesServer,
@@ -253,6 +254,13 @@ export class StartServerApi implements ProjexApi {
       name,
       email,
       role,
+    });
+  }
+  async sendCompanyUserInviteEmail(companyId: CompanyId, userId: UserId) {
+    return sendCompanyUserInviteEmailServer({
+      context: this.context,
+      companyId,
+      userId,
     });
   }
 
