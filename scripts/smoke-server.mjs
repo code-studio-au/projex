@@ -135,10 +135,21 @@ async function main() {
   const privacyAdminPassword = process.env.PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD?.trim();
   const privacySuperadminEmail = process.env.PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL?.trim();
   const privacySuperadminPassword = process.env.PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD?.trim();
+  const isLocalBaseUrl =
+    baseUrl.startsWith('http://localhost') || baseUrl.startsWith('http://127.0.0.1');
 
   assertHtmlOk(await requestHtml('/login'), 'login page');
 
-  if (!email || !password || forceReset) {
+  if ((!email || !password) && !isLocalBaseUrl) {
+    throw new Error(
+      'Production-like smoke runs require PROJEX_SMOKE_EMAIL and PROJEX_SMOKE_PASSWORD. ' +
+        'Dev reset/login endpoints are disabled on EC2 by design.'
+    );
+  }
+
+  if (forceReset) {
+    assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
+  } else if (!email || !password) {
     assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
   } else {
     console.info('Skipping dev reset-seed for auth smoke flow');
