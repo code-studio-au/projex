@@ -2,6 +2,10 @@ const baseUrl = (process.env.PROJEX_SMOKE_BASE_URL ?? 'http://localhost:3000').r
 
 const cookieJar = new Map();
 
+function logStep(message) {
+  console.info(`- ${message}`);
+}
+
 function storeSetCookie(headers) {
   const setCookies =
     typeof headers.getSetCookie === 'function'
@@ -134,6 +138,7 @@ async function loginWithEmailPassword(email, password, label = 'auth login') {
 async function main() {
   console.info(`Smoke test against ${baseUrl}`);
 
+  logStep('Checking health and readiness endpoints');
   assertOk(await request('/api/health'), 'health');
   assertOk(await request('/api/ready'), 'ready');
 
@@ -151,6 +156,7 @@ async function main() {
   const isLocalBaseUrl =
     baseUrl.startsWith('http://localhost') || baseUrl.startsWith('http://127.0.0.1');
 
+  logStep('Checking login page HTML');
   assertHtmlOk(await requestHtml('/login'), 'login page');
 
   if ((!email || !password) && !isLocalBaseUrl) {
@@ -161,16 +167,20 @@ async function main() {
   }
 
   if (forceReset) {
+    logStep('Resetting dev seed data');
     assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
   } else if (!email || !password) {
+    logStep('Resetting dev seed data');
     assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
   } else {
     console.info('Skipping dev reset-seed for auth smoke flow');
   }
 
   if (email && password) {
+    logStep(`Logging in as ${email}`);
     await loginWithEmailPassword(email, password, 'auth login');
   } else {
+    logStep('Using dev session login');
     const login = await request('/api/dev/session', {
       method: 'POST',
       body: JSON.stringify({ userId: 'u_superadmin' }),
@@ -178,11 +188,13 @@ async function main() {
     assertOk(login, 'dev login');
   }
 
+  logStep('Checking current session');
   const session = await request('/api/session');
   assertOk(session, 'session');
   if (!session.body?.userId) throw new Error('No session userId returned');
 
   if (resetEmail) {
+    logStep(`Requesting password reset email for ${resetEmail}`);
     const forgotPassword = await request('/api/auth/request-password-reset', {
       method: 'POST',
       body: JSON.stringify({
@@ -193,6 +205,7 @@ async function main() {
     assertOk(forgotPassword, 'request password reset');
   }
 
+  logStep('Loading companies');
   const companies = await request('/api/companies');
   assertOk(companies, 'companies');
   const companyList = Array.isArray(companies.body) ? companies.body : [];
@@ -206,6 +219,7 @@ async function main() {
     );
   }
 
+  logStep(`Loading projects for company ${company.id}`);
   let projects = await request(`/api/companies/${encodeURIComponent(company.id)}/projects`);
   assertOk(projects, 'projects');
   let project = (projects.body ?? [])[0];
@@ -224,6 +238,7 @@ async function main() {
   }
   if (!project?.id) throw new Error('No project available for smoke test');
 
+  logStep('Checking authenticated HTML pages');
   assertHtmlOk(await requestHtml('/companies'), 'companies page');
   assertHtmlOk(await requestHtml('/account'), 'account page');
   assertHtmlOk(await requestHtml(`/c/${encodeURIComponent(company.id)}`), 'company page');
@@ -236,6 +251,7 @@ async function main() {
     'project refresh'
   );
 
+  logStep(`Loading transactions for project ${project.id}`);
   assertOk(
     await request(`/api/projects/${encodeURIComponent(project.id)}/transactions`),
     'transactions list'
@@ -245,6 +261,7 @@ async function main() {
   const budgetId = uniqueId('bud_smoke');
   const categoryName = uniqueId('Smoke Category');
 
+  logStep(`Creating temporary category ${categoryId}`);
   const createdCategory = await request(`/api/projects/${encodeURIComponent(project.id)}/categories`, {
     method: 'POST',
     body: JSON.stringify({
@@ -256,6 +273,7 @@ async function main() {
   });
   assertOk(createdCategory, 'create category');
 
+  logStep(`Creating temporary budget ${budgetId}`);
   const createdBudget = await request(`/api/projects/${encodeURIComponent(project.id)}/budgets`, {
     method: 'POST',
     body: JSON.stringify({
@@ -268,6 +286,7 @@ async function main() {
   });
   assertOk(createdBudget, 'create budget');
 
+  logStep(`Deleting temporary budget ${budgetId}`);
   assertOk(
     await request(
       `/api/projects/${encodeURIComponent(project.id)}/budgets/${encodeURIComponent(budgetId)}`,
@@ -275,6 +294,7 @@ async function main() {
     ),
     'delete budget'
   );
+  logStep(`Deleting temporary category ${categoryId}`);
   assertOk(
     await request(
       `/api/projects/${encodeURIComponent(project.id)}/categories/${encodeURIComponent(categoryId)}`,
@@ -284,6 +304,7 @@ async function main() {
   );
 
   if (inviteEmail) {
+    logStep(`Inviting ${inviteEmail} to company ${company.id} as ${inviteRole}`);
     const invite = await request(`/api/companies/${encodeURIComponent(company.id)}/users`, {
       method: 'POST',
       body: JSON.stringify({
@@ -299,6 +320,7 @@ async function main() {
       throw new Error(`Invite user did not return a user id: ${JSON.stringify(invite.body)}`);
     }
 
+    logStep(`Attempting immediate resend for invited user ${invitedUserId}`);
     const resend = await request(
       `/api/companies/${encodeURIComponent(company.id)}/users/${encodeURIComponent(invitedUserId)}/invite`,
       { method: 'POST' }
@@ -320,14 +342,17 @@ async function main() {
   ) {
     console.info('Running project privacy toggle smoke flow');
 
+    logStep(`Logging in as privacy admin ${privacyAdminEmail}`);
     await request('/api/session', { method: 'DELETE' });
     await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin login');
 
+    logStep('Loading privacy admin companies');
     const adminCompanies = await request('/api/companies');
     assertOk(adminCompanies, 'privacy admin companies');
     const adminCompany = (adminCompanies.body ?? [])[0];
     if (!adminCompany?.id) throw new Error('No company available for privacy admin smoke test');
 
+    logStep(`Loading privacy admin projects for company ${adminCompany.id}`);
     const adminProjects = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
     assertOk(adminProjects, 'privacy admin projects');
     const adminProject = (adminProjects.body ?? []).find((p) => p.status === 'active') ?? (adminProjects.body ?? [])[0];
@@ -335,6 +360,7 @@ async function main() {
 
     const originalAccess = Boolean(adminProject.allowSuperadminAccess);
 
+    logStep(`Enabling superadmin access for project ${adminProject.id}`);
     assertOk(
       await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
         method: 'PATCH',
@@ -343,6 +369,7 @@ async function main() {
       'privacy enable superadmin access'
     );
 
+    logStep(`Disabling superadmin access for project ${adminProject.id}`);
     assertOk(
       await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
         method: 'PATCH',
@@ -351,11 +378,13 @@ async function main() {
       'privacy disable superadmin access'
     );
 
+    logStep('Confirming privacy admin can still view the project page');
     assertHtmlOk(
       await requestHtml(`/c/${encodeURIComponent(adminCompany.id)}/p/${encodeURIComponent(adminProject.id)}`),
       'privacy admin project page after disable'
     );
 
+    logStep(`Logging in as privacy superadmin ${privacySuperadminEmail}`);
     await request('/api/session', { method: 'DELETE' });
     await sleep(1000);
     await loginWithEmailPassword(
@@ -364,22 +393,26 @@ async function main() {
       'privacy superadmin login'
     );
 
+    logStep('Checking restricted project is hidden from superadmin project list');
     const superProjects = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
     assertOk(superProjects, 'privacy superadmin projects');
     if ((superProjects.body ?? []).some((project) => project.id === adminProject.id)) {
       throw new Error('Restricted project was still visible to superadmin');
     }
 
+    logStep('Checking restricted project cannot be fetched by superadmin');
     const superProject = await request(`/api/projects/${encodeURIComponent(adminProject.id)}`);
     assertOk(superProject, 'privacy superadmin project fetch');
     if (superProject.body !== null) {
       throw new Error('Restricted project still resolved for superadmin');
     }
 
+    logStep(`Relogging in as privacy admin ${privacyAdminEmail}`);
     await request('/api/session', { method: 'DELETE' });
     await sleep(1000);
     await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin relogin');
 
+    logStep(`Restoring original superadmin access (${String(originalAccess)}) for project ${adminProject.id}`);
     assertOk(
       await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
         method: 'PATCH',
@@ -393,6 +426,7 @@ async function main() {
     );
   }
 
+  logStep('Logging out');
   assertOk(await request('/api/session', { method: 'DELETE' }), 'logout');
   console.info('Smoke test passed');
 }
