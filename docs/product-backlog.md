@@ -26,7 +26,7 @@ Why this matters:
 
 ## Product/Admin
 
-### 2. Add a small admin audit trail for company membership changes
+### 2. Add a full audit log with retention by event type
 
 Examples:
 
@@ -34,11 +34,35 @@ Examples:
 - company member removed
 - invite email resent
 - company role changed
+- project visibility changed
+- budget values changed
+- transaction coding/uncoding changes
+- category and subcategory changes
+- other user-entered or user-changed business data updates
 
 Why this matters:
 
-- improves support/debugging when someone says "I was removed" or "I never got invited"
-- gives admins confidence when managing access
+- gives company admins visibility into who changed what and when
+- improves support/debugging without relying on memory or chat history
+- creates a defensible audit trail for sensitive finance/admin workflows
+
+Design direction:
+
+- audit broadly across meaningful user-entered and user-changed actions
+- show the audit trail to company admins
+- support retention policies by event class rather than one global retention window
+
+Examples of retention strategy:
+
+- company membership and company-role changes: keep indefinitely
+- project settings / visibility changes: keep long-term
+- transaction coding changes: short retention window such as 5 days
+- high-volume operational edits: shorter retention to control storage growth
+
+Notes:
+
+- this is intentionally not an immediate implementation
+- it needs careful schema, indexing, retention, and UI design before we build it
 
 ### 3. Add self-service account/profile basics
 
