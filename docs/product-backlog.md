@@ -57,7 +57,6 @@ Why this matters:
 
 Examples:
 
-- keep the single global superadmin non-removable from company member actions
 - prevent an admin from removing themselves if they are the last admin in that company
 - clearer confirmation copy when removing a user from a company
 - optional warning if removal will also remove project memberships
@@ -67,9 +66,31 @@ Why this matters:
 - protects against lockout and accidental admin mistakes
 - makes the existing membership cascade behavior easier to understand
 
+### 5. Refine superadmin data access into explicit support access
+
+Current state:
+
+- superadmin currently has broad troubleshooting visibility across companies/projects
+- this is useful for support, QA, and bug fixing
+- it is not the right long-term privacy model for real customer data
+
+Recommended direction:
+
+- keep current superadmin visibility for now
+- when a superadmin creates a company, allow assigning the initial company admin at creation time
+- later, add a project settings toggle such as `Allow superadmin access`
+- keep the toggle default `on` for now during active development/support
+- later switch the default `off` when customer privacy becomes the higher priority
+
+Why this matters:
+
+- preserves practical support access while the product is still maturing
+- creates a clear path toward explicit customer consent for project-level support visibility
+- avoids locking support out before a replacement access model exists
+
 ## Testing
 
-### 5. Add an end-to-end auth smoke test
+### 6. Continue evolving the auth smoke test
 
 Suggested flow:
 
@@ -84,7 +105,7 @@ Why this matters:
 - these were the highest-friction bugs in the stabilization work
 - a small smoke test would pay for itself quickly
 
-### 6. Add an invite-flow smoke test
+### 7. Continue evolving the invite-flow smoke test
 
 Suggested flow:
 
@@ -100,7 +121,7 @@ Why this matters:
 
 ## UX Polish
 
-### 7. Polish reset/invite success states
+### 8. Polish reset/invite success states
 
 Examples:
 
@@ -113,7 +134,7 @@ Why this matters:
 - reduces confusion in the auth journey
 - makes the onboarding flow feel more intentional
 
-### 8. Continue small-table UX cleanup
+### 9. Continue small-table UX cleanup
 
 Examples:
 
@@ -130,7 +151,7 @@ Why this matters:
 
 ## Nice To Have
 
-### 12. Improve multi-account testing ergonomics
+### 13. Improve multi-account testing ergonomics
 
 Examples:
 
