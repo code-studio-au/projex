@@ -167,6 +167,7 @@ Examples:
 - keep action buttons visually consistent across striped rows
 - maintain stable editing flows in transactions
 - review any remaining dense tables for awkward wrapping or hidden actions
+- review whether `project.description` is actually needed anywhere in the product; if not, remove it from the model/UI rather than leaving it as dead weight
 
 Why this matters:
 
