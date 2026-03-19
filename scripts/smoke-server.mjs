@@ -5,6 +5,14 @@ const interactiveTerminal = Boolean(process.stdout.isTTY && !process.env.CI);
 const spinnerFrames = ['-', '\\', '|', '/'];
 let activeSpinner = null;
 
+function fitTerminalLine(text) {
+  if (!interactiveTerminal) return text;
+  const columns = process.stdout.columns || 100;
+  const maxWidth = Math.max(20, columns - 1);
+  if (text.length <= maxWidth) return text;
+  return `${text.slice(0, Math.max(0, maxWidth - 3))}...`;
+}
+
 function stopSpinner(finalLabel = null) {
   if (!activeSpinner) return;
   clearInterval(activeSpinner.intervalId);
@@ -28,7 +36,7 @@ function startStep(message) {
   const render = () => {
     const frame = spinnerFrames[frameIndex % spinnerFrames.length];
     frameIndex += 1;
-    process.stdout.write(`\r[${frame}] ${message}`);
+    process.stdout.write(`\r${fitTerminalLine(`[${frame}] ${message}`)}`);
   };
 
   render();
@@ -174,8 +182,10 @@ async function loginWithEmailPassword(email, password, label = 'auth login') {
     if (login.res.status !== 429) break;
     if (attempt === backoffsMs.length) break;
     const backoffMs = backoffsMs[attempt];
+    stopSpinner();
     console.info(`${label} was rate-limited, retrying after ${backoffMs}ms`);
     await sleep(backoffMs);
+    if (interactiveTerminal) startStep(label);
   }
   assertOk(login, label);
   const session = await request('/api/session');
