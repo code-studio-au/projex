@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Badge, Button, Group, Paper, Select, Stack, Switch, Text, Title } from '@mantine/core';
+import { Badge, Button, Group, Modal, Paper, Select, Stack, Switch, Text, Title } from '@mantine/core';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
+import { useRouter } from '@tanstack/react-router';
 
 import type { CompanyId, ProjectId, ProjectRole, UserId } from '../types';
 import { asUserId } from '../types';
@@ -16,6 +17,7 @@ import {
 } from '../queries/memberships';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { getCompanyUsers } from '../store/access';
+import { companyRoute } from '../router';
 
 export default function ProjectSettingsPanel(props: {
   companyId: CompanyId;
@@ -23,6 +25,7 @@ export default function ProjectSettingsPanel(props: {
 }) {
   const { companyId, projectId } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const router = useRouter();
 
   const project = useProjectQuery(projectId);
   const usersQ = useUsersQuery();
@@ -55,6 +58,7 @@ export default function ProjectSettingsPanel(props: {
 
   const [memberUserId, setMemberUserId] = useState<UserId | null>(null);
   const [memberRole, setMemberRole] = useState<ProjectRole | null>('member');
+  const [pendingSuperadminAccess, setPendingSuperadminAccess] = useState<boolean | null>(null);
 
   const upsert = useUpsertProjectMembershipMutation(projectId);
   const del = useDeleteProjectMembershipMutation(projectId);
@@ -129,6 +133,14 @@ export default function ProjectSettingsPanel(props: {
     );
   }
 
+  const nextSuperadminAccess = pendingSuperadminAccess ?? project.data.allowSuperadminAccess;
+  const toggleLabel = nextSuperadminAccess
+    ? 'Enable superadmin access'
+    : 'Disable superadmin access';
+  const toggleDescription = nextSuperadminAccess
+    ? 'Warning: this will allow the global superadmin to view this project, its budget, transactions, and settings for support and troubleshooting. Are you sure you want to enable this access?'
+    : 'Superadmin will no longer be able to see this project, its budget, transactions, or settings unless access is re-enabled later. Are you sure you want to disable this access?';
+
   return (
     <Stack gap="lg">
       <Paper withBorder radius="lg" p="lg">
@@ -174,13 +186,8 @@ export default function ProjectSettingsPanel(props: {
               label="Allow superadmin access"
               description="Controls whether the global superadmin can open this project for support and troubleshooting. This is on by default for now."
               checked={project.data.allowSuperadminAccess}
-              onChange={(event) =>
-                updateProject.mutate({
-                  id: projectId,
-                  allowSuperadminAccess: event.currentTarget.checked,
-                })
-              }
-              disabled={!canEditProject}
+              onChange={(event) => setPendingSuperadminAccess(event.currentTarget.checked)}
+              disabled={!canEditProject || updateProject.isPending}
             />
           </Stack>
         </Stack>
@@ -245,6 +252,51 @@ export default function ProjectSettingsPanel(props: {
           />
         </Stack>
       </Paper>
+
+      <Modal
+        opened={pendingSuperadminAccess !== null}
+        onClose={() => setPendingSuperadminAccess(null)}
+        title={toggleLabel}
+        fullScreen={isMobile}
+      >
+        <Stack>
+          <Text size="sm" c="dimmed">
+            {toggleDescription}
+          </Text>
+          <Group justify="flex-end" wrap="wrap">
+            <Button
+              variant="light"
+              onClick={() => setPendingSuperadminAccess(null)}
+              fullWidth={isMobile}
+            >
+              Cancel
+            </Button>
+            <Button
+              color={nextSuperadminAccess ? 'orange' : 'red'}
+              fullWidth={isMobile}
+              loading={updateProject.isPending}
+              onClick={async () => {
+                if (pendingSuperadminAccess === null) return;
+                await updateProject.mutateAsync({
+                  id: projectId,
+                  allowSuperadminAccess: pendingSuperadminAccess,
+                });
+                const disablingWhileSuperadmin =
+                  access.isSuperadmin && pendingSuperadminAccess === false;
+                setPendingSuperadminAccess(null);
+                if (disablingWhileSuperadmin) {
+                  router.navigate({
+                    to: companyRoute.to,
+                    params: { companyId },
+                  });
+                }
+              }}
+            >
+              {toggleLabel}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }

@@ -281,13 +281,17 @@ export async function listMyProjectMembershipsServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
+    const isSuperadmin = await isSuperadminUser(userId);
     const projectIdsInCompany = await db
       .selectFrom('projects')
-      .select('id')
+      .select(['id', 'allow_superadmin_access'])
       .where('company_id', '=', args.companyId)
       .execute();
     if (!projectIdsInCompany.length) return [];
-    const ids = projectIdsInCompany.map((p) => p.id);
+    const ids = projectIdsInCompany
+      .filter((p) => !isSuperadmin || p.allow_superadmin_access)
+      .map((p) => p.id);
+    if (!ids.length) return [];
 
     const rows = await db
       .selectFrom('project_memberships')

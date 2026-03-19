@@ -460,12 +460,16 @@ export class LocalApi implements ProjexApi {
   async listMyProjectMemberships(companyId: CompanyId): Promise<ProjectMembership[]> {
     const st = ensureState();
     const { userId } = this.requireSession();
+    const isSuper = this.isSuperadmin(userId, st);
 
     // Explicit memberships only (no synthetic/implicit memberships).
     // Company-wide access for admin/executive/superadmin is enforced via `can(...)`
     // and endpoint-level checks (e.g. getProject asserts project:view).
     const projectIdsInCompany = new Set(
-      st.projects.filter((p) => p.companyId === companyId).map((p) => p.id)
+      st.projects
+        .filter((p) => p.companyId === companyId)
+        .filter((p) => !isSuper || projectAllowsSuperadminAccess(p))
+        .map((p) => p.id)
     );
 
     return st.projectMemberships.filter(

@@ -34,6 +34,7 @@ Examples:
 - company member removed
 - invite email resent
 - company role changed
+- project superadmin support access toggled on/off
 - project visibility changed
 - budget values changed
 - transaction coding/uncoding changes
@@ -63,6 +64,7 @@ Notes:
 
 - this is intentionally not an immediate implementation
 - it needs careful schema, indexing, retention, and UI design before we build it
+- include access/privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
 ### 3. Add self-service account/profile basics
 

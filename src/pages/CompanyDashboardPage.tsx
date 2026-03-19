@@ -160,6 +160,21 @@ export default function CompanyDashboardPage() {
           ),
       },
       {
+        accessorKey: 'allowSuperadminAccess',
+        header: 'Support',
+        enableSorting: false,
+        Cell: ({ row }) =>
+          row.original.allowSuperadminAccess ? (
+            <Badge variant="light" color="teal">
+              Superadmin access enabled
+            </Badge>
+          ) : (
+            <Badge variant="light" color="gray">
+              Superadmin access restricted
+            </Badge>
+          ),
+      },
+      {
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
@@ -276,6 +291,9 @@ export default function CompanyDashboardPage() {
                     onChange={(e) => setNewProjectName(e.currentTarget.value)}
                     autoFocus
                   />
+                  <Text size="sm" c="dimmed">
+                    New projects start with superadmin support access enabled. Company admins can change this later in Project settings.
+                  </Text>
                   <Group justify="flex-end">
                     <Button variant="light" onClick={() => setNewProjectOpen(false)}>
                       Cancel

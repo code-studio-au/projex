@@ -44,6 +44,7 @@ export function useUpdateProjectMutation(companyId: CompanyId) {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: qk.project(scopeUserId, vars.id) });
       qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+      qc.invalidateQueries({ queryKey: qk.myProjectMemberships(scopeUserId, companyId) });
     },
   });
 }
