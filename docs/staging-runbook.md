@@ -131,6 +131,7 @@ Use a less privileged template user if you want a narrower production role.
   - `RESEND_BASE_URL=https://api.resend.com`
   - `RESEND_FROM` as the verified sender address
 - If neither Resend nor `PROJEX_AUTH_EMAIL_WEBHOOK_URL` is configured, the password setup link is logged on the server instead.
+- For email troubleshooting and direct provider checks, see `docs/email-ops-runbook.md`.
 
 ## Rotate BetterAuth Secret
 

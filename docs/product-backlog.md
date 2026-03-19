@@ -57,7 +57,8 @@ Why this matters:
 
 Examples:
 
-- prevent removing the last superadmin by mistake
+- keep the single global superadmin non-removable from company member actions
+- prevent an admin from removing themselves if they are the last admin in that company
 - clearer confirmation copy when removing a user from a company
 - optional warning if removal will also remove project memberships
 
@@ -126,19 +127,6 @@ Why this matters:
 - the table-heavy workflows are core product paths
 
 ## Infra / Operations
-
-### 9. Add a short operational runbook for email delivery
-
-Examples:
-
-- verify Resend env vars
-- how to test email delivery from EC2
-- what to check if delivery is delayed or lands in spam
-
-Why this matters:
-
-- invite/reset is now a core workflow
-- email delivery troubleshooting should be easy to repeat
 
 ## Nice To Have
 
