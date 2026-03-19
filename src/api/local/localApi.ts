@@ -467,6 +467,17 @@ export class LocalApi implements ProjexApi {
   ): Promise<CompanyMembership> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
+    const existing = st.companyMemberships.find(
+      (m) => m.companyId === companyId && m.userId === userId
+    );
+    if (existing?.role === 'admin' && role !== 'admin') {
+      const adminCount = st.companyMemberships.filter(
+        (m) => m.companyId === companyId && m.role === 'admin'
+      ).length;
+      if (adminCount <= 1) {
+        throw new AppError('VALIDATION_ERROR', 'Company must retain at least one admin');
+      }
+    }
     const idx = st.companyMemberships.findIndex(
       (m) => m.companyId === companyId && m.userId === userId
     );
@@ -481,6 +492,17 @@ export class LocalApi implements ProjexApi {
   async deleteCompanyMembership(companyId: CompanyId, userId: UserId): Promise<void> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
+    const existing = st.companyMemberships.find(
+      (m) => m.companyId === companyId && m.userId === userId
+    );
+    if (existing?.role === 'admin') {
+      const adminCount = st.companyMemberships.filter(
+        (m) => m.companyId === companyId && m.role === 'admin'
+      ).length;
+      if (adminCount <= 1) {
+        throw new AppError('VALIDATION_ERROR', 'Company must retain at least one admin');
+      }
+    }
     const companyProjectIds = new Set(
       st.projects.filter((p) => p.companyId === companyId).map((p) => p.id)
     );

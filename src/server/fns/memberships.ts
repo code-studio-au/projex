@@ -135,6 +135,26 @@ export async function upsertCompanyMembershipServer(args: {
       .executeTakeFirst();
     if (!userExists) throw new AppError('NOT_FOUND', 'Unknown user');
 
+    const existingMembership = await db
+      .selectFrom('company_memberships')
+      .select(['role'])
+      .where('company_id', '=', args.companyId)
+      .where('user_id', '=', args.userId)
+      .executeTakeFirst();
+
+    if (existingMembership?.role === 'admin' && args.role !== 'admin') {
+      const adminCountRow = await db
+        .selectFrom('company_memberships')
+        .select((eb) => eb.fn.countAll<number>().as('count'))
+        .where('company_id', '=', args.companyId)
+        .where('role', '=', 'admin')
+        .executeTakeFirstOrThrow();
+
+      if (Number(adminCountRow.count) <= 1) {
+        throw new AppError('VALIDATION_ERROR', 'Company must retain at least one admin');
+      }
+    }
+
     await db
       .insertInto('company_memberships')
       .values({
@@ -172,6 +192,26 @@ export async function deleteCompanyMembershipServer(args: {
       action: 'company:manage_members',
       companyId: args.companyId,
     });
+
+    const existingMembership = await db
+      .selectFrom('company_memberships')
+      .select(['role'])
+      .where('company_id', '=', args.companyId)
+      .where('user_id', '=', args.userId)
+      .executeTakeFirst();
+
+    if (existingMembership?.role === 'admin') {
+      const adminCountRow = await db
+        .selectFrom('company_memberships')
+        .select((eb) => eb.fn.countAll<number>().as('count'))
+        .where('company_id', '=', args.companyId)
+        .where('role', '=', 'admin')
+        .executeTakeFirstOrThrow();
+
+      if (Number(adminCountRow.count) <= 1) {
+        throw new AppError('VALIDATION_ERROR', 'Company must retain at least one admin');
+      }
+    }
 
     await db.transaction().execute(async (trx) => {
       const projectIds = await trx

@@ -75,6 +75,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [newUserRole, setNewUserRole] = useState<CompanyRole | null>('member');
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [membershipError, setMembershipError] = useState<string | null>(null);
+  const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
   const [roleUserId, setRoleUserId] = useState<UserId | null>(null);
 
   // Derive a sensible default selection without synchronously setting state in an effect.
@@ -99,8 +101,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   );
 
   const membershipRows = useMemo(
-    () =>
-      (companyMembershipsQ.data ?? []).map((m) => {
+    () => {
+      const adminCount = (companyMembershipsQ.data ?? []).filter((m) => m.role === 'admin').length;
+      return (companyMembershipsQ.data ?? []).map((m) => {
         const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
         return {
           key: `${m.companyId}:${m.userId}`,
@@ -109,10 +112,22 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           userId: m.userId,
           role: m.role,
           isSelf: m.userId === access.userId,
+          isOnlyAdmin: m.role === 'admin' && adminCount <= 1,
         };
-      }),
+      });
+    },
     [access.userId, companyMembershipsQ.data, usersQ.data]
   );
+
+  const selectedMembership = useMemo(
+    () => membershipRows.find((row) => row.userId === effectiveRoleUserId) ?? null,
+    [effectiveRoleUserId, membershipRows]
+  );
+  const wouldDemoteLastAdmin =
+    !!selectedMembership &&
+    selectedMembership.role === 'admin' &&
+    selectedMembership.isOnlyAdmin &&
+    membershipCompanyRole !== 'admin';
 
   const membershipColumns = useMemo<MRT_ColumnDef<(typeof membershipRows)[number]>[]>(
     () => [
@@ -172,8 +187,19 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               size="xs"
               color="red"
               variant="light"
-              disabled={!canAddCompanyUsers || row.original.isSelf}
-              onClick={() => removeCompanyMember.mutate(row.original.userId)}
+              disabled={!canAddCompanyUsers || row.original.isSelf || row.original.isOnlyAdmin}
+              onClick={async () => {
+                setMembershipError(null);
+                setMembershipStatus(null);
+                try {
+                  await removeCompanyMember.mutateAsync(row.original.userId);
+                  setMembershipStatus(`${row.original.userName} was removed from the company.`);
+                } catch (err) {
+                  setMembershipError(
+                    err instanceof Error ? err.message : 'Could not remove company member.'
+                  );
+                }
+              }}
             >
               Remove
             </Button>
@@ -277,6 +303,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
           <Title order={5}>Company roles</Title>
+          {membershipError ? <Alert color="red">{membershipError}</Alert> : null}
+          {membershipStatus ? <Alert color="green">{membershipStatus}</Alert> : null}
           <Group align="flex-end" wrap="wrap">
             <Select
               label="User"
@@ -299,18 +327,32 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               style={{ width: '100%', maxWidth: 220 }}
             />
             <Button
-              disabled={!effectiveRoleUserId || !membershipCompanyRole}
+              disabled={!effectiveRoleUserId || !membershipCompanyRole || wouldDemoteLastAdmin}
               onClick={async () => {
                 if (!effectiveRoleUserId || !membershipCompanyRole) return;
-                await upsertCompanyMembership.mutateAsync({
-                  userId: effectiveRoleUserId,
-                  role: membershipCompanyRole,
-                });
+                setMembershipError(null);
+                setMembershipStatus(null);
+                try {
+                  await upsertCompanyMembership.mutateAsync({
+                    userId: effectiveRoleUserId,
+                    role: membershipCompanyRole,
+                  });
+                  setMembershipStatus('Company role updated.');
+                } catch (err) {
+                  setMembershipError(
+                    err instanceof Error ? err.message : 'Could not update company role.'
+                  );
+                }
               }}
             >
               Set
             </Button>
           </Group>
+          {wouldDemoteLastAdmin ? (
+            <Alert color="yellow">
+              This company must retain at least one admin. Assign another admin before changing this role.
+            </Alert>
+          ) : null}
           <Divider />
           <Text size="sm" c="dimmed">
             Update a teammate’s company role or remove them from the company entirely.

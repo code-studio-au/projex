@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Group, Modal, Paper, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Badge, Button, Group, Modal, Paper, Stack, Text, TextInput, Title } from '@mantine/core';
 import { Link, useRouter } from '@tanstack/react-router';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 
 import type { CompanyId } from '../types';
 
@@ -17,10 +18,12 @@ import {
   useDeleteCompanyMutation,
   useReactivateCompanyMutation,
 } from '../queries/admin';
+import { qk } from '../queries/keys';
 
 export default function LandingPage() {
   const api = useApi();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 48em)');
 
   const sessionQ = useSessionQuery();
@@ -74,6 +77,10 @@ export default function LandingPage() {
 
   const [newCompanyOpen, setNewCompanyOpen] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState('');
+  const [newCompanyAdminName, setNewCompanyAdminName] = useState('');
+  const [newCompanyAdminEmail, setNewCompanyAdminEmail] = useState('');
+  const [newCompanyStatus, setNewCompanyStatus] = useState<string | null>(null);
+  const [newCompanyError, setNewCompanyError] = useState<string | null>(null);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -232,6 +239,8 @@ export default function LandingPage() {
             </Button>
             <Modal opened={newCompanyOpen} onClose={() => setNewCompanyOpen(false)} title="Create company" fullScreen={isMobile}>
               <Stack>
+                {newCompanyError ? <Alert color="red">{newCompanyError}</Alert> : null}
+                {newCompanyStatus ? <Alert color="green">{newCompanyStatus}</Alert> : null}
                 <TextInput
                   label="Company name"
                   placeholder="e.g. Northwind"
@@ -239,18 +248,82 @@ export default function LandingPage() {
                   onChange={(e) => setNewCompanyName(e.currentTarget.value)}
                   autoFocus
                 />
+                <Text size="sm" c="dimmed">
+                  Optionally assign the initial company admin now. This is useful when onboarding a company for the first time, and the invite can be re-sent later from company settings if needed.
+                </Text>
+                <TextInput
+                  label="Initial admin name"
+                  placeholder="e.g. Jane Admin"
+                  value={newCompanyAdminName}
+                  onChange={(e) => setNewCompanyAdminName(e.currentTarget.value)}
+                />
+                <TextInput
+                  label="Initial admin email"
+                  placeholder="e.g. jane@example.com"
+                  value={newCompanyAdminEmail}
+                  onChange={(e) => setNewCompanyAdminEmail(e.currentTarget.value)}
+                />
                 <Group justify="flex-end">
-                  <Button variant="light" onClick={() => setNewCompanyOpen(false)}>
+                  <Button
+                    variant="light"
+                    onClick={() => {
+                      setNewCompanyOpen(false);
+                      setNewCompanyError(null);
+                      setNewCompanyStatus(null);
+                    }}
+                  >
                     Cancel
                   </Button>
                   <Button
                     disabled={!newCompanyName.trim() || createCompany.isPending}
                     onClick={async () => {
                       const name = newCompanyName.trim();
+                      const adminName = newCompanyAdminName.trim();
+                      const adminEmail = newCompanyAdminEmail.trim();
                       if (!name) return;
-                      await createCompany.mutateAsync({ name });
-                      setNewCompanyName('');
-                      setNewCompanyOpen(false);
+                      if ((adminName && !adminEmail) || (!adminName && adminEmail)) {
+                        setNewCompanyError('Enter both initial admin name and email, or leave both blank.');
+                        setNewCompanyStatus(null);
+                        return;
+                      }
+                      setNewCompanyError(null);
+                      setNewCompanyStatus(null);
+                      try {
+                        const company = await createCompany.mutateAsync({ name });
+                        if (adminName && adminEmail) {
+                          const result = await api.createUserInCompany(
+                            company.id,
+                            adminName,
+                            adminEmail,
+                            'admin'
+                          );
+                          await Promise.all([
+                            queryClient.invalidateQueries({ queryKey: qk.users() }),
+                            queryClient.invalidateQueries({
+                              predicate: (q) =>
+                                Array.isArray(q.queryKey) &&
+                                ['companyMemberships', 'allCompanyMemberships'].includes(
+                                  String(q.queryKey[0])
+                                ),
+                            }),
+                          ]);
+                          setNewCompanyStatus(
+                            result.onboardingEmailSent
+                              ? `${company.name} was created and ${result.user.email} was invited as the initial admin.`
+                              : `${company.name} was created and ${result.user.email} was added as the initial admin.`
+                          );
+                        } else {
+                          setNewCompanyStatus(`${company.name} was created.`);
+                        }
+                        setNewCompanyName('');
+                        setNewCompanyAdminName('');
+                        setNewCompanyAdminEmail('');
+                        setNewCompanyOpen(false);
+                      } catch (err) {
+                        setNewCompanyError(
+                          err instanceof Error ? err.message : 'Could not create company.'
+                        );
+                      }
                     }}
                   >
                     Create
