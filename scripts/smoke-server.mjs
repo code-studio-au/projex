@@ -103,19 +103,24 @@ function resetCookies() {
   cookieJar.clear();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function loginWithEmailPassword(email, password, label = 'auth login') {
   resetCookies();
-  let login = await request('/api/auth/sign-in/email', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-  if (login.res.status === 429) {
-    console.info(`${label} was rate-limited, retrying after a short backoff`);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  const backoffsMs = [1500, 3000, 5000];
+  let login = null;
+  for (let attempt = 0; attempt <= backoffsMs.length; attempt += 1) {
     login = await request('/api/auth/sign-in/email', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    if (login.res.status !== 429) break;
+    if (attempt === backoffsMs.length) break;
+    const backoffMs = backoffsMs[attempt];
+    console.info(`${label} was rate-limited, retrying after ${backoffMs}ms`);
+    await sleep(backoffMs);
   }
   assertOk(login, label);
   const session = await request('/api/session');
@@ -352,6 +357,7 @@ async function main() {
     );
 
     await request('/api/session', { method: 'DELETE' });
+    await sleep(1000);
     await loginWithEmailPassword(
       privacySuperadminEmail,
       privacySuperadminPassword,
@@ -371,6 +377,7 @@ async function main() {
     }
 
     await request('/api/session', { method: 'DELETE' });
+    await sleep(1000);
     await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin relogin');
 
     assertOk(
