@@ -5,6 +5,11 @@ const interactiveTerminal = Boolean(process.stdout.isTTY && !process.env.CI);
 const spinnerFrames = ['-', '\\', '|', '/'];
 let activeSpinner = null;
 
+function logSection(title) {
+  stopSpinner();
+  console.info(`\n== ${title} ==`);
+}
+
 function fitTerminalLine(text) {
   if (!interactiveTerminal) return text;
   const columns = process.stdout.columns || 100;
@@ -21,6 +26,10 @@ function companyLabel(company) {
 function projectLabel(project) {
   if (!project) return 'unknown project';
   return project.name || project.id || 'unknown project';
+}
+
+function userLabel(email, fallbackRole) {
+  return email || fallbackRole;
 }
 
 function stopSpinner(finalLabel = null) {
@@ -209,6 +218,7 @@ async function loginWithEmailPassword(email, password, label = 'auth login') {
 async function main() {
   console.info(`Smoke test against ${baseUrl}`);
 
+  logSection('Basics');
   await runStep('Checking health endpoint', async () => {
     assertOk(await request('/api/health'), 'health');
   });
@@ -324,6 +334,7 @@ async function main() {
   }
   if (!project?.id) throw new Error('No project available for smoke test');
 
+  logSection('App Pages');
   await runStep('Checking companies page HTML', async () => {
     assertHtmlOk(await requestHtml('/companies'), 'companies page');
   });
@@ -356,8 +367,10 @@ async function main() {
   const categoryId = uniqueId('cat_smoke');
   const budgetId = uniqueId('bud_smoke');
   const categoryName = uniqueId('Smoke Category');
+  const budgetName = uniqueId('Smoke Budget');
 
-  await runStep(`Creating temporary category ${categoryId}`, async () => {
+  logSection('Temporary Data');
+  await runStep(`Creating temporary category ${categoryName}`, async () => {
     const createdCategory = await request(`/api/projects/${encodeURIComponent(project.id)}/categories`, {
       method: 'POST',
       body: JSON.stringify({
@@ -370,7 +383,7 @@ async function main() {
     assertOk(createdCategory, 'create category');
   });
 
-  await runStep(`Creating temporary budget ${budgetId}`, async () => {
+  await runStep(`Creating temporary budget ${budgetName}`, async () => {
     const createdBudget = await request(`/api/projects/${encodeURIComponent(project.id)}/budgets`, {
       method: 'POST',
       body: JSON.stringify({
@@ -378,13 +391,14 @@ async function main() {
         companyId: company.id,
         projectId: project.id,
         categoryId,
+        name: budgetName,
         allocatedCents: 1234,
       }),
     });
     assertOk(createdBudget, 'create budget');
   });
 
-  await runStep(`Deleting temporary budget ${budgetId}`, async () => {
+  await runStep(`Deleting temporary budget ${budgetName}`, async () => {
     assertOk(
       await request(
         `/api/projects/${encodeURIComponent(project.id)}/budgets/${encodeURIComponent(budgetId)}`,
@@ -393,7 +407,7 @@ async function main() {
       'delete budget'
     );
   });
-  await runStep(`Deleting temporary category ${categoryId}`, async () => {
+  await runStep(`Deleting temporary category ${categoryName}`, async () => {
     assertOk(
       await request(
         `/api/projects/${encodeURIComponent(project.id)}/categories/${encodeURIComponent(categoryId)}`,
@@ -404,6 +418,7 @@ async function main() {
   });
 
   if (inviteEmail) {
+    logSection('Invite Flow');
     const invite = await runStep(`Inviting ${inviteEmail} to company ${companyLabel(company)} as ${inviteRole}`, async () => {
       const result = await request(`/api/companies/${encodeURIComponent(company.id)}/users`, {
         method: 'POST',
@@ -422,7 +437,7 @@ async function main() {
       throw new Error(`Invite user did not return a user id: ${JSON.stringify(invite.body)}`);
     }
 
-    await runStep(`Attempting immediate resend for invited user ${invitedUserId}`, async () => {
+    await runStep(`Attempting immediate resend for invited user ${inviteEmail}`, async () => {
       const resend = await request(
         `/api/companies/${encodeURIComponent(company.id)}/users/${encodeURIComponent(invitedUserId)}/invite`,
         { method: 'POST' }
@@ -443,14 +458,14 @@ async function main() {
     privacySuperadminEmail &&
     privacySuperadminPassword
   ) {
-    console.info('Running project privacy toggle smoke flow');
+    logSection('Privacy Checks');
 
     await request('/api/session', { method: 'DELETE' });
-    await runStep(`Logging in as privacy admin ${privacyAdminEmail}`, async () => {
+    await runStep(`Logging in as admin ${userLabel(privacyAdminEmail, 'admin')}`, async () => {
       await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin login');
     });
 
-    const adminCompanies = await runStep('Loading privacy admin companies', async () => {
+    const adminCompanies = await runStep('Loading admin companies', async () => {
       const result = await request('/api/companies');
       assertOk(result, 'privacy admin companies');
       return result;
@@ -458,7 +473,7 @@ async function main() {
     const adminCompany = (adminCompanies.body ?? [])[0];
     if (!adminCompany?.id) throw new Error('No company available for privacy admin smoke test');
 
-    const adminProjects = await runStep(`Loading privacy admin projects for company ${companyLabel(adminCompany)}`, async () => {
+    const adminProjects = await runStep(`Loading admin projects for company ${companyLabel(adminCompany)}`, async () => {
       const result = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
       assertOk(result, 'privacy admin projects');
       return result;
@@ -488,7 +503,7 @@ async function main() {
       );
     });
 
-    await runStep('Confirming privacy admin can still view the project page', async () => {
+    await runStep('Confirming admin can still view the project page', async () => {
       assertHtmlOk(
         await requestHtml(`/c/${encodeURIComponent(adminCompany.id)}/p/${encodeURIComponent(adminProject.id)}`),
         'privacy admin project page after disable'
@@ -497,7 +512,7 @@ async function main() {
 
     await request('/api/session', { method: 'DELETE' });
     await sleep(1000);
-    await runStep(`Logging in as privacy superadmin ${privacySuperadminEmail}`, async () => {
+    await runStep(`Logging in as superadmin ${userLabel(privacySuperadminEmail, 'superadmin')}`, async () => {
       await loginWithEmailPassword(
         privacySuperadminEmail,
         privacySuperadminPassword,
@@ -525,7 +540,7 @@ async function main() {
 
     await request('/api/session', { method: 'DELETE' });
     await sleep(1000);
-    await runStep(`Relogging in as privacy admin ${privacyAdminEmail}`, async () => {
+    await runStep(`Relogging in as admin ${userLabel(privacyAdminEmail, 'admin')}`, async () => {
       await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin relogin');
     });
 
