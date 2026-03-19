@@ -127,15 +127,6 @@ export default function CompanyDashboardPage() {
         header: 'Project',
       },
       {
-        accessorKey: 'description',
-        header: 'Description',
-        Cell: ({ row }) => (
-          <Text size="sm" c="dimmed">
-            {row.original.description || row.original.id}
-          </Text>
-        ),
-      },
-      {
         accessorKey: 'visibility',
         header: 'Visibility',
         Cell: ({ row }) =>
@@ -144,18 +135,6 @@ export default function CompanyDashboardPage() {
           ) : (
             <Badge variant="light" color="blue">
               Company
-            </Badge>
-          ),
-      },
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        Cell: ({ row }) =>
-          row.original.status === 'active' ? (
-            <Badge variant="light">Active</Badge>
-          ) : (
-            <Badge variant="light" color="gray">
-              Deactivated
             </Badge>
           ),
       },
