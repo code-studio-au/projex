@@ -54,6 +54,22 @@ async function request(path, init = {}) {
   return { res, body };
 }
 
+async function requestHtml(path, init = {}) {
+  const headers = new Headers(init.headers ?? {});
+  const cookie = cookieHeader();
+  if (cookie) headers.set('cookie', cookie);
+  if (!headers.has('origin')) headers.set('origin', baseUrl);
+  if (!headers.has('referer')) headers.set('referer', `${baseUrl}/`);
+
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers,
+  });
+  storeSetCookie(res.headers);
+  const body = await res.text();
+  return { res, body };
+}
+
 function assertOk(result, label) {
   if (result.res.ok) return;
   throw new Error(`${label} failed: ${result.res.status} ${JSON.stringify(result.body)}`);
@@ -61,6 +77,16 @@ function assertOk(result, label) {
 
 function uniqueId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function assertHtmlOk(result, label) {
+  if (!result.res.ok) {
+    throw new Error(`${label} failed: ${result.res.status}`);
+  }
+  const contentType = result.res.headers.get('content-type') ?? '';
+  if (!contentType.includes('text/html')) {
+    throw new Error(`${label} did not return HTML (${contentType || 'no content-type'})`);
+  }
 }
 
 async function main() {
@@ -73,6 +99,11 @@ async function main() {
   const password = process.env.PROJEX_SMOKE_PASSWORD?.trim();
   const forceReset = process.env.PROJEX_SMOKE_FORCE_RESET === 'true';
   const resetEmail = process.env.PROJEX_SMOKE_RESET_EMAIL?.trim() || email;
+  const inviteEmail = process.env.PROJEX_SMOKE_INVITE_EMAIL?.trim();
+  const inviteName = process.env.PROJEX_SMOKE_INVITE_NAME?.trim() || 'Smoke Invite';
+  const inviteRole = process.env.PROJEX_SMOKE_INVITE_ROLE?.trim() || 'member';
+
+  assertHtmlOk(await requestHtml('/login'), 'login page');
 
   if (!email || !password || forceReset) {
     assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
@@ -140,6 +171,17 @@ async function main() {
   }
   if (!project?.id) throw new Error('No project available for smoke test');
 
+  assertHtmlOk(await requestHtml('/companies'), 'companies page');
+  assertHtmlOk(await requestHtml(`/c/${encodeURIComponent(company.id)}`), 'company page');
+  assertHtmlOk(
+    await requestHtml(`/c/${encodeURIComponent(company.id)}/p/${encodeURIComponent(project.id)}`),
+    'project page'
+  );
+  assertHtmlOk(
+    await requestHtml(`/c/${encodeURIComponent(company.id)}/p/${encodeURIComponent(project.id)}`),
+    'project refresh'
+  );
+
   assertOk(
     await request(`/api/projects/${encodeURIComponent(project.id)}/transactions`),
     'transactions list'
@@ -186,6 +228,31 @@ async function main() {
     ),
     'delete category'
   );
+
+  if (inviteEmail) {
+    const invite = await request(`/api/companies/${encodeURIComponent(company.id)}/users`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name: inviteName,
+        email: inviteEmail,
+        role: inviteRole,
+      }),
+    });
+    assertOk(invite, 'invite user');
+
+    const invitedUserId = invite.body?.user?.id;
+    if (!invitedUserId) {
+      throw new Error(`Invite user did not return a user id: ${JSON.stringify(invite.body)}`);
+    }
+
+    const resend = await request(
+      `/api/companies/${encodeURIComponent(company.id)}/users/${encodeURIComponent(invitedUserId)}/invite`,
+      { method: 'POST' }
+    );
+    assertOk(resend, 'resend invite');
+  } else {
+    console.info('Skipping invite flow; set PROJEX_SMOKE_INVITE_EMAIL to enable it');
+  }
 
   assertOk(await request('/api/session', { method: 'DELETE' }), 'logout');
   console.info('Smoke test passed');

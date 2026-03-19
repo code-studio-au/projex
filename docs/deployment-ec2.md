@@ -127,6 +127,7 @@ Use `/api/ready` for ALB target group health checks only if DB connectivity is r
 
 - `npm run smoke:server` (from trusted network against deployed URL)
 - If `PROJEX_SMOKE_RESET_EMAIL` is set, the smoke script will also verify that the password-reset request endpoint accepts that email.
+- If `PROJEX_SMOKE_INVITE_EMAIL` is set, the smoke script will also verify the company invite and resend-invite admin flow.
 - Confirm auth/session, company scoping, transaction CRUD, taxonomy/budget CRUD.
 - Refresh test:
   - `/companies`

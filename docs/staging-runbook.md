@@ -95,6 +95,10 @@ sudo systemctl status projex --no-pager -l
    - request a reset email
    - open the link
    - set a new password
+8. Optional invite smoke:
+   - set `PROJEX_SMOKE_INVITE_EMAIL`
+   - run `npm run smoke:server`
+   - confirm invite + resend-invite requests both succeed
 
 ## Create A Production Login
 
