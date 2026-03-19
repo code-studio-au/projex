@@ -75,6 +75,16 @@ function assertOk(result, label) {
   throw new Error(`${label} failed: ${result.res.status} ${JSON.stringify(result.body)}`);
 }
 
+function isInviteResendRateLimited(result) {
+  if (result.res.ok) return false;
+  if (result.res.status !== 500) return false;
+  const message =
+    result.body && typeof result.body === 'object' && 'message' in result.body
+      ? String(result.body.message ?? '')
+      : '';
+  return message.includes('Too many requests');
+}
+
 function uniqueId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
 }
@@ -249,7 +259,11 @@ async function main() {
       `/api/companies/${encodeURIComponent(company.id)}/users/${encodeURIComponent(invitedUserId)}/invite`,
       { method: 'POST' }
     );
-    assertOk(resend, 'resend invite');
+    if (isInviteResendRateLimited(resend)) {
+      console.info('Resend invite was rate-limited, which is acceptable for the immediate resend smoke check');
+    } else {
+      assertOk(resend, 'resend invite');
+    }
   } else {
     console.info('Skipping invite flow; set PROJEX_SMOKE_INVITE_EMAIL to enable it');
   }
