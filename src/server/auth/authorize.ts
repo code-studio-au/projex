@@ -36,6 +36,18 @@ async function loadMembershipSnapshot(db: Kysely<DB>): Promise<MembershipSnapsho
   };
 }
 
+async function projectAllowsSuperadminAccess(
+  db: Kysely<DB>,
+  projectId: ProjectId
+): Promise<boolean> {
+  const row = await db
+    .selectFrom('projects')
+    .select('allow_superadmin_access')
+    .where('id', '=', projectId)
+    .executeTakeFirst();
+  return row?.allow_superadmin_access ?? true;
+}
+
 export async function requireAuthorized(params: {
   db: Kysely<DB>;
   userId: UserId;
@@ -45,6 +57,17 @@ export async function requireAuthorized(params: {
 }): Promise<void> {
   const { db, userId, action, companyId, projectId } = params;
   const snap = await loadMembershipSnapshot(db);
+  const isSuperadmin = snap.companyMemberships.some(
+    (m) => m.userId === userId && m.role === 'superadmin'
+  );
+
+  if (isSuperadmin && projectId) {
+    const allowed = await projectAllowsSuperadminAccess(db, projectId);
+    if (!allowed) {
+      throw new AppError('FORBIDDEN', 'Superadmin access is disabled for this project');
+    }
+  }
+
   const ok = can({
     userId,
     action,

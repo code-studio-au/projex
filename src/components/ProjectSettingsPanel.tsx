@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Badge, Button, Group, Paper, Select, Stack, Text, Title } from '@mantine/core';
+import { Badge, Button, Group, Paper, Select, Stack, Switch, Text, Title } from '@mantine/core';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
 
@@ -168,6 +168,18 @@ export default function ProjectSettingsPanel(props: {
                 { value: 'private', label: 'Private (members only)' },
                 { value: 'company', label: 'Company-wide (visible to all company users)' },
               ]}
+              disabled={!canEditProject}
+            />
+            <Switch
+              label="Allow superadmin access"
+              description="Controls whether the global superadmin can open this project for support and troubleshooting. This is on by default for now."
+              checked={project.data.allowSuperadminAccess}
+              onChange={(event) =>
+                updateProject.mutate({
+                  id: projectId,
+                  allowSuperadminAccess: event.currentTarget.checked,
+                })
+              }
               disabled={!canEditProject}
             />
           </Stack>

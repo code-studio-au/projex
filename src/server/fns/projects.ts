@@ -24,6 +24,7 @@ type ProjectRow = {
   status: 'active' | 'archived';
   deactivated_at: string | null;
   visibility: 'company' | 'private';
+  allow_superadmin_access: boolean;
 };
 
 function toProject(row: ProjectRow): Project {
@@ -37,6 +38,7 @@ function toProject(row: ProjectRow): Project {
     status: row.status,
     deactivatedAt: row.deactivated_at ?? undefined,
     visibility: row.visibility,
+    allowSuperadminAccess: row.allow_superadmin_access,
   };
 }
 
@@ -89,13 +91,16 @@ export async function listProjectsServer(args: {
         'status',
         'deactivated_at',
         'visibility',
+        'allow_superadmin_access',
       ])
       .where('company_id', '=', args.companyId)
       .orderBy('name', 'asc')
       .execute();
 
     const isSuperadmin = await isSuperadminUser(userId);
-    if (isSuperadmin) return allRows.map(toProject);
+    if (isSuperadmin) {
+      return allRows.filter((p) => p.allow_superadmin_access).map(toProject);
+    }
     if (company.status === 'deactivated') return [];
 
     const companyRole = await getCompanyRole(userId, args.companyId);
@@ -130,6 +135,7 @@ export async function getProjectServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
+    const isSuperadmin = await isSuperadminUser(userId);
     const project = await db
       .selectFrom('projects')
       .select([
@@ -142,10 +148,13 @@ export async function getProjectServer(args: {
         'status',
         'deactivated_at',
         'visibility',
+        'allow_superadmin_access',
       ])
       .where('id', '=', args.projectId)
       .executeTakeFirst();
     if (!project) return null;
+
+    if (isSuperadmin && !project.allow_superadmin_access) return null;
 
     const company = await db
       .selectFrom('companies')
@@ -154,7 +163,6 @@ export async function getProjectServer(args: {
       .executeTakeFirst();
     if (!company) return null;
 
-    const isSuperadmin = await isSuperadminUser(userId);
     if (company.status === 'deactivated' && !isSuperadmin) return null;
     if (project.status === 'archived' && !isSuperadmin) {
       const cRole = await getCompanyRole(userId, project.company_id as CompanyId);
@@ -204,6 +212,7 @@ export async function createProjectServer(args: {
         status: 'active',
         deactivated_at: null,
         visibility: 'private',
+        allow_superadmin_access: true,
       })
       .returning([
         'id',
@@ -215,6 +224,7 @@ export async function createProjectServer(args: {
         'status',
         'deactivated_at',
         'visibility',
+        'allow_superadmin_access',
       ])
       .executeTakeFirstOrThrow();
 
@@ -241,6 +251,7 @@ export async function updateProjectServer(args: {
         'status',
         'deactivated_at',
         'visibility',
+        'allow_superadmin_access',
       ])
       .where('id', '=', args.input.id)
       .executeTakeFirst();
@@ -272,6 +283,9 @@ export async function updateProjectServer(args: {
     if (typeof args.input.status !== 'undefined') patch.status = args.input.status;
     if ('deactivatedAt' in args.input) patch.deactivated_at = args.input.deactivatedAt ?? null;
     if (typeof args.input.visibility !== 'undefined') patch.visibility = args.input.visibility;
+    if (typeof args.input.allowSuperadminAccess !== 'undefined') {
+      patch.allow_superadmin_access = args.input.allowSuperadminAccess;
+    }
 
     if (!Object.keys(patch).length) return toProject(existing);
 
@@ -289,6 +303,7 @@ export async function updateProjectServer(args: {
         'status',
         'deactivated_at',
         'visibility',
+        'allow_superadmin_access',
       ])
       .executeTakeFirstOrThrow();
     return toProject(updated);

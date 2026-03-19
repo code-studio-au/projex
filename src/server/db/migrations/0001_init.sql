@@ -23,7 +23,8 @@ create table if not exists projects (
   currency text not null check (currency in ('AUD', 'USD', 'EUR', 'GBP')),
   status text not null check (status in ('active', 'archived')),
   deactivated_at timestamptz null,
-  visibility text not null check (visibility in ('company', 'private'))
+  visibility text not null check (visibility in ('company', 'private')),
+  allow_superadmin_access boolean not null default true
 );
 
 create index if not exists idx_projects_company on projects(company_id);

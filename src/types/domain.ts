@@ -33,6 +33,8 @@ export type Project = {
   deactivatedAt?: string;
   /** Visibility within the company. */
   visibility: ProjectVisibility;
+  /** Whether global superadmin support access is permitted for this project. */
+  allowSuperadminAccess: boolean;
 };
 
 export type User = {

@@ -10,6 +10,7 @@ export const seedProjects: Project[] = [
     currency: 'AUD',
     status: 'active',
     visibility: 'company',
+    allowSuperadminAccess: true,
   },
   {
     id: asProjectId('prj_acme_beta'),
@@ -19,6 +20,7 @@ export const seedProjects: Project[] = [
     currency: 'AUD',
     status: 'active',
     visibility: 'company',
+    allowSuperadminAccess: true,
   },
   {
     id: asProjectId('prj_globex_ops'),
@@ -28,5 +30,6 @@ export const seedProjects: Project[] = [
     currency: 'AUD',
     status: 'active',
     visibility: 'company',
+    allowSuperadminAccess: true,
   },
 ];

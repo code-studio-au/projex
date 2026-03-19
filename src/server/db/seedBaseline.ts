@@ -58,6 +58,7 @@ export async function seedDatabaseToBaseline(): Promise<void> {
           status: p.status,
           deactivated_at: p.deactivatedAt ?? null,
           visibility: p.visibility,
+          allow_superadmin_access: p.allowSuperadminAccess,
         }))
       )
       .execute();

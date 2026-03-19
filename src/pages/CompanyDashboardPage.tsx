@@ -167,7 +167,11 @@ export default function CompanyDashboardPage() {
         minSize: 320,
         Cell: ({ row }) => {
           const project = row.original;
-          const canOpen = project.status === 'active' && access.can('project:view', project.id);
+          const canOpen =
+            project.status === 'active' &&
+            (isGlobalSuperadmin
+              ? project.allowSuperadminAccess
+              : access.can('project:view', project.id));
 
           return (
             <Group gap="xs" wrap="nowrap">
@@ -243,7 +247,7 @@ export default function CompanyDashboardPage() {
         },
       },
     ],
-    [access, canManageProjects, companyId, openConfirm]
+    [access, canManageProjects, companyId, isGlobalSuperadmin, openConfirm]
   );
 
   return (

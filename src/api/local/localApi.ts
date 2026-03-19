@@ -123,6 +123,10 @@ function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } 
   };
 }
 
+function projectAllowsSuperadminAccess(project: Project | undefined): boolean {
+  return project?.allowSuperadminAccess ?? true;
+}
+
 function assertUniqueTransactionKeysInProject(transactions: Txn[]) {
   const ids = new Set<string>();
   const externalIds = new Set<string>();
@@ -168,6 +172,12 @@ export class LocalApi implements ProjexApi {
   private assertCan(action: Action, companyId: CompanyId, projectId?: ProjectId) {
     const st = ensureState();
     const { userId } = this.requireSession();
+    if (projectId && this.isSuperadmin(userId, st)) {
+      const project = st.projects.find((p) => p.id === projectId);
+      if (!projectAllowsSuperadminAccess(project)) {
+        throw new AppError('FORBIDDEN', 'Superadmin access is disabled for this project');
+      }
+    }
     const ok = can({
       userId,
       companyId,
@@ -272,7 +282,9 @@ export class LocalApi implements ProjexApi {
     if (company.status === 'deactivated' && !this.isSuperadmin(s.userId, st)) return [];
 
     const all = st.projects.filter((p) => p.companyId === companyId);
-    if (this.isSuperadmin(s.userId, st)) return all;
+    if (this.isSuperadmin(s.userId, st)) {
+      return all.filter((p) => projectAllowsSuperadminAccess(p));
+    }
 
     // Exec/admin can see all projects in the company.
     const cRole = st.companyMemberships.find(
@@ -305,6 +317,7 @@ export class LocalApi implements ProjexApi {
     if (!s) return null;
     const p = st.projects.find((x) => x.id === projectId) ?? null;
     if (!p) return null;
+    if (this.isSuperadmin(s.userId, st) && !projectAllowsSuperadminAccess(p)) return null;
     const company = st.companies.find((c) => c.id === p.companyId) ?? null;
     if (!company) return null;
     if (company.status === 'deactivated' && !this.isSuperadmin(s.userId, st)) return null;
@@ -838,6 +851,7 @@ export class LocalApi implements ProjexApi {
       currency: 'AUD',
       status: 'active',
       visibility: 'private',
+      allowSuperadminAccess: true,
     };
     // Start with an empty slice (taxonomy/budgets/txns can be added later).
     const slice = st.dataByProjectId[id] ?? {

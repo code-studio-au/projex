@@ -20,6 +20,7 @@ export interface ProjectTable {
   status: 'active' | 'archived';
   deactivated_at: string | null;
   visibility: 'company' | 'private';
+  allow_superadmin_access: boolean;
 }
 
 export interface UserTable {
