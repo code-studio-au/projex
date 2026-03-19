@@ -89,6 +89,11 @@ export default function ProjectWorkspace(props: {
           </Stack>
 
           <Group gap="sm" wrap="wrap">
+            {headerReady && project.data?.allowSuperadminAccess ? (
+              <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="teal">
+                Superadmin access enabled
+              </Badge>
+            ) : null}
             {summaryReady ? (
               <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
                 Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, currencyCode)})

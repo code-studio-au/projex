@@ -160,21 +160,6 @@ export default function CompanyDashboardPage() {
           ),
       },
       {
-        accessorKey: 'allowSuperadminAccess',
-        header: 'Support',
-        enableSorting: false,
-        Cell: ({ row }) =>
-          row.original.allowSuperadminAccess ? (
-            <Badge variant="light" color="teal">
-              Superadmin access enabled
-            </Badge>
-          ) : (
-            <Badge variant="light" color="gray">
-              Superadmin access restricted
-            </Badge>
-          ),
-      },
-      {
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
