@@ -105,10 +105,18 @@ function resetCookies() {
 
 async function loginWithEmailPassword(email, password, label = 'auth login') {
   resetCookies();
-  const login = await request('/api/auth/sign-in/email', {
+  let login = await request('/api/auth/sign-in/email', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
+  if (login.res.status === 429) {
+    console.info(`${label} was rate-limited, retrying after a short backoff`);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    login = await request('/api/auth/sign-in/email', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  }
   assertOk(login, label);
   const session = await request('/api/session');
   assertOk(session, `${label} session`);
