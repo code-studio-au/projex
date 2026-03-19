@@ -99,6 +99,25 @@ function assertHtmlOk(result, label) {
   }
 }
 
+function resetCookies() {
+  cookieJar.clear();
+}
+
+async function loginWithEmailPassword(email, password, label = 'auth login') {
+  resetCookies();
+  const login = await request('/api/auth/sign-in/email', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  assertOk(login, label);
+  const session = await request('/api/session');
+  assertOk(session, `${label} session`);
+  if (!session.body?.userId) {
+    throw new Error(`${label} returned no session userId`);
+  }
+  return session.body.userId;
+}
+
 async function main() {
   console.info(`Smoke test against ${baseUrl}`);
 
@@ -112,6 +131,10 @@ async function main() {
   const inviteEmail = process.env.PROJEX_SMOKE_INVITE_EMAIL?.trim();
   const inviteName = process.env.PROJEX_SMOKE_INVITE_NAME?.trim() || 'Smoke Invite';
   const inviteRole = process.env.PROJEX_SMOKE_INVITE_ROLE?.trim() || 'member';
+  const privacyAdminEmail = process.env.PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL?.trim();
+  const privacyAdminPassword = process.env.PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD?.trim();
+  const privacySuperadminEmail = process.env.PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL?.trim();
+  const privacySuperadminPassword = process.env.PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD?.trim();
 
   assertHtmlOk(await requestHtml('/login'), 'login page');
 
@@ -122,11 +145,7 @@ async function main() {
   }
 
   if (email && password) {
-    const login = await request('/api/auth/sign-in/email', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    assertOk(login, 'auth login');
+    await loginWithEmailPassword(email, password, 'auth login');
   } else {
     const login = await request('/api/dev/session', {
       method: 'POST',
@@ -182,6 +201,7 @@ async function main() {
   if (!project?.id) throw new Error('No project available for smoke test');
 
   assertHtmlOk(await requestHtml('/companies'), 'companies page');
+  assertHtmlOk(await requestHtml('/account'), 'account page');
   assertHtmlOk(await requestHtml(`/c/${encodeURIComponent(company.id)}`), 'company page');
   assertHtmlOk(
     await requestHtml(`/c/${encodeURIComponent(company.id)}/p/${encodeURIComponent(project.id)}`),
@@ -266,6 +286,85 @@ async function main() {
     }
   } else {
     console.info('Skipping invite flow; set PROJEX_SMOKE_INVITE_EMAIL to enable it');
+  }
+
+  if (
+    privacyAdminEmail &&
+    privacyAdminPassword &&
+    privacySuperadminEmail &&
+    privacySuperadminPassword
+  ) {
+    console.info('Running project privacy toggle smoke flow');
+
+    await request('/api/session', { method: 'DELETE' });
+    await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin login');
+
+    const adminCompanies = await request('/api/companies');
+    assertOk(adminCompanies, 'privacy admin companies');
+    const adminCompany = (adminCompanies.body ?? [])[0];
+    if (!adminCompany?.id) throw new Error('No company available for privacy admin smoke test');
+
+    const adminProjects = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
+    assertOk(adminProjects, 'privacy admin projects');
+    const adminProject = (adminProjects.body ?? []).find((p) => p.status === 'active') ?? (adminProjects.body ?? [])[0];
+    if (!adminProject?.id) throw new Error('No project available for privacy admin smoke test');
+
+    const originalAccess = Boolean(adminProject.allowSuperadminAccess);
+
+    assertOk(
+      await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ allowSuperadminAccess: true }),
+      }),
+      'privacy enable superadmin access'
+    );
+
+    assertOk(
+      await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ allowSuperadminAccess: false }),
+      }),
+      'privacy disable superadmin access'
+    );
+
+    assertHtmlOk(
+      await requestHtml(`/c/${encodeURIComponent(adminCompany.id)}/p/${encodeURIComponent(adminProject.id)}`),
+      'privacy admin project page after disable'
+    );
+
+    await request('/api/session', { method: 'DELETE' });
+    await loginWithEmailPassword(
+      privacySuperadminEmail,
+      privacySuperadminPassword,
+      'privacy superadmin login'
+    );
+
+    const superProjects = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
+    assertOk(superProjects, 'privacy superadmin projects');
+    if ((superProjects.body ?? []).some((project) => project.id === adminProject.id)) {
+      throw new Error('Restricted project was still visible to superadmin');
+    }
+
+    const superProject = await request(`/api/projects/${encodeURIComponent(adminProject.id)}`);
+    assertOk(superProject, 'privacy superadmin project fetch');
+    if (superProject.body !== null) {
+      throw new Error('Restricted project still resolved for superadmin');
+    }
+
+    await request('/api/session', { method: 'DELETE' });
+    await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin relogin');
+
+    assertOk(
+      await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ allowSuperadminAccess: originalAccess }),
+      }),
+      'privacy restore superadmin access'
+    );
+  } else {
+    console.info(
+      'Skipping privacy toggle flow; set PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL, PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD, PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL, and PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD to enable it'
+    );
   }
 
   assertOk(await request('/api/session', { method: 'DELETE' }), 'logout');

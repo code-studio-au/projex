@@ -99,6 +99,13 @@ sudo systemctl status projex --no-pager -l
    - set `PROJEX_SMOKE_INVITE_EMAIL`
    - run `npm run smoke:server`
    - confirm invite + resend-invite requests both succeed
+9. Optional privacy-toggle smoke:
+   - set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`
+   - set `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`
+   - set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`
+   - set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`
+   - run `npm run smoke:server`
+   - confirm the script can disable superadmin project access, verify superadmin loses access, and restore the original setting
 
 ## Create A Production Login
 

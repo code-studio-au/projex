@@ -20,8 +20,10 @@ import { Route as ApiReadyRouteImport } from './routes/api.ready'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiCompaniesRouteImport } from './routes/api.companies'
 import { Route as AuthedCompaniesRouteImport } from './routes/_authed.companies'
+import { Route as AuthedAccountRouteImport } from './routes/_authed.account'
 import { Route as ApiProjectsProjectIdRouteImport } from './routes/api.projects.$projectId'
 import { Route as ApiMembershipsCompaniesRouteImport } from './routes/api.memberships.companies'
+import { Route as ApiMeProfileRouteImport } from './routes/api.me.profile'
 import { Route as ApiMeDefaultCompanyRouteImport } from './routes/api.me.default-company'
 import { Route as ApiDevSessionRouteImport } from './routes/api.dev.session'
 import { Route as ApiDevResetSeedRouteImport } from './routes/api.dev.reset-seed'
@@ -104,6 +106,11 @@ const AuthedCompaniesRoute = AuthedCompaniesRouteImport.update({
   path: '/companies',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedAccountRoute = AuthedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const ApiProjectsProjectIdRoute = ApiProjectsProjectIdRouteImport.update({
   id: '/api/projects/$projectId',
   path: '/api/projects/$projectId',
@@ -112,6 +119,11 @@ const ApiProjectsProjectIdRoute = ApiProjectsProjectIdRouteImport.update({
 const ApiMembershipsCompaniesRoute = ApiMembershipsCompaniesRouteImport.update({
   id: '/api/memberships/companies',
   path: '/api/memberships/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMeProfileRoute = ApiMeProfileRouteImport.update({
+  id: '/api/me/profile',
+  path: '/api/me/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMeDefaultCompanyRoute = ApiMeDefaultCompanyRouteImport.update({
@@ -275,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/account': typeof AuthedAccountRoute
   '/companies': typeof AuthedCompaniesRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
   '/api/health': typeof ApiHealthRoute
@@ -287,6 +300,7 @@ export interface FileRoutesByFullPath {
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
   '/api/dev/session': typeof ApiDevSessionRoute
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
+  '/api/me/profile': typeof ApiMeProfileRoute
   '/api/memberships/companies': typeof ApiMembershipsCompaniesRoute
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRouteWithChildren
   '/api/companies/$companyId/deactivate': typeof ApiCompaniesCompanyIdDeactivateRoute
@@ -316,6 +330,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/account': typeof AuthedAccountRoute
   '/companies': typeof AuthedCompaniesRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
   '/api/health': typeof ApiHealthRoute
@@ -327,6 +342,7 @@ export interface FileRoutesByTo {
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
   '/api/dev/session': typeof ApiDevSessionRoute
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
+  '/api/me/profile': typeof ApiMeProfileRoute
   '/api/memberships/companies': typeof ApiMembershipsCompaniesRoute
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRouteWithChildren
   '/api/companies/$companyId/deactivate': typeof ApiCompaniesCompanyIdDeactivateRoute
@@ -358,6 +374,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authed/account': typeof AuthedAccountRoute
   '/_authed/companies': typeof AuthedCompaniesRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
   '/api/health': typeof ApiHealthRoute
@@ -370,6 +387,7 @@ export interface FileRoutesById {
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
   '/api/dev/session': typeof ApiDevSessionRoute
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
+  '/api/me/profile': typeof ApiMeProfileRoute
   '/api/memberships/companies': typeof ApiMembershipsCompaniesRoute
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRouteWithChildren
   '/api/companies/$companyId/deactivate': typeof ApiCompaniesCompanyIdDeactivateRoute
@@ -401,6 +419,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/account'
     | '/companies'
     | '/api/companies'
     | '/api/health'
@@ -413,6 +432,7 @@ export interface FileRouteTypes {
     | '/api/dev/reset-seed'
     | '/api/dev/session'
     | '/api/me/default-company'
+    | '/api/me/profile'
     | '/api/memberships/companies'
     | '/api/projects/$projectId'
     | '/api/companies/$companyId/deactivate'
@@ -442,6 +462,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/account'
     | '/companies'
     | '/api/companies'
     | '/api/health'
@@ -453,6 +474,7 @@ export interface FileRouteTypes {
     | '/api/dev/reset-seed'
     | '/api/dev/session'
     | '/api/me/default-company'
+    | '/api/me/profile'
     | '/api/memberships/companies'
     | '/api/projects/$projectId'
     | '/api/companies/$companyId/deactivate'
@@ -483,6 +505,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/_authed/account'
     | '/_authed/companies'
     | '/api/companies'
     | '/api/health'
@@ -495,6 +518,7 @@ export interface FileRouteTypes {
     | '/api/dev/reset-seed'
     | '/api/dev/session'
     | '/api/me/default-company'
+    | '/api/me/profile'
     | '/api/memberships/companies'
     | '/api/projects/$projectId'
     | '/api/companies/$companyId/deactivate'
@@ -535,6 +559,7 @@ export interface RootRouteChildren {
   ApiDevResetSeedRoute: typeof ApiDevResetSeedRoute
   ApiDevSessionRoute: typeof ApiDevSessionRoute
   ApiMeDefaultCompanyRoute: typeof ApiMeDefaultCompanyRoute
+  ApiMeProfileRoute: typeof ApiMeProfileRoute
   ApiMembershipsCompaniesRoute: typeof ApiMembershipsCompaniesRoute
   ApiProjectsProjectIdRoute: typeof ApiProjectsProjectIdRouteWithChildren
 }
@@ -618,6 +643,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedCompaniesRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/account': {
+      id: '/_authed/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthedAccountRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/api/projects/$projectId': {
       id: '/api/projects/$projectId'
       path: '/api/projects/$projectId'
@@ -630,6 +662,13 @@ declare module '@tanstack/react-router' {
       path: '/api/memberships/companies'
       fullPath: '/api/memberships/companies'
       preLoaderRoute: typeof ApiMembershipsCompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/me/profile': {
+      id: '/api/me/profile'
+      path: '/api/me/profile'
+      fullPath: '/api/me/profile'
+      preLoaderRoute: typeof ApiMeProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/me/default-company': {
@@ -838,11 +877,13 @@ const AuthedCCompanyIdRouteWithChildren =
   AuthedCCompanyIdRoute._addFileChildren(AuthedCCompanyIdRouteChildren)
 
 interface AuthedRouteChildren {
+  AuthedAccountRoute: typeof AuthedAccountRoute
   AuthedCompaniesRoute: typeof AuthedCompaniesRoute
   AuthedCCompanyIdRoute: typeof AuthedCCompanyIdRouteWithChildren
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedAccountRoute: AuthedAccountRoute,
   AuthedCompaniesRoute: AuthedCompaniesRoute,
   AuthedCCompanyIdRoute: AuthedCCompanyIdRouteWithChildren,
 }
@@ -1006,6 +1047,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDevResetSeedRoute: ApiDevResetSeedRoute,
   ApiDevSessionRoute: ApiDevSessionRoute,
   ApiMeDefaultCompanyRoute: ApiMeDefaultCompanyRoute,
+  ApiMeProfileRoute: ApiMeProfileRoute,
   ApiMembershipsCompaniesRoute: ApiMembershipsCompaniesRoute,
   ApiProjectsProjectIdRoute: ApiProjectsProjectIdRouteWithChildren,
 }

@@ -67,6 +67,9 @@ export type ProjectCreateInput = Pick<Project, 'name'> & { id?: ProjectId };
 export type ProjectUpdateInput = Partial<Omit<Project, 'id'>> & { id: ProjectId };
 
 export type CompanyUpdateInput = Partial<Omit<Company, 'id'>> & { id: CompanyId };
+export type ProfileUpdateInput = {
+  name: string;
+};
 
 export type CompanyUserInviteResult = {
   user: User;
@@ -148,6 +151,7 @@ export interface ProjexApi {
 
   // helpers
   getDefaultCompanyIdForUser(userId: UserId): Promise<CompanyId | null>;
+  updateCurrentUserProfile(input: ProfileUpdateInput): Promise<User>;
   createUserInCompany(
     companyId: CompanyId,
     name: string,

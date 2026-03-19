@@ -16,7 +16,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import { useApi } from './hooks/useApi';
-import { companyRoute, homeRoute, landingRoute } from './router';
+import { accountRoute, companyRoute, homeRoute, landingRoute } from './router';
 import { theme } from './theme';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
@@ -164,6 +164,13 @@ export function AuthedLayout() {
                         </Stack>
                       </Menu.Item>
                     ) : null}
+                    <Menu.Item
+                      onClick={() => {
+                        router.navigate({ to: accountRoute.to });
+                      }}
+                    >
+                      Account settings
+                    </Menu.Item>
                     <Menu.Item
                       color="red"
                       onClick={() => {

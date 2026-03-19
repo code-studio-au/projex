@@ -28,6 +28,7 @@ import type {
   CsvImportMode,
   ProjectCreateInput,
   ProjectUpdateInput,
+  ProfileUpdateInput,
   Session,
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
@@ -359,6 +360,12 @@ export class ServerApi implements ProjexApi {
   async getDefaultCompanyIdForUser(_userId: UserId): Promise<CompanyId | null> {
     const res = await this.request<{ companyId: CompanyId | null }>('/api/me/default-company');
     return res.companyId;
+  }
+  async updateCurrentUserProfile(input: ProfileUpdateInput): Promise<User> {
+    return this.request<User>('/api/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
   }
   async createUserInCompany(
     _companyId: CompanyId,

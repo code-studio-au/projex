@@ -66,18 +66,16 @@ Notes:
 - it needs careful schema, indexing, retention, and UI design before we build it
 - include access/privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 3. Add self-service account/profile basics
+### 3. Extend self-service account/profile
 
 Examples:
 
-- change password while logged in
-- update display name
-- view current company memberships
+- verified email change flow
+- any additional account preferences that are worth surfacing later
 
 Why this matters:
 
-- reduces dependence on admin actions for common account changes
-- rounds out the now-working auth surface
+- keeps building on the now-working account basics without mixing simple profile edits with security-sensitive email changes
 
 ### 4. Add company-member lifecycle safeguards
 

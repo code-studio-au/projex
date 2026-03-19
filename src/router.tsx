@@ -25,6 +25,7 @@ const homeRouteApi = getRouteApi('/');
 const forgotPasswordRouteApi = getRouteApi('/forgot-password');
 const loginRouteApi = getRouteApi('/login');
 const landingRouteApi = getRouteApi('/_authed/companies');
+const accountRouteApi = getRouteApi('/_authed/account');
 const companyRouteApi = getRouteApi('/_authed/c/$companyId');
 const projectRouteApi = getRouteApi('/_authed/c/$companyId/p/$projectId');
 
@@ -32,6 +33,7 @@ export const homeRoute = { to: '/' as const, ...homeRouteApi };
 export const forgotPasswordRoute = { to: '/forgot-password' as const, ...forgotPasswordRouteApi };
 export const loginRoute = { to: '/login' as const, ...loginRouteApi };
 export const landingRoute = { to: '/companies' as const, ...landingRouteApi };
+export const accountRoute = { to: '/account' as const, ...accountRouteApi };
 export const companyRoute = { to: '/c/$companyId' as const, ...companyRouteApi };
 export const projectRoute = {
   to: '/c/$companyId/p/$projectId' as const,

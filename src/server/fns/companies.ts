@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
 
 import { AppError } from '../../api/errors';
-import type { CompanyUpdateInput, CompanyUserInviteResult } from '../../api/types';
+import type { CompanyUpdateInput, CompanyUserInviteResult, ProfileUpdateInput } from '../../api/types';
 import type { Company, CompanyId, CompanyRole, User, UserId } from '../../types';
 import { asCompanyId, asUserId } from '../../types';
 import { uid } from '../../utils/id';
@@ -400,6 +400,46 @@ export async function getDefaultCompanyIdForUserServer(args: {
     if (activePrimary) return asCompanyId(activePrimary.company_id);
 
     return asCompanyId(ranked[0].company_id);
+  });
+}
+
+export async function updateCurrentUserProfileServer(args: {
+  context: ServerFnContextInput;
+  input: ProfileUpdateInput;
+}): Promise<User> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    validateOrThrow(userNameSchema, args.input.name);
+    const db = getDb();
+    const userId = await requireServerUserId(args.context);
+    const nextName = args.input.name.trim();
+
+    await db
+      .updateTable('users')
+      .set({ name: nextName })
+      .where('id', '=', userId)
+      .execute();
+
+    await sql`
+      update ba_user
+      set name = ${nextName}
+      where id = ${userId}
+    `.execute(db);
+
+    const row = await db
+      .selectFrom('users')
+      .select(['id', 'email', 'name', 'disabled'])
+      .where('id', '=', userId)
+      .executeTakeFirst();
+
+    if (!row) throw new AppError('NOT_FOUND', 'Unknown user');
+
+    return {
+      id: row.id as UserId,
+      email: row.email,
+      name: row.name,
+      disabled: row.disabled || undefined,
+    };
   });
 }
 

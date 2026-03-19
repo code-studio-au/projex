@@ -29,6 +29,7 @@ import {
   listCompaniesServer,
   listUsersServer,
   reactivateCompanyServer,
+  updateCurrentUserProfileServer,
   updateCompanyServer,
 } from '../fns/companies';
 import {
@@ -246,6 +247,9 @@ export class StartServerApi implements ProjexApi {
   async getDefaultCompanyIdForUser(userId: UserId) {
     void userId;
     return getDefaultCompanyIdForUserServer({ context: this.context });
+  }
+  async updateCurrentUserProfile(input: { name: string }) {
+    return updateCurrentUserProfileServer({ context: this.context, input });
   }
   async createUserInCompany(companyId: CompanyId, name: string, email: string, role: CompanyRole) {
     return createUserInCompanyServer({

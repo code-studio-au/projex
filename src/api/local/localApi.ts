@@ -56,6 +56,7 @@ import type {
   CsvImportMode,
   ProjectCreateInput,
   ProjectUpdateInput,
+  ProfileUpdateInput,
   ProjexApi,
   Session,
   SubCategoryCreateInput,
@@ -190,6 +191,21 @@ export class LocalApi implements ProjexApi {
   }
   async getSession(): Promise<Session | null> {
     return readSession();
+  }
+
+  async updateCurrentUserProfile(input: ProfileUpdateInput): Promise<User> {
+    const st = ensureState();
+    const { userId } = this.requireSession();
+    validateOrThrow(userNameSchema, input.name);
+    const idx = st.users.findIndex((u) => u.id === userId);
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown user');
+    const users = st.users.slice();
+    users[idx] = {
+      ...users[idx],
+      name: input.name.trim(),
+    };
+    writeState({ ...st, users });
+    return users[idx];
   }
 
   async loginAs(userId: UserId): Promise<Session> {
