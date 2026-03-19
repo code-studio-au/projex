@@ -13,6 +13,16 @@ function fitTerminalLine(text) {
   return `${text.slice(0, Math.max(0, maxWidth - 3))}...`;
 }
 
+function companyLabel(company) {
+  if (!company) return 'unknown company';
+  return company.name || company.id || 'unknown company';
+}
+
+function projectLabel(project) {
+  if (!project) return 'unknown project';
+  return project.name || project.id || 'unknown project';
+}
+
 function stopSpinner(finalLabel = null) {
   if (!activeSpinner) return;
   clearInterval(activeSpinner.intervalId);
@@ -293,7 +303,7 @@ async function main() {
     );
   }
 
-  let projects = await runStep(`Loading projects for company ${company.id}`, async () => {
+  let projects = await runStep(`Loading projects for company ${companyLabel(company)}`, async () => {
     const result = await request(`/api/companies/${encodeURIComponent(company.id)}/projects`);
     assertOk(result, 'projects');
     return result;
@@ -336,7 +346,7 @@ async function main() {
     );
   });
 
-  await runStep(`Loading transactions for project ${project.id}`, async () => {
+  await runStep(`Loading transactions for project ${projectLabel(project)}`, async () => {
     assertOk(
       await request(`/api/projects/${encodeURIComponent(project.id)}/transactions`),
       'transactions list'
@@ -394,7 +404,7 @@ async function main() {
   });
 
   if (inviteEmail) {
-    const invite = await runStep(`Inviting ${inviteEmail} to company ${company.id} as ${inviteRole}`, async () => {
+    const invite = await runStep(`Inviting ${inviteEmail} to company ${companyLabel(company)} as ${inviteRole}`, async () => {
       const result = await request(`/api/companies/${encodeURIComponent(company.id)}/users`, {
         method: 'POST',
         body: JSON.stringify({
@@ -448,7 +458,7 @@ async function main() {
     const adminCompany = (adminCompanies.body ?? [])[0];
     if (!adminCompany?.id) throw new Error('No company available for privacy admin smoke test');
 
-    const adminProjects = await runStep(`Loading privacy admin projects for company ${adminCompany.id}`, async () => {
+    const adminProjects = await runStep(`Loading privacy admin projects for company ${companyLabel(adminCompany)}`, async () => {
       const result = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
       assertOk(result, 'privacy admin projects');
       return result;
@@ -458,7 +468,7 @@ async function main() {
 
     const originalAccess = Boolean(adminProject.allowSuperadminAccess);
 
-    await runStep(`Enabling superadmin access for project ${adminProject.id}`, async () => {
+    await runStep(`Enabling superadmin access for project ${projectLabel(adminProject)}`, async () => {
       assertOk(
         await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
           method: 'PATCH',
@@ -468,7 +478,7 @@ async function main() {
       );
     });
 
-    await runStep(`Disabling superadmin access for project ${adminProject.id}`, async () => {
+    await runStep(`Disabling superadmin access for project ${projectLabel(adminProject)}`, async () => {
       assertOk(
         await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
           method: 'PATCH',
@@ -520,7 +530,7 @@ async function main() {
     });
 
     await runStep(
-      `Restoring original superadmin access (${String(originalAccess)}) for project ${adminProject.id}`,
+      `Restoring original superadmin access (${String(originalAccess)}) for project ${projectLabel(adminProject)}`,
       async () => {
         assertOk(
           await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
