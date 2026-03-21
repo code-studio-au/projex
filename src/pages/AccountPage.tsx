@@ -24,6 +24,16 @@ import {
 } from '../queries/account';
 import { isServerAuthMode } from '../routes/-authMode';
 
+type EmailActivity = {
+  kind: 'requested' | 'resent' | 'cancelled';
+  message: string;
+  at: string;
+};
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString();
+}
+
 export default function AccountPage() {
   const session = useSessionQuery();
   const userId = session.data?.userId;
@@ -58,6 +68,7 @@ export default function AccountPage() {
   const [newEmail, setNewEmail] = useState('');
   const [emailChangeMessage, setEmailChangeMessage] = useState<string | null>(null);
   const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
+  const [emailActivity, setEmailActivity] = useState<EmailActivity | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -91,8 +102,13 @@ export default function AccountPage() {
       setEmailChangeMessage(
         result.delivery === 'log'
           ? `Email delivery is not configured, so the verification link for ${result.newEmail} was logged on the server.`
-          : `We sent a verification email to ${result.newEmail}. Confirm it there before your login email changes.`
+          : `We sent a verification email to ${result.newEmail}. Your current login email stays active until you confirm the new address.`
       );
+      setEmailActivity({
+        kind: 'requested',
+        message: `Verification requested for ${result.newEmail}`,
+        at: new Date().toISOString(),
+      });
       setNewEmail('');
     } catch (err) {
       setEmailChangeError(err instanceof Error ? err.message : 'Could not start the email change flow.');
@@ -107,8 +123,13 @@ export default function AccountPage() {
       setEmailChangeMessage(
         result.delivery === 'log'
           ? `Email delivery is not configured, so the verification link for ${result.newEmail} was logged on the server.`
-          : `We sent a fresh verification email to ${result.newEmail}.`
+          : `We sent a fresh verification email to ${result.newEmail}. The newest link is the one to use.`
       );
+      setEmailActivity({
+        kind: 'resent',
+        message: `Verification re-sent to ${result.newEmail}`,
+        at: new Date().toISOString(),
+      });
     } catch (err) {
       setEmailChangeError(err instanceof Error ? err.message : 'Could not resend the verification email.');
     }
@@ -119,7 +140,12 @@ export default function AccountPage() {
     setEmailChangeError(null);
     try {
       await cancelEmailChange.mutateAsync();
-      setEmailChangeMessage('The pending email change was cancelled.');
+      setEmailChangeMessage('The pending email change was cancelled. Your login email will stay unchanged unless you start a new request.');
+      setEmailActivity({
+        kind: 'cancelled',
+        message: 'Pending email change cancelled',
+        at: new Date().toISOString(),
+      });
     } catch (err) {
       setEmailChangeError(err instanceof Error ? err.message : 'Could not cancel the pending email change.');
     }
@@ -210,6 +236,11 @@ export default function AccountPage() {
             <>
               {emailChangeMessage ? <Alert color="green">{emailChangeMessage}</Alert> : null}
               {emailChangeError ? <Alert color="red">{emailChangeError}</Alert> : null}
+              {pendingEmailChangeQ.isLoading ? (
+                <Text size="sm" c="dimmed">
+                  Checking for a pending email change...
+                </Text>
+              ) : null}
               {pendingEmailChangeQ.data ? (
                 <Alert color="blue">
                   <Stack gap="xs">
@@ -218,10 +249,13 @@ export default function AccountPage() {
                       New email: {pendingEmailChangeQ.data.newEmail}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      Requested: {new Date(pendingEmailChangeQ.data.requestedAt).toLocaleString()}
+                      Requested: {formatDateTime(pendingEmailChangeQ.data.requestedAt)}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      Expires: {new Date(pendingEmailChangeQ.data.expiresAt).toLocaleString()}
+                      Expires: {formatDateTime(pendingEmailChangeQ.data.expiresAt)}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Check spam or junk if the email does not appear quickly. If you want to use a different email address, cancel this pending change first.
                     </Text>
                     <Group>
                       <Button
@@ -243,8 +277,19 @@ export default function AccountPage() {
                   </Stack>
                 </Alert>
               ) : null}
+              {emailActivity ? (
+                <Alert color="gray" variant="light">
+                  <Stack gap={4}>
+                    <Text fw={600}>Latest email change activity</Text>
+                    <Text size="sm">{emailActivity.message}</Text>
+                    <Text size="sm" c="dimmed">
+                      {formatDateTime(emailActivity.at)}
+                    </Text>
+                  </Stack>
+                </Alert>
+              ) : null}
               <Text size="sm" c="dimmed">
-                Your login email only changes after you confirm the new address from your inbox.
+                Your current login email remains active until you confirm the new address from your inbox.
               </Text>
               <TextInput
                 label="New email"

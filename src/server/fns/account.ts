@@ -236,7 +236,10 @@ export async function resendEmailChangeServer(args: {
     const currentUser = await requireCurrentUserRow(userId);
     const pending = await getPendingEmailChangeRow(userId);
     if (!pending) {
-      throw new AppError('NOT_FOUND', 'No pending email change to resend.');
+      throw new AppError(
+        'NOT_FOUND',
+        'There is no pending email change to resend. Start a new email change request from your account settings.'
+      );
     }
 
     return createPendingEmailChange({
@@ -281,7 +284,10 @@ export async function confirmEmailChangeServer(args: {
       .executeTakeFirst() as EmailChangeRow | undefined;
 
     if (!pending || pending.expires_at <= nowIso) {
-      throw new AppError('CONFLICT', 'This email change link is invalid or has expired.');
+      throw new AppError(
+        'CONFLICT',
+        'This email change link is invalid or has expired. Request a new verification email from your account settings.'
+      );
     }
 
     await assertEmailAvailable({ userId: pending.user_id, newEmail: pending.new_email });

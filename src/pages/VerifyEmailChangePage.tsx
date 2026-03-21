@@ -64,27 +64,41 @@ export default function VerifyEmailChangePage() {
       <Stack gap="md">
         <Title order={2}>Confirm email change</Title>
         {state.status === 'loading' ? (
-          <Text c="dimmed">Confirming your new email address...</Text>
+          <Text c="dimmed">
+            Confirming your new email address. This can take a moment if the link was opened in a fresh browser session.
+          </Text>
         ) : null}
         {state.status === 'success' ? (
           <>
             <Alert color="green">
-              Your Projex email has been updated to {state.email}.
+              Your Projex login email has been changed from {state.previousEmail} to {state.email}.
             </Alert>
             <Text c="dimmed">
-              Future sign-ins and password resets will use your new email address.
+              Future sign-ins, password resets, and invite emails will use your new email address.
             </Text>
-            <Text c="dimmed">Previous email: {state.previousEmail}</Text>
-            <Button component="a" href="/account">
-              Return to account
-            </Button>
+            <Text c="dimmed">
+              If another user is currently signed in in this browser, sign out first and then sign back in with {state.email}.
+            </Text>
+            <Stack>
+              <Button component="a" href="/account">
+                Return to account
+              </Button>
+              <Button component="a" href="/login" variant="light">
+                Go to sign in
+              </Button>
+            </Stack>
           </>
         ) : null}
         {state.status === 'error' ? (
           <>
             <Alert color="red">{state.message}</Alert>
-            <Text c="dimmed">Start the email change again from your account settings.</Text>
-            <Anchor href="/account">Return to account</Anchor>
+            <Text c="dimmed">
+              If the link expired, request a fresh email change from your account settings and use the newest verification email.
+            </Text>
+            <Stack gap="xs">
+              <Anchor href="/account">Return to account</Anchor>
+              <Anchor href="/login">Go to sign in</Anchor>
+            </Stack>
           </>
         ) : null}
       </Stack>
