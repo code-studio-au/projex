@@ -53,6 +53,7 @@ npm run smoke:server
 - EC2 deployment guide: `docs/deployment-ec2.md`
 - Production runbook: `docs/staging-runbook.md`
 - Email ops runbook: `docs/email-ops-runbook.md`
+- Verified email-change design: `docs/verified-email-change-design.md`
 - Product backlog: `docs/product-backlog.md`
 
 ## Auth modes (server)

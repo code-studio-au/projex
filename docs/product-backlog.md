@@ -77,6 +77,10 @@ Why this matters:
 
 - keeps building on the now-working account basics without mixing simple profile edits with security-sensitive email changes
 
+Design note:
+
+- see `docs/verified-email-change-design.md`
+
 ### 4. Add company-member lifecycle safeguards
 
 Examples:
