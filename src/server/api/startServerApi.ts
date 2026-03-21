@@ -32,7 +32,13 @@ import {
   updateCurrentUserProfileServer,
   updateCompanyServer,
 } from '../fns/companies';
-import { confirmEmailChangeServer, requestEmailChangeServer } from '../fns/account';
+import {
+  cancelEmailChangeServer,
+  confirmEmailChangeServer,
+  getPendingEmailChangeServer,
+  requestEmailChangeServer,
+  resendEmailChangeServer,
+} from '../fns/account';
 import {
   deleteCompanyMembershipServer,
   deleteProjectMembershipServer,
@@ -245,8 +251,17 @@ export class StartServerApi implements ProjexApi {
   }
 
   // helpers
+  async getPendingEmailChange() {
+    return getPendingEmailChangeServer({ context: this.context });
+  }
   async requestEmailChange(input: { newEmail: string }) {
     return requestEmailChangeServer({ context: this.context, input });
+  }
+  async resendEmailChange() {
+    return resendEmailChangeServer({ context: this.context });
+  }
+  async cancelEmailChange() {
+    return cancelEmailChangeServer({ context: this.context });
   }
   async confirmEmailChange(token: string) {
     return confirmEmailChangeServer({ context: this.context, token });

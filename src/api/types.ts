@@ -81,6 +81,12 @@ export type EmailChangeRequestResult = {
   delivery: 'email' | 'log';
 };
 
+export type PendingEmailChange = {
+  newEmail: string;
+  requestedAt: string;
+  expiresAt: string;
+};
+
 export type EmailChangeConfirmResult = {
   email: string;
   previousEmail: string;
@@ -167,7 +173,10 @@ export interface ProjexApi {
   // helpers
   getDefaultCompanyIdForUser(userId: UserId): Promise<CompanyId | null>;
   updateCurrentUserProfile(input: ProfileUpdateInput): Promise<User>;
+  getPendingEmailChange(): Promise<PendingEmailChange | null>;
   requestEmailChange(input: EmailChangeRequestInput): Promise<EmailChangeRequestResult>;
+  resendEmailChange(): Promise<EmailChangeRequestResult>;
+  cancelEmailChange(): Promise<void>;
   confirmEmailChange(token: string): Promise<EmailChangeConfirmResult>;
   createUserInCompany(
     companyId: CompanyId,

@@ -5,6 +5,7 @@ import { withApi } from './-api-shared';
 export const Route = createFileRoute('/api/me/email-change')({
   server: {
     handlers: {
+      GET: async ({ request }) => withApi(request, (api) => api.getPendingEmailChange()),
       POST: async ({ request }) => {
         const body = await request.json().catch(() => null);
         return withApi(request, (api) =>
@@ -13,6 +14,10 @@ export const Route = createFileRoute('/api/me/email-change')({
           })
         );
       },
+      DELETE: async ({ request }) => withApi(request, async (api) => {
+        await api.cancelEmailChange();
+        return { ok: true };
+      }),
     },
   },
 });

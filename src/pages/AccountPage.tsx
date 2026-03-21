@@ -15,7 +15,13 @@ import {
 import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import { useCompaniesQuery, useUsersQuery } from '../queries/reference';
-import { useRequestEmailChangeMutation, useUpdateCurrentUserProfileMutation } from '../queries/account';
+import {
+  useCancelEmailChangeMutation,
+  usePendingEmailChangeQuery,
+  useRequestEmailChangeMutation,
+  useResendEmailChangeMutation,
+  useUpdateCurrentUserProfileMutation,
+} from '../queries/account';
 import { isServerAuthMode } from '../routes/-authMode';
 
 export default function AccountPage() {
@@ -25,7 +31,10 @@ export default function AccountPage() {
   const membershipsQ = useAllCompanyMembershipsQuery();
   const companiesQ = useCompaniesQuery(userId ?? undefined);
   const updateProfile = useUpdateCurrentUserProfileMutation();
+  const pendingEmailChangeQ = usePendingEmailChangeQuery();
   const requestEmailChange = useRequestEmailChangeMutation();
+  const resendEmailChange = useResendEmailChangeMutation();
+  const cancelEmailChange = useCancelEmailChangeMutation();
 
   const currentUser = useMemo(
     () => (usersQ.data ?? []).find((user) => user.id === userId) ?? null,
@@ -87,6 +96,32 @@ export default function AccountPage() {
       setNewEmail('');
     } catch (err) {
       setEmailChangeError(err instanceof Error ? err.message : 'Could not start the email change flow.');
+    }
+  }
+
+  async function handleResendEmailChange() {
+    setEmailChangeMessage(null);
+    setEmailChangeError(null);
+    try {
+      const result = await resendEmailChange.mutateAsync();
+      setEmailChangeMessage(
+        result.delivery === 'log'
+          ? `Email delivery is not configured, so the verification link for ${result.newEmail} was logged on the server.`
+          : `We sent a fresh verification email to ${result.newEmail}.`
+      );
+    } catch (err) {
+      setEmailChangeError(err instanceof Error ? err.message : 'Could not resend the verification email.');
+    }
+  }
+
+  async function handleCancelEmailChange() {
+    setEmailChangeMessage(null);
+    setEmailChangeError(null);
+    try {
+      await cancelEmailChange.mutateAsync();
+      setEmailChangeMessage('The pending email change was cancelled.');
+    } catch (err) {
+      setEmailChangeError(err instanceof Error ? err.message : 'Could not cancel the pending email change.');
     }
   }
 
@@ -175,6 +210,39 @@ export default function AccountPage() {
             <>
               {emailChangeMessage ? <Alert color="green">{emailChangeMessage}</Alert> : null}
               {emailChangeError ? <Alert color="red">{emailChangeError}</Alert> : null}
+              {pendingEmailChangeQ.data ? (
+                <Alert color="blue">
+                  <Stack gap="xs">
+                    <Text fw={600}>Pending email change</Text>
+                    <Text size="sm">
+                      New email: {pendingEmailChangeQ.data.newEmail}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Requested: {new Date(pendingEmailChangeQ.data.requestedAt).toLocaleString()}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Expires: {new Date(pendingEmailChangeQ.data.expiresAt).toLocaleString()}
+                    </Text>
+                    <Group>
+                      <Button
+                        variant="light"
+                        onClick={handleResendEmailChange}
+                        loading={resendEmailChange.isPending}
+                      >
+                        Resend verification
+                      </Button>
+                      <Button
+                        color="red"
+                        variant="light"
+                        onClick={handleCancelEmailChange}
+                        loading={cancelEmailChange.isPending}
+                      >
+                        Cancel pending change
+                      </Button>
+                    </Group>
+                  </Stack>
+                </Alert>
+              ) : null}
               <Text size="sm" c="dimmed">
                 Your login email only changes after you confirm the new address from your inbox.
               </Text>
@@ -183,12 +251,13 @@ export default function AccountPage() {
                 value={newEmail}
                 onChange={(event) => setNewEmail(event.currentTarget.value)}
                 autoComplete="email"
+                disabled={Boolean(pendingEmailChangeQ.data)}
               />
               <Group justify="flex-end">
                 <Button
                   onClick={handleEmailChangeRequest}
                   loading={requestEmailChange.isPending}
-                  disabled={!newEmail.trim()}
+                  disabled={!newEmail.trim() || Boolean(pendingEmailChangeQ.data)}
                 >
                   Send verification email
                 </Button>

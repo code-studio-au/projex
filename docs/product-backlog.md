@@ -33,6 +33,10 @@ Examples:
 - company member added
 - company member removed
 - invite email resent
+- email change requested
+- email change verification resent
+- pending email change cancelled
+- email change confirmed
 - company role changed
 - project superadmin support access toggled on/off
 - project visibility changed

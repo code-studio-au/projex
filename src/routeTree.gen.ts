@@ -40,6 +40,7 @@ import { Route as ApiProjectsProjectIdMembershipsRouteImport } from './routes/ap
 import { Route as ApiProjectsProjectIdDeactivateRouteImport } from './routes/api.projects.$projectId.deactivate'
 import { Route as ApiProjectsProjectIdCategoriesRouteImport } from './routes/api.projects.$projectId.categories'
 import { Route as ApiProjectsProjectIdBudgetsRouteImport } from './routes/api.projects.$projectId.budgets'
+import { Route as ApiMeEmailChangeResendRouteImport } from './routes/api.me.email-change.resend'
 import { Route as ApiMeEmailChangeConfirmRouteImport } from './routes/api.me.email-change.confirm'
 import { Route as ApiCompaniesCompanyIdUsersRouteImport } from './routes/api.companies.$companyId.users'
 import { Route as ApiCompaniesCompanyIdReactivateRouteImport } from './routes/api.companies.$companyId.reactivate'
@@ -216,6 +217,11 @@ const ApiProjectsProjectIdBudgetsRoute =
     path: '/budgets',
     getParentRoute: () => ApiProjectsProjectIdRoute,
   } as any)
+const ApiMeEmailChangeResendRoute = ApiMeEmailChangeResendRouteImport.update({
+  id: '/resend',
+  path: '/resend',
+  getParentRoute: () => ApiMeEmailChangeRoute,
+} as any)
 const ApiMeEmailChangeConfirmRoute = ApiMeEmailChangeConfirmRouteImport.update({
   id: '/confirm',
   path: '/confirm',
@@ -330,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
+  '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -375,6 +382,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
+  '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -423,6 +431,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
+  '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -471,6 +480,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/users'
     | '/api/me/email-change/confirm'
+    | '/api/me/email-change/resend'
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
@@ -516,6 +526,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/users'
     | '/api/me/email-change/confirm'
+    | '/api/me/email-change/resend'
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
@@ -563,6 +574,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/users'
     | '/api/me/email-change/confirm'
+    | '/api/me/email-change/resend'
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
@@ -821,6 +833,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdBudgetsRouteImport
       parentRoute: typeof ApiProjectsProjectIdRoute
     }
+    '/api/me/email-change/resend': {
+      id: '/api/me/email-change/resend'
+      path: '/resend'
+      fullPath: '/api/me/email-change/resend'
+      preLoaderRoute: typeof ApiMeEmailChangeResendRouteImport
+      parentRoute: typeof ApiMeEmailChangeRoute
+    }
     '/api/me/email-change/confirm': {
       id: '/api/me/email-change/confirm'
       path: '/confirm'
@@ -1003,10 +1022,12 @@ const ApiCompaniesRouteWithChildren = ApiCompaniesRoute._addFileChildren(
 
 interface ApiMeEmailChangeRouteChildren {
   ApiMeEmailChangeConfirmRoute: typeof ApiMeEmailChangeConfirmRoute
+  ApiMeEmailChangeResendRoute: typeof ApiMeEmailChangeResendRoute
 }
 
 const ApiMeEmailChangeRouteChildren: ApiMeEmailChangeRouteChildren = {
   ApiMeEmailChangeConfirmRoute: ApiMeEmailChangeConfirmRoute,
+  ApiMeEmailChangeResendRoute: ApiMeEmailChangeResendRoute,
 }
 
 const ApiMeEmailChangeRouteWithChildren =

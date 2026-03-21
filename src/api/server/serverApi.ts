@@ -29,6 +29,7 @@ import type {
   EmailChangeConfirmResult,
   EmailChangeRequestInput,
   EmailChangeRequestResult,
+  PendingEmailChange,
   ProjectCreateInput,
   ProjectUpdateInput,
   ProfileUpdateInput,
@@ -370,10 +371,23 @@ export class ServerApi implements ProjexApi {
       body: JSON.stringify(input),
     });
   }
+  async getPendingEmailChange(): Promise<PendingEmailChange | null> {
+    return this.request<PendingEmailChange | null>('/api/me/email-change');
+  }
   async requestEmailChange(input: EmailChangeRequestInput): Promise<EmailChangeRequestResult> {
     return this.request<EmailChangeRequestResult>('/api/me/email-change', {
       method: 'POST',
       body: JSON.stringify(input),
+    });
+  }
+  async resendEmailChange(): Promise<EmailChangeRequestResult> {
+    return this.request<EmailChangeRequestResult>('/api/me/email-change/resend', {
+      method: 'POST',
+    });
+  }
+  async cancelEmailChange(): Promise<void> {
+    await this.request<void>('/api/me/email-change', {
+      method: 'DELETE',
     });
   }
   async confirmEmailChange(token: string): Promise<EmailChangeConfirmResult> {

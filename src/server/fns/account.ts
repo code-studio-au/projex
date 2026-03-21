@@ -2,7 +2,12 @@ import { createHash, randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
 
 import { AppError } from '../../api/errors';
-import type { EmailChangeConfirmResult, EmailChangeRequestInput, EmailChangeRequestResult } from '../../api/types';
+import type {
+  EmailChangeConfirmResult,
+  EmailChangeRequestInput,
+  EmailChangeRequestResult,
+  PendingEmailChange,
+} from '../../api/types';
 import { uid } from '../../utils/id';
 import { emailSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
@@ -48,6 +53,10 @@ function buildEmailChangeVerificationUrl(token: string): string {
   return url.toString();
 }
 
+function hasExpired(expiresAt: string): boolean {
+  return Date.parse(expiresAt) <= Date.now();
+}
+
 async function requireCurrentUserRow(userId: string) {
   const db = getDb();
   const row = await db
@@ -57,6 +66,31 @@ async function requireCurrentUserRow(userId: string) {
     .executeTakeFirst();
   if (!row) throw new AppError('NOT_FOUND', 'Unknown user');
   return row;
+}
+
+function toPendingEmailChange(row: EmailChangeRow): PendingEmailChange {
+  return {
+    newEmail: row.new_email,
+    requestedAt: row.requested_at,
+    expiresAt: row.expires_at,
+  };
+}
+
+async function getPendingEmailChangeRow(userId: string): Promise<EmailChangeRow | null> {
+  const db = getDb();
+  const row = (await db
+    .selectFrom('email_change_requests')
+    .selectAll()
+    .where('user_id', '=', userId)
+    .where('consumed_at', 'is', null)
+    .orderBy('requested_at desc')
+    .executeTakeFirst()) as EmailChangeRow | undefined;
+
+  if (!row) return null;
+  if (!hasExpired(row.expires_at)) return row;
+
+  await db.deleteFrom('email_change_requests').where('id', '=', row.id).execute();
+  return null;
 }
 
 async function assertEmailAvailable(args: { userId: string; newEmail: string }) {
@@ -112,6 +146,60 @@ async function sendEmailChangeVerificationEmail(args: {
   });
 }
 
+async function createPendingEmailChange(args: {
+  userId: string;
+  currentEmail: string;
+  currentName: string;
+  newEmail: string;
+}): Promise<EmailChangeRequestResult> {
+  await assertEmailAvailable({ userId: args.userId, newEmail: args.newEmail });
+
+  const token = randomBytes(32).toString('hex');
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const db = getDb();
+
+  await db.transaction().execute(async (trx) => {
+    await trx.deleteFrom('email_change_requests').where('user_id', '=', args.userId).execute();
+    await trx
+      .insertInto('email_change_requests')
+      .values({
+        id: uid('ecr'),
+        user_id: args.userId,
+        current_email: args.currentEmail,
+        new_email: args.newEmail,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+        consumed_at: null,
+      })
+      .execute();
+  });
+
+  const delivery = await sendEmailChangeVerificationEmail({
+    currentName: args.currentName,
+    currentEmail: args.currentEmail,
+    newEmail: args.newEmail,
+    token,
+  });
+
+  return {
+    newEmail: args.newEmail,
+    expiresAt,
+    delivery,
+  };
+}
+
+export async function getPendingEmailChangeServer(args: {
+  context: ServerFnContextInput;
+}): Promise<PendingEmailChange | null> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const userId = await requireServerUserId(args.context);
+    const pending = await getPendingEmailChangeRow(userId);
+    return pending ? toPendingEmailChange(pending) : null;
+  });
+}
+
 export async function requestEmailChangeServer(args: {
   context: ServerFnContextInput;
   input: EmailChangeRequestInput;
@@ -130,41 +218,44 @@ export async function requestEmailChangeServer(args: {
       throw new AppError('VALIDATION_ERROR', 'Enter a different email address.');
     }
 
-    await assertEmailAvailable({ userId, newEmail: nextEmail });
-
-    const token = randomBytes(32).toString('hex');
-    const tokenHash = hashToken(token);
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const db = getDb();
-
-    await db.transaction().execute(async (trx) => {
-      await trx.deleteFrom('email_change_requests').where('user_id', '=', userId).execute();
-      await trx
-        .insertInto('email_change_requests')
-        .values({
-          id: uid('ecr'),
-          user_id: userId,
-          current_email: currentUser.email,
-          new_email: nextEmail,
-          token_hash: tokenHash,
-          expires_at: expiresAt,
-          consumed_at: null,
-        })
-        .execute();
-    });
-
-    const delivery = await sendEmailChangeVerificationEmail({
-      currentName: currentUser.name,
+    return createPendingEmailChange({
+      userId,
       currentEmail: currentUser.email,
+      currentName: currentUser.name,
       newEmail: nextEmail,
-      token,
     });
+  });
+}
 
-    return {
-      newEmail: nextEmail,
-      expiresAt,
-      delivery,
-    };
+export async function resendEmailChangeServer(args: {
+  context: ServerFnContextInput;
+}): Promise<EmailChangeRequestResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const userId = await requireServerUserId(args.context);
+    const currentUser = await requireCurrentUserRow(userId);
+    const pending = await getPendingEmailChangeRow(userId);
+    if (!pending) {
+      throw new AppError('NOT_FOUND', 'No pending email change to resend.');
+    }
+
+    return createPendingEmailChange({
+      userId,
+      currentEmail: currentUser.email,
+      currentName: currentUser.name,
+      newEmail: pending.new_email,
+    });
+  });
+}
+
+export async function cancelEmailChangeServer(args: {
+  context: ServerFnContextInput;
+}): Promise<void> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const userId = await requireServerUserId(args.context);
+    const db = getDb();
+    await db.deleteFrom('email_change_requests').where('user_id', '=', userId).execute();
   });
 }
 
@@ -209,15 +300,8 @@ export async function confirmEmailChangeServer(args: {
       `.execute(trx);
 
       await trx
-        .updateTable('email_change_requests')
-        .set({ consumed_at: nowIso })
-        .where('id', '=', pending.id)
-        .execute();
-
-      await trx
         .deleteFrom('email_change_requests')
-        .where('user_id', '=', pending.user_id)
-        .where('id', '!=', pending.id)
+        .where('id', '=', pending.id)
         .execute();
     });
 
