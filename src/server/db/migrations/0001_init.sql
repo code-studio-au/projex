@@ -33,7 +33,6 @@ create table if not exists projects (
   id text primary key,
   company_id text not null references companies(id) on delete cascade,
   name text not null,
-  description text null,
   currency text not null check (currency in ('AUD', 'USD', 'EUR', 'GBP')),
   status text not null check (status in ('active', 'archived')),
   deactivated_at timestamptz null,

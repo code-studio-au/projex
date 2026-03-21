@@ -18,7 +18,6 @@ type ProjectRow = {
   id: string;
   company_id: string;
   name: string;
-  description: string | null;
   budget_total_cents: number;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
@@ -32,7 +31,6 @@ function toProject(row: ProjectRow): Project {
     id: row.id as ProjectId,
     companyId: row.company_id as CompanyId,
     name: row.name,
-    description: row.description ?? undefined,
     budgetTotalCents: Number(row.budget_total_cents),
     currency: row.currency,
     status: row.status,
@@ -85,7 +83,6 @@ export async function listProjectsServer(args: {
         'id',
         'company_id',
         'name',
-        'description',
         'budget_total_cents',
         'currency',
         'status',
@@ -142,7 +139,6 @@ export async function getProjectServer(args: {
         'id',
         'company_id',
         'name',
-        'description',
         'budget_total_cents',
         'currency',
         'status',
@@ -206,7 +202,6 @@ export async function createProjectServer(args: {
         id,
         company_id: args.companyId,
         name: args.input.name.trim(),
-        description: null,
         budget_total_cents: 0,
         currency: 'AUD',
         status: 'active',
@@ -218,7 +213,6 @@ export async function createProjectServer(args: {
         'id',
         'company_id',
         'name',
-        'description',
         'budget_total_cents',
         'currency',
         'status',
@@ -245,7 +239,6 @@ export async function updateProjectServer(args: {
         'id',
         'company_id',
         'name',
-        'description',
         'budget_total_cents',
         'currency',
         'status',
@@ -275,7 +268,6 @@ export async function updateProjectServer(args: {
 
     const patch: Record<string, unknown> = {};
     if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
-    if ('description' in args.input) patch.description = args.input.description ?? null;
     if (typeof args.input.budgetTotalCents !== 'undefined') {
       patch.budget_total_cents = args.input.budgetTotalCents;
     }
@@ -297,7 +289,6 @@ export async function updateProjectServer(args: {
         'id',
         'company_id',
         'name',
-        'description',
         'budget_total_cents',
         'currency',
         'status',

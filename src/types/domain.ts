@@ -25,7 +25,6 @@ export type Project = {
   id: ProjectId;
   companyId: CompanyId;
   name: string;
-  description?: string;
   budgetTotalCents: number;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
