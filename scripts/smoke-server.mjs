@@ -1,9 +1,37 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+for (const envFileName of ['.env.local', '.env.smoke.local']) {
+  loadEnvFile(path.resolve(process.cwd(), envFileName));
+}
+
 const baseUrl = (process.env.PROJEX_SMOKE_BASE_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
 
 const cookieJar = new Map();
 const interactiveTerminal = Boolean(process.stdout.isTTY && !process.env.CI);
 const spinnerFrames = ['-', '\\', '|', '/'];
 let activeSpinner = null;
+
+function loadEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
+    if (!match) continue;
+    const [, key, rawValue] = match;
+    if (process.env[key] != null) continue;
+    let value = rawValue.trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+}
 
 function logSection(title) {
   stopSpinner();
