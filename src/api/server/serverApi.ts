@@ -26,6 +26,9 @@ import type {
   CompanyUserInviteResult,
   CompanyUpdateInput,
   CsvImportMode,
+  EmailChangeConfirmResult,
+  EmailChangeRequestInput,
+  EmailChangeRequestResult,
   ProjectCreateInput,
   ProjectUpdateInput,
   ProfileUpdateInput,
@@ -365,6 +368,18 @@ export class ServerApi implements ProjexApi {
     return this.request<User>('/api/me/profile', {
       method: 'PATCH',
       body: JSON.stringify(input),
+    });
+  }
+  async requestEmailChange(input: EmailChangeRequestInput): Promise<EmailChangeRequestResult> {
+    return this.request<EmailChangeRequestResult>('/api/me/email-change', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+  async confirmEmailChange(token: string): Promise<EmailChangeConfirmResult> {
+    return this.request<EmailChangeConfirmResult>('/api/me/email-change/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
     });
   }
   async createUserInCompany(

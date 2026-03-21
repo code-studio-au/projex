@@ -196,3 +196,6 @@ If login works but refresh breaks:
   - no dev endpoints
 
 That split is intentional. Avoid “server pretending to be local” configuration in production.
+
+
+Email change verification uses `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL` when set, and otherwise falls back to `BETTER_AUTH_URL/verify-email-change`.

@@ -54,6 +54,9 @@ import type {
   CompanyUserInviteResult,
   CompanyUpdateInput,
   CsvImportMode,
+  EmailChangeRequestInput,
+  EmailChangeRequestResult,
+  EmailChangeConfirmResult,
   ProjectCreateInput,
   ProjectUpdateInput,
   ProfileUpdateInput,
@@ -191,6 +194,20 @@ export class LocalApi implements ProjexApi {
   }
   async getSession(): Promise<Session | null> {
     return readSession();
+  }
+
+  async requestEmailChange(_input: EmailChangeRequestInput): Promise<EmailChangeRequestResult> {
+    throw new AppError(
+      'NOT_IMPLEMENTED',
+      'Verified email change is only available in server-auth mode.'
+    );
+  }
+
+  async confirmEmailChange(_token: string): Promise<EmailChangeConfirmResult> {
+    throw new AppError(
+      'NOT_IMPLEMENTED',
+      'Verified email change is only available in server-auth mode.'
+    );
   }
 
   async updateCurrentUserProfile(input: ProfileUpdateInput): Promise<User> {

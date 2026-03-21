@@ -30,6 +30,17 @@ export interface UserTable {
   disabled: boolean;
 }
 
+export interface EmailChangeRequestTable {
+  id: string;
+  user_id: string;
+  current_email: string;
+  new_email: string;
+  token_hash: string;
+  requested_at: Generated<string>;
+  expires_at: string;
+  consumed_at: string | null;
+}
+
 export interface CompanyMembershipTable {
   company_id: string;
   user_id: string;
@@ -95,6 +106,7 @@ export interface DB {
   companies: CompanyTable;
   projects: ProjectTable;
   users: UserTable;
+  email_change_requests: EmailChangeRequestTable;
   company_memberships: CompanyMembershipTable;
   project_memberships: ProjectMembershipTable;
   txns: TxnTable;

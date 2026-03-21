@@ -15,6 +15,7 @@ export async function seedDatabaseToBaseline(): Promise<void> {
     await trx.deleteFrom('budget_lines').execute();
     await trx.deleteFrom('sub_categories').execute();
     await trx.deleteFrom('categories').execute();
+    await trx.deleteFrom('email_change_requests').execute();
     await trx.deleteFrom('project_memberships').execute();
     await trx.deleteFrom('company_memberships').execute();
     await trx.deleteFrom('projects').execute();

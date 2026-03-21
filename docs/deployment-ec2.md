@@ -136,3 +136,6 @@ Use `/api/ready` for ALB target group health checks only if DB connectivity is r
   - a company page
   - a project page
   - a budget page
+
+
+Email change verification uses `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL` when set, and otherwise falls back to `BETTER_AUTH_URL/verify-email-change`.

@@ -15,7 +15,7 @@ import {
 import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import { useCompaniesQuery, useUsersQuery } from '../queries/reference';
-import { useUpdateCurrentUserProfileMutation } from '../queries/account';
+import { useRequestEmailChangeMutation, useUpdateCurrentUserProfileMutation } from '../queries/account';
 import { isServerAuthMode } from '../routes/-authMode';
 
 export default function AccountPage() {
@@ -25,6 +25,7 @@ export default function AccountPage() {
   const membershipsQ = useAllCompanyMembershipsQuery();
   const companiesQ = useCompaniesQuery(userId ?? undefined);
   const updateProfile = useUpdateCurrentUserProfileMutation();
+  const requestEmailChange = useRequestEmailChangeMutation();
 
   const currentUser = useMemo(
     () => (usersQ.data ?? []).find((user) => user.id === userId) ?? null,
@@ -44,6 +45,10 @@ export default function AccountPage() {
   const [name, setName] = useState('');
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+
+  const [newEmail, setNewEmail] = useState('');
+  const [emailChangeMessage, setEmailChangeMessage] = useState<string | null>(null);
+  const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -65,6 +70,23 @@ export default function AccountPage() {
       setProfileMessage('Your display name was updated.');
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : 'Could not update your display name.');
+    }
+  }
+
+  async function handleEmailChangeRequest() {
+    if (!newEmail.trim()) return;
+    setEmailChangeMessage(null);
+    setEmailChangeError(null);
+    try {
+      const result = await requestEmailChange.mutateAsync({ newEmail: newEmail.trim() });
+      setEmailChangeMessage(
+        result.delivery === 'log'
+          ? `Email delivery is not configured, so the verification link for ${result.newEmail} was logged on the server.`
+          : `We sent a verification email to ${result.newEmail}. Confirm it there before your login email changes.`
+      );
+      setNewEmail('');
+    } catch (err) {
+      setEmailChangeError(err instanceof Error ? err.message : 'Could not start the email change flow.');
     }
   }
 
@@ -127,10 +149,6 @@ export default function AccountPage() {
           <Title order={4}>Profile</Title>
           {profileMessage ? <Alert color="green">{profileMessage}</Alert> : null}
           {profileError ? <Alert color="red">{profileError}</Alert> : null}
-          <TextInput label="Email" value={currentUser?.email ?? ''} readOnly disabled />
-          <Text size="sm" c="dimmed">
-            Email changes should go through a verified flow, so we will add that separately.
-          </Text>
           <TextInput
             label="Display name"
             value={name}
@@ -145,6 +163,42 @@ export default function AccountPage() {
               Save profile
             </Button>
           </Group>
+        </Stack>
+      </Paper>
+
+
+      <Paper withBorder radius="lg" p="lg">
+        <Stack gap="md">
+          <Title order={4}>Email</Title>
+          <TextInput label="Current email" value={currentUser?.email ?? ''} readOnly disabled />
+          {isServerAuthMode ? (
+            <>
+              {emailChangeMessage ? <Alert color="green">{emailChangeMessage}</Alert> : null}
+              {emailChangeError ? <Alert color="red">{emailChangeError}</Alert> : null}
+              <Text size="sm" c="dimmed">
+                Your login email only changes after you confirm the new address from your inbox.
+              </Text>
+              <TextInput
+                label="New email"
+                value={newEmail}
+                onChange={(event) => setNewEmail(event.currentTarget.value)}
+                autoComplete="email"
+              />
+              <Group justify="flex-end">
+                <Button
+                  onClick={handleEmailChangeRequest}
+                  loading={requestEmailChange.isPending}
+                  disabled={!newEmail.trim()}
+                >
+                  Send verification email
+                </Button>
+              </Group>
+            </>
+          ) : (
+            <Text c="dimmed">
+              Verified email changes are only available in server-auth mode.
+            </Text>
+          )}
         </Stack>
       </Paper>
 

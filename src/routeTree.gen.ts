@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEmailChangeRouteImport } from './routes/verify-email-change'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -24,6 +25,7 @@ import { Route as AuthedAccountRouteImport } from './routes/_authed.account'
 import { Route as ApiProjectsProjectIdRouteImport } from './routes/api.projects.$projectId'
 import { Route as ApiMembershipsCompaniesRouteImport } from './routes/api.memberships.companies'
 import { Route as ApiMeProfileRouteImport } from './routes/api.me.profile'
+import { Route as ApiMeEmailChangeRouteImport } from './routes/api.me.email-change'
 import { Route as ApiMeDefaultCompanyRouteImport } from './routes/api.me.default-company'
 import { Route as ApiDevSessionRouteImport } from './routes/api.dev.session'
 import { Route as ApiDevResetSeedRouteImport } from './routes/api.dev.reset-seed'
@@ -38,6 +40,7 @@ import { Route as ApiProjectsProjectIdMembershipsRouteImport } from './routes/ap
 import { Route as ApiProjectsProjectIdDeactivateRouteImport } from './routes/api.projects.$projectId.deactivate'
 import { Route as ApiProjectsProjectIdCategoriesRouteImport } from './routes/api.projects.$projectId.categories'
 import { Route as ApiProjectsProjectIdBudgetsRouteImport } from './routes/api.projects.$projectId.budgets'
+import { Route as ApiMeEmailChangeConfirmRouteImport } from './routes/api.me.email-change.confirm'
 import { Route as ApiCompaniesCompanyIdUsersRouteImport } from './routes/api.companies.$companyId.users'
 import { Route as ApiCompaniesCompanyIdReactivateRouteImport } from './routes/api.companies.$companyId.reactivate'
 import { Route as ApiCompaniesCompanyIdProjectsRouteImport } from './routes/api.companies.$companyId.projects'
@@ -52,6 +55,11 @@ import { Route as ApiProjectsProjectIdBudgetsBudgetIdRouteImport } from './route
 import { Route as AuthedCCompanyIdPProjectIdRouteImport } from './routes/_authed.c.$companyId.p.$projectId'
 import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
 
+const VerifyEmailChangeRoute = VerifyEmailChangeRouteImport.update({
+  id: '/verify-email-change',
+  path: '/verify-email-change',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -124,6 +132,11 @@ const ApiMembershipsCompaniesRoute = ApiMembershipsCompaniesRouteImport.update({
 const ApiMeProfileRoute = ApiMeProfileRouteImport.update({
   id: '/api/me/profile',
   path: '/api/me/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMeEmailChangeRoute = ApiMeEmailChangeRouteImport.update({
+  id: '/api/me/email-change',
+  path: '/api/me/email-change',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMeDefaultCompanyRoute = ApiMeDefaultCompanyRouteImport.update({
@@ -203,6 +216,11 @@ const ApiProjectsProjectIdBudgetsRoute =
     path: '/budgets',
     getParentRoute: () => ApiProjectsProjectIdRoute,
   } as any)
+const ApiMeEmailChangeConfirmRoute = ApiMeEmailChangeConfirmRouteImport.update({
+  id: '/confirm',
+  path: '/confirm',
+  getParentRoute: () => ApiMeEmailChangeRoute,
+} as any)
 const ApiCompaniesCompanyIdUsersRoute =
   ApiCompaniesCompanyIdUsersRouteImport.update({
     id: '/users',
@@ -287,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/verify-email-change': typeof VerifyEmailChangeRoute
   '/account': typeof AuthedAccountRoute
   '/companies': typeof AuthedCompaniesRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
@@ -300,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
   '/api/dev/session': typeof ApiDevSessionRoute
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
+  '/api/me/email-change': typeof ApiMeEmailChangeRouteWithChildren
   '/api/me/profile': typeof ApiMeProfileRoute
   '/api/memberships/companies': typeof ApiMembershipsCompaniesRoute
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRouteWithChildren
@@ -309,6 +329,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -330,6 +351,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/verify-email-change': typeof VerifyEmailChangeRoute
   '/account': typeof AuthedAccountRoute
   '/companies': typeof AuthedCompaniesRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
@@ -342,6 +364,7 @@ export interface FileRoutesByTo {
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
   '/api/dev/session': typeof ApiDevSessionRoute
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
+  '/api/me/email-change': typeof ApiMeEmailChangeRouteWithChildren
   '/api/me/profile': typeof ApiMeProfileRoute
   '/api/memberships/companies': typeof ApiMembershipsCompaniesRoute
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRouteWithChildren
@@ -351,6 +374,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -374,6 +398,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/verify-email-change': typeof VerifyEmailChangeRoute
   '/_authed/account': typeof AuthedAccountRoute
   '/_authed/companies': typeof AuthedCompaniesRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
@@ -387,6 +412,7 @@ export interface FileRoutesById {
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
   '/api/dev/session': typeof ApiDevSessionRoute
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
+  '/api/me/email-change': typeof ApiMeEmailChangeRouteWithChildren
   '/api/me/profile': typeof ApiMeProfileRoute
   '/api/memberships/companies': typeof ApiMembershipsCompaniesRoute
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRouteWithChildren
@@ -396,6 +422,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -419,6 +446,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/verify-email-change'
     | '/account'
     | '/companies'
     | '/api/companies'
@@ -432,6 +460,7 @@ export interface FileRouteTypes {
     | '/api/dev/reset-seed'
     | '/api/dev/session'
     | '/api/me/default-company'
+    | '/api/me/email-change'
     | '/api/me/profile'
     | '/api/memberships/companies'
     | '/api/projects/$projectId'
@@ -441,6 +470,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/projects'
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/users'
+    | '/api/me/email-change/confirm'
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
@@ -462,6 +492,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/verify-email-change'
     | '/account'
     | '/companies'
     | '/api/companies'
@@ -474,6 +505,7 @@ export interface FileRouteTypes {
     | '/api/dev/reset-seed'
     | '/api/dev/session'
     | '/api/me/default-company'
+    | '/api/me/email-change'
     | '/api/me/profile'
     | '/api/memberships/companies'
     | '/api/projects/$projectId'
@@ -483,6 +515,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/projects'
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/users'
+    | '/api/me/email-change/confirm'
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
@@ -505,6 +538,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/verify-email-change'
     | '/_authed/account'
     | '/_authed/companies'
     | '/api/companies'
@@ -518,6 +552,7 @@ export interface FileRouteTypes {
     | '/api/dev/reset-seed'
     | '/api/dev/session'
     | '/api/me/default-company'
+    | '/api/me/email-change'
     | '/api/me/profile'
     | '/api/memberships/companies'
     | '/api/projects/$projectId'
@@ -527,6 +562,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/projects'
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/users'
+    | '/api/me/email-change/confirm'
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
@@ -550,6 +586,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  VerifyEmailChangeRoute: typeof VerifyEmailChangeRoute
   ApiCompaniesRoute: typeof ApiCompaniesRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
   ApiReadyRoute: typeof ApiReadyRoute
@@ -559,6 +596,7 @@ export interface RootRouteChildren {
   ApiDevResetSeedRoute: typeof ApiDevResetSeedRoute
   ApiDevSessionRoute: typeof ApiDevSessionRoute
   ApiMeDefaultCompanyRoute: typeof ApiMeDefaultCompanyRoute
+  ApiMeEmailChangeRoute: typeof ApiMeEmailChangeRouteWithChildren
   ApiMeProfileRoute: typeof ApiMeProfileRoute
   ApiMembershipsCompaniesRoute: typeof ApiMembershipsCompaniesRoute
   ApiProjectsProjectIdRoute: typeof ApiProjectsProjectIdRouteWithChildren
@@ -566,6 +604,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-email-change': {
+      id: '/verify-email-change'
+      path: '/verify-email-change'
+      fullPath: '/verify-email-change'
+      preLoaderRoute: typeof VerifyEmailChangeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -671,6 +716,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMeProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/me/email-change': {
+      id: '/api/me/email-change'
+      path: '/api/me/email-change'
+      fullPath: '/api/me/email-change'
+      preLoaderRoute: typeof ApiMeEmailChangeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/me/default-company': {
       id: '/api/me/default-company'
       path: '/api/me/default-company'
@@ -768,6 +820,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/projects/$projectId/budgets'
       preLoaderRoute: typeof ApiProjectsProjectIdBudgetsRouteImport
       parentRoute: typeof ApiProjectsProjectIdRoute
+    }
+    '/api/me/email-change/confirm': {
+      id: '/api/me/email-change/confirm'
+      path: '/confirm'
+      fullPath: '/api/me/email-change/confirm'
+      preLoaderRoute: typeof ApiMeEmailChangeConfirmRouteImport
+      parentRoute: typeof ApiMeEmailChangeRoute
     }
     '/api/companies/$companyId/users': {
       id: '/api/companies/$companyId/users'
@@ -942,6 +1001,17 @@ const ApiCompaniesRouteWithChildren = ApiCompaniesRoute._addFileChildren(
   ApiCompaniesRouteChildren,
 )
 
+interface ApiMeEmailChangeRouteChildren {
+  ApiMeEmailChangeConfirmRoute: typeof ApiMeEmailChangeConfirmRoute
+}
+
+const ApiMeEmailChangeRouteChildren: ApiMeEmailChangeRouteChildren = {
+  ApiMeEmailChangeConfirmRoute: ApiMeEmailChangeConfirmRoute,
+}
+
+const ApiMeEmailChangeRouteWithChildren =
+  ApiMeEmailChangeRoute._addFileChildren(ApiMeEmailChangeRouteChildren)
+
 interface ApiProjectsProjectIdBudgetsRouteChildren {
   ApiProjectsProjectIdBudgetsBudgetIdRoute: typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
 }
@@ -1038,6 +1108,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  VerifyEmailChangeRoute: VerifyEmailChangeRoute,
   ApiCompaniesRoute: ApiCompaniesRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
   ApiReadyRoute: ApiReadyRoute,
@@ -1047,6 +1118,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDevResetSeedRoute: ApiDevResetSeedRoute,
   ApiDevSessionRoute: ApiDevSessionRoute,
   ApiMeDefaultCompanyRoute: ApiMeDefaultCompanyRoute,
+  ApiMeEmailChangeRoute: ApiMeEmailChangeRouteWithChildren,
   ApiMeProfileRoute: ApiMeProfileRoute,
   ApiMembershipsCompaniesRoute: ApiMembershipsCompaniesRoute,
   ApiProjectsProjectIdRoute: ApiProjectsProjectIdRouteWithChildren,

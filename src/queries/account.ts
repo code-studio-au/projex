@@ -13,3 +13,10 @@ export function useUpdateCurrentUserProfileMutation() {
     },
   });
 }
+
+export function useRequestEmailChangeMutation() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: (input: { newEmail: string }) => api.requestEmailChange(input),
+  });
+}

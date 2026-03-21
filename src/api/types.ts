@@ -71,6 +71,21 @@ export type ProfileUpdateInput = {
   name: string;
 };
 
+export type EmailChangeRequestInput = {
+  newEmail: string;
+};
+
+export type EmailChangeRequestResult = {
+  newEmail: string;
+  expiresAt: string;
+  delivery: 'email' | 'log';
+};
+
+export type EmailChangeConfirmResult = {
+  email: string;
+  previousEmail: string;
+};
+
 export type CompanyUserInviteResult = {
   user: User;
   createdAuthUser: boolean;
@@ -152,6 +167,8 @@ export interface ProjexApi {
   // helpers
   getDefaultCompanyIdForUser(userId: UserId): Promise<CompanyId | null>;
   updateCurrentUserProfile(input: ProfileUpdateInput): Promise<User>;
+  requestEmailChange(input: EmailChangeRequestInput): Promise<EmailChangeRequestResult>;
+  confirmEmailChange(token: string): Promise<EmailChangeConfirmResult>;
   createUserInCompany(
     companyId: CompanyId,
     name: string,
