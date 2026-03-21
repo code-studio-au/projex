@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .vite/
 .env.local
+.env.smoke.local
 .scaffold/
 .env.staging
 .env.production
