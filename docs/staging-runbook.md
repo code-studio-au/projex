@@ -95,6 +95,7 @@ sudo systemctl status projex --no-pager -l
    - request a reset email
    - open the link
    - set a new password
+   - for saved smoke credentials, put the `PROJEX_SMOKE_*` values in `.env.smoke.local` at the repo root (`/opt/projex/.env.smoke.local` on EC2, repo root locally)
 8. Optional invite smoke:
    - set `PROJEX_SMOKE_INVITE_EMAIL`
    - run `npm run smoke:server`

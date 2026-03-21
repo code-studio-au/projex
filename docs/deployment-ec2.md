@@ -126,6 +126,7 @@ Use `/api/ready` for ALB target group health checks only if DB connectivity is r
 ## 6) Post-deploy verification
 
 - `npm run smoke:server` (from trusted network against deployed URL)
+- Save smoke-only credentials in `/opt/projex/.env.smoke.local` on EC2 so the smoke script can load them automatically from the repo root.
 - If `PROJEX_SMOKE_RESET_EMAIL` is set, the smoke script will also verify that the password-reset request endpoint accepts that email.
 - If `PROJEX_SMOKE_INVITE_EMAIL` is set, the smoke script will also verify the company invite and resend-invite admin flow.
 - If `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD` are set, the smoke script will also verify the project-level superadmin access toggle.

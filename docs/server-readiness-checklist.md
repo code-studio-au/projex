@@ -74,6 +74,7 @@ They are enabled only when:
 - `npm run build`
 - `npm run smoke:server` (against a running server with dev endpoints enabled in non-prod)
   - For real auth flow set `PROJEX_SMOKE_EMAIL` + `PROJEX_SMOKE_PASSWORD`.
+  - To avoid retyping smoke credentials, save them in `.env.smoke.local` at the repo root.
 - `npm run start:server` (bootstrap migrations + launch built server)
 
 ## 6.1) Runtime Probes
