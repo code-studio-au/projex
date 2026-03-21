@@ -261,6 +261,7 @@ async function main() {
   const inviteEmail = process.env.PROJEX_SMOKE_INVITE_EMAIL?.trim();
   const inviteName = process.env.PROJEX_SMOKE_INVITE_NAME?.trim() || 'Smoke Invite';
   const inviteRole = process.env.PROJEX_SMOKE_INVITE_ROLE?.trim() || 'member';
+  const emailChangeTo = process.env.PROJEX_SMOKE_EMAIL_CHANGE_TO?.trim();
   const privacyAdminEmail = process.env.PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL?.trim();
   const privacyAdminPassword = process.env.PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD?.trim();
   const privacySuperadminEmail = process.env.PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL?.trim();
@@ -391,6 +392,52 @@ async function main() {
       'transactions list'
     );
   });
+
+  if (emailChangeTo) {
+    logSection('Email Change');
+    await runStep(`Requesting verified email change to ${emailChangeTo}`, async () => {
+      const result = await request('/api/me/email-change', {
+        method: 'POST',
+        body: JSON.stringify({ newEmail: emailChangeTo }),
+      });
+      assertOk(result, 'request email change');
+    });
+
+    await runStep('Checking pending email change', async () => {
+      const result = await request('/api/me/email-change');
+      assertOk(result, 'get pending email change');
+      if (!result.body || result.body.newEmail !== emailChangeTo) {
+        throw new Error(`Pending email change did not match ${emailChangeTo}`);
+      }
+    });
+
+    await runStep(`Resending email change verification to ${emailChangeTo}`, async () => {
+      const result = await request('/api/me/email-change/resend', {
+        method: 'POST',
+      });
+      assertOk(result, 'resend email change');
+      if (result.body?.newEmail !== emailChangeTo) {
+        throw new Error(`Resent email change did not match ${emailChangeTo}`);
+      }
+    });
+
+    await runStep('Cancelling pending email change', async () => {
+      const result = await request('/api/me/email-change', {
+        method: 'DELETE',
+      });
+      assertOk(result, 'cancel email change');
+    });
+
+    await runStep('Checking pending email change was cleared', async () => {
+      const result = await request('/api/me/email-change');
+      assertOk(result, 'get pending email change after cancel');
+      if (result.body !== null) {
+        throw new Error('Pending email change was still present after cancel');
+      }
+    });
+  } else {
+    noteStep('Skipping email-change flow; set PROJEX_SMOKE_EMAIL_CHANGE_TO to enable it');
+  }
 
   const categoryId = uniqueId('cat_smoke');
   const budgetId = uniqueId('bud_smoke');

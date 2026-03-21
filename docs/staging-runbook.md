@@ -100,7 +100,11 @@ sudo systemctl status projex --no-pager -l
    - set `PROJEX_SMOKE_INVITE_EMAIL`
    - run `npm run smoke:server`
    - confirm invite + resend-invite requests both succeed
-9. Optional privacy-toggle smoke:
+9. Optional email-change smoke:
+   - set `PROJEX_SMOKE_EMAIL_CHANGE_TO`
+   - run `npm run smoke:server`
+   - confirm the script can request, detect, resend, and cancel a pending email change
+10. Optional privacy-toggle smoke:
    - set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`
    - set `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`
    - set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`
