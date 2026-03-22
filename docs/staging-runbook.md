@@ -96,20 +96,22 @@ sudo systemctl status projex --no-pager -l
    - open the link
    - set a new password
    - for saved smoke credentials, put the `PROJEX_SMOKE_*` values in `.env.smoke.local` at the repo root (`/opt/projex/.env.smoke.local` on EC2, repo root locally)
+   - use `npm run smoke:server` for a full pass
+   - use `npm run smoke:server -- --section=...` when rerunning only one workflow
 8. Optional invite smoke:
    - set `PROJEX_SMOKE_INVITE_EMAIL`
-   - run `npm run smoke:server`
+   - run `npm run smoke:server -- --section=inviteFlow`
    - confirm invite + resend-invite requests both succeed
 9. Optional email-change smoke:
    - set `PROJEX_SMOKE_EMAIL_CHANGE_TO`
-   - run `npm run smoke:server`
+   - run `npm run smoke:server -- --section=emailChange`
    - confirm the script can request, detect, resend, and cancel a pending email change
 10. Optional privacy-toggle smoke:
    - set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`
    - set `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`
    - set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`
    - set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`
-   - run `npm run smoke:server`
+   - run `npm run smoke:server -- --section=privacyChecks`
    - confirm the script can disable superadmin project access, verify superadmin loses access, and restore the original setting
 
 ## Create A Production Login

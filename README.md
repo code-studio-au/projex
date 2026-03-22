@@ -44,6 +44,9 @@ npm run start:server
 
 # Smoke test a running server
 npm run smoke:server
+
+# Run only one smoke section
+npm run smoke:server -- --section=emailChange
 ```
 
 - Transition map: `docs/server-transition-map.md`

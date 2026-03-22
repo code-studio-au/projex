@@ -127,6 +127,13 @@ Use `/api/ready` for ALB target group health checks only if DB connectivity is r
 
 - `npm run smoke:server` (from trusted network against deployed URL)
 - Save smoke-only credentials in `/opt/projex/.env.smoke.local` on EC2 so the smoke script can load them automatically from the repo root.
+- Use full smoke for broad confidence after deploy, and targeted section runs when retrying one workflow:
+  - `npm run smoke:server -- --section=basics`
+  - `npm run smoke:server -- --section=appPages`
+  - `npm run smoke:server -- --section=emailChange`
+  - `npm run smoke:server -- --section=temporaryData`
+  - `npm run smoke:server -- --section=inviteFlow`
+  - `npm run smoke:server -- --section=privacyChecks`
 - If `PROJEX_SMOKE_RESET_EMAIL` is set, the smoke script will also verify that the password-reset request endpoint accepts that email.
 - If `PROJEX_SMOKE_EMAIL_CHANGE_TO` is set, the smoke script will also verify the request / pending / resend / cancel email-change flow without actually switching the login email.
 - If `PROJEX_SMOKE_INVITE_EMAIL` is set, the smoke script will also verify the company invite and resend-invite admin flow.
