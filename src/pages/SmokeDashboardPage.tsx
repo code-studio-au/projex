@@ -51,6 +51,8 @@ type SmokeSectionRunSummary = {
   durationMs: number;
 };
 
+const RUN_ALL_COOLDOWN_MS = 2000;
+
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
 }
@@ -174,6 +176,7 @@ export default function SmokeDashboardPage() {
   const [history, setHistory] = useState<Partial<Record<SmokeSectionId, SmokeSectionRunSummary[]>>>({});
   const [runningSectionId, setRunningSectionId] = useState<SmokeSectionId | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [runAllStatus, setRunAllStatus] = useState<string | null>(null);
 
   async function runSection(sectionId: SmokeSectionId) {
     setPageError(null);
@@ -303,10 +306,19 @@ export default function SmokeDashboardPage() {
   }
 
   async function runFullSmoke() {
-    for (const section of smokeSectionDefinitions) {
+    setPageError(null);
+    for (let index = 0; index < smokeSectionDefinitions.length; index += 1) {
+      const section = smokeSectionDefinitions[index];
+      setRunAllStatus(`Running ${section.label}`);
       const ok = await runSection(section.id);
       if (!ok) break;
+      const nextSection = smokeSectionDefinitions[index + 1];
+      if (nextSection) {
+        setRunAllStatus(`Awaiting ${RUN_ALL_COOLDOWN_MS / 1000}s before ${nextSection.label}`);
+        await new Promise((resolve) => setTimeout(resolve, RUN_ALL_COOLDOWN_MS));
+      }
     }
+    setRunAllStatus(null);
   }
 
   function resetSection(sectionId: SmokeSectionId) {
@@ -385,6 +397,11 @@ export default function SmokeDashboardPage() {
             depend on optional values like invite or privacy creds will mark themselves as skipped
             when those values are not configured in `.env.smoke.local`.
           </Text>
+          {runAllStatus ? (
+            <Alert color="blue" variant="light">
+              {runAllStatus}
+            </Alert>
+          ) : null}
         </Stack>
       </Paper>
 
