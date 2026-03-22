@@ -3,9 +3,9 @@ import { Outlet, useRouter, useRouterState } from '@tanstack/react-router';
 import {
   AppShell,
   Button,
+  Center,
   Container,
   Group,
-  LoadingOverlay,
   Menu,
   Paper,
   Stack,
@@ -103,13 +103,58 @@ export function AuthedLayout() {
 
   return (
     <AppShell padding={0} header={{ height: isMobile ? 64 : 70 }}>
-      <LoadingOverlay
-        visible={isSigningOut}
-        zIndex={400}
-        overlayProps={{ blur: 2, backgroundOpacity: 0.35 }}
-        loaderProps={{ children: 'Signing out...' }}
-        style={{ position: 'fixed' }}
-      />
+      {isSigningOut ? (
+        <Center
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 400,
+            background:
+              'linear-gradient(180deg, rgba(248,250,252,0.82), rgba(241,245,249,0.9))',
+            backdropFilter: 'blur(6px)',
+          }}
+        >
+          <Paper
+            p="xl"
+            radius="xl"
+            shadow="md"
+            style={{
+              width: 'min(28rem, calc(100vw - 2rem))',
+              background:
+                'linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.94))',
+              border: '1px solid rgba(148, 163, 184, 0.22)',
+            }}
+          >
+            <Stack gap="sm" align="center">
+              <ThemeIcon
+                radius="xl"
+                size={56}
+                variant="gradient"
+                gradient={{ from: 'blue.6', to: 'cyan.5' }}
+              >
+                PX
+              </ThemeIcon>
+              <Stack gap={4} align="center">
+                <Text fw={800} size="lg">
+                  Signing out
+                </Text>
+                <Text size="sm" c="dimmed" ta="center">
+                  Wrapping up your session and taking you back to the login screen.
+                </Text>
+              </Stack>
+              <Text
+                size="xs"
+                tt="uppercase"
+                fw={700}
+                c="blue.7"
+                style={{ letterSpacing: '0.08em' }}
+              >
+                Please wait
+              </Text>
+            </Stack>
+          </Paper>
+        </Center>
+      ) : null}
       <AppShell.Header
         style={{
           borderBottom: 'none',
