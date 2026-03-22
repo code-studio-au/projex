@@ -17,6 +17,10 @@ type Recorder = {
   skip(id: string, label: string, detail: string): void;
 };
 
+type RunSmokeSectionOptions = {
+  onStep?: (step: SmokeStepResult) => void | Promise<void>;
+};
+
 type SmokeCompany = {
   id: string;
   name?: string;
@@ -199,7 +203,8 @@ class SmokeHttpClient {
 
 async function withRecorder(
   sectionId: SmokeSectionId,
-  run: (recorder: Recorder) => Promise<void>
+  run: (recorder: Recorder) => Promise<void>,
+  options?: RunSmokeSectionOptions
 ): Promise<SmokeSectionResult> {
   const startedAt = new Date();
   const steps: SmokeStepResult[] = [];
@@ -209,21 +214,27 @@ async function withRecorder(
       const started = Date.now();
       try {
         const result = await fn();
-        steps.push({ id, label, status: 'passed', durationMs: Date.now() - started });
+        const step = { id, label, status: 'passed' as const, durationMs: Date.now() - started };
+        steps.push(step);
+        await options?.onStep?.(step);
         return result;
       } catch (error) {
-        steps.push({
+        const step = {
           id,
           label,
-          status: 'failed',
+          status: 'failed' as const,
           durationMs: Date.now() - started,
           error: error instanceof Error ? error.message : String(error),
-        });
+        };
+        steps.push(step);
+        await options?.onStep?.(step);
         throw error;
       }
     },
     skip(id: string, label: string, detail: string) {
-      steps.push({ id, label, status: 'skipped', durationMs: 0, detail });
+      const step = { id, label, status: 'skipped' as const, durationMs: 0, detail };
+      steps.push(step);
+      void options?.onStep?.(step);
     },
   };
 
@@ -675,7 +686,11 @@ async function runPrivacyChecksSection(recorder: Recorder, client: SmokeHttpClie
   }
 }
 
-export async function runSmokeSection(sectionId: SmokeSectionId, requestOrigin: string) {
+export async function runSmokeSection(
+  sectionId: SmokeSectionId,
+  requestOrigin: string,
+  options?: RunSmokeSectionOptions
+) {
   loadSmokeEnvFiles();
   const baseUrl = (process.env.PROJEX_SMOKE_BASE_URL?.trim() || requestOrigin).replace(/\/+$/, '');
   const client = new SmokeHttpClient(baseUrl);
@@ -703,5 +718,5 @@ export async function runSmokeSection(sectionId: SmokeSectionId, requestOrigin: 
       default:
         throw new Error(`Unknown smoke section: ${String(sectionId)}`);
     }
-  });
+  }, options);
 }
