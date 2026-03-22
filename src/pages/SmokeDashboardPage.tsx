@@ -55,14 +55,14 @@ type FocusStripCardProps = {
   label: string;
   status: SmokeSectionStatus;
   title: string;
-  message?: string;
+  message?: React.ReactNode;
   active?: boolean;
 };
 
 const RUN_ALL_COOLDOWN_MS = 2000;
 const RUN_ALL_RATE_LIMIT_RETRY_MS = 10000;
 const RUN_ALL_RATE_LIMIT_SECTION_RETRIES = 2;
-const APP_HEADER_OFFSET_PX = 86;
+const APP_HEADER_OFFSET_PX = 70;
 const RUN_ALL_FOCUS_OFFSET_PX = APP_HEADER_OFFSET_PX;
 const SECTION_SCROLL_MARGIN_TOP_PX = 320;
 
@@ -96,9 +96,9 @@ function FocusStripCard({ label, status, title, message, active = false }: Focus
       radius="lg"
       p="md"
       style={{
-        opacity: active ? 1 : 0.85,
-        transform: active ? 'scale(1)' : 'scale(0.98)',
-        transition: 'transform 120ms ease, opacity 120ms ease',
+        background: 'var(--mantine-color-body)',
+        transform: active ? 'scale(1)' : 'scale(0.985)',
+        transition: 'transform 120ms ease',
       }}
     >
       <Stack gap={6}>
@@ -113,7 +113,7 @@ function FocusStripCard({ label, status, title, message, active = false }: Focus
         <Text fw={700} size={active ? 'md' : 'sm'}>
           {title}
         </Text>
-        <Text size="sm" c="dimmed" lineClamp={3}>
+        <Text size="sm" c="dimmed">
           {message ?? 'Waiting to run.'}
         </Text>
       </Stack>
@@ -437,7 +437,17 @@ export default function SmokeDashboardPage() {
         if (outcome.retryableRateLimit && attempts < RUN_ALL_RATE_LIMIT_SECTION_RETRIES) {
           attempts += 1;
           await waitWithCountdown(RUN_ALL_RATE_LIMIT_RETRY_MS, (secondsRemaining) => {
-            setRunAllStatus(`Rate limited on ${section.label}. Retrying in ${secondsRemaining}s.`);
+            const message = `Rate limited on ${section.label}. Retrying in ${secondsRemaining}s.`;
+            setRunAllStatus(message);
+            setViews((current) => ({
+              ...current,
+              [section.id]: current[section.id]
+                ? {
+                    ...current[section.id],
+                    statusMessage: message,
+                  }
+                : current[section.id],
+            }));
           });
           resetSectionState(section.id);
           continue;
@@ -497,7 +507,7 @@ export default function SmokeDashboardPage() {
     if (!runAllActive || !runningSectionId) return;
     const target = sectionRefs.current[runningSectionId];
     if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [runAllActive, runningSectionId]);
 
   if (!isSuperadmin) {
@@ -561,6 +571,8 @@ export default function SmokeDashboardPage() {
             position: 'sticky',
             top: RUN_ALL_FOCUS_OFFSET_PX,
             zIndex: 20,
+            background: 'var(--mantine-color-body)',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.08)',
           }}
         >
           <Stack gap="md">
@@ -603,7 +615,18 @@ export default function SmokeDashboardPage() {
                   message={views[focusSections.next.id]?.statusMessage ?? focusSections.next.description}
                 />
               ) : (
-                <FocusStripCard label="Next" status="idle" title="No next section" message="This is the last configured section." />
+                <FocusStripCard
+                  label="Summary"
+                  status={
+                    summary.failed > 0
+                      ? 'failed'
+                      : summary.totalCompleted === summary.totalConfigured
+                        ? 'passed'
+                        : 'running'
+                  }
+                  title="Run summary"
+                  message={`Completed ${summary.totalCompleted}/${summary.totalConfigured}. Passed ${summary.passed}, failed ${summary.failed}, skipped ${summary.skipped}.${summary.latestFinishedAt ? ` Last completed ${formatDateTime(summary.latestFinishedAt)}.` : ''}`}
+                />
               )}
             </SimpleGrid>
           </Stack>
@@ -611,54 +634,6 @@ export default function SmokeDashboardPage() {
       ) : null}
 
       {pageError ? <Alert color="red">{pageError}</Alert> : null}
-
-      <Paper withBorder radius="lg" p="lg">
-        <Stack gap="md">
-          <Title order={4}>Summary</Title>
-          <SimpleGrid cols={{ base: 2, md: 5 }} spacing="md">
-            <Paper withBorder radius="md" p="sm">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                Completed
-              </Text>
-              <Text fw={800} size="xl">
-                {summary.totalCompleted}/{summary.totalConfigured}
-              </Text>
-            </Paper>
-            <Paper withBorder radius="md" p="sm">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                Passed
-              </Text>
-              <Text fw={800} size="xl" c="green">
-                {summary.passed}
-              </Text>
-            </Paper>
-            <Paper withBorder radius="md" p="sm">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                Failed
-              </Text>
-              <Text fw={800} size="xl" c="red">
-                {summary.failed}
-              </Text>
-            </Paper>
-            <Paper withBorder radius="md" p="sm">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                Skipped
-              </Text>
-              <Text fw={800} size="xl" c="gray.7">
-                {summary.skipped}
-              </Text>
-            </Paper>
-            <Paper withBorder radius="md" p="sm">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                Last completed
-              </Text>
-              <Text fw={700} size="sm">
-                {summary.latestFinishedAt ? formatDateTime(summary.latestFinishedAt) : 'No runs yet'}
-              </Text>
-            </Paper>
-          </SimpleGrid>
-        </Stack>
-      </Paper>
 
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md" verticalSpacing="md">
         {smokeSectionDefinitions.map((section) => {
