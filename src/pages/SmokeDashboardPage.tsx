@@ -52,7 +52,15 @@ type SmokeSectionRunSummary = {
   durationMs: number;
 };
 
+type RunSectionOutcome = {
+  ok: boolean;
+  retryableRateLimit: boolean;
+  message?: string;
+};
+
 const RUN_ALL_COOLDOWN_MS = 2000;
+const RUN_ALL_RATE_LIMIT_RETRY_MS = 5000;
+const RUN_ALL_RATE_LIMIT_SECTION_RETRIES = 1;
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
@@ -61,6 +69,12 @@ function formatDateTime(value: string) {
 function formatDuration(durationMs: number) {
   if (durationMs < 1000) return `${durationMs}ms`;
   return `${(durationMs / 1000).toFixed(1)}s`;
+}
+
+function isRateLimitMessage(value: string | undefined) {
+  if (!value) return false;
+  const normalized = value.toLowerCase();
+  return normalized.includes('429') || normalized.includes('too many requests') || normalized.includes('rate-limit');
 }
 
 function statusColor(status: SmokeSectionStatus) {
@@ -179,10 +193,46 @@ export default function SmokeDashboardPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [runAllStatus, setRunAllStatus] = useState<string | null>(null);
 
-  async function runSection(sectionId: SmokeSectionId) {
+  function resetSectionState(sectionId: SmokeSectionId, options?: { keepHistory?: boolean }) {
+    setResults((current) => {
+      const next = { ...current };
+      delete next[sectionId];
+      return next;
+    });
+    setViews((current) => {
+      const next = { ...current };
+      delete next[sectionId];
+      return next;
+    });
+    if (!options?.keepHistory) {
+      setHistory((current) => {
+        const next = { ...current };
+        delete next[sectionId];
+        return next;
+      });
+    }
+  }
+
+  async function waitWithCountdown(
+    durationMs: number,
+    update: (secondsRemaining: number) => void
+  ) {
+    let remainingMs = durationMs;
+    while (remainingMs > 0) {
+      const secondsRemaining = Math.max(1, Math.ceil(remainingMs / 1000));
+      update(secondsRemaining);
+      const sleepMs = Math.min(1000, remainingMs);
+      await new Promise((resolve) => setTimeout(resolve, sleepMs));
+      remainingMs -= sleepMs;
+    }
+  }
+
+  async function runSection(sectionId: SmokeSectionId): Promise<RunSectionOutcome> {
     setPageError(null);
     setRunningSectionId(sectionId);
     let sectionSucceeded = true;
+    let retryableRateLimit = false;
+    let resultMessage: string | undefined;
     setViews((current) => ({
       ...current,
       [sectionId]: {
@@ -257,6 +307,11 @@ export default function SmokeDashboardPage() {
           }
           if (event.type === 'result') {
             sectionSucceeded = event.result.status !== 'failed';
+            retryableRateLimit = event.result.steps.some(
+              (step) => step.status === 'failed' && isRateLimitMessage(step.error)
+            );
+            resultMessage =
+              event.result.steps.find((step) => step.status === 'failed')?.error ?? undefined;
             setResults((current) => ({
               ...current,
               [sectionId]: event.result,
@@ -315,9 +370,14 @@ export default function SmokeDashboardPage() {
           }
         }
       }
-      return sectionSucceeded;
+      return {
+        ok: sectionSucceeded,
+        retryableRateLimit,
+        message: resultMessage,
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not run the smoke section.';
+      retryableRateLimit = isRateLimitMessage(message);
       setPageError(message);
       setViews((current) => ({
         ...current,
@@ -330,7 +390,11 @@ export default function SmokeDashboardPage() {
             }
           : current[sectionId],
       }));
-      return false;
+      return {
+        ok: false,
+        retryableRateLimit,
+        message,
+      };
     } finally {
       setRunningSectionId(null);
     }
@@ -341,13 +405,35 @@ export default function SmokeDashboardPage() {
     let failedSectionLabel: string | null = null;
     for (let index = 0; index < smokeSectionDefinitions.length; index += 1) {
       const section = smokeSectionDefinitions[index];
-      setRunAllStatus(`Running ${section.label}`);
-      const ok = await runSection(section.id);
-      if (!ok) {
+      let attempts = 0;
+
+      while (attempts <= RUN_ALL_RATE_LIMIT_SECTION_RETRIES) {
+        setRunAllStatus(`Running ${section.label}`);
+        const outcome = await runSection(section.id);
+        if (outcome.ok) {
+          break;
+        }
+
+        if (outcome.retryableRateLimit && attempts < RUN_ALL_RATE_LIMIT_SECTION_RETRIES) {
+          attempts += 1;
+          await waitWithCountdown(RUN_ALL_RATE_LIMIT_RETRY_MS, (secondsRemaining) => {
+            setRunAllStatus(`Rate limited on ${section.label}. Retrying in ${secondsRemaining}s.`);
+          });
+          resetSectionState(section.id, { keepHistory: true });
+          continue;
+        }
+
         failedSectionLabel = section.label;
-        setRunAllStatus(`Stopped on ${section.label}. Fix the failure or rerun that section.`);
+        setRunAllStatus(
+          `Stopped on ${section.label}. ${outcome.message ?? 'Fix the failure or rerun that section.'}`
+        );
         break;
       }
+
+      if (failedSectionLabel) {
+        break;
+      }
+
       const nextSection = smokeSectionDefinitions[index + 1];
       if (nextSection) {
         setRunAllStatus(`Awaiting ${RUN_ALL_COOLDOWN_MS / 1000}s before ${nextSection.label}`);
@@ -360,21 +446,7 @@ export default function SmokeDashboardPage() {
   }
 
   function resetSection(sectionId: SmokeSectionId) {
-    setResults((current) => {
-      const next = { ...current };
-      delete next[sectionId];
-      return next;
-    });
-    setViews((current) => {
-      const next = { ...current };
-      delete next[sectionId];
-      return next;
-    });
-    setHistory((current) => {
-      const next = { ...current };
-      delete next[sectionId];
-      return next;
-    });
+    resetSectionState(sectionId);
   }
 
   const summary = useMemo(() => {
