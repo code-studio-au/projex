@@ -601,11 +601,11 @@ export default function SmokeDashboardPage() {
                 <FocusStripCard label="Previous" status="idle" title="No previous section" message="This is the first section." />
               )}
               <FocusStripCard
-                label="Current"
+                label={runAllActive ? 'Current' : 'Previous'}
                 status={runningSectionId ? 'running' : results[focusSections.current.id]?.status ?? views[focusSections.current.id]?.status ?? 'idle'}
                 title={focusSections.current.label}
                 message={views[focusSections.current.id]?.statusMessage ?? focusSections.current.description}
-                active
+                active={runAllActive}
               />
               {focusSections.next ? (
                 <FocusStripCard
@@ -626,6 +626,7 @@ export default function SmokeDashboardPage() {
                   }
                   title="Run summary"
                   message={`Completed ${summary.totalCompleted}/${summary.totalConfigured}. Passed ${summary.passed}, failed ${summary.failed}, skipped ${summary.skipped}.${summary.latestFinishedAt ? ` Last completed ${formatDateTime(summary.latestFinishedAt)}.` : ''}`}
+                  active={!runAllActive}
                 />
               )}
             </SimpleGrid>
