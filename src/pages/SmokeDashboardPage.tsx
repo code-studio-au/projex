@@ -68,7 +68,7 @@ type FocusStripCardProps = {
 
 const RUN_ALL_COOLDOWN_MS = 2000;
 const RUN_ALL_RATE_LIMIT_RETRY_MS = 5000;
-const RUN_ALL_RATE_LIMIT_SECTION_RETRIES = 1;
+const RUN_ALL_RATE_LIMIT_SECTION_RETRIES = 2;
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
