@@ -554,11 +554,6 @@ export default function SmokeDashboardPage() {
             depend on optional values like invite or privacy creds will mark themselves as skipped
             when those values are not configured in `.env.smoke.local`.
           </Text>
-          {runAllStatus ? (
-            <Alert color="blue" variant="light">
-              {runAllStatus}
-            </Alert>
-          ) : null}
         </Stack>
       </Paper>
 
