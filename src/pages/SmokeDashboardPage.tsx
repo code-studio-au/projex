@@ -7,7 +7,6 @@ import {
   Divider,
   Group,
   Paper,
-  Progress,
   SimpleGrid,
   Stack,
   Text,
@@ -46,12 +45,6 @@ type SmokeSectionView = {
   steps: SmokeStepView[];
 };
 
-type SmokeSectionRunSummary = {
-  status: Exclude<SmokeSectionStatus, 'idle' | 'running'>;
-  finishedAt: string;
-  durationMs: number;
-};
-
 type RunSectionOutcome = {
   ok: boolean;
   retryableRateLimit: boolean;
@@ -67,8 +60,11 @@ type FocusStripCardProps = {
 };
 
 const RUN_ALL_COOLDOWN_MS = 2000;
-const RUN_ALL_RATE_LIMIT_RETRY_MS = 5000;
+const RUN_ALL_RATE_LIMIT_RETRY_MS = 10000;
 const RUN_ALL_RATE_LIMIT_SECTION_RETRIES = 2;
+const APP_HEADER_OFFSET_PX = 86;
+const RUN_ALL_FOCUS_OFFSET_PX = APP_HEADER_OFFSET_PX;
+const SECTION_SCROLL_MARGIN_TOP_PX = 320;
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
@@ -134,8 +130,8 @@ function stepViewIcon(step: SmokeStepView) {
 
 function SmokeStepRow({ step }: { step: SmokeStepView }) {
   return (
-    <Paper withBorder radius="md" p="sm">
-      <Stack gap="xs">
+    <Paper withBorder radius="md" p="xs">
+      <Stack gap={6}>
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Group align="flex-start" wrap="nowrap">
             <ThemeIcon radius="xl" size="md" color={statusColor(step.status)} variant="filled">
@@ -228,7 +224,6 @@ export default function SmokeDashboardPage() {
 
   const [results, setResults] = useState<Partial<Record<SmokeSectionId, SmokeSectionResult>>>({});
   const [views, setViews] = useState<Partial<Record<SmokeSectionId, SmokeSectionView>>>({});
-  const [history, setHistory] = useState<Partial<Record<SmokeSectionId, SmokeSectionRunSummary[]>>>({});
   const [runningSectionId, setRunningSectionId] = useState<SmokeSectionId | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const [runAllStatus, setRunAllStatus] = useState<string | null>(null);
@@ -236,7 +231,7 @@ export default function SmokeDashboardPage() {
   const [runAllSectionIndex, setRunAllSectionIndex] = useState<number | null>(null);
   const sectionRefs = useRef<Partial<Record<SmokeSectionId, HTMLDivElement | null>>>({});
 
-  function resetSectionState(sectionId: SmokeSectionId, options?: { keepHistory?: boolean }) {
+  function resetSectionState(sectionId: SmokeSectionId) {
     setResults((current) => {
       const next = { ...current };
       delete next[sectionId];
@@ -247,13 +242,6 @@ export default function SmokeDashboardPage() {
       delete next[sectionId];
       return next;
     });
-    if (!options?.keepHistory) {
-      setHistory((current) => {
-        const next = { ...current };
-        delete next[sectionId];
-        return next;
-      });
-    }
   }
 
   async function waitWithCountdown(
@@ -359,17 +347,6 @@ export default function SmokeDashboardPage() {
               ...current,
               [sectionId]: event.result,
             }));
-            setHistory((current) => ({
-              ...current,
-              [sectionId]: [
-                {
-                  status: event.result.status,
-                  finishedAt: event.result.finishedAt,
-                  durationMs: event.result.durationMs,
-                },
-                ...(current[sectionId] ?? []),
-              ].slice(0, 5),
-            }));
             setViews((current) => {
               const existing = current[sectionId] ?? createIdleSection(sectionId);
               return {
@@ -383,9 +360,7 @@ export default function SmokeDashboardPage() {
                   statusMessage:
                     event.result.status === 'failed'
                       ? existing.statusMessage
-                      : event.result.status === 'passed'
-                        ? 'Completed successfully.'
-                        : 'Skipped for this run.',
+                      : undefined,
                   steps: existing.steps.map((step) => {
                     const completed = event.result.steps.find((item) => item.id === step.id);
                     return completed
@@ -464,7 +439,7 @@ export default function SmokeDashboardPage() {
           await waitWithCountdown(RUN_ALL_RATE_LIMIT_RETRY_MS, (secondsRemaining) => {
             setRunAllStatus(`Rate limited on ${section.label}. Retrying in ${secondsRemaining}s.`);
           });
-          resetSectionState(section.id, { keepHistory: true });
+          resetSectionState(section.id);
           continue;
         }
 
@@ -545,7 +520,7 @@ export default function SmokeDashboardPage() {
   }
 
   return (
-    <Stack gap="lg">
+    <Stack gap="md">
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
           <Group justify="space-between" align="flex-start">
@@ -584,7 +559,7 @@ export default function SmokeDashboardPage() {
           p="lg"
           style={{
             position: 'sticky',
-            top: 16,
+            top: RUN_ALL_FOCUS_OFFSET_PX,
             zIndex: 20,
           }}
         >
@@ -685,18 +660,11 @@ export default function SmokeDashboardPage() {
         </Stack>
       </Paper>
 
-      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg" verticalSpacing="lg">
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md" verticalSpacing="md">
         {smokeSectionDefinitions.map((section) => {
           const result = results[section.id];
           const view = views[section.id];
-          const sectionHistory = history[section.id] ?? [];
           const isRunning = runningSectionId === section.id;
-          const steps = view?.steps ?? [];
-          const completedSteps = steps.filter(
-            (step) => step.status === 'passed' || step.status === 'failed' || step.status === 'skipped'
-          ).length;
-          const totalSteps = steps.length;
-          const progressValue = totalSteps ? Math.max(8, (completedSteps / totalSteps) * 100) : 0;
 
           return (
             <Paper
@@ -707,8 +675,9 @@ export default function SmokeDashboardPage() {
               ref={(node) => {
                 sectionRefs.current[section.id] = node;
               }}
+              style={{ scrollMarginTop: SECTION_SCROLL_MARGIN_TOP_PX }}
             >
-              <Stack gap="md">
+              <Stack gap="sm">
                 <Group justify="space-between" align="flex-start">
                   <Stack gap={4}>
                     <Group gap="xs">
@@ -751,8 +720,6 @@ export default function SmokeDashboardPage() {
                   </Group>
                 </Group>
 
-                {isRunning ? <Progress value={100} animated /> : steps.length ? <Progress value={progressValue} /> : null}
-
                 {view ? (
                   <>
                     <Group gap="md">
@@ -767,31 +734,8 @@ export default function SmokeDashboardPage() {
                         </Text>
                       ) : null}
                     </Group>
-                    {sectionHistory.length ? (
-                      <>
-                        <Divider />
-                        <Stack gap={6}>
-                          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                            Recent runs
-                          </Text>
-                          {sectionHistory.map((entry, index) => (
-                            <Group key={`${section.id}-history-${index}`} justify="space-between" gap="sm">
-                              <Badge variant="light" color={statusColor(entry.status)}>
-                                {entry.status}
-                              </Badge>
-                              <Text size="xs" c="dimmed">
-                                {formatDateTime(entry.finishedAt)}
-                              </Text>
-                              <Text size="xs" c="dimmed">
-                                {formatDuration(entry.durationMs)}
-                              </Text>
-                            </Group>
-                          ))}
-                        </Stack>
-                      </>
-                    ) : null}
                     <Divider />
-                    <Stack gap="sm">
+                    <Stack gap="xs">
                       {view.steps.map((step) => (
                         <SmokeStepRow key={`${section.id}-${step.id}`} step={step} />
                       ))}
