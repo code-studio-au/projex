@@ -3,3 +3,4 @@ export * from './ids.ts';
 export * from './roles.ts';
 export * from './domain.ts';
 export * from './import.ts';
+export * from './smoke.ts';

@@ -20,6 +20,7 @@ import { Route as ApiSessionRouteImport } from './routes/api.session'
 import { Route as ApiReadyRouteImport } from './routes/api.ready'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiCompaniesRouteImport } from './routes/api.companies'
+import { Route as AuthedSmokeRouteImport } from './routes/_authed.smoke'
 import { Route as AuthedCompaniesRouteImport } from './routes/_authed.companies'
 import { Route as AuthedAccountRouteImport } from './routes/_authed.account'
 import { Route as ApiProjectsProjectIdRouteImport } from './routes/api.projects.$projectId'
@@ -31,6 +32,7 @@ import { Route as ApiDevSessionRouteImport } from './routes/api.dev.session'
 import { Route as ApiDevResetSeedRouteImport } from './routes/api.dev.reset-seed'
 import { Route as ApiCompaniesCompanyIdRouteImport } from './routes/api.companies.$companyId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as ApiAdminSmokeRouteImport } from './routes/api.admin.smoke'
 import { Route as AuthedCCompanyIdRouteImport } from './routes/_authed.c.$companyId'
 import { Route as AuthedCCompanyIdIndexRouteImport } from './routes/_authed.c.$companyId.index'
 import { Route as ApiProjectsProjectIdTransactionsRouteImport } from './routes/api.projects.$projectId.transactions'
@@ -110,6 +112,11 @@ const ApiCompaniesRoute = ApiCompaniesRouteImport.update({
   path: '/api/companies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedSmokeRoute = AuthedSmokeRouteImport.update({
+  id: '/smoke',
+  path: '/smoke',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedCompaniesRoute = AuthedCompaniesRouteImport.update({
   id: '/companies',
   path: '/companies',
@@ -163,6 +170,11 @@ const ApiCompaniesCompanyIdRoute = ApiCompaniesCompanyIdRouteImport.update({
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminSmokeRoute = ApiAdminSmokeRouteImport.update({
+  id: '/api/admin/smoke',
+  path: '/api/admin/smoke',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedCCompanyIdRoute = AuthedCCompanyIdRouteImport.update({
@@ -314,12 +326,14 @@ export interface FileRoutesByFullPath {
   '/verify-email-change': typeof VerifyEmailChangeRoute
   '/account': typeof AuthedAccountRoute
   '/companies': typeof AuthedCompaniesRoute
+  '/smoke': typeof AuthedSmokeRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
   '/api/session': typeof ApiSessionRoute
   '/api/users': typeof ApiUsersRoute
   '/c/$companyId': typeof AuthedCCompanyIdRouteWithChildren
+  '/api/admin/smoke': typeof ApiAdminSmokeRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
@@ -361,11 +375,13 @@ export interface FileRoutesByTo {
   '/verify-email-change': typeof VerifyEmailChangeRoute
   '/account': typeof AuthedAccountRoute
   '/companies': typeof AuthedCompaniesRoute
+  '/smoke': typeof AuthedSmokeRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
   '/api/session': typeof ApiSessionRoute
   '/api/users': typeof ApiUsersRoute
+  '/api/admin/smoke': typeof ApiAdminSmokeRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
@@ -409,12 +425,14 @@ export interface FileRoutesById {
   '/verify-email-change': typeof VerifyEmailChangeRoute
   '/_authed/account': typeof AuthedAccountRoute
   '/_authed/companies': typeof AuthedCompaniesRoute
+  '/_authed/smoke': typeof AuthedSmokeRoute
   '/api/companies': typeof ApiCompaniesRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
   '/api/session': typeof ApiSessionRoute
   '/api/users': typeof ApiUsersRoute
   '/_authed/c/$companyId': typeof AuthedCCompanyIdRouteWithChildren
+  '/api/admin/smoke': typeof ApiAdminSmokeRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
   '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
@@ -458,12 +476,14 @@ export interface FileRouteTypes {
     | '/verify-email-change'
     | '/account'
     | '/companies'
+    | '/smoke'
     | '/api/companies'
     | '/api/health'
     | '/api/ready'
     | '/api/session'
     | '/api/users'
     | '/c/$companyId'
+    | '/api/admin/smoke'
     | '/api/auth/$'
     | '/api/companies/$companyId'
     | '/api/dev/reset-seed'
@@ -505,11 +525,13 @@ export interface FileRouteTypes {
     | '/verify-email-change'
     | '/account'
     | '/companies'
+    | '/smoke'
     | '/api/companies'
     | '/api/health'
     | '/api/ready'
     | '/api/session'
     | '/api/users'
+    | '/api/admin/smoke'
     | '/api/auth/$'
     | '/api/companies/$companyId'
     | '/api/dev/reset-seed'
@@ -552,12 +574,14 @@ export interface FileRouteTypes {
     | '/verify-email-change'
     | '/_authed/account'
     | '/_authed/companies'
+    | '/_authed/smoke'
     | '/api/companies'
     | '/api/health'
     | '/api/ready'
     | '/api/session'
     | '/api/users'
     | '/_authed/c/$companyId'
+    | '/api/admin/smoke'
     | '/api/auth/$'
     | '/api/companies/$companyId'
     | '/api/dev/reset-seed'
@@ -604,6 +628,7 @@ export interface RootRouteChildren {
   ApiReadyRoute: typeof ApiReadyRoute
   ApiSessionRoute: typeof ApiSessionRoute
   ApiUsersRoute: typeof ApiUsersRoute
+  ApiAdminSmokeRoute: typeof ApiAdminSmokeRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDevResetSeedRoute: typeof ApiDevResetSeedRoute
   ApiDevSessionRoute: typeof ApiDevSessionRoute
@@ -693,6 +718,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCompaniesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/smoke': {
+      id: '/_authed/smoke'
+      path: '/smoke'
+      fullPath: '/smoke'
+      preLoaderRoute: typeof AuthedSmokeRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/companies': {
       id: '/_authed/companies'
       path: '/companies'
@@ -768,6 +800,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/smoke': {
+      id: '/api/admin/smoke'
+      path: '/api/admin/smoke'
+      fullPath: '/api/admin/smoke'
+      preLoaderRoute: typeof ApiAdminSmokeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/c/$companyId': {
@@ -957,12 +996,14 @@ const AuthedCCompanyIdRouteWithChildren =
 interface AuthedRouteChildren {
   AuthedAccountRoute: typeof AuthedAccountRoute
   AuthedCompaniesRoute: typeof AuthedCompaniesRoute
+  AuthedSmokeRoute: typeof AuthedSmokeRoute
   AuthedCCompanyIdRoute: typeof AuthedCCompanyIdRouteWithChildren
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedAccountRoute: AuthedAccountRoute,
   AuthedCompaniesRoute: AuthedCompaniesRoute,
+  AuthedSmokeRoute: AuthedSmokeRoute,
   AuthedCCompanyIdRoute: AuthedCCompanyIdRouteWithChildren,
 }
 
@@ -1135,6 +1176,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReadyRoute: ApiReadyRoute,
   ApiSessionRoute: ApiSessionRoute,
   ApiUsersRoute: ApiUsersRoute,
+  ApiAdminSmokeRoute: ApiAdminSmokeRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDevResetSeedRoute: ApiDevResetSeedRoute,
   ApiDevSessionRoute: ApiDevSessionRoute,

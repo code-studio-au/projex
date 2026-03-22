@@ -27,6 +27,7 @@ const loginRouteApi = getRouteApi('/login');
 const verifyEmailChangeRouteApi = getRouteApi('/verify-email-change');
 const landingRouteApi = getRouteApi('/_authed/companies');
 const accountRouteApi = getRouteApi('/_authed/account');
+const smokeRouteApi = getRouteApi('/_authed/smoke');
 const companyRouteApi = getRouteApi('/_authed/c/$companyId');
 const projectRouteApi = getRouteApi('/_authed/c/$companyId/p/$projectId');
 
@@ -39,6 +40,7 @@ export const verifyEmailChangeRoute = {
 };
 export const landingRoute = { to: '/companies' as const, ...landingRouteApi };
 export const accountRoute = { to: '/account' as const, ...accountRouteApi };
+export const smokeRoute = { to: '/smoke' as const, ...smokeRouteApi };
 export const companyRoute = { to: '/c/$companyId' as const, ...companyRouteApi };
 export const projectRoute = {
   to: '/c/$companyId/p/$projectId' as const,

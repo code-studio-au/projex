@@ -16,7 +16,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import { useApi } from './hooks/useApi';
-import { accountRoute, companyRoute, homeRoute, landingRoute } from './router';
+import { accountRoute, companyRoute, homeRoute, landingRoute, smokeRoute } from './router';
 import { theme } from './theme';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
@@ -171,6 +171,15 @@ export function AuthedLayout() {
                     >
                       Account settings
                     </Menu.Item>
+                    {isSuperadmin ? (
+                      <Menu.Item
+                        onClick={() => {
+                          router.navigate({ to: smokeRoute.to });
+                        }}
+                      >
+                        Smoke dashboard
+                      </Menu.Item>
+                    ) : null}
                     <Menu.Item
                       color="red"
                       onClick={() => {
