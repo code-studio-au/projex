@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Outlet, useRouter, useRouterState } from '@tanstack/react-router';
 import {
   AppShell,
   Button,
   Container,
   Group,
+  LoadingOverlay,
   Menu,
   Paper,
   Stack,
@@ -16,7 +17,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import { useApi } from './hooks/useApi';
-import { accountRoute, companyRoute, homeRoute, landingRoute, smokeRoute } from './router';
+import { accountRoute, companyRoute, homeRoute, landingRoute, loginRoute, smokeRoute } from './router';
 import { theme } from './theme';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
@@ -55,6 +56,7 @@ export function AuthedLayout() {
   const session = useSessionQuery();
   const logout = useLogoutMutation();
   const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const userId = session.data?.userId ?? null;
   const isMobile = useMediaQuery('(max-width: 48em)');
@@ -89,8 +91,25 @@ export function AuthedLayout() {
     },
   });
 
+  async function handleLogout() {
+    setIsSigningOut(true);
+    try {
+      await logout.mutateAsync();
+      await router.navigate({ to: loginRoute.to, replace: true });
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
+
   return (
     <AppShell padding={0} header={{ height: isMobile ? 64 : 70 }}>
+      <LoadingOverlay
+        visible={isSigningOut}
+        zIndex={400}
+        overlayProps={{ blur: 2, backgroundOpacity: 0.35 }}
+        loaderProps={{ children: 'Signing out...' }}
+        style={{ position: 'fixed' }}
+      />
       <AppShell.Header
         style={{
           borderBottom: 'none',
@@ -182,12 +201,9 @@ export function AuthedLayout() {
                     ) : null}
                     <Menu.Item
                       color="red"
+                      disabled={isSigningOut}
                       onClick={() => {
-                        logout.mutate(undefined, {
-                          onSuccess: () => {
-                            router.navigate({ to: homeRoute.to });
-                          },
-                        });
+                        void handleLogout();
                       }}
                     >
                       Logout
