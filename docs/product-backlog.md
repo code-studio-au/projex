@@ -179,11 +179,50 @@ Why this matters:
 - these small frictions add up in a finance/admin app
 - the table-heavy workflows are core product paths
 
+### 10. Smooth the logout transition
+
+Current state:
+
+- logging out briefly leaves the current page in a stateless/no-session render
+- then the app redirects to the login page
+- this feels like a double refresh rather than one intentional transition
+
+Recommended direction:
+
+- move logout to a cleaner one-step transition
+- avoid showing the signed-out version of the current page before redirect
+- consider a lightweight "Signing out..." state while the redirect is in progress
+
+Why this matters:
+
+- makes the app feel more deliberate and less jumpy
+- reduces confusion around whether the logout actually completed
+
 ## Infra / Operations
+
+### 11. Add a separate maintenance/monitor page for restarts
+
+Current state:
+
+- when the app server is restarting, nginx can surface a `502 Bad Gateway`
+- that is technically accurate, but not a good operator or user-facing experience
+
+Recommended direction:
+
+- host a very small page outside the app lifecycle
+- when the app is unavailable, route to a friendly maintenance screen such as `Server restarting...`
+- have that page poll a lightweight app endpoint or the login page
+- redirect back automatically once the app is healthy again
+
+Why this matters:
+
+- gives us a cleaner restart/deploy experience
+- avoids exposing raw upstream errors during expected maintenance windows
+- gives us a foundation for future maintenance messaging without tying it to the app process
 
 ## Nice To Have
 
-### 13. Improve multi-account testing ergonomics
+### 12. Improve multi-account testing ergonomics
 
 Examples:
 
