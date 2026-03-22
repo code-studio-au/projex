@@ -1,9 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Outlet, useRouter, useRouterState } from '@tanstack/react-router';
 import {
   AppShell,
   Button,
-  Center,
   Container,
   Group,
   Menu,
@@ -14,13 +13,14 @@ import {
   MantineProvider,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 
 import { useApi } from './hooks/useApi';
 import { accountRoute, companyRoute, homeRoute, landingRoute, loginRoute, smokeRoute } from './router';
 import { theme } from './theme';
 import { asCompanyId } from './types/ids';
-import { useLogoutMutation, useSessionQuery } from './queries/session';
+import { refreshAfterAuthChange, useLogoutMutation, useSessionQuery } from './queries/session';
+import { qk } from './queries/keys';
 import { useAllCompanyMembershipsQuery } from './queries/memberships';
 import { useCompaniesQuery, useUsersQuery } from './queries/reference';
 
@@ -56,8 +56,7 @@ export function AuthedLayout() {
   const session = useSessionQuery();
   const logout = useLogoutMutation();
   const router = useRouter();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-  const MIN_SIGN_OUT_OVERLAY_MS = 900;
+  const queryClient = useQueryClient();
 
   const userId = session.data?.userId ?? null;
   const isMobile = useMediaQuery('(max-width: 48em)');
@@ -93,75 +92,14 @@ export function AuthedLayout() {
   });
 
   async function handleLogout() {
-    const startedAt = Date.now();
-    setIsSigningOut(true);
-    try {
-      await logout.mutateAsync();
-      const elapsedMs = Date.now() - startedAt;
-      const remainingMs = Math.max(0, MIN_SIGN_OUT_OVERLAY_MS - elapsedMs);
-      if (remainingMs > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remainingMs));
-      }
-      await router.navigate({ to: loginRoute.to, replace: true });
-    } finally {
-      setIsSigningOut(false);
-    }
+    await logout.mutateAsync({ deferCacheReset: true });
+    await router.navigate({ to: loginRoute.to, replace: true });
+    queryClient.setQueryData(qk.session(), null);
+    await refreshAfterAuthChange(queryClient);
   }
 
   return (
     <AppShell padding={0} header={{ height: isMobile ? 64 : 70 }}>
-      {isSigningOut ? (
-        <Center
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 400,
-            background:
-              'linear-gradient(180deg, rgba(248,250,252,0.82), rgba(241,245,249,0.9))',
-            backdropFilter: 'blur(6px)',
-          }}
-        >
-          <Paper
-            p="xl"
-            radius="xl"
-            shadow="md"
-            style={{
-              width: 'min(28rem, calc(100vw - 2rem))',
-              background:
-                'linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.94))',
-              border: '1px solid rgba(148, 163, 184, 0.22)',
-            }}
-          >
-            <Stack gap="sm" align="center">
-              <ThemeIcon
-                radius="xl"
-                size={56}
-                variant="gradient"
-                gradient={{ from: 'blue.6', to: 'cyan.5' }}
-              >
-                PX
-              </ThemeIcon>
-              <Stack gap={4} align="center">
-                <Text fw={800} size="lg">
-                  Signing out
-                </Text>
-                <Text size="sm" c="dimmed" ta="center">
-                  Wrapping up your session and taking you back to the login screen.
-                </Text>
-              </Stack>
-              <Text
-                size="xs"
-                tt="uppercase"
-                fw={700}
-                c="blue.7"
-                style={{ letterSpacing: '0.08em' }}
-              >
-                Please wait
-              </Text>
-            </Stack>
-          </Paper>
-        </Center>
-      ) : null}
       <AppShell.Header
         style={{
           borderBottom: 'none',
@@ -253,7 +191,7 @@ export function AuthedLayout() {
                     ) : null}
                     <Menu.Item
                       color="red"
-                      disabled={isSigningOut}
+                      disabled={logout.isPending}
                       onClick={() => {
                         void handleLogout();
                       }}

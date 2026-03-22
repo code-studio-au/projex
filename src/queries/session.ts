@@ -27,7 +27,7 @@ export function useSessionQuery() {
  * When auth changes, user-scoped queries (companies/projects/etc) must be refreshed.
  * We keep the seeded users list warm, but invalidate everything else.
  */
-async function refreshAfterAuthChange(queryClient: QueryClient) {
+export async function refreshAfterAuthChange(queryClient: QueryClient) {
   // Drop any anonymous companies cache (pre-login), otherwise staleTime can keep it “fresh” post-login.
   queryClient.removeQueries({
     predicate: (q) =>
@@ -60,15 +60,17 @@ export function useLogoutMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options?: { deferCacheReset?: boolean }) => {
       if (isServerMode) {
         const { signOutAuth } = await import('../auth/client');
         await signOutAuth();
-        return;
+        return options;
       }
       await api.logout();
+      return options;
     },
-    onSuccess: async () => {
+    onSuccess: async (options) => {
+      if (options?.deferCacheReset) return;
       // Clear session cache immediately so guards stop treating the user as authed.
       queryClient.setQueryData(qk.session(), null);
       await refreshAfterAuthChange(queryClient);
