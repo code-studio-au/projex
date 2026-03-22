@@ -6,11 +6,52 @@ for (const envFileName of ['.env.local', '.env.smoke.local']) {
 }
 
 const baseUrl = (process.env.PROJEX_SMOKE_BASE_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+const validSections = new Set([
+  'basics',
+  'appPages',
+  'emailChange',
+  'temporaryData',
+  'inviteFlow',
+  'privacyChecks',
+]);
+const requestedSections = parseRequestedSections(process.argv.slice(2));
 
 const cookieJar = new Map();
 const interactiveTerminal = Boolean(process.stdout.isTTY && !process.env.CI);
 const spinnerFrames = ['-', '\\', '|', '/'];
 let activeSpinner = null;
+
+function parseRequestedSections(argv) {
+  const sections = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--section') {
+      const value = argv[index + 1];
+      if (!value) throw new Error('Missing value after --section');
+      sections.push(value);
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith('--section=')) {
+      sections.push(arg.slice('--section='.length));
+      continue;
+    }
+  }
+
+  for (const section of sections) {
+    if (!validSections.has(section)) {
+      throw new Error(
+        `Unknown smoke section "${section}". Valid sections: ${Array.from(validSections).join(', ')}`
+      );
+    }
+  }
+
+  return new Set(sections);
+}
+
+function shouldRunSection(sectionId) {
+  return requestedSections.size === 0 || requestedSections.has(sectionId);
+}
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -246,14 +287,6 @@ async function loginWithEmailPassword(email, password, label = 'auth login') {
 async function main() {
   console.info(`Smoke test against ${baseUrl}`);
 
-  logSection('Basics');
-  await runStep('Checking health endpoint', async () => {
-    assertOk(await request('/api/health'), 'health');
-  });
-  await runStep('Checking readiness endpoint', async () => {
-    assertOk(await request('/api/ready'), 'ready');
-  });
-
   const email = process.env.PROJEX_SMOKE_EMAIL?.trim();
   const password = process.env.PROJEX_SMOKE_PASSWORD?.trim();
   const forceReset = process.env.PROJEX_SMOKE_FORCE_RESET === 'true';
@@ -269,174 +302,201 @@ async function main() {
   const isLocalBaseUrl =
     baseUrl.startsWith('http://localhost') || baseUrl.startsWith('http://127.0.0.1');
 
-  await runStep('Checking login page HTML', async () => {
-    assertHtmlOk(await requestHtml('/login'), 'login page');
-  });
+  let session = null;
+  let companyList = [];
+  let company = null;
+  let projects = null;
+  let project = null;
 
-  if ((!email || !password) && !isLocalBaseUrl) {
-    throw new Error(
-      'Production-like smoke runs require PROJEX_SMOKE_EMAIL and PROJEX_SMOKE_PASSWORD. ' +
-        'Dev reset/login endpoints are disabled on EC2 by design.'
-    );
-  }
+  async function ensureAuthAndProject() {
+    if (session && company && project) return;
 
-  if (forceReset) {
-    await runStep('Resetting dev seed data', async () => {
-      assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
+    await runStep('Checking login page HTML', async () => {
+      assertHtmlOk(await requestHtml('/login'), 'login page');
     });
-  } else if (!email || !password) {
-    await runStep('Resetting dev seed data', async () => {
-      assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
-    });
-  } else {
-    noteStep('Skipping dev reset-seed for auth smoke flow');
-  }
 
-  if (email && password) {
-    await runStep(`Logging in as ${email}`, async () => {
-      await loginWithEmailPassword(email, password, 'auth login');
-    });
-  } else {
-    await runStep('Using dev session login', async () => {
-      const login = await request('/api/dev/session', {
-        method: 'POST',
-        body: JSON.stringify({ userId: 'u_superadmin' }),
+    if ((!email || !password) && !isLocalBaseUrl) {
+      throw new Error(
+        'Production-like smoke runs require PROJEX_SMOKE_EMAIL and PROJEX_SMOKE_PASSWORD. ' +
+          'Dev reset/login endpoints are disabled on EC2 by design.'
+      );
+    }
+
+    if (forceReset) {
+      await runStep('Resetting dev seed data', async () => {
+        assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
       });
-      assertOk(login, 'dev login');
-    });
-  }
-
-  const session = await runStep('Checking current session', async () => {
-    const currentSession = await request('/api/session');
-    assertOk(currentSession, 'session');
-    return currentSession;
-  });
-  if (!session.body?.userId) throw new Error('No session userId returned');
-
-  if (resetEmail) {
-    await runStep(`Requesting password reset email for ${resetEmail}`, async () => {
-      const forgotPassword = await request('/api/auth/request-password-reset', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: resetEmail,
-          redirectTo: `${baseUrl}/reset-password`,
-        }),
+    } else if (!email || !password) {
+      await runStep('Resetting dev seed data', async () => {
+        assertOk(await request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
       });
-      assertOk(forgotPassword, 'request password reset');
+    } else {
+      noteStep('Skipping dev reset-seed for auth smoke flow');
+    }
+
+    if (email && password) {
+      await runStep(`Logging in as ${email}`, async () => {
+        await loginWithEmailPassword(email, password, 'auth login');
+      });
+    } else {
+      await runStep('Using dev session login', async () => {
+        const login = await request('/api/dev/session', {
+          method: 'POST',
+          body: JSON.stringify({ userId: 'u_superadmin' }),
+        });
+        assertOk(login, 'dev login');
+      });
+    }
+
+    session = await runStep('Checking current session', async () => {
+      const currentSession = await request('/api/session');
+      assertOk(currentSession, 'session');
+      return currentSession;
     });
-  }
+    if (!session.body?.userId) throw new Error('No session userId returned');
 
-  const companies = await runStep('Loading companies', async () => {
-    const result = await request('/api/companies');
-    assertOk(result, 'companies');
-    return result;
-  });
-  const companyList = Array.isArray(companies.body) ? companies.body : [];
-  const company =
-    companyList.find((c) => c.id !== 'co_projex') ??
-    companyList[0];
-  if (!company?.id) {
-    throw new Error(
-      `No company available for smoke test (session userId=${session.body.userId}). ` +
-        'Ensure this BetterAuth user is linked to app memberships (npm run auth:link-user).'
-    );
-  }
+    if (resetEmail) {
+      await runStep(`Requesting password reset email for ${resetEmail}`, async () => {
+        const forgotPassword = await request('/api/auth/request-password-reset', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: resetEmail,
+            redirectTo: `${baseUrl}/reset-password`,
+          }),
+        });
+        assertOk(forgotPassword, 'request password reset');
+      });
+    }
 
-  let projects = await runStep(`Loading projects for company ${companyLabel(company)}`, async () => {
-    const result = await request(`/api/companies/${encodeURIComponent(company.id)}/projects`);
-    assertOk(result, 'projects');
-    return result;
-  });
-  let project = (projects.body ?? [])[0];
-  if (!project?.id && companyList.length > 1) {
-    for (const candidate of companyList) {
-      if (!candidate?.id || candidate.id === company.id) continue;
-      const next = await request(`/api/companies/${encodeURIComponent(candidate.id)}/projects`);
-      if (!next.res.ok) continue;
-      const maybe = (next.body ?? [])[0];
-      if (maybe?.id) {
-        projects = next;
-        project = maybe;
-        break;
+    const companies = await runStep('Loading companies', async () => {
+      const result = await request('/api/companies');
+      assertOk(result, 'companies');
+      return result;
+    });
+    companyList = Array.isArray(companies.body) ? companies.body : [];
+    company =
+      companyList.find((c) => c.id !== 'co_projex') ??
+      companyList[0];
+    if (!company?.id) {
+      throw new Error(
+        `No company available for smoke test (session userId=${session.body.userId}). ` +
+          'Ensure this BetterAuth user is linked to app memberships (npm run auth:link-user).'
+      );
+    }
+
+    projects = await runStep(`Loading projects for company ${companyLabel(company)}`, async () => {
+      const result = await request(`/api/companies/${encodeURIComponent(company.id)}/projects`);
+      assertOk(result, 'projects');
+      return result;
+    });
+    project = (projects.body ?? [])[0];
+    if (!project?.id && companyList.length > 1) {
+      for (const candidate of companyList) {
+        if (!candidate?.id || candidate.id === company.id) continue;
+        const next = await request(`/api/companies/${encodeURIComponent(candidate.id)}/projects`);
+        if (!next.res.ok) continue;
+        const maybe = (next.body ?? [])[0];
+        if (maybe?.id) {
+          projects = next;
+          project = maybe;
+          break;
+        }
       }
     }
+    if (!project?.id) throw new Error('No project available for smoke test');
   }
-  if (!project?.id) throw new Error('No project available for smoke test');
 
-  logSection('App Pages');
-  await runStep('Checking companies page HTML', async () => {
-    assertHtmlOk(await requestHtml('/companies'), 'companies page');
-  });
-  await runStep('Checking account page HTML', async () => {
-    assertHtmlOk(await requestHtml('/account'), 'account page');
-  });
-  await runStep('Checking company page HTML', async () => {
-    assertHtmlOk(await requestHtml(`/c/${encodeURIComponent(company.id)}`), 'company page');
-  });
-  await runStep('Checking project page HTML', async () => {
-    assertHtmlOk(
-      await requestHtml(`/c/${encodeURIComponent(company.id)}/p/${encodeURIComponent(project.id)}`),
-      'project page'
-    );
-  });
-  await runStep('Checking project refresh HTML', async () => {
-    assertHtmlOk(
-      await requestHtml(`/c/${encodeURIComponent(company.id)}/p/${encodeURIComponent(project.id)}`),
-      'project refresh'
-    );
-  });
+  if (shouldRunSection('basics')) {
+    logSection('Basics');
+    await runStep('Checking health endpoint', async () => {
+      assertOk(await request('/api/health'), 'health');
+    });
+    await runStep('Checking readiness endpoint', async () => {
+      assertOk(await request('/api/ready'), 'ready');
+    });
+    await ensureAuthAndProject();
+  }
 
-  await runStep(`Loading transactions for project ${projectLabel(project)}`, async () => {
-    assertOk(
-      await request(`/api/projects/${encodeURIComponent(project.id)}/transactions`),
-      'transactions list'
-    );
-  });
+  if (shouldRunSection('appPages')) {
+    await ensureAuthAndProject();
+    logSection('App Pages');
+    await runStep('Checking companies page HTML', async () => {
+      assertHtmlOk(await requestHtml('/companies'), 'companies page');
+    });
+    await runStep('Checking account page HTML', async () => {
+      assertHtmlOk(await requestHtml('/account'), 'account page');
+    });
+    await runStep('Checking company page HTML', async () => {
+      assertHtmlOk(await requestHtml(`/c/${encodeURIComponent(company.id)}`), 'company page');
+    });
+    await runStep('Checking project page HTML', async () => {
+      assertHtmlOk(
+        await requestHtml(`/c/${encodeURIComponent(company.id)}/p/${encodeURIComponent(project.id)}`),
+        'project page'
+      );
+    });
+    await runStep('Checking project refresh HTML', async () => {
+      assertHtmlOk(
+        await requestHtml(`/c/${encodeURIComponent(company.id)}/p/${encodeURIComponent(project.id)}`),
+        'project refresh'
+      );
+    });
 
-  if (emailChangeTo) {
+    await runStep(`Loading transactions for project ${projectLabel(project)}`, async () => {
+      assertOk(
+        await request(`/api/projects/${encodeURIComponent(project.id)}/transactions`),
+        'transactions list'
+      );
+    });
+  }
+
+  if (shouldRunSection('emailChange')) {
+    await ensureAuthAndProject();
     logSection('Email Change');
-    await runStep(`Requesting verified email change to ${emailChangeTo}`, async () => {
-      const result = await request('/api/me/email-change', {
-        method: 'POST',
-        body: JSON.stringify({ newEmail: emailChangeTo }),
+    if (emailChangeTo) {
+      await runStep(`Requesting verified email change to ${emailChangeTo}`, async () => {
+        const result = await request('/api/me/email-change', {
+          method: 'POST',
+          body: JSON.stringify({ newEmail: emailChangeTo }),
+        });
+        assertOk(result, 'request email change');
       });
-      assertOk(result, 'request email change');
-    });
 
-    await runStep('Checking pending email change', async () => {
-      const result = await request('/api/me/email-change');
-      assertOk(result, 'get pending email change');
-      if (!result.body || result.body.newEmail !== emailChangeTo) {
-        throw new Error(`Pending email change did not match ${emailChangeTo}`);
-      }
-    });
-
-    await runStep(`Resending email change verification to ${emailChangeTo}`, async () => {
-      const result = await request('/api/me/email-change/resend', {
-        method: 'POST',
+      await runStep('Checking pending email change', async () => {
+        const result = await request('/api/me/email-change');
+        assertOk(result, 'get pending email change');
+        if (!result.body || result.body.newEmail !== emailChangeTo) {
+          throw new Error(`Pending email change did not match ${emailChangeTo}`);
+        }
       });
-      assertOk(result, 'resend email change');
-      if (result.body?.newEmail !== emailChangeTo) {
-        throw new Error(`Resent email change did not match ${emailChangeTo}`);
-      }
-    });
 
-    await runStep('Cancelling pending email change', async () => {
-      const result = await request('/api/me/email-change', {
-        method: 'DELETE',
+      await runStep(`Resending email change verification to ${emailChangeTo}`, async () => {
+        const result = await request('/api/me/email-change/resend', {
+          method: 'POST',
+        });
+        assertOk(result, 'resend email change');
+        if (result.body?.newEmail !== emailChangeTo) {
+          throw new Error(`Resent email change did not match ${emailChangeTo}`);
+        }
       });
-      assertOk(result, 'cancel email change');
-    });
 
-    await runStep('Checking pending email change was cleared', async () => {
-      const result = await request('/api/me/email-change');
-      assertOk(result, 'get pending email change after cancel');
-      if (result.body !== null) {
-        throw new Error('Pending email change was still present after cancel');
-      }
-    });
-  } else {
-    noteStep('Skipping email-change flow; set PROJEX_SMOKE_EMAIL_CHANGE_TO to enable it');
+      await runStep('Cancelling pending email change', async () => {
+        const result = await request('/api/me/email-change', {
+          method: 'DELETE',
+        });
+        assertOk(result, 'cancel email change');
+      });
+
+      await runStep('Checking pending email change was cleared', async () => {
+        const result = await request('/api/me/email-change');
+        assertOk(result, 'get pending email change after cancel');
+        if (result.body !== null) {
+          throw new Error('Pending email change was still present after cancel');
+        }
+      });
+    } else {
+      noteStep('Skipping email-change flow; set PROJEX_SMOKE_EMAIL_CHANGE_TO to enable it');
+    }
   }
 
   const categoryId = uniqueId('cat_smoke');
@@ -444,197 +504,204 @@ async function main() {
   const categoryName = uniqueId('Smoke Category');
   const budgetName = uniqueId('Smoke Budget');
 
-  logSection('Temporary Data');
-  await runStep(`Creating temporary category ${categoryName}`, async () => {
-    const createdCategory = await request(`/api/projects/${encodeURIComponent(project.id)}/categories`, {
-      method: 'POST',
-      body: JSON.stringify({
-        id: categoryId,
-        companyId: company.id,
-        projectId: project.id,
-        name: categoryName,
-      }),
-    });
-    assertOk(createdCategory, 'create category');
-  });
-
-  await runStep(`Creating temporary budget ${budgetName}`, async () => {
-    const createdBudget = await request(`/api/projects/${encodeURIComponent(project.id)}/budgets`, {
-      method: 'POST',
-      body: JSON.stringify({
-        id: budgetId,
-        companyId: company.id,
-        projectId: project.id,
-        categoryId,
-        name: budgetName,
-        allocatedCents: 1234,
-      }),
-    });
-    assertOk(createdBudget, 'create budget');
-  });
-
-  await runStep(`Deleting temporary budget ${budgetName}`, async () => {
-    assertOk(
-      await request(
-        `/api/projects/${encodeURIComponent(project.id)}/budgets/${encodeURIComponent(budgetId)}`,
-        { method: 'DELETE' }
-      ),
-      'delete budget'
-    );
-  });
-  await runStep(`Deleting temporary category ${categoryName}`, async () => {
-    assertOk(
-      await request(
-        `/api/projects/${encodeURIComponent(project.id)}/categories/${encodeURIComponent(categoryId)}`,
-        { method: 'DELETE' }
-      ),
-      'delete category'
-    );
-  });
-
-  if (inviteEmail) {
-    logSection('Invite Flow');
-    const invite = await runStep(`Inviting ${inviteEmail} to company ${companyLabel(company)} as ${inviteRole}`, async () => {
-      const result = await request(`/api/companies/${encodeURIComponent(company.id)}/users`, {
+  if (shouldRunSection('temporaryData')) {
+    await ensureAuthAndProject();
+    logSection('Temporary Data');
+    await runStep(`Creating temporary category ${categoryName}`, async () => {
+      const createdCategory = await request(`/api/projects/${encodeURIComponent(project.id)}/categories`, {
         method: 'POST',
         body: JSON.stringify({
-          name: inviteName,
-          email: inviteEmail,
-          role: inviteRole,
+          id: categoryId,
+          companyId: company.id,
+          projectId: project.id,
+          name: categoryName,
         }),
       });
-      assertOk(result, 'invite user');
-      return result;
+      assertOk(createdCategory, 'create category');
     });
 
-    const invitedUserId = invite.body?.user?.id;
-    if (!invitedUserId) {
-      throw new Error(`Invite user did not return a user id: ${JSON.stringify(invite.body)}`);
-    }
+    await runStep(`Creating temporary budget ${budgetName}`, async () => {
+      const createdBudget = await request(`/api/projects/${encodeURIComponent(project.id)}/budgets`, {
+        method: 'POST',
+        body: JSON.stringify({
+          id: budgetId,
+          companyId: company.id,
+          projectId: project.id,
+          categoryId,
+          name: budgetName,
+          allocatedCents: 1234,
+        }),
+      });
+      assertOk(createdBudget, 'create budget');
+    });
 
-    await runStep(`Attempting immediate resend for invited user ${inviteEmail}`, async () => {
-      const resend = await request(
-        `/api/companies/${encodeURIComponent(company.id)}/users/${encodeURIComponent(invitedUserId)}/invite`,
-        { method: 'POST' }
+    await runStep(`Deleting temporary budget ${budgetName}`, async () => {
+      assertOk(
+        await request(
+          `/api/projects/${encodeURIComponent(project.id)}/budgets/${encodeURIComponent(budgetId)}`,
+          { method: 'DELETE' }
+        ),
+        'delete budget'
       );
-      if (isInviteResendRateLimited(resend)) {
-        noteStep('Resend invite was rate-limited, which is acceptable for the immediate resend smoke check');
-      } else {
-        assertOk(resend, 'resend invite');
-      }
     });
-  } else {
-    noteStep('Skipping invite flow; set PROJEX_SMOKE_INVITE_EMAIL to enable it');
+    await runStep(`Deleting temporary category ${categoryName}`, async () => {
+      assertOk(
+        await request(
+          `/api/projects/${encodeURIComponent(project.id)}/categories/${encodeURIComponent(categoryId)}`,
+          { method: 'DELETE' }
+        ),
+        'delete category'
+      );
+    });
   }
 
-  if (
-    privacyAdminEmail &&
-    privacyAdminPassword &&
-    privacySuperadminEmail &&
-    privacySuperadminPassword
-  ) {
+  if (shouldRunSection('inviteFlow')) {
+    await ensureAuthAndProject();
+    logSection('Invite Flow');
+    if (inviteEmail) {
+      const invite = await runStep(`Inviting ${inviteEmail} to company ${companyLabel(company)} as ${inviteRole}`, async () => {
+        const result = await request(`/api/companies/${encodeURIComponent(company.id)}/users`, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: inviteName,
+            email: inviteEmail,
+            role: inviteRole,
+          }),
+        });
+        assertOk(result, 'invite user');
+        return result;
+      });
+
+      const invitedUserId = invite.body?.user?.id;
+      if (!invitedUserId) {
+        throw new Error(`Invite user did not return a user id: ${JSON.stringify(invite.body)}`);
+      }
+
+      await runStep(`Attempting immediate resend for invited user ${inviteEmail}`, async () => {
+        const resend = await request(
+          `/api/companies/${encodeURIComponent(company.id)}/users/${encodeURIComponent(invitedUserId)}/invite`,
+          { method: 'POST' }
+        );
+        if (isInviteResendRateLimited(resend)) {
+          noteStep('Resend invite was rate-limited, which is acceptable for the immediate resend smoke check');
+        } else {
+          assertOk(resend, 'resend invite');
+        }
+      });
+    } else {
+      noteStep('Skipping invite flow; set PROJEX_SMOKE_INVITE_EMAIL to enable it');
+    }
+  }
+
+  if (shouldRunSection('privacyChecks')) {
     logSection('Privacy Checks');
+    if (
+      privacyAdminEmail &&
+      privacyAdminPassword &&
+      privacySuperadminEmail &&
+      privacySuperadminPassword
+    ) {
+      await request('/api/session', { method: 'DELETE' });
+      await runStep(`Logging in as admin ${userLabel(privacyAdminEmail, 'admin')}`, async () => {
+        await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin login');
+      });
 
-    await request('/api/session', { method: 'DELETE' });
-    await runStep(`Logging in as admin ${userLabel(privacyAdminEmail, 'admin')}`, async () => {
-      await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin login');
-    });
+      const adminCompanies = await runStep('Loading admin companies', async () => {
+        const result = await request('/api/companies');
+        assertOk(result, 'privacy admin companies');
+        return result;
+      });
+      const adminCompany = (adminCompanies.body ?? [])[0];
+      if (!adminCompany?.id) throw new Error('No company available for privacy admin smoke test');
 
-    const adminCompanies = await runStep('Loading admin companies', async () => {
-      const result = await request('/api/companies');
-      assertOk(result, 'privacy admin companies');
-      return result;
-    });
-    const adminCompany = (adminCompanies.body ?? [])[0];
-    if (!adminCompany?.id) throw new Error('No company available for privacy admin smoke test');
+      const adminProjects = await runStep(`Loading admin projects for company ${companyLabel(adminCompany)}`, async () => {
+        const result = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
+        assertOk(result, 'privacy admin projects');
+        return result;
+      });
+      const adminProject = (adminProjects.body ?? []).find((p) => p.status === 'active') ?? (adminProjects.body ?? [])[0];
+      if (!adminProject?.id) throw new Error('No project available for privacy admin smoke test');
 
-    const adminProjects = await runStep(`Loading admin projects for company ${companyLabel(adminCompany)}`, async () => {
-      const result = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
-      assertOk(result, 'privacy admin projects');
-      return result;
-    });
-    const adminProject = (adminProjects.body ?? []).find((p) => p.status === 'active') ?? (adminProjects.body ?? [])[0];
-    if (!adminProject?.id) throw new Error('No project available for privacy admin smoke test');
+      const originalAccess = Boolean(adminProject.allowSuperadminAccess);
 
-    const originalAccess = Boolean(adminProject.allowSuperadminAccess);
-
-    await runStep(`Enabling superadmin access for project ${projectLabel(adminProject)}`, async () => {
-      assertOk(
-        await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ allowSuperadminAccess: true }),
-        }),
-        'privacy enable superadmin access'
-      );
-    });
-
-    await runStep(`Disabling superadmin access for project ${projectLabel(adminProject)}`, async () => {
-      assertOk(
-        await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ allowSuperadminAccess: false }),
-        }),
-        'privacy disable superadmin access'
-      );
-    });
-
-    await runStep('Confirming admin can still view the project page', async () => {
-      assertHtmlOk(
-        await requestHtml(`/c/${encodeURIComponent(adminCompany.id)}/p/${encodeURIComponent(adminProject.id)}`),
-        'privacy admin project page after disable'
-      );
-    });
-
-    await request('/api/session', { method: 'DELETE' });
-    await sleep(1000);
-    await runStep(`Logging in as superadmin ${userLabel(privacySuperadminEmail, 'superadmin')}`, async () => {
-      await loginWithEmailPassword(
-        privacySuperadminEmail,
-        privacySuperadminPassword,
-        'privacy superadmin login'
-      );
-    });
-
-    const superProjects = await runStep('Checking restricted project is hidden from superadmin project list', async () => {
-      const result = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
-      assertOk(result, 'privacy superadmin projects');
-      return result;
-    });
-    if ((superProjects.body ?? []).some((project) => project.id === adminProject.id)) {
-      throw new Error('Restricted project was still visible to superadmin');
-    }
-
-    const superProject = await runStep('Checking restricted project cannot be fetched by superadmin', async () => {
-      const result = await request(`/api/projects/${encodeURIComponent(adminProject.id)}`);
-      assertOk(result, 'privacy superadmin project fetch');
-      return result;
-    });
-    if (superProject.body !== null) {
-      throw new Error('Restricted project still resolved for superadmin');
-    }
-
-    await request('/api/session', { method: 'DELETE' });
-    await sleep(1000);
-    await runStep(`Relogging in as admin ${userLabel(privacyAdminEmail, 'admin')}`, async () => {
-      await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin relogin');
-    });
-
-    await runStep(
-      `Restoring original superadmin access (${String(originalAccess)}) for project ${projectLabel(adminProject)}`,
-      async () => {
+      await runStep(`Enabling superadmin access for project ${projectLabel(adminProject)}`, async () => {
         assertOk(
           await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
             method: 'PATCH',
-            body: JSON.stringify({ allowSuperadminAccess: originalAccess }),
+            body: JSON.stringify({ allowSuperadminAccess: true }),
           }),
-          'privacy restore superadmin access'
+          'privacy enable superadmin access'
         );
+      });
+
+      await runStep(`Disabling superadmin access for project ${projectLabel(adminProject)}`, async () => {
+        assertOk(
+          await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ allowSuperadminAccess: false }),
+          }),
+          'privacy disable superadmin access'
+        );
+      });
+
+      await runStep('Confirming admin can still view the project page', async () => {
+        assertHtmlOk(
+          await requestHtml(`/c/${encodeURIComponent(adminCompany.id)}/p/${encodeURIComponent(adminProject.id)}`),
+          'privacy admin project page after disable'
+        );
+      });
+
+      await request('/api/session', { method: 'DELETE' });
+      await sleep(1000);
+      await runStep(`Logging in as superadmin ${userLabel(privacySuperadminEmail, 'superadmin')}`, async () => {
+        await loginWithEmailPassword(
+          privacySuperadminEmail,
+          privacySuperadminPassword,
+          'privacy superadmin login'
+        );
+      });
+
+      const superProjects = await runStep('Checking restricted project is hidden from superadmin project list', async () => {
+        const result = await request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
+        assertOk(result, 'privacy superadmin projects');
+        return result;
+      });
+      if ((superProjects.body ?? []).some((project) => project.id === adminProject.id)) {
+        throw new Error('Restricted project was still visible to superadmin');
       }
-    );
-  } else {
-    noteStep(
-      'Skipping privacy toggle flow; set PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL, PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD, PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL, and PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD to enable it'
-    );
+
+      const superProject = await runStep('Checking restricted project cannot be fetched by superadmin', async () => {
+        const result = await request(`/api/projects/${encodeURIComponent(adminProject.id)}`);
+        assertOk(result, 'privacy superadmin project fetch');
+        return result;
+      });
+      if (superProject.body !== null) {
+        throw new Error('Restricted project still resolved for superadmin');
+      }
+
+      await request('/api/session', { method: 'DELETE' });
+      await sleep(1000);
+      await runStep(`Relogging in as admin ${userLabel(privacyAdminEmail, 'admin')}`, async () => {
+        await loginWithEmailPassword(privacyAdminEmail, privacyAdminPassword, 'privacy admin relogin');
+      });
+
+      await runStep(
+        `Restoring original superadmin access (${String(originalAccess)}) for project ${projectLabel(adminProject)}`,
+        async () => {
+          assertOk(
+            await request(`/api/projects/${encodeURIComponent(adminProject.id)}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ allowSuperadminAccess: originalAccess }),
+            }),
+            'privacy restore superadmin access'
+          );
+        }
+      );
+    } else {
+      noteStep(
+        'Skipping privacy toggle flow; set PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL, PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD, PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL, and PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD to enable it'
+      );
+    }
   }
 
   await runStep('Logging out', async () => {
