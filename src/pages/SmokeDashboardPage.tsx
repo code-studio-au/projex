@@ -45,6 +45,12 @@ type SmokeSectionView = {
   steps: SmokeStepView[];
 };
 
+type SmokeSectionRunSummary = {
+  status: Exclude<SmokeSectionStatus, 'idle' | 'running'>;
+  finishedAt: string;
+  durationMs: number;
+};
+
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
 }
@@ -165,6 +171,7 @@ export default function SmokeDashboardPage() {
 
   const [results, setResults] = useState<Partial<Record<SmokeSectionId, SmokeSectionResult>>>({});
   const [views, setViews] = useState<Partial<Record<SmokeSectionId, SmokeSectionView>>>({});
+  const [history, setHistory] = useState<Partial<Record<SmokeSectionId, SmokeSectionRunSummary[]>>>({});
   const [runningSectionId, setRunningSectionId] = useState<SmokeSectionId | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
 
@@ -227,6 +234,17 @@ export default function SmokeDashboardPage() {
             setResults((current) => ({
               ...current,
               [sectionId]: event.result,
+            }));
+            setHistory((current) => ({
+              ...current,
+              [sectionId]: [
+                {
+                  status: event.result.status,
+                  finishedAt: event.result.finishedAt,
+                  durationMs: event.result.durationMs,
+                },
+                ...(current[sectionId] ?? []),
+              ].slice(0, 5),
             }));
             setViews((current) => {
               const existing = current[sectionId] ?? createIdleSection(sectionId);
@@ -302,16 +320,35 @@ export default function SmokeDashboardPage() {
       delete next[sectionId];
       return next;
     });
+    setHistory((current) => {
+      const next = { ...current };
+      delete next[sectionId];
+      return next;
+    });
   }
+
+  const summary = useMemo(() => {
+    const completedResults = Object.values(results).filter(Boolean) as SmokeSectionResult[];
+    return {
+      totalConfigured: smokeSectionDefinitions.length,
+      totalCompleted: completedResults.length,
+      passed: completedResults.filter((result) => result.status === 'passed').length,
+      failed: completedResults.filter((result) => result.status === 'failed').length,
+      skipped: completedResults.filter((result) => result.status === 'skipped').length,
+      latestFinishedAt: completedResults
+        .map((result) => result.finishedAt)
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0],
+    };
+  }, [results]);
 
   if (!isSuperadmin) {
     return (
       <Stack gap="lg">
         <Paper withBorder radius="lg" p="lg">
           <Stack gap="xs">
-            <Title order={2}>Smoke Dashboard</Title>
+            <Title order={2}>System Checks</Title>
             <Text c="dimmed">
-              Run visual smoke sections from the app without SSHing into the server.
+              Run visual system checks from the app without SSHing into the server.
             </Text>
           </Stack>
         </Paper>
@@ -329,10 +366,10 @@ export default function SmokeDashboardPage() {
         <Stack gap="sm">
           <Group justify="space-between" align="flex-start">
             <Stack gap="xs">
-              <Title order={2}>Smoke Dashboard</Title>
+              <Title order={2}>System Checks</Title>
               <Text c="dimmed">
-                Run each smoke section separately, inspect the exact steps that passed or failed,
-                and keep the server checks accessible from the app.
+                Run each system-check section separately, inspect the exact steps that passed or
+                failed, and keep the core server checks accessible from the app.
               </Text>
             </Stack>
             <Button
@@ -340,11 +377,11 @@ export default function SmokeDashboardPage() {
               onClick={runFullSmoke}
               disabled={!!runningSectionId}
             >
-              Run full smoke
+              Run all checks
             </Button>
           </Group>
           <Text size="sm" c="dimmed">
-            The dashboard runs the same smoke groups we use operationally today. Sections that
+            The dashboard runs the same server checks we use operationally today. Sections that
             depend on optional values like invite or privacy creds will mark themselves as skipped
             when those values are not configured in `.env.smoke.local`.
           </Text>
@@ -353,10 +390,59 @@ export default function SmokeDashboardPage() {
 
       {pageError ? <Alert color="red">{pageError}</Alert> : null}
 
+      <Paper withBorder radius="lg" p="lg">
+        <Stack gap="md">
+          <Title order={4}>Summary</Title>
+          <SimpleGrid cols={{ base: 2, md: 5 }} spacing="md">
+            <Paper withBorder radius="md" p="sm">
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Completed
+              </Text>
+              <Text fw={800} size="xl">
+                {summary.totalCompleted}/{summary.totalConfigured}
+              </Text>
+            </Paper>
+            <Paper withBorder radius="md" p="sm">
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Passed
+              </Text>
+              <Text fw={800} size="xl" c="green">
+                {summary.passed}
+              </Text>
+            </Paper>
+            <Paper withBorder radius="md" p="sm">
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Failed
+              </Text>
+              <Text fw={800} size="xl" c="red">
+                {summary.failed}
+              </Text>
+            </Paper>
+            <Paper withBorder radius="md" p="sm">
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Skipped
+              </Text>
+              <Text fw={800} size="xl" c="gray.7">
+                {summary.skipped}
+              </Text>
+            </Paper>
+            <Paper withBorder radius="md" p="sm">
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Last completed
+              </Text>
+              <Text fw={700} size="sm">
+                {summary.latestFinishedAt ? formatDateTime(summary.latestFinishedAt) : 'No runs yet'}
+              </Text>
+            </Paper>
+          </SimpleGrid>
+        </Stack>
+      </Paper>
+
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg" verticalSpacing="lg">
         {smokeSectionDefinitions.map((section) => {
           const result = results[section.id];
           const view = views[section.id];
+          const sectionHistory = history[section.id] ?? [];
           const isRunning = runningSectionId === section.id;
           const steps = view?.steps ?? [];
           const completedSteps = steps.filter(
@@ -421,6 +507,29 @@ export default function SmokeDashboardPage() {
                         </Text>
                       ) : null}
                     </Group>
+                    {sectionHistory.length ? (
+                      <>
+                        <Divider />
+                        <Stack gap={6}>
+                          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                            Recent runs
+                          </Text>
+                          {sectionHistory.map((entry, index) => (
+                            <Group key={`${section.id}-history-${index}`} justify="space-between" gap="sm">
+                              <Badge variant="light" color={statusColor(entry.status)}>
+                                {entry.status}
+                              </Badge>
+                              <Text size="xs" c="dimmed">
+                                {formatDateTime(entry.finishedAt)}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                {formatDuration(entry.durationMs)}
+                              </Text>
+                            </Group>
+                          ))}
+                        </Stack>
+                      </>
+                    ) : null}
                     <Divider />
                     <Stack gap="sm">
                       {view.steps.map((step) => (

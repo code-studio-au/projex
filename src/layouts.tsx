@@ -177,7 +177,7 @@ export function AuthedLayout() {
                           router.navigate({ to: smokeRoute.to });
                         }}
                       >
-                        Smoke dashboard
+                        System checks
                       </Menu.Item>
                     ) : null}
                     <Menu.Item
