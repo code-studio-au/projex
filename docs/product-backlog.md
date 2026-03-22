@@ -1,8 +1,8 @@
 # Product Backlog
 
-This backlog captures the next most useful product, admin, and operational improvements after the server-auth stabilization pass.
+This backlog captures the next most useful product, admin, and operational improvements after the recent auth, account, privacy, and system-checks work.
 
-It is intentionally short, opinionated, and ordered. The goal is to help us pick the next job quickly without having to reconstruct context from chat history.
+It is intentionally short, opinionated, and ordered so we can pick the next job quickly.
 
 ## Near-Term
 
@@ -10,13 +10,13 @@ It is intentionally short, opinionated, and ordered. The goal is to help us pick
 
 Current state:
 
-- company settings now supports re-sending invite/setup emails explicitly
+- company settings supports explicit re-send invite/setup emails
 - adding an existing BetterAuth user to a company also triggers the email flow
 
 Recommended refinement:
 
 - keep the current working behavior for now
-- later, separate "add member" from "send invite email" more explicitly if admin noise becomes a concern
+- later, separate `Add member` from `Send invite email` more explicitly if admin noise becomes a concern
 
 Why this matters:
 
@@ -30,18 +30,14 @@ Why this matters:
 
 Examples:
 
-- company member added
-- company member removed
-- invite email resent
-- email change requested
-- email change verification resent
-- pending email change cancelled
-- email change confirmed
+- company member added or removed
 - company role changed
+- invite email resent
+- email change requested / resent / cancelled / confirmed
 - project superadmin support access toggled on/off
 - project visibility changed
-- budget values changed
-- transaction coding/uncoding changes
+- budget changes
+- transaction coding and uncoding changes
 - category and subcategory changes
 - other user-entered or user-changed business data updates
 
@@ -74,99 +70,77 @@ Notes:
 
 Examples:
 
-- verified email change flow
-- any additional account preferences that are worth surfacing later
+- account preferences worth surfacing later
+- any additional self-service profile settings beyond the current name / password / verified email flows
 
 Why this matters:
 
-- keeps building on the now-working account basics without mixing simple profile edits with security-sensitive email changes
+- keeps building on the now-working account basics without mixing simple profile edits with bigger admin features
 
-Design note:
-
-- see `docs/verified-email-change-design.md`
-
-### 4. Add company-member lifecycle safeguards
-
-Examples:
-
-- prevent an admin from removing themselves if they are the last admin in that company
-- clearer confirmation copy when removing a user from a company
-- optional warning if removal will also remove project memberships
-
-Why this matters:
-
-- protects against lockout and accidental admin mistakes
-- makes the existing membership cascade behavior easier to understand
-
-### 5. Refine superadmin data access into explicit support access
+### 4. Continue refining superadmin support access
 
 Current state:
 
-- superadmin currently has broad troubleshooting visibility across companies/projects
-- this is useful for support, QA, and bug fixing
-- it is not the right long-term privacy model for real customer data
+- project-level `Allow superadmin access` exists and defaults on
+- initial company admin assignment during company creation exists
 
-Recommended direction:
+Recommended next direction:
 
-- keep current superadmin visibility for now
-- when a superadmin creates a company, allow assigning the initial company admin at creation time
-- later, add a project settings toggle such as `Allow superadmin access`
-- keep the toggle default `on` for now during active development/support
-- later switch the default `off` when customer privacy becomes the higher priority
+- later switch the default support-access toggle to `off` when customer privacy becomes the higher priority
+- keep tightening any remaining places where support access should be explicit and unsurprising
+- add audit coverage for support-access changes when the audit system is built
 
 Why this matters:
 
 - preserves practical support access while the product is still maturing
-- creates a clear path toward explicit customer consent for project-level support visibility
-- avoids locking support out before a replacement access model exists
+- creates a clear path toward explicit customer consent for project-level troubleshooting visibility
 
 ## Testing
 
-### 6. Continue evolving the auth smoke test
+### 5. Continue evolving system-check coverage
 
-Suggested flow:
+Suggested areas:
 
-1. sign in
-2. open companies
-3. open a project
-4. refresh project page
-5. request password reset
+- keep improving section-level retries and resilience to rate limits
+- add coverage for any newly added account/admin workflows
+- keep CLI and admin UI system checks aligned so they do not drift
 
 Why this matters:
 
-- these were the highest-friction bugs in the stabilization work
-- a small smoke test would pay for itself quickly
+- the smoke/system-check tooling is now a real operational tool
+- it will keep paying off as more account/admin workflows are added
 
-### 7. Continue evolving the invite-flow smoke test
+### 6. Continue evolving invite and email-flow checks
 
-Suggested flow:
+Suggested areas:
 
-1. invite a user
-2. verify success response
-3. request resend invite
-4. verify success response
+- invite user
+- resend invite
+- password reset
+- verified email change
+- cancellation / resend paths for pending email change
 
 Why this matters:
 
-- protects the new admin onboarding flow
-- helps catch env/config regressions around Resend
+- protects the most fragile auth and onboarding paths
+- helps catch env/config regressions around Resend and BetterAuth
 
 ## UX Polish
 
-### 8. Polish reset/invite success states
+### 7. Polish reset/invite success states
 
 Examples:
 
 - stronger confirmation copy after forgot password
 - clearer post-reset instruction to sign in with the updated password
-- consistent wording between "invite", "password setup", and "reset email"
+- consistent wording between `invite`, `password setup`, and `reset email`
 
 Why this matters:
 
 - reduces confusion in the auth journey
 - makes the onboarding flow feel more intentional
 
-### 9. Continue small-table UX cleanup
+### 8. Continue small-table UX cleanup
 
 Examples:
 
@@ -179,28 +153,9 @@ Why this matters:
 - these small frictions add up in a finance/admin app
 - the table-heavy workflows are core product paths
 
-### 10. Smooth the logout transition
-
-Current state:
-
-- logging out briefly leaves the current page in a stateless/no-session render
-- then the app redirects to the login page
-- this feels like a double refresh rather than one intentional transition
-
-Recommended direction:
-
-- move logout to a cleaner one-step transition
-- avoid showing the signed-out version of the current page before redirect
-- consider a lightweight "Signing out..." state while the redirect is in progress
-
-Why this matters:
-
-- makes the app feel more deliberate and less jumpy
-- reduces confusion around whether the logout actually completed
-
 ## Infra / Operations
 
-### 11. Add a separate maintenance/monitor page for restarts
+### 9. Add a separate maintenance/monitor page for restarts
 
 Current state:
 
@@ -222,12 +177,12 @@ Why this matters:
 
 ## Nice To Have
 
-### 12. Improve multi-account testing ergonomics
+### 10. Improve multi-account testing ergonomics
 
 Examples:
 
 - clearer note after password reset if another user is currently signed in
-- optional "Return to sign in" path after reset
+- optional `Return to sign in` path after reset
 
 Why this matters:
 
