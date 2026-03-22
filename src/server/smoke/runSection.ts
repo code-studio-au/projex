@@ -12,6 +12,11 @@ type HttpResult = {
   body: unknown;
 };
 
+type Retry429Options = {
+  label: string;
+  backoffsMs?: number[];
+};
+
 type Recorder = {
   step<T>(id: string, label: string, fn: () => Promise<T>): Promise<T>;
   skip(id: string, label: string, detail: string): void;
@@ -166,6 +171,25 @@ class SmokeHttpClient {
     return { res, body };
   }
 
+  async requestWith429Retry(
+    urlPath: string,
+    init: RequestInit = {},
+    options: Retry429Options
+  ): Promise<HttpResult> {
+    const backoffsMs = options.backoffsMs ?? [1500, 3000, 5000];
+    let result: HttpResult | null = null;
+    for (let attempt = 0; attempt <= backoffsMs.length; attempt += 1) {
+      result = await this.request(urlPath, init);
+      if (result.res.status !== 429) break;
+      if (attempt === backoffsMs.length) break;
+      await sleep(backoffsMs[attempt]);
+    }
+    if (!result) {
+      throw new Error(`${options.label} failed before a response was received`);
+    }
+    return result;
+  }
+
   async requestHtml(urlPath: string, init: RequestInit = {}) {
     const headers = new Headers(init.headers ?? {});
     const cookie = this.cookieHeader();
@@ -307,13 +331,17 @@ async function authenticatePrimaryUser(recorder: Recorder, client: SmokeHttpClie
 
   if (resetEmail) {
     await recorder.step('password-reset', `Requesting password reset email for ${resetEmail}`, async () => {
-      const forgotPassword = await client.request('/api/auth/request-password-reset', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: resetEmail,
-          redirectTo: `${baseUrl}/reset-password`,
-        }),
-      });
+      const forgotPassword = await client.requestWith429Retry(
+        '/api/auth/request-password-reset',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            email: resetEmail,
+            redirectTo: `${baseUrl}/reset-password`,
+          }),
+        },
+        { label: 'request password reset' }
+      );
       assertOk(forgotPassword, 'request password reset');
     });
   } else {
@@ -402,10 +430,14 @@ async function runEmailChangeSection(recorder: Recorder, client: SmokeHttpClient
   }
 
   await recorder.step('email-change-request', `Requesting verified email change to ${emailChangeTo}`, async () => {
-    const result = await client.request('/api/me/email-change', {
-      method: 'POST',
-      body: JSON.stringify({ newEmail: emailChangeTo }),
-    });
+    const result = await client.requestWith429Retry(
+      '/api/me/email-change',
+      {
+        method: 'POST',
+        body: JSON.stringify({ newEmail: emailChangeTo }),
+      },
+      { label: 'request email change' }
+    );
     assertOk(result, 'request email change');
   });
   await recorder.step('email-change-pending', 'Checking pending email change', async () => {
@@ -423,7 +455,11 @@ async function runEmailChangeSection(recorder: Recorder, client: SmokeHttpClient
     'email-change-resend',
     `Resending email change verification to ${emailChangeTo}`,
     async () => {
-      const result = await client.request('/api/me/email-change/resend', { method: 'POST' });
+      const result = await client.requestWith429Retry(
+        '/api/me/email-change/resend',
+        { method: 'POST' },
+        { label: 'resend email change' }
+      );
       assertOk(result, 'resend email change');
       if (
         !result.body ||

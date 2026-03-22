@@ -181,6 +181,7 @@ export default function SmokeDashboardPage() {
   async function runSection(sectionId: SmokeSectionId) {
     setPageError(null);
     setRunningSectionId(sectionId);
+    let sectionSucceeded = true;
     setViews((current) => ({
       ...current,
       [sectionId]: {
@@ -234,6 +235,7 @@ export default function SmokeDashboardPage() {
             continue;
           }
           if (event.type === 'result') {
+            sectionSucceeded = event.result.status !== 'failed';
             setResults((current) => ({
               ...current,
               [sectionId]: event.result,
@@ -286,7 +288,7 @@ export default function SmokeDashboardPage() {
           }
         }
       }
-      return true;
+      return sectionSucceeded;
     } catch (error) {
       setPageError(error instanceof Error ? error.message : 'Could not run the smoke section.');
       setViews((current) => ({
