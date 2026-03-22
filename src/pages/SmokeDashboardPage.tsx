@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -58,6 +58,14 @@ type RunSectionOutcome = {
   message?: string;
 };
 
+type FocusStripCardProps = {
+  label: string;
+  status: SmokeSectionStatus;
+  title: string;
+  message?: string;
+  active?: boolean;
+};
+
 const RUN_ALL_COOLDOWN_MS = 2000;
 const RUN_ALL_RATE_LIMIT_RETRY_MS = 5000;
 const RUN_ALL_RATE_LIMIT_SECTION_RETRIES = 1;
@@ -83,6 +91,38 @@ function statusColor(status: SmokeSectionStatus) {
   if (status === 'skipped') return 'gray';
   if (status === 'running') return 'blue';
   return 'gray';
+}
+
+function FocusStripCard({ label, status, title, message, active = false }: FocusStripCardProps) {
+  return (
+    <Paper
+      withBorder
+      radius="lg"
+      p="md"
+      style={{
+        opacity: active ? 1 : 0.85,
+        transform: active ? 'scale(1)' : 'scale(0.98)',
+        transition: 'transform 120ms ease, opacity 120ms ease',
+      }}
+    >
+      <Stack gap={6}>
+        <Group justify="space-between" align="flex-start">
+          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+            {label}
+          </Text>
+          <Badge color={statusColor(status)} variant={active ? 'filled' : 'light'}>
+            {status === 'idle' ? 'Queued' : status}
+          </Badge>
+        </Group>
+        <Text fw={700} size={active ? 'md' : 'sm'}>
+          {title}
+        </Text>
+        <Text size="sm" c="dimmed" lineClamp={3}>
+          {message ?? 'Waiting to run.'}
+        </Text>
+      </Stack>
+    </Paper>
+  );
 }
 
 function stepViewIcon(step: SmokeStepView) {
@@ -192,6 +232,9 @@ export default function SmokeDashboardPage() {
   const [runningSectionId, setRunningSectionId] = useState<SmokeSectionId | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const [runAllStatus, setRunAllStatus] = useState<string | null>(null);
+  const [runAllActive, setRunAllActive] = useState(false);
+  const [runAllSectionIndex, setRunAllSectionIndex] = useState<number | null>(null);
+  const sectionRefs = useRef<Partial<Record<SmokeSectionId, HTMLDivElement | null>>>({});
 
   function resetSectionState(sectionId: SmokeSectionId, options?: { keepHistory?: boolean }) {
     setResults((current) => {
@@ -402,9 +445,11 @@ export default function SmokeDashboardPage() {
 
   async function runFullSmoke() {
     setPageError(null);
+    setRunAllActive(true);
     let failedSectionLabel: string | null = null;
     for (let index = 0; index < smokeSectionDefinitions.length; index += 1) {
       const section = smokeSectionDefinitions[index];
+      setRunAllSectionIndex(index);
       let attempts = 0;
 
       while (attempts <= RUN_ALL_RATE_LIMIT_SECTION_RETRIES) {
@@ -443,6 +488,7 @@ export default function SmokeDashboardPage() {
     if (!failedSectionLabel) {
       setRunAllStatus('All sections completed.');
     }
+    setRunAllActive(false);
   }
 
   function resetSection(sectionId: SmokeSectionId) {
@@ -462,6 +508,22 @@ export default function SmokeDashboardPage() {
         .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0],
     };
   }, [results]);
+
+  const focusSections = useMemo(() => {
+    if (runAllSectionIndex == null) return { previous: null, current: null, next: null };
+    return {
+      previous: smokeSectionDefinitions[runAllSectionIndex - 1] ?? null,
+      current: smokeSectionDefinitions[runAllSectionIndex] ?? null,
+      next: smokeSectionDefinitions[runAllSectionIndex + 1] ?? null,
+    };
+  }, [runAllSectionIndex]);
+
+  useEffect(() => {
+    if (!runAllActive || !runningSectionId) return;
+    const target = sectionRefs.current[runningSectionId];
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [runAllActive, runningSectionId]);
 
   if (!isSuperadmin) {
     return (
@@ -514,6 +576,64 @@ export default function SmokeDashboardPage() {
           ) : null}
         </Stack>
       </Paper>
+
+      {runAllStatus && focusSections.current ? (
+        <Paper
+          withBorder
+          radius="lg"
+          p="lg"
+          style={{
+            position: 'sticky',
+            top: 16,
+            zIndex: 20,
+          }}
+        >
+          <Stack gap="md">
+            <Group justify="space-between" align="flex-start">
+              <Stack gap={2}>
+                <Title order={4}>Run All Focus</Title>
+                <Text size="sm" c="dimmed">
+                  {runAllStatus}
+                </Text>
+              </Stack>
+              <Badge variant="light" color="blue">
+                {runAllSectionIndex != null
+                  ? `${Math.min(runAllSectionIndex + 1, smokeSectionDefinitions.length)} of ${smokeSectionDefinitions.length}`
+                  : `0 of ${smokeSectionDefinitions.length}`}
+              </Badge>
+            </Group>
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+              {focusSections.previous ? (
+                <FocusStripCard
+                  label="Previous"
+                  status={results[focusSections.previous.id]?.status ?? views[focusSections.previous.id]?.status ?? 'idle'}
+                  title={focusSections.previous.label}
+                  message={views[focusSections.previous.id]?.statusMessage ?? focusSections.previous.description}
+                />
+              ) : (
+                <FocusStripCard label="Previous" status="idle" title="No previous section" message="This is the first section." />
+              )}
+              <FocusStripCard
+                label="Current"
+                status={runningSectionId ? 'running' : results[focusSections.current.id]?.status ?? views[focusSections.current.id]?.status ?? 'idle'}
+                title={focusSections.current.label}
+                message={views[focusSections.current.id]?.statusMessage ?? focusSections.current.description}
+                active
+              />
+              {focusSections.next ? (
+                <FocusStripCard
+                  label="Next"
+                  status={results[focusSections.next.id]?.status ?? views[focusSections.next.id]?.status ?? 'idle'}
+                  title={focusSections.next.label}
+                  message={views[focusSections.next.id]?.statusMessage ?? focusSections.next.description}
+                />
+              ) : (
+                <FocusStripCard label="Next" status="idle" title="No next section" message="This is the last configured section." />
+              )}
+            </SimpleGrid>
+          </Stack>
+        </Paper>
+      ) : null}
 
       {pageError ? <Alert color="red">{pageError}</Alert> : null}
 
@@ -579,7 +699,15 @@ export default function SmokeDashboardPage() {
           const progressValue = totalSteps ? Math.max(8, (completedSteps / totalSteps) * 100) : 0;
 
           return (
-            <Paper key={section.id} withBorder radius="lg" p="lg">
+            <Paper
+              key={section.id}
+              withBorder
+              radius="lg"
+              p="lg"
+              ref={(node) => {
+                sectionRefs.current[section.id] = node;
+              }}
+            >
               <Stack gap="md">
                 <Group justify="space-between" align="flex-start">
                   <Stack gap={4}>
