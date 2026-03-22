@@ -75,6 +75,30 @@ function formatDuration(durationMs: number) {
   return `${(durationMs / 1000).toFixed(1)}s`;
 }
 
+function humanizeSmokeStatusMessage(value: string) {
+  const normalized = value.toLowerCase();
+  if (
+    normalized.includes('too many requests') ||
+    normalized.includes('rate-limit') ||
+    normalized.includes('429')
+  ) {
+    return 'This step hit a temporary rate limit. The raw provider response is shown below.';
+  }
+  if (normalized.includes('not authenticated') || normalized.includes('unauthenticated')) {
+    return 'This step could not continue because the smoke session was no longer authenticated.';
+  }
+  if (normalized.includes('forbidden')) {
+    return 'This step was blocked by a permission check.';
+  }
+  if (normalized.includes('did not return html')) {
+    return 'This page check returned an unexpected response instead of HTML.';
+  }
+  if (normalized.includes('missing a valid token')) {
+    return 'This step could not continue because the required token was missing or invalid.';
+  }
+  return 'This step failed. The raw error details are shown below.';
+}
+
 function isRateLimitMessage(value: string | undefined) {
   if (!value) return false;
   const normalized = value.toLowerCase();
@@ -159,9 +183,14 @@ function SmokeStepRow({ step }: { step: SmokeStepView }) {
           </Badge>
         </Group>
         {step.error ? (
-          <Code block style={{ whiteSpace: 'pre-wrap' }}>
-            {step.error}
-          </Code>
+          <Stack gap={6}>
+            <Text size="sm" c="red">
+              {humanizeSmokeStatusMessage(step.error)}
+            </Text>
+            <Code block style={{ whiteSpace: 'pre-wrap' }}>
+              {step.error}
+            </Code>
+          </Stack>
         ) : null}
       </Stack>
     </Paper>

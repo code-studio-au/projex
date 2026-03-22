@@ -257,7 +257,7 @@ export default function AccountPage() {
                     <Text size="sm" c="dimmed">
                       Check spam or junk if the email does not appear quickly. If you want to use a different email address, cancel this pending change first.
                     </Text>
-                    <Group>
+                    <Group gap="sm" align="center">
                       <Button
                         variant="light"
                         onClick={handleResendEmailChange}
@@ -298,7 +298,7 @@ export default function AccountPage() {
                 autoComplete="email"
                 disabled={Boolean(pendingEmailChangeQ.data)}
               />
-              <Group justify="flex-end">
+              <Group justify="flex-end" gap="sm">
                 <Button
                   onClick={handleEmailChangeRequest}
                   loading={requestEmailChange.isPending}
@@ -341,7 +341,7 @@ export default function AccountPage() {
                 onChange={(event) => setConfirmPassword(event.currentTarget.value)}
                 autoComplete="new-password"
               />
-              <Group justify="flex-end">
+              <Group justify="flex-end" gap="sm">
                 <Button
                   onClick={handlePasswordChange}
                   loading={passwordPending}

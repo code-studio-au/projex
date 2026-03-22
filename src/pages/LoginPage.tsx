@@ -84,7 +84,7 @@ function LocalLoginPanel() {
             ))}
           </Stack>
 
-          <Group justify="space-between" wrap="wrap">
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
             <Button variant="light" onClick={() => router.navigate({ to: homeRoute.to })}>
               Back
             </Button>
@@ -168,7 +168,7 @@ function ServerLoginPanel() {
             autoComplete="current-password"
             required
           />
-          <Group justify="flex-end">
+          <Group justify="flex-end" align="center">
             <Button
               variant="subtle"
               size="compact-sm"
@@ -177,7 +177,7 @@ function ServerLoginPanel() {
               Forgot password?
             </Button>
           </Group>
-          <Group justify="space-between" wrap="wrap">
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
             <Button variant="light" onClick={() => router.navigate({ to: homeRoute.to })}>
               Back
             </Button>

@@ -109,7 +109,7 @@ export default function ResetPasswordPage() {
             autoComplete="new-password"
             required
           />
-          <Group justify="space-between" wrap="wrap">
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
             <Button variant="light" onClick={() => router.navigate({ to: loginRoute.to })}>
               Back to sign in
             </Button>
