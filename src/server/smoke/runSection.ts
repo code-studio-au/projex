@@ -24,6 +24,7 @@ type Recorder = {
 
 type RunSmokeSectionOptions = {
   onStep?: (step: SmokeStepResult) => void | Promise<void>;
+  onStatus?: (message: string) => void | Promise<void>;
 };
 
 type SmokeCompany = {
@@ -113,9 +114,15 @@ function isInviteResendRateLimited(result: HttpResult) {
 class SmokeHttpClient {
   private readonly baseUrl: string;
   private readonly cookieJar = new Map<string, string>();
+  private readonly onStatus?: (message: string) => void | Promise<void>;
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, onStatus?: (message: string) => void | Promise<void>) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
+    this.onStatus = onStatus;
+  }
+
+  private async emitStatus(message: string) {
+    await this.onStatus?.(message);
   }
 
   private storeSetCookie(headers: Headers) {
@@ -182,6 +189,9 @@ class SmokeHttpClient {
       result = await this.request(urlPath, init);
       if (result.res.status !== 429) break;
       if (attempt === backoffsMs.length) break;
+      await this.emitStatus(
+        `${options.label} was rate-limited. Retrying in ${(backoffsMs[attempt] / 1000).toFixed(1)}s.`
+      );
       await sleep(backoffsMs[attempt]);
     }
     if (!result) {
@@ -213,6 +223,9 @@ class SmokeHttpClient {
       });
       if (login.res.status !== 429) break;
       if (attempt === backoffsMs.length) break;
+      await this.emitStatus(
+        `${label} was rate-limited. Retrying in ${(backoffsMs[attempt] / 1000).toFixed(1)}s.`
+      );
       await sleep(backoffsMs[attempt]);
     }
     assertOk(login, label);
@@ -729,7 +742,7 @@ export async function runSmokeSection(
 ) {
   loadSmokeEnvFiles();
   const baseUrl = (process.env.PROJEX_SMOKE_BASE_URL?.trim() || requestOrigin).replace(/\/+$/, '');
-  const client = new SmokeHttpClient(baseUrl);
+  const client = new SmokeHttpClient(baseUrl, options?.onStatus);
 
   return withRecorder(sectionId, async (recorder) => {
     switch (sectionId) {

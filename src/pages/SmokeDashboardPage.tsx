@@ -42,6 +42,7 @@ type SmokeSectionView = {
   startedAt?: string;
   finishedAt?: string;
   durationMs?: number;
+  statusMessage?: string;
   steps: SmokeStepView[];
 };
 
@@ -188,6 +189,7 @@ export default function SmokeDashboardPage() {
         ...createIdleSection(sectionId),
         status: 'running',
         startedAt: new Date().toISOString(),
+        statusMessage: 'Starting checks...',
       },
     }));
     try {
@@ -234,6 +236,25 @@ export default function SmokeDashboardPage() {
             });
             continue;
           }
+          if (event.type === 'status') {
+            setViews((current) => {
+              const existing = current[sectionId] ?? createIdleSection(sectionId);
+              return {
+                ...current,
+                [sectionId]: {
+                  ...existing,
+                  statusMessage: event.message,
+                },
+              };
+            });
+            setRunAllStatus((current) => {
+              if (!current) return current;
+              const sectionLabel =
+                smokeSectionDefinitions.find((section) => section.id === sectionId)?.label ?? sectionId;
+              return `${sectionLabel}: ${event.message}`;
+            });
+            continue;
+          }
           if (event.type === 'result') {
             sectionSucceeded = event.result.status !== 'failed';
             setResults((current) => ({
@@ -261,6 +282,12 @@ export default function SmokeDashboardPage() {
                   startedAt: event.result.startedAt,
                   finishedAt: event.result.finishedAt,
                   durationMs: event.result.durationMs,
+                  statusMessage:
+                    event.result.status === 'failed'
+                      ? existing.statusMessage
+                      : event.result.status === 'passed'
+                        ? 'Completed successfully.'
+                        : 'Skipped for this run.',
                   steps: existing.steps.map((step) => {
                     const completed = event.result.steps.find((item) => item.id === step.id);
                     return completed
@@ -290,7 +317,8 @@ export default function SmokeDashboardPage() {
       }
       return sectionSucceeded;
     } catch (error) {
-      setPageError(error instanceof Error ? error.message : 'Could not run the smoke section.');
+      const message = error instanceof Error ? error.message : 'Could not run the smoke section.';
+      setPageError(message);
       setViews((current) => ({
         ...current,
         [sectionId]: current[sectionId]
@@ -298,6 +326,7 @@ export default function SmokeDashboardPage() {
               ...current[sectionId],
               status: 'failed',
               finishedAt: new Date().toISOString(),
+              statusMessage: message,
             }
           : current[sectionId],
       }));
@@ -309,18 +338,25 @@ export default function SmokeDashboardPage() {
 
   async function runFullSmoke() {
     setPageError(null);
+    let failedSectionLabel: string | null = null;
     for (let index = 0; index < smokeSectionDefinitions.length; index += 1) {
       const section = smokeSectionDefinitions[index];
       setRunAllStatus(`Running ${section.label}`);
       const ok = await runSection(section.id);
-      if (!ok) break;
+      if (!ok) {
+        failedSectionLabel = section.label;
+        setRunAllStatus(`Stopped on ${section.label}. Fix the failure or rerun that section.`);
+        break;
+      }
       const nextSection = smokeSectionDefinitions[index + 1];
       if (nextSection) {
         setRunAllStatus(`Awaiting ${RUN_ALL_COOLDOWN_MS / 1000}s before ${nextSection.label}`);
         await new Promise((resolve) => setTimeout(resolve, RUN_ALL_COOLDOWN_MS));
       }
     }
-    setRunAllStatus(null);
+    if (!failedSectionLabel) {
+      setRunAllStatus('All sections completed.');
+    }
   }
 
   function resetSection(sectionId: SmokeSectionId) {
@@ -484,6 +520,11 @@ export default function SmokeDashboardPage() {
                     <Text size="sm" c="dimmed">
                       {section.description}
                     </Text>
+                    {view?.statusMessage ? (
+                      <Text size="sm" c={view.status === 'failed' ? 'red' : 'dimmed'}>
+                        {view.statusMessage}
+                      </Text>
+                    ) : null}
                   </Stack>
 
                   <Group gap="xs">

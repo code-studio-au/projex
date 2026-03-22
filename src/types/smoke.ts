@@ -40,6 +40,11 @@ export type SmokeStepStreamEvent =
       step: SmokeStepResult;
     }
   | {
+      type: 'status';
+      sectionId: SmokeSectionId;
+      message: string;
+    }
+  | {
       type: 'result';
       result: SmokeSectionResult;
     }

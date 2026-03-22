@@ -72,6 +72,17 @@ export const Route = createFileRoute('/api/admin/smoke')({
                     )
                   );
                 },
+                onStatus: async (message) => {
+                  controller.enqueue(
+                    encoder.encode(
+                      jsonLine({
+                        type: 'status',
+                        sectionId,
+                        message,
+                      })
+                    )
+                  );
+                },
               });
 
               controller.enqueue(
