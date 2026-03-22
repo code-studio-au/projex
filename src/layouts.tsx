@@ -57,6 +57,7 @@ export function AuthedLayout() {
   const logout = useLogoutMutation();
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const MIN_SIGN_OUT_OVERLAY_MS = 900;
 
   const userId = session.data?.userId ?? null;
   const isMobile = useMediaQuery('(max-width: 48em)');
@@ -92,9 +93,15 @@ export function AuthedLayout() {
   });
 
   async function handleLogout() {
+    const startedAt = Date.now();
     setIsSigningOut(true);
     try {
       await logout.mutateAsync();
+      const elapsedMs = Date.now() - startedAt;
+      const remainingMs = Math.max(0, MIN_SIGN_OUT_OVERLAY_MS - elapsedMs);
+      if (remainingMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remainingMs));
+      }
       await router.navigate({ to: loginRoute.to, replace: true });
     } finally {
       setIsSigningOut(false);
