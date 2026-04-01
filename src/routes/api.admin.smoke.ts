@@ -11,6 +11,7 @@ function isSmokeSectionId(value: unknown): value is SmokeSectionId {
     value === 'appPages' ||
     value === 'emailChange' ||
     value === 'temporaryData' ||
+    value === 'companyDefaults' ||
     value === 'inviteFlow' ||
     value === 'privacyChecks'
   );
