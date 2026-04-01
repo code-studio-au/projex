@@ -27,12 +27,20 @@ export function useTransactions(params: { projectId: ProjectId }) {
     await update.mutateAsync({ id, ...patch });
   };
 
-  const replaceAll = async (next: Txn[]) => {
-    await importMut.mutateAsync({ txns: next, mode: 'replaceAll' });
+  const replaceAll = async (next: Txn[], options?: { autoCreateBudgets?: boolean }) => {
+    await importMut.mutateAsync({
+      txns: next,
+      mode: 'replaceAll',
+      autoCreateBudgets: options?.autoCreateBudgets,
+    });
   };
 
-  const appendMany = async (next: Txn[]) => {
-    await importMut.mutateAsync({ txns: next, mode: 'append' });
+  const appendMany = async (next: Txn[], options?: { autoCreateBudgets?: boolean }) => {
+    await importMut.mutateAsync({
+      txns: next,
+      mode: 'append',
+      autoCreateBudgets: options?.autoCreateBudgets,
+    });
   };
 
   const stripCodingForSubCategoryIds = async (subCategoryIds: SubCategoryId[]) => {

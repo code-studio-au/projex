@@ -10,6 +10,7 @@ import type {
   CompanyDefaultMappingRule,
 } from '../../types';
 import {
+  asBudgetLineId,
   asCategoryId,
   asCompanyDefaultMappingRuleId,
   asSubCategoryId,
@@ -61,6 +62,21 @@ type TxnRow = {
 function normalizeExternalId(value: string | null | undefined): string | undefined {
   const next = value?.trim();
   return next ? next : undefined;
+}
+
+function uniqAutoBudgetTargets(
+  txns: Txn[]
+): Array<{ categoryId: Category['id']; subCategoryId: SubCategory['id'] }> {
+  const seen = new Set<string>();
+  const out: Array<{ categoryId: Category['id']; subCategoryId: SubCategory['id'] }> = [];
+  for (const txn of txns) {
+    if (!txn.categoryId || !txn.subCategoryId) continue;
+    const key = `${txn.categoryId}:::${txn.subCategoryId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ categoryId: txn.categoryId, subCategoryId: txn.subCategoryId });
+  }
+  return out;
 }
 
 function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } {
@@ -462,6 +478,7 @@ export async function importTransactionsServer(args: {
   projectId: ProjectId;
   txns: Txn[];
   mode: 'append' | 'replaceAll';
+  autoCreateBudgets?: boolean;
 }): Promise<{ count: number }> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -480,6 +497,15 @@ export async function importTransactionsServer(args: {
       companyId: project.company_id as CompanyId,
       projectId: args.projectId,
     });
+    if (args.autoCreateBudgets) {
+      await requireAuthorized({
+        db,
+        userId,
+        action: 'budget:edit',
+        companyId: project.company_id as CompanyId,
+        projectId: args.projectId,
+      });
+    }
     const normalizedIncoming = args.txns.map((t) => {
       if (t.projectId !== args.projectId) {
         throw new AppError('VALIDATION_ERROR', 'Transaction projectId does not match import target');
@@ -595,11 +621,46 @@ export async function importTransactionsServer(args: {
       })
     );
 
+    const budgetTargets = args.autoCreateBudgets ? uniqAutoBudgetTargets(autoMappedIncoming) : [];
+
     if (args.mode === 'replaceAll') {
       assertUniqueTransactionKeysInProject(autoMappedIncoming);
       const now = new Date().toISOString();
       await db.transaction().execute(async (trx) => {
         await trx.deleteFrom('txns').where('project_id', '=', args.projectId).execute();
+        if (budgetTargets.length) {
+          const existingBudgetRows = await trx
+            .selectFrom('budget_lines')
+            .select(['sub_category_id'])
+            .where('project_id', '=', args.projectId)
+            .where('sub_category_id', 'in', budgetTargets.map((target) => target.subCategoryId))
+            .execute();
+          const existingBudgetSubIds = new Set(
+            existingBudgetRows
+              .map((row) => row.sub_category_id)
+              .filter((value): value is string => Boolean(value))
+          );
+          const missingBudgetTargets = budgetTargets.filter(
+            (target) => !existingBudgetSubIds.has(target.subCategoryId)
+          );
+          if (missingBudgetTargets.length) {
+            await trx
+              .insertInto('budget_lines')
+              .values(
+                missingBudgetTargets.map((target) => ({
+                  id: asBudgetLineId(uid('bud')),
+                  company_id: project.company_id as CompanyId,
+                  project_id: args.projectId,
+                  category_id: target.categoryId,
+                  sub_category_id: target.subCategoryId,
+                  allocated_cents: 0,
+                  created_at: now,
+                  updated_at: now,
+                }))
+              )
+              .execute();
+          }
+        }
         if (!autoMappedIncoming.length) return;
         await trx
           .insertInto('txns')
@@ -641,6 +702,39 @@ export async function importTransactionsServer(args: {
 
     if (autoMappedIncoming.length) {
       const now = new Date().toISOString();
+      if (budgetTargets.length) {
+        const existingBudgetRows = await db
+          .selectFrom('budget_lines')
+          .select(['sub_category_id'])
+          .where('project_id', '=', args.projectId)
+          .where('sub_category_id', 'in', budgetTargets.map((target) => target.subCategoryId))
+          .execute();
+        const existingBudgetSubIds = new Set(
+          existingBudgetRows
+            .map((row) => row.sub_category_id)
+            .filter((value): value is string => Boolean(value))
+        );
+        const missingBudgetTargets = budgetTargets.filter(
+          (target) => !existingBudgetSubIds.has(target.subCategoryId)
+        );
+        if (missingBudgetTargets.length) {
+          await db
+            .insertInto('budget_lines')
+            .values(
+              missingBudgetTargets.map((target) => ({
+                id: asBudgetLineId(uid('bud')),
+                company_id: project.company_id as CompanyId,
+                project_id: args.projectId,
+                category_id: target.categoryId,
+                sub_category_id: target.subCategoryId,
+                allocated_cents: 0,
+                created_at: now,
+                updated_at: now,
+              }))
+            )
+            .execute();
+        }
+      }
       await db
         .insertInto('txns')
         .values(

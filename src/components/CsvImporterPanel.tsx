@@ -46,8 +46,8 @@ export default function CsvImporterPanel(props: {
   projectId: ProjectId;
   canEditTaxonomy: boolean;
   canEditBudgets: boolean;
-  onAppend: (txns: Txn[]) => Promise<void>;
-  onReplaceAll: (txns: Txn[]) => Promise<void>;
+  onAppend: (txns: Txn[], options?: { autoCreateBudgets?: boolean }) => Promise<void>;
+  onReplaceAll: (txns: Txn[], options?: { autoCreateBudgets?: boolean }) => Promise<void>;
 }) {
   function sanitizeImportDate(value: string): string {
     return value
@@ -323,7 +323,10 @@ export default function CsvImporterPanel(props: {
                     validateImportedRows(txns);
 
                     ensureBudgetLinesForImportedSubCategories(txns);
-                    await onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
+                    await onAppend(
+                      txns.map((t) => ({ ...t, companyId, projectId })),
+                      { autoCreateBudgets }
+                    );
 
                     setImportNotice(
                       skipped > 0
@@ -388,7 +391,10 @@ export default function CsvImporterPanel(props: {
                   validateImportedRows(txns);
 
                   ensureBudgetLinesForImportedSubCategories(txns);
-                  await onReplaceAll(txns.map((t) => ({ ...t, companyId, projectId })));
+                  await onReplaceAll(
+                    txns.map((t) => ({ ...t, companyId, projectId })),
+                    { autoCreateBudgets }
+                  );
                   setConfirmReplaceOpen(false);
                   setImportNotice(`Replaced transactions with ${txns.length} imported rows.`);
                 } catch (err) {

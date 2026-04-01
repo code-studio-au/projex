@@ -159,8 +159,8 @@ export default function ProjectWorkspace(props: {
               projectId={projectId}
               canEditTaxonomy={canEditTaxonomy}
               canEditBudgets={canEditBudgets}
-              onReplaceAll={(next) => txns.replaceAll(next)}
-              onAppend={(next) => txns.appendMany(next)}
+              onReplaceAll={(next, options) => txns.replaceAll(next, options)}
+              onAppend={(next, options) => txns.appendMany(next, options)}
             />
           </Tabs.Panel>
 

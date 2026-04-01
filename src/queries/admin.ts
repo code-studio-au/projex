@@ -7,7 +7,7 @@ import type {
   CompanyUpdateInput,
   ProjectCreateInput,
   ProjectUpdateInput,
-  CsvImportMode,
+  TxnImportInput,
 } from '../api/contract';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
@@ -97,15 +97,16 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
   const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
-  const queryKey = qk.transactions(scopeUserId, projectId);
+  const transactionQueryKey = qk.transactions(scopeUserId, projectId);
+  const budgetQueryKey = qk.budgets(scopeUserId, projectId);
   return useMutation({
-    mutationFn: (vars: { txns: Txn[]; mode: CsvImportMode }) =>
+    mutationFn: (vars: TxnImportInput) =>
       api.importTransactions(projectId, vars),
     onMutate: async (vars) => {
-      await qc.cancelQueries({ queryKey });
-      const previous = qc.getQueryData<Txn[]>(queryKey);
+      await qc.cancelQueries({ queryKey: transactionQueryKey });
+      const previous = qc.getQueryData<Txn[]>(transactionQueryKey);
       qc.setQueryData<Txn[]>(
-        queryKey,
+        transactionQueryKey,
         vars.mode === 'replaceAll'
           ? vars.txns
           : [...(previous ?? []), ...vars.txns]
@@ -113,10 +114,11 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
       return { previous };
     },
     onError: (_error, _vars, context) => {
-      if (context?.previous) qc.setQueryData(queryKey, context.previous);
+      if (context?.previous) qc.setQueryData(transactionQueryKey, context.previous);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: transactionQueryKey });
+      qc.invalidateQueries({ queryKey: budgetQueryKey });
     },
   });
 }

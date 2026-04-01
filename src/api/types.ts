@@ -37,6 +37,11 @@ export type Session = {
 };
 
 export type CsvImportMode = 'append' | 'replaceAll';
+export type TxnImportInput = {
+  txns: Txn[];
+  mode: CsvImportMode;
+  autoCreateBudgets?: boolean;
+};
 
 // Inputs (command-style)
 export type TxnCreateInput = Omit<Txn, 'id' | 'internalId'> & { id?: TxnId };
@@ -238,7 +243,7 @@ export interface ProjexApi {
    */
   importTransactions(
     projectId: ProjectId,
-    input: { txns: Txn[]; mode: CsvImportMode }
+    input: TxnImportInput
   ): Promise<{ count: number }>;
 
   // admin

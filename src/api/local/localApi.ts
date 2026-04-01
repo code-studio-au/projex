@@ -1696,7 +1696,7 @@ export class LocalApi implements ProjexApi {
 
   async importTransactions(
     projectId: ProjectId,
-    input: { txns: Txn[]; mode: CsvImportMode }
+    input: { txns: Txn[]; mode: CsvImportMode; autoCreateBudgets?: boolean }
   ): Promise<{ count: number }> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
@@ -1729,6 +1729,30 @@ export class LocalApi implements ProjexApi {
     );
     autoMappedIncoming.forEach((txn) => validateOrThrow(txnInputSchema, txn));
 
+    let budgets = slice.budgets;
+    if (input.autoCreateBudgets) {
+      this.assertCan('budget:edit', p.companyId, projectId);
+      const existingBudgetSubIds = new Set(
+        budgets.map((budget) => budget.subCategoryId).filter((id): id is SubCategory['id'] => Boolean(id))
+      );
+      const nextBudgets = budgets.slice();
+      for (const txn of autoMappedIncoming) {
+        if (!txn.categoryId || !txn.subCategoryId || existingBudgetSubIds.has(txn.subCategoryId)) continue;
+        existingBudgetSubIds.add(txn.subCategoryId);
+        nextBudgets.push({
+          id: asBudgetLineId(uid('bud')),
+          companyId: p.companyId,
+          projectId,
+          categoryId: txn.categoryId,
+          subCategoryId: txn.subCategoryId,
+          allocatedCents: 0,
+          createdAt: this.nowIso(),
+          updatedAt: this.nowIso(),
+        });
+      }
+      budgets = nextBudgets;
+    }
+
     const nextTxns =
       input.mode === 'replaceAll'
         ? autoMappedIncoming
@@ -1738,7 +1762,10 @@ export class LocalApi implements ProjexApi {
 
     writeState({
       ...st,
-      dataByProjectId: { ...st.dataByProjectId, [projectId]: { ...slice, transactions: nextTxns } },
+      dataByProjectId: {
+        ...st.dataByProjectId,
+        [projectId]: { ...slice, transactions: nextTxns, budgets },
+      },
     });
     return { count: autoMappedIncoming.length };
   }
