@@ -45,8 +45,8 @@ export default function CsvImporterPanel(props: {
   projectId: ProjectId;
   canEditTaxonomy: boolean;
   canEditBudgets: boolean;
-  onAppend: (txns: Txn[]) => void;
-  onReplaceAll: (txns: Txn[]) => void;
+  onAppend: (txns: Txn[]) => Promise<void>;
+  onReplaceAll: (txns: Txn[]) => Promise<void>;
 }) {
   const {
     taxonomy,
@@ -67,6 +67,7 @@ export default function CsvImporterPanel(props: {
   const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const isMobile = useMediaQuery('(max-width: 48em)');
 
   const existingKeys = useMemo(
@@ -226,8 +227,9 @@ export default function CsvImporterPanel(props: {
             <Text fw={700}>CSV import</Text>
             <Badge variant="light">{previewCount} rows parsed</Badge>
           </Group>
+          {importError ? <Text size="sm" c="red">{importError}</Text> : null}
           <Text size="sm" c="dimmed" className="panelHelperText">
-            Supports headers: date, item, description, amount, and optional category/subcategory.
+            Supports headers: date, item, description, amount, and optional category/subcategory. If item is missing, description is used.
           </Text>
 
           <Group align="flex-end" wrap="wrap">
@@ -286,21 +288,26 @@ export default function CsvImporterPanel(props: {
                 fullWidth={isMobile}
                 disabled={!importTxns.length}
                 onClick={async () => {
-                  const mapped = await applyMapping();
-                  const { txns, skipped } = finalizeImportTxns(mapped, {
-                    existingKeys,
-                    skipDuplicates,
-                  });
+                  try {
+                    setImportError(null);
+                    const mapped = await applyMapping();
+                    const { txns, skipped } = finalizeImportTxns(mapped, {
+                      existingKeys,
+                      skipDuplicates,
+                    });
 
-                  ensureBudgetLinesForImportedSubCategories(txns);
+                    ensureBudgetLinesForImportedSubCategories(txns);
+                    await onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
 
-                  onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
-
-                  setImportNotice(
-                    skipped > 0
-                      ? `Imported ${txns.length} rows. Skipped ${skipped} duplicate(s).`
-                      : `Imported ${txns.length} rows.`
-                  );
+                    setImportNotice(
+                      skipped > 0
+                        ? `Imported ${txns.length} rows. Skipped ${skipped} duplicate(s).`
+                        : `Imported ${txns.length} rows.`
+                    );
+                  } catch (err) {
+                    setImportNotice(null);
+                    setImportError(err instanceof Error ? err.message : 'Could not append imported transactions.');
+                  }
                 }}
               >
                 Append
@@ -346,15 +353,21 @@ export default function CsvImporterPanel(props: {
               color="red"
               fullWidth={isMobile}
               onClick={async () => {
-                const mapped = await applyMapping();
-                const { txns } = finalizeImportTxns(mapped, {
-                  skipDuplicates: false,
-                });
+                try {
+                  setImportError(null);
+                  const mapped = await applyMapping();
+                  const { txns } = finalizeImportTxns(mapped, {
+                    skipDuplicates: false,
+                  });
 
-                ensureBudgetLinesForImportedSubCategories(txns);
-                onReplaceAll(txns.map((t) => ({ ...t, companyId, projectId })));
-                setConfirmReplaceOpen(false);
-                setImportNotice(`Replaced transactions with ${txns.length} imported rows.`);
+                  ensureBudgetLinesForImportedSubCategories(txns);
+                  await onReplaceAll(txns.map((t) => ({ ...t, companyId, projectId })));
+                  setConfirmReplaceOpen(false);
+                  setImportNotice(`Replaced transactions with ${txns.length} imported rows.`);
+                } catch (err) {
+                  setImportNotice(null);
+                  setImportError(err instanceof Error ? err.message : 'Could not replace imported transactions.');
+                }
               }}
             >
               Replace all

@@ -112,8 +112,8 @@ export function rowsToImportTxns(
 
     const date =
       map['date'] || map['transactiondate'] || map['posteddate'] || '';
-    const item = map['item'] || map['merchant'] || map['payee'] || '';
     const description = map['description'] || map['memo'] || '';
+    const item = map['item'] || map['merchant'] || map['payee'] || description || '';
     const amountRaw = map['amount'] || map['debit'] || '';
     const amountParsed = Number(String(amountRaw).replace(/[^0-9.-]/g, '')) || 0;
     const amountCents = Math.abs(toCents(amountParsed));
