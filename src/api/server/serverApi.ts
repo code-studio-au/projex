@@ -30,7 +30,6 @@ import type {
   CompanyDefaultMappingRuleUpdateInput,
   CompanyUserInviteResult,
   CompanyUpdateInput,
-  CsvImportMode,
   EmailChangeConfirmResult,
   EmailChangeRequestInput,
   EmailChangeRequestResult,
@@ -472,7 +471,7 @@ export class ServerApi implements ProjexApi {
   }
   async importTransactions(
     projectId: ProjectId,
-    input: { txns: Txn[]; mode: CsvImportMode }
+    input: Parameters<ProjexApi['importTransactions']>[1]
   ): Promise<{ count: number }> {
     return this.request<{ count: number }>(
       `/api/projects/${encodeURIComponent(projectId)}/transactions/import`,

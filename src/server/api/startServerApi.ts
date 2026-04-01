@@ -1,6 +1,5 @@
 import { AppError } from '../../api/errors';
 import type {
-  CsvImportMode,
   ProjectCreateInput,
   ProjectUpdateInput,
   ProjexApi,
@@ -12,7 +11,6 @@ import type {
   CompanyRole,
   ProjectId,
   ProjectRole,
-  Txn,
   TxnId,
   UserId,
 } from '../../types';
@@ -319,12 +317,16 @@ export class StartServerApi implements ProjexApi {
   async deleteTxn(projectId: ProjectId, txnId: TxnId) {
     return deleteTxnServer({ context: this.context, projectId, txnId });
   }
-  async importTransactions(projectId: ProjectId, input: { txns: Txn[]; mode: CsvImportMode }) {
+  async importTransactions(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['importTransactions']>[1]
+  ) {
     return importTransactionsServer({
       context: this.context,
       projectId,
       txns: input.txns,
       mode: input.mode,
+      autoCreateBudgets: input.autoCreateBudgets,
     });
   }
 
