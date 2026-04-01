@@ -17,6 +17,17 @@ function normalize(value: string | undefined | null): string {
     .replace(/\s+/g, ' ');
 }
 
+function canonicalize(value: string | undefined | null): string {
+  return normalize(value)
+    .split(' ')
+    .map((word) => {
+      if (word.endsWith('ies') && word.length > 4) return `${word.slice(0, -3)}y`;
+      if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) return word.slice(0, -1);
+      return word;
+    })
+    .join(' ');
+}
+
 function transactionMatchText(txn: Pick<Txn, 'item' | 'description'>): string {
   return `${normalize(txn.item)} ${normalize(txn.description)}`.trim();
 }
@@ -26,12 +37,14 @@ export function findMatchingCompanyDefaultRule(
   rules: CompanyDefaultMappingRule[]
 ): CompanyDefaultMappingRule | null {
   const haystack = transactionMatchText(txn);
+  const canonicalHaystack = canonicalize(haystack);
   if (!haystack) return null;
   const sorted = [...rules].sort((a, b) => a.sortOrder - b.sortOrder);
   for (const rule of sorted) {
     const needle = normalize(rule.matchText);
+    const canonicalNeedle = canonicalize(rule.matchText);
     if (!needle) continue;
-    if (haystack.includes(needle)) return rule;
+    if (haystack.includes(needle) || canonicalHaystack.includes(canonicalNeedle)) return rule;
   }
   return null;
 }
@@ -54,14 +67,17 @@ export function resolveCompanyDefaultRuleToProjectTaxonomy(args: {
   if (!defaultCategory) return null;
 
   const projectCategory = args.projectCategories.find(
-    (category) => normalize(category.name) === normalize(defaultCategory.name)
+    (category) =>
+      normalize(category.name) === normalize(defaultCategory.name) ||
+      canonicalize(category.name) === canonicalize(defaultCategory.name)
   );
   if (!projectCategory) return null;
 
   const projectSubCategory = args.projectSubCategories.find(
     (subCategory) =>
       subCategory.categoryId === projectCategory.id &&
-      normalize(subCategory.name) === normalize(defaultSubCategory.name)
+      (normalize(subCategory.name) === normalize(defaultSubCategory.name) ||
+        canonicalize(subCategory.name) === canonicalize(defaultSubCategory.name))
   );
   if (!projectSubCategory) return null;
 

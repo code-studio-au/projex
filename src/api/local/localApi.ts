@@ -168,12 +168,32 @@ function normalizeExternalId(value: string | undefined): string | undefined {
 }
 
 function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } {
-  return {
-    ...input,
-    externalId: input.externalId ?? undefined,
-    categoryId: input.categoryId ?? undefined,
-    subCategoryId: input.subCategoryId ?? undefined,
-  };
+  const next: Partial<Txn> & { id: TxnId } = { id: input.id };
+  if (typeof input.companyId !== 'undefined') next.companyId = input.companyId;
+  if (typeof input.projectId !== 'undefined') next.projectId = input.projectId;
+  if (typeof input.date !== 'undefined') next.date = input.date;
+  if (typeof input.item !== 'undefined') next.item = input.item;
+  if (typeof input.description !== 'undefined') next.description = input.description;
+  if (typeof input.amountCents !== 'undefined') next.amountCents = input.amountCents;
+  if (typeof input.createdAt !== 'undefined') next.createdAt = input.createdAt;
+  if (typeof input.updatedAt !== 'undefined') next.updatedAt = input.updatedAt;
+  if (typeof input.companyDefaultMappingRuleId !== 'undefined') {
+    next.companyDefaultMappingRuleId = input.companyDefaultMappingRuleId ?? undefined;
+  }
+  if (typeof input.codingSource !== 'undefined') next.codingSource = input.codingSource;
+  if (typeof input.codingPendingApproval !== 'undefined') {
+    next.codingPendingApproval = input.codingPendingApproval;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'externalId')) {
+    next.externalId = input.externalId ?? undefined;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'categoryId')) {
+    next.categoryId = input.categoryId ?? undefined;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'subCategoryId')) {
+    next.subCategoryId = input.subCategoryId ?? undefined;
+  }
+  return next;
 }
 
 function projectAllowsSuperadminAccess(project: Project | undefined): boolean {
