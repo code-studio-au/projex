@@ -147,6 +147,9 @@ Examples:
 - keep action buttons visually consistent across striped rows
 - maintain stable editing flows in transactions
 - review any remaining dense tables for awkward wrapping or hidden actions
+- add an `Auto-mapped pending approval` filter/view in transactions
+- add an `Accept all auto-mappings` bulk action for pending auto-mapped rows
+- improve company default mapping rule help text with clearer matching guidance and examples
 
 Why this matters:
 

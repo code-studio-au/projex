@@ -3,6 +3,7 @@ export type SmokeSectionId =
   | 'appPages'
   | 'emailChange'
   | 'temporaryData'
+  | 'companyDefaults'
   | 'inviteFlow'
   | 'privacyChecks';
 
@@ -88,7 +89,6 @@ export const smokeSectionDefinitions: Array<{
       { id: 'auth-login', label: 'Logging in with smoke credentials' },
       { id: 'dev-login', label: 'Using dev session login' },
       { id: 'session', label: 'Checking current session' },
-      { id: 'password-reset', label: 'Requesting password reset email' },
       { id: 'companies', label: 'Loading companies' },
       { id: 'projects', label: 'Loading projects for a company' },
       { id: 'companies-page', label: 'Checking companies page HTML' },
@@ -110,7 +110,6 @@ export const smokeSectionDefinitions: Array<{
       { id: 'auth-login', label: 'Logging in with smoke credentials' },
       { id: 'dev-login', label: 'Using dev session login' },
       { id: 'session', label: 'Checking current session' },
-      { id: 'password-reset', label: 'Requesting password reset email' },
       { id: 'email-change-request', label: 'Requesting verified email change' },
       { id: 'email-change-pending', label: 'Checking pending email change' },
       { id: 'email-change-resend', label: 'Resending email change verification' },
@@ -129,13 +128,41 @@ export const smokeSectionDefinitions: Array<{
       { id: 'auth-login', label: 'Logging in with smoke credentials' },
       { id: 'dev-login', label: 'Using dev session login' },
       { id: 'session', label: 'Checking current session' },
-      { id: 'password-reset', label: 'Requesting password reset email' },
       { id: 'companies', label: 'Loading companies' },
       { id: 'projects', label: 'Loading projects for a company' },
       { id: 'create-category', label: 'Creating a temporary category' },
       { id: 'create-budget', label: 'Creating a temporary budget' },
       { id: 'delete-budget', label: 'Deleting the temporary budget' },
       { id: 'delete-category', label: 'Deleting the temporary category' },
+    ],
+  },
+  {
+    id: 'companyDefaults',
+    label: 'Company Defaults',
+    description:
+      'Creates temporary company defaults and mapping rules, applies them to a project, verifies auto-mapped import approval and matching budget creation, then cleans up.',
+    steps: [
+      { id: 'login-page', label: 'Checking login page HTML' },
+      { id: 'reset-seed', label: 'Skipping or resetting dev seed data' },
+      { id: 'auth-login', label: 'Logging in with smoke credentials' },
+      { id: 'dev-login', label: 'Using dev session login' },
+      { id: 'session', label: 'Checking current session' },
+      { id: 'companies', label: 'Loading companies' },
+      { id: 'projects', label: 'Loading projects for a company' },
+      { id: 'create-default-category', label: 'Creating a temporary company default category' },
+      { id: 'create-default-subcategory', label: 'Creating a temporary company default subcategory' },
+      { id: 'create-default-mapping', label: 'Creating a temporary company default mapping rule' },
+      { id: 'apply-company-defaults', label: 'Applying company defaults to the project' },
+      { id: 'import-mapped-transaction', label: 'Importing a matching uncoded transaction' },
+      { id: 'verify-auto-mapped', label: 'Verifying the imported transaction was auto-mapped' },
+      { id: 'approve-auto-mapped', label: 'Approving the auto-mapped transaction' },
+      { id: 'verify-budget-line', label: 'Verifying a budget line exists for the mapped subcategory' },
+      { id: 'cleanup-imported-transaction', label: 'Deleting the imported transaction' },
+      { id: 'cleanup-budget-line', label: 'Deleting the temporary budget line' },
+      { id: 'cleanup-project-category', label: 'Deleting the temporary project category' },
+      { id: 'cleanup-default-mapping', label: 'Deleting the temporary company default mapping rule' },
+      { id: 'cleanup-default-subcategory', label: 'Deleting the temporary company default subcategory' },
+      { id: 'cleanup-default-category', label: 'Deleting the temporary company default category' },
     ],
   },
   {
@@ -149,7 +176,6 @@ export const smokeSectionDefinitions: Array<{
       { id: 'auth-login', label: 'Logging in with smoke credentials' },
       { id: 'dev-login', label: 'Using dev session login' },
       { id: 'session', label: 'Checking current session' },
-      { id: 'password-reset', label: 'Requesting password reset email' },
       { id: 'companies', label: 'Loading companies' },
       { id: 'projects', label: 'Loading projects for a company' },
       { id: 'invite-user', label: 'Inviting a user to the company' },

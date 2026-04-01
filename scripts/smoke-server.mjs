@@ -11,6 +11,7 @@ const validSections = new Set([
   'appPages',
   'emailChange',
   'temporaryData',
+  'companyDefaults',
   'inviteFlow',
   'privacyChecks',
 ]);
@@ -308,7 +309,7 @@ async function main() {
   let projects = null;
   let project = null;
 
-  async function ensureAuthAndProject() {
+  async function ensureAuthAndProject(options = {}) {
     if (session && company && project) return;
 
     await runStep('Checking login page HTML', async () => {
@@ -355,7 +356,7 @@ async function main() {
     });
     if (!session.body?.userId) throw new Error('No session userId returned');
 
-    if (resetEmail) {
+    if (options.includePasswordReset && resetEmail) {
       await runStep(`Requesting password reset email for ${resetEmail}`, async () => {
         const forgotPassword = await request('/api/auth/request-password-reset', {
           method: 'POST',
@@ -414,7 +415,7 @@ async function main() {
     await runStep('Checking readiness endpoint', async () => {
       assertOk(await request('/api/ready'), 'ready');
     });
-    await ensureAuthAndProject();
+    await ensureAuthAndProject({ includePasswordReset: true });
   }
 
   if (shouldRunSection('appPages')) {
@@ -553,6 +554,233 @@ async function main() {
         'delete category'
       );
     });
+  }
+
+  if (shouldRunSection('companyDefaults')) {
+    await ensureAuthAndProject();
+    logSection('Company Defaults');
+
+    const defaultCategoryId = uniqueId('ccat_smoke');
+    const defaultSubCategoryId = uniqueId('csub_smoke');
+    const mappingRuleId = uniqueId('cmap_smoke');
+    const defaultCategoryName = uniqueId('Smoke Transport');
+    const defaultSubCategoryName = uniqueId('Smoke Flights');
+    const matchText = uniqueId('smoke flight match');
+    const txnId = uniqueId('txn_smoke_defaults');
+    const txnExternalId = uniqueId('external_smoke_defaults');
+
+    let projectCategoryId = null;
+    let importedTxnId = null;
+    let smokeBudgetId = null;
+    let createdDefaultCategory = false;
+    let createdDefaultSubCategory = false;
+    let createdDefaultMapping = false;
+
+    try {
+      await runStep(`Creating company default category ${defaultCategoryName}`, async () => {
+        const result = await request(`/api/companies/${encodeURIComponent(company.id)}/default-categories`, {
+          method: 'POST',
+          body: JSON.stringify({
+            id: defaultCategoryId,
+            companyId: company.id,
+            name: defaultCategoryName,
+          }),
+        });
+        assertOk(result, 'create company default category');
+        createdDefaultCategory = true;
+      });
+
+      await runStep(`Creating company default subcategory ${defaultSubCategoryName}`, async () => {
+        const result = await request(
+          `/api/companies/${encodeURIComponent(company.id)}/default-sub-categories`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              id: defaultSubCategoryId,
+              companyId: company.id,
+              companyDefaultCategoryId: defaultCategoryId,
+              name: defaultSubCategoryName,
+            }),
+          }
+        );
+        assertOk(result, 'create company default subcategory');
+        createdDefaultSubCategory = true;
+      });
+
+      await runStep(`Creating company default mapping rule for ${matchText}`, async () => {
+        const result = await request(`/api/companies/${encodeURIComponent(company.id)}/default-mapping-rules`, {
+          method: 'POST',
+          body: JSON.stringify({
+            id: mappingRuleId,
+            companyId: company.id,
+            matchText,
+            companyDefaultCategoryId: defaultCategoryId,
+            companyDefaultSubCategoryId: defaultSubCategoryId,
+            sortOrder: 999999,
+          }),
+        });
+        assertOk(result, 'create company default mapping rule');
+        createdDefaultMapping = true;
+      });
+
+      await runStep('Applying company defaults to the project', async () => {
+        const result = await request(
+          `/api/projects/${encodeURIComponent(project.id)}/apply-company-default-taxonomy`,
+          { method: 'POST' }
+        );
+        assertOk(result, 'apply company defaults');
+        if (!result.body?.companyDefaultsConfigured) {
+          throw new Error('Company defaults were not reported as configured during apply.');
+        }
+      });
+
+      await runStep(`Importing a matching uncoded transaction for ${matchText}`, async () => {
+        const result = await request(
+          `/api/projects/${encodeURIComponent(project.id)}/transactions/import`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              mode: 'append',
+              autoCreateBudgets: true,
+              txns: [
+                {
+                  id: txnId,
+                  externalId: txnExternalId,
+                  companyId: company.id,
+                  projectId: project.id,
+                  date: '2024-01-09',
+                  item: 'Smoke Imported Flight',
+                  description: `Auto-map ${matchText}`,
+                  amountCents: 24560,
+                },
+              ],
+            }),
+          }
+        );
+        assertOk(result, 'import auto-mapped transaction');
+      });
+
+      await runStep('Verifying the imported transaction was auto-mapped', async () => {
+        const result = await request(`/api/projects/${encodeURIComponent(project.id)}/transactions`);
+        assertOk(result, 'list imported transactions');
+        const txns = Array.isArray(result.body) ? result.body : [];
+        const imported = txns.find((txn) => txn.id === txnId || txn.externalId === txnExternalId);
+        if (!imported) throw new Error('Imported smoke transaction was not found.');
+        if (!imported.categoryId || !imported.subCategoryId) {
+          throw new Error('Imported smoke transaction was not coded by company defaults.');
+        }
+        if (!imported.codingPendingApproval) {
+          throw new Error('Imported smoke transaction was not marked pending approval.');
+        }
+        importedTxnId = imported.id;
+
+        const categoriesResult = await request(`/api/projects/${encodeURIComponent(project.id)}/categories`);
+        assertOk(categoriesResult, 'list project categories after apply');
+        const projectCategories = Array.isArray(categoriesResult.body) ? categoriesResult.body : [];
+        projectCategoryId =
+          projectCategories.find((category) => category.name === defaultCategoryName)?.id ?? null;
+        if (!projectCategoryId) {
+          throw new Error(`Applied project category ${defaultCategoryName} was not found.`);
+        }
+      });
+
+      await runStep('Approving the auto-mapped transaction', async () => {
+        if (!importedTxnId) throw new Error('No imported transaction id available for approval.');
+        const result = await request(`/api/projects/${encodeURIComponent(project.id)}/transactions`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            id: importedTxnId,
+            codingPendingApproval: false,
+          }),
+        });
+        assertOk(result, 'approve auto-mapped transaction');
+        if (!result.body?.categoryId || !result.body?.subCategoryId) {
+          throw new Error('Approved transaction lost its coding.');
+        }
+        if (result.body?.codingPendingApproval) {
+          throw new Error('Approved transaction still shows pending approval.');
+        }
+      });
+
+      await runStep(`Verifying budget line exists for ${defaultSubCategoryName}`, async () => {
+        const budgetsResult = await request(`/api/projects/${encodeURIComponent(project.id)}/budgets`);
+        assertOk(budgetsResult, 'list project budgets');
+        const budgets = Array.isArray(budgetsResult.body) ? budgetsResult.body : [];
+        const subCategoriesResult = await request(
+          `/api/projects/${encodeURIComponent(project.id)}/sub-categories`
+        );
+        assertOk(subCategoriesResult, 'list project subcategories');
+        const projectSubCategories = Array.isArray(subCategoriesResult.body) ? subCategoriesResult.body : [];
+        const projectSubCategory = projectSubCategories.find(
+          (subCategory) =>
+            subCategory.name === defaultSubCategoryName && subCategory.categoryId === projectCategoryId
+        );
+        if (!projectSubCategory) {
+          throw new Error(`Applied project subcategory ${defaultSubCategoryName} was not found.`);
+        }
+        const matchingBudget = budgets.find(
+          (entry) => entry.subCategoryId === projectSubCategory.id && entry.categoryId === projectCategoryId
+        );
+        if (!matchingBudget) {
+          throw new Error(`No budget line existed for ${defaultSubCategoryName} after import.`);
+        }
+        smokeBudgetId = matchingBudget.id;
+      });
+    } finally {
+      await runStep('Deleting the imported transaction', async () => {
+        if (!importedTxnId) return;
+        const result = await request(
+          `/api/projects/${encodeURIComponent(project.id)}/transactions/${encodeURIComponent(importedTxnId)}`,
+          { method: 'DELETE' }
+        );
+        assertOk(result, 'delete imported smoke transaction');
+      });
+
+      await runStep('Deleting the temporary budget line', async () => {
+        if (!smokeBudgetId) return;
+        const result = await request(
+          `/api/projects/${encodeURIComponent(project.id)}/budgets/${encodeURIComponent(smokeBudgetId)}`,
+          { method: 'DELETE' }
+        );
+        assertOk(result, 'delete temporary smoke budget');
+      });
+
+      await runStep('Deleting the temporary project category', async () => {
+        if (!projectCategoryId) return;
+        const result = await request(
+          `/api/projects/${encodeURIComponent(project.id)}/categories/${encodeURIComponent(projectCategoryId)}`,
+          { method: 'DELETE' }
+        );
+        assertOk(result, 'delete temporary smoke project category');
+      });
+
+      await runStep('Deleting the temporary company default mapping rule', async () => {
+        if (!createdDefaultMapping) return;
+        const result = await request(
+          `/api/companies/${encodeURIComponent(company.id)}/default-mapping-rules/${encodeURIComponent(mappingRuleId)}`,
+          { method: 'DELETE' }
+        );
+        assertOk(result, 'delete temporary company default mapping rule');
+      });
+
+      await runStep('Deleting the temporary company default subcategory', async () => {
+        if (!createdDefaultSubCategory) return;
+        const result = await request(
+          `/api/companies/${encodeURIComponent(company.id)}/default-sub-categories/${encodeURIComponent(defaultSubCategoryId)}`,
+          { method: 'DELETE' }
+        );
+        assertOk(result, 'delete temporary company default subcategory');
+      });
+
+      await runStep('Deleting the temporary company default category', async () => {
+        if (!createdDefaultCategory) return;
+        const result = await request(
+          `/api/companies/${encodeURIComponent(company.id)}/default-categories/${encodeURIComponent(defaultCategoryId)}`,
+          { method: 'DELETE' }
+        );
+        assertOk(result, 'delete temporary company default category');
+      });
+    }
   }
 
   if (shouldRunSection('inviteFlow')) {
