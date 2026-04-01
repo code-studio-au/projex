@@ -191,6 +191,7 @@ Why this matters:
 
 ## Not A Priority Right Now
 
+- Mantine 9 migration until `mantine-react-table` has a compatible release or we replace the table layer
 - replacing the app company model with BetterAuth organizations
 - automatic account switching after password reset
 - large visual redesign work
