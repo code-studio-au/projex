@@ -7,12 +7,14 @@ export const Route = createFileRoute('/api/companies/$companyId/default-mapping-
   server: {
     handlers: {
       DELETE: ({ request, params }) =>
-        withApi(request, (api) =>
-          api.deleteCompanyDefaultMappingRule(
+        withApi(request, async (api) => {
+          await api.deleteCompanyDefaultMappingRule(
             asCompanyId(params.companyId),
             asCompanyDefaultMappingRuleId(params.ruleId)
-          )
-        ),
+          );
+
+          return { ok: true as const };
+        }),
     },
   },
 });
