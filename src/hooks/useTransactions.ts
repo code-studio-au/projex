@@ -39,7 +39,14 @@ export function useTransactions(params: { projectId: ProjectId }) {
     const setIds = new Set(subCategoryIds);
     const next = transactions.map((t) =>
       t.subCategoryId && setIds.has(t.subCategoryId)
-        ? { ...t, categoryId: undefined, subCategoryId: undefined }
+        ? {
+            ...t,
+            categoryId: undefined,
+            subCategoryId: undefined,
+            companyDefaultMappingRuleId: undefined,
+            codingSource: 'manual' as const,
+            codingPendingApproval: false,
+          }
         : t
     );
     await replaceAll(next);
@@ -49,7 +56,14 @@ export function useTransactions(params: { projectId: ProjectId }) {
     const setIds = new Set(categoryIds);
     const next = transactions.map((t) =>
       t.categoryId && setIds.has(t.categoryId)
-        ? { ...t, categoryId: undefined, subCategoryId: undefined }
+        ? {
+            ...t,
+            categoryId: undefined,
+            subCategoryId: undefined,
+            companyDefaultMappingRuleId: undefined,
+            codingSource: 'manual' as const,
+            codingPendingApproval: false,
+          }
         : t
     );
     await replaceAll(next);

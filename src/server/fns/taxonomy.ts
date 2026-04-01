@@ -326,7 +326,14 @@ export async function deleteCategoryServer(args: {
 
       await trx
         .updateTable('txns')
-        .set({ category_id: null, sub_category_id: null, updated_at: new Date().toISOString() })
+        .set({
+          category_id: null,
+          sub_category_id: null,
+          company_default_mapping_rule_id: null,
+          coding_source: 'manual',
+          coding_pending_approval: false,
+          updated_at: new Date().toISOString(),
+        })
         .where('project_id', '=', args.projectId)
         .where('category_id', '=', args.categoryId)
         .execute();
@@ -334,7 +341,14 @@ export async function deleteCategoryServer(args: {
       if (subIds.length) {
         await trx
           .updateTable('txns')
-          .set({ sub_category_id: null, updated_at: new Date().toISOString() })
+          .set({
+            category_id: null,
+            sub_category_id: null,
+            company_default_mapping_rule_id: null,
+            coding_source: 'manual',
+            coding_pending_approval: false,
+            updated_at: new Date().toISOString(),
+          })
           .where('project_id', '=', args.projectId)
           .where('sub_category_id', 'in', subIds)
           .execute();
@@ -492,7 +506,14 @@ export async function deleteSubCategoryServer(args: {
 
       await trx
         .updateTable('txns')
-        .set({ sub_category_id: null, updated_at: now })
+        .set({
+          category_id: null,
+          sub_category_id: null,
+          company_default_mapping_rule_id: null,
+          coding_source: 'manual',
+          coding_pending_approval: false,
+          updated_at: now,
+        })
         .where('project_id', '=', args.projectId)
         .where('sub_category_id', '=', args.subCategoryId)
         .execute();
@@ -1087,6 +1108,7 @@ export async function applyCompanyDefaultTaxonomyServer(args: {
       .where('project_id', '=', args.projectId)
       .execute();
 
+    const companyDefaultsConfigured = defaultCategories.length > 0;
     let categoriesAdded = 0;
     let subCategoriesAdded = 0;
     const now = new Date().toISOString();
@@ -1146,6 +1168,6 @@ export async function applyCompanyDefaultTaxonomyServer(args: {
       }
     });
 
-    return { categoriesAdded, subCategoriesAdded };
+    return { companyDefaultsConfigured, categoriesAdded, subCategoriesAdded };
   });
 }

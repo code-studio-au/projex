@@ -159,12 +159,8 @@ export function useTaxonomy(params: {
     await updateCat.mutateAsync({ id: categoryId, name: name.trim() });
   };
 
-  const deleteCategory = (categoryId: CategoryId) => {
-    // Local UX: also strip coding immediately (server will enforce too later)
-    const subsToDelete = subCategories.filter((s) => s.categoryId === categoryId).map((s) => s.id);
-    budgets.deleteBudgetLinesForSubCategoryIds(subsToDelete);
-    txns.stripCodingForCategoryIds([categoryId]);
-    deleteCat.mutate(categoryId);
+  const deleteCategory = async (categoryId: CategoryId) => {
+    await deleteCat.mutateAsync(categoryId);
   };
 
   /**
@@ -219,10 +215,8 @@ export function useTaxonomy(params: {
     await txns.replaceAll(next);
   };
 
-  const deleteSubCategory = (subCategoryId: SubCategoryId) => {
-    budgets.deleteBudgetLinesForSubCategoryIds([subCategoryId]);
-    txns.stripCodingForSubCategoryIds([subCategoryId]);
-    deleteSub.mutate(subCategoryId);
+  const deleteSubCategory = async (subCategoryId: SubCategoryId) => {
+    await deleteSub.mutateAsync(subCategoryId);
   };
 
   // Helpers used by the Transactions table

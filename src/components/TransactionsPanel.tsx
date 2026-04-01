@@ -267,7 +267,9 @@ export default function TransactionsPanel(props: {
       size: 180,
       enableSorting: false,
       Cell: ({ row }) => {
-        if (!row.original.codingPendingApproval) return null;
+        const hasValidSubCategory =
+          !!row.original.subCategoryId && taxonomy.validSubIds.has(row.original.subCategoryId);
+        if (!row.original.codingPendingApproval || !hasValidSubCategory) return null;
         return (
           <Group gap="xs" wrap="wrap">
             <Badge color="yellow" variant="light">

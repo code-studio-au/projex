@@ -1051,6 +1051,7 @@ export class LocalApi implements ProjexApi {
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
 
+    const companyDefaultsConfigured = defaults.categories.length > 0;
     let categoriesAdded = 0;
     let subCategoriesAdded = 0;
     const categories = slice.categories.slice();
@@ -1116,7 +1117,7 @@ export class LocalApi implements ProjexApi {
       },
     });
 
-    return { categoriesAdded, subCategoriesAdded };
+    return { companyDefaultsConfigured, categoriesAdded, subCategoriesAdded };
   }
 
   async listCategories(projectId: ProjectId): Promise<Category[]> {
@@ -1201,7 +1202,14 @@ export class LocalApi implements ProjexApi {
     );
     const transactions: Txn[] = slice.transactions.map((t) =>
       t.categoryId === categoryId
-        ? ({ ...t, categoryId: undefined, subCategoryId: undefined })
+        ? ({
+            ...t,
+            categoryId: undefined,
+            subCategoryId: undefined,
+            companyDefaultMappingRuleId: undefined,
+            codingSource: 'manual',
+            codingPendingApproval: false,
+          })
         : t
     );
     writeState({
@@ -1291,7 +1299,14 @@ export class LocalApi implements ProjexApi {
     );
     const transactions = slice.transactions.map((t) =>
       t.subCategoryId === subCategoryId
-        ? ({ ...t, subCategoryId: undefined })
+        ? ({
+            ...t,
+            categoryId: undefined,
+            subCategoryId: undefined,
+            companyDefaultMappingRuleId: undefined,
+            codingSource: 'manual',
+            codingPendingApproval: false,
+          })
         : t
     );
     writeState({

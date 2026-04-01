@@ -357,7 +357,11 @@ export class ServerApi implements ProjexApi {
     );
   }
   async applyCompanyDefaultTaxonomy(projectId: ProjectId) {
-    return this.request<{ categoriesAdded: number; subCategoriesAdded: number }>(
+    return this.request<{
+      companyDefaultsConfigured: boolean;
+      categoriesAdded: number;
+      subCategoriesAdded: number;
+    }>(
       `/api/projects/${encodeURIComponent(projectId)}/apply-company-default-taxonomy`,
       {
         method: 'POST',

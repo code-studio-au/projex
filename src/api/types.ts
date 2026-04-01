@@ -92,6 +92,7 @@ export type CompanyDefaultMappingRuleUpdateInput = Partial<
 };
 
 export type ApplyCompanyDefaultsResult = {
+  companyDefaultsConfigured: boolean;
   categoriesAdded: number;
   subCategoriesAdded: number;
 };

@@ -130,6 +130,10 @@ export default function TaxonomyManagerModal(props: {
                   setError(null);
                   setStatus(null);
                   const result = await taxonomy.applyCompanyDefaults();
+                  if (!result.companyDefaultsConfigured) {
+                    setStatus('No company defaults are configured for this company yet.');
+                    return;
+                  }
                   if (result.categoriesAdded === 0 && result.subCategoriesAdded === 0) {
                     setStatus('No company defaults were added because this project already includes them.');
                     return;
@@ -405,14 +409,20 @@ export default function TaxonomyManagerModal(props: {
             <Button
               color="red"
               fullWidth={isMobile}
-              onClick={() => {
+              onClick={async () => {
                 if (!pendingDelete) return;
-                if (pendingDelete.kind === 'category') {
-                  taxonomy.deleteCategory(asCategoryId(pendingDelete.id));
-                } else {
-                  taxonomy.deleteSubCategory(asSubCategoryId(pendingDelete.id));
+                try {
+                  setError(null);
+                  setStatus(null);
+                  if (pendingDelete.kind === 'category') {
+                    await taxonomy.deleteCategory(asCategoryId(pendingDelete.id));
+                  } else {
+                    await taxonomy.deleteSubCategory(asSubCategoryId(pendingDelete.id));
+                  }
+                  setPendingDelete(null);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Could not delete taxonomy item.');
                 }
-                setPendingDelete(null);
               }}
             >
               Delete
