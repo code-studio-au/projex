@@ -204,7 +204,8 @@ export default function CompanyDefaultTaxonomyModal(props: {
                         onChange={(e) => {
                           setError(null);
                           setSuccess(null);
-                          setCategoryDrafts((prev) => ({ ...prev, [category.id]: e.currentTarget.value }));
+                          const value = e?.currentTarget?.value ?? '';
+                          setCategoryDrafts((prev) => ({ ...prev, [category.id]: value }));
                         }}
                         onBlur={() => {
                           void commitCategoryName(category.id, category.name);
@@ -250,7 +251,8 @@ export default function CompanyDefaultTaxonomyModal(props: {
                         onChange={(e) => {
                           setError(null);
                           setSuccess(null);
-                          setNewSubNameByCat((prev) => ({ ...prev, [category.id]: e.currentTarget.value }));
+                          const value = e?.currentTarget?.value ?? '';
+                          setNewSubNameByCat((prev) => ({ ...prev, [category.id]: value }));
                         }}
                         style={{ width: '100%' }}
                         disabled={readOnly}
@@ -296,9 +298,10 @@ export default function CompanyDefaultTaxonomyModal(props: {
                               onChange={(e) => {
                                 setError(null);
                                 setSuccess(null);
+                                const value = e?.currentTarget?.value ?? '';
                                 setSubCategoryDrafts((prev) => ({
                                   ...prev,
-                                  [subCategory.id]: e.currentTarget.value,
+                                  [subCategory.id]: value,
                                 }));
                               }}
                               onBlur={() => {
