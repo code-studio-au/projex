@@ -24,6 +24,7 @@ import type {
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { BudgetsHook } from '../hooks/useBudgets';
 import { parseCsv, rowsToImportTxns, finalizeImportTxns } from '../utils/csv';
+import { txnInputSchema } from '../validation/schemas';
 
 /**
  * CSV Import panel.
@@ -48,6 +49,30 @@ export default function CsvImporterPanel(props: {
   onAppend: (txns: Txn[]) => Promise<void>;
   onReplaceAll: (txns: Txn[]) => Promise<void>;
 }) {
+  function sanitizeImportDate(value: string): string {
+    return value
+      .trim()
+      .replace(/^[^0-9]+/, '')
+      .replace(/[^0-9]+$/, '');
+  }
+
+  function validateImportedRows(
+    rows: Array<Pick<Txn, 'date' | 'item' | 'description' | 'amountCents'>>
+  ) {
+    for (let index = 0; index < rows.length; index += 1) {
+      const parsed = txnInputSchema.safeParse(rows[index]);
+      if (parsed.success) continue;
+      const issue = parsed.error.issues[0];
+      const field = String(issue?.path?.[0] ?? '');
+      if (field === 'date') {
+        throw new Error(
+          `Row ${index + 1}: Transaction date "${rows[index]?.date ?? ''}" must be YYYY-MM-DD`
+        );
+      }
+      throw new Error(issue?.message ?? `Row ${index + 1}: Validation failed`);
+    }
+  }
+
   const {
     taxonomy,
     budgets,
@@ -207,7 +232,7 @@ export default function CsvImporterPanel(props: {
       out.push({
         id,
         externalId: t.externalId?.trim() || undefined,
-        date: t.date,
+        date: sanitizeImportDate(t.date),
         item: t.item,
         description: t.description,
         amountCents: t.amountCents,
@@ -295,6 +320,7 @@ export default function CsvImporterPanel(props: {
                       existingKeys,
                       skipDuplicates,
                     });
+                    validateImportedRows(txns);
 
                     ensureBudgetLinesForImportedSubCategories(txns);
                     await onAppend(txns.map((t) => ({ ...t, companyId, projectId })));
@@ -359,6 +385,7 @@ export default function CsvImporterPanel(props: {
                   const { txns } = finalizeImportTxns(mapped, {
                     skipDuplicates: false,
                   });
+                  validateImportedRows(txns);
 
                   ensureBudgetLinesForImportedSubCategories(txns);
                   await onReplaceAll(txns.map((t) => ({ ...t, companyId, projectId })));
