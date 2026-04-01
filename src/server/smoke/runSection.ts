@@ -724,8 +724,10 @@ async function runCompanyDefaultsSection(
       const result = await client.request(`/api/projects/${encodeURIComponent(project.id)}/transactions`, {
         method: 'PATCH',
         body: JSON.stringify({
-          id: importedTxnId,
-          codingPendingApproval: false,
+          txn: {
+            id: importedTxnId,
+            codingPendingApproval: false,
+          },
         }),
       });
       assertOk(result, 'approve auto-mapped transaction');
