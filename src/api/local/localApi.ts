@@ -1,5 +1,7 @@
 import type {
   Company,
+  CompanyDefaultCategory,
+  CompanyDefaultSubCategory,
   CompanyId,
   CompanyMembership,
   CompanyRole,
@@ -19,6 +21,8 @@ import {
   asBudgetLineId,
   asCategoryId,
   asCompanyId,
+  asCompanyDefaultCategoryId,
+  asCompanyDefaultSubCategoryId,
   asProjectId,
   asSubCategoryId,
   asTxnId,
@@ -49,11 +53,16 @@ import { validateOrThrow } from '../../validation/validate';
 import type {
   BudgetCreateInput,
   BudgetUpdateInput,
+  CompanyDefaultCategoryCreateInput,
+  CompanyDefaultCategoryUpdateInput,
+  CompanyDefaultSubCategoryCreateInput,
+  CompanyDefaultSubCategoryUpdateInput,
   CategoryCreateInput,
   CategoryUpdateInput,
   CompanyUserInviteResult,
   CompanyUpdateInput,
   CsvImportMode,
+  ApplyCompanyDefaultsResult,
   PendingEmailChange,
   EmailChangeRequestInput,
   EmailChangeRequestResult,
@@ -89,7 +98,21 @@ function writeJson(key: string, value: unknown) {
 
 function ensureState(): PersistedStateV1 {
   const existing = readJson<PersistedStateV1>(PROJEX_STATE_KEY);
-  if (existing) return existing;
+  if (existing) {
+    if (!existing.companyDefaultsByCompanyId) {
+      existing.companyDefaultsByCompanyId = Object.fromEntries(
+        existing.companies.map((company) => [
+          company.id,
+          {
+            categories: [],
+            subCategories: [],
+          },
+        ])
+      ) as PersistedStateV1['companyDefaultsByCompanyId'];
+      writeJson(PROJEX_STATE_KEY, existing);
+    }
+    return existing;
+  }
 
   const seed = buildSeedState();
   writeJson(PROJEX_STATE_KEY, seed);
@@ -623,6 +646,291 @@ export class LocalApi implements ProjexApi {
     });
   }
 
+  async listCompanyDefaultCategories(companyId: CompanyId): Promise<CompanyDefaultCategory[]> {
+    const st = ensureState();
+    this.assertCan('company:view', companyId);
+    return st.companyDefaultsByCompanyId[companyId]?.categories ?? [];
+  }
+
+  async listCompanyDefaultSubCategories(
+    companyId: CompanyId
+  ): Promise<CompanyDefaultSubCategory[]> {
+    const st = ensureState();
+    this.assertCan('company:view', companyId);
+    return st.companyDefaultsByCompanyId[companyId]?.subCategories ?? [];
+  }
+
+  async createCompanyDefaultCategory(
+    companyId: CompanyId,
+    input: CompanyDefaultCategoryCreateInput
+  ): Promise<CompanyDefaultCategory> {
+    const st = ensureState();
+    this.assertCan('company:edit', companyId);
+    validateOrThrow(categoryNameSchema, input.name);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    const nameKey = input.name.trim().toLowerCase();
+    const existing = slice.categories.find((c) => c.name.trim().toLowerCase() === nameKey);
+    if (existing) return existing;
+
+    const id = input.id ?? asCompanyDefaultCategoryId(uid('ccat'));
+    const now = this.nowIso();
+    const next: CompanyDefaultCategory = {
+      ...input,
+      id,
+      companyId,
+      name: input.name.trim(),
+      createdAt: input.createdAt ?? now,
+      updatedAt: now,
+    };
+    writeState({
+      ...st,
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [companyId]: { ...slice, categories: [...slice.categories, next] },
+      },
+    });
+    return next;
+  }
+
+  async updateCompanyDefaultCategory(
+    companyId: CompanyId,
+    input: CompanyDefaultCategoryUpdateInput
+  ): Promise<CompanyDefaultCategory> {
+    const st = ensureState();
+    this.assertCan('company:edit', companyId);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    if (typeof input.name === 'string') {
+      validateOrThrow(categoryNameSchema, input.name);
+    }
+    const idx = slice.categories.findIndex((c) => c.id === input.id);
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    if (typeof input.name === 'string') {
+      const nameKey = input.name.trim().toLowerCase();
+      const duplicate = slice.categories.find(
+        (c) => c.id !== input.id && c.name.trim().toLowerCase() === nameKey
+      );
+      if (duplicate) {
+        throw new AppError('CONFLICT', `Company default category "${input.name.trim()}" already exists`);
+      }
+    }
+    const updated: CompanyDefaultCategory = {
+      ...slice.categories[idx],
+      ...input,
+      companyId,
+      name: typeof input.name === 'string' ? input.name.trim() : slice.categories[idx].name,
+      updatedAt: this.nowIso(),
+    };
+    const categories = slice.categories.slice();
+    categories[idx] = updated;
+    writeState({
+      ...st,
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [companyId]: { ...slice, categories },
+      },
+    });
+    return updated;
+  }
+
+  async deleteCompanyDefaultCategory(
+    companyId: CompanyId,
+    categoryId: CompanyDefaultCategory['id']
+  ): Promise<void> {
+    const st = ensureState();
+    this.assertCan('company:edit', companyId);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    writeState({
+      ...st,
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [companyId]: {
+          categories: slice.categories.filter((c) => c.id !== categoryId),
+          subCategories: slice.subCategories.filter((s) => s.companyDefaultCategoryId !== categoryId),
+        },
+      },
+    });
+  }
+
+  async createCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    input: CompanyDefaultSubCategoryCreateInput
+  ): Promise<CompanyDefaultSubCategory> {
+    const st = ensureState();
+    this.assertCan('company:edit', companyId);
+    validateOrThrow(subCategoryNameSchema, input.name);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    const category = slice.categories.find((c) => c.id === input.companyDefaultCategoryId);
+    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    const nameKey = input.name.trim().toLowerCase();
+    const existing = slice.subCategories.find(
+      (s) =>
+        s.companyDefaultCategoryId === input.companyDefaultCategoryId &&
+        s.name.trim().toLowerCase() === nameKey
+    );
+    if (existing) return existing;
+
+    const id = input.id ?? asCompanyDefaultSubCategoryId(uid('csub'));
+    const now = this.nowIso();
+    const next: CompanyDefaultSubCategory = {
+      ...input,
+      id,
+      companyId,
+      name: input.name.trim(),
+      createdAt: input.createdAt ?? now,
+      updatedAt: now,
+    };
+    writeState({
+      ...st,
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [companyId]: { ...slice, subCategories: [...slice.subCategories, next] },
+      },
+    });
+    return next;
+  }
+
+  async updateCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    input: CompanyDefaultSubCategoryUpdateInput
+  ): Promise<CompanyDefaultSubCategory> {
+    const st = ensureState();
+    this.assertCan('company:edit', companyId);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    if (typeof input.name === 'string') {
+      validateOrThrow(subCategoryNameSchema, input.name);
+    }
+    const idx = slice.subCategories.findIndex((s) => s.id === input.id);
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    const current = slice.subCategories[idx];
+    const nextCategoryId = input.companyDefaultCategoryId ?? current.companyDefaultCategoryId;
+    const nextName = (typeof input.name === 'string' ? input.name : current.name).trim();
+    const duplicate = slice.subCategories.find(
+      (subCategory) =>
+        subCategory.id !== input.id &&
+        subCategory.companyDefaultCategoryId === nextCategoryId &&
+        subCategory.name.trim().toLowerCase() === nextName.toLowerCase()
+    );
+    if (duplicate) {
+      throw new AppError(
+        'CONFLICT',
+        `Company default subcategory "${nextName}" already exists in this category`
+      );
+    }
+    const updated: CompanyDefaultSubCategory = {
+      ...current,
+      ...input,
+      companyId,
+      name: nextName,
+      updatedAt: this.nowIso(),
+    };
+    const subCategories = slice.subCategories.slice();
+    subCategories[idx] = updated;
+    writeState({
+      ...st,
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [companyId]: { ...slice, subCategories },
+      },
+    });
+    return updated;
+  }
+
+  async deleteCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    subCategoryId: CompanyDefaultSubCategory['id']
+  ): Promise<void> {
+    const st = ensureState();
+    this.assertCan('company:edit', companyId);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    writeState({
+      ...st,
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [companyId]: {
+          ...slice,
+          subCategories: slice.subCategories.filter((s) => s.id !== subCategoryId),
+        },
+      },
+    });
+  }
+
+  async applyCompanyDefaultTaxonomy(projectId: ProjectId): Promise<ApplyCompanyDefaultsResult> {
+    const st = ensureState();
+    const p = st.projects.find((x) => x.id === projectId);
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
+    this.assertCan('taxonomy:edit', p.companyId, projectId);
+    const slice = st.dataByProjectId[projectId];
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
+    const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? { categories: [], subCategories: [] };
+
+    let categoriesAdded = 0;
+    let subCategoriesAdded = 0;
+    const categories = slice.categories.slice();
+    const subCategories = slice.subCategories.slice();
+    const projectCategoryByName = new Map(
+      categories.map((category) => [category.name.trim().toLowerCase(), category])
+    );
+
+    for (const defaultCategory of defaults.categories) {
+      const key = defaultCategory.name.trim().toLowerCase();
+      let projectCategory = projectCategoryByName.get(key);
+      if (!projectCategory) {
+        const now = this.nowIso();
+        projectCategory = {
+          id: asCategoryId(uid('cat')),
+          companyId: p.companyId,
+          projectId,
+          name: defaultCategory.name,
+          createdAt: now,
+          updatedAt: now,
+        };
+        categories.push(projectCategory);
+        projectCategoryByName.set(key, projectCategory);
+        categoriesAdded += 1;
+      }
+
+      const defaultSubs = defaults.subCategories.filter(
+        (sub) => sub.companyDefaultCategoryId === defaultCategory.id
+      );
+      const existingSubNames = new Set(
+        subCategories
+          .filter((sub) => sub.categoryId === projectCategory.id)
+          .map((sub) => sub.name.trim().toLowerCase())
+      );
+
+      for (const defaultSub of defaultSubs) {
+        const subKey = defaultSub.name.trim().toLowerCase();
+        if (existingSubNames.has(subKey)) continue;
+        const now = this.nowIso();
+        subCategories.push({
+          id: asSubCategoryId(uid('sub')),
+          companyId: p.companyId,
+          projectId,
+          categoryId: projectCategory.id,
+          name: defaultSub.name,
+          createdAt: now,
+          updatedAt: now,
+        });
+        existingSubNames.add(subKey);
+        subCategoriesAdded += 1;
+      }
+    }
+
+    writeState({
+      ...st,
+      dataByProjectId: {
+        ...st.dataByProjectId,
+        [projectId]: {
+          ...slice,
+          categories,
+          subCategories,
+        },
+      },
+    });
+
+    return { categoriesAdded, subCategoriesAdded };
+  }
+
   async listCategories(projectId: ProjectId): Promise<Category[]> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
@@ -955,6 +1263,10 @@ export class LocalApi implements ProjexApi {
       ...st,
       companies: [...st.companies, next],
       companyMemberships: [...st.companyMemberships, { companyId: id, userId, role: 'superadmin' }],
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [id]: { categories: [], subCategories: [] },
+      },
     });
     return next;
   }
@@ -1053,6 +1365,8 @@ export class LocalApi implements ProjexApi {
     const companies = st.companies.filter((c) => c.id !== companyId);
     const companyMemberships = st.companyMemberships.filter((m) => m.companyId !== companyId);
     const projectMemberships = st.projectMemberships.filter((m) => !projectIdSet.has(m.projectId));
+    const companyDefaultsByCompanyId = { ...st.companyDefaultsByCompanyId };
+    delete companyDefaultsByCompanyId[companyId];
 
     // Drop all project slices for the deleted company.
     const dataByProjectId = { ...st.dataByProjectId };
@@ -1070,6 +1384,7 @@ export class LocalApi implements ProjexApi {
       projects,
       companyMemberships,
       projectMemberships,
+      companyDefaultsByCompanyId,
       dataByProjectId,
       users,
     });

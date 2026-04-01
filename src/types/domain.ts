@@ -2,6 +2,8 @@ import type {
   BudgetLineId,
   CategoryId,
   CompanyId,
+  CompanyDefaultCategoryId,
+  CompanyDefaultSubCategoryId,
   ProjectId,
   SubCategoryId,
   TxnId,
@@ -68,6 +70,23 @@ export type SubCategory = {
   companyId: CompanyId;
   projectId: ProjectId;
   categoryId: CategoryId;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type CompanyDefaultCategory = {
+  id: CompanyDefaultCategoryId;
+  companyId: CompanyId;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type CompanyDefaultSubCategory = {
+  id: CompanyDefaultSubCategoryId;
+  companyId: CompanyId;
+  companyDefaultCategoryId: CompanyDefaultCategoryId;
   name: string;
   createdAt?: string;
   updatedAt?: string;

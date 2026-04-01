@@ -32,6 +32,11 @@ import {
   useSendCompanyUserInviteEmailMutation,
 } from '../queries/admin';
 import { isServerAuthMode } from '../routes/-authMode';
+import {
+  useCompanyDefaultCategoriesQuery,
+  useCompanyDefaultSubCategoriesQuery,
+} from '../queries/taxonomy';
+import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
@@ -51,6 +56,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   // works across companies even without explicit membership.
   const currentCompanyRole = access.companyRole;
   const canAddCompanyUsers = access.can('company:manage_members');
+  const canEditCompanyDefaults = access.can('company:edit');
+  const defaultCategoriesQ = useCompanyDefaultCategoriesQuery(companyId);
+  const defaultSubCategoriesQ = useCompanyDefaultSubCategoriesQuery(companyId);
 
   const companyUsers = useMemo(() => {
     return getCompanyUsers(
@@ -78,6 +86,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [membershipError, setMembershipError] = useState<string | null>(null);
   const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
   const [roleUserId, setRoleUserId] = useState<UserId | null>(null);
+  const [defaultsModalOpen, setDefaultsModalOpen] = useState(false);
 
   // Derive a sensible default selection without synchronously setting state in an effect.
   // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
@@ -298,6 +307,34 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             </Text>
           </Stack>
         </Paper>
+
+        <Paper withBorder radius="lg" p="lg">
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Title order={5}>Company default categories</Title>
+              <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
+                {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
+              </Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Define company-wide default categories and subcategories that can be safely added into projects later.
+            </Text>
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">{(defaultCategoriesQ.data ?? []).length} categories</Badge>
+              <Badge variant="light">{(defaultSubCategoriesQ.data ?? []).length} subcategories</Badge>
+            </Group>
+            <Button
+              variant="light"
+              disabled={!canEditCompanyDefaults}
+              onClick={() => setDefaultsModalOpen(true)}
+            >
+              Manage company defaults
+            </Button>
+            <Text size="xs" c="dimmed">
+              Applying company defaults to a project only adds missing categories and subcategories. Existing project taxonomy is left unchanged.
+            </Text>
+          </Stack>
+        </Paper>
       </SimpleGrid>
 
       <Paper withBorder radius="lg" p="lg">
@@ -373,6 +410,13 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           />
         </Stack>
       </Paper>
+
+      <CompanyDefaultTaxonomyModal
+        opened={defaultsModalOpen}
+        onClose={() => setDefaultsModalOpen(false)}
+        companyId={companyId}
+        readOnly={!canEditCompanyDefaults}
+      />
     </Stack>
   );
 }

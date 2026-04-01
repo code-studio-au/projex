@@ -8,6 +8,10 @@ export const qk = {
   companyMemberships: (userId: string, companyId: string) =>
     ['companyMemberships', userId, companyId] as const,
   allCompanyMemberships: (userId: string) => ['allCompanyMemberships', userId] as const,
+  companyDefaultCategories: (userId: string, companyId: string) =>
+    ['companyDefaultCategories', userId, companyId] as const,
+  companyDefaultSubCategories: (userId: string, companyId: string) =>
+    ['companyDefaultSubCategories', userId, companyId] as const,
 
   projects: (userId: string, companyId: string) => ['projects', userId, companyId] as const,
   project: (userId: string, projectId: string) => ['project', userId, projectId] as const,

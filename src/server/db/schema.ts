@@ -101,6 +101,23 @@ export interface SubCategoryTable {
   updated_at: Generated<string>;
 }
 
+export interface CompanyDefaultCategoryTable {
+  id: string;
+  company_id: string;
+  name: string;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface CompanyDefaultSubCategoryTable {
+  id: string;
+  company_id: string;
+  company_default_category_id: string;
+  name: string;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
 export interface DB {
   companies: CompanyTable;
   projects: ProjectTable;
@@ -112,4 +129,6 @@ export interface DB {
   budget_lines: BudgetLineTable;
   categories: CategoryTable;
   sub_categories: SubCategoryTable;
+  company_default_categories: CompanyDefaultCategoryTable;
+  company_default_sub_categories: CompanyDefaultSubCategoryTable;
 }

@@ -10,6 +10,8 @@ export type ProjectId = Brand<string, 'ProjectId'>;
 export type UserId = Brand<string, 'UserId'>;
 export type CategoryId = Brand<string, 'CategoryId'>;
 export type SubCategoryId = Brand<string, 'SubCategoryId'>;
+export type CompanyDefaultCategoryId = Brand<string, 'CompanyDefaultCategoryId'>;
+export type CompanyDefaultSubCategoryId = Brand<string, 'CompanyDefaultSubCategoryId'>;
 export type TxnId = Brand<string, 'TxnId'>;
 export type BudgetLineId = Brand<string, 'BudgetLineId'>;
 
@@ -20,6 +22,8 @@ export type AnyId =
   | UserId
   | CategoryId
   | SubCategoryId
+  | CompanyDefaultCategoryId
+  | CompanyDefaultSubCategoryId
   | TxnId
   | BudgetLineId;
 
@@ -29,5 +33,9 @@ export const asProjectId = (v: string) => brand<string, 'ProjectId'>(v);
 export const asUserId = (v: string) => brand<string, 'UserId'>(v);
 export const asCategoryId = (v: string) => brand<string, 'CategoryId'>(v);
 export const asSubCategoryId = (v: string) => brand<string, 'SubCategoryId'>(v);
+export const asCompanyDefaultCategoryId = (v: string) =>
+  brand<string, 'CompanyDefaultCategoryId'>(v);
+export const asCompanyDefaultSubCategoryId = (v: string) =>
+  brand<string, 'CompanyDefaultSubCategoryId'>(v);
 export const asTxnId = (v: string) => brand<string, 'TxnId'>(v);
 export const asBudgetLineId = (v: string) => brand<string, 'BudgetLineId'>(v);

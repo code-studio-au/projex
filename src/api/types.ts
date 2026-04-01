@@ -2,6 +2,8 @@ import type {
   BudgetLine,
   Category,
   Company,
+  CompanyDefaultCategory,
+  CompanyDefaultSubCategory,
   CompanyId,
   CompanyMembership,
   CompanyRole,
@@ -56,11 +58,32 @@ export type CategoryUpdateInput = Partial<Omit<Category, 'id'>> & {
   id: Category['id'];
 };
 
+export type CompanyDefaultCategoryCreateInput = Omit<CompanyDefaultCategory, 'id'> & {
+  id?: CompanyDefaultCategory['id'];
+};
+export type CompanyDefaultCategoryUpdateInput = Partial<Omit<CompanyDefaultCategory, 'id'>> & {
+  id: CompanyDefaultCategory['id'];
+};
+
 export type SubCategoryCreateInput = Omit<SubCategory, 'id'> & {
   id?: SubCategory['id'];
 };
 export type SubCategoryUpdateInput = Partial<Omit<SubCategory, 'id'>> & {
   id: SubCategory['id'];
+};
+
+export type CompanyDefaultSubCategoryCreateInput = Omit<CompanyDefaultSubCategory, 'id'> & {
+  id?: CompanyDefaultSubCategory['id'];
+};
+export type CompanyDefaultSubCategoryUpdateInput = Partial<
+  Omit<CompanyDefaultSubCategory, 'id'>
+> & {
+  id: CompanyDefaultSubCategory['id'];
+};
+
+export type ApplyCompanyDefaultsResult = {
+  categoriesAdded: number;
+  subCategoriesAdded: number;
 };
 
 export type ProjectCreateInput = Pick<Project, 'name'> & { id?: ProjectId };
@@ -136,6 +159,33 @@ export interface ProjexApi {
   removeProjectMember(projectId: ProjectId, userId: UserId): Promise<void>;
 
   // taxonomy
+  listCompanyDefaultCategories(companyId: CompanyId): Promise<CompanyDefaultCategory[]>;
+  listCompanyDefaultSubCategories(companyId: CompanyId): Promise<CompanyDefaultSubCategory[]>;
+  createCompanyDefaultCategory(
+    companyId: CompanyId,
+    input: CompanyDefaultCategoryCreateInput
+  ): Promise<CompanyDefaultCategory>;
+  updateCompanyDefaultCategory(
+    companyId: CompanyId,
+    input: CompanyDefaultCategoryUpdateInput
+  ): Promise<CompanyDefaultCategory>;
+  deleteCompanyDefaultCategory(
+    companyId: CompanyId,
+    categoryId: CompanyDefaultCategory['id']
+  ): Promise<void>;
+  createCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    input: CompanyDefaultSubCategoryCreateInput
+  ): Promise<CompanyDefaultSubCategory>;
+  updateCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    input: CompanyDefaultSubCategoryUpdateInput
+  ): Promise<CompanyDefaultSubCategory>;
+  deleteCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    subCategoryId: CompanyDefaultSubCategory['id']
+  ): Promise<void>;
+  applyCompanyDefaultTaxonomy(projectId: ProjectId): Promise<ApplyCompanyDefaultsResult>;
   listCategories(projectId: ProjectId): Promise<Category[]>;
   listSubCategories(projectId: ProjectId): Promise<SubCategory[]>;
   createCategory(projectId: ProjectId, input: CategoryCreateInput): Promise<Category>;

@@ -11,6 +11,7 @@ import type {
 import { asCategoryId, asSubCategoryId } from "../types";
 import { uid } from '../utils/id';
 import {
+  useApplyCompanyDefaultTaxonomyMutation,
   useCategoriesQuery,
   useCreateCategoryMutation,
   useCreateSubCategoryMutation,
@@ -92,6 +93,7 @@ export function useTaxonomy(params: {
   const createSub = useCreateSubCategoryMutation(projectId);
   const updateSub = useUpdateSubCategoryMutation(projectId);
   const deleteSub = useDeleteSubCategoryMutation(projectId);
+  const applyCompanyDefaultsMutation = useApplyCompanyDefaultTaxonomyMutation(projectId, companyId);
 
   const categories = useMemo(() => catsQ.data ?? [], [catsQ.data]);
   const subCategories = useMemo(() => subsQ.data ?? [], [subsQ.data]);
@@ -251,6 +253,8 @@ export function useTaxonomy(params: {
     getCategoryName,
     getSubCategoryName,
     getSubCategory,
+    applyCompanyDefaults: () => applyCompanyDefaultsMutation.mutateAsync(),
+    isApplyingCompanyDefaults: applyCompanyDefaultsMutation.isPending,
     isLoading: catsQ.isLoading || subsQ.isLoading,
   };
 }

@@ -5,6 +5,8 @@ import type {
   BudgetLine,
   Category,
   Company,
+  CompanyDefaultCategory,
+  CompanyDefaultSubCategory,
   CompanyId,
   CompanyMembership,
   CompanyRole,
@@ -240,6 +242,87 @@ export class ServerApi implements ProjexApi {
   }
 
   // taxonomy
+  async listCompanyDefaultCategories(companyId: CompanyId) {
+    return this.request<CompanyDefaultCategory[]>(
+      `/api/companies/${encodeURIComponent(companyId)}/default-categories`
+    );
+  }
+  async listCompanyDefaultSubCategories(companyId: CompanyId) {
+    return this.request<CompanyDefaultSubCategory[]>(
+      `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories`
+    );
+  }
+  async createCompanyDefaultCategory(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['createCompanyDefaultCategory']>[1]
+  ) {
+    return this.request<CompanyDefaultCategory>(
+      `/api/companies/${encodeURIComponent(companyId)}/default-categories`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
+  }
+  async updateCompanyDefaultCategory(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['updateCompanyDefaultCategory']>[1]
+  ) {
+    return this.request<CompanyDefaultCategory>(
+      `/api/companies/${encodeURIComponent(companyId)}/default-categories`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    );
+  }
+  async deleteCompanyDefaultCategory(companyId: CompanyId, categoryId: string): Promise<void> {
+    await this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/default-categories/${encodeURIComponent(categoryId)}`,
+      { method: 'DELETE' }
+    );
+  }
+  async createCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['createCompanyDefaultSubCategory']>[1]
+  ) {
+    return this.request<CompanyDefaultSubCategory>(
+      `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
+  }
+  async updateCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['updateCompanyDefaultSubCategory']>[1]
+  ) {
+    return this.request<CompanyDefaultSubCategory>(
+      `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    );
+  }
+  async deleteCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    subCategoryId: string
+  ): Promise<void> {
+    await this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories/${encodeURIComponent(subCategoryId)}`,
+      { method: 'DELETE' }
+    );
+  }
+  async applyCompanyDefaultTaxonomy(projectId: ProjectId) {
+    return this.request<{ categoriesAdded: number; subCategoriesAdded: number }>(
+      `/api/projects/${encodeURIComponent(projectId)}/apply-company-default-taxonomy`,
+      {
+        method: 'POST',
+      }
+    );
+  }
   async listCategories(_projectId: ProjectId): Promise<Category[]> {
     return this.request<Category[]>(`/api/projects/${encodeURIComponent(_projectId)}/categories`);
   }

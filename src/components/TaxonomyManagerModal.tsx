@@ -27,6 +27,7 @@ export default function TaxonomyManagerModal(props: {
 
   const [newCategoryName, setNewCategoryName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const isMobile = useMediaQuery('(max-width: 48em)');
   const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>({});
   const [newSubNameByCat, setNewSubNameByCat] = useState<
@@ -110,11 +111,41 @@ export default function TaxonomyManagerModal(props: {
     >
       <Stack gap="md" className="taxonomyModal">
         {error ? <Alert color="red">{error}</Alert> : null}
+        {status ? <Alert color="green">{status}</Alert> : null}
         {readOnly && (
           <Text size="sm" c="dimmed" className="panelHelperText">
             You don’t have permission to edit categories in this project.
           </Text>
         )}
+        {!readOnly ? (
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Text size="sm" c="dimmed" className="panelHelperText" style={{ flex: 1 }}>
+              Company defaults can be safely added here. Existing project categories and subcategories are left unchanged.
+            </Text>
+            <Button
+              variant="light"
+              disabled={taxonomy.isApplyingCompanyDefaults}
+              onClick={async () => {
+                try {
+                  setError(null);
+                  setStatus(null);
+                  const result = await taxonomy.applyCompanyDefaults();
+                  if (result.categoriesAdded === 0 && result.subCategoriesAdded === 0) {
+                    setStatus('No company defaults were added because this project already includes them.');
+                    return;
+                  }
+                  setStatus(
+                    `Applied company defaults: ${result.categoriesAdded} categories and ${result.subCategoriesAdded} subcategories added.`
+                  );
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Could not apply company defaults.');
+                }
+              }}
+            >
+              Apply company defaults
+            </Button>
+          </Group>
+        ) : null}
         <Group align="flex-end" wrap="wrap">
           <TextInput
             label="Add category"
@@ -122,6 +153,7 @@ export default function TaxonomyManagerModal(props: {
             value={newCategoryName}
             onChange={(e) => {
               setError(null);
+              setStatus(null);
               setNewCategoryName(e.currentTarget.value);
             }}
             style={{ width: '100%' }}
@@ -136,6 +168,7 @@ export default function TaxonomyManagerModal(props: {
               if (!name) return;
               try {
                 setError(null);
+                setStatus(null);
                 await taxonomy.addCategory(name);
                 setNewCategoryName('');
               } catch (err) {
@@ -163,6 +196,7 @@ export default function TaxonomyManagerModal(props: {
                     value={categoryDrafts[cat.id] ?? cat.name}
                     onChange={(e) => {
                       setError(null);
+                      setStatus(null);
                       setCategoryDrafts((prev) => ({ ...prev, [cat.id]: e.currentTarget.value }));
                     }}
                     onBlur={() => {
@@ -216,6 +250,7 @@ export default function TaxonomyManagerModal(props: {
                     value={newSubNameByCat[cat.id] ?? ''}
                     onChange={(e) => {
                       setError(null);
+                      setStatus(null);
                       // Defensive: in some environments/input methods the event target can be null.
                       // Avoid capturing the synthetic event inside the state updater.
                       const value = e?.currentTarget?.value ?? '';
@@ -234,6 +269,7 @@ export default function TaxonomyManagerModal(props: {
                       if (!name) return;
                       try {
                         setError(null);
+                        setStatus(null);
                         await taxonomy.addSubCategory(cat.id, name);
                         setNewSubNameByCat((prev) => ({ ...prev, [cat.id]: '' }));
                       } catch (err) {
@@ -258,6 +294,7 @@ export default function TaxonomyManagerModal(props: {
                           value={subCategoryDrafts[sc.id] ?? sc.name}
                           onChange={(e) => {
                             setError(null);
+                            setStatus(null);
                             setSubCategoryDrafts((prev) => ({
                               ...prev,
                               [sc.id]: e?.currentTarget?.value ?? '',
@@ -291,6 +328,7 @@ export default function TaxonomyManagerModal(props: {
                             if (!v || v === sc.categoryId) return;
                             try {
                               setError(null);
+                              setStatus(null);
                               await taxonomy.moveSubCategory(sc.id, asCategoryId(v));
                             } catch (err) {
                               setError(

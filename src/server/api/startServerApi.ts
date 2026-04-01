@@ -66,12 +66,21 @@ import {
   updateTxnServer,
 } from '../fns/transactions';
 import {
+  applyCompanyDefaultTaxonomyServer,
+  createCompanyDefaultCategoryServer,
+  createCompanyDefaultSubCategoryServer,
   createCategoryServer,
   createSubCategoryServer,
+  deleteCompanyDefaultCategoryServer,
+  deleteCompanyDefaultSubCategoryServer,
   deleteCategoryServer,
   deleteSubCategoryServer,
+  listCompanyDefaultCategoriesServer,
+  listCompanyDefaultSubCategoriesServer,
   listCategoriesServer,
   listSubCategoriesServer,
+  updateCompanyDefaultCategoryServer,
+  updateCompanyDefaultSubCategoryServer,
   updateCategoryServer,
   updateSubCategoryServer,
 } from '../fns/taxonomy';
@@ -173,6 +182,55 @@ export class StartServerApi implements ProjexApi {
   }
 
   // taxonomy
+  async listCompanyDefaultCategories(companyId: CompanyId) {
+    return listCompanyDefaultCategoriesServer({ context: this.context, companyId });
+  }
+  async listCompanyDefaultSubCategories(companyId: CompanyId) {
+    return listCompanyDefaultSubCategoriesServer({ context: this.context, companyId });
+  }
+  async createCompanyDefaultCategory(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['createCompanyDefaultCategory']>[1]
+  ) {
+    return createCompanyDefaultCategoryServer({ context: this.context, companyId, input });
+  }
+  async updateCompanyDefaultCategory(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['updateCompanyDefaultCategory']>[1]
+  ) {
+    return updateCompanyDefaultCategoryServer({ context: this.context, companyId, input });
+  }
+  async deleteCompanyDefaultCategory(
+    companyId: CompanyId,
+    categoryId: Parameters<ProjexApi['deleteCompanyDefaultCategory']>[1]
+  ) {
+    return deleteCompanyDefaultCategoryServer({ context: this.context, companyId, categoryId });
+  }
+  async createCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['createCompanyDefaultSubCategory']>[1]
+  ) {
+    return createCompanyDefaultSubCategoryServer({ context: this.context, companyId, input });
+  }
+  async updateCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['updateCompanyDefaultSubCategory']>[1]
+  ) {
+    return updateCompanyDefaultSubCategoryServer({ context: this.context, companyId, input });
+  }
+  async deleteCompanyDefaultSubCategory(
+    companyId: CompanyId,
+    subCategoryId: Parameters<ProjexApi['deleteCompanyDefaultSubCategory']>[1]
+  ) {
+    return deleteCompanyDefaultSubCategoryServer({
+      context: this.context,
+      companyId,
+      subCategoryId,
+    });
+  }
+  async applyCompanyDefaultTaxonomy(projectId: ProjectId) {
+    return applyCompanyDefaultTaxonomyServer({ context: this.context, projectId });
+  }
   async listCategories(projectId: ProjectId) {
     return listCategoriesServer({ context: this.context, projectId });
   }

@@ -10,11 +10,15 @@ export async function seedDatabaseToBaseline(): Promise<void> {
   const seed = buildSeedState();
 
   await db.transaction().execute(async (trx) => {
+    const now = new Date().toISOString();
+
     // Clear app-domain data in dependency-safe order.
     await trx.deleteFrom('txns').execute();
     await trx.deleteFrom('budget_lines').execute();
     await trx.deleteFrom('sub_categories').execute();
     await trx.deleteFrom('categories').execute();
+    await trx.deleteFrom('company_default_sub_categories').execute();
+    await trx.deleteFrom('company_default_categories').execute();
     await trx.deleteFrom('email_change_requests').execute();
     await trx.deleteFrom('project_memberships').execute();
     await trx.deleteFrom('company_memberships').execute();
@@ -85,7 +89,44 @@ export async function seedDatabaseToBaseline(): Promise<void> {
       )
       .execute();
 
-    const now = new Date().toISOString();
+    for (const companyId of Object.keys(seed.companyDefaultsByCompanyId) as Array<
+      keyof typeof seed.companyDefaultsByCompanyId
+    >) {
+      const slice = seed.companyDefaultsByCompanyId[companyId];
+      if (!slice) continue;
+
+      if (slice.categories.length) {
+        await trx
+          .insertInto('company_default_categories')
+          .values(
+            slice.categories.map((c) => ({
+              id: c.id,
+              company_id: c.companyId,
+              name: c.name,
+              created_at: c.createdAt ?? now,
+              updated_at: c.updatedAt ?? now,
+            }))
+          )
+          .execute();
+      }
+
+      if (slice.subCategories.length) {
+        await trx
+          .insertInto('company_default_sub_categories')
+          .values(
+            slice.subCategories.map((s) => ({
+              id: s.id,
+              company_id: s.companyId,
+              company_default_category_id: s.companyDefaultCategoryId,
+              name: s.name,
+              created_at: s.createdAt ?? now,
+              updated_at: s.updatedAt ?? now,
+            }))
+          )
+          .execute();
+      }
+    }
+
     const projectIds = Object.keys(seed.dataByProjectId) as Array<keyof typeof seed.dataByProjectId>;
     for (const projectId of projectIds) {
       const slice = seed.dataByProjectId[projectId];
