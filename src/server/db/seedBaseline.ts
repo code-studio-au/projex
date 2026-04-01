@@ -17,6 +17,7 @@ export async function seedDatabaseToBaseline(): Promise<void> {
     await trx.deleteFrom('budget_lines').execute();
     await trx.deleteFrom('sub_categories').execute();
     await trx.deleteFrom('categories').execute();
+    await trx.deleteFrom('company_default_mapping_rules').execute();
     await trx.deleteFrom('company_default_sub_categories').execute();
     await trx.deleteFrom('company_default_categories').execute();
     await trx.deleteFrom('email_change_requests').execute();
@@ -125,6 +126,24 @@ export async function seedDatabaseToBaseline(): Promise<void> {
           )
           .execute();
       }
+
+      if (slice.mappingRules.length) {
+        await trx
+          .insertInto('company_default_mapping_rules')
+          .values(
+            slice.mappingRules.map((rule) => ({
+              id: rule.id,
+              company_id: rule.companyId,
+              match_text: rule.matchText,
+              company_default_category_id: rule.companyDefaultCategoryId,
+              company_default_sub_category_id: rule.companyDefaultSubCategoryId,
+              sort_order: rule.sortOrder,
+              created_at: rule.createdAt ?? now,
+              updated_at: rule.updatedAt ?? now,
+            }))
+          )
+          .execute();
+      }
     }
 
     const projectIds = Object.keys(seed.dataByProjectId) as Array<keyof typeof seed.dataByProjectId>;
@@ -198,6 +217,9 @@ export async function seedDatabaseToBaseline(): Promise<void> {
               amount_cents: t.amountCents,
               category_id: t.categoryId ?? null,
               sub_category_id: t.subCategoryId ?? null,
+              company_default_mapping_rule_id: t.companyDefaultMappingRuleId ?? null,
+              coding_source: t.codingSource ?? null,
+              coding_pending_approval: !!t.codingPendingApproval,
               created_at: t.createdAt ?? now,
               updated_at: t.updatedAt ?? now,
             }))

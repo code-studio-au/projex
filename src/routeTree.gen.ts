@@ -51,6 +51,7 @@ import { Route as ApiCompaniesCompanyIdProjectsRouteImport } from './routes/api.
 import { Route as ApiCompaniesCompanyIdMyProjectMembershipsRouteImport } from './routes/api.companies.$companyId.my-project-memberships'
 import { Route as ApiCompaniesCompanyIdMembershipsRouteImport } from './routes/api.companies.$companyId.memberships'
 import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport } from './routes/api.companies.$companyId.default-sub-categories'
+import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRouteImport } from './routes/api.companies.$companyId.default-mapping-rules'
 import { Route as ApiCompaniesCompanyIdDefaultCategoriesRouteImport } from './routes/api.companies.$companyId.default-categories'
 import { Route as ApiCompaniesCompanyIdDeactivateRouteImport } from './routes/api.companies.$companyId.deactivate'
 import { Route as ApiProjectsProjectIdTransactionsImportRouteImport } from './routes/api.projects.$projectId.transactions.import'
@@ -59,6 +60,7 @@ import { Route as ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport } fr
 import { Route as ApiProjectsProjectIdCategoriesCategoryIdRouteImport } from './routes/api.projects.$projectId.categories.$categoryId'
 import { Route as ApiProjectsProjectIdBudgetsBudgetIdRouteImport } from './routes/api.projects.$projectId.budgets.$budgetId'
 import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport } from './routes/api.companies.$companyId.default-sub-categories.$subCategoryId'
+import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport } from './routes/api.companies.$companyId.default-mapping-rules.$ruleId'
 import { Route as ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport } from './routes/api.companies.$companyId.default-categories.$categoryId'
 import { Route as AuthedCCompanyIdPProjectIdRouteImport } from './routes/_authed.c.$companyId.p.$projectId'
 import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
@@ -286,6 +288,12 @@ const ApiCompaniesCompanyIdDefaultSubCategoriesRoute =
     path: '/default-sub-categories',
     getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
+const ApiCompaniesCompanyIdDefaultMappingRulesRoute =
+  ApiCompaniesCompanyIdDefaultMappingRulesRouteImport.update({
+    id: '/default-mapping-rules',
+    path: '/default-mapping-rules',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
 const ApiCompaniesCompanyIdDefaultCategoriesRoute =
   ApiCompaniesCompanyIdDefaultCategoriesRouteImport.update({
     id: '/default-categories',
@@ -334,6 +342,12 @@ const ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute =
     path: '/$subCategoryId',
     getParentRoute: () => ApiCompaniesCompanyIdDefaultSubCategoriesRoute,
   } as any)
+const ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute =
+  ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport.update({
+    id: '/$ruleId',
+    path: '/$ruleId',
+    getParentRoute: () => ApiCompaniesCompanyIdDefaultMappingRulesRoute,
+  } as any)
 const ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRoute =
   ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport.update({
     id: '/$categoryId',
@@ -380,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRouteWithChildren
   '/api/companies/$companyId/deactivate': typeof ApiCompaniesCompanyIdDeactivateRoute
   '/api/companies/$companyId/default-categories': typeof ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren
+  '/api/companies/$companyId/default-mapping-rules': typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
@@ -399,6 +414,7 @@ export interface FileRoutesByFullPath {
   '/c/$companyId/': typeof AuthedCCompanyIdIndexRoute
   '/c/$companyId/p/$projectId': typeof AuthedCCompanyIdPProjectIdRoute
   '/api/companies/$companyId/default-categories/$categoryId': typeof ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRoute
+  '/api/companies/$companyId/default-mapping-rules/$ruleId': typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute
   '/api/companies/$companyId/default-sub-categories/$subCategoryId': typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
@@ -433,6 +449,7 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRouteWithChildren
   '/api/companies/$companyId/deactivate': typeof ApiCompaniesCompanyIdDeactivateRoute
   '/api/companies/$companyId/default-categories': typeof ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren
+  '/api/companies/$companyId/default-mapping-rules': typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
@@ -452,6 +469,7 @@ export interface FileRoutesByTo {
   '/c/$companyId': typeof AuthedCCompanyIdIndexRoute
   '/c/$companyId/p/$projectId': typeof AuthedCCompanyIdPProjectIdRoute
   '/api/companies/$companyId/default-categories/$categoryId': typeof ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRoute
+  '/api/companies/$companyId/default-mapping-rules/$ruleId': typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute
   '/api/companies/$companyId/default-sub-categories/$subCategoryId': typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
@@ -489,6 +507,7 @@ export interface FileRoutesById {
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRouteWithChildren
   '/api/companies/$companyId/deactivate': typeof ApiCompaniesCompanyIdDeactivateRoute
   '/api/companies/$companyId/default-categories': typeof ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren
+  '/api/companies/$companyId/default-mapping-rules': typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
@@ -508,6 +527,7 @@ export interface FileRoutesById {
   '/_authed/c/$companyId/': typeof AuthedCCompanyIdIndexRoute
   '/_authed/c/$companyId/p/$projectId': typeof AuthedCCompanyIdPProjectIdRoute
   '/api/companies/$companyId/default-categories/$categoryId': typeof ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRoute
+  '/api/companies/$companyId/default-mapping-rules/$ruleId': typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute
   '/api/companies/$companyId/default-sub-categories/$subCategoryId': typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
@@ -545,6 +565,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId'
     | '/api/companies/$companyId/deactivate'
     | '/api/companies/$companyId/default-categories'
+    | '/api/companies/$companyId/default-mapping-rules'
     | '/api/companies/$companyId/default-sub-categories'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
@@ -564,6 +585,7 @@ export interface FileRouteTypes {
     | '/c/$companyId/'
     | '/c/$companyId/p/$projectId'
     | '/api/companies/$companyId/default-categories/$categoryId'
+    | '/api/companies/$companyId/default-mapping-rules/$ruleId'
     | '/api/companies/$companyId/default-sub-categories/$subCategoryId'
     | '/api/projects/$projectId/budgets/$budgetId'
     | '/api/projects/$projectId/categories/$categoryId'
@@ -598,6 +620,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId'
     | '/api/companies/$companyId/deactivate'
     | '/api/companies/$companyId/default-categories'
+    | '/api/companies/$companyId/default-mapping-rules'
     | '/api/companies/$companyId/default-sub-categories'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
@@ -617,6 +640,7 @@ export interface FileRouteTypes {
     | '/c/$companyId'
     | '/c/$companyId/p/$projectId'
     | '/api/companies/$companyId/default-categories/$categoryId'
+    | '/api/companies/$companyId/default-mapping-rules/$ruleId'
     | '/api/companies/$companyId/default-sub-categories/$subCategoryId'
     | '/api/projects/$projectId/budgets/$budgetId'
     | '/api/projects/$projectId/categories/$categoryId'
@@ -653,6 +677,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId'
     | '/api/companies/$companyId/deactivate'
     | '/api/companies/$companyId/default-categories'
+    | '/api/companies/$companyId/default-mapping-rules'
     | '/api/companies/$companyId/default-sub-categories'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
@@ -672,6 +697,7 @@ export interface FileRouteTypes {
     | '/_authed/c/$companyId/'
     | '/_authed/c/$companyId/p/$projectId'
     | '/api/companies/$companyId/default-categories/$categoryId'
+    | '/api/companies/$companyId/default-mapping-rules/$ruleId'
     | '/api/companies/$companyId/default-sub-categories/$subCategoryId'
     | '/api/projects/$projectId/budgets/$budgetId'
     | '/api/projects/$projectId/categories/$categoryId'
@@ -1000,6 +1026,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
+    '/api/companies/$companyId/default-mapping-rules': {
+      id: '/api/companies/$companyId/default-mapping-rules'
+      path: '/default-mapping-rules'
+      fullPath: '/api/companies/$companyId/default-mapping-rules'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
     '/api/companies/$companyId/default-categories': {
       id: '/api/companies/$companyId/default-categories'
       path: '/default-categories'
@@ -1055,6 +1088,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/companies/$companyId/default-sub-categories/$subCategoryId'
       preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRoute
+    }
+    '/api/companies/$companyId/default-mapping-rules/$ruleId': {
+      id: '/api/companies/$companyId/default-mapping-rules/$ruleId'
+      path: '/$ruleId'
+      fullPath: '/api/companies/$companyId/default-mapping-rules/$ruleId'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRoute
     }
     '/api/companies/$companyId/default-categories/$categoryId': {
       id: '/api/companies/$companyId/default-categories/$categoryId'
@@ -1125,6 +1165,21 @@ const ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren =
     ApiCompaniesCompanyIdDefaultCategoriesRouteChildren,
   )
 
+interface ApiCompaniesCompanyIdDefaultMappingRulesRouteChildren {
+  ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute
+}
+
+const ApiCompaniesCompanyIdDefaultMappingRulesRouteChildren: ApiCompaniesCompanyIdDefaultMappingRulesRouteChildren =
+  {
+    ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute:
+      ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute,
+  }
+
+const ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren =
+  ApiCompaniesCompanyIdDefaultMappingRulesRoute._addFileChildren(
+    ApiCompaniesCompanyIdDefaultMappingRulesRouteChildren,
+  )
+
 interface ApiCompaniesCompanyIdDefaultSubCategoriesRouteChildren {
   ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute
 }
@@ -1158,6 +1213,7 @@ const ApiCompaniesCompanyIdUsersRouteWithChildren =
 interface ApiCompaniesCompanyIdRouteChildren {
   ApiCompaniesCompanyIdDeactivateRoute: typeof ApiCompaniesCompanyIdDeactivateRoute
   ApiCompaniesCompanyIdDefaultCategoriesRoute: typeof ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren
+  ApiCompaniesCompanyIdDefaultMappingRulesRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   ApiCompaniesCompanyIdDefaultSubCategoriesRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   ApiCompaniesCompanyIdMembershipsRoute: typeof ApiCompaniesCompanyIdMembershipsRoute
   ApiCompaniesCompanyIdMyProjectMembershipsRoute: typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
@@ -1170,6 +1226,8 @@ const ApiCompaniesCompanyIdRouteChildren: ApiCompaniesCompanyIdRouteChildren = {
   ApiCompaniesCompanyIdDeactivateRoute: ApiCompaniesCompanyIdDeactivateRoute,
   ApiCompaniesCompanyIdDefaultCategoriesRoute:
     ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren,
+  ApiCompaniesCompanyIdDefaultMappingRulesRoute:
+    ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren,
   ApiCompaniesCompanyIdDefaultSubCategoriesRoute:
     ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren,
   ApiCompaniesCompanyIdMembershipsRoute: ApiCompaniesCompanyIdMembershipsRoute,

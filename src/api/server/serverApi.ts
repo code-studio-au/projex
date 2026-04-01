@@ -6,6 +6,7 @@ import type {
   Category,
   Company,
   CompanyDefaultCategory,
+  CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
   CompanyId,
   CompanyMembership,
@@ -25,6 +26,8 @@ import type {
   BudgetUpdateInput,
   CategoryCreateInput,
   CategoryUpdateInput,
+  CompanyDefaultMappingRuleCreateInput,
+  CompanyDefaultMappingRuleUpdateInput,
   CompanyUserInviteResult,
   CompanyUpdateInput,
   CsvImportMode,
@@ -252,6 +255,11 @@ export class ServerApi implements ProjexApi {
       `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories`
     );
   }
+  async listCompanyDefaultMappingRules(companyId: CompanyId) {
+    return this.request<CompanyDefaultMappingRule[]>(
+      `/api/companies/${encodeURIComponent(companyId)}/default-mapping-rules`
+    );
+  }
   async createCompanyDefaultCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['createCompanyDefaultCategory']>[1]
@@ -312,6 +320,39 @@ export class ServerApi implements ProjexApi {
   ): Promise<void> {
     await this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories/${encodeURIComponent(subCategoryId)}`,
+      { method: 'DELETE' }
+    );
+  }
+  async createCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    input: CompanyDefaultMappingRuleCreateInput
+  ): Promise<CompanyDefaultMappingRule> {
+    return this.request<CompanyDefaultMappingRule>(
+      `/api/companies/${encodeURIComponent(companyId)}/default-mapping-rules`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
+  }
+  async updateCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    input: CompanyDefaultMappingRuleUpdateInput
+  ): Promise<CompanyDefaultMappingRule> {
+    return this.request<CompanyDefaultMappingRule>(
+      `/api/companies/${encodeURIComponent(companyId)}/default-mapping-rules`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    );
+  }
+  async deleteCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    ruleId: CompanyDefaultMappingRule['id']
+  ): Promise<void> {
+    await this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/default-mapping-rules/${encodeURIComponent(ruleId)}`,
       { method: 'DELETE' }
     );
   }

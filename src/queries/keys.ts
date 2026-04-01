@@ -12,6 +12,8 @@ export const qk = {
     ['companyDefaultCategories', userId, companyId] as const,
   companyDefaultSubCategories: (userId: string, companyId: string) =>
     ['companyDefaultSubCategories', userId, companyId] as const,
+  companyDefaultMappingRules: (userId: string, companyId: string) =>
+    ['companyDefaultMappingRules', userId, companyId] as const,
 
   projects: (userId: string, companyId: string) => ['projects', userId, companyId] as const,
   project: (userId: string, projectId: string) => ['project', userId, projectId] as const,

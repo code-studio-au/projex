@@ -68,18 +68,22 @@ import {
 import {
   applyCompanyDefaultTaxonomyServer,
   createCompanyDefaultCategoryServer,
+  createCompanyDefaultMappingRuleServer,
   createCompanyDefaultSubCategoryServer,
   createCategoryServer,
   createSubCategoryServer,
   deleteCompanyDefaultCategoryServer,
+  deleteCompanyDefaultMappingRuleServer,
   deleteCompanyDefaultSubCategoryServer,
   deleteCategoryServer,
   deleteSubCategoryServer,
   listCompanyDefaultCategoriesServer,
+  listCompanyDefaultMappingRulesServer,
   listCompanyDefaultSubCategoriesServer,
   listCategoriesServer,
   listSubCategoriesServer,
   updateCompanyDefaultCategoryServer,
+  updateCompanyDefaultMappingRuleServer,
   updateCompanyDefaultSubCategoryServer,
   updateCategoryServer,
   updateSubCategoryServer,
@@ -188,6 +192,9 @@ export class StartServerApi implements ProjexApi {
   async listCompanyDefaultSubCategories(companyId: CompanyId) {
     return listCompanyDefaultSubCategoriesServer({ context: this.context, companyId });
   }
+  async listCompanyDefaultMappingRules(companyId: CompanyId) {
+    return listCompanyDefaultMappingRulesServer({ context: this.context, companyId });
+  }
   async createCompanyDefaultCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['createCompanyDefaultCategory']>[1]
@@ -227,6 +234,24 @@ export class StartServerApi implements ProjexApi {
       companyId,
       subCategoryId,
     });
+  }
+  async createCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['createCompanyDefaultMappingRule']>[1]
+  ) {
+    return createCompanyDefaultMappingRuleServer({ context: this.context, companyId, input });
+  }
+  async updateCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['updateCompanyDefaultMappingRule']>[1]
+  ) {
+    return updateCompanyDefaultMappingRuleServer({ context: this.context, companyId, input });
+  }
+  async deleteCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    ruleId: Parameters<ProjexApi['deleteCompanyDefaultMappingRule']>[1]
+  ) {
+    return deleteCompanyDefaultMappingRuleServer({ context: this.context, companyId, ruleId });
   }
   async applyCompanyDefaultTaxonomy(projectId: ProjectId) {
     return applyCompanyDefaultTaxonomyServer({ context: this.context, projectId });

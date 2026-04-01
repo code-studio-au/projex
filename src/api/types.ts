@@ -3,6 +3,7 @@ import type {
   Category,
   Company,
   CompanyDefaultCategory,
+  CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
   CompanyId,
   CompanyMembership,
@@ -79,6 +80,15 @@ export type CompanyDefaultSubCategoryUpdateInput = Partial<
   Omit<CompanyDefaultSubCategory, 'id'>
 > & {
   id: CompanyDefaultSubCategory['id'];
+};
+
+export type CompanyDefaultMappingRuleCreateInput = Omit<CompanyDefaultMappingRule, 'id'> & {
+  id?: CompanyDefaultMappingRule['id'];
+};
+export type CompanyDefaultMappingRuleUpdateInput = Partial<
+  Omit<CompanyDefaultMappingRule, 'id' | 'companyId'>
+> & {
+  id: CompanyDefaultMappingRule['id'];
 };
 
 export type ApplyCompanyDefaultsResult = {
@@ -161,6 +171,7 @@ export interface ProjexApi {
   // taxonomy
   listCompanyDefaultCategories(companyId: CompanyId): Promise<CompanyDefaultCategory[]>;
   listCompanyDefaultSubCategories(companyId: CompanyId): Promise<CompanyDefaultSubCategory[]>;
+  listCompanyDefaultMappingRules(companyId: CompanyId): Promise<CompanyDefaultMappingRule[]>;
   createCompanyDefaultCategory(
     companyId: CompanyId,
     input: CompanyDefaultCategoryCreateInput
@@ -184,6 +195,18 @@ export interface ProjexApi {
   deleteCompanyDefaultSubCategory(
     companyId: CompanyId,
     subCategoryId: CompanyDefaultSubCategory['id']
+  ): Promise<void>;
+  createCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    input: CompanyDefaultMappingRuleCreateInput
+  ): Promise<CompanyDefaultMappingRule>;
+  updateCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    input: CompanyDefaultMappingRuleUpdateInput
+  ): Promise<CompanyDefaultMappingRule>;
+  deleteCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    ruleId: CompanyDefaultMappingRule['id']
   ): Promise<void>;
   applyCompanyDefaultTaxonomy(projectId: ProjectId): Promise<ApplyCompanyDefaultsResult>;
   listCategories(projectId: ProjectId): Promise<Category[]>;

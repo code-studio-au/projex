@@ -2,6 +2,8 @@ import { AppError } from '../../api/errors';
 import type {
   ApplyCompanyDefaultsResult,
   CompanyDefaultCategoryCreateInput,
+  CompanyDefaultMappingRuleCreateInput,
+  CompanyDefaultMappingRuleUpdateInput,
   CompanyDefaultCategoryUpdateInput,
   CompanyDefaultSubCategoryCreateInput,
   CompanyDefaultSubCategoryUpdateInput,
@@ -10,17 +12,26 @@ import type {
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
 } from '../../api/types';
-import type { Category, CompanyId, ProjectId, SubCategory } from '../../types';
-import type { CompanyDefaultCategory, CompanyDefaultSubCategory } from '../../types';
+import type {
+  Category,
+  CompanyDefaultCategory,
+  CompanyDefaultMappingRule,
+  CompanyDefaultSubCategory,
+  CompanyId,
+  ProjectId,
+  SubCategory,
+} from '../../types';
 import {
   asCategoryId,
   asCompanyDefaultCategoryId,
+  asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
   asSubCategoryId,
 } from '../../types';
 import { uid } from '../../utils/id';
 import { categoryNameSchema, subCategoryNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
+import { defaultCategoryIdForRule } from '../../utils/companyDefaultMappings';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
 import {
@@ -66,6 +77,17 @@ type CompanyDefaultSubCategoryRow = {
   updated_at: string;
 };
 
+type CompanyDefaultMappingRuleRow = {
+  id: string;
+  company_id: string;
+  match_text: string;
+  company_default_category_id: string;
+  company_default_sub_category_id: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
 function toCategory(row: CategoryRow): Category {
   return {
     id: asCategoryId(row.id),
@@ -107,6 +129,21 @@ function toCompanyDefaultSubCategory(
     companyId: row.company_id as CompanyId,
     companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
     name: row.name,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toCompanyDefaultMappingRule(
+  row: CompanyDefaultMappingRuleRow
+): CompanyDefaultMappingRule {
+  return {
+    id: asCompanyDefaultMappingRuleId(row.id),
+    companyId: row.company_id as CompanyId,
+    matchText: row.match_text,
+    companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+    companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(row.company_default_sub_category_id),
+    sortOrder: Number(row.sort_order),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -512,6 +549,34 @@ export async function listCompanyDefaultSubCategoriesServer(args: {
   });
 }
 
+export async function listCompanyDefaultMappingRulesServer(args: {
+  context: ServerFnContextInput;
+  companyId: CompanyId;
+}): Promise<CompanyDefaultMappingRule[]> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    await requireCompanyContext(args.context, args.companyId, 'company:view');
+    const db = getDb();
+    const rows = await db
+      .selectFrom('company_default_mapping_rules')
+      .select([
+        'id',
+        'company_id',
+        'match_text',
+        'company_default_category_id',
+        'company_default_sub_category_id',
+        'sort_order',
+        'created_at',
+        'updated_at',
+      ])
+      .where('company_id', '=', args.companyId)
+      .orderBy('sort_order', 'asc')
+      .orderBy('created_at', 'asc')
+      .execute();
+    return rows.map((row) => toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow));
+  });
+}
+
 export async function createCompanyDefaultCategoryServer(args: {
   context: ServerFnContextInput;
   companyId: CompanyId;
@@ -762,6 +827,223 @@ export async function deleteCompanyDefaultSubCategoryServer(args: {
       .deleteFrom('company_default_sub_categories')
       .where('company_id', '=', args.companyId)
       .where('id', '=', args.subCategoryId)
+      .execute();
+  });
+}
+
+export async function createCompanyDefaultMappingRuleServer(args: {
+  context: ServerFnContextInput;
+  companyId: CompanyId;
+  input: CompanyDefaultMappingRuleCreateInput;
+}): Promise<CompanyDefaultMappingRule> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    validateOrThrow(subCategoryNameSchema, args.input.matchText);
+    const db = getDb();
+    const matchText = args.input.matchText.trim();
+
+    const category = await db
+      .selectFrom('company_default_categories')
+      .select('id')
+      .where('company_id', '=', args.companyId)
+      .where('id', '=', args.input.companyDefaultCategoryId)
+      .executeTakeFirst();
+    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+
+    const subCategory = await db
+      .selectFrom('company_default_sub_categories')
+      .select(['id', 'company_default_category_id'])
+      .where('company_id', '=', args.companyId)
+      .where('id', '=', args.input.companyDefaultSubCategoryId)
+      .executeTakeFirst();
+    if (!subCategory) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    if (subCategory.company_default_category_id !== args.input.companyDefaultCategoryId) {
+      throw new AppError('VALIDATION_ERROR', 'Subcategory does not belong to the selected company default category');
+    }
+
+    const existing = await db
+      .selectFrom('company_default_mapping_rules')
+      .select([
+        'id',
+        'company_id',
+        'match_text',
+        'company_default_category_id',
+        'company_default_sub_category_id',
+        'sort_order',
+        'created_at',
+        'updated_at',
+      ])
+      .where('company_id', '=', args.companyId)
+      .where(({ fn, eb }) => eb(fn('lower', ['match_text']), '=', matchText.toLowerCase()))
+      .where('company_default_sub_category_id', '=', args.input.companyDefaultSubCategoryId)
+      .executeTakeFirst();
+    if (existing) return toCompanyDefaultMappingRule(existing as CompanyDefaultMappingRuleRow);
+
+    const maxSort = await db
+      .selectFrom('company_default_mapping_rules')
+      .select(({ fn }) => fn.max<number>('sort_order').as('max_sort_order'))
+      .where('company_id', '=', args.companyId)
+      .executeTakeFirst();
+    const nextSortOrder =
+      typeof args.input.sortOrder === 'number'
+        ? args.input.sortOrder
+        : (Number(maxSort?.max_sort_order ?? -1) + 1);
+    const now = new Date().toISOString();
+    const row = await db
+      .insertInto('company_default_mapping_rules')
+      .values({
+        id: args.input.id ?? asCompanyDefaultMappingRuleId(uid('cmap')),
+        company_id: args.companyId,
+        match_text: matchText,
+        company_default_category_id: args.input.companyDefaultCategoryId,
+        company_default_sub_category_id: args.input.companyDefaultSubCategoryId,
+        sort_order: nextSortOrder,
+        created_at: args.input.createdAt ?? now,
+        updated_at: now,
+      })
+      .returning([
+        'id',
+        'company_id',
+        'match_text',
+        'company_default_category_id',
+        'company_default_sub_category_id',
+        'sort_order',
+        'created_at',
+        'updated_at',
+      ])
+      .executeTakeFirstOrThrow();
+    return toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow);
+  });
+}
+
+export async function updateCompanyDefaultMappingRuleServer(args: {
+  context: ServerFnContextInput;
+  companyId: CompanyId;
+  input: CompanyDefaultMappingRuleUpdateInput;
+}): Promise<CompanyDefaultMappingRule> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    const db = getDb();
+    const existing = await db
+      .selectFrom('company_default_mapping_rules')
+      .select([
+        'id',
+        'company_id',
+        'match_text',
+        'company_default_category_id',
+        'company_default_sub_category_id',
+        'sort_order',
+        'created_at',
+        'updated_at',
+      ])
+      .where('company_id', '=', args.companyId)
+      .where('id', '=', args.input.id)
+      .executeTakeFirst();
+    if (!existing) throw new AppError('NOT_FOUND', 'Unknown company default mapping rule');
+
+    if (typeof args.input.matchText === 'string') {
+      validateOrThrow(subCategoryNameSchema, args.input.matchText);
+    }
+
+    const subCategories = await db
+      .selectFrom('company_default_sub_categories')
+      .select(['id', 'company_default_category_id'])
+      .where('company_id', '=', args.companyId)
+      .execute();
+    const nextSubCategoryId =
+      args.input.companyDefaultSubCategoryId ??
+      asCompanyDefaultSubCategoryId(existing.company_default_sub_category_id);
+    const nextCategoryId =
+      args.input.companyDefaultCategoryId ??
+      defaultCategoryIdForRule(
+        nextSubCategoryId,
+        subCategories.map((row) => ({
+          id: asCompanyDefaultSubCategoryId(row.id),
+          companyId: args.companyId,
+          companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+          name: '',
+        }))
+      ) ??
+      asCompanyDefaultCategoryId(existing.company_default_category_id);
+
+    const category = await db
+      .selectFrom('company_default_categories')
+      .select('id')
+      .where('company_id', '=', args.companyId)
+      .where('id', '=', nextCategoryId)
+      .executeTakeFirst();
+    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+
+    const subCategory = subCategories.find((row) => row.id === nextSubCategoryId);
+    if (!subCategory) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    if (subCategory.company_default_category_id !== nextCategoryId) {
+      throw new AppError('VALIDATION_ERROR', 'Subcategory does not belong to the selected company default category');
+    }
+
+    const nextMatchText =
+      typeof args.input.matchText === 'string' ? args.input.matchText.trim() : existing.match_text;
+    const duplicate = await db
+      .selectFrom('company_default_mapping_rules')
+      .select('id')
+      .where('company_id', '=', args.companyId)
+      .where('id', '!=', args.input.id)
+      .where(({ fn, eb }) => eb(fn('lower', ['match_text']), '=', nextMatchText.toLowerCase()))
+      .where('company_default_sub_category_id', '=', nextSubCategoryId)
+      .executeTakeFirst();
+    if (duplicate) {
+      throw new AppError(
+        'CONFLICT',
+        `Default mapping "${nextMatchText}" already points to this subcategory`
+      );
+    }
+
+    const patch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (typeof args.input.matchText === 'string') patch.match_text = nextMatchText;
+    if (typeof args.input.companyDefaultCategoryId !== 'undefined') {
+      patch.company_default_category_id = nextCategoryId;
+    }
+    if (typeof args.input.companyDefaultSubCategoryId !== 'undefined') {
+      patch.company_default_sub_category_id = nextSubCategoryId;
+    }
+    if (typeof args.input.sortOrder === 'number') patch.sort_order = args.input.sortOrder;
+
+    const updated = await db
+      .updateTable('company_default_mapping_rules')
+      .set(patch)
+      .where('company_id', '=', args.companyId)
+      .where('id', '=', args.input.id)
+      .returning([
+        'id',
+        'company_id',
+        'match_text',
+        'company_default_category_id',
+        'company_default_sub_category_id',
+        'sort_order',
+        'created_at',
+        'updated_at',
+      ])
+      .executeTakeFirstOrThrow();
+    return toCompanyDefaultMappingRule(updated as CompanyDefaultMappingRuleRow);
+  });
+}
+
+export async function deleteCompanyDefaultMappingRuleServer(args: {
+  context: ServerFnContextInput;
+  companyId: CompanyId;
+  ruleId: CompanyDefaultMappingRule['id'];
+}): Promise<void> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    const db = getDb();
+    await db
+      .deleteFrom('company_default_mapping_rules')
+      .where('company_id', '=', args.companyId)
+      .where('id', '=', args.ruleId)
       .execute();
   });
 }

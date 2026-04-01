@@ -67,6 +67,9 @@ export interface TxnTable {
   amount_cents: number; // BIGINT in Postgres, represented as number in JS
   category_id: string | null;
   sub_category_id: string | null;
+  company_default_mapping_rule_id: string | null;
+  coding_source: 'manual' | 'company_default_rule' | null;
+  coding_pending_approval: boolean;
   created_at: Generated<string>; // TIMESTAMPTZ (ISO)
   updated_at: Generated<string>; // TIMESTAMPTZ (ISO)
 }
@@ -118,6 +121,17 @@ export interface CompanyDefaultSubCategoryTable {
   updated_at: Generated<string>;
 }
 
+export interface CompanyDefaultMappingRuleTable {
+  id: string;
+  company_id: string;
+  match_text: string;
+  company_default_category_id: string;
+  company_default_sub_category_id: string;
+  sort_order: number;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
 export interface DB {
   companies: CompanyTable;
   projects: ProjectTable;
@@ -131,4 +145,5 @@ export interface DB {
   sub_categories: SubCategoryTable;
   company_default_categories: CompanyDefaultCategoryTable;
   company_default_sub_categories: CompanyDefaultSubCategoryTable;
+  company_default_mapping_rules: CompanyDefaultMappingRuleTable;
 }

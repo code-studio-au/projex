@@ -12,6 +12,7 @@ export type CategoryId = Brand<string, 'CategoryId'>;
 export type SubCategoryId = Brand<string, 'SubCategoryId'>;
 export type CompanyDefaultCategoryId = Brand<string, 'CompanyDefaultCategoryId'>;
 export type CompanyDefaultSubCategoryId = Brand<string, 'CompanyDefaultSubCategoryId'>;
+export type CompanyDefaultMappingRuleId = Brand<string, 'CompanyDefaultMappingRuleId'>;
 export type TxnId = Brand<string, 'TxnId'>;
 export type BudgetLineId = Brand<string, 'BudgetLineId'>;
 
@@ -24,6 +25,7 @@ export type AnyId =
   | SubCategoryId
   | CompanyDefaultCategoryId
   | CompanyDefaultSubCategoryId
+  | CompanyDefaultMappingRuleId
   | TxnId
   | BudgetLineId;
 
@@ -37,5 +39,7 @@ export const asCompanyDefaultCategoryId = (v: string) =>
   brand<string, 'CompanyDefaultCategoryId'>(v);
 export const asCompanyDefaultSubCategoryId = (v: string) =>
   brand<string, 'CompanyDefaultSubCategoryId'>(v);
+export const asCompanyDefaultMappingRuleId = (v: string) =>
+  brand<string, 'CompanyDefaultMappingRuleId'>(v);
 export const asTxnId = (v: string) => brand<string, 'TxnId'>(v);
 export const asBudgetLineId = (v: string) => brand<string, 'BudgetLineId'>(v);

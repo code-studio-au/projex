@@ -1,6 +1,7 @@
 import type {
   Company,
   CompanyDefaultCategory,
+  CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
   CompanyId,
   CompanyMembership,
@@ -22,6 +23,7 @@ import {
   asCategoryId,
   asCompanyId,
   asCompanyDefaultCategoryId,
+  asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
   asProjectId,
   asSubCategoryId,
@@ -49,12 +51,18 @@ import {
   userNameSchema,
 } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
+import {
+  defaultCategoryIdForRule,
+  mapImportedTransactionWithCompanyDefaults,
+} from '../../utils/companyDefaultMappings';
 
 import type {
   BudgetCreateInput,
   BudgetUpdateInput,
   CompanyDefaultCategoryCreateInput,
   CompanyDefaultCategoryUpdateInput,
+  CompanyDefaultMappingRuleCreateInput,
+  CompanyDefaultMappingRuleUpdateInput,
   CompanyDefaultSubCategoryCreateInput,
   CompanyDefaultSubCategoryUpdateInput,
   CategoryCreateInput,
@@ -96,19 +104,36 @@ function writeJson(key: string, value: unknown) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
+function emptyCompanyDefaultsSlice() {
+  return {
+    categories: [],
+    subCategories: [],
+    mappingRules: [],
+  };
+}
+
 function ensureState(): PersistedStateV1 {
   const existing = readJson<PersistedStateV1>(PROJEX_STATE_KEY);
   if (existing) {
+    let changed = false;
     if (!existing.companyDefaultsByCompanyId) {
       existing.companyDefaultsByCompanyId = Object.fromEntries(
         existing.companies.map((company) => [
           company.id,
-          {
-            categories: [],
-            subCategories: [],
-          },
+          emptyCompanyDefaultsSlice(),
         ])
       ) as PersistedStateV1['companyDefaultsByCompanyId'];
+      changed = true;
+    }
+    for (const company of existing.companies) {
+      const slice = existing.companyDefaultsByCompanyId[company.id];
+      if (!slice) continue;
+      if (!slice.mappingRules) {
+        slice.mappingRules = [];
+        changed = true;
+      }
+    }
+    if (changed) {
       writeJson(PROJEX_STATE_KEY, existing);
     }
     return existing;
@@ -660,6 +685,14 @@ export class LocalApi implements ProjexApi {
     return st.companyDefaultsByCompanyId[companyId]?.subCategories ?? [];
   }
 
+  async listCompanyDefaultMappingRules(companyId: CompanyId): Promise<CompanyDefaultMappingRule[]> {
+    const st = ensureState();
+    this.assertCan('company:view', companyId);
+    return [...(st.companyDefaultsByCompanyId[companyId]?.mappingRules ?? [])].sort(
+      (a, b) => a.sortOrder - b.sortOrder
+    );
+  }
+
   async createCompanyDefaultCategory(
     companyId: CompanyId,
     input: CompanyDefaultCategoryCreateInput
@@ -667,7 +700,7 @@ export class LocalApi implements ProjexApi {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
     validateOrThrow(categoryNameSchema, input.name);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     const nameKey = input.name.trim().toLowerCase();
     const existing = slice.categories.find((c) => c.name.trim().toLowerCase() === nameKey);
     if (existing) return existing;
@@ -698,7 +731,7 @@ export class LocalApi implements ProjexApi {
   ): Promise<CompanyDefaultCategory> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     if (typeof input.name === 'string') {
       validateOrThrow(categoryNameSchema, input.name);
     }
@@ -738,7 +771,7 @@ export class LocalApi implements ProjexApi {
   ): Promise<void> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     writeState({
       ...st,
       companyDefaultsByCompanyId: {
@@ -746,6 +779,9 @@ export class LocalApi implements ProjexApi {
         [companyId]: {
           categories: slice.categories.filter((c) => c.id !== categoryId),
           subCategories: slice.subCategories.filter((s) => s.companyDefaultCategoryId !== categoryId),
+          mappingRules: slice.mappingRules.filter(
+            (rule) => rule.companyDefaultCategoryId !== categoryId
+          ),
         },
       },
     });
@@ -758,7 +794,7 @@ export class LocalApi implements ProjexApi {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
     validateOrThrow(subCategoryNameSchema, input.name);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     const category = slice.categories.find((c) => c.id === input.companyDefaultCategoryId);
     if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
     const nameKey = input.name.trim().toLowerCase();
@@ -795,7 +831,7 @@ export class LocalApi implements ProjexApi {
   ): Promise<CompanyDefaultSubCategory> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     if (typeof input.name === 'string') {
       validateOrThrow(subCategoryNameSchema, input.name);
     }
@@ -841,7 +877,7 @@ export class LocalApi implements ProjexApi {
   ): Promise<void> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? { categories: [], subCategories: [] };
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     writeState({
       ...st,
       companyDefaultsByCompanyId: {
@@ -849,6 +885,138 @@ export class LocalApi implements ProjexApi {
         [companyId]: {
           ...slice,
           subCategories: slice.subCategories.filter((s) => s.id !== subCategoryId),
+          mappingRules: slice.mappingRules.filter(
+            (rule) => rule.companyDefaultSubCategoryId !== subCategoryId
+          ),
+        },
+      },
+    });
+  }
+
+  async createCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    input: CompanyDefaultMappingRuleCreateInput
+  ): Promise<CompanyDefaultMappingRule> {
+    const st = ensureState();
+    this.assertCan('company:edit', companyId);
+    validateOrThrow(subCategoryNameSchema, input.matchText);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const category = slice.categories.find((item) => item.id === input.companyDefaultCategoryId);
+    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    const subCategory = slice.subCategories.find(
+      (item) =>
+        item.id === input.companyDefaultSubCategoryId &&
+        item.companyDefaultCategoryId === input.companyDefaultCategoryId
+    );
+    if (!subCategory) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    const matchText = input.matchText.trim();
+    const duplicate = slice.mappingRules.find(
+      (rule) =>
+        rule.matchText.trim().toLowerCase() === matchText.toLowerCase() &&
+        rule.companyDefaultSubCategoryId === input.companyDefaultSubCategoryId
+    );
+    if (duplicate) return duplicate;
+
+    const id = input.id ?? asCompanyDefaultMappingRuleId(uid('cmap'));
+    const now = this.nowIso();
+    const next: CompanyDefaultMappingRule = {
+      id,
+      companyId,
+      matchText,
+      companyDefaultCategoryId: input.companyDefaultCategoryId,
+      companyDefaultSubCategoryId: input.companyDefaultSubCategoryId,
+      sortOrder:
+        input.sortOrder ??
+        (slice.mappingRules.reduce((max, rule) => Math.max(max, rule.sortOrder), -1) + 1),
+      createdAt: input.createdAt ?? now,
+      updatedAt: now,
+    };
+    writeState({
+      ...st,
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [companyId]: { ...slice, mappingRules: [...slice.mappingRules, next] },
+      },
+    });
+    return next;
+  }
+
+  async updateCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    input: CompanyDefaultMappingRuleUpdateInput
+  ): Promise<CompanyDefaultMappingRule> {
+    const st = ensureState();
+    this.assertCan('company:edit', companyId);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const idx = slice.mappingRules.findIndex((rule) => rule.id === input.id);
+    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown company default mapping rule');
+    const current = slice.mappingRules[idx];
+    if (typeof input.matchText === 'string') {
+      validateOrThrow(subCategoryNameSchema, input.matchText);
+    }
+    const nextSubCategoryId =
+      input.companyDefaultSubCategoryId ?? current.companyDefaultSubCategoryId;
+    const nextCategoryId =
+      input.companyDefaultCategoryId ??
+      defaultCategoryIdForRule(nextSubCategoryId, slice.subCategories) ??
+      current.companyDefaultCategoryId;
+    const category = slice.categories.find((item) => item.id === nextCategoryId);
+    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    const subCategory = slice.subCategories.find(
+      (item) =>
+        item.id === nextSubCategoryId && item.companyDefaultCategoryId === nextCategoryId
+    );
+    if (!subCategory) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    const nextMatchText =
+      typeof input.matchText === 'string' ? input.matchText.trim() : current.matchText;
+    const duplicate = slice.mappingRules.find(
+      (rule) =>
+        rule.id !== input.id &&
+        rule.matchText.trim().toLowerCase() === nextMatchText.toLowerCase() &&
+        rule.companyDefaultSubCategoryId === nextSubCategoryId
+    );
+    if (duplicate) {
+      throw new AppError(
+        'CONFLICT',
+        `Default mapping "${nextMatchText}" already points to this subcategory`
+      );
+    }
+    const updated: CompanyDefaultMappingRule = {
+      ...current,
+      ...input,
+      companyId,
+      matchText: nextMatchText,
+      companyDefaultCategoryId: nextCategoryId,
+      companyDefaultSubCategoryId: nextSubCategoryId,
+      sortOrder: input.sortOrder ?? current.sortOrder,
+      updatedAt: this.nowIso(),
+    };
+    const mappingRules = slice.mappingRules.slice();
+    mappingRules[idx] = updated;
+    writeState({
+      ...st,
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [companyId]: { ...slice, mappingRules },
+      },
+    });
+    return updated;
+  }
+
+  async deleteCompanyDefaultMappingRule(
+    companyId: CompanyId,
+    ruleId: CompanyDefaultMappingRule['id']
+  ): Promise<void> {
+    const st = ensureState();
+    this.assertCan('company:edit', companyId);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    writeState({
+      ...st,
+      companyDefaultsByCompanyId: {
+        ...st.companyDefaultsByCompanyId,
+        [companyId]: {
+          ...slice,
+          mappingRules: slice.mappingRules.filter((rule) => rule.id !== ruleId),
         },
       },
     });
@@ -861,7 +1029,7 @@ export class LocalApi implements ProjexApi {
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
-    const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? { categories: [], subCategories: [] };
+    const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
 
     let categoriesAdded = 0;
     let subCategoriesAdded = 0;
@@ -1513,12 +1681,23 @@ export class LocalApi implements ProjexApi {
         externalId: normalizeExternalId(t.externalId),
       };
     });
-    normalizedIncoming.forEach((txn) => validateOrThrow(txnInputSchema, txn));
+    const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
+    const autoMappedIncoming = normalizedIncoming.map((txn) =>
+      mapImportedTransactionWithCompanyDefaults({
+        txn,
+        rules: defaults.mappingRules,
+        defaultCategories: defaults.categories,
+        defaultSubCategories: defaults.subCategories,
+        projectCategories: slice.categories,
+        projectSubCategories: slice.subCategories,
+      })
+    );
+    autoMappedIncoming.forEach((txn) => validateOrThrow(txnInputSchema, txn));
 
     const nextTxns =
       input.mode === 'replaceAll'
-        ? normalizedIncoming
-        : [...slice.transactions, ...normalizedIncoming];
+        ? autoMappedIncoming
+        : [...slice.transactions, ...autoMappedIncoming];
 
     assertUniqueTransactionKeysInProject(nextTxns);
 
@@ -1526,7 +1705,7 @@ export class LocalApi implements ProjexApi {
       ...st,
       dataByProjectId: { ...st.dataByProjectId, [projectId]: { ...slice, transactions: nextTxns } },
     });
-    return { count: normalizedIncoming.length };
+    return { count: autoMappedIncoming.length };
   }
 
   async resetToSeed(): Promise<void> {

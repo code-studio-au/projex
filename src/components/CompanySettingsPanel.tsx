@@ -34,9 +34,11 @@ import {
 import { isServerAuthMode } from '../routes/-authMode';
 import {
   useCompanyDefaultCategoriesQuery,
+  useCompanyDefaultMappingRulesQuery,
   useCompanyDefaultSubCategoriesQuery,
 } from '../queries/taxonomy';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
+import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
@@ -59,6 +61,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const canEditCompanyDefaults = access.can('company:edit');
   const defaultCategoriesQ = useCompanyDefaultCategoriesQuery(companyId);
   const defaultSubCategoriesQ = useCompanyDefaultSubCategoriesQuery(companyId);
+  const defaultMappingRulesQ = useCompanyDefaultMappingRulesQuery(companyId);
 
   const companyUsers = useMemo(() => {
     return getCompanyUsers(
@@ -87,6 +90,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
   const [roleUserId, setRoleUserId] = useState<UserId | null>(null);
   const [defaultsModalOpen, setDefaultsModalOpen] = useState(false);
+  const [mappingsModalOpen, setMappingsModalOpen] = useState(false);
 
   // Derive a sensible default selection without synchronously setting state in an effect.
   // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
@@ -335,6 +339,33 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             </Text>
           </Stack>
         </Paper>
+
+        <Paper withBorder radius="lg" p="lg">
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Title order={5}>Company default mappings</Title>
+              <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
+                {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
+              </Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Match imported transaction text to company default taxonomy so uncoded imports can be auto-coded in projects that already contain those defaults.
+            </Text>
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">{(defaultMappingRulesQ.data ?? []).length} mapping rules</Badge>
+            </Group>
+            <Button
+              variant="light"
+              disabled={!canEditCompanyDefaults}
+              onClick={() => setMappingsModalOpen(true)}
+            >
+              Manage default mappings
+            </Button>
+            <Text size="xs" c="dimmed">
+              The first matching rule wins. Auto-mapped transactions are marked for approval in the transaction list.
+            </Text>
+          </Stack>
+        </Paper>
       </SimpleGrid>
 
       <Paper withBorder radius="lg" p="lg">
@@ -414,6 +445,12 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
       <CompanyDefaultTaxonomyModal
         opened={defaultsModalOpen}
         onClose={() => setDefaultsModalOpen(false)}
+        companyId={companyId}
+        readOnly={!canEditCompanyDefaults}
+      />
+      <CompanyDefaultMappingsModal
+        opened={mappingsModalOpen}
+        onClose={() => setMappingsModalOpen(false)}
         companyId={companyId}
         readOnly={!canEditCompanyDefaults}
       />

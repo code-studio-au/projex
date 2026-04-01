@@ -182,6 +182,9 @@ export default function TransactionsPanel(props: {
                 .updateTxn(row.original.id, {
                   categoryId: v ? asCategoryId(v) : null,
                   subCategoryId: null,
+                  companyDefaultMappingRuleId: undefined,
+                  codingSource: 'manual',
+                  codingPendingApproval: false,
                 })
                 .then(() => {
                   if (!v || !shouldAutoAdvance) {
@@ -228,6 +231,9 @@ export default function TransactionsPanel(props: {
                 .updateTxn(row.original.id, {
                   categoryId: catId ?? null,
                   subCategoryId: v ? asSubCategoryId(v) : null,
+                  companyDefaultMappingRuleId: undefined,
+                  codingSource: 'manual',
+                  codingPendingApproval: false,
                 })
                 .then(() => table.setEditingCell(null));
             }}
@@ -247,6 +253,39 @@ export default function TransactionsPanel(props: {
                 Uncoded
               </Badge>
             )}
+          </Group>
+        );
+      },
+      mantineTableHeadCellProps: {
+        className: 'table-head-cell table-head-left txnTable-head',
+      },
+      mantineTableBodyCellProps: { className: 'txnTable-cell' },
+    },
+    {
+      id: 'codingStatus',
+      header: 'Coding',
+      size: 180,
+      enableSorting: false,
+      Cell: ({ row }) => {
+        if (!row.original.codingPendingApproval) return null;
+        return (
+          <Group gap="xs" wrap="wrap">
+            <Badge color="yellow" variant="light">
+              Auto-mapped
+            </Badge>
+            {!readOnly ? (
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                onClick={() => {
+                  void txns.updateTxn(row.original.id, {
+                    codingPendingApproval: false,
+                  });
+                }}
+              >
+                Approve
+              </Button>
+            ) : null}
           </Group>
         );
       },

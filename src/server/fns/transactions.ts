@@ -1,5 +1,22 @@
-import type { CompanyId, ProjectId, Txn, TxnId } from '../../types';
-import { asCategoryId, asSubCategoryId, asTxnId } from '../../types';
+import type {
+  CompanyId,
+  ProjectId,
+  Txn,
+  TxnId,
+  Category,
+  SubCategory,
+  CompanyDefaultCategory,
+  CompanyDefaultSubCategory,
+  CompanyDefaultMappingRule,
+} from '../../types';
+import {
+  asCategoryId,
+  asCompanyDefaultMappingRuleId,
+  asSubCategoryId,
+  asTxnId,
+  asCompanyDefaultCategoryId,
+  asCompanyDefaultSubCategoryId,
+} from '../../types';
 import { AppError } from '../../api/errors';
 import type { TxnCreateInput, TxnUpdateInput } from '../../api/types';
 import { uid } from '../../utils/id';
@@ -7,6 +24,7 @@ import { txnInputSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { getDb } from '../db/db';
 import { requireAuthorized } from '../auth/authorize';
+import { mapImportedTransactionWithCompanyDefaults } from '../../utils/companyDefaultMappings';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -33,6 +51,9 @@ type TxnRow = {
   amount_cents: number;
   category_id: string | null;
   sub_category_id: string | null;
+  company_default_mapping_rule_id: string | null;
+  coding_source: 'manual' | 'company_default_rule' | null;
+  coding_pending_approval: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -75,6 +96,11 @@ function toTxn(row: TxnRow): Txn {
     amountCents: Number(row.amount_cents),
     categoryId: row.category_id ? asCategoryId(row.category_id) : undefined,
     subCategoryId: row.sub_category_id ? asSubCategoryId(row.sub_category_id) : undefined,
+    companyDefaultMappingRuleId: row.company_default_mapping_rule_id
+      ? asCompanyDefaultMappingRuleId(row.company_default_mapping_rule_id)
+      : undefined,
+    codingSource: row.coding_source ?? undefined,
+    codingPendingApproval: row.coding_pending_approval,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -143,6 +169,9 @@ export async function listTransactionsServer(args: {
         'amount_cents',
         'category_id',
         'sub_category_id',
+        'company_default_mapping_rule_id',
+        'coding_source',
+        'coding_pending_approval',
         'created_at',
         'updated_at',
       ])
@@ -217,6 +246,9 @@ export async function createTxnServer(args: {
         amount_cents: next.amountCents,
         category_id: next.categoryId ?? null,
         sub_category_id: next.subCategoryId ?? null,
+        company_default_mapping_rule_id: next.companyDefaultMappingRuleId ?? null,
+        coding_source: next.codingSource ?? null,
+        coding_pending_approval: !!next.codingPendingApproval,
         created_at: next.createdAt,
         updated_at: next.updatedAt,
       })
@@ -232,6 +264,9 @@ export async function createTxnServer(args: {
         'amount_cents',
         'category_id',
         'sub_category_id',
+        'company_default_mapping_rule_id',
+        'coding_source',
+        'coding_pending_approval',
         'created_at',
         'updated_at',
       ])
@@ -278,6 +313,9 @@ export async function updateTxnServer(args: {
         'amount_cents',
         'category_id',
         'sub_category_id',
+        'company_default_mapping_rule_id',
+        'coding_source',
+        'coding_pending_approval',
         'created_at',
         'updated_at',
       ])
@@ -337,6 +375,9 @@ export async function updateTxnServer(args: {
         amount_cents: next.amountCents,
         category_id: next.categoryId ?? null,
         sub_category_id: next.subCategoryId ?? null,
+        company_default_mapping_rule_id: next.companyDefaultMappingRuleId ?? null,
+        coding_source: next.codingSource ?? null,
+        coding_pending_approval: !!next.codingPendingApproval,
         created_at: next.createdAt,
         updated_at: now,
       })
@@ -354,6 +395,9 @@ export async function updateTxnServer(args: {
         'amount_cents',
         'category_id',
         'sub_category_id',
+        'company_default_mapping_rule_id',
+        'coding_source',
+        'coding_pending_approval',
         'created_at',
         'updated_at',
       ])
@@ -430,16 +474,117 @@ export async function importTransactionsServer(args: {
       };
     });
 
+    const [defaultCategoriesRows, defaultSubCategoriesRows, mappingRuleRows, projectCategoryRows, projectSubCategoryRows] =
+      await Promise.all([
+        db
+          .selectFrom('company_default_categories')
+          .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+          .where('company_id', '=', project.company_id as CompanyId)
+          .execute(),
+        db
+          .selectFrom('company_default_sub_categories')
+          .select([
+            'id',
+            'company_id',
+            'company_default_category_id',
+            'name',
+            'created_at',
+            'updated_at',
+          ])
+          .where('company_id', '=', project.company_id as CompanyId)
+          .execute(),
+        db
+          .selectFrom('company_default_mapping_rules')
+          .select([
+            'id',
+            'company_id',
+            'match_text',
+            'company_default_category_id',
+            'company_default_sub_category_id',
+            'sort_order',
+            'created_at',
+            'updated_at',
+          ])
+          .where('company_id', '=', project.company_id as CompanyId)
+          .orderBy('sort_order', 'asc')
+          .orderBy('created_at', 'asc')
+          .execute(),
+        db
+          .selectFrom('categories')
+          .select(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
+          .where('project_id', '=', args.projectId)
+          .execute(),
+        db
+          .selectFrom('sub_categories')
+          .select(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
+          .where('project_id', '=', args.projectId)
+          .execute(),
+      ]);
+
+    const defaultCategories = defaultCategoriesRows.map((row) => ({
+      id: asCompanyDefaultCategoryId(row.id),
+      companyId: row.company_id as CompanyId,
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies CompanyDefaultCategory[];
+    const defaultSubCategories = defaultSubCategoriesRows.map((row) => ({
+      id: asCompanyDefaultSubCategoryId(row.id),
+      companyId: row.company_id as CompanyId,
+      companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies CompanyDefaultSubCategory[];
+    const mappingRules = mappingRuleRows.map((row) => ({
+      id: asCompanyDefaultMappingRuleId(row.id),
+      companyId: row.company_id as CompanyId,
+      matchText: row.match_text,
+      companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(row.company_default_sub_category_id),
+      sortOrder: Number(row.sort_order),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies CompanyDefaultMappingRule[];
+    const projectCategories = projectCategoryRows.map((row) => ({
+      id: asCategoryId(row.id),
+      companyId: row.company_id as CompanyId,
+      projectId: row.project_id as ProjectId,
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies Category[];
+    const projectSubCategories = projectSubCategoryRows.map((row) => ({
+      id: asSubCategoryId(row.id),
+      companyId: row.company_id as CompanyId,
+      projectId: row.project_id as ProjectId,
+      categoryId: asCategoryId(row.category_id),
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies SubCategory[];
+
+    const autoMappedIncoming = normalizedIncoming.map((txn) =>
+      mapImportedTransactionWithCompanyDefaults({
+        txn,
+        rules: mappingRules,
+        defaultCategories,
+        defaultSubCategories,
+        projectCategories,
+        projectSubCategories,
+      })
+    );
+
     if (args.mode === 'replaceAll') {
-      assertUniqueTransactionKeysInProject(normalizedIncoming);
+      assertUniqueTransactionKeysInProject(autoMappedIncoming);
       const now = new Date().toISOString();
       await db.transaction().execute(async (trx) => {
         await trx.deleteFrom('txns').where('project_id', '=', args.projectId).execute();
-        if (!normalizedIncoming.length) return;
+        if (!autoMappedIncoming.length) return;
         await trx
           .insertInto('txns')
           .values(
-            normalizedIncoming.map((t) => ({
+            autoMappedIncoming.map((t) => ({
               public_id: t.id,
               external_id: t.externalId ?? null,
               company_id: t.companyId,
@@ -450,13 +595,16 @@ export async function importTransactionsServer(args: {
               amount_cents: t.amountCents,
               category_id: t.categoryId ?? null,
               sub_category_id: t.subCategoryId ?? null,
+              company_default_mapping_rule_id: t.companyDefaultMappingRuleId ?? null,
+              coding_source: t.codingSource ?? null,
+              coding_pending_approval: !!t.codingPendingApproval,
               created_at: t.createdAt ?? now,
               updated_at: now,
             }))
           )
           .execute();
       });
-      return { count: normalizedIncoming.length };
+      return { count: autoMappedIncoming.length };
     }
 
     const existingRows = await db
@@ -468,15 +616,15 @@ export async function importTransactionsServer(args: {
       id: r.public_id as TxnId,
       externalId: normalizeExternalId(r.external_id),
     }));
-    const nextForCheck = [...existingForCheck, ...normalizedIncoming];
+    const nextForCheck = [...existingForCheck, ...autoMappedIncoming];
     assertUniqueTransactionKeysInProject(nextForCheck);
 
-    if (normalizedIncoming.length) {
+    if (autoMappedIncoming.length) {
       const now = new Date().toISOString();
       await db
         .insertInto('txns')
         .values(
-          normalizedIncoming.map((t) => ({
+          autoMappedIncoming.map((t) => ({
             public_id: t.id,
             external_id: t.externalId ?? null,
             company_id: t.companyId,
@@ -487,12 +635,15 @@ export async function importTransactionsServer(args: {
             amount_cents: t.amountCents,
             category_id: t.categoryId ?? null,
             sub_category_id: t.subCategoryId ?? null,
+            company_default_mapping_rule_id: t.companyDefaultMappingRuleId ?? null,
+            coding_source: t.codingSource ?? null,
+            coding_pending_approval: !!t.codingPendingApproval,
             created_at: t.createdAt ?? now,
             updated_at: now,
           }))
         )
         .execute();
     }
-    return { count: normalizedIncoming.length };
+    return { count: autoMappedIncoming.length };
   });
 }

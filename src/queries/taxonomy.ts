@@ -4,6 +4,7 @@ import { useApi } from '../hooks/useApi';
 import type {
   Category,
   CompanyDefaultCategory,
+  CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
   CompanyId,
   ProjectId,
@@ -12,6 +13,8 @@ import type {
 import type {
   CompanyDefaultCategoryCreateInput,
   CompanyDefaultCategoryUpdateInput,
+  CompanyDefaultMappingRuleCreateInput,
+  CompanyDefaultMappingRuleUpdateInput,
   CompanyDefaultSubCategoryCreateInput,
   CompanyDefaultSubCategoryUpdateInput,
   CategoryCreateInput,
@@ -53,6 +56,16 @@ export function useCompanyDefaultSubCategoriesQuery(companyId: CompanyId) {
   });
 }
 
+export function useCompanyDefaultMappingRulesQuery(companyId: CompanyId) {
+  const api = useApi();
+  const scopeUserId = useQueryScopeUserId();
+  return useQuery({
+    queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
+    queryFn: () => api.listCompanyDefaultMappingRules(companyId),
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useSubCategoriesQuery(projectId: ProjectId) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
@@ -82,7 +95,10 @@ export function useCreateCompanyDefaultCategoryMutation(companyId: CompanyId) {
     mutationFn: (input: CompanyDefaultCategoryCreateInput) =>
       api.createCompanyDefaultCategory(companyId, input),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: qk.companyDefaultCategories(scopeUserId, companyId) }),
+      Promise.all([
+        qc.invalidateQueries({ queryKey: qk.companyDefaultCategories(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId) }),
+      ]),
   });
 }
 
@@ -108,6 +124,7 @@ export function useDeleteCompanyDefaultCategoryMutation(companyId: CompanyId) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.companyDefaultCategories(scopeUserId, companyId) });
       qc.invalidateQueries({ queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId) });
+      qc.invalidateQueries({ queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId) });
     },
   });
 }
@@ -155,7 +172,22 @@ export function useCreateCompanyDefaultSubCategoryMutation(companyId: CompanyId)
     mutationFn: (input: CompanyDefaultSubCategoryCreateInput) =>
       api.createCompanyDefaultSubCategory(companyId, input),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId) }),
+      Promise.all([
+        qc.invalidateQueries({ queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId) }),
+      ]),
+  });
+}
+
+export function useCreateCompanyDefaultMappingRuleMutation(companyId: CompanyId) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: CompanyDefaultMappingRuleCreateInput) =>
+      api.createCompanyDefaultMappingRule(companyId, input),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId) }),
   });
 }
 
@@ -181,7 +213,22 @@ export function useUpdateCompanyDefaultSubCategoryMutation(companyId: CompanyId)
     mutationFn: (input: CompanyDefaultSubCategoryUpdateInput) =>
       api.updateCompanyDefaultSubCategory(companyId, input),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId) }),
+      Promise.all([
+        qc.invalidateQueries({ queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId) }),
+      ]),
+  });
+}
+
+export function useUpdateCompanyDefaultMappingRuleMutation(companyId: CompanyId) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: CompanyDefaultMappingRuleUpdateInput) =>
+      api.updateCompanyDefaultMappingRule(companyId, input),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId) }),
   });
 }
 
@@ -208,6 +255,18 @@ export function useDeleteCompanyDefaultSubCategoryMutation(companyId: CompanyId)
       api.deleteCompanyDefaultSubCategory(companyId, subCategoryId),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId) }),
+  });
+}
+
+export function useDeleteCompanyDefaultMappingRuleMutation(companyId: CompanyId) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (ruleId: CompanyDefaultMappingRule['id']) =>
+      api.deleteCompanyDefaultMappingRule(companyId, ruleId),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId) }),
   });
 }
 

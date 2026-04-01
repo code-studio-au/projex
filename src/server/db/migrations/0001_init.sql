@@ -110,6 +110,20 @@ create table if not exists company_default_sub_categories (
 create unique index if not exists uq_company_default_sub_categories_company_category_lower_name
   on company_default_sub_categories(company_id, company_default_category_id, lower(name));
 
+create table if not exists company_default_mapping_rules (
+  id text primary key,
+  company_id text not null references companies(id) on delete cascade,
+  match_text text not null,
+  company_default_category_id text not null references company_default_categories(id) on delete cascade,
+  company_default_sub_category_id text not null references company_default_sub_categories(id) on delete cascade,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_company_default_mapping_rules_company_sort
+  on company_default_mapping_rules(company_id, sort_order, created_at);
+
 create table if not exists budget_lines (
   id text primary key,
   company_id text not null references companies(id) on delete cascade,
@@ -138,6 +152,9 @@ create table if not exists txns (
   amount_cents bigint not null check (amount_cents >= 0),
   category_id text null references categories(id) on delete set null,
   sub_category_id text null references sub_categories(id) on delete set null,
+  company_default_mapping_rule_id text null references company_default_mapping_rules(id) on delete set null,
+  coding_source text null check (coding_source in ('manual', 'company_default_rule')),
+  coding_pending_approval boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

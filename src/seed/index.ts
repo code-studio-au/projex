@@ -1,5 +1,6 @@
 import type {
   CompanyDefaultCategory,
+  CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
   CompanyId,
   ProjectId,
@@ -16,6 +17,7 @@ export const PROJEX_STATE_KEY = 'projex_state_v1';
 export type SeedCompanyDefaultTaxonomySlice = {
   categories: CompanyDefaultCategory[];
   subCategories: CompanyDefaultSubCategory[];
+  mappingRules: CompanyDefaultMappingRule[];
 };
 
 export type PersistedStateV1 = {
@@ -41,6 +43,7 @@ export function buildSeedState(): PersistedStateV1 {
       {
         categories: [],
         subCategories: [],
+        mappingRules: [],
       },
     ])
   ) as Record<CompanyId, SeedCompanyDefaultTaxonomySlice>;

@@ -3,6 +3,7 @@ import type {
   CategoryId,
   CompanyId,
   CompanyDefaultCategoryId,
+  CompanyDefaultMappingRuleId,
   CompanyDefaultSubCategoryId,
   ProjectId,
   SubCategoryId,
@@ -92,6 +93,17 @@ export type CompanyDefaultSubCategory = {
   updatedAt?: string;
 };
 
+export type CompanyDefaultMappingRule = {
+  id: CompanyDefaultMappingRuleId;
+  companyId: CompanyId;
+  matchText: string;
+  companyDefaultCategoryId: CompanyDefaultCategoryId;
+  companyDefaultSubCategoryId: CompanyDefaultSubCategoryId;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type Txn = {
   id: TxnId;
   /**
@@ -110,6 +122,9 @@ export type Txn = {
   amountCents: number;
   categoryId?: CategoryId;
   subCategoryId?: SubCategoryId;
+  companyDefaultMappingRuleId?: CompanyDefaultMappingRuleId;
+  codingSource?: 'manual' | 'company_default_rule';
+  codingPendingApproval?: boolean;
   /** Audit timestamps as ISO strings (UTC). */
   createdAt?: string;
   updatedAt?: string;
