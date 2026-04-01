@@ -7,12 +7,14 @@ export const Route = createFileRoute('/api/companies/$companyId/default-categori
   server: {
     handlers: {
       DELETE: ({ request, params }) =>
-        withApi(request, (api) =>
-          api.deleteCompanyDefaultCategory(
+        withApi(request, async (api) => {
+          await api.deleteCompanyDefaultCategory(
             asCompanyId(params.companyId),
             asCompanyDefaultCategoryId(params.categoryId)
-          )
-        ),
+          );
+
+          return { ok: true as const };
+        }),
     },
   },
 });
