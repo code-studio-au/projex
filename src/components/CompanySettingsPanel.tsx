@@ -362,7 +362,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               Manage default mappings
             </Button>
             <Text size="xs" c="dimmed">
-              The first matching rule wins. Auto-mapped transactions are marked for approval in the transaction list.
+              The first matching rule wins. Rules search transaction item and description text, support simple singular/plural matches, and mark auto-coded rows for approval in the transaction list.
             </Text>
           </Stack>
         </Paper>

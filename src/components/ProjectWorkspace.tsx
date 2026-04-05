@@ -43,7 +43,9 @@ export default function ProjectWorkspace(props: {
   const taxonomy = useTaxonomy({ companyId, projectId, budgets, txns, canEditBudgets });
 
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(null);
-  const [showUncodedOnly, setShowUncodedOnly] = useState(false);
+  const [transactionView, setTransactionView] = useState<'all' | 'uncoded' | 'auto-mapped-pending'>(
+    'all'
+  );
 
   const rollups = useRollups({
     transactions: txns.transactions,
@@ -126,8 +128,8 @@ export default function ProjectWorkspace(props: {
               monthFilterKey={monthFilterKey}
               setMonthFilterKey={setMonthFilterKey}
               monthFilterOptions={monthFilterOptions}
-              showUncodedOnly={showUncodedOnly}
-              setShowUncodedOnly={setShowUncodedOnly}
+              transactionView={transactionView}
+              setTransactionView={setTransactionView}
               canEditTaxonomy={canEditTaxonomy}
               readOnly={!canEditTxns}
             />

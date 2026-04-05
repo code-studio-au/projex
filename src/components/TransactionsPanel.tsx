@@ -34,8 +34,8 @@ export default function TransactionsPanel(props: {
   monthFilterKey: string | null;
   setMonthFilterKey: (v: string | null) => void;
   monthFilterOptions: { value: string; label: string }[];
-  showUncodedOnly: boolean;
-  setShowUncodedOnly: (v: boolean) => void;
+  transactionView: 'all' | 'uncoded' | 'auto-mapped-pending';
+  setTransactionView: (v: 'all' | 'uncoded' | 'auto-mapped-pending') => void;
   canEditTaxonomy: boolean;
   readOnly?: boolean;
 }) {
@@ -46,8 +46,8 @@ export default function TransactionsPanel(props: {
     monthFilterKey,
     setMonthFilterKey,
     monthFilterOptions,
-    showUncodedOnly,
-    setShowUncodedOnly,
+    transactionView,
+    setTransactionView,
     canEditTaxonomy,
     readOnly = false,
   } = props;
@@ -92,17 +92,35 @@ export default function TransactionsPanel(props: {
         }
       });
     }
-    if (showUncodedOnly)
+    if (transactionView === 'uncoded')
       out = out.filter(
         (t) => !t.subCategoryId || !taxonomy.validSubIds.has(t.subCategoryId)
+      );
+    if (transactionView === 'auto-mapped-pending')
+      out = out.filter(
+        (t) =>
+          !!t.codingPendingApproval &&
+          !!t.subCategoryId &&
+          taxonomy.validSubIds.has(t.subCategoryId)
       );
     return out;
   }, [
     txns.transactions,
     monthFilterKey,
-    showUncodedOnly,
+    transactionView,
     taxonomy.validSubIds,
   ]);
+
+  const autoMappedPendingTxns = useMemo(
+    () =>
+      txns.transactions.filter(
+        (t) =>
+          !!t.codingPendingApproval &&
+          !!t.subCategoryId &&
+          taxonomy.validSubIds.has(t.subCategoryId)
+      ),
+    [txns.transactions, taxonomy.validSubIds]
+  );
 
   function moveToSubcategoryCell(args: {
     row: Parameters<NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>>[0]['row'];
@@ -305,7 +323,7 @@ export default function TransactionsPanel(props: {
           <Stack gap={4}>
             <Title order={5}>Transaction coding</Title>
             <Text size="sm" c="dimmed">
-              Filter a month, then assign category + subcategory
+              Filter transactions, review pending auto-mappings, and assign category + subcategory.
             </Text>
             {invalidDateCount > 0 && (
               <Text size="sm" c="dimmed">
@@ -330,11 +348,31 @@ export default function TransactionsPanel(props: {
               data={[
                 { value: 'all', label: 'All' },
                 { value: 'uncoded', label: 'Uncoded only' },
+                { value: 'auto-mapped-pending', label: 'Auto-mapped pending approval' },
               ]}
-              value={showUncodedOnly ? 'uncoded' : 'all'}
-              onChange={(v) => setShowUncodedOnly(v === 'uncoded')}
-              style={{ width: isMobile ? '100%' : 170 }}
+              value={transactionView}
+              onChange={(v) =>
+                setTransactionView(
+                  v === 'uncoded' || v === 'auto-mapped-pending' ? v : 'all'
+                )
+              }
+              style={{ width: isMobile ? '100%' : 250 }}
             />
+            <Button
+              variant="light"
+              color="teal"
+              fullWidth={isMobile}
+              disabled={readOnly || autoMappedPendingTxns.length === 0}
+              onClick={() => {
+                void Promise.all(
+                  autoMappedPendingTxns.map((txn) =>
+                    txns.updateTxn(txn.id, { codingPendingApproval: false })
+                  )
+                );
+              }}
+            >
+              Accept all auto-mappings
+            </Button>
             <Button
               variant="light"
               fullWidth={isMobile}

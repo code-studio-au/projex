@@ -86,9 +86,17 @@ export default function CompanyDefaultMappingsModal(props: {
             You don’t have permission to edit company default mappings.
           </Text>
         ) : (
-          <Text size="sm" c="dimmed" className="panelHelperText">
-            Rules match imported transaction item and description text. The first matching rule auto-codes the row if the project already contains the mapped taxonomy.
-          </Text>
+          <Stack gap={4}>
+            <Text size="sm" c="dimmed" className="panelHelperText">
+              Rules search imported transaction item and description text. The first matching rule wins and auto-codes the row if the project already contains the mapped company defaults.
+            </Text>
+            <Text size="xs" c="dimmed" className="panelHelperText">
+              Example matches: <strong>uber</strong>, <strong>airport taxi</strong>, <strong>officeworks</strong>, <strong>flight</strong>.
+            </Text>
+            <Text size="xs" c="dimmed" className="panelHelperText">
+              Matching is case-insensitive and handles simple singular/plural variations like <strong>flight</strong> and <strong>flights</strong>.
+            </Text>
+          </Stack>
         )}
 
         <Paper withBorder radius="md" p="md">
@@ -99,7 +107,7 @@ export default function CompanyDefaultMappingsModal(props: {
             </Group>
             <TextInput
               label="Match text"
-              placeholder="e.g. uber"
+              placeholder="e.g. uber, airport taxi, officeworks, flight"
               value={newMatchText}
               disabled={readOnly}
               onChange={(e) => {
@@ -232,6 +240,7 @@ export default function CompanyDefaultMappingsModal(props: {
 
                     <TextInput
                       label="Match text"
+                      description="Example: uber, airport taxi, officeworks, flight"
                       value={matchDrafts[rule.id] ?? rule.matchText}
                       disabled={readOnly}
                       onChange={(e) => {
