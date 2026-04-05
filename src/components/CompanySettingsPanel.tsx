@@ -4,11 +4,10 @@ import {
   Badge,
   Button,
   Checkbox,
-  Group,
   Divider,
+  Group,
   Paper,
   Select,
-  SimpleGrid,
   Stack,
   Text,
   TextInput,
@@ -233,240 +232,236 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         {highestRoleBadge}
       </Group>
 
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Title order={5}>Company default categories</Title>
-              <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
-                {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
-              </Badge>
-            </Group>
-            <Text size="sm" c="dimmed">
-              Define company-wide default categories and subcategories that can be safely added into projects later.
-            </Text>
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">{(defaultCategoriesQ.data ?? []).length} categories</Badge>
-              <Badge variant="light">{(defaultSubCategoriesQ.data ?? []).length} subcategories</Badge>
-            </Group>
-            <Button
-              variant="light"
-              disabled={!canEditCompanyDefaults}
-              onClick={() => setDefaultsModalOpen(true)}
-            >
-              Manage company defaults
-            </Button>
-            <Text size="xs" c="dimmed">
-              Applying company defaults to a project only adds missing categories and subcategories. Existing project taxonomy is left unchanged.
-            </Text>
-          </Stack>
-        </Paper>
+      <Paper withBorder radius="lg" p="lg">
+        <Stack gap="sm">
+          <Group justify="space-between">
+            <Title order={5}>Company default categories</Title>
+            <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
+              {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
+            </Badge>
+          </Group>
+          <Text size="sm" c="dimmed">
+            Define company-wide default categories and subcategories that can be safely added into projects later.
+          </Text>
+          <Group gap="sm" wrap="wrap">
+            <Badge variant="light">{(defaultCategoriesQ.data ?? []).length} categories</Badge>
+            <Badge variant="light">{(defaultSubCategoriesQ.data ?? []).length} subcategories</Badge>
+          </Group>
+          <Button
+            variant="light"
+            disabled={!canEditCompanyDefaults}
+            onClick={() => setDefaultsModalOpen(true)}
+          >
+            Manage company defaults
+          </Button>
+          <Text size="xs" c="dimmed">
+            Applying company defaults to a project only adds missing categories and subcategories. Existing project taxonomy is left unchanged.
+          </Text>
+        </Stack>
+      </Paper>
 
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Title order={5}>Company default mappings</Title>
-              <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
-                {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
-              </Badge>
-            </Group>
-            <Text size="sm" c="dimmed">
-              Match imported transaction text to company default taxonomy so uncoded imports can be auto-coded in projects that already contain those defaults.
-            </Text>
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">{(defaultMappingRulesQ.data ?? []).length} mapping rules</Badge>
-            </Group>
-            <Button
-              variant="light"
-              disabled={!canEditCompanyDefaults}
-              onClick={() => setMappingsModalOpen(true)}
-            >
-              Manage default mappings
-            </Button>
-            <Text size="xs" c="dimmed">
-              The first matching rule wins. Rules search transaction item and description text, support simple singular/plural matches, and mark auto-coded rows for approval in the transaction list.
-            </Text>
-          </Stack>
-        </Paper>
-      </SimpleGrid>
+      <Paper withBorder radius="lg" p="lg">
+        <Stack gap="sm">
+          <Group justify="space-between">
+            <Title order={5}>Company default mappings</Title>
+            <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
+              {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
+            </Badge>
+          </Group>
+          <Text size="sm" c="dimmed">
+            Match imported transaction text to company default taxonomy so uncoded imports can be auto-coded in projects that already contain those defaults.
+          </Text>
+          <Group gap="sm" wrap="wrap">
+            <Badge variant="light">{(defaultMappingRulesQ.data ?? []).length} mapping rules</Badge>
+          </Group>
+          <Button
+            variant="light"
+            disabled={!canEditCompanyDefaults}
+            onClick={() => setMappingsModalOpen(true)}
+          >
+            Manage default mappings
+          </Button>
+          <Text size="xs" c="dimmed">
+            The first matching rule wins. Rules search transaction item and description text, support simple singular/plural matches, and mark auto-coded rows for approval in the transaction list.
+          </Text>
+        </Stack>
+      </Paper>
 
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Title order={5}>{isServerAuthMode ? 'Add member' : 'Add user (company)'}</Title>
-              <Badge variant="light" color={canAddCompanyUsers ? 'gray' : 'red'}>
-                {canAddCompanyUsers ? 'Ready' : 'Not allowed'}
-              </Badge>
-            </Group>
-            {inviteError ? <Alert color="red">{inviteError}</Alert> : null}
-            {inviteStatus ? <Alert color="green">{inviteStatus}</Alert> : null}
-            <TextInput
-              label="Name"
-              value={newUserName}
-              onChange={(e) => setNewUserName(e.currentTarget.value)}
+      <Paper withBorder radius="lg" p="lg">
+        <Stack gap="sm">
+          <Group justify="space-between">
+            <Title order={5}>{isServerAuthMode ? 'Add member' : 'Add user (company)'}</Title>
+            <Badge variant="light" color={canAddCompanyUsers ? 'gray' : 'red'}>
+              {canAddCompanyUsers ? 'Ready' : 'Not allowed'}
+            </Badge>
+          </Group>
+          {inviteError ? <Alert color="red">{inviteError}</Alert> : null}
+          {inviteStatus ? <Alert color="green">{inviteStatus}</Alert> : null}
+          <TextInput
+            label="Name"
+            value={newUserName}
+            onChange={(e) => setNewUserName(e.currentTarget.value)}
+          />
+          <TextInput
+            label="Email"
+            value={newUserEmail}
+            onChange={(e) => setNewUserEmail(e.currentTarget.value)}
+          />
+          <Select
+            label="Initial company role"
+            data={[
+              { value: 'member', label: 'member' },
+              { value: 'management', label: 'management' },
+              { value: 'executive', label: 'executive' },
+              { value: 'admin', label: 'admin' },
+            ]}
+            value={newUserRole}
+            onChange={(v) => setNewUserRole((v as CompanyRole | null) ?? null)}
+          />
+          {isServerAuthMode ? (
+            <Checkbox
+              label="Send password setup email now"
+              description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
+              checked={sendOnboardingEmail}
+              onChange={(e) => setSendOnboardingEmail(e.currentTarget.checked)}
             />
-            <TextInput
-              label="Email"
-              value={newUserEmail}
-              onChange={(e) => setNewUserEmail(e.currentTarget.value)}
+          ) : null}
+          <Button
+            disabled={!canAddCompanyUsers || createUser.isPending}
+            onClick={async () => {
+              const name = newUserName.trim();
+              const email = newUserEmail.trim();
+              if (!name || !email) return;
+              setInviteError(null);
+              setInviteStatus(null);
+              try {
+                const result = await createUser.mutateAsync({
+                  name,
+                  email,
+                  role: newUserRole ?? 'member',
+                  sendOnboardingEmail,
+                });
+                setNewUserName('');
+                setNewUserEmail('');
+                setNewUserRole('member');
+                setSendOnboardingEmail(false);
+                if (!isServerAuthMode) {
+                  setInviteStatus(
+                    result.membershipCreated
+                      ? `${result.user.name} was added to the company.`
+                      : `${result.user.name} is already in the company, and their role was updated.`
+                  );
+                  return;
+                }
+                if (result.onboardingEmailSent) {
+                  setInviteStatus(
+                    result.createdAuthUser
+                      ? result.onboardingDelivery === 'email'
+                        ? `${result.user.email} was added as a new company member and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
+                        : `${result.user.email} was added as a new company member. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
+                      : result.onboardingDelivery === 'email'
+                        ? `${result.user.email} was added to the company and sent the newest password setup email. Ask them to check spam or junk if it does not arrive soon.`
+                        : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
+                  );
+                  return;
+                }
+                setInviteStatus(
+                  result.membershipCreated
+                    ? `${result.user.email} was added to the company. No email was sent. You can resend their password setup email later from the member list if they need it.`
+                    : `${result.user.email} was already in the company. Their role was updated and no email was sent.`
+                );
+              } catch (err) {
+                setInviteError(err instanceof Error ? err.message : 'Could not invite user.');
+              }
+            }}
+          >
+            {isServerAuthMode ? 'Add member' : 'Create user'}
+          </Button>
+          <Text size="xs" c="dimmed">
+            {isServerAuthMode
+              ? 'Adding someone to the company and emailing them are now separate choices. New BetterAuth accounts still get their setup email automatically, while existing users can be added quietly and emailed later if needed.'
+              : 'Users created here belong only to this company.'}
+          </Text>
+        </Stack>
+      </Paper>
+
+      <Paper withBorder radius="lg" p="lg">
+        <Stack gap="sm">
+          <Title order={5}>Company roles</Title>
+          {membershipError ? <Alert color="red">{membershipError}</Alert> : null}
+          {membershipStatus ? <Alert color="green">{membershipStatus}</Alert> : null}
+          <Group align="flex-end" wrap="wrap">
+            <Select
+              label="User"
+              data={userOptions}
+              value={effectiveRoleUserId}
+              onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
+              searchable
+              style={{ width: '100%', maxWidth: 420 }}
             />
             <Select
-              label="Initial company role"
+              label="Company role"
               data={[
                 { value: 'member', label: 'member' },
                 { value: 'management', label: 'management' },
                 { value: 'executive', label: 'executive' },
                 { value: 'admin', label: 'admin' },
               ]}
-              value={newUserRole}
-              onChange={(v) => setNewUserRole((v as CompanyRole | null) ?? null)}
+              value={membershipCompanyRole}
+              onChange={(v) => setMembershipCompanyRole(toCompanyRole(v))}
+              style={{ width: '100%', maxWidth: 220 }}
             />
-            {isServerAuthMode ? (
-              <Checkbox
-                label="Send password setup email now"
-                description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
-                checked={sendOnboardingEmail}
-                onChange={(e) => setSendOnboardingEmail(e.currentTarget.checked)}
-              />
-            ) : null}
             <Button
-              disabled={!canAddCompanyUsers || createUser.isPending}
+              size="sm"
+              disabled={!effectiveRoleUserId || !membershipCompanyRole || wouldDemoteLastAdmin}
               onClick={async () => {
-                const name = newUserName.trim();
-                const email = newUserEmail.trim();
-                if (!name || !email) return;
-                setInviteError(null);
-                setInviteStatus(null);
+                if (!effectiveRoleUserId || !membershipCompanyRole) return;
+                setMembershipError(null);
+                setMembershipStatus(null);
                 try {
-                  const result = await createUser.mutateAsync({
-                    name,
-                    email,
-                    role: newUserRole ?? 'member',
-                    sendOnboardingEmail,
+                  await upsertCompanyMembership.mutateAsync({
+                    userId: effectiveRoleUserId,
+                    role: membershipCompanyRole,
                   });
-                  setNewUserName('');
-                  setNewUserEmail('');
-                  setNewUserRole('member');
-                  setSendOnboardingEmail(false);
-                  if (!isServerAuthMode) {
-                    setInviteStatus(
-                      result.membershipCreated
-                        ? `${result.user.name} was added to the company.`
-                        : `${result.user.name} is already in the company, and their role was updated.`
-                    );
-                    return;
-                  }
-                  if (result.onboardingEmailSent) {
-                    setInviteStatus(
-                      result.createdAuthUser
-                        ? result.onboardingDelivery === 'email'
-                          ? `${result.user.email} was added as a new company member and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
-                          : `${result.user.email} was added as a new company member. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
-                        : result.onboardingDelivery === 'email'
-                          ? `${result.user.email} was added to the company and sent the newest password setup email. Ask them to check spam or junk if it does not arrive soon.`
-                          : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
-                    );
-                    return;
-                  }
-                  setInviteStatus(
-                    result.membershipCreated
-                      ? `${result.user.email} was added to the company. No email was sent. You can resend their password setup email later from the member list if they need it.`
-                      : `${result.user.email} was already in the company. Their role was updated and no email was sent.`
-                  );
+                  setMembershipStatus('Company role updated.');
                 } catch (err) {
-                  setInviteError(err instanceof Error ? err.message : 'Could not invite user.');
+                  setMembershipError(
+                    err instanceof Error ? err.message : 'Could not update company role.'
+                  );
                 }
               }}
             >
-              {isServerAuthMode ? 'Add member' : 'Create user'}
+              Set
             </Button>
-            <Text size="xs" c="dimmed">
-              {isServerAuthMode
-                ? 'Adding someone to the company and emailing them are now separate choices. New BetterAuth accounts still get their setup email automatically, while existing users can be added quietly and emailed later if needed.'
-                : 'Users created here belong only to this company.'}
-            </Text>
-          </Stack>
-        </Paper>
-
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="sm">
-            <Title order={5}>Company roles</Title>
-            {membershipError ? <Alert color="red">{membershipError}</Alert> : null}
-            {membershipStatus ? <Alert color="green">{membershipStatus}</Alert> : null}
-            <Group align="flex-end" wrap="wrap">
-              <Select
-                label="User"
-                data={userOptions}
-                value={effectiveRoleUserId}
-                onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
-                searchable
-                style={{ width: '100%', maxWidth: 420 }}
-              />
-              <Select
-                label="Company role"
-                data={[
-                  { value: 'member', label: 'member' },
-                  { value: 'management', label: 'management' },
-                  { value: 'executive', label: 'executive' },
-                  { value: 'admin', label: 'admin' },
-                ]}
-                value={membershipCompanyRole}
-                onChange={(v) => setMembershipCompanyRole(toCompanyRole(v))}
-                style={{ width: '100%', maxWidth: 220 }}
-              />
-              <Button
-                size="sm"
-                disabled={!effectiveRoleUserId || !membershipCompanyRole || wouldDemoteLastAdmin}
-                onClick={async () => {
-                  if (!effectiveRoleUserId || !membershipCompanyRole) return;
-                  setMembershipError(null);
-                  setMembershipStatus(null);
-                  try {
-                    await upsertCompanyMembership.mutateAsync({
-                      userId: effectiveRoleUserId,
-                      role: membershipCompanyRole,
-                    });
-                    setMembershipStatus('Company role updated.');
-                  } catch (err) {
-                    setMembershipError(
-                      err instanceof Error ? err.message : 'Could not update company role.'
-                    );
-                  }
-                }}
-              >
-                Set
-              </Button>
-            </Group>
-            {wouldDemoteLastAdmin ? (
-              <Alert color="yellow">
-                This company must retain at least one admin. Assign another admin before changing this role.
-              </Alert>
-            ) : null}
-            <Divider />
-            <Text size="sm" c="dimmed">
-              Update a teammate’s company role or remove them from the company entirely.
-            </Text>
-            <MantineReactTable
-              columns={membershipColumns}
-              data={membershipRows}
-              getRowId={(row) => row.key}
-              mantineTableContainerProps={{ className: 'financeTable' }}
-              mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
-              mantineTableBodyCellProps={{
-                style: { verticalAlign: 'middle' },
-              }}
-              enableColumnActions={false}
-              enableColumnFilters={false}
-              enableSorting
-              enableTopToolbar={false}
-              enableDensityToggle={false}
-              enableFullScreenToggle={false}
-              initialState={{ density: 'xs', pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 } }}
-            />
-          </Stack>
-        </Paper>
-      </SimpleGrid>
+          </Group>
+          {wouldDemoteLastAdmin ? (
+            <Alert color="yellow">
+              This company must retain at least one admin. Assign another admin before changing this role.
+            </Alert>
+          ) : null}
+          <Divider />
+          <Text size="sm" c="dimmed">
+            Update a teammate’s company role or remove them from the company entirely.
+          </Text>
+          <MantineReactTable
+            columns={membershipColumns}
+            data={membershipRows}
+            getRowId={(row) => row.key}
+            mantineTableContainerProps={{ className: 'financeTable' }}
+            mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+            mantineTableBodyCellProps={{
+              style: { verticalAlign: 'middle' },
+            }}
+            enableColumnActions={false}
+            enableColumnFilters={false}
+            enableSorting
+            enableTopToolbar={false}
+            enableDensityToggle={false}
+            enableFullScreenToggle={false}
+            initialState={{ density: 'xs', pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 } }}
+          />
+        </Stack>
+      </Paper>
 
       <CompanyDefaultTaxonomyModal
         opened={defaultsModalOpen}
