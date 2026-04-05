@@ -21,6 +21,8 @@ import { qk } from '../queries/keys';
 import { formatCurrencyFromCents } from '../utils/money';
 import { monthKeyFromStart, monthStart, parseISODate, sum } from '../utils/finance';
 
+type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
+
 type ProjectSummaryRow = {
   id: Project['id'];
   name: string;
@@ -61,6 +63,8 @@ export default function CompanySummaryPanel(props: {
   const { projects, isMobile = false } = props;
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
+  const [yearFilter, setYearFilter] = useState<string | null>(null);
+  const [quarterFilter, setQuarterFilter] = useState<QuarterOption | null>(null);
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(null);
 
   const projectDataQueries = useQueries({
@@ -82,7 +86,7 @@ export default function CompanySummaryPanel(props: {
 
   const isLoading = projectDataQueries.some((query) => query.isLoading);
 
-  const monthFilterOptions = useMemo(() => {
+  const allMonthKeys = useMemo(() => {
     const keys = new Set<string>();
     for (let index = 0; index < projects.length; index += 1) {
       const transactions = (projectDataQueries[index * 3]?.data as Txn[] | undefined) ?? [];
@@ -94,10 +98,41 @@ export default function CompanySummaryPanel(props: {
         }
       }
     }
-    return [...keys]
+    return [...keys].sort((a, b) => b.localeCompare(a));
+  }, [projectDataQueries, projects.length]);
+
+  const yearFilterOptions = useMemo(() => {
+    const years = new Set(allMonthKeys.map((key) => key.slice(0, 4)));
+    return [...years]
       .sort((a, b) => b.localeCompare(a))
       .map((value) => ({ value, label: value }));
-  }, [projectDataQueries, projects.length]);
+  }, [allMonthKeys]);
+
+  const quarterFilterOptions = useMemo(() => {
+    const filteredMonths = allMonthKeys.filter((key) => !yearFilter || key.startsWith(`${yearFilter}-`));
+    const quarters = new Set(
+      filteredMonths.map((key) => {
+        const month = Number(key.slice(5, 7));
+        const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+        return quarter;
+      })
+    );
+    return (['Q1', 'Q2', 'Q3', 'Q4'] as QuarterOption[])
+      .filter((quarter) => quarters.has(quarter))
+      .map((value) => ({ value, label: value }));
+  }, [allMonthKeys, yearFilter]);
+
+  const monthFilterOptions = useMemo(() => {
+    return allMonthKeys
+      .filter((key) => {
+        if (yearFilter && !key.startsWith(`${yearFilter}-`)) return false;
+        if (!quarterFilter) return true;
+        const month = Number(key.slice(5, 7));
+        const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+        return quarter === quarterFilter;
+      })
+      .map((value) => ({ value, label: value }));
+  }, [allMonthKeys, quarterFilter, yearFilter]);
 
   const rows = useMemo<ProjectSummaryRow[]>(() => {
     return projects.map((project, index) => {
@@ -107,9 +142,16 @@ export default function CompanySummaryPanel(props: {
         (projectDataQueries[index * 3 + 2]?.data as SubCategory[] | undefined) ?? [];
       const validSubIds = new Set(subCategories.map((subCategory) => subCategory.id));
       const visibleTransactions = transactions.filter((txn) => {
-        if (!monthFilterKey) return true;
         try {
-          return monthKeyFromStart(monthStart(parseISODate(txn.date))) === monthFilterKey;
+          const txnMonthKey = monthKeyFromStart(monthStart(parseISODate(txn.date)));
+          if (monthFilterKey) return txnMonthKey === monthFilterKey;
+          if (yearFilter && !txnMonthKey.startsWith(`${yearFilter}-`)) return false;
+          if (quarterFilter) {
+            const month = Number(txnMonthKey.slice(5, 7));
+            const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+            if (quarter !== quarterFilter) return false;
+          }
+          return true;
         } catch {
           return false;
         }
@@ -143,7 +185,7 @@ export default function CompanySummaryPanel(props: {
         isOverBudget: actualCodedCents > budgetCents,
       };
     });
-  }, [monthFilterKey, projectDataQueries, projects]);
+  }, [monthFilterKey, projectDataQueries, projects, quarterFilter, yearFilter]);
 
   const activeRows = useMemo(
     () => rows.filter((row) => row.status === 'active'),
@@ -173,51 +215,6 @@ export default function CompanySummaryPanel(props: {
         header: 'Project',
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
-        Cell: ({ row }) => (
-          <Badge variant="light" color={row.original.status === 'active' ? 'green' : 'gray'}>
-            {row.original.status === 'active' ? 'Active' : 'Archived'}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: 'visibility',
-        header: 'Visibility',
-        Cell: ({ row }) =>
-          row.original.visibility === 'private' ? (
-            <Badge variant="light">Private</Badge>
-          ) : (
-            <Badge variant="light" color="blue">
-              Company
-            </Badge>
-          ),
-      },
-      {
-        id: 'flags',
-        header: 'Flags',
-        enableSorting: false,
-        Cell: ({ row }) => (
-          <Stack gap={6}>
-            {row.original.isOverBudget ? (
-              <Badge variant="light" color="red">
-                Over budget
-              </Badge>
-            ) : null}
-            {row.original.uncodedCount > 0 ? (
-              <Badge variant="light" color="yellow">
-                Has uncoded
-              </Badge>
-            ) : null}
-            {!row.original.isOverBudget && row.original.uncodedCount === 0 ? (
-              <Badge variant="light" color="green">
-                Healthy
-              </Badge>
-            ) : null}
-          </Stack>
-        ),
-      },
-      {
         accessorKey: 'budgetCents',
         header: 'Budget',
         Cell: ({ row }) => formatCurrencyFromCents(row.original.budgetCents, row.original.currency),
@@ -244,6 +241,51 @@ export default function CompanySummaryPanel(props: {
         Cell: ({ row }) =>
           formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency),
       },
+      {
+        id: 'flags',
+        header: 'Flags',
+        enableSorting: false,
+        Cell: ({ row }) => (
+          <Stack gap={6}>
+            {row.original.isOverBudget ? (
+              <Badge variant="light" color="red">
+                Over budget
+              </Badge>
+            ) : null}
+            {row.original.uncodedCount > 0 ? (
+              <Badge variant="light" color="yellow">
+                Has uncoded
+              </Badge>
+            ) : null}
+            {!row.original.isOverBudget && row.original.uncodedCount === 0 ? (
+              <Badge variant="light" color="green">
+                Healthy
+              </Badge>
+            ) : null}
+          </Stack>
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        Cell: ({ row }) => (
+          <Badge variant="light" color={row.original.status === 'active' ? 'green' : 'gray'}>
+            {row.original.status === 'active' ? 'Active' : 'Archived'}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: 'visibility',
+        header: 'Visibility',
+        Cell: ({ row }) =>
+          row.original.visibility === 'private' ? (
+            <Badge variant="light">Private</Badge>
+          ) : (
+            <Badge variant="light" color="blue">
+              Company
+            </Badge>
+          ),
+      },
     ],
     []
   );
@@ -258,18 +300,43 @@ export default function CompanySummaryPanel(props: {
               Roll-up view across the projects you can currently access in this company.
             </Text>
           </Stack>
-          <Select
-            label="Month"
-            placeholder="All months"
-            data={monthFilterOptions}
-            value={monthFilterKey}
-            clearable
-            onChange={setMonthFilterKey}
-            style={{ width: isMobile ? '100%' : 220 }}
-          />
-          {monthFilterKey ? (
+          <SimpleGrid cols={isMobile ? 1 : 3} spacing="md">
+            <Select
+              label="Year"
+              placeholder="All years"
+              data={yearFilterOptions}
+              value={yearFilter}
+              clearable
+              onChange={(value) => {
+                setYearFilter(value);
+                setQuarterFilter(null);
+                setMonthFilterKey(null);
+              }}
+            />
+            <Select
+              label="Quarter"
+              placeholder="All quarters"
+              data={quarterFilterOptions}
+              value={quarterFilter}
+              clearable
+              onChange={(value) => {
+                setQuarterFilter((value as QuarterOption | null) ?? null);
+                setMonthFilterKey(null);
+              }}
+              disabled={!yearFilter && quarterFilterOptions.length === 0}
+            />
+            <Select
+              label="Month"
+              placeholder="All months"
+              data={monthFilterOptions}
+              value={monthFilterKey}
+              clearable
+              onChange={setMonthFilterKey}
+            />
+          </SimpleGrid>
+          {monthFilterKey || quarterFilter || yearFilter ? (
             <Text size="xs" c="dimmed">
-              Actual, remaining, and uncoded totals reflect {monthFilterKey}. Budget totals remain full project budgets.
+              Actual, remaining, and uncoded totals reflect the selected time filter. Budget totals remain full project budgets.
             </Text>
           ) : null}
         </Stack>

@@ -293,10 +293,10 @@ export default function CompanyDashboardPage() {
         </Group>
       </Group>
 
-      <Tabs defaultValue="projects" keepMounted={false}>
+      <Tabs defaultValue={canViewCompanySummary ? 'summary' : 'projects'} keepMounted={false}>
         <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
-          <Tabs.Tab value="projects">Projects</Tabs.Tab>
           {canViewCompanySummary ? <Tabs.Tab value="summary">Summary</Tabs.Tab> : null}
+          <Tabs.Tab value="projects">Projects</Tabs.Tab>
           <Tabs.Tab value="settings" disabled={!canEditCompany}>
             Settings
           </Tabs.Tab>
