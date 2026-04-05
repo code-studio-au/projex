@@ -164,6 +164,10 @@ Current state:
 
 - when the app server is restarting, nginx can surface a `502 Bad Gateway`
 - that is technically accurate, but not a good operator or user-facing experience
+- public web hardening has already been completed:
+  - browser/security headers are now owned by nginx
+  - `/api/ready` now returns a minimal body
+  - nginx no longer exposes its exact version
 
 Recommended direction:
 
