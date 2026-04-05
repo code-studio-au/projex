@@ -4,29 +4,9 @@ This backlog captures the next most useful product, admin, and operational impro
 
 It is intentionally short, opinionated, and ordered so we can pick the next job quickly.
 
-## Near-Term
-
-### 1. Refine existing-user invite behavior
-
-Current state:
-
-- company settings supports explicit re-send invite/setup emails
-- adding an existing BetterAuth user to a company also triggers the email flow
-
-Recommended refinement:
-
-- keep the current working behavior for now
-- later, separate `Add member` from `Send invite email` more explicitly if admin noise becomes a concern
-
-Why this matters:
-
-- makes admin intent clearer
-- reduces surprise for existing users
-- keeps onboarding flexible without reverting to manual recovery steps
-
 ## Product/Admin
 
-### 2. Add a full audit log with retention by event type
+### 1. Add a full audit log with retention by event type
 
 Examples:
 
@@ -66,7 +46,7 @@ Notes:
 - it needs careful schema, indexing, retention, and UI design before we build it
 - include access/privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 3. Extend self-service account/profile
+### 2. Extend self-service account/profile
 
 Examples:
 
@@ -79,29 +59,13 @@ Why this matters:
 
 ## UX Polish
 
-### 4. Polish reset/invite success states
-
-Examples:
-
-- stronger confirmation copy after forgot password
-- clearer post-reset instruction to sign in with the updated password
-- consistent wording between `invite`, `password setup`, and `reset email`
-
-Why this matters:
-
-- reduces confusion in the auth journey
-- makes the onboarding flow feel more intentional
-
-### 5. Continue small-table UX cleanup
+### 3. Continue small-table UX cleanup
 
 Examples:
 
 - keep action buttons visually consistent across striped rows
 - maintain stable editing flows in transactions
 - review any remaining dense tables for awkward wrapping or hidden actions
-- add an `Auto-mapped pending approval` filter/view in transactions
-- add an `Accept all auto-mappings` bulk action for pending auto-mapped rows
-- improve company default mapping rule help text with clearer matching guidance and examples
 
 Why this matters:
 
@@ -110,7 +74,7 @@ Why this matters:
 
 ## Infra / Operations
 
-### 6. Add a separate maintenance/monitor page for restarts
+### 4. Add a separate maintenance/monitor page for restarts
 
 Current state:
 
@@ -136,7 +100,7 @@ Why this matters:
 
 ## Nice To Have
 
-### 7. Improve multi-account testing ergonomics
+### 5. Improve multi-account testing ergonomics
 
 Examples:
 
