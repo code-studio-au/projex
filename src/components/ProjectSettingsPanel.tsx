@@ -111,6 +111,7 @@ export default function ProjectSettingsPanel(props: {
             size="xs"
             color="red"
             variant="light"
+            className="tableActionButton"
             disabled={!canEditProject}
             onClick={() => del.mutate({ userId: row.original.userId, role: row.original.role })}
           >
@@ -218,6 +219,7 @@ export default function ProjectSettingsPanel(props: {
               style={{ width: '100%', maxWidth: 220 }}
             />
             <Button
+              size="sm"
               disabled={!canEditProject || !memberUserId || !memberRole}
               onClick={async () => {
                 if (!memberUserId || !memberRole) return;
@@ -242,6 +244,9 @@ export default function ProjectSettingsPanel(props: {
             getRowId={(row) => row.key}
             mantineTableContainerProps={{ className: 'financeTable' }}
             mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+            mantineTableBodyCellProps={{
+              style: { verticalAlign: 'middle' },
+            }}
             enableColumnActions={false}
             enableColumnFilters={false}
             enableSorting

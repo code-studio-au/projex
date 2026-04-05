@@ -166,6 +166,15 @@ a {
   background: var(--button-hover) !important;
 }
 
+.financeTable .tableActionGroup {
+  align-items: center;
+}
+
+.financeTable .tableActionButton {
+  min-width: 5.5rem;
+  justify-content: center;
+}
+
 @media (max-width: 48em) {
   :root {
     --table-head-font-size: 11.5px;
@@ -314,6 +323,10 @@ a {
   vertical-align: middle;
   padding-top: 6px !important;
   padding-bottom: 6px !important;
+}
+
+.txnTable .mantine-Paper-root {
+  overflow: hidden;
 }
 
 .txnTable tbody td {

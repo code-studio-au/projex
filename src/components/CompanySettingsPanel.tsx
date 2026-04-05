@@ -171,11 +171,12 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         size: 280,
         minSize: 280,
         Cell: ({ row }) => (
-          <Group gap="xs" wrap="nowrap">
+          <Group gap="xs" wrap="wrap" className="tableActionGroup">
             {isServerAuthMode ? (
               <Button
                 size="xs"
                 variant="light"
+                className="tableActionButton"
                 disabled={!canAddCompanyUsers || sendInviteEmail.isPending}
                 onClick={async () => {
                   setInviteError(null);
@@ -201,6 +202,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               size="xs"
               color="red"
               variant="light"
+              className="tableActionButton"
               disabled={!canAddCompanyUsers || row.original.isSelf || row.original.isOnlyAdmin}
               onClick={async () => {
                 setMembershipError(null);
@@ -413,6 +415,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               style={{ width: '100%', maxWidth: 220 }}
             />
             <Button
+              size="sm"
               disabled={!effectiveRoleUserId || !membershipCompanyRole || wouldDemoteLastAdmin}
               onClick={async () => {
                 if (!effectiveRoleUserId || !membershipCompanyRole) return;
@@ -449,6 +452,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             getRowId={(row) => row.key}
             mantineTableContainerProps={{ className: 'financeTable' }}
             mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+            mantineTableBodyCellProps={{
+              style: { verticalAlign: 'middle' },
+            }}
             enableColumnActions={false}
             enableColumnFilters={false}
             enableSorting

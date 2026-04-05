@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActionIcon, Alert, Group, Menu, NumberInput, Paper, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Group, Menu, NumberInput, Paper, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import {
   MantineReactTable,
   type MRT_ColumnDef,
@@ -454,9 +454,14 @@ export default function BudgetPanel(props: {
     <Stack gap="md">
       <Paper withBorder radius="md" p="md" className="budgetSummaryCard">
         <Stack gap="xs">
-          <Text fw={700} size="sm">
-            Project totals
-          </Text>
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Text fw={700} size="sm">
+              Project totals
+            </Text>
+            <Badge variant="light" color={uncodedSummary.count > 0 ? 'yellow' : 'gray'}>
+              {uncodedSummary.count} uncoded
+            </Badge>
+          </Group>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
             <Paper withBorder radius="md" p="sm" className="budgetMetricCard budgetSummaryPrimary">
               <Stack gap={4}>
@@ -632,6 +637,9 @@ export default function BudgetPanel(props: {
         state={{ columnVisibility }}
         onColumnVisibilityChange={handleColumnVisibilityChange}
         mantineTableContainerProps={{ className: 'financeTable budgetTable' }}
+        mantineTableBodyCellProps={{
+          style: { verticalAlign: 'middle' },
+        }}
         renderToolbarInternalActions={() => (
           <Menu withinPortal position="bottom-end" shadow="md">
             <Menu.Target>

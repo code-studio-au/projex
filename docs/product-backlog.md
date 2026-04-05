@@ -57,24 +57,9 @@ Why this matters:
 
 - keeps building on the now-working account basics without mixing simple profile edits with bigger admin features
 
-## UX Polish
-
-### 3. Continue small-table UX cleanup
-
-Examples:
-
-- keep action buttons visually consistent across striped rows
-- maintain stable editing flows in transactions
-- review any remaining dense tables for awkward wrapping or hidden actions
-
-Why this matters:
-
-- these small frictions add up in a finance/admin app
-- the table-heavy workflows are core product paths
-
 ## Infra / Operations
 
-### 4. Add a separate maintenance/monitor page for restarts
+### 3. Add a separate maintenance/monitor page for restarts
 
 Current state:
 

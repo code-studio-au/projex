@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -121,6 +121,12 @@ export default function TransactionsPanel(props: {
       ),
     [txns.transactions, taxonomy.validSubIds]
   );
+
+  useEffect(() => {
+    setPagination((current) =>
+      current.pageIndex === 0 ? current : { ...current, pageIndex: 0 }
+    );
+  }, [monthFilterKey, transactionView]);
 
   function moveToSubcategoryCell(args: {
     row: Parameters<NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>>[0]['row'];
@@ -295,8 +301,9 @@ export default function TransactionsPanel(props: {
             </Badge>
             {!readOnly ? (
               <Button
-                size="compact-xs"
+                size="xs"
                 variant="subtle"
+                className="tableActionButton"
                 onClick={() => {
                   void txns.updateTxn(row.original.id, {
                     codingPendingApproval: false,
@@ -321,7 +328,13 @@ export default function TransactionsPanel(props: {
       <Paper withBorder radius="md" p="md">
         <Stack gap="sm">
           <Group justify="space-between" align="center" wrap="wrap">
-            <Title order={5}>Transaction coding</Title>
+            <Group gap="sm" align="center" wrap="wrap">
+              <Title order={5}>Transaction coding</Title>
+              <Badge variant="light">{filteredTxns.length} shown</Badge>
+              <Badge variant="light" color={autoMappedPendingTxns.length > 0 ? 'yellow' : 'gray'}>
+                {autoMappedPendingTxns.length} pending
+              </Badge>
+            </Group>
 
             <Group gap="sm" align="flex-end" wrap="wrap">
               <Select
@@ -351,6 +364,7 @@ export default function TransactionsPanel(props: {
               <Button
                 variant="light"
                 color="teal"
+                size="sm"
                 fullWidth={isMobile}
                 disabled={readOnly || autoMappedPendingTxns.length === 0}
                 onClick={() => {
@@ -365,6 +379,7 @@ export default function TransactionsPanel(props: {
               </Button>
               <Button
                 variant="light"
+                size="sm"
                 fullWidth={isMobile}
                 disabled={readOnly || !canEditTaxonomy}
                 onClick={() => setManageOpen(true)}
@@ -376,8 +391,8 @@ export default function TransactionsPanel(props: {
 
           {invalidDateCount > 0 && (
             <Text size="sm" c="dimmed">
-              ⚠️ {invalidDateCount} transaction(s) have invalid dates. They may
-              be excluded from month filters/rollups.
+              {invalidDateCount} transaction(s) have invalid dates and may be excluded from
+              month filters or rollups.
             </Text>
           )}
         </Stack>
