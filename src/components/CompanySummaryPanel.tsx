@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import {
   Badge,
   Paper,
@@ -14,12 +15,13 @@ import {
   type MRT_ColumnDef,
 } from 'mantine-react-table';
 
-import type { BudgetLine, Project, SubCategory, Txn } from '../types';
+import type { BudgetLine, CompanyId, Project, SubCategory, Txn } from '../types';
 import { useApi } from '../hooks/useApi';
 import { useQueryScopeUserId } from '../queries/scope';
 import { qk } from '../queries/keys';
 import { formatCurrencyFromCents } from '../utils/money';
 import { monthKeyFromStart, monthStart, parseISODate, sum } from '../utils/finance';
+import { projectRoute } from '../router';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
@@ -57,10 +59,11 @@ function totalsByCurrency(
 }
 
 export default function CompanySummaryPanel(props: {
+  companyId: CompanyId;
   projects: Project[];
   isMobile?: boolean;
 }) {
-  const { projects, isMobile = false } = props;
+  const { companyId, projects, isMobile = false } = props;
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   const [yearFilter, setYearFilter] = useState<string | null>(null);
@@ -213,6 +216,17 @@ export default function CompanySummaryPanel(props: {
       {
         accessorKey: 'name',
         header: 'Project',
+        Cell: ({ row }) => (
+          <Link
+            to={projectRoute.to}
+            params={{ companyId, projectId: row.original.id }}
+            style={{ textDecoration: 'none' }}
+          >
+            <Text fw={600} c="blue.7">
+              {row.original.name}
+            </Text>
+          </Link>
+        ),
       },
       {
         accessorKey: 'budgetCents',
