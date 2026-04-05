@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import {
   Badge,
   Paper,
+  Select,
   SimpleGrid,
   Stack,
   Text,
@@ -18,7 +19,7 @@ import { useApi } from '../hooks/useApi';
 import { useQueryScopeUserId } from '../queries/scope';
 import { qk } from '../queries/keys';
 import { formatCurrencyFromCents } from '../utils/money';
-import { sum } from '../utils/finance';
+import { monthKeyFromStart, monthStart, parseISODate, sum } from '../utils/finance';
 
 type ProjectSummaryRow = {
   id: Project['id'];
@@ -31,6 +32,7 @@ type ProjectSummaryRow = {
   remainingCents: number;
   uncodedCount: number;
   uncodedAmountCents: number;
+  isOverBudget: boolean;
 };
 
 function formatCurrencyGroups(groups: Map<Project['currency'], number>) {
@@ -59,6 +61,7 @@ export default function CompanySummaryPanel(props: {
   const { projects, isMobile = false } = props;
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
+  const [monthFilterKey, setMonthFilterKey] = useState<string | null>(null);
 
   const projectDataQueries = useQueries({
     queries: projects.flatMap((project) => [
@@ -79,6 +82,23 @@ export default function CompanySummaryPanel(props: {
 
   const isLoading = projectDataQueries.some((query) => query.isLoading);
 
+  const monthFilterOptions = useMemo(() => {
+    const keys = new Set<string>();
+    for (let index = 0; index < projects.length; index += 1) {
+      const transactions = (projectDataQueries[index * 3]?.data as Txn[] | undefined) ?? [];
+      for (const txn of transactions) {
+        try {
+          keys.add(monthKeyFromStart(monthStart(parseISODate(txn.date))));
+        } catch {
+          // Ignore invalid dates in the month filter options.
+        }
+      }
+    }
+    return [...keys]
+      .sort((a, b) => b.localeCompare(a))
+      .map((value) => ({ value, label: value }));
+  }, [projectDataQueries, projects.length]);
+
   const rows = useMemo<ProjectSummaryRow[]>(() => {
     return projects.map((project, index) => {
       const transactions = (projectDataQueries[index * 3]?.data as Txn[] | undefined) ?? [];
@@ -86,10 +106,18 @@ export default function CompanySummaryPanel(props: {
       const subCategories =
         (projectDataQueries[index * 3 + 2]?.data as SubCategory[] | undefined) ?? [];
       const validSubIds = new Set(subCategories.map((subCategory) => subCategory.id));
-      const codedTransactions = transactions.filter(
+      const visibleTransactions = transactions.filter((txn) => {
+        if (!monthFilterKey) return true;
+        try {
+          return monthKeyFromStart(monthStart(parseISODate(txn.date))) === monthFilterKey;
+        } catch {
+          return false;
+        }
+      });
+      const codedTransactions = visibleTransactions.filter(
         (txn) => txn.subCategoryId && validSubIds.has(txn.subCategoryId)
       );
-      const uncodedTransactions = transactions.filter(
+      const uncodedTransactions = visibleTransactions.filter(
         (txn) => !txn.subCategoryId || !validSubIds.has(txn.subCategoryId)
       );
 
@@ -112,9 +140,10 @@ export default function CompanySummaryPanel(props: {
         remainingCents: budgetCents - actualCodedCents,
         uncodedCount: uncodedTransactions.length,
         uncodedAmountCents,
+        isOverBudget: actualCodedCents > budgetCents,
       };
     });
-  }, [projectDataQueries, projects]);
+  }, [monthFilterKey, projectDataQueries, projects]);
 
   const activeRows = useMemo(
     () => rows.filter((row) => row.status === 'active'),
@@ -165,6 +194,30 @@ export default function CompanySummaryPanel(props: {
           ),
       },
       {
+        id: 'flags',
+        header: 'Flags',
+        enableSorting: false,
+        Cell: ({ row }) => (
+          <Stack gap={6}>
+            {row.original.isOverBudget ? (
+              <Badge variant="light" color="red">
+                Over budget
+              </Badge>
+            ) : null}
+            {row.original.uncodedCount > 0 ? (
+              <Badge variant="light" color="yellow">
+                Has uncoded
+              </Badge>
+            ) : null}
+            {!row.original.isOverBudget && row.original.uncodedCount === 0 ? (
+              <Badge variant="light" color="green">
+                Healthy
+              </Badge>
+            ) : null}
+          </Stack>
+        ),
+      },
+      {
         accessorKey: 'budgetCents',
         header: 'Budget',
         Cell: ({ row }) => formatCurrencyFromCents(row.original.budgetCents, row.original.currency),
@@ -198,11 +251,27 @@ export default function CompanySummaryPanel(props: {
   return (
     <Stack gap="md">
       <Paper withBorder radius="lg" p="lg">
-        <Stack gap="xs">
-          <Title order={5}>Company summary</Title>
-          <Text size="sm" c="dimmed">
-            Roll-up view across the projects you can currently access in this company.
-          </Text>
+        <Stack gap="md">
+          <Stack gap="xs">
+            <Title order={5}>Company summary</Title>
+            <Text size="sm" c="dimmed">
+              Roll-up view across the projects you can currently access in this company.
+            </Text>
+          </Stack>
+          <Select
+            label="Month"
+            placeholder="All months"
+            data={monthFilterOptions}
+            value={monthFilterKey}
+            clearable
+            onChange={setMonthFilterKey}
+            style={{ width: isMobile ? '100%' : 220 }}
+          />
+          {monthFilterKey ? (
+            <Text size="xs" c="dimmed">
+              Actual, remaining, and uncoded totals reflect {monthFilterKey}. Budget totals remain full project budgets.
+            </Text>
+          ) : null}
         </Stack>
       </Paper>
 
