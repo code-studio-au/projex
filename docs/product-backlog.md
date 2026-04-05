@@ -77,57 +77,9 @@ Why this matters:
 
 - keeps building on the now-working account basics without mixing simple profile edits with bigger admin features
 
-### 4. Continue refining superadmin support access
-
-Current state:
-
-- project-level `Allow superadmin access` exists and defaults on
-- initial company admin assignment during company creation exists
-
-Recommended next direction:
-
-- later switch the default support-access toggle to `off` when customer privacy becomes the higher priority
-- keep tightening any remaining places where support access should be explicit and unsurprising
-- add audit coverage for support-access changes when the audit system is built
-
-Why this matters:
-
-- preserves practical support access while the product is still maturing
-- creates a clear path toward explicit customer consent for project-level troubleshooting visibility
-
-## Testing
-
-### 5. Continue evolving system-check coverage
-
-Suggested areas:
-
-- keep improving section-level retries and resilience to rate limits
-- add coverage for any newly added account/admin workflows
-- keep CLI and admin UI system checks aligned so they do not drift
-
-Why this matters:
-
-- the smoke/system-check tooling is now a real operational tool
-- it will keep paying off as more account/admin workflows are added
-
-### 6. Continue evolving invite and email-flow checks
-
-Suggested areas:
-
-- invite user
-- resend invite
-- password reset
-- verified email change
-- cancellation / resend paths for pending email change
-
-Why this matters:
-
-- protects the most fragile auth and onboarding paths
-- helps catch env/config regressions around Resend and BetterAuth
-
 ## UX Polish
 
-### 7. Polish reset/invite success states
+### 4. Polish reset/invite success states
 
 Examples:
 
@@ -140,7 +92,7 @@ Why this matters:
 - reduces confusion in the auth journey
 - makes the onboarding flow feel more intentional
 
-### 8. Continue small-table UX cleanup
+### 5. Continue small-table UX cleanup
 
 Examples:
 
@@ -158,7 +110,7 @@ Why this matters:
 
 ## Infra / Operations
 
-### 9. Add a separate maintenance/monitor page for restarts
+### 6. Add a separate maintenance/monitor page for restarts
 
 Current state:
 
@@ -184,7 +136,7 @@ Why this matters:
 
 ## Nice To Have
 
-### 10. Improve multi-account testing ergonomics
+### 7. Improve multi-account testing ergonomics
 
 Examples:
 
