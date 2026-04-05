@@ -319,70 +319,68 @@ export default function TransactionsPanel(props: {
   return (
     <Stack gap="md">
       <Paper withBorder radius="md" p="md">
-        <Group justify="space-between" align="flex-end" wrap="wrap">
-          <Stack gap={4}>
+        <Stack gap="sm">
+          <Group justify="space-between" align="center" wrap="wrap">
             <Title order={5}>Transaction coding</Title>
-            <Text size="sm" c="dimmed">
-              Filter transactions, review pending auto-mappings, and assign category + subcategory.
-            </Text>
-            {invalidDateCount > 0 && (
-              <Text size="sm" c="dimmed">
-                ⚠️ {invalidDateCount} transaction(s) have invalid dates. They
-                may be excluded from month filters/rollups.
-              </Text>
-            )}
-          </Stack>
 
-          <Group gap="sm" align="flex-end" wrap="wrap">
-            <Select
-              label="Month"
-              placeholder="All months"
-              data={monthFilterOptions}
-              value={monthFilterKey}
-              clearable
-              onChange={setMonthFilterKey}
-              style={{ width: isMobile ? '100%' : 180 }}
-            />
-            <Select
-              label="View"
-              data={[
-                { value: 'all', label: 'All' },
-                { value: 'uncoded', label: 'Uncoded only' },
-                { value: 'auto-mapped-pending', label: 'Auto-mapped pending approval' },
-              ]}
-              value={transactionView}
-              onChange={(v) =>
-                setTransactionView(
-                  v === 'uncoded' || v === 'auto-mapped-pending' ? v : 'all'
-                )
-              }
-              style={{ width: isMobile ? '100%' : 250 }}
-            />
-            <Button
-              variant="light"
-              color="teal"
-              fullWidth={isMobile}
-              disabled={readOnly || autoMappedPendingTxns.length === 0}
-              onClick={() => {
-                void Promise.all(
-                  autoMappedPendingTxns.map((txn) =>
-                    txns.updateTxn(txn.id, { codingPendingApproval: false })
+            <Group gap="sm" align="flex-end" wrap="wrap">
+              <Select
+                label="Month"
+                placeholder="All months"
+                data={monthFilterOptions}
+                value={monthFilterKey}
+                clearable
+                onChange={setMonthFilterKey}
+                style={{ width: isMobile ? '100%' : 180 }}
+              />
+              <Select
+                label="View"
+                data={[
+                  { value: 'all', label: 'All' },
+                  { value: 'uncoded', label: 'Uncoded only' },
+                  { value: 'auto-mapped-pending', label: 'Auto-mapped pending approval' },
+                ]}
+                value={transactionView}
+                onChange={(v) =>
+                  setTransactionView(
+                    v === 'uncoded' || v === 'auto-mapped-pending' ? v : 'all'
                   )
-                );
-              }}
-            >
-              Accept all auto-mappings ({autoMappedPendingTxns.length})
-            </Button>
-            <Button
-              variant="light"
-              fullWidth={isMobile}
-              disabled={readOnly || !canEditTaxonomy}
-              onClick={() => setManageOpen(true)}
-            >
-              Manage categories
-            </Button>
+                }
+                style={{ width: isMobile ? '100%' : 250 }}
+              />
+              <Button
+                variant="light"
+                color="teal"
+                fullWidth={isMobile}
+                disabled={readOnly || autoMappedPendingTxns.length === 0}
+                onClick={() => {
+                  void Promise.all(
+                    autoMappedPendingTxns.map((txn) =>
+                      txns.updateTxn(txn.id, { codingPendingApproval: false })
+                    )
+                  );
+                }}
+              >
+                Accept all auto-mappings ({autoMappedPendingTxns.length})
+              </Button>
+              <Button
+                variant="light"
+                fullWidth={isMobile}
+                disabled={readOnly || !canEditTaxonomy}
+                onClick={() => setManageOpen(true)}
+              >
+                Manage categories
+              </Button>
+            </Group>
           </Group>
-        </Group>
+
+          {invalidDateCount > 0 && (
+            <Text size="sm" c="dimmed">
+              ⚠️ {invalidDateCount} transaction(s) have invalid dates. They may
+              be excluded from month filters/rollups.
+            </Text>
+          )}
+        </Stack>
       </Paper>
 
       <MantineReactTable

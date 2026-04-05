@@ -308,12 +308,7 @@ export default function CompanySummaryPanel(props: {
     <Stack gap="md">
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="md">
-          <Stack gap="xs">
-            <Title order={5}>Company summary</Title>
-            <Text size="sm" c="dimmed">
-              Roll-up view across the projects you can currently access in this company.
-            </Text>
-          </Stack>
+          <Title order={5}>Company summary</Title>
           <SimpleGrid cols={isMobile ? 1 : 3} spacing="md">
             <Select
               label="Year"

@@ -21,7 +21,7 @@ import { asUserId } from '../types';
 
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { getCompanyUsers } from '../store/access';
-import { useUsersQuery, useCompanyQuery } from '../queries/reference';
+import { useUsersQuery } from '../queries/reference';
 import {
   useCompanyMembershipsQuery,
   useDeleteCompanyMembershipMutation,
@@ -45,7 +45,6 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const isMobile = useMediaQuery('(max-width: 48em)');
 
   const access = useCompanyAccess(companyId);
-  const company = useCompanyQuery(companyId);
   const usersQ = useUsersQuery();
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
 
@@ -225,13 +224,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between" align="flex-end" wrap="wrap">
-        <Stack gap={2}>
-          <Title order={4}>Company settings</Title>
-          <Text size="sm" c="dimmed">
-            {company.data?.name ?? companyId} • Manage projects, users, and project roles
-          </Text>
-        </Stack>
+      <Group justify="space-between" align="center" wrap="wrap">
+        <Title order={4}>Company settings</Title>
         {highestRoleBadge}
       </Group>
 
