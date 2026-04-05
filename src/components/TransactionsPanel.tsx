@@ -371,7 +371,7 @@ export default function TransactionsPanel(props: {
                 );
               }}
             >
-              Accept all auto-mappings
+              Accept all auto-mappings ({autoMappedPendingTxns.length})
             </Button>
             <Button
               variant="light"

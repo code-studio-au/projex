@@ -112,6 +112,9 @@ export default function CompanyDefaultMappingsModal(props: {
             <Text size="sm" c="dimmed" className="panelHelperText">
               Rules search imported transaction item and description text. The first matching rule wins and auto-codes the row if the project already contains the mapped company defaults.
             </Text>
+            <Text size="xs" fw={600} c="dimmed" className="panelHelperText">
+              Rules are checked from top to bottom. The top rule wins first.
+            </Text>
             <Text size="xs" c="dimmed" className="panelHelperText">
               Example matches: <strong>uber</strong>, <strong>airport taxi</strong>, <strong>officeworks</strong>, <strong>flight</strong>.
             </Text>
@@ -361,6 +364,9 @@ export default function CompanyDefaultMappingsModal(props: {
                 </Paper>
               );
             })}
+            <Text size="xs" c="dimmed" className="panelHelperText">
+              Priority runs from top to bottom. Move broader matches lower so specific rules win first.
+            </Text>
           </Stack>
         )}
       </Stack>
