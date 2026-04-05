@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Badge, Group, Paper, Stack, Tabs, Title } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, ProjectId } from '../types';
@@ -76,19 +76,14 @@ export default function ProjectWorkspace(props: {
   return (
     <Stack gap="lg">
       <Paper withBorder p={isMobile ? 'md' : 'lg'} radius="lg">
-        <Group justify="space-between" align="flex-end" wrap="wrap">
-          <Stack gap={2}>
-            {headerReady ? (
-              <Title order={3}>
-                {company.data?.name} • {project.data?.name}
-              </Title>
-            ) : (
-              <LoadingLine width={320} height={30} radius="md" />
-            )}
-            <Text c="dimmed" size="sm">
-              Operational workspace for coding, budgeting, imports, and project controls.
-            </Text>
-          </Stack>
+        <Group justify="space-between" align="center" wrap="wrap">
+          {headerReady ? (
+            <Title order={3}>
+              {company.data?.name} • {project.data?.name}
+            </Title>
+          ) : (
+            <LoadingLine width={320} height={30} radius="md" />
+          )}
 
           <Group gap="sm" wrap="wrap">
             {headerReady && project.data?.allowSuperadminAccess ? (

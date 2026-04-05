@@ -227,11 +227,8 @@ export default function LandingPage() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-end" wrap="wrap">
-        <Stack gap={2}>
-          <Title order={2}>Companies</Title>
-          <Text c="dimmed">Choose a workspace, manage company lifecycle, and jump straight into delivery.</Text>
-        </Stack>
+      <Group justify="space-between" align="center" wrap="wrap">
+        <Title order={2}>Companies</Title>
         {isSuperadmin ? (
           <>
             <Button variant="filled" onClick={() => setNewCompanyOpen(true)}>

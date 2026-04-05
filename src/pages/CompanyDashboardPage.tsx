@@ -234,15 +234,12 @@ export default function CompanyDashboardPage() {
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between" align="flex-end" wrap="wrap">
-        <Stack gap={2}>
-          {companyQ.isLoading ? (
-            <LoadingLine width={220} height={34} radius="md" />
-          ) : (
-            <Title order={2}>{companyQ.data?.name}</Title>
-          )}
-          <Text c="dimmed">Projects, access, and company settings.</Text>
-        </Stack>
+      <Group justify="space-between" align="center" wrap="wrap">
+        {companyQ.isLoading ? (
+          <LoadingLine width={220} height={34} radius="md" />
+        ) : (
+          <Title order={2}>{companyQ.data?.name}</Title>
+        )}
         <Group gap="sm" wrap="wrap">
           {canAddProjects && (
             <>
