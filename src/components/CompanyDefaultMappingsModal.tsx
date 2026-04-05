@@ -13,7 +13,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from '@tabler/icons-react';
 
 import type {
   CompanyDefaultCategoryId,
@@ -70,6 +70,28 @@ export default function CompanyDefaultMappingsModal(props: {
         .map((subCategory) => ({ value: subCategory.id, label: subCategory.name })),
     [newCategoryId, subCategories]
   );
+
+  async function moveRule(ruleId: string, direction: -1 | 1) {
+    const currentIndex = rules.findIndex((rule) => rule.id === ruleId);
+    if (currentIndex < 0) return;
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= rules.length) return;
+
+    const currentRule = rules[currentIndex];
+    const targetRule = rules[targetIndex];
+
+    try {
+      setError(null);
+      setSuccess(null);
+      await updateRule.mutateAsync({ id: currentRule.id, sortOrder: targetRule.sortOrder });
+      await updateRule.mutateAsync({ id: targetRule.id, sortOrder: currentRule.sortOrder });
+      setSuccess(
+        direction < 0 ? 'Moved mapping rule up.' : 'Moved mapping rule down.'
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reorder company default mapping.');
+    }
+  }
 
   return (
     <Modal
@@ -197,45 +219,67 @@ export default function CompanyDefaultMappingsModal(props: {
                   <Stack gap="sm">
                     <Group justify="space-between" align="center">
                       <Badge variant="light">Rule {index + 1}</Badge>
-                      {isMobile ? (
-                        <Button
-                          color="red"
-                          variant="light"
-                          leftSection={<IconTrash size={16} />}
-                          disabled={readOnly}
-                          onClick={async () => {
-                            try {
-                              setError(null);
-                              setSuccess(null);
-                              await deleteRule.mutateAsync(rule.id);
-                              setSuccess('Deleted company default mapping.');
-                            } catch (err) {
-                              setError(err instanceof Error ? err.message : 'Could not delete company default mapping.');
-                            }
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      ) : (
+                      <Group gap="xs">
                         <ActionIcon
-                          color="red"
                           variant="subtle"
-                          title="Delete mapping"
-                          disabled={readOnly}
-                          onClick={async () => {
-                            try {
-                              setError(null);
-                              setSuccess(null);
-                              await deleteRule.mutateAsync(rule.id);
-                              setSuccess('Deleted company default mapping.');
-                            } catch (err) {
-                              setError(err instanceof Error ? err.message : 'Could not delete company default mapping.');
-                            }
+                          title="Move rule up"
+                          disabled={readOnly || index === 0}
+                          onClick={() => {
+                            void moveRule(rule.id, -1);
                           }}
                         >
-                          <IconTrash size={16} />
+                          <IconArrowUp size={16} />
                         </ActionIcon>
-                      )}
+                        <ActionIcon
+                          variant="subtle"
+                          title="Move rule down"
+                          disabled={readOnly || index === rules.length - 1}
+                          onClick={() => {
+                            void moveRule(rule.id, 1);
+                          }}
+                        >
+                          <IconArrowDown size={16} />
+                        </ActionIcon>
+                        {isMobile ? (
+                          <Button
+                            color="red"
+                            variant="light"
+                            leftSection={<IconTrash size={16} />}
+                            disabled={readOnly}
+                            onClick={async () => {
+                              try {
+                                setError(null);
+                                setSuccess(null);
+                                await deleteRule.mutateAsync(rule.id);
+                                setSuccess('Deleted company default mapping.');
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : 'Could not delete company default mapping.');
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        ) : (
+                          <ActionIcon
+                            color="red"
+                            variant="subtle"
+                            title="Delete mapping"
+                            disabled={readOnly}
+                            onClick={async () => {
+                              try {
+                                setError(null);
+                                setSuccess(null);
+                                await deleteRule.mutateAsync(rule.id);
+                                setSuccess('Deleted company default mapping.');
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : 'Could not delete company default mapping.');
+                              }
+                            }}
+                          >
+                            <IconTrash size={16} />
+                          </ActionIcon>
+                        )}
+                      </Group>
                     </Group>
 
                     <TextInput
