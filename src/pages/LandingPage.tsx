@@ -306,8 +306,8 @@ export default function LandingPage() {
                           ]);
                           setNewCompanyStatus(
                             result.onboardingEmailSent
-                              ? `${company.name} was created and ${result.user.email} was invited as the initial admin.`
-                              : `${company.name} was created and ${result.user.email} was added as the initial admin.`
+                              ? `${company.name} was created and ${result.user.email} was invited as the initial admin. A password setup email is on its way.`
+                              : `${company.name} was created and ${result.user.email} was added as the initial admin. You can send their password setup email later from company settings if needed.`
                           );
                         } else {
                           setNewCompanyStatus(`${company.name} was created.`);

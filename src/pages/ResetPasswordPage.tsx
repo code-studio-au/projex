@@ -68,7 +68,9 @@ export default function ResetPasswordPage() {
         setError(body?.message ?? 'Could not set your password.');
         return;
       }
-      setSuccess('Password set. Return to sign in with your updated credentials.');
+      setSuccess(
+        'Your password has been set. Return to sign in with your updated credentials.'
+      );
       setPassword('');
       setConfirmPassword('');
     } catch (err) {
@@ -89,7 +91,7 @@ export default function ResetPasswordPage() {
           {searchError ? (
             <Alert color="red">
               {searchError === 'INVALID_TOKEN'
-                ? 'This password setup link is invalid or has expired.'
+                ? 'This password setup email is no longer valid. Request a fresh invite or password reset email and use the newest link.'
                 : searchError}
             </Alert>
           ) : null}

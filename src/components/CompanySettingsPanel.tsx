@@ -182,17 +182,17 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                     const result = await sendInviteEmail.mutateAsync(row.original.userId);
                     setInviteStatus(
                       result.onboardingDelivery === 'email'
-                        ? `${result.user.email} was sent a password setup email.`
-                        : `${result.user.email} was sent a password setup email request, but delivery is not configured so the link was logged on the server.`
+                        ? `Password setup email sent to ${result.user.email}. Ask them to check spam or junk if it does not arrive soon, and to use the newest email if more than one was sent.`
+                        : `Password setup email requested for ${result.user.email}. Email delivery is not configured, so the newest setup link was logged on the server instead.`
                     );
                   } catch (err) {
                     setInviteError(
-                      err instanceof Error ? err.message : 'Could not send invite email.'
+                      err instanceof Error ? err.message : 'Could not send password setup email.'
                     );
                   }
                 }}
               >
-                Send invite
+                Resend invite
               </Button>
             ) : null}
             <Button
@@ -285,12 +285,14 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                   if (result.onboardingEmailSent) {
                     setInviteStatus(
                       result.onboardingDelivery === 'email'
-                        ? `${result.user.email} was invited and sent a password setup email.`
+                        ? `${result.user.email} was invited and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
                         : `${result.user.email} was invited. Email delivery is not configured, so the password setup link was logged on the server.`
                     );
                     return;
                   }
-                  setInviteStatus(`${result.user.email} was added to the company.`);
+                  setInviteStatus(
+                    `${result.user.email} was added to the company. You can resend their password setup email later from the member list if needed.`
+                  );
                 } catch (err) {
                   setInviteError(err instanceof Error ? err.message : 'Could not invite user.');
                 }
@@ -300,7 +302,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             </Button>
             <Text size="xs" c="dimmed">
               {isServerAuthMode
-                ? 'New users get a BetterAuth account, are linked to this company, and receive a password setup link. Existing users can also be re-sent an invite from the member list.'
+                ? 'New users get a BetterAuth account, are linked to this company, and receive a password setup email. Existing users can also be sent the newest setup email again from the member list.'
                 : 'Users created here belong only to this company.'}
             </Text>
           </Stack>
