@@ -5,15 +5,13 @@ export const Route = createFileRoute('/api/auth/$')({
     handlers: {
       GET: async ({ request }) => {
         const { getBetterAuthInstance } = await import('../server/auth/betterAuthInstance');
-        const { withSecurityHeaders } = await import('../server/http/security');
         const auth = getBetterAuthInstance();
-        return withSecurityHeaders(request, await auth.handler(request));
+        return auth.handler(request);
       },
       POST: async ({ request }) => {
         const { getBetterAuthInstance } = await import('../server/auth/betterAuthInstance');
-        const { withSecurityHeaders } = await import('../server/http/security');
         const auth = getBetterAuthInstance();
-        return withSecurityHeaders(request, await auth.handler(request));
+        return auth.handler(request);
       },
     },
   },

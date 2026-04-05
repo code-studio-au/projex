@@ -15,9 +15,7 @@ export async function withApi(
   request: Request,
   run: (api: ProjexApi) => Promise<unknown>
 ): Promise<Response> {
-  const { buildCorsHeaders, isOriginAllowed, withSecurityHeaders } = await import(
-    '../server/http/security'
-  );
+  const { buildCorsHeaders, isOriginAllowed } = await import('../server/http/security');
   const requestId =
     request.headers.get('x-request-id') ??
     (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -31,10 +29,7 @@ export async function withApi(
   if (request.method === 'OPTIONS') {
     const headers = buildCorsHeaders(origin, requestOrigin);
     headers.set('x-request-id', requestId);
-    return withSecurityHeaders(request, new Response(null, { status: 204, headers }), {
-      origin,
-      requestOrigin,
-    });
+    return new Response(null, { status: 204, headers });
   }
 
   if (!isOriginAllowed(origin, requestOrigin)) {
@@ -57,29 +52,23 @@ export async function withApi(
         reason: 'origin_not_allowed',
       })
     );
-    return withSecurityHeaders(
-      request,
-      new Response(forbidden.body, {
-        status: forbidden.status,
-        statusText: forbidden.statusText,
-        headers,
-      }),
-      { origin, requestOrigin }
-    );
+    for (const [k, v] of buildCorsHeaders(origin, requestOrigin).entries()) headers.set(k, v);
+    return new Response(forbidden.body, {
+      status: forbidden.status,
+      statusText: forbidden.statusText,
+      headers,
+    });
   }
 
   const withRequestId = (res: Response): Response => {
     const headers = new Headers(res.headers);
     headers.set('x-request-id', requestId);
-    return withSecurityHeaders(
-      request,
-      new Response(res.body, {
-        status: res.status,
-        statusText: res.statusText,
-        headers,
-      }),
-      { origin, requestOrigin }
-    );
+    for (const [k, v] of buildCorsHeaders(origin, requestOrigin).entries()) headers.set(k, v);
+    return new Response(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers,
+    });
   };
 
   try {

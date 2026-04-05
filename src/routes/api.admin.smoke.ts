@@ -25,29 +25,22 @@ export const Route = createFileRoute('/api/admin/smoke')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { withSecurityHeaders } = await import('../server/http/security');
         const body = await request.json().catch(() => null);
         const sectionId =
           body && typeof body === 'object' ? (body as { sectionId?: unknown }).sectionId : null;
         if (!isSmokeSectionId(sectionId)) {
-          return withSecurityHeaders(
-            request,
-            Response.json(
-              { code: 'VALIDATION_ERROR', message: 'Unknown smoke section' },
-              { status: 422 }
-            )
+          return Response.json(
+            { code: 'VALIDATION_ERROR', message: 'Unknown smoke section' },
+            { status: 422 }
           );
         }
 
         const api = await createStartServerApi({ request });
         const session = await api.getSession();
         if (!session?.userId) {
-          return withSecurityHeaders(
-            request,
-            Response.json(
-              { code: 'UNAUTHENTICATED', message: 'Not authenticated' },
-              { status: 401 }
-            )
+          return Response.json(
+            { code: 'UNAUTHENTICATED', message: 'Not authenticated' },
+            { status: 401 }
           );
         }
 
@@ -56,12 +49,9 @@ export const Route = createFileRoute('/api/admin/smoke')({
           (membership) => membership.userId === session.userId && membership.role === 'superadmin'
         );
         if (!isSuperadmin) {
-          return withSecurityHeaders(
-            request,
-            Response.json(
-              { code: 'FORBIDDEN', message: 'Superadmin access required' },
-              { status: 403 }
-            )
+          return Response.json(
+            { code: 'FORBIDDEN', message: 'Superadmin access required' },
+            { status: 403 }
           );
         }
 
@@ -126,17 +116,14 @@ export const Route = createFileRoute('/api/admin/smoke')({
           },
         });
 
-        return withSecurityHeaders(
-          request,
-          new Response(stream, {
-            status: 200,
-            headers: {
-              'content-type': 'application/x-ndjson; charset=utf-8',
-              'cache-control': 'no-store',
-              'x-smoke-section': sectionId,
-            },
-          })
-        );
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            'content-type': 'application/x-ndjson; charset=utf-8',
+            'cache-control': 'no-store',
+            'x-smoke-section': sectionId,
+          },
+        });
       },
     },
   },
