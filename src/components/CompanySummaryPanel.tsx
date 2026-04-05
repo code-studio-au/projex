@@ -216,6 +216,7 @@ export default function CompanySummaryPanel(props: {
       {
         accessorKey: 'name',
         header: 'Project',
+        size: 180,
         Cell: ({ row }) => (
           <Link
             to={projectRoute.to}
@@ -231,33 +232,39 @@ export default function CompanySummaryPanel(props: {
       {
         accessorKey: 'budgetCents',
         header: 'Budget',
+        size: 110,
         Cell: ({ row }) => formatCurrencyFromCents(row.original.budgetCents, row.original.currency),
       },
       {
         accessorKey: 'actualCodedCents',
         header: 'Actual',
+        size: 110,
         Cell: ({ row }) =>
           formatCurrencyFromCents(row.original.actualCodedCents, row.original.currency),
       },
       {
         accessorKey: 'remainingCents',
         header: 'Remaining',
+        size: 120,
         Cell: ({ row }) =>
           formatCurrencyFromCents(row.original.remainingCents, row.original.currency),
       },
       {
         accessorKey: 'uncodedCount',
-        header: 'Uncoded Txns',
+        header: 'Uncoded',
+        size: 84,
       },
       {
         accessorKey: 'uncodedAmountCents',
-        header: 'Uncoded Amount',
+        header: 'Uncoded Amt',
+        size: 120,
         Cell: ({ row }) =>
           formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency),
       },
       {
         id: 'flags',
         header: 'Flags',
+        size: 116,
         enableSorting: false,
         Cell: ({ row }) => (
           <Stack gap={6}>
@@ -282,6 +289,7 @@ export default function CompanySummaryPanel(props: {
       {
         accessorKey: 'status',
         header: 'Status',
+        size: 96,
         Cell: ({ row }) => (
           <Badge variant="light" color={row.original.status === 'active' ? 'green' : 'gray'}>
             {row.original.status === 'active' ? 'Active' : 'Archived'}
@@ -290,7 +298,8 @@ export default function CompanySummaryPanel(props: {
       },
       {
         accessorKey: 'visibility',
-        header: 'Visibility',
+        header: 'Visible',
+        size: 90,
         Cell: ({ row }) =>
           row.original.visibility === 'private' ? (
             <Badge variant="light">Private</Badge>
@@ -407,7 +416,7 @@ export default function CompanySummaryPanel(props: {
           columns={columns}
           data={rows}
           getRowId={(row) => row.id}
-          mantineTableContainerProps={{ className: 'financeTable' }}
+          mantineTableContainerProps={{ className: 'financeTable companySummaryTable' }}
           enableColumnActions={false}
           enableColumnFilters={false}
           enableDensityToggle={false}
@@ -418,9 +427,17 @@ export default function CompanySummaryPanel(props: {
           state={{ isLoading }}
           initialState={{
             density: 'xs',
-            pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+            pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 7 },
           }}
-          mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+          mantineTableProps={{
+            highlightOnHover: true,
+            striped: 'odd',
+            withTableBorder: true,
+            style: { tableLayout: 'fixed' },
+          }}
+          mantineTableBodyCellProps={{
+            style: { verticalAlign: 'middle' },
+          }}
         />
       ) : (
         <Paper withBorder radius="lg" p="lg">

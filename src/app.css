@@ -329,6 +329,26 @@ a {
   overflow: hidden;
 }
 
+/* ===== Company summary table tweaks ===== */
+
+.companySummaryTable table {
+  table-layout: fixed !important;
+}
+
+.companySummaryTable thead th,
+.companySummaryTable tbody td {
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+
+.companySummaryTable .mantine-Badge-root {
+  max-width: 100%;
+}
+
+.companySummaryTable .mantine-Text-root {
+  line-height: 1.25;
+}
+
 .txnTable tbody td {
   background: rgba(255, 255, 255, 0.96);
 }

@@ -237,6 +237,63 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         <Paper withBorder radius="lg" p="lg">
           <Stack gap="sm">
             <Group justify="space-between">
+              <Title order={5}>Company default categories</Title>
+              <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
+                {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
+              </Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Define company-wide default categories and subcategories that can be safely added into projects later.
+            </Text>
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">{(defaultCategoriesQ.data ?? []).length} categories</Badge>
+              <Badge variant="light">{(defaultSubCategoriesQ.data ?? []).length} subcategories</Badge>
+            </Group>
+            <Button
+              variant="light"
+              disabled={!canEditCompanyDefaults}
+              onClick={() => setDefaultsModalOpen(true)}
+            >
+              Manage company defaults
+            </Button>
+            <Text size="xs" c="dimmed">
+              Applying company defaults to a project only adds missing categories and subcategories. Existing project taxonomy is left unchanged.
+            </Text>
+          </Stack>
+        </Paper>
+
+        <Paper withBorder radius="lg" p="lg">
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Title order={5}>Company default mappings</Title>
+              <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
+                {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
+              </Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Match imported transaction text to company default taxonomy so uncoded imports can be auto-coded in projects that already contain those defaults.
+            </Text>
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">{(defaultMappingRulesQ.data ?? []).length} mapping rules</Badge>
+            </Group>
+            <Button
+              variant="light"
+              disabled={!canEditCompanyDefaults}
+              onClick={() => setMappingsModalOpen(true)}
+            >
+              Manage default mappings
+            </Button>
+            <Text size="xs" c="dimmed">
+              The first matching rule wins. Rules search transaction item and description text, support simple singular/plural matches, and mark auto-coded rows for approval in the transaction list.
+            </Text>
+          </Stack>
+        </Paper>
+      </SimpleGrid>
+
+      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+        <Paper withBorder radius="lg" p="lg">
+          <Stack gap="sm">
+            <Group justify="space-between">
               <Title order={5}>{isServerAuthMode ? 'Add member' : 'Add user (company)'}</Title>
               <Badge variant="light" color={canAddCompanyUsers ? 'gray' : 'red'}>
                 {canAddCompanyUsers ? 'Ready' : 'Not allowed'}
@@ -334,137 +391,82 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
         <Paper withBorder radius="lg" p="lg">
           <Stack gap="sm">
-            <Group justify="space-between">
-              <Title order={5}>Company default categories</Title>
-              <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
-                {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
-              </Badge>
+            <Title order={5}>Company roles</Title>
+            {membershipError ? <Alert color="red">{membershipError}</Alert> : null}
+            {membershipStatus ? <Alert color="green">{membershipStatus}</Alert> : null}
+            <Group align="flex-end" wrap="wrap">
+              <Select
+                label="User"
+                data={userOptions}
+                value={effectiveRoleUserId}
+                onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
+                searchable
+                style={{ width: '100%', maxWidth: 420 }}
+              />
+              <Select
+                label="Company role"
+                data={[
+                  { value: 'member', label: 'member' },
+                  { value: 'management', label: 'management' },
+                  { value: 'executive', label: 'executive' },
+                  { value: 'admin', label: 'admin' },
+                ]}
+                value={membershipCompanyRole}
+                onChange={(v) => setMembershipCompanyRole(toCompanyRole(v))}
+                style={{ width: '100%', maxWidth: 220 }}
+              />
+              <Button
+                size="sm"
+                disabled={!effectiveRoleUserId || !membershipCompanyRole || wouldDemoteLastAdmin}
+                onClick={async () => {
+                  if (!effectiveRoleUserId || !membershipCompanyRole) return;
+                  setMembershipError(null);
+                  setMembershipStatus(null);
+                  try {
+                    await upsertCompanyMembership.mutateAsync({
+                      userId: effectiveRoleUserId,
+                      role: membershipCompanyRole,
+                    });
+                    setMembershipStatus('Company role updated.');
+                  } catch (err) {
+                    setMembershipError(
+                      err instanceof Error ? err.message : 'Could not update company role.'
+                    );
+                  }
+                }}
+              >
+                Set
+              </Button>
             </Group>
+            {wouldDemoteLastAdmin ? (
+              <Alert color="yellow">
+                This company must retain at least one admin. Assign another admin before changing this role.
+              </Alert>
+            ) : null}
+            <Divider />
             <Text size="sm" c="dimmed">
-              Define company-wide default categories and subcategories that can be safely added into projects later.
+              Update a teammate’s company role or remove them from the company entirely.
             </Text>
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">{(defaultCategoriesQ.data ?? []).length} categories</Badge>
-              <Badge variant="light">{(defaultSubCategoriesQ.data ?? []).length} subcategories</Badge>
-            </Group>
-            <Button
-              variant="light"
-              disabled={!canEditCompanyDefaults}
-              onClick={() => setDefaultsModalOpen(true)}
-            >
-              Manage company defaults
-            </Button>
-            <Text size="xs" c="dimmed">
-              Applying company defaults to a project only adds missing categories and subcategories. Existing project taxonomy is left unchanged.
-            </Text>
-          </Stack>
-        </Paper>
-
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Title order={5}>Company default mappings</Title>
-              <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
-                {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
-              </Badge>
-            </Group>
-            <Text size="sm" c="dimmed">
-              Match imported transaction text to company default taxonomy so uncoded imports can be auto-coded in projects that already contain those defaults.
-            </Text>
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">{(defaultMappingRulesQ.data ?? []).length} mapping rules</Badge>
-            </Group>
-            <Button
-              variant="light"
-              disabled={!canEditCompanyDefaults}
-              onClick={() => setMappingsModalOpen(true)}
-            >
-              Manage default mappings
-            </Button>
-            <Text size="xs" c="dimmed">
-              The first matching rule wins. Rules search transaction item and description text, support simple singular/plural matches, and mark auto-coded rows for approval in the transaction list.
-            </Text>
+            <MantineReactTable
+              columns={membershipColumns}
+              data={membershipRows}
+              getRowId={(row) => row.key}
+              mantineTableContainerProps={{ className: 'financeTable' }}
+              mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+              mantineTableBodyCellProps={{
+                style: { verticalAlign: 'middle' },
+              }}
+              enableColumnActions={false}
+              enableColumnFilters={false}
+              enableSorting
+              enableTopToolbar={false}
+              enableDensityToggle={false}
+              enableFullScreenToggle={false}
+              initialState={{ density: 'xs', pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 } }}
+            />
           </Stack>
         </Paper>
       </SimpleGrid>
-
-      <Paper withBorder radius="lg" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Company roles</Title>
-          {membershipError ? <Alert color="red">{membershipError}</Alert> : null}
-          {membershipStatus ? <Alert color="green">{membershipStatus}</Alert> : null}
-          <Group align="flex-end" wrap="wrap">
-            <Select
-              label="User"
-              data={userOptions}
-              value={effectiveRoleUserId}
-              onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
-              searchable
-              style={{ width: '100%', maxWidth: 420 }}
-            />
-            <Select
-              label="Company role"
-              data={[
-                { value: 'member', label: 'member' },
-                { value: 'management', label: 'management' },
-                { value: 'executive', label: 'executive' },
-                { value: 'admin', label: 'admin' },
-              ]}
-              value={membershipCompanyRole}
-              onChange={(v) => setMembershipCompanyRole(toCompanyRole(v))}
-              style={{ width: '100%', maxWidth: 220 }}
-            />
-            <Button
-              size="sm"
-              disabled={!effectiveRoleUserId || !membershipCompanyRole || wouldDemoteLastAdmin}
-              onClick={async () => {
-                if (!effectiveRoleUserId || !membershipCompanyRole) return;
-                setMembershipError(null);
-                setMembershipStatus(null);
-                try {
-                  await upsertCompanyMembership.mutateAsync({
-                    userId: effectiveRoleUserId,
-                    role: membershipCompanyRole,
-                  });
-                  setMembershipStatus('Company role updated.');
-                } catch (err) {
-                  setMembershipError(
-                    err instanceof Error ? err.message : 'Could not update company role.'
-                  );
-                }
-              }}
-            >
-              Set
-            </Button>
-          </Group>
-          {wouldDemoteLastAdmin ? (
-            <Alert color="yellow">
-              This company must retain at least one admin. Assign another admin before changing this role.
-            </Alert>
-          ) : null}
-          <Divider />
-          <Text size="sm" c="dimmed">
-            Update a teammate’s company role or remove them from the company entirely.
-          </Text>
-          <MantineReactTable
-            columns={membershipColumns}
-            data={membershipRows}
-            getRowId={(row) => row.key}
-            mantineTableContainerProps={{ className: 'financeTable' }}
-            mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
-            mantineTableBodyCellProps={{
-              style: { verticalAlign: 'middle' },
-            }}
-            enableColumnActions={false}
-            enableColumnFilters={false}
-            enableSorting
-            enableTopToolbar={false}
-            enableDensityToggle={false}
-            enableFullScreenToggle={false}
-            initialState={{ density: 'xs', pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 } }}
-          />
-        </Stack>
-      </Paper>
 
       <CompanyDefaultTaxonomyModal
         opened={defaultsModalOpen}
