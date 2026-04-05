@@ -97,6 +97,14 @@ Staging/production should use real server auth, not seeded local login behavior.
 - Cross-origin browser requests are denied by default.
 - `CORS_ALLOWED_ORIGINS` (comma-separated) enables explicit cross-origin allowlisting.
 - All API responses include `x-request-id` and structured request logs are emitted server-side.
+- API and auth responses include baseline hardening headers:
+  - `Strict-Transport-Security` (when served over HTTPS)
+  - `X-Content-Type-Options`
+  - `X-Frame-Options`
+  - `Referrer-Policy`
+  - `Permissions-Policy`
+- The readiness endpoint intentionally returns only minimal status data in production responses.
+- For full site-wide browser hardening on HTML responses, use the nginx template at `deploy/nginx/projex.conf`.
 
 ## TanStack Start migration status
 

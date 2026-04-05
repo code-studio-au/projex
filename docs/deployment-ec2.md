@@ -86,6 +86,15 @@ sudo journalctl -u projex -f
 
 If you front the app with nginx, proxy to `http://127.0.0.1:3000` and preserve `Host` plus standard forwarded headers.
 
+Recommended:
+
+- use the nginx template at `deploy/nginx/projex.conf`
+- it includes:
+  - HTTP -> HTTPS redirect
+  - `server_tokens off`
+  - site-wide security headers
+  - proxy forwarding for host/origin/proto/IP
+
 ## 4.1) Repeatable deploy commands
 
 Once the service is installed and `/etc/projex/projex.env` is configured, use one of these from `/opt/projex`:
@@ -117,11 +126,24 @@ Use `deploy:ec2:quick` only when `package-lock.json` and runtime dependencies ha
 - Readiness: `GET /api/ready`
 
 Use `/api/ready` for ALB target group health checks only if DB connectivity is required for serving.
+The readiness response body is intentionally minimal; rely on the HTTP status code rather than detailed JSON fields.
 
 ## 5.1) CORS
 
 - Same-origin requests are always allowed.
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` includes the exact origin.
+
+## 5.2) Security headers
+
+- For full browser hardening, terminate TLS at nginx and apply headers there for all HTML and API responses.
+- The repo template `deploy/nginx/projex.conf` includes:
+  - `Strict-Transport-Security`
+  - `X-Content-Type-Options`
+  - `X-Frame-Options`
+  - `Referrer-Policy`
+  - `Permissions-Policy`
+  - a pragmatic `Content-Security-Policy`
+- Review the CSP before adding third-party scripts, fonts, or image hosts.
 
 ## 6) Post-deploy verification
 

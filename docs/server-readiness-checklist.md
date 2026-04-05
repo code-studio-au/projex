@@ -82,6 +82,21 @@ They are enabled only when:
 
 - `/api/health` should return `200` when process is running.
 - `/api/ready` should return `200` only when env + DB checks pass.
+- `/api/ready` should not expose detailed dependency state publicly; use status code for probes.
+
+## 6.2) Browser Hardening
+
+- Public HTTPS traffic is fronted by nginx (or equivalent edge proxy).
+- HTTP redirects cleanly to HTTPS.
+- `server_tokens off` is enabled in nginx.
+- Site-wide responses include:
+  - `Strict-Transport-Security`
+  - `X-Content-Type-Options`
+  - `X-Frame-Options` or CSP `frame-ancestors`
+  - `Referrer-Policy`
+  - `Permissions-Policy`
+  - `Content-Security-Policy`
+- Use `deploy/nginx/projex.conf` as the baseline config and adjust CSP only as needed for new external assets.
 
 ## 7) Cutover Notes
 

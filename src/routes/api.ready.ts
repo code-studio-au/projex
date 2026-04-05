@@ -17,10 +17,6 @@ export const Route = createFileRoute('/api/ready')({
           await db.selectNoFrom(sql`1`.as('ok')).executeTakeFirst();
           return {
             ok: true as const,
-            checks: {
-              env: 'ok',
-              db: 'ok',
-            },
             now: new Date().toISOString(),
           };
         }),

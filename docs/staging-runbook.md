@@ -55,6 +55,11 @@ Notes:
   - `BETTER_AUTH_TRUSTED_ORIGINS`
   - `CORS_ALLOWED_ORIGINS`
 - For normal production use, prefer the canonical public origin only.
+- Use the nginx template at `deploy/nginx/projex.conf` as the baseline reverse-proxy config for:
+  - HTTP -> HTTPS redirect
+  - `server_tokens off`
+  - site-wide security headers
+  - forwarded host/proto/IP headers
 
 ## Deploy
 
@@ -183,6 +188,20 @@ curl -i https://projectexpensetracker.com/login
 sudo systemctl status projex --no-pager -l
 sudo journalctl -u projex -n 100 --no-pager
 ```
+
+If browser hardening headers are missing:
+
+```bash
+curl -I https://projectexpensetracker.com/login
+```
+
+Expected at minimum:
+
+- `Strict-Transport-Security`
+- `X-Content-Type-Options`
+- `X-Frame-Options` or CSP `frame-ancestors`
+- `Referrer-Policy`
+- `Permissions-Policy`
 
 If login works but refresh breaks:
 
