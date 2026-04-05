@@ -140,7 +140,7 @@ export const smokeSectionDefinitions: Array<{
     id: 'companyDefaults',
     label: 'Company Defaults',
     description:
-      'Creates temporary company defaults and mapping rules, applies them to a project, verifies auto-mapped import approval and matching budget creation, then cleans up.',
+      'Creates temporary company defaults and overlapping mapping rules, applies them to a project, verifies higher-priority rule ordering, approval, and matching budget creation, then cleans up.',
     steps: [
       { id: 'login-page', label: 'Checking login page HTML' },
       { id: 'reset-seed', label: 'Skipping or resetting dev seed data' },
@@ -150,11 +150,12 @@ export const smokeSectionDefinitions: Array<{
       { id: 'companies', label: 'Loading companies' },
       { id: 'projects', label: 'Loading projects for a company' },
       { id: 'create-default-category', label: 'Creating a temporary company default category' },
-      { id: 'create-default-subcategory', label: 'Creating a temporary company default subcategory' },
-      { id: 'create-default-mapping', label: 'Creating a temporary company default mapping rule' },
+      { id: 'create-default-subcategory', label: 'Creating temporary company default subcategories' },
+      { id: 'create-default-mapping', label: 'Creating temporary company default mapping rules' },
       { id: 'apply-company-defaults', label: 'Applying company defaults to the project' },
       { id: 'import-mapped-transaction', label: 'Importing a matching uncoded transaction' },
       { id: 'verify-auto-mapped', label: 'Verifying the imported transaction was auto-mapped' },
+      { id: 'verify-rule-ordering', label: 'Verifying the higher-priority mapping rule won' },
       { id: 'approve-auto-mapped', label: 'Approving the auto-mapped transaction' },
       { id: 'verify-budget-line', label: 'Verifying a budget line exists for the mapped subcategory' },
       { id: 'cleanup-imported-transaction', label: 'Deleting the imported transaction' },

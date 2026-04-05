@@ -561,20 +561,27 @@ async function main() {
     logSection('Company Defaults');
 
     const defaultCategoryId = uniqueId('ccat_smoke');
-    const defaultSubCategoryId = uniqueId('csub_smoke');
-    const mappingRuleId = uniqueId('cmap_smoke');
+    const preferredDefaultSubCategoryId = uniqueId('csub_smoke_preferred');
+    const fallbackDefaultSubCategoryId = uniqueId('csub_smoke_fallback');
+    const preferredMappingRuleId = uniqueId('cmap_smoke_preferred');
+    const fallbackMappingRuleId = uniqueId('cmap_smoke_fallback');
     const defaultCategoryName = uniqueId('Smoke Transport');
-    const defaultSubCategoryName = uniqueId('Smoke Flights');
-    const matchText = uniqueId('smoke flight match');
+    const preferredDefaultSubCategoryName = uniqueId('Smoke Flights Preferred');
+    const fallbackDefaultSubCategoryName = uniqueId('Smoke Flights Fallback');
+    const preferredMatchText = uniqueId('smoke flight match');
+    const fallbackMatchText = preferredMatchText.split(' ').slice(0, -1).join(' ');
     const txnId = uniqueId('txn_smoke_defaults');
     const txnExternalId = uniqueId('external_smoke_defaults');
 
     let projectCategoryId = null;
+    let projectPreferredSubCategoryId = null;
     let importedTxnId = null;
     let smokeBudgetId = null;
     let createdDefaultCategory = false;
-    let createdDefaultSubCategory = false;
-    let createdDefaultMapping = false;
+    let createdPreferredDefaultSubCategory = false;
+    let createdFallbackDefaultSubCategory = false;
+    let createdPreferredDefaultMapping = false;
+    let createdFallbackDefaultMapping = false;
 
     try {
       await runStep(`Creating company default category ${defaultCategoryName}`, async () => {
@@ -590,37 +597,68 @@ async function main() {
         createdDefaultCategory = true;
       });
 
-      await runStep(`Creating company default subcategory ${defaultSubCategoryName}`, async () => {
-        const result = await request(
+      await runStep(
+        `Creating company default subcategories ${preferredDefaultSubCategoryName} and ${fallbackDefaultSubCategoryName}`,
+        async () => {
+        const preferredResult = await request(
           `/api/companies/${encodeURIComponent(company.id)}/default-sub-categories`,
           {
             method: 'POST',
             body: JSON.stringify({
-              id: defaultSubCategoryId,
+              id: preferredDefaultSubCategoryId,
               companyId: company.id,
               companyDefaultCategoryId: defaultCategoryId,
-              name: defaultSubCategoryName,
+              name: preferredDefaultSubCategoryName,
             }),
           }
         );
-        assertOk(result, 'create company default subcategory');
-        createdDefaultSubCategory = true;
+        assertOk(preferredResult, 'create preferred company default subcategory');
+        createdPreferredDefaultSubCategory = true;
+
+        const fallbackResult = await request(
+          `/api/companies/${encodeURIComponent(company.id)}/default-sub-categories`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              id: fallbackDefaultSubCategoryId,
+              companyId: company.id,
+              companyDefaultCategoryId: defaultCategoryId,
+              name: fallbackDefaultSubCategoryName,
+            }),
+          }
+        );
+        assertOk(fallbackResult, 'create fallback company default subcategory');
+        createdFallbackDefaultSubCategory = true;
       });
 
-      await runStep(`Creating company default mapping rule for ${matchText}`, async () => {
-        const result = await request(`/api/companies/${encodeURIComponent(company.id)}/default-mapping-rules`, {
+      await runStep(`Creating overlapping company default mapping rules for ${preferredMatchText}`, async () => {
+        const preferredResult = await request(`/api/companies/${encodeURIComponent(company.id)}/default-mapping-rules`, {
           method: 'POST',
           body: JSON.stringify({
-            id: mappingRuleId,
+            id: preferredMappingRuleId,
             companyId: company.id,
-            matchText,
+            matchText: preferredMatchText,
             companyDefaultCategoryId: defaultCategoryId,
-            companyDefaultSubCategoryId: defaultSubCategoryId,
+            companyDefaultSubCategoryId: preferredDefaultSubCategoryId,
+            sortOrder: 999998,
+          }),
+        });
+        assertOk(preferredResult, 'create preferred company default mapping rule');
+        createdPreferredDefaultMapping = true;
+
+        const fallbackResult = await request(`/api/companies/${encodeURIComponent(company.id)}/default-mapping-rules`, {
+          method: 'POST',
+          body: JSON.stringify({
+            id: fallbackMappingRuleId,
+            companyId: company.id,
+            matchText: fallbackMatchText,
+            companyDefaultCategoryId: defaultCategoryId,
+            companyDefaultSubCategoryId: fallbackDefaultSubCategoryId,
             sortOrder: 999999,
           }),
         });
-        assertOk(result, 'create company default mapping rule');
-        createdDefaultMapping = true;
+        assertOk(fallbackResult, 'create fallback company default mapping rule');
+        createdFallbackDefaultMapping = true;
       });
 
       await runStep('Applying company defaults to the project', async () => {
@@ -634,7 +672,7 @@ async function main() {
         }
       });
 
-      await runStep(`Importing a matching uncoded transaction for ${matchText}`, async () => {
+      await runStep(`Importing a matching uncoded transaction for ${preferredMatchText}`, async () => {
         const result = await request(
           `/api/projects/${encodeURIComponent(project.id)}/transactions/import`,
           {
@@ -650,7 +688,7 @@ async function main() {
                   projectId: project.id,
                   date: '2024-01-09',
                   item: 'Smoke Imported Flight',
-                  description: `Auto-map ${matchText}`,
+                  description: `Auto-map ${preferredMatchText}`,
                   amountCents: 24560,
                 },
               ],
@@ -682,6 +720,39 @@ async function main() {
         if (!projectCategoryId) {
           throw new Error(`Applied project category ${defaultCategoryName} was not found.`);
         }
+
+        const subCategoriesResult = await request(
+          `/api/projects/${encodeURIComponent(project.id)}/sub-categories`
+        );
+        assertOk(subCategoriesResult, 'list project subcategories after apply');
+        const projectSubCategories = Array.isArray(subCategoriesResult.body) ? subCategoriesResult.body : [];
+        projectPreferredSubCategoryId =
+          projectSubCategories.find(
+            (subCategory) =>
+              subCategory.name === preferredDefaultSubCategoryName &&
+              subCategory.categoryId === projectCategoryId
+          )?.id ?? null;
+        if (!projectPreferredSubCategoryId) {
+          throw new Error(`Applied project subcategory ${preferredDefaultSubCategoryName} was not found.`);
+        }
+      });
+
+      await runStep('Verifying the higher-priority mapping rule won', async () => {
+        if (!importedTxnId) throw new Error('No imported transaction id available for rule-ordering verification.');
+        if (!projectPreferredSubCategoryId) {
+          throw new Error('No preferred project subcategory id available for rule-ordering verification.');
+        }
+
+        const result = await request(`/api/projects/${encodeURIComponent(project.id)}/transactions`);
+        assertOk(result, 'list imported transactions for rule-ordering verification');
+        const txns = Array.isArray(result.body) ? result.body : [];
+        const imported = txns.find((txn) => txn.id === importedTxnId);
+        if (!imported) throw new Error('Imported smoke transaction was not found for rule-ordering verification.');
+        if (String(imported.subCategoryId ?? '') !== projectPreferredSubCategoryId) {
+          throw new Error(
+            `Expected higher-priority mapping to target ${preferredDefaultSubCategoryName}, but it mapped elsewhere.`
+          );
+        }
       });
 
       await runStep('Approving the auto-mapped transaction', async () => {
@@ -704,7 +775,7 @@ async function main() {
         }
       });
 
-      await runStep(`Verifying budget line exists for ${defaultSubCategoryName}`, async () => {
+      await runStep(`Verifying budget line exists for ${preferredDefaultSubCategoryName}`, async () => {
         const budgetsResult = await request(`/api/projects/${encodeURIComponent(project.id)}/budgets`);
         assertOk(budgetsResult, 'list project budgets');
         const budgets = Array.isArray(budgetsResult.body) ? budgetsResult.body : [];
@@ -715,16 +786,16 @@ async function main() {
         const projectSubCategories = Array.isArray(subCategoriesResult.body) ? subCategoriesResult.body : [];
         const projectSubCategory = projectSubCategories.find(
           (subCategory) =>
-            subCategory.name === defaultSubCategoryName && subCategory.categoryId === projectCategoryId
+            subCategory.name === preferredDefaultSubCategoryName && subCategory.categoryId === projectCategoryId
         );
         if (!projectSubCategory) {
-          throw new Error(`Applied project subcategory ${defaultSubCategoryName} was not found.`);
+          throw new Error(`Applied project subcategory ${preferredDefaultSubCategoryName} was not found.`);
         }
         const matchingBudget = budgets.find(
           (entry) => entry.subCategoryId === projectSubCategory.id && entry.categoryId === projectCategoryId
         );
         if (!matchingBudget) {
-          throw new Error(`No budget line existed for ${defaultSubCategoryName} after import.`);
+          throw new Error(`No budget line existed for ${preferredDefaultSubCategoryName} after import.`);
         }
         smokeBudgetId = matchingBudget.id;
       });
@@ -757,21 +828,37 @@ async function main() {
       });
 
       await runStep('Deleting the temporary company default mapping rule', async () => {
-        if (!createdDefaultMapping) return;
-        const result = await request(
-          `/api/companies/${encodeURIComponent(company.id)}/default-mapping-rules/${encodeURIComponent(mappingRuleId)}`,
-          { method: 'DELETE' }
-        );
-        assertOk(result, 'delete temporary company default mapping rule');
+        if (createdPreferredDefaultMapping) {
+          const preferredResult = await request(
+            `/api/companies/${encodeURIComponent(company.id)}/default-mapping-rules/${encodeURIComponent(preferredMappingRuleId)}`,
+            { method: 'DELETE' }
+          );
+          assertOk(preferredResult, 'delete preferred temporary company default mapping rule');
+        }
+        if (createdFallbackDefaultMapping) {
+          const fallbackResult = await request(
+            `/api/companies/${encodeURIComponent(company.id)}/default-mapping-rules/${encodeURIComponent(fallbackMappingRuleId)}`,
+            { method: 'DELETE' }
+          );
+          assertOk(fallbackResult, 'delete fallback temporary company default mapping rule');
+        }
       });
 
       await runStep('Deleting the temporary company default subcategory', async () => {
-        if (!createdDefaultSubCategory) return;
-        const result = await request(
-          `/api/companies/${encodeURIComponent(company.id)}/default-sub-categories/${encodeURIComponent(defaultSubCategoryId)}`,
-          { method: 'DELETE' }
-        );
-        assertOk(result, 'delete temporary company default subcategory');
+        if (createdPreferredDefaultSubCategory) {
+          const preferredResult = await request(
+            `/api/companies/${encodeURIComponent(company.id)}/default-sub-categories/${encodeURIComponent(preferredDefaultSubCategoryId)}`,
+            { method: 'DELETE' }
+          );
+          assertOk(preferredResult, 'delete preferred temporary company default subcategory');
+        }
+        if (createdFallbackDefaultSubCategory) {
+          const fallbackResult = await request(
+            `/api/companies/${encodeURIComponent(company.id)}/default-sub-categories/${encodeURIComponent(fallbackDefaultSubCategoryId)}`,
+            { method: 'DELETE' }
+          );
+          assertOk(fallbackResult, 'delete fallback temporary company default subcategory');
+        }
       });
 
       await runStep('Deleting the temporary company default category', async () => {
