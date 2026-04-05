@@ -24,6 +24,7 @@ import {
   useDeleteProjectMutation,
   useReactivateProjectMutation,
 } from '../queries/admin';
+import CompanySummaryPanel from '../components/CompanySummaryPanel';
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
 import { LoadingLine } from '../components/LoadingValue';
 import { companyRoute, landingRoute, projectRoute } from '../router';
@@ -74,6 +75,8 @@ export default function CompanyDashboardPage() {
     () => memberships.some((m) => m.userId === access.userId && m.role === 'superadmin'),
     [memberships, access.userId]
   );
+  const canViewCompanySummary =
+    access.isAdmin || access.isExecutive || (isGlobalSuperadmin && sortedProjects.length > 0);
   const showSwitchCompany = isGlobalSuperadmin || userCompanyCount > 1;
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -293,6 +296,7 @@ export default function CompanyDashboardPage() {
       <Tabs defaultValue="projects" keepMounted={false}>
         <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
           <Tabs.Tab value="projects">Projects</Tabs.Tab>
+          {canViewCompanySummary ? <Tabs.Tab value="summary">Summary</Tabs.Tab> : null}
           <Tabs.Tab value="settings" disabled={!canEditCompany}>
             Settings
           </Tabs.Tab>
@@ -325,6 +329,12 @@ export default function CompanyDashboardPage() {
             </Paper>
           )}
         </Tabs.Panel>
+
+        {canViewCompanySummary ? (
+          <Tabs.Panel value="summary" pt="md">
+            <CompanySummaryPanel projects={sortedProjects} isMobile={isMobile} />
+          </Tabs.Panel>
+        ) : null}
 
         <Tabs.Panel value="settings" pt="md">
           <CompanySettingsPanel companyId={companyId} />
