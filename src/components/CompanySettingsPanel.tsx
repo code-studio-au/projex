@@ -3,6 +3,7 @@ import {
   Alert,
   Badge,
   Button,
+  Checkbox,
   Group,
   Divider,
   Paper,
@@ -83,6 +84,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<CompanyRole | null>('member');
+  const [sendOnboardingEmail, setSendOnboardingEmail] = useState(false);
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [membershipError, setMembershipError] = useState<string | null>(null);
@@ -233,7 +235,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         <Paper withBorder radius="lg" p="lg">
           <Stack gap="sm">
             <Group justify="space-between">
-              <Title order={5}>{isServerAuthMode ? 'Invite user' : 'Add user (company)'}</Title>
+              <Title order={5}>{isServerAuthMode ? 'Add member' : 'Add user (company)'}</Title>
               <Badge variant="light" color={canAddCompanyUsers ? 'gray' : 'red'}>
                 {canAddCompanyUsers ? 'Ready' : 'Not allowed'}
               </Badge>
@@ -261,6 +263,14 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               value={newUserRole}
               onChange={(v) => setNewUserRole((v as CompanyRole | null) ?? null)}
             />
+            {isServerAuthMode ? (
+              <Checkbox
+                label="Send password setup email now"
+                description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
+                checked={sendOnboardingEmail}
+                onChange={(e) => setSendOnboardingEmail(e.currentTarget.checked)}
+              />
+            ) : null}
             <Button
               disabled={!canAddCompanyUsers || createUser.isPending}
               onClick={async () => {
@@ -274,35 +284,47 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                     name,
                     email,
                     role: newUserRole ?? 'member',
+                    sendOnboardingEmail,
                   });
                   setNewUserName('');
                   setNewUserEmail('');
                   setNewUserRole('member');
+                  setSendOnboardingEmail(false);
                   if (!isServerAuthMode) {
-                    setInviteStatus(`${result.user.name} was added to the company.`);
+                    setInviteStatus(
+                      result.membershipCreated
+                        ? `${result.user.name} was added to the company.`
+                        : `${result.user.name} is already in the company, and their role was updated.`
+                    );
                     return;
                   }
                   if (result.onboardingEmailSent) {
                     setInviteStatus(
-                      result.onboardingDelivery === 'email'
-                        ? `${result.user.email} was invited and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
-                        : `${result.user.email} was invited. Email delivery is not configured, so the password setup link was logged on the server.`
+                      result.createdAuthUser
+                        ? result.onboardingDelivery === 'email'
+                          ? `${result.user.email} was added as a new company member and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
+                          : `${result.user.email} was added as a new company member. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
+                        : result.onboardingDelivery === 'email'
+                          ? `${result.user.email} was added to the company and sent the newest password setup email. Ask them to check spam or junk if it does not arrive soon.`
+                          : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
                     );
                     return;
                   }
                   setInviteStatus(
-                    `${result.user.email} was added to the company. You can resend their password setup email later from the member list if needed.`
+                    result.membershipCreated
+                      ? `${result.user.email} was added to the company. No email was sent. You can resend their password setup email later from the member list if they need it.`
+                      : `${result.user.email} was already in the company. Their role was updated and no email was sent.`
                   );
                 } catch (err) {
                   setInviteError(err instanceof Error ? err.message : 'Could not invite user.');
                 }
               }}
             >
-              {isServerAuthMode ? 'Send invite' : 'Create user'}
+              {isServerAuthMode ? 'Add member' : 'Create user'}
             </Button>
             <Text size="xs" c="dimmed">
               {isServerAuthMode
-                ? 'New users get a BetterAuth account, are linked to this company, and receive a password setup email. Existing users can also be sent the newest setup email again from the member list.'
+                ? 'Adding someone to the company and emailing them are now separate choices. New BetterAuth accounts still get their setup email automatically, while existing users can be added quietly and emailed later if needed.'
                 : 'Users created here belong only to this company.'}
             </Text>
           </Stack>

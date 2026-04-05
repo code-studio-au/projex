@@ -134,8 +134,16 @@ export type EmailChangeConfirmResult = {
 export type CompanyUserInviteResult = {
   user: User;
   createdAuthUser: boolean;
+  membershipCreated: boolean;
   onboardingEmailSent: boolean;
   onboardingDelivery: 'email' | 'log' | 'none';
+};
+
+export type CreateCompanyUserInput = {
+  name: string;
+  email: string;
+  role: CompanyRole;
+  sendOnboardingEmail?: boolean;
 };
 
 export interface ProjexApi {
@@ -257,12 +265,7 @@ export interface ProjexApi {
   resendEmailChange(): Promise<EmailChangeRequestResult>;
   cancelEmailChange(): Promise<void>;
   confirmEmailChange(token: string): Promise<EmailChangeConfirmResult>;
-  createUserInCompany(
-    companyId: CompanyId,
-    name: string,
-    email: string,
-    role: CompanyRole
-  ): Promise<CompanyUserInviteResult>;
+  createUserInCompany(companyId: CompanyId, input: CreateCompanyUserInput): Promise<CompanyUserInviteResult>;
   sendCompanyUserInviteEmail(companyId: CompanyId, userId: UserId): Promise<CompanyUserInviteResult>;
 
   // projects / companies

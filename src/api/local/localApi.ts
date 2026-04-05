@@ -1655,25 +1655,30 @@ export class LocalApi implements ProjexApi {
 
   async createUserInCompany(
     companyId: CompanyId,
-    name: string,
-    email: string,
-    role: CompanyRole
+    input: { name: string; email: string; role: CompanyRole; sendOnboardingEmail?: boolean }
   ): Promise<CompanyUserInviteResult> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
-    validateOrThrow(userNameSchema, name);
-    validateOrThrow(emailSchema, email);
-    const emailNorm = email.trim().toLowerCase();
-    if (st.users.some((u) => u.email.trim().toLowerCase() === emailNorm)) {
-      throw new AppError('CONFLICT', 'A user with this email already exists');
+    validateOrThrow(userNameSchema, input.name);
+    validateOrThrow(emailSchema, input.email);
+    const emailNorm = input.email.trim().toLowerCase();
+    const existingUser = st.users.find((u) => u.email.trim().toLowerCase() === emailNorm);
+    const next: User = existingUser ?? {
+      id: asUserId(uid('usr')),
+      name: input.name.trim(),
+      email: input.email.trim(),
+    };
+    if (!existingUser) {
+      writeState({ ...st, users: [...st.users, next] });
     }
-    const next: User = { id: asUserId(uid('usr')), name: name.trim(), email: email.trim() };
-    writeState({ ...st, users: [...st.users, next] });
-    // add membership
-    await this.upsertCompanyMembership(companyId, next.id, role);
+    const membershipCreated = !st.companyMemberships.some(
+      (m) => m.companyId === companyId && m.userId === next.id
+    );
+    await this.upsertCompanyMembership(companyId, next.id, input.role);
     return {
       user: next,
-      createdAuthUser: false,
+      createdAuthUser: !existingUser,
+      membershipCreated,
       onboardingEmailSent: false,
       onboardingDelivery: 'none',
     };
@@ -1689,6 +1694,7 @@ export class LocalApi implements ProjexApi {
     return {
       user,
       createdAuthUser: false,
+      membershipCreated: false,
       onboardingEmailSent: false,
       onboardingDelivery: 'none',
     };

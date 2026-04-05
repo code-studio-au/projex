@@ -449,6 +449,7 @@ export async function createUserInCompanyServer(args: {
   name: string;
   email: string;
   role: CompanyRole;
+  sendOnboardingEmail?: boolean;
 }): Promise<CompanyUserInviteResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -480,6 +481,13 @@ export async function createUserInCompanyServer(args: {
       preferredName: trimmedName,
     });
 
+    const existingMembership = await db
+      .selectFrom('company_memberships')
+      .select('user_id')
+      .where('company_id', '=', args.companyId)
+      .where('user_id', '=', user.id)
+      .executeTakeFirst();
+
     await db
       .insertInto('company_memberships')
       .values({
@@ -494,11 +502,15 @@ export async function createUserInCompanyServer(args: {
       )
       .execute();
 
-    const onboardingDelivery = await requestPasswordSetupEmail(trimmedEmail);
+    const shouldSendOnboardingEmail = createdAuthUser || !!args.sendOnboardingEmail;
+    const onboardingDelivery = shouldSendOnboardingEmail
+      ? await requestPasswordSetupEmail(trimmedEmail)
+      : 'none';
     return {
       user,
       createdAuthUser,
-      onboardingEmailSent: true,
+      membershipCreated: !existingMembership,
+      onboardingEmailSent: shouldSendOnboardingEmail,
       onboardingDelivery,
     };
   });
@@ -549,6 +561,7 @@ export async function sendCompanyUserInviteEmailServer(args: {
         disabled: user.disabled,
       },
       createdAuthUser: false,
+      membershipCreated: false,
       onboardingEmailSent: true,
       onboardingDelivery,
     };

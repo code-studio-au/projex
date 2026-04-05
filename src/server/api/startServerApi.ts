@@ -359,13 +359,17 @@ export class StartServerApi implements ProjexApi {
   async updateCurrentUserProfile(input: { name: string }) {
     return updateCurrentUserProfileServer({ context: this.context, input });
   }
-  async createUserInCompany(companyId: CompanyId, name: string, email: string, role: CompanyRole) {
+  async createUserInCompany(
+    companyId: CompanyId,
+    input: { name: string; email: string; role: CompanyRole; sendOnboardingEmail?: boolean }
+  ) {
     return createUserInCompanyServer({
       context: this.context,
       companyId,
-      name,
-      email,
-      role,
+      name: input.name,
+      email: input.email,
+      role: input.role,
+      sendOnboardingEmail: input.sendOnboardingEmail,
     });
   }
   async sendCompanyUserInviteEmail(companyId: CompanyId, userId: UserId) {

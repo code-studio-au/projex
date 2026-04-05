@@ -290,9 +290,12 @@ export default function LandingPage() {
                         if (adminName && adminEmail) {
                           const result = await api.createUserInCompany(
                             company.id,
-                            adminName,
-                            adminEmail,
-                            'admin'
+                            {
+                              name: adminName,
+                              email: adminEmail,
+                              role: 'admin',
+                              sendOnboardingEmail: true,
+                            }
                           );
                           await Promise.all([
                             queryClient.invalidateQueries({ queryKey: qk.users() }),

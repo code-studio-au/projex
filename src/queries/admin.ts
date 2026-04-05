@@ -2,8 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useApi } from '../hooks/useApi';
 import type { Company, CompanyId, ProjectId, Txn, UserId } from '../types';
-import type { CompanyRole } from '../types';
 import type {
+  CreateCompanyUserInput,
   CompanyUpdateInput,
   ProjectCreateInput,
   ProjectUpdateInput,
@@ -69,8 +69,7 @@ export function useCreateUserInCompanyMutation(companyId: CompanyId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (vars: { name: string; email: string; role: CompanyRole }) =>
-      api.createUserInCompany(companyId, vars.name, vars.email, vars.role),
+    mutationFn: (vars: CreateCompanyUserInput) => api.createUserInCompany(companyId, vars),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.users() });
       qc.invalidateQueries({ queryKey: qk.companyMemberships(scopeUserId, companyId) });

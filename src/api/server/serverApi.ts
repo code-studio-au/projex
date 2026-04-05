@@ -525,17 +525,11 @@ export class ServerApi implements ProjexApi {
   }
   async createUserInCompany(
     _companyId: CompanyId,
-    _name: string,
-    _email: string,
-    _role: CompanyRole
+    _input: { name: string; email: string; role: CompanyRole; sendOnboardingEmail?: boolean }
   ): Promise<CompanyUserInviteResult> {
     return this.request<CompanyUserInviteResult>(`/api/companies/${encodeURIComponent(_companyId)}/users`, {
       method: 'POST',
-      body: JSON.stringify({
-        name: _name,
-        email: _email,
-        role: _role,
-      }),
+      body: JSON.stringify(_input),
     });
   }
   async sendCompanyUserInviteEmail(_companyId: CompanyId, _userId: UserId): Promise<CompanyUserInviteResult> {
