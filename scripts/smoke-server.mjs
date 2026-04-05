@@ -876,6 +876,12 @@ async function main() {
     await ensureAuthAndProject();
     logSection('Invite Flow');
     if (inviteEmail) {
+      const followUpRole =
+        inviteRole === 'member'
+          ? 'management'
+          : inviteRole === 'management'
+            ? 'executive'
+            : 'member';
       const invite = await runStep(`Inviting ${inviteEmail} to company ${companyLabel(company)} as ${inviteRole}`, async () => {
         const result = await request(`/api/companies/${encodeURIComponent(company.id)}/users`, {
           method: 'POST',
@@ -886,6 +892,12 @@ async function main() {
           }),
         });
         assertOk(result, 'invite user');
+        if (!result.body?.onboardingEmailSent) {
+          throw new Error('Brand-new invited user did not trigger an onboarding email.');
+        }
+        if (!result.body?.membershipCreated) {
+          throw new Error('Brand-new invited user did not create a company membership.');
+        }
         return result;
       });
 
@@ -893,6 +905,28 @@ async function main() {
       if (!invitedUserId) {
         throw new Error(`Invite user did not return a user id: ${JSON.stringify(invite.body)}`);
       }
+
+      await runStep(`Updating existing member ${inviteEmail} to role ${followUpRole} without sending email`, async () => {
+        const result = await request(`/api/companies/${encodeURIComponent(company.id)}/users`, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: inviteName,
+            email: inviteEmail,
+            role: followUpRole,
+            sendOnboardingEmail: false,
+          }),
+        });
+        assertOk(result, 'update existing member');
+        if (result.body?.user?.id !== invitedUserId) {
+          throw new Error(`Existing member update returned a different user id: ${JSON.stringify(result.body)}`);
+        }
+        if (result.body?.onboardingEmailSent) {
+          throw new Error('Existing member update unexpectedly sent an onboarding email.');
+        }
+        if (result.body?.membershipCreated) {
+          throw new Error('Existing member update unexpectedly reported a new membership.');
+        }
+      });
 
       await runStep(`Attempting immediate resend for invited user ${inviteEmail}`, async () => {
         const resend = await request(

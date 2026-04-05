@@ -925,6 +925,12 @@ async function runInviteFlowSection(recorder: Recorder, client: SmokeHttpClient,
   const inviteEmail = process.env.PROJEX_SMOKE_INVITE_EMAIL?.trim();
   const inviteName = process.env.PROJEX_SMOKE_INVITE_NAME?.trim() || 'Smoke Invite';
   const inviteRole = process.env.PROJEX_SMOKE_INVITE_ROLE?.trim() || 'member';
+  const followUpRole =
+    inviteRole === 'member'
+      ? 'management'
+      : inviteRole === 'management'
+        ? 'executive'
+        : 'member';
 
   await authenticatePrimaryUser(recorder, client, baseUrl);
   const { company } = await loadPrimaryCompanyAndProject(recorder, client);
@@ -947,7 +953,18 @@ async function runInviteFlowSection(recorder: Recorder, client: SmokeHttpClient,
         body: JSON.stringify({ name: inviteName, email: inviteEmail, role: inviteRole }),
       });
       assertOk(result, 'invite user');
-      return result.body as { user?: { id?: string } };
+      const body = result.body as {
+        user?: { id?: string };
+        onboardingEmailSent?: boolean;
+        membershipCreated?: boolean;
+      };
+      if (!body.onboardingEmailSent) {
+        throw new Error('Brand-new invited user did not trigger an onboarding email.');
+      }
+      if (!body.membershipCreated) {
+        throw new Error('Brand-new invited user did not create a company membership.');
+      }
+      return body;
     }
   );
 
@@ -955,6 +972,37 @@ async function runInviteFlowSection(recorder: Recorder, client: SmokeHttpClient,
   if (!invitedUserId) {
     throw new Error(`Invite user did not return a user id: ${JSON.stringify(invite)}`);
   }
+
+  await recorder.step(
+    'update-existing-member',
+    `Updating existing member ${inviteEmail} to role ${followUpRole} without sending email`,
+    async () => {
+      const result = await client.request(`/api/companies/${encodeURIComponent(company.id)}/users`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: inviteName,
+          email: inviteEmail,
+          role: followUpRole,
+          sendOnboardingEmail: false,
+        }),
+      });
+      assertOk(result, 'update existing member');
+      const body = result.body as {
+        user?: { id?: string };
+        onboardingEmailSent?: boolean;
+        membershipCreated?: boolean;
+      };
+      if (body.user?.id !== invitedUserId) {
+        throw new Error(`Existing member update returned a different user id: ${JSON.stringify(body)}`);
+      }
+      if (body.onboardingEmailSent) {
+        throw new Error('Existing member update unexpectedly sent an onboarding email.');
+      }
+      if (body.membershipCreated) {
+        throw new Error('Existing member update unexpectedly reported a new membership.');
+      }
+    }
+  );
 
   await recorder.step('resend-invite', `Attempting immediate resend for invited user ${inviteEmail}`, async () => {
     const resend = await client.request(
