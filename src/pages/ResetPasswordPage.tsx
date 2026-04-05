@@ -13,7 +13,8 @@ import {
 import { useRouter } from '@tanstack/react-router';
 import { useMediaQuery } from '@mantine/hooks';
 
-import { loginRoute } from '../router';
+import { accountRoute, loginRoute } from '../router';
+import { useSessionQuery } from '../queries/session';
 
 function useResetSearch() {
   return useMemo(() => {
@@ -31,6 +32,7 @@ function useResetSearch() {
 export default function ResetPasswordPage() {
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const sessionQ = useSessionQuery();
   const { token, error: searchError } = useResetSearch();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -96,33 +98,60 @@ export default function ResetPasswordPage() {
             </Alert>
           ) : null}
           {error ? <Alert color="red">{error}</Alert> : null}
-          {success ? <Alert color="green">{success}</Alert> : null}
-          <PasswordInput
-            label="New password"
-            value={password}
-            onChange={(e) => setPassword(e.currentTarget.value)}
-            autoComplete="new-password"
-            required
-          />
-          <PasswordInput
-            label="Confirm password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.currentTarget.value)}
-            autoComplete="new-password"
-            required
-          />
-          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-            <Button variant="light" onClick={() => router.navigate({ to: loginRoute.to })}>
-              Back to sign in
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              loading={pending}
-              disabled={!token || !password || !confirmPassword}
-            >
-              Save password
-            </Button>
-          </Group>
+          {success ? (
+            <>
+              <Alert color="green">{success}</Alert>
+              {sessionQ.data ? (
+                <Alert color="yellow">
+                  Another user is currently signed in in this browser. Sign out first, then return
+                  to sign in with the account whose password you just updated.
+                </Alert>
+              ) : null}
+              <Text c="dimmed">
+                If you were testing with multiple accounts, use Return to sign in so you can start
+                a fresh login with the updated password.
+              </Text>
+              <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+                <Button onClick={() => router.navigate({ to: loginRoute.to })}>
+                  Return to sign in
+                </Button>
+                {sessionQ.data ? (
+                  <Button variant="light" onClick={() => router.navigate({ to: accountRoute.to })}>
+                    Stay with current session
+                  </Button>
+                ) : null}
+              </Group>
+            </>
+          ) : (
+            <>
+              <PasswordInput
+                label="New password"
+                value={password}
+                onChange={(e) => setPassword(e.currentTarget.value)}
+                autoComplete="new-password"
+                required
+              />
+              <PasswordInput
+                label="Confirm password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.currentTarget.value)}
+                autoComplete="new-password"
+                required
+              />
+              <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+                <Button variant="light" onClick={() => router.navigate({ to: loginRoute.to })}>
+                  Back to sign in
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  loading={pending}
+                  disabled={!token || !password || !confirmPassword}
+                >
+                  Save password
+                </Button>
+              </Group>
+            </>
+          )}
         </Stack>
       </Paper>
     </Container>

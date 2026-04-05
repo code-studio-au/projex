@@ -98,20 +98,6 @@ Why this matters:
 - avoids exposing raw upstream errors during expected maintenance windows
 - gives us a foundation for future maintenance messaging without tying it to the app process
 
-## Nice To Have
-
-### 5. Improve multi-account testing ergonomics
-
-Examples:
-
-- clearer note after password reset if another user is currently signed in
-- optional `Return to sign in` path after reset
-
-Why this matters:
-
-- mostly a team/testing edge case
-- low priority for real users, but useful during QA
-
 ## Not A Priority Right Now
 
 - Mantine 9 migration until `mantine-react-table` has a compatible release or we replace the table layer
