@@ -215,7 +215,7 @@ function ServerLoginPanel() {
               </Badge>
               <div>
                 <Title order={1} size={isMobile ? 'h2' : 'h1'}>
-                  Projex
+                  ProjEx
                 </Title>
                 <Text c="dimmed" mt="xs" maw={460}>
                   Keep budgets, imports, and coding decisions in one operational workspace built
