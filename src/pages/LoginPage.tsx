@@ -152,7 +152,6 @@ function ServerLoginPanel() {
       <Paper withBorder radius="lg" p={isMobile ? 'md' : 'xl'}>
         <Stack gap="md">
           <Title order={3}>Sign In</Title>
-          <Text c="dimmed">Sign in with your BetterAuth account.</Text>
           {error ? <Alert color="red">{error}</Alert> : null}
           <TextInput
             label="Email"
