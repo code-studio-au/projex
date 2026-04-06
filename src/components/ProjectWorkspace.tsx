@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge, Group, Paper, Stack, Tabs, Title } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
+import { useRouter } from '@tanstack/react-router';
 
 import type { CompanyId, ProjectId } from '../types';
 
@@ -23,9 +24,19 @@ import { LoadingChip, LoadingLine } from './LoadingValue';
 export default function ProjectWorkspace(props: {
   companyId: CompanyId;
   projectId: ProjectId;
+  initialTab?: 'budget' | 'transactions' | 'import' | 'settings';
+  initialMonthFilterKey?: string | null;
+  initialTransactionView?: 'all' | 'uncoded' | 'auto-mapped-pending';
 }) {
-  const { companyId, projectId } = props;
+  const {
+    companyId,
+    projectId,
+    initialTab = 'budget',
+    initialMonthFilterKey = null,
+    initialTransactionView = 'all',
+  } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const router = useRouter();
 
   const access = useCompanyAccess(companyId);
   const company = useCompanyQuery(companyId);
@@ -42,10 +53,25 @@ export default function ProjectWorkspace(props: {
   const txns = useTransactions({ projectId });
   const taxonomy = useTaxonomy({ companyId, projectId, budgets, txns, canEditBudgets });
 
-  const [monthFilterKey, setMonthFilterKey] = useState<string | null>(null);
-  const [transactionView, setTransactionView] = useState<'all' | 'uncoded' | 'auto-mapped-pending'>(
-    'all'
+  const [activeTab, setActiveTab] = useState<'budget' | 'transactions' | 'import' | 'settings'>(
+    initialTab
   );
+  const [monthFilterKey, setMonthFilterKey] = useState<string | null>(initialMonthFilterKey);
+  const [transactionView, setTransactionView] = useState<'all' | 'uncoded' | 'auto-mapped-pending'>(
+    initialTransactionView
+  );
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    setMonthFilterKey(initialMonthFilterKey);
+  }, [initialMonthFilterKey]);
+
+  useEffect(() => {
+    setTransactionView(initialTransactionView);
+  }, [initialTransactionView]);
 
   const rollups = useRollups({
     transactions: txns.transactions,
@@ -72,6 +98,19 @@ export default function ProjectWorkspace(props: {
   const headerReady = Boolean(company.data && project.data);
   const summaryReady = headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
   const currencyCode = project.data?.currency ?? 'AUD';
+
+  useEffect(() => {
+    void router.navigate({
+      to: '/c/$companyId/p/$projectId',
+      params: { companyId, projectId },
+      search: {
+        tab: activeTab === 'budget' ? undefined : activeTab,
+        month: monthFilterKey ?? undefined,
+        view: transactionView === 'all' ? undefined : transactionView,
+      },
+      replace: true,
+    });
+  }, [activeTab, companyId, monthFilterKey, projectId, router, transactionView]);
 
   return (
     <Stack gap="lg">
@@ -103,7 +142,14 @@ export default function ProjectWorkspace(props: {
       </Paper>
 
       <Paper withBorder radius="lg" p="md">
-        <Tabs defaultValue="budget" keepMounted={false} variant="outline">
+        <Tabs
+          value={activeTab}
+          onChange={(value) =>
+            setActiveTab((value as 'budget' | 'transactions' | 'import' | 'settings') ?? 'budget')
+          }
+          keepMounted={false}
+          variant="outline"
+        >
           <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
             <Tabs.Tab value="budget">Budget</Tabs.Tab>
             <Tabs.Tab value="transactions">Transactions</Tabs.Tab>

@@ -58,6 +58,18 @@ function totalsByCurrency(
   return totals;
 }
 
+function buildProjectDrilldownSearch(args: {
+  monthFilterKey: string | null;
+  tab?: 'budget' | 'transactions';
+  view?: 'all' | 'uncoded' | 'auto-mapped-pending';
+}) {
+  return {
+    tab: args.tab === 'budget' ? undefined : args.tab,
+    month: args.monthFilterKey ?? undefined,
+    view: args.view && args.view !== 'all' ? args.view : undefined,
+  };
+}
+
 export default function CompanySummaryPanel(props: {
   companyId: CompanyId;
   projects: Project[];
@@ -221,6 +233,10 @@ export default function CompanySummaryPanel(props: {
           <Link
             to={projectRoute.to}
             params={{ companyId, projectId: row.original.id }}
+            search={buildProjectDrilldownSearch({
+              monthFilterKey,
+              tab: 'budget',
+            })}
             style={{ textDecoration: 'none' }}
           >
             <Text fw={600} c="blue.7">
@@ -253,13 +269,49 @@ export default function CompanySummaryPanel(props: {
         accessorKey: 'uncodedCount',
         header: 'Uncoded',
         size: 84,
+        Cell: ({ row }) =>
+          row.original.uncodedCount > 0 ? (
+            <Link
+              to={projectRoute.to}
+              params={{ companyId, projectId: row.original.id }}
+              search={buildProjectDrilldownSearch({
+                monthFilterKey,
+                tab: 'transactions',
+                view: 'uncoded',
+              })}
+              style={{ textDecoration: 'none' }}
+            >
+              <Text fw={600} c="yellow.8">
+                {row.original.uncodedCount}
+              </Text>
+            </Link>
+          ) : (
+            row.original.uncodedCount
+          ),
       },
       {
         accessorKey: 'uncodedAmountCents',
         header: 'Uncoded Amt',
         size: 120,
         Cell: ({ row }) =>
-          formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency),
+          row.original.uncodedAmountCents > 0 ? (
+            <Link
+              to={projectRoute.to}
+              params={{ companyId, projectId: row.original.id }}
+              search={buildProjectDrilldownSearch({
+                monthFilterKey,
+                tab: 'transactions',
+                view: 'uncoded',
+              })}
+              style={{ textDecoration: 'none' }}
+            >
+              <Text fw={600} c="yellow.8">
+                {formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency)}
+              </Text>
+            </Link>
+          ) : (
+            formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency)
+          ),
       },
       {
         id: 'flags',
@@ -310,7 +362,7 @@ export default function CompanySummaryPanel(props: {
           ),
       },
     ],
-    []
+    [companyId, monthFilterKey]
   );
 
   return (
