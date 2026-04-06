@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -54,6 +54,7 @@ export default function CompanyDashboardPage() {
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [activeTab, setActiveTab] = useState<'summary' | 'projects' | 'settings'>('projects');
 
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
   const sortedProjects = useMemo(
@@ -78,6 +79,15 @@ export default function CompanyDashboardPage() {
   const canViewCompanySummary =
     access.isAdmin || access.isExecutive || (isGlobalSuperadmin && sortedProjects.length > 0);
   const showSwitchCompany = isGlobalSuperadmin || userCompanyCount > 1;
+
+  useEffect(() => {
+    setActiveTab((current) => {
+      if (canViewCompanySummary) {
+        return current === 'settings' ? current : 'summary';
+      }
+      return current === 'summary' ? 'projects' : current;
+    });
+  }, [canViewCompanySummary]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -290,7 +300,13 @@ export default function CompanyDashboardPage() {
         </Group>
       </Group>
 
-      <Tabs defaultValue={canViewCompanySummary ? 'summary' : 'projects'} keepMounted={false}>
+      <Tabs
+        value={activeTab}
+        onChange={(value) =>
+          setActiveTab((value as 'summary' | 'projects' | 'settings') ?? 'projects')
+        }
+        keepMounted={false}
+      >
         <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
           {canViewCompanySummary ? <Tabs.Tab value="summary">Summary</Tabs.Tab> : null}
           <Tabs.Tab value="projects">Projects</Tabs.Tab>
