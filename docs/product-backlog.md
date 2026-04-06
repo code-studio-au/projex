@@ -57,20 +57,7 @@ Why this matters:
 
 - keeps building on the now-working account basics without mixing simple profile edits with bigger admin features
 
-### 3. Preserve drill-down continuity from company summary into project workspace
-
-Examples:
-
-- carry year / quarter / month filter context into the project route
-- support deep links into the most relevant tab such as budget or transactions
-- support direct uncoded or auto-mapped review entry points from summary views
-
-Why this matters:
-
-- the current company summary drill-down works, but users lose analytical context when they click into a project
-- preserving filter state will make the app feel much more intentional and professional without a major model change
-
-### 4. Add guided import preview and exception review
+### 3. Add guided import preview and exception review
 
 Examples:
 
@@ -83,7 +70,7 @@ Why this matters:
 - the importer is already capable, but users still commit imports with limited visibility into what will happen
 - this is one of the clearest gaps between a good internal tool and a more professional finance workflow
 
-### 5. Add bulk transaction review actions
+### 4. Add bulk transaction review actions
 
 Examples:
 
@@ -97,7 +84,7 @@ Why this matters:
 - row-by-row transaction review will become the main bottleneck as data volume increases
 - bulk actions are one of the highest-value workflow improvements available now
 
-### 6. Clarify budget semantics and messaging
+### 5. Clarify budget semantics and messaging
 
 Examples:
 
@@ -112,7 +99,7 @@ Why this matters:
 
 ## Infra / Operations
 
-### 7. Add a separate maintenance/monitor page for restarts
+### 6. Add a separate maintenance/monitor page for restarts
 
 Current state:
 
