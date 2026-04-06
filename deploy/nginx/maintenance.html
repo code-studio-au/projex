@@ -96,37 +96,9 @@
         color: var(--muted);
       }
 
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 24px;
-      }
-
-      a.button {
-        appearance: none;
-        border: 0;
-        cursor: pointer;
-        text-decoration: none;
-        font: inherit;
-        padding: 12px 16px;
-        border-radius: 14px;
-        transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
-      }
-
-      a.button:hover {
-        transform: translateY(-1px);
-      }
-
-      .button-secondary {
-        background: white;
-        color: var(--text);
-        border: 1px solid rgba(15, 23, 42, 0.08);
-      }
-
       .meta {
-        margin-top: 18px;
-        font-size: 13px;
+        margin-top: 24px;
+        font-size: 14px;
         color: var(--muted);
       }
 
@@ -162,11 +134,10 @@
           </p>
         </div>
 
-        <div class="actions">
-          <a class="button button-secondary" href="/" id="home-link">Open home</a>
-        </div>
-
-        <p class="meta" id="meta-copy">If this message persists for more than a minute, check the deployment logs.</p>
+        <p class="meta" id="meta-copy">
+          If this message persists for more than 5 minutes, please contact
+          <a href="mailto:support@projectexpensetracker.com">support@projectexpensetracker.com</a>.
+        </p>
       </section>
     </main>
 
