@@ -163,6 +163,12 @@ export default function ProjectWorkspace(props: {
   const headerReady = Boolean(company.data && project.data);
   const summaryReady = headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
   const currencyCode = project.data?.currency ?? 'AUD';
+  const activeFilterLabel = useMemo(() => {
+    if (monthFilterKey) return `Filter: ${monthFilterKey}`;
+    if (yearFilter && quarterFilter) return `Filter: ${yearFilter} ${quarterFilter}`;
+    if (yearFilter) return `Filter: ${yearFilter}`;
+    return null;
+  }, [monthFilterKey, quarterFilter, yearFilter]);
   const entryMessage = useMemo(() => {
     if (initialEntrySource !== 'company-summary') return null;
     switch (initialEntryFocus) {
@@ -227,6 +233,11 @@ export default function ProjectWorkspace(props: {
                   Superadmin access enabled
                 </Badge>
               ) : null}
+              {activeFilterLabel ? (
+                <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="blue">
+                  {activeFilterLabel}
+                </Badge>
+              ) : null}
               {summaryReady ? (
                 <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
                   Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
@@ -238,32 +249,10 @@ export default function ProjectWorkspace(props: {
           </Group>
 
           {entryMessage ? (
-            <Group justify="space-between" align="center" wrap="wrap">
+            <Group align="center" wrap="wrap">
               <Text size="sm" c="dimmed">
                 {entryMessage}
               </Text>
-              <Button
-                size="xs"
-                variant="subtle"
-                onClick={() => {
-                  void router.navigate({
-                    to: '/c/$companyId/p/$projectId',
-                    params: { companyId, projectId },
-                    search: {
-                      year: yearFilter ?? undefined,
-                      quarter: quarterFilter ?? undefined,
-                      tab: activeTab === 'budget' ? undefined : activeTab,
-                      month: monthFilterKey ?? undefined,
-                      view: transactionView === 'all' ? undefined : transactionView,
-                      source: undefined,
-                      focus: undefined,
-                    },
-                    replace: true,
-                  });
-                }}
-              >
-                Clear entry context
-              </Button>
             </Group>
           ) : null}
 
@@ -303,6 +292,32 @@ export default function ProjectWorkspace(props: {
               onChange={setMonthFilterKey}
               style={{ width: isMobile ? '100%' : 180 }}
             />
+            <Button
+              size="sm"
+              variant="subtle"
+              disabled={!yearFilter && !quarterFilter && !monthFilterKey}
+              onClick={() => {
+                setYearFilter(null);
+                setQuarterFilter(null);
+                setMonthFilterKey(null);
+                void router.navigate({
+                  to: '/c/$companyId/p/$projectId',
+                  params: { companyId, projectId },
+                  search: {
+                    tab: activeTab === 'budget' ? undefined : activeTab,
+                    month: undefined,
+                    quarter: undefined,
+                    year: undefined,
+                    view: transactionView === 'all' ? undefined : transactionView,
+                    source: undefined,
+                    focus: undefined,
+                  },
+                  replace: true,
+                });
+              }}
+            >
+              Remove filter(s)
+            </Button>
           </Group>
         </Stack>
       </Paper>
