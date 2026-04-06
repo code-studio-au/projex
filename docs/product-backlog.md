@@ -57,9 +57,62 @@ Why this matters:
 
 - keeps building on the now-working account basics without mixing simple profile edits with bigger admin features
 
+### 3. Preserve drill-down continuity from company summary into project workspace
+
+Examples:
+
+- carry year / quarter / month filter context into the project route
+- support deep links into the most relevant tab such as budget or transactions
+- support direct uncoded or auto-mapped review entry points from summary views
+
+Why this matters:
+
+- the current company summary drill-down works, but users lose analytical context when they click into a project
+- preserving filter state will make the app feel much more intentional and professional without a major model change
+
+### 4. Add guided import preview and exception review
+
+Examples:
+
+- preview parsed rows before commit
+- show duplicates, invalid rows, unmapped rows, and taxonomy creation preview
+- make post-import summaries more structured and explicit
+
+Why this matters:
+
+- the importer is already capable, but users still commit imports with limited visibility into what will happen
+- this is one of the clearest gaps between a good internal tool and a more professional finance workflow
+
+### 5. Add bulk transaction review actions
+
+Examples:
+
+- bulk approve auto-mapped transactions
+- bulk recode selected rows
+- bulk clear coding
+- future reviewed / locked actions when transaction workflow state grows
+
+Why this matters:
+
+- row-by-row transaction review will become the main bottleneck as data volume increases
+- bulk actions are one of the highest-value workflow improvements available now
+
+### 6. Clarify budget semantics and messaging
+
+Examples:
+
+- distinguish project budget, allocated budget, actual spend, remaining allocation, and remaining headroom more explicitly
+- add clearer budget-health language around uncoded exposure and over-budget status
+- reduce ambiguity around what “remaining” means in each budget context
+
+Why this matters:
+
+- the underlying budget model is already strong, but the user-facing messaging can still be misread
+- sharper financial semantics will make the app feel more trustworthy to finance-oriented users
+
 ## Infra / Operations
 
-### 3. Add a separate maintenance/monitor page for restarts
+### 7. Add a separate maintenance/monitor page for restarts
 
 Current state:
 
@@ -107,10 +160,23 @@ Examples:
 - faster review flows for uncoded and auto-mapped transactions
 - stronger batch review actions
 - a clearer review-queue style experience for coding follow-up
+- workflow states such as reviewed or locked when needed later
 
 Why this matters:
 
 - transaction review is a core day-to-day workflow and still has room to become faster and more deliberate
+
+### Route-driven deep links and project entry points
+
+Examples:
+
+- direct links into project budget or transaction tabs
+- route-driven uncoded and review filters
+- preserve source context from company summary and future dashboard actions
+
+Why this matters:
+
+- once drill-down continuity exists, deeper route-driven entry points will make the app feel much more cohesive across dashboard and workspace surfaces
 
 ### Budget management ergonomics
 
@@ -120,6 +186,7 @@ Examples:
 - import/export budgets
 - budget templates
 - future period-based planning helpers
+- budget health bands and future forecast logic
 
 Why this matters:
 
@@ -133,6 +200,7 @@ Examples:
 - sort by overspend or risk
 - trend views
 - category rollups across projects
+- stronger project KPI rollups in the workspace header or company dashboard
 
 Why this matters:
 
