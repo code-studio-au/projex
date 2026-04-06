@@ -83,6 +83,109 @@ Why this matters:
 - avoids exposing raw upstream errors during expected maintenance windows
 - gives us a foundation for future maintenance messaging without tying it to the app process
 
+## Future Features
+
+These are worthwhile future additions, but they do not need to compete with the short near-term list above.
+
+### Import diagnostics and reconciliation
+
+Examples:
+
+- stronger duplicate-detection visibility during import
+- import preview summaries before commit
+- clearer row-level warnings
+- better post-import reconciliation messaging
+
+Why this matters:
+
+- the importer is already usable, but a mature finance workflow benefits from stronger visibility and confidence before data lands
+
+### Deeper transaction review workflow
+
+Examples:
+
+- faster review flows for uncoded and auto-mapped transactions
+- stronger batch review actions
+- a clearer review-queue style experience for coding follow-up
+
+Why this matters:
+
+- transaction review is a core day-to-day workflow and still has room to become faster and more deliberate
+
+### Budget management ergonomics
+
+Examples:
+
+- duplicate or copy budget lines
+- import/export budgets
+- budget templates
+- future period-based planning helpers
+
+Why this matters:
+
+- budget setup still works, but repeated admin effort will become more noticeable as usage grows
+
+### Executive reporting depth
+
+Examples:
+
+- export from the company summary
+- sort by overspend or risk
+- trend views
+- category rollups across projects
+
+Why this matters:
+
+- the executive summary is now useful, but deeper reporting will likely be needed as companies use more projects over time
+
+### Safer role and access administration UX
+
+Examples:
+
+- clearer role comparison/help text
+- more obvious consequences of role changes
+- permission summary views for admins
+
+Why this matters:
+
+- access control is much stronger now, but role changes are sensitive enough that more clarity will reduce admin mistakes
+
+### Search and filtering maturity
+
+Examples:
+
+- better transaction search
+- richer cross-project filtering
+- saved or more guided filter states
+
+Why this matters:
+
+- once data grows, finding and narrowing data quickly becomes as important as editing it
+
+### Data export and portability
+
+Examples:
+
+- export transactions
+- export budgets
+- export project or company summaries
+
+Why this matters:
+
+- most business users eventually expect to move data out for reporting, review, or handoff
+
+### Project and company deletion safety
+
+Examples:
+
+- stronger typed confirmation for destructive actions
+- clearer dependency warnings before delete
+- future restore windows or softer deletion flows where appropriate
+
+Why this matters:
+
+- destructive admin actions deserve extra friction and clearer consequences in a finance/admin product
+
 ## Not A Priority Right Now
 
 - Mantine 9 migration until `mantine-react-table` has a compatible release or we replace the table layer
