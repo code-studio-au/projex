@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
@@ -68,6 +68,34 @@ function buildProjectDrilldownSearch(args: {
     month: args.monthFilterKey ?? undefined,
     view: args.view && args.view !== 'all' ? args.view : undefined,
   };
+}
+
+function SummaryDrilldownLink(props: {
+  companyId: CompanyId;
+  projectId: Project['id'];
+  monthFilterKey: string | null;
+  tab: 'budget' | 'transactions';
+  view?: 'all' | 'uncoded' | 'auto-mapped-pending';
+  children: ReactNode;
+  color?: string;
+}) {
+  const { companyId, projectId, monthFilterKey, tab, view, children, color = 'blue.7' } = props;
+  return (
+    <Link
+      to={projectRoute.to}
+      params={{ companyId, projectId }}
+      search={buildProjectDrilldownSearch({
+        monthFilterKey,
+        tab,
+        view,
+      })}
+      style={{ textDecoration: 'none' }}
+    >
+      <Text fw={600} c={color}>
+        {children}
+      </Text>
+    </Link>
+  );
 }
 
 export default function CompanySummaryPanel(props: {
@@ -230,40 +258,61 @@ export default function CompanySummaryPanel(props: {
         header: 'Project',
         size: 180,
         Cell: ({ row }) => (
-          <Link
-            to={projectRoute.to}
-            params={{ companyId, projectId: row.original.id }}
-            search={buildProjectDrilldownSearch({
-              monthFilterKey,
-              tab: 'budget',
-            })}
-            style={{ textDecoration: 'none' }}
+          <SummaryDrilldownLink
+            companyId={companyId}
+            projectId={row.original.id}
+            monthFilterKey={monthFilterKey}
+            tab="budget"
           >
-            <Text fw={600} c="blue.7">
-              {row.original.name}
-            </Text>
-          </Link>
+            {row.original.name}
+          </SummaryDrilldownLink>
         ),
       },
       {
         accessorKey: 'budgetCents',
         header: 'Budget',
         size: 110,
-        Cell: ({ row }) => formatCurrencyFromCents(row.original.budgetCents, row.original.currency),
+        Cell: ({ row }) => (
+          <SummaryDrilldownLink
+            companyId={companyId}
+            projectId={row.original.id}
+            monthFilterKey={monthFilterKey}
+            tab="budget"
+          >
+            {formatCurrencyFromCents(row.original.budgetCents, row.original.currency)}
+          </SummaryDrilldownLink>
+        ),
       },
       {
         accessorKey: 'actualCodedCents',
         header: 'Actual',
         size: 110,
-        Cell: ({ row }) =>
-          formatCurrencyFromCents(row.original.actualCodedCents, row.original.currency),
+        Cell: ({ row }) => (
+          <SummaryDrilldownLink
+            companyId={companyId}
+            projectId={row.original.id}
+            monthFilterKey={monthFilterKey}
+            tab="transactions"
+          >
+            {formatCurrencyFromCents(row.original.actualCodedCents, row.original.currency)}
+          </SummaryDrilldownLink>
+        ),
       },
       {
         accessorKey: 'remainingCents',
         header: 'Remaining',
         size: 120,
-        Cell: ({ row }) =>
-          formatCurrencyFromCents(row.original.remainingCents, row.original.currency),
+        Cell: ({ row }) => (
+          <SummaryDrilldownLink
+            companyId={companyId}
+            projectId={row.original.id}
+            monthFilterKey={monthFilterKey}
+            tab="budget"
+            color={row.original.remainingCents < 0 ? 'red.7' : 'blue.7'}
+          >
+            {formatCurrencyFromCents(row.original.remainingCents, row.original.currency)}
+          </SummaryDrilldownLink>
+        ),
       },
       {
         accessorKey: 'uncodedCount',
@@ -271,20 +320,16 @@ export default function CompanySummaryPanel(props: {
         size: 84,
         Cell: ({ row }) =>
           row.original.uncodedCount > 0 ? (
-            <Link
-              to={projectRoute.to}
-              params={{ companyId, projectId: row.original.id }}
-              search={buildProjectDrilldownSearch({
-                monthFilterKey,
-                tab: 'transactions',
-                view: 'uncoded',
-              })}
-              style={{ textDecoration: 'none' }}
+            <SummaryDrilldownLink
+              companyId={companyId}
+              projectId={row.original.id}
+              monthFilterKey={monthFilterKey}
+              tab="transactions"
+              view="uncoded"
+              color="yellow.8"
             >
-              <Text fw={600} c="yellow.8">
-                {row.original.uncodedCount}
-              </Text>
-            </Link>
+              {row.original.uncodedCount}
+            </SummaryDrilldownLink>
           ) : (
             row.original.uncodedCount
           ),
@@ -295,20 +340,16 @@ export default function CompanySummaryPanel(props: {
         size: 120,
         Cell: ({ row }) =>
           row.original.uncodedAmountCents > 0 ? (
-            <Link
-              to={projectRoute.to}
-              params={{ companyId, projectId: row.original.id }}
-              search={buildProjectDrilldownSearch({
-                monthFilterKey,
-                tab: 'transactions',
-                view: 'uncoded',
-              })}
-              style={{ textDecoration: 'none' }}
+            <SummaryDrilldownLink
+              companyId={companyId}
+              projectId={row.original.id}
+              monthFilterKey={monthFilterKey}
+              tab="transactions"
+              view="uncoded"
+              color="yellow.8"
             >
-              <Text fw={600} c="yellow.8">
-                {formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency)}
-              </Text>
-            </Link>
+              {formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency)}
+            </SummaryDrilldownLink>
           ) : (
             formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency)
           ),
@@ -321,19 +362,50 @@ export default function CompanySummaryPanel(props: {
         Cell: ({ row }) => (
           <Stack gap={6}>
             {row.original.isOverBudget ? (
-              <Badge variant="light" color="red">
-                Over budget
-              </Badge>
+              <Link
+                to={projectRoute.to}
+                params={{ companyId, projectId: row.original.id }}
+                search={buildProjectDrilldownSearch({
+                  monthFilterKey,
+                  tab: 'budget',
+                })}
+                style={{ textDecoration: 'none', width: 'fit-content' }}
+              >
+                <Badge variant="light" color="red">
+                  Over budget
+                </Badge>
+              </Link>
             ) : null}
             {row.original.uncodedCount > 0 ? (
-              <Badge variant="light" color="yellow">
-                Has uncoded
-              </Badge>
+              <Link
+                to={projectRoute.to}
+                params={{ companyId, projectId: row.original.id }}
+                search={buildProjectDrilldownSearch({
+                  monthFilterKey,
+                  tab: 'transactions',
+                  view: 'uncoded',
+                })}
+                style={{ textDecoration: 'none', width: 'fit-content' }}
+              >
+                <Badge variant="light" color="yellow">
+                  Has uncoded
+                </Badge>
+              </Link>
             ) : null}
             {!row.original.isOverBudget && row.original.uncodedCount === 0 ? (
-              <Badge variant="light" color="green">
-                Healthy
-              </Badge>
+              <Link
+                to={projectRoute.to}
+                params={{ companyId, projectId: row.original.id }}
+                search={buildProjectDrilldownSearch({
+                  monthFilterKey,
+                  tab: 'budget',
+                })}
+                style={{ textDecoration: 'none', width: 'fit-content' }}
+              >
+                <Badge variant="light" color="green">
+                  Healthy
+                </Badge>
+              </Link>
             ) : null}
           </Stack>
         ),
