@@ -103,7 +103,6 @@
         margin-top: 24px;
       }
 
-      button,
       a.button {
         appearance: none;
         border: 0;
@@ -115,14 +114,8 @@
         transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
       }
 
-      button:hover,
       a.button:hover {
         transform: translateY(-1px);
-      }
-
-      .button-primary {
-        background: var(--accent);
-        color: white;
       }
 
       .button-secondary {
@@ -170,7 +163,6 @@
         </div>
 
         <div class="actions">
-          <button class="button-primary" id="retry-button" type="button">Retry now</button>
           <a class="button button-secondary" href="/" id="home-link">Open home</a>
         </div>
 
@@ -183,11 +175,10 @@
         var READY_URL = "/__maintenance_ready";
         var statusTitle = document.getElementById("status-title");
         var statusCopy = document.getElementById("status-copy");
-        var retryButton = document.getElementById("retry-button");
         var originalTarget = window.location.pathname + window.location.search + window.location.hash;
-        var pollIntervalMs = 4000;
+        var pollIntervalMs = 7000;
+        var initialDelayMs = 2500;
         var isChecking = false;
-        var intervalId = null;
 
         function setStatus(title, copy) {
           statusTitle.textContent = title;
@@ -224,16 +215,13 @@
             isChecking = false;
           }
         }
-
-        retryButton.addEventListener("click", function () {
+        
+        window.setTimeout(function () {
           void checkReady();
-        });
-
-        intervalId = window.setInterval(function () {
-          void checkReady();
-        }, pollIntervalMs);
-
-        void checkReady();
+          window.setInterval(function () {
+            void checkReady();
+          }, pollIntervalMs);
+        }, initialDelayMs);
       })();
     </script>
   </body>
