@@ -74,7 +74,7 @@ function LocalLoginPanel() {
               </Badge>
               <div>
                 <Title order={1} size={isMobile ? 'h2' : 'h1'}>
-                  Projex
+                  ProjEx
                 </Title>
                 <Text c="dimmed" mt="xs" maw={440}>
                   Use a seeded workspace account to move through budgets, imports, coding, and
