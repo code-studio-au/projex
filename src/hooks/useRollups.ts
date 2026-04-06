@@ -16,6 +16,8 @@ import {
   monthStart,
   nextMonthStart,
   parseISODate,
+  parseYearMonth,
+  quarterOfMonth,
   sum,
 } from '../utils/finance';
 import type { TaxonomyHook } from './useTaxonomy';
@@ -34,9 +36,11 @@ export function useRollups(params: {
   transactions: Txn[];
   budgets: BudgetLine[];
   taxonomy: TaxonomyHook;
+  yearFilter?: string | null;
+  quarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   monthFilterKey?: string | null;
 }) {
-  const { transactions, budgets, taxonomy, monthFilterKey } = params;
+  const { transactions, budgets, taxonomy, yearFilter, quarterFilter, monthFilterKey } = params;
 
   const monthStarts = useMemo(() => {
     // Be resilient to malformed dates (e.g., from CSV imports).
@@ -77,9 +81,15 @@ export function useRollups(params: {
   }, [budgets.length, transactions]);
 
   const visibleMonthStarts = useMemo(() => {
-    if (!monthFilterKey) return monthStarts;
-    return [monthStart(parseMonthKeyToDate(monthFilterKey))];
-  }, [monthStarts, monthFilterKey]);
+    if (monthFilterKey) return [monthStart(parseMonthKeyToDate(monthFilterKey))];
+    return monthStarts.filter((date) => {
+      const mk = monthKeyFromStart(date);
+      const { year, month } = parseYearMonth(mk);
+      if (yearFilter && String(year) !== yearFilter) return false;
+      if (quarterFilter && quarterOfMonth(month) !== quarterFilter) return false;
+      return true;
+    });
+  }, [monthStarts, monthFilterKey, quarterFilter, yearFilter]);
 
   const visibleMonthKeys = useMemo(
     () => visibleMonthStarts.map(monthKeyFromStart),
@@ -162,7 +172,7 @@ export function useRollups(params: {
     };
   }, [rollupRows]);
 
-  return { monthStarts, visibleMonthKeys, rollupRows, totals, badDateCount };
+  return { monthStarts, visibleMonthStarts, visibleMonthKeys, rollupRows, totals, badDateCount };
 }
 
 export type RollupsHook = ReturnType<typeof useRollups>;

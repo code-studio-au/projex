@@ -59,12 +59,16 @@ function totalsByCurrency(
 }
 
 function buildProjectDrilldownSearch(args: {
+  yearFilter: string | null;
+  quarterFilter: QuarterOption | null;
   monthFilterKey: string | null;
   tab?: 'budget' | 'transactions';
   view?: 'all' | 'uncoded' | 'auto-mapped-pending';
   focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 }) {
   return {
+    year: args.yearFilter ?? undefined,
+    quarter: args.quarterFilter ?? undefined,
     tab: args.tab === 'budget' ? undefined : args.tab,
     month: args.monthFilterKey ?? undefined,
     view: args.view && args.view !== 'all' ? args.view : undefined,
@@ -76,6 +80,8 @@ function buildProjectDrilldownSearch(args: {
 function SummaryDrilldownLink(props: {
   companyId: CompanyId;
   projectId: Project['id'];
+  yearFilter: string | null;
+  quarterFilter: QuarterOption | null;
   monthFilterKey: string | null;
   tab: 'budget' | 'transactions';
   view?: 'all' | 'uncoded' | 'auto-mapped-pending';
@@ -86,6 +92,8 @@ function SummaryDrilldownLink(props: {
   const {
     companyId,
     projectId,
+    yearFilter,
+    quarterFilter,
     monthFilterKey,
     tab,
     view,
@@ -98,6 +106,8 @@ function SummaryDrilldownLink(props: {
       to={projectRoute.to}
       params={{ companyId, projectId }}
       search={buildProjectDrilldownSearch({
+        yearFilter,
+        quarterFilter,
         monthFilterKey,
         tab,
         view,
@@ -275,6 +285,8 @@ export default function CompanySummaryPanel(props: {
           <SummaryDrilldownLink
             companyId={companyId}
             projectId={row.original.id}
+            yearFilter={yearFilter}
+            quarterFilter={quarterFilter}
             monthFilterKey={monthFilterKey}
             tab="budget"
             focus="budget"
@@ -291,6 +303,8 @@ export default function CompanySummaryPanel(props: {
           <SummaryDrilldownLink
             companyId={companyId}
             projectId={row.original.id}
+            yearFilter={yearFilter}
+            quarterFilter={quarterFilter}
             monthFilterKey={monthFilterKey}
             tab="budget"
             focus="budget"
@@ -307,6 +321,8 @@ export default function CompanySummaryPanel(props: {
           <SummaryDrilldownLink
             companyId={companyId}
             projectId={row.original.id}
+            yearFilter={yearFilter}
+            quarterFilter={quarterFilter}
             monthFilterKey={monthFilterKey}
             tab="transactions"
             focus="actual"
@@ -323,6 +339,8 @@ export default function CompanySummaryPanel(props: {
           <SummaryDrilldownLink
             companyId={companyId}
             projectId={row.original.id}
+            yearFilter={yearFilter}
+            quarterFilter={quarterFilter}
             monthFilterKey={monthFilterKey}
             tab="budget"
             focus="remaining"
@@ -341,6 +359,8 @@ export default function CompanySummaryPanel(props: {
             <SummaryDrilldownLink
               companyId={companyId}
               projectId={row.original.id}
+              yearFilter={yearFilter}
+              quarterFilter={quarterFilter}
               monthFilterKey={monthFilterKey}
               tab="transactions"
               view="uncoded"
@@ -362,6 +382,8 @@ export default function CompanySummaryPanel(props: {
             <SummaryDrilldownLink
               companyId={companyId}
               projectId={row.original.id}
+              yearFilter={yearFilter}
+              quarterFilter={quarterFilter}
               monthFilterKey={monthFilterKey}
               tab="transactions"
               view="uncoded"
@@ -386,6 +408,8 @@ export default function CompanySummaryPanel(props: {
                 to={projectRoute.to}
                 params={{ companyId, projectId: row.original.id }}
                 search={buildProjectDrilldownSearch({
+                  yearFilter,
+                  quarterFilter,
                   monthFilterKey,
                   tab: 'budget',
                   focus: 'health',
@@ -402,6 +426,8 @@ export default function CompanySummaryPanel(props: {
                 to={projectRoute.to}
                 params={{ companyId, projectId: row.original.id }}
                 search={buildProjectDrilldownSearch({
+                  yearFilter,
+                  quarterFilter,
                   monthFilterKey,
                   tab: 'transactions',
                   view: 'uncoded',
@@ -419,6 +445,8 @@ export default function CompanySummaryPanel(props: {
                 to={projectRoute.to}
                 params={{ companyId, projectId: row.original.id }}
                 search={buildProjectDrilldownSearch({
+                  yearFilter,
+                  quarterFilter,
                   monthFilterKey,
                   tab: 'budget',
                   focus: 'health',
@@ -457,7 +485,7 @@ export default function CompanySummaryPanel(props: {
           ),
       },
     ],
-    [companyId, monthFilterKey]
+    [companyId, monthFilterKey, quarterFilter, yearFilter]
   );
 
   return (
@@ -488,7 +516,7 @@ export default function CompanySummaryPanel(props: {
                 setQuarterFilter((value as QuarterOption | null) ?? null);
                 setMonthFilterKey(null);
               }}
-              disabled={!yearFilter && quarterFilterOptions.length === 0}
+              disabled={!yearFilter}
             />
             <Select
               label="Month"

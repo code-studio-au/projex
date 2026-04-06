@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Badge, Button, Group, Paper, Select, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
@@ -25,6 +25,8 @@ export default function ProjectWorkspace(props: {
   companyId: CompanyId;
   projectId: ProjectId;
   initialTab?: 'budget' | 'transactions' | 'import' | 'settings';
+  initialYearFilter?: string | null;
+  initialQuarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   initialMonthFilterKey?: string | null;
   initialTransactionView?: 'all' | 'uncoded' | 'auto-mapped-pending';
   initialEntrySource?: 'company-summary';
@@ -34,11 +36,22 @@ export default function ProjectWorkspace(props: {
     companyId,
     projectId,
     initialTab = 'budget',
+    initialYearFilter = null,
+    initialQuarterFilter = null,
     initialMonthFilterKey = null,
     initialTransactionView = 'all',
     initialEntrySource,
     initialEntryFocus,
   } = props;
+  const derivedInitialYearFilter = initialYearFilter ?? initialMonthFilterKey?.slice(0, 4) ?? null;
+  const derivedInitialQuarterFilter =
+    initialQuarterFilter ??
+    (initialMonthFilterKey
+      ? (() => {
+          const month = Number(initialMonthFilterKey.slice(5, 7));
+          return month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+        })()
+      : null);
   const isMobile = useMediaQuery('(max-width: 48em)');
   const router = useRouter();
 
@@ -60,6 +73,10 @@ export default function ProjectWorkspace(props: {
   const [activeTab, setActiveTab] = useState<'budget' | 'transactions' | 'import' | 'settings'>(
     initialTab
   );
+  const [yearFilter, setYearFilter] = useState<string | null>(derivedInitialYearFilter);
+  const [quarterFilter, setQuarterFilter] = useState<'Q1' | 'Q2' | 'Q3' | 'Q4' | null>(
+    derivedInitialQuarterFilter
+  );
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(initialMonthFilterKey);
   const [transactionView, setTransactionView] = useState<'all' | 'uncoded' | 'auto-mapped-pending'>(
     initialTransactionView
@@ -68,6 +85,14 @@ export default function ProjectWorkspace(props: {
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  useEffect(() => {
+    setYearFilter(derivedInitialYearFilter);
+  }, [derivedInitialYearFilter]);
+
+  useEffect(() => {
+    setQuarterFilter(derivedInitialQuarterFilter);
+  }, [derivedInitialQuarterFilter]);
 
   useEffect(() => {
     setMonthFilterKey(initialMonthFilterKey);
@@ -81,18 +106,54 @@ export default function ProjectWorkspace(props: {
     transactions: txns.transactions,
     budgets: budgets.budgets,
     taxonomy,
+    yearFilter,
+    quarterFilter,
     monthFilterKey,
   });
 
-  const monthFilterOptions = useMemo(
+  const allMonthKeys = useMemo(
     () =>
-      rollups.monthStarts.map((d) => {
-        const y = d.getUTCFullYear();
-        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-        const mk = `${y}-${m}`;
-        return { value: mk, label: mk };
+      rollups.monthStarts.map((date) => {
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
       }),
     [rollups.monthStarts]
+  );
+
+  const yearFilterOptions = useMemo(() => {
+    const years = new Set(allMonthKeys.map((key) => key.slice(0, 4)));
+    return [...years]
+      .sort((a, b) => b.localeCompare(a))
+      .map((value) => ({ value, label: value }));
+  }, [allMonthKeys]);
+
+  const quarterFilterOptions = useMemo(() => {
+    if (!yearFilter) return [];
+    const filteredMonths = allMonthKeys.filter((key) => key.startsWith(`${yearFilter}-`));
+    const quarters = new Set(
+      filteredMonths.map((key) => {
+        const month = Number(key.slice(5, 7));
+        return month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+      })
+    );
+    return (['Q1', 'Q2', 'Q3', 'Q4'] as const)
+      .filter((quarter) => quarters.has(quarter))
+      .map((value) => ({ value, label: value }));
+  }, [allMonthKeys, yearFilter]);
+
+  const monthFilterOptions = useMemo(
+    () =>
+      allMonthKeys
+        .filter((key) => {
+          if (yearFilter && !key.startsWith(`${yearFilter}-`)) return false;
+          if (!quarterFilter) return true;
+          const month = Number(key.slice(5, 7));
+          const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+          return quarter === quarterFilter;
+        })
+        .map((value) => ({ value, label: value })),
+    [allMonthKeys, quarterFilter, yearFilter]
   );
 
   const uncoded = useMemo(
@@ -124,6 +185,8 @@ export default function ProjectWorkspace(props: {
       to: '/c/$companyId/p/$projectId',
       params: { companyId, projectId },
       search: {
+        year: yearFilter ?? undefined,
+        quarter: quarterFilter ?? undefined,
         tab: activeTab === 'budget' ? undefined : activeTab,
         month: monthFilterKey ?? undefined,
         view: transactionView === 'all' ? undefined : transactionView,
@@ -137,6 +200,8 @@ export default function ProjectWorkspace(props: {
     companyId,
     initialEntryFocus,
     initialEntrySource,
+    yearFilter,
+    quarterFilter,
     monthFilterKey,
     projectId,
     router,
@@ -185,6 +250,8 @@ export default function ProjectWorkspace(props: {
                     to: '/c/$companyId/p/$projectId',
                     params: { companyId, projectId },
                     search: {
+                      year: yearFilter ?? undefined,
+                      quarter: quarterFilter ?? undefined,
                       tab: activeTab === 'budget' ? undefined : activeTab,
                       month: monthFilterKey ?? undefined,
                       view: transactionView === 'all' ? undefined : transactionView,
@@ -199,6 +266,44 @@ export default function ProjectWorkspace(props: {
               </Button>
             </Group>
           ) : null}
+
+          <Group align="flex-end" gap="sm" wrap="wrap">
+            <Select
+              label="Year"
+              placeholder="All years"
+              data={yearFilterOptions}
+              value={yearFilter}
+              clearable
+              onChange={(value) => {
+                setYearFilter(value);
+                setQuarterFilter(null);
+                setMonthFilterKey(null);
+              }}
+              style={{ width: isMobile ? '100%' : 140 }}
+            />
+            <Select
+              label="Quarter"
+              placeholder="All quarters"
+              data={quarterFilterOptions}
+              value={quarterFilter}
+              clearable
+              disabled={!yearFilter}
+              onChange={(value) => {
+                setQuarterFilter((value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null);
+                setMonthFilterKey(null);
+              }}
+              style={{ width: isMobile ? '100%' : 150 }}
+            />
+            <Select
+              label="Month"
+              placeholder="All months"
+              data={monthFilterOptions}
+              value={monthFilterKey}
+              clearable
+              onChange={setMonthFilterKey}
+              style={{ width: isMobile ? '100%' : 180 }}
+            />
+          </Group>
         </Stack>
       </Paper>
 
@@ -227,9 +332,9 @@ export default function ProjectWorkspace(props: {
               txns={txns}
               taxonomy={taxonomy}
               currencyCode={currencyCode}
+              yearFilter={yearFilter}
+              quarterFilter={quarterFilter}
               monthFilterKey={monthFilterKey}
-              setMonthFilterKey={setMonthFilterKey}
-              monthFilterOptions={monthFilterOptions}
               transactionView={transactionView}
               setTransactionView={setTransactionView}
               canEditTaxonomy={canEditTaxonomy}

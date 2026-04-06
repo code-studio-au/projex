@@ -31,9 +31,9 @@ export default function TransactionsPanel(props: {
   txns: TransactionsHook;
   taxonomy: TaxonomyHook;
   currencyCode: string;
+  yearFilter: string | null;
+  quarterFilter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   monthFilterKey: string | null;
-  setMonthFilterKey: (v: string | null) => void;
-  monthFilterOptions: { value: string; label: string }[];
   transactionView: 'all' | 'uncoded' | 'auto-mapped-pending';
   setTransactionView: (v: 'all' | 'uncoded' | 'auto-mapped-pending') => void;
   canEditTaxonomy: boolean;
@@ -43,9 +43,9 @@ export default function TransactionsPanel(props: {
     txns,
     taxonomy,
     currencyCode,
+    yearFilter,
+    quarterFilter,
     monthFilterKey,
-    setMonthFilterKey,
-    monthFilterOptions,
     transactionView,
     setTransactionView,
     canEditTaxonomy,
@@ -91,6 +91,20 @@ export default function TransactionsPanel(props: {
           return false;
         }
       });
+    } else if (yearFilter || quarterFilter) {
+      out = out.filter((t) => {
+        try {
+          const mk = monthKeyFromStart(monthStart(parseISODate(t.date)));
+          const year = mk.slice(0, 4);
+          const month = Number(mk.slice(5, 7));
+          const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+          if (yearFilter && year !== yearFilter) return false;
+          if (quarterFilter && quarter !== quarterFilter) return false;
+          return true;
+        } catch {
+          return false;
+        }
+      });
     }
     if (transactionView === 'uncoded')
       out = out.filter(
@@ -106,6 +120,8 @@ export default function TransactionsPanel(props: {
     return out;
   }, [
     txns.transactions,
+    yearFilter,
+    quarterFilter,
     monthFilterKey,
     transactionView,
     taxonomy.validSubIds,
@@ -126,7 +142,7 @@ export default function TransactionsPanel(props: {
     setPagination((current) =>
       current.pageIndex === 0 ? current : { ...current, pageIndex: 0 }
     );
-  }, [monthFilterKey, transactionView]);
+  }, [monthFilterKey, quarterFilter, transactionView, yearFilter]);
 
   function moveToSubcategoryCell(args: {
     row: Parameters<NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>>[0]['row'];
@@ -337,15 +353,6 @@ export default function TransactionsPanel(props: {
             </Group>
 
             <Group gap="sm" align="flex-end" wrap="wrap">
-              <Select
-                label="Month"
-                placeholder="All months"
-                data={monthFilterOptions}
-                value={monthFilterKey}
-                clearable
-                onChange={setMonthFilterKey}
-                style={{ width: isMobile ? '100%' : 180 }}
-              />
               <Select
                 label="View"
                 data={[

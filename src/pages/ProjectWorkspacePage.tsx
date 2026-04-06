@@ -18,6 +18,8 @@ export default function ProjectWorkspacePage() {
       companyId={companyId}
       projectId={projectId}
       initialTab={search.tab}
+      initialYearFilter={search.year ?? null}
+      initialQuarterFilter={search.quarter ?? null}
       initialMonthFilterKey={search.month ?? null}
       initialTransactionView={search.view}
       initialEntrySource={search.source}
