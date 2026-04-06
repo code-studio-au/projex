@@ -20,6 +20,8 @@ export default function ProjectWorkspacePage() {
       initialTab={search.tab}
       initialMonthFilterKey={search.month ?? null}
       initialTransactionView={search.view}
+      initialEntrySource={search.source}
+      initialEntryFocus={search.focus}
     />
   );
 }

@@ -62,11 +62,14 @@ function buildProjectDrilldownSearch(args: {
   monthFilterKey: string | null;
   tab?: 'budget' | 'transactions';
   view?: 'all' | 'uncoded' | 'auto-mapped-pending';
+  focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 }) {
   return {
     tab: args.tab === 'budget' ? undefined : args.tab,
     month: args.monthFilterKey ?? undefined,
     view: args.view && args.view !== 'all' ? args.view : undefined,
+    source: 'company-summary' as const,
+    focus: args.focus,
   };
 }
 
@@ -76,10 +79,20 @@ function SummaryDrilldownLink(props: {
   monthFilterKey: string | null;
   tab: 'budget' | 'transactions';
   view?: 'all' | 'uncoded' | 'auto-mapped-pending';
+  focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
   children: ReactNode;
   color?: string;
 }) {
-  const { companyId, projectId, monthFilterKey, tab, view, children, color = 'blue.7' } = props;
+  const {
+    companyId,
+    projectId,
+    monthFilterKey,
+    tab,
+    view,
+    focus,
+    children,
+    color = 'blue.7',
+  } = props;
   return (
     <Link
       to={projectRoute.to}
@@ -88,6 +101,7 @@ function SummaryDrilldownLink(props: {
         monthFilterKey,
         tab,
         view,
+        focus,
       })}
       style={{ textDecoration: 'none' }}
     >
@@ -263,6 +277,7 @@ export default function CompanySummaryPanel(props: {
             projectId={row.original.id}
             monthFilterKey={monthFilterKey}
             tab="budget"
+            focus="budget"
           >
             {row.original.name}
           </SummaryDrilldownLink>
@@ -278,6 +293,7 @@ export default function CompanySummaryPanel(props: {
             projectId={row.original.id}
             monthFilterKey={monthFilterKey}
             tab="budget"
+            focus="budget"
           >
             {formatCurrencyFromCents(row.original.budgetCents, row.original.currency)}
           </SummaryDrilldownLink>
@@ -293,6 +309,7 @@ export default function CompanySummaryPanel(props: {
             projectId={row.original.id}
             monthFilterKey={monthFilterKey}
             tab="transactions"
+            focus="actual"
           >
             {formatCurrencyFromCents(row.original.actualCodedCents, row.original.currency)}
           </SummaryDrilldownLink>
@@ -308,6 +325,7 @@ export default function CompanySummaryPanel(props: {
             projectId={row.original.id}
             monthFilterKey={monthFilterKey}
             tab="budget"
+            focus="remaining"
             color={row.original.remainingCents < 0 ? 'red.7' : 'blue.7'}
           >
             {formatCurrencyFromCents(row.original.remainingCents, row.original.currency)}
@@ -326,6 +344,7 @@ export default function CompanySummaryPanel(props: {
               monthFilterKey={monthFilterKey}
               tab="transactions"
               view="uncoded"
+              focus="uncoded"
               color="yellow.8"
             >
               {row.original.uncodedCount}
@@ -346,6 +365,7 @@ export default function CompanySummaryPanel(props: {
               monthFilterKey={monthFilterKey}
               tab="transactions"
               view="uncoded"
+              focus="uncoded"
               color="yellow.8"
             >
               {formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency)}
@@ -368,6 +388,7 @@ export default function CompanySummaryPanel(props: {
                 search={buildProjectDrilldownSearch({
                   monthFilterKey,
                   tab: 'budget',
+                  focus: 'health',
                 })}
                 style={{ textDecoration: 'none', width: 'fit-content' }}
               >
@@ -384,6 +405,7 @@ export default function CompanySummaryPanel(props: {
                   monthFilterKey,
                   tab: 'transactions',
                   view: 'uncoded',
+                  focus: 'uncoded',
                 })}
                 style={{ textDecoration: 'none', width: 'fit-content' }}
               >
@@ -399,6 +421,7 @@ export default function CompanySummaryPanel(props: {
                 search={buildProjectDrilldownSearch({
                   monthFilterKey,
                   tab: 'budget',
+                  focus: 'health',
                 })}
                 style={{ textDecoration: 'none', width: 'fit-content' }}
               >

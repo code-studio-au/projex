@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Group, Paper, Stack, Tabs, Title } from '@mantine/core';
+import { Badge, Button, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
@@ -27,6 +27,8 @@ export default function ProjectWorkspace(props: {
   initialTab?: 'budget' | 'transactions' | 'import' | 'settings';
   initialMonthFilterKey?: string | null;
   initialTransactionView?: 'all' | 'uncoded' | 'auto-mapped-pending';
+  initialEntrySource?: 'company-summary';
+  initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 }) {
   const {
     companyId,
@@ -34,6 +36,8 @@ export default function ProjectWorkspace(props: {
     initialTab = 'budget',
     initialMonthFilterKey = null,
     initialTransactionView = 'all',
+    initialEntrySource,
+    initialEntryFocus,
   } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
   const router = useRouter();
@@ -98,6 +102,22 @@ export default function ProjectWorkspace(props: {
   const headerReady = Boolean(company.data && project.data);
   const summaryReady = headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
   const currencyCode = project.data?.currency ?? 'AUD';
+  const entryMessage = useMemo(() => {
+    if (initialEntrySource !== 'company-summary') return null;
+    switch (initialEntryFocus) {
+      case 'actual':
+        return 'Opened from the company summary to review actual spend for this project.';
+      case 'remaining':
+        return 'Opened from the company summary to review this project budget position.';
+      case 'uncoded':
+        return 'Opened from the company summary to review uncoded transactions for this project.';
+      case 'health':
+        return 'Opened from the company summary to review this project health snapshot.';
+      case 'budget':
+      default:
+        return 'Opened from the company summary to review this project budget snapshot.';
+    }
+  }, [initialEntryFocus, initialEntrySource]);
 
   useEffect(() => {
     void router.navigate({
@@ -107,38 +127,79 @@ export default function ProjectWorkspace(props: {
         tab: activeTab === 'budget' ? undefined : activeTab,
         month: monthFilterKey ?? undefined,
         view: transactionView === 'all' ? undefined : transactionView,
+        source: initialEntrySource,
+        focus: initialEntryFocus,
       },
       replace: true,
     });
-  }, [activeTab, companyId, monthFilterKey, projectId, router, transactionView]);
+  }, [
+    activeTab,
+    companyId,
+    initialEntryFocus,
+    initialEntrySource,
+    monthFilterKey,
+    projectId,
+    router,
+    transactionView,
+  ]);
 
   return (
     <Stack gap="lg">
       <Paper withBorder p={isMobile ? 'md' : 'lg'} radius="lg">
-        <Group justify="space-between" align="center" wrap="wrap">
-          {headerReady ? (
-            <Title order={3}>
-              {company.data?.name} • {project.data?.name}
-            </Title>
-          ) : (
-            <LoadingLine width={320} height={30} radius="md" />
-          )}
-
-          <Group gap="sm" wrap="wrap">
-            {headerReady && project.data?.allowSuperadminAccess ? (
-              <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="teal">
-                Superadmin access enabled
-              </Badge>
-            ) : null}
-            {summaryReady ? (
-              <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
-                Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
-              </Badge>
+        <Stack gap="sm">
+          <Group justify="space-between" align="center" wrap="wrap">
+            {headerReady ? (
+              <Title order={3}>
+                {company.data?.name} • {project.data?.name}
+              </Title>
             ) : (
-              <LoadingChip width={190} height={30} />
+              <LoadingLine width={320} height={30} radius="md" />
             )}
+
+            <Group gap="sm" wrap="wrap">
+              {headerReady && project.data?.allowSuperadminAccess ? (
+                <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="teal">
+                  Superadmin access enabled
+                </Badge>
+              ) : null}
+              {summaryReady ? (
+                <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
+                  Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
+                </Badge>
+              ) : (
+                <LoadingChip width={190} height={30} />
+              )}
+            </Group>
           </Group>
-        </Group>
+
+          {entryMessage ? (
+            <Group justify="space-between" align="center" wrap="wrap">
+              <Text size="sm" c="dimmed">
+                {entryMessage}
+              </Text>
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => {
+                  void router.navigate({
+                    to: '/c/$companyId/p/$projectId',
+                    params: { companyId, projectId },
+                    search: {
+                      tab: activeTab === 'budget' ? undefined : activeTab,
+                      month: monthFilterKey ?? undefined,
+                      view: transactionView === 'all' ? undefined : transactionView,
+                      source: undefined,
+                      focus: undefined,
+                    },
+                    replace: true,
+                  });
+                }}
+              >
+                Clear entry context
+              </Button>
+            </Group>
+          ) : null}
+        </Stack>
       </Paper>
 
       <Paper withBorder radius="lg" p="md">
