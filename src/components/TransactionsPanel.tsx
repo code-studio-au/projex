@@ -365,58 +365,72 @@ export default function TransactionsPanel(props: {
                 {autoMappedPendingTxns.length} pending
               </Badge>
             </Group>
+          </Group>
+
+          <Group align="flex-end" gap="sm" wrap="wrap">
+            <Select
+              label="Year"
+              placeholder="All years"
+              data={yearFilterOptions}
+              value={yearFilter}
+              clearable
+              onChange={(value) => {
+                setYearFilter(value);
+                setQuarterFilter(null);
+                setMonthFilterKey(null);
+              }}
+              style={{ width: isMobile ? '100%' : 140 }}
+            />
+            <Select
+              label="Quarter"
+              placeholder="All quarters"
+              data={quarterFilterOptions}
+              value={quarterFilter}
+              clearable
+              disabled={!yearFilter}
+              onChange={(value) => {
+                setQuarterFilter((value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null);
+                setMonthFilterKey(null);
+              }}
+              style={{ width: isMobile ? '100%' : 150 }}
+            />
+            <Select
+              label="Month"
+              placeholder="All months"
+              data={monthFilterOptions}
+              value={monthFilterKey}
+              clearable
+              onChange={setMonthFilterKey}
+              style={{ width: isMobile ? '100%' : 180 }}
+            />
+            <Button
+              size="sm"
+              variant="subtle"
+              disabled={!yearFilter && !quarterFilter && !monthFilterKey}
+              onClick={onClearFilters}
+            >
+              Remove filter(s)
+            </Button>
+          </Group>
+
+          <Group justify="space-between" align="flex-end" wrap="wrap">
+            <Select
+              label="View"
+              data={[
+                { value: 'all', label: 'All' },
+                { value: 'uncoded', label: 'Uncoded only' },
+                { value: 'auto-mapped-pending', label: 'Auto-mapped pending approval' },
+              ]}
+              value={transactionView}
+              onChange={(v) =>
+                setTransactionView(
+                  v === 'uncoded' || v === 'auto-mapped-pending' ? v : 'all'
+                )
+              }
+              style={{ width: isMobile ? '100%' : 250 }}
+            />
 
             <Group gap="sm" align="flex-end" wrap="wrap">
-              <Select
-                label="Year"
-                placeholder="All years"
-                data={yearFilterOptions}
-                value={yearFilter}
-                clearable
-                onChange={(value) => {
-                  setYearFilter(value);
-                  setQuarterFilter(null);
-                  setMonthFilterKey(null);
-                }}
-                style={{ width: isMobile ? '100%' : 140 }}
-              />
-              <Select
-                label="Quarter"
-                placeholder="All quarters"
-                data={quarterFilterOptions}
-                value={quarterFilter}
-                clearable
-                disabled={!yearFilter}
-                onChange={(value) => {
-                  setQuarterFilter((value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null);
-                  setMonthFilterKey(null);
-                }}
-                style={{ width: isMobile ? '100%' : 150 }}
-              />
-              <Select
-                label="Month"
-                placeholder="All months"
-                data={monthFilterOptions}
-                value={monthFilterKey}
-                clearable
-                onChange={setMonthFilterKey}
-                style={{ width: isMobile ? '100%' : 180 }}
-              />
-              <Select
-                label="View"
-                data={[
-                  { value: 'all', label: 'All' },
-                  { value: 'uncoded', label: 'Uncoded only' },
-                  { value: 'auto-mapped-pending', label: 'Auto-mapped pending approval' },
-                ]}
-                value={transactionView}
-                onChange={(v) =>
-                  setTransactionView(
-                    v === 'uncoded' || v === 'auto-mapped-pending' ? v : 'all'
-                  )
-                }
-                style={{ width: isMobile ? '100%' : 250 }}
-              />
               <Button
                 variant="light"
                 color="teal"
@@ -432,14 +446,6 @@ export default function TransactionsPanel(props: {
                 }}
               >
                 Accept all auto-mappings ({autoMappedPendingTxns.length})
-              </Button>
-              <Button
-                size="sm"
-                variant="subtle"
-                disabled={!yearFilter && !quarterFilter && !monthFilterKey}
-                onClick={onClearFilters}
-              >
-                Remove filter(s)
               </Button>
               <Button
                 variant="light"
