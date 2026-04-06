@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Group, Paper, Select, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
@@ -163,12 +163,6 @@ export default function ProjectWorkspace(props: {
   const headerReady = Boolean(company.data && project.data);
   const summaryReady = headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
   const currencyCode = project.data?.currency ?? 'AUD';
-  const activeFilterLabel = useMemo(() => {
-    if (monthFilterKey) return `Filter: ${monthFilterKey}`;
-    if (yearFilter && quarterFilter) return `Filter: ${yearFilter} ${quarterFilter}`;
-    if (yearFilter) return `Filter: ${yearFilter}`;
-    return null;
-  }, [monthFilterKey, quarterFilter, yearFilter]);
   const entryMessage = useMemo(() => {
     if (initialEntrySource !== 'company-summary') return null;
     switch (initialEntryFocus) {
@@ -233,11 +227,6 @@ export default function ProjectWorkspace(props: {
                   Superadmin access enabled
                 </Badge>
               ) : null}
-              {activeFilterLabel ? (
-                <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="blue">
-                  {activeFilterLabel}
-                </Badge>
-              ) : null}
               {summaryReady ? (
                 <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
                   Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
@@ -255,70 +244,6 @@ export default function ProjectWorkspace(props: {
               </Text>
             </Group>
           ) : null}
-
-          <Group align="flex-end" gap="sm" wrap="wrap">
-            <Select
-              label="Year"
-              placeholder="All years"
-              data={yearFilterOptions}
-              value={yearFilter}
-              clearable
-              onChange={(value) => {
-                setYearFilter(value);
-                setQuarterFilter(null);
-                setMonthFilterKey(null);
-              }}
-              style={{ width: isMobile ? '100%' : 140 }}
-            />
-            <Select
-              label="Quarter"
-              placeholder="All quarters"
-              data={quarterFilterOptions}
-              value={quarterFilter}
-              clearable
-              disabled={!yearFilter}
-              onChange={(value) => {
-                setQuarterFilter((value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null);
-                setMonthFilterKey(null);
-              }}
-              style={{ width: isMobile ? '100%' : 150 }}
-            />
-            <Select
-              label="Month"
-              placeholder="All months"
-              data={monthFilterOptions}
-              value={monthFilterKey}
-              clearable
-              onChange={setMonthFilterKey}
-              style={{ width: isMobile ? '100%' : 180 }}
-            />
-            <Button
-              size="sm"
-              variant="subtle"
-              disabled={!yearFilter && !quarterFilter && !monthFilterKey}
-              onClick={() => {
-                setYearFilter(null);
-                setQuarterFilter(null);
-                setMonthFilterKey(null);
-                void router.navigate({
-                  to: '/c/$companyId/p/$projectId',
-                  params: { companyId, projectId },
-                  search: {
-                    tab: activeTab === 'budget' ? undefined : activeTab,
-                    month: undefined,
-                    quarter: undefined,
-                    year: undefined,
-                    view: transactionView === 'all' ? undefined : transactionView,
-                    source: undefined,
-                    focus: undefined,
-                  },
-                  replace: true,
-                });
-              }}
-            >
-              Remove filter(s)
-            </Button>
-          </Group>
         </Stack>
       </Paper>
 
@@ -347,11 +272,36 @@ export default function ProjectWorkspace(props: {
               txns={txns}
               taxonomy={taxonomy}
               currencyCode={currencyCode}
+              yearFilterOptions={yearFilterOptions}
               yearFilter={yearFilter}
+              setYearFilter={setYearFilter}
+              quarterFilterOptions={quarterFilterOptions}
               quarterFilter={quarterFilter}
+              setQuarterFilter={setQuarterFilter}
+              monthFilterOptions={monthFilterOptions}
               monthFilterKey={monthFilterKey}
+              setMonthFilterKey={setMonthFilterKey}
               transactionView={transactionView}
               setTransactionView={setTransactionView}
+              onClearFilters={() => {
+                setYearFilter(null);
+                setQuarterFilter(null);
+                setMonthFilterKey(null);
+                void router.navigate({
+                  to: '/c/$companyId/p/$projectId',
+                  params: { companyId, projectId },
+                  search: {
+                    tab: activeTab === 'budget' ? undefined : activeTab,
+                    month: undefined,
+                    quarter: undefined,
+                    year: undefined,
+                    view: transactionView === 'all' ? undefined : transactionView,
+                    source: undefined,
+                    focus: undefined,
+                  },
+                  replace: true,
+                });
+              }}
               canEditTaxonomy={canEditTaxonomy}
               readOnly={!canEditTxns}
             />
@@ -362,6 +312,34 @@ export default function ProjectWorkspace(props: {
               projectId={projectId}
               currencyCode={currencyCode}
               projectBudgetTotalCents={project.data?.budgetTotalCents ?? 0}
+              yearFilterOptions={yearFilterOptions}
+              yearFilter={yearFilter}
+              setYearFilter={setYearFilter}
+              quarterFilterOptions={quarterFilterOptions}
+              quarterFilter={quarterFilter}
+              setQuarterFilter={setQuarterFilter}
+              monthFilterOptions={monthFilterOptions}
+              monthFilterKey={monthFilterKey}
+              setMonthFilterKey={setMonthFilterKey}
+              onClearFilters={() => {
+                setYearFilter(null);
+                setQuarterFilter(null);
+                setMonthFilterKey(null);
+                void router.navigate({
+                  to: '/c/$companyId/p/$projectId',
+                  params: { companyId, projectId },
+                  search: {
+                    tab: activeTab === 'budget' ? undefined : activeTab,
+                    month: undefined,
+                    quarter: undefined,
+                    year: undefined,
+                    view: transactionView === 'all' ? undefined : transactionView,
+                    source: undefined,
+                    focus: undefined,
+                  },
+                  replace: true,
+                });
+              }}
               onUpdateProjectBudgetTotal={async (budgetTotalCents) => {
                 await updateProject.mutateAsync({ id: projectId, budgetTotalCents });
               }}

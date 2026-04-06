@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActionIcon, Alert, Badge, Group, Menu, NumberInput, Paper, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
+import { ActionIcon, Alert, Button, Group, Menu, NumberInput, Paper, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import {
   MantineReactTable,
   type MRT_ColumnDef,
@@ -43,6 +43,16 @@ export default function BudgetPanel(props: {
   projectId: ProjectId;
   currencyCode: string;
   projectBudgetTotalCents: number;
+  yearFilterOptions: { value: string; label: string }[];
+  yearFilter: string | null;
+  setYearFilter: (value: string | null) => void;
+  quarterFilterOptions: { value: 'Q1' | 'Q2' | 'Q3' | 'Q4'; label: string }[];
+  quarterFilter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
+  setQuarterFilter: (value: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) => void;
+  monthFilterOptions: { value: string; label: string }[];
+  monthFilterKey: string | null;
+  setMonthFilterKey: (value: string | null) => void;
+  onClearFilters: () => void;
   onUpdateProjectBudgetTotal?: (budgetTotalCents: number) => Promise<void>;
   rollups: RollupsHook;
   budgets: BudgetsHook;
@@ -54,6 +64,16 @@ export default function BudgetPanel(props: {
   const {
     currencyCode,
     projectBudgetTotalCents,
+    yearFilterOptions,
+    yearFilter,
+    setYearFilter,
+    quarterFilterOptions,
+    quarterFilter,
+    setQuarterFilter,
+    monthFilterOptions,
+    monthFilterKey,
+    setMonthFilterKey,
+    onClearFilters,
     onUpdateProjectBudgetTotal,
     rollups,
     budgets,
@@ -452,15 +472,60 @@ export default function BudgetPanel(props: {
 
   return (
     <Stack gap="md">
+      <Paper withBorder radius="md" p="md">
+        <Group align="flex-end" gap="sm" wrap="wrap">
+          <Select
+            label="Year"
+            placeholder="All years"
+            data={yearFilterOptions}
+            value={yearFilter}
+            clearable
+            onChange={(value) => {
+              setYearFilter(value);
+              setQuarterFilter(null);
+              setMonthFilterKey(null);
+            }}
+            style={{ width: 140 }}
+          />
+          <Select
+            label="Quarter"
+            placeholder="All quarters"
+            data={quarterFilterOptions}
+            value={quarterFilter}
+            clearable
+            disabled={!yearFilter}
+            onChange={(value) => {
+              setQuarterFilter((value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null);
+              setMonthFilterKey(null);
+            }}
+            style={{ width: 150 }}
+          />
+          <Select
+            label="Month"
+            placeholder="All months"
+            data={monthFilterOptions}
+            value={monthFilterKey}
+            clearable
+            onChange={setMonthFilterKey}
+            style={{ width: 180 }}
+          />
+          <Button
+            size="sm"
+            variant="subtle"
+            disabled={!yearFilter && !quarterFilter && !monthFilterKey}
+            onClick={onClearFilters}
+          >
+            Remove filter(s)
+          </Button>
+        </Group>
+      </Paper>
+
       <Paper withBorder radius="md" p="md" className="budgetSummaryCard">
         <Stack gap="xs">
           <Group justify="space-between" align="center" wrap="wrap">
             <Text fw={700} size="sm">
               Project totals
             </Text>
-            <Badge variant="light" color={uncodedSummary.count > 0 ? 'yellow' : 'gray'}>
-              {uncodedSummary.count} uncoded
-            </Badge>
           </Group>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
             <Paper withBorder radius="md" p="sm" className="budgetMetricCard budgetSummaryPrimary">

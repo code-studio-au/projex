@@ -31,11 +31,18 @@ export default function TransactionsPanel(props: {
   txns: TransactionsHook;
   taxonomy: TaxonomyHook;
   currencyCode: string;
+  yearFilterOptions: { value: string; label: string }[];
   yearFilter: string | null;
+  setYearFilter: (value: string | null) => void;
+  quarterFilterOptions: { value: 'Q1' | 'Q2' | 'Q3' | 'Q4'; label: string }[];
   quarterFilter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
+  setQuarterFilter: (value: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) => void;
+  monthFilterOptions: { value: string; label: string }[];
   monthFilterKey: string | null;
+  setMonthFilterKey: (value: string | null) => void;
   transactionView: 'all' | 'uncoded' | 'auto-mapped-pending';
   setTransactionView: (v: 'all' | 'uncoded' | 'auto-mapped-pending') => void;
+  onClearFilters: () => void;
   canEditTaxonomy: boolean;
   readOnly?: boolean;
 }) {
@@ -43,11 +50,18 @@ export default function TransactionsPanel(props: {
     txns,
     taxonomy,
     currencyCode,
+    yearFilterOptions,
     yearFilter,
+    setYearFilter,
+    quarterFilterOptions,
     quarterFilter,
+    setQuarterFilter,
+    monthFilterOptions,
     monthFilterKey,
+    setMonthFilterKey,
     transactionView,
     setTransactionView,
+    onClearFilters,
     canEditTaxonomy,
     readOnly = false,
   } = props;
@@ -354,6 +368,41 @@ export default function TransactionsPanel(props: {
 
             <Group gap="sm" align="flex-end" wrap="wrap">
               <Select
+                label="Year"
+                placeholder="All years"
+                data={yearFilterOptions}
+                value={yearFilter}
+                clearable
+                onChange={(value) => {
+                  setYearFilter(value);
+                  setQuarterFilter(null);
+                  setMonthFilterKey(null);
+                }}
+                style={{ width: isMobile ? '100%' : 140 }}
+              />
+              <Select
+                label="Quarter"
+                placeholder="All quarters"
+                data={quarterFilterOptions}
+                value={quarterFilter}
+                clearable
+                disabled={!yearFilter}
+                onChange={(value) => {
+                  setQuarterFilter((value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null);
+                  setMonthFilterKey(null);
+                }}
+                style={{ width: isMobile ? '100%' : 150 }}
+              />
+              <Select
+                label="Month"
+                placeholder="All months"
+                data={monthFilterOptions}
+                value={monthFilterKey}
+                clearable
+                onChange={setMonthFilterKey}
+                style={{ width: isMobile ? '100%' : 180 }}
+              />
+              <Select
                 label="View"
                 data={[
                   { value: 'all', label: 'All' },
@@ -383,6 +432,14 @@ export default function TransactionsPanel(props: {
                 }}
               >
                 Accept all auto-mappings ({autoMappedPendingTxns.length})
+              </Button>
+              <Button
+                size="sm"
+                variant="subtle"
+                disabled={!yearFilter && !quarterFilter && !monthFilterKey}
+                onClick={onClearFilters}
+              >
+                Remove filter(s)
               </Button>
               <Button
                 variant="light"
