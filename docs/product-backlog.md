@@ -97,32 +97,6 @@ Why this matters:
 - the underlying budget model is already strong, but the user-facing messaging can still be misread
 - sharper financial semantics will make the app feel more trustworthy to finance-oriented users
 
-## Infra / Operations
-
-### 6. Add a separate maintenance/monitor page for restarts
-
-Current state:
-
-- when the app server is restarting, nginx can surface a `502 Bad Gateway`
-- that is technically accurate, but not a good operator or user-facing experience
-- public web hardening has already been completed:
-  - browser/security headers are now owned by nginx
-  - `/api/ready` now returns a minimal body
-  - nginx no longer exposes its exact version
-
-Recommended direction:
-
-- host a very small page outside the app lifecycle
-- when the app is unavailable, route to a friendly maintenance screen such as `Server restarting...`
-- have that page poll a lightweight app endpoint or the login page
-- redirect back automatically once the app is healthy again
-
-Why this matters:
-
-- gives us a cleaner restart/deploy experience
-- avoids exposing raw upstream errors during expected maintenance windows
-- gives us a foundation for future maintenance messaging without tying it to the app process
-
 ## Future Features
 
 These are worthwhile future additions, but they do not need to compete with the short near-term list above.

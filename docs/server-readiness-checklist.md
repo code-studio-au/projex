@@ -98,6 +98,16 @@ They are enabled only when:
   - `Content-Security-Policy`
 - Use `deploy/nginx/projex.conf` as the baseline config and adjust CSP only as needed for new external assets.
 
+## 6.3) Maintenance Fallback
+
+- nginx is configured to intercept upstream `502`, `503`, and `504` responses for normal app routes.
+- nginx serves `deploy/nginx/maintenance.html` instead of exposing raw upstream errors during restart windows.
+- the static page polls `GET /__maintenance_ready`.
+- `__maintenance_ready` proxies to `/api/ready` with `proxy_intercept_errors off` so the browser can distinguish:
+  - app still unavailable
+  - app healthy again
+- when the readiness probe returns `200`, the maintenance page redirects back to the original URL automatically.
+
 ## 7) Cutover Notes
 
 - Keep local mode available for true local development only.

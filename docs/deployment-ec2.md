@@ -94,6 +94,18 @@ Recommended:
   - `server_tokens off`
   - site-wide security headers
   - proxy forwarding for host/origin/proto/IP
+  - maintenance-page interception for upstream `502/503/504`
+  - a dedicated `__maintenance_ready` probe endpoint that bypasses the maintenance fallback
+
+The maintenance fallback relies on the static file:
+
+- `deploy/nginx/maintenance.html`
+
+In the repo template, nginx serves that file directly from:
+
+- `/opt/projex/deploy/nginx/maintenance.html`
+
+So as long as the repo is deployed at `/opt/projex`, no extra copy step is required.
 
 ## 4.1) Repeatable deploy commands
 
@@ -144,6 +156,25 @@ The readiness response body is intentionally minimal; rely on the HTTP status co
   - `Permissions-Policy`
   - a pragmatic `Content-Security-Policy`
 - Review the CSP before adding third-party scripts, fonts, or image hosts.
+
+## 5.3) Friendly restart page
+
+The nginx template is set up to replace raw upstream restart errors with a static maintenance page.
+
+How it works:
+
+- normal app traffic proxies to `http://127.0.0.1:3000`
+- if the app is unavailable and nginx would normally return `502`, `503`, or `504`
+- nginx serves `deploy/nginx/maintenance.html` instead
+- that page polls:
+  - `/__maintenance_ready`
+- once `/api/ready` is healthy again, the page redirects the browser back to the original URL
+
+Why this matters:
+
+- users do not see raw `502 Bad Gateway` during normal deploy or restart windows
+- the maintenance page works even while the app process is down
+- recovery is automatic once the app is healthy again
 
 ## 6) Post-deploy verification
 

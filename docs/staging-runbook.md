@@ -60,6 +60,7 @@ Notes:
   - `server_tokens off`
   - site-wide security headers
   - forwarded host/proto/IP headers
+  - maintenance fallback page during upstream restart windows
 
 ## Deploy
 
@@ -202,6 +203,21 @@ Expected at minimum:
 - `X-Frame-Options` or CSP `frame-ancestors`
 - `Referrer-Policy`
 - `Permissions-Policy`
+
+If the app is restarting and you want the user-facing fallback to remain polished:
+
+- keep `deploy/nginx/maintenance.html` present on the host
+- keep nginx configured with:
+  - `proxy_intercept_errors on`
+  - `error_page 502 503 504 =200 /__maintenance.html`
+  - `location = /__maintenance_ready` proxied to `/api/ready` with `proxy_intercept_errors off`
+
+Expected behavior:
+
+- user requests a normal app route during restart
+- nginx serves the maintenance page instead of raw `502`
+- the page polls `/__maintenance_ready`
+- once the app is healthy again, the page redirects back to the original URL automatically
 
 If login works but refresh breaks:
 
