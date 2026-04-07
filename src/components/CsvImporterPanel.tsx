@@ -182,6 +182,19 @@ export default function CsvImporterPanel(props: {
     };
   }, [excludedImportIds, previewRows]);
 
+  const filteredPreviewIds = useMemo(
+    () => filteredPreviewRows.map((row) => row.importId),
+    [filteredPreviewRows]
+  );
+  const filteredIncludedCount = useMemo(
+    () => filteredPreviewIds.filter((id) => !excludedImportIds.has(id)).length,
+    [excludedImportIds, filteredPreviewIds]
+  );
+  const filteredExcludedCount = useMemo(
+    () => filteredPreviewIds.filter((id) => excludedImportIds.has(id)).length,
+    [excludedImportIds, filteredPreviewIds]
+  );
+
   useEffect(() => {
     setPagination((current) => ({ ...current, pageIndex: 0 }));
   }, [previewFilter]);
@@ -695,6 +708,46 @@ export default function CsvImporterPanel(props: {
                 >
                   Warnings ({previewFilterCounts.warnings})
                 </Button>
+              </Group>
+
+              <Group justify="space-between" align="center" wrap="wrap">
+                <Text size="sm" c="dimmed">
+                  {filteredPreviewRows.length
+                    ? `Current filter shows ${filteredPreviewRows.length} rows: ${filteredIncludedCount} included, ${filteredExcludedCount} excluded.`
+                    : 'Current filter shows no rows.'}
+                </Text>
+                <Group gap="xs" wrap="wrap">
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="gray"
+                    disabled={!filteredPreviewRows.length || filteredIncludedCount === 0}
+                    onClick={() =>
+                      setExcludedImportIds((current) => {
+                        const next = new Set(current);
+                        for (const importId of filteredPreviewIds) next.add(importId);
+                        return next;
+                      })
+                    }
+                  >
+                    Exclude filtered
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="blue"
+                    disabled={!filteredPreviewRows.length || filteredExcludedCount === 0}
+                    onClick={() =>
+                      setExcludedImportIds((current) => {
+                        const next = new Set(current);
+                        for (const importId of filteredPreviewIds) next.delete(importId);
+                        return next;
+                      })
+                    }
+                  >
+                    Include filtered
+                  </Button>
+                </Group>
               </Group>
 
               {previewSourceLabel ? (
