@@ -553,7 +553,6 @@ export default function CsvImporterPanel(props: {
                       <Table.Th>Details</Table.Th>
                       <Table.Th>Amount</Table.Th>
                       <Table.Th>Mapping</Table.Th>
-                      <Table.Th>Warnings</Table.Th>
                       <Table.Th>Action</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
@@ -600,7 +599,7 @@ export default function CsvImporterPanel(props: {
                                 {row.mappingStatus === 'matched_rule'
                                   ? 'Matched rule'
                                   : row.mappingStatus === 'csv_taxonomy'
-                                    ? 'CSV taxonomy'
+                                    ? 'Category match'
                                     : row.mappingStatus === 'auto_created'
                                       ? 'Will auto-create'
                                       : row.mappingStatus === 'invalid'
@@ -623,26 +622,6 @@ export default function CsvImporterPanel(props: {
                                 ? `${row.categoryName} > ${row.subCategoryName}`
                                 : 'No resolved category/subcategory'}
                             </Text>
-                            {row.willCreateBudgetLine ? (
-                              <Text size="xs" c="dimmed">
-                                Will auto-create budget line
-                              </Text>
-                            ) : null}
-                          </Stack>
-                        </Table.Td>
-                        <Table.Td>
-                          <Stack gap={2}>
-                            {row.warnings.length ? (
-                              row.warnings.map((warning, index) => (
-                                <Text key={`${row.sourceRowIndex}-${index}`} size="xs" c="dimmed">
-                                  {warning}
-                                </Text>
-                              ))
-                            ) : (
-                              <Text size="xs" c="dimmed">
-                                No warnings
-                              </Text>
-                            )}
                           </Stack>
                         </Table.Td>
                         <Table.Td>
@@ -659,7 +638,7 @@ export default function CsvImporterPanel(props: {
                     ))
                   ) : (
                     <Table.Tr>
-                      <Table.Td colSpan={7}>
+                      <Table.Td colSpan={6}>
                         <Text size="sm" c="dimmed">
                           No rows match the current preview filter.
                         </Text>
