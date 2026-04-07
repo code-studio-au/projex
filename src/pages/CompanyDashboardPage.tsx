@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -54,7 +54,7 @@ export default function CompanyDashboardPage() {
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [activeTab, setActiveTab] = useState<'summary' | 'projects' | 'settings'>('projects');
+  const [activeTab, setActiveTab] = useState<'summary' | 'projects' | 'settings'>('summary');
 
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
   const sortedProjects = useMemo(
@@ -79,15 +79,6 @@ export default function CompanyDashboardPage() {
   const canViewCompanySummary =
     access.isAdmin || access.isExecutive || (isGlobalSuperadmin && sortedProjects.length > 0);
   const showSwitchCompany = isGlobalSuperadmin || userCompanyCount > 1;
-
-  useEffect(() => {
-    setActiveTab((current) => {
-      if (canViewCompanySummary) {
-        return current === 'settings' ? current : 'summary';
-      }
-      return current === 'summary' ? 'projects' : current;
-    });
-  }, [canViewCompanySummary]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -133,8 +124,17 @@ export default function CompanyDashboardPage() {
     return confirmText.trim() === confirmTarget.projectName;
   }, [confirmText, confirmTarget]);
 
-  const projectColumns = useMemo<MRT_ColumnDef<(typeof rows)[number]>[]>(
-    () => [
+  const resolvedActiveTab: 'summary' | 'projects' | 'settings' = canViewCompanySummary
+    ? activeTab === 'settings'
+      ? 'settings'
+      : activeTab === 'projects'
+        ? 'projects'
+        : 'summary'
+    : activeTab === 'summary'
+      ? 'projects'
+      : activeTab;
+
+  const projectColumns: MRT_ColumnDef<(typeof rows)[number]>[] = [
       {
         accessorKey: 'name',
         header: 'Project',
@@ -238,9 +238,7 @@ export default function CompanyDashboardPage() {
           );
         },
       },
-    ],
-    [access, canManageProjects, companyId, isGlobalSuperadmin, openConfirm]
-  );
+    ];
 
   return (
     <Stack gap="lg">
@@ -301,7 +299,7 @@ export default function CompanyDashboardPage() {
       </Group>
 
       <Tabs
-        value={activeTab}
+        value={resolvedActiveTab}
         onChange={(value) =>
           setActiveTab((value as 'summary' | 'projects' | 'settings') ?? 'projects')
         }

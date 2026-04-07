@@ -45,8 +45,8 @@ export default function CompanyDefaultMappingsModal(props: {
   const updateRule = useUpdateCompanyDefaultMappingRuleMutation(companyId);
   const deleteRule = useDeleteCompanyDefaultMappingRuleMutation(companyId);
 
-  const categories = categoriesQ.data ?? [];
-  const subCategories = subCategoriesQ.data ?? [];
+  const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data]);
+  const subCategories = useMemo(() => subCategoriesQ.data ?? [], [subCategoriesQ.data]);
   const rules = rulesQ.data ?? [];
 
   const categoryOptions = useMemo(

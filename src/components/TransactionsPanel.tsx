@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -151,12 +151,6 @@ export default function TransactionsPanel(props: {
       ),
     [txns.transactions, taxonomy.validSubIds]
   );
-
-  useEffect(() => {
-    setPagination((current) =>
-      current.pageIndex === 0 ? current : { ...current, pageIndex: 0 }
-    );
-  }, [monthFilterKey, quarterFilter, transactionView, yearFilter]);
 
   function moveToSubcategoryCell(args: {
     row: Parameters<NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>>[0]['row'];
@@ -468,6 +462,7 @@ export default function TransactionsPanel(props: {
       </Paper>
 
       <MantineReactTable
+        key={`${yearFilter ?? 'all'}-${quarterFilter ?? 'all'}-${monthFilterKey ?? 'all'}-${transactionView}`}
         columns={txnColumns}
         data={filteredTxns}
         getRowId={(row) => row.id}

@@ -268,7 +268,8 @@ export class LocalApi implements ProjexApi {
     return readSession();
   }
 
-  async requestEmailChange(_input: EmailChangeRequestInput): Promise<EmailChangeRequestResult> {
+  async requestEmailChange(input: EmailChangeRequestInput): Promise<EmailChangeRequestResult> {
+    void input;
     throw new AppError(
       'NOT_IMPLEMENTED',
       'Verified email change is only available in server-auth mode.'
@@ -293,7 +294,8 @@ export class LocalApi implements ProjexApi {
     );
   }
 
-  async confirmEmailChange(_token: string): Promise<EmailChangeConfirmResult> {
+  async confirmEmailChange(token: string): Promise<EmailChangeConfirmResult> {
+    void token;
     throw new AppError(
       'NOT_IMPLEMENTED',
       'Verified email change is only available in server-auth mode.'

@@ -49,8 +49,8 @@ export default function CompanyDefaultTaxonomyModal(props: {
   const updateSubCategory = useUpdateCompanyDefaultSubCategoryMutation(companyId);
   const deleteSubCategory = useDeleteCompanyDefaultSubCategoryMutation(companyId);
 
-  const categories = categoriesQ.data ?? [];
-  const subCategories = subCategoriesQ.data ?? [];
+  const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data]);
+  const subCategories = useMemo(() => subCategoriesQ.data ?? [], [subCategoriesQ.data]);
   const categoryOptions = useMemo(
     () => categories.map((category) => ({ value: category.id, label: category.name })),
     [categories]
