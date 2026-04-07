@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { withApi } from './-api-shared';
 import { asProjectId, asUserId } from '../types';
 import { AppError } from '../api/errors';
+import { upsertProjectMembershipBodySchema } from '../validation/apiSchemas';
+import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/projects/$projectId/memberships')({
   server: {
@@ -11,10 +13,7 @@ export const Route = createFileRoute('/api/projects/$projectId/memberships')({
         withApi(request, (api) => api.listProjectMemberships(asProjectId(params.projectId))),
       POST: async ({ request, params }) =>
         withApi(request, async (api) => {
-          const body = (await request.json()) as {
-            userId: string;
-            role: Parameters<typeof api.upsertProjectMembership>[2];
-          };
+          const body = validateOrThrow(upsertProjectMembershipBodySchema, await request.json());
           return api.upsertProjectMembership(
             asProjectId(params.projectId),
             asUserId(body.userId),

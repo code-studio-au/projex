@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { withApi } from './-api-shared';
 import { asCompanyId, asUserId } from '../types';
 import { AppError } from '../api/errors';
+import { upsertCompanyMembershipBodySchema } from '../validation/apiSchemas';
+import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/companies/$companyId/memberships')({
   server: {
@@ -11,10 +13,7 @@ export const Route = createFileRoute('/api/companies/$companyId/memberships')({
         withApi(request, (api) => api.listCompanyMemberships(asCompanyId(params.companyId))),
       POST: async ({ request, params }) =>
         withApi(request, async (api) => {
-          const body = (await request.json()) as {
-            userId: string;
-            role: Parameters<typeof api.upsertCompanyMembership>[2];
-          };
+          const body = validateOrThrow(upsertCompanyMembershipBodySchema, await request.json());
           return api.upsertCompanyMembership(
             asCompanyId(params.companyId),
             asUserId(body.userId),

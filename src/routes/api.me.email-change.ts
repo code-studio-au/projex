@@ -1,22 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { withApi } from './-api-shared';
+import { emailChangeRequestBodySchema } from '../validation/apiSchemas';
+import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/me/email-change')({
   server: {
     handlers: {
       GET: async ({ request }) => withApi(request, (api) => api.getPendingEmailChange()),
       POST: async ({ request }) => {
-        const body: unknown = await request.json().catch(() => null);
+        const body = validateOrThrow(
+          emailChangeRequestBodySchema,
+          await request.json().catch(() => null)
+        );
         return withApi(request, (api) =>
           api.requestEmailChange({
-            newEmail:
-              body &&
-              typeof body === 'object' &&
-              'newEmail' in body &&
-              typeof body.newEmail === 'string'
-                ? body.newEmail
-                : '',
+            newEmail: body.newEmail,
           })
         );
       },

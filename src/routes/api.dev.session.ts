@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { AppError } from '../api/errors';
 import { withApi } from './-api-shared';
 import { asUserId } from '../types';
+import { devSessionBodySchema } from '../validation/apiSchemas';
+import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/dev/session')({
   server: {
@@ -18,11 +20,8 @@ export const Route = createFileRoute('/api/dev/session')({
             createDevSessionSetCookie,
           } = devSession;
           assertDevEndpointsEnabled();
-          const body = (await request.json()) as { userId?: string };
-          const userId = body.userId?.trim();
-          if (!userId) {
-            throw new AppError('VALIDATION_ERROR', 'userId is required');
-          }
+          const body = validateOrThrow(devSessionBodySchema, await request.json());
+          const userId = body.userId;
 
           const db = getDb();
           const user = await db

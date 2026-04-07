@@ -4,18 +4,8 @@ import { AppError } from '../api/errors';
 import { createStartServerApi } from '../server/api/startBridge';
 import { runSmokeSection } from '../server/smoke/runSection';
 import type { SmokeSectionId, SmokeStepStreamEvent } from '../types';
-
-function isSmokeSectionId(value: unknown): value is SmokeSectionId {
-  return (
-    value === 'basics' ||
-    value === 'appPages' ||
-    value === 'emailChange' ||
-    value === 'temporaryData' ||
-    value === 'companyDefaults' ||
-    value === 'inviteFlow' ||
-    value === 'privacyChecks'
-  );
-}
+import { smokeSectionInputSchema } from '../validation/apiSchemas';
+import { validateOrThrow } from '../validation/validate';
 
 function jsonLine(event: SmokeStepStreamEvent) {
   return `${JSON.stringify(event)}\n`;
@@ -25,10 +15,19 @@ export const Route = createFileRoute('/api/admin/smoke')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body: unknown = await request.json().catch(() => null);
-        const sectionId =
-          body && typeof body === 'object' ? (body as { sectionId?: unknown }).sectionId : null;
-        if (!isSmokeSectionId(sectionId)) {
+        let sectionId: SmokeSectionId;
+        try {
+          sectionId = validateOrThrow(
+            smokeSectionInputSchema,
+            await request.json().catch(() => null)
+          ).sectionId;
+        } catch (error) {
+          if (error instanceof AppError && error.code === 'VALIDATION_ERROR') {
+            return Response.json(
+              { code: 'VALIDATION_ERROR', message: error.message },
+              { status: 422 }
+            );
+          }
           return Response.json(
             { code: 'VALIDATION_ERROR', message: 'Unknown smoke section' },
             { status: 422 }

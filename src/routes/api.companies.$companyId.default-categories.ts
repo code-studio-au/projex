@@ -2,6 +2,11 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { withApi } from './-api-shared';
 import { asCompanyId } from '../types';
+import {
+  createCompanyDefaultCategoryInputSchema,
+  updateCompanyDefaultCategoryInputSchema,
+} from '../validation/apiSchemas';
+import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/companies/$companyId/default-categories')({
   server: {
@@ -10,12 +15,18 @@ export const Route = createFileRoute('/api/companies/$companyId/default-categori
         withApi(request, (api) => api.listCompanyDefaultCategories(asCompanyId(params.companyId))),
       POST: async ({ request, params }) =>
         withApi(request, async (api) => {
-          const body = (await request.json()) as Parameters<typeof api.createCompanyDefaultCategory>[1];
+          const body = validateOrThrow(
+            createCompanyDefaultCategoryInputSchema,
+            await request.json()
+          );
           return api.createCompanyDefaultCategory(asCompanyId(params.companyId), body);
         }),
       PATCH: async ({ request, params }) =>
         withApi(request, async (api) => {
-          const body = (await request.json()) as Parameters<typeof api.updateCompanyDefaultCategory>[1];
+          const body = validateOrThrow(
+            updateCompanyDefaultCategoryInputSchema,
+            await request.json()
+          );
           return api.updateCompanyDefaultCategory(asCompanyId(params.companyId), body);
         }),
     },

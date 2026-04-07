@@ -2,6 +2,8 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { withApi } from './-api-shared';
 import { asProjectId } from '../types';
+import { updateProjectBodySchema } from '../validation/apiSchemas';
+import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/projects/$projectId')({
   server: {
@@ -10,10 +12,7 @@ export const Route = createFileRoute('/api/projects/$projectId')({
         withApi(request, (api) => api.getProject(asProjectId(params.projectId))),
       PATCH: async ({ request, params }) =>
         withApi(request, async (api) => {
-          const body = (await request.json()) as Omit<
-            Parameters<typeof api.updateProject>[0],
-            'id'
-          >;
+          const body = validateOrThrow(updateProjectBodySchema, await request.json());
           return api.updateProject({
             id: asProjectId(params.projectId),
             ...body,
