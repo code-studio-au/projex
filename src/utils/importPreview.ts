@@ -94,6 +94,8 @@ export function buildImportPreview(args: {
 
     const rawCategoryName = String(txn.category ?? '').trim();
     const rawSubCategoryName = String(txn.subcategory ?? '').trim();
+    const hasCsvTaxonomyInput = Boolean(rawCategoryName || rawSubCategoryName);
+    let csvTaxonomyBlockedRuleFallback = false;
 
     if (rawCategoryName) {
       const existingCategory = catByName.get(rawCategoryName.toLowerCase());
@@ -105,12 +107,22 @@ export function buildImportPreview(args: {
         categoryName = rawCategoryName;
       } else {
         warnings.push(`Category "${rawCategoryName}" does not exist in this project.`);
+        csvTaxonomyBlockedRuleFallback = true;
       }
+    }
+
+    if (rawSubCategoryName && !(categoryId || willCreateCategory)) {
+      warnings.push(
+        `Subcategory "${rawSubCategoryName}" was provided without a project category that could be resolved.`
+      );
+      csvTaxonomyBlockedRuleFallback = true;
     }
 
     if ((categoryId || willCreateCategory) && rawSubCategoryName) {
       const effectiveCategoryName = (categoryName ?? rawCategoryName).trim().toLowerCase();
-      const existingSubCategory = subByKey.get(`${effectiveCategoryName}|||${rawSubCategoryName.toLowerCase()}`);
+      const existingSubCategory = subByKey.get(
+        `${effectiveCategoryName}|||${rawSubCategoryName.toLowerCase()}`
+      );
       if (existingSubCategory) {
         subCategoryId = existingSubCategory.id;
         subCategoryName = existingSubCategory.name;
@@ -121,12 +133,13 @@ export function buildImportPreview(args: {
         warnings.push(
           `Subcategory "${rawSubCategoryName}" does not exist under "${categoryName ?? rawCategoryName}".`
         );
+        csvTaxonomyBlockedRuleFallback = true;
       }
     }
 
     if (subCategoryId || willCreateSubCategory) {
       mappingStatus = willCreateCategory || willCreateSubCategory ? 'auto_created' : 'csv_taxonomy';
-    } else {
+    } else if (!hasCsvTaxonomyInput || !csvTaxonomyBlockedRuleFallback) {
       const matchedRule = findMatchingCompanyDefaultRule(
         {
           item,
@@ -156,6 +169,10 @@ export function buildImportPreview(args: {
           warnings.push('A company default rule matched, but its target taxonomy is missing in this project.');
         }
       }
+    } else {
+      warnings.push(
+        'CSV category or subcategory input could not be resolved, so this row was left for manual review instead of falling back to a company rule.'
+      );
     }
 
     if (

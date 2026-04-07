@@ -337,6 +337,29 @@ export default function CsvImporterPanel(props: {
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
       {
+        id: 'warnings',
+        header: 'Warnings',
+        size: 320,
+        accessorFn: (row) => row.warnings.join(' '),
+        enableSorting: false,
+        Cell: ({ row }) =>
+          row.original.warnings.length ? (
+            <Stack gap={2}>
+              {row.original.warnings.map((warning, index) => (
+                <Text key={`${row.original.importId}-warning-${index}`} size="xs" c="dimmed">
+                  {warning}
+                </Text>
+              ))}
+            </Stack>
+          ) : (
+            <Text size="xs" c="dimmed">
+              No warnings
+            </Text>
+          ),
+        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
+        mantineTableBodyCellProps: { className: 'txnTable-cell' },
+      },
+      {
         id: 'action',
         header: 'Action',
         size: 100,
@@ -445,12 +468,12 @@ export default function CsvImporterPanel(props: {
   const buildImportPayloadFromPreview = async (
     mode: 'append' | 'replaceAll'
   ): Promise<{ txns: Txn[]; skipped: number }> => {
-    const activeRows = previewRows.filter(
-      (row) =>
-        !excludedImportIds.has(row.importId) &&
-        row.mappingStatus !== 'invalid' &&
-        (mode === 'replaceAll' || !skipDuplicates || row.duplicateReason !== 'existing')
-    );
+      const activeRows = previewRows.filter(
+        (row) =>
+          !excludedImportIds.has(row.importId) &&
+          row.mappingStatus !== 'invalid' &&
+          (mode === 'replaceAll' || !skipDuplicates || !row.duplicate)
+      );
 
     const categoryIdByName = new Map<string, CategoryId>(
       taxonomy.categories.map((category) => [category.name.trim().toLowerCase(), category.id])
@@ -488,13 +511,13 @@ export default function CsvImporterPanel(props: {
     const txns: Txn[] = [];
     let skipped = 0;
 
-    for (const row of previewRows) {
-      if (excludedImportIds.has(row.importId)) continue;
-      if (row.mappingStatus === 'invalid') continue;
-      if (mode === 'append' && skipDuplicates && row.duplicateReason === 'existing') {
-        skipped += 1;
-        continue;
-      }
+      for (const row of previewRows) {
+        if (excludedImportIds.has(row.importId)) continue;
+        if (row.mappingStatus === 'invalid') continue;
+        if (mode === 'append' && skipDuplicates && row.duplicate) {
+          skipped += 1;
+          continue;
+        }
 
       let categoryId = row.categoryId;
       let subCategoryId = row.subCategoryId;
@@ -590,7 +613,7 @@ export default function CsvImporterPanel(props: {
               style={{ width: isMobile ? '100%' : 'auto' }}
             />
             <Switch
-              label="Skip duplicates (external ID / stable key)"
+              label="Skip duplicates (existing and within this import)"
               checked={skipDuplicates}
               disabled={previewActive}
               onChange={(event) => setSkipDuplicates(event.currentTarget.checked)}
@@ -631,6 +654,9 @@ export default function CsvImporterPanel(props: {
                   <Badge variant="light" color={previewSummary.duplicate ? 'orange' : 'gray'}>
                     {previewSummary.duplicate} duplicate
                   </Badge>
+                  <Badge variant="light" color={previewSummary.uncoded ? 'yellow' : 'gray'}>
+                    {previewSummary.uncoded} uncoded
+                  </Badge>
                 </Group>
 
                 <Switch
@@ -658,6 +684,13 @@ export default function CsvImporterPanel(props: {
                 <Alert color="red" variant="light">
                   Invalid rows or duplicate handling settings will block append until those rows are
                   excluded or corrected.
+                </Alert>
+              ) : null}
+
+              {!hasBlockingIssues && skipDuplicates && previewSummary.duplicate > 0 ? (
+                <Alert color="blue" variant="light">
+                  Duplicate rows will be skipped automatically during append unless you explicitly
+                  include them by turning off duplicate skipping first.
                 </Alert>
               ) : null}
 
@@ -732,7 +765,7 @@ export default function CsvImporterPanel(props: {
                       resetImporter();
                       setImportNotice(
                         skipped > 0
-                          ? `Imported ${importedCount} rows. Skipped ${skipped} duplicate(s).`
+                          ? `Imported ${importedCount} rows. Skipped ${skipped} duplicate preview row(s).`
                           : `Imported ${importedCount} rows.`
                       );
                     } catch (error) {

@@ -6,19 +6,20 @@ It is intentionally short, opinionated, and ordered so we can pick the next job 
 
 ## Product/Admin
 
-### 1. Add guided import preview and exception review
+### 1. Harden guided import preview and exception review
 
 Examples:
 
-- preview parsed rows before commit
+- tighten duplicate semantics so append and replace behave predictably
+- make row-level warnings and conflicts easier to review before commit
 - show duplicates, invalid rows, unmapped rows, and taxonomy creation preview
 - make post-import summaries more structured and explicit
 - show mapping provenance per row such as matched rule, CSV taxonomy, auto-created taxonomy, uncoded, or invalid
-- split import into preview and commit steps so validation stays consistent
+- move preview and commit logic toward canonical server-backed behavior so validation stays consistent
 
 Why this matters:
 
-- the importer is already capable, but users still commit imports with limited visibility into what will happen
+- the importer preview now exists, but users still need stronger exception handling and clearer commit semantics
 - this is one of the clearest gaps between a good internal tool and a more professional finance workflow
 
 Design direction:
