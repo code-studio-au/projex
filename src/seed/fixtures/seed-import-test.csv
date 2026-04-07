@@ -1,0 +1,13 @@
+id,date,item,description,amount,category,subcategory
+IMP-0001,2026-03-02,Qantas Flight,Flight from Sydney to Melbourne for client workshop,482.40,,
+IMP-0002,2026-03-03,Airbnb Stay,Airbnb apartment for project kickoff week,965.00,,
+IMP-0003,2026-03-04,Hyatt Hotel,Hotel accommodation for interstate travel,712.85,,
+IMP-0004,2026-03-05,Officeworks Purchase,Officeworks order for printer paper and whiteboard markers,128.60,,
+IMP-0005,2026-03-06,City Taxi,Taxi from airport to client office,54.20,,
+IMP-0006,2026-03-07,Stationary Cabinet,Stationary supplies restock for project room,89.15,,
+IMP-0007,2026-03-08,Client Lunch,Lunch with stakeholder after review meeting,146.50,Meals,Client Meals
+IMP-0008,2026-03-09,Adobe Subscription,Monthly Adobe Creative Cloud charge,92.99,Software,Subscriptions
+IMP-0009,2026-03-10,Domain Renewal,Annual renewal for project demo domain,34.00,Software,Domains
+IMP-0010,2026-03-11,Courier Delivery,Documents couriered to external legal counsel,28.75,,
+IMP-0011,2026-03-12,Coffee Run,Team coffees before sprint planning,23.40,,
+IMP-0012,2026-03-13,Uber Trip,Rideshare home after late deployment window,41.30,Transport,Rideshare
