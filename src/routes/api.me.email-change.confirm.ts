@@ -6,9 +6,13 @@ export const Route = createFileRoute('/api/me/email-change/confirm')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body = await request.json().catch(() => null);
+        const body: unknown = await request.json().catch(() => null);
         return withApi(request, (api) =>
-          api.confirmEmailChange(typeof body?.token === 'string' ? body.token : '')
+          api.confirmEmailChange(
+            body && typeof body === 'object' && 'token' in body && typeof body.token === 'string'
+              ? body.token
+              : ''
+          )
         );
       },
     },

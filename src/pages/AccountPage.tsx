@@ -174,7 +174,7 @@ export default function AccountPage() {
         }),
       });
 
-      const body = await res.json().catch(() => null);
+      const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
         const message =
           body && typeof body === 'object' && 'message' in body

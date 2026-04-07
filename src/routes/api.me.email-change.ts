@@ -7,10 +7,16 @@ export const Route = createFileRoute('/api/me/email-change')({
     handlers: {
       GET: async ({ request }) => withApi(request, (api) => api.getPendingEmailChange()),
       POST: async ({ request }) => {
-        const body = await request.json().catch(() => null);
+        const body: unknown = await request.json().catch(() => null);
         return withApi(request, (api) =>
           api.requestEmailChange({
-            newEmail: typeof body?.newEmail === 'string' ? body.newEmail : '',
+            newEmail:
+              body &&
+              typeof body === 'object' &&
+              'newEmail' in body &&
+              typeof body.newEmail === 'string'
+                ? body.newEmail
+                : '',
           })
         );
       },

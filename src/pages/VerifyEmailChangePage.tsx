@@ -28,7 +28,7 @@ export default function VerifyEmailChangePage() {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ token }),
         });
-        const body = await res.json().catch(() => null);
+        const body: unknown = await res.json().catch(() => null);
         if (!res.ok) {
           const message =
             body && typeof body === 'object' && 'message' in body
@@ -37,10 +37,14 @@ export default function VerifyEmailChangePage() {
           throw new Error(message);
         }
         if (!cancelled) {
+          const payload =
+            body && typeof body === 'object'
+              ? (body as { email?: unknown; previousEmail?: unknown })
+              : null;
           setState({
             status: 'success',
-            email: String(body?.email ?? ''),
-            previousEmail: String(body?.previousEmail ?? ''),
+            email: String(payload?.email ?? ''),
+            previousEmail: String(payload?.previousEmail ?? ''),
           });
         }
       } catch (error) {

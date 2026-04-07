@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', '.scaffold/**']),
+  globalIgnores(['dist', '.scaffold/**', 'deploy/cdk/**', 'tests/**', 'auth.ts']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -18,9 +18,13 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        projectService: true,
+      },
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
     },
   },
 ]);

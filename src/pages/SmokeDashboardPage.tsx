@@ -312,7 +312,7 @@ export default function SmokeDashboardPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => null);
+        const body: unknown = await res.json().catch(() => null);
         const message =
           body && typeof body === 'object' && 'message' in body
             ? String(body.message ?? 'Smoke run failed.')

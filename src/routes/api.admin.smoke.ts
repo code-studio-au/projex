@@ -25,7 +25,7 @@ export const Route = createFileRoute('/api/admin/smoke')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body = await request.json().catch(() => null);
+        const body: unknown = await request.json().catch(() => null);
         const sectionId =
           body && typeof body === 'object' ? (body as { sectionId?: unknown }).sectionId : null;
         if (!isSmokeSectionId(sectionId)) {
