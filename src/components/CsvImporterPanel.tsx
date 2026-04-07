@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -84,7 +84,9 @@ export default function CsvImporterPanel(props: {
   const [draftCsvText, setDraftCsvText] = useState('');
   const [autoCreateStructures, setAutoCreateStructures] = useState(true);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
-  const [showExceptionsOnly, setShowExceptionsOnly] = useState(false);
+  const [previewFilter, setPreviewFilter] = useState<
+    'all' | 'exceptions' | 'invalid' | 'duplicate' | 'uncoded' | 'warnings'
+  >('all');
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -114,18 +116,27 @@ export default function CsvImporterPanel(props: {
   );
 
   const filteredPreviewRows = useMemo(
-    () =>
-      showExceptionsOnly
-        ? (previewRows ?? []).filter(
-            (row) =>
-              excludedImportIds.has(row.importId) ||
-              row.duplicate ||
-              row.mappingStatus === 'invalid' ||
-              row.mappingStatus === 'uncoded' ||
-              row.warnings.length > 0
-          )
-        : (previewRows ?? []),
-    [excludedImportIds, previewRows, showExceptionsOnly]
+    () => {
+      const rows = previewRows ?? [];
+      if (previewFilter === 'all') return rows;
+
+      return rows.filter((row) => {
+        const isException =
+          excludedImportIds.has(row.importId) ||
+          row.duplicate ||
+          row.mappingStatus === 'invalid' ||
+          row.mappingStatus === 'uncoded' ||
+          row.warnings.length > 0;
+
+        if (previewFilter === 'exceptions') return isException;
+        if (previewFilter === 'invalid') return row.mappingStatus === 'invalid';
+        if (previewFilter === 'duplicate') return row.duplicate;
+        if (previewFilter === 'uncoded') return row.mappingStatus === 'uncoded';
+        if (previewFilter === 'warnings') return row.warnings.length > 0;
+        return true;
+      });
+    },
+    [excludedImportIds, previewFilter, previewRows]
   );
 
   const previewSummary = useMemo(() => {
@@ -151,6 +162,29 @@ export default function CsvImporterPanel(props: {
 
     return counts;
   }, [excludedImportIds, previewRows]);
+
+  const previewFilterCounts = useMemo(() => {
+    const rows = previewRows ?? [];
+    return {
+      all: rows.length,
+      exceptions: rows.filter(
+        (row) =>
+          excludedImportIds.has(row.importId) ||
+          row.duplicate ||
+          row.mappingStatus === 'invalid' ||
+          row.mappingStatus === 'uncoded' ||
+          row.warnings.length > 0
+      ).length,
+      invalid: rows.filter((row) => row.mappingStatus === 'invalid').length,
+      duplicate: rows.filter((row) => row.duplicate).length,
+      uncoded: rows.filter((row) => row.mappingStatus === 'uncoded').length,
+      warnings: rows.filter((row) => row.warnings.length > 0).length,
+    };
+  }, [excludedImportIds, previewRows]);
+
+  useEffect(() => {
+    setPagination((current) => ({ ...current, pageIndex: 0 }));
+  }, [previewFilter]);
 
   const hasBlockingIssues = useMemo(
     () =>
@@ -356,6 +390,7 @@ export default function CsvImporterPanel(props: {
     setDraftCsvText('');
     setPreviewRows(null);
     setPreviewSourceLabel(null);
+    setPreviewFilter('all');
     setExcludedImportIds(new Set());
     setImportError(null);
     setPagination((current) => ({ ...current, pageIndex: 0 }));
@@ -383,11 +418,13 @@ export default function CsvImporterPanel(props: {
 
       setPreviewRows(preview.rows);
       setPreviewSourceLabel(sourceLabel);
+      setPreviewFilter('all');
       setExcludedImportIds(new Set());
       setPagination((current) => ({ ...current, pageIndex: 0 }));
     } catch (error) {
       setPreviewRows(null);
       setPreviewSourceLabel(null);
+      setPreviewFilter('all');
       setExcludedImportIds(new Set());
       setImportError(error instanceof Error ? error.message : 'Could not preview the import.');
     }
@@ -608,12 +645,56 @@ export default function CsvImporterPanel(props: {
                     {previewSummary.uncoded} uncoded
                   </Badge>
                 </Group>
+              </Group>
 
-                <Switch
-                  label="Show exceptions only"
-                  checked={showExceptionsOnly}
-                  onChange={(event) => setShowExceptionsOnly(event.currentTarget.checked)}
-                />
+              <Group gap="xs" wrap="wrap">
+                <Button
+                  size="xs"
+                  variant={previewFilter === 'all' ? 'filled' : 'light'}
+                  onClick={() => setPreviewFilter('all')}
+                >
+                  All ({previewFilterCounts.all})
+                </Button>
+                <Button
+                  size="xs"
+                  variant={previewFilter === 'exceptions' ? 'filled' : 'light'}
+                  color="gray"
+                  onClick={() => setPreviewFilter('exceptions')}
+                >
+                  Exceptions ({previewFilterCounts.exceptions})
+                </Button>
+                <Button
+                  size="xs"
+                  variant={previewFilter === 'invalid' ? 'filled' : 'light'}
+                  color="red"
+                  onClick={() => setPreviewFilter('invalid')}
+                >
+                  Invalid ({previewFilterCounts.invalid})
+                </Button>
+                <Button
+                  size="xs"
+                  variant={previewFilter === 'duplicate' ? 'filled' : 'light'}
+                  color="orange"
+                  onClick={() => setPreviewFilter('duplicate')}
+                >
+                  Duplicate ({previewFilterCounts.duplicate})
+                </Button>
+                <Button
+                  size="xs"
+                  variant={previewFilter === 'uncoded' ? 'filled' : 'light'}
+                  color="yellow"
+                  onClick={() => setPreviewFilter('uncoded')}
+                >
+                  Uncoded ({previewFilterCounts.uncoded})
+                </Button>
+                <Button
+                  size="xs"
+                  variant={previewFilter === 'warnings' ? 'filled' : 'light'}
+                  color="blue"
+                  onClick={() => setPreviewFilter('warnings')}
+                >
+                  Warnings ({previewFilterCounts.warnings})
+                </Button>
               </Group>
 
               {previewSourceLabel ? (
