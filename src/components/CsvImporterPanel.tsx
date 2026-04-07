@@ -25,27 +25,19 @@ import type {
   CategoryId,
   CompanyId,
   ImportPreviewRow,
-  ImportTxnWithTaxonomy,
   ProjectId,
   SubCategoryId,
   Txn,
 } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { BudgetsHook } from '../hooks/useBudgets';
-import { parseCsv, rowsToImportTxns } from '../utils/csv';
-import { buildImportPreview } from '../utils/importPreview';
 import { formatCurrencyFromCents } from '../utils/money';
 import { txnInputSchema } from '../validation/schemas';
-import {
-  useCompanyDefaultCategoriesQuery,
-  useCompanyDefaultMappingRulesQuery,
-  useCompanyDefaultSubCategoriesQuery,
-} from '../queries/taxonomy';
+import { useApi } from '../hooks/useApi';
 
 export default function CsvImporterPanel(props: {
   taxonomy: TaxonomyHook;
   budgets: BudgetsHook;
-  existingTxns: Txn[];
   companyId: CompanyId;
   projectId: ProjectId;
   currencyCode: 'AUD' | 'USD' | 'EUR' | 'GBP';
@@ -74,7 +66,6 @@ export default function CsvImporterPanel(props: {
   const {
     taxonomy,
     budgets,
-    existingTxns,
     companyId,
     projectId,
     currencyCode,
@@ -85,6 +76,7 @@ export default function CsvImporterPanel(props: {
   } = props;
 
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const api = useApi();
 
   const [file, setFile] = useState<File | null>(null);
   const [fileText, setFileText] = useState('');
@@ -96,7 +88,7 @@ export default function CsvImporterPanel(props: {
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [previewImportTxns, setPreviewImportTxns] = useState<ImportTxnWithTaxonomy[] | null>(null);
+  const [previewRows, setPreviewRows] = useState<ImportPreviewRow[] | null>(null);
   const [previewSourceLabel, setPreviewSourceLabel] = useState<string | null>(null);
   const [excludedImportIds, setExcludedImportIds] = useState<Set<string>>(new Set());
   const [pagination, setPagination] = useState<MRT_PaginationState>({
@@ -105,20 +97,7 @@ export default function CsvImporterPanel(props: {
   });
   const [sorting, setSorting] = useState<MRT_SortingState>([{ id: 'sourceRowIndex', desc: false }]);
 
-  const previewActive = previewImportTxns !== null;
-  const defaultCategoriesQ = useCompanyDefaultCategoriesQuery(companyId);
-  const defaultSubCategoriesQ = useCompanyDefaultSubCategoriesQuery(companyId);
-  const mappingRulesQ = useCompanyDefaultMappingRulesQuery(companyId);
-
-  const existingKeys = useMemo(
-    () =>
-      new Set(
-        existingTxns.map((txn) =>
-          txn.externalId?.trim() ? `external:${txn.externalId.trim()}` : `id:${txn.id}`
-        )
-      ),
-    [existingTxns]
-  );
+  const previewActive = previewRows !== null;
 
   const exampleCsv = `date,description,amount,category,subcategory
 2024-01-08,Taxi from airport to hotel,46.80,Transport,Rideshare
@@ -129,46 +108,15 @@ export default function CsvImporterPanel(props: {
 2024-01-10,Snacks for team meeting,18.40,Meals,Team Catering
 `;
 
-  const previewRows = useMemo<ImportPreviewRow[]>(
-    () =>
-      buildImportPreview({
-        importTxns: previewImportTxns ?? [],
-        existingKeys,
-        categories: taxonomy.categories,
-        subCategories: taxonomy.subCategories,
-        budgets: budgets.budgets,
-        defaultCategories: defaultCategoriesQ.data ?? [],
-        defaultSubCategories: defaultSubCategoriesQ.data ?? [],
-        mappingRules: mappingRulesQ.data ?? [],
-        autoCreateTaxonomy: autoCreateStructures,
-        canEditTaxonomy,
-        autoCreateBudgets: autoCreateStructures,
-        canEditBudgets,
-      }),
-    [
-      autoCreateStructures,
-      budgets.budgets,
-      canEditBudgets,
-      canEditTaxonomy,
-      defaultCategoriesQ.data,
-      defaultSubCategoriesQ.data,
-      existingKeys,
-      mappingRulesQ.data,
-      previewImportTxns,
-      taxonomy.categories,
-      taxonomy.subCategories,
-    ]
-  );
-
   const includedPreviewRows = useMemo(
-    () => previewRows.filter((row) => !excludedImportIds.has(row.importId)),
+    () => (previewRows ?? []).filter((row) => !excludedImportIds.has(row.importId)),
     [excludedImportIds, previewRows]
   );
 
   const filteredPreviewRows = useMemo(
     () =>
       showExceptionsOnly
-        ? previewRows.filter(
+        ? (previewRows ?? []).filter(
             (row) =>
               excludedImportIds.has(row.importId) ||
               row.duplicate ||
@@ -176,13 +124,13 @@ export default function CsvImporterPanel(props: {
               row.mappingStatus === 'uncoded' ||
               row.warnings.length > 0
           )
-        : previewRows,
+        : (previewRows ?? []),
     [excludedImportIds, previewRows, showExceptionsOnly]
   );
 
   const previewSummary = useMemo(() => {
     const counts = {
-      rows: previewRows.length,
+      rows: (previewRows ?? []).length,
       included: 0,
       excluded: 0,
       invalid: 0,
@@ -190,7 +138,7 @@ export default function CsvImporterPanel(props: {
       uncoded: 0,
     };
 
-    for (const row of previewRows) {
+    for (const row of previewRows ?? []) {
       if (excludedImportIds.has(row.importId)) {
         counts.excluded += 1;
         continue;
@@ -406,7 +354,7 @@ export default function CsvImporterPanel(props: {
     setFile(null);
     setFileText('');
     setDraftCsvText('');
-    setPreviewImportTxns(null);
+    setPreviewRows(null);
     setPreviewSourceLabel(null);
     setExcludedImportIds(new Set());
     setImportError(null);
@@ -425,18 +373,20 @@ export default function CsvImporterPanel(props: {
         throw new Error('Add a CSV file or paste CSV text before previewing the import.');
       }
 
-      const rows = parseCsv(sourceText);
-      const nextImportTxns = rowsToImportTxns(rows);
-      if (!nextImportTxns.length) {
+      const preview = await api.previewImportTransactions(projectId, {
+        csvText: sourceText,
+        autoCreateStructures,
+      });
+      if (!preview.rows.length) {
         throw new Error('No importable rows were found in the provided CSV.');
       }
 
-      setPreviewImportTxns(nextImportTxns);
+      setPreviewRows(preview.rows);
       setPreviewSourceLabel(sourceLabel);
       setExcludedImportIds(new Set());
       setPagination((current) => ({ ...current, pageIndex: 0 }));
     } catch (error) {
-      setPreviewImportTxns(null);
+      setPreviewRows(null);
       setPreviewSourceLabel(null);
       setExcludedImportIds(new Set());
       setImportError(error instanceof Error ? error.message : 'Could not preview the import.');
@@ -468,12 +418,12 @@ export default function CsvImporterPanel(props: {
   const buildImportPayloadFromPreview = async (
     mode: 'append' | 'replaceAll'
   ): Promise<{ txns: Txn[]; skipped: number }> => {
-      const activeRows = previewRows.filter(
-        (row) =>
-          !excludedImportIds.has(row.importId) &&
-          row.mappingStatus !== 'invalid' &&
-          (mode === 'replaceAll' || !skipDuplicates || !row.duplicate)
-      );
+    const activeRows = (previewRows ?? []).filter(
+      (row) =>
+        !excludedImportIds.has(row.importId) &&
+        row.mappingStatus !== 'invalid' &&
+        (mode === 'replaceAll' || !skipDuplicates || !row.duplicate)
+    );
 
     const categoryIdByName = new Map<string, CategoryId>(
       taxonomy.categories.map((category) => [category.name.trim().toLowerCase(), category.id])
@@ -511,13 +461,13 @@ export default function CsvImporterPanel(props: {
     const txns: Txn[] = [];
     let skipped = 0;
 
-      for (const row of previewRows) {
-        if (excludedImportIds.has(row.importId)) continue;
-        if (row.mappingStatus === 'invalid') continue;
-        if (mode === 'append' && skipDuplicates && row.duplicate) {
-          skipped += 1;
-          continue;
-        }
+    for (const row of previewRows ?? []) {
+      if (excludedImportIds.has(row.importId)) continue;
+      if (row.mappingStatus === 'invalid') continue;
+      if (mode === 'append' && skipDuplicates && row.duplicate) {
+        skipped += 1;
+        continue;
+      }
 
       let categoryId = row.categoryId;
       let subCategoryId = row.subCategoryId;
@@ -670,14 +620,6 @@ export default function CsvImporterPanel(props: {
                 <Text size="sm" c="dimmed">
                   Preview source: {previewSourceLabel}
                 </Text>
-              ) : null}
-
-              {(defaultCategoriesQ.isLoading ||
-                defaultSubCategoriesQ.isLoading ||
-                mappingRulesQ.isLoading) ? (
-                <Alert color="blue" variant="light">
-                  Loading company default mapping rules for a more accurate preview.
-                </Alert>
               ) : null}
 
               {hasBlockingIssues ? (

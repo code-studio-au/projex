@@ -1,4 +1,5 @@
 import type {
+  BudgetLine,
   CompanyId,
   ProjectId,
   Txn,
@@ -8,6 +9,7 @@ import type {
   CompanyDefaultCategory,
   CompanyDefaultSubCategory,
   CompanyDefaultMappingRule,
+  ImportPreviewRow,
 } from '../../types';
 import {
   asBudgetLineId,
@@ -24,8 +26,10 @@ import { uid } from '../../utils/id';
 import { txnInputSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { getDb } from '../db/db';
-import { requireAuthorized } from '../auth/authorize';
+import { isAuthorized, requireAuthorized } from '../auth/authorize';
 import { mapImportedTransactionWithCompanyDefaults } from '../../utils/companyDefaultMappings';
+import { buildImportPreview } from '../../utils/importPreview';
+import { parseCsv, rowsToImportTxns } from '../../utils/csv';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -759,5 +763,185 @@ export async function importTransactionsServer(args: {
         .execute();
     }
     return { count: autoMappedIncoming.length };
+  });
+}
+
+export async function previewImportTransactionsServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  csvText: string;
+  autoCreateStructures?: boolean;
+}): Promise<{ rows: ImportPreviewRow[] }> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const userId = await requireServerUserId(args.context);
+    const db = getDb();
+    const project = await db
+      .selectFrom('projects')
+      .select(['id', 'company_id'])
+      .where('id', '=', args.projectId)
+      .executeTakeFirst();
+    if (!project) throw new AppError('NOT_FOUND', 'Project not found');
+
+    await requireAuthorized({
+      db,
+      userId,
+      action: 'project:import',
+      companyId: project.company_id as CompanyId,
+      projectId: args.projectId,
+    });
+
+    const [existingRows, defaultCategoriesRows, defaultSubCategoriesRows, mappingRuleRows, projectCategoryRows, projectSubCategoryRows, budgetRows, canEditTaxonomy, canEditBudgets] =
+      await Promise.all([
+        db
+          .selectFrom('txns')
+          .select(['public_id', 'external_id'])
+          .where('project_id', '=', args.projectId)
+          .execute(),
+        db
+          .selectFrom('company_default_categories')
+          .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+          .where('company_id', '=', project.company_id as CompanyId)
+          .execute(),
+        db
+          .selectFrom('company_default_sub_categories')
+          .select([
+            'id',
+            'company_id',
+            'company_default_category_id',
+            'name',
+            'created_at',
+            'updated_at',
+          ])
+          .where('company_id', '=', project.company_id as CompanyId)
+          .execute(),
+        db
+          .selectFrom('company_default_mapping_rules')
+          .select([
+            'id',
+            'company_id',
+            'match_text',
+            'company_default_category_id',
+            'company_default_sub_category_id',
+            'sort_order',
+            'created_at',
+            'updated_at',
+          ])
+          .where('company_id', '=', project.company_id as CompanyId)
+          .orderBy('sort_order', 'asc')
+          .orderBy('created_at', 'asc')
+          .execute(),
+        db
+          .selectFrom('categories')
+          .select(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
+          .where('project_id', '=', args.projectId)
+          .execute(),
+        db
+          .selectFrom('sub_categories')
+          .select(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
+          .where('project_id', '=', args.projectId)
+          .execute(),
+        db
+          .selectFrom('budget_lines')
+          .select(['id', 'company_id', 'project_id', 'category_id', 'sub_category_id', 'allocated_cents', 'created_at', 'updated_at'])
+          .where('project_id', '=', args.projectId)
+          .execute(),
+        isAuthorized({
+          db,
+          userId,
+          action: 'taxonomy:edit',
+          companyId: project.company_id as CompanyId,
+          projectId: args.projectId,
+        }),
+        isAuthorized({
+          db,
+          userId,
+          action: 'budget:edit',
+          companyId: project.company_id as CompanyId,
+          projectId: args.projectId,
+        }),
+      ]);
+
+    const rows = parseCsv(args.csvText);
+    const importTxns = rowsToImportTxns(rows);
+
+    const existingKeys = new Set(
+      existingRows.map((txn) => {
+        const normalizedExternalId = normalizeExternalId(txn.external_id);
+        return normalizedExternalId ? `external:${normalizedExternalId}` : `id:${txn.public_id}`;
+      })
+    );
+
+    const defaultCategories = defaultCategoriesRows.map((row) => ({
+      id: asCompanyDefaultCategoryId(row.id),
+      companyId: row.company_id as CompanyId,
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies CompanyDefaultCategory[];
+    const defaultSubCategories = defaultSubCategoriesRows.map((row) => ({
+      id: asCompanyDefaultSubCategoryId(row.id),
+      companyId: row.company_id as CompanyId,
+      companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies CompanyDefaultSubCategory[];
+    const mappingRules = mappingRuleRows.map((row) => ({
+      id: asCompanyDefaultMappingRuleId(row.id),
+      companyId: row.company_id as CompanyId,
+      matchText: row.match_text,
+      companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(row.company_default_sub_category_id),
+      sortOrder: Number(row.sort_order),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies CompanyDefaultMappingRule[];
+    const projectCategories = projectCategoryRows.map((row) => ({
+      id: asCategoryId(row.id),
+      companyId: row.company_id as CompanyId,
+      projectId: row.project_id as ProjectId,
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies Category[];
+    const projectSubCategories = projectSubCategoryRows.map((row) => ({
+      id: asSubCategoryId(row.id),
+      companyId: row.company_id as CompanyId,
+      projectId: row.project_id as ProjectId,
+      categoryId: asCategoryId(row.category_id),
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })) satisfies SubCategory[];
+    const budgets = budgetRows
+      .filter((row) => Boolean(row.category_id))
+      .map((row) => ({
+        id: asBudgetLineId(row.id),
+        companyId: row.company_id as CompanyId,
+        projectId: row.project_id as ProjectId,
+        categoryId: asCategoryId(row.category_id as string),
+        subCategoryId: row.sub_category_id ? asSubCategoryId(row.sub_category_id) : undefined,
+        allocatedCents: Number(row.allocated_cents),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })) satisfies BudgetLine[];
+
+    return {
+      rows: buildImportPreview({
+        importTxns,
+        existingKeys,
+        categories: projectCategories,
+        subCategories: projectSubCategories,
+        budgets,
+        defaultCategories,
+        defaultSubCategories,
+        mappingRules,
+        autoCreateTaxonomy: Boolean(args.autoCreateStructures),
+        canEditTaxonomy,
+        autoCreateBudgets: Boolean(args.autoCreateStructures),
+        canEditBudgets,
+      }),
+    };
   });
 }

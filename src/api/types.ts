@@ -17,6 +17,7 @@ import type {
   TxnId,
   User,
   UserId,
+  ImportPreviewRow,
 } from '../types';
 
 /**
@@ -41,6 +42,13 @@ export type TxnImportInput = {
   txns: Txn[];
   mode: CsvImportMode;
   autoCreateBudgets?: boolean;
+};
+export type TxnImportPreviewInput = {
+  csvText: string;
+  autoCreateStructures?: boolean;
+};
+export type TxnImportPreviewResult = {
+  rows: ImportPreviewRow[];
 };
 
 // Inputs (command-style)
@@ -253,6 +261,10 @@ export interface ProjexApi {
     projectId: ProjectId,
     input: TxnImportInput
   ): Promise<{ count: number }>;
+  previewImportTransactions(
+    projectId: ProjectId,
+    input: TxnImportPreviewInput
+  ): Promise<TxnImportPreviewResult>;
 
   // admin
   resetToSeed(): Promise<void>;

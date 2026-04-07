@@ -54,6 +54,7 @@ import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport } from '.
 import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRouteImport } from './routes/api.companies.$companyId.default-mapping-rules'
 import { Route as ApiCompaniesCompanyIdDefaultCategoriesRouteImport } from './routes/api.companies.$companyId.default-categories'
 import { Route as ApiCompaniesCompanyIdDeactivateRouteImport } from './routes/api.companies.$companyId.deactivate'
+import { Route as ApiProjectsProjectIdTransactionsImportPreviewRouteImport } from './routes/api.projects.$projectId.transactions.import-preview'
 import { Route as ApiProjectsProjectIdTransactionsImportRouteImport } from './routes/api.projects.$projectId.transactions.import'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdRouteImport } from './routes/api.projects.$projectId.transactions.$txnId'
 import { Route as ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport } from './routes/api.projects.$projectId.sub-categories.$subCategoryId'
@@ -306,6 +307,12 @@ const ApiCompaniesCompanyIdDeactivateRoute =
     path: '/deactivate',
     getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
+const ApiProjectsProjectIdTransactionsImportPreviewRoute =
+  ApiProjectsProjectIdTransactionsImportPreviewRouteImport.update({
+    id: '/import-preview',
+    path: '/import-preview',
+    getParentRoute: () => ApiProjectsProjectIdTransactionsRoute,
+  } as any)
 const ApiProjectsProjectIdTransactionsImportRoute =
   ApiProjectsProjectIdTransactionsImportRouteImport.update({
     id: '/import',
@@ -421,6 +428,7 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
   '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRoute
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
+  '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
 }
 export interface FileRoutesByTo {
@@ -476,6 +484,7 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
   '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRoute
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
+  '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
 }
 export interface FileRoutesById {
@@ -534,6 +543,7 @@ export interface FileRoutesById {
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
   '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRoute
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
+  '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
 }
 export interface FileRouteTypes {
@@ -592,6 +602,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/sub-categories/$subCategoryId'
     | '/api/projects/$projectId/transactions/$txnId'
     | '/api/projects/$projectId/transactions/import'
+    | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -647,6 +658,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/sub-categories/$subCategoryId'
     | '/api/projects/$projectId/transactions/$txnId'
     | '/api/projects/$projectId/transactions/import'
+    | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
   id:
     | '__root__'
@@ -704,6 +716,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/sub-categories/$subCategoryId'
     | '/api/projects/$projectId/transactions/$txnId'
     | '/api/projects/$projectId/transactions/import'
+    | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
   fileRoutesById: FileRoutesById
 }
@@ -1047,6 +1060,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCompaniesCompanyIdDeactivateRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
+    '/api/projects/$projectId/transactions/import-preview': {
+      id: '/api/projects/$projectId/transactions/import-preview'
+      path: '/import-preview'
+      fullPath: '/api/projects/$projectId/transactions/import-preview'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsImportPreviewRouteImport
+      parentRoute: typeof ApiProjectsProjectIdTransactionsRoute
+    }
     '/api/projects/$projectId/transactions/import': {
       id: '/api/projects/$projectId/transactions/import'
       path: '/import'
@@ -1316,6 +1336,7 @@ const ApiProjectsProjectIdSubCategoriesRouteWithChildren =
 interface ApiProjectsProjectIdTransactionsRouteChildren {
   ApiProjectsProjectIdTransactionsTxnIdRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
   ApiProjectsProjectIdTransactionsImportRoute: typeof ApiProjectsProjectIdTransactionsImportRoute
+  ApiProjectsProjectIdTransactionsImportPreviewRoute: typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
 }
 
 const ApiProjectsProjectIdTransactionsRouteChildren: ApiProjectsProjectIdTransactionsRouteChildren =
@@ -1324,6 +1345,8 @@ const ApiProjectsProjectIdTransactionsRouteChildren: ApiProjectsProjectIdTransac
       ApiProjectsProjectIdTransactionsTxnIdRoute,
     ApiProjectsProjectIdTransactionsImportRoute:
       ApiProjectsProjectIdTransactionsImportRoute,
+    ApiProjectsProjectIdTransactionsImportPreviewRoute:
+      ApiProjectsProjectIdTransactionsImportPreviewRoute,
   }
 
 const ApiProjectsProjectIdTransactionsRouteWithChildren =

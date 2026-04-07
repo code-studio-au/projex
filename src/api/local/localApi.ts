@@ -17,6 +17,7 @@ import type {
   TxnId,
   User,
   UserId,
+  ImportPreviewRow,
 } from '../../types';
 import {
   asBudgetLineId,
@@ -55,6 +56,8 @@ import {
   defaultCategoryIdForRule,
   mapImportedTransactionWithCompanyDefaults,
 } from '../../utils/companyDefaultMappings';
+import { buildImportPreview } from '../../utils/importPreview';
+import { parseCsv, rowsToImportTxns } from '../../utils/csv';
 
 import type {
   BudgetCreateInput,
@@ -1774,6 +1777,66 @@ export class LocalApi implements ProjexApi {
       },
     });
     return { count: autoMappedIncoming.length };
+  }
+
+  async previewImportTransactions(
+    projectId: ProjectId,
+    input: { csvText: string; autoCreateStructures?: boolean }
+  ): Promise<{ rows: ImportPreviewRow[] }> {
+    const st = ensureState();
+    const p = st.projects.find((x) => x.id === projectId);
+    if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
+    this.assertCan('project:import', p.companyId, projectId);
+    const slice = st.dataByProjectId[projectId];
+    if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
+
+    const session = this.requireSession();
+    const canEditTaxonomy =
+      Boolean(input.autoCreateStructures) &&
+      can({
+        userId: session.userId,
+        action: 'taxonomy:edit',
+        companyId: p.companyId,
+        projectId,
+        companyMemberships: st.companyMemberships,
+        projectMemberships: st.projectMemberships,
+      });
+    const canEditBudgets =
+      Boolean(input.autoCreateStructures) &&
+      can({
+        userId: session.userId,
+        action: 'budget:edit',
+        companyId: p.companyId,
+        projectId,
+        companyMemberships: st.companyMemberships,
+        projectMemberships: st.projectMemberships,
+      });
+
+    const rows = parseCsv(input.csvText);
+    const importTxns = rowsToImportTxns(rows);
+    const existingKeys = new Set(
+      slice.transactions.map((txn) =>
+        txn.externalId?.trim() ? `external:${txn.externalId.trim()}` : `id:${txn.id}`
+      )
+    );
+    const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
+
+    return {
+      rows: buildImportPreview({
+        importTxns,
+        existingKeys,
+        categories: slice.categories,
+        subCategories: slice.subCategories,
+        budgets: slice.budgets,
+        defaultCategories: defaults.categories,
+        defaultSubCategories: defaults.subCategories,
+        mappingRules: defaults.mappingRules,
+        autoCreateTaxonomy: Boolean(input.autoCreateStructures),
+        canEditTaxonomy,
+        autoCreateBudgets: Boolean(input.autoCreateStructures),
+        canEditBudgets,
+      }),
+    };
   }
 
   async resetToSeed(): Promise<void> {

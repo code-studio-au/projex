@@ -356,7 +356,6 @@ export default function ProjectWorkspace(props: {
             <CsvImporterPanel
               taxonomy={taxonomy}
               budgets={budgets}
-              existingTxns={txns.transactions}
               companyId={companyId}
               projectId={projectId}
               currencyCode={currencyCode}

@@ -61,6 +61,7 @@ import {
   deleteTxnServer,
   importTransactionsServer,
   listTransactionsServer,
+  previewImportTransactionsServer,
   updateTxnServer,
 } from '../fns/transactions';
 import {
@@ -327,6 +328,17 @@ export class StartServerApi implements ProjexApi {
       txns: input.txns,
       mode: input.mode,
       autoCreateBudgets: input.autoCreateBudgets,
+    });
+  }
+  async previewImportTransactions(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['previewImportTransactions']>[1]
+  ) {
+    return previewImportTransactionsServer({
+      context: this.context,
+      projectId,
+      csvText: input.csvText,
+      autoCreateStructures: input.autoCreateStructures,
     });
   }
 

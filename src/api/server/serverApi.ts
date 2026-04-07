@@ -20,6 +20,7 @@ import type {
   TxnId,
   User,
   UserId,
+  ImportPreviewRow,
 } from '../../types';
 import type {
   BudgetCreateInput,
@@ -475,6 +476,18 @@ export class ServerApi implements ProjexApi {
   ): Promise<{ count: number }> {
     return this.request<{ count: number }>(
       `/api/projects/${encodeURIComponent(projectId)}/transactions/import`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
+  }
+  async previewImportTransactions(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['previewImportTransactions']>[1]
+  ): Promise<{ rows: ImportPreviewRow[] }> {
+    return this.request<{ rows: ImportPreviewRow[] }>(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/import-preview`,
       {
         method: 'POST',
         body: JSON.stringify(input),
