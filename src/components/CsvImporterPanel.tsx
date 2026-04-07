@@ -309,7 +309,7 @@ export default function CsvImporterPanel(props: {
                 }
               >
                 {row.original.mappingStatus === 'matched_rule'
-                  ? 'Matched rule'
+                  ? 'Company rule match'
                   : row.original.mappingStatus === 'csv_taxonomy'
                     ? 'Category match'
                     : row.original.mappingStatus === 'auto_created'
@@ -323,11 +323,6 @@ export default function CsvImporterPanel(props: {
                   {row.original.duplicateReason === 'existing'
                     ? 'Existing duplicate'
                     : 'Import duplicate'}
-                </Badge>
-              ) : null}
-              {row.original.codingPendingApproval ? (
-                <Badge size="sm" variant="light" color="green">
-                  Auto-coded pending
                 </Badge>
               ) : null}
             </Group>
