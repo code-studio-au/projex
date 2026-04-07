@@ -232,7 +232,7 @@ export default function CsvImporterPanel(props: {
       {
         id: 'importedId',
         header: 'Imported ID',
-        size: 160,
+        size: 140,
         accessorFn: (row) => row.externalId ?? '',
         Cell: ({ row }) => <Text className="table-body-left">{row.original.externalId ?? '—'}</Text>,
         mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
@@ -241,7 +241,7 @@ export default function CsvImporterPanel(props: {
       {
         accessorKey: 'parsedDate',
         header: 'Date',
-        size: 110,
+        size: 92,
         Cell: ({ row }) => <Text className="table-body-left">{row.original.parsedDate ?? 'Missing'}</Text>,
         mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
@@ -249,7 +249,7 @@ export default function CsvImporterPanel(props: {
       {
         accessorKey: 'item',
         header: 'Item',
-        size: 180,
+        size: 150,
         Cell: ({ row }) => <Text className="table-body-left">{row.original.item ?? 'Missing item'}</Text>,
         mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
@@ -257,7 +257,7 @@ export default function CsvImporterPanel(props: {
       {
         accessorKey: 'description',
         header: 'Description',
-        size: 260,
+        size: 220,
         Cell: ({ row }) => (
           <Text className="table-body-left">{row.original.description ?? 'Missing description'}</Text>
         ),
@@ -267,7 +267,7 @@ export default function CsvImporterPanel(props: {
       {
         accessorKey: 'amountCents',
         header: 'Amount',
-        size: 120,
+        size: 112,
         Cell: ({ row }) => (
           <Text className="table-body-emphasis">
             {row.original.amountCents == null
@@ -281,7 +281,7 @@ export default function CsvImporterPanel(props: {
       {
         id: 'mapping',
         header: 'Mapping',
-        size: 260,
+        size: 220,
         accessorFn: (row) =>
           `${row.categoryName ?? ''} ${row.subCategoryName ?? ''} ${row.mappingStatus} ${row.duplicateReason ?? ''}`,
         enableSorting: false,
@@ -300,11 +300,11 @@ export default function CsvImporterPanel(props: {
                   row.original.mappingStatus === 'invalid'
                     ? 'red'
                     : row.original.mappingStatus === 'uncoded'
-                      ? 'yellow'
+                      ? 'red'
                       : row.original.mappingStatus === 'matched_rule'
-                        ? 'blue'
+                        ? 'green'
                         : row.original.mappingStatus === 'auto_created'
-                          ? 'teal'
+                          ? 'yellow'
                           : 'green'
                 }
               >
@@ -326,16 +326,16 @@ export default function CsvImporterPanel(props: {
                 </Badge>
               ) : null}
               {row.original.codingPendingApproval ? (
-                <Badge size="sm" variant="light" color="blue">
+                <Badge size="sm" variant="light" color="green">
                   Auto-coded pending
                 </Badge>
               ) : null}
             </Group>
-            <Text size="xs" c="dimmed">
-              {row.original.categoryName && row.original.subCategoryName
-                ? `${row.original.categoryName} > ${row.original.subCategoryName}`
-                : 'No resolved category/subcategory'}
-            </Text>
+            {row.original.categoryName && row.original.subCategoryName ? (
+              <Text size="xs" c="dimmed">
+                {row.original.categoryName} &gt; {row.original.subCategoryName}
+              </Text>
+            ) : null}
           </Stack>
         ),
         mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
@@ -656,13 +656,6 @@ export default function CsvImporterPanel(props: {
                 mappingRulesQ.isLoading) ? (
                 <Alert color="blue" variant="light">
                   Loading company default mapping rules for a more accurate preview.
-                </Alert>
-              ) : null}
-
-              {previewSummary.uncoded > 0 ? (
-                <Alert color="yellow" variant="light">
-                  {previewSummary.uncoded} included row(s) remain uncoded and will import without a
-                  category match.
                 </Alert>
               ) : null}
 
