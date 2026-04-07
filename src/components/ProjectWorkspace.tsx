@@ -359,6 +359,7 @@ export default function ProjectWorkspace(props: {
               existingTxns={txns.transactions}
               companyId={companyId}
               projectId={projectId}
+              currencyCode={currencyCode}
               canEditTaxonomy={canEditTaxonomy}
               canEditBudgets={canEditBudgets}
               onReplaceAll={(next, options) => txns.replaceAll(next, options)}

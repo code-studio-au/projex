@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Badge,
   Button,
   Divider,
@@ -7,24 +8,26 @@ import {
   Group,
   Modal,
   Paper,
+  ScrollArea,
   Stack,
   Switch,
+  Table,
   Text,
   Textarea,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import type {
-  CategoryId,
-  CompanyId,
-  ImportTxnWithTaxonomy,
-  ProjectId,
-  SubCategoryId,
-  Txn,
-} from '../types';
+import type { CategoryId, CompanyId, ImportPreviewRow, ImportTxnWithTaxonomy, ProjectId, SubCategoryId, Txn } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { BudgetsHook } from '../hooks/useBudgets';
-import { parseCsv, rowsToImportTxns, finalizeImportTxns } from '../utils/csv';
+import { parseCsv, rowsToImportTxns } from '../utils/csv';
+import { buildImportPreview } from '../utils/importPreview';
+import { formatCurrencyFromCents } from '../utils/money';
 import { txnInputSchema } from '../validation/schemas';
+import {
+  useCompanyDefaultCategoriesQuery,
+  useCompanyDefaultMappingRulesQuery,
+  useCompanyDefaultSubCategoriesQuery,
+} from '../queries/taxonomy';
 
 /**
  * CSV Import panel.
@@ -44,18 +47,12 @@ export default function CsvImporterPanel(props: {
   existingTxns: Txn[];
   companyId: CompanyId;
   projectId: ProjectId;
+  currencyCode: 'AUD' | 'USD' | 'EUR' | 'GBP';
   canEditTaxonomy: boolean;
   canEditBudgets: boolean;
   onAppend: (txns: Txn[], options?: { autoCreateBudgets?: boolean }) => Promise<void>;
   onReplaceAll: (txns: Txn[], options?: { autoCreateBudgets?: boolean }) => Promise<void>;
 }) {
-  function sanitizeImportDate(value: string): string {
-    return value
-      .trim()
-      .replace(/^[^0-9]+/, '')
-      .replace(/[^0-9]+$/, '');
-  }
-
   function validateImportedRows(
     rows: Array<Pick<Txn, 'date' | 'item' | 'description' | 'amountCents'>>
   ) {
@@ -79,6 +76,7 @@ export default function CsvImporterPanel(props: {
     existingTxns,
     companyId,
     projectId,
+    currencyCode,
     canEditTaxonomy,
     canEditBudgets,
     onAppend,
@@ -90,10 +88,15 @@ export default function CsvImporterPanel(props: {
   const [autoCreate, setAutoCreate] = useState(true);
   const [autoCreateBudgets, setAutoCreateBudgets] = useState(true);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [showExceptionsOnly, setShowExceptionsOnly] = useState(true);
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [excludedImportIds, setExcludedImportIds] = useState<Set<string>>(new Set());
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const defaultCategoriesQ = useCompanyDefaultCategoriesQuery(companyId);
+  const defaultSubCategoriesQ = useCompanyDefaultSubCategoriesQuery(companyId);
+  const mappingRulesQ = useCompanyDefaultMappingRulesQuery(companyId);
 
   const existingKeys = useMemo(
     () =>
@@ -116,6 +119,7 @@ export default function CsvImporterPanel(props: {
 
   async function loadFileText(f: File) {
     const text = await f.text();
+    setExcludedImportIds(new Set());
     setCsvText(text);
   }
 
@@ -134,6 +138,113 @@ export default function CsvImporterPanel(props: {
   }, [csvText]);
 
   const previewCount = importTxns.length;
+  const previewRows = useMemo<ImportPreviewRow[]>(
+    () =>
+      buildImportPreview({
+        importTxns,
+        existingKeys,
+        categories: taxonomy.categories,
+        subCategories: taxonomy.subCategories,
+        budgets: budgets.budgets,
+        defaultCategories: defaultCategoriesQ.data ?? [],
+        defaultSubCategories: defaultSubCategoriesQ.data ?? [],
+        mappingRules: mappingRulesQ.data ?? [],
+        autoCreateTaxonomy: autoCreate,
+        canEditTaxonomy,
+        autoCreateBudgets,
+        canEditBudgets,
+      }),
+    [
+      autoCreate,
+      autoCreateBudgets,
+      budgets.budgets,
+      canEditBudgets,
+      canEditTaxonomy,
+      defaultCategoriesQ.data,
+      defaultSubCategoriesQ.data,
+      existingKeys,
+      importTxns,
+      mappingRulesQ.data,
+      taxonomy.categories,
+      taxonomy.subCategories,
+    ]
+  );
+  const filteredPreviewRows = useMemo(
+    () =>
+      showExceptionsOnly
+        ? previewRows.filter(
+            (row) =>
+              !excludedImportIds.has(row.importId) &&
+              row.duplicate ||
+              (!excludedImportIds.has(row.importId) &&
+                (row.mappingStatus === 'invalid' ||
+                  row.mappingStatus === 'uncoded' ||
+                  row.warnings.length > 0))
+          )
+        : previewRows,
+    [excludedImportIds, previewRows, showExceptionsOnly]
+  );
+  const includedPreviewRows = useMemo(
+    () => previewRows.filter((row) => !excludedImportIds.has(row.importId)),
+    [excludedImportIds, previewRows]
+  );
+  const previewSummary = useMemo(() => {
+    const counts = {
+      totalRows: previewRows.length,
+      includedRows: 0,
+      excludedRows: 0,
+      validRows: 0,
+      duplicateRows: 0,
+      uncodedRows: 0,
+      invalidRows: 0,
+      matchedRuleRows: 0,
+      autoCreatedRows: 0,
+      rowsWithWarnings: 0,
+      budgetLinesToCreate: 0,
+      categoriesToCreate: 0,
+      subCategoriesToCreate: 0,
+    };
+    const categoryCreateKeys = new Set<string>();
+    const subCategoryCreateKeys = new Set<string>();
+    const budgetCreateKeys = new Set<string>();
+
+    for (const row of previewRows) {
+      if (excludedImportIds.has(row.importId)) {
+        counts.excludedRows += 1;
+        continue;
+      }
+      counts.includedRows += 1;
+      if (row.mappingStatus !== 'invalid') counts.validRows += 1;
+      if (row.duplicate) counts.duplicateRows += 1;
+      if (row.mappingStatus === 'uncoded') counts.uncodedRows += 1;
+      if (row.mappingStatus === 'invalid') counts.invalidRows += 1;
+      if (row.mappingStatus === 'matched_rule') counts.matchedRuleRows += 1;
+      if (row.mappingStatus === 'auto_created') counts.autoCreatedRows += 1;
+      if (row.warnings.length > 0) counts.rowsWithWarnings += 1;
+      if (row.willCreateCategory && row.categoryName) categoryCreateKeys.add(row.categoryName.toLowerCase());
+      if (row.willCreateSubCategory && row.categoryName && row.subCategoryName) {
+        subCategoryCreateKeys.add(`${row.categoryName.toLowerCase()}|||${row.subCategoryName.toLowerCase()}`);
+      }
+      if (row.willCreateBudgetLine && row.categoryName && row.subCategoryName) {
+        budgetCreateKeys.add(`${row.categoryName.toLowerCase()}|||${row.subCategoryName.toLowerCase()}`);
+      }
+    }
+
+    counts.categoriesToCreate = categoryCreateKeys.size;
+    counts.subCategoriesToCreate = subCategoryCreateKeys.size;
+    counts.budgetLinesToCreate = budgetCreateKeys.size;
+
+    return counts;
+  }, [excludedImportIds, previewRows]);
+
+  const hasBlockingIssues = useMemo(
+    () =>
+      includedPreviewRows.some(
+        (row) =>
+          row.mappingStatus === 'invalid' || (!skipDuplicates && row.duplicate)
+      ),
+    [includedPreviewRows, skipDuplicates]
+  );
 
   const ensureBudgetLinesForImportedSubCategories = (
     next: Array<{ categoryId?: CategoryId; subCategoryId?: SubCategoryId }>
@@ -158,90 +269,96 @@ export default function CsvImporterPanel(props: {
     }
   };
 
-  /**
-   * Apply taxonomy mapping and optional auto-creation.
-   * Normalizes all IDs to branded types.
-   */
-  const applyMapping = async (): Promise<ImportTxnWithTaxonomy[]> => {
-    type CategoryLookup = { id: CategoryId; name: string };
-    type SubCategoryLookup = {
-      id: SubCategoryId;
-      categoryId: CategoryId;
-      name: string;
-    };
-
-    // Build fast lookups from the current taxonomy snapshot.
-    const catByName = new Map<string, CategoryLookup>(
-      taxonomy.categories.map((c) => [
-        c.name.trim().toLowerCase(),
-        { id: c.id, name: c.name },
-      ])
+  const buildImportPayloadFromPreview = async (
+    mode: 'append' | 'replaceAll'
+  ): Promise<{ txns: Txn[]; skipped: number }> => {
+    const activeRows = previewRows.filter(
+      (row) =>
+        !excludedImportIds.has(row.importId) &&
+        row.mappingStatus !== 'invalid' &&
+        (mode === 'replaceAll' || !skipDuplicates || row.duplicateReason !== 'existing')
     );
 
-    const catNameById = new Map<CategoryId, string>(
-      taxonomy.categories.map((c) => [c.id, c.name])
+    const categoryIdByName = new Map<string, CategoryId>(
+      taxonomy.categories.map((category) => [category.name.trim().toLowerCase(), category.id])
     );
-
-    const subByKey = new Map<string, SubCategoryLookup>(
-      taxonomy.subCategories.map((s) => {
-        const catName = (catNameById.get(s.categoryId) ?? '').trim().toLowerCase();
-        const key = `${catName}|||${s.name.trim().toLowerCase()}`;
-        return [key, { id: s.id, categoryId: s.categoryId, name: s.name }];
+    const subCategoryIdByKey = new Map<string, SubCategoryId>(
+      taxonomy.subCategories.map((subCategory) => {
+        const categoryName = taxonomy.getCategoryName(subCategory.categoryId).trim().toLowerCase();
+        return [`${categoryName}|||${subCategory.name.trim().toLowerCase()}`, subCategory.id];
       })
     );
 
-    const out: ImportTxnWithTaxonomy[] = [];
-
-    for (const t of importTxns) {
-      const catName = String(t.category ?? '').trim();
-      const subName = String(t.subcategory ?? '').trim();
-
-      let categoryId: CategoryId | undefined;
-      let subCategoryId: SubCategoryId | undefined;
-
-      if (catName) {
-        const cKey = catName.toLowerCase();
-        const existing = catByName.get(cKey);
-
-        if (existing) {
-          categoryId = existing.id;
-        } else if (autoCreate) {
-          const created = await taxonomy.addCategory(catName);
-          categoryId = created;
-          catByName.set(cKey, { id: created, name: catName });
-          catNameById.set(created, catName);
-        }
-      }
-
-      if (categoryId && subName) {
-        const catNameResolved = (catNameById.get(categoryId) ?? catName).trim();
-        const key = `${catNameResolved.toLowerCase()}|||${subName.toLowerCase()}`;
-        const existing = subByKey.get(key);
-
-        if (existing) {
-          subCategoryId = existing.id;
-        } else if (autoCreate) {
-          const created = await taxonomy.addSubCategory(categoryId, subName);
-          subCategoryId = created;
-          subByKey.set(key, { id: created, categoryId, name: subName });
-        }
-      }
-
-      const id = typeof t.id === 'string' ? t.id : String(t.id ?? '').trim();
-
-      out.push({
-        id,
-        externalId: t.externalId?.trim() || undefined,
-        date: sanitizeImportDate(t.date),
-        item: t.item,
-        description: t.description,
-        amountCents: t.amountCents,
-        categoryId,
-        subCategoryId,
-      });
+    for (const row of activeRows) {
+      if (!row.willCreateCategory || !row.categoryName) continue;
+      const key = row.categoryName.trim().toLowerCase();
+      if (categoryIdByName.has(key)) continue;
+      const createdId = await taxonomy.addCategory(row.categoryName);
+      categoryIdByName.set(key, createdId);
     }
 
-    return out;
+    for (const row of activeRows) {
+      if (!row.willCreateSubCategory || !row.categoryName || !row.subCategoryName) continue;
+      const categoryKey = row.categoryName.trim().toLowerCase();
+      const categoryId = categoryIdByName.get(categoryKey);
+      if (!categoryId) {
+        throw new Error(`Could not resolve category "${row.categoryName}" for imported subcategory creation.`);
+      }
+      const subKey = `${categoryKey}|||${row.subCategoryName.trim().toLowerCase()}`;
+      if (subCategoryIdByKey.has(subKey)) continue;
+      const createdId = await taxonomy.addSubCategory(categoryId, row.subCategoryName);
+      subCategoryIdByKey.set(subKey, createdId);
+    }
+
+    const txns: Txn[] = [];
+    let skipped = 0;
+    for (const row of previewRows) {
+      if (excludedImportIds.has(row.importId)) continue;
+      if (row.mappingStatus === 'invalid') continue;
+      if (mode === 'append' && skipDuplicates && row.duplicateReason === 'existing') {
+        skipped += 1;
+        continue;
+      }
+
+      let categoryId = row.categoryId;
+      let subCategoryId = row.subCategoryId;
+      if (row.categoryName) {
+        categoryId = categoryIdByName.get(row.categoryName.trim().toLowerCase()) ?? categoryId;
+      }
+      if (row.categoryName && row.subCategoryName) {
+        const subKey = `${row.categoryName.trim().toLowerCase()}|||${row.subCategoryName.trim().toLowerCase()}`;
+        subCategoryId = subCategoryIdByKey.get(subKey) ?? subCategoryId;
+      }
+
+      const next: Txn = {
+        id: row.importId as Txn['id'],
+        externalId: row.externalId,
+        companyId,
+        projectId,
+        date: row.parsedDate ?? '',
+        item: row.item ?? '',
+        description: row.description ?? '',
+        amountCents: row.amountCents ?? 0,
+        categoryId,
+        subCategoryId,
+        companyDefaultMappingRuleId: row.ruleId,
+        codingSource: row.codingSource,
+        codingPendingApproval: row.codingPendingApproval,
+      };
+      txns.push(next);
+    }
+
+    validateImportedRows(txns);
+    return { txns, skipped };
+  };
+
+  const toggleExcluded = (importId: string) => {
+    setExcludedImportIds((current) => {
+      const next = new Set(current);
+      if (next.has(importId)) next.delete(importId);
+      else next.add(importId);
+      return next;
+    });
   };
 
   return (
@@ -264,7 +381,9 @@ export default function CsvImporterPanel(props: {
               value={file}
               onChange={(f) => {
                 setFile(f);
+                setExcludedImportIds(new Set());
                 if (f) void loadFileText(f);
+                if (!f) setCsvText('');
               }}
               accept=".csv,text/csv"
               style={{ width: '100%' }}
@@ -301,7 +420,10 @@ export default function CsvImporterPanel(props: {
             label="Or paste CSV"
             minRows={8}
             value={csvText}
-            onChange={(e) => setCsvText(e.currentTarget.value)}
+            onChange={(e) => {
+              setExcludedImportIds(new Set());
+              setCsvText(e.currentTarget.value);
+            }}
             placeholder={exampleCsv}
           />
 
@@ -311,20 +433,15 @@ export default function CsvImporterPanel(props: {
             <Group wrap="wrap">
               <Button
                 fullWidth={isMobile}
-                disabled={!importTxns.length}
+                disabled={!previewSummary.includedRows || hasBlockingIssues}
                 onClick={async () => {
                   try {
                     setImportError(null);
-                    const mapped = await applyMapping();
-                    const { txns, skipped } = finalizeImportTxns(mapped, {
-                      existingKeys,
-                      skipDuplicates,
-                    });
-                    validateImportedRows(txns);
+                    const { txns, skipped } = await buildImportPayloadFromPreview('append');
 
                     ensureBudgetLinesForImportedSubCategories(txns);
                     await onAppend(
-                      txns.map((t) => ({ ...t, companyId, projectId })),
+                      txns,
                       { autoCreateBudgets }
                     );
 
@@ -345,7 +462,12 @@ export default function CsvImporterPanel(props: {
               <Button
                 color="red"
                 fullWidth={isMobile}
-                disabled={!importTxns.length}
+                disabled={
+                  !previewSummary.includedRows ||
+                  includedPreviewRows.some(
+                    (row) => row.mappingStatus === 'invalid' || row.duplicateReason === 'import'
+                  )
+                }
                 onClick={async () => {
                   setConfirmReplaceOpen(true);
                 }}
@@ -356,6 +478,200 @@ export default function CsvImporterPanel(props: {
           </Group>
         </Stack>
       </Paper>
+
+      {previewCount ? (
+        <Paper withBorder radius="lg" p="lg" className="importPanelCard">
+          <Stack gap="md">
+            <Group justify="space-between" align="center" wrap="wrap">
+              <Text fw={700}>Import preview</Text>
+              <Group gap="xs" wrap="wrap">
+                <Badge variant="light">{previewSummary.totalRows} rows</Badge>
+                <Badge color={previewSummary.includedRows ? 'blue' : 'gray'} variant="light">
+                  {previewSummary.includedRows} included
+                </Badge>
+                <Badge color={previewSummary.excludedRows ? 'gray' : 'gray'} variant="light">
+                  {previewSummary.excludedRows} excluded
+                </Badge>
+                <Badge color={previewSummary.invalidRows ? 'red' : 'gray'} variant="light">
+                  {previewSummary.invalidRows} invalid
+                </Badge>
+                <Badge color={previewSummary.duplicateRows ? 'orange' : 'gray'} variant="light">
+                  {previewSummary.duplicateRows} duplicate
+                </Badge>
+                <Badge color={previewSummary.uncodedRows ? 'yellow' : 'gray'} variant="light">
+                  {previewSummary.uncodedRows} uncoded
+                </Badge>
+              </Group>
+            </Group>
+
+            {(defaultCategoriesQ.isLoading || defaultSubCategoriesQ.isLoading || mappingRulesQ.isLoading) ? (
+              <Alert color="blue" variant="light">
+                Loading company default mapping rules for a more accurate preview.
+              </Alert>
+            ) : null}
+
+            {hasBlockingIssues ? (
+              <Alert color="red" variant="light">
+                Invalid rows or duplicate handling settings will block import. Fix the rows or re-enable
+                duplicate skipping before appending.
+              </Alert>
+            ) : null}
+            {!hasBlockingIssues && includedPreviewRows.some((row) => row.duplicateReason === 'import') ? (
+              <Alert color="red" variant="light">
+                Duplicate rows inside the import file will block replace-all until they are removed.
+              </Alert>
+            ) : null}
+            {!previewSummary.includedRows ? (
+              <Alert color="yellow" variant="light">
+                All rows are currently excluded from import.
+              </Alert>
+            ) : null}
+
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">Valid: {previewSummary.validRows}</Badge>
+              <Badge variant="light">Warnings: {previewSummary.rowsWithWarnings}</Badge>
+              <Badge variant="light">Rule matched: {previewSummary.matchedRuleRows}</Badge>
+              <Badge variant="light">Taxonomy to create: {previewSummary.categoriesToCreate} categories</Badge>
+              <Badge variant="light">
+                Taxonomy to create: {previewSummary.subCategoriesToCreate} subcategories
+              </Badge>
+              <Badge variant="light">Budget lines to create: {previewSummary.budgetLinesToCreate}</Badge>
+            </Group>
+
+            <Switch
+              label="Show exceptions only"
+              checked={showExceptionsOnly}
+              onChange={(e) => setShowExceptionsOnly(e.currentTarget.checked)}
+            />
+
+            <ScrollArea>
+              <Table striped highlightOnHover withTableBorder>
+                <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Row</Table.Th>
+                      <Table.Th>Date</Table.Th>
+                      <Table.Th>Details</Table.Th>
+                      <Table.Th>Amount</Table.Th>
+                      <Table.Th>Mapping</Table.Th>
+                      <Table.Th>Warnings</Table.Th>
+                      <Table.Th>Action</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                  {filteredPreviewRows.length ? (
+                    filteredPreviewRows.map((row) => (
+                      <Table.Tr key={row.sourceRowIndex}>
+                        <Table.Td>{row.sourceRowIndex}</Table.Td>
+                        <Table.Td>{row.parsedDate ?? 'Missing'}</Table.Td>
+                        <Table.Td>
+                          <Stack gap={2}>
+                            <Text size="sm" fw={500}>
+                              {row.item ?? 'Missing item'}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {row.description ?? 'Missing description'}
+                            </Text>
+                          </Stack>
+                        </Table.Td>
+                        <Table.Td>{row.amountCents == null ? 'Missing' : formatCurrencyFromCents(row.amountCents, currencyCode)}</Table.Td>
+                        <Table.Td>
+                          <Stack gap={4}>
+                            <Group gap={6} wrap="wrap">
+                              {excludedImportIds.has(row.importId) ? (
+                                <Badge size="sm" variant="light" color="gray">
+                                  Excluded
+                                </Badge>
+                              ) : null}
+                              <Badge
+                                size="sm"
+                                variant="light"
+                                color={
+                                  row.mappingStatus === 'invalid'
+                                    ? 'red'
+                                    : row.mappingStatus === 'uncoded'
+                                      ? 'yellow'
+                                      : row.mappingStatus === 'matched_rule'
+                                        ? 'blue'
+                                        : row.mappingStatus === 'auto_created'
+                                          ? 'teal'
+                                          : 'green'
+                                }
+                              >
+                                {row.mappingStatus === 'matched_rule'
+                                  ? 'Matched rule'
+                                  : row.mappingStatus === 'csv_taxonomy'
+                                    ? 'CSV taxonomy'
+                                    : row.mappingStatus === 'auto_created'
+                                      ? 'Will auto-create'
+                                      : row.mappingStatus === 'invalid'
+                                        ? 'Invalid'
+                                        : 'Uncoded'}
+                              </Badge>
+                              {row.duplicate ? (
+                                <Badge size="sm" variant="light" color="orange">
+                                  {row.duplicateReason === 'existing' ? 'Existing duplicate' : 'Import duplicate'}
+                                </Badge>
+                              ) : null}
+                              {row.codingPendingApproval ? (
+                                <Badge size="sm" variant="light" color="blue">
+                                  Auto-coded pending
+                                </Badge>
+                              ) : null}
+                            </Group>
+                            <Text size="xs" c="dimmed">
+                              {row.categoryName && row.subCategoryName
+                                ? `${row.categoryName} > ${row.subCategoryName}`
+                                : 'No resolved category/subcategory'}
+                            </Text>
+                            {row.willCreateBudgetLine ? (
+                              <Text size="xs" c="dimmed">
+                                Will auto-create budget line
+                              </Text>
+                            ) : null}
+                          </Stack>
+                        </Table.Td>
+                        <Table.Td>
+                          <Stack gap={2}>
+                            {row.warnings.length ? (
+                              row.warnings.map((warning, index) => (
+                                <Text key={`${row.sourceRowIndex}-${index}`} size="xs" c="dimmed">
+                                  {warning}
+                                </Text>
+                              ))
+                            ) : (
+                              <Text size="xs" c="dimmed">
+                                No warnings
+                              </Text>
+                            )}
+                          </Stack>
+                        </Table.Td>
+                        <Table.Td>
+                          <Button
+                            size="xs"
+                            variant={excludedImportIds.has(row.importId) ? 'light' : 'subtle'}
+                            color={excludedImportIds.has(row.importId) ? 'blue' : 'gray'}
+                            onClick={() => toggleExcluded(row.importId)}
+                          >
+                            {excludedImportIds.has(row.importId) ? 'Include' : 'Exclude'}
+                          </Button>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))
+                  ) : (
+                    <Table.Tr>
+                      <Table.Td colSpan={7}>
+                        <Text size="sm" c="dimmed">
+                          No rows match the current preview filter.
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  )}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </Stack>
+        </Paper>
+      ) : null}
 
       <Paper withBorder radius="lg" p="lg" className="importPanelCard importExampleCard">
         <Stack gap="sm">
@@ -384,15 +700,11 @@ export default function CsvImporterPanel(props: {
               onClick={async () => {
                 try {
                   setImportError(null);
-                  const mapped = await applyMapping();
-                  const { txns } = finalizeImportTxns(mapped, {
-                    skipDuplicates: false,
-                  });
-                  validateImportedRows(txns);
+                  const { txns } = await buildImportPayloadFromPreview('replaceAll');
 
                   ensureBudgetLinesForImportedSubCategories(txns);
                   await onReplaceAll(
-                    txns.map((t) => ({ ...t, companyId, projectId })),
+                    txns,
                     { autoCreateBudgets }
                   );
                   setConfirmReplaceOpen(false);
