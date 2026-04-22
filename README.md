@@ -118,6 +118,31 @@ Staging/production should use real server auth, not seeded local login behavior.
 
 Current app still supports local-first development while the server-backed route layer is active for deployed runtime.
 
+## API contract notes
+
+Normal app-facing API routes should follow the shared contract:
+
+- validate request bodies with Zod at the route boundary
+- return JSON shapes that are validated in `src/api/server/serverApi.ts`
+- keep business logic in `src/server/fns/*`, not in the route file
+
+There are a few intentional exceptions:
+
+1. `/api/auth/$`
+   - Better Auth passthrough route
+   - protocol-owned, not app-owned
+
+2. `/api/admin/smoke`
+   - NDJSON streaming route for superadmin smoke runs
+
+3. `/api/health` and `/api/ready`
+   - operational probe endpoints for deploy / restart / maintenance behavior
+
+4. `/api/dev/*`
+   - local/development-only helper endpoints
+
+If a new endpoint does not fit one of those categories, treat it like a normal app API route and keep it inside the shared validation/adapter pattern.
+
 ## Where to swap backend later
 
 1. Keep `ProjexApi` stable (`src/api/contract.ts`).

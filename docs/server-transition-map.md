@@ -109,3 +109,35 @@ Rules:
 2. Route files should call `withApi()` and never import DB modules directly.
 3. Pass `request` through bridge so session comes from Better Auth.
 4. Keep `/api/dev/*` endpoints disabled in production.
+
+## Intentional exceptions
+
+Most app-facing JSON routes now follow the same contract:
+
+- request bodies validated with Zod at the route boundary
+- response bodies validated in `src/api/server/serverApi.ts`
+- route files stay thin and call into the server bridge / server functions
+
+Some endpoints are intentionally outside that generic adapter contract:
+
+1. `/api/auth/$`
+   - Better Auth passthrough endpoint
+   - owned by the Better Auth protocol rather than the app's `ProjexApi`
+   - may return cookies, redirects, or vendor-specific response shapes
+
+2. `/api/admin/smoke`
+   - NDJSON streaming endpoint
+   - not a normal JSON request/response contract
+   - intentionally handled as a special operational stream
+
+3. `/api/health` and `/api/ready`
+   - operational probe endpoints for nginx / uptime / restart recovery
+   - intentionally tiny and stable
+   - not part of the normal UI adapter surface
+
+4. `/api/dev/*`
+   - development-only operational helpers
+   - intentionally excluded from production behavior
+   - still validated and gated, but not part of the normal deployed app contract
+
+Those exceptions are deliberate. If a new endpoint is not one of the above categories, prefer the standard pattern instead of introducing another special case.
