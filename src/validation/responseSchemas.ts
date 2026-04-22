@@ -1,10 +1,14 @@
 import { z } from 'zod';
 import {
+  asBudgetLineId,
   asCategoryId,
+  asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyId,
+  asCompanyDefaultSubCategoryId,
   asProjectId,
   asSubCategoryId,
+  asTxnId,
   asUserId,
 } from '../types';
 
@@ -18,10 +22,15 @@ const projectIdSchema = idSchema.transform(asProjectId);
 const userIdSchema = idSchema.transform(asUserId);
 const categoryIdSchema = idSchema.transform(asCategoryId);
 const subCategoryIdSchema = idSchema.transform(asSubCategoryId);
+const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
+const companyDefaultCategoryIdSchema = idSchema.transform(asCompanyDefaultCategoryId);
+const companyDefaultSubCategoryIdSchema = idSchema.transform(asCompanyDefaultSubCategoryId);
 const mappingRuleIdSchema = idSchema.transform(asCompanyDefaultMappingRuleId);
+const txnIdSchema = idSchema.transform(asTxnId);
 const optionalIsoTimestampSchema = z.string().optional();
 const companyRoleSchema = z.enum(['superadmin', 'admin', 'executive', 'management', 'member']);
 const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
+const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
 
 export const authenticatedSessionResponseSchema = z.object({
   userId: userIdSchema,
@@ -77,6 +86,101 @@ export const projectMembershipResponseSchema = z.object({
 
 export const projectMembershipsResponseSchema = z.array(projectMembershipResponseSchema);
 
+export const companyDefaultCategoryResponseSchema = z.object({
+  id: companyDefaultCategoryIdSchema,
+  companyId: companyIdSchema,
+  name: z.string(),
+  createdAt: optionalIsoTimestampSchema,
+  updatedAt: optionalIsoTimestampSchema,
+});
+
+export const companyDefaultCategoriesResponseSchema = z.array(companyDefaultCategoryResponseSchema);
+
+export const companyDefaultSubCategoryResponseSchema = z.object({
+  id: companyDefaultSubCategoryIdSchema,
+  companyId: companyIdSchema,
+  companyDefaultCategoryId: companyDefaultCategoryIdSchema,
+  name: z.string(),
+  createdAt: optionalIsoTimestampSchema,
+  updatedAt: optionalIsoTimestampSchema,
+});
+
+export const companyDefaultSubCategoriesResponseSchema = z.array(
+  companyDefaultSubCategoryResponseSchema
+);
+
+export const companyDefaultMappingRuleResponseSchema = z.object({
+  id: mappingRuleIdSchema,
+  companyId: companyIdSchema,
+  matchText: z.string(),
+  companyDefaultCategoryId: companyDefaultCategoryIdSchema,
+  companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema,
+  sortOrder: z.number().int(),
+  createdAt: optionalIsoTimestampSchema,
+  updatedAt: optionalIsoTimestampSchema,
+});
+
+export const companyDefaultMappingRulesResponseSchema = z.array(
+  companyDefaultMappingRuleResponseSchema
+);
+
+export const categoryResponseSchema = z.object({
+  id: categoryIdSchema,
+  companyId: companyIdSchema,
+  projectId: projectIdSchema,
+  name: z.string(),
+  createdAt: optionalIsoTimestampSchema,
+  updatedAt: optionalIsoTimestampSchema,
+});
+
+export const categoriesResponseSchema = z.array(categoryResponseSchema);
+
+export const subCategoryResponseSchema = z.object({
+  id: subCategoryIdSchema,
+  companyId: companyIdSchema,
+  projectId: projectIdSchema,
+  categoryId: categoryIdSchema,
+  name: z.string(),
+  createdAt: optionalIsoTimestampSchema,
+  updatedAt: optionalIsoTimestampSchema,
+});
+
+export const subCategoriesResponseSchema = z.array(subCategoryResponseSchema);
+
+export const budgetLineResponseSchema = z.object({
+  id: budgetLineIdSchema,
+  companyId: companyIdSchema,
+  projectId: projectIdSchema,
+  categoryId: categoryIdSchema.optional(),
+  subCategoryId: subCategoryIdSchema.optional(),
+  allocatedCents: z.number(),
+  createdAt: optionalIsoTimestampSchema,
+  updatedAt: optionalIsoTimestampSchema,
+});
+
+export const budgetLinesResponseSchema = z.array(budgetLineResponseSchema);
+
+export const txnResponseSchema = z.object({
+  id: txnIdSchema,
+  internalId: z.string().optional(),
+  externalId: z.string().optional(),
+  companyId: companyIdSchema,
+  projectId: projectIdSchema,
+  date: z.string(),
+  item: z.string(),
+  description: z.string(),
+  amountCents: z.number(),
+  categoryId: categoryIdSchema.optional(),
+  subCategoryId: subCategoryIdSchema.optional(),
+  companyDefaultMappingRuleId: mappingRuleIdSchema.optional(),
+  codingSource: codingSourceSchema.optional(),
+  codingPendingApproval: z.boolean().optional(),
+  createdAt: optionalIsoTimestampSchema,
+  updatedAt: optionalIsoTimestampSchema,
+});
+
+export const txnsResponseSchema = z.array(txnResponseSchema);
+
 export const pendingEmailChangeResponseSchema = z
   .object({
     newEmail: z.string().email(),
@@ -98,6 +202,10 @@ export const emailChangeConfirmResponseSchema = z.object({
 
 export const countResponseSchema = z.object({
   count: z.number().int().nonnegative(),
+});
+
+export const okResponseSchema = z.object({
+  ok: z.literal(true),
 });
 
 export const defaultCompanyResponseSchema = z.object({
@@ -138,6 +246,12 @@ export const importPreviewRowResponseSchema = z.object({
 
 export const txnImportPreviewResultResponseSchema = z.object({
   rows: z.array(importPreviewRowResponseSchema),
+});
+
+export const applyCompanyDefaultsResultResponseSchema = z.object({
+  companyDefaultsConfigured: z.boolean(),
+  categoriesAdded: z.number().int().nonnegative(),
+  subCategoriesAdded: z.number().int().nonnegative(),
 });
 
 export const betterAuthLikePayloadSchema = z

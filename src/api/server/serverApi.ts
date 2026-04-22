@@ -6,9 +6,7 @@ import type {
   BudgetLine,
   Category,
   Company,
-  CompanyDefaultCategory,
   CompanyDefaultMappingRule,
-  CompanyDefaultSubCategory,
   CompanyId,
   CompanyMembership,
   CompanyRole,
@@ -46,7 +44,19 @@ import type {
   TxnUpdateInput,
 } from '../types';
 import {
+  applyCompanyDefaultsResultResponseSchema,
+  budgetLineResponseSchema,
+  budgetLinesResponseSchema,
+  categoriesResponseSchema,
+  categoryResponseSchema,
   companiesResponseSchema,
+  companyMembershipResponseSchema,
+  companyDefaultCategoriesResponseSchema,
+  companyDefaultCategoryResponseSchema,
+  companyDefaultMappingRuleResponseSchema,
+  companyDefaultMappingRulesResponseSchema,
+  companyDefaultSubCategoriesResponseSchema,
+  companyDefaultSubCategoryResponseSchema,
   companyMembershipsResponseSchema,
   companyResponseSchema,
   companyUserInviteResultResponseSchema,
@@ -54,13 +64,19 @@ import {
   defaultCompanyResponseSchema,
   emailChangeConfirmResponseSchema,
   emailChangeRequestResponseSchema,
+  okResponseSchema,
   pendingEmailChangeResponseSchema,
   projectMembershipsResponseSchema,
+  projectMembershipResponseSchema,
   projectResponseSchema,
   projectsResponseSchema,
   authenticatedSessionResponseSchema,
   sessionResponseSchema,
+  subCategoriesResponseSchema,
+  subCategoryResponseSchema,
+  txnResponseSchema,
   txnImportPreviewResultResponseSchema,
+  txnsResponseSchema,
   userResponseSchema,
   usersResponseSchema,
 } from '../../validation/responseSchemas';
@@ -254,18 +270,20 @@ export class ServerApi implements ProjexApi {
     _userId: UserId,
     _role: CompanyRole
   ): Promise<CompanyMembership> {
-    return this.request<CompanyMembership>(
+    return this.request(
       `/api/companies/${encodeURIComponent(_companyId)}/memberships`,
       {
         method: 'POST',
         body: JSON.stringify({ userId: _userId, role: _role }),
-      }
+      },
+      companyMembershipResponseSchema
     );
   }
   async deleteCompanyMembership(_companyId: CompanyId, _userId: UserId): Promise<void> {
-    await this.request<{ ok: true }>(
+    await this.request(
       `/api/companies/${encodeURIComponent(_companyId)}/memberships?userId=${encodeURIComponent(_userId)}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
   async upsertProjectMembership(
@@ -273,12 +291,13 @@ export class ServerApi implements ProjexApi {
     _userId: UserId,
     _role: ProjectRole
   ): Promise<ProjectMembership> {
-    return this.request<ProjectMembership>(
+    return this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/memberships`,
       {
         method: 'POST',
         body: JSON.stringify({ userId: _userId, role: _role }),
-      }
+      },
+      projectMembershipResponseSchema
     );
   }
   async deleteProjectMembership(
@@ -286,9 +305,10 @@ export class ServerApi implements ProjexApi {
     _userId: UserId,
     _role: ProjectRole
   ): Promise<void> {
-    await this.request<{ ok: true }>(
+    await this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/memberships?userId=${encodeURIComponent(_userId)}&role=${encodeURIComponent(_role)}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
   async setCompanyRole(companyId: CompanyId, userId: UserId, role: CompanyRole): Promise<void> {
@@ -309,72 +329,83 @@ export class ServerApi implements ProjexApi {
 
   // taxonomy
   async listCompanyDefaultCategories(companyId: CompanyId) {
-    return this.request<CompanyDefaultCategory[]>(
-      `/api/companies/${encodeURIComponent(companyId)}/default-categories`
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/default-categories`,
+      undefined,
+      companyDefaultCategoriesResponseSchema
     );
   }
   async listCompanyDefaultSubCategories(companyId: CompanyId) {
-    return this.request<CompanyDefaultSubCategory[]>(
-      `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories`
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories`,
+      undefined,
+      companyDefaultSubCategoriesResponseSchema
     );
   }
   async listCompanyDefaultMappingRules(companyId: CompanyId) {
-    return this.request<CompanyDefaultMappingRule[]>(
-      `/api/companies/${encodeURIComponent(companyId)}/default-mapping-rules`
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/default-mapping-rules`,
+      undefined,
+      companyDefaultMappingRulesResponseSchema
     );
   }
   async createCompanyDefaultCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['createCompanyDefaultCategory']>[1]
   ) {
-    return this.request<CompanyDefaultCategory>(
+    return this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-categories`,
       {
         method: 'POST',
         body: JSON.stringify(input),
-      }
+      },
+      companyDefaultCategoryResponseSchema
     );
   }
   async updateCompanyDefaultCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['updateCompanyDefaultCategory']>[1]
   ) {
-    return this.request<CompanyDefaultCategory>(
+    return this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-categories`,
       {
         method: 'PATCH',
         body: JSON.stringify(input),
-      }
+      },
+      companyDefaultCategoryResponseSchema
     );
   }
   async deleteCompanyDefaultCategory(companyId: CompanyId, categoryId: string): Promise<void> {
     await this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-categories/${encodeURIComponent(categoryId)}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
   async createCompanyDefaultSubCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['createCompanyDefaultSubCategory']>[1]
   ) {
-    return this.request<CompanyDefaultSubCategory>(
+    return this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories`,
       {
         method: 'POST',
         body: JSON.stringify(input),
-      }
+      },
+      companyDefaultSubCategoryResponseSchema
     );
   }
   async updateCompanyDefaultSubCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['updateCompanyDefaultSubCategory']>[1]
   ) {
-    return this.request<CompanyDefaultSubCategory>(
+    return this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories`,
       {
         method: 'PATCH',
         body: JSON.stringify(input),
-      }
+      },
+      companyDefaultSubCategoryResponseSchema
     );
   }
   async deleteCompanyDefaultSubCategory(
@@ -383,31 +414,34 @@ export class ServerApi implements ProjexApi {
   ): Promise<void> {
     await this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-sub-categories/${encodeURIComponent(subCategoryId)}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
   async createCompanyDefaultMappingRule(
     companyId: CompanyId,
     input: CompanyDefaultMappingRuleCreateInput
   ): Promise<CompanyDefaultMappingRule> {
-    return this.request<CompanyDefaultMappingRule>(
+    return this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-mapping-rules`,
       {
         method: 'POST',
         body: JSON.stringify(input),
-      }
+      },
+      companyDefaultMappingRuleResponseSchema
     );
   }
   async updateCompanyDefaultMappingRule(
     companyId: CompanyId,
     input: CompanyDefaultMappingRuleUpdateInput
   ): Promise<CompanyDefaultMappingRule> {
-    return this.request<CompanyDefaultMappingRule>(
+    return this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-mapping-rules`,
       {
         method: 'PATCH',
         body: JSON.stringify(input),
-      }
+      },
+      companyDefaultMappingRuleResponseSchema
     );
   }
   async deleteCompanyDefaultMappingRule(
@@ -416,121 +450,163 @@ export class ServerApi implements ProjexApi {
   ): Promise<void> {
     await this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-mapping-rules/${encodeURIComponent(ruleId)}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
   async applyCompanyDefaultTaxonomy(projectId: ProjectId) {
-    return this.request<{
-      companyDefaultsConfigured: boolean;
-      categoriesAdded: number;
-      subCategoriesAdded: number;
-    }>(
+    return this.request(
       `/api/projects/${encodeURIComponent(projectId)}/apply-company-default-taxonomy`,
       {
         method: 'POST',
-      }
+      },
+      applyCompanyDefaultsResultResponseSchema
     );
   }
   async listCategories(_projectId: ProjectId): Promise<Category[]> {
-    return this.request<Category[]>(`/api/projects/${encodeURIComponent(_projectId)}/categories`);
+    return this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/categories`,
+      undefined,
+      categoriesResponseSchema
+    );
   }
   async listSubCategories(_projectId: ProjectId): Promise<SubCategory[]> {
-    return this.request<SubCategory[]>(
-      `/api/projects/${encodeURIComponent(_projectId)}/sub-categories`
+    return this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/sub-categories`,
+      undefined,
+      subCategoriesResponseSchema
     );
   }
   async createCategory(_projectId: ProjectId, _input: CategoryCreateInput): Promise<Category> {
-    return this.request<Category>(`/api/projects/${encodeURIComponent(_projectId)}/categories`, {
-      method: 'POST',
-      body: JSON.stringify(_input),
-    });
+    return this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/categories`,
+      {
+        method: 'POST',
+        body: JSON.stringify(_input),
+      },
+      categoryResponseSchema
+    );
   }
   async updateCategory(_projectId: ProjectId, _input: CategoryUpdateInput): Promise<Category> {
-    return this.request<Category>(`/api/projects/${encodeURIComponent(_projectId)}/categories`, {
-      method: 'PATCH',
-      body: JSON.stringify(_input),
-    });
+    return this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/categories`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(_input),
+      },
+      categoryResponseSchema
+    );
   }
   async deleteCategory(_projectId: ProjectId, _categoryId: Category['id']): Promise<void> {
-    await this.request<{ ok: true }>(
+    await this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/categories/${encodeURIComponent(_categoryId)}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
   async createSubCategory(
     _projectId: ProjectId,
     _input: SubCategoryCreateInput
   ): Promise<SubCategory> {
-    return this.request<SubCategory>(
+    return this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/sub-categories`,
       {
         method: 'POST',
         body: JSON.stringify(_input),
-      }
+      },
+      subCategoryResponseSchema
     );
   }
   async updateSubCategory(
     _projectId: ProjectId,
     _input: SubCategoryUpdateInput
   ): Promise<SubCategory> {
-    return this.request<SubCategory>(
+    return this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/sub-categories`,
       {
         method: 'PATCH',
         body: JSON.stringify(_input),
-      }
+      },
+      subCategoryResponseSchema
     );
   }
   async deleteSubCategory(_projectId: ProjectId, _subCategoryId: SubCategory['id']): Promise<void> {
-    await this.request<{ ok: true }>(
+    await this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/sub-categories/${encodeURIComponent(_subCategoryId)}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
 
   // budgets
   async listBudgets(_projectId: ProjectId): Promise<BudgetLine[]> {
-    return this.request<BudgetLine[]>(`/api/projects/${encodeURIComponent(_projectId)}/budgets`);
+    return this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/budgets`,
+      undefined,
+      budgetLinesResponseSchema
+    );
   }
   async createBudget(_projectId: ProjectId, _input: BudgetCreateInput): Promise<BudgetLine> {
-    return this.request<BudgetLine>(`/api/projects/${encodeURIComponent(_projectId)}/budgets`, {
-      method: 'POST',
-      body: JSON.stringify(_input),
-    });
+    return this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/budgets`,
+      {
+        method: 'POST',
+        body: JSON.stringify(_input),
+      },
+      budgetLineResponseSchema
+    );
   }
   async updateBudget(_projectId: ProjectId, _input: BudgetUpdateInput): Promise<BudgetLine> {
-    return this.request<BudgetLine>(`/api/projects/${encodeURIComponent(_projectId)}/budgets`, {
-      method: 'PATCH',
-      body: JSON.stringify(_input),
-    });
+    return this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/budgets`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(_input),
+      },
+      budgetLineResponseSchema
+    );
   }
   async deleteBudget(_projectId: ProjectId, _budgetId: BudgetLine['id']): Promise<void> {
-    await this.request<{ ok: true }>(
+    await this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/budgets/${encodeURIComponent(_budgetId)}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
 
   // transactions
   async listTransactions(projectId: ProjectId): Promise<Txn[]> {
-    return this.request<Txn[]>(`/api/projects/${encodeURIComponent(projectId)}/transactions`);
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions`,
+      undefined,
+      txnsResponseSchema
+    );
   }
   async createTxn(projectId: ProjectId, txn: TxnCreateInput): Promise<Txn> {
-    return this.request<Txn>(`/api/projects/${encodeURIComponent(projectId)}/transactions`, {
-      method: 'POST',
-      body: JSON.stringify({ txn }),
-    });
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ txn }),
+      },
+      txnResponseSchema
+    );
   }
   async updateTxn(projectId: ProjectId, txn: TxnUpdateInput): Promise<Txn> {
-    return this.request<Txn>(`/api/projects/${encodeURIComponent(projectId)}/transactions`, {
-      method: 'PATCH',
-      body: JSON.stringify({ txn }),
-    });
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ txn }),
+      },
+      txnResponseSchema
+    );
   }
   async deleteTxn(projectId: ProjectId, txnId: TxnId): Promise<void> {
-    await this.request<{ ok: true }>(
+    await this.request(
       `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(txnId)}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
   async importTransactions(
@@ -562,7 +638,7 @@ export class ServerApi implements ProjexApi {
 
   // admin
   async resetToSeed(): Promise<void> {
-    await this.request<{ ok: true }>('/api/dev/reset-seed', { method: 'POST' });
+    await this.request('/api/dev/reset-seed', { method: 'POST' }, okResponseSchema);
   }
 
   // helpers
@@ -603,9 +679,13 @@ export class ServerApi implements ProjexApi {
     );
   }
   async cancelEmailChange(): Promise<void> {
-    await this.request<void>('/api/me/email-change', {
-      method: 'DELETE',
-    });
+    await this.request(
+      '/api/me/email-change',
+      {
+        method: 'DELETE',
+      },
+      okResponseSchema
+    );
   }
   async confirmEmailChange(token: string): Promise<EmailChangeConfirmResult> {
     return this.request(
@@ -685,33 +765,45 @@ export class ServerApi implements ProjexApi {
   }
 
   async deactivateCompany(_companyId: CompanyId): Promise<void> {
-    await this.request<{ ok: true }>(`/api/companies/${encodeURIComponent(_companyId)}/deactivate`, {
-      method: 'POST',
-    });
+    await this.request(
+      `/api/companies/${encodeURIComponent(_companyId)}/deactivate`,
+      { method: 'POST' },
+      okResponseSchema
+    );
   }
   async reactivateCompany(_companyId: CompanyId): Promise<void> {
-    await this.request<{ ok: true }>(`/api/companies/${encodeURIComponent(_companyId)}/reactivate`, {
-      method: 'POST',
-    });
+    await this.request(
+      `/api/companies/${encodeURIComponent(_companyId)}/reactivate`,
+      { method: 'POST' },
+      okResponseSchema
+    );
   }
   async deleteCompany(_companyId: CompanyId): Promise<void> {
-    await this.request<{ ok: true }>(`/api/companies/${encodeURIComponent(_companyId)}`, {
-      method: 'DELETE',
-    });
+    await this.request(
+      `/api/companies/${encodeURIComponent(_companyId)}`,
+      { method: 'DELETE' },
+      okResponseSchema
+    );
   }
   async deactivateProject(_projectId: ProjectId): Promise<void> {
-    await this.request<{ ok: true }>(`/api/projects/${encodeURIComponent(_projectId)}/deactivate`, {
-      method: 'POST',
-    });
+    await this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/deactivate`,
+      { method: 'POST' },
+      okResponseSchema
+    );
   }
   async reactivateProject(_projectId: ProjectId): Promise<void> {
-    await this.request<{ ok: true }>(`/api/projects/${encodeURIComponent(_projectId)}/reactivate`, {
-      method: 'POST',
-    });
+    await this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/reactivate`,
+      { method: 'POST' },
+      okResponseSchema
+    );
   }
   async deleteProject(_projectId: ProjectId): Promise<void> {
-    await this.request<{ ok: true }>(`/api/projects/${encodeURIComponent(_projectId)}`, {
-      method: 'DELETE',
-    });
+    await this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}`,
+      { method: 'DELETE' },
+      okResponseSchema
+    );
   }
 }
