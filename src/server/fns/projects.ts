@@ -272,8 +272,6 @@ export async function updateProjectServer(args: {
       patch.budget_total_cents = args.input.budgetTotalCents;
     }
     if (typeof args.input.currency !== 'undefined') patch.currency = args.input.currency;
-    if (typeof args.input.status !== 'undefined') patch.status = args.input.status;
-    if ('deactivatedAt' in args.input) patch.deactivated_at = args.input.deactivatedAt ?? null;
     if (typeof args.input.visibility !== 'undefined') patch.visibility = args.input.visibility;
     if (typeof args.input.allowSuperadminAccess !== 'undefined') {
       patch.allow_superadmin_access = args.input.allowSuperadminAccess;

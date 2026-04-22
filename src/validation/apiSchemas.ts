@@ -47,8 +47,6 @@ const nullableOptionalSubCategoryIdSchema = subCategoryIdSchema.nullable().optio
 
 const companyRoleSchema = z.enum(['superadmin', 'admin', 'executive', 'management', 'member']);
 const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
-const companyStatusSchema = z.enum(['active', 'deactivated']);
-const projectStatusSchema = z.enum(['active', 'archived']);
 const projectVisibilitySchema = z.enum(['company', 'private']);
 const currencySchema = z.enum(['AUD', 'USD', 'EUR', 'GBP']);
 const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
@@ -87,8 +85,6 @@ export const createCompanyInputSchema = z.object({
 
 export const updateCompanyBodySchema = z.object({
   name: companyNameSchema.optional(),
-  status: companyStatusSchema.optional(),
-  deactivatedAt: optionalIsoTimestampSchema,
 });
 
 export const createProjectInputSchema = z.object({
@@ -100,10 +96,8 @@ export const updateProjectBodySchema = z.object({
   name: projectNameSchema.optional(),
   budgetTotalCents: projectBudgetTotalCentsSchema.optional(),
   currency: currencySchema.optional(),
-  status: projectStatusSchema.optional(),
   visibility: projectVisibilitySchema.optional(),
   allowSuperadminAccess: z.boolean().optional(),
-  deactivatedAt: optionalIsoTimestampSchema,
 });
 
 export const upsertCompanyMembershipBodySchema = z.object({

@@ -641,8 +641,6 @@ export async function updateCompanyServer(args: {
 
     const patch: Record<string, unknown> = {};
     if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
-    if (typeof args.input.status !== 'undefined') patch.status = args.input.status;
-    if ('deactivatedAt' in args.input) patch.deactivated_at = args.input.deactivatedAt ?? null;
     if (!Object.keys(patch).length) return toCompany(existing);
 
     const updated = await db
