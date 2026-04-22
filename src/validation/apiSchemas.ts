@@ -35,7 +35,6 @@ const companyDefaultSubCategoryIdSchema = idSchema.transform(asCompanyDefaultSub
 const companyDefaultMappingRuleIdSchema = idSchema.transform(asCompanyDefaultMappingRuleId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
-const optionalIsoTimestampSchema = z.string().optional();
 const optionalCategoryIdSchema = categoryIdSchema.nullable().optional().transform((value) => value ?? undefined);
 const optionalSubCategoryIdSchema = subCategoryIdSchema.nullable().optional().transform((value) => value ?? undefined);
 const optionalMappingRuleIdSchema = companyDefaultMappingRuleIdSchema
@@ -129,8 +128,6 @@ export const updateCategoryInputSchema = z.object({
   companyId: companyIdSchema.optional(),
   projectId: projectIdSchema.optional(),
   name: categoryNameSchema.optional(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const createSubCategoryInputSchema = z.object({
@@ -147,8 +144,6 @@ export const updateSubCategoryInputSchema = z.object({
   projectId: projectIdSchema.optional(),
   categoryId: categoryIdSchema.optional(),
   name: subCategoryNameSchema.optional(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const createCompanyDefaultCategoryInputSchema = z.object({
@@ -161,8 +156,6 @@ export const updateCompanyDefaultCategoryInputSchema = z.object({
   id: companyDefaultCategoryIdSchema,
   companyId: companyIdSchema.optional(),
   name: categoryNameSchema.optional(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const createCompanyDefaultSubCategoryInputSchema = z.object({
@@ -177,8 +170,6 @@ export const updateCompanyDefaultSubCategoryInputSchema = z.object({
   companyId: companyIdSchema.optional(),
   companyDefaultCategoryId: companyDefaultCategoryIdSchema.optional(),
   name: subCategoryNameSchema.optional(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const createCompanyDefaultMappingRuleInputSchema = z.object({
@@ -188,8 +179,6 @@ export const createCompanyDefaultMappingRuleInputSchema = z.object({
   companyDefaultCategoryId: companyDefaultCategoryIdSchema,
   companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema,
   sortOrder: z.number().int().min(0),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const updateCompanyDefaultMappingRuleInputSchema = z.object({
@@ -198,8 +187,6 @@ export const updateCompanyDefaultMappingRuleInputSchema = z.object({
   companyDefaultCategoryId: companyDefaultCategoryIdSchema.optional(),
   companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema.optional(),
   sortOrder: z.number().int().min(0).optional(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const createBudgetInputSchema = z.object({
@@ -209,8 +196,6 @@ export const createBudgetInputSchema = z.object({
   categoryId: optionalCategoryIdSchema,
   subCategoryId: optionalSubCategoryIdSchema,
   allocatedCents: budgetAllocatedCentsSchema,
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const updateBudgetInputSchema = z.object({
@@ -220,8 +205,6 @@ export const updateBudgetInputSchema = z.object({
   categoryId: optionalCategoryIdSchema,
   subCategoryId: optionalSubCategoryIdSchema,
   allocatedCents: budgetAllocatedCentsSchema.optional(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const createTxnInputSchema = z.object({
@@ -238,8 +221,6 @@ export const createTxnInputSchema = z.object({
   companyDefaultMappingRuleId: optionalMappingRuleIdSchema,
   codingSource: codingSourceSchema.optional(),
   codingPendingApproval: z.boolean().optional(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const updateTxnInputSchema = z.object({
@@ -256,8 +237,6 @@ export const updateTxnInputSchema = z.object({
   companyDefaultMappingRuleId: optionalMappingRuleIdSchema,
   codingSource: codingSourceSchema.optional(),
   codingPendingApproval: z.boolean().optional(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
 });
 
 export const txnMutationBodySchema = z.object({

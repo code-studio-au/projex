@@ -168,7 +168,7 @@ export async function createBudgetServer(args: {
         category_id: args.input.categoryId ?? null,
         sub_category_id: args.input.subCategoryId ?? null,
         allocated_cents: args.input.allocatedCents,
-        created_at: args.input.createdAt ?? now,
+        created_at: now,
         updated_at: now,
       })
       .returning([
@@ -252,8 +252,6 @@ export async function updateBudgetServer(args: {
     if (Object.prototype.hasOwnProperty.call(args.input, 'subCategoryId')) {
       patch.sub_category_id = args.input.subCategoryId ?? null;
     }
-    if ('createdAt' in args.input) patch.created_at = args.input.createdAt ?? null;
-    if ('updatedAt' in args.input) patch.updated_at = args.input.updatedAt ?? null;
     patch.updated_at = new Date().toISOString();
 
     const updated = await db

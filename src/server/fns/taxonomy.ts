@@ -226,7 +226,7 @@ export async function createCategoryServer(args: {
         company_id: companyId,
         project_id: args.projectId,
         name,
-        created_at: args.input.createdAt ?? now,
+        created_at: now,
         updated_at: now,
       })
       .returning(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
@@ -259,8 +259,6 @@ export async function updateCategoryServer(args: {
 
     const patch: Record<string, unknown> = {};
     if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
-    if ('createdAt' in args.input) patch.created_at = args.input.createdAt ?? null;
-    if ('updatedAt' in args.input) patch.updated_at = args.input.updatedAt ?? null;
     patch.updated_at = new Date().toISOString();
 
     const updated = await db
@@ -420,7 +418,7 @@ export async function createSubCategoryServer(args: {
         project_id: args.projectId,
         category_id: args.input.categoryId,
         name,
-        created_at: args.input.createdAt ?? now,
+        created_at: now,
         updated_at: now,
       })
       .returning(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
@@ -463,8 +461,6 @@ export async function updateSubCategoryServer(args: {
     const patch: Record<string, unknown> = {};
     if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
     if (typeof args.input.categoryId !== 'undefined') patch.category_id = args.input.categoryId;
-    if ('createdAt' in args.input) patch.created_at = args.input.createdAt ?? null;
-    if ('updatedAt' in args.input) patch.updated_at = args.input.updatedAt ?? null;
     patch.updated_at = new Date().toISOString();
 
     const updated = await db
@@ -626,7 +622,7 @@ export async function createCompanyDefaultCategoryServer(args: {
         id,
         company_id: args.companyId,
         name,
-        created_at: args.input.createdAt ?? now,
+        created_at: now,
         updated_at: now,
       })
       .returning(['id', 'company_id', 'name', 'created_at', 'updated_at'])
@@ -744,7 +740,7 @@ export async function createCompanyDefaultSubCategoryServer(args: {
         company_id: args.companyId,
         company_default_category_id: args.input.companyDefaultCategoryId,
         name,
-        created_at: args.input.createdAt ?? now,
+        created_at: now,
         updated_at: now,
       })
       .returning([
@@ -920,7 +916,7 @@ export async function createCompanyDefaultMappingRuleServer(args: {
         company_default_category_id: args.input.companyDefaultCategoryId,
         company_default_sub_category_id: args.input.companyDefaultSubCategoryId,
         sort_order: nextSortOrder,
-        created_at: args.input.createdAt ?? now,
+        created_at: now,
         updated_at: now,
       })
       .returning([

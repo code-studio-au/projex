@@ -72,7 +72,6 @@ import type {
   CategoryUpdateInput,
   CompanyUserInviteResult,
   CompanyUpdateInput,
-  CsvImportMode,
   ApplyCompanyDefaultsResult,
   PendingEmailChange,
   EmailChangeRequestInput,
@@ -86,6 +85,7 @@ import type {
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
   TxnCreateInput,
+  TxnImportInput,
   TxnUpdateInput,
 } from '../contract';
 
@@ -178,8 +178,6 @@ function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } 
   if (typeof input.item !== 'undefined') next.item = input.item;
   if (typeof input.description !== 'undefined') next.description = input.description;
   if (typeof input.amountCents !== 'undefined') next.amountCents = input.amountCents;
-  if (typeof input.createdAt !== 'undefined') next.createdAt = input.createdAt;
-  if (typeof input.updatedAt !== 'undefined') next.updatedAt = input.updatedAt;
   if (typeof input.companyDefaultMappingRuleId !== 'undefined') {
     next.companyDefaultMappingRuleId = input.companyDefaultMappingRuleId ?? undefined;
   }
@@ -479,7 +477,7 @@ export class LocalApi implements ProjexApi {
       ...input,
       id: input.id ?? asTxnId(uid('txn')),
       externalId: normalizeExternalId(input.externalId),
-      createdAt: input.createdAt ?? now,
+      createdAt: now,
       updatedAt: now,
     };
     assertUniqueTransactionKeysInProject([...slice.transactions, next]);
@@ -737,7 +735,7 @@ export class LocalApi implements ProjexApi {
       id,
       companyId,
       name: input.name.trim(),
-      createdAt: input.createdAt ?? now,
+      createdAt: now,
       updatedAt: now,
     };
     writeState({
@@ -837,7 +835,7 @@ export class LocalApi implements ProjexApi {
       id,
       companyId,
       name: input.name.trim(),
-      createdAt: input.createdAt ?? now,
+      createdAt: now,
       updatedAt: now,
     };
     writeState({
@@ -953,7 +951,7 @@ export class LocalApi implements ProjexApi {
       sortOrder:
         input.sortOrder ??
         (slice.mappingRules.reduce((max, rule) => Math.max(max, rule.sortOrder), -1) + 1),
-      createdAt: input.createdAt ?? now,
+      createdAt: now,
       updatedAt: now,
     };
     writeState({
@@ -1157,7 +1155,7 @@ export class LocalApi implements ProjexApi {
 
     const id = input.id ?? asCategoryId(uid('cat'));
     const now = this.nowIso();
-    const next: Category = { ...input, id, createdAt: input.createdAt ?? now, updatedAt: now };
+    const next: Category = { ...input, id, createdAt: now, updatedAt: now };
     writeState({
       ...st,
       dataByProjectId: {
@@ -1253,7 +1251,7 @@ export class LocalApi implements ProjexApi {
 
     const id = input.id ?? asSubCategoryId(uid('sub'));
     const now = this.nowIso();
-    const next: SubCategory = { ...input, id, createdAt: input.createdAt ?? now, updatedAt: now };
+    const next: SubCategory = { ...input, id, createdAt: now, updatedAt: now };
     writeState({
       ...st,
       dataByProjectId: {
@@ -1361,7 +1359,7 @@ export class LocalApi implements ProjexApi {
 
     const id = input.id ?? asBudgetLineId(uid('bud'));
     const now = this.nowIso();
-    const next: BudgetLine = { ...input, id, createdAt: input.createdAt ?? now, updatedAt: now };
+    const next: BudgetLine = { ...input, id, createdAt: now, updatedAt: now };
     writeState({
       ...st,
       dataByProjectId: {
@@ -1707,7 +1705,7 @@ export class LocalApi implements ProjexApi {
 
   async importTransactions(
     projectId: ProjectId,
-    input: { txns: Txn[]; mode: CsvImportMode; autoCreateBudgets?: boolean }
+    input: TxnImportInput
   ): Promise<{ count: number }> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);

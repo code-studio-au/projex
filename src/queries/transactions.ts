@@ -14,8 +14,6 @@ function normalizeTxnUpdateForCache(input: TxnUpdateInput): Partial<Txn> & { id:
   if (typeof input.item !== 'undefined') next.item = input.item;
   if (typeof input.description !== 'undefined') next.description = input.description;
   if (typeof input.amountCents !== 'undefined') next.amountCents = input.amountCents;
-  if (typeof input.createdAt !== 'undefined') next.createdAt = input.createdAt;
-  if (typeof input.updatedAt !== 'undefined') next.updatedAt = input.updatedAt;
   if (typeof input.companyDefaultMappingRuleId !== 'undefined') {
     next.companyDefaultMappingRuleId = input.companyDefaultMappingRuleId ?? undefined;
   }

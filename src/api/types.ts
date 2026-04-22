@@ -38,8 +38,9 @@ export type Session = {
 };
 
 export type CsvImportMode = 'append' | 'replaceAll';
+export type TxnImportTxnInput = Omit<Txn, 'internalId' | 'createdAt' | 'updatedAt'>;
 export type TxnImportInput = {
-  txns: Txn[];
+  txns: TxnImportTxnInput[];
   mode: CsvImportMode;
   autoCreateBudgets?: boolean;
 };
@@ -52,54 +53,67 @@ export type TxnImportPreviewResult = {
 };
 
 // Inputs (command-style)
-export type TxnCreateInput = Omit<Txn, 'id' | 'internalId'> & { id?: TxnId };
-export type TxnUpdateInput = Partial<Omit<Txn, 'id' | 'internalId' | 'externalId' | 'categoryId' | 'subCategoryId'>> & {
+export type TxnCreateInput = Omit<Txn, 'id' | 'internalId' | 'createdAt' | 'updatedAt'> & { id?: TxnId };
+export type TxnUpdateInput = Partial<
+  Omit<Txn, 'id' | 'internalId' | 'createdAt' | 'updatedAt' | 'externalId' | 'categoryId' | 'subCategoryId'>
+> & {
   id: TxnId;
   externalId?: string | null;
   categoryId?: Txn['categoryId'] | null;
   subCategoryId?: Txn['subCategoryId'] | null;
 };
 
-export type BudgetCreateInput = Omit<BudgetLine, 'id'> & {
+export type BudgetCreateInput = Omit<BudgetLine, 'id' | 'createdAt' | 'updatedAt'> & {
   id?: BudgetLine['id'];
 };
-export type BudgetUpdateInput = Partial<Omit<BudgetLine, 'id'>> & {
+export type BudgetUpdateInput = Partial<Omit<BudgetLine, 'id' | 'createdAt' | 'updatedAt'>> & {
   id: BudgetLine['id'];
 };
 
-export type CategoryCreateInput = Omit<Category, 'id'> & { id?: Category['id'] };
-export type CategoryUpdateInput = Partial<Omit<Category, 'id'>> & {
+export type CategoryCreateInput = Omit<Category, 'id' | 'createdAt' | 'updatedAt'> & { id?: Category['id'] };
+export type CategoryUpdateInput = Partial<Omit<Category, 'id' | 'createdAt' | 'updatedAt'>> & {
   id: Category['id'];
 };
 
-export type CompanyDefaultCategoryCreateInput = Omit<CompanyDefaultCategory, 'id'> & {
+export type CompanyDefaultCategoryCreateInput = Omit<
+  CompanyDefaultCategory,
+  'id' | 'createdAt' | 'updatedAt'
+> & {
   id?: CompanyDefaultCategory['id'];
 };
-export type CompanyDefaultCategoryUpdateInput = Partial<Omit<CompanyDefaultCategory, 'id'>> & {
+export type CompanyDefaultCategoryUpdateInput = Partial<
+  Omit<CompanyDefaultCategory, 'id' | 'createdAt' | 'updatedAt'>
+> & {
   id: CompanyDefaultCategory['id'];
 };
 
-export type SubCategoryCreateInput = Omit<SubCategory, 'id'> & {
+export type SubCategoryCreateInput = Omit<SubCategory, 'id' | 'createdAt' | 'updatedAt'> & {
   id?: SubCategory['id'];
 };
-export type SubCategoryUpdateInput = Partial<Omit<SubCategory, 'id'>> & {
+export type SubCategoryUpdateInput = Partial<Omit<SubCategory, 'id' | 'createdAt' | 'updatedAt'>> & {
   id: SubCategory['id'];
 };
 
-export type CompanyDefaultSubCategoryCreateInput = Omit<CompanyDefaultSubCategory, 'id'> & {
+export type CompanyDefaultSubCategoryCreateInput = Omit<
+  CompanyDefaultSubCategory,
+  'id' | 'createdAt' | 'updatedAt'
+> & {
   id?: CompanyDefaultSubCategory['id'];
 };
 export type CompanyDefaultSubCategoryUpdateInput = Partial<
-  Omit<CompanyDefaultSubCategory, 'id'>
+  Omit<CompanyDefaultSubCategory, 'id' | 'createdAt' | 'updatedAt'>
 > & {
   id: CompanyDefaultSubCategory['id'];
 };
 
-export type CompanyDefaultMappingRuleCreateInput = Omit<CompanyDefaultMappingRule, 'id'> & {
+export type CompanyDefaultMappingRuleCreateInput = Omit<
+  CompanyDefaultMappingRule,
+  'id' | 'createdAt' | 'updatedAt'
+> & {
   id?: CompanyDefaultMappingRule['id'];
 };
 export type CompanyDefaultMappingRuleUpdateInput = Partial<
-  Omit<CompanyDefaultMappingRule, 'id' | 'companyId'>
+  Omit<CompanyDefaultMappingRule, 'id' | 'companyId' | 'createdAt' | 'updatedAt'>
 > & {
   id: CompanyDefaultMappingRule['id'];
 };

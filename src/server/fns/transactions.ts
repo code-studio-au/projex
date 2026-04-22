@@ -21,7 +21,7 @@ import {
   asCompanyDefaultSubCategoryId,
 } from '../../types';
 import { AppError } from '../../api/errors';
-import type { TxnCreateInput, TxnUpdateInput } from '../../api/types';
+import type { TxnCreateInput, TxnImportTxnInput, TxnUpdateInput } from '../../api/types';
 import { uid } from '../../utils/id';
 import { txnInputSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
@@ -91,8 +91,6 @@ function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } 
   if (typeof input.item !== 'undefined') next.item = input.item;
   if (typeof input.description !== 'undefined') next.description = input.description;
   if (typeof input.amountCents !== 'undefined') next.amountCents = input.amountCents;
-  if (typeof input.createdAt !== 'undefined') next.createdAt = input.createdAt;
-  if (typeof input.updatedAt !== 'undefined') next.updatedAt = input.updatedAt;
   if (typeof input.companyDefaultMappingRuleId !== 'undefined') {
     next.companyDefaultMappingRuleId = input.companyDefaultMappingRuleId ?? undefined;
   }
@@ -258,7 +256,7 @@ export async function createTxnServer(args: {
       ...args.input,
       id: args.input.id ?? asTxnId(uid('txn')),
       externalId: normalizeExternalId(args.input.externalId),
-      createdAt: args.input.createdAt ?? new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
@@ -418,7 +416,7 @@ export async function updateTxnServer(args: {
         company_default_mapping_rule_id: next.companyDefaultMappingRuleId ?? null,
         coding_source: next.codingSource ?? null,
         coding_pending_approval: !!next.codingPendingApproval,
-        created_at: next.createdAt,
+        created_at: prev.createdAt,
         updated_at: now,
       })
       .where('project_id', '=', args.projectId)
@@ -480,7 +478,7 @@ export async function deleteTxnServer(args: {
 export async function importTransactionsServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
-  txns: Txn[];
+  txns: TxnImportTxnInput[];
   mode: 'append' | 'replaceAll';
   autoCreateBudgets?: boolean;
 }): Promise<{ count: number }> {
@@ -683,7 +681,7 @@ export async function importTransactionsServer(args: {
               company_default_mapping_rule_id: t.companyDefaultMappingRuleId ?? null,
               coding_source: t.codingSource ?? null,
               coding_pending_approval: !!t.codingPendingApproval,
-              created_at: t.createdAt ?? now,
+              created_at: now,
               updated_at: now,
             }))
           )
@@ -756,7 +754,7 @@ export async function importTransactionsServer(args: {
             company_default_mapping_rule_id: t.companyDefaultMappingRuleId ?? null,
             coding_source: t.codingSource ?? null,
             coding_pending_approval: !!t.codingPendingApproval,
-            created_at: t.createdAt ?? now,
+            created_at: now,
             updated_at: now,
           }))
         )
