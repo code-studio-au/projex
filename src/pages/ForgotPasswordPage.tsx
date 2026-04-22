@@ -14,6 +14,7 @@ import { useRouter } from '@tanstack/react-router';
 import { useMediaQuery } from '@mantine/hooks';
 
 import { loginRoute } from '../router';
+import { apiMessageResponseSchema } from '../validation/responseSchemas';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -41,9 +42,14 @@ export default function ForgotPasswordPage() {
           redirectTo: `${window.location.origin}/reset-password`,
         }),
       });
-      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(body?.message ?? 'Could not request a password reset.');
+        const parsed = apiMessageResponseSchema.safeParse(body);
+        setError(
+          parsed.success
+            ? parsed.data.message ?? 'Could not request a password reset.'
+            : 'Could not request a password reset.'
+        );
         return;
       }
       setSuccess(

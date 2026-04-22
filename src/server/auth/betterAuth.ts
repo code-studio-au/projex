@@ -1,13 +1,9 @@
 import type { ServerSession } from './session';
 import { toServerSession } from './session';
 import { readDevUserIdFromRequest } from '../dev/devSession';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { betterAuthLikePayloadSchema } from '../../validation/responseSchemas';
 
-type BetterAuthLikePayload = {
-  userId?: string | null;
-  user?: { id?: string | null } | null;
-} | null;
+type BetterAuthLikePayload = ReturnType<typeof betterAuthLikePayloadSchema.parse>;
 
 type DirectResolver = (req: Request) => Promise<BetterAuthLikePayload> | BetterAuthLikePayload;
 
@@ -15,6 +11,8 @@ let cachedDirectSpec: string | null = null;
 let cachedDirectResolver: DirectResolver | null = null;
 
 async function resolveDirectResolverFromEnv(): Promise<DirectResolver | null> {
+  if (typeof globalThis !== 'undefined' && 'window' in globalThis) return null;
+
   const spec = process.env.BETTER_AUTH_DIRECT_SESSION_FN?.trim() ?? '';
   if (!spec) return null;
   if (cachedDirectSpec === spec && cachedDirectResolver) return cachedDirectResolver;
@@ -27,7 +25,7 @@ async function resolveDirectResolverFromEnv(): Promise<DirectResolver | null> {
   const normalizedPath =
     modulePath.startsWith('file://') || modulePath.startsWith('node:')
       ? modulePath
-      : pathToFileURL(path.resolve(process.cwd(), modulePath)).toString();
+      : await toFileUrl(modulePath);
 
   const mod = (await import(/* @vite-ignore */ normalizedPath)) as Record<string, unknown>;
   const fn = mod[exportName];
@@ -40,6 +38,14 @@ async function resolveDirectResolverFromEnv(): Promise<DirectResolver | null> {
   cachedDirectSpec = spec;
   cachedDirectResolver = fn as DirectResolver;
   return cachedDirectResolver;
+}
+
+async function toFileUrl(modulePath: string): Promise<string> {
+  const [{ default: path }, { pathToFileURL }] = await Promise.all([
+    import('node:path'),
+    import('node:url'),
+  ]);
+  return pathToFileURL(path.resolve(process.cwd(), modulePath)).toString();
 }
 
 async function resolveFromBetterAuthDirect(req: Request): Promise<ServerSession | null> {
@@ -61,15 +67,16 @@ async function resolveFromBetterAuthEndpoint(req: Request): Promise<ServerSessio
 
   const res = await fetch(url, { method: 'GET', headers });
   if (!res.ok) return null;
-  const payload = (await res.json()) as BetterAuthLikePayload;
+  const payload: BetterAuthLikePayload = betterAuthLikePayloadSchema.parse(await res.json());
   return toServerSession(payload);
 }
 
 async function resolveFromLocalBetterAuthEndpoint(req: Request): Promise<ServerSession | null> {
-  const base = process.env.BETTER_AUTH_URL?.trim();
-  if (!base) return null;
-
-  const url = new URL('/api/auth/get-session', base).toString();
+  const configuredBase = process.env.BETTER_AUTH_URL?.trim();
+  const requestBase = new URL(req.url).origin;
+  const candidateBases = [requestBase, configuredBase].filter(
+    (value, index, arr): value is string => Boolean(value) && arr.indexOf(value) === index
+  );
 
   const headers = new Headers();
   const cookie = req.headers.get('cookie');
@@ -77,10 +84,16 @@ async function resolveFromLocalBetterAuthEndpoint(req: Request): Promise<ServerS
   const authorization = req.headers.get('authorization');
   if (authorization) headers.set('authorization', authorization);
 
-  const res = await fetch(url, { method: 'GET', headers });
-  if (!res.ok) return null;
-  const payload = (await res.json()) as BetterAuthLikePayload;
-  return toServerSession(payload);
+  for (const base of candidateBases) {
+    const url = new URL('/api/auth/get-session', base).toString();
+    const res = await fetch(url, { method: 'GET', headers });
+    if (!res.ok) continue;
+    const payload: BetterAuthLikePayload = betterAuthLikePayloadSchema.parse(await res.json());
+    const session = toServerSession(payload);
+    if (session) return session;
+  }
+
+  return null;
 }
 
 /**

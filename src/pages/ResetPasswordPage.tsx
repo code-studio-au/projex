@@ -15,6 +15,7 @@ import { useMediaQuery } from '@mantine/hooks';
 
 import { accountRoute, loginRoute } from '../router';
 import { useSessionQuery } from '../queries/session';
+import { apiMessageResponseSchema } from '../validation/responseSchemas';
 
 function useResetSearch() {
   return useMemo(() => {
@@ -65,9 +66,14 @@ export default function ResetPasswordPage() {
           newPassword: password,
         }),
       });
-      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(body?.message ?? 'Could not set your password.');
+        const parsed = apiMessageResponseSchema.safeParse(body);
+        setError(
+          parsed.success
+            ? parsed.data.message ?? 'Could not set your password.'
+            : 'Could not set your password.'
+        );
         return;
       }
       setSuccess(

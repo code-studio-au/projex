@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Anchor, Button, Paper, Stack, Text, Title } from '@mantine/core';
+import { z } from 'zod';
+
+import {
+  apiMessageResponseSchema,
+  emailChangeConfirmResponseSchema,
+} from '../validation/responseSchemas';
 
 type ConfirmState =
   | { status: 'loading' }
@@ -30,28 +36,30 @@ export default function VerifyEmailChangePage() {
         });
         const body: unknown = await res.json().catch(() => null);
         if (!res.ok) {
-          const message =
-            body && typeof body === 'object' && 'message' in body
-              ? String(body.message ?? 'Could not confirm your new email.')
-              : 'Could not confirm your new email.';
+          const parsedError = apiMessageResponseSchema.safeParse(body);
+          const message = parsedError.success
+            ? parsedError.data.message ?? 'Could not confirm your new email.'
+            : 'Could not confirm your new email.';
           throw new Error(message);
         }
         if (!cancelled) {
-          const payload =
-            body && typeof body === 'object'
-              ? (body as { email?: unknown; previousEmail?: unknown })
-              : null;
+          const payload = emailChangeConfirmResponseSchema.parse(body);
           setState({
             status: 'success',
-            email: String(payload?.email ?? ''),
-            previousEmail: String(payload?.previousEmail ?? ''),
+            email: payload.email,
+            previousEmail: payload.previousEmail,
           });
         }
       } catch (error) {
         if (!cancelled) {
           setState({
             status: 'error',
-            message: error instanceof Error ? error.message : 'Could not confirm your new email.',
+            message:
+              error instanceof z.ZodError
+                ? 'Could not confirm your new email.'
+                : error instanceof Error
+                  ? error.message
+                  : 'Could not confirm your new email.',
           });
         }
       }

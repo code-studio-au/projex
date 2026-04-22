@@ -17,6 +17,7 @@ import { IconAlertCircle, IconCheck, IconLoader2, IconPlayerPlay, IconX } from '
 
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import { useSessionQuery } from '../queries/session';
+import { apiMessageResponseSchema } from '../validation/responseSchemas';
 import type {
   SmokeSectionId,
   SmokeSectionResult,
@@ -313,10 +314,10 @@ export default function SmokeDashboardPage() {
 
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => null);
-        const message =
-          body && typeof body === 'object' && 'message' in body
-            ? String(body.message ?? 'Smoke run failed.')
-            : 'Smoke run failed.';
+        const parsed = apiMessageResponseSchema.safeParse(body);
+        const message = parsed.success
+          ? parsed.data.message ?? 'Smoke run failed.'
+          : 'Smoke run failed.';
         throw new Error(message);
       }
 

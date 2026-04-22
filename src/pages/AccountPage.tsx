@@ -23,6 +23,7 @@ import {
   useUpdateCurrentUserProfileMutation,
 } from '../queries/account';
 import { isServerAuthMode } from '../routes/-authMode';
+import { apiMessageResponseSchema } from '../validation/responseSchemas';
 
 type EmailActivity = {
   kind: 'requested' | 'resent' | 'cancelled';
@@ -176,10 +177,10 @@ export default function AccountPage() {
 
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        const message =
-          body && typeof body === 'object' && 'message' in body
-            ? String(body.message ?? 'Could not change password.')
-            : 'Could not change password.';
+        const parsed = apiMessageResponseSchema.safeParse(body);
+        const message = parsed.success
+          ? parsed.data.message ?? 'Could not change password.'
+          : 'Could not change password.';
         throw new Error(message);
       }
 
