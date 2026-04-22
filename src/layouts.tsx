@@ -13,14 +13,13 @@ import {
   MantineProvider,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 
 import { useApi } from './hooks/useApi';
 import { accountRoute, companyRoute, homeRoute, landingRoute, loginRoute, smokeRoute } from './router';
 import { theme } from './theme';
 import { asCompanyId } from './types/ids';
-import { refreshAfterAuthChange, useLogoutMutation, useSessionQuery } from './queries/session';
-import { qk } from './queries/keys';
+import { useLogoutMutation, useSessionQuery } from './queries/session';
 import { useAllCompanyMembershipsQuery } from './queries/memberships';
 import { useCompaniesQuery, useUsersQuery } from './queries/reference';
 
@@ -56,7 +55,6 @@ export function AuthedLayout() {
   const session = useSessionQuery();
   const logout = useLogoutMutation();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   const userId = session.data?.userId ?? null;
   const isMobile = useMediaQuery('(max-width: 48em)');
@@ -92,10 +90,9 @@ export function AuthedLayout() {
   });
 
   async function handleLogout() {
-    await logout.mutateAsync({ deferCacheReset: true });
+    await logout.mutateAsync({});
+    await router.invalidate();
     await router.navigate({ to: loginRoute.to, replace: true });
-    queryClient.setQueryData(qk.session(), null);
-    await refreshAfterAuthChange(queryClient);
   }
 
   return (
