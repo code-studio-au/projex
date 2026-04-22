@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
+import { useSessionQuery } from './session';
 import type { CompanyId, ProjectId, UserId } from '../types';
 
 export function useUsersQuery() {
@@ -29,7 +30,9 @@ export function useCompaniesQuery(userId?: UserId) {
 export function useCompanyQuery(companyId: CompanyId) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
+  const session = useSessionQuery();
   return useQuery({
+    enabled: !!session.data?.userId,
     queryKey: qk.company(scopeUserId, companyId),
     queryFn: () => api.getCompany(companyId),
   });
@@ -38,7 +41,9 @@ export function useCompanyQuery(companyId: CompanyId) {
 export function useProjectsQuery(companyId: CompanyId) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
+  const session = useSessionQuery();
   return useQuery({
+    enabled: !!session.data?.userId,
     queryKey: qk.projects(scopeUserId, companyId),
     queryFn: () => api.listProjects(companyId),
   });
@@ -47,7 +52,9 @@ export function useProjectsQuery(companyId: CompanyId) {
 export function useProjectQuery(projectId: ProjectId) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
+  const session = useSessionQuery();
   return useQuery({
+    enabled: !!session.data?.userId,
     queryKey: qk.project(scopeUserId, projectId),
     queryFn: () => api.getProject(projectId),
   });

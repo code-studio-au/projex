@@ -41,6 +41,22 @@ export async function refreshAfterAuthChange(queryClient: QueryClient) {
   });
 }
 
+export async function clearProtectedDataAfterLogout(queryClient: QueryClient) {
+  await queryClient.cancelQueries({
+    predicate: (q) =>
+      Array.isArray(q.queryKey) &&
+      q.queryKey[0] !== 'users' &&
+      q.queryKey[0] !== 'session',
+  });
+
+  queryClient.removeQueries({
+    predicate: (q) =>
+      Array.isArray(q.queryKey) &&
+      q.queryKey[0] !== 'users' &&
+      q.queryKey[0] !== 'session',
+  });
+}
+
 export function useLoginMutation() {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -73,7 +89,7 @@ export function useLogoutMutation() {
       if (options?.deferCacheReset) return;
       // Clear session cache immediately so guards stop treating the user as authed.
       queryClient.setQueryData(qk.session(), null);
-      await refreshAfterAuthChange(queryClient);
+      await clearProtectedDataAfterLogout(queryClient);
     },
   });
 }

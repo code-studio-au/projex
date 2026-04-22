@@ -138,7 +138,7 @@ export class ServerApi implements ProjexApi {
 
   // session
   async getSession(): Promise<Session | null> {
-    return this.request<Session | null>('/api/session');
+    return this.request<Session | null>('/api/session', { cache: 'no-store' });
   }
   async loginAs(_userId: UserId): Promise<Session> {
     return this.request<Session>('/api/dev/session', {

@@ -5,11 +5,14 @@ import type { CompanyId, ProjectId, UserId } from '../types';
 import type { CompanyRole, ProjectRole } from '../types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
+import { useSessionQuery } from './session';
 
 export function useCompanyMembershipsQuery(companyId: CompanyId) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
+  const session = useSessionQuery();
   return useQuery({
+    enabled: !!session.data?.userId,
     queryKey: qk.companyMemberships(scopeUserId, companyId),
     queryFn: () => api.listCompanyMemberships(companyId),
   });
@@ -18,7 +21,9 @@ export function useCompanyMembershipsQuery(companyId: CompanyId) {
 export function useAllCompanyMembershipsQuery() {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
+  const session = useSessionQuery();
   return useQuery({
+    enabled: !!session.data?.userId,
     queryKey: qk.allCompanyMemberships(scopeUserId),
     queryFn: () => api.listAllCompanyMemberships(),
   });
@@ -27,7 +32,9 @@ export function useAllCompanyMembershipsQuery() {
 export function useProjectMembershipsQuery(projectId: ProjectId) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
+  const session = useSessionQuery();
   return useQuery({
+    enabled: !!session.data?.userId,
     queryKey: qk.projectMemberships(scopeUserId, projectId),
     queryFn: () => api.listProjectMemberships(projectId),
   });
@@ -43,7 +50,9 @@ export function useProjectMembershipsQuery(projectId: ProjectId) {
 export function useMyProjectMembershipsQuery(companyId: CompanyId) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
+  const session = useSessionQuery();
   return useQuery({
+    enabled: !!session.data?.userId,
     queryKey: qk.myProjectMemberships(scopeUserId, companyId),
     queryFn: () => api.listMyProjectMemberships(companyId),
   });

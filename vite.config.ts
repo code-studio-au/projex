@@ -7,7 +7,7 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 export default defineConfig(({ command }) => ({
   plugins: [
     tsconfigPaths(),
-    ...(command === 'build' ? tanstackStart() : []),
+    tanstackStart(),
     react(),
   ],
   optimizeDeps:
