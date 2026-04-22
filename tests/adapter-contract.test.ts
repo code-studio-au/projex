@@ -40,6 +40,10 @@ function restoreEnv(key: string, prev: string | undefined) {
   process.env[key] = prev;
 }
 
+function stripLocalServerOrigin(url: string): string {
+  return url.replace(/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/, '');
+}
+
 test('ServerApi loginAs targets dev session endpoint', async () => {
   const api = new ServerApi();
   const originalFetch = globalThis.fetch;
@@ -56,7 +60,7 @@ test('ServerApi loginAs targets dev session endpoint', async () => {
 
   try {
     const session = await api.loginAs(asUserId('u_superadmin'));
-    assert.equal(capturedUrl, 'http://localhost/api/dev/session');
+    assert.equal(stripLocalServerOrigin(capturedUrl), '/api/dev/session');
     assert.equal(capturedInit?.method, 'POST');
     assert.equal(session.userId, asUserId('u_superadmin'));
   } finally {
@@ -80,7 +84,7 @@ test('ServerApi resetToSeed targets dev reset endpoint', async () => {
 
   try {
     await api.resetToSeed();
-    assert.equal(capturedUrl, 'http://localhost/api/dev/reset-seed');
+    assert.equal(stripLocalServerOrigin(capturedUrl), '/api/dev/reset-seed');
     assert.equal(capturedInit?.method, 'POST');
   } finally {
     (globalThis as { fetch: typeof fetch }).fetch = originalFetch;
@@ -125,7 +129,7 @@ test('ServerApi routes taxonomy and budget methods through Start endpoints', asy
     (globalThis as { fetch: typeof fetch }).fetch = originalFetch;
   }
 
-  const paths = calls.map((c) => `${c.method} ${c.url.replace('http://localhost', '')}`);
+  const paths = calls.map((c) => `${c.method} ${stripLocalServerOrigin(c.url)}`);
   assert.ok(paths.includes('GET /api/projects/prj_acme_alpha/categories'));
   assert.ok(paths.includes('GET /api/projects/prj_acme_alpha/sub-categories'));
   assert.ok(paths.includes('POST /api/projects/prj_acme_alpha/categories'));
@@ -202,6 +206,40 @@ test('Auth adapter falls back to dev cookie session', async () => {
     restoreEnv('BETTER_AUTH_SESSION_URL', prevUrl);
     restoreEnv('PROJEX_ENABLE_DEV_ENDPOINTS', prevEnable);
     restoreEnv('NODE_ENV', prevNodeEnv);
+  }
+});
+
+test('Auth adapter resolves local BetterAuth session from the current request origin first', async () => {
+  const prevDirect = process.env.BETTER_AUTH_DIRECT_SESSION_FN;
+  const prevUrl = process.env.BETTER_AUTH_SESSION_URL;
+  const prevBase = process.env.BETTER_AUTH_URL;
+  const originalFetch = globalThis.fetch;
+  const seenUrls: string[] = [];
+
+  try {
+    process.env.BETTER_AUTH_DIRECT_SESSION_FN = '';
+    process.env.BETTER_AUTH_SESSION_URL = '';
+    process.env.BETTER_AUTH_URL = 'http://localhost:3000';
+    (globalThis as { fetch: typeof fetch }).fetch = (async (
+      input: string | URL | Request
+    ) => {
+      seenUrls.push(String(input));
+      return new Response(JSON.stringify({ user: { id: 'u_superadmin' } }), { status: 200 });
+    }) as typeof fetch;
+
+    const session = await getAuthSessionFromRequest(
+      new Request('http://localhost:5173/api/session', {
+        headers: { cookie: 'sid=abc123' },
+      })
+    );
+
+    assert.equal(session?.userId, asUserId('u_superadmin'));
+    assert.deepEqual(seenUrls, ['http://localhost:5173/api/auth/get-session']);
+  } finally {
+    restoreEnv('BETTER_AUTH_DIRECT_SESSION_FN', prevDirect);
+    restoreEnv('BETTER_AUTH_SESSION_URL', prevUrl);
+    restoreEnv('BETTER_AUTH_URL', prevBase);
+    (globalThis as { fetch: typeof fetch }).fetch = originalFetch;
   }
 });
 
@@ -461,15 +499,20 @@ test('LocalApi blocks non-admin access to archived project', async () => {
   );
 });
 
-test('LocalApi createUserInCompany enforces duplicate email conflict', async () => {
+test('LocalApi createUserInCompany reuses an existing user by email', async () => {
   installMemoryLocalStorage();
   const api = new LocalApi();
   await api.loginAs(asUserId('u_superadmin'));
 
-  await assert.rejects(
-    () => api.createUserInCompany(asCompanyId('co_acme'), 'Dup User', 'member@acme.co', 'member'),
-    (err) => isAppError(err) && err.code === 'CONFLICT'
-  );
+  const result = await api.createUserInCompany(asCompanyId('co_acme'), {
+    name: 'Dup User',
+    email: 'member@acme.co',
+    role: 'member',
+  });
+
+  assert.equal(result.user.id, asUserId('u_member'));
+  assert.equal(result.createdAuthUser, false);
+  assert.equal(result.membershipCreated, false);
 });
 
 test('LocalApi createUserInCompany returns invite metadata for local mode', async () => {
@@ -479,13 +522,16 @@ test('LocalApi createUserInCompany returns invite metadata for local mode', asyn
 
   const result = await api.createUserInCompany(
     asCompanyId('co_acme'),
-    'New Local User',
-    'new-local-user@example.com',
-    'member'
+    {
+      name: 'New Local User',
+      email: 'new-local-user@example.com',
+      role: 'member',
+    }
   );
 
   assert.equal(result.user.email, 'new-local-user@example.com');
-  assert.equal(result.createdAuthUser, false);
+  assert.equal(result.createdAuthUser, true);
+  assert.equal(result.membershipCreated, true);
   assert.equal(result.onboardingEmailSent, false);
   assert.equal(result.onboardingDelivery, 'none');
 });
