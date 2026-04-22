@@ -10,24 +10,54 @@ type MembershipSnapshot = {
   projectMemberships: Array<{ projectId: ProjectId; userId: UserId; role: 'owner' | 'lead' | 'member' | 'viewer' }>;
 };
 
-async function loadMembershipSnapshot(db: Kysely<DB>): Promise<MembershipSnapshot> {
-  const [companyRows, projectRows] = await Promise.all([
+async function loadMembershipSnapshot(params: {
+  db: Kysely<DB>;
+  userId: UserId;
+  companyId: CompanyId;
+  projectId?: ProjectId;
+}): Promise<MembershipSnapshot> {
+  const { db, userId, companyId, projectId } = params;
+
+  const [companyRows, projectRows, superadminRow] = await Promise.all([
     db
       .selectFrom('company_memberships')
       .select(['company_id', 'user_id', 'role'])
+      .where('user_id', '=', userId)
+      .where('company_id', '=', companyId)
       .execute(),
+    projectId
+      ? db
+          .selectFrom('project_memberships')
+          .select(['project_id', 'user_id', 'role'])
+          .where('user_id', '=', userId)
+          .where('project_id', '=', projectId)
+          .execute()
+      : Promise.resolve([]),
     db
-      .selectFrom('project_memberships')
-      .select(['project_id', 'user_id', 'role'])
-      .execute(),
+      .selectFrom('company_memberships')
+      .select('company_id')
+      .where('user_id', '=', userId)
+      .where('role', '=', 'superadmin')
+      .limit(1)
+      .executeTakeFirst(),
   ]);
 
+  const companyMemberships = companyRows.map((r) => ({
+    companyId: r.company_id as CompanyId,
+    userId: r.user_id as UserId,
+    role: r.role,
+  }));
+
+  if (superadminRow && !companyMemberships.some((m) => m.role === 'superadmin')) {
+    companyMemberships.push({
+      companyId,
+      userId,
+      role: 'superadmin',
+    });
+  }
+
   return {
-    companyMemberships: companyRows.map((r) => ({
-      companyId: r.company_id as CompanyId,
-      userId: r.user_id as UserId,
-      role: r.role,
-    })),
+    companyMemberships,
     projectMemberships: projectRows.map((r) => ({
       projectId: r.project_id as ProjectId,
       userId: r.user_id as UserId,
@@ -56,7 +86,7 @@ export async function isAuthorized(params: {
   projectId?: ProjectId;
 }): Promise<boolean> {
   const { db, userId, action, companyId, projectId } = params;
-  const snap = await loadMembershipSnapshot(db);
+  const snap = await loadMembershipSnapshot({ db, userId, companyId, projectId });
   const isSuperadmin = snap.companyMemberships.some(
     (m) => m.userId === userId && m.role === 'superadmin'
   );
