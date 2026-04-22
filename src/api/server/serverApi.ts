@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import type { z } from 'zod';
 import type { ProjexApi } from '../types';
 import { AppError, type AppErrorCode } from '../errors';
 import type {
@@ -44,6 +45,25 @@ import type {
   TxnCreateInput,
   TxnUpdateInput,
 } from '../types';
+import {
+  companiesResponseSchema,
+  companyMembershipsResponseSchema,
+  companyResponseSchema,
+  companyUserInviteResultResponseSchema,
+  countResponseSchema,
+  defaultCompanyResponseSchema,
+  emailChangeConfirmResponseSchema,
+  emailChangeRequestResponseSchema,
+  pendingEmailChangeResponseSchema,
+  projectMembershipsResponseSchema,
+  projectResponseSchema,
+  projectsResponseSchema,
+  authenticatedSessionResponseSchema,
+  sessionResponseSchema,
+  txnImportPreviewResultResponseSchema,
+  userResponseSchema,
+  usersResponseSchema,
+} from '../../validation/responseSchemas';
 
 type ApiErrorBody = {
   code?: AppErrorCode;
@@ -101,7 +121,28 @@ export class ServerApi implements ProjexApi {
     }
   }
 
-  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+  private parseResponseBody(text: string): unknown {
+    if (!text) return null;
+
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      throw new AppError('INTERNAL_ERROR', 'Invalid JSON response from API');
+    }
+  }
+
+  private validateResponse<T>(schema: z.ZodType<T> | undefined, body: unknown, path: string): T {
+    if (!schema) return body as T;
+
+    const parsed = schema.safeParse(body);
+    if (parsed.success) return parsed.data;
+
+    throw new AppError('INTERNAL_ERROR', `Invalid API response from ${path}`, {
+      issues: parsed.error.issues,
+    });
+  }
+
+  private async request<T>(path: string, init?: RequestInit, schema?: z.ZodType<T>): Promise<T> {
     const serverHeaders = await this.getServerRequestHeaders();
     const res = await fetch(await this.resolveUrl(path), {
       credentials: 'include',
@@ -114,7 +155,7 @@ export class ServerApi implements ProjexApi {
     });
 
     const text = await res.text();
-    const body = text ? (JSON.parse(text) as unknown) : null;
+    const body = this.parseResponseBody(text);
 
     if (!res.ok) {
       const errBody = (body ?? {}) as ApiErrorBody;
@@ -123,7 +164,7 @@ export class ServerApi implements ProjexApi {
       throw new AppError(code, message, errBody.meta ?? undefined);
     }
 
-    return body as T;
+    return this.validateResponse(schema, body, path);
   }
 
   private statusToCode(status: number): AppErrorCode {
@@ -138,13 +179,17 @@ export class ServerApi implements ProjexApi {
 
   // session
   async getSession(): Promise<Session | null> {
-    return this.request<Session | null>('/api/session', { cache: 'no-store' });
+    return this.request('/api/session', { cache: 'no-store' }, sessionResponseSchema);
   }
   async loginAs(_userId: UserId): Promise<Session> {
-    return this.request<Session>('/api/dev/session', {
-      method: 'POST',
-      body: JSON.stringify({ userId: _userId }),
-    });
+    return this.request(
+      '/api/dev/session',
+      {
+        method: 'POST',
+        body: JSON.stringify({ userId: _userId }),
+      },
+      authenticatedSessionResponseSchema
+    );
   }
   async logout(): Promise<void> {
     await this.request<void>('/api/session', { method: 'DELETE' });
@@ -152,38 +197,56 @@ export class ServerApi implements ProjexApi {
 
   // reference data
   async listUsers(): Promise<User[]> {
-    return this.request<User[]>('/api/users');
+    return this.request('/api/users', undefined, usersResponseSchema);
   }
   async listCompanies(): Promise<Company[]> {
-    return this.request<Company[]>('/api/companies');
+    return this.request('/api/companies', undefined, companiesResponseSchema);
   }
   async listProjects(companyId: CompanyId): Promise<Project[]> {
-    return this.request<Project[]>(`/api/companies/${encodeURIComponent(companyId)}/projects`);
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/projects`,
+      undefined,
+      projectsResponseSchema
+    );
   }
   async getCompany(companyId: CompanyId): Promise<Company | null> {
-    return this.request<Company | null>(`/api/companies/${encodeURIComponent(companyId)}`);
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}`,
+      undefined,
+      companyResponseSchema.nullable()
+    );
   }
   async getProject(projectId: ProjectId): Promise<Project | null> {
-    return this.request<Project | null>(`/api/projects/${encodeURIComponent(projectId)}`);
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}`,
+      undefined,
+      projectResponseSchema.nullable()
+    );
   }
 
   // memberships
   async listCompanyMemberships(_companyId: CompanyId): Promise<CompanyMembership[]> {
-    return this.request<CompanyMembership[]>(
-      `/api/companies/${encodeURIComponent(_companyId)}/memberships`
+    return this.request(
+      `/api/companies/${encodeURIComponent(_companyId)}/memberships`,
+      undefined,
+      companyMembershipsResponseSchema
     );
   }
   async listAllCompanyMemberships(): Promise<CompanyMembership[]> {
-    return this.request<CompanyMembership[]>('/api/memberships/companies');
+    return this.request('/api/memberships/companies', undefined, companyMembershipsResponseSchema);
   }
   async listProjectMemberships(_projectId: ProjectId): Promise<ProjectMembership[]> {
-    return this.request<ProjectMembership[]>(
-      `/api/projects/${encodeURIComponent(_projectId)}/memberships`
+    return this.request(
+      `/api/projects/${encodeURIComponent(_projectId)}/memberships`,
+      undefined,
+      projectMembershipsResponseSchema
     );
   }
   async listMyProjectMemberships(_companyId: CompanyId): Promise<ProjectMembership[]> {
-    return this.request<ProjectMembership[]>(
-      `/api/companies/${encodeURIComponent(_companyId)}/my-project-memberships`
+    return this.request(
+      `/api/companies/${encodeURIComponent(_companyId)}/my-project-memberships`,
+      undefined,
+      projectMembershipsResponseSchema
     );
   }
   async upsertCompanyMembership(
@@ -474,24 +537,26 @@ export class ServerApi implements ProjexApi {
     projectId: ProjectId,
     input: Parameters<ProjexApi['importTransactions']>[1]
   ): Promise<{ count: number }> {
-    return this.request<{ count: number }>(
+    return this.request(
       `/api/projects/${encodeURIComponent(projectId)}/transactions/import`,
       {
         method: 'POST',
         body: JSON.stringify(input),
-      }
+      },
+      countResponseSchema
     );
   }
   async previewImportTransactions(
     projectId: ProjectId,
     input: Parameters<ProjexApi['previewImportTransactions']>[1]
   ): Promise<{ rows: ImportPreviewRow[] }> {
-    return this.request<{ rows: ImportPreviewRow[] }>(
+    return this.request(
       `/api/projects/${encodeURIComponent(projectId)}/transactions/import-preview`,
       {
         method: 'POST',
         body: JSON.stringify(input),
-      }
+      },
+      txnImportPreviewResultResponseSchema
     );
   }
 
@@ -502,28 +567,40 @@ export class ServerApi implements ProjexApi {
 
   // helpers
   async getDefaultCompanyIdForUser(_userId: UserId): Promise<CompanyId | null> {
-    const res = await this.request<{ companyId: CompanyId | null }>('/api/me/default-company');
+    const res = await this.request('/api/me/default-company', undefined, defaultCompanyResponseSchema);
     return res.companyId;
   }
   async updateCurrentUserProfile(input: ProfileUpdateInput): Promise<User> {
-    return this.request<User>('/api/me/profile', {
-      method: 'PATCH',
-      body: JSON.stringify(input),
-    });
+    return this.request(
+      '/api/me/profile',
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      userResponseSchema
+    );
   }
   async getPendingEmailChange(): Promise<PendingEmailChange | null> {
-    return this.request<PendingEmailChange | null>('/api/me/email-change');
+    return this.request('/api/me/email-change', undefined, pendingEmailChangeResponseSchema);
   }
   async requestEmailChange(input: EmailChangeRequestInput): Promise<EmailChangeRequestResult> {
-    return this.request<EmailChangeRequestResult>('/api/me/email-change', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    return this.request(
+      '/api/me/email-change',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      emailChangeRequestResponseSchema
+    );
   }
   async resendEmailChange(): Promise<EmailChangeRequestResult> {
-    return this.request<EmailChangeRequestResult>('/api/me/email-change/resend', {
-      method: 'POST',
-    });
+    return this.request(
+      '/api/me/email-change/resend',
+      {
+        method: 'POST',
+      },
+      emailChangeRequestResponseSchema
+    );
   }
   async cancelEmailChange(): Promise<void> {
     await this.request<void>('/api/me/email-change', {
@@ -531,55 +608,80 @@ export class ServerApi implements ProjexApi {
     });
   }
   async confirmEmailChange(token: string): Promise<EmailChangeConfirmResult> {
-    return this.request<EmailChangeConfirmResult>('/api/me/email-change/confirm', {
-      method: 'POST',
-      body: JSON.stringify({ token }),
-    });
+    return this.request(
+      '/api/me/email-change/confirm',
+      {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      },
+      emailChangeConfirmResponseSchema
+    );
   }
   async createUserInCompany(
     _companyId: CompanyId,
     _input: { name: string; email: string; role: CompanyRole; sendOnboardingEmail?: boolean }
   ): Promise<CompanyUserInviteResult> {
-    return this.request<CompanyUserInviteResult>(`/api/companies/${encodeURIComponent(_companyId)}/users`, {
-      method: 'POST',
-      body: JSON.stringify(_input),
-    });
+    return this.request(
+      `/api/companies/${encodeURIComponent(_companyId)}/users`,
+      {
+        method: 'POST',
+        body: JSON.stringify(_input),
+      },
+      companyUserInviteResultResponseSchema
+    );
   }
   async sendCompanyUserInviteEmail(_companyId: CompanyId, _userId: UserId): Promise<CompanyUserInviteResult> {
-    return this.request<CompanyUserInviteResult>(
+    return this.request(
       `/api/companies/${encodeURIComponent(_companyId)}/users/${encodeURIComponent(_userId)}/invite`,
       {
         method: 'POST',
-      }
+      },
+      companyUserInviteResultResponseSchema
     );
   }
 
   // projects / companies
   async createProject(_companyId: CompanyId, _input: ProjectCreateInput): Promise<Project> {
-    return this.request<Project>(`/api/companies/${encodeURIComponent(_companyId)}/projects`, {
-      method: 'POST',
-      body: JSON.stringify(_input),
-    });
+    return this.request(
+      `/api/companies/${encodeURIComponent(_companyId)}/projects`,
+      {
+        method: 'POST',
+        body: JSON.stringify(_input),
+      },
+      projectResponseSchema
+    );
   }
   async updateProject(_input: ProjectUpdateInput): Promise<Project> {
     const { id, ...patch } = _input;
-    return this.request<Project>(`/api/projects/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      body: JSON.stringify(patch),
-    });
+    return this.request(
+      `/api/projects/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      },
+      projectResponseSchema
+    );
   }
   async createCompany(_input: Pick<Company, 'name'> & { id?: CompanyId }): Promise<Company> {
-    return this.request<Company>('/api/companies', {
-      method: 'POST',
-      body: JSON.stringify(_input),
-    });
+    return this.request(
+      '/api/companies',
+      {
+        method: 'POST',
+        body: JSON.stringify(_input),
+      },
+      companyResponseSchema
+    );
   }
   async updateCompany(_input: CompanyUpdateInput): Promise<Company> {
     const { id, ...patch } = _input;
-    return this.request<Company>(`/api/companies/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      body: JSON.stringify(patch),
-    });
+    return this.request(
+      `/api/companies/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      },
+      companyResponseSchema
+    );
   }
 
   async deactivateCompany(_companyId: CompanyId): Promise<void> {
