@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', '.scaffold/**', 'deploy/cdk/**', 'tests/**', 'auth.ts']),
+  globalIgnores(['dist', '.scaffold/**', 'deploy/cdk/**', 'auth.ts']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
