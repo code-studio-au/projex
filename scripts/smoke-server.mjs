@@ -227,13 +227,20 @@ function assertOk(result, label) {
   throw new Error(`${label} failed: ${result.res.status} ${JSON.stringify(result.body)}`);
 }
 
+function extractApiMessage(body) {
+  if (!body || typeof body !== 'object') return '';
+  return typeof body.message === 'string' ? body.message : '';
+}
+
+function extractSessionUserId(body) {
+  if (!body || typeof body !== 'object') return null;
+  return typeof body.userId === 'string' ? body.userId : null;
+}
+
 function isInviteResendRateLimited(result) {
   if (result.res.ok) return false;
   if (result.res.status !== 500) return false;
-  const message =
-    result.body && typeof result.body === 'object' && 'message' in result.body
-      ? String(result.body.message ?? '')
-      : '';
+  const message = extractApiMessage(result.body);
   return message.includes('Too many requests');
 }
 
@@ -279,10 +286,11 @@ async function loginWithEmailPassword(email, password, label = 'auth login') {
   assertOk(login, label);
   const session = await request('/api/session');
   assertOk(session, `${label} session`);
-  if (!session.body?.userId) {
+  const userId = extractSessionUserId(session.body);
+  if (!userId) {
     throw new Error(`${label} returned no session userId`);
   }
-  return session.body.userId;
+  return userId;
 }
 
 async function main() {

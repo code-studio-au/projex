@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { SmokeSectionId, SmokeSectionResult, SmokeStepResult } from '../../types';
 import { smokeSectionDefinitions } from '../../types';
 import {
+  apiMessageResponseSchema,
   authenticatedSessionResponseSchema,
   applyCompanyDefaultsResultResponseSchema,
   budgetLinesResponseSchema,
@@ -126,13 +127,15 @@ function parseBody<T>(schema: z.ZodType<T>, body: unknown, label: string): T {
   );
 }
 
+function extractApiMessage(body: unknown): string {
+  const parsed = apiMessageResponseSchema.safeParse(body);
+  return parsed.success ? (parsed.data.message ?? '') : '';
+}
+
 function isInviteResendRateLimited(result: HttpResult) {
   if (result.res.ok) return false;
   if (result.res.status !== 500) return false;
-  const message =
-    result.body && typeof result.body === 'object' && 'message' in result.body
-      ? String((result.body as { message?: unknown }).message ?? '')
-      : '';
+  const message = extractApiMessage(result.body);
   return message.includes('Too many requests');
 }
 
