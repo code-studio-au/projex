@@ -1,25 +1,11 @@
 import type {
-  BudgetLine,
   CompanyId,
   ProjectId,
   Txn,
   TxnId,
-  Category,
-  SubCategory,
-  CompanyDefaultCategory,
-  CompanyDefaultSubCategory,
-  CompanyDefaultMappingRule,
   ImportPreviewRow,
 } from '../../types';
-import {
-  asBudgetLineId,
-  asCategoryId,
-  asCompanyDefaultMappingRuleId,
-  asSubCategoryId,
-  asTxnId,
-  asCompanyDefaultCategoryId,
-  asCompanyDefaultSubCategoryId,
-} from '../../types';
+import { asBudgetLineId, asTxnId } from '../../types';
 import { AppError } from '../../api/errors';
 import type {
   TxnCreateInput,
@@ -33,7 +19,6 @@ import { getDb } from '../db/db';
 import { isAuthorized, requireAuthorized } from '../auth/authorize';
 import { planImportPreview } from '../../utils/importPreviewPlan';
 import { planTransactionImportCommit } from '../../utils/transactionImportCommitPlan';
-import { dateOnlyFromInput } from '../../utils/finance';
 import {
   assertUniqueTransactionKeysInProject,
   normalizeExternalId,
@@ -45,6 +30,19 @@ import {
   type ServerFnContextInput,
   withServerBoundary,
 } from './runtime';
+import { type TxnRow, toBudgetLines, toTxn } from '../mappers/transactionRows';
+import {
+  type CategoryRow,
+  type CompanyDefaultCategoryRow,
+  type CompanyDefaultMappingRuleRow,
+  type CompanyDefaultSubCategoryRow,
+  type SubCategoryRow,
+  toCategory,
+  toCompanyDefaultCategory,
+  toCompanyDefaultMappingRule,
+  toCompanyDefaultSubCategory,
+  toSubCategory,
+} from '../mappers/taxonomyRows';
 
 /**
  * Example command-style server function.
@@ -52,57 +50,6 @@ import {
  * In TanStack Start, export this from a `server/` route or server function file
  * and call it from the client adapter.
  */
-
-type TxnRow = {
-  id: string;
-  public_id: string;
-  external_id: string | null;
-  company_id: string;
-  project_id: string;
-  txn_date: string | Date;
-  item: string;
-  description: string;
-  amount_cents: number;
-  category_id: string | null;
-  sub_category_id: string | null;
-  company_default_mapping_rule_id: string | null;
-  coding_source: 'manual' | 'company_default_rule' | null;
-  coding_pending_approval: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-function toTxn(row: TxnRow): Txn {
-  const date = dateOnlyFromInput(row.txn_date);
-  if (!date)
-    throw new AppError(
-      'INTERNAL_ERROR',
-      'Invalid transaction date from database'
-    );
-
-  return {
-    id: row.public_id as TxnId,
-    internalId: row.id,
-    externalId: normalizeExternalId(row.external_id),
-    companyId: row.company_id as CompanyId,
-    projectId: row.project_id as ProjectId,
-    date,
-    item: row.item,
-    description: row.description,
-    amountCents: Number(row.amount_cents),
-    categoryId: row.category_id ? asCategoryId(row.category_id) : undefined,
-    subCategoryId: row.sub_category_id
-      ? asSubCategoryId(row.sub_category_id)
-      : undefined,
-    companyDefaultMappingRuleId: row.company_default_mapping_rule_id
-      ? asCompanyDefaultMappingRuleId(row.company_default_mapping_rule_id)
-      : undefined,
-    codingSource: row.coding_source ?? undefined,
-    codingPendingApproval: row.coding_pending_approval,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
 
 export async function listTransactionsServer(args: {
   context: ServerFnContextInput;
@@ -566,71 +513,25 @@ export async function importTransactionsServer(args: {
         .execute(),
     ]);
 
-    const defaultCategories = defaultCategoriesRows.map((row) => ({
-      id: asCompanyDefaultCategoryId(row.id),
-      companyId: row.company_id as CompanyId,
-      name: row.name,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies CompanyDefaultCategory[];
-    const defaultSubCategories = defaultSubCategoriesRows.map((row) => ({
-      id: asCompanyDefaultSubCategoryId(row.id),
-      companyId: row.company_id as CompanyId,
-      companyDefaultCategoryId: asCompanyDefaultCategoryId(
-        row.company_default_category_id
-      ),
-      name: row.name,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies CompanyDefaultSubCategory[];
-    const mappingRules = mappingRuleRows.map((row) => ({
-      id: asCompanyDefaultMappingRuleId(row.id),
-      companyId: row.company_id as CompanyId,
-      matchText: row.match_text,
-      companyDefaultCategoryId: asCompanyDefaultCategoryId(
-        row.company_default_category_id
-      ),
-      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
-        row.company_default_sub_category_id
-      ),
-      sortOrder: Number(row.sort_order),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies CompanyDefaultMappingRule[];
-    const projectCategories = projectCategoryRows.map((row) => ({
-      id: asCategoryId(row.id),
-      companyId: row.company_id as CompanyId,
-      projectId: row.project_id as ProjectId,
-      name: row.name,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies Category[];
-    const projectSubCategories = projectSubCategoryRows.map((row) => ({
-      id: asSubCategoryId(row.id),
-      companyId: row.company_id as CompanyId,
-      projectId: row.project_id as ProjectId,
-      categoryId: asCategoryId(row.category_id),
-      name: row.name,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies SubCategory[];
+    const defaultCategories = defaultCategoriesRows.map((row) =>
+      toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
+    );
+    const defaultSubCategories = defaultSubCategoriesRows.map((row) =>
+      toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
+    );
+    const mappingRules = mappingRuleRows.map((row) =>
+      toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow)
+    );
+    const projectCategories = projectCategoryRows.map((row) =>
+      toCategory(row as CategoryRow)
+    );
+    const projectSubCategories = projectSubCategoryRows.map((row) =>
+      toSubCategory(row as SubCategoryRow)
+    );
     const existingTransactions = existingTxnRows.map((row) =>
       toTxn(row as TxnRow)
     );
-    const budgets = budgetRows
-      .filter((row) => Boolean(row.category_id))
-      .map((row) => ({
-        id: asBudgetLineId(row.id),
-        companyId: row.company_id as CompanyId,
-        projectId: row.project_id as ProjectId,
-        categoryId: asCategoryId(row.category_id as string),
-        subCategoryId: row.sub_category_id
-          ? asSubCategoryId(row.sub_category_id)
-          : undefined,
-        allocatedCents: Number(row.allocated_cents),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      })) satisfies BudgetLine[];
+    const budgets = toBudgetLines(budgetRows);
 
     const plan = planTransactionImportCommit({
       projectId: args.projectId,
@@ -875,68 +776,22 @@ export async function previewImportTransactionsServer(args: {
       }),
     ]);
 
-    const defaultCategories = defaultCategoriesRows.map((row) => ({
-      id: asCompanyDefaultCategoryId(row.id),
-      companyId: row.company_id as CompanyId,
-      name: row.name,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies CompanyDefaultCategory[];
-    const defaultSubCategories = defaultSubCategoriesRows.map((row) => ({
-      id: asCompanyDefaultSubCategoryId(row.id),
-      companyId: row.company_id as CompanyId,
-      companyDefaultCategoryId: asCompanyDefaultCategoryId(
-        row.company_default_category_id
-      ),
-      name: row.name,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies CompanyDefaultSubCategory[];
-    const mappingRules = mappingRuleRows.map((row) => ({
-      id: asCompanyDefaultMappingRuleId(row.id),
-      companyId: row.company_id as CompanyId,
-      matchText: row.match_text,
-      companyDefaultCategoryId: asCompanyDefaultCategoryId(
-        row.company_default_category_id
-      ),
-      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
-        row.company_default_sub_category_id
-      ),
-      sortOrder: Number(row.sort_order),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies CompanyDefaultMappingRule[];
-    const projectCategories = projectCategoryRows.map((row) => ({
-      id: asCategoryId(row.id),
-      companyId: row.company_id as CompanyId,
-      projectId: row.project_id as ProjectId,
-      name: row.name,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies Category[];
-    const projectSubCategories = projectSubCategoryRows.map((row) => ({
-      id: asSubCategoryId(row.id),
-      companyId: row.company_id as CompanyId,
-      projectId: row.project_id as ProjectId,
-      categoryId: asCategoryId(row.category_id),
-      name: row.name,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })) satisfies SubCategory[];
-    const budgets = budgetRows
-      .filter((row) => Boolean(row.category_id))
-      .map((row) => ({
-        id: asBudgetLineId(row.id),
-        companyId: row.company_id as CompanyId,
-        projectId: row.project_id as ProjectId,
-        categoryId: asCategoryId(row.category_id as string),
-        subCategoryId: row.sub_category_id
-          ? asSubCategoryId(row.sub_category_id)
-          : undefined,
-        allocatedCents: Number(row.allocated_cents),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      })) satisfies BudgetLine[];
+    const defaultCategories = defaultCategoriesRows.map((row) =>
+      toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
+    );
+    const defaultSubCategories = defaultSubCategoriesRows.map((row) =>
+      toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
+    );
+    const mappingRules = mappingRuleRows.map((row) =>
+      toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow)
+    );
+    const projectCategories = projectCategoryRows.map((row) =>
+      toCategory(row as CategoryRow)
+    );
+    const projectSubCategories = projectSubCategoryRows.map((row) =>
+      toSubCategory(row as SubCategoryRow)
+    );
+    const budgets = toBudgetLines(budgetRows);
 
     return planImportPreview({
       csvText: args.csvText,

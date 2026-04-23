@@ -42,114 +42,18 @@ import {
   type ServerFnContextInput,
   withServerBoundary,
 } from './runtime';
-
-type CategoryRow = {
-  id: string;
-  company_id: string;
-  project_id: string;
-  name: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type SubCategoryRow = {
-  id: string;
-  company_id: string;
-  project_id: string;
-  category_id: string;
-  name: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type CompanyDefaultCategoryRow = {
-  id: string;
-  company_id: string;
-  name: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type CompanyDefaultSubCategoryRow = {
-  id: string;
-  company_id: string;
-  company_default_category_id: string;
-  name: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type CompanyDefaultMappingRuleRow = {
-  id: string;
-  company_id: string;
-  match_text: string;
-  company_default_category_id: string;
-  company_default_sub_category_id: string;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-};
-
-function toCategory(row: CategoryRow): Category {
-  return {
-    id: asCategoryId(row.id),
-    companyId: row.company_id as CompanyId,
-    projectId: row.project_id as ProjectId,
-    name: row.name,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function toSubCategory(row: SubCategoryRow): SubCategory {
-  return {
-    id: asSubCategoryId(row.id),
-    companyId: row.company_id as CompanyId,
-    projectId: row.project_id as ProjectId,
-    categoryId: asCategoryId(row.category_id),
-    name: row.name,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function toCompanyDefaultCategory(row: CompanyDefaultCategoryRow): CompanyDefaultCategory {
-  return {
-    id: asCompanyDefaultCategoryId(row.id),
-    companyId: row.company_id as CompanyId,
-    name: row.name,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function toCompanyDefaultSubCategory(
-  row: CompanyDefaultSubCategoryRow
-): CompanyDefaultSubCategory {
-  return {
-    id: asCompanyDefaultSubCategoryId(row.id),
-    companyId: row.company_id as CompanyId,
-    companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
-    name: row.name,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function toCompanyDefaultMappingRule(
-  row: CompanyDefaultMappingRuleRow
-): CompanyDefaultMappingRule {
-  return {
-    id: asCompanyDefaultMappingRuleId(row.id),
-    companyId: row.company_id as CompanyId,
-    matchText: row.match_text,
-    companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
-    companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(row.company_default_sub_category_id),
-    sortOrder: Number(row.sort_order),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
+import {
+  type CategoryRow,
+  type CompanyDefaultCategoryRow,
+  type CompanyDefaultMappingRuleRow,
+  type CompanyDefaultSubCategoryRow,
+  type SubCategoryRow,
+  toCategory,
+  toCompanyDefaultCategory,
+  toCompanyDefaultMappingRule,
+  toCompanyDefaultSubCategory,
+  toSubCategory,
+} from '../mappers/taxonomyRows';
 
 async function requireProjectContext(
   context: ServerFnContextInput,
