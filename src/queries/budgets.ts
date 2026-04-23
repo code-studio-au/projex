@@ -22,7 +22,12 @@ export function useCreateBudgetMutation(projectId: ProjectId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: BudgetCreateInput) => api.createBudget(projectId, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
+    },
   });
 }
 
@@ -32,7 +37,12 @@ export function useUpdateBudgetMutation(projectId: ProjectId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: BudgetUpdateInput) => api.updateBudget(projectId, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
+    },
   });
 }
 
@@ -42,6 +52,11 @@ export function useDeleteBudgetMutation(projectId: ProjectId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (budgetId: BudgetLine['id']) => api.deleteBudget(projectId, budgetId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
+    },
   });
 }

@@ -5,6 +5,7 @@ export const qk = {
   // Everything else is session-scoped because visibility/permissions depend on who is logged in.
   companies: (userId: string) => ['companies', userId] as const,
   company: (userId: string, companyId: string) => ['company', userId, companyId] as const,
+  companySummaries: (userId: string) => ['companySummary', userId] as const,
   companySummary: (userId: string, companyId: string) =>
     ['companySummary', userId, companyId] as const,
   companyDefaults: (userId: string, companyId: string) =>

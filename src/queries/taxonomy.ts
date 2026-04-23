@@ -166,6 +166,7 @@ export function useDeleteCategoryMutation(projectId: ProjectId) {
       qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) });
     },
   });
 }
@@ -221,6 +222,7 @@ export function useUpdateSubCategoryMutation(projectId: ProjectId) {
       qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) });
     },
   });
 }
@@ -266,6 +268,7 @@ export function useDeleteSubCategoryMutation(projectId: ProjectId) {
       qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) });
     },
   });
 }
@@ -311,6 +314,7 @@ export function useApplyCompanyDefaultTaxonomyMutation(projectId: ProjectId, com
       qc.invalidateQueries({ queryKey: qk.subCategories(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
       qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
+      qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) });
       qc.invalidateQueries({ queryKey: qk.companyDefaultCategories(scopeUserId, companyId) });
       qc.invalidateQueries({ queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId) });
     },

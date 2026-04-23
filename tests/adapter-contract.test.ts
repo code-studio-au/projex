@@ -99,10 +99,50 @@ test('ServerApi routes taxonomy and budget methods through Start endpoints', asy
     input: string | URL | Request,
     init?: RequestInit
   ) => {
+    const url = stripLocalServerOrigin(String(input));
+    const method = (init?.method ?? 'GET').toUpperCase();
     calls.push({
       url: String(input),
-      method: (init?.method ?? 'GET').toUpperCase(),
+      method,
     });
+
+    const category = {
+      id: 'cat_1',
+      companyId: 'co_acme',
+      projectId: 'prj_acme_alpha',
+      name: 'Travel',
+    };
+    const subCategory = {
+      id: 'sub_1',
+      companyId: 'co_acme',
+      projectId: 'prj_acme_alpha',
+      categoryId: 'cat_1',
+      name: 'Flights',
+    };
+    const budget = {
+      id: 'bud_1',
+      companyId: 'co_acme',
+      projectId: 'prj_acme_alpha',
+      categoryId: 'cat_1',
+      subCategoryId: 'sub_1',
+      allocatedCents: 1000,
+    };
+
+    if (method === 'GET' && url.endsWith('/categories')) {
+      return new Response(JSON.stringify([category]), { status: 200 });
+    }
+    if (method === 'GET' && url.endsWith('/sub-categories')) {
+      return new Response(JSON.stringify([subCategory]), { status: 200 });
+    }
+    if (method === 'GET' && url.endsWith('/budgets')) {
+      return new Response(JSON.stringify([budget]), { status: 200 });
+    }
+    if (method === 'POST' && url.endsWith('/categories')) {
+      return new Response(JSON.stringify(category), { status: 200 });
+    }
+    if (method === 'POST' && url.endsWith('/budgets')) {
+      return new Response(JSON.stringify(budget), { status: 200 });
+    }
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   }) as typeof fetch;
 

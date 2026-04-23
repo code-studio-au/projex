@@ -36,6 +36,35 @@ type ProjectSummaryRow = {
   isOverBudget: boolean;
 };
 
+function quarterFromMonthNumber(month: number): QuarterOption {
+  if (month <= 3) return 'Q1';
+  if (month <= 6) return 'Q2';
+  if (month <= 9) return 'Q3';
+  return 'Q4';
+}
+
+function monthKeyMatchesFilters(args: {
+  monthKey: string;
+  yearFilter: string | null;
+  quarterFilter: QuarterOption | null;
+  monthFilterKey: string | null;
+}) {
+  const { monthKey, yearFilter, quarterFilter, monthFilterKey } = args;
+  if (monthFilterKey) return monthKey === monthFilterKey;
+  if (yearFilter && !monthKey.startsWith(`${yearFilter}-`)) return false;
+  if (!quarterFilter) return true;
+  return quarterFromMonthNumber(Number(monthKey.slice(5, 7))) === quarterFilter;
+}
+
+function filteredBudgetCents(projectBudgetCents: number, args: {
+  quarterFilter: QuarterOption | null;
+  monthFilterKey: string | null;
+}) {
+  const { quarterFilter, monthFilterKey } = args;
+  const visibleMonthCount = monthFilterKey ? 1 : quarterFilter ? 3 : 12;
+  return Math.round((projectBudgetCents * visibleMonthCount) / 12);
+}
+
 function formatCurrencyGroups(groups: Map<Project['currency'], number>) {
   if (groups.size === 0) return '—';
   return [...groups.entries()]
@@ -155,9 +184,7 @@ export default function CompanySummaryPanel(props: {
     const filteredMonths = allMonthKeys.filter((key) => !yearFilter || key.startsWith(`${yearFilter}-`));
     const quarters = new Set(
       filteredMonths.map((key) => {
-        const month = Number(key.slice(5, 7));
-        const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
-        return quarter;
+        return quarterFromMonthNumber(Number(key.slice(5, 7)));
       })
     );
     return (['Q1', 'Q2', 'Q3', 'Q4'] as QuarterOption[])
@@ -170,39 +197,41 @@ export default function CompanySummaryPanel(props: {
       .filter((key) => {
         if (yearFilter && !key.startsWith(`${yearFilter}-`)) return false;
         if (!quarterFilter) return true;
-        const month = Number(key.slice(5, 7));
-        const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
-        return quarter === quarterFilter;
+        return quarterFromMonthNumber(Number(key.slice(5, 7))) === quarterFilter;
       })
       .map((value) => ({ value, label: value }));
   }, [allMonthKeys, quarterFilter, yearFilter]);
 
   const rows = useMemo<ProjectSummaryRow[]>(() => {
     return summaryProjects.map((project) => {
-      const visibleMonths = project.months.filter((month) => {
-        if (monthFilterKey) return month.monthKey === monthFilterKey;
-        if (yearFilter && !month.monthKey.startsWith(`${yearFilter}-`)) return false;
-        if (!quarterFilter) return true;
-        const monthNumber = Number(month.monthKey.slice(5, 7));
-        const quarter = monthNumber <= 3 ? 'Q1' : monthNumber <= 6 ? 'Q2' : monthNumber <= 9 ? 'Q3' : 'Q4';
-        return quarter === quarterFilter;
-      });
+      const visibleMonths = project.months.filter((month) =>
+        monthKeyMatchesFilters({
+          monthKey: month.monthKey,
+          yearFilter,
+          quarterFilter,
+          monthFilterKey,
+        })
+      );
 
       const actualCodedCents = sum(visibleMonths.map((month) => month.actualCodedCents));
       const uncodedCount = sum(visibleMonths.map((month) => month.uncodedCount));
       const uncodedAmountCents = sum(visibleMonths.map((month) => month.uncodedAmountCents));
+      const budgetCents = filteredBudgetCents(project.budgetCents, {
+        quarterFilter,
+        monthFilterKey,
+      });
       return {
         id: project.id,
         name: project.name,
         status: project.status,
         visibility: project.visibility,
         currency: project.currency,
-        budgetCents: project.budgetCents,
+        budgetCents,
         actualCodedCents,
-        remainingCents: project.budgetCents - actualCodedCents,
+        remainingCents: budgetCents - actualCodedCents,
         uncodedCount,
         uncodedAmountCents,
-        isOverBudget: actualCodedCents > project.budgetCents,
+        isOverBudget: actualCodedCents > budgetCents,
       };
     });
   }, [monthFilterKey, quarterFilter, summaryProjects, yearFilter]);
@@ -469,7 +498,6 @@ export default function CompanySummaryPanel(props: {
                 setQuarterFilter((value as QuarterOption | null) ?? null);
                 setMonthFilterKey(null);
               }}
-              disabled={!yearFilter}
             />
             <Select
               label="Month"
@@ -482,7 +510,7 @@ export default function CompanySummaryPanel(props: {
           </SimpleGrid>
           {monthFilterKey || quarterFilter || yearFilter ? (
             <Text size="xs" c="dimmed">
-              Actual, remaining, and uncoded totals reflect the selected time filter. Budget totals remain full project budgets.
+              Budget, actual, remaining, and uncoded totals reflect the selected time filter.
             </Text>
           ) : null}
         </Stack>

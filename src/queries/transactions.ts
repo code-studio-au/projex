@@ -50,7 +50,10 @@ export function useCreateTxnMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (input: TxnCreateInput) => api.createTxn(projectId, input),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
     },
   });
 }
@@ -80,7 +83,10 @@ export function useUpdateTxnMutation(projectId: ProjectId) {
       if (context?.previous) qc.setQueryData(queryKey, context.previous);
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
     },
   });
 }
@@ -92,7 +98,10 @@ export function useDeleteTxnMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (txnId: TxnId) => api.deleteTxn(projectId, txnId),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
     },
   });
 }

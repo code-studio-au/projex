@@ -31,7 +31,12 @@ export function useCreateProjectMutation(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: ProjectCreateInput) => api.createProject(companyId, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummary(scopeUserId, companyId) }),
+      ]);
+    },
   });
 }
 
@@ -41,10 +46,13 @@ export function useUpdateProjectMutation(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: ProjectUpdateInput) => api.updateProject(input),
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: qk.project(scopeUserId, vars.id) });
-      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
-      qc.invalidateQueries({ queryKey: qk.myProjectMemberships(scopeUserId, companyId) });
+    onSuccess: async (_, vars) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.project(scopeUserId, vars.id) }),
+        qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.myProjectMemberships(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummary(scopeUserId, companyId) }),
+      ]);
     },
   });
 }
@@ -115,9 +123,12 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
     onError: (_error, _vars, context) => {
       if (context?.previous) qc.setQueryData(transactionQueryKey, context.previous);
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: transactionQueryKey });
-      qc.invalidateQueries({ queryKey: budgetQueryKey });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: transactionQueryKey }),
+        qc.invalidateQueries({ queryKey: budgetQueryKey }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
     },
   });
 }
@@ -185,9 +196,12 @@ export function useDeactivateProjectMutation(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (projectId: ProjectId) => api.deactivateProject(projectId),
-    onSuccess: (_, projectId) => {
-      qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) });
-      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+    onSuccess: async (_, projectId) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) }),
+        qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummary(scopeUserId, companyId) }),
+      ]);
     },
   });
 }
@@ -198,9 +212,12 @@ export function useReactivateProjectMutation(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (projectId: ProjectId) => api.reactivateProject(projectId),
-    onSuccess: (_, projectId) => {
-      qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) });
-      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+    onSuccess: async (_, projectId) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) }),
+        qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummary(scopeUserId, companyId) }),
+      ]);
     },
   });
 }
@@ -211,9 +228,12 @@ export function useDeleteProjectMutation(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (projectId: ProjectId) => api.deleteProject(projectId),
-    onSuccess: (_, projectId) => {
-      qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) });
-      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+    onSuccess: async (_, projectId) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) }),
+        qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.companySummary(scopeUserId, companyId) }),
+      ]);
     },
   });
 }
