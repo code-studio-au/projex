@@ -1,10 +1,35 @@
-import { LocalApi } from './local/localApi';
-import { ServerApi } from './server/serverApi';
 import type { ProjexApi } from './types';
 import { isServerAuthMode } from '../routes/-authMode';
 
-// Adapter split (local vs server). The UI depends only on the ProjexApi contract.
-//
-// `VITE_API_MODE=server` is the deployed/runtime path. Omitted means true local
-// development with seeded users and local state.
-export const api: ProjexApi = isServerAuthMode ? new ServerApi() : new LocalApi();
+let implPromise: Promise<ProjexApi> | null = null;
+
+async function loadApiImpl(): Promise<ProjexApi> {
+  if (implPromise) return implPromise;
+
+  implPromise = (isServerAuthMode
+    ? import('./server/runtime').then((mod) => mod.createApi())
+    : import('./local/runtime').then((mod) => mod.createApi())
+  ).catch((error) => {
+    implPromise = null;
+    throw error;
+  });
+
+  return implPromise;
+}
+
+const apiHandler: ProxyHandler<object> = {
+  get(_target, property) {
+    return async (...args: unknown[]) => {
+      const impl = await loadApiImpl();
+      const method = impl[property as keyof ProjexApi];
+      if (typeof method !== 'function') {
+        throw new TypeError(`ProjexApi method ${String(property)} is not available`);
+      }
+      return Reflect.apply(method, impl, args);
+    };
+  },
+};
+
+// The app consumes the API contract asynchronously, so a lazy proxy keeps the
+// heavy local/server implementations out of the initial bundle.
+export const api = new Proxy({}, apiHandler) as ProjexApi;
