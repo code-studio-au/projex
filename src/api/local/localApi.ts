@@ -58,6 +58,7 @@ import {
   defaultCategoryIdForRule,
   mapImportedTransactionWithCompanyDefaults,
 } from '../../utils/companyDefaultMappings';
+import { planApplyCompanyDefaultTaxonomy } from '../../utils/companyDefaultTaxonomy';
 import { buildCompanySummaryProjects } from '../../utils/companySummary';
 import { buildImportPreview } from '../../utils/importPreview';
 import { parseCsv, rowsToImportTxns } from '../../utils/csv';
@@ -1042,60 +1043,17 @@ export class LocalApi implements ProjexApi {
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
-
-    const companyDefaultsConfigured = defaults.categories.length > 0;
-    let categoriesAdded = 0;
-    let subCategoriesAdded = 0;
-    const categories = slice.categories.slice();
-    const subCategories = slice.subCategories.slice();
-    const projectCategoryByName = new Map(
-      categories.map((category) => [category.name.trim().toLowerCase(), category])
-    );
-
-    for (const defaultCategory of defaults.categories) {
-      const key = defaultCategory.name.trim().toLowerCase();
-      let projectCategory = projectCategoryByName.get(key);
-      if (!projectCategory) {
-        const now = this.nowIso();
-        projectCategory = {
-          id: asCategoryId(uid('cat')),
-          companyId: p.companyId,
-          projectId,
-          name: defaultCategory.name,
-          createdAt: now,
-          updatedAt: now,
-        };
-        categories.push(projectCategory);
-        projectCategoryByName.set(key, projectCategory);
-        categoriesAdded += 1;
-      }
-
-      const defaultSubs = defaults.subCategories.filter(
-        (sub) => sub.companyDefaultCategoryId === defaultCategory.id
-      );
-      const existingSubNames = new Set(
-        subCategories
-          .filter((sub) => sub.categoryId === projectCategory.id)
-          .map((sub) => sub.name.trim().toLowerCase())
-      );
-
-      for (const defaultSub of defaultSubs) {
-        const subKey = defaultSub.name.trim().toLowerCase();
-        if (existingSubNames.has(subKey)) continue;
-        const now = this.nowIso();
-        subCategories.push({
-          id: asSubCategoryId(uid('sub')),
-          companyId: p.companyId,
-          projectId,
-          categoryId: projectCategory.id,
-          name: defaultSub.name,
-          createdAt: now,
-          updatedAt: now,
-        });
-        existingSubNames.add(subKey);
-        subCategoriesAdded += 1;
-      }
-    }
+    const plan = planApplyCompanyDefaultTaxonomy({
+      companyId: p.companyId,
+      projectId,
+      defaultCategories: defaults.categories,
+      defaultSubCategories: defaults.subCategories,
+      projectCategories: slice.categories,
+      projectSubCategories: slice.subCategories,
+      createCategoryId: () => asCategoryId(uid('cat')),
+      createSubCategoryId: () => asSubCategoryId(uid('sub')),
+      nowIso: this.nowIso(),
+    });
 
     writeState({
       ...st,
@@ -1103,13 +1061,13 @@ export class LocalApi implements ProjexApi {
         ...st.dataByProjectId,
         [projectId]: {
           ...slice,
-          categories,
-          subCategories,
+          categories: [...slice.categories, ...plan.categoriesToCreate],
+          subCategories: [...slice.subCategories, ...plan.subCategoriesToCreate],
         },
       },
     });
 
-    return { companyDefaultsConfigured, categoriesAdded, subCategoriesAdded };
+    return plan.result;
   }
 
   async listCategories(projectId: ProjectId): Promise<Category[]> {

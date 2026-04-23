@@ -12,7 +12,16 @@ import {
   __resetServerStartupEnvValidationForTests,
   validateServerStartupEnv,
 } from '../src/server/env.ts';
-import { asBudgetLineId, asCategoryId, asCompanyId, asProjectId, asSubCategoryId, asUserId } from '../src/types.ts';
+import {
+  asBudgetLineId,
+  asCategoryId,
+  asCompanyDefaultCategoryId,
+  asCompanyDefaultSubCategoryId,
+  asCompanyId,
+  asProjectId,
+  asSubCategoryId,
+  asUserId,
+} from '../src/types.ts';
 import { can } from '../src/utils/auth.ts';
 import { buildCorsHeaders, isOriginAllowed } from '../src/server/http/security.ts';
 
@@ -110,6 +119,39 @@ async function makeServerApiBackedByLocalHarness(): Promise<AdapterHarness> {
         parts[3] === 'summary'
       ) {
         return jsonResponse(await backing.getCompanySummary(asCompanyId(parts[2])));
+      }
+
+      if (
+        method === 'POST' &&
+        parts[0] === 'api' &&
+        parts[1] === 'companies' &&
+        parts[3] === 'default-categories'
+      ) {
+        const body = (await parseJsonBody(init)) as Parameters<
+          ProjexApi['createCompanyDefaultCategory']
+        >[1];
+        return jsonResponse(await backing.createCompanyDefaultCategory(asCompanyId(parts[2]), body));
+      }
+
+      if (
+        method === 'POST' &&
+        parts[0] === 'api' &&
+        parts[1] === 'companies' &&
+        parts[3] === 'default-sub-categories'
+      ) {
+        const body = (await parseJsonBody(init)) as Parameters<
+          ProjexApi['createCompanyDefaultSubCategory']
+        >[1];
+        return jsonResponse(await backing.createCompanyDefaultSubCategory(asCompanyId(parts[2]), body));
+      }
+
+      if (
+        parts[0] === 'api' &&
+        parts[1] === 'projects' &&
+        parts[3] === 'apply-company-default-taxonomy' &&
+        method === 'POST'
+      ) {
+        return jsonResponse(await backing.applyCompanyDefaultTaxonomy(asProjectId(parts[2])));
       }
 
       if (
@@ -232,6 +274,42 @@ function runAdapterParityTests(
           err.code === 'VALIDATION_ERROR' &&
           /Duplicate transaction externalId/i.test(err.message)
       );
+    } finally {
+      harness.cleanup?.();
+    }
+  });
+
+  test(`${label}: applying company default taxonomy is idempotent`, async () => {
+    const harness = await makeHarness();
+    try {
+      await harness.api.loginAs(asUserId('u_exec'));
+
+      const companyId = asCompanyId('co_acme');
+      const projectId = asProjectId('prj_acme_alpha');
+      const defaultCategoryId = asCompanyDefaultCategoryId('cdcat_parity');
+      const defaultSubCategoryId = asCompanyDefaultSubCategoryId('cdsub_parity');
+
+      await harness.api.createCompanyDefaultCategory(companyId, {
+        id: defaultCategoryId,
+        companyId,
+        name: 'Parity Default Category',
+      });
+      await harness.api.createCompanyDefaultSubCategory(companyId, {
+        id: defaultSubCategoryId,
+        companyId,
+        companyDefaultCategoryId: defaultCategoryId,
+        name: 'Parity Default Subcategory',
+      });
+
+      const first = await harness.api.applyCompanyDefaultTaxonomy(projectId);
+      assert.equal(first.companyDefaultsConfigured, true);
+      assert.equal(first.categoriesAdded, 1);
+      assert.equal(first.subCategoriesAdded, 1);
+
+      const second = await harness.api.applyCompanyDefaultTaxonomy(projectId);
+      assert.equal(second.companyDefaultsConfigured, true);
+      assert.equal(second.categoriesAdded, 0);
+      assert.equal(second.subCategoriesAdded, 0);
     } finally {
       harness.cleanup?.();
     }

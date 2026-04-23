@@ -33,6 +33,7 @@ import { uid } from '../../utils/id';
 import { categoryNameSchema, subCategoryNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { defaultCategoryIdForRule } from '../../utils/companyDefaultMappings';
+import { planApplyCompanyDefaultTaxonomy } from '../../utils/companyDefaultTaxonomy';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
 import {
@@ -1163,66 +1164,64 @@ export async function applyCompanyDefaultTaxonomyServer(args: {
       .where('project_id', '=', args.projectId)
       .execute();
 
-    const companyDefaultsConfigured = defaultCategories.length > 0;
-    let categoriesAdded = 0;
-    let subCategoriesAdded = 0;
     const now = new Date().toISOString();
-    const categoryIdByName = new Map(
-      projectCategories.map((row) => [row.name.trim().toLowerCase(), asCategoryId(row.id)])
-    );
-    const subCategoryNamesByCategoryId = new Map<string, Set<string>>();
-    for (const subCategory of projectSubCategories) {
-      const set = subCategoryNamesByCategoryId.get(subCategory.category_id) ?? new Set<string>();
-      set.add(subCategory.name.trim().toLowerCase());
-      subCategoryNamesByCategoryId.set(subCategory.category_id, set);
-    }
+    const plan = planApplyCompanyDefaultTaxonomy({
+      companyId,
+      projectId: args.projectId,
+      defaultCategories: defaultCategories.map((row) =>
+        toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
+      ),
+      defaultSubCategories: defaultSubCategories.map((row) =>
+        toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
+      ),
+      projectCategories: projectCategories.map((row) => ({
+        id: asCategoryId(row.id),
+        name: row.name,
+      })),
+      projectSubCategories: projectSubCategories.map((row) => ({
+        categoryId: asCategoryId(row.category_id),
+        name: row.name,
+      })),
+      createCategoryId: () => asCategoryId(uid('cat')),
+      createSubCategoryId: () => asSubCategoryId(uid('sub')),
+      nowIso: now,
+    });
 
     await db.transaction().execute(async (trx) => {
-      for (const defaultCategory of defaultCategories) {
-        const categoryKey = defaultCategory.name.trim().toLowerCase();
-        let projectCategoryId = categoryIdByName.get(categoryKey);
-        if (!projectCategoryId) {
-          projectCategoryId = asCategoryId(uid('cat'));
-          await trx
-            .insertInto('categories')
-            .values({
-              id: projectCategoryId,
-              company_id: companyId,
-              project_id: args.projectId,
-              name: defaultCategory.name,
-              created_at: now,
-              updated_at: now,
-            })
-            .execute();
-          categoryIdByName.set(categoryKey, projectCategoryId);
-          subCategoryNamesByCategoryId.set(projectCategoryId, new Set<string>());
-          categoriesAdded += 1;
-        }
+      if (plan.categoriesToCreate.length) {
+        await trx
+          .insertInto('categories')
+          .values(
+            plan.categoriesToCreate.map((category) => ({
+              id: category.id,
+              company_id: category.companyId,
+              project_id: category.projectId,
+              name: category.name,
+              created_at: category.createdAt ?? now,
+              updated_at: category.updatedAt ?? now,
+            }))
+          )
+          .execute();
+      }
 
-        const existingSubNames = subCategoryNamesByCategoryId.get(projectCategoryId) ?? new Set<string>();
-        for (const defaultSubCategory of defaultSubCategories) {
-          if (defaultSubCategory.company_default_category_id !== defaultCategory.id) continue;
-          const subCategoryKey = defaultSubCategory.name.trim().toLowerCase();
-          if (existingSubNames.has(subCategoryKey)) continue;
-          await trx
-            .insertInto('sub_categories')
-            .values({
-              id: asSubCategoryId(uid('sub')),
-              company_id: companyId,
-              project_id: args.projectId,
-              category_id: projectCategoryId,
-              name: defaultSubCategory.name,
-              created_at: now,
-              updated_at: now,
-            })
-            .execute();
-          existingSubNames.add(subCategoryKey);
-          subCategoriesAdded += 1;
-        }
-        subCategoryNamesByCategoryId.set(projectCategoryId, existingSubNames);
+      if (plan.subCategoriesToCreate.length) {
+        await trx
+          .insertInto('sub_categories')
+          .values(
+            plan.subCategoriesToCreate.map((subCategory) => ({
+              id: subCategory.id,
+              company_id: subCategory.companyId,
+              project_id: subCategory.projectId,
+              category_id: subCategory.categoryId,
+              name: subCategory.name,
+              created_at: subCategory.createdAt ?? now,
+              updated_at: subCategory.updatedAt ?? now,
+            }))
+          )
+          .execute();
       }
     });
 
-    return { companyDefaultsConfigured, categoriesAdded, subCategoriesAdded };
+    return plan.result;
   });
 }
