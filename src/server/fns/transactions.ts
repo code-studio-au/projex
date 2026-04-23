@@ -21,14 +21,18 @@ import {
   asCompanyDefaultSubCategoryId,
 } from '../../types';
 import { AppError } from '../../api/errors';
-import type { TxnCreateInput, TxnImportTxnInput, TxnUpdateInput } from '../../api/types';
+import type {
+  TxnCreateInput,
+  TxnImportTxnInput,
+  TxnUpdateInput,
+} from '../../api/types';
 import { uid } from '../../utils/id';
 import { txnInputSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { getDb } from '../db/db';
 import { isAuthorized, requireAuthorized } from '../auth/authorize';
-import { mapImportedTransactionWithCompanyDefaults } from '../../utils/companyDefaultMappings';
 import { planImportPreview } from '../../utils/importPreviewPlan';
+import { planTransactionImportCommit } from '../../utils/transactionImportCommitPlan';
 import { dateOnlyFromInput } from '../../utils/finance';
 import {
   assertUniqueTransactionKeysInProject,
@@ -68,24 +72,13 @@ type TxnRow = {
   updated_at: string;
 };
 
-function uniqAutoBudgetTargets(
-  txns: Txn[]
-): Array<{ categoryId: Category['id']; subCategoryId: SubCategory['id'] }> {
-  const seen = new Set<string>();
-  const out: Array<{ categoryId: Category['id']; subCategoryId: SubCategory['id'] }> = [];
-  for (const txn of txns) {
-    if (!txn.categoryId || !txn.subCategoryId) continue;
-    const key = `${txn.categoryId}:::${txn.subCategoryId}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({ categoryId: txn.categoryId, subCategoryId: txn.subCategoryId });
-  }
-  return out;
-}
-
 function toTxn(row: TxnRow): Txn {
   const date = dateOnlyFromInput(row.txn_date);
-  if (!date) throw new AppError('INTERNAL_ERROR', 'Invalid transaction date from database');
+  if (!date)
+    throw new AppError(
+      'INTERNAL_ERROR',
+      'Invalid transaction date from database'
+    );
 
   return {
     id: row.public_id as TxnId,
@@ -98,7 +91,9 @@ function toTxn(row: TxnRow): Txn {
     description: row.description,
     amountCents: Number(row.amount_cents),
     categoryId: row.category_id ? asCategoryId(row.category_id) : undefined,
-    subCategoryId: row.sub_category_id ? asSubCategoryId(row.sub_category_id) : undefined,
+    subCategoryId: row.sub_category_id
+      ? asSubCategoryId(row.sub_category_id)
+      : undefined,
     companyDefaultMappingRuleId: row.company_default_mapping_rule_id
       ? asCompanyDefaultMappingRuleId(row.company_default_mapping_rule_id)
       : undefined,
@@ -182,10 +177,16 @@ export async function createTxnServer(args: {
     });
 
     if (args.input.projectId !== args.projectId) {
-      throw new AppError('VALIDATION_ERROR', 'Transaction projectId does not match target project');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Transaction projectId does not match target project'
+      );
     }
     if (args.input.companyId !== (project.company_id as CompanyId)) {
-      throw new AppError('VALIDATION_ERROR', 'Transaction companyId does not match project company');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Transaction companyId does not match project company'
+      );
     }
 
     validateOrThrow(txnInputSchema, args.input);
@@ -222,7 +223,8 @@ export async function createTxnServer(args: {
         amount_cents: next.amountCents,
         category_id: next.categoryId ?? null,
         sub_category_id: next.subCategoryId ?? null,
-        company_default_mapping_rule_id: next.companyDefaultMappingRuleId ?? null,
+        company_default_mapping_rule_id:
+          next.companyDefaultMappingRuleId ?? null,
         coding_source: next.codingSource ?? null,
         coding_pending_approval: !!next.codingPendingApproval,
         created_at: next.createdAt,
@@ -304,18 +306,27 @@ export async function updateTxnServer(args: {
       typeof args.input.projectId !== 'undefined' &&
       args.input.projectId !== (existing.project_id as ProjectId)
     ) {
-      throw new AppError('VALIDATION_ERROR', 'Transaction projectId cannot be changed');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Transaction projectId cannot be changed'
+      );
     }
     if (
       typeof args.input.companyId !== 'undefined' &&
       args.input.companyId !== (existing.company_id as CompanyId)
     ) {
-      throw new AppError('VALIDATION_ERROR', 'Transaction companyId cannot be changed');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Transaction companyId cannot be changed'
+      );
     }
 
     const prev = toTxn(existing as TxnRow);
     const normalizedInput = normalizeTxnPatch(args.input);
-    const nextExternalId = Object.prototype.hasOwnProperty.call(normalizedInput, 'externalId')
+    const nextExternalId = Object.prototype.hasOwnProperty.call(
+      normalizedInput,
+      'externalId'
+    )
       ? normalizeExternalId(normalizedInput.externalId ?? undefined)
       : normalizeExternalId(prev.externalId);
     const now = new Date().toISOString();
@@ -353,7 +364,9 @@ export async function updateTxnServer(args: {
       coding_pending_approval: !!next.codingPendingApproval,
       created_at: prev.createdAt,
       updated_at: now,
-      ...(typeof args.input.date !== 'undefined' ? { txn_date: next.date } : {}),
+      ...(typeof args.input.date !== 'undefined'
+        ? { txn_date: next.date }
+        : {}),
     };
 
     const updated = await db
@@ -448,66 +461,110 @@ export async function importTransactionsServer(args: {
         projectId: args.projectId,
       });
     }
-    const normalizedIncoming = args.txns.map((t) => {
-      if (t.projectId !== args.projectId) {
-        throw new AppError('VALIDATION_ERROR', 'Transaction projectId does not match import target');
-      }
-      if (t.companyId !== (project.company_id as CompanyId)) {
-        throw new AppError('VALIDATION_ERROR', 'Transaction companyId does not match project company');
-      }
-      validateOrThrow(txnInputSchema, t);
-      return {
-        ...t,
-        externalId: normalizeExternalId(t.externalId),
-      };
-    });
-
-    const [defaultCategoriesRows, defaultSubCategoriesRows, mappingRuleRows, projectCategoryRows, projectSubCategoryRows] =
-      await Promise.all([
-        db
-          .selectFrom('company_default_categories')
-          .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
-          .where('company_id', '=', project.company_id as CompanyId)
-          .execute(),
-        db
-          .selectFrom('company_default_sub_categories')
-          .select([
-            'id',
-            'company_id',
-            'company_default_category_id',
-            'name',
-            'created_at',
-            'updated_at',
-          ])
-          .where('company_id', '=', project.company_id as CompanyId)
-          .execute(),
-        db
-          .selectFrom('company_default_mapping_rules')
-          .select([
-            'id',
-            'company_id',
-            'match_text',
-            'company_default_category_id',
-            'company_default_sub_category_id',
-            'sort_order',
-            'created_at',
-            'updated_at',
-          ])
-          .where('company_id', '=', project.company_id as CompanyId)
-          .orderBy('sort_order', 'asc')
-          .orderBy('created_at', 'asc')
-          .execute(),
-        db
-          .selectFrom('categories')
-          .select(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
-          .where('project_id', '=', args.projectId)
-          .execute(),
-        db
-          .selectFrom('sub_categories')
-          .select(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
-          .where('project_id', '=', args.projectId)
-          .execute(),
-      ]);
+    const [
+      defaultCategoriesRows,
+      defaultSubCategoriesRows,
+      mappingRuleRows,
+      projectCategoryRows,
+      projectSubCategoryRows,
+      existingTxnRows,
+      budgetRows,
+    ] = await Promise.all([
+      db
+        .selectFrom('company_default_categories')
+        .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+        .where('company_id', '=', project.company_id as CompanyId)
+        .execute(),
+      db
+        .selectFrom('company_default_sub_categories')
+        .select([
+          'id',
+          'company_id',
+          'company_default_category_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .where('company_id', '=', project.company_id as CompanyId)
+        .execute(),
+      db
+        .selectFrom('company_default_mapping_rules')
+        .select([
+          'id',
+          'company_id',
+          'match_text',
+          'company_default_category_id',
+          'company_default_sub_category_id',
+          'sort_order',
+          'created_at',
+          'updated_at',
+        ])
+        .where('company_id', '=', project.company_id as CompanyId)
+        .orderBy('sort_order', 'asc')
+        .orderBy('created_at', 'asc')
+        .execute(),
+      db
+        .selectFrom('categories')
+        .select([
+          'id',
+          'company_id',
+          'project_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .where('project_id', '=', args.projectId)
+        .execute(),
+      db
+        .selectFrom('sub_categories')
+        .select([
+          'id',
+          'company_id',
+          'project_id',
+          'category_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .where('project_id', '=', args.projectId)
+        .execute(),
+      db
+        .selectFrom('txns')
+        .select([
+          'id',
+          'public_id',
+          'external_id',
+          'company_id',
+          'project_id',
+          'txn_date',
+          'item',
+          'description',
+          'amount_cents',
+          'category_id',
+          'sub_category_id',
+          'company_default_mapping_rule_id',
+          'coding_source',
+          'coding_pending_approval',
+          'created_at',
+          'updated_at',
+        ])
+        .where('project_id', '=', args.projectId)
+        .execute(),
+      db
+        .selectFrom('budget_lines')
+        .select([
+          'id',
+          'company_id',
+          'project_id',
+          'category_id',
+          'sub_category_id',
+          'allocated_cents',
+          'created_at',
+          'updated_at',
+        ])
+        .where('project_id', '=', args.projectId)
+        .execute(),
+    ]);
 
     const defaultCategories = defaultCategoriesRows.map((row) => ({
       id: asCompanyDefaultCategoryId(row.id),
@@ -519,7 +576,9 @@ export async function importTransactionsServer(args: {
     const defaultSubCategories = defaultSubCategoriesRows.map((row) => ({
       id: asCompanyDefaultSubCategoryId(row.id),
       companyId: row.company_id as CompanyId,
-      companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+      companyDefaultCategoryId: asCompanyDefaultCategoryId(
+        row.company_default_category_id
+      ),
       name: row.name,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -528,8 +587,12 @@ export async function importTransactionsServer(args: {
       id: asCompanyDefaultMappingRuleId(row.id),
       companyId: row.company_id as CompanyId,
       matchText: row.match_text,
-      companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
-      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(row.company_default_sub_category_id),
+      companyDefaultCategoryId: asCompanyDefaultCategoryId(
+        row.company_default_category_id
+      ),
+      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
+        row.company_default_sub_category_id
+      ),
       sortOrder: Number(row.sort_order),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -551,119 +614,51 @@ export async function importTransactionsServer(args: {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     })) satisfies SubCategory[];
-
-    const autoMappedIncoming = normalizedIncoming.map((txn) =>
-      mapImportedTransactionWithCompanyDefaults({
-        txn,
-        rules: mappingRules,
-        defaultCategories,
-        defaultSubCategories,
-        projectCategories,
-        projectSubCategories,
-      })
+    const existingTransactions = existingTxnRows.map((row) =>
+      toTxn(row as TxnRow)
     );
+    const budgets = budgetRows
+      .filter((row) => Boolean(row.category_id))
+      .map((row) => ({
+        id: asBudgetLineId(row.id),
+        companyId: row.company_id as CompanyId,
+        projectId: row.project_id as ProjectId,
+        categoryId: asCategoryId(row.category_id as string),
+        subCategoryId: row.sub_category_id
+          ? asSubCategoryId(row.sub_category_id)
+          : undefined,
+        allocatedCents: Number(row.allocated_cents),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })) satisfies BudgetLine[];
 
-    const budgetTargets = args.autoCreateBudgets ? uniqAutoBudgetTargets(autoMappedIncoming) : [];
+    const plan = planTransactionImportCommit({
+      projectId: args.projectId,
+      companyId: project.company_id as CompanyId,
+      incomingTransactions: args.txns,
+      existingTransactions,
+      existingBudgets: budgets,
+      defaultCategories,
+      defaultSubCategories,
+      mappingRules,
+      projectCategories,
+      projectSubCategories,
+      mode: args.mode,
+      autoCreateBudgets: Boolean(args.autoCreateBudgets),
+    });
 
     if (args.mode === 'replaceAll') {
-      assertUniqueTransactionKeysInProject(autoMappedIncoming);
       const now = new Date().toISOString();
       await db.transaction().execute(async (trx) => {
-        await trx.deleteFrom('txns').where('project_id', '=', args.projectId).execute();
-        if (budgetTargets.length) {
-          const existingBudgetRows = await trx
-            .selectFrom('budget_lines')
-            .select(['sub_category_id'])
-            .where('project_id', '=', args.projectId)
-            .where('sub_category_id', 'in', budgetTargets.map((target) => target.subCategoryId))
-            .execute();
-          const existingBudgetSubIds = new Set(
-            existingBudgetRows
-              .map((row) => row.sub_category_id)
-              .filter((value): value is string => Boolean(value))
-          );
-          const missingBudgetTargets = budgetTargets.filter(
-            (target) => !existingBudgetSubIds.has(target.subCategoryId)
-          );
-          if (missingBudgetTargets.length) {
-            await trx
-              .insertInto('budget_lines')
-              .values(
-                missingBudgetTargets.map((target) => ({
-                  id: asBudgetLineId(uid('bud')),
-                  company_id: project.company_id as CompanyId,
-                  project_id: args.projectId,
-                  category_id: target.categoryId,
-                  sub_category_id: target.subCategoryId,
-                  allocated_cents: 0,
-                  created_at: now,
-                  updated_at: now,
-                }))
-              )
-              .execute();
-          }
-        }
-        if (!autoMappedIncoming.length) return;
         await trx
-          .insertInto('txns')
-          .values(
-            autoMappedIncoming.map((t) => ({
-              public_id: t.id,
-              external_id: t.externalId ?? null,
-              company_id: t.companyId,
-              project_id: t.projectId,
-              txn_date: t.date,
-              item: t.item,
-              description: t.description,
-              amount_cents: t.amountCents,
-              category_id: t.categoryId ?? null,
-              sub_category_id: t.subCategoryId ?? null,
-              company_default_mapping_rule_id: t.companyDefaultMappingRuleId ?? null,
-              coding_source: t.codingSource ?? null,
-              coding_pending_approval: !!t.codingPendingApproval,
-              created_at: now,
-              updated_at: now,
-            }))
-          )
-          .execute();
-      });
-      return { count: autoMappedIncoming.length };
-    }
-
-    const existingRows = await db
-      .selectFrom('txns')
-      .select(['public_id', 'external_id'])
-      .where('project_id', '=', args.projectId)
-      .execute();
-    const existingForCheck = existingRows.map((r) => ({
-      id: r.public_id as TxnId,
-      externalId: normalizeExternalId(r.external_id),
-    }));
-    const nextForCheck = [...existingForCheck, ...autoMappedIncoming];
-    assertUniqueTransactionKeysInProject(nextForCheck);
-
-    if (autoMappedIncoming.length) {
-      const now = new Date().toISOString();
-      if (budgetTargets.length) {
-        const existingBudgetRows = await db
-          .selectFrom('budget_lines')
-          .select(['sub_category_id'])
+          .deleteFrom('txns')
           .where('project_id', '=', args.projectId)
-          .where('sub_category_id', 'in', budgetTargets.map((target) => target.subCategoryId))
           .execute();
-        const existingBudgetSubIds = new Set(
-          existingBudgetRows
-            .map((row) => row.sub_category_id)
-            .filter((value): value is string => Boolean(value))
-        );
-        const missingBudgetTargets = budgetTargets.filter(
-          (target) => !existingBudgetSubIds.has(target.subCategoryId)
-        );
-        if (missingBudgetTargets.length) {
-          await db
+        if (plan.budgetTargetsToCreate.length) {
+          await trx
             .insertInto('budget_lines')
             .values(
-              missingBudgetTargets.map((target) => ({
+              plan.budgetTargetsToCreate.map((target) => ({
                 id: asBudgetLineId(uid('bud')),
                 company_id: project.company_id as CompanyId,
                 project_id: args.projectId,
@@ -676,11 +671,57 @@ export async function importTransactionsServer(args: {
             )
             .execute();
         }
+        if (!plan.importedTransactions.length) return;
+        await trx
+          .insertInto('txns')
+          .values(
+            plan.importedTransactions.map((t) => ({
+              public_id: t.id,
+              external_id: t.externalId ?? null,
+              company_id: t.companyId,
+              project_id: t.projectId,
+              txn_date: t.date,
+              item: t.item,
+              description: t.description,
+              amount_cents: t.amountCents,
+              category_id: t.categoryId ?? null,
+              sub_category_id: t.subCategoryId ?? null,
+              company_default_mapping_rule_id:
+                t.companyDefaultMappingRuleId ?? null,
+              coding_source: t.codingSource ?? null,
+              coding_pending_approval: !!t.codingPendingApproval,
+              created_at: now,
+              updated_at: now,
+            }))
+          )
+          .execute();
+      });
+      return { count: plan.importedTransactions.length };
+    }
+
+    if (plan.importedTransactions.length) {
+      const now = new Date().toISOString();
+      if (plan.budgetTargetsToCreate.length) {
+        await db
+          .insertInto('budget_lines')
+          .values(
+            plan.budgetTargetsToCreate.map((target) => ({
+              id: asBudgetLineId(uid('bud')),
+              company_id: project.company_id as CompanyId,
+              project_id: args.projectId,
+              category_id: target.categoryId,
+              sub_category_id: target.subCategoryId,
+              allocated_cents: 0,
+              created_at: now,
+              updated_at: now,
+            }))
+          )
+          .execute();
       }
       await db
         .insertInto('txns')
         .values(
-          autoMappedIncoming.map((t) => ({
+          plan.importedTransactions.map((t) => ({
             public_id: t.id,
             external_id: t.externalId ?? null,
             company_id: t.companyId,
@@ -691,7 +732,8 @@ export async function importTransactionsServer(args: {
             amount_cents: t.amountCents,
             category_id: t.categoryId ?? null,
             sub_category_id: t.subCategoryId ?? null,
-            company_default_mapping_rule_id: t.companyDefaultMappingRuleId ?? null,
+            company_default_mapping_rule_id:
+              t.companyDefaultMappingRuleId ?? null,
             coding_source: t.codingSource ?? null,
             coding_pending_approval: !!t.codingPendingApproval,
             created_at: now,
@@ -700,7 +742,7 @@ export async function importTransactionsServer(args: {
         )
         .execute();
     }
-    return { count: autoMappedIncoming.length };
+    return { count: plan.importedTransactions.length };
   });
 }
 
@@ -729,76 +771,109 @@ export async function previewImportTransactionsServer(args: {
       projectId: args.projectId,
     });
 
-    const [existingRows, defaultCategoriesRows, defaultSubCategoriesRows, mappingRuleRows, projectCategoryRows, projectSubCategoryRows, budgetRows, canEditTaxonomy, canEditBudgets] =
-      await Promise.all([
-        db
-          .selectFrom('txns')
-          .select(['public_id', 'external_id'])
-          .where('project_id', '=', args.projectId)
-          .execute(),
-        db
-          .selectFrom('company_default_categories')
-          .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
-          .where('company_id', '=', project.company_id as CompanyId)
-          .execute(),
-        db
-          .selectFrom('company_default_sub_categories')
-          .select([
-            'id',
-            'company_id',
-            'company_default_category_id',
-            'name',
-            'created_at',
-            'updated_at',
-          ])
-          .where('company_id', '=', project.company_id as CompanyId)
-          .execute(),
-        db
-          .selectFrom('company_default_mapping_rules')
-          .select([
-            'id',
-            'company_id',
-            'match_text',
-            'company_default_category_id',
-            'company_default_sub_category_id',
-            'sort_order',
-            'created_at',
-            'updated_at',
-          ])
-          .where('company_id', '=', project.company_id as CompanyId)
-          .orderBy('sort_order', 'asc')
-          .orderBy('created_at', 'asc')
-          .execute(),
-        db
-          .selectFrom('categories')
-          .select(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
-          .where('project_id', '=', args.projectId)
-          .execute(),
-        db
-          .selectFrom('sub_categories')
-          .select(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
-          .where('project_id', '=', args.projectId)
-          .execute(),
-        db
-          .selectFrom('budget_lines')
-          .select(['id', 'company_id', 'project_id', 'category_id', 'sub_category_id', 'allocated_cents', 'created_at', 'updated_at'])
-          .where('project_id', '=', args.projectId)
-          .execute(),
-        isAuthorized({
-          db,
-          userId,
-          action: 'taxonomy:edit',
-          companyId: project.company_id as CompanyId,
-          projectId: args.projectId,
-        }),
-        isAuthorized({
-          db,
-          userId,
-          action: 'budget:edit',
-          companyId: project.company_id as CompanyId,
-          projectId: args.projectId,
-        }),
-      ]);
+    const [
+      existingRows,
+      defaultCategoriesRows,
+      defaultSubCategoriesRows,
+      mappingRuleRows,
+      projectCategoryRows,
+      projectSubCategoryRows,
+      budgetRows,
+      canEditTaxonomy,
+      canEditBudgets,
+    ] = await Promise.all([
+      db
+        .selectFrom('txns')
+        .select(['public_id', 'external_id'])
+        .where('project_id', '=', args.projectId)
+        .execute(),
+      db
+        .selectFrom('company_default_categories')
+        .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+        .where('company_id', '=', project.company_id as CompanyId)
+        .execute(),
+      db
+        .selectFrom('company_default_sub_categories')
+        .select([
+          'id',
+          'company_id',
+          'company_default_category_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .where('company_id', '=', project.company_id as CompanyId)
+        .execute(),
+      db
+        .selectFrom('company_default_mapping_rules')
+        .select([
+          'id',
+          'company_id',
+          'match_text',
+          'company_default_category_id',
+          'company_default_sub_category_id',
+          'sort_order',
+          'created_at',
+          'updated_at',
+        ])
+        .where('company_id', '=', project.company_id as CompanyId)
+        .orderBy('sort_order', 'asc')
+        .orderBy('created_at', 'asc')
+        .execute(),
+      db
+        .selectFrom('categories')
+        .select([
+          'id',
+          'company_id',
+          'project_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .where('project_id', '=', args.projectId)
+        .execute(),
+      db
+        .selectFrom('sub_categories')
+        .select([
+          'id',
+          'company_id',
+          'project_id',
+          'category_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .where('project_id', '=', args.projectId)
+        .execute(),
+      db
+        .selectFrom('budget_lines')
+        .select([
+          'id',
+          'company_id',
+          'project_id',
+          'category_id',
+          'sub_category_id',
+          'allocated_cents',
+          'created_at',
+          'updated_at',
+        ])
+        .where('project_id', '=', args.projectId)
+        .execute(),
+      isAuthorized({
+        db,
+        userId,
+        action: 'taxonomy:edit',
+        companyId: project.company_id as CompanyId,
+        projectId: args.projectId,
+      }),
+      isAuthorized({
+        db,
+        userId,
+        action: 'budget:edit',
+        companyId: project.company_id as CompanyId,
+        projectId: args.projectId,
+      }),
+    ]);
 
     const defaultCategories = defaultCategoriesRows.map((row) => ({
       id: asCompanyDefaultCategoryId(row.id),
@@ -810,7 +885,9 @@ export async function previewImportTransactionsServer(args: {
     const defaultSubCategories = defaultSubCategoriesRows.map((row) => ({
       id: asCompanyDefaultSubCategoryId(row.id),
       companyId: row.company_id as CompanyId,
-      companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+      companyDefaultCategoryId: asCompanyDefaultCategoryId(
+        row.company_default_category_id
+      ),
       name: row.name,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -819,8 +896,12 @@ export async function previewImportTransactionsServer(args: {
       id: asCompanyDefaultMappingRuleId(row.id),
       companyId: row.company_id as CompanyId,
       matchText: row.match_text,
-      companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
-      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(row.company_default_sub_category_id),
+      companyDefaultCategoryId: asCompanyDefaultCategoryId(
+        row.company_default_category_id
+      ),
+      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
+        row.company_default_sub_category_id
+      ),
       sortOrder: Number(row.sort_order),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -849,7 +930,9 @@ export async function previewImportTransactionsServer(args: {
         companyId: row.company_id as CompanyId,
         projectId: row.project_id as ProjectId,
         categoryId: asCategoryId(row.category_id as string),
-        subCategoryId: row.sub_category_id ? asSubCategoryId(row.sub_category_id) : undefined,
+        subCategoryId: row.sub_category_id
+          ? asSubCategoryId(row.sub_category_id)
+          : undefined,
         allocatedCents: Number(row.allocated_cents),
         createdAt: row.created_at,
         updatedAt: row.updated_at,

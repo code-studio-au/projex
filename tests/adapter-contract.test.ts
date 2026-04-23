@@ -16,10 +16,12 @@ import {
   asBudgetLineId,
   asCategoryId,
   asCompanyDefaultCategoryId,
+  asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
   asCompanyId,
   asProjectId,
   asSubCategoryId,
+  asTxnId,
   asUserId,
 } from '../src/types.ts';
 import { can } from '../src/utils/auth.ts';
@@ -131,6 +133,18 @@ async function makeServerApiBackedByLocalHarness(): Promise<AdapterHarness> {
           ProjexApi['createCompanyDefaultCategory']
         >[1];
         return jsonResponse(await backing.createCompanyDefaultCategory(asCompanyId(parts[2]), body));
+      }
+
+      if (
+        method === 'POST' &&
+        parts[0] === 'api' &&
+        parts[1] === 'companies' &&
+        parts[3] === 'default-mapping-rules'
+      ) {
+        const body = (await parseJsonBody(init)) as Parameters<
+          ProjexApi['createCompanyDefaultMappingRule']
+        >[1];
+        return jsonResponse(await backing.createCompanyDefaultMappingRule(asCompanyId(parts[2]), body));
       }
 
       if (
@@ -306,6 +320,67 @@ function runAdapterParityTests(
       assert.equal(preview.rows.length, 1);
       assert.equal(preview.rows[0]?.duplicate, true);
       assert.equal(preview.rows[0]?.duplicateReason, 'existing');
+    } finally {
+      harness.cleanup?.();
+    }
+  });
+
+  test(`${label}: import commit applies company default mapping rules`, async () => {
+    const harness = await makeHarness();
+    try {
+      await harness.api.loginAs(asUserId('u_exec'));
+
+      const companyId = asCompanyId('co_acme');
+      const projectId = asProjectId('prj_acme_alpha');
+      const defaultCategoryId = asCompanyDefaultCategoryId('cdcat_import_parity');
+      const defaultSubCategoryId = asCompanyDefaultSubCategoryId('cdsub_import_parity');
+      const mappingRuleId = asCompanyDefaultMappingRuleId('cdrule_import_parity');
+
+      await harness.api.createCompanyDefaultCategory(companyId, {
+        id: defaultCategoryId,
+        companyId,
+        name: 'Travel',
+      });
+      await harness.api.createCompanyDefaultSubCategory(companyId, {
+        id: defaultSubCategoryId,
+        companyId,
+        companyDefaultCategoryId: defaultCategoryId,
+        name: 'Accommodation',
+      });
+      await harness.api.createCompanyDefaultMappingRule(companyId, {
+        id: mappingRuleId,
+        companyId,
+        matchText: 'hotel',
+        companyDefaultCategoryId: defaultCategoryId,
+        companyDefaultSubCategoryId: defaultSubCategoryId,
+        sortOrder: 0,
+      });
+
+      await harness.api.importTransactions(projectId, {
+        mode: 'append',
+        txns: [
+          {
+            id: asTxnId('txn_import_mapping_parity'),
+            externalId: 'EXT-IMPORT-MAPPING-PARITY',
+            companyId,
+            projectId,
+            date: '2026-03-15',
+            item: 'Hotel stay',
+            description: 'Hotel stay near client site',
+            amountCents: 12345,
+          },
+        ],
+      });
+
+      const imported = (await harness.api.listTransactions(projectId)).find(
+        (txn) => txn.externalId === 'EXT-IMPORT-MAPPING-PARITY'
+      );
+      assert.ok(imported);
+      assert.equal(imported.companyDefaultMappingRuleId, mappingRuleId);
+      assert.equal(imported.codingSource, 'company_default_rule');
+      assert.equal(imported.codingPendingApproval, true);
+      assert.ok(imported.categoryId);
+      assert.ok(imported.subCategoryId);
     } finally {
       harness.cleanup?.();
     }

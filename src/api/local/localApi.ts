@@ -54,13 +54,11 @@ import {
   userNameSchema,
 } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
-import {
-  defaultCategoryIdForRule,
-  mapImportedTransactionWithCompanyDefaults,
-} from '../../utils/companyDefaultMappings';
+import { defaultCategoryIdForRule } from '../../utils/companyDefaultMappings';
 import { planApplyCompanyDefaultTaxonomy } from '../../utils/companyDefaultTaxonomy';
 import { buildCompanySummaryProjects } from '../../utils/companySummary';
 import { planImportPreview } from '../../utils/importPreviewPlan';
+import { planTransactionImportCommit } from '../../utils/transactionImportCommitPlan';
 import {
   assertUniqueTransactionKeysInProject,
   normalizeExternalId,
@@ -178,16 +176,25 @@ export class LocalApi implements ProjexApi {
   private isSuperadmin(userId: UserId, st: PersistedStateV1) {
     // Local-mode simplification: if the user holds superadmin in ANY company,
     // we treat them as a global superadmin.
-    return st.companyMemberships.some((m) => m.userId === userId && m.role === 'superadmin');
+    return st.companyMemberships.some(
+      (m) => m.userId === userId && m.role === 'superadmin'
+    );
   }
 
-  private assertCan(action: Action, companyId: CompanyId, projectId?: ProjectId) {
+  private assertCan(
+    action: Action,
+    companyId: CompanyId,
+    projectId?: ProjectId
+  ) {
     const st = ensureState();
     const { userId } = this.requireSession();
     if (projectId && this.isSuperadmin(userId, st)) {
       const project = st.projects.find((p) => p.id === projectId);
       if (!projectAllowsSuperadminAccess(project)) {
-        throw new AppError('FORBIDDEN', 'Superadmin access is disabled for this project');
+        throw new AppError(
+          'FORBIDDEN',
+          'Superadmin access is disabled for this project'
+        );
       }
     }
     const ok = can({
@@ -204,7 +211,9 @@ export class LocalApi implements ProjexApi {
     return readSession();
   }
 
-  async requestEmailChange(input: EmailChangeRequestInput): Promise<EmailChangeRequestResult> {
+  async requestEmailChange(
+    input: EmailChangeRequestInput
+  ): Promise<EmailChangeRequestResult> {
     void input;
     throw new AppError(
       'NOT_IMPLEMENTED',
@@ -301,7 +310,9 @@ export class LocalApi implements ProjexApi {
         .map((m) => m.companyId)
     );
 
-    return st.companyMemberships.filter((m) => allowedCompanyIds.has(m.companyId));
+    return st.companyMemberships.filter((m) =>
+      allowedCompanyIds.has(m.companyId)
+    );
   }
 
   async listCompanies(): Promise<Company[]> {
@@ -312,9 +323,13 @@ export class LocalApi implements ProjexApi {
       return st.companies.filter((c) => c.id !== asCompanyId('co_projex'));
     }
     const allowed = new Set(
-      st.companyMemberships.filter((m) => m.userId === s.userId).map((m) => m.companyId)
+      st.companyMemberships
+        .filter((m) => m.userId === s.userId)
+        .map((m) => m.companyId)
     );
-    return st.companies.filter((c) => allowed.has(c.id) && c.status === 'active');
+    return st.companies.filter(
+      (c) => allowed.has(c.id) && c.status === 'active'
+    );
   }
 
   async getCompany(companyId: CompanyId): Promise<Company | null> {
@@ -329,7 +344,8 @@ export class LocalApi implements ProjexApi {
     }
     const comp = st.companies.find((c) => c.id === companyId) ?? null;
     if (!comp) return null;
-    if (comp.status === 'deactivated' && !this.isSuperadmin(s.userId, st)) return null;
+    if (comp.status === 'deactivated' && !this.isSuperadmin(s.userId, st))
+      return null;
     return comp;
   }
 
@@ -342,10 +358,19 @@ export class LocalApi implements ProjexApi {
     const isSuperadmin = this.isSuperadmin(session.userId, st);
     const companyRole =
       st.companyMemberships.find(
-        (membership) => membership.companyId === companyId && membership.userId === session.userId
+        (membership) =>
+          membership.companyId === companyId &&
+          membership.userId === session.userId
       )?.role ?? null;
-    if (!isSuperadmin && companyRole !== 'admin' && companyRole !== 'executive') {
-      throw new AppError('FORBIDDEN', 'Company summary access requires admin or executive role');
+    if (
+      !isSuperadmin &&
+      companyRole !== 'admin' &&
+      companyRole !== 'executive'
+    ) {
+      throw new AppError(
+        'FORBIDDEN',
+        'Company summary access requires admin or executive role'
+      );
     }
 
     const projects = await this.listProjects(companyId);
@@ -354,7 +379,11 @@ export class LocalApi implements ProjexApi {
       const slice = st.dataByProjectId[project.id];
       validSubCategoryIdsByProject.set(
         project.id,
-        new Set((slice?.subCategories ?? []).map((subCategory) => String(subCategory.id)))
+        new Set(
+          (slice?.subCategories ?? []).map((subCategory) =>
+            String(subCategory.id)
+          )
+        )
       );
       return (slice?.transactions ?? []).map((txn) => ({
         projectId: project.id,
@@ -380,7 +409,8 @@ export class LocalApi implements ProjexApi {
 
     const company = st.companies.find((c) => c.id === companyId) ?? null;
     if (!company) return [];
-    if (company.status === 'deactivated' && !this.isSuperadmin(s.userId, st)) return [];
+    if (company.status === 'deactivated' && !this.isSuperadmin(s.userId, st))
+      return [];
 
     const all = st.projects.filter((p) => p.companyId === companyId);
     if (this.isSuperadmin(s.userId, st)) {
@@ -400,7 +430,9 @@ export class LocalApi implements ProjexApi {
     );
 
     const mine = new Set(
-      st.projectMemberships.filter((m) => m.userId === s.userId).map((m) => m.projectId)
+      st.projectMemberships
+        .filter((m) => m.userId === s.userId)
+        .map((m) => m.projectId)
     );
 
     return all.filter((p) => {
@@ -418,12 +450,16 @@ export class LocalApi implements ProjexApi {
     if (!s) return null;
     const p = st.projects.find((x) => x.id === projectId) ?? null;
     if (!p) return null;
-    if (this.isSuperadmin(s.userId, st) && !projectAllowsSuperadminAccess(p)) return null;
+    if (this.isSuperadmin(s.userId, st) && !projectAllowsSuperadminAccess(p))
+      return null;
     const company = st.companies.find((c) => c.id === p.companyId) ?? null;
     if (!company) return null;
-    if (company.status === 'deactivated' && !this.isSuperadmin(s.userId, st)) return null;
+    if (company.status === 'deactivated' && !this.isSuperadmin(s.userId, st))
+      return null;
     if (p.status === 'archived' && !this.isSuperadmin(s.userId, st)) {
-      const cRole = st.companyMemberships.find((m) => m.companyId === p.companyId && m.userId === s.userId)?.role;
+      const cRole = st.companyMemberships.find(
+        (m) => m.companyId === p.companyId && m.userId === s.userId
+      )?.role;
       if (cRole !== 'admin' && cRole !== 'executive') {
         throw new AppError('FORBIDDEN', 'Project is deactivated');
       }
@@ -480,7 +516,10 @@ export class LocalApi implements ProjexApi {
     const idx = slice.transactions.findIndex((t) => t.id === input.id);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown transaction');
     const normalizedInput = normalizeTxnPatch(input);
-    const nextExternalId = Object.prototype.hasOwnProperty.call(normalizedInput, 'externalId')
+    const nextExternalId = Object.prototype.hasOwnProperty.call(
+      normalizedInput,
+      'externalId'
+    )
       ? normalizeExternalId(normalizedInput.externalId ?? undefined)
       : normalizeExternalId(slice.transactions[idx].externalId);
     const updated: Txn = {
@@ -524,33 +563,53 @@ export class LocalApi implements ProjexApi {
     });
   }
 
-  async listCompanyMemberships(companyId: CompanyId): Promise<CompanyMembership[]> {
+  async listCompanyMemberships(
+    companyId: CompanyId
+  ): Promise<CompanyMembership[]> {
     const st = ensureState();
     this.assertCan('company:view', companyId);
     return st.companyMemberships.filter((m) => m.companyId === companyId);
   }
 
   // Convenience wrappers expected by the API contract
-  async setCompanyRole(companyId: CompanyId, userId: UserId, role: CompanyRole): Promise<void> {
+  async setCompanyRole(
+    companyId: CompanyId,
+    userId: UserId,
+    role: CompanyRole
+  ): Promise<void> {
     await this.upsertCompanyMembership(companyId, userId, role);
   }
 
-  async setProjectRole(projectId: ProjectId, userId: UserId, role: ProjectRole): Promise<void> {
+  async setProjectRole(
+    projectId: ProjectId,
+    userId: UserId,
+    role: ProjectRole
+  ): Promise<void> {
     await this.upsertProjectMembership(projectId, userId, role);
   }
 
-  async removeCompanyMember(companyId: CompanyId, userId: UserId): Promise<void> {
+  async removeCompanyMember(
+    companyId: CompanyId,
+    userId: UserId
+  ): Promise<void> {
     await this.deleteCompanyMembership(companyId, userId);
   }
 
-  async removeProjectMember(projectId: ProjectId, userId: UserId): Promise<void> {
+  async removeProjectMember(
+    projectId: ProjectId,
+    userId: UserId
+  ): Promise<void> {
     const st = ensureState();
-    const membership = st.projectMemberships.find((m) => m.projectId === projectId && m.userId === userId);
+    const membership = st.projectMemberships.find(
+      (m) => m.projectId === projectId && m.userId === userId
+    );
     if (!membership) return;
     await this.deleteProjectMembership(projectId, userId, membership.role);
   }
 
-  async listProjectMemberships(projectId: ProjectId): Promise<ProjectMembership[]> {
+  async listProjectMemberships(
+    projectId: ProjectId
+  ): Promise<ProjectMembership[]> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
@@ -558,7 +617,9 @@ export class LocalApi implements ProjexApi {
     return st.projectMemberships.filter((m) => m.projectId === projectId);
   }
 
-  async listMyProjectMemberships(companyId: CompanyId): Promise<ProjectMembership[]> {
+  async listMyProjectMemberships(
+    companyId: CompanyId
+  ): Promise<ProjectMembership[]> {
     const st = ensureState();
     const { userId } = this.requireSession();
     const isSuper = this.isSuperadmin(userId, st);
@@ -593,7 +654,10 @@ export class LocalApi implements ProjexApi {
         (m) => m.companyId === companyId && m.role === 'admin'
       ).length;
       if (adminCount <= 1) {
-        throw new AppError('VALIDATION_ERROR', 'Company must retain at least one admin');
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Company must retain at least one admin'
+        );
       }
     }
     const idx = st.companyMemberships.findIndex(
@@ -607,7 +671,10 @@ export class LocalApi implements ProjexApi {
     return next;
   }
 
-  async deleteCompanyMembership(companyId: CompanyId, userId: UserId): Promise<void> {
+  async deleteCompanyMembership(
+    companyId: CompanyId,
+    userId: UserId
+  ): Promise<void> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
     const existing = st.companyMemberships.find(
@@ -618,7 +685,10 @@ export class LocalApi implements ProjexApi {
         (m) => m.companyId === companyId && m.role === 'admin'
       ).length;
       if (adminCount <= 1) {
-        throw new AppError('VALIDATION_ERROR', 'Company must retain at least one admin');
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Company must retain at least one admin'
+        );
       }
     }
     const companyProjectIds = new Set(
@@ -667,12 +737,15 @@ export class LocalApi implements ProjexApi {
     writeState({
       ...st,
       projectMemberships: st.projectMemberships.filter(
-        (m) => !(m.projectId === projectId && m.userId === userId && m.role === role)
+        (m) =>
+          !(m.projectId === projectId && m.userId === userId && m.role === role)
       ),
     });
   }
 
-  async listCompanyDefaultCategories(companyId: CompanyId): Promise<CompanyDefaultCategory[]> {
+  async listCompanyDefaultCategories(
+    companyId: CompanyId
+  ): Promise<CompanyDefaultCategory[]> {
     const st = ensureState();
     this.assertCan('company:view', companyId);
     return st.companyDefaultsByCompanyId[companyId]?.categories ?? [];
@@ -681,11 +754,14 @@ export class LocalApi implements ProjexApi {
   async getCompanyDefaults(companyId: CompanyId): Promise<CompanyDefaults> {
     const st = ensureState();
     this.assertCan('company:view', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     return {
       categories: slice.categories,
       subCategories: slice.subCategories,
-      mappingRules: [...slice.mappingRules].sort((a, b) => a.sortOrder - b.sortOrder),
+      mappingRules: [...slice.mappingRules].sort(
+        (a, b) => a.sortOrder - b.sortOrder
+      ),
     };
   }
 
@@ -697,12 +773,14 @@ export class LocalApi implements ProjexApi {
     return st.companyDefaultsByCompanyId[companyId]?.subCategories ?? [];
   }
 
-  async listCompanyDefaultMappingRules(companyId: CompanyId): Promise<CompanyDefaultMappingRule[]> {
+  async listCompanyDefaultMappingRules(
+    companyId: CompanyId
+  ): Promise<CompanyDefaultMappingRule[]> {
     const st = ensureState();
     this.assertCan('company:view', companyId);
-    return [...(st.companyDefaultsByCompanyId[companyId]?.mappingRules ?? [])].sort(
-      (a, b) => a.sortOrder - b.sortOrder
-    );
+    return [
+      ...(st.companyDefaultsByCompanyId[companyId]?.mappingRules ?? []),
+    ].sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
   async createCompanyDefaultCategory(
@@ -712,9 +790,12 @@ export class LocalApi implements ProjexApi {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
     validateOrThrow(categoryNameSchema, input.name);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     const nameKey = input.name.trim().toLowerCase();
-    const existing = slice.categories.find((c) => c.name.trim().toLowerCase() === nameKey);
+    const existing = slice.categories.find(
+      (c) => c.name.trim().toLowerCase() === nameKey
+    );
     if (existing) return existing;
 
     const id = input.id ?? asCompanyDefaultCategoryId(uid('ccat'));
@@ -743,26 +824,34 @@ export class LocalApi implements ProjexApi {
   ): Promise<CompanyDefaultCategory> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     if (typeof input.name === 'string') {
       validateOrThrow(categoryNameSchema, input.name);
     }
     const idx = slice.categories.findIndex((c) => c.id === input.id);
-    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    if (idx < 0)
+      throw new AppError('NOT_FOUND', 'Unknown company default category');
     if (typeof input.name === 'string') {
       const nameKey = input.name.trim().toLowerCase();
       const duplicate = slice.categories.find(
         (c) => c.id !== input.id && c.name.trim().toLowerCase() === nameKey
       );
       if (duplicate) {
-        throw new AppError('CONFLICT', `Company default category "${input.name.trim()}" already exists`);
+        throw new AppError(
+          'CONFLICT',
+          `Company default category "${input.name.trim()}" already exists`
+        );
       }
     }
     const updated: CompanyDefaultCategory = {
       ...slice.categories[idx],
       ...input,
       companyId,
-      name: typeof input.name === 'string' ? input.name.trim() : slice.categories[idx].name,
+      name:
+        typeof input.name === 'string'
+          ? input.name.trim()
+          : slice.categories[idx].name,
       updatedAt: this.nowIso(),
     };
     const categories = slice.categories.slice();
@@ -783,14 +872,17 @@ export class LocalApi implements ProjexApi {
   ): Promise<void> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     writeState({
       ...st,
       companyDefaultsByCompanyId: {
         ...st.companyDefaultsByCompanyId,
         [companyId]: {
           categories: slice.categories.filter((c) => c.id !== categoryId),
-          subCategories: slice.subCategories.filter((s) => s.companyDefaultCategoryId !== categoryId),
+          subCategories: slice.subCategories.filter(
+            (s) => s.companyDefaultCategoryId !== categoryId
+          ),
           mappingRules: slice.mappingRules.filter(
             (rule) => rule.companyDefaultCategoryId !== categoryId
           ),
@@ -806,9 +898,13 @@ export class LocalApi implements ProjexApi {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
     validateOrThrow(subCategoryNameSchema, input.name);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
-    const category = slice.categories.find((c) => c.id === input.companyDefaultCategoryId);
-    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const category = slice.categories.find(
+      (c) => c.id === input.companyDefaultCategoryId
+    );
+    if (!category)
+      throw new AppError('NOT_FOUND', 'Unknown company default category');
     const nameKey = input.name.trim().toLowerCase();
     const existing = slice.subCategories.find(
       (s) =>
@@ -831,7 +927,10 @@ export class LocalApi implements ProjexApi {
       ...st,
       companyDefaultsByCompanyId: {
         ...st.companyDefaultsByCompanyId,
-        [companyId]: { ...slice, subCategories: [...slice.subCategories, next] },
+        [companyId]: {
+          ...slice,
+          subCategories: [...slice.subCategories, next],
+        },
       },
     });
     return next;
@@ -843,15 +942,20 @@ export class LocalApi implements ProjexApi {
   ): Promise<CompanyDefaultSubCategory> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     if (typeof input.name === 'string') {
       validateOrThrow(subCategoryNameSchema, input.name);
     }
     const idx = slice.subCategories.findIndex((s) => s.id === input.id);
-    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    if (idx < 0)
+      throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
     const current = slice.subCategories[idx];
-    const nextCategoryId = input.companyDefaultCategoryId ?? current.companyDefaultCategoryId;
-    const nextName = (typeof input.name === 'string' ? input.name : current.name).trim();
+    const nextCategoryId =
+      input.companyDefaultCategoryId ?? current.companyDefaultCategoryId;
+    const nextName = (
+      typeof input.name === 'string' ? input.name : current.name
+    ).trim();
     const duplicate = slice.subCategories.find(
       (subCategory) =>
         subCategory.id !== input.id &&
@@ -889,14 +993,17 @@ export class LocalApi implements ProjexApi {
   ): Promise<void> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     writeState({
       ...st,
       companyDefaultsByCompanyId: {
         ...st.companyDefaultsByCompanyId,
         [companyId]: {
           ...slice,
-          subCategories: slice.subCategories.filter((s) => s.id !== subCategoryId),
+          subCategories: slice.subCategories.filter(
+            (s) => s.id !== subCategoryId
+          ),
           mappingRules: slice.mappingRules.filter(
             (rule) => rule.companyDefaultSubCategoryId !== subCategoryId
           ),
@@ -912,15 +1019,20 @@ export class LocalApi implements ProjexApi {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
     validateOrThrow(subCategoryNameSchema, input.matchText);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
-    const category = slice.categories.find((item) => item.id === input.companyDefaultCategoryId);
-    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const category = slice.categories.find(
+      (item) => item.id === input.companyDefaultCategoryId
+    );
+    if (!category)
+      throw new AppError('NOT_FOUND', 'Unknown company default category');
     const subCategory = slice.subCategories.find(
       (item) =>
         item.id === input.companyDefaultSubCategoryId &&
         item.companyDefaultCategoryId === input.companyDefaultCategoryId
     );
-    if (!subCategory) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    if (!subCategory)
+      throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
     const matchText = input.matchText.trim();
     const duplicate = slice.mappingRules.find(
       (rule) =>
@@ -939,7 +1051,10 @@ export class LocalApi implements ProjexApi {
       companyDefaultSubCategoryId: input.companyDefaultSubCategoryId,
       sortOrder:
         input.sortOrder ??
-        (slice.mappingRules.reduce((max, rule) => Math.max(max, rule.sortOrder), -1) + 1),
+        slice.mappingRules.reduce(
+          (max, rule) => Math.max(max, rule.sortOrder),
+          -1
+        ) + 1,
       createdAt: now,
       updatedAt: now,
     };
@@ -959,9 +1074,11 @@ export class LocalApi implements ProjexApi {
   ): Promise<CompanyDefaultMappingRule> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     const idx = slice.mappingRules.findIndex((rule) => rule.id === input.id);
-    if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown company default mapping rule');
+    if (idx < 0)
+      throw new AppError('NOT_FOUND', 'Unknown company default mapping rule');
     const current = slice.mappingRules[idx];
     if (typeof input.matchText === 'string') {
       validateOrThrow(subCategoryNameSchema, input.matchText);
@@ -972,15 +1089,22 @@ export class LocalApi implements ProjexApi {
       input.companyDefaultCategoryId ??
       defaultCategoryIdForRule(nextSubCategoryId, slice.subCategories) ??
       current.companyDefaultCategoryId;
-    const category = slice.categories.find((item) => item.id === nextCategoryId);
-    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    const category = slice.categories.find(
+      (item) => item.id === nextCategoryId
+    );
+    if (!category)
+      throw new AppError('NOT_FOUND', 'Unknown company default category');
     const subCategory = slice.subCategories.find(
       (item) =>
-        item.id === nextSubCategoryId && item.companyDefaultCategoryId === nextCategoryId
+        item.id === nextSubCategoryId &&
+        item.companyDefaultCategoryId === nextCategoryId
     );
-    if (!subCategory) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    if (!subCategory)
+      throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
     const nextMatchText =
-      typeof input.matchText === 'string' ? input.matchText.trim() : current.matchText;
+      typeof input.matchText === 'string'
+        ? input.matchText.trim()
+        : current.matchText;
     const duplicate = slice.mappingRules.find(
       (rule) =>
         rule.id !== input.id &&
@@ -1021,7 +1145,8 @@ export class LocalApi implements ProjexApi {
   ): Promise<void> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
-    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    const slice =
+      st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
     writeState({
       ...st,
       companyDefaultsByCompanyId: {
@@ -1034,14 +1159,17 @@ export class LocalApi implements ProjexApi {
     });
   }
 
-  async applyCompanyDefaultTaxonomy(projectId: ProjectId): Promise<ApplyCompanyDefaultsResult> {
+  async applyCompanyDefaultTaxonomy(
+    projectId: ProjectId
+  ): Promise<ApplyCompanyDefaultsResult> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
-    const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
+    const defaults =
+      st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
     const plan = planApplyCompanyDefaultTaxonomy({
       companyId: p.companyId,
       projectId,
@@ -1061,7 +1189,10 @@ export class LocalApi implements ProjexApi {
         [projectId]: {
           ...slice,
           categories: [...slice.categories, ...plan.categoriesToCreate],
-          subCategories: [...slice.subCategories, ...plan.subCategoriesToCreate],
+          subCategories: [
+            ...slice.subCategories,
+            ...plan.subCategoriesToCreate,
+          ],
         },
       },
     });
@@ -1085,7 +1216,10 @@ export class LocalApi implements ProjexApi {
     return st.dataByProjectId[projectId]?.subCategories ?? [];
   }
 
-  async createCategory(projectId: ProjectId, input: CategoryCreateInput): Promise<Category> {
+  async createCategory(
+    projectId: ProjectId,
+    input: CategoryCreateInput
+  ): Promise<Category> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
@@ -1096,7 +1230,9 @@ export class LocalApi implements ProjexApi {
 
     // Idempotency: categories are unique by name per project (case-insensitive).
     const nameKey = input.name.trim().toLowerCase();
-    const existing = slice.categories.find((c) => c.name.trim().toLowerCase() === nameKey);
+    const existing = slice.categories.find(
+      (c) => c.name.trim().toLowerCase() === nameKey
+    );
     if (existing) return existing;
 
     const id = input.id ?? asCategoryId(uid('cat'));
@@ -1112,7 +1248,10 @@ export class LocalApi implements ProjexApi {
     return next;
   }
 
-  async updateCategory(projectId: ProjectId, input: CategoryUpdateInput): Promise<Category> {
+  async updateCategory(
+    projectId: ProjectId,
+    input: CategoryUpdateInput
+  ): Promise<Category> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
@@ -1124,17 +1263,27 @@ export class LocalApi implements ProjexApi {
     }
     const idx = slice.categories.findIndex((c) => c.id === input.id);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown category');
-    const updated: Category = { ...slice.categories[idx], ...input, updatedAt: this.nowIso() };
+    const updated: Category = {
+      ...slice.categories[idx],
+      ...input,
+      updatedAt: this.nowIso(),
+    };
     const categories = slice.categories.slice();
     categories[idx] = updated;
     writeState({
       ...st,
-      dataByProjectId: { ...st.dataByProjectId, [projectId]: { ...slice, categories } },
+      dataByProjectId: {
+        ...st.dataByProjectId,
+        [projectId]: { ...slice, categories },
+      },
     });
     return updated;
   }
 
-  async deleteCategory(projectId: ProjectId, categoryId: Category['id']): Promise<void> {
+  async deleteCategory(
+    projectId: ProjectId,
+    categoryId: Category['id']
+  ): Promise<void> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
@@ -1142,23 +1291,25 @@ export class LocalApi implements ProjexApi {
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
     const remainingCats = slice.categories.filter((c) => c.id !== categoryId);
-    const remainingSubs = slice.subCategories.filter((s) => s.categoryId !== categoryId);
+    const remainingSubs = slice.subCategories.filter(
+      (s) => s.categoryId !== categoryId
+    );
     // Clear references on budgets + transactions
     const budgets: BudgetLine[] = slice.budgets.map((b) =>
       b.categoryId === categoryId
-        ? ({ ...b, categoryId: undefined, subCategoryId: undefined })
+        ? { ...b, categoryId: undefined, subCategoryId: undefined }
         : b
     );
     const transactions: Txn[] = slice.transactions.map((t) =>
       t.categoryId === categoryId
-        ? ({
+        ? {
             ...t,
             categoryId: undefined,
             subCategoryId: undefined,
             companyDefaultMappingRuleId: undefined,
             codingSource: 'manual',
             codingPendingApproval: false,
-          })
+          }
         : t
     );
     writeState({
@@ -1191,7 +1342,9 @@ export class LocalApi implements ProjexApi {
     // Idempotency: subcategories are unique per (categoryId, name) within a project.
     const nameKey = input.name.trim().toLowerCase();
     const existing = slice.subCategories.find(
-      (s) => s.categoryId === input.categoryId && s.name.trim().toLowerCase() === nameKey
+      (s) =>
+        s.categoryId === input.categoryId &&
+        s.name.trim().toLowerCase() === nameKey
     );
     if (existing) return existing;
 
@@ -1202,7 +1355,10 @@ export class LocalApi implements ProjexApi {
       ...st,
       dataByProjectId: {
         ...st.dataByProjectId,
-        [projectId]: { ...slice, subCategories: [...slice.subCategories, next] },
+        [projectId]: {
+          ...slice,
+          subCategories: [...slice.subCategories, next],
+        },
       },
     });
     return next;
@@ -1223,39 +1379,49 @@ export class LocalApi implements ProjexApi {
     }
     const idx = slice.subCategories.findIndex((s) => s.id === input.id);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Unknown subcategory');
-    const updated: SubCategory = { ...slice.subCategories[idx], ...input, updatedAt: this.nowIso() };
+    const updated: SubCategory = {
+      ...slice.subCategories[idx],
+      ...input,
+      updatedAt: this.nowIso(),
+    };
     const subCategories = slice.subCategories.slice();
     subCategories[idx] = updated;
     writeState({
       ...st,
-      dataByProjectId: { ...st.dataByProjectId, [projectId]: { ...slice, subCategories } },
+      dataByProjectId: {
+        ...st.dataByProjectId,
+        [projectId]: { ...slice, subCategories },
+      },
     });
     return updated;
   }
 
-  async deleteSubCategory(projectId: ProjectId, subCategoryId: SubCategory['id']): Promise<void> {
+  async deleteSubCategory(
+    projectId: ProjectId,
+    subCategoryId: SubCategory['id']
+  ): Promise<void> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('taxonomy:edit', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
-    const subCategories = slice.subCategories.filter((s) => s.id !== subCategoryId);
+    const subCategories = slice.subCategories.filter(
+      (s) => s.id !== subCategoryId
+    );
     const budgets = slice.budgets.map((b) =>
-      b.subCategoryId === subCategoryId
-        ? ({ ...b, subCategoryId: undefined })
-        : b
+      b.subCategoryId === subCategoryId ? { ...b, subCategoryId: undefined } : b
     );
     const transactions = slice.transactions.map((t) =>
       t.subCategoryId === subCategoryId
-        ? ({
+        ? {
             ...t,
             categoryId: undefined,
             subCategoryId: undefined,
             companyDefaultMappingRuleId: undefined,
             codingSource: 'manual',
             codingPendingApproval: false,
-          })
+          }
         : t
     );
     writeState({
@@ -1274,7 +1440,10 @@ export class LocalApi implements ProjexApi {
     this.assertCan('project:view', p.companyId, projectId);
     return st.dataByProjectId[projectId]?.budgets ?? [];
   }
-  async createBudget(projectId: ProjectId, input: BudgetCreateInput): Promise<BudgetLine> {
+  async createBudget(
+    projectId: ProjectId,
+    input: BudgetCreateInput
+  ): Promise<BudgetLine> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
@@ -1286,7 +1455,9 @@ export class LocalApi implements ProjexApi {
     // Idempotency: budget lines are unique per (projectId, subCategoryId).
     // This mirrors a future DB uniqueness constraint and prevents duplicate
     // creation due to racing invalidations or optimistic UI.
-    const existingIdx = slice.budgets.findIndex((b) => b.subCategoryId === input.subCategoryId);
+    const existingIdx = slice.budgets.findIndex(
+      (b) => b.subCategoryId === input.subCategoryId
+    );
     if (existingIdx >= 0) {
       const existing = slice.budgets[existingIdx];
       // If the caller is trying to associate the subcategory to a different
@@ -1296,7 +1467,10 @@ export class LocalApi implements ProjexApi {
         budgets[existingIdx] = { ...existing, categoryId: input.categoryId };
         writeState({
           ...st,
-          dataByProjectId: { ...st.dataByProjectId, [projectId]: { ...slice, budgets } },
+          dataByProjectId: {
+            ...st.dataByProjectId,
+            [projectId]: { ...slice, budgets },
+          },
         });
         return budgets[existingIdx];
       }
@@ -1316,7 +1490,10 @@ export class LocalApi implements ProjexApi {
     return next;
   }
 
-  async updateBudget(projectId: ProjectId, input: BudgetUpdateInput): Promise<BudgetLine> {
+  async updateBudget(
+    projectId: ProjectId,
+    input: BudgetUpdateInput
+  ): Promise<BudgetLine> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
@@ -1328,17 +1505,27 @@ export class LocalApi implements ProjexApi {
     if (typeof input.allocatedCents !== 'undefined') {
       validateOrThrow(budgetAllocatedCentsSchema, input.allocatedCents);
     }
-    const updated: BudgetLine = { ...slice.budgets[idx], ...input, updatedAt: this.nowIso() };
+    const updated: BudgetLine = {
+      ...slice.budgets[idx],
+      ...input,
+      updatedAt: this.nowIso(),
+    };
     const budgets = slice.budgets.slice();
     budgets[idx] = updated;
     writeState({
       ...st,
-      dataByProjectId: { ...st.dataByProjectId, [projectId]: { ...slice, budgets } },
+      dataByProjectId: {
+        ...st.dataByProjectId,
+        [projectId]: { ...slice, budgets },
+      },
     });
     return updated;
   }
 
-  async deleteBudget(projectId: ProjectId, budgetId: BudgetLine['id']): Promise<void> {
+  async deleteBudget(
+    projectId: ProjectId,
+    budgetId: BudgetLine['id']
+  ): Promise<void> {
     const st = ensureState();
     const p = st.projects.find((x) => x.id === projectId);
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
@@ -1349,12 +1536,18 @@ export class LocalApi implements ProjexApi {
       ...st,
       dataByProjectId: {
         ...st.dataByProjectId,
-        [projectId]: { ...slice, budgets: slice.budgets.filter((b) => b.id !== budgetId) },
+        [projectId]: {
+          ...slice,
+          budgets: slice.budgets.filter((b) => b.id !== budgetId),
+        },
       },
     });
   }
 
-  async createProject(companyId: CompanyId, input: ProjectCreateInput): Promise<Project> {
+  async createProject(
+    companyId: CompanyId,
+    input: ProjectCreateInput
+  ): Promise<Project> {
     const st = ensureState();
     this.assertCan('company:edit', companyId);
     validateOrThrow(projectNameSchema, input.name);
@@ -1395,7 +1588,11 @@ export class LocalApi implements ProjexApi {
     if (typeof input.budgetTotalCents !== 'undefined') {
       validateOrThrow(projectBudgetTotalCentsSchema, input.budgetTotalCents);
     }
-    this.assertCan('project:edit', st.projects[idx].companyId, st.projects[idx].id);
+    this.assertCan(
+      'project:edit',
+      st.projects[idx].companyId,
+      st.projects[idx].id
+    );
     const updated: Project = { ...st.projects[idx], ...input };
     const projects = st.projects.slice();
     projects[idx] = updated;
@@ -1403,10 +1600,13 @@ export class LocalApi implements ProjexApi {
     return updated;
   }
 
-  async createCompany(input: Pick<Company, 'name'> & { id?: CompanyId }): Promise<Company> {
+  async createCompany(
+    input: Pick<Company, 'name'> & { id?: CompanyId }
+  ): Promise<Company> {
     const st = ensureState();
     const { userId } = this.requireSession();
-    if (!this.isSuperadmin(userId, st)) throw new AppError('FORBIDDEN', 'Forbidden');
+    if (!this.isSuperadmin(userId, st))
+      throw new AppError('FORBIDDEN', 'Forbidden');
     validateOrThrow(companyNameSchema, input.name);
 
     const id = input.id ?? asCompanyId(uid('co'));
@@ -1414,7 +1614,10 @@ export class LocalApi implements ProjexApi {
     writeState({
       ...st,
       companies: [...st.companies, next],
-      companyMemberships: [...st.companyMemberships, { companyId: id, userId, role: 'superadmin' }],
+      companyMemberships: [
+        ...st.companyMemberships,
+        { companyId: id, userId, role: 'superadmin' },
+      ],
       companyDefaultsByCompanyId: {
         ...st.companyDefaultsByCompanyId,
         [id]: { categories: [], subCategories: [] },
@@ -1441,7 +1644,8 @@ export class LocalApi implements ProjexApi {
   async deactivateCompany(companyId: CompanyId): Promise<void> {
     const st = ensureState();
     const { userId } = this.requireSession();
-    if (!this.isSuperadmin(userId, st)) throw new AppError('FORBIDDEN', 'Forbidden');
+    if (!this.isSuperadmin(userId, st))
+      throw new AppError('FORBIDDEN', 'Forbidden');
 
     const idx = st.companies.findIndex((c) => c.id === companyId);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Company not found');
@@ -1456,16 +1660,24 @@ export class LocalApi implements ProjexApi {
 
     // Deactivate all projects in the company
     const projects: Project[] = st.projects.map((p) =>
-      p.companyId === companyId && p.status !== 'archived' ? { ...p, status: 'archived' } : p
+      p.companyId === companyId && p.status !== 'archived'
+        ? { ...p, status: 'archived' }
+        : p
     );
 
     // Disable users that belong to this company (local-mode simplification).
     // In server mode you'll likely disable memberships instead of disabling the user globally.
-    const memberUserIds = new Set(st.companyMemberships.filter((m) => m.companyId === companyId).map((m) => m.userId));
+    const memberUserIds = new Set(
+      st.companyMemberships
+        .filter((m) => m.companyId === companyId)
+        .map((m) => m.userId)
+    );
     const users = st.users.map((u) => {
       if (!memberUserIds.has(u.id)) return u;
       // keep superadmin accounts usable
-      const isSuper = st.companyMemberships.some((m) => m.userId === u.id && m.role === 'superadmin');
+      const isSuper = st.companyMemberships.some(
+        (m) => m.userId === u.id && m.role === 'superadmin'
+      );
       if (isSuper) return u;
       return { ...u, disabled: true };
     });
@@ -1476,7 +1688,8 @@ export class LocalApi implements ProjexApi {
   async reactivateCompany(companyId: CompanyId): Promise<void> {
     const st = ensureState();
     const { userId } = this.requireSession();
-    if (!this.isSuperadmin(userId, st)) throw new AppError('FORBIDDEN', 'Forbidden');
+    if (!this.isSuperadmin(userId, st))
+      throw new AppError('FORBIDDEN', 'Forbidden');
 
     const idx = st.companies.findIndex((c) => c.id === companyId);
     if (idx < 0) throw new AppError('NOT_FOUND', 'Company not found');
@@ -1489,12 +1702,20 @@ export class LocalApi implements ProjexApi {
 
     // Reactivate all projects in the company
     const projects: Project[] = st.projects.map((p) =>
-      p.companyId === companyId && p.status !== 'active' ? { ...p, status: 'active' } : p
+      p.companyId === companyId && p.status !== 'active'
+        ? { ...p, status: 'active' }
+        : p
     );
 
     // Re-enable users that are members of this company (local-mode simplification).
-    const memberUserIds = new Set(st.companyMemberships.filter((m) => m.companyId === companyId).map((m) => m.userId));
-    const users = st.users.map((u) => (memberUserIds.has(u.id) ? { ...u, disabled: false } : u));
+    const memberUserIds = new Set(
+      st.companyMemberships
+        .filter((m) => m.companyId === companyId)
+        .map((m) => m.userId)
+    );
+    const users = st.users.map((u) =>
+      memberUserIds.has(u.id) ? { ...u, disabled: false } : u
+    );
 
     writeState({ ...st, companies, projects, users });
   }
@@ -1502,21 +1723,31 @@ export class LocalApi implements ProjexApi {
   async deleteCompany(companyId: CompanyId): Promise<void> {
     const st = ensureState();
     const { userId } = this.requireSession();
-    if (!this.isSuperadmin(userId, st)) throw new AppError('FORBIDDEN', 'Forbidden');
+    if (!this.isSuperadmin(userId, st))
+      throw new AppError('FORBIDDEN', 'Forbidden');
 
     const company = st.companies.find((c) => c.id === companyId);
     if (!company) throw new AppError('NOT_FOUND', 'Company not found');
     if (company.status !== 'deactivated') {
-      throw new AppError('VALIDATION_ERROR', 'Company must be deactivated before deletion');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Company must be deactivated before deletion'
+      );
     }
 
-    const projectIds = st.projects.filter((p) => p.companyId === companyId).map((p) => p.id);
+    const projectIds = st.projects
+      .filter((p) => p.companyId === companyId)
+      .map((p) => p.id);
     const projectIdSet = new Set(projectIds);
 
     const projects = st.projects.filter((p) => p.companyId !== companyId);
     const companies = st.companies.filter((c) => c.id !== companyId);
-    const companyMemberships = st.companyMemberships.filter((m) => m.companyId !== companyId);
-    const projectMemberships = st.projectMemberships.filter((m) => !projectIdSet.has(m.projectId));
+    const companyMemberships = st.companyMemberships.filter(
+      (m) => m.companyId !== companyId
+    );
+    const projectMemberships = st.projectMemberships.filter(
+      (m) => !projectIdSet.has(m.projectId)
+    );
     const companyDefaultsByCompanyId = { ...st.companyDefaultsByCompanyId };
     delete companyDefaultsByCompanyId[companyId];
 
@@ -1528,10 +1759,15 @@ export class LocalApi implements ProjexApi {
 
     const nextActiveCompanyId =
       st.activeCompanyId === companyId
-        ? (companies.find((candidate) => candidate.status === 'active') ?? companies[0])?.id
+        ? (
+            companies.find((candidate) => candidate.status === 'active') ??
+            companies[0]
+          )?.id
         : st.activeCompanyId;
     const nextActiveProjectId =
-      st.activeProjectId && projectIdSet.has(st.activeProjectId) ? null : st.activeProjectId;
+      st.activeProjectId && projectIdSet.has(st.activeProjectId)
+        ? null
+        : st.activeProjectId;
 
     writeState({
       ...st,
@@ -1572,7 +1808,10 @@ export class LocalApi implements ProjexApi {
     const company = st.companies.find((c) => c.id === p.companyId);
     if (!company) throw new AppError('NOT_FOUND', 'Company not found');
     if (company.status !== 'active') {
-      throw new AppError('VALIDATION_ERROR', 'Company must be active to reactivate a project');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Company must be active to reactivate a project'
+      );
     }
 
     if (p.status === 'active') return;
@@ -1589,11 +1828,16 @@ export class LocalApi implements ProjexApi {
     this.assertCan('company:edit', p.companyId);
 
     if (p.status !== 'archived') {
-      throw new AppError('VALIDATION_ERROR', 'Project must be deactivated before deletion');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Project must be deactivated before deletion'
+      );
     }
 
     const projects = st.projects.filter((x) => x.id !== projectId);
-    const projectMemberships = st.projectMemberships.filter((m) => m.projectId !== projectId);
+    const projectMemberships = st.projectMemberships.filter(
+      (m) => m.projectId !== projectId
+    );
 
     const dataByProjectId = { ...st.dataByProjectId };
     delete dataByProjectId[projectId];
@@ -1603,20 +1847,28 @@ export class LocalApi implements ProjexApi {
       projects,
       projectMemberships,
       dataByProjectId,
-      activeProjectId: st.activeProjectId === projectId ? null : st.activeProjectId,
+      activeProjectId:
+        st.activeProjectId === projectId ? null : st.activeProjectId,
     });
   }
 
   async createUserInCompany(
     companyId: CompanyId,
-    input: { name: string; email: string; role: CompanyRole; sendOnboardingEmail?: boolean }
+    input: {
+      name: string;
+      email: string;
+      role: CompanyRole;
+      sendOnboardingEmail?: boolean;
+    }
   ): Promise<CompanyUserInviteResult> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
     validateOrThrow(userNameSchema, input.name);
     validateOrThrow(emailSchema, input.email);
     const emailNorm = input.email.trim().toLowerCase();
-    const existingUser = st.users.find((u) => u.email.trim().toLowerCase() === emailNorm);
+    const existingUser = st.users.find(
+      (u) => u.email.trim().toLowerCase() === emailNorm
+    );
     const next: User = existingUser ?? {
       id: asUserId(uid('usr')),
       name: input.name.trim(),
@@ -1638,13 +1890,19 @@ export class LocalApi implements ProjexApi {
     };
   }
 
-  async sendCompanyUserInviteEmail(companyId: CompanyId, userId: UserId): Promise<CompanyUserInviteResult> {
+  async sendCompanyUserInviteEmail(
+    companyId: CompanyId,
+    userId: UserId
+  ): Promise<CompanyUserInviteResult> {
     const st = ensureState();
     this.assertCan('company:manage_members', companyId);
     const user = st.users.find((u) => u.id === userId);
     if (!user) throw new AppError('NOT_FOUND', 'User not found');
-    const hasMembership = st.companyMemberships.some((m) => m.companyId === companyId && m.userId === userId);
-    if (!hasMembership) throw new AppError('NOT_FOUND', 'User is not a member of this company');
+    const hasMembership = st.companyMemberships.some(
+      (m) => m.companyId === companyId && m.userId === userId
+    );
+    if (!hasMembership)
+      throw new AppError('NOT_FOUND', 'User is not a member of this company');
     return {
       user,
       createdAuthUser: false,
@@ -1664,70 +1922,52 @@ export class LocalApi implements ProjexApi {
     this.assertCan('project:import', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
     if (!slice) throw new AppError('NOT_FOUND', 'Unknown project');
-    const normalizedIncoming = input.txns.map((t) => {
-      if (t.projectId !== projectId) {
-        throw new AppError('VALIDATION_ERROR', 'Transaction projectId does not match import target');
-      }
-      if (t.companyId !== p.companyId) {
-        throw new AppError('VALIDATION_ERROR', 'Transaction companyId does not match project company');
-      }
-      return {
-        ...t,
-        externalId: normalizeExternalId(t.externalId),
-      };
-    });
-    const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
-    const autoMappedIncoming = normalizedIncoming.map((txn) =>
-      mapImportedTransactionWithCompanyDefaults({
-        txn,
-        rules: defaults.mappingRules,
-        defaultCategories: defaults.categories,
-        defaultSubCategories: defaults.subCategories,
-        projectCategories: slice.categories,
-        projectSubCategories: slice.subCategories,
-      })
-    );
-    autoMappedIncoming.forEach((txn) => validateOrThrow(txnInputSchema, txn));
+    const defaults =
+      st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
 
     let budgets = slice.budgets;
+    const plan = planTransactionImportCommit({
+      projectId,
+      companyId: p.companyId,
+      incomingTransactions: input.txns,
+      existingTransactions: slice.transactions,
+      existingBudgets: slice.budgets,
+      defaultCategories: defaults.categories,
+      defaultSubCategories: defaults.subCategories,
+      mappingRules: defaults.mappingRules,
+      projectCategories: slice.categories,
+      projectSubCategories: slice.subCategories,
+      mode: input.mode,
+      autoCreateBudgets: Boolean(input.autoCreateBudgets),
+    });
+
     if (input.autoCreateBudgets) {
       this.assertCan('budget:edit', p.companyId, projectId);
-      const existingBudgetSubIds = new Set(
-        budgets.map((budget) => budget.subCategoryId).filter((id): id is SubCategory['id'] => Boolean(id))
-      );
-      const nextBudgets = budgets.slice();
-      for (const txn of autoMappedIncoming) {
-        if (!txn.categoryId || !txn.subCategoryId || existingBudgetSubIds.has(txn.subCategoryId)) continue;
-        existingBudgetSubIds.add(txn.subCategoryId);
-        nextBudgets.push({
-          id: asBudgetLineId(uid('bud')),
-          companyId: p.companyId,
-          projectId,
-          categoryId: txn.categoryId,
-          subCategoryId: txn.subCategoryId,
-          allocatedCents: 0,
-          createdAt: this.nowIso(),
-          updatedAt: this.nowIso(),
-        });
+      if (plan.budgetTargetsToCreate.length) {
+        budgets = [
+          ...budgets,
+          ...plan.budgetTargetsToCreate.map((target) => ({
+            id: asBudgetLineId(uid('bud')),
+            companyId: p.companyId,
+            projectId,
+            categoryId: target.categoryId,
+            subCategoryId: target.subCategoryId,
+            allocatedCents: 0,
+            createdAt: this.nowIso(),
+            updatedAt: this.nowIso(),
+          })),
+        ];
       }
-      budgets = nextBudgets;
     }
-
-    const nextTxns =
-      input.mode === 'replaceAll'
-        ? autoMappedIncoming
-        : [...slice.transactions, ...autoMappedIncoming];
-
-    assertUniqueTransactionKeysInProject(nextTxns);
 
     writeState({
       ...st,
       dataByProjectId: {
         ...st.dataByProjectId,
-        [projectId]: { ...slice, transactions: nextTxns, budgets },
+        [projectId]: { ...slice, transactions: plan.nextTransactions, budgets },
       },
     });
-    return { count: autoMappedIncoming.length };
+    return { count: plan.importedTransactions.length };
   }
 
   async previewImportTransactions(
@@ -1763,7 +2003,8 @@ export class LocalApi implements ProjexApi {
         projectMemberships: st.projectMemberships,
       });
 
-    const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
+    const defaults =
+      st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
 
     return planImportPreview({
       csvText: input.csvText,
@@ -1791,9 +2032,12 @@ export class LocalApi implements ProjexApi {
     const st = ensureState();
     // Superadmin should be able to jump into any company. Default to the first "real" company.
     if (this.isSuperadmin(userId, st)) {
-      const preferred = st.companies.find((c) => c.status === 'active' && c.id !== asCompanyId('co_projex'))
-        ?? st.companies.find((c) => c.status === 'active')
-        ?? st.companies[0];
+      const preferred =
+        st.companies.find(
+          (c) => c.status === 'active' && c.id !== asCompanyId('co_projex')
+        ) ??
+        st.companies.find((c) => c.status === 'active') ??
+        st.companies[0];
       return preferred?.id ?? null;
     }
 
@@ -1803,6 +2047,9 @@ export class LocalApi implements ProjexApi {
       if (c && c.status === 'active') return primary.companyId;
     }
 
-    return (st.companies.find((c) => c.status === 'active') ?? st.companies[0])?.id ?? null;
+    return (
+      (st.companies.find((c) => c.status === 'active') ?? st.companies[0])
+        ?.id ?? null
+    );
   }
 }
