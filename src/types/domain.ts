@@ -143,6 +143,27 @@ export type BudgetLine = {
   updatedAt?: string;
 };
 
+export type CompanySummaryMonth = {
+  monthKey: string;
+  actualCodedCents: number;
+  uncodedCount: number;
+  uncodedAmountCents: number;
+};
+
+export type CompanySummaryProject = {
+  id: ProjectId;
+  name: string;
+  status: Project['status'];
+  visibility: ProjectVisibility;
+  currency: Project['currency'];
+  budgetCents: number;
+  months: CompanySummaryMonth[];
+};
+
+export type CompanySummary = {
+  projects: CompanySummaryProject[];
+};
+
 export type RollupRow = BudgetLine & {
   categoryName: string;
   subCategoryName: string;

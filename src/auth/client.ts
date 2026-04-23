@@ -1,3 +1,5 @@
+import { betterAuthLikePayloadSchema } from '../validation/responseSchemas';
+
 type AuthError = {
   code?: string;
   message?: string;
@@ -21,11 +23,12 @@ function authUrl(path: string): string {
   return new URL(path, configuredBaseURL).toString();
 }
 
-function parseAuthBody<T>(text: string): (T & { error?: AuthError; message?: string }) | null {
+function parseAuthBody(text: string): { error?: AuthError; message?: string } | Record<string, unknown> | null {
   if (!text) return null;
 
   try {
-    return JSON.parse(text) as T & { error?: AuthError; message?: string };
+    const parsed = betterAuthLikePayloadSchema.safeParse(JSON.parse(text) as unknown);
+    return parsed.success ? (parsed.data as Record<string, unknown> | null) : null;
   } catch {
     return null;
   }
@@ -42,17 +45,25 @@ async function authFetch<T>(path: string, init?: RequestInit): Promise<AuthResul
   });
 
   const text = await res.text();
-  const body = parseAuthBody<T>(text);
+  const body = parseAuthBody(text);
 
   if (!res.ok) {
+    const authError =
+      body && typeof body === 'object' && 'error' in body && body.error && typeof body.error === 'object'
+        ? (body.error as AuthError)
+        : null;
+    const authMessage =
+      body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+        ? body.message
+        : null;
     return {
       data: null,
-      error: body?.error ?? { message: body?.message ?? `Request failed (${res.status})` },
+      error: authError ?? { message: authMessage ?? `Request failed (${res.status})` },
     };
   }
 
   return {
-    data: body as T,
+    data: (body as T | null) ?? null,
     error: null,
   };
 }

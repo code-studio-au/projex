@@ -1,5 +1,4 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { useQueries } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
   Badge,
@@ -15,13 +14,11 @@ import {
   type MRT_ColumnDef,
 } from 'mantine-react-table';
 
-import type { BudgetLine, CompanyId, Project, SubCategory, Txn } from '../types';
-import { useApi } from '../hooks/useApi';
-import { useQueryScopeUserId } from '../queries/scope';
-import { qk } from '../queries/keys';
+import type { CompanyId, Project } from '../types';
 import { formatCurrencyFromCents } from '../utils/money';
-import { monthKeyFromStart, monthStart, parseISODate, sum } from '../utils/finance';
+import { sum } from '../utils/finance';
 import { projectRoute } from '../router';
+import { useCompanySummaryQuery } from '../queries/reference';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
@@ -124,49 +121,28 @@ function SummaryDrilldownLink(props: {
 
 export default function CompanySummaryPanel(props: {
   companyId: CompanyId;
-  projects: Project[];
   isMobile?: boolean;
 }) {
-  const { companyId, projects, isMobile = false } = props;
-  const api = useApi();
-  const scopeUserId = useQueryScopeUserId();
+  const { companyId, isMobile = false } = props;
+  const companySummaryQ = useCompanySummaryQuery(companyId);
   const [yearFilter, setYearFilter] = useState<string | null>(null);
   const [quarterFilter, setQuarterFilter] = useState<QuarterOption | null>(null);
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(null);
-
-  const projectDataQueries = useQueries({
-    queries: projects.flatMap((project) => [
-      {
-        queryKey: qk.transactions(scopeUserId, project.id),
-        queryFn: () => api.listTransactions(project.id),
-      },
-      {
-        queryKey: qk.budgets(scopeUserId, project.id),
-        queryFn: () => api.listBudgets(project.id),
-      },
-      {
-        queryKey: qk.subCategories(scopeUserId, project.id),
-        queryFn: () => api.listSubCategories(project.id),
-      },
-    ]),
-  });
-
-  const isLoading = projectDataQueries.some((query) => query.isLoading);
+  const summaryProjects = useMemo(
+    () => companySummaryQ.data?.projects ?? [],
+    [companySummaryQ.data]
+  );
+  const isLoading = companySummaryQ.isLoading;
 
   const allMonthKeys = useMemo(() => {
     const keys = new Set<string>();
-    for (let index = 0; index < projects.length; index += 1) {
-      const transactions = (projectDataQueries[index * 3]?.data as Txn[] | undefined) ?? [];
-      for (const txn of transactions) {
-        try {
-          keys.add(monthKeyFromStart(monthStart(parseISODate(txn.date))));
-        } catch {
-          // Ignore invalid dates in the month filter options.
-        }
+    for (const project of summaryProjects) {
+      for (const month of project.months) {
+        keys.add(month.monthKey);
       }
     }
     return [...keys].sort((a, b) => b.localeCompare(a));
-  }, [projectDataQueries, projects.length]);
+  }, [summaryProjects]);
 
   const yearFilterOptions = useMemo(() => {
     const years = new Set(allMonthKeys.map((key) => key.slice(0, 4)));
@@ -202,57 +178,34 @@ export default function CompanySummaryPanel(props: {
   }, [allMonthKeys, quarterFilter, yearFilter]);
 
   const rows = useMemo<ProjectSummaryRow[]>(() => {
-    return projects.map((project, index) => {
-      const transactions = (projectDataQueries[index * 3]?.data as Txn[] | undefined) ?? [];
-      const budgets = (projectDataQueries[index * 3 + 1]?.data as BudgetLine[] | undefined) ?? [];
-      const subCategories =
-        (projectDataQueries[index * 3 + 2]?.data as SubCategory[] | undefined) ?? [];
-      const validSubIds = new Set(subCategories.map((subCategory) => subCategory.id));
-      const visibleTransactions = transactions.filter((txn) => {
-        try {
-          const txnMonthKey = monthKeyFromStart(monthStart(parseISODate(txn.date)));
-          if (monthFilterKey) return txnMonthKey === monthFilterKey;
-          if (yearFilter && !txnMonthKey.startsWith(`${yearFilter}-`)) return false;
-          if (quarterFilter) {
-            const month = Number(txnMonthKey.slice(5, 7));
-            const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
-            if (quarter !== quarterFilter) return false;
-          }
-          return true;
-        } catch {
-          return false;
-        }
+    return summaryProjects.map((project) => {
+      const visibleMonths = project.months.filter((month) => {
+        if (monthFilterKey) return month.monthKey === monthFilterKey;
+        if (yearFilter && !month.monthKey.startsWith(`${yearFilter}-`)) return false;
+        if (!quarterFilter) return true;
+        const monthNumber = Number(month.monthKey.slice(5, 7));
+        const quarter = monthNumber <= 3 ? 'Q1' : monthNumber <= 6 ? 'Q2' : monthNumber <= 9 ? 'Q3' : 'Q4';
+        return quarter === quarterFilter;
       });
-      const codedTransactions = visibleTransactions.filter(
-        (txn) => txn.subCategoryId && validSubIds.has(txn.subCategoryId)
-      );
-      const uncodedTransactions = visibleTransactions.filter(
-        (txn) => !txn.subCategoryId || !validSubIds.has(txn.subCategoryId)
-      );
 
-      const budgetCents = sum(budgets.map((budget) => budget.allocatedCents));
-      const actualCodedCents = sum(
-        codedTransactions.map((txn) => Math.abs(txn.amountCents ?? 0))
-      );
-      const uncodedAmountCents = sum(
-        uncodedTransactions.map((txn) => Math.abs(txn.amountCents ?? 0))
-      );
-
+      const actualCodedCents = sum(visibleMonths.map((month) => month.actualCodedCents));
+      const uncodedCount = sum(visibleMonths.map((month) => month.uncodedCount));
+      const uncodedAmountCents = sum(visibleMonths.map((month) => month.uncodedAmountCents));
       return {
         id: project.id,
         name: project.name,
         status: project.status,
         visibility: project.visibility,
         currency: project.currency,
-        budgetCents,
+        budgetCents: project.budgetCents,
         actualCodedCents,
-        remainingCents: budgetCents - actualCodedCents,
-        uncodedCount: uncodedTransactions.length,
+        remainingCents: project.budgetCents - actualCodedCents,
+        uncodedCount,
         uncodedAmountCents,
-        isOverBudget: actualCodedCents > budgetCents,
+        isOverBudget: actualCodedCents > project.budgetCents,
       };
     });
-  }, [monthFilterKey, projectDataQueries, projects, quarterFilter, yearFilter]);
+  }, [monthFilterKey, quarterFilter, summaryProjects, yearFilter]);
 
   const activeRows = useMemo(
     () => rows.filter((row) => row.status === 'active'),

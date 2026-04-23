@@ -23,6 +23,7 @@ import {
   createUserInCompanyServer,
   sendCompanyUserInviteEmailServer,
   getCompanyServer,
+  getCompanySummaryServer,
   getDefaultCompanyIdForUserServer,
   listCompaniesServer,
   listUsersServer,
@@ -138,6 +139,9 @@ export class StartServerApi implements ProjexApi {
   }
   async getCompany(companyId: CompanyId) {
     return getCompanyServer({ context: this.context, companyId });
+  }
+  async getCompanySummary(companyId: CompanyId) {
+    return getCompanySummaryServer({ context: this.context, companyId });
   }
   async getProject(projectId: ProjectId) {
     return getProjectServer({ context: this.context, projectId });

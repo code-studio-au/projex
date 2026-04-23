@@ -47,6 +47,27 @@ export const companyResponseSchema = z.object({
 
 export const companiesResponseSchema = z.array(companyResponseSchema);
 
+export const companySummaryMonthResponseSchema = z.object({
+  monthKey: z.string(),
+  actualCodedCents: z.number(),
+  uncodedCount: z.number().int().nonnegative(),
+  uncodedAmountCents: z.number(),
+});
+
+export const companySummaryProjectResponseSchema = z.object({
+  id: projectIdSchema,
+  name: z.string(),
+  status: z.enum(['active', 'archived']),
+  visibility: z.enum(['company', 'private']),
+  currency: z.enum(['AUD', 'USD', 'EUR', 'GBP']),
+  budgetCents: z.number(),
+  months: z.array(companySummaryMonthResponseSchema),
+});
+
+export const companySummaryResponseSchema = z.object({
+  projects: z.array(companySummaryProjectResponseSchema),
+});
+
 export const projectResponseSchema = z.object({
   id: projectIdSchema,
   companyId: companyIdSchema,
@@ -256,6 +277,13 @@ export const applyCompanyDefaultsResultResponseSchema = z.object({
 
 export const betterAuthLikePayloadSchema = z
   .object({
+    error: z
+      .object({
+        code: z.string().optional(),
+        message: z.string().optional(),
+      })
+      .optional(),
+    message: z.string().optional(),
     userId: z.string().nullable().optional(),
     user: z
       .object({

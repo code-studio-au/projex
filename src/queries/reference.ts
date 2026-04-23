@@ -38,6 +38,17 @@ export function useCompanyQuery(companyId: CompanyId) {
   });
 }
 
+export function useCompanySummaryQuery(companyId: CompanyId) {
+  const api = useApi();
+  const scopeUserId = useQueryScopeUserId();
+  const session = useSessionQuery();
+  return useQuery({
+    enabled: !!session.data?.userId,
+    queryKey: qk.companySummary(scopeUserId, companyId),
+    queryFn: () => api.getCompanySummary(companyId),
+  });
+}
+
 export function useProjectsQuery(companyId: CompanyId) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();

@@ -3,7 +3,7 @@ import { sql } from 'kysely';
 
 import { AppError } from '../../api/errors';
 import type { CompanyUpdateInput, CompanyUserInviteResult, ProfileUpdateInput } from '../../api/types';
-import type { Company, CompanyId, CompanyRole, User, UserId } from '../../types';
+import type { Company, CompanyId, CompanyRole, CompanySummary, CompanySummaryProject, ProjectId, User, UserId } from '../../types';
 import { asCompanyId, asUserId } from '../../types';
 import { uid } from '../../utils/id';
 import { companyNameSchema, emailSchema, userNameSchema } from '../../validation/schemas';
@@ -12,6 +12,7 @@ import { requireAuthorized } from '../auth/authorize';
 import { getBetterAuthInstance } from '../auth/betterAuthInstance';
 import { getAuthEmailDeliveryMode } from '../auth/email.ts';
 import { getDb } from '../db/db';
+import { listProjectsServer } from './projects';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -310,6 +311,138 @@ export async function getCompanyServer(args: {
     if (!company) return null;
     if (!isSuperadmin && company.status === 'deactivated') return null;
     return toCompany(company);
+  });
+}
+
+export async function getCompanySummaryServer(args: {
+  context: ServerFnContextInput;
+  companyId: CompanyId;
+}): Promise<CompanySummary> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const db = getDb();
+    const userId = await requireServerUserId(args.context);
+    const isSuperadmin = await isSuperadminUser(userId);
+    const companyRole = isSuperadmin
+      ? 'superadmin'
+      : (
+          await db
+            .selectFrom('company_memberships')
+            .select('role')
+            .where('company_id', '=', args.companyId)
+            .where('user_id', '=', userId)
+            .executeTakeFirst()
+        )?.role ?? null;
+
+    if (!isSuperadmin && companyRole !== 'admin' && companyRole !== 'executive') {
+      throw new AppError('FORBIDDEN', 'Company summary access requires admin or executive role');
+    }
+
+    const projects = await listProjectsServer({ context: args.context, companyId: args.companyId });
+    if (!projects.length) return { projects: [] };
+
+    const projectIds = projects.map((project) => project.id);
+
+    const budgetRows = await db
+      .selectFrom('budget_lines')
+      .select(['project_id', 'allocated_cents'])
+      .where('project_id', 'in', projectIds)
+      .execute();
+
+    const subCategoryRows = await db
+      .selectFrom('sub_categories')
+      .select(['project_id', 'id'])
+      .where('project_id', 'in', projectIds)
+      .execute();
+
+    const txnRows = await db
+      .selectFrom('txns')
+      .select(['project_id', 'txn_date', 'amount_cents', 'sub_category_id'])
+      .where('project_id', 'in', projectIds)
+      .execute();
+
+    const budgetTotals = new Map<ProjectId, number>();
+    for (const row of budgetRows) {
+      const projectId = row.project_id as ProjectId;
+      budgetTotals.set(projectId, (budgetTotals.get(projectId) ?? 0) + Number(row.allocated_cents));
+    }
+
+    const validSubIdsByProject = new Map<ProjectId, Set<string>>();
+    for (const row of subCategoryRows) {
+      const projectId = row.project_id as ProjectId;
+      const current = validSubIdsByProject.get(projectId) ?? new Set<string>();
+      current.add(row.id);
+      validSubIdsByProject.set(projectId, current);
+    }
+
+    const monthBucketsByProject = new Map<
+      ProjectId,
+      Map<
+        string,
+        {
+          actualCodedCents: number;
+          uncodedCount: number;
+          uncodedAmountCents: number;
+        }
+      >
+    >();
+
+    for (const row of txnRows) {
+      const monthKey = /^\d{4}-\d{2}/.test(row.txn_date) ? row.txn_date.slice(0, 7) : null;
+      if (!monthKey) continue;
+      const projectId = row.project_id as ProjectId;
+      const projectBuckets =
+        monthBucketsByProject.get(projectId) ??
+        new Map<
+          string,
+          {
+            actualCodedCents: number;
+            uncodedCount: number;
+            uncodedAmountCents: number;
+          }
+        >();
+      const bucket = projectBuckets.get(monthKey) ?? {
+        actualCodedCents: 0,
+        uncodedCount: 0,
+        uncodedAmountCents: 0,
+      };
+      const amount = Math.abs(Number(row.amount_cents ?? 0));
+      const validSubIds = validSubIdsByProject.get(projectId) ?? new Set<string>();
+      if (row.sub_category_id && validSubIds.has(row.sub_category_id)) {
+        bucket.actualCodedCents += amount;
+      } else {
+        bucket.uncodedCount += 1;
+        bucket.uncodedAmountCents += amount;
+      }
+      projectBuckets.set(monthKey, bucket);
+      monthBucketsByProject.set(projectId, projectBuckets);
+    }
+
+    const summaryProjects: CompanySummaryProject[] = projects.map((project) => {
+      const monthBuckets =
+        monthBucketsByProject.get(project.id) ??
+        new Map<
+          string,
+          {
+            actualCodedCents: number;
+            uncodedCount: number;
+            uncodedAmountCents: number;
+          }
+        >();
+      return {
+        id: project.id,
+        name: project.name,
+        status: project.status,
+        visibility: project.visibility,
+        currency: project.currency,
+        budgetCents: budgetTotals.get(project.id) ?? 0,
+        months: [...monthBuckets.entries()]
+          .sort(([a], [b]) => b.localeCompare(a))
+          .map(([monthKey, bucket]) => ({ monthKey, ...bucket })),
+      };
+    });
+
+    return { projects: summaryProjects };
   });
 }
 

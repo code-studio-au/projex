@@ -46,6 +46,7 @@ import { Route as ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRouteImport } f
 import { Route as ApiMeEmailChangeResendRouteImport } from './routes/api.me.email-change.resend'
 import { Route as ApiMeEmailChangeConfirmRouteImport } from './routes/api.me.email-change.confirm'
 import { Route as ApiCompaniesCompanyIdUsersRouteImport } from './routes/api.companies.$companyId.users'
+import { Route as ApiCompaniesCompanyIdSummaryRouteImport } from './routes/api.companies.$companyId.summary'
 import { Route as ApiCompaniesCompanyIdReactivateRouteImport } from './routes/api.companies.$companyId.reactivate'
 import { Route as ApiCompaniesCompanyIdProjectsRouteImport } from './routes/api.companies.$companyId.projects'
 import { Route as ApiCompaniesCompanyIdMyProjectMembershipsRouteImport } from './routes/api.companies.$companyId.my-project-memberships'
@@ -259,6 +260,12 @@ const ApiCompaniesCompanyIdUsersRoute =
     path: '/users',
     getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
+const ApiCompaniesCompanyIdSummaryRoute =
+  ApiCompaniesCompanyIdSummaryRouteImport.update({
+    id: '/summary',
+    path: '/summary',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
 const ApiCompaniesCompanyIdReactivateRoute =
   ApiCompaniesCompanyIdReactivateRouteImport.update({
     id: '/reactivate',
@@ -407,6 +414,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
+  '/api/companies/$companyId/summary': typeof ApiCompaniesCompanyIdSummaryRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
@@ -463,6 +471,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
+  '/api/companies/$companyId/summary': typeof ApiCompaniesCompanyIdSummaryRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
@@ -522,6 +531,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
+  '/api/companies/$companyId/summary': typeof ApiCompaniesCompanyIdSummaryRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
@@ -581,6 +591,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/my-project-memberships'
     | '/api/companies/$companyId/projects'
     | '/api/companies/$companyId/reactivate'
+    | '/api/companies/$companyId/summary'
     | '/api/companies/$companyId/users'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
@@ -637,6 +648,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/my-project-memberships'
     | '/api/companies/$companyId/projects'
     | '/api/companies/$companyId/reactivate'
+    | '/api/companies/$companyId/summary'
     | '/api/companies/$companyId/users'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
@@ -695,6 +707,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/my-project-memberships'
     | '/api/companies/$companyId/projects'
     | '/api/companies/$companyId/reactivate'
+    | '/api/companies/$companyId/summary'
     | '/api/companies/$companyId/users'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
@@ -1004,6 +1017,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCompaniesCompanyIdUsersRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
+    '/api/companies/$companyId/summary': {
+      id: '/api/companies/$companyId/summary'
+      path: '/summary'
+      fullPath: '/api/companies/$companyId/summary'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdSummaryRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
     '/api/companies/$companyId/reactivate': {
       id: '/api/companies/$companyId/reactivate'
       path: '/reactivate'
@@ -1239,6 +1259,7 @@ interface ApiCompaniesCompanyIdRouteChildren {
   ApiCompaniesCompanyIdMyProjectMembershipsRoute: typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   ApiCompaniesCompanyIdProjectsRoute: typeof ApiCompaniesCompanyIdProjectsRoute
   ApiCompaniesCompanyIdReactivateRoute: typeof ApiCompaniesCompanyIdReactivateRoute
+  ApiCompaniesCompanyIdSummaryRoute: typeof ApiCompaniesCompanyIdSummaryRoute
   ApiCompaniesCompanyIdUsersRoute: typeof ApiCompaniesCompanyIdUsersRouteWithChildren
 }
 
@@ -1255,6 +1276,7 @@ const ApiCompaniesCompanyIdRouteChildren: ApiCompaniesCompanyIdRouteChildren = {
     ApiCompaniesCompanyIdMyProjectMembershipsRoute,
   ApiCompaniesCompanyIdProjectsRoute: ApiCompaniesCompanyIdProjectsRoute,
   ApiCompaniesCompanyIdReactivateRoute: ApiCompaniesCompanyIdReactivateRoute,
+  ApiCompaniesCompanyIdSummaryRoute: ApiCompaniesCompanyIdSummaryRoute,
   ApiCompaniesCompanyIdUsersRoute: ApiCompaniesCompanyIdUsersRouteWithChildren,
 }
 

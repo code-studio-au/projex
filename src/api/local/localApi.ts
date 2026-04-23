@@ -6,6 +6,8 @@ import type {
   CompanyId,
   CompanyMembership,
   CompanyRole,
+  CompanySummary,
+  CompanySummaryProject,
   ProjectMembership,
   ProjectRole,
   Project,
@@ -393,6 +395,68 @@ export class LocalApi implements ProjexApi {
     if (!comp) return null;
     if (comp.status === 'deactivated' && !this.isSuperadmin(s.userId, st)) return null;
     return comp;
+  }
+
+  async getCompanySummary(companyId: CompanyId): Promise<CompanySummary> {
+    const st = ensureState();
+    const session = this.requireSession();
+    const company = st.companies.find((item) => item.id === companyId);
+    if (!company) throw new AppError('NOT_FOUND', 'Unknown company');
+
+    const isSuperadmin = this.isSuperadmin(session.userId, st);
+    const companyRole =
+      st.companyMemberships.find(
+        (membership) => membership.companyId === companyId && membership.userId === session.userId
+      )?.role ?? null;
+    if (!isSuperadmin && companyRole !== 'admin' && companyRole !== 'executive') {
+      throw new AppError('FORBIDDEN', 'Company summary access requires admin or executive role');
+    }
+
+    const projects = await this.listProjects(companyId);
+    const summaryProjects: CompanySummaryProject[] = projects.map((project) => {
+      const slice = st.dataByProjectId[project.id];
+      const validSubIds = new Set((slice?.subCategories ?? []).map((subCategory) => subCategory.id));
+      const months = new Map<
+        string,
+        {
+          actualCodedCents: number;
+          uncodedCount: number;
+          uncodedAmountCents: number;
+        }
+      >();
+
+      for (const txn of slice?.transactions ?? []) {
+        const monthKey = /^\d{4}-\d{2}/.test(txn.date) ? txn.date.slice(0, 7) : null;
+        if (!monthKey) continue;
+        const bucket = months.get(monthKey) ?? {
+          actualCodedCents: 0,
+          uncodedCount: 0,
+          uncodedAmountCents: 0,
+        };
+        const amount = Math.abs(txn.amountCents ?? 0);
+        if (txn.subCategoryId && validSubIds.has(txn.subCategoryId)) {
+          bucket.actualCodedCents += amount;
+        } else {
+          bucket.uncodedCount += 1;
+          bucket.uncodedAmountCents += amount;
+        }
+        months.set(monthKey, bucket);
+      }
+
+      return {
+        id: project.id,
+        name: project.name,
+        status: project.status,
+        visibility: project.visibility,
+        currency: project.currency,
+        budgetCents: (slice?.budgets ?? []).reduce((sum, budget) => sum + budget.allocatedCents, 0),
+        months: [...months.entries()]
+          .sort(([a], [b]) => b.localeCompare(a))
+          .map(([monthKey, bucket]) => ({ monthKey, ...bucket })),
+      };
+    });
+
+    return { projects: summaryProjects };
   }
 
   async listProjects(companyId: CompanyId): Promise<Project[]> {

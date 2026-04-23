@@ -8,6 +8,7 @@ import type {
   CompanyId,
   CompanyMembership,
   CompanyRole,
+  CompanySummary,
   Project,
   ProjectId,
   ProjectMembership,
@@ -186,6 +187,7 @@ export interface ProjexApi {
   listCompanies(): Promise<Company[]>;
   listProjects(companyId: CompanyId): Promise<Project[]>;
   getCompany(companyId: CompanyId): Promise<Company | null>;
+  getCompanySummary(companyId: CompanyId): Promise<CompanySummary>;
   getProject(projectId: ProjectId): Promise<Project | null>;
 
   // memberships / permissions

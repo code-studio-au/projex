@@ -10,6 +10,7 @@ import type {
   CompanyId,
   CompanyMembership,
   CompanyRole,
+  CompanySummary,
   Project,
   ProjectId,
   ProjectMembership,
@@ -59,6 +60,7 @@ import {
   companyDefaultSubCategoryResponseSchema,
   companyMembershipsResponseSchema,
   companyResponseSchema,
+  companySummaryResponseSchema,
   companyUserInviteResultResponseSchema,
   countResponseSchema,
   defaultCompanyResponseSchema,
@@ -230,6 +232,13 @@ export class ServerApi implements ProjexApi {
       `/api/companies/${encodeURIComponent(companyId)}`,
       undefined,
       companyResponseSchema.nullable()
+    );
+  }
+  async getCompanySummary(companyId: CompanyId): Promise<CompanySummary> {
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/summary`,
+      undefined,
+      companySummaryResponseSchema
     );
   }
   async getProject(projectId: ProjectId): Promise<Project | null> {

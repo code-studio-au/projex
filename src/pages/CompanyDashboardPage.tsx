@@ -343,7 +343,7 @@ export default function CompanyDashboardPage() {
 
         {canViewCompanySummary ? (
           <Tabs.Panel value="summary" pt="md">
-            <CompanySummaryPanel companyId={companyId} projects={sortedProjects} isMobile={isMobile} />
+            <CompanySummaryPanel companyId={companyId} isMobile={isMobile} />
           </Tabs.Panel>
         ) : null}
 
