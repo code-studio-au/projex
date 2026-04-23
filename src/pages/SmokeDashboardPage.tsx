@@ -28,6 +28,7 @@ import type {
   SmokeStepTemplate,
 } from '../types';
 import { smokeSectionDefinitions } from '../types';
+import { z } from 'zod';
 
 type SmokeStepView = SmokeStepTemplate & {
   status: SmokeStepStatus;
@@ -66,6 +67,70 @@ const RUN_ALL_RATE_LIMIT_SECTION_RETRIES = 2;
 const APP_HEADER_OFFSET_PX = 70;
 const RUN_ALL_FOCUS_OFFSET_PX = APP_HEADER_OFFSET_PX;
 const SECTION_SCROLL_MARGIN_TOP_PX = 320;
+
+const smokeStepResultSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  status: z.enum(['passed', 'failed', 'skipped']),
+  durationMs: z.number(),
+  error: z.string().optional(),
+  detail: z.string().optional(),
+});
+
+const smokeSectionResultSchema = z.object({
+  sectionId: z.enum([
+    'basics',
+    'appPages',
+    'emailChange',
+    'temporaryData',
+    'companyDefaults',
+    'inviteFlow',
+    'privacyChecks',
+  ]),
+  label: z.string(),
+  status: z.enum(['passed', 'failed', 'skipped']),
+  startedAt: z.string(),
+  finishedAt: z.string(),
+  durationMs: z.number(),
+  steps: z.array(smokeStepResultSchema),
+});
+
+const smokeStepStreamEventSchema = z.union([
+  z.object({
+    type: z.literal('step'),
+    sectionId: z.enum([
+      'basics',
+      'appPages',
+      'emailChange',
+      'temporaryData',
+      'companyDefaults',
+      'inviteFlow',
+      'privacyChecks',
+    ]),
+    step: smokeStepResultSchema,
+  }),
+  z.object({
+    type: z.literal('status'),
+    sectionId: z.enum([
+      'basics',
+      'appPages',
+      'emailChange',
+      'temporaryData',
+      'companyDefaults',
+      'inviteFlow',
+      'privacyChecks',
+    ]),
+    message: z.string(),
+  }),
+  z.object({
+    type: z.literal('result'),
+    result: smokeSectionResultSchema,
+  }),
+  z.object({
+    type: z.literal('error'),
+    message: z.string(),
+  }),
+]);
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString();
@@ -336,7 +401,12 @@ export default function SmokeDashboardPage() {
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed) continue;
-          const event = JSON.parse(trimmed) as SmokeStepStreamEvent;
+          let event: SmokeStepStreamEvent;
+          try {
+            event = smokeStepStreamEventSchema.parse(JSON.parse(trimmed));
+          } catch {
+            continue;
+          }
           if (event.type === 'step') {
             setViews((current) => {
               const existing = current[sectionId] ?? createIdleSection(sectionId);

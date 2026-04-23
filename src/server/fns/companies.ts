@@ -7,6 +7,7 @@ import type { Company, CompanyId, CompanyRole, CompanySummary, CompanySummaryPro
 import { asCompanyId, asUserId } from '../../types';
 import { uid } from '../../utils/id';
 import { companyNameSchema, emailSchema, userNameSchema } from '../../validation/schemas';
+import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas';
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
 import { getBetterAuthInstance } from '../auth/betterAuthInstance';
@@ -79,15 +80,12 @@ async function createBetterAuthUser(email: string, name: string): Promise<Better
       password: randomBytes(24).toString('hex'),
     },
   });
-  const payload = response as { user?: { id?: string; email?: string; name?: string } };
-  const userId = payload.user?.id?.trim();
-  if (!userId) {
-    throw new AppError('INTERNAL_ERROR', 'BetterAuth user creation returned no user id');
-  }
+  const payload = betterAuthSignUpResponseSchema.parse(response);
+  const userId = payload.user.id.trim();
   return {
     id: userId,
-    email: payload.user?.email?.trim() || email,
-    name: payload.user?.name?.trim() || name,
+    email: payload.user.email?.trim() || email,
+    name: payload.user.name?.trim() || name,
   };
 }
 

@@ -1,4 +1,5 @@
 import type { ProjectId } from '../types';
+import { z } from 'zod';
 
 /**
  * UI preference persistence.
@@ -30,22 +31,21 @@ export type BudgetCollapseState = {
   collapsedQuarters: Record<string, true>;
 };
 
+const trueRecordSchema = z.record(z.string(), z.literal(true));
+const budgetCollapseStateSchema = z.object({
+  collapsedYears: trueRecordSchema.default({}),
+  collapsedQuarters: trueRecordSchema.default({}),
+});
+
 export function loadBudgetCollapseState(
   projectId: ProjectId
 ): BudgetCollapseState | null {
   try {
     const raw = localStorage.getItem(budgetCollapseKey(projectId));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<BudgetCollapseState> | null;
-    if (!parsed) return null;
-
-    return {
-      collapsedYears: (parsed.collapsedYears ?? {}) as Record<string, true>,
-      collapsedQuarters: (parsed.collapsedQuarters ?? {}) as Record<
-        string,
-        true
-      >,
-    };
+    const parsed = budgetCollapseStateSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return null;
+    return parsed.data;
   } catch {
     return null;
   }

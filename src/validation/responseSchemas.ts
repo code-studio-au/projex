@@ -299,3 +299,11 @@ export const betterAuthLikePayloadSchema = z
       .optional(),
   })
   .nullable();
+
+export const betterAuthSignUpResponseSchema = z.object({
+  user: z.object({
+    id: z.string().trim().min(1),
+    email: z.string().email().optional(),
+    name: z.string().optional(),
+  }),
+});

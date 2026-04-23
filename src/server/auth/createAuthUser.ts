@@ -1,4 +1,5 @@
 import { getBetterAuthInstance } from './betterAuthInstance.ts';
+import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas';
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -21,17 +22,14 @@ async function run() {
       name,
     },
   });
-
-  const payload = response as {
-    user?: { id?: string; email?: string; name?: string };
-  };
+  const payload = betterAuthSignUpResponseSchema.parse(response);
   console.log(
     JSON.stringify(
       {
         ok: true,
-        userId: payload.user?.id ?? null,
-        email: payload.user?.email ?? email,
-        name: payload.user?.name ?? name,
+        userId: payload.user.id,
+        email: payload.user.email ?? email,
+        name: payload.user.name ?? name,
       },
       null,
       2
