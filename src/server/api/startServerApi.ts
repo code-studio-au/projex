@@ -67,6 +67,7 @@ import {
 } from '../fns/transactions';
 import {
   applyCompanyDefaultTaxonomyServer,
+  getCompanyDefaultsServer,
   createCompanyDefaultCategoryServer,
   createCompanyDefaultMappingRuleServer,
   createCompanyDefaultSubCategoryServer,
@@ -189,6 +190,9 @@ export class StartServerApi implements ProjexApi {
   }
 
   // taxonomy
+  async getCompanyDefaults(companyId: CompanyId) {
+    return getCompanyDefaultsServer({ context: this.context, companyId });
+  }
   async listCompanyDefaultCategories(companyId: CompanyId) {
     return listCompanyDefaultCategoriesServer({ context: this.context, companyId });
   }

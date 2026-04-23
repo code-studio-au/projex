@@ -21,9 +21,7 @@ import type {
   CompanyId,
 } from '../types';
 import {
-  useCompanyDefaultCategoriesQuery,
-  useCompanyDefaultMappingRulesQuery,
-  useCompanyDefaultSubCategoriesQuery,
+  useCompanyDefaultsQuery,
   useCreateCompanyDefaultMappingRuleMutation,
   useDeleteCompanyDefaultMappingRuleMutation,
   useUpdateCompanyDefaultMappingRuleMutation,
@@ -38,16 +36,17 @@ export default function CompanyDefaultMappingsModal(props: {
   const { opened, onClose, companyId, readOnly = false } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
 
-  const categoriesQ = useCompanyDefaultCategoriesQuery(companyId);
-  const subCategoriesQ = useCompanyDefaultSubCategoriesQuery(companyId);
-  const rulesQ = useCompanyDefaultMappingRulesQuery(companyId);
+  const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
   const createRule = useCreateCompanyDefaultMappingRuleMutation(companyId);
   const updateRule = useUpdateCompanyDefaultMappingRuleMutation(companyId);
   const deleteRule = useDeleteCompanyDefaultMappingRuleMutation(companyId);
 
-  const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data]);
-  const subCategories = useMemo(() => subCategoriesQ.data ?? [], [subCategoriesQ.data]);
-  const rules = rulesQ.data ?? [];
+  const categories = useMemo(() => companyDefaultsQ.data?.categories ?? [], [companyDefaultsQ.data]);
+  const subCategories = useMemo(
+    () => companyDefaultsQ.data?.subCategories ?? [],
+    [companyDefaultsQ.data]
+  );
+  const rules = companyDefaultsQ.data?.mappingRules ?? [];
 
   const categoryOptions = useMemo(
     () => categories.map((category) => ({ value: category.id, label: category.name })),

@@ -7,6 +7,8 @@ export const qk = {
   company: (userId: string, companyId: string) => ['company', userId, companyId] as const,
   companySummary: (userId: string, companyId: string) =>
     ['companySummary', userId, companyId] as const,
+  companyDefaults: (userId: string, companyId: string) =>
+    ['companyDefaults', userId, companyId] as const,
   companyMemberships: (userId: string, companyId: string) =>
     ['companyMemberships', userId, companyId] as const,
   allCompanyMemberships: (userId: string) => ['allCompanyMemberships', userId] as const,

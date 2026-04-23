@@ -164,6 +164,12 @@ export type CompanySummary = {
   projects: CompanySummaryProject[];
 };
 
+export type CompanyDefaults = {
+  categories: CompanyDefaultCategory[];
+  subCategories: CompanyDefaultSubCategory[];
+  mappingRules: CompanyDefaultMappingRule[];
+};
+
 export type RollupRow = BudgetLine & {
   categoryName: string;
   subCategoryName: string;

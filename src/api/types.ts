@@ -3,6 +3,7 @@ import type {
   Category,
   Company,
   CompanyDefaultCategory,
+  CompanyDefaults,
   CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
   CompanyId,
@@ -214,6 +215,7 @@ export interface ProjexApi {
   removeProjectMember(projectId: ProjectId, userId: UserId): Promise<void>;
 
   // taxonomy
+  getCompanyDefaults(companyId: CompanyId): Promise<CompanyDefaults>;
   listCompanyDefaultCategories(companyId: CompanyId): Promise<CompanyDefaultCategory[]>;
   listCompanyDefaultSubCategories(companyId: CompanyId): Promise<CompanyDefaultSubCategory[]>;
   listCompanyDefaultMappingRules(companyId: CompanyId): Promise<CompanyDefaultMappingRule[]>;

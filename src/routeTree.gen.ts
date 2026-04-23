@@ -51,6 +51,7 @@ import { Route as ApiCompaniesCompanyIdReactivateRouteImport } from './routes/ap
 import { Route as ApiCompaniesCompanyIdProjectsRouteImport } from './routes/api.companies.$companyId.projects'
 import { Route as ApiCompaniesCompanyIdMyProjectMembershipsRouteImport } from './routes/api.companies.$companyId.my-project-memberships'
 import { Route as ApiCompaniesCompanyIdMembershipsRouteImport } from './routes/api.companies.$companyId.memberships'
+import { Route as ApiCompaniesCompanyIdDefaultsRouteImport } from './routes/api.companies.$companyId.defaults'
 import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport } from './routes/api.companies.$companyId.default-sub-categories'
 import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRouteImport } from './routes/api.companies.$companyId.default-mapping-rules'
 import { Route as ApiCompaniesCompanyIdDefaultCategoriesRouteImport } from './routes/api.companies.$companyId.default-categories'
@@ -290,6 +291,12 @@ const ApiCompaniesCompanyIdMembershipsRoute =
     path: '/memberships',
     getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
+const ApiCompaniesCompanyIdDefaultsRoute =
+  ApiCompaniesCompanyIdDefaultsRouteImport.update({
+    id: '/defaults',
+    path: '/defaults',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
 const ApiCompaniesCompanyIdDefaultSubCategoriesRoute =
   ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport.update({
     id: '/default-sub-categories',
@@ -410,6 +417,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/default-categories': typeof ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren
   '/api/companies/$companyId/default-mapping-rules': typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
+  '/api/companies/$companyId/defaults': typeof ApiCompaniesCompanyIdDefaultsRoute
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
@@ -467,6 +475,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/default-categories': typeof ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren
   '/api/companies/$companyId/default-mapping-rules': typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
+  '/api/companies/$companyId/defaults': typeof ApiCompaniesCompanyIdDefaultsRoute
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
@@ -527,6 +536,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/default-categories': typeof ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren
   '/api/companies/$companyId/default-mapping-rules': typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
+  '/api/companies/$companyId/defaults': typeof ApiCompaniesCompanyIdDefaultsRoute
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
@@ -587,6 +597,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-categories'
     | '/api/companies/$companyId/default-mapping-rules'
     | '/api/companies/$companyId/default-sub-categories'
+    | '/api/companies/$companyId/defaults'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
     | '/api/companies/$companyId/projects'
@@ -644,6 +655,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-categories'
     | '/api/companies/$companyId/default-mapping-rules'
     | '/api/companies/$companyId/default-sub-categories'
+    | '/api/companies/$companyId/defaults'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
     | '/api/companies/$companyId/projects'
@@ -703,6 +715,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-categories'
     | '/api/companies/$companyId/default-mapping-rules'
     | '/api/companies/$companyId/default-sub-categories'
+    | '/api/companies/$companyId/defaults'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
     | '/api/companies/$companyId/projects'
@@ -1052,6 +1065,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCompaniesCompanyIdMembershipsRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
+    '/api/companies/$companyId/defaults': {
+      id: '/api/companies/$companyId/defaults'
+      path: '/defaults'
+      fullPath: '/api/companies/$companyId/defaults'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultsRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
     '/api/companies/$companyId/default-sub-categories': {
       id: '/api/companies/$companyId/default-sub-categories'
       path: '/default-sub-categories'
@@ -1255,6 +1275,7 @@ interface ApiCompaniesCompanyIdRouteChildren {
   ApiCompaniesCompanyIdDefaultCategoriesRoute: typeof ApiCompaniesCompanyIdDefaultCategoriesRouteWithChildren
   ApiCompaniesCompanyIdDefaultMappingRulesRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   ApiCompaniesCompanyIdDefaultSubCategoriesRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
+  ApiCompaniesCompanyIdDefaultsRoute: typeof ApiCompaniesCompanyIdDefaultsRoute
   ApiCompaniesCompanyIdMembershipsRoute: typeof ApiCompaniesCompanyIdMembershipsRoute
   ApiCompaniesCompanyIdMyProjectMembershipsRoute: typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   ApiCompaniesCompanyIdProjectsRoute: typeof ApiCompaniesCompanyIdProjectsRoute
@@ -1271,6 +1292,7 @@ const ApiCompaniesCompanyIdRouteChildren: ApiCompaniesCompanyIdRouteChildren = {
     ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren,
   ApiCompaniesCompanyIdDefaultSubCategoriesRoute:
     ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren,
+  ApiCompaniesCompanyIdDefaultsRoute: ApiCompaniesCompanyIdDefaultsRoute,
   ApiCompaniesCompanyIdMembershipsRoute: ApiCompaniesCompanyIdMembershipsRoute,
   ApiCompaniesCompanyIdMyProjectMembershipsRoute:
     ApiCompaniesCompanyIdMyProjectMembershipsRoute,

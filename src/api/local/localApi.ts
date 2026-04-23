@@ -1,6 +1,7 @@
 import type {
   Company,
   CompanyDefaultCategory,
+  CompanyDefaults,
   CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
   CompanyId,
@@ -762,6 +763,17 @@ export class LocalApi implements ProjexApi {
     const st = ensureState();
     this.assertCan('company:view', companyId);
     return st.companyDefaultsByCompanyId[companyId]?.categories ?? [];
+  }
+
+  async getCompanyDefaults(companyId: CompanyId): Promise<CompanyDefaults> {
+    const st = ensureState();
+    this.assertCan('company:view', companyId);
+    const slice = st.companyDefaultsByCompanyId[companyId] ?? emptyCompanyDefaultsSlice();
+    return {
+      categories: slice.categories,
+      subCategories: slice.subCategories,
+      mappingRules: [...slice.mappingRules].sort((a, b) => a.sortOrder - b.sortOrder),
+    };
   }
 
   async listCompanyDefaultSubCategories(

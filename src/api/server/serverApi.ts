@@ -56,6 +56,7 @@ import {
   companyDefaultCategoryResponseSchema,
   companyDefaultMappingRuleResponseSchema,
   companyDefaultMappingRulesResponseSchema,
+  companyDefaultsResponseSchema,
   companyDefaultSubCategoriesResponseSchema,
   companyDefaultSubCategoryResponseSchema,
   companyMembershipsResponseSchema,
@@ -337,6 +338,13 @@ export class ServerApi implements ProjexApi {
   }
 
   // taxonomy
+  async getCompanyDefaults(companyId: CompanyId) {
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/defaults`,
+      undefined,
+      companyDefaultsResponseSchema
+    );
+  }
   async listCompanyDefaultCategories(companyId: CompanyId) {
     return this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-categories`,

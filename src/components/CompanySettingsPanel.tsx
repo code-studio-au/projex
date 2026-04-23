@@ -33,9 +33,7 @@ import {
 } from '../queries/admin';
 import { isServerAuthMode } from '../routes/-authMode';
 import {
-  useCompanyDefaultCategoriesQuery,
-  useCompanyDefaultMappingRulesQuery,
-  useCompanyDefaultSubCategoriesQuery,
+  useCompanyDefaultsQuery,
 } from '../queries/taxonomy';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
@@ -58,9 +56,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const currentCompanyRole = access.companyRole;
   const canAddCompanyUsers = access.can('company:manage_members');
   const canEditCompanyDefaults = access.can('company:edit');
-  const defaultCategoriesQ = useCompanyDefaultCategoriesQuery(companyId);
-  const defaultSubCategoriesQ = useCompanyDefaultSubCategoriesQuery(companyId);
-  const defaultMappingRulesQ = useCompanyDefaultMappingRulesQuery(companyId);
+  const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
 
   const companyUsers = useMemo(() => {
     return getCompanyUsers(
@@ -244,8 +240,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             Define company-wide default categories and subcategories that can be safely added into projects later.
           </Text>
           <Group gap="sm" wrap="wrap">
-            <Badge variant="light">{(defaultCategoriesQ.data ?? []).length} categories</Badge>
-            <Badge variant="light">{(defaultSubCategoriesQ.data ?? []).length} subcategories</Badge>
+            <Badge variant="light">{companyDefaultsQ.data?.categories.length ?? 0} categories</Badge>
+            <Badge variant="light">{companyDefaultsQ.data?.subCategories.length ?? 0} subcategories</Badge>
           </Group>
           <Button
             variant="light"
@@ -272,7 +268,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             Match imported transaction text to company default taxonomy so uncoded imports can be auto-coded in projects that already contain those defaults.
           </Text>
           <Group gap="sm" wrap="wrap">
-            <Badge variant="light">{(defaultMappingRulesQ.data ?? []).length} mapping rules</Badge>
+            <Badge variant="light">{companyDefaultsQ.data?.mappingRules.length ?? 0} mapping rules</Badge>
           </Group>
           <Button
             variant="light"

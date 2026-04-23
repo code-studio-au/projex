@@ -14,6 +14,7 @@ import type {
 } from '../../api/types';
 import type {
   Category,
+  CompanyDefaults,
   CompanyDefaultCategory,
   CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
@@ -538,6 +539,64 @@ export async function listCompanyDefaultCategoriesServer(args: {
       .orderBy('name', 'asc')
       .execute();
     return rows.map((row) => toCompanyDefaultCategory(row as CompanyDefaultCategoryRow));
+  });
+}
+
+export async function getCompanyDefaultsServer(args: {
+  context: ServerFnContextInput;
+  companyId: CompanyId;
+}): Promise<CompanyDefaults> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    await requireCompanyContext(args.context, args.companyId, 'company:view');
+    const db = getDb();
+    const [categories, subCategories, mappingRules] = await Promise.all([
+      db
+        .selectFrom('company_default_categories')
+        .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+        .where('company_id', '=', args.companyId)
+        .orderBy('name', 'asc')
+        .execute(),
+      db
+        .selectFrom('company_default_sub_categories')
+        .select([
+          'id',
+          'company_id',
+          'company_default_category_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .where('company_id', '=', args.companyId)
+        .orderBy('name', 'asc')
+        .execute(),
+      db
+        .selectFrom('company_default_mapping_rules')
+        .select([
+          'id',
+          'company_id',
+          'match_text',
+          'company_default_category_id',
+          'company_default_sub_category_id',
+          'sort_order',
+          'created_at',
+          'updated_at',
+        ])
+        .where('company_id', '=', args.companyId)
+        .orderBy('sort_order', 'asc')
+        .orderBy('created_at', 'asc')
+        .execute(),
+    ]);
+
+    return {
+      categories: categories.map((row) => toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)),
+      subCategories: subCategories.map((row) =>
+        toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
+      ),
+      mappingRules: mappingRules.map((row) =>
+        toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow)
+      ),
+    };
   });
 }
 

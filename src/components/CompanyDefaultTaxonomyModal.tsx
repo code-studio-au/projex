@@ -21,8 +21,7 @@ import {
   asCompanyDefaultSubCategoryId,
 } from '../types';
 import {
-  useCompanyDefaultCategoriesQuery,
-  useCompanyDefaultSubCategoriesQuery,
+  useCompanyDefaultsQuery,
   useCreateCompanyDefaultCategoryMutation,
   useCreateCompanyDefaultSubCategoryMutation,
   useDeleteCompanyDefaultCategoryMutation,
@@ -40,8 +39,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
   const { opened, onClose, companyId, readOnly = false } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
 
-  const categoriesQ = useCompanyDefaultCategoriesQuery(companyId);
-  const subCategoriesQ = useCompanyDefaultSubCategoriesQuery(companyId);
+  const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
   const createCategory = useCreateCompanyDefaultCategoryMutation(companyId);
   const updateCategory = useUpdateCompanyDefaultCategoryMutation(companyId);
   const deleteCategory = useDeleteCompanyDefaultCategoryMutation(companyId);
@@ -49,8 +47,11 @@ export default function CompanyDefaultTaxonomyModal(props: {
   const updateSubCategory = useUpdateCompanyDefaultSubCategoryMutation(companyId);
   const deleteSubCategory = useDeleteCompanyDefaultSubCategoryMutation(companyId);
 
-  const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data]);
-  const subCategories = useMemo(() => subCategoriesQ.data ?? [], [subCategoriesQ.data]);
+  const categories = useMemo(() => companyDefaultsQ.data?.categories ?? [], [companyDefaultsQ.data]);
+  const subCategories = useMemo(
+    () => companyDefaultsQ.data?.subCategories ?? [],
+    [companyDefaultsQ.data]
+  );
   const categoryOptions = useMemo(
     () => categories.map((category) => ({ value: category.id, label: category.name })),
     [categories]

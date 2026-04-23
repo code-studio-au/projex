@@ -145,6 +145,12 @@ export const companyDefaultMappingRulesResponseSchema = z.array(
   companyDefaultMappingRuleResponseSchema
 );
 
+export const companyDefaultsResponseSchema = z.object({
+  categories: companyDefaultCategoriesResponseSchema,
+  subCategories: companyDefaultSubCategoriesResponseSchema,
+  mappingRules: companyDefaultMappingRulesResponseSchema,
+});
+
 export const categoryResponseSchema = z.object({
   id: categoryIdSchema,
   companyId: companyIdSchema,
