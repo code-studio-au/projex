@@ -69,6 +69,7 @@ export default function CompanyDefaultMappingsModal(props: {
         .map((subCategory) => ({ value: subCategory.id, label: subCategory.name })),
     [newCategoryId, subCategories]
   );
+  const hasDefaultTaxonomy = categories.length > 0 && subCategories.length > 0;
 
   async function moveRule(ruleId: string, direction: -1 | 1) {
     const currentIndex = rules.findIndex((rule) => rule.id === ruleId);
@@ -106,6 +107,10 @@ export default function CompanyDefaultMappingsModal(props: {
           <Text size="sm" c="dimmed" className="panelHelperText">
             You don’t have permission to edit company default mappings.
           </Text>
+        ) : companyDefaultsQ.isPending && !companyDefaultsQ.data ? (
+          <Text size="sm" c="dimmed" className="panelHelperText">
+            Loading company default mappings…
+          </Text>
         ) : (
           <Stack gap={4}>
             <Text size="sm" c="dimmed" className="panelHelperText">
@@ -120,8 +125,28 @@ export default function CompanyDefaultMappingsModal(props: {
             <Text size="xs" c="dimmed" className="panelHelperText">
               Matching is case-insensitive and handles simple singular/plural variations like <strong>flight</strong> and <strong>flights</strong>.
             </Text>
+            <Group gap="sm" wrap="wrap">
+              <Text size="xs" fw={600} c="dimmed">
+                Current defaults:
+              </Text>
+              <Text size="xs" c="dimmed">
+                {categories.length} categories
+              </Text>
+              <Text size="xs" c="dimmed">
+                {subCategories.length} subcategories
+              </Text>
+              <Text size="xs" c="dimmed">
+                {rules.length} mapping rules
+              </Text>
+            </Group>
           </Stack>
         )}
+
+        {!readOnly && !hasDefaultTaxonomy ? (
+          <Alert color="blue">
+            Add company default categories and subcategories first. Mapping rules need default taxonomy to point at.
+          </Alert>
+        ) : null}
 
         <Paper withBorder radius="md" p="md">
           <Stack gap="sm">
@@ -165,12 +190,23 @@ export default function CompanyDefaultMappingsModal(props: {
                 }}
               />
             </Group>
+            {!newCategoryId && hasDefaultTaxonomy ? (
+              <Text size="xs" c="dimmed">
+                Choose a category first, then pick the matching default subcategory.
+              </Text>
+            ) : null}
+            {newCategoryId && newSubCategoryOptions.length === 0 ? (
+              <Text size="xs" c="dimmed">
+                This category has no default subcategories yet. Add one in company default categories first.
+              </Text>
+            ) : null}
             <Group justify="flex-end">
               <Button
                 leftSection={<IconPlus size={16} />}
                 disabled={
                   readOnly ||
                   createRule.isPending ||
+                  !hasDefaultTaxonomy ||
                   !newMatchText.trim() ||
                   !newCategoryId ||
                   !newSubCategoryId

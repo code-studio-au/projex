@@ -137,15 +137,32 @@ export default function CompanyDefaultTaxonomyModal(props: {
         <Stack gap="md" className="taxonomyModal">
           {error ? <Alert color="red">{error}</Alert> : null}
           {success ? <Alert color="green">{success}</Alert> : null}
-          {readOnly ? (
-            <Text size="sm" c="dimmed" className="panelHelperText">
-              You don’t have permission to edit company defaults.
-            </Text>
-          ) : (
+        {readOnly ? (
+          <Text size="sm" c="dimmed" className="panelHelperText">
+            You don’t have permission to edit company defaults.
+          </Text>
+        ) : companyDefaultsQ.isPending && !companyDefaultsQ.data ? (
+          <Text size="sm" c="dimmed" className="panelHelperText">
+            Loading company default taxonomy…
+          </Text>
+        ) : (
+          <Stack gap={4}>
             <Text size="sm" c="dimmed" className="panelHelperText">
               Company defaults can be applied into projects later. Existing project taxonomy is never overwritten.
             </Text>
-          )}
+            <Group gap="sm" wrap="wrap">
+              <Text size="xs" fw={600} c="dimmed">
+                Current defaults:
+              </Text>
+              <Text size="xs" c="dimmed">
+                {categories.length} categories
+              </Text>
+              <Text size="xs" c="dimmed">
+                {subCategories.length} subcategories
+              </Text>
+            </Group>
+          </Stack>
+        )}
 
           <Group align="flex-end" wrap="wrap">
             <TextInput

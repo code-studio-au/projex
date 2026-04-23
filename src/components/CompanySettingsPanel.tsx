@@ -57,6 +57,17 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const canAddCompanyUsers = access.can('company:manage_members');
   const canEditCompanyDefaults = access.can('company:edit');
   const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
+  const companyDefaultsLoading = companyDefaultsQ.isPending && !companyDefaultsQ.data;
+  const defaultsStatusLabel = !canEditCompanyDefaults
+    ? 'Not allowed'
+    : companyDefaultsLoading
+      ? 'Loading'
+      : 'Ready';
+  const defaultsStatusColor = !canEditCompanyDefaults
+    ? 'red'
+    : companyDefaultsLoading
+      ? 'blue'
+      : 'gray';
 
   const companyUsers = useMemo(() => {
     return getCompanyUsers(
@@ -232,17 +243,23 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         <Stack gap="sm">
           <Group justify="space-between">
             <Title order={5}>Company default categories</Title>
-            <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
-              {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
+            <Badge variant="light" color={defaultsStatusColor}>
+              {defaultsStatusLabel}
             </Badge>
           </Group>
           <Text size="sm" c="dimmed">
             Define company-wide default categories and subcategories that can be safely added into projects later.
           </Text>
-          <Group gap="sm" wrap="wrap">
-            <Badge variant="light">{companyDefaultsQ.data?.categories.length ?? 0} categories</Badge>
-            <Badge variant="light">{companyDefaultsQ.data?.subCategories.length ?? 0} subcategories</Badge>
-          </Group>
+          {companyDefaultsLoading ? (
+            <Text size="sm" c="dimmed">
+              Loading current company defaults…
+            </Text>
+          ) : (
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">{companyDefaultsQ.data?.categories.length ?? 0} categories</Badge>
+              <Badge variant="light">{companyDefaultsQ.data?.subCategories.length ?? 0} subcategories</Badge>
+            </Group>
+          )}
           <Button
             variant="light"
             disabled={!canEditCompanyDefaults}
@@ -260,16 +277,22 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         <Stack gap="sm">
           <Group justify="space-between">
             <Title order={5}>Company default mappings</Title>
-            <Badge variant="light" color={canEditCompanyDefaults ? 'gray' : 'red'}>
-              {canEditCompanyDefaults ? 'Ready' : 'Not allowed'}
+            <Badge variant="light" color={defaultsStatusColor}>
+              {defaultsStatusLabel}
             </Badge>
           </Group>
           <Text size="sm" c="dimmed">
             Match imported transaction text to company default taxonomy so uncoded imports can be auto-coded in projects that already contain those defaults.
           </Text>
-          <Group gap="sm" wrap="wrap">
-            <Badge variant="light">{companyDefaultsQ.data?.mappingRules.length ?? 0} mapping rules</Badge>
-          </Group>
+          {companyDefaultsLoading ? (
+            <Text size="sm" c="dimmed">
+              Loading company default mappings…
+            </Text>
+          ) : (
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">{companyDefaultsQ.data?.mappingRules.length ?? 0} mapping rules</Badge>
+            </Group>
+          )}
           <Button
             variant="light"
             disabled={!canEditCompanyDefaults}

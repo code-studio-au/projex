@@ -1,8 +1,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { z } from 'zod';
 
 import type { SmokeSectionId, SmokeSectionResult, SmokeStepResult } from '../../types';
 import { smokeSectionDefinitions } from '../../types';
+import {
+  authenticatedSessionResponseSchema,
+  applyCompanyDefaultsResultResponseSchema,
+  budgetLinesResponseSchema,
+  categoriesResponseSchema,
+  companiesResponseSchema,
+  companyUserInviteResultResponseSchema,
+  emailChangeRequestResponseSchema,
+  pendingEmailChangeResponseSchema,
+  projectResponseSchema,
+  projectsResponseSchema,
+  subCategoriesResponseSchema,
+  txnResponseSchema,
+  txnsResponseSchema,
+} from '../../validation/responseSchemas';
 
 const smokeSectionMap = new Map(smokeSectionDefinitions.map((section) => [section.id, section]));
 const loadedEnvFiles = new Set<string>();
@@ -99,6 +115,15 @@ function assertHtmlOk(result: { res: Response; body: string }, label: string) {
   if (!contentType.includes('text/html')) {
     throw new Error(`${label} did not return HTML (${contentType || 'no content-type'})`);
   }
+}
+
+function parseBody<T>(schema: z.ZodType<T>, body: unknown, label: string): T {
+  const parsed = schema.safeParse(body);
+  if (parsed.success) return parsed.data;
+  const firstIssue = parsed.error.issues[0];
+  throw new Error(
+    `${label} returned unexpected shape${firstIssue ? `: ${firstIssue.message}` : ''}`
+  );
 }
 
 function isInviteResendRateLimited(result: HttpResult) {
@@ -231,10 +256,7 @@ class SmokeHttpClient {
     assertOk(login, label);
     const session = await this.request('/api/session');
     assertOk(session, `${label} session`);
-    if (!(session.body && typeof session.body === 'object' && 'userId' in session.body)) {
-      throw new Error(`${label} returned no session userId`);
-    }
-    return session.body as { userId: string };
+    return parseBody(authenticatedSessionResponseSchema, session.body, `${label} session`);
   }
 }
 
@@ -371,7 +393,7 @@ async function loadPrimaryCompanyAndProject(recorder: Recorder, client: SmokeHtt
   const companies = await recorder.step('companies', 'Loading companies', async () => {
     const result = await client.request('/api/companies');
     assertOk(result, 'companies');
-    return (result.body as SmokeCompany[]) ?? [];
+    return parseBody(companiesResponseSchema, result.body, 'companies');
   });
 
   const company = companies.find((candidate) => candidate.id !== 'co_projex') ?? companies[0];
@@ -380,7 +402,7 @@ async function loadPrimaryCompanyAndProject(recorder: Recorder, client: SmokeHtt
   const projects = await recorder.step('projects', `Loading projects for company ${companyLabel(company)}`, async () => {
     const result = await client.request(`/api/companies/${encodeURIComponent(company.id)}/projects`);
     assertOk(result, 'projects');
-    return (result.body as SmokeProject[]) ?? [];
+    return parseBody(projectsResponseSchema, result.body, 'projects');
   });
 
   const project = projects.find((candidate) => candidate.status === 'active') ?? projects[0];
@@ -461,11 +483,8 @@ async function runEmailChangeSection(recorder: Recorder, client: SmokeHttpClient
   await recorder.step('email-change-pending', 'Checking pending email change', async () => {
     const result = await client.request('/api/me/email-change');
     assertOk(result, 'get pending email change');
-    if (
-      !result.body ||
-      typeof result.body !== 'object' ||
-      (result.body as { newEmail?: string }).newEmail !== emailChangeTo
-    ) {
+    const body = parseBody(pendingEmailChangeResponseSchema, result.body, 'get pending email change');
+    if (body?.newEmail !== emailChangeTo) {
       throw new Error(`Pending email change did not match ${emailChangeTo}`);
     }
   });
@@ -479,11 +498,8 @@ async function runEmailChangeSection(recorder: Recorder, client: SmokeHttpClient
         { label: 'resend email change' }
       );
       assertOk(result, 'resend email change');
-      if (
-        !result.body ||
-        typeof result.body !== 'object' ||
-        (result.body as { newEmail?: string }).newEmail !== emailChangeTo
-      ) {
+      const body = parseBody(emailChangeRequestResponseSchema, result.body, 'resend email change');
+      if (body.newEmail !== emailChangeTo) {
         throw new Error(`Resent email change did not match ${emailChangeTo}`);
       }
     }
@@ -495,7 +511,12 @@ async function runEmailChangeSection(recorder: Recorder, client: SmokeHttpClient
   await recorder.step('email-change-cleared', 'Checking pending email change was cleared', async () => {
     const result = await client.request('/api/me/email-change');
     assertOk(result, 'get pending email change after cancel');
-    if (result.body !== null) {
+    const body = parseBody(
+      pendingEmailChangeResponseSchema,
+      result.body,
+      'get pending email change after cancel'
+    );
+    if (body !== null) {
       throw new Error('Pending email change was still present after cancel');
     }
   });
@@ -698,8 +719,12 @@ async function runCompanyDefaultsSection(
         { method: 'POST' }
       );
       assertOk(result, 'apply company defaults');
-      const body = result.body as { companyDefaultsConfigured?: boolean } | null;
-      if (!body?.companyDefaultsConfigured) {
+      const body = parseBody(
+        applyCompanyDefaultsResultResponseSchema,
+        result.body,
+        'apply company defaults'
+      );
+      if (!body.companyDefaultsConfigured) {
         throw new Error('Company defaults were not reported as configured during apply.');
       }
     });
@@ -737,7 +762,7 @@ async function runCompanyDefaultsSection(
     await recorder.step('verify-auto-mapped', 'Verifying the imported transaction was auto-mapped', async () => {
       const result = await client.request(`/api/projects/${encodeURIComponent(project.id)}/transactions`);
       assertOk(result, 'list imported transactions');
-      const txns = (result.body as Array<Record<string, unknown>>) ?? [];
+      const txns = parseBody(txnsResponseSchema, result.body, 'list imported transactions');
       const imported = txns.find((txn) => txn.id === txnId || txn.externalId === txnExternalId);
       if (!imported) throw new Error('Imported smoke transaction was not found.');
       if (!imported.categoryId || !imported.subCategoryId) {
@@ -750,7 +775,11 @@ async function runCompanyDefaultsSection(
 
       const categoriesResult = await client.request(`/api/projects/${encodeURIComponent(project.id)}/categories`);
       assertOk(categoriesResult, 'list project categories after apply');
-      const projectCategories = (categoriesResult.body as Array<{ id: string; name: string }>) ?? [];
+      const projectCategories = parseBody(
+        categoriesResponseSchema,
+        categoriesResult.body,
+        'list project categories after apply'
+      );
       projectCategoryId =
         projectCategories.find((category) => category.name === categoryName)?.id ?? null;
       if (!projectCategoryId) {
@@ -761,8 +790,11 @@ async function runCompanyDefaultsSection(
         `/api/projects/${encodeURIComponent(project.id)}/sub-categories`
       );
       assertOk(subCategoriesResult, 'list project subcategories after apply');
-      const projectSubCategories =
-        (subCategoriesResult.body as Array<{ id: string; name: string; categoryId: string }>) ?? [];
+      const projectSubCategories = parseBody(
+        subCategoriesResponseSchema,
+        subCategoriesResult.body,
+        'list project subcategories after apply'
+      );
       projectPreferredSubCategoryId =
         projectSubCategories.find(
           (subCategory) =>
@@ -784,7 +816,11 @@ async function runCompanyDefaultsSection(
         }
         const result = await client.request(`/api/projects/${encodeURIComponent(project.id)}/transactions`);
         assertOk(result, 'list imported transactions for rule-ordering verification');
-        const txns = (result.body as Array<Record<string, unknown>>) ?? [];
+        const txns = parseBody(
+          txnsResponseSchema,
+          result.body,
+          'list imported transactions for rule-ordering verification'
+        );
         const imported = txns.find((txn) => String(txn.id) === importedTxnId);
         if (!imported) {
           throw new Error('Imported smoke transaction was not found for rule-ordering verification.');
@@ -809,8 +845,8 @@ async function runCompanyDefaultsSection(
         }),
       });
       assertOk(result, 'approve auto-mapped transaction');
-      const approved = result.body as Record<string, unknown> | null;
-      if (!approved?.categoryId || !approved?.subCategoryId) {
+      const approved = parseBody(txnResponseSchema, result.body, 'approve auto-mapped transaction');
+      if (!approved.categoryId || !approved.subCategoryId) {
         throw new Error('Approved transaction lost its coding.');
       }
       if (approved.codingPendingApproval) {
@@ -824,13 +860,16 @@ async function runCompanyDefaultsSection(
       async () => {
       const result = await client.request(`/api/projects/${encodeURIComponent(project.id)}/budgets`);
       assertOk(result, 'list project budgets');
-      const budgets = (result.body as Array<Record<string, unknown>>) ?? [];
+      const budgets = parseBody(budgetLinesResponseSchema, result.body, 'list project budgets');
       const subCategoriesResult = await client.request(
         `/api/projects/${encodeURIComponent(project.id)}/sub-categories`
       );
       assertOk(subCategoriesResult, 'list project subcategories');
-      const projectSubCategories =
-        (subCategoriesResult.body as Array<{ id: string; name: string; categoryId: string }>) ?? [];
+      const projectSubCategories = parseBody(
+        subCategoriesResponseSchema,
+        subCategoriesResult.body,
+        'list project subcategories'
+      );
       const projectSubCategory = projectSubCategories.find(
         (subCategory) =>
           subCategory.name === preferredSubCategoryName &&
@@ -953,11 +992,7 @@ async function runInviteFlowSection(recorder: Recorder, client: SmokeHttpClient,
         body: JSON.stringify({ name: inviteName, email: inviteEmail, role: inviteRole }),
       });
       assertOk(result, 'invite user');
-      const body = result.body as {
-        user?: { id?: string };
-        onboardingEmailSent?: boolean;
-        membershipCreated?: boolean;
-      };
+      const body = parseBody(companyUserInviteResultResponseSchema, result.body, 'invite user');
       if (!body.onboardingEmailSent) {
         throw new Error('Brand-new invited user did not trigger an onboarding email.');
       }
@@ -987,11 +1022,11 @@ async function runInviteFlowSection(recorder: Recorder, client: SmokeHttpClient,
         }),
       });
       assertOk(result, 'update existing member');
-      const body = result.body as {
-        user?: { id?: string };
-        onboardingEmailSent?: boolean;
-        membershipCreated?: boolean;
-      };
+      const body = parseBody(
+        companyUserInviteResultResponseSchema,
+        result.body,
+        'update existing member'
+      );
       if (body.user?.id !== invitedUserId) {
         throw new Error(`Existing member update returned a different user id: ${JSON.stringify(body)}`);
       }
@@ -1037,7 +1072,7 @@ async function runPrivacyChecksSection(recorder: Recorder, client: SmokeHttpClie
   const adminCompanies = await recorder.step('privacy-admin-companies', 'Loading admin companies', async () => {
     const result = await client.request('/api/companies');
     assertOk(result, 'privacy admin companies');
-    return (result.body as SmokeCompany[]) ?? [];
+    return parseBody(companiesResponseSchema, result.body, 'privacy admin companies');
   });
   const adminCompany = adminCompanies[0];
   if (!adminCompany?.id) throw new Error('No company available for privacy admin smoke test');
@@ -1048,7 +1083,7 @@ async function runPrivacyChecksSection(recorder: Recorder, client: SmokeHttpClie
     async () => {
       const result = await client.request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
       assertOk(result, 'privacy admin projects');
-      return (result.body as SmokeProject[]) ?? [];
+      return parseBody(projectsResponseSchema, result.body, 'privacy admin projects');
     }
   );
   const adminProject = adminProjects.find((candidate) => candidate.status === 'active') ?? adminProjects[0];
@@ -1102,7 +1137,7 @@ async function runPrivacyChecksSection(recorder: Recorder, client: SmokeHttpClie
       async () => {
         const result = await client.request(`/api/companies/${encodeURIComponent(adminCompany.id)}/projects`);
         assertOk(result, 'privacy superadmin projects');
-        return (result.body as Array<{ id: string }>) ?? [];
+        return parseBody(projectsResponseSchema, result.body, 'privacy superadmin projects');
       }
     );
     if (superProjects.some((project) => project.id === adminProject.id)) {
@@ -1115,7 +1150,11 @@ async function runPrivacyChecksSection(recorder: Recorder, client: SmokeHttpClie
       async () => {
         const result = await client.request(`/api/projects/${encodeURIComponent(adminProject.id)}`);
         assertOk(result, 'privacy superadmin project fetch');
-        return result.body;
+        return parseBody(
+          projectResponseSchema.nullable(),
+          result.body,
+          'privacy superadmin project fetch'
+        );
       }
     );
     if (superProject !== null) {
