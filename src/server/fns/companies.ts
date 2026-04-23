@@ -6,6 +6,7 @@ import type { CompanyUpdateInput, CompanyUserInviteResult, ProfileUpdateInput } 
 import type { Company, CompanyId, CompanyRole, CompanySummary, CompanySummaryProject, ProjectId, User, UserId } from '../../types';
 import { asCompanyId, asUserId } from '../../types';
 import { uid } from '../../utils/id';
+import { monthKeyFromDateOnlyInput } from '../../utils/finance';
 import { companyNameSchema, emailSchema, userNameSchema } from '../../validation/schemas';
 import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas';
 import { validateOrThrow } from '../../validation/validate';
@@ -28,16 +29,6 @@ const COMPANY_ROLE_RANK: Record<CompanyRole, number> = {
   management: 2,
   member: 1,
 };
-
-function summaryMonthKeyFromTxnDate(value: string | Date): string | null {
-  if (value instanceof Date) {
-    const year = value.getUTCFullYear();
-    const month = String(value.getUTCMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
-  }
-
-  return /^\d{4}-\d{2}/.test(value) ? value.slice(0, 7) : null;
-}
 
 function toCompany(row: {
   id: string;
@@ -384,7 +375,7 @@ export async function getCompanySummaryServer(args: {
     >();
 
     for (const row of txnRows) {
-      const monthKey = summaryMonthKeyFromTxnDate(row.txn_date);
+      const monthKey = monthKeyFromDateOnlyInput(row.txn_date);
       if (!monthKey) continue;
       const projectId = row.project_id as ProjectId;
       const projectBuckets =

@@ -30,6 +30,7 @@ import { isAuthorized, requireAuthorized } from '../auth/authorize';
 import { mapImportedTransactionWithCompanyDefaults } from '../../utils/companyDefaultMappings';
 import { buildImportPreview } from '../../utils/importPreview';
 import { parseCsv, rowsToImportTxns } from '../../utils/csv';
+import { dateOnlyFromInput } from '../../utils/finance';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -110,25 +111,17 @@ function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } 
   return next;
 }
 
-function normalizeTxnDate(value: string | Date): string {
-  if (value instanceof Date) {
-    const year = value.getUTCFullYear();
-    const month = String(value.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(value.getUTCDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  return value.slice(0, 10);
-}
-
 function toTxn(row: TxnRow): Txn {
+  const date = dateOnlyFromInput(row.txn_date);
+  if (!date) throw new AppError('INTERNAL_ERROR', 'Invalid transaction date from database');
+
   return {
     id: row.public_id as TxnId,
     internalId: row.id,
     externalId: normalizeExternalId(row.external_id),
     companyId: row.company_id as CompanyId,
     projectId: row.project_id as ProjectId,
-    date: normalizeTxnDate(row.txn_date),
+    date,
     item: row.item,
     description: row.description,
     amountCents: Number(row.amount_cents),
@@ -403,22 +396,24 @@ export async function updateTxnServer(args: {
     if (idx >= 0) forCheck[idx] = { id: next.id, externalId: next.externalId };
     assertUniqueTransactionKeysInProject(forCheck);
 
+    const patch = {
+      external_id: nextExternalId ?? null,
+      item: next.item,
+      description: next.description,
+      amount_cents: next.amountCents,
+      category_id: next.categoryId ?? null,
+      sub_category_id: next.subCategoryId ?? null,
+      company_default_mapping_rule_id: next.companyDefaultMappingRuleId ?? null,
+      coding_source: next.codingSource ?? null,
+      coding_pending_approval: !!next.codingPendingApproval,
+      created_at: prev.createdAt,
+      updated_at: now,
+      ...(typeof args.input.date !== 'undefined' ? { txn_date: next.date } : {}),
+    };
+
     const updated = await db
       .updateTable('txns')
-      .set({
-        external_id: next.externalId ?? null,
-        txn_date: next.date,
-        item: next.item,
-        description: next.description,
-        amount_cents: next.amountCents,
-        category_id: next.categoryId ?? null,
-        sub_category_id: next.subCategoryId ?? null,
-        company_default_mapping_rule_id: next.companyDefaultMappingRuleId ?? null,
-        coding_source: next.codingSource ?? null,
-        coding_pending_approval: !!next.codingPendingApproval,
-        created_at: prev.createdAt,
-        updated_at: now,
-      })
+      .set(patch)
       .where('project_id', '=', args.projectId)
       .where('public_id', '=', args.input.id)
       .returning([

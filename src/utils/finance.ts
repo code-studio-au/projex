@@ -2,6 +2,23 @@ export function sum(nums: number[]) {
   return nums.reduce((a, b) => a + b, 0);
 }
 
+export type DateOnlyInput = string | Date;
+
+export function dateOnlyFromInput(value: DateOnlyInput): string | null {
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null;
+}
+
+export function monthKeyFromDateOnlyInput(value: DateOnlyInput): string | null {
+  return dateOnlyFromInput(value)?.slice(0, 7) ?? null;
+}
+
 export function parseISODate(iso: string) {
   // Accept yyyy-mm-dd OR yyyy-mm (treated as first of month).
   // Use UTC to avoid local timezone/DST surprises when deriving month keys.

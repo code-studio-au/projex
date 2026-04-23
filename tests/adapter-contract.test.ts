@@ -492,6 +492,42 @@ test('LocalApi company summary uses project total budgets for health', async () 
   assert.equal(beta.budgetCents, 2500000);
 });
 
+test('LocalApi transaction coding updates do not change transaction dates', async () => {
+  installMemoryLocalStorage();
+  const api = new LocalApi();
+
+  await api.loginAs(asUserId('u_exec'));
+
+  const projectId = asProjectId('prj_acme_alpha');
+  const txns = await api.listTransactions(projectId);
+  const txn = txns.find((item) => item.categoryId && item.subCategoryId);
+  assert.ok(txn, 'seed should include a coded transaction');
+
+  const originalDate = txn.date;
+  const categoryId = txn.categoryId;
+  const subCategoryId = txn.subCategoryId;
+  assert.ok(categoryId);
+  assert.ok(subCategoryId);
+
+  const categoryOnly = await api.updateTxn(projectId, {
+    id: txn.id,
+    categoryId,
+    subCategoryId: null,
+    codingSource: 'manual',
+    codingPendingApproval: false,
+  });
+  assert.equal(categoryOnly.date, originalDate);
+
+  const recoded = await api.updateTxn(projectId, {
+    id: txn.id,
+    categoryId,
+    subCategoryId,
+    codingSource: 'manual',
+    codingPendingApproval: false,
+  });
+  assert.equal(recoded.date, originalDate);
+});
+
 test('LocalApi keeps membership reads scoped for non-superadmin users', async () => {
   installMemoryLocalStorage();
   const api = new LocalApi();
