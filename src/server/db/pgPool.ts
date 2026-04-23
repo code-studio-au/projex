@@ -1,8 +1,6 @@
 import pg from 'pg';
 import pgTypes from 'pg-types';
 
-const { Pool } = pg;
-
 type PgCommand = 'UPDATE' | 'DELETE' | 'INSERT' | 'SELECT' | 'MERGE';
 
 export type TypedPgQueryResult<R> = {
@@ -31,6 +29,12 @@ export type TypedPgPool = {
   end(): Promise<void>;
 };
 
+type PgModule = {
+  Pool: new (config: { connectionString: string }) => TypedPgPool;
+};
+
+const { Pool } = pg as PgModule;
+
 const PG_DATE_OID = 1082;
 let dateParserConfigured = false;
 
@@ -45,9 +49,5 @@ function configureDateOnlyParser() {
 
 export function createPgPool(connectionString: string): TypedPgPool {
   configureDateOnlyParser();
-  // `pg` does not ship the runtime types we want to enforce across the repo here,
-  // so we isolate the boundary in one place and keep the rest of the codebase typed.
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const pool = new Pool({ connectionString });
-  return pool as TypedPgPool;
+  return new Pool({ connectionString });
 }

@@ -6,6 +6,12 @@ import type {
 } from '../types';
 import { monthKeyFromDateOnlyInput, type DateOnlyInput } from './finance';
 
+type CompanySummaryMonthBucket = {
+  actualCodedCents: number;
+  uncodedCount: number;
+  uncodedAmountCents: number;
+};
+
 type CompanySummaryProjectInput = Pick<
   Project,
   'id' | 'name' | 'status' | 'visibility' | 'currency' | 'budgetTotalCents'
@@ -25,14 +31,7 @@ export function buildCompanySummaryProjects(args: {
 }): CompanySummaryProject[] {
   const monthBucketsByProject = new Map<
     ProjectId,
-    Map<
-      string,
-      {
-        actualCodedCents: number;
-        uncodedCount: number;
-        uncodedAmountCents: number;
-      }
-    >
+    Map<string, CompanySummaryMonthBucket>
   >();
 
   for (const transaction of args.transactions) {
@@ -41,14 +40,7 @@ export function buildCompanySummaryProjects(args: {
 
     const projectBuckets =
       monthBucketsByProject.get(transaction.projectId) ??
-      new Map<
-        string,
-        {
-          actualCodedCents: number;
-          uncodedCount: number;
-          uncodedAmountCents: number;
-        }
-      >();
+      new Map<string, CompanySummaryMonthBucket>();
     const bucket = projectBuckets.get(monthKey) ?? {
       actualCodedCents: 0,
       uncodedCount: 0,
@@ -73,7 +65,9 @@ export function buildCompanySummaryProjects(args: {
   }
 
   return args.projects.map((project) => {
-    const monthBuckets = monthBucketsByProject.get(project.id) ?? new Map();
+    const monthBuckets =
+      monthBucketsByProject.get(project.id) ??
+      new Map<string, CompanySummaryMonthBucket>();
     return {
       id: project.id,
       name: project.name,
