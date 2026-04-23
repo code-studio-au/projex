@@ -187,6 +187,25 @@ Why this matters:
 
 These are worthwhile future additions, but they do not need to compete with the short near-term list above.
 
+### Reduce shared runtime and router bundle weight
+
+Examples:
+
+- keep shrinking the remaining shared `main` client chunk after the UI vendor split and lazy API runtime work
+- inspect router bootstrap, generated route tree weight, shared query/runtime code, and other always-loaded client infrastructure
+- move heavy boot-time code behind lazy boundaries where it does not need to ship in the first paint path
+
+Why this matters:
+
+- the current bundle is materially better than before, but the shared client runtime is still larger than we want
+- this is now more of a technical-architecture optimization than a feature gap, so it should stay visible but not crowd out near-term product work
+
+Design direction:
+
+- prefer structural wins such as lazy runtime loading and boot-path pruning over brittle chunk hacks
+- keep the build stable and avoid Rollup chunk-cycle regressions while splitting
+- measure each change against actual build output so we know which shared dependencies are still anchoring the boot bundle
+
 ### Split transactions with parent-child allocation model
 
 Examples:
