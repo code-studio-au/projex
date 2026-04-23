@@ -184,7 +184,7 @@ export function useTaxonomy(params: {
     // Important: do this *after* the subcategory exists, otherwise an API adapter
     // (or future server validation) may reject the budget create.
     if (canEditBudgets) {
-      budgets.upsertBudgetForSubCategory(id, categoryId);
+      await budgets.upsertBudgetForSubCategory(id, categoryId);
     }
 
     return id;
@@ -207,7 +207,7 @@ export function useTaxonomy(params: {
       existing.name
     );
     await updateSub.mutateAsync({ id: subCategoryId, categoryId: newCategoryId });
-    budgets.updateBudgetCategoryForSubCategory(subCategoryId, newCategoryId);
+    await budgets.updateBudgetCategoryForSubCategory(subCategoryId, newCategoryId);
     // Update txn categoryId to match (keep subCategoryId)
     const next = txns.transactions.map((t) =>
       t.subCategoryId === subCategoryId ? { ...t, categoryId: newCategoryId } : t

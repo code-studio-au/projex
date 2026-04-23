@@ -24,17 +24,20 @@ export function useBudgets(params: {
 
   const budgets = useMemo(() => q.data ?? [], [q.data]);
 
-  const updateAllocated = (budgetId: BudgetLineId, allocatedCents: number) => {
-    update.mutate({ id: budgetId, allocatedCents: Number(allocatedCents ?? 0) });
+  const updateAllocated = async (budgetId: BudgetLineId, allocatedCents: number) => {
+    await update.mutateAsync({ id: budgetId, allocatedCents: Number(allocatedCents ?? 0) });
   };
 
-  const upsertBudgetForSubCategory = (subCategoryId: SubCategoryId, categoryId: CategoryId) => {
+  const upsertBudgetForSubCategory = async (
+    subCategoryId: SubCategoryId,
+    categoryId: CategoryId
+  ) => {
     const existing = budgets.find((b) => b.subCategoryId === subCategoryId);
     if (existing) {
-      update.mutate({ id: existing.id, categoryId });
+      await update.mutateAsync({ id: existing.id, categoryId });
       return;
     }
-    create.mutate({
+    await create.mutateAsync({
       companyId,
       projectId,
       categoryId,
@@ -43,17 +46,22 @@ export function useBudgets(params: {
     });
   };
 
-  const deleteBudgetLinesForSubCategoryIds = (subCategoryIds: SubCategoryId[]) => {
+  const deleteBudgetLinesForSubCategoryIds = async (subCategoryIds: SubCategoryId[]) => {
     const setIds = new Set(subCategoryIds);
-    for (const b of budgets) {
-      if (b.subCategoryId && setIds.has(b.subCategoryId)) del.mutate(b.id);
-    }
+    await Promise.all(
+      budgets
+        .filter((budget) => budget.subCategoryId && setIds.has(budget.subCategoryId))
+        .map((budget) => del.mutateAsync(budget.id))
+    );
   };
 
-  const updateBudgetCategoryForSubCategory = (subCategoryId: SubCategoryId, newCategoryId: CategoryId) => {
+  const updateBudgetCategoryForSubCategory = async (
+    subCategoryId: SubCategoryId,
+    newCategoryId: CategoryId
+  ) => {
     const existing = budgets.find((b) => b.subCategoryId === subCategoryId);
     if (!existing) return;
-    update.mutate({ id: existing.id, categoryId: newCategoryId });
+    await update.mutateAsync({ id: existing.id, categoryId: newCategoryId });
   };
 
   return {

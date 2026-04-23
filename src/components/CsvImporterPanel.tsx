@@ -443,7 +443,7 @@ export default function CsvImporterPanel(props: {
     }
   }
 
-  const ensureBudgetLinesForImportedSubCategories = (
+  const ensureBudgetLinesForImportedSubCategories = async (
     next: Array<{ categoryId?: CategoryId; subCategoryId?: SubCategoryId }>
   ) => {
     if (!autoCreateStructures || !canEditBudgets) return;
@@ -461,7 +461,7 @@ export default function CsvImporterPanel(props: {
       if (!subId || !catId) continue;
       if (existing.has(subId) || createdThisRun.has(subId)) continue;
       createdThisRun.add(subId);
-      budgets.upsertBudgetForSubCategory(subId, catId);
+      await budgets.upsertBudgetForSubCategory(subId, catId);
     }
   };
 
@@ -835,7 +835,7 @@ export default function CsvImporterPanel(props: {
                       setImportError(null);
                       setImportNotice(null);
                       const { txns, skipped } = await buildImportPayloadFromPreview('append');
-                      ensureBudgetLinesForImportedSubCategories(txns);
+                      await ensureBudgetLinesForImportedSubCategories(txns);
                       await onAppend(txns, { autoCreateBudgets: autoCreateStructures });
                       const importedCount = txns.length;
                       resetImporter();
@@ -902,7 +902,7 @@ export default function CsvImporterPanel(props: {
                   setImportError(null);
                   setImportNotice(null);
                   const { txns } = await buildImportPayloadFromPreview('replaceAll');
-                  ensureBudgetLinesForImportedSubCategories(txns);
+                  await ensureBudgetLinesForImportedSubCategories(txns);
                   await onReplaceAll(txns, { autoCreateBudgets: autoCreateStructures });
                   const importedCount = txns.length;
                   setConfirmReplaceOpen(false);

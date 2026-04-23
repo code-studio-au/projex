@@ -417,7 +417,7 @@ export default function BudgetPanel(props: {
               classNames={{ input: 'budgetTable-numberInput' }}
               styles={{ input: { textAlign: 'right' } }}
               onChange={(v) =>
-                updateAllocated(row.original.id, toCents(Number(v ?? 0)))
+                void updateAllocated(row.original.id, toCents(Number(v ?? 0)))
               }
             />
           )
