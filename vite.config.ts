@@ -10,6 +10,26 @@ export default defineConfig(({ command }) => ({
     tanstackStart(),
     react(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (
+            id.includes('node_modules/@mantine/') ||
+            id.includes('node_modules/@emotion/')
+          ) {
+            return 'vendor-ui';
+          }
+
+          if (id.includes('node_modules/@tabler/')) {
+            return 'vendor-icons';
+          }
+
+          return undefined;
+        },
+      },
+    },
+  },
   optimizeDeps:
     command === 'serve'
       ? {
