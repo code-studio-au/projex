@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { LocalApi } from '../src/api/local/localApi.ts';
 import { ServerApi } from '../src/api/server/serverApi.ts';
 import { AppError, isAppError } from '../src/api/errors.ts';
+import type { ProjexApi } from '../src/api/types.ts';
 import { requireServerUserId, withServerBoundary } from '../src/server/fns/runtime.ts';
 import { getAuthSessionFromRequest } from '../src/server/auth/betterAuth.ts';
 import { devEndpointsEnabled } from '../src/server/dev/devSession.ts';
@@ -16,6 +17,7 @@ import { can } from '../src/utils/auth.ts';
 import { buildCorsHeaders, isOriginAllowed } from '../src/server/http/security.ts';
 
 function installMemoryLocalStorage() {
+  const previousWindow = (globalThis as { window?: unknown }).window;
   const store = new Map<string, string>();
   const localStorage = {
     getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
@@ -30,6 +32,13 @@ function installMemoryLocalStorage() {
     },
   };
   (globalThis as { window?: unknown }).window = { localStorage };
+  return () => {
+    if (typeof previousWindow === 'undefined') {
+      delete (globalThis as { window?: unknown }).window;
+      return;
+    }
+    (globalThis as { window?: unknown }).window = previousWindow;
+  };
 }
 
 function restoreEnv(key: string, prev: string | undefined) {
@@ -43,6 +52,194 @@ function restoreEnv(key: string, prev: string | undefined) {
 function stripLocalServerOrigin(url: string): string {
   return url.replace(/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/, '');
 }
+
+type AdapterHarness = {
+  api: ProjexApi;
+  cleanup?: () => void;
+};
+
+function appErrorStatus(code: AppError['code']): number {
+  if (code === 'UNAUTHENTICATED') return 401;
+  if (code === 'FORBIDDEN') return 403;
+  if (code === 'NOT_FOUND') return 404;
+  if (code === 'CONFLICT') return 409;
+  if (code === 'VALIDATION_ERROR') return 422;
+  if (code === 'NOT_IMPLEMENTED') return 501;
+  return 500;
+}
+
+function jsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), { status });
+}
+
+async function parseJsonBody(init?: RequestInit): Promise<unknown> {
+  if (!init?.body) return null;
+  if (typeof init.body === 'string') return JSON.parse(init.body) as unknown;
+  if (init.body instanceof URLSearchParams) return Object.fromEntries(init.body.entries());
+  return JSON.parse(String(init.body)) as unknown;
+}
+
+async function makeLocalHarness(): Promise<AdapterHarness> {
+  const cleanupWindow = installMemoryLocalStorage();
+  return { api: new LocalApi(), cleanup: cleanupWindow };
+}
+
+async function makeServerApiBackedByLocalHarness(): Promise<AdapterHarness> {
+  const cleanupWindow = installMemoryLocalStorage();
+  const backing = new LocalApi();
+  const originalFetch = globalThis.fetch;
+
+  (globalThis as { fetch: typeof fetch }).fetch = (async (
+    input: string | URL | Request,
+    init?: RequestInit
+  ) => {
+    try {
+      const url = new URL(String(input), 'http://localhost');
+      const method = (init?.method ?? 'GET').toUpperCase();
+      const parts = url.pathname.split('/').filter(Boolean);
+
+      if (method === 'POST' && url.pathname === '/api/dev/session') {
+        const body = (await parseJsonBody(init)) as { userId?: string } | null;
+        return jsonResponse(await backing.loginAs(asUserId(String(body?.userId ?? ''))));
+      }
+
+      if (
+        method === 'GET' &&
+        parts[0] === 'api' &&
+        parts[1] === 'companies' &&
+        parts[3] === 'summary'
+      ) {
+        return jsonResponse(await backing.getCompanySummary(asCompanyId(parts[2])));
+      }
+
+      if (
+        parts[0] === 'api' &&
+        parts[1] === 'projects' &&
+        parts[3] === 'transactions'
+      ) {
+        const projectId = asProjectId(parts[2]);
+        if (method === 'GET' && parts.length === 4) {
+          return jsonResponse(await backing.listTransactions(projectId));
+        }
+        if (method === 'PATCH' && parts.length === 4) {
+          const body = (await parseJsonBody(init)) as { txn?: Parameters<ProjexApi['updateTxn']>[1] };
+          if (!body.txn) throw new AppError('VALIDATION_ERROR', 'Missing transaction body');
+          return jsonResponse(await backing.updateTxn(projectId, body.txn));
+        }
+        if (method === 'POST' && parts[4] === 'import') {
+          const body = (await parseJsonBody(init)) as Parameters<ProjexApi['importTransactions']>[1];
+          return jsonResponse(await backing.importTransactions(projectId, body));
+        }
+      }
+
+      return jsonResponse({ code: 'NOT_FOUND', message: `Unhandled test route ${method} ${url.pathname}` }, 404);
+    } catch (err) {
+      if (err instanceof AppError) {
+        return jsonResponse(
+          { code: err.code, message: err.message, meta: err.meta ?? null },
+          appErrorStatus(err.code)
+        );
+      }
+      return jsonResponse(
+        { code: 'INTERNAL_ERROR', message: err instanceof Error ? err.message : 'Unexpected error' },
+        500
+      );
+    }
+  }) as typeof fetch;
+
+  return {
+    api: new ServerApi(),
+    cleanup: () => {
+      (globalThis as { fetch: typeof fetch }).fetch = originalFetch;
+      cleanupWindow();
+    },
+  };
+}
+
+function runAdapterParityTests(
+  label: string,
+  makeHarness: () => Promise<AdapterHarness>
+) {
+  test(`${label}: company summary uses project total budgets`, async () => {
+    const harness = await makeHarness();
+    try {
+      await harness.api.loginAs(asUserId('u_exec'));
+
+      const summary = await harness.api.getCompanySummary(asCompanyId('co_acme'));
+      const alpha = summary.projects.find((project) => project.id === asProjectId('prj_acme_alpha'));
+      const beta = summary.projects.find((project) => project.id === asProjectId('prj_acme_beta'));
+
+      assert.ok(alpha);
+      assert.ok(beta);
+      assert.equal(alpha.budgetCents, 5000000);
+      assert.equal(beta.budgetCents, 2500000);
+    } finally {
+      harness.cleanup?.();
+    }
+  });
+
+  test(`${label}: transaction coding updates preserve date and list order`, async () => {
+    const harness = await makeHarness();
+    try {
+      await harness.api.loginAs(asUserId('u_exec'));
+
+      const projectId = asProjectId('prj_acme_alpha');
+      const before = await harness.api.listTransactions(projectId);
+      const txn = before.find((item) => item.categoryId && item.subCategoryId);
+      assert.ok(txn, 'seed should include a coded transaction');
+      assert.ok(txn.categoryId);
+      assert.ok(txn.subCategoryId);
+
+      const originalDate = txn.date;
+      const originalOrder = before.map((item) => item.id);
+      const updated = await harness.api.updateTxn(projectId, {
+        id: txn.id,
+        categoryId: txn.categoryId,
+        subCategoryId: null,
+        codingSource: 'manual',
+        codingPendingApproval: false,
+      });
+      const after = await harness.api.listTransactions(projectId);
+
+      assert.equal(updated.date, originalDate);
+      assert.deepEqual(after.map((item) => item.id), originalOrder);
+    } finally {
+      harness.cleanup?.();
+    }
+  });
+
+  test(`${label}: import rejects duplicate externalId within the same project`, async () => {
+    const harness = await makeHarness();
+    try {
+      await harness.api.loginAs(asUserId('u_superadmin'));
+
+      const projectId = asProjectId('prj_acme_alpha');
+      const seed = await harness.api.listTransactions(projectId);
+      const existing = seed[0];
+      assert.ok(existing, 'seed should have at least one transaction');
+      assert.ok(existing.externalId, 'seed transaction should expose externalId');
+
+      const dupe = {
+        ...existing,
+        id: `${existing.id}_dupe` as typeof existing.id,
+        externalId: existing.externalId,
+      };
+
+      await assert.rejects(
+        () => harness.api.importTransactions(projectId, { txns: [dupe], mode: 'append' }),
+        (err) =>
+          isAppError(err) &&
+          err.code === 'VALIDATION_ERROR' &&
+          /Duplicate transaction externalId/i.test(err.message)
+      );
+    } finally {
+      harness.cleanup?.();
+    }
+  });
+}
+
+runAdapterParityTests('LocalApi parity', makeLocalHarness);
+runAdapterParityTests('ServerApi HTTP parity', makeServerApiBackedByLocalHarness);
 
 test('ServerApi loginAs targets dev session endpoint', async () => {
   const api = new ServerApi();
