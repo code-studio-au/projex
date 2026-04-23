@@ -6,61 +6,22 @@ It is intentionally short, opinionated, and ordered so we can pick the next job 
 
 ## Product/Admin
 
-### 1. Harden guided import preview and exception review
+### 1. Add bulk transaction review actions
 
 Examples:
 
-- tighten duplicate semantics so append and replace behave predictably
-- make row-level warnings and conflicts easier to review before commit
-- show duplicates, invalid rows, unmapped rows, and taxonomy creation preview
-- make post-import summaries more structured and explicit
-- show mapping provenance per row such as matched rule, CSV taxonomy, auto-created taxonomy, uncoded, or invalid
-- move preview and commit logic toward canonical server-backed behavior so validation stays consistent
+- bulk approve auto-mapped transactions
+- bulk recode selected rows
+- bulk clear coding
+- bulk milestone assignment when milestone modeling exists
+- future reviewed / locked actions once transaction workflow state is explicit
 
 Why this matters:
 
-- the importer preview now exists, but users still need stronger exception handling and clearer commit semantics
-- this is one of the clearest gaps between a good internal tool and a more professional finance workflow
+- row-by-row transaction review will become the main bottleneck as data volume increases
+- bulk actions are one of the highest-value workflow improvements available now
 
-Design direction:
-
-- prefer `preview` and `commit` endpoints rather than mixing parsing and persistence in one step
-- treat import as a verification workflow, not just a file upload
-- make exception-only review easy so users can resolve duplicates, uncoded rows, and warnings before commit
-
-### 2. Expand route-driven drill-down entry points and polish
-
-Examples:
-
-- extend company-to-project deep links beyond the current budget and transaction entry cases
-- add more direct entry points into specific review queues, tabs, and focused states
-- make route-driven context more complete and easier to share or bookmark
-
-Why this matters:
-
-- route-driven continuity already exists for core company-dashboard drill-down
-- the next value is making those entry points broader, clearer, and more deliberate across the app
-
-Design direction:
-
-- keep using URL search params for shareable, durable state rather than transient router state
-- keep period semantics canonical so `month`, `quarter`, and `year` do not conflict
-- let project pages hydrate tab, filter, and source context directly from the route
-
-Implemented already:
-
-- company summary drill-down can carry period filters into the project workspace
-- project pages already hydrate tab, month, quarter, year, focus, and transaction view from route search params
-- current drill-down supports budget and transaction entry flows such as uncoded review
-
-Polish and expansion still worth doing:
-
-- add broader deep links into more review states such as auto-mapped pending and future approval queues
-- make route-driven entry available from more surfaces, not just the company summary
-- standardize which params are canonical versus derived so links remain predictable
-- tighten user-facing cues so the destination page makes the carried context more obvious
-
-### 3. Add reviewed and locked transaction workflow
+### 2. Add reviewed and locked transaction workflow
 
 Examples:
 
@@ -80,22 +41,7 @@ Design direction:
 - define exactly which fields become immutable when locked
 - ensure all lock, unlock, review, and reopen actions emit audit events
 
-### 4. Add bulk transaction review actions
-
-Examples:
-
-- bulk approve auto-mapped transactions
-- bulk recode selected rows
-- bulk clear coding
-- bulk milestone assignment when milestone modeling exists
-- future reviewed / locked actions once transaction workflow state is explicit
-
-Why this matters:
-
-- row-by-row transaction review will become the main bottleneck as data volume increases
-- bulk actions are one of the highest-value workflow improvements available now
-
-### 5. Clarify budget semantics, health messaging, and lightweight forecasting
+### 3. Clarify budget semantics, health messaging, and lightweight forecasting
 
 Examples:
 
@@ -111,7 +57,7 @@ Why this matters:
 - sharper financial semantics will make the app feel more trustworthy to finance-oriented users
 - users need interpretation and risk cues, not just raw spend totals
 
-### 6. Add rule suggestions from repeated manual coding
+### 4. Add rule suggestions from repeated manual coding
 
 Examples:
 
@@ -130,7 +76,7 @@ Design direction:
 - distinguish clearly between create-rule suggestions and update-rule suggestions
 - keep suggestions reviewable and dismissible so noisy patterns do not become brittle rules
 
-### 7. Expand audit logging into a first-class product feature
+### 5. Expand audit logging into a first-class product feature
 
 Examples:
 
@@ -172,7 +118,7 @@ Notes:
 - it needs careful schema, indexing, retention, and UI design before we build it
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 8. Extend self-service account/profile
+### 6. Extend self-service account/profile
 
 Examples:
 
@@ -256,8 +202,6 @@ Design direction:
 
 Examples:
 
-- faster review flows for uncoded and auto-mapped transactions
-- stronger batch review actions
 - a clearer review-queue style experience for coding follow-up
 - notification-driven queues for pending approvals, unlock requests, and aging uncoded work
 
@@ -269,13 +213,14 @@ Why this matters:
 
 Examples:
 
-- direct links into project budget or transaction tabs
-- route-driven uncoded and review filters
-- preserve source context from company summary and future dashboard actions
+- deeper links from future alerts, audit entries, reports, and notifications into exact project states
+- direct links into future review queues such as auto-mapped pending, unlock requests, or approval queues
+- preserved source context from more surfaces beyond the current company summary drill-down
 
 Why this matters:
 
-- once drill-down continuity exists, deeper route-driven entry points will make the app feel much more cohesive across dashboard and workspace surfaces
+- core company-summary drill-down continuity already exists
+- future app surfaces should reuse the same route-driven pattern rather than inventing transient navigation state
 
 ### Budget management ergonomics
 
