@@ -61,6 +61,10 @@ import {
 } from '../../utils/companyDefaultMappings';
 import { buildImportPreview } from '../../utils/importPreview';
 import { parseCsv, rowsToImportTxns } from '../../utils/csv';
+import {
+  localPersistedStateSchema,
+  localSessionSchema,
+} from '../../validation/localStateSchemas';
 
 import type {
   BudgetCreateInput,
@@ -94,13 +98,17 @@ import type {
 
 const SESSION_KEY = 'projex_session_v1';
 
-function readJson<T>(key: string): T | null {
+function readJsonWithSchema<T>(
+  key: string,
+  parse: (value: unknown) => T
+): T | null {
   if (typeof window === 'undefined') return null;
   const raw = window.localStorage.getItem(key);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as T;
+    return parse(JSON.parse(raw) as unknown);
   } catch {
+    window.localStorage.removeItem(key);
     return null;
   }
 }
@@ -119,29 +127,12 @@ function emptyCompanyDefaultsSlice() {
 }
 
 function ensureState(): PersistedStateV1 {
-  const existing = readJson<PersistedStateV1>(PROJEX_STATE_KEY);
+  const existing = readJsonWithSchema(
+    PROJEX_STATE_KEY,
+    localPersistedStateSchema.parse
+  );
   if (existing) {
-    let changed = false;
-    if (!existing.companyDefaultsByCompanyId) {
-      existing.companyDefaultsByCompanyId = Object.fromEntries(
-        existing.companies.map((company) => [
-          company.id,
-          emptyCompanyDefaultsSlice(),
-        ])
-      ) as PersistedStateV1['companyDefaultsByCompanyId'];
-      changed = true;
-    }
-    for (const company of existing.companies) {
-      const slice = existing.companyDefaultsByCompanyId[company.id];
-      if (!slice) continue;
-      if (!slice.mappingRules) {
-        slice.mappingRules = [];
-        changed = true;
-      }
-    }
-    if (changed) {
-      writeJson(PROJEX_STATE_KEY, existing);
-    }
+    writeJson(PROJEX_STATE_KEY, existing);
     return existing;
   }
 
@@ -155,17 +146,13 @@ function writeState(next: PersistedStateV1) {
 }
 
 function readSession(): Session | null {
-  return readJson<Session>(SESSION_KEY);
+  return readJsonWithSchema(SESSION_KEY, localSessionSchema.parse);
 }
 
 function writeSession(next: Session | null) {
   if (typeof window === 'undefined') return;
   if (!next) window.localStorage.removeItem(SESSION_KEY);
   else writeJson(SESSION_KEY, next);
-}
-
-function clearSession() {
-  writeSession(null);
 }
 
 function normalizeExternalId(value: string | undefined): string | undefined {
@@ -1656,9 +1643,12 @@ export class LocalApi implements ProjexApi {
       delete dataByProjectId[pid];
     }
 
-    // Delete users that no longer belong to any company (local-mode simplification).
-    const remainingCompanyMembers = new Set(companyMemberships.map((m) => m.userId));
-    const users = st.users.filter((u) => remainingCompanyMembers.has(u.id));
+    const nextActiveCompanyId =
+      st.activeCompanyId === companyId
+        ? (companies.find((candidate) => candidate.status === 'active') ?? companies[0])?.id
+        : st.activeCompanyId;
+    const nextActiveProjectId =
+      st.activeProjectId && projectIdSet.has(st.activeProjectId) ? null : st.activeProjectId;
 
     writeState({
       ...st,
@@ -1668,13 +1658,9 @@ export class LocalApi implements ProjexApi {
       projectMemberships,
       companyDefaultsByCompanyId,
       dataByProjectId,
-      users,
+      activeCompanyId: nextActiveCompanyId ?? st.activeCompanyId,
+      activeProjectId: nextActiveProjectId,
     });
-
-    const sess = readSession();
-    if (sess && !users.some((u) => u.id === sess.userId && !u.disabled)) {
-      clearSession();
-    }
   }
 
   async deactivateProject(projectId: ProjectId): Promise<void> {
@@ -1729,7 +1715,13 @@ export class LocalApi implements ProjexApi {
     const dataByProjectId = { ...st.dataByProjectId };
     delete dataByProjectId[projectId];
 
-    writeState({ ...st, projects, projectMemberships, dataByProjectId });
+    writeState({
+      ...st,
+      projects,
+      projectMemberships,
+      dataByProjectId,
+      activeProjectId: st.activeProjectId === projectId ? null : st.activeProjectId,
+    });
   }
 
   async createUserInCompany(

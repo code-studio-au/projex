@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { z } from 'zod';
 
 import type { SmokeSectionId, SmokeSectionResult, SmokeStepResult } from '../../types';
@@ -20,9 +18,8 @@ import {
   txnResponseSchema,
   txnsResponseSchema,
 } from '../../validation/responseSchemas';
-
+import { getSmokeBaseUrl, loadSmokeEnvFiles } from './env';
 const smokeSectionMap = new Map(smokeSectionDefinitions.map((section) => [section.id, section]));
-const loadedEnvFiles = new Set<string>();
 
 type HttpResult = {
   res: Response;
@@ -55,31 +52,6 @@ type SmokeProject = {
   status?: string;
   allowSuperadminAccess?: boolean;
 };
-
-function loadSmokeEnvFiles() {
-  for (const envFileName of ['.env.local', '.env.smoke.local']) {
-    const filePath = path.resolve(process.cwd(), envFileName);
-    if (loadedEnvFiles.has(filePath) || !fs.existsSync(filePath)) continue;
-    loadedEnvFiles.add(filePath);
-    const content = fs.readFileSync(filePath, 'utf8');
-    for (const rawLine of content.split(/\r?\n/)) {
-      const line = rawLine.trim();
-      if (!line || line.startsWith('#')) continue;
-      const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
-      if (!match) continue;
-      const [, key, rawValue] = match;
-      if (process.env[key] != null) continue;
-      let value = rawValue.trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      process.env[key] = value;
-    }
-  }
-}
 
 function uniqueId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
@@ -1190,8 +1162,7 @@ export async function runSmokeSection(
   requestOrigin: string,
   options?: RunSmokeSectionOptions
 ) {
-  loadSmokeEnvFiles();
-  const baseUrl = (process.env.PROJEX_SMOKE_BASE_URL?.trim() || requestOrigin).replace(/\/+$/, '');
+  const baseUrl = getSmokeBaseUrl(requestOrigin);
   const client = new SmokeHttpClient(baseUrl, options?.onStatus);
 
   return withRecorder(sectionId, async (recorder) => {

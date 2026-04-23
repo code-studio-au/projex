@@ -300,6 +300,29 @@ export const betterAuthLikePayloadSchema = z
   })
   .nullable();
 
+export const authClientErrorSchema = z.object({
+  code: z.string().optional(),
+  message: z.string().optional(),
+});
+
+export type AuthClientError = z.infer<typeof authClientErrorSchema>;
+
+export const authClientErrorResponseSchema = z
+  .object({
+    error: authClientErrorSchema.optional(),
+    message: z.string().optional(),
+  })
+  .passthrough()
+  .nullable();
+
+export const authClientSignInResponseSchema = z
+  .record(z.string(), z.unknown())
+  .nullable();
+
+export const authClientSignOutResponseSchema = z
+  .record(z.string(), z.unknown())
+  .nullable();
+
 export const betterAuthSignUpResponseSchema = z.object({
   user: z.object({
     id: z.string().trim().min(1),

@@ -1,21 +1,19 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Pool } from 'pg';
 import { getMigrations } from 'better-auth/db/migration';
 
 import { requireDatabaseUrl } from '../env.ts';
 import { buildBetterAuthOptions } from '../auth/betterAuthInstance.ts';
+import { createPgPool, type TypedPgPool } from './pgPool';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 
-type QueryResultRow = { id: string };
-type Queryable = {
-  query: (sql: string, params?: unknown[]) => Promise<{ rows: QueryResultRow[] }>;
-  end: () => Promise<void>;
-};
+type MigrationQueryResultRow = { id: string };
+
+type Queryable = Pick<TypedPgPool, 'query' | 'end'>;
 
 async function ensureMigrationsTable(pool: Queryable) {
   await pool.query(`
@@ -27,7 +25,7 @@ async function ensureMigrationsTable(pool: Queryable) {
 }
 
 async function appliedMigrationIds(pool: Queryable): Promise<Set<string>> {
-  const res = await pool.query(
+  const res = await pool.query<MigrationQueryResultRow>(
     'select id from schema_migrations order by id'
   );
   return new Set(res.rows.map((r) => r.id));
@@ -56,7 +54,7 @@ async function run() {
 
   const connectionString = requireDatabaseUrl();
 
-  const pool = new Pool({ connectionString }) as unknown as Queryable;
+  const pool: Queryable = createPgPool(connectionString);
   try {
     await ensureMigrationsTable(pool);
     const applied = await appliedMigrationIds(pool);
