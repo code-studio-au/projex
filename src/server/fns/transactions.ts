@@ -208,6 +208,7 @@ export async function listTransactionsServer(args: {
       ])
       .where('project_id', '=', args.projectId)
       .orderBy('created_at', 'asc')
+      .orderBy('id', 'asc')
       .execute();
     return rows.map((r) => toTxn(r as TxnRow));
   });
