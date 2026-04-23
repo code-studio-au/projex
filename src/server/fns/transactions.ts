@@ -32,6 +32,11 @@ import { buildImportPreview } from '../../utils/importPreview';
 import { parseCsv, rowsToImportTxns } from '../../utils/csv';
 import { dateOnlyFromInput } from '../../utils/finance';
 import {
+  assertUniqueTransactionKeysInProject,
+  normalizeExternalId,
+  normalizeTxnPatch,
+} from '../../utils/transactions';
+import {
   assertContextProvided,
   requireServerUserId,
   type ServerFnContextInput,
@@ -64,11 +69,6 @@ type TxnRow = {
   updated_at: string;
 };
 
-function normalizeExternalId(value: string | null | undefined): string | undefined {
-  const next = value?.trim();
-  return next ? next : undefined;
-}
-
 function uniqAutoBudgetTargets(
   txns: Txn[]
 ): Array<{ categoryId: Category['id']; subCategoryId: SubCategory['id'] }> {
@@ -82,33 +82,6 @@ function uniqAutoBudgetTargets(
     out.push({ categoryId: txn.categoryId, subCategoryId: txn.subCategoryId });
   }
   return out;
-}
-
-function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } {
-  const next: Partial<Txn> & { id: TxnId } = { id: input.id };
-  if (typeof input.companyId !== 'undefined') next.companyId = input.companyId;
-  if (typeof input.projectId !== 'undefined') next.projectId = input.projectId;
-  if (typeof input.date !== 'undefined') next.date = input.date;
-  if (typeof input.item !== 'undefined') next.item = input.item;
-  if (typeof input.description !== 'undefined') next.description = input.description;
-  if (typeof input.amountCents !== 'undefined') next.amountCents = input.amountCents;
-  if (typeof input.companyDefaultMappingRuleId !== 'undefined') {
-    next.companyDefaultMappingRuleId = input.companyDefaultMappingRuleId ?? undefined;
-  }
-  if (typeof input.codingSource !== 'undefined') next.codingSource = input.codingSource;
-  if (typeof input.codingPendingApproval !== 'undefined') {
-    next.codingPendingApproval = input.codingPendingApproval;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, 'externalId')) {
-    next.externalId = input.externalId ?? undefined;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, 'categoryId')) {
-    next.categoryId = input.categoryId ?? undefined;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, 'subCategoryId')) {
-    next.subCategoryId = input.subCategoryId ?? undefined;
-  }
-  return next;
 }
 
 function toTxn(row: TxnRow): Txn {
@@ -135,34 +108,6 @@ function toTxn(row: TxnRow): Txn {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-function assertUniqueTransactionKeysInProject(
-  transactions: Array<{ id: TxnId; externalId?: string }>
-) {
-  const ids = new Set<string>();
-  const externalIds = new Set<string>();
-
-  for (const t of transactions) {
-    const idKey = String(t.id);
-    if (ids.has(idKey)) {
-      throw new AppError(
-        'VALIDATION_ERROR',
-        `Duplicate transaction id in project: ${idKey}`
-      );
-    }
-    ids.add(idKey);
-
-    const ext = normalizeExternalId(t.externalId);
-    if (!ext) continue;
-    if (externalIds.has(ext)) {
-      throw new AppError(
-        'VALIDATION_ERROR',
-        `Duplicate transaction externalId in project: ${ext}`
-      );
-    }
-    externalIds.add(ext);
-  }
 }
 
 export async function listTransactionsServer(args: {

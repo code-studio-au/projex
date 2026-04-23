@@ -5,33 +5,7 @@ import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import type { ProjectId, Txn, TxnId } from '../types';
 import type { TxnCreateInput, TxnUpdateInput } from '../api/contract';
-
-function normalizeTxnUpdateForCache(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } {
-  const next: Partial<Txn> & { id: TxnId } = { id: input.id };
-  if (typeof input.companyId !== 'undefined') next.companyId = input.companyId;
-  if (typeof input.projectId !== 'undefined') next.projectId = input.projectId;
-  if (typeof input.date !== 'undefined') next.date = input.date;
-  if (typeof input.item !== 'undefined') next.item = input.item;
-  if (typeof input.description !== 'undefined') next.description = input.description;
-  if (typeof input.amountCents !== 'undefined') next.amountCents = input.amountCents;
-  if (typeof input.companyDefaultMappingRuleId !== 'undefined') {
-    next.companyDefaultMappingRuleId = input.companyDefaultMappingRuleId ?? undefined;
-  }
-  if (typeof input.codingSource !== 'undefined') next.codingSource = input.codingSource;
-  if (typeof input.codingPendingApproval !== 'undefined') {
-    next.codingPendingApproval = input.codingPendingApproval;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, 'externalId')) {
-    next.externalId = input.externalId ?? undefined;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, 'categoryId')) {
-    next.categoryId = input.categoryId ?? undefined;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, 'subCategoryId')) {
-    next.subCategoryId = input.subCategoryId ?? undefined;
-  }
-  return next;
-}
+import { normalizeTxnPatch } from '../utils/transactions';
 
 export function useTransactionsQuery(projectId: ProjectId) {
   const api = useApi();
@@ -68,7 +42,7 @@ export function useUpdateTxnMutation(projectId: ProjectId) {
     onMutate: async (input) => {
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueryData<Txn[]>(queryKey);
-      const normalizedInput = normalizeTxnUpdateForCache(input);
+      const normalizedInput = normalizeTxnPatch(input);
       if (previous) {
         qc.setQueryData<Txn[]>(
           queryKey,

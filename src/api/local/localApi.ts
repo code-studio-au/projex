@@ -8,7 +8,6 @@ import type {
   CompanyMembership,
   CompanyRole,
   CompanySummary,
-  CompanySummaryProject,
   ProjectMembership,
   ProjectRole,
   Project,
@@ -59,8 +58,15 @@ import {
   defaultCategoryIdForRule,
   mapImportedTransactionWithCompanyDefaults,
 } from '../../utils/companyDefaultMappings';
+import { buildCompanySummaryProjects } from '../../utils/companySummary';
 import { buildImportPreview } from '../../utils/importPreview';
 import { parseCsv, rowsToImportTxns } from '../../utils/csv';
+import {
+  assertUniqueTransactionKeysInProject,
+  normalizeExternalId,
+  normalizeTxnPatch,
+  sortTransactionsForList,
+} from '../../utils/transactions';
 import {
   localPersistedStateSchema,
   localSessionSchema,
@@ -155,66 +161,8 @@ function writeSession(next: Session | null) {
   else writeJson(SESSION_KEY, next);
 }
 
-function normalizeExternalId(value: string | undefined): string | undefined {
-  const next = value?.trim();
-  return next ? next : undefined;
-}
-
-function normalizeTxnPatch(input: TxnUpdateInput): Partial<Txn> & { id: TxnId } {
-  const next: Partial<Txn> & { id: TxnId } = { id: input.id };
-  if (typeof input.companyId !== 'undefined') next.companyId = input.companyId;
-  if (typeof input.projectId !== 'undefined') next.projectId = input.projectId;
-  if (typeof input.date !== 'undefined') next.date = input.date;
-  if (typeof input.item !== 'undefined') next.item = input.item;
-  if (typeof input.description !== 'undefined') next.description = input.description;
-  if (typeof input.amountCents !== 'undefined') next.amountCents = input.amountCents;
-  if (typeof input.companyDefaultMappingRuleId !== 'undefined') {
-    next.companyDefaultMappingRuleId = input.companyDefaultMappingRuleId ?? undefined;
-  }
-  if (typeof input.codingSource !== 'undefined') next.codingSource = input.codingSource;
-  if (typeof input.codingPendingApproval !== 'undefined') {
-    next.codingPendingApproval = input.codingPendingApproval;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, 'externalId')) {
-    next.externalId = input.externalId ?? undefined;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, 'categoryId')) {
-    next.categoryId = input.categoryId ?? undefined;
-  }
-  if (Object.prototype.hasOwnProperty.call(input, 'subCategoryId')) {
-    next.subCategoryId = input.subCategoryId ?? undefined;
-  }
-  return next;
-}
-
 function projectAllowsSuperadminAccess(project: Project | undefined): boolean {
   return project?.allowSuperadminAccess ?? true;
-}
-
-function assertUniqueTransactionKeysInProject(transactions: Txn[]) {
-  const ids = new Set<string>();
-  const externalIds = new Set<string>();
-
-  for (const t of transactions) {
-    const idKey = String(t.id);
-    if (ids.has(idKey)) {
-      throw new AppError(
-        'VALIDATION_ERROR',
-        `Duplicate transaction id in project: ${idKey}`
-      );
-    }
-    ids.add(idKey);
-
-    const ext = normalizeExternalId(t.externalId);
-    if (!ext) continue;
-    if (externalIds.has(ext)) {
-      throw new AppError(
-        'VALIDATION_ERROR',
-        `Duplicate transaction externalId in project: ${ext}`
-      );
-    }
-    externalIds.add(ext);
-  }
 }
 
 export class LocalApi implements ProjexApi {
@@ -401,50 +349,28 @@ export class LocalApi implements ProjexApi {
     }
 
     const projects = await this.listProjects(companyId);
-    const summaryProjects: CompanySummaryProject[] = projects.map((project) => {
+    const validSubCategoryIdsByProject = new Map<ProjectId, Set<string>>();
+    const transactions = projects.flatMap((project) => {
       const slice = st.dataByProjectId[project.id];
-      const validSubIds = new Set((slice?.subCategories ?? []).map((subCategory) => subCategory.id));
-      const months = new Map<
-        string,
-        {
-          actualCodedCents: number;
-          uncodedCount: number;
-          uncodedAmountCents: number;
-        }
-      >();
-
-      for (const txn of slice?.transactions ?? []) {
-        const monthKey = /^\d{4}-\d{2}/.test(txn.date) ? txn.date.slice(0, 7) : null;
-        if (!monthKey) continue;
-        const bucket = months.get(monthKey) ?? {
-          actualCodedCents: 0,
-          uncodedCount: 0,
-          uncodedAmountCents: 0,
-        };
-        const amount = Math.abs(txn.amountCents ?? 0);
-        if (txn.subCategoryId && validSubIds.has(txn.subCategoryId)) {
-          bucket.actualCodedCents += amount;
-        } else {
-          bucket.uncodedCount += 1;
-          bucket.uncodedAmountCents += amount;
-        }
-        months.set(monthKey, bucket);
-      }
-
-      return {
-        id: project.id,
-        name: project.name,
-        status: project.status,
-        visibility: project.visibility,
-        currency: project.currency,
-        budgetCents: project.budgetTotalCents,
-        months: [...months.entries()]
-          .sort(([a], [b]) => b.localeCompare(a))
-          .map(([monthKey, bucket]) => ({ monthKey, ...bucket })),
-      };
+      validSubCategoryIdsByProject.set(
+        project.id,
+        new Set((slice?.subCategories ?? []).map((subCategory) => String(subCategory.id)))
+      );
+      return (slice?.transactions ?? []).map((txn) => ({
+        projectId: project.id,
+        date: txn.date,
+        amountCents: txn.amountCents,
+        subCategoryId: txn.subCategoryId,
+      }));
     });
 
-    return { projects: summaryProjects };
+    return {
+      projects: buildCompanySummaryProjects({
+        projects,
+        transactions,
+        validSubCategoryIdsByProject,
+      }),
+    };
   }
 
   async listProjects(companyId: CompanyId): Promise<Project[]> {
@@ -513,7 +439,7 @@ export class LocalApi implements ProjexApi {
     if (!p) throw new AppError('NOT_FOUND', 'Unknown project');
     this.assertCan('project:view', p.companyId, projectId);
     const slice = st.dataByProjectId[projectId];
-    return slice?.transactions ?? [];
+    return sortTransactionsForList(slice?.transactions ?? []);
   }
 
   async createTxn(projectId: ProjectId, input: TxnCreateInput): Promise<Txn> {

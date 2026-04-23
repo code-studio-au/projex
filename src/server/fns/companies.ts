@@ -3,10 +3,10 @@ import { sql } from 'kysely';
 
 import { AppError } from '../../api/errors';
 import type { CompanyUpdateInput, CompanyUserInviteResult, ProfileUpdateInput } from '../../api/types';
-import type { Company, CompanyId, CompanyRole, CompanySummary, CompanySummaryProject, ProjectId, User, UserId } from '../../types';
+import type { Company, CompanyId, CompanyRole, CompanySummary, ProjectId, User, UserId } from '../../types';
 import { asCompanyId, asUserId } from '../../types';
+import { buildCompanySummaryProjects } from '../../utils/companySummary';
 import { uid } from '../../utils/id';
-import { monthKeyFromDateOnlyInput } from '../../utils/finance';
 import { companyNameSchema, emailSchema, userNameSchema } from '../../validation/schemas';
 import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas';
 import { validateOrThrow } from '../../validation/validate';
@@ -362,74 +362,18 @@ export async function getCompanySummaryServer(args: {
       validSubIdsByProject.set(projectId, current);
     }
 
-    const monthBucketsByProject = new Map<
-      ProjectId,
-      Map<
-        string,
-        {
-          actualCodedCents: number;
-          uncodedCount: number;
-          uncodedAmountCents: number;
-        }
-      >
-    >();
-
-    for (const row of txnRows) {
-      const monthKey = monthKeyFromDateOnlyInput(row.txn_date);
-      if (!monthKey) continue;
-      const projectId = row.project_id as ProjectId;
-      const projectBuckets =
-        monthBucketsByProject.get(projectId) ??
-        new Map<
-          string,
-          {
-            actualCodedCents: number;
-            uncodedCount: number;
-            uncodedAmountCents: number;
-          }
-        >();
-      const bucket = projectBuckets.get(monthKey) ?? {
-        actualCodedCents: 0,
-        uncodedCount: 0,
-        uncodedAmountCents: 0,
-      };
-      const amount = Math.abs(Number(row.amount_cents ?? 0));
-      const validSubIds = validSubIdsByProject.get(projectId) ?? new Set<string>();
-      if (row.sub_category_id && validSubIds.has(row.sub_category_id)) {
-        bucket.actualCodedCents += amount;
-      } else {
-        bucket.uncodedCount += 1;
-        bucket.uncodedAmountCents += amount;
-      }
-      projectBuckets.set(monthKey, bucket);
-      monthBucketsByProject.set(projectId, projectBuckets);
-    }
-
-    const summaryProjects: CompanySummaryProject[] = projects.map((project) => {
-      const monthBuckets =
-        monthBucketsByProject.get(project.id) ??
-        new Map<
-          string,
-          {
-            actualCodedCents: number;
-            uncodedCount: number;
-            uncodedAmountCents: number;
-          }
-        >();
-      return {
-        id: project.id,
-        name: project.name,
-        status: project.status,
-        visibility: project.visibility,
-        currency: project.currency,
-        budgetCents: project.budgetTotalCents,
-        months: [...monthBuckets.entries()]
-          .sort(([a], [b]) => b.localeCompare(a))
-          .map(([monthKey, bucket]) => ({ monthKey, ...bucket })),
-      };
-    });
-
-    return { projects: summaryProjects };
+    return {
+      projects: buildCompanySummaryProjects({
+        projects,
+        transactions: txnRows.map((row) => ({
+          projectId: row.project_id as ProjectId,
+          date: row.txn_date,
+          amountCents: Number(row.amount_cents ?? 0),
+          subCategoryId: row.sub_category_id,
+        })),
+        validSubCategoryIdsByProject: validSubIdsByProject,
+      }),
+    };
   });
 }
 
