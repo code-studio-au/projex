@@ -172,6 +172,12 @@ async function makeServerApiBackedByLocalHarness(): Promise<AdapterHarness> {
           const body = (await parseJsonBody(init)) as Parameters<ProjexApi['importTransactions']>[1];
           return jsonResponse(await backing.importTransactions(projectId, body));
         }
+        if (method === 'POST' && parts[4] === 'import-preview') {
+          const body = (await parseJsonBody(init)) as Parameters<
+            ProjexApi['previewImportTransactions']
+          >[1];
+          return jsonResponse(await backing.previewImportTransactions(projectId, body));
+        }
       }
 
       return jsonResponse({ code: 'NOT_FOUND', message: `Unhandled test route ${method} ${url.pathname}` }, 404);
@@ -274,6 +280,32 @@ function runAdapterParityTests(
           err.code === 'VALIDATION_ERROR' &&
           /Duplicate transaction externalId/i.test(err.message)
       );
+    } finally {
+      harness.cleanup?.();
+    }
+  });
+
+  test(`${label}: import preview flags existing duplicate externalId`, async () => {
+    const harness = await makeHarness();
+    try {
+      await harness.api.loginAs(asUserId('u_superadmin'));
+
+      const projectId = asProjectId('prj_acme_alpha');
+      const seed = await harness.api.listTransactions(projectId);
+      const existing = seed.find((txn) => txn.externalId);
+      assert.ok(existing, 'seed should include a transaction with an externalId');
+
+      const preview = await harness.api.previewImportTransactions(projectId, {
+        csvText: [
+          'id,date,item,description,amount',
+          `${existing.externalId},${existing.date},Duplicate check,Duplicate check,12.34`,
+        ].join('\n'),
+        autoCreateStructures: false,
+      });
+
+      assert.equal(preview.rows.length, 1);
+      assert.equal(preview.rows[0]?.duplicate, true);
+      assert.equal(preview.rows[0]?.duplicateReason, 'existing');
     } finally {
       harness.cleanup?.();
     }

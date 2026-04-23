@@ -28,8 +28,7 @@ import { validateOrThrow } from '../../validation/validate';
 import { getDb } from '../db/db';
 import { isAuthorized, requireAuthorized } from '../auth/authorize';
 import { mapImportedTransactionWithCompanyDefaults } from '../../utils/companyDefaultMappings';
-import { buildImportPreview } from '../../utils/importPreview';
-import { parseCsv, rowsToImportTxns } from '../../utils/csv';
+import { planImportPreview } from '../../utils/importPreviewPlan';
 import { dateOnlyFromInput } from '../../utils/finance';
 import {
   assertUniqueTransactionKeysInProject,
@@ -801,16 +800,6 @@ export async function previewImportTransactionsServer(args: {
         }),
       ]);
 
-    const rows = parseCsv(args.csvText);
-    const importTxns = rowsToImportTxns(rows);
-
-    const existingKeys = new Set(
-      existingRows.map((txn) => {
-        const normalizedExternalId = normalizeExternalId(txn.external_id);
-        return normalizedExternalId ? `external:${normalizedExternalId}` : `id:${txn.public_id}`;
-      })
-    );
-
     const defaultCategories = defaultCategoriesRows.map((row) => ({
       id: asCompanyDefaultCategoryId(row.id),
       companyId: row.company_id as CompanyId,
@@ -866,21 +855,21 @@ export async function previewImportTransactionsServer(args: {
         updatedAt: row.updated_at,
       })) satisfies BudgetLine[];
 
-    return {
-      rows: buildImportPreview({
-        importTxns,
-        existingKeys,
-        categories: projectCategories,
-        subCategories: projectSubCategories,
-        budgets,
-        defaultCategories,
-        defaultSubCategories,
-        mappingRules,
-        autoCreateTaxonomy: Boolean(args.autoCreateStructures),
-        canEditTaxonomy,
-        autoCreateBudgets: Boolean(args.autoCreateStructures),
-        canEditBudgets,
-      }),
-    };
+    return planImportPreview({
+      csvText: args.csvText,
+      existingTransactions: existingRows.map((txn) => ({
+        id: asTxnId(txn.public_id),
+        externalId: normalizeExternalId(txn.external_id),
+      })),
+      categories: projectCategories,
+      subCategories: projectSubCategories,
+      budgets,
+      defaultCategories,
+      defaultSubCategories,
+      mappingRules,
+      autoCreateStructures: Boolean(args.autoCreateStructures),
+      canEditTaxonomy,
+      canEditBudgets,
+    });
   });
 }

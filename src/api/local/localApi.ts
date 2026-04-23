@@ -60,8 +60,7 @@ import {
 } from '../../utils/companyDefaultMappings';
 import { planApplyCompanyDefaultTaxonomy } from '../../utils/companyDefaultTaxonomy';
 import { buildCompanySummaryProjects } from '../../utils/companySummary';
-import { buildImportPreview } from '../../utils/importPreview';
-import { parseCsv, rowsToImportTxns } from '../../utils/csv';
+import { planImportPreview } from '../../utils/importPreviewPlan';
 import {
   assertUniqueTransactionKeysInProject,
   normalizeExternalId,
@@ -1764,31 +1763,21 @@ export class LocalApi implements ProjexApi {
         projectMemberships: st.projectMemberships,
       });
 
-    const rows = parseCsv(input.csvText);
-    const importTxns = rowsToImportTxns(rows);
-    const existingKeys = new Set(
-      slice.transactions.map((txn) =>
-        txn.externalId?.trim() ? `external:${txn.externalId.trim()}` : `id:${txn.id}`
-      )
-    );
     const defaults = st.companyDefaultsByCompanyId[p.companyId] ?? emptyCompanyDefaultsSlice();
 
-    return {
-      rows: buildImportPreview({
-        importTxns,
-        existingKeys,
-        categories: slice.categories,
-        subCategories: slice.subCategories,
-        budgets: slice.budgets,
-        defaultCategories: defaults.categories,
-        defaultSubCategories: defaults.subCategories,
-        mappingRules: defaults.mappingRules,
-        autoCreateTaxonomy: Boolean(input.autoCreateStructures),
-        canEditTaxonomy,
-        autoCreateBudgets: Boolean(input.autoCreateStructures),
-        canEditBudgets,
-      }),
-    };
+    return planImportPreview({
+      csvText: input.csvText,
+      existingTransactions: slice.transactions,
+      categories: slice.categories,
+      subCategories: slice.subCategories,
+      budgets: slice.budgets,
+      defaultCategories: defaults.categories,
+      defaultSubCategories: defaults.subCategories,
+      mappingRules: defaults.mappingRules,
+      autoCreateStructures: Boolean(input.autoCreateStructures),
+      canEditTaxonomy,
+      canEditBudgets,
+    });
   }
 
   async resetToSeed(): Promise<void> {
