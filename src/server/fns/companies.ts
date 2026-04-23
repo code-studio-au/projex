@@ -29,6 +29,16 @@ const COMPANY_ROLE_RANK: Record<CompanyRole, number> = {
   member: 1,
 };
 
+function summaryMonthKeyFromTxnDate(value: string | Date): string | null {
+  if (value instanceof Date) {
+    const year = value.getUTCFullYear();
+    const month = String(value.getUTCMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  }
+
+  return /^\d{4}-\d{2}/.test(value) ? value.slice(0, 7) : null;
+}
+
 function toCompany(row: {
   id: string;
   name: string;
@@ -341,12 +351,6 @@ export async function getCompanySummaryServer(args: {
 
     const projectIds = projects.map((project) => project.id);
 
-    const budgetRows = await db
-      .selectFrom('budget_lines')
-      .select(['project_id', 'allocated_cents'])
-      .where('project_id', 'in', projectIds)
-      .execute();
-
     const subCategoryRows = await db
       .selectFrom('sub_categories')
       .select(['project_id', 'id'])
@@ -358,12 +362,6 @@ export async function getCompanySummaryServer(args: {
       .select(['project_id', 'txn_date', 'amount_cents', 'sub_category_id'])
       .where('project_id', 'in', projectIds)
       .execute();
-
-    const budgetTotals = new Map<ProjectId, number>();
-    for (const row of budgetRows) {
-      const projectId = row.project_id as ProjectId;
-      budgetTotals.set(projectId, (budgetTotals.get(projectId) ?? 0) + Number(row.allocated_cents));
-    }
 
     const validSubIdsByProject = new Map<ProjectId, Set<string>>();
     for (const row of subCategoryRows) {
@@ -386,7 +384,7 @@ export async function getCompanySummaryServer(args: {
     >();
 
     for (const row of txnRows) {
-      const monthKey = /^\d{4}-\d{2}/.test(row.txn_date) ? row.txn_date.slice(0, 7) : null;
+      const monthKey = summaryMonthKeyFromTxnDate(row.txn_date);
       if (!monthKey) continue;
       const projectId = row.project_id as ProjectId;
       const projectBuckets =
@@ -433,7 +431,7 @@ export async function getCompanySummaryServer(args: {
         status: project.status,
         visibility: project.visibility,
         currency: project.currency,
-        budgetCents: budgetTotals.get(project.id) ?? 0,
+        budgetCents: project.budgetTotalCents,
         months: [...monthBuckets.entries()]
           .sort(([a], [b]) => b.localeCompare(a))
           .map(([monthKey, bucket]) => ({ monthKey, ...bucket })),

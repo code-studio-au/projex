@@ -437,7 +437,7 @@ export class LocalApi implements ProjexApi {
         status: project.status,
         visibility: project.visibility,
         currency: project.currency,
-        budgetCents: (slice?.budgets ?? []).reduce((sum, budget) => sum + budget.allocatedCents, 0),
+        budgetCents: project.budgetTotalCents,
         months: [...months.entries()]
           .sort(([a], [b]) => b.localeCompare(a))
           .map(([monthKey, bucket]) => ({ monthKey, ...bucket })),

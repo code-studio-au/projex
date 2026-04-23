@@ -476,6 +476,22 @@ test('LocalApi import rejects duplicate externalId within the same project', asy
   );
 });
 
+test('LocalApi company summary uses project total budgets for health', async () => {
+  installMemoryLocalStorage();
+  const api = new LocalApi();
+
+  await api.loginAs(asUserId('u_exec'));
+
+  const summary = await api.getCompanySummary(asCompanyId('co_acme'));
+  const alpha = summary.projects.find((project) => project.id === asProjectId('prj_acme_alpha'));
+  const beta = summary.projects.find((project) => project.id === asProjectId('prj_acme_beta'));
+
+  assert.ok(alpha);
+  assert.ok(beta);
+  assert.equal(alpha.budgetCents, 5000000);
+  assert.equal(beta.budgetCents, 2500000);
+});
+
 test('LocalApi keeps membership reads scoped for non-superadmin users', async () => {
   installMemoryLocalStorage();
   const api = new LocalApi();
