@@ -10,7 +10,7 @@ import {
   asSubCategoryId,
   asTxnId,
   asUserId,
-} from '../types';
+} from '../types/index.ts';
 
 import {
   budgetAllocatedCentsSchema,
@@ -22,7 +22,7 @@ import {
   subCategoryNameSchema,
   txnInputSchema,
   userNameSchema,
-} from './schemas';
+} from './schemas.ts';
 
 const idSchema = z.string().trim().min(1, 'Id is required');
 const companyIdSchema = idSchema.transform(asCompanyId);

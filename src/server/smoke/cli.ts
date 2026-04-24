@@ -1,7 +1,7 @@
-import type { SmokeSectionId, SmokeStepResult } from '../../types';
-import { smokeSectionDefinitions } from '../../types';
-import { getSmokeBaseUrl } from './env';
-import { runSmokeSection } from './runSection';
+import type { SmokeSectionId, SmokeStepResult } from '../../types/index.ts';
+import { smokeSectionDefinitions } from '../../types/index.ts';
+import { getSmokeBaseUrl } from './env.ts';
+import { runSmokeSection } from './runSection.ts';
 
 const validSections = new Set(smokeSectionDefinitions.map((section) => section.id));
 

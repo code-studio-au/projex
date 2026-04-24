@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import type { SmokeSectionId, SmokeSectionResult, SmokeStepResult } from '../../types';
-import { smokeSectionDefinitions } from '../../types';
+import type { SmokeSectionId, SmokeSectionResult, SmokeStepResult } from '../../types/index.ts';
+import { smokeSectionDefinitions } from '../../types/index.ts';
 import {
   apiMessageResponseSchema,
   authenticatedSessionResponseSchema,
@@ -17,8 +17,8 @@ import {
   subCategoriesResponseSchema,
   txnResponseSchema,
   txnsResponseSchema,
-} from '../../validation/responseSchemas';
-import { getSmokeBaseUrl, loadSmokeEnvFiles } from './env';
+} from '../../validation/responseSchemas.ts';
+import { getSmokeBaseUrl, loadSmokeEnvFiles } from './env.ts';
 const smokeSectionMap = new Map(smokeSectionDefinitions.map((section) => [section.id, section]));
 
 type HttpResult = {

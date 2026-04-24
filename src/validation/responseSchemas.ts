@@ -10,7 +10,7 @@ import {
   asSubCategoryId,
   asTxnId,
   asUserId,
-} from '../types';
+} from '../types/index.ts';
 
 export const apiMessageResponseSchema = z.object({
   message: z.string().optional(),
