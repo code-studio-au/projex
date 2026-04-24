@@ -12,10 +12,21 @@ function jsonLine(event: SmokeStepStreamEvent) {
   return `${JSON.stringify(event)}\n`;
 }
 
+function smokeToolsApiEnabled() {
+  return process.env.PROJEX_ENABLE_SMOKE_TOOLS === 'true';
+}
+
 export const Route = createFileRoute('/api/admin/smoke')({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        if (!smokeToolsApiEnabled()) {
+          return Response.json(
+            { code: 'NOT_FOUND', message: 'Not found' },
+            { status: 404 }
+          );
+        }
+
         let sectionId: SmokeSectionId;
         try {
           sectionId = validateOrThrow(

@@ -23,6 +23,8 @@ import { useLogoutMutation, useSessionQuery } from './queries/session';
 import { useAllCompanyMembershipsQuery } from './queries/memberships';
 import { useCompaniesQuery, useUsersQuery } from './queries/reference';
 
+const smokeToolsEnabled = import.meta.env.VITE_ENABLE_SMOKE_TOOLS === 'true';
+
 /** Root layout: intentionally minimal to keep route config clean. */
 export function RootProviders({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -177,7 +179,7 @@ export function AuthedLayout() {
                     >
                       Account settings
                     </Menu.Item>
-                    {isSuperadmin ? (
+                    {smokeToolsEnabled && isSuperadmin ? (
                       <Menu.Item
                         onClick={() => {
                           router.navigate({ to: smokeRoute.to });

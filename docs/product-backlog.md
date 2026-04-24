@@ -129,6 +129,32 @@ Why this matters:
 
 - keeps building on the now-working account basics without mixing simple profile edits with bigger admin features
 
+## Operational / Testing
+
+### Add smoke prep and cleanup automation
+
+Examples:
+
+- add a `smoke:prep` flow that creates or ensures the users, memberships, and starter company/project needed for smoke
+- generate unique per-run smoke users such as `smoke_admin_<runid>@...` rather than relying on many long-lived env credentials
+- run smoke against those generated users and clean them up in `finally`, even when a section fails
+- add a best-effort cleanup sweep for abandoned `smoke_*` users, memberships, companies, projects, and test data from earlier interrupted runs
+- keep one stable bootstrap superadmin credential or bootstrap command as the trusted entry point for provisioning the per-run test identities
+
+Why this matters:
+
+- the current smoke flow still depends on manually managed credentials in env, which is easy to drift or misconfigure
+- a prep and cleanup harness would make local and staging smoke runs more repeatable and less dependent on curated long-lived test accounts
+- reducing static smoke credentials improves operational hygiene and lowers the chance of stale role or membership state masking real regressions
+
+Design direction:
+
+- start with a hybrid model: one stable bootstrap admin plus generated per-run smoke users
+- keep invite, privacy, and email-change flows using distinct generated addresses where uniqueness matters
+- make cleanup resilient by running it in `finally` and by supporting a separate sweep of stale `smoke_*` data older than a safe threshold
+- prefer exercising real server bootstrap and admin APIs rather than bypassing app rules with direct DB-only setup
+- keep the smoke harness explicit about which identities are long-lived bootstrap identities and which are disposable per-run fixtures
+
 ## Future Features
 
 These are worthwhile future additions, but they do not need to compete with the short near-term list above.
