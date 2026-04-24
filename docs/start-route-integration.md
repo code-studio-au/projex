@@ -43,4 +43,4 @@ Do not import `src/server/*` from client modules.
 1. Keep `src/api/server/serverApi.ts` as the client-safe browser/SSR adapter.
 2. Keep request-scoped auth/session resolution in the Start bridge layer.
 3. Add new server-backed capabilities by extending `src/routes/api.*.ts` plus `src/server/fns/*`.
-4. Do not reintroduce environment-specific shortcuts that let staging behave like local mode.
+4. Do not reintroduce environment-specific shortcuts that let staging bypass the normal server-backed app flow.

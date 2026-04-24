@@ -1,8 +1,8 @@
 /**
- * Invariants to preserve across adapters (localStorage now, Postgres later).
+ * Invariants to preserve across the client/API/server boundary.
  *
- * These should become DB constraints (unique indexes / foreign keys) and/or
- * enforced in server functions.
+ * These should be backed by DB constraints (unique indexes / foreign keys)
+ * and/or enforced in server functions.
  */
 
 export const INVARIANTS: readonly string[] = [

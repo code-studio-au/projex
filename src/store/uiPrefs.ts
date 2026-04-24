@@ -16,7 +16,7 @@ const BUDGET_COLLAPSE_KEY_VERSION = 'projex_budget_collapse_v1';
 /**
  * Returns the storage key for budget collapse state.
  *
- * TODO(auth): When real authentication is added, upgrade this key to include userId:
+ * TODO(auth): Upgrade this key to include userId:
  *   `projex_budget_collapse_v2:${userId}:${projectId}`
  * so collapse preferences become per-user per-project.
  */
