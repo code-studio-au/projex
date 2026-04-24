@@ -8,6 +8,7 @@ export function loadSmokeEnvFiles() {
     const filePath = path.resolve(process.cwd(), envFileName);
     if (loadedEnvFiles.has(filePath) || !fs.existsSync(filePath)) continue;
     loadedEnvFiles.add(filePath);
+    const isSmokeOverridesFile = envFileName === '.env.smoke.local';
     const content = fs.readFileSync(filePath, 'utf8');
     for (const rawLine of content.split(/\r?\n/)) {
       const line = rawLine.trim();
@@ -15,7 +16,6 @@ export function loadSmokeEnvFiles() {
       const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
       if (!match) continue;
       const [, key, rawValue] = match;
-      if (process.env[key] != null) continue;
       let value = rawValue.trim();
       if (
         (value.startsWith('"') && value.endsWith('"')) ||
@@ -23,6 +23,15 @@ export function loadSmokeEnvFiles() {
       ) {
         value = value.slice(1, -1);
       }
+
+      // Allow the dedicated smoke overrides file to win for smoke-specific vars
+      // without clobbering unrelated process env or app config loaded earlier.
+      if (isSmokeOverridesFile && key.startsWith('PROJEX_SMOKE_')) {
+        process.env[key] = value;
+        continue;
+      }
+
+      if (process.env[key] != null) continue;
       process.env[key] = value;
     }
   }
