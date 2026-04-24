@@ -2,8 +2,8 @@ import type { ProjexApi } from '../api/contract';
 import type { UserId } from '../types';
 
 export async function getPostLoginTarget(api: ProjexApi, userId: UserId) {
-  const memberships = await api.listAllCompanyMemberships();
-  const isSuperadmin = memberships.some((m) => m.userId === userId && m.role === 'superadmin');
+  const users = await api.listUsers();
+  const isSuperadmin = users.find((user) => user.id === userId)?.isGlobalSuperadmin === true;
   if (isSuperadmin) return { to: '/companies' as const };
 
   const companies = await api.listCompanies();

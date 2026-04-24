@@ -6,6 +6,7 @@ import { uid } from '../../utils/id';
 import { projectBudgetTotalCentsSchema, projectNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
+import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
 import {
   assertContextProvided,
@@ -38,17 +39,6 @@ function toProject(row: ProjectRow): Project {
     visibility: row.visibility,
     allowSuperadminAccess: row.allow_superadmin_access,
   };
-}
-
-async function isSuperadminUser(userId: UserId): Promise<boolean> {
-  const db = getDb();
-  const row = await db
-    .selectFrom('company_memberships')
-    .select('user_id')
-    .where('user_id', '=', userId)
-    .where('role', '=', 'superadmin')
-    .executeTakeFirst();
-  return !!row;
 }
 
 async function getCompanyRole(userId: UserId, companyId: CompanyId) {
@@ -94,7 +84,7 @@ export async function listProjectsServer(args: {
       .orderBy('name', 'asc')
       .execute();
 
-    const isSuperadmin = await isSuperadminUser(userId);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
     if (isSuperadmin) {
       return allRows.filter((p) => p.allow_superadmin_access).map(toProject);
     }
@@ -132,7 +122,7 @@ export async function getProjectServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(userId);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
     const project = await db
       .selectFrom('projects')
       .select([

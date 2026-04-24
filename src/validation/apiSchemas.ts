@@ -44,7 +44,7 @@ const optionalMappingRuleIdSchema = companyDefaultMappingRuleIdSchema
 const nullableOptionalCategoryIdSchema = categoryIdSchema.nullable().optional();
 const nullableOptionalSubCategoryIdSchema = subCategoryIdSchema.nullable().optional();
 
-const companyRoleSchema = z.enum(['superadmin', 'admin', 'executive', 'management', 'member']);
+const companyRoleSchema = z.enum(['admin', 'executive', 'management', 'member']);
 const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const projectVisibilitySchema = z.enum(['company', 'private']);
 const currencySchema = z.enum(['AUD', 'USD', 'EUR', 'GBP']);

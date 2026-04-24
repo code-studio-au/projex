@@ -29,10 +29,12 @@ async function run() {
     const { id: userId, name, email: normalizedEmail } = authUser.rows[0];
 
     await pool.query(
-      `insert into users (id, email, name, disabled)
-       values ($1, $2, $3, false)
+      `insert into users (id, email, name, disabled, is_global_superadmin)
+       values ($1, $2, $3, false, true)
        on conflict (id) do update
-       set email = excluded.email, name = excluded.name`,
+       set email = excluded.email,
+           name = excluded.name,
+           is_global_superadmin = true`,
       [userId, normalizedEmail, name || normalizedEmail]
     );
 
@@ -118,7 +120,7 @@ async function run() {
 
       await pool.query(
         `insert into company_memberships (company_id, user_id, role)
-         values ($1, $2, 'superadmin')
+         values ($1, $2, 'admin')
          on conflict (company_id, user_id) do update
          set role = excluded.role`,
         [company.id, userId]
@@ -188,19 +190,6 @@ async function run() {
       }
     }
 
-    const finalCompanies = await pool.query(
-      `select count(*)::int as count
-       from company_memberships
-       where user_id = $1`,
-      [userId]
-    );
-    const finalCompanyCount = finalCompanies.rows[0]?.count ?? 0;
-    if (finalCompanyCount === 0) {
-      throw new Error(
-        `Linked user "${userId}" has zero company memberships after link step.`
-      );
-    }
-
     console.log(
       JSON.stringify(
         {
@@ -212,7 +201,6 @@ async function run() {
           bootstrapProject,
           copiedCompanyMemberships,
           copiedProjectMemberships,
-          finalCompanyMemberships: finalCompanyCount,
         },
         null,
         2

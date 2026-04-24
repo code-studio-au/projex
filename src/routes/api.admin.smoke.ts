@@ -55,10 +55,9 @@ export const Route = createFileRoute('/api/admin/smoke')({
           );
         }
 
-        const memberships = await api.listAllCompanyMemberships();
-        const isSuperadmin = memberships.some(
-          (membership) => membership.userId === session.userId && membership.role === 'superadmin'
-        );
+        const users = await api.listUsers();
+        const isSuperadmin =
+          users.find((user) => user.id === session.userId)?.isGlobalSuperadmin === true;
         if (!isSuperadmin) {
           return Response.json(
             { code: 'FORBIDDEN', message: 'Superadmin access required' },

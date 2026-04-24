@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconCheck, IconLoader2, IconPlayerPlay, IconX } from '@tabler/icons-react';
 
-import { useAllCompanyMembershipsQuery } from '../queries/memberships';
+import { useUsersQuery } from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
 import { apiMessageResponseSchema } from '../validation/responseSchemas';
 import type {
@@ -311,16 +311,14 @@ function applyStepUpdate(section: SmokeSectionView, stepResult: SmokeStepResult)
 
 export default function SmokeDashboardPage() {
   const session = useSessionQuery();
-  const membershipsQ = useAllCompanyMembershipsQuery();
+  const usersQ = useUsersQuery();
 
   const userId = session.data?.userId ?? null;
   const isSuperadmin = useMemo(
     () =>
       !!userId &&
-      (membershipsQ.data ?? []).some(
-        (membership) => membership.userId === userId && membership.role === 'superadmin'
-      ),
-    [membershipsQ.data, userId]
+      (usersQ.data ?? []).find((user) => user.id === userId)?.isGlobalSuperadmin === true,
+    [userId, usersQ.data]
   );
 
   const [results, setResults] = useState<Partial<Record<SmokeSectionId, SmokeSectionResult>>>({});

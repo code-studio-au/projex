@@ -1,6 +1,6 @@
 import { Kysely, PostgresDialect } from 'kysely';
 import type { DB } from './schema';
-import { createPgPool } from './pgPool';
+import { createPgPool } from './pgPool.ts';
 import { requireDatabaseUrl, validateServerStartupEnv } from '../env.ts';
 
 let _db: Kysely<DB> | null = null;

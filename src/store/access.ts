@@ -17,7 +17,6 @@ import type {
  */
 
 const companyRoleRank: Record<CompanyRole, number> = {
-  superadmin: 5,
   admin: 4,
   executive: 3,
   management: 2,
@@ -113,7 +112,7 @@ export function canManageCompany(
   companyMemberships: CompanyMembership[]
 ) {
   const role = getUserCompanyRole(userId, companyId, companyMemberships);
-  return role === 'superadmin' || role === 'admin' || role === 'executive';
+  return role === 'admin' || role === 'executive';
 }
 
 export function canManageProject(

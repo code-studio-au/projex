@@ -10,6 +10,7 @@ import type {
 } from '../../types';
 import { getDb } from '../db/db';
 import { requireAuthorized } from '../auth/authorize';
+import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -20,7 +21,7 @@ import {
 function toCompanyMembership(row: {
   company_id: string;
   user_id: string;
-  role: 'superadmin' | 'admin' | 'executive' | 'management' | 'member';
+  role: 'admin' | 'executive' | 'management' | 'member';
 }): CompanyMembership {
   return {
     companyId: row.company_id as CompanyId,
@@ -39,17 +40,6 @@ function toProjectMembership(row: {
     userId: row.user_id as UserId,
     role: row.role,
   };
-}
-
-async function isSuperadminUser(userId: UserId): Promise<boolean> {
-  const db = getDb();
-  const row = await db
-    .selectFrom('company_memberships')
-    .select('user_id')
-    .where('user_id', '=', userId)
-    .where('role', '=', 'superadmin')
-    .executeTakeFirst();
-  return !!row;
 }
 
 export async function listCompanyMembershipsServer(args: {
@@ -83,7 +73,7 @@ export async function listAllCompanyMembershipsServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(userId);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
 
     if (isSuperadmin) {
       const rows = await db
@@ -281,7 +271,7 @@ export async function listMyProjectMembershipsServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(userId);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
     const projectIdsInCompany = await db
       .selectFrom('projects')
       .select(['id', 'allow_superadmin_access'])

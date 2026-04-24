@@ -1,5 +1,4 @@
 export type CompanyRole =
-  | 'superadmin'
   | 'admin'
   | 'executive'
   | 'management'

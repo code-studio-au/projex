@@ -5,7 +5,7 @@ import { getMigrations } from 'better-auth/db/migration';
 
 import { requireDatabaseUrl } from '../env.ts';
 import { buildBetterAuthOptions } from '../auth/betterAuthInstance.ts';
-import { createPgPool, type TypedPgPool } from './pgPool';
+import { createPgPool, type TypedPgPool } from './pgPool.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -17,7 +17,7 @@ import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, ProjectId } from '../types';
 import { asCompanyId } from '../types';
-import { useCompanyQuery, useProjectsQuery } from '../queries/reference';
+import { useCompanyQuery, useProjectsQuery, useUsersQuery } from '../queries/reference';
 import {
   useCreateProjectMutation,
   useDeactivateProjectMutation,
@@ -43,11 +43,12 @@ export default function CompanyDashboardPage() {
   const access = useCompanyAccess(companyId);
   const canEditCompany = access.can('company:edit');
   const membershipsQ = useAllCompanyMembershipsQuery();
+  const usersQ = useUsersQuery();
 
   const createProject = useCreateProjectMutation(companyId);
   const canAddProjects = canEditCompany;
 
-  const canManageProjects = canEditCompany; // exec/admin/superadmin
+  const canManageProjects = canEditCompany; // executive/admin/global superadmin
   const deactivateProject = useDeactivateProjectMutation(companyId);
   const reactivateProject = useReactivateProjectMutation(companyId);
   const deleteProject = useDeleteProjectMutation(companyId);
@@ -73,8 +74,9 @@ export default function CompanyDashboardPage() {
     return ids.size;
   }, [memberships, access.userId]);
   const isGlobalSuperadmin = useMemo(
-    () => memberships.some((m) => m.userId === access.userId && m.role === 'superadmin'),
-    [memberships, access.userId]
+    () =>
+      (usersQ.data ?? []).find((user) => user.id === access.userId)?.isGlobalSuperadmin === true,
+    [access.userId, usersQ.data]
   );
   const canViewCompanySummary =
     access.isAdmin || access.isExecutive || (isGlobalSuperadmin && sortedProjects.length > 0);

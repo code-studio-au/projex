@@ -44,6 +44,7 @@ export type User = {
   email: string;
   name: string;
   disabled?: boolean;
+  isGlobalSuperadmin?: boolean;
 };
 
 export type CompanyMembership = {

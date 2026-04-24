@@ -9,7 +9,7 @@ import type { CompanyId } from '../types';
 
 import { useApi } from '../hooks/useApi';
 import { companyRoute } from '../router';
-import { useCompaniesQuery } from '../queries/reference';
+import { useCompaniesQuery, useUsersQuery } from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import {
@@ -30,6 +30,7 @@ export default function LandingPage() {
   const userId = sessionQ.data?.userId;
 
   const companiesQ = useCompaniesQuery(userId);
+  const usersQ = useUsersQuery();
   const membershipsQ = useAllCompanyMembershipsQuery();
 
   const companies = useMemo(() => companiesQ.data ?? [], [companiesQ.data]);
@@ -43,8 +44,8 @@ export default function LandingPage() {
   );
   const isSuperadmin = useMemo(() => {
     if (!userId) return false;
-    return (membershipsQ.data ?? []).some((m) => m.userId === userId && m.role === 'superadmin');
-  }, [membershipsQ.data, userId]);
+    return (usersQ.data ?? []).find((user) => user.id === userId)?.isGlobalSuperadmin === true;
+  }, [usersQ.data, userId]);
   const userCompanyCount = useMemo(() => {
     if (!userId) return 0;
     const ids = new Set(

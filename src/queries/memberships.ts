@@ -43,7 +43,7 @@ export function useProjectMembershipsQuery(projectId: ProjectId) {
 /**
  * Safe shape for Option A visibility:
  * - projects can be listed without membership
- * - opening still requires membership/admin/exec/superadmin
+ * - opening still requires membership/admin/executive/global superadmin
  *
  * UI only needs *my* memberships to compute which projects are openable.
  */

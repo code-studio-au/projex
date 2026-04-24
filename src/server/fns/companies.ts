@@ -12,6 +12,7 @@ import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
 import { getBetterAuthInstance } from '../auth/betterAuthInstance';
+import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getAuthEmailDeliveryMode } from '../auth/email.ts';
 import { getDb } from '../db/db';
 import { listProjectsServer } from './projects';
@@ -23,7 +24,6 @@ import {
 } from './runtime';
 
 const COMPANY_ROLE_RANK: Record<CompanyRole, number> = {
-  superadmin: 5,
   admin: 4,
   executive: 3,
   management: 2,
@@ -42,17 +42,6 @@ function toCompany(row: {
     status: row.status,
     deactivatedAt: row.deactivated_at ?? undefined,
   };
-}
-
-async function isSuperadminUser(userId: UserId): Promise<boolean> {
-  const db = getDb();
-  const row = await db
-    .selectFrom('company_memberships')
-    .select('user_id')
-    .where('user_id', '=', userId)
-    .where('role', '=', 'superadmin')
-    .executeTakeFirst();
-  return !!row;
 }
 
 type BetterAuthUserRow = {
@@ -157,6 +146,7 @@ async function reconcileAppUserToAuthIdentity(args: {
         email: args.authUser.email,
         name: args.preferredName,
         disabled: false,
+        is_global_superadmin: false,
       })
       .onConflict((oc) =>
         oc.column('id').doUpdateSet({
@@ -212,6 +202,7 @@ async function reconcileAppUserToAuthIdentity(args: {
         email: args.authUser.email,
         name: args.preferredName,
         disabled: false,
+        is_global_superadmin: false,
       })
       .onConflict((oc) =>
         oc.column('id').doUpdateSet({
@@ -257,13 +248,12 @@ export async function listCompaniesServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(userId);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
 
     if (isSuperadmin) {
       const rows = await db
         .selectFrom('companies')
         .select(['id', 'name', 'status', 'deactivated_at'])
-        .where('id', '!=', 'co_projex')
         .orderBy('name', 'asc')
         .execute();
       return rows.map(toCompany);
@@ -290,7 +280,7 @@ export async function getCompanyServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(userId);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
 
     if (!isSuperadmin) {
       const membership = await db
@@ -321,17 +311,15 @@ export async function getCompanySummaryServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(userId);
-    const companyRole = isSuperadmin
-      ? 'superadmin'
-      : (
-          await db
-            .selectFrom('company_memberships')
-            .select('role')
-            .where('company_id', '=', args.companyId)
-            .where('user_id', '=', userId)
-            .executeTakeFirst()
-        )?.role ?? null;
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
+    const companyRole = (
+      await db
+        .selectFrom('company_memberships')
+        .select('role')
+        .where('company_id', '=', args.companyId)
+        .where('user_id', '=', userId)
+        .executeTakeFirst()
+    )?.role ?? null;
 
     if (!isSuperadmin && companyRole !== 'admin' && companyRole !== 'executive') {
       throw new AppError('FORBIDDEN', 'Company summary access requires admin or executive role');
@@ -384,12 +372,12 @@ export async function listUsersServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(userId);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
 
     if (isSuperadmin) {
       const rows = await db
         .selectFrom('users')
-        .select(['id', 'email', 'name', 'disabled'])
+        .select(['id', 'email', 'name', 'disabled', 'is_global_superadmin'])
         .orderBy('name', 'asc')
         .execute();
       return rows.map((r) => ({
@@ -397,6 +385,7 @@ export async function listUsersServer(args: {
         email: r.email,
         name: r.name,
         disabled: r.disabled || undefined,
+        isGlobalSuperadmin: r.is_global_superadmin || undefined,
       }));
     }
 
@@ -411,9 +400,9 @@ export async function listUsersServer(args: {
     const rows = await db
       .selectFrom('users as u')
       .innerJoin('company_memberships as m', 'm.user_id', 'u.id')
-      .select(['u.id', 'u.email', 'u.name', 'u.disabled'])
+      .select(['u.id', 'u.email', 'u.name', 'u.disabled', 'u.is_global_superadmin'])
       .where('m.company_id', 'in', companyIds)
-      .groupBy(['u.id', 'u.email', 'u.name', 'u.disabled'])
+      .groupBy(['u.id', 'u.email', 'u.name', 'u.disabled', 'u.is_global_superadmin'])
       .orderBy('u.name', 'asc')
       .execute();
 
@@ -422,6 +411,7 @@ export async function listUsersServer(args: {
       email: r.email,
       name: r.name,
       disabled: r.disabled || undefined,
+      isGlobalSuperadmin: r.is_global_superadmin || undefined,
     }));
   });
 }
@@ -433,7 +423,7 @@ export async function getDefaultCompanyIdForUserServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(userId);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
 
     if (isSuperadmin) {
       const companies = await db
@@ -442,7 +432,6 @@ export async function getDefaultCompanyIdForUserServer(args: {
         .orderBy('id', 'asc')
         .execute();
       const preferred =
-        companies.find((c) => c.status === 'active' && c.id !== 'co_projex') ??
         companies.find((c) => c.status === 'active') ??
         companies[0];
       return preferred ? asCompanyId(preferred.id) : null;
@@ -641,7 +630,7 @@ export async function createCompanyServer(args: {
     validateOrThrow(companyNameSchema, args.input.name);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(userId);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
     if (!isSuperadmin) throw new AppError('FORBIDDEN', 'Forbidden');
 
     const companyId = args.input.id ?? asCompanyId(uid('co'));
@@ -661,10 +650,10 @@ export async function createCompanyServer(args: {
         .values({
           company_id: companyId,
           user_id: userId,
-          role: 'superadmin',
+          role: 'admin',
         })
         .onConflict((oc) =>
-          oc.columns(['company_id', 'user_id']).doUpdateSet({ role: 'superadmin' })
+          oc.columns(['company_id', 'user_id']).doUpdateSet({ role: 'admin' })
         )
         .execute();
     });
@@ -726,7 +715,7 @@ export async function deactivateCompanyServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const sessionUserId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(sessionUserId);
+    const isSuperadmin = await isGlobalSuperadminUser(sessionUserId, db);
     if (!isSuperadmin) throw new AppError('FORBIDDEN', 'Forbidden');
 
     const company = await db
@@ -761,12 +750,12 @@ export async function deactivateCompanyServer(args: {
       if (!memberIds.length) return;
 
       const superRows = await trx
-        .selectFrom('company_memberships')
-        .select('user_id')
-        .where('role', '=', 'superadmin')
-        .where('user_id', 'in', memberIds)
+        .selectFrom('users')
+        .select('id')
+        .where('is_global_superadmin', '=', true)
+        .where('id', 'in', memberIds)
         .execute();
-      const superIds = new Set(superRows.map((r) => r.user_id));
+      const superIds = new Set(superRows.map((r) => r.id));
       const disableIds = memberIds.filter((id) => !superIds.has(id));
       if (!disableIds.length) return;
 
@@ -787,7 +776,7 @@ export async function reactivateCompanyServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const sessionUserId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(sessionUserId);
+    const isSuperadmin = await isGlobalSuperadminUser(sessionUserId, db);
     if (!isSuperadmin) throw new AppError('FORBIDDEN', 'Forbidden');
 
     const company = await db
@@ -837,7 +826,7 @@ export async function deleteCompanyServer(args: {
     assertContextProvided(args.context);
     const db = getDb();
     const sessionUserId = await requireServerUserId(args.context);
-    const isSuperadmin = await isSuperadminUser(sessionUserId);
+    const isSuperadmin = await isGlobalSuperadminUser(sessionUserId, db);
     if (!isSuperadmin) throw new AppError('FORBIDDEN', 'Forbidden');
 
     const company = await db

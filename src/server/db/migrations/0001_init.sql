@@ -12,7 +12,8 @@ create table if not exists users (
   id text primary key,
   email text not null unique,
   name text not null,
-  disabled boolean not null default false
+  disabled boolean not null default false,
+  is_global_superadmin boolean not null default false
 );
 
 create table if not exists email_change_requests (
@@ -45,7 +46,7 @@ create index if not exists idx_projects_company on projects(company_id);
 create table if not exists company_memberships (
   company_id text not null references companies(id) on delete cascade,
   user_id text not null references users(id) on delete cascade,
-  role text not null check (role in ('superadmin', 'admin', 'executive', 'management', 'member')),
+  role text not null check (role in ('admin', 'executive', 'management', 'member')),
   primary key (company_id, user_id)
 );
 

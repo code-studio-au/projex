@@ -21,7 +21,6 @@ export type Action =
   | 'txns:edit';
 
 const companyRank: Record<CompanyRole, number> = {
-  superadmin: 5,
   admin: 4,
   executive: 3,
   management: 2,
@@ -68,6 +67,7 @@ export function can(params: {
   companyId: CompanyId;
   projectId?: ProjectId;
   action: Action;
+  isGlobalSuperadmin?: boolean;
   companyMemberships: CompanyMembership[];
   projectMemberships: ProjectMembership[];
 }): boolean {
@@ -76,6 +76,7 @@ export function can(params: {
     companyId,
     projectId,
     action,
+    isGlobalSuperadmin = false,
     companyMemberships,
     projectMemberships,
   } = params;
@@ -83,9 +84,7 @@ export function can(params: {
   // Global superadmin: allow everything across all companies/projects.
   // The client mirrors the membership data it has so UX gating stays aligned
   // with server-side authorization.
-  const isSuper = companyMemberships.some(
-    (m) => m.userId === userId && m.role === 'superadmin'
-  );
+  const isSuper = isGlobalSuperadmin;
   if (isSuper) return true;
 
   const cRole = bestCompanyRole(companyMemberships, companyId, userId);
@@ -96,7 +95,7 @@ export function can(params: {
     if (action === 'company:view') return true;
     if (action === 'company:edit') return cRole === 'admin' || cRole === 'executive' || cRole === 'management';
     if (action === 'company:manage_members')
-      return cRole === 'superadmin' || cRole === 'admin';
+      return cRole === 'admin';
     return false;
   }
 

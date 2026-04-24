@@ -5,6 +5,7 @@ import { can, type Action } from '../utils/auth';
 import { getUserCompanyRole } from '../store/access';
 
 import { useAllCompanyMembershipsQuery, useMyProjectMembershipsQuery } from '../queries/memberships';
+import { useUsersQuery } from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
 
 export type CompanyAccess = {
@@ -27,6 +28,7 @@ export type CompanyAccess = {
 export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
   const sessionQ = useSessionQuery();
   const userId = (sessionQ.data?.userId ?? '') as UserId;
+  const usersQ = useUsersQuery();
 
   const companyMembershipsQ = useAllCompanyMembershipsQuery();
   const myProjectMembershipsQ = useMyProjectMembershipsQuery(companyId);
@@ -41,6 +43,10 @@ export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
     () => myProjectMembershipsQ.data ?? [],
     [myProjectMembershipsQ.data]
   );
+  const isGlobalSuperadmin = useMemo(
+    () => (usersQ.data ?? []).find((user) => user.id === userId)?.isGlobalSuperadmin === true,
+    [userId, usersQ.data]
+  );
 
   const companyRole = useMemo(() => {
     return getUserCompanyRole(userId, companyId, companyMemberships) ?? 'none';
@@ -53,17 +59,18 @@ export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
         companyId,
         projectId,
         action,
+        isGlobalSuperadmin,
         companyMemberships,
         projectMemberships,
       }),
-    [userId, companyId, companyMemberships, projectMemberships]
+    [userId, companyId, isGlobalSuperadmin, companyMemberships, projectMemberships]
   );
 
   return {
     userId,
     companyId,
     companyRole,
-    isSuperadmin: companyRole === 'superadmin',
+    isSuperadmin: isGlobalSuperadmin,
     isAdmin: companyRole === 'admin',
     isExecutive: companyRole === 'executive',
     isManagement: companyRole === 'management',

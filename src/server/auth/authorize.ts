@@ -4,10 +4,12 @@ import type { CompanyId, ProjectId, UserId } from '../../types';
 import { AppError } from '../../api/errors';
 import type { DB } from '../db/schema';
 import { can, type Action } from '../../utils/auth';
+import { isGlobalSuperadminUser } from './globalSuperadmin';
 
 type MembershipSnapshot = {
-  companyMemberships: Array<{ companyId: CompanyId; userId: UserId; role: 'superadmin' | 'admin' | 'executive' | 'management' | 'member' }>;
+  companyMemberships: Array<{ companyId: CompanyId; userId: UserId; role: 'admin' | 'executive' | 'management' | 'member' }>;
   projectMemberships: Array<{ projectId: ProjectId; userId: UserId; role: 'owner' | 'lead' | 'member' | 'viewer' }>;
+  isGlobalSuperadmin: boolean;
 };
 
 async function loadMembershipSnapshot(params: {
@@ -18,7 +20,7 @@ async function loadMembershipSnapshot(params: {
 }): Promise<MembershipSnapshot> {
   const { db, userId, companyId, projectId } = params;
 
-  const [companyRows, projectRows, superadminRow] = await Promise.all([
+  const [companyRows, projectRows, isGlobalSuperadmin] = await Promise.all([
     db
       .selectFrom('company_memberships')
       .select(['company_id', 'user_id', 'role'])
@@ -33,13 +35,7 @@ async function loadMembershipSnapshot(params: {
           .where('project_id', '=', projectId)
           .execute()
       : Promise.resolve([]),
-    db
-      .selectFrom('company_memberships')
-      .select('company_id')
-      .where('user_id', '=', userId)
-      .where('role', '=', 'superadmin')
-      .limit(1)
-      .executeTakeFirst(),
+    isGlobalSuperadminUser(userId, db),
   ]);
 
   const companyMemberships = companyRows.map((r) => ({
@@ -48,14 +44,6 @@ async function loadMembershipSnapshot(params: {
     role: r.role,
   }));
 
-  if (superadminRow && !companyMemberships.some((m) => m.role === 'superadmin')) {
-    companyMemberships.push({
-      companyId,
-      userId,
-      role: 'superadmin',
-    });
-  }
-
   return {
     companyMemberships,
     projectMemberships: projectRows.map((r) => ({
@@ -63,6 +51,7 @@ async function loadMembershipSnapshot(params: {
       userId: r.user_id as UserId,
       role: r.role,
     })),
+    isGlobalSuperadmin,
   };
 }
 
@@ -87,9 +76,7 @@ export async function isAuthorized(params: {
 }): Promise<boolean> {
   const { db, userId, action, companyId, projectId } = params;
   const snap = await loadMembershipSnapshot({ db, userId, companyId, projectId });
-  const isSuperadmin = snap.companyMemberships.some(
-    (m) => m.userId === userId && m.role === 'superadmin'
-  );
+  const isSuperadmin = snap.isGlobalSuperadmin;
 
   if (isSuperadmin && projectId) {
     const allowed = await projectAllowsSuperadminAccess(db, projectId);
@@ -101,6 +88,7 @@ export async function isAuthorized(params: {
     action,
     companyId,
     projectId,
+    isGlobalSuperadmin: snap.isGlobalSuperadmin,
     companyMemberships: snap.companyMemberships,
     projectMemberships: snap.projectMemberships,
   });

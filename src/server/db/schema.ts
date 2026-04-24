@@ -27,6 +27,7 @@ export interface UserTable {
   email: string;
   name: string;
   disabled: boolean;
+  is_global_superadmin: boolean;
 }
 
 export interface EmailChangeRequestTable {
@@ -43,7 +44,7 @@ export interface EmailChangeRequestTable {
 export interface CompanyMembershipTable {
   company_id: string;
   user_id: string;
-  role: 'superadmin' | 'admin' | 'executive' | 'management' | 'member';
+  role: 'admin' | 'executive' | 'management' | 'member';
 }
 
 export interface ProjectMembershipTable {

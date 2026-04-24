@@ -355,7 +355,7 @@ async function loadPrimaryCompanyAndProject(recorder: Recorder, client: SmokeHtt
     return parseBody(companiesResponseSchema, result.body, 'companies');
   });
 
-  const company = companies.find((candidate) => candidate.id !== 'co_projex') ?? companies[0];
+  const company = companies[0];
   if (!company?.id) throw new Error('No company available for smoke test.');
 
   const projects = await recorder.step('projects', `Loading projects for company ${companyLabel(company)}`, async () => {

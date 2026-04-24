@@ -32,12 +32,13 @@ async function ensureAuthUser(pool, email) {
 
 async function ensureAppUser(pool, authUser) {
   await pool.query(
-    `insert into users (id, email, name, disabled)
-     values ($1, $2, $3, false)
+    `insert into users (id, email, name, disabled, is_global_superadmin)
+     values ($1, $2, $3, false, true)
      on conflict (id) do update
      set email = excluded.email,
          name = excluded.name,
-         disabled = false`,
+         disabled = false,
+         is_global_superadmin = true`,
     [authUser.id, authUser.email, authUser.name || authUser.email]
   );
 }
@@ -78,7 +79,7 @@ async function ensureCompany(pool, userId, requestedId, requestedName) {
 
   await pool.query(
     `insert into company_memberships (company_id, user_id, role)
-     values ($1, $2, 'superadmin')
+     values ($1, $2, 'admin')
      on conflict (company_id, user_id) do update
      set role = excluded.role`,
     [company.id, userId]

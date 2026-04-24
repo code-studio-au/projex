@@ -20,7 +20,6 @@ import { accountRoute, companyRoute, homeRoute, landingRoute, loginRoute, smokeR
 import { theme } from './theme';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
-import { useAllCompanyMembershipsQuery } from './queries/memberships';
 import { useCompaniesQuery, useUsersQuery } from './queries/reference';
 
 const smokeToolsEnabled = import.meta.env.VITE_ENABLE_SMOKE_TOOLS === 'true';
@@ -60,18 +59,15 @@ export function AuthedLayout() {
 
   const userId = session.data?.userId ?? null;
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const membershipsQ = useAllCompanyMembershipsQuery();
   const companiesQ = useCompaniesQuery(userId ?? undefined);
   const usersQ = useUsersQuery();
 
-  const isSuperadmin = (membershipsQ.data ?? []).some(
-    (m) => m.userId === userId && m.role === 'superadmin'
-  );
   const companyCount = (companiesQ.data ?? []).length;
   const currentUser = useMemo(
     () => (usersQ.data ?? []).find((user) => user.id === userId) ?? null,
     [userId, usersQ.data]
   );
+  const isSuperadmin = currentUser?.isGlobalSuperadmin === true;
   const accountLabel = isMobile
     ? currentUser?.name?.split(' ')[0] ?? 'Account'
     : currentUser?.name ?? 'Account';

@@ -28,7 +28,7 @@ const companyDefaultSubCategoryIdSchema = idSchema.transform(asCompanyDefaultSub
 const mappingRuleIdSchema = idSchema.transform(asCompanyDefaultMappingRuleId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const optionalIsoTimestampSchema = z.string().optional();
-const companyRoleSchema = z.enum(['superadmin', 'admin', 'executive', 'management', 'member']);
+const companyRoleSchema = z.enum(['admin', 'executive', 'management', 'member']);
 const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
 
@@ -87,6 +87,7 @@ export const userResponseSchema = z.object({
   email: z.string().email(),
   name: z.string(),
   disabled: z.boolean().optional(),
+  isGlobalSuperadmin: z.boolean().optional(),
 });
 
 export const usersResponseSchema = z.array(userResponseSchema);
