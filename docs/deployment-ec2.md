@@ -176,6 +176,20 @@ Why this matters:
 
 ## 6) Post-deploy verification
 
+Before normal app verification on a fresh database, create the first global superadmin:
+
+```bash
+cd /opt/projex
+sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_AUTH_PASSWORD="replace-me" PROJEX_AUTH_NAME="Production Admin" npm run auth:create-user'
+sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" npm run auth:bootstrap-user'
+```
+
+Notes:
+
+- `auth:create-user` creates the BetterAuth login.
+- `auth:bootstrap-user` links that login into the app database and grants global superadmin.
+- On a fresh database, sign-in alone is not enough; the account must also exist in app `users`.
+
 - `npm run smoke:server` (from trusted network against deployed URL)
 - Save smoke-only credentials in `/opt/projex/.env.smoke.local` on EC2 so the smoke script can load them automatically from the repo root.
 - Use full smoke for broad confidence after deploy, and targeted section runs when retrying one workflow:

@@ -29,10 +29,12 @@ npm run db:migrate
 # Create BetterAuth user (email/password)
 PROJEX_AUTH_EMAIL=... PROJEX_AUTH_PASSWORD=... PROJEX_AUTH_NAME=... npm run auth:create-user
 
-# Bootstrap a real app user with a company/project in server mode
+# Bootstrap that BetterAuth user into the app as a global superadmin.
+# This is the command to run for the first admin account on a fresh database.
 PROJEX_AUTH_EMAIL=... PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" npm run auth:bootstrap-user
 
-# Or link BetterAuth user to app users/memberships (copy roles from template user if set)
+# Or link an existing BetterAuth user into the app and grant global superadmin
+# while copying memberships from a template user if set.
 PROJEX_AUTH_EMAIL=... PROJEX_APP_TEMPLATE_USER_ID=u_superadmin npm run auth:link-user
 
 # Start server build with migrations

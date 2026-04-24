@@ -44,11 +44,12 @@ Status:
 - If `BETTER_AUTH_SESSION_URL` is used, app server forwards request cookies to that endpoint.
 - Unauthorized requests return `401` and do not leak data.
 - BetterAuth user IDs are linked to app `users.id` and memberships (e.g. via `npm run auth:bootstrap-user` or `npm run auth:link-user`).
+- On a fresh database, run `npm run auth:bootstrap-user` for the first admin account so the user exists in app `users` and has `is_global_superadmin = true`.
 - Header-based auth impersonation must not be enabled on public traffic.
 
 ## 4) Authorization & Scope
 
-- Superadmin can view all companies except bootstrap shell company where applicable.
+- Global superadmin can view all companies.
 - Non-superadmin reads are scoped to company memberships.
 - Project, membership, taxonomy, budget, and transaction writes enforce role checks server-side.
 - Archived/deactivated project/company behavior matches local parity rules.

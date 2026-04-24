@@ -119,7 +119,7 @@ sudo systemctl status projex --no-pager -l
    - run `npm run smoke:server -- --section=privacyChecks`
    - confirm the script can disable superadmin project access, verify superadmin loses access, and restore the original setting
 
-## Create A Production Login
+## Create The First Global Superadmin
 
 Create a BetterAuth user:
 
@@ -128,14 +128,21 @@ cd /opt/projex
 sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_AUTH_PASSWORD="replace-me" PROJEX_AUTH_NAME="Staging User" npm run auth:create-user'
 ```
 
-Bootstrap that BetterAuth user into app memberships:
+Bootstrap that BetterAuth user into the app as a global superadmin.
+On a fresh database, this is the required step that makes the account usable in the app and able to see `/companies`.
 
 ```bash
 cd /opt/projex
 sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" npm run auth:bootstrap-user'
 ```
 
-If you already have an app-side template user and want to copy its memberships instead, keep using `npm run auth:link-user` with `PROJEX_APP_TEMPLATE_USER_ID`.
+Notes:
+
+- `npm run auth:bootstrap-user` creates or updates the app-side `users` row and sets `is_global_superadmin = true`.
+- The optional bootstrap company/project values are just a convenient starting point; the global-superadmin grant is the important part.
+- If you skip this step on a fresh database, sign-in may succeed in BetterAuth but the account will not see any companies in the app.
+
+If you already have an app-side template user and want to copy its memberships instead, keep using `npm run auth:link-user` with `PROJEX_APP_TEMPLATE_USER_ID`. That command also grants global superadmin to the linked BetterAuth user.
 
 ## Company Invites
 

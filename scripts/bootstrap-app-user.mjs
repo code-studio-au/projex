@@ -184,6 +184,7 @@ async function run() {
           ok: true,
           linkedUserId: authUser.id,
           email: authUser.email,
+          isGlobalSuperadmin: true,
           company: company ? { id: company.id, name: company.name } : null,
           project: project ? { id: project.id, name: project.name } : null,
           memberships: memberships.rows,

@@ -1,3 +1,5 @@
+# First create the BetterAuth login, then run `npm run auth:bootstrap-user`.
+# This command links the auth account into app `users` and grants global superadmin.
 PROJEX_AUTH_EMAIL=demo@example.com
 PROJEX_BOOTSTRAP_COMPANY_NAME=Demo Company
 PROJEX_BOOTSTRAP_PROJECT_NAME=Demo Project

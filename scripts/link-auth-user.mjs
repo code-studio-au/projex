@@ -196,6 +196,7 @@ async function run() {
           ok: true,
           linkedUserId: userId,
           email: normalizedEmail,
+          isGlobalSuperadmin: true,
           templateUserId,
           bootstrapCompany,
           bootstrapProject,
