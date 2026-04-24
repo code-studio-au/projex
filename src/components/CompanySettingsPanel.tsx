@@ -31,7 +31,6 @@ import {
   useCreateUserInCompanyMutation,
   useSendCompanyUserInviteEmailMutation,
 } from '../queries/admin';
-import { isServerAuthMode } from '../routes/-authMode';
 import {
   useCompanyDefaultsQuery,
 } from '../queries/taxonomy';
@@ -178,32 +177,30 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         minSize: 280,
         Cell: ({ row }) => (
           <Group gap="xs" wrap="wrap" className="tableActionGroup">
-            {isServerAuthMode ? (
-              <Button
-                size="xs"
-                variant="light"
-                className="tableActionButton"
-                disabled={!canAddCompanyUsers || sendInviteEmail.isPending}
-                onClick={async () => {
-                  setInviteError(null);
-                  setInviteStatus(null);
-                  try {
-                    const result = await sendInviteEmail.mutateAsync(row.original.userId);
-                    setInviteStatus(
-                      result.onboardingDelivery === 'email'
-                        ? `Password setup email sent to ${result.user.email}. Ask them to check spam or junk if it does not arrive soon, and to use the newest email if more than one was sent.`
-                        : `Password setup email requested for ${result.user.email}. Email delivery is not configured, so the newest setup link was logged on the server instead.`
-                    );
-                  } catch (err) {
-                    setInviteError(
-                      err instanceof Error ? err.message : 'Could not send password setup email.'
-                    );
-                  }
-                }}
-              >
-                Resend invite
-              </Button>
-            ) : null}
+            <Button
+              size="xs"
+              variant="light"
+              className="tableActionButton"
+              disabled={!canAddCompanyUsers || sendInviteEmail.isPending}
+              onClick={async () => {
+                setInviteError(null);
+                setInviteStatus(null);
+                try {
+                  const result = await sendInviteEmail.mutateAsync(row.original.userId);
+                  setInviteStatus(
+                    result.onboardingDelivery === 'email'
+                      ? `Password setup email sent to ${result.user.email}. Ask them to check spam or junk if it does not arrive soon, and to use the newest email if more than one was sent.`
+                      : `Password setup email requested for ${result.user.email}. Email delivery is not configured, so the newest setup link was logged on the server instead.`
+                  );
+                } catch (err) {
+                  setInviteError(
+                    err instanceof Error ? err.message : 'Could not send password setup email.'
+                  );
+                }
+              }}
+            >
+              Resend invite
+            </Button>
             <Button
               size="xs"
               color="red"
@@ -309,7 +306,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
           <Group justify="space-between">
-            <Title order={5}>{isServerAuthMode ? 'Add member' : 'Add user (company)'}</Title>
+            <Title order={5}>Add member</Title>
             <Badge variant="light" color={canAddCompanyUsers ? 'gray' : 'red'}>
               {canAddCompanyUsers ? 'Ready' : 'Not allowed'}
             </Badge>
@@ -337,14 +334,12 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             value={newUserRole}
             onChange={(v) => setNewUserRole((v as CompanyRole | null) ?? null)}
           />
-          {isServerAuthMode ? (
-            <Checkbox
-              label="Send password setup email now"
-              description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
-              checked={sendOnboardingEmail}
-              onChange={(e) => setSendOnboardingEmail(e.currentTarget.checked)}
-            />
-          ) : null}
+          <Checkbox
+            label="Send password setup email now"
+            description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
+            checked={sendOnboardingEmail}
+            onChange={(e) => setSendOnboardingEmail(e.currentTarget.checked)}
+          />
           <Button
             disabled={!canAddCompanyUsers || createUser.isPending}
             onClick={async () => {
@@ -364,14 +359,6 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                 setNewUserEmail('');
                 setNewUserRole('member');
                 setSendOnboardingEmail(false);
-                if (!isServerAuthMode) {
-                  setInviteStatus(
-                    result.membershipCreated
-                      ? `${result.user.name} was added to the company.`
-                      : `${result.user.name} is already in the company, and their role was updated.`
-                  );
-                  return;
-                }
                 if (result.onboardingEmailSent) {
                   setInviteStatus(
                     result.createdAuthUser
@@ -394,12 +381,10 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               }
             }}
           >
-            {isServerAuthMode ? 'Add member' : 'Create user'}
+            Add member
           </Button>
           <Text size="xs" c="dimmed">
-            {isServerAuthMode
-              ? 'Adding someone to the company and emailing them are now separate choices. New BetterAuth accounts still get their setup email automatically, while existing users can be added quietly and emailed later if needed.'
-              : 'Users created here belong only to this company.'}
+            Adding someone to the company and emailing them are now separate choices. New BetterAuth accounts still get their setup email automatically, while existing users can be added quietly and emailed later if needed.
           </Text>
         </Stack>
       </Paper>

@@ -29,7 +29,6 @@ import { Route as ApiMeProfileRouteImport } from './routes/api.me.profile'
 import { Route as ApiMeEmailChangeRouteImport } from './routes/api.me.email-change'
 import { Route as ApiMeDefaultCompanyRouteImport } from './routes/api.me.default-company'
 import { Route as ApiDevSessionRouteImport } from './routes/api.dev.session'
-import { Route as ApiDevResetSeedRouteImport } from './routes/api.dev.reset-seed'
 import { Route as ApiCompaniesCompanyIdRouteImport } from './routes/api.companies.$companyId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as ApiAdminSmokeRouteImport } from './routes/api.admin.smoke'
@@ -165,11 +164,6 @@ const ApiMeDefaultCompanyRoute = ApiMeDefaultCompanyRouteImport.update({
 const ApiDevSessionRoute = ApiDevSessionRouteImport.update({
   id: '/api/dev/session',
   path: '/api/dev/session',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDevResetSeedRoute = ApiDevResetSeedRouteImport.update({
-  id: '/api/dev/reset-seed',
-  path: '/api/dev/reset-seed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCompaniesCompanyIdRoute = ApiCompaniesCompanyIdRouteImport.update({
@@ -406,7 +400,6 @@ export interface FileRoutesByFullPath {
   '/api/admin/smoke': typeof ApiAdminSmokeRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
-  '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
   '/api/dev/session': typeof ApiDevSessionRoute
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
   '/api/me/email-change': typeof ApiMeEmailChangeRouteWithChildren
@@ -464,7 +457,6 @@ export interface FileRoutesByTo {
   '/api/admin/smoke': typeof ApiAdminSmokeRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
-  '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
   '/api/dev/session': typeof ApiDevSessionRoute
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
   '/api/me/email-change': typeof ApiMeEmailChangeRouteWithChildren
@@ -525,7 +517,6 @@ export interface FileRoutesById {
   '/api/admin/smoke': typeof ApiAdminSmokeRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
-  '/api/dev/reset-seed': typeof ApiDevResetSeedRoute
   '/api/dev/session': typeof ApiDevSessionRoute
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
   '/api/me/email-change': typeof ApiMeEmailChangeRouteWithChildren
@@ -586,7 +577,6 @@ export interface FileRouteTypes {
     | '/api/admin/smoke'
     | '/api/auth/$'
     | '/api/companies/$companyId'
-    | '/api/dev/reset-seed'
     | '/api/dev/session'
     | '/api/me/default-company'
     | '/api/me/email-change'
@@ -644,7 +634,6 @@ export interface FileRouteTypes {
     | '/api/admin/smoke'
     | '/api/auth/$'
     | '/api/companies/$companyId'
-    | '/api/dev/reset-seed'
     | '/api/dev/session'
     | '/api/me/default-company'
     | '/api/me/email-change'
@@ -704,7 +693,6 @@ export interface FileRouteTypes {
     | '/api/admin/smoke'
     | '/api/auth/$'
     | '/api/companies/$companyId'
-    | '/api/dev/reset-seed'
     | '/api/dev/session'
     | '/api/me/default-company'
     | '/api/me/email-change'
@@ -760,7 +748,6 @@ export interface RootRouteChildren {
   ApiUsersRoute: typeof ApiUsersRoute
   ApiAdminSmokeRoute: typeof ApiAdminSmokeRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiDevResetSeedRoute: typeof ApiDevResetSeedRoute
   ApiDevSessionRoute: typeof ApiDevSessionRoute
   ApiMeDefaultCompanyRoute: typeof ApiMeDefaultCompanyRoute
   ApiMeEmailChangeRoute: typeof ApiMeEmailChangeRouteWithChildren
@@ -909,13 +896,6 @@ declare module '@tanstack/react-router' {
       path: '/api/dev/session'
       fullPath: '/api/dev/session'
       preLoaderRoute: typeof ApiDevSessionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/dev/reset-seed': {
-      id: '/api/dev/reset-seed'
-      path: '/api/dev/reset-seed'
-      fullPath: '/api/dev/reset-seed'
-      preLoaderRoute: typeof ApiDevResetSeedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/companies/$companyId': {
@@ -1442,7 +1422,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUsersRoute: ApiUsersRoute,
   ApiAdminSmokeRoute: ApiAdminSmokeRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  ApiDevResetSeedRoute: ApiDevResetSeedRoute,
   ApiDevSessionRoute: ApiDevSessionRoute,
   ApiMeDefaultCompanyRoute: ApiMeDefaultCompanyRoute,
   ApiMeEmailChangeRoute: ApiMeEmailChangeRouteWithChildren,

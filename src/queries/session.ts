@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ProjexApi } from '../api/contract';
 import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
-import type { UserId } from '../types';
 
 const env = (import.meta as unknown as { env?: Record<string, string> }).env;
 const isServerMode = env?.VITE_API_MODE === 'server';
@@ -25,7 +24,7 @@ export function useSessionQuery() {
 
 /**
  * When auth changes, user-scoped queries (companies/projects/etc) must be refreshed.
- * We keep the seeded users list warm, but invalidate everything else.
+ * We keep the users list warm, but invalidate everything else.
  */
 export async function refreshAfterAuthChange(queryClient: QueryClient) {
   // Drop any anonymous companies cache (pre-login), otherwise staleTime can keep it “fresh” post-login.
@@ -54,20 +53,6 @@ export async function clearProtectedDataAfterLogout(queryClient: QueryClient) {
       Array.isArray(q.queryKey) &&
       q.queryKey[0] !== 'users' &&
       q.queryKey[0] !== 'session',
-  });
-}
-
-export function useLoginMutation() {
-  const api = useApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (userId: UserId) => api.loginAs(userId),
-    onSuccess: async (session) => {
-      // Ensure route guards see the new session immediately (router loaders use ensureQueryData).
-      queryClient.setQueryData(qk.session(), session);
-      await refreshAfterAuthChange(queryClient);
-    },
   });
 }
 

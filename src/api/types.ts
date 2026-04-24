@@ -180,7 +180,6 @@ export type CreateCompanyUserInput = {
 export interface ProjexApi {
   // session
   getSession(): Promise<Session | null>;
-  loginAs(userId: UserId): Promise<Session>;
   logout(): Promise<void>;
 
   // reference data
@@ -290,9 +289,6 @@ export interface ProjexApi {
     projectId: ProjectId,
     input: TxnImportPreviewInput
   ): Promise<TxnImportPreviewResult>;
-
-  // admin
-  resetToSeed(): Promise<void>;
 
   // helpers
   getDefaultCompanyIdForUser(userId: UserId): Promise<CompanyId | null>;

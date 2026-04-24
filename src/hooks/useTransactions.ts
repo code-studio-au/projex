@@ -11,9 +11,8 @@ import { useTransactionsQuery, useUpdateTxnMutation } from '../queries/transacti
  * Provides a mostly compatible surface area with the earlier local-state hook.
  *
  * Notes:
- * - For batch operations (strip coding / replaceAll / appendMany) we use the
- *   import endpoint in local mode. On the future backend, you'd likely replace
- *   this with real batch mutations.
+ * - For batch operations (strip coding / replaceAll / appendMany) we currently
+ *   route through the import endpoint until dedicated batch mutations exist.
  */
 export function useTransactions(params: { projectId: ProjectId }) {
   const { projectId } = params;

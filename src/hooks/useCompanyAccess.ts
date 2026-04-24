@@ -21,9 +21,8 @@ export type CompanyAccess = {
 /**
  * Centralized access helper (TanStack Query-backed).
  *
- * In local mode it derives permissions from seeded memberships.
- * When you migrate to a backend, these checks are still useful for
- * client-side UX gating, while the server remains the source of truth.
+ * These checks are useful for client-side UX gating while the server remains
+ * the source of truth for real authorization.
  */
 export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
   const sessionQ = useSessionQuery();

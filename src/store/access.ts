@@ -12,9 +12,8 @@ import type {
 /**
  * Access-control helper utilities for the demo app.
  *
- * Today, access rules are computed client-side from seeded memberships.
- * When you migrate to a real backend (TanStack Start + Postgres), this module
- * becomes a useful reference for server-side authorization checks.
+ * These helpers support client-side UX decisions using membership data already
+ * loaded from the server.
  */
 
 const companyRoleRank: Record<CompanyRole, number> = {

@@ -44,7 +44,7 @@ Status:
 - App server resolves auth from the incoming request, preferably through `BETTER_AUTH_DIRECT_SESSION_FN`.
 - If `BETTER_AUTH_SESSION_URL` is used, app server forwards request cookies to that endpoint.
 - Unauthorized requests return `401` and do not leak data.
-- BetterAuth user IDs are linked to app `users.id` and memberships (e.g. via `npm run auth:link-user`).
+- BetterAuth user IDs are linked to app `users.id` and memberships (e.g. via `npm run auth:bootstrap-user` or `npm run auth:link-user`).
 - Header-based auth impersonation must not be enabled on public traffic.
 
 ## 4) Authorization & Scope
@@ -58,8 +58,7 @@ Status:
 
 Dev endpoints exist for local or controlled non-production workflows only:
 
-- `POST /api/dev/session` (`loginAs`)
-- `POST /api/dev/reset-seed` (`resetToSeed`)
+- `POST /api/dev/session`
 
 They are enabled only when:
 
@@ -70,7 +69,6 @@ They are enabled only when:
 
 - `npm run lint`
 - `npm run typecheck`
-- `npm run test:contracts`
 - `npm run build`
 - `npm run smoke:server` (against a running server with dev endpoints enabled in non-prod)
   - For real auth flow set `PROJEX_SMOKE_EMAIL` + `PROJEX_SMOKE_PASSWORD`.
@@ -110,8 +108,8 @@ They are enabled only when:
 
 ## 7) Cutover Notes
 
-- Keep local mode available for true local development only.
-- Do not deploy staging in local mode or with seeded-user auth semantics.
+- Keep development-only auth helpers disabled outside controlled local workflows.
+- Do not deploy staging with development-only auth semantics.
 - Run smoke checks after deploy:
   - login/logout
   - company directory scoping

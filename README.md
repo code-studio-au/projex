@@ -2,7 +2,7 @@
 
 Projex supports two intentional runtime modes:
 
-- local development: seeded users + local data state
+- local development: server-backed runtime with optional dev-only bootstrap helpers
 - server mode: TanStack Start routes, BetterAuth, and Postgres-backed runtime
 
 The UI stays behind a stable `ProjexApi` boundary so local and server-backed flows can share the same pages/components.
@@ -11,7 +11,6 @@ The UI stays behind a stable `ProjexApi` boundary so local and server-backed flo
 
 - **UI** uses TanStack Router for routes and TanStack Query for all data access.
 - **API boundary**: the UI talks only to `src/api/contract.ts` (`ProjexApi`).
-- **Local implementation**: `src/api/local/localApi.ts` stores state in localStorage using seed state (`src/seed`).
 - **Server implementation**: `src/api/server/serverApi.ts` talks to TanStack Start file routes under `src/routes/api.*.ts`.
 
 ## Dev
@@ -27,17 +26,14 @@ npm run dev
 # Apply BetterAuth + app SQL migrations to DATABASE_URL
 npm run db:migrate
 
-# Reset app-domain tables to full baseline seed data
-npm run db:seed:baseline
-
 # Create BetterAuth user (email/password)
 PROJEX_AUTH_EMAIL=... PROJEX_AUTH_PASSWORD=... PROJEX_AUTH_NAME=... npm run auth:create-user
 
-# Link BetterAuth user to app users/memberships (copy roles from template user if set)
-PROJEX_AUTH_EMAIL=... PROJEX_APP_TEMPLATE_USER_ID=u_superadmin npm run auth:link-user
+# Bootstrap a real app user with a company/project in server mode
+PROJEX_AUTH_EMAIL=... PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" npm run auth:bootstrap-user
 
-# Run adapter contract checks (LocalApi + ServerApi stubs)
-npm run test:contracts
+# Or link BetterAuth user to app users/memberships (copy roles from template user if set)
+PROJEX_AUTH_EMAIL=... PROJEX_APP_TEMPLATE_USER_ID=u_superadmin npm run auth:link-user
 
 # Start server build with migrations
 npm run start:server
@@ -49,7 +45,6 @@ npm run smoke:server
 npm run smoke:server -- --section=emailChange
 ```
 
-- Transition map: `docs/server-transition-map.md`
 - DB migrations: `src/server/db/migrations`
 - Start integration wiring: `docs/start-route-integration.md`
 - Server readiness checklist: `docs/server-readiness-checklist.md`
@@ -88,7 +83,7 @@ If using direct resolver with local BetterAuth instance, also set:
 - `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated, optional)
 
 TanStack Start BetterAuth handler route is mounted at `/api/auth/$`.
-Staging/production should use real server auth, not seeded local login behavior.
+Staging/production should use real server auth only.
 `npm run db:migrate` now runs BetterAuth schema migration + app SQL migrations.
 
 ## Security defaults
@@ -116,7 +111,7 @@ Staging/production should use real server auth, not seeded local login behavior.
 - BetterAuth session resolution is wired through request-scoped server auth, with `BETTER_AUTH_DIRECT_SESSION_FN` as the preferred path.
 - Dev-only session/reset endpoints are explicitly gated by `PROJEX_ENABLE_DEV_ENDPOINTS=true` and disabled in production.
 
-Current app still supports local-first development while the server-backed route layer is active for deployed runtime.
+Current app is optimized around the server-backed route layer for both deployed runtime and local server-mode development.
 
 ## API contract notes
 

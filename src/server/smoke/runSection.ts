@@ -311,33 +311,17 @@ async function authenticatePrimaryUser(
     assertHtmlOk(await client.requestHtml('/login'), 'login page');
   });
 
-  if ((!email || !password) && !isLocalBaseUrl) {
+  if (!email || !password) {
     throw new Error(
-      'Server smoke runs on non-local URLs require PROJEX_SMOKE_EMAIL and PROJEX_SMOKE_PASSWORD in .env.smoke.local.'
+      isLocalBaseUrl
+        ? 'Server smoke runs now require PROJEX_SMOKE_EMAIL and PROJEX_SMOKE_PASSWORD in .env.smoke.local. Bootstrap a real app user first with npm run auth:bootstrap-user.'
+        : 'Server smoke runs on non-local URLs require PROJEX_SMOKE_EMAIL and PROJEX_SMOKE_PASSWORD in .env.smoke.local.'
     );
   }
 
-  if (!email || !password) {
-    await recorder.step('reset-seed', 'Resetting dev seed data', async () => {
-      assertOk(await client.request('/api/dev/reset-seed', { method: 'POST' }), 'dev reset-seed');
-    });
-    await recorder.step('dev-login', 'Using dev session login', async () => {
-      const login = await client.request('/api/dev/session', {
-        method: 'POST',
-        body: JSON.stringify({ userId: 'u_superadmin' }),
-      });
-      assertOk(login, 'dev login');
-    });
-  } else {
-    recorder.skip(
-      'reset-seed',
-      'Skipping dev reset-seed for auth smoke flow',
-      'Authenticated smoke creds are configured.'
-    );
-    await recorder.step('auth-login', `Logging in as ${email}`, async () => {
-      await client.loginWithEmailPassword(email, password, 'auth login');
-    });
-  }
+  await recorder.step('auth-login', `Logging in as ${email}`, async () => {
+    await client.loginWithEmailPassword(email, password, 'auth login');
+  });
 
   await recorder.step('session', 'Checking current session', async () => {
     const currentSession = await client.request('/api/session');

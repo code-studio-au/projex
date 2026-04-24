@@ -15,7 +15,7 @@ This runbook captures the current known-good deployed setup on the canonical pro
 ## Auth Model
 
 - Production runs in real server auth mode.
-- Local seeded-user auth remains available for local development only.
+- Development-only auth helpers may be used locally, but staging should use real auth flows.
 - Do not deploy production with local auth semantics.
 
 ## Required Production Env
@@ -129,14 +129,14 @@ cd /opt/projex
 sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_AUTH_PASSWORD="replace-me" PROJEX_AUTH_NAME="Staging User" npm run auth:create-user'
 ```
 
-Link that BetterAuth user to app memberships:
+Bootstrap that BetterAuth user into app memberships:
 
 ```bash
 cd /opt/projex
-sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_APP_TEMPLATE_USER_ID="u_superadmin" npm run auth:link-user'
+sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" npm run auth:bootstrap-user'
 ```
 
-Use a less privileged template user if you want a narrower production role.
+If you already have an app-side template user and want to copy its memberships instead, keep using `npm run auth:link-user` with `PROJEX_APP_TEMPLATE_USER_ID`.
 
 ## Company Invites
 
@@ -229,8 +229,8 @@ If login works but refresh breaks:
 ## Intentional Local/Server Split
 
 - Local development:
-  - local seeded auth
-  - local data state
+  - BetterAuth or dev-only bootstrap helpers
+  - server-backed data flow
 - Production:
   - BetterAuth sign-in
   - request-scoped server session checks

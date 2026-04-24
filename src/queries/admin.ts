@@ -133,17 +133,6 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
   });
 }
 
-export function useResetToSeedMutation() {
-  const api = useApi();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.resetToSeed(),
-    onSuccess: () => {
-      qc.invalidateQueries();
-    },
-  });
-}
-
 export function useDeactivateCompanyMutation() {
   const api = useApi();
   const qc = useQueryClient();

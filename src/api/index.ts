@@ -1,15 +1,13 @@
 import type { ProjexApi } from './types';
-import { isServerAuthMode } from '../routes/-authMode';
 
 let implPromise: Promise<ProjexApi> | null = null;
 
 async function loadApiImpl(): Promise<ProjexApi> {
   if (implPromise) return implPromise;
 
-  implPromise = (isServerAuthMode
-    ? import('./server/runtime').then((mod) => mod.createApi())
-    : import('./local/runtime').then((mod) => mod.createApi())
-  ).catch((error) => {
+  implPromise = import('./server/runtime')
+    .then((mod) => mod.createApi())
+    .catch((error) => {
     implPromise = null;
     throw error;
   });

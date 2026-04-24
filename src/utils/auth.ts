@@ -81,8 +81,8 @@ export function can(params: {
   } = params;
 
   // Global superadmin: allow everything across all companies/projects.
-  // In local mode we treat a user as superadmin if they hold the role in *any* company.
-  // On a real backend, this would be a claim on the session and enforced server-side.
+  // The client mirrors the membership data it has so UX gating stays aligned
+  // with server-side authorization.
   const isSuper = companyMemberships.some(
     (m) => m.userId === userId && m.role === 'superadmin'
   );

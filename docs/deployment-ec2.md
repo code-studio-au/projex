@@ -53,7 +53,7 @@ Notes:
 
 - Staging/production should run in `VITE_API_MODE=server`.
 - Keep `NODE_ENV=production` in deployed runtime env such as `/etc/projex/projex.env` or the systemd unit, not in repo `.env.production` / `.env.staging` files consumed by Vite.
-- Local seeded-user auth is for true local development only. Do not deploy staging in local mode.
+- Do not deploy staging or production with development-only auth helpers enabled.
 - Set `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to the canonical public origin users will actually visit.
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.

@@ -73,7 +73,6 @@ import {
   projectMembershipResponseSchema,
   projectResponseSchema,
   projectsResponseSchema,
-  authenticatedSessionResponseSchema,
   sessionResponseSchema,
   subCategoriesResponseSchema,
   subCategoryResponseSchema,
@@ -199,16 +198,6 @@ export class ServerApi implements ProjexApi {
   // session
   async getSession(): Promise<Session | null> {
     return this.request('/api/session', { cache: 'no-store' }, sessionResponseSchema);
-  }
-  async loginAs(_userId: UserId): Promise<Session> {
-    return this.request(
-      '/api/dev/session',
-      {
-        method: 'POST',
-        body: JSON.stringify({ userId: _userId }),
-      },
-      authenticatedSessionResponseSchema
-    );
   }
   async logout(): Promise<void> {
     await this.request<void>('/api/session', { method: 'DELETE' });
@@ -651,11 +640,6 @@ export class ServerApi implements ProjexApi {
       },
       txnImportPreviewResultResponseSchema
     );
-  }
-
-  // admin
-  async resetToSeed(): Promise<void> {
-    await this.request('/api/dev/reset-seed', { method: 'POST' }, okResponseSchema);
   }
 
   // helpers

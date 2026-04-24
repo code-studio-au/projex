@@ -22,7 +22,6 @@ import {
   useResendEmailChangeMutation,
   useUpdateCurrentUserProfileMutation,
 } from '../queries/account';
-import { isServerAuthMode } from '../routes/-authMode';
 import { apiMessageResponseSchema } from '../validation/responseSchemas';
 
 type EmailActivity = {
@@ -233,130 +232,114 @@ export default function AccountPage() {
         <Stack gap="md">
           <Title order={4}>Email</Title>
           <TextInput label="Current email" value={currentUser?.email ?? ''} readOnly disabled />
-          {isServerAuthMode ? (
-            <>
-              {emailChangeMessage ? <Alert color="green">{emailChangeMessage}</Alert> : null}
-              {emailChangeError ? <Alert color="red">{emailChangeError}</Alert> : null}
-              {pendingEmailChangeQ.isLoading ? (
-                <Text size="sm" c="dimmed">
-                  Checking for a pending email change...
-                </Text>
-              ) : null}
-              {pendingEmailChangeQ.data ? (
-                <Alert color="blue">
-                  <Stack gap="xs">
-                    <Text fw={600}>Pending email change</Text>
-                    <Text size="sm">
-                      New email: {pendingEmailChangeQ.data.newEmail}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      Requested: {formatDateTime(pendingEmailChangeQ.data.requestedAt)}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      Expires: {formatDateTime(pendingEmailChangeQ.data.expiresAt)}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      Check spam or junk if the email does not appear quickly. If you want to use a different email address, cancel this pending change first.
-                    </Text>
-                    <Group gap="sm" align="center">
-                      <Button
-                        variant="light"
-                        onClick={handleResendEmailChange}
-                        loading={resendEmailChange.isPending}
-                      >
-                        Resend verification
-                      </Button>
-                      <Button
-                        color="red"
-                        variant="light"
-                        onClick={handleCancelEmailChange}
-                        loading={cancelEmailChange.isPending}
-                      >
-                        Cancel pending change
-                      </Button>
-                    </Group>
-                  </Stack>
-                </Alert>
-              ) : null}
-              {emailActivity ? (
-                <Alert color="gray" variant="light">
-                  <Stack gap={4}>
-                    <Text fw={600}>Latest email change activity</Text>
-                    <Text size="sm">{emailActivity.message}</Text>
-                    <Text size="sm" c="dimmed">
-                      {formatDateTime(emailActivity.at)}
-                    </Text>
-                  </Stack>
-                </Alert>
-              ) : null}
-              <Text size="sm" c="dimmed">
-                Your current login email remains active until you confirm the new address from your inbox.
-              </Text>
-              <TextInput
-                label="New email"
-                value={newEmail}
-                onChange={(event) => setNewEmail(event.currentTarget.value)}
-                autoComplete="email"
-                disabled={Boolean(pendingEmailChangeQ.data)}
-              />
-              <Group justify="flex-end" gap="sm">
-                <Button
-                  onClick={handleEmailChangeRequest}
-                  loading={requestEmailChange.isPending}
-                  disabled={!newEmail.trim() || Boolean(pendingEmailChangeQ.data)}
-                >
-                  Send verification email
-                </Button>
-              </Group>
-            </>
-          ) : (
-            <Text c="dimmed">
-              Verified email changes are only available in server-auth mode.
+          {emailChangeMessage ? <Alert color="green">{emailChangeMessage}</Alert> : null}
+          {emailChangeError ? <Alert color="red">{emailChangeError}</Alert> : null}
+          {pendingEmailChangeQ.isLoading ? (
+            <Text size="sm" c="dimmed">
+              Checking for a pending email change...
             </Text>
-          )}
+          ) : null}
+          {pendingEmailChangeQ.data ? (
+            <Alert color="blue">
+              <Stack gap="xs">
+                <Text fw={600}>Pending email change</Text>
+                <Text size="sm">
+                  New email: {pendingEmailChangeQ.data.newEmail}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Requested: {formatDateTime(pendingEmailChangeQ.data.requestedAt)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Expires: {formatDateTime(pendingEmailChangeQ.data.expiresAt)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Check spam or junk if the email does not appear quickly. If you want to use a different email address, cancel this pending change first.
+                </Text>
+                <Group gap="sm" align="center">
+                  <Button
+                    variant="light"
+                    onClick={handleResendEmailChange}
+                    loading={resendEmailChange.isPending}
+                  >
+                    Resend verification
+                  </Button>
+                  <Button
+                    color="red"
+                    variant="light"
+                    onClick={handleCancelEmailChange}
+                    loading={cancelEmailChange.isPending}
+                  >
+                    Cancel pending change
+                  </Button>
+                </Group>
+              </Stack>
+            </Alert>
+          ) : null}
+          {emailActivity ? (
+            <Alert color="gray" variant="light">
+              <Stack gap={4}>
+                <Text fw={600}>Latest email change activity</Text>
+                <Text size="sm">{emailActivity.message}</Text>
+                <Text size="sm" c="dimmed">
+                  {formatDateTime(emailActivity.at)}
+                </Text>
+              </Stack>
+            </Alert>
+          ) : null}
+          <Text size="sm" c="dimmed">
+            Your current login email remains active until you confirm the new address from your inbox.
+          </Text>
+          <TextInput
+            label="New email"
+            value={newEmail}
+            onChange={(event) => setNewEmail(event.currentTarget.value)}
+            autoComplete="email"
+            disabled={Boolean(pendingEmailChangeQ.data)}
+          />
+          <Group justify="flex-end" gap="sm">
+            <Button
+              onClick={handleEmailChangeRequest}
+              loading={requestEmailChange.isPending}
+              disabled={!newEmail.trim() || Boolean(pendingEmailChangeQ.data)}
+            >
+              Send verification email
+            </Button>
+          </Group>
         </Stack>
       </Paper>
 
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="md">
           <Title order={4}>Password</Title>
-          {isServerAuthMode ? (
-            <>
-              {passwordMessage ? <Alert color="green">{passwordMessage}</Alert> : null}
-              {passwordError ? <Alert color="red">{passwordError}</Alert> : null}
-              <PasswordInput
-                label="Current password"
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.currentTarget.value)}
-                autoComplete="current-password"
-              />
-              <PasswordInput
-                label="New password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.currentTarget.value)}
-                autoComplete="new-password"
-              />
-              <PasswordInput
-                label="Confirm new password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.currentTarget.value)}
-                autoComplete="new-password"
-              />
-              <Group justify="flex-end" gap="sm">
-                <Button
-                  onClick={handlePasswordChange}
-                  loading={passwordPending}
-                  disabled={!currentPassword || !newPassword || !confirmPassword}
-                >
-                  Change password
-                </Button>
-              </Group>
-            </>
-          ) : (
-            <Text c="dimmed">
-              Password changes are only available in server-auth mode. Local mode uses seeded identities.
-            </Text>
-          )}
+          {passwordMessage ? <Alert color="green">{passwordMessage}</Alert> : null}
+          {passwordError ? <Alert color="red">{passwordError}</Alert> : null}
+          <PasswordInput
+            label="Current password"
+            value={currentPassword}
+            onChange={(event) => setCurrentPassword(event.currentTarget.value)}
+            autoComplete="current-password"
+          />
+          <PasswordInput
+            label="New password"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.currentTarget.value)}
+            autoComplete="new-password"
+          />
+          <PasswordInput
+            label="Confirm new password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.currentTarget.value)}
+            autoComplete="new-password"
+          />
+          <Group justify="flex-end" gap="sm">
+            <Button
+              onClick={handlePasswordChange}
+              loading={passwordPending}
+              disabled={!currentPassword || !newPassword || !confirmPassword}
+            >
+              Change password
+            </Button>
+          </Group>
         </Stack>
       </Paper>
 

@@ -1,15 +1,12 @@
 import { useMemo } from 'react';
 
 import type { BudgetLineId, CategoryId, CompanyId, ProjectId, SubCategoryId } from '../types';
-// IDs are assigned by the API adapter (LocalApi / future server functions).
 import { useBudgetsQuery, useCreateBudgetMutation, useDeleteBudgetMutation, useUpdateBudgetMutation } from '../queries/budgets';
 
 /**
  * Query-backed budgets model.
  *
  * Keeps the same surface area as the earlier local-state hook so UI components stay stable.
- *
- * On the server migration path, these mutations become server writes.
  */
 export function useBudgets(params: {
   companyId: CompanyId;

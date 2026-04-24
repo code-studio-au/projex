@@ -1,4 +1,3 @@
-import { AppError } from '../../api/errors';
 import type {
   ProjectCreateInput,
   ProjectUpdateInput,
@@ -109,19 +108,12 @@ export class StartServerApi implements ProjexApi {
     this.context = context;
   }
 
-  private notImplemented(): never {
-    throw new AppError('NOT_IMPLEMENTED', 'Not implemented in StartServerApi yet.');
-  }
-
   // session
   async getSession() {
     const session = toServerSession(this.context.auth ?? this.context.session ?? null);
     if (!session) return null;
     const value: Session = { userId: session.userId };
     return value;
-  }
-  async loginAs() {
-    return this.notImplemented();
   }
   async logout() {
     // Auth logout is owned by the auth provider; keep this as a no-op for now.
@@ -348,11 +340,6 @@ export class StartServerApi implements ProjexApi {
       csvText: input.csvText,
       autoCreateStructures: input.autoCreateStructures,
     });
-  }
-
-  // admin
-  async resetToSeed() {
-    return this.notImplemented();
   }
 
   // helpers
