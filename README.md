@@ -63,7 +63,6 @@ Use one of:
 
 Recommended server setup:
 
-- `VITE_API_MODE=server`
 - `DATABASE_URL`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`

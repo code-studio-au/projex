@@ -8,9 +8,6 @@ import { RootErrorComponent, RootNotFoundComponent } from '../components/routerE
 import { RootLayout, RootProviders } from '../layouts';
 import type { RouterContext } from '../router-context';
 
-const env = (import.meta as unknown as { env?: Record<string, string> }).env;
-const isServerMode = env?.VITE_API_MODE === 'server';
-
 function Document({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
@@ -57,19 +54,7 @@ function RootNotFoundDocument() {
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-  component: isServerMode ? RootDocument : RootLayout,
-  errorComponent: isServerMode
-    ? RootErrorDocument
-    : (props) => (
-        <RootProviders>
-          <RootErrorComponent {...props} />
-        </RootProviders>
-      ),
-  notFoundComponent: isServerMode
-    ? RootNotFoundDocument
-    : () => (
-        <RootProviders>
-          <RootNotFoundComponent />
-        </RootProviders>
-      ),
+  component: RootDocument,
+  errorComponent: RootErrorDocument,
+  notFoundComponent: RootNotFoundDocument,
 });

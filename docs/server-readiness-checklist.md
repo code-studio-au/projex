@@ -13,7 +13,6 @@ Status:
 - `DATABASE_URL` points to the target RDS Postgres instance.
 - `NODE_ENV=production` in deployed runtime.
 - `NODE_ENV=production` is supplied by deployed runtime env or systemd, not by repo `.env.production` / `.env.staging` files used by Vite.
-- `VITE_API_MODE=server` in deployed runtime.
 - `BETTER_AUTH_SECRET` is configured.
 - `BETTER_AUTH_URL` is configured to the canonical public app origin.
 - `BETTER_AUTH_DIRECT_SESSION_FN` is configured for direct BetterAuth SDK/session resolver module.

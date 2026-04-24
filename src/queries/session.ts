@@ -5,9 +5,6 @@ import type { ProjexApi } from '../api/contract';
 import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
 
-const env = (import.meta as unknown as { env?: Record<string, string> }).env;
-const isServerMode = env?.VITE_API_MODE === 'server';
-
 export function sessionQueryOptions(boundary: ProjexApi) {
   return {
     queryKey: qk.session(),
@@ -57,17 +54,12 @@ export async function clearProtectedDataAfterLogout(queryClient: QueryClient) {
 }
 
 export function useLogoutMutation() {
-  const api = useApi();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (options?: { deferCacheReset?: boolean }) => {
-      if (isServerMode) {
-        const { signOutAuth } = await import('../auth/client');
-        await signOutAuth();
-        return options;
-      }
-      await api.logout();
+      const { signOutAuth } = await import('../auth/client');
+      await signOutAuth();
       return options;
     },
     onSuccess: async (options) => {

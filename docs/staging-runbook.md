@@ -24,7 +24,6 @@ This runbook captures the current known-good deployed setup on the canonical pro
 
 ```bash
 NODE_ENV=production
-VITE_API_MODE=server
 
 DATABASE_URL=postgres://...
 
@@ -222,7 +221,6 @@ Expected behavior:
 If login works but refresh breaks:
 
 - check `/etc/projex/projex.env`
-- confirm `VITE_API_MODE=server`
 - confirm `BETTER_AUTH_DIRECT_SESSION_FN` is set
 - confirm `PROJEX_ENABLE_DEV_ENDPOINTS=false`
 

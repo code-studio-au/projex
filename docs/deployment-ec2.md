@@ -18,7 +18,6 @@ Create `/etc/projex/projex.env`:
 
 ```bash
 NODE_ENV=production
-VITE_API_MODE=server
 DATABASE_URL=postgres://user:password@host:5432/projex
 
 # BetterAuth
@@ -51,7 +50,6 @@ PROJEX_ENABLE_DEV_ENDPOINTS=false
 
 Notes:
 
-- Staging/production should run in `VITE_API_MODE=server`.
 - Keep `NODE_ENV=production` in deployed runtime env such as `/etc/projex/projex.env` or the systemd unit, not in repo `.env.production` / `.env.staging` files consumed by Vite.
 - Do not deploy staging or production with development-only auth helpers enabled.
 - Set `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to the canonical public origin users will actually visit.
