@@ -15,6 +15,24 @@ export async function withApi(
   request: Request,
   run: (api: ProjexApi) => Promise<unknown>
 ): Promise<Response> {
+  return withApiCore(request, async () => {
+    const { createStartServerApi } = await import('../server/api/startBridge');
+    const api = await createStartServerApi({ request });
+    return run(api);
+  });
+}
+
+export async function withPublicApi(
+  request: Request,
+  run: () => Promise<unknown>
+): Promise<Response> {
+  return withApiCore(request, run);
+}
+
+async function withApiCore(
+  request: Request,
+  run: () => Promise<unknown>
+): Promise<Response> {
   const { buildCorsHeaders, isOriginAllowed } = await import('../server/http/security');
   const requestId =
     request.headers.get('x-request-id') ??
@@ -72,9 +90,7 @@ export async function withApi(
   };
 
   try {
-    const { createStartServerApi } = await import('../server/api/startBridge');
-    const api = await createStartServerApi({ request });
-    const data = await run(api);
+    const data = await run();
     const res = data instanceof Response ? data : Response.json(data);
     const finalRes = withRequestId(res);
     console.info(

@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { sql } from 'kysely';
 
-import { withApi } from './-api-shared';
+import { withPublicApi } from './-api-shared';
 
 export const Route = createFileRoute('/api/ready')({
   server: {
     handlers: {
       GET: ({ request }) =>
-        withApi(request, async () => {
+        withPublicApi(request, async () => {
           const [{ getDb }, { validateServerStartupEnv }] = await Promise.all([
             import('../server/db/db'),
             import('../server/env'),
