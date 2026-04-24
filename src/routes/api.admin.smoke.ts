@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { AppError } from '../api/errors';
 import { createStartServerApi } from '../server/api/startBridge';
+import { getSmokeBaseUrl } from '../server/smoke/env';
 import { runSmokeSection } from '../server/smoke/runSection';
 import type { SmokeSectionId, SmokeStepStreamEvent } from '../types';
 import { smokeSectionInputSchema } from '../validation/apiSchemas';
@@ -55,12 +56,12 @@ export const Route = createFileRoute('/api/admin/smoke')({
         }
 
         const encoder = new TextEncoder();
-        const origin = new URL(request.url).origin;
+        const baseUrl = getSmokeBaseUrl(new URL(request.url).origin);
 
         const stream = new ReadableStream({
           async start(controller) {
             try {
-              const result = await runSmokeSection(sectionId, origin, {
+              const result = await runSmokeSection(sectionId, baseUrl, {
                 onStep: async (step) => {
                   controller.enqueue(
                     encoder.encode(

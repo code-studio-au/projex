@@ -162,6 +162,12 @@ function humanizeSmokeStatusMessage(value: string) {
   if (normalized.includes('missing a valid token')) {
     return 'This step could not continue because the required token was missing or invalid.';
   }
+  if (
+    normalized.includes('projex_smoke_email') ||
+    normalized.includes('projex_smoke_password')
+  ) {
+    return 'This smoke run is missing the base smoke credentials required for server-authenticated checks.';
+  }
   return 'This step failed. The raw error details are shown below.';
 }
 
@@ -650,9 +656,11 @@ export default function SmokeDashboardPage() {
             </Button>
           </Group>
           <Text size="sm" c="dimmed">
-            The dashboard runs the same server checks we use operationally today. Sections that
-            depend on optional values like invite or privacy creds will mark themselves as skipped
-            when those values are not configured in `.env.smoke.local`.
+            The dashboard runs the same server checks we use operationally today. It targets
+            `PROJEX_SMOKE_BASE_URL` when that value is set and otherwise uses the current app
+            origin. Base smoke login credentials are required for all sections, while optional
+            invite or privacy sections will mark themselves as skipped when their extra values are
+            not configured in `.env.smoke.local`.
           </Text>
         </Stack>
       </Paper>
