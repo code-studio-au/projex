@@ -29,11 +29,20 @@ export async function withPublicApi(
   return withApiCore(request, run);
 }
 
+export async function readJsonBody(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    throw new AppError('VALIDATION_ERROR', 'Request body must be valid JSON');
+  }
+}
+
 async function withApiCore(
   request: Request,
   run: () => Promise<unknown>
 ): Promise<Response> {
-  const { buildCorsHeaders, isOriginAllowed } = await import('../server/http/security');
+  const { buildCorsHeaders, isOriginAllowed } =
+    await import('../server/http/security');
   const requestId =
     request.headers.get('x-request-id') ??
     (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -70,7 +79,8 @@ async function withApiCore(
         reason: 'origin_not_allowed',
       })
     );
-    for (const [k, v] of buildCorsHeaders(origin, requestOrigin).entries()) headers.set(k, v);
+    for (const [k, v] of buildCorsHeaders(origin, requestOrigin).entries())
+      headers.set(k, v);
     return new Response(forbidden.body, {
       status: forbidden.status,
       statusText: forbidden.statusText,
@@ -81,7 +91,8 @@ async function withApiCore(
   const withRequestId = (res: Response): Response => {
     const headers = new Headers(res.headers);
     headers.set('x-request-id', requestId);
-    for (const [k, v] of buildCorsHeaders(origin, requestOrigin).entries()) headers.set(k, v);
+    for (const [k, v] of buildCorsHeaders(origin, requestOrigin).entries())
+      headers.set(k, v);
     return new Response(res.body, {
       status: res.status,
       statusText: res.statusText,

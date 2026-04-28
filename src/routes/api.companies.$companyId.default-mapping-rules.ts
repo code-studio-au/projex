@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { withApi } from './-api-shared';
+import { readJsonBody, withApi } from './-api-shared';
 import { asCompanyId } from '../types';
 import {
   createCompanyDefaultMappingRuleInputSchema,
@@ -8,7 +8,9 @@ import {
 } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
-export const Route = createFileRoute('/api/companies/$companyId/default-mapping-rules')({
+export const Route = createFileRoute(
+  '/api/companies/$companyId/default-mapping-rules'
+)({
   server: {
     handlers: {
       GET: ({ request, params }) =>
@@ -19,17 +21,23 @@ export const Route = createFileRoute('/api/companies/$companyId/default-mapping-
         withApi(request, async (api) => {
           const body = validateOrThrow(
             createCompanyDefaultMappingRuleInputSchema,
-            await request.json()
+            await readJsonBody(request)
           );
-          return api.createCompanyDefaultMappingRule(asCompanyId(params.companyId), body);
+          return api.createCompanyDefaultMappingRule(
+            asCompanyId(params.companyId),
+            body
+          );
         }),
       PATCH: async ({ request, params }) =>
         withApi(request, async (api) => {
           const body = validateOrThrow(
             updateCompanyDefaultMappingRuleInputSchema,
-            await request.json()
+            await readJsonBody(request)
           );
-          return api.updateCompanyDefaultMappingRule(asCompanyId(params.companyId), body);
+          return api.updateCompanyDefaultMappingRule(
+            asCompanyId(params.companyId),
+            body
+          );
         }),
     },
   },

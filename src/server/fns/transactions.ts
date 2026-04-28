@@ -15,7 +15,6 @@ import type {
 import { uid } from '../../utils/id';
 import { txnInputSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
-import { getDb } from '../db/db';
 import { isAuthorized, requireAuthorized } from '../auth/authorize';
 import { planImportPreview } from '../../utils/importPreviewPlan';
 import { planTransactionImportCommit } from '../../utils/transactionImportCommitPlan';
@@ -26,22 +25,58 @@ import {
 } from '../../utils/transactions';
 import {
   assertContextProvided,
-  requireServerUserId,
   type ServerFnContextInput,
   withServerBoundary,
 } from './runtime';
+import {
+  assertCategoryInProject,
+  assertCompanyDefaultMappingRuleInCompany,
+  assertSubCategoryInProject,
+  requireProjectForAction,
+  type ProjectActionContext,
+} from './resourceGuards';
 import { type TxnRow, toTxn } from '../mappers/transactionRows';
 import {
   loadTransactionImportCommitContext,
   loadTransactionImportPreviewContext,
 } from '../loaders/importContext';
 
-/**
- * Example command-style server function.
- *
- * In TanStack Start, export this from a `server/` route or server function file
- * and call it from the client adapter.
- */
+async function assertTransactionResourceOwnership(
+  context: ProjectActionContext,
+  txn: Txn
+): Promise<void> {
+  if (txn.subCategoryId && !txn.categoryId) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Category is required when subcategory is set'
+    );
+  }
+
+  if (txn.categoryId) {
+    await assertCategoryInProject({
+      db: context.db,
+      projectId: context.projectId,
+      categoryId: txn.categoryId,
+    });
+  }
+
+  if (txn.subCategoryId) {
+    await assertSubCategoryInProject({
+      db: context.db,
+      projectId: context.projectId,
+      subCategoryId: txn.subCategoryId,
+      categoryId: txn.categoryId,
+    });
+  }
+
+  if (txn.companyDefaultMappingRuleId) {
+    await assertCompanyDefaultMappingRuleInCompany({
+      db: context.db,
+      companyId: context.companyId,
+      ruleId: txn.companyDefaultMappingRuleId,
+    });
+  }
+}
 
 export async function listTransactionsServer(args: {
   context: ServerFnContextInput;
@@ -49,21 +84,11 @@ export async function listTransactionsServer(args: {
 }): Promise<Txn[]> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const userId = await requireServerUserId(args.context);
-    const db = getDb();
-    const project = await db
-      .selectFrom('projects')
-      .select(['id', 'company_id'])
-      .where('id', '=', args.projectId)
-      .executeTakeFirst();
-    if (!project) throw new AppError('NOT_FOUND', 'Project not found');
-    await requireAuthorized({
-      db,
-      userId,
-      action: 'project:view',
-      companyId: project.company_id as CompanyId,
-      projectId: args.projectId,
-    });
+    const { db } = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'project:view'
+    );
     const rows = await db
       .selectFrom('txns')
       .select([
@@ -99,21 +124,12 @@ export async function createTxnServer(args: {
 }): Promise<Txn> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const userId = await requireServerUserId(args.context);
-    const db = getDb();
-    const project = await db
-      .selectFrom('projects')
-      .select(['id', 'company_id'])
-      .where('id', '=', args.projectId)
-      .executeTakeFirst();
-    if (!project) throw new AppError('NOT_FOUND', 'Project not found');
-    await requireAuthorized({
-      db,
-      userId,
-      action: 'txns:edit',
-      companyId: project.company_id as CompanyId,
-      projectId: args.projectId,
-    });
+    const context = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+    const { db } = context;
 
     if (args.input.projectId !== args.projectId) {
       throw new AppError(
@@ -121,7 +137,7 @@ export async function createTxnServer(args: {
         'Transaction projectId does not match target project'
       );
     }
-    if (args.input.companyId !== (project.company_id as CompanyId)) {
+    if (args.input.companyId !== context.companyId) {
       throw new AppError(
         'VALIDATION_ERROR',
         'Transaction companyId does not match project company'
@@ -137,6 +153,7 @@ export async function createTxnServer(args: {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    await assertTransactionResourceOwnership(context, next);
 
     const existingRows = await db
       .selectFrom('txns')
@@ -200,21 +217,12 @@ export async function updateTxnServer(args: {
 }): Promise<Txn> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const userId = await requireServerUserId(args.context);
-    const db = getDb();
-    const project = await db
-      .selectFrom('projects')
-      .select(['id', 'company_id'])
-      .where('id', '=', args.projectId)
-      .executeTakeFirst();
-    if (!project) throw new AppError('NOT_FOUND', 'Project not found');
-    await requireAuthorized({
-      db,
-      userId,
-      action: 'txns:edit',
-      companyId: project.company_id as CompanyId,
-      projectId: args.projectId,
-    });
+    const context = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+    const { db } = context;
 
     const existing = await db
       .selectFrom('txns')
@@ -277,6 +285,7 @@ export async function updateTxnServer(args: {
     };
 
     validateOrThrow(txnInputSchema, next);
+    await assertTransactionResourceOwnership(context, next);
 
     const existingRows = await db
       .selectFrom('txns')
@@ -344,21 +353,11 @@ export async function deleteTxnServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const userId = await requireServerUserId(args.context);
-    const db = getDb();
-    const project = await db
-      .selectFrom('projects')
-      .select(['id', 'company_id'])
-      .where('id', '=', args.projectId)
-      .executeTakeFirst();
-    if (!project) throw new AppError('NOT_FOUND', 'Project not found');
-    await requireAuthorized({
-      db,
-      userId,
-      action: 'txns:edit',
-      companyId: project.company_id as CompanyId,
-      projectId: args.projectId,
-    });
+    const { db } = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
     await db
       .deleteFrom('txns')
       .where('project_id', '=', args.projectId)
@@ -376,38 +375,29 @@ export async function importTransactionsServer(args: {
 }): Promise<{ count: number }> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const userId = await requireServerUserId(args.context);
-    const db = getDb();
-    const project = await db
-      .selectFrom('projects')
-      .select(['id', 'company_id'])
-      .where('id', '=', args.projectId)
-      .executeTakeFirst();
-    if (!project) throw new AppError('NOT_FOUND', 'Project not found');
-    await requireAuthorized({
-      db,
-      userId,
-      action: 'project:import',
-      companyId: project.company_id as CompanyId,
-      projectId: args.projectId,
-    });
+    const context = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'project:import'
+    );
+    const { db, userId, companyId } = context;
     if (args.autoCreateBudgets) {
       await requireAuthorized({
         db,
         userId,
         action: 'budget:edit',
-        companyId: project.company_id as CompanyId,
+        companyId,
         projectId: args.projectId,
       });
     }
     const importContext = await loadTransactionImportCommitContext(db, {
-      companyId: project.company_id as CompanyId,
+      companyId,
       projectId: args.projectId,
     });
 
     const plan = planTransactionImportCommit({
       projectId: args.projectId,
-      companyId: project.company_id as CompanyId,
+      companyId,
       incomingTransactions: args.txns,
       existingTransactions: importContext.existingTransactions,
       existingBudgets: importContext.budgets,
@@ -433,7 +423,7 @@ export async function importTransactionsServer(args: {
             .values(
               plan.budgetTargetsToCreate.map((target) => ({
                 id: asBudgetLineId(uid('bud')),
-                company_id: project.company_id as CompanyId,
+                company_id: companyId,
                 project_id: args.projectId,
                 category_id: target.categoryId,
                 sub_category_id: target.subCategoryId,
@@ -480,7 +470,7 @@ export async function importTransactionsServer(args: {
           .values(
             plan.budgetTargetsToCreate.map((target) => ({
               id: asBudgetLineId(uid('bud')),
-              company_id: project.company_id as CompanyId,
+              company_id: companyId,
               project_id: args.projectId,
               category_id: target.categoryId,
               sub_category_id: target.subCategoryId,
@@ -527,40 +517,30 @@ export async function previewImportTransactionsServer(args: {
 }): Promise<{ rows: ImportPreviewRow[] }> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const userId = await requireServerUserId(args.context);
-    const db = getDb();
-    const project = await db
-      .selectFrom('projects')
-      .select(['id', 'company_id'])
-      .where('id', '=', args.projectId)
-      .executeTakeFirst();
-    if (!project) throw new AppError('NOT_FOUND', 'Project not found');
-
-    await requireAuthorized({
-      db,
-      userId,
-      action: 'project:import',
-      companyId: project.company_id as CompanyId,
-      projectId: args.projectId,
-    });
+    const context = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'project:import'
+    );
+    const { db, userId, companyId } = context;
 
     const [importContext, canEditTaxonomy, canEditBudgets] = await Promise.all([
       loadTransactionImportPreviewContext(db, {
-        companyId: project.company_id as CompanyId,
+        companyId,
         projectId: args.projectId,
       }),
       isAuthorized({
         db,
         userId,
         action: 'taxonomy:edit',
-        companyId: project.company_id as CompanyId,
+        companyId,
         projectId: args.projectId,
       }),
       isAuthorized({
         db,
         userId,
         action: 'budget:edit',
-        companyId: project.company_id as CompanyId,
+        companyId,
         projectId: args.projectId,
       }),
     ]);

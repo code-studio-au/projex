@@ -5,14 +5,16 @@ import { asBudgetLineId, asCategoryId, asSubCategoryId } from '../../types';
 import { uid } from '../../utils/id';
 import { budgetAllocatedCentsSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
-import { requireAuthorized } from '../auth/authorize';
-import { getDb } from '../db/db';
 import {
   assertContextProvided,
-  requireServerUserId,
   type ServerFnContextInput,
   withServerBoundary,
 } from './runtime';
+import {
+  assertCategoryInProject,
+  assertSubCategoryInProject,
+  requireProjectForAction,
+} from './resourceGuards';
 
 type BudgetRow = {
   id: string;
@@ -31,29 +33,13 @@ function toBudget(row: BudgetRow): BudgetLine {
     companyId: row.company_id as CompanyId,
     projectId: row.project_id as ProjectId,
     categoryId: row.category_id ? asCategoryId(row.category_id) : undefined,
-    subCategoryId: row.sub_category_id ? asSubCategoryId(row.sub_category_id) : undefined,
+    subCategoryId: row.sub_category_id
+      ? asSubCategoryId(row.sub_category_id)
+      : undefined,
     allocatedCents: Number(row.allocated_cents),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-async function requireProjectContext(
-  context: ServerFnContextInput,
-  projectId: ProjectId,
-  action: 'project:view' | 'budget:edit'
-): Promise<{ companyId: CompanyId }> {
-  const db = getDb();
-  const userId = await requireServerUserId(context);
-  const project = await db
-    .selectFrom('projects')
-    .select(['id', 'company_id'])
-    .where('id', '=', projectId)
-    .executeTakeFirst();
-  if (!project) throw new AppError('NOT_FOUND', 'Unknown project');
-  const companyId = project.company_id as CompanyId;
-  await requireAuthorized({ db, userId, action, companyId, projectId });
-  return { companyId };
 }
 
 export async function listBudgetsServer(args: {
@@ -62,8 +48,11 @@ export async function listBudgetsServer(args: {
 }): Promise<BudgetLine[]> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireProjectContext(args.context, args.projectId, 'project:view');
-    const db = getDb();
+    const { db } = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'project:view'
+    );
     const rows = await db
       .selectFrom('budget_lines')
       .select([
@@ -90,30 +79,27 @@ export async function createBudgetServer(args: {
 }): Promise<BudgetLine> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { companyId } = await requireProjectContext(args.context, args.projectId, 'budget:edit');
+    const { db, companyId } = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'budget:edit'
+    );
     validateOrThrow(budgetAllocatedCentsSchema, args.input.allocatedCents);
-    const db = getDb();
 
     if (args.input.categoryId) {
-      const category = await db
-        .selectFrom('categories')
-        .select('id')
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', args.input.categoryId)
-        .executeTakeFirst();
-      if (!category) throw new AppError('NOT_FOUND', 'Unknown category');
+      await assertCategoryInProject({
+        db,
+        projectId: args.projectId,
+        categoryId: args.input.categoryId,
+      });
     }
     if (args.input.subCategoryId) {
-      const sub = await db
-        .selectFrom('sub_categories')
-        .select(['id', 'category_id'])
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', args.input.subCategoryId)
-        .executeTakeFirst();
-      if (!sub) throw new AppError('NOT_FOUND', 'Unknown subcategory');
-      if (args.input.categoryId && sub.category_id !== args.input.categoryId) {
-        throw new AppError('VALIDATION_ERROR', 'Subcategory does not belong to category');
-      }
+      await assertSubCategoryInProject({
+        db,
+        projectId: args.projectId,
+        subCategoryId: args.input.subCategoryId,
+        categoryId: args.input.categoryId,
+      });
     }
 
     const existingRows = await db
@@ -130,7 +116,9 @@ export async function createBudgetServer(args: {
       ])
       .where('project_id', '=', args.projectId)
       .execute();
-    const existing = existingRows.find((b) => b.sub_category_id === (args.input.subCategoryId ?? null));
+    const existing = existingRows.find(
+      (b) => b.sub_category_id === (args.input.subCategoryId ?? null)
+    );
     if (existing) {
       if (existing.category_id !== (args.input.categoryId ?? null)) {
         const updated = await db
@@ -193,8 +181,11 @@ export async function updateBudgetServer(args: {
 }): Promise<BudgetLine> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireProjectContext(args.context, args.projectId, 'budget:edit');
-    const db = getDb();
+    const { db } = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'budget:edit'
+    );
     const existing = await db
       .selectFrom('budget_lines')
       .select([
@@ -215,37 +206,42 @@ export async function updateBudgetServer(args: {
     if (typeof args.input.allocatedCents !== 'undefined') {
       validateOrThrow(budgetAllocatedCentsSchema, args.input.allocatedCents);
     }
-    const nextCategoryId = Object.prototype.hasOwnProperty.call(args.input, 'categoryId')
+    const nextCategoryId = Object.prototype.hasOwnProperty.call(
+      args.input,
+      'categoryId'
+    )
       ? args.input.categoryId
-      : (existing.category_id ?? undefined);
-    const nextSubCategoryId = Object.prototype.hasOwnProperty.call(args.input, 'subCategoryId')
+      : existing.category_id
+        ? asCategoryId(existing.category_id)
+        : undefined;
+    const nextSubCategoryId = Object.prototype.hasOwnProperty.call(
+      args.input,
+      'subCategoryId'
+    )
       ? args.input.subCategoryId
-      : (existing.sub_category_id ?? undefined);
+      : existing.sub_category_id
+        ? asSubCategoryId(existing.sub_category_id)
+        : undefined;
 
     if (nextCategoryId) {
-      const category = await db
-        .selectFrom('categories')
-        .select('id')
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', nextCategoryId)
-        .executeTakeFirst();
-      if (!category) throw new AppError('NOT_FOUND', 'Unknown category');
+      await assertCategoryInProject({
+        db,
+        projectId: args.projectId,
+        categoryId: nextCategoryId,
+      });
     }
     if (nextSubCategoryId) {
-      const sub = await db
-        .selectFrom('sub_categories')
-        .select(['id', 'category_id'])
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', nextSubCategoryId)
-        .executeTakeFirst();
-      if (!sub) throw new AppError('NOT_FOUND', 'Unknown subcategory');
-      if (nextCategoryId && sub.category_id !== nextCategoryId) {
-        throw new AppError('VALIDATION_ERROR', 'Subcategory does not belong to category');
-      }
+      await assertSubCategoryInProject({
+        db,
+        projectId: args.projectId,
+        subCategoryId: nextSubCategoryId,
+        categoryId: nextCategoryId,
+      });
     }
 
     const patch: Record<string, unknown> = {};
-    if (typeof args.input.allocatedCents !== 'undefined') patch.allocated_cents = args.input.allocatedCents;
+    if (typeof args.input.allocatedCents !== 'undefined')
+      patch.allocated_cents = args.input.allocatedCents;
     if (Object.prototype.hasOwnProperty.call(args.input, 'categoryId')) {
       patch.category_id = args.input.categoryId ?? null;
     }
@@ -281,8 +277,11 @@ export async function deleteBudgetServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireProjectContext(args.context, args.projectId, 'budget:edit');
-    const db = getDb();
+    const { db } = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'budget:edit'
+    );
     await db
       .deleteFrom('budget_lines')
       .where('project_id', '=', args.projectId)

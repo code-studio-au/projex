@@ -17,6 +17,7 @@ import {
   type ServerFnContextInput,
   withServerBoundary,
 } from './runtime';
+import { requireCompanyMember } from './resourceGuards';
 
 function toCompanyMembership(row: {
   company_id: string;
@@ -141,7 +142,10 @@ export async function upsertCompanyMembershipServer(args: {
         .executeTakeFirstOrThrow();
 
       if (Number(adminCountRow.count) <= 1) {
-        throw new AppError('VALIDATION_ERROR', 'Company must retain at least one admin');
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Company must retain at least one admin'
+        );
       }
     }
 
@@ -199,7 +203,10 @@ export async function deleteCompanyMembershipServer(args: {
         .executeTakeFirstOrThrow();
 
       if (Number(adminCountRow.count) <= 1) {
-        throw new AppError('VALIDATION_ERROR', 'Company must retain at least one admin');
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Company must retain at least one admin'
+        );
       }
     }
 
@@ -324,6 +331,11 @@ export async function upsertProjectMembershipServer(args: {
       .where('id', '=', args.userId)
       .executeTakeFirst();
     if (!userExists) throw new AppError('NOT_FOUND', 'Unknown user');
+    await requireCompanyMember({
+      db,
+      companyId: project.company_id as CompanyId,
+      userId: args.userId,
+    });
 
     await db
       .insertInto('project_memberships')

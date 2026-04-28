@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { withApi } from './-api-shared';
+import { readJsonBody, withApi } from './-api-shared';
 import { asCompanyId } from '../types';
 import {
   createCompanyDefaultSubCategoryInputSchema,
@@ -8,26 +8,36 @@ import {
 } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
-export const Route = createFileRoute('/api/companies/$companyId/default-sub-categories')({
+export const Route = createFileRoute(
+  '/api/companies/$companyId/default-sub-categories'
+)({
   server: {
     handlers: {
       GET: ({ request, params }) =>
-        withApi(request, (api) => api.listCompanyDefaultSubCategories(asCompanyId(params.companyId))),
+        withApi(request, (api) =>
+          api.listCompanyDefaultSubCategories(asCompanyId(params.companyId))
+        ),
       POST: async ({ request, params }) =>
         withApi(request, async (api) => {
           const body = validateOrThrow(
             createCompanyDefaultSubCategoryInputSchema,
-            await request.json()
+            await readJsonBody(request)
           );
-          return api.createCompanyDefaultSubCategory(asCompanyId(params.companyId), body);
+          return api.createCompanyDefaultSubCategory(
+            asCompanyId(params.companyId),
+            body
+          );
         }),
       PATCH: async ({ request, params }) =>
         withApi(request, async (api) => {
           const body = validateOrThrow(
             updateCompanyDefaultSubCategoryInputSchema,
-            await request.json()
+            await readJsonBody(request)
           );
-          return api.updateCompanyDefaultSubCategory(asCompanyId(params.companyId), body);
+          return api.updateCompanyDefaultSubCategory(
+            asCompanyId(params.companyId),
+            body
+          );
         }),
     },
   },

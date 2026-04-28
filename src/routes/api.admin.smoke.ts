@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { AppError } from '../api/errors';
+import { readJsonBody } from './-api-shared';
 import { createStartServerApi } from '../server/api/startBridge';
 import { getSmokeBaseUrl } from '../server/smoke/env';
 import { runSmokeSection } from '../server/smoke/runSection';
@@ -31,7 +32,7 @@ export const Route = createFileRoute('/api/admin/smoke')({
         try {
           sectionId = validateOrThrow(
             smokeSectionInputSchema,
-            await request.json().catch(() => null)
+            await readJsonBody(request)
           ).sectionId;
         } catch (error) {
           if (error instanceof AppError && error.code === 'VALIDATION_ERROR') {
@@ -57,7 +58,8 @@ export const Route = createFileRoute('/api/admin/smoke')({
 
         const users = await api.listUsers();
         const isSuperadmin =
-          users.find((user) => user.id === session.userId)?.isGlobalSuperadmin === true;
+          users.find((user) => user.id === session.userId)
+            ?.isGlobalSuperadmin === true;
         if (!isSuperadmin) {
           return Response.json(
             { code: 'FORBIDDEN', message: 'Superadmin access required' },
@@ -110,7 +112,9 @@ export const Route = createFileRoute('/api/admin/smoke')({
                   ? error
                   : new AppError(
                       'INTERNAL_ERROR',
-                      error instanceof Error ? error.message : 'Unexpected smoke error'
+                      error instanceof Error
+                        ? error.message
+                        : 'Unexpected smoke error'
                     );
               controller.enqueue(
                 encoder.encode(
