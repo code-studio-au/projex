@@ -105,17 +105,17 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [membershipCompanyRole, setMembershipCompanyRole] =
     useState<CompanyRole | null>('member');
 
-  const companyRoleValues = [
-    'member',
-    'management',
-    'executive',
-    'admin',
-  ] as const;
   const toCompanyRole = (v: string | null): CompanyRole | null => {
     if (!v) return null;
-    return (companyRoleValues as readonly string[]).includes(v)
-      ? (v as CompanyRole)
-      : null;
+    if (
+      v === 'member' ||
+      v === 'management' ||
+      v === 'executive' ||
+      v === 'admin'
+    ) {
+      return v;
+    }
+    return null;
   };
 
   const highestRoleBadge = (
@@ -364,7 +364,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               { value: 'admin', label: 'admin' },
             ]}
             value={newUserRole}
-            onChange={(v) => setNewUserRole((v as CompanyRole | null) ?? null)}
+            onChange={(v) => setNewUserRole(toCompanyRole(v))}
           />
           <Checkbox
             label="Send password setup email now"

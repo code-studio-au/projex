@@ -15,7 +15,13 @@ import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
-import type { CompanyId, ProjectId, ProjectRole, UserId } from '../types';
+import type {
+  CompanyId,
+  Project,
+  ProjectId,
+  ProjectRole,
+  UserId,
+} from '../types';
 import { asUserId } from '../types';
 
 import { useProjectQuery, useUsersQuery } from '../queries/reference';
@@ -29,6 +35,27 @@ import {
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { getCompanyUsers } from '../store/access';
 import { companyRoute } from '../router';
+
+function toProjectRole(value: string | null): ProjectRole | null {
+  if (!value) return null;
+  if (
+    value === 'owner' ||
+    value === 'lead' ||
+    value === 'member' ||
+    value === 'viewer'
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function isProjectCurrency(value: string): value is Project['currency'] {
+  return ['AUD', 'USD', 'EUR', 'GBP'].includes(value);
+}
+
+function isProjectVisibility(value: string): value is Project['visibility'] {
+  return ['private', 'company'].includes(value);
+}
 
 export default function ProjectSettingsPanel(props: {
   companyId: CompanyId;
@@ -180,10 +207,10 @@ export default function ProjectSettingsPanel(props: {
               description="Controls how money is formatted throughout this project workspace."
               value={project.data.currency}
               onChange={(v) => {
-                if (!v) return;
+                if (!v || !isProjectCurrency(v)) return;
                 updateProject.mutate({
                   id: projectId,
-                  currency: v as 'AUD' | 'USD' | 'EUR' | 'GBP',
+                  currency: v,
                 });
               }}
               data={[
@@ -199,10 +226,10 @@ export default function ProjectSettingsPanel(props: {
               description="Controls whether non-members can see this project in the company project list. Opening still requires membership unless you are Admin/Exec/Superadmin."
               value={project.data.visibility}
               onChange={(v) => {
-                if (!v) return;
+                if (!v || !isProjectVisibility(v)) return;
                 updateProject.mutate({
                   id: projectId,
-                  visibility: v as 'private' | 'company',
+                  visibility: v,
                 });
               }}
               data={[
@@ -248,7 +275,7 @@ export default function ProjectSettingsPanel(props: {
                 { value: 'viewer', label: 'viewer' },
               ]}
               value={memberRole}
-              onChange={(v) => setMemberRole((v as ProjectRole | null) ?? null)}
+              onChange={(v) => setMemberRole(toProjectRole(v))}
               style={{ width: '100%', maxWidth: 220 }}
             />
             <Button

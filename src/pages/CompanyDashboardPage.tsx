@@ -35,6 +35,15 @@ import { companyRoute, landingRoute, projectRoute } from '../router';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 
+type CompanyDashboardTab = 'summary' | 'projects' | 'settings';
+
+function toCompanyDashboardTab(value: string | null): CompanyDashboardTab {
+  if (value === 'summary' || value === 'projects' || value === 'settings') {
+    return value;
+  }
+  return 'projects';
+}
+
 export default function CompanyDashboardPage() {
   const { companyId: rawCompanyId } = companyRoute.useParams();
   const companyId: CompanyId = asCompanyId(rawCompanyId);
@@ -59,9 +68,7 @@ export default function CompanyDashboardPage() {
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [activeTab, setActiveTab] = useState<
-    'summary' | 'projects' | 'settings'
-  >('summary');
+  const [activeTab, setActiveTab] = useState<CompanyDashboardTab>('summary');
 
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
   const sortedProjects = useMemo(
@@ -332,11 +339,7 @@ export default function CompanyDashboardPage() {
 
       <Tabs
         value={resolvedActiveTab}
-        onChange={(value) =>
-          setActiveTab(
-            (value as 'summary' | 'projects' | 'settings') ?? 'projects'
-          )
-        }
+        onChange={(value) => setActiveTab(toCompanyDashboardTab(value))}
         keepMounted={false}
       >
         <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>

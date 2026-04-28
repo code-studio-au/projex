@@ -35,6 +35,16 @@ type BudgetDisplayRow = RollupRow & {
 
 type VisibilityState = Record<string, boolean>;
 
+const quarterOptions: readonly Quarter[] = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+function toQuarter(value: string | null): Quarter | null {
+  if (!value) return null;
+  if (value === 'Q1' || value === 'Q2' || value === 'Q3' || value === 'Q4') {
+    return value;
+  }
+  return null;
+}
+
 const HEADER_STYLE = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -336,7 +346,7 @@ export default function BudgetPanel(props: {
               className: 'table-body-right budgetTable-cell',
             },
           },
-          ...(['Q1', 'Q2', 'Q3', 'Q4'] as Quarter[])
+          ...quarterOptions
             .filter((quarter) => quarterMap.has(quarter))
             .flatMap<MRT_ColumnDef<BudgetDisplayRow>>((quarter) => {
               const months = (quarterMap.get(quarter) ?? []).slice().sort();
@@ -563,9 +573,7 @@ export default function BudgetPanel(props: {
             clearable
             disabled={!yearFilter}
             onChange={(value) => {
-              setQuarterFilter(
-                (value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null
-              );
+              setQuarterFilter(toQuarter(value));
               setMonthFilterKey(null);
             }}
             style={{ width: 150 }}

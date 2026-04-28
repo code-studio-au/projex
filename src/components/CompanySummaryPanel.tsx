@@ -18,6 +18,15 @@ import { projectRoute } from '../router';
 import { useCompanySummaryQuery } from '../queries/reference';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
+const quarterOptions: readonly QuarterOption[] = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+function toQuarterOption(value: string | null): QuarterOption | null {
+  if (!value) return null;
+  if (value === 'Q1' || value === 'Q2' || value === 'Q3' || value === 'Q4') {
+    return value;
+  }
+  return null;
+}
 
 type ProjectSummaryRow = {
   id: Project['id'];
@@ -193,7 +202,7 @@ export default function CompanySummaryPanel(props: {
         return quarterFromMonthNumber(Number(key.slice(5, 7)));
       })
     );
-    return (['Q1', 'Q2', 'Q3', 'Q4'] as QuarterOption[])
+    return quarterOptions
       .filter((quarter) => quarters.has(quarter))
       .map((value) => ({ value, label: value }));
   }, [allMonthKeys, yearFilter]);
@@ -531,7 +540,7 @@ export default function CompanySummaryPanel(props: {
               value={quarterFilter}
               clearable
               onChange={(value) => {
-                setQuarterFilter((value as QuarterOption | null) ?? null);
+                setQuarterFilter(toQuarterOption(value));
                 setMonthFilterKey(null);
               }}
             />

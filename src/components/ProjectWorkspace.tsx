@@ -21,10 +21,24 @@ import CsvImporterPanel from './CsvImporterPanel';
 import ProjectSettingsPanel from './ProjectSettingsPanel';
 import { LoadingChip, LoadingLine } from './LoadingValue';
 
+type ProjectWorkspaceTab = 'budget' | 'transactions' | 'import' | 'settings';
+
+function toProjectWorkspaceTab(value: string | null): ProjectWorkspaceTab {
+  if (
+    value === 'budget' ||
+    value === 'transactions' ||
+    value === 'import' ||
+    value === 'settings'
+  ) {
+    return value;
+  }
+  return 'budget';
+}
+
 export default function ProjectWorkspace(props: {
   companyId: CompanyId;
   projectId: ProjectId;
-  initialTab?: 'budget' | 'transactions' | 'import' | 'settings';
+  initialTab?: ProjectWorkspaceTab;
   initialYearFilter?: string | null;
   initialQuarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   initialMonthFilterKey?: string | null;
@@ -83,9 +97,7 @@ export default function ProjectWorkspace(props: {
     canEditBudgets,
   });
 
-  const [activeTab, setActiveTab] = useState<
-    'budget' | 'transactions' | 'import' | 'settings'
-  >(initialTab);
+  const [activeTab, setActiveTab] = useState<ProjectWorkspaceTab>(initialTab);
   const [yearFilter, setYearFilter] = useState<string | null>(
     derivedInitialYearFilter
   );
@@ -280,12 +292,7 @@ export default function ProjectWorkspace(props: {
       <Paper withBorder radius="lg" p="md">
         <Tabs
           value={activeTab}
-          onChange={(value) =>
-            setActiveTab(
-              (value as 'budget' | 'transactions' | 'import' | 'settings') ??
-                'budget'
-            )
-          }
+          onChange={(value) => setActiveTab(toProjectWorkspaceTab(value))}
           keepMounted={false}
           variant="outline"
         >

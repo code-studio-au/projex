@@ -26,6 +26,10 @@ import type {
   CompanyId,
 } from '../types';
 import {
+  asCompanyDefaultCategoryId,
+  asCompanyDefaultSubCategoryId,
+} from '../types';
+import {
   useCompanyDefaultsQuery,
   useCreateCompanyDefaultMappingRuleMutation,
   useDeleteCompanyDefaultMappingRuleMutation,
@@ -68,13 +72,14 @@ export default function CompanyDefaultMappingsModal(props: {
   const [newMatchText, setNewMatchText] = useState('');
   const [newCategoryId, setNewCategoryId] =
     useState<CompanyDefaultCategoryId | null>(null);
-  const [newSubCategoryId, setNewSubCategoryId] = useState<string | null>(null);
+  const [newSubCategoryId, setNewSubCategoryId] =
+    useState<CompanyDefaultSubCategoryId | null>(null);
   const [matchDrafts, setMatchDrafts] = useState<Record<string, string>>({});
-  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>(
-    {}
-  );
+  const [categoryDrafts, setCategoryDrafts] = useState<
+    Record<string, CompanyDefaultCategoryId>
+  >({});
   const [subCategoryDrafts, setSubCategoryDrafts] = useState<
-    Record<string, string>
+    Record<string, CompanyDefaultSubCategoryId>
   >({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -215,7 +220,7 @@ export default function CompanyDefaultMappingsModal(props: {
                   setError(null);
                   setSuccess(null);
                   setNewCategoryId(
-                    (value as CompanyDefaultCategoryId | null) ?? null
+                    value ? asCompanyDefaultCategoryId(value) : null
                   );
                   setNewSubCategoryId(null);
                 }}
@@ -228,7 +233,9 @@ export default function CompanyDefaultMappingsModal(props: {
                 onChange={(value) => {
                   setError(null);
                   setSuccess(null);
-                  setNewSubCategoryId(value);
+                  setNewSubCategoryId(
+                    value ? asCompanyDefaultSubCategoryId(value) : null
+                  );
                 }}
               />
             </Group>
@@ -256,16 +263,15 @@ export default function CompanyDefaultMappingsModal(props: {
                   !newSubCategoryId
                 }
                 onClick={async () => {
+                  if (!newCategoryId || !newSubCategoryId) return;
                   try {
                     setError(null);
                     setSuccess(null);
                     await createRule.mutateAsync({
                       companyId,
                       matchText: newMatchText.trim(),
-                      companyDefaultCategoryId:
-                        newCategoryId as CompanyDefaultCategoryId,
-                      companyDefaultSubCategoryId:
-                        newSubCategoryId as CompanyDefaultSubCategoryId,
+                      companyDefaultCategoryId: newCategoryId,
+                      companyDefaultSubCategoryId: newSubCategoryId,
                       sortOrder: rules.length,
                     });
                     setNewMatchText('');
@@ -295,9 +301,7 @@ export default function CompanyDefaultMappingsModal(props: {
           <Stack gap="sm">
             {rules.map((rule, index) => {
               const selectedCategoryId =
-                (categoryDrafts[rule.id] as
-                  | CompanyDefaultCategoryId
-                  | undefined) ?? rule.companyDefaultCategoryId;
+                categoryDrafts[rule.id] ?? rule.companyDefaultCategoryId;
               const subCategoryOptions = subCategories
                 .filter(
                   (subCategory) =>
@@ -432,14 +436,20 @@ export default function CompanyDefaultMappingsModal(props: {
                         onChange={(value) => {
                           setError(null);
                           setSuccess(null);
-                          setCategoryDrafts((prev) => ({
-                            ...prev,
-                            [rule.id]: value ?? '',
-                          }));
-                          setSubCategoryDrafts((prev) => ({
-                            ...prev,
-                            [rule.id]: '',
-                          }));
+                          setCategoryDrafts((prev) => {
+                            const next = { ...prev };
+                            if (value) {
+                              next[rule.id] = asCompanyDefaultCategoryId(value);
+                            } else {
+                              delete next[rule.id];
+                            }
+                            return next;
+                          });
+                          setSubCategoryDrafts((prev) => {
+                            const next = { ...prev };
+                            delete next[rule.id];
+                            return next;
+                          });
                         }}
                       />
                       <Select
@@ -459,7 +469,7 @@ export default function CompanyDefaultMappingsModal(props: {
                               id: rule.id,
                               companyDefaultCategoryId: selectedCategoryId,
                               companyDefaultSubCategoryId:
-                                value as CompanyDefaultSubCategoryId,
+                                asCompanyDefaultSubCategoryId(value),
                             });
                             setCategoryDrafts((prev) => {
                               const next = { ...prev };

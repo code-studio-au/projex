@@ -23,6 +23,16 @@ import { formatCurrencyFromCents } from '../utils/money';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
 
+type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
+
+function toQuarterOption(value: string | null): QuarterOption | null {
+  if (!value) return null;
+  if (value === 'Q1' || value === 'Q2' || value === 'Q3' || value === 'Q4') {
+    return value;
+  }
+  return null;
+}
+
 export default function TransactionsPanel(props: {
   txns: TransactionsHook;
   taxonomy: TaxonomyHook;
@@ -30,9 +40,9 @@ export default function TransactionsPanel(props: {
   yearFilterOptions: { value: string; label: string }[];
   yearFilter: string | null;
   setYearFilter: (value: string | null) => void;
-  quarterFilterOptions: { value: 'Q1' | 'Q2' | 'Q3' | 'Q4'; label: string }[];
-  quarterFilter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
-  setQuarterFilter: (value: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) => void;
+  quarterFilterOptions: { value: QuarterOption; label: string }[];
+  quarterFilter: QuarterOption | null;
+  setQuarterFilter: (value: QuarterOption | null) => void;
   monthFilterOptions: { value: string; label: string }[];
   monthFilterKey: string | null;
   setMonthFilterKey: (value: string | null) => void;
@@ -386,9 +396,7 @@ export default function TransactionsPanel(props: {
             clearable
             disabled={!yearFilter}
             onChange={(value) => {
-              setQuarterFilter(
-                (value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null
-              );
+              setQuarterFilter(toQuarterOption(value));
               setMonthFilterKey(null);
             }}
             style={{ width: isMobile ? '100%' : 150 }}
