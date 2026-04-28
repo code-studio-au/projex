@@ -1,164 +1,89 @@
 # Projex
 
-Projex supports two intentional runtime modes:
+Project and grant budget tracking app.
 
-- local development: server-backed runtime with optional dev-only bootstrap helpers
-- server mode: TanStack Start routes, BetterAuth, and Postgres-backed runtime
+Projex is a TanStack Start, React, TypeScript, BetterAuth, and Postgres app. The UI talks through the stable `ProjexApi` boundary, while server-backed behavior lives behind TanStack Start API routes and `src/server/fns/*`.
 
-The UI stays behind a stable `ProjexApi` boundary so local and server-backed flows can share the same pages/components.
-
-## How it works
-
-- **UI** uses TanStack Router for routes and TanStack Query for all data access.
-- **API boundary**: the UI talks only to `src/api/contract.ts` (`ProjexApi`).
-- **Server implementation**: `src/api/server/serverApi.ts` talks to TanStack Start file routes under `src/routes/api.*.ts`.
-
-## Dev
+## Quick Start
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Server transition utilities
+Useful checks before handing work over or opening a PR:
+
+```bash
+npm run test
+npm run typecheck
+npm run lint
+npm run format:check
+npm run build
+```
+
+## Local Server Utilities
 
 ```bash
 # Apply BetterAuth + app SQL migrations to DATABASE_URL
 npm run db:migrate
 
-# Create BetterAuth user (email/password)
+# Create a BetterAuth user
 PROJEX_AUTH_EMAIL=... PROJEX_AUTH_PASSWORD=... PROJEX_AUTH_NAME=... npm run auth:create-user
 
-# Bootstrap that BetterAuth user into the app as a global superadmin.
-# This is the command to run for the first admin account on a fresh database.
+# Bootstrap the first app-side global superadmin on a fresh database
 PROJEX_AUTH_EMAIL=... PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" npm run auth:bootstrap-user
 
-# Or link an existing BetterAuth user into the app and grant global superadmin
-# while copying memberships from a template user if set.
+# Link an existing BetterAuth user into the app and grant global superadmin
 PROJEX_AUTH_EMAIL=... PROJEX_APP_TEMPLATE_USER_ID=u_superadmin npm run auth:link-user
 
-# Start server build with migrations
+# Start the built server, including startup migrations
 npm run start:server
 
 # Smoke test a running server
 npm run smoke:server
-
-# Run only one smoke section
 npm run smoke:server -- --section=emailChange
 ```
 
-- DB migrations: `src/server/db/migrations`
-- Start integration wiring: `docs/start-route-integration.md`
-- Server readiness checklist: `docs/server-readiness-checklist.md`
-- EC2 deployment guide: `docs/deployment-ec2.md`
-- Production runbook: `docs/staging-runbook.md`
-- Email ops runbook: `docs/email-ops-runbook.md`
-- Verified email-change design: `docs/verified-email-change-design.md`
-- Product backlog: `docs/product-backlog.md`
+## Architecture Boundaries
 
-## Auth modes (server)
+- UI routes and components should depend on queries and the `ProjexApi` contract, not directly on storage.
+- Client-safe API adapter code lives in `src/api/server/serverApi.ts`.
+- Business logic belongs in `src/server/fns/*`.
+- File routes under `src/routes/api.*.ts` should stay thin: parse input, call server functions, and return validated JSON.
+- Request body validation belongs at the route boundary with Zod.
+- Runtime ownership and authorization checks should be centralized through server guard helpers, not duplicated ad hoc inside route files.
+- Do not import `src/server/*` from client modules.
 
-Use one of:
+## Server Runtime Notes
 
-- `BETTER_AUTH_DIRECT_SESSION_FN` (`modulePath#exportName` direct resolver hook), or
-- `BETTER_AUTH_SESSION_URL` (session endpoint fallback).
-
-Recommended server setup:
+Production/staging server mode requires:
 
 - `DATABASE_URL`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
-- `BETTER_AUTH_DIRECT_SESSION_FN`
+- one auth session resolution mode, preferably `BETTER_AUTH_DIRECT_SESSION_FN`
+- `PROJEX_ENABLE_DEV_ENDPOINTS=false`
 
-In production, startup validation requires:
-
-- `DATABASE_URL`
-- `BETTER_AUTH_SECRET`
-- `BETTER_AUTH_URL`
-- one auth session resolution mode
-
-Starter direct resolver file: `src/server/auth/authProvider.ts`.
-If using direct resolver with local BetterAuth instance, also set:
-
-- `BETTER_AUTH_SECRET`
-- `BETTER_AUTH_URL`
-- `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated, optional)
-
-TanStack Start BetterAuth handler route is mounted at `/api/auth/$`.
-Staging/production should use real server auth only.
-`npm run db:migrate` now runs BetterAuth schema migration + app SQL migrations.
-
-## Security defaults
-
-- `PROJEX_ENABLE_DEV_ENDPOINTS` must not be `true` in production.
-- Cross-origin browser requests are denied by default.
-- `CORS_ALLOWED_ORIGINS` (comma-separated) enables explicit cross-origin allowlisting.
-- All API responses include `x-request-id` and structured request logs are emitted server-side.
-- API and auth responses include baseline hardening headers:
-  - `Strict-Transport-Security` (when served over HTTPS)
-  - `X-Content-Type-Options`
-  - `X-Frame-Options`
-  - `Referrer-Policy`
-  - `Permissions-Policy`
-- The readiness endpoint intentionally returns only minimal status data in production responses.
-- For full site-wide browser hardening on HTML responses, use the nginx template at `deploy/nginx/projex.conf`.
-
-## TanStack Start migration status
-
-- Start runtime deps are added (`@tanstack/react-start`).
-- Vite is wired with `tanstackStart()` and `vite-tsconfig-paths`.
-- File-based API routes live under `src/routes/api.*.ts`.
-- Server function implementations live under `src/server/fns/*`.
-- Request-scoped adapter wiring lives under `src/server/api/*`.
-- BetterAuth session resolution is wired through request-scoped server auth, with `BETTER_AUTH_DIRECT_SESSION_FN` as the preferred path.
-- Dev-only session/reset endpoints are explicitly gated by `PROJEX_ENABLE_DEV_ENDPOINTS=true` and disabled in production.
-
-Current app is optimized around the server-backed route layer for both deployed runtime and local server-mode development.
-
-## API contract notes
-
-Normal app-facing API routes should follow the shared contract:
-
-- validate request bodies with Zod at the route boundary
-- return JSON shapes that are validated in `src/api/server/serverApi.ts`
-- keep business logic in `src/server/fns/*`, not in the route file
-
-There are a few intentional exceptions:
-
-1. `/api/auth/$`
-   - Better Auth passthrough route
-   - protocol-owned, not app-owned
-
-2. `/api/admin/smoke`
-   - NDJSON streaming route for superadmin smoke runs
-
-3. `/api/health` and `/api/ready`
-   - operational probe endpoints for deploy / restart / maintenance behavior
-
-4. `/api/dev/*`
-   - local/development-only helper endpoints
-
-If a new endpoint does not fit one of those categories, treat it like a normal app API route and keep it inside the shared validation/adapter pattern.
-
-## Where to swap backend later
-
-1. Keep `ProjexApi` stable (`src/api/contract.ts`).
-2. Add a `ServerApi` implementation that calls TanStack Start server functions.
-3. Change `src/api/index.ts` to export the new adapter.
-
-All your page/components should keep working because they depend on **queries**, not on any concrete storage mechanism.
-
-Project & grant budget tracking app.
-
-## Tech
-
-- Vite
-- React
-- TypeScript
-
-## Development
+Recommended direct resolver:
 
 ```bash
-npm install
-npm run dev
+BETTER_AUTH_DIRECT_SESSION_FN=src/server/auth/authProvider.ts#getSessionFromRequest
 ```
+
+Operational defaults:
+
+- `npm run db:migrate` runs BetterAuth schema migration plus app SQL migrations.
+- Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
+- API responses include `x-request-id`; structured request logs are emitted server-side.
+- Public deployments should use the nginx template at `deploy/nginx/projex.conf` for HTTPS redirects, security headers, forwarded headers, and the restart maintenance page.
+
+## Documentation Map
+
+Keep this list short. If a new note overlaps an existing item, update the existing source of truth instead of adding another markdown file.
+
+- `docs/staging-runbook.md`: operational runbook, readiness checklist, deploy verification, first-admin bootstrap, and troubleshooting.
+- `docs/deployment-ec2.md`: first-time EC2/RDS host provisioning only. Ongoing deploy operations belong in the runbook.
+- `docs/email-ops-runbook.md`: email provider configuration, Resend checks, and email troubleshooting.
+- `docs/product-backlog.md`: product/admin backlog and non-priority ideas.
+- `docs/verified-email-change-design.md`: design record for verified email-change behavior.
+- `deploy/cdk/README.md`: AWS CDK stack notes.

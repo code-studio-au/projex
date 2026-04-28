@@ -1,5 +1,7 @@
 # EC2 Deployment Guide
 
+Use this guide for first-time EC2/RDS host provisioning. Once the host, systemd unit, nginx, and environment file exist, use `docs/staging-runbook.md` as the ongoing operational source of truth.
+
 ## 1) Provision
 
 - EC2 instance (Amazon Linux 2023 or Ubuntu 22.04+)

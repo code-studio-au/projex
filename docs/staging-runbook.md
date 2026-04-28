@@ -1,10 +1,10 @@
-# Production Runbook
+# Staging and Production Runbook
 
-This runbook captures the current known-good deployed setup on the canonical production domain after the server-auth and HTTPS cutover work.
+This is the operational source of truth for deployed Projex environments. It covers runtime readiness, deploys, post-deploy verification, first-admin bootstrap, and common troubleshooting.
 
 ## Checkpoint
 
-- Current stable checkpoint tag: `staging-auth-stable-2026-03-17`
+- Last known stable checkpoint tag: `staging-auth-stable-2026-03-17`
 
 ## Canonical Production URL
 
@@ -14,9 +14,57 @@ This runbook captures the current known-good deployed setup on the canonical pro
 
 ## Auth Model
 
-- Production runs in real server auth mode.
+- Deployed environments run in real server auth mode.
 - Development-only auth helpers may be used locally, but staging should use real auth flows.
 - Do not deploy production with local auth semantics.
+
+## Readiness Checklist
+
+Before cutting over or handing a deployed environment to another developer, confirm:
+
+- `DATABASE_URL` points at the target Postgres instance.
+- `NODE_ENV=production` is supplied by runtime env or systemd, not committed repo env files consumed by Vite.
+- `BETTER_AUTH_SECRET` is present and generated from a strong random value.
+- `BETTER_AUTH_URL` is the canonical public origin users will visit.
+- `BETTER_AUTH_DIRECT_SESSION_FN` is configured, or `BETTER_AUTH_SESSION_URL` is intentionally used as the fallback.
+- `PROJEX_ENABLE_DEV_ENDPOINTS` is `false` or unset outside controlled local workflows.
+- `CORS_ALLOWED_ORIGINS` only includes explicit trusted browser origins.
+- `npm run db:migrate` has run successfully against the target database.
+- The first app-side global superadmin has been created with `npm run auth:bootstrap-user` on fresh databases.
+- Unauthorized requests return `401` and scoped resources are not visible across companies/projects.
+- The public proxy uses `deploy/nginx/projex.conf` or equivalent HTTPS redirect, forwarded headers, hardening headers, and maintenance fallback behavior.
+- `/api/health` returns `200` when the process is running.
+- `/api/ready` returns `200` only when environment and database checks pass.
+- `/api/ready` exposes minimal public detail; use the status code for probes.
+
+Pre-deploy verification from a clean local checkout:
+
+```bash
+npm run test
+npm run typecheck
+npm run lint
+npm run format:check
+npm run build
+```
+
+Post-deploy verification on the target runtime:
+
+```bash
+npm run smoke:server
+```
+
+Use targeted sections when retrying one workflow:
+
+```bash
+npm run smoke:server -- --section=basics
+npm run smoke:server -- --section=appPages
+npm run smoke:server -- --section=emailChange
+npm run smoke:server -- --section=temporaryData
+npm run smoke:server -- --section=inviteFlow
+npm run smoke:server -- --section=privacyChecks
+```
+
+Keep smoke credentials in `.env.smoke.local` at the repo root. On EC2 that is `/opt/projex/.env.smoke.local`.
 
 ## Required Production Env
 
@@ -111,14 +159,7 @@ sudo systemctl status projex --no-pager -l
    - set `PROJEX_SMOKE_EMAIL_CHANGE_TO`
    - run `npm run smoke:server -- --section=emailChange`
    - confirm the script can request, detect, resend, and cancel a pending email change
-10. Optional privacy-toggle smoke:
-
-- set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`
-- set `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`
-- set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`
-- set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`
-- run `npm run smoke:server -- --section=privacyChecks`
-- confirm the script can disable superadmin project access, verify superadmin loses access, and restore the original setting
+10. Optional privacy-toggle smoke: set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run `npm run smoke:server -- --section=privacyChecks`.
 
 ## Create The First Global Superadmin
 
