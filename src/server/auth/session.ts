@@ -1,4 +1,5 @@
 import type { UserId } from '../../types';
+import { asUserId } from '../../types';
 import { AppError } from '../../api/errors';
 
 /**
@@ -24,7 +25,7 @@ export function toServerSession(
 ): ServerSession | null {
   const raw = source?.userId ?? source?.user?.id ?? null;
   if (!raw) return null;
-  return { userId: raw as UserId };
+  return { userId: asUserId(raw) };
 }
 
 export function requireUserId(session: ServerSession | null): UserId {

@@ -8,6 +8,7 @@ import type {
   ProjectRole,
   UserId,
 } from '../../types';
+import { asCompanyId, asProjectId, asUserId } from '../../types';
 import { getDb } from '../db/db';
 import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
@@ -25,8 +26,8 @@ function toCompanyMembership(row: {
   role: 'admin' | 'executive' | 'management' | 'member';
 }): CompanyMembership {
   return {
-    companyId: row.company_id as CompanyId,
-    userId: row.user_id as UserId,
+    companyId: asCompanyId(row.company_id),
+    userId: asUserId(row.user_id),
     role: row.role,
   };
 }
@@ -37,8 +38,8 @@ function toProjectMembership(row: {
   role: 'owner' | 'lead' | 'member' | 'viewer';
 }): ProjectMembership {
   return {
-    projectId: row.project_id as ProjectId,
-    userId: row.user_id as UserId,
+    projectId: asProjectId(row.project_id),
+    userId: asUserId(row.user_id),
     role: row.role,
   };
 }
@@ -257,7 +258,7 @@ export async function listProjectMembershipsServer(args: {
       db,
       userId,
       action: 'project:view',
-      companyId: project.company_id as CompanyId,
+      companyId: asCompanyId(project.company_id),
       projectId: args.projectId,
     });
 
@@ -321,7 +322,7 @@ export async function upsertProjectMembershipServer(args: {
       db,
       userId: sessionUserId,
       action: 'project:edit',
-      companyId: project.company_id as CompanyId,
+      companyId: asCompanyId(project.company_id),
       projectId: args.projectId,
     });
 
@@ -333,7 +334,7 @@ export async function upsertProjectMembershipServer(args: {
     if (!userExists) throw new AppError('NOT_FOUND', 'Unknown user');
     await requireCompanyMember({
       db,
-      companyId: project.company_id as CompanyId,
+      companyId: asCompanyId(project.company_id),
       userId: args.userId,
     });
 
@@ -380,7 +381,7 @@ export async function deleteProjectMembershipServer(args: {
       db,
       userId: sessionUserId,
       action: 'project:edit',
-      companyId: project.company_id as CompanyId,
+      companyId: asCompanyId(project.company_id),
       projectId: args.projectId,
     });
 

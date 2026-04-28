@@ -85,13 +85,13 @@ async function getPendingEmailChangeRow(
   userId: string
 ): Promise<EmailChangeRow | null> {
   const db = getDb();
-  const row = (await db
+  const row = await db
     .selectFrom('email_change_requests')
     .selectAll()
     .where('user_id', '=', userId)
     .where('consumed_at', 'is', null)
     .orderBy('requested_at desc')
-    .executeTakeFirst()) as EmailChangeRow | undefined;
+    .executeTakeFirst();
 
   if (!row) return null;
   if (!hasExpired(row.expires_at)) return row;
@@ -298,12 +298,12 @@ export async function confirmEmailChangeServer(args: {
     const db = getDb();
     const tokenHash = hashToken(token);
     const nowIso = new Date().toISOString();
-    const pending = (await db
+    const pending = await db
       .selectFrom('email_change_requests')
       .selectAll()
       .where('token_hash', '=', tokenHash)
       .where('consumed_at', 'is', null)
-      .executeTakeFirst()) as EmailChangeRow | undefined;
+      .executeTakeFirst();
 
     if (!pending || pending.expires_at <= nowIso) {
       throw new AppError(

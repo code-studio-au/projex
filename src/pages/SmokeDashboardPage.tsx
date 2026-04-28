@@ -650,10 +650,16 @@ export default function SmokeDashboardPage() {
     resetSectionState(sectionId);
   }
 
+  function hasSmokeSectionResult(
+    result: SmokeSectionResult | undefined
+  ): result is SmokeSectionResult {
+    return Boolean(result);
+  }
+
   const summary = useMemo(() => {
     const completedResults = Object.values(results).filter(
-      Boolean
-    ) as SmokeSectionResult[];
+      hasSmokeSectionResult
+    );
     return {
       totalConfigured: smokeSectionDefinitions.length,
       totalCompleted: completedResults.length,

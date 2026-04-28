@@ -4,18 +4,8 @@ import type { DB } from '../db/schema';
 import type { CompanyId, ProjectId, Txn } from '../../types';
 import { asTxnId } from '../../types';
 import { normalizeExternalId } from '../../utils/transactions';
+import { toBudgetLines, toTxn } from '../mappers/transactionRows';
 import {
-  type BudgetLineRow,
-  type TxnRow,
-  toBudgetLines,
-  toTxn,
-} from '../mappers/transactionRows';
-import {
-  type CategoryRow,
-  type CompanyDefaultCategoryRow,
-  type CompanyDefaultMappingRuleRow,
-  type CompanyDefaultSubCategoryRow,
-  type SubCategoryRow,
   toCategory,
   toCompanyDefaultCategory,
   toCompanyDefaultMappingRule,
@@ -46,23 +36,15 @@ export async function loadTransactionImportCommitContext(
   ]);
 
   return {
-    defaultCategories: defaultCategoriesRows.map((row) =>
-      toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
+    defaultCategories: defaultCategoriesRows.map(toCompanyDefaultCategory),
+    defaultSubCategories: defaultSubCategoriesRows.map(
+      toCompanyDefaultSubCategory
     ),
-    defaultSubCategories: defaultSubCategoriesRows.map((row) =>
-      toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
-    ),
-    mappingRules: mappingRuleRows.map((row) =>
-      toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow)
-    ),
-    projectCategories: projectCategoryRows.map((row) =>
-      toCategory(row as CategoryRow)
-    ),
-    projectSubCategories: projectSubCategoryRows.map((row) =>
-      toSubCategory(row as SubCategoryRow)
-    ),
-    existingTransactions: existingTxnRows.map((row) => toTxn(row as TxnRow)),
-    budgets: toBudgetLines(budgetRows as BudgetLineRow[]),
+    mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
+    projectCategories: projectCategoryRows.map(toCategory),
+    projectSubCategories: projectSubCategoryRows.map(toSubCategory),
+    existingTransactions: existingTxnRows.map(toTxn),
+    budgets: toBudgetLines(budgetRows),
   };
 }
 
@@ -93,22 +75,14 @@ export async function loadTransactionImportPreviewContext(
       id: asTxnId(txn.public_id),
       externalId: normalizeExternalId(txn.external_id),
     })) satisfies Array<Pick<Txn, 'id' | 'externalId'>>,
-    defaultCategories: defaultCategoriesRows.map((row) =>
-      toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
+    defaultCategories: defaultCategoriesRows.map(toCompanyDefaultCategory),
+    defaultSubCategories: defaultSubCategoriesRows.map(
+      toCompanyDefaultSubCategory
     ),
-    defaultSubCategories: defaultSubCategoriesRows.map((row) =>
-      toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
-    ),
-    mappingRules: mappingRuleRows.map((row) =>
-      toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow)
-    ),
-    projectCategories: projectCategoryRows.map((row) =>
-      toCategory(row as CategoryRow)
-    ),
-    projectSubCategories: projectSubCategoryRows.map((row) =>
-      toSubCategory(row as SubCategoryRow)
-    ),
-    budgets: toBudgetLines(budgetRows as BudgetLineRow[]),
+    mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
+    projectCategories: projectCategoryRows.map(toCategory),
+    projectSubCategories: projectSubCategoryRows.map(toSubCategory),
+    budgets: toBudgetLines(budgetRows),
   };
 }
 

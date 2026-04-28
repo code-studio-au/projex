@@ -1,11 +1,5 @@
-import type {
-  CompanyId,
-  ProjectId,
-  Txn,
-  TxnId,
-  ImportPreviewRow,
-} from '../../types';
-import { asBudgetLineId, asTxnId } from '../../types';
+import type { ProjectId, Txn, TxnId, ImportPreviewRow } from '../../types';
+import { asBudgetLineId, asCompanyId, asProjectId, asTxnId } from '../../types';
 import { AppError } from '../../api/errors';
 import type {
   TxnCreateInput,
@@ -35,7 +29,7 @@ import {
   requireProjectForAction,
   type ProjectActionContext,
 } from './resourceGuards';
-import { type TxnRow, toTxn } from '../mappers/transactionRows';
+import { toTxn } from '../mappers/transactionRows';
 import {
   loadTransactionImportCommitContext,
   loadTransactionImportPreviewContext,
@@ -113,7 +107,7 @@ export async function listTransactionsServer(args: {
       .orderBy('created_at', 'asc')
       .orderBy('id', 'asc')
       .execute();
-    return rows.map((r) => toTxn(r as TxnRow));
+    return rows.map(toTxn);
   });
 }
 
@@ -161,7 +155,7 @@ export async function createTxnServer(args: {
       .where('project_id', '=', args.projectId)
       .execute();
     const existingForCheck = existingRows.map((r) => ({
-      id: r.public_id as TxnId,
+      id: asTxnId(r.public_id),
       externalId: normalizeExternalId(r.external_id),
     }));
     assertUniqueTransactionKeysInProject([...existingForCheck, next]);
@@ -206,7 +200,7 @@ export async function createTxnServer(args: {
       ])
       .executeTakeFirstOrThrow();
 
-    return toTxn(row as TxnRow);
+    return toTxn(row);
   });
 }
 
@@ -251,7 +245,7 @@ export async function updateTxnServer(args: {
 
     if (
       typeof args.input.projectId !== 'undefined' &&
-      args.input.projectId !== (existing.project_id as ProjectId)
+      args.input.projectId !== asProjectId(existing.project_id)
     ) {
       throw new AppError(
         'VALIDATION_ERROR',
@@ -260,7 +254,7 @@ export async function updateTxnServer(args: {
     }
     if (
       typeof args.input.companyId !== 'undefined' &&
-      args.input.companyId !== (existing.company_id as CompanyId)
+      args.input.companyId !== asCompanyId(existing.company_id)
     ) {
       throw new AppError(
         'VALIDATION_ERROR',
@@ -268,7 +262,7 @@ export async function updateTxnServer(args: {
       );
     }
 
-    const prev = toTxn(existing as TxnRow);
+    const prev = toTxn(existing);
     const normalizedInput = normalizeTxnPatch(args.input);
     const nextExternalId = Object.prototype.hasOwnProperty.call(
       normalizedInput,
@@ -293,7 +287,7 @@ export async function updateTxnServer(args: {
       .where('project_id', '=', args.projectId)
       .execute();
     const forCheck = existingRows.map((r) => ({
-      id: r.public_id as TxnId,
+      id: asTxnId(r.public_id),
       externalId: normalizeExternalId(r.external_id),
     }));
     const idx = forCheck.findIndex((r) => r.id === next.id);
@@ -342,7 +336,7 @@ export async function updateTxnServer(args: {
       ])
       .executeTakeFirstOrThrow();
 
-    return toTxn(updated as TxnRow);
+    return toTxn(updated);
   });
 }
 

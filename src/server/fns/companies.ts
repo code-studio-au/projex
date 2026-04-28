@@ -16,7 +16,7 @@ import type {
   User,
   UserId,
 } from '../../types';
-import { asCompanyId, asUserId } from '../../types';
+import { asCompanyId, asProjectId, asUserId } from '../../types';
 import { buildCompanySummaryProjects } from '../../utils/companySummary';
 import { uid } from '../../utils/id';
 import {
@@ -53,7 +53,7 @@ function toCompany(row: {
   deactivated_at: string | null;
 }): Company {
   return {
-    id: row.id as CompanyId,
+    id: asCompanyId(row.id),
     name: row.name,
     status: row.status,
     deactivatedAt: row.deactivated_at ?? undefined,
@@ -384,7 +384,7 @@ export async function getCompanySummaryServer(args: {
 
     const validSubIdsByProject = new Map<ProjectId, Set<string>>();
     for (const row of subCategoryRows) {
-      const projectId = row.project_id as ProjectId;
+      const projectId = asProjectId(row.project_id);
       const current = validSubIdsByProject.get(projectId) ?? new Set<string>();
       current.add(row.id);
       validSubIdsByProject.set(projectId, current);
@@ -394,7 +394,7 @@ export async function getCompanySummaryServer(args: {
       projects: buildCompanySummaryProjects({
         projects,
         transactions: txnRows.map((row) => ({
-          projectId: row.project_id as ProjectId,
+          projectId: asProjectId(row.project_id),
           date: row.txn_date,
           amountCents: Number(row.amount_cents ?? 0),
           subCategoryId: row.sub_category_id,
@@ -421,7 +421,7 @@ export async function listUsersServer(args: {
         .orderBy('name', 'asc')
         .execute();
       return rows.map((r) => ({
-        id: r.id as UserId,
+        id: asUserId(r.id),
         email: r.email,
         name: r.name,
         disabled: r.disabled || undefined,
@@ -459,7 +459,7 @@ export async function listUsersServer(args: {
       .execute();
 
     return rows.map((r) => ({
-      id: r.id as UserId,
+      id: asUserId(r.id),
       email: r.email,
       name: r.name,
       disabled: r.disabled || undefined,
@@ -542,7 +542,7 @@ export async function updateCurrentUserProfileServer(args: {
     if (!row) throw new AppError('NOT_FOUND', 'Unknown user');
 
     return {
-      id: row.id as UserId,
+      id: asUserId(row.id),
       email: row.email,
       name: row.name,
       disabled: row.disabled || undefined,

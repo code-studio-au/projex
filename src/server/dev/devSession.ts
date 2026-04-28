@@ -1,5 +1,6 @@
 import { AppError } from '../../api/errors';
 import type { UserId } from '../../types';
+import { asUserId } from '../../types';
 
 export const DEV_SESSION_COOKIE = 'projex_dev_user_id';
 
@@ -36,7 +37,7 @@ export function readDevUserIdFromRequest(req: Request): UserId | null {
   const cookies = parseCookies(req.headers.get('cookie'));
   const value = cookies[DEV_SESSION_COOKIE];
   if (!value) return null;
-  return value as UserId;
+  return asUserId(value);
 }
 
 export function createDevSessionSetCookie(userId: UserId): string {

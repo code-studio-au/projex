@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 
 import type { CompanyId, CompanyRole, ProjectId, UserId } from '../types';
+import { asUserId } from '../types';
 import { can, type Action } from '../utils/auth';
 import { getUserCompanyRole } from '../store/access';
 
@@ -30,7 +31,7 @@ export type CompanyAccess = {
  */
 export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
   const sessionQ = useSessionQuery();
-  const userId = (sessionQ.data?.userId ?? '') as UserId;
+  const userId = asUserId(sessionQ.data?.userId ?? '');
   const usersQ = useUsersQuery();
 
   const companyMembershipsQ = useAllCompanyMembershipsQuery();

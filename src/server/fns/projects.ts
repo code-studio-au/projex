@@ -1,7 +1,7 @@
 import { AppError } from '../../api/errors';
 import type { ProjectCreateInput, ProjectUpdateInput } from '../../api/types';
 import type { CompanyId, Project, ProjectId, UserId } from '../../types';
-import { asProjectId } from '../../types';
+import { asCompanyId, asProjectId } from '../../types';
 import { uid } from '../../utils/id';
 import {
   projectBudgetTotalCentsSchema,
@@ -32,8 +32,8 @@ type ProjectRow = {
 
 function toProject(row: ProjectRow): Project {
   return {
-    id: row.id as ProjectId,
-    companyId: row.company_id as CompanyId,
+    id: asProjectId(row.id),
+    companyId: asCompanyId(row.company_id),
     name: row.name,
     budgetTotalCents: Number(row.budget_total_cents),
     currency: row.currency,
@@ -156,7 +156,7 @@ export async function getProjectServer(args: {
     if (project.status === 'archived' && !isSuperadmin) {
       const cRole = await getCompanyRole(
         userId,
-        project.company_id as CompanyId
+        asCompanyId(project.company_id)
       );
       if (cRole !== 'admin' && cRole !== 'executive') {
         throw new AppError('FORBIDDEN', 'Project is deactivated');
@@ -167,7 +167,7 @@ export async function getProjectServer(args: {
       db,
       userId,
       action: 'project:view',
-      companyId: project.company_id as CompanyId,
+      companyId: asCompanyId(project.company_id),
       projectId: args.projectId,
     });
     return toProject(project);
@@ -261,8 +261,8 @@ export async function updateProjectServer(args: {
       db,
       userId,
       action: 'project:edit',
-      companyId: existing.company_id as CompanyId,
-      projectId: existing.id as ProjectId,
+      companyId: asCompanyId(existing.company_id),
+      projectId: asProjectId(existing.id),
     });
 
     const patch: Record<string, unknown> = {};
@@ -320,7 +320,7 @@ export async function deactivateProjectServer(args: {
       db,
       userId,
       action: 'company:edit',
-      companyId: project.company_id as CompanyId,
+      companyId: asCompanyId(project.company_id),
     });
     if (project.status === 'archived') return;
 
@@ -354,7 +354,7 @@ export async function reactivateProjectServer(args: {
       db,
       userId,
       action: 'company:edit',
-      companyId: project.company_id as CompanyId,
+      companyId: asCompanyId(project.company_id),
     });
 
     const company = await db
@@ -401,7 +401,7 @@ export async function deleteProjectServer(args: {
       db,
       userId,
       action: 'company:edit',
-      companyId: project.company_id as CompanyId,
+      companyId: asCompanyId(project.company_id),
     });
 
     if (project.status !== 'archived') {

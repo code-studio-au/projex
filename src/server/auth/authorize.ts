@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 
 import type { CompanyId, ProjectId, UserId } from '../../types';
+import { asCompanyId, asProjectId, asUserId } from '../../types';
 import { AppError } from '../../api/errors';
 import type { DB } from '../db/schema';
 import { can, type Action } from '../../utils/auth';
@@ -47,16 +48,16 @@ async function loadMembershipSnapshot(params: {
   ]);
 
   const companyMemberships = companyRows.map((r) => ({
-    companyId: r.company_id as CompanyId,
-    userId: r.user_id as UserId,
+    companyId: asCompanyId(r.company_id),
+    userId: asUserId(r.user_id),
     role: r.role,
   }));
 
   return {
     companyMemberships,
     projectMemberships: projectRows.map((r) => ({
-      projectId: r.project_id as ProjectId,
-      userId: r.user_id as UserId,
+      projectId: asProjectId(r.project_id),
+      userId: asUserId(r.user_id),
       role: r.role,
     })),
     isGlobalSuperadmin,

@@ -15,6 +15,7 @@ import type {
   SubCategoryId,
   Txn,
 } from '../types';
+import { asTxnId } from '../types';
 import { txnInputSchema } from '../validation/schemas';
 
 export type ImportPreviewFilter =
@@ -425,7 +426,7 @@ export function useCsvImportWorkflow(params: {
       }
 
       txns.push({
-        id: row.importId as Txn['id'],
+        id: asTxnId(row.importId),
         externalId: row.externalId,
         companyId,
         projectId,

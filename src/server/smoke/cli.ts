@@ -7,6 +7,10 @@ const validSections = new Set(
   smokeSectionDefinitions.map((section) => section.id)
 );
 
+function isSmokeSectionId(value: string): value is SmokeSectionId {
+  return smokeSectionDefinitions.some((section) => section.id === value);
+}
+
 function parseRequestedSections(argv: string[]): Set<SmokeSectionId> {
   const sections: SmokeSectionId[] = [];
 
@@ -15,24 +19,24 @@ function parseRequestedSections(argv: string[]): Set<SmokeSectionId> {
     if (arg === '--section') {
       const value = argv[index + 1];
       if (!value) throw new Error('Missing value after --section');
-      if (!validSections.has(value as SmokeSectionId)) {
+      if (!isSmokeSectionId(value)) {
         throw new Error(
           `Unknown smoke section "${value}". Valid sections: ${Array.from(validSections).join(', ')}`
         );
       }
-      sections.push(value as SmokeSectionId);
+      sections.push(value);
       index += 1;
       continue;
     }
 
     if (arg.startsWith('--section=')) {
       const value = arg.slice('--section='.length);
-      if (!validSections.has(value as SmokeSectionId)) {
+      if (!isSmokeSectionId(value)) {
         throw new Error(
           `Unknown smoke section "${value}". Valid sections: ${Array.from(validSections).join(', ')}`
         );
       }
-      sections.push(value as SmokeSectionId);
+      sections.push(value);
     }
   }
 

@@ -9,6 +9,7 @@ import type {
   SubCategoryId,
   UserId,
 } from '../../types';
+import { asCompanyId } from '../../types';
 import type { Action } from '../../utils/auth';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
@@ -37,7 +38,7 @@ export async function requireProjectForAction(
 
   if (!project) throw new AppError('NOT_FOUND', 'Unknown project');
 
-  const companyId = project.company_id as CompanyId;
+  const companyId = asCompanyId(project.company_id);
   await requireAuthorized({ db, userId, action, companyId, projectId });
   return { db, userId, companyId, projectId };
 }

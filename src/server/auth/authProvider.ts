@@ -1,4 +1,5 @@
 import type { ServerSession } from './session';
+import { asUserId } from '../../types';
 
 import { getBetterAuthInstance } from './betterAuthInstance.ts';
 
@@ -20,5 +21,5 @@ export function toDirectSession(
   userId: string | null | undefined
 ): ServerSession | null {
   if (!userId) return null;
-  return { userId: userId as ServerSession['userId'] };
+  return { userId: asUserId(userId) };
 }

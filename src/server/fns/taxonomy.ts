@@ -24,6 +24,7 @@ import type {
 } from '../../types';
 import {
   asCategoryId,
+  asCompanyId,
   asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
@@ -46,11 +47,6 @@ import {
   withServerBoundary,
 } from './runtime';
 import {
-  type CategoryRow,
-  type CompanyDefaultCategoryRow,
-  type CompanyDefaultMappingRuleRow,
-  type CompanyDefaultSubCategoryRow,
-  type SubCategoryRow,
   toCategory,
   toCompanyDefaultCategory,
   toCompanyDefaultMappingRule,
@@ -71,7 +67,7 @@ async function requireProjectContext(
     .where('id', '=', projectId)
     .executeTakeFirst();
   if (!project) throw new AppError('NOT_FOUND', 'Unknown project');
-  const companyId = project.company_id as CompanyId;
+  const companyId = asCompanyId(project.company_id);
   await requireAuthorized({ db, userId, action, companyId, projectId });
   return { companyId };
 }
@@ -113,7 +109,7 @@ export async function listCategoriesServer(args: {
       .where('project_id', '=', args.projectId)
       .orderBy('name', 'asc')
       .execute();
-    return rows.map((r) => toCategory(r as CategoryRow));
+    return rows.map(toCategory);
   });
 }
 
@@ -146,7 +142,7 @@ export async function createCategoryServer(args: {
       .where('project_id', '=', args.projectId)
       .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', name.toLowerCase()))
       .executeTakeFirst();
-    if (existing) return toCategory(existing as CategoryRow);
+    if (existing) return toCategory(existing);
 
     const id = args.input.id ?? asCategoryId(uid('cat'));
     const now = new Date().toISOString();
@@ -170,7 +166,7 @@ export async function createCategoryServer(args: {
       ])
       .executeTakeFirstOrThrow();
 
-    return toCategory(row as CategoryRow);
+    return toCategory(row);
   });
 }
 
@@ -222,7 +218,7 @@ export async function updateCategoryServer(args: {
       ])
       .executeTakeFirstOrThrow();
 
-    return toCategory(updated as CategoryRow);
+    return toCategory(updated);
   });
 }
 
@@ -340,7 +336,7 @@ export async function listSubCategoriesServer(args: {
       .where('project_id', '=', args.projectId)
       .orderBy('name', 'asc')
       .execute();
-    return rows.map((r) => toSubCategory(r as SubCategoryRow));
+    return rows.map(toSubCategory);
   });
 }
 
@@ -383,7 +379,7 @@ export async function createSubCategoryServer(args: {
       .where('category_id', '=', args.input.categoryId)
       .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', name.toLowerCase()))
       .executeTakeFirst();
-    if (existing) return toSubCategory(existing as SubCategoryRow);
+    if (existing) return toSubCategory(existing);
 
     const id = args.input.id ?? asSubCategoryId(uid('sub'));
     const now = new Date().toISOString();
@@ -408,7 +404,7 @@ export async function createSubCategoryServer(args: {
         'updated_at',
       ])
       .executeTakeFirstOrThrow();
-    return toSubCategory(row as SubCategoryRow);
+    return toSubCategory(row);
   });
 }
 
@@ -473,7 +469,7 @@ export async function updateSubCategoryServer(args: {
         'updated_at',
       ])
       .executeTakeFirstOrThrow();
-    return toSubCategory(updated as SubCategoryRow);
+    return toSubCategory(updated);
   });
 }
 
@@ -540,9 +536,7 @@ export async function listCompanyDefaultCategoriesServer(args: {
       .where('company_id', '=', args.companyId)
       .orderBy('name', 'asc')
       .execute();
-    return rows.map((row) =>
-      toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
-    );
+    return rows.map(toCompanyDefaultCategory);
   });
 }
 
@@ -593,15 +587,9 @@ export async function getCompanyDefaultsServer(args: {
     ]);
 
     return {
-      categories: categories.map((row) =>
-        toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
-      ),
-      subCategories: subCategories.map((row) =>
-        toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
-      ),
-      mappingRules: mappingRules.map((row) =>
-        toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow)
-      ),
+      categories: categories.map(toCompanyDefaultCategory),
+      subCategories: subCategories.map(toCompanyDefaultSubCategory),
+      mappingRules: mappingRules.map(toCompanyDefaultMappingRule),
     };
   });
 }
@@ -627,9 +615,7 @@ export async function listCompanyDefaultSubCategoriesServer(args: {
       .where('company_id', '=', args.companyId)
       .orderBy('name', 'asc')
       .execute();
-    return rows.map((row) =>
-      toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
-    );
+    return rows.map(toCompanyDefaultSubCategory);
   });
 }
 
@@ -657,9 +643,7 @@ export async function listCompanyDefaultMappingRulesServer(args: {
       .orderBy('sort_order', 'asc')
       .orderBy('created_at', 'asc')
       .execute();
-    return rows.map((row) =>
-      toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow)
-    );
+    return rows.map(toCompanyDefaultMappingRule);
   });
 }
 
@@ -681,8 +665,7 @@ export async function createCompanyDefaultCategoryServer(args: {
       .where('company_id', '=', args.companyId)
       .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', name.toLowerCase()))
       .executeTakeFirst();
-    if (existing)
-      return toCompanyDefaultCategory(existing as CompanyDefaultCategoryRow);
+    if (existing) return toCompanyDefaultCategory(existing);
 
     const id = args.input.id ?? asCompanyDefaultCategoryId(uid('ccat'));
     const now = new Date().toISOString();
@@ -697,7 +680,7 @@ export async function createCompanyDefaultCategoryServer(args: {
       })
       .returning(['id', 'company_id', 'name', 'created_at', 'updated_at'])
       .executeTakeFirstOrThrow();
-    return toCompanyDefaultCategory(row as CompanyDefaultCategoryRow);
+    return toCompanyDefaultCategory(row);
   });
 }
 
@@ -748,7 +731,7 @@ export async function updateCompanyDefaultCategoryServer(args: {
       .where('id', '=', args.input.id)
       .returning(['id', 'company_id', 'name', 'created_at', 'updated_at'])
       .executeTakeFirstOrThrow();
-    return toCompanyDefaultCategory(updated as CompanyDefaultCategoryRow);
+    return toCompanyDefaultCategory(updated);
   });
 }
 
@@ -808,10 +791,7 @@ export async function createCompanyDefaultSubCategoryServer(args: {
       )
       .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', name.toLowerCase()))
       .executeTakeFirst();
-    if (existing)
-      return toCompanyDefaultSubCategory(
-        existing as CompanyDefaultSubCategoryRow
-      );
+    if (existing) return toCompanyDefaultSubCategory(existing);
 
     const id = args.input.id ?? asCompanyDefaultSubCategoryId(uid('csub'));
     const now = new Date().toISOString();
@@ -834,7 +814,7 @@ export async function createCompanyDefaultSubCategoryServer(args: {
         'updated_at',
       ])
       .executeTakeFirstOrThrow();
-    return toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow);
+    return toCompanyDefaultSubCategory(row);
   });
 }
 
@@ -917,7 +897,7 @@ export async function updateCompanyDefaultSubCategoryServer(args: {
         'updated_at',
       ])
       .executeTakeFirstOrThrow();
-    return toCompanyDefaultSubCategory(updated as CompanyDefaultSubCategoryRow);
+    return toCompanyDefaultSubCategory(updated);
   });
 }
 
@@ -999,10 +979,7 @@ export async function createCompanyDefaultMappingRuleServer(args: {
         args.input.companyDefaultSubCategoryId
       )
       .executeTakeFirst();
-    if (existing)
-      return toCompanyDefaultMappingRule(
-        existing as CompanyDefaultMappingRuleRow
-      );
+    if (existing) return toCompanyDefaultMappingRule(existing);
 
     const maxSort = await db
       .selectFrom('company_default_mapping_rules')
@@ -1037,7 +1014,7 @@ export async function createCompanyDefaultMappingRuleServer(args: {
         'updated_at',
       ])
       .executeTakeFirstOrThrow();
-    return toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow);
+    return toCompanyDefaultMappingRule(row);
   });
 }
 
@@ -1167,7 +1144,7 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
         'updated_at',
       ])
       .executeTakeFirstOrThrow();
-    return toCompanyDefaultMappingRule(updated as CompanyDefaultMappingRuleRow);
+    return toCompanyDefaultMappingRule(updated);
   });
 }
 
@@ -1235,11 +1212,9 @@ export async function applyCompanyDefaultTaxonomyServer(args: {
     const plan = planApplyCompanyDefaultTaxonomy({
       companyId,
       projectId: args.projectId,
-      defaultCategories: defaultCategories.map((row) =>
-        toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
-      ),
-      defaultSubCategories: defaultSubCategories.map((row) =>
-        toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
+      defaultCategories: defaultCategories.map(toCompanyDefaultCategory),
+      defaultSubCategories: defaultSubCategories.map(
+        toCompanyDefaultSubCategory
       ),
       projectCategories: projectCategories.map((row) => ({
         id: asCategoryId(row.id),
