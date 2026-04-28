@@ -18,6 +18,10 @@ import {
   asUserId,
 } from '../src/types/index.ts';
 import {
+  deleteCompanyMembershipQuerySchema,
+  deleteProjectMembershipQuerySchema,
+} from '../src/validation/apiSchemas.ts';
+import {
   budgetAllocatedCentsSchema,
   projectBudgetTotalCentsSchema,
   txnInputSchema,
@@ -59,9 +63,9 @@ async function assertAppError(
   message: string
 ) {
   await assert.rejects(run, (error) => {
-    assert.equal(error instanceof AppError, true);
-    assert.equal((error as AppError).code, code);
-    assert.equal((error as AppError).message, message);
+    assert.ok(error instanceof AppError);
+    assert.equal(error.code, code);
+    assert.equal(error.message, message);
     return true;
   });
 }
@@ -77,6 +81,33 @@ test('readJsonBody converts malformed JSON into validation errors', async () => 
       ),
     'VALIDATION_ERROR',
     'Request body must be valid JSON'
+  );
+});
+
+test('membership delete query schemas validate ids and roles', () => {
+  assert.equal(
+    deleteCompanyMembershipQuerySchema.safeParse({ userId: 'usr_1' }).success,
+    true
+  );
+  assert.equal(deleteCompanyMembershipQuerySchema.safeParse({}).success, false);
+
+  assert.equal(
+    deleteProjectMembershipQuerySchema.safeParse({
+      userId: 'usr_1',
+      role: 'viewer',
+    }).success,
+    true
+  );
+  assert.equal(
+    deleteProjectMembershipQuerySchema.safeParse({
+      userId: 'usr_1',
+      role: 'admin',
+    }).success,
+    false
+  );
+  assert.equal(
+    deleteProjectMembershipQuerySchema.safeParse({ userId: 'usr_1' }).success,
+    false
   );
 });
 

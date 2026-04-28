@@ -2,8 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { readJsonBody, withApi } from './-api-shared';
 import { asProjectId, asUserId } from '../types';
-import { AppError } from '../api/errors';
-import { upsertProjectMembershipBodySchema } from '../validation/apiSchemas';
+import {
+  deleteProjectMembershipQuerySchema,
+  upsertProjectMembershipBodySchema,
+} from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/projects/$projectId/memberships')({
@@ -28,20 +30,14 @@ export const Route = createFileRoute('/api/projects/$projectId/memberships')({
       DELETE: async ({ request, params }) =>
         withApi(request, async (api) => {
           const url = new URL(request.url);
-          const userId = url.searchParams.get('userId');
-          const role = url.searchParams.get('role') as
-            | Parameters<typeof api.deleteProjectMembership>[2]
-            | null;
-          if (!userId || !role) {
-            throw new AppError(
-              'VALIDATION_ERROR',
-              'Missing userId or role query param'
-            );
-          }
+          const query = validateOrThrow(
+            deleteProjectMembershipQuerySchema,
+            Object.fromEntries(url.searchParams)
+          );
           await api.deleteProjectMembership(
             asProjectId(params.projectId),
-            asUserId(userId),
-            role
+            query.userId,
+            query.role
           );
           return { ok: true as const };
         }),

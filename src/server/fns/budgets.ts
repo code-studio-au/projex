@@ -1,10 +1,19 @@
+import type { Selectable } from 'kysely';
+
 import { AppError } from '../../api/errors';
 import type { BudgetCreateInput, BudgetUpdateInput } from '../../api/types';
-import type { BudgetLine, CompanyId, ProjectId } from '../../types';
-import { asBudgetLineId, asCategoryId, asSubCategoryId } from '../../types';
+import type { BudgetLine, ProjectId } from '../../types';
+import {
+  asBudgetLineId,
+  asCategoryId,
+  asCompanyId,
+  asProjectId,
+  asSubCategoryId,
+} from '../../types';
 import { uid } from '../../utils/id';
 import { budgetAllocatedCentsSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
+import type { BudgetLineTable } from '../db/schema';
 import {
   assertContextProvided,
   type ServerFnContextInput,
@@ -16,22 +25,13 @@ import {
   requireProjectForAction,
 } from './resourceGuards';
 
-type BudgetRow = {
-  id: string;
-  company_id: string;
-  project_id: string;
-  category_id: string | null;
-  sub_category_id: string | null;
-  allocated_cents: number;
-  created_at: string;
-  updated_at: string;
-};
+type BudgetRow = Selectable<BudgetLineTable>;
 
 function toBudget(row: BudgetRow): BudgetLine {
   return {
     id: asBudgetLineId(row.id),
-    companyId: row.company_id as CompanyId,
-    projectId: row.project_id as ProjectId,
+    companyId: asCompanyId(row.company_id),
+    projectId: asProjectId(row.project_id),
     categoryId: row.category_id ? asCategoryId(row.category_id) : undefined,
     subCategoryId: row.sub_category_id
       ? asSubCategoryId(row.sub_category_id)
@@ -68,7 +68,7 @@ export async function listBudgetsServer(args: {
       .where('project_id', '=', args.projectId)
       .orderBy('created_at', 'asc')
       .execute();
-    return rows.map((r) => toBudget(r as BudgetRow));
+    return rows.map(toBudget);
   });
 }
 
@@ -140,9 +140,9 @@ export async function createBudgetServer(args: {
             'updated_at',
           ])
           .executeTakeFirstOrThrow();
-        return toBudget(updated as BudgetRow);
+        return toBudget(updated);
       }
-      return toBudget(existing as BudgetRow);
+      return toBudget(existing);
     }
 
     const id = args.input.id ?? asBudgetLineId(uid('bud'));
@@ -170,7 +170,7 @@ export async function createBudgetServer(args: {
         'updated_at',
       ])
       .executeTakeFirstOrThrow();
-    return toBudget(row as BudgetRow);
+    return toBudget(row);
   });
 }
 
@@ -266,7 +266,7 @@ export async function updateBudgetServer(args: {
         'updated_at',
       ])
       .executeTakeFirstOrThrow();
-    return toBudget(updated as BudgetRow);
+    return toBudget(updated);
   });
 }
 

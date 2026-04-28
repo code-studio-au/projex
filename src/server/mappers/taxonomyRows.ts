@@ -3,15 +3,15 @@ import type {
   CompanyDefaultCategory,
   CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
-  CompanyId,
-  ProjectId,
   SubCategory,
 } from '../../types';
 import {
   asCategoryId,
+  asCompanyId,
   asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
+  asProjectId,
   asSubCategoryId,
 } from '../../types';
 
@@ -65,8 +65,8 @@ export type CompanyDefaultMappingRuleRow = {
 export function toCategory(row: CategoryRow): Category {
   return {
     id: asCategoryId(row.id),
-    companyId: row.company_id as CompanyId,
-    projectId: row.project_id as ProjectId,
+    companyId: asCompanyId(row.company_id),
+    projectId: asProjectId(row.project_id),
     name: row.name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -76,8 +76,8 @@ export function toCategory(row: CategoryRow): Category {
 export function toSubCategory(row: SubCategoryRow): SubCategory {
   return {
     id: asSubCategoryId(row.id),
-    companyId: row.company_id as CompanyId,
-    projectId: row.project_id as ProjectId,
+    companyId: asCompanyId(row.company_id),
+    projectId: asProjectId(row.project_id),
     categoryId: asCategoryId(row.category_id),
     name: row.name,
     createdAt: row.created_at,
@@ -90,7 +90,7 @@ export function toCompanyDefaultCategory(
 ): CompanyDefaultCategory {
   return {
     id: asCompanyDefaultCategoryId(row.id),
-    companyId: row.company_id as CompanyId,
+    companyId: asCompanyId(row.company_id),
     name: row.name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -102,7 +102,7 @@ export function toCompanyDefaultSubCategory(
 ): CompanyDefaultSubCategory {
   return {
     id: asCompanyDefaultSubCategoryId(row.id),
-    companyId: row.company_id as CompanyId,
+    companyId: asCompanyId(row.company_id),
     companyDefaultCategoryId: asCompanyDefaultCategoryId(
       row.company_default_category_id
     ),
@@ -117,7 +117,7 @@ export function toCompanyDefaultMappingRule(
 ): CompanyDefaultMappingRule {
   return {
     id: asCompanyDefaultMappingRuleId(row.id),
-    companyId: row.company_id as CompanyId,
+    companyId: asCompanyId(row.company_id),
     matchText: row.match_text,
     companyDefaultCategoryId: asCompanyDefaultCategoryId(
       row.company_default_category_id

@@ -1,10 +1,13 @@
 import { AppError } from '../../api/errors';
-import type { BudgetLine, CompanyId, ProjectId, Txn, TxnId } from '../../types';
+import type { BudgetLine, Txn } from '../../types';
 import {
   asBudgetLineId,
   asCategoryId,
+  asCompanyId,
   asCompanyDefaultMappingRuleId,
+  asProjectId,
   asSubCategoryId,
+  asTxnId,
 } from '../../types';
 import { dateOnlyFromInput } from '../../utils/finance';
 import { normalizeExternalId } from '../../utils/transactions';
@@ -49,11 +52,11 @@ export function toTxn(row: TxnRow): Txn {
   }
 
   return {
-    id: row.public_id as TxnId,
+    id: asTxnId(row.public_id),
     internalId: row.id,
     externalId: normalizeExternalId(row.external_id),
-    companyId: row.company_id as CompanyId,
-    projectId: row.project_id as ProjectId,
+    companyId: asCompanyId(row.company_id),
+    projectId: asProjectId(row.project_id),
     date,
     item: row.item,
     description: row.description,
@@ -77,8 +80,8 @@ export function toBudgetLine(row: BudgetLineRow): BudgetLine | null {
 
   return {
     id: asBudgetLineId(row.id),
-    companyId: row.company_id as CompanyId,
-    projectId: row.project_id as ProjectId,
+    companyId: asCompanyId(row.company_id),
+    projectId: asProjectId(row.project_id),
     categoryId: asCategoryId(row.category_id),
     subCategoryId: row.sub_category_id
       ? asSubCategoryId(row.sub_category_id)

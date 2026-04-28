@@ -127,7 +127,16 @@ export const upsertCompanyMembershipBodySchema = z.object({
   role: companyRoleSchema,
 });
 
+export const deleteCompanyMembershipQuerySchema = z.object({
+  userId: userIdSchema,
+});
+
 export const upsertProjectMembershipBodySchema = z.object({
+  userId: userIdSchema,
+  role: projectRoleSchema,
+});
+
+export const deleteProjectMembershipQuerySchema = z.object({
   userId: userIdSchema,
   role: projectRoleSchema,
 });
