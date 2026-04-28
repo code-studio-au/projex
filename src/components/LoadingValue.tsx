@@ -9,7 +9,10 @@ export function LoadingLine(props: {
   return <Skeleton visible width={width} height={height} radius={radius} />;
 }
 
-export function LoadingChip(props: { width?: number | string; height?: number | string }) {
+export function LoadingChip(props: {
+  width?: number | string;
+  height?: number | string;
+}) {
   const { width = 96, height = 28 } = props;
   return <Skeleton visible width={width} height={height} radius="xl" />;
 }

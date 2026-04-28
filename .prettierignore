@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-ssr
+.vite
+.tanstack
+cdk.out
+deploy/cdk/cdk.out
+src/routeTree.gen.ts
+src/server/db/migrations/*.sql

@@ -48,7 +48,8 @@ export function buildCompanySummaryProjects(args: {
     };
     const amount = Math.abs(Number(transaction.amountCents ?? 0));
     const validSubIds =
-      args.validSubCategoryIdsByProject.get(transaction.projectId) ?? new Set<string>();
+      args.validSubCategoryIdsByProject.get(transaction.projectId) ??
+      new Set<string>();
 
     if (
       transaction.subCategoryId &&

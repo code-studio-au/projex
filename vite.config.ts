@@ -5,11 +5,7 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
-  plugins: [
-    tsconfigPaths(),
-    tanstackStart(),
-    react(),
-  ],
+  plugins: [tsconfigPaths(), tanstackStart(), react()],
   build: {
     rollupOptions: {
       output: {

@@ -16,7 +16,9 @@ export type StartBridgeContext = {
  * - session comes from request
  * - all command/query methods route through StartServerApi
  */
-export async function createStartServerApi(ctx: StartBridgeContext): Promise<ProjexApi> {
+export async function createStartServerApi(
+  ctx: StartBridgeContext
+): Promise<ProjexApi> {
   validateServerStartupEnv();
   const session = await getAuthSessionFromRequest(ctx.request);
   const context: ServerFnContextInput = { session, request: ctx.request };
@@ -36,6 +38,9 @@ export async function runWithStartServerApi<T>(
     return await run(api);
   } catch (err) {
     if (err instanceof AppError) throw err;
-    throw new AppError('INTERNAL_ERROR', err instanceof Error ? err.message : 'Unexpected server error');
+    throw new AppError(
+      'INTERNAL_ERROR',
+      err instanceof Error ? err.message : 'Unexpected server error'
+    );
   }
 }

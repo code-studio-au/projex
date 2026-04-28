@@ -42,7 +42,10 @@ export type BudgetLineRow = {
 export function toTxn(row: TxnRow): Txn {
   const date = dateOnlyFromInput(row.txn_date);
   if (!date) {
-    throw new AppError('INTERNAL_ERROR', 'Invalid transaction date from database');
+    throw new AppError(
+      'INTERNAL_ERROR',
+      'Invalid transaction date from database'
+    );
   }
 
   return {
@@ -56,7 +59,9 @@ export function toTxn(row: TxnRow): Txn {
     description: row.description,
     amountCents: Number(row.amount_cents),
     categoryId: row.category_id ? asCategoryId(row.category_id) : undefined,
-    subCategoryId: row.sub_category_id ? asSubCategoryId(row.sub_category_id) : undefined,
+    subCategoryId: row.sub_category_id
+      ? asSubCategoryId(row.sub_category_id)
+      : undefined,
     companyDefaultMappingRuleId: row.company_default_mapping_rule_id
       ? asCompanyDefaultMappingRuleId(row.company_default_mapping_rule_id)
       : undefined,
@@ -75,7 +80,9 @@ export function toBudgetLine(row: BudgetLineRow): BudgetLine | null {
     companyId: row.company_id as CompanyId,
     projectId: row.project_id as ProjectId,
     categoryId: asCategoryId(row.category_id),
-    subCategoryId: row.sub_category_id ? asSubCategoryId(row.sub_category_id) : undefined,
+    subCategoryId: row.sub_category_id
+      ? asSubCategoryId(row.sub_category_id)
+      : undefined,
     allocatedCents: Number(row.allocated_cents),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

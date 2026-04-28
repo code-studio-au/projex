@@ -210,5 +210,4 @@ Notes:
   - a project page
   - a budget page
 
-
 Email change verification uses `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL` when set, and otherwise falls back to `BETTER_AUTH_URL/verify-email-change`.

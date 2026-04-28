@@ -23,7 +23,10 @@ function appendHeaderValue(headers: Headers, name: string, value: string) {
   }
 }
 
-export function isOriginAllowed(origin: string | null, requestOrigin?: string): boolean {
+export function isOriginAllowed(
+  origin: string | null,
+  requestOrigin?: string
+): boolean {
   if (!origin) return true; // same-origin or non-browser request
   if (requestOrigin && origin === requestOrigin) return true;
   const allowed = parseAllowedOrigins();
@@ -31,7 +34,10 @@ export function isOriginAllowed(origin: string | null, requestOrigin?: string): 
   return allowed.includes(origin);
 }
 
-export function buildCorsHeaders(origin: string | null, requestOrigin?: string): Headers {
+export function buildCorsHeaders(
+  origin: string | null,
+  requestOrigin?: string
+): Headers {
   const headers = new Headers();
   if (!origin) return headers;
   if (!isOriginAllowed(origin, requestOrigin)) return headers;
@@ -39,7 +45,10 @@ export function buildCorsHeaders(origin: string | null, requestOrigin?: string):
   headers.set('access-control-allow-origin', origin);
   appendHeaderValue(headers, 'vary', 'Origin');
   headers.set('access-control-allow-credentials', 'true');
-  headers.set('access-control-allow-headers', 'content-type,authorization,x-request-id');
+  headers.set(
+    'access-control-allow-headers',
+    'content-type,authorization,x-request-id'
+  );
   headers.set('access-control-allow-methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   return headers;
 }

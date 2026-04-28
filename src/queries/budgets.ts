@@ -21,7 +21,8 @@ export function useCreateBudgetMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (input: BudgetCreateInput) => api.createBudget(projectId, input),
+    mutationFn: (input: BudgetCreateInput) =>
+      api.createBudget(projectId, input),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
@@ -36,7 +37,8 @@ export function useUpdateBudgetMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (input: BudgetUpdateInput) => api.updateBudget(projectId, input),
+    mutationFn: (input: BudgetUpdateInput) =>
+      api.updateBudget(projectId, input),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
@@ -51,7 +53,8 @@ export function useDeleteBudgetMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (budgetId: BudgetLine['id']) => api.deleteBudget(projectId, budgetId),
+    mutationFn: (budgetId: BudgetLine['id']) =>
+      api.deleteBudget(projectId, budgetId),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),

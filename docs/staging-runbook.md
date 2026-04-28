@@ -112,12 +112,13 @@ sudo systemctl status projex --no-pager -l
    - run `npm run smoke:server -- --section=emailChange`
    - confirm the script can request, detect, resend, and cancel a pending email change
 10. Optional privacy-toggle smoke:
-   - set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`
-   - set `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`
-   - set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`
-   - set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`
-   - run `npm run smoke:server -- --section=privacyChecks`
-   - confirm the script can disable superadmin project access, verify superadmin loses access, and restore the original setting
+
+- set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`
+- set `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`
+- set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`
+- set `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`
+- run `npm run smoke:server -- --section=privacyChecks`
+- confirm the script can disable superadmin project access, verify superadmin loses access, and restore the original setting
 
 ## Create The First Global Superadmin
 
@@ -242,6 +243,5 @@ If login works but refresh breaks:
   - no dev endpoints
 
 That split is intentional. Avoid “server pretending to be local” configuration in production.
-
 
 Email change verification uses `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL` when set, and otherwise falls back to `BETTER_AUTH_URL/verify-email-change`.

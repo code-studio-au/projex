@@ -8,9 +8,9 @@ async function loadApiImpl(): Promise<ProjexApi> {
   implPromise = import('./server/runtime')
     .then((mod) => mod.createApi())
     .catch((error) => {
-    implPromise = null;
-    throw error;
-  });
+      implPromise = null;
+      throw error;
+    });
 
   return implPromise;
 }
@@ -21,7 +21,9 @@ const apiHandler: ProxyHandler<object> = {
       const impl = await loadApiImpl();
       const method = impl[property as keyof ProjexApi];
       if (typeof method !== 'function') {
-        throw new TypeError(`ProjexApi method ${String(property)} is not available`);
+        throw new TypeError(
+          `ProjexApi method ${String(property)} is not available`
+        );
       }
       return Reflect.apply(method, impl, args);
     };

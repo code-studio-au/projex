@@ -30,8 +30,14 @@ export default function CsvImporterPanel(props: {
   currencyCode: 'AUD' | 'USD' | 'EUR' | 'GBP';
   canEditTaxonomy: boolean;
   canEditBudgets: boolean;
-  onAppend: (txns: Txn[], options?: { autoCreateBudgets?: boolean }) => Promise<void>;
-  onReplaceAll: (txns: Txn[], options?: { autoCreateBudgets?: boolean }) => Promise<void>;
+  onAppend: (
+    txns: Txn[],
+    options?: { autoCreateBudgets?: boolean }
+  ) => Promise<void>;
+  onReplaceAll: (
+    txns: Txn[],
+    options?: { autoCreateBudgets?: boolean }
+  ) => Promise<void>;
 }) {
   const {
     taxonomy,
@@ -112,7 +118,9 @@ export default function CsvImporterPanel(props: {
         accessorKey: 'sourceRowIndex',
         header: 'Row',
         size: 72,
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left txnTable-head',
+        },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
       {
@@ -120,24 +128,42 @@ export default function CsvImporterPanel(props: {
         header: 'Imported ID',
         size: 140,
         accessorFn: (row) => row.externalId ?? '',
-        Cell: ({ row }) => <Text className="table-body-left">{row.original.externalId ?? '—'}</Text>,
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
+        Cell: ({ row }) => (
+          <Text className="table-body-left">
+            {row.original.externalId ?? '—'}
+          </Text>
+        ),
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left txnTable-head',
+        },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
       {
         accessorKey: 'parsedDate',
         header: 'Date',
         size: 92,
-        Cell: ({ row }) => <Text className="table-body-left">{row.original.parsedDate ?? 'Missing'}</Text>,
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
+        Cell: ({ row }) => (
+          <Text className="table-body-left">
+            {row.original.parsedDate ?? 'Missing'}
+          </Text>
+        ),
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left txnTable-head',
+        },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
       {
         accessorKey: 'item',
         header: 'Item',
         size: 150,
-        Cell: ({ row }) => <Text className="table-body-left">{row.original.item ?? 'Missing item'}</Text>,
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
+        Cell: ({ row }) => (
+          <Text className="table-body-left">
+            {row.original.item ?? 'Missing item'}
+          </Text>
+        ),
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left txnTable-head',
+        },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
       {
@@ -145,9 +171,13 @@ export default function CsvImporterPanel(props: {
         header: 'Description',
         size: 220,
         Cell: ({ row }) => (
-          <Text className="table-body-left">{row.original.description ?? 'Missing description'}</Text>
+          <Text className="table-body-left">
+            {row.original.description ?? 'Missing description'}
+          </Text>
         ),
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left txnTable-head',
+        },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
       {
@@ -161,8 +191,12 @@ export default function CsvImporterPanel(props: {
               : formatCurrencyFromCents(row.original.amountCents, currencyCode)}
           </Text>
         ),
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-right txnTable-head' },
-        mantineTableBodyCellProps: { className: 'table-body-right txnTable-cell' },
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-right txnTable-head',
+        },
+        mantineTableBodyCellProps: {
+          className: 'table-body-right txnTable-cell',
+        },
       },
       {
         id: 'mapping',
@@ -219,7 +253,9 @@ export default function CsvImporterPanel(props: {
             ) : null}
           </Stack>
         ),
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left txnTable-head',
+        },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
       {
@@ -232,7 +268,11 @@ export default function CsvImporterPanel(props: {
           row.original.warnings.length ? (
             <Stack gap={2}>
               {row.original.warnings.map((warning, index) => (
-                <Text key={`${row.original.importId}-warning-${index}`} size="xs" c="dimmed">
+                <Text
+                  key={`${row.original.importId}-warning-${index}`}
+                  size="xs"
+                  c="dimmed"
+                >
                   {warning}
                 </Text>
               ))}
@@ -242,7 +282,9 @@ export default function CsvImporterPanel(props: {
               No warnings
             </Text>
           ),
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left txnTable-head',
+        },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
       {
@@ -253,14 +295,22 @@ export default function CsvImporterPanel(props: {
         Cell: ({ row }) => (
           <Button
             size="xs"
-            variant={excludedImportIds.has(row.original.importId) ? 'light' : 'subtle'}
-            color={excludedImportIds.has(row.original.importId) ? 'blue' : 'gray'}
+            variant={
+              excludedImportIds.has(row.original.importId) ? 'light' : 'subtle'
+            }
+            color={
+              excludedImportIds.has(row.original.importId) ? 'blue' : 'gray'
+            }
             onClick={() => togglePreviewRow(row.original.importId)}
           >
-            {excludedImportIds.has(row.original.importId) ? 'Include' : 'Exclude'}
+            {excludedImportIds.has(row.original.importId)
+              ? 'Include'
+              : 'Exclude'}
           </Button>
         ),
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left txnTable-head' },
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left txnTable-head',
+        },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
     ],
@@ -280,12 +330,21 @@ export default function CsvImporterPanel(props: {
             ) : null}
           </Group>
 
-          {importError ? <Alert color="red" variant="light">{importError}</Alert> : null}
-          {importNotice ? <Alert color="green" variant="light">{importNotice}</Alert> : null}
+          {importError ? (
+            <Alert color="red" variant="light">
+              {importError}
+            </Alert>
+          ) : null}
+          {importNotice ? (
+            <Alert color="green" variant="light">
+              {importNotice}
+            </Alert>
+          ) : null}
 
           <Text size="sm" c="dimmed" className="panelHelperText">
-            Upload a CSV file or paste CSV text, then preview the import before committing it.
-            If a file is selected, the preview uses the uploaded file.
+            Upload a CSV file or paste CSV text, then preview the import before
+            committing it. If a file is selected, the preview uses the uploaded
+            file.
           </Text>
 
           <FileInput
@@ -302,7 +361,9 @@ export default function CsvImporterPanel(props: {
             minRows={8}
             value={draftCsvText}
             disabled={previewActive}
-            onChange={(event) => handleDraftCsvTextChange(event.currentTarget.value)}
+            onChange={(event) =>
+              handleDraftCsvTextChange(event.currentTarget.value)
+            }
             placeholder={exampleCsv}
           />
 
@@ -311,14 +372,18 @@ export default function CsvImporterPanel(props: {
               label="Auto-create new categories/subcategories and budget lines"
               checked={autoCreateStructures}
               disabled={previewActive || !canEditTaxonomy || !canEditBudgets}
-              onChange={(event) => setAutoCreateStructures(event.currentTarget.checked)}
+              onChange={(event) =>
+                setAutoCreateStructures(event.currentTarget.checked)
+              }
               style={{ width: isMobile ? '100%' : 'auto' }}
             />
             <Switch
               label="Skip duplicates (existing and within this import)"
               checked={skipDuplicates}
               disabled={previewActive}
-              onChange={(event) => setSkipDuplicates(event.currentTarget.checked)}
+              onChange={(event) =>
+                setSkipDuplicates(event.currentTarget.checked)
+              }
               style={{ width: isMobile ? '100%' : 'auto' }}
             />
           </Group>
@@ -328,7 +393,11 @@ export default function CsvImporterPanel(props: {
               fullWidth={isMobile}
               onClick={() => void previewImport()}
               loading={isReadingFile}
-              disabled={previewActive || isReadingFile || (!file && !draftCsvText.trim())}
+              disabled={
+                previewActive ||
+                isReadingFile ||
+                (!file && !draftCsvText.trim())
+              }
             >
               Preview import
             </Button>
@@ -344,19 +413,31 @@ export default function CsvImporterPanel(props: {
                 <Group gap="sm" align="center" wrap="wrap">
                   <Title order={5}>Import preview</Title>
                   <Badge variant="light">{previewSummary.rows} rows</Badge>
-                  <Badge variant="light" color={previewSummary.included ? 'blue' : 'gray'}>
+                  <Badge
+                    variant="light"
+                    color={previewSummary.included ? 'blue' : 'gray'}
+                  >
                     {previewSummary.included} included
                   </Badge>
                   <Badge variant="light" color="gray">
                     {previewSummary.excluded} excluded
                   </Badge>
-                  <Badge variant="light" color={previewSummary.invalid ? 'red' : 'gray'}>
+                  <Badge
+                    variant="light"
+                    color={previewSummary.invalid ? 'red' : 'gray'}
+                  >
                     {previewSummary.invalid} invalid
                   </Badge>
-                  <Badge variant="light" color={previewSummary.duplicate ? 'orange' : 'gray'}>
+                  <Badge
+                    variant="light"
+                    color={previewSummary.duplicate ? 'orange' : 'gray'}
+                  >
                     {previewSummary.duplicate} duplicate
                   </Badge>
-                  <Badge variant="light" color={previewSummary.uncoded ? 'yellow' : 'gray'}>
+                  <Badge
+                    variant="light"
+                    color={previewSummary.uncoded ? 'yellow' : 'gray'}
+                  >
                     {previewSummary.uncoded} uncoded
                   </Badge>
                 </Group>
@@ -423,7 +504,9 @@ export default function CsvImporterPanel(props: {
                     size="xs"
                     variant="light"
                     color="gray"
-                    disabled={!filteredPreviewRows.length || filteredIncludedCount === 0}
+                    disabled={
+                      !filteredPreviewRows.length || filteredIncludedCount === 0
+                    }
                     onClick={() => excludePreviewRows(filteredPreviewIds)}
                   >
                     Exclude filtered
@@ -432,7 +515,9 @@ export default function CsvImporterPanel(props: {
                     size="xs"
                     variant="light"
                     color="blue"
-                    disabled={!filteredPreviewRows.length || filteredExcludedCount === 0}
+                    disabled={
+                      !filteredPreviewRows.length || filteredExcludedCount === 0
+                    }
                     onClick={() => includePreviewRows(filteredPreviewIds)}
                   >
                     Include filtered
@@ -448,22 +533,25 @@ export default function CsvImporterPanel(props: {
 
               {hasBlockingIssues ? (
                 <Alert color="red" variant="light">
-                  Invalid rows or duplicate handling settings will block append until those rows are
-                  excluded or corrected.
+                  Invalid rows or duplicate handling settings will block append
+                  until those rows are excluded or corrected.
                 </Alert>
               ) : null}
 
-              {!hasBlockingIssues && skipDuplicates && previewSummary.duplicate > 0 ? (
+              {!hasBlockingIssues &&
+              skipDuplicates &&
+              previewSummary.duplicate > 0 ? (
                 <Alert color="blue" variant="light">
-                  Duplicate rows will be skipped automatically during append unless you explicitly
-                  include them by turning off duplicate skipping first.
+                  Duplicate rows will be skipped automatically during append
+                  unless you explicitly include them by turning off duplicate
+                  skipping first.
                 </Alert>
               ) : null}
 
               {!hasBlockingIssues && hasReplaceAllBlockers ? (
                 <Alert color="red" variant="light">
-                  Duplicate rows inside the import file will block replace all until they are
-                  excluded.
+                  Duplicate rows inside the import file will block replace all
+                  until they are excluded.
                 </Alert>
               ) : null}
 
@@ -510,8 +598,8 @@ export default function CsvImporterPanel(props: {
           <Paper withBorder radius="lg" p="md">
             <Group justify="space-between" align="center" wrap="wrap">
               <Text size="sm" c="dimmed">
-                Review the preview, exclude anything that should stay out of the tracker, then
-                commit the included rows.
+                Review the preview, exclude anything that should stay out of the
+                tracker, then commit the included rows.
               </Text>
               <Group wrap="wrap">
                 <Button variant="subtle" color="gray" onClick={resetImporter}>
@@ -539,7 +627,12 @@ export default function CsvImporterPanel(props: {
       ) : null}
 
       {!previewActive ? (
-        <Paper withBorder radius="lg" p="lg" className="importPanelCard importExampleCard">
+        <Paper
+          withBorder
+          radius="lg"
+          p="lg"
+          className="importPanelCard importExampleCard"
+        >
           <Stack gap="sm">
             <Text fw={700}>Example CSV</Text>
             <pre className="importExamplePre">{exampleCsv}</pre>
@@ -555,11 +648,15 @@ export default function CsvImporterPanel(props: {
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed" className="panelHelperText">
-            This will replace all existing transactions in this project with the currently included
-            preview rows. This cannot be undone.
+            This will replace all existing transactions in this project with the
+            currently included preview rows. This cannot be undone.
           </Text>
           <Group justify="flex-end" wrap="wrap">
-            <Button variant="light" fullWidth={isMobile} onClick={() => setConfirmReplaceOpen(false)}>
+            <Button
+              variant="light"
+              fullWidth={isMobile}
+              onClick={() => setConfirmReplaceOpen(false)}
+            >
               Cancel
             </Button>
             <Button

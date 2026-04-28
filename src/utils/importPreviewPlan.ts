@@ -14,7 +14,9 @@ import { normalizeExternalId } from './transactions';
 
 function transactionImportKey(txn: Pick<Txn, 'id' | 'externalId'>) {
   const normalizedExternalId = normalizeExternalId(txn.externalId);
-  return normalizedExternalId ? `external:${normalizedExternalId}` : `id:${txn.id}`;
+  return normalizedExternalId
+    ? `external:${normalizedExternalId}`
+    : `id:${txn.id}`;
 }
 
 export function planImportPreview(args: {
@@ -32,7 +34,9 @@ export function planImportPreview(args: {
 }): { rows: ImportPreviewRow[] } {
   const rows = parseCsv(args.csvText);
   const importTxns = rowsToImportTxns(rows);
-  const existingKeys = new Set(args.existingTransactions.map(transactionImportKey));
+  const existingKeys = new Set(
+    args.existingTransactions.map(transactionImportKey)
+  );
 
   return {
     rows: buildImportPreview({

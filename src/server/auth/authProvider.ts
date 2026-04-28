@@ -15,9 +15,10 @@ export async function getSessionFromRequest(req: Request) {
   return { user: { id: session.user.id } };
 }
 
-
 // Optional convenience helper if your auth SDK already returns `{ userId }`.
-export function toDirectSession(userId: string | null | undefined): ServerSession | null {
+export function toDirectSession(
+  userId: string | null | undefined
+): ServerSession | null {
   if (!userId) return null;
   return { userId: userId as ServerSession['userId'] };
 }

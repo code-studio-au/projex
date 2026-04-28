@@ -16,7 +16,14 @@ import { useMediaQuery } from '@mantine/hooks';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import { useApi } from './hooks/useApi';
-import { accountRoute, companyRoute, homeRoute, landingRoute, loginRoute, smokeRoute } from './router';
+import {
+  accountRoute,
+  companyRoute,
+  homeRoute,
+  landingRoute,
+  loginRoute,
+  smokeRoute,
+} from './router';
 import { theme } from './theme';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
@@ -69,8 +76,8 @@ export function AuthedLayout() {
   );
   const isSuperadmin = currentUser?.isGlobalSuperadmin === true;
   const accountLabel = isMobile
-    ? currentUser?.name?.split(' ')[0] ?? 'Account'
-    : currentUser?.name ?? 'Account';
+    ? (currentUser?.name?.split(' ')[0] ?? 'Account')
+    : (currentUser?.name ?? 'Account');
 
   // Prefer companyId from the active route match (project route also includes companyId).
   // We avoid route.useMatch() here to keep types aligned across router versions and to
@@ -79,7 +86,9 @@ export function AuthedLayout() {
     select: (s) => {
       // Search from deepest match outward.
       for (let i = s.matches.length - 1; i >= 0; i--) {
-        const params = s.matches[i]?.params as Record<string, unknown> | undefined;
+        const params = s.matches[i]?.params as
+          | Record<string, unknown>
+          | undefined;
         const raw = params?.companyId;
         if (typeof raw === 'string') return asCompanyId(raw);
       }
@@ -113,7 +122,12 @@ export function AuthedLayout() {
           <Container size="xl">
             <Group justify="space-between" wrap="nowrap">
               <Group gap="sm">
-                <ThemeIcon radius="md" size="lg" variant="gradient" gradient={{ from: 'blue.6', to: 'cyan.5' }}>
+                <ThemeIcon
+                  radius="md"
+                  size="lg"
+                  variant="gradient"
+                  gradient={{ from: 'blue.6', to: 'cyan.5' }}
+                >
                   PX
                 </ThemeIcon>
                 <Stack gap={0}>
@@ -137,9 +151,14 @@ export function AuthedLayout() {
                       }
 
                       // Prefer current company from URL, otherwise fall back to user's default company.
-                      const companyId = companyIdFromUrl ?? (await api.getDefaultCompanyIdForUser(userId));
+                      const companyId =
+                        companyIdFromUrl ??
+                        (await api.getDefaultCompanyIdForUser(userId));
                       if (companyId) {
-                        router.navigate({ to: companyRoute.to, params: { companyId } });
+                        router.navigate({
+                          to: companyRoute.to,
+                          params: { companyId },
+                        });
                       } else {
                         router.navigate({ to: homeRoute.to });
                       }

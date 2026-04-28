@@ -40,7 +40,14 @@ export function useRollups(params: {
   quarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   monthFilterKey?: string | null;
 }) {
-  const { transactions, budgets, taxonomy, yearFilter, quarterFilter, monthFilterKey } = params;
+  const {
+    transactions,
+    budgets,
+    taxonomy,
+    yearFilter,
+    quarterFilter,
+    monthFilterKey,
+  } = params;
 
   const monthStarts = useMemo(() => {
     // Be resilient to malformed dates (e.g., from CSV imports).
@@ -63,8 +70,9 @@ export function useRollups(params: {
       // makes column visibility controls meaningful for newly created projects.
       const now = new Date();
       const start = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-      return Array.from({ length: 12 }, (_, idx) =>
-        new Date(Date.UTC(start.getUTCFullYear(), idx, 1))
+      return Array.from(
+        { length: 12 },
+        (_, idx) => new Date(Date.UTC(start.getUTCFullYear(), idx, 1))
       );
     }
 
@@ -81,12 +89,14 @@ export function useRollups(params: {
   }, [budgets.length, transactions]);
 
   const visibleMonthStarts = useMemo(() => {
-    if (monthFilterKey) return [monthStart(parseMonthKeyToDate(monthFilterKey))];
+    if (monthFilterKey)
+      return [monthStart(parseMonthKeyToDate(monthFilterKey))];
     return monthStarts.filter((date) => {
       const mk = monthKeyFromStart(date);
       const { year, month } = parseYearMonth(mk);
       if (yearFilter && String(year) !== yearFilter) return false;
-      if (quarterFilter && quarterOfMonth(month) !== quarterFilter) return false;
+      if (quarterFilter && quarterOfMonth(month) !== quarterFilter)
+        return false;
       return true;
     });
   }, [monthStarts, monthFilterKey, quarterFilter, yearFilter]);
@@ -159,7 +169,9 @@ export function useRollups(params: {
           remainingCents: b.allocatedCents - totalActualCents,
         };
       })
-      .filter((r): r is RollupRow => !!r && !!r.categoryName && !!r.subCategoryName);
+      .filter(
+        (r): r is RollupRow => !!r && !!r.categoryName && !!r.subCategoryName
+      );
   }, [budgets, actualsBySubMonth, visibleMonthKeys, taxonomy]);
 
   const totals = useMemo(() => {
@@ -172,7 +184,14 @@ export function useRollups(params: {
     };
   }, [rollupRows]);
 
-  return { monthStarts, visibleMonthStarts, visibleMonthKeys, rollupRows, totals, badDateCount };
+  return {
+    monthStarts,
+    visibleMonthStarts,
+    visibleMonthKeys,
+    rollupRows,
+    totals,
+    badDateCount,
+  };
 }
 
 export type RollupsHook = ReturnType<typeof useRollups>;

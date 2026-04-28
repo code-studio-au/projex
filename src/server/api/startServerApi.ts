@@ -110,7 +110,9 @@ export class StartServerApi implements ProjexApi {
 
   // session
   async getSession() {
-    const session = toServerSession(this.context.auth ?? this.context.session ?? null);
+    const session = toServerSession(
+      this.context.auth ?? this.context.session ?? null
+    );
     if (!session) return null;
     const value: Session = { userId: session.userId };
     return value;
@@ -153,22 +155,61 @@ export class StartServerApi implements ProjexApi {
   async listMyProjectMemberships(companyId: CompanyId) {
     return listMyProjectMembershipsServer({ context: this.context, companyId });
   }
-  async upsertCompanyMembership(companyId: CompanyId, userId: UserId, role: CompanyRole) {
-    return upsertCompanyMembershipServer({ context: this.context, companyId, userId, role });
+  async upsertCompanyMembership(
+    companyId: CompanyId,
+    userId: UserId,
+    role: CompanyRole
+  ) {
+    return upsertCompanyMembershipServer({
+      context: this.context,
+      companyId,
+      userId,
+      role,
+    });
   }
   async deleteCompanyMembership(companyId: CompanyId, userId: UserId) {
-    return deleteCompanyMembershipServer({ context: this.context, companyId, userId });
+    return deleteCompanyMembershipServer({
+      context: this.context,
+      companyId,
+      userId,
+    });
   }
-  async upsertProjectMembership(projectId: ProjectId, userId: UserId, role: ProjectRole) {
-    return upsertProjectMembershipServer({ context: this.context, projectId, userId, role });
+  async upsertProjectMembership(
+    projectId: ProjectId,
+    userId: UserId,
+    role: ProjectRole
+  ) {
+    return upsertProjectMembershipServer({
+      context: this.context,
+      projectId,
+      userId,
+      role,
+    });
   }
-  async deleteProjectMembership(projectId: ProjectId, userId: UserId, role: ProjectRole) {
-    return deleteProjectMembershipServer({ context: this.context, projectId, userId, role });
+  async deleteProjectMembership(
+    projectId: ProjectId,
+    userId: UserId,
+    role: ProjectRole
+  ) {
+    return deleteProjectMembershipServer({
+      context: this.context,
+      projectId,
+      userId,
+      role,
+    });
   }
-  async setCompanyRole(companyId: CompanyId, userId: UserId, role: CompanyRole) {
+  async setCompanyRole(
+    companyId: CompanyId,
+    userId: UserId,
+    role: CompanyRole
+  ) {
     await this.upsertCompanyMembership(companyId, userId, role);
   }
-  async setProjectRole(projectId: ProjectId, userId: UserId, role: ProjectRole) {
+  async setProjectRole(
+    projectId: ProjectId,
+    userId: UserId,
+    role: ProjectRole
+  ) {
     await this.upsertProjectMembership(projectId, userId, role);
   }
   async removeCompanyMember(companyId: CompanyId, userId: UserId) {
@@ -186,43 +227,72 @@ export class StartServerApi implements ProjexApi {
     return getCompanyDefaultsServer({ context: this.context, companyId });
   }
   async listCompanyDefaultCategories(companyId: CompanyId) {
-    return listCompanyDefaultCategoriesServer({ context: this.context, companyId });
+    return listCompanyDefaultCategoriesServer({
+      context: this.context,
+      companyId,
+    });
   }
   async listCompanyDefaultSubCategories(companyId: CompanyId) {
-    return listCompanyDefaultSubCategoriesServer({ context: this.context, companyId });
+    return listCompanyDefaultSubCategoriesServer({
+      context: this.context,
+      companyId,
+    });
   }
   async listCompanyDefaultMappingRules(companyId: CompanyId) {
-    return listCompanyDefaultMappingRulesServer({ context: this.context, companyId });
+    return listCompanyDefaultMappingRulesServer({
+      context: this.context,
+      companyId,
+    });
   }
   async createCompanyDefaultCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['createCompanyDefaultCategory']>[1]
   ) {
-    return createCompanyDefaultCategoryServer({ context: this.context, companyId, input });
+    return createCompanyDefaultCategoryServer({
+      context: this.context,
+      companyId,
+      input,
+    });
   }
   async updateCompanyDefaultCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['updateCompanyDefaultCategory']>[1]
   ) {
-    return updateCompanyDefaultCategoryServer({ context: this.context, companyId, input });
+    return updateCompanyDefaultCategoryServer({
+      context: this.context,
+      companyId,
+      input,
+    });
   }
   async deleteCompanyDefaultCategory(
     companyId: CompanyId,
     categoryId: Parameters<ProjexApi['deleteCompanyDefaultCategory']>[1]
   ) {
-    return deleteCompanyDefaultCategoryServer({ context: this.context, companyId, categoryId });
+    return deleteCompanyDefaultCategoryServer({
+      context: this.context,
+      companyId,
+      categoryId,
+    });
   }
   async createCompanyDefaultSubCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['createCompanyDefaultSubCategory']>[1]
   ) {
-    return createCompanyDefaultSubCategoryServer({ context: this.context, companyId, input });
+    return createCompanyDefaultSubCategoryServer({
+      context: this.context,
+      companyId,
+      input,
+    });
   }
   async updateCompanyDefaultSubCategory(
     companyId: CompanyId,
     input: Parameters<ProjexApi['updateCompanyDefaultSubCategory']>[1]
   ) {
-    return updateCompanyDefaultSubCategoryServer({ context: this.context, companyId, input });
+    return updateCompanyDefaultSubCategoryServer({
+      context: this.context,
+      companyId,
+      input,
+    });
   }
   async deleteCompanyDefaultSubCategory(
     companyId: CompanyId,
@@ -238,22 +308,37 @@ export class StartServerApi implements ProjexApi {
     companyId: CompanyId,
     input: Parameters<ProjexApi['createCompanyDefaultMappingRule']>[1]
   ) {
-    return createCompanyDefaultMappingRuleServer({ context: this.context, companyId, input });
+    return createCompanyDefaultMappingRuleServer({
+      context: this.context,
+      companyId,
+      input,
+    });
   }
   async updateCompanyDefaultMappingRule(
     companyId: CompanyId,
     input: Parameters<ProjexApi['updateCompanyDefaultMappingRule']>[1]
   ) {
-    return updateCompanyDefaultMappingRuleServer({ context: this.context, companyId, input });
+    return updateCompanyDefaultMappingRuleServer({
+      context: this.context,
+      companyId,
+      input,
+    });
   }
   async deleteCompanyDefaultMappingRule(
     companyId: CompanyId,
     ruleId: Parameters<ProjexApi['deleteCompanyDefaultMappingRule']>[1]
   ) {
-    return deleteCompanyDefaultMappingRuleServer({ context: this.context, companyId, ruleId });
+    return deleteCompanyDefaultMappingRuleServer({
+      context: this.context,
+      companyId,
+      ruleId,
+    });
   }
   async applyCompanyDefaultTaxonomy(projectId: ProjectId) {
-    return applyCompanyDefaultTaxonomyServer({ context: this.context, projectId });
+    return applyCompanyDefaultTaxonomyServer({
+      context: this.context,
+      projectId,
+    });
   }
   async listCategories(projectId: ProjectId) {
     return listCategoriesServer({ context: this.context, projectId });
@@ -261,39 +346,71 @@ export class StartServerApi implements ProjexApi {
   async listSubCategories(projectId: ProjectId) {
     return listSubCategoriesServer({ context: this.context, projectId });
   }
-  async createCategory(projectId: ProjectId, input: Parameters<ProjexApi['createCategory']>[1]) {
+  async createCategory(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['createCategory']>[1]
+  ) {
     return createCategoryServer({ context: this.context, projectId, input });
   }
-  async updateCategory(projectId: ProjectId, input: Parameters<ProjexApi['updateCategory']>[1]) {
+  async updateCategory(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['updateCategory']>[1]
+  ) {
     return updateCategoryServer({ context: this.context, projectId, input });
   }
-  async deleteCategory(projectId: ProjectId, categoryId: Parameters<ProjexApi['deleteCategory']>[1]) {
-    return deleteCategoryServer({ context: this.context, projectId, categoryId });
+  async deleteCategory(
+    projectId: ProjectId,
+    categoryId: Parameters<ProjexApi['deleteCategory']>[1]
+  ) {
+    return deleteCategoryServer({
+      context: this.context,
+      projectId,
+      categoryId,
+    });
   }
-  async createSubCategory(projectId: ProjectId, input: Parameters<ProjexApi['createSubCategory']>[1]) {
+  async createSubCategory(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['createSubCategory']>[1]
+  ) {
     return createSubCategoryServer({ context: this.context, projectId, input });
   }
-  async updateSubCategory(projectId: ProjectId, input: Parameters<ProjexApi['updateSubCategory']>[1]) {
+  async updateSubCategory(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['updateSubCategory']>[1]
+  ) {
     return updateSubCategoryServer({ context: this.context, projectId, input });
   }
   async deleteSubCategory(
     projectId: ProjectId,
     subCategoryId: Parameters<ProjexApi['deleteSubCategory']>[1]
   ) {
-    return deleteSubCategoryServer({ context: this.context, projectId, subCategoryId });
+    return deleteSubCategoryServer({
+      context: this.context,
+      projectId,
+      subCategoryId,
+    });
   }
 
   // budgets
   async listBudgets(projectId: ProjectId) {
     return listBudgetsServer({ context: this.context, projectId });
   }
-  async createBudget(projectId: ProjectId, input: Parameters<ProjexApi['createBudget']>[1]) {
+  async createBudget(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['createBudget']>[1]
+  ) {
     return createBudgetServer({ context: this.context, projectId, input });
   }
-  async updateBudget(projectId: ProjectId, input: Parameters<ProjexApi['updateBudget']>[1]) {
+  async updateBudget(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['updateBudget']>[1]
+  ) {
     return updateBudgetServer({ context: this.context, projectId, input });
   }
-  async deleteBudget(projectId: ProjectId, budgetId: Parameters<ProjexApi['deleteBudget']>[1]) {
+  async deleteBudget(
+    projectId: ProjectId,
+    budgetId: Parameters<ProjexApi['deleteBudget']>[1]
+  ) {
     return deleteBudgetServer({ context: this.context, projectId, budgetId });
   }
 
@@ -301,14 +418,20 @@ export class StartServerApi implements ProjexApi {
   async listTransactions(projectId: ProjectId) {
     return listTransactionsServer({ context: this.context, projectId });
   }
-  async createTxn(projectId: ProjectId, input: Parameters<ProjexApi['createTxn']>[1]) {
+  async createTxn(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['createTxn']>[1]
+  ) {
     return createTxnServer({
       context: this.context,
       projectId,
       input,
     });
   }
-  async updateTxn(projectId: ProjectId, input: Parameters<ProjexApi['updateTxn']>[1]) {
+  async updateTxn(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['updateTxn']>[1]
+  ) {
     return updateTxnServer({
       context: this.context,
       projectId,
@@ -368,7 +491,12 @@ export class StartServerApi implements ProjexApi {
   }
   async createUserInCompany(
     companyId: CompanyId,
-    input: { name: string; email: string; role: CompanyRole; sendOnboardingEmail?: boolean }
+    input: {
+      name: string;
+      email: string;
+      role: CompanyRole;
+      sendOnboardingEmail?: boolean;
+    }
   ) {
     return createUserInCompanyServer({
       context: this.context,

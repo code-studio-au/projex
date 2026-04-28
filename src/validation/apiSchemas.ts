@@ -30,21 +30,40 @@ const projectIdSchema = idSchema.transform(asProjectId);
 const userIdSchema = idSchema.transform(asUserId);
 const categoryIdSchema = idSchema.transform(asCategoryId);
 const subCategoryIdSchema = idSchema.transform(asSubCategoryId);
-const companyDefaultCategoryIdSchema = idSchema.transform(asCompanyDefaultCategoryId);
-const companyDefaultSubCategoryIdSchema = idSchema.transform(asCompanyDefaultSubCategoryId);
-const companyDefaultMappingRuleIdSchema = idSchema.transform(asCompanyDefaultMappingRuleId);
+const companyDefaultCategoryIdSchema = idSchema.transform(
+  asCompanyDefaultCategoryId
+);
+const companyDefaultSubCategoryIdSchema = idSchema.transform(
+  asCompanyDefaultSubCategoryId
+);
+const companyDefaultMappingRuleIdSchema = idSchema.transform(
+  asCompanyDefaultMappingRuleId
+);
 const txnIdSchema = idSchema.transform(asTxnId);
 const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
-const optionalCategoryIdSchema = categoryIdSchema.nullable().optional().transform((value) => value ?? undefined);
-const optionalSubCategoryIdSchema = subCategoryIdSchema.nullable().optional().transform((value) => value ?? undefined);
+const optionalCategoryIdSchema = categoryIdSchema
+  .nullable()
+  .optional()
+  .transform((value) => value ?? undefined);
+const optionalSubCategoryIdSchema = subCategoryIdSchema
+  .nullable()
+  .optional()
+  .transform((value) => value ?? undefined);
 const optionalMappingRuleIdSchema = companyDefaultMappingRuleIdSchema
   .nullable()
   .optional()
   .transform((value) => value ?? undefined);
 const nullableOptionalCategoryIdSchema = categoryIdSchema.nullable().optional();
-const nullableOptionalSubCategoryIdSchema = subCategoryIdSchema.nullable().optional();
+const nullableOptionalSubCategoryIdSchema = subCategoryIdSchema
+  .nullable()
+  .optional();
 
-const companyRoleSchema = z.enum(['admin', 'executive', 'management', 'member']);
+const companyRoleSchema = z.enum([
+  'admin',
+  'executive',
+  'management',
+  'member',
+]);
 const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const projectVisibilitySchema = z.enum(['company', 'private']);
 const currencySchema = z.enum(['AUD', 'USD', 'EUR', 'GBP']);
@@ -59,7 +78,11 @@ const smokeSectionIdSchema = z.enum([
   'inviteFlow',
   'privacyChecks',
 ]);
-const matchTextSchema = z.string().trim().min(1, 'Match text is required').max(160);
+const matchTextSchema = z
+  .string()
+  .trim()
+  .min(1, 'Match text is required')
+  .max(160);
 
 export const smokeSectionInputSchema = z.object({
   sectionId: smokeSectionIdSchema,

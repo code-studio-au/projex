@@ -33,13 +33,17 @@ export function planApplyCompanyDefaultTaxonomy(args: {
   subCategoriesToCreate: SubCategory[];
 } {
   const categoryIdByName = new Map(
-    args.projectCategories.map((category) => [taxonomyNameKey(category.name), category.id])
+    args.projectCategories.map((category) => [
+      taxonomyNameKey(category.name),
+      category.id,
+    ])
   );
   const subCategoryNamesByCategoryId = new Map<CategoryId, Set<string>>();
 
   for (const subCategory of args.projectSubCategories) {
     const names =
-      subCategoryNamesByCategoryId.get(subCategory.categoryId) ?? new Set<string>();
+      subCategoryNamesByCategoryId.get(subCategory.categoryId) ??
+      new Set<string>();
     names.add(taxonomyNameKey(subCategory.name));
     subCategoryNamesByCategoryId.set(subCategory.categoryId, names);
   }
@@ -69,7 +73,8 @@ export function planApplyCompanyDefaultTaxonomy(args: {
       subCategoryNamesByCategoryId.get(projectCategoryId) ?? new Set<string>();
 
     for (const defaultSubCategory of args.defaultSubCategories) {
-      if (defaultSubCategory.companyDefaultCategoryId !== defaultCategory.id) continue;
+      if (defaultSubCategory.companyDefaultCategoryId !== defaultCategory.id)
+        continue;
 
       const subCategoryKey = taxonomyNameKey(defaultSubCategory.name);
       if (existingSubNames.has(subCategoryKey)) continue;

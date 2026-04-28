@@ -31,9 +31,7 @@ import {
   useCreateUserInCompanyMutation,
   useSendCompanyUserInviteEmailMutation,
 } from '../queries/admin';
-import {
-  useCompanyDefaultsQuery,
-} from '../queries/taxonomy';
+import { useCompanyDefaultsQuery } from '../queries/taxonomy';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
 
@@ -56,7 +54,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const canAddCompanyUsers = access.can('company:manage_members');
   const canEditCompanyDefaults = access.can('company:edit');
   const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
-  const companyDefaultsLoading = companyDefaultsQ.isPending && !companyDefaultsQ.data;
+  const companyDefaultsLoading =
+    companyDefaultsQ.isPending && !companyDefaultsQ.data;
   const defaultsStatusLabel = !canEditCompanyDefaults
     ? 'Not allowed'
     : companyDefaultsLoading
@@ -85,7 +84,6 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     [companyUsers]
   );
 
-
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<CompanyRole | null>('member');
@@ -101,15 +99,23 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   // Derive a sensible default selection without synchronously setting state in an effect.
   // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
   const effectiveRoleUserId: UserId | null =
-    roleUserId ?? (userOptions[0]?.value ? asUserId(userOptions[0].value) : null);
+    roleUserId ??
+    (userOptions[0]?.value ? asUserId(userOptions[0].value) : null);
 
   const [membershipCompanyRole, setMembershipCompanyRole] =
     useState<CompanyRole | null>('member');
 
-  const companyRoleValues = ['member', 'management', 'executive', 'admin'] as const;
+  const companyRoleValues = [
+    'member',
+    'management',
+    'executive',
+    'admin',
+  ] as const;
   const toCompanyRole = (v: string | null): CompanyRole | null => {
     if (!v) return null;
-    return (companyRoleValues as readonly string[]).includes(v) ? (v as CompanyRole) : null;
+    return (companyRoleValues as readonly string[]).includes(v)
+      ? (v as CompanyRole)
+      : null;
   };
 
   const highestRoleBadge = (
@@ -119,27 +125,27 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     </Badge>
   );
 
-  const membershipRows = useMemo(
-    () => {
-      const adminCount = (companyMembershipsQ.data ?? []).filter((m) => m.role === 'admin').length;
-      return (companyMembershipsQ.data ?? []).map((m) => {
-        const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
-        return {
-          key: `${m.companyId}:${m.userId}`,
-          userName: u?.name ?? String(m.userId),
-          userEmail: u?.email ?? '',
-          userId: m.userId,
-          role: m.role,
-          isSelf: m.userId === access.userId,
-          isOnlyAdmin: m.role === 'admin' && adminCount <= 1,
-        };
-      });
-    },
-    [access.userId, companyMembershipsQ.data, usersQ.data]
-  );
+  const membershipRows = useMemo(() => {
+    const adminCount = (companyMembershipsQ.data ?? []).filter(
+      (m) => m.role === 'admin'
+    ).length;
+    return (companyMembershipsQ.data ?? []).map((m) => {
+      const u = (usersQ.data ?? []).find((x) => x.id === m.userId);
+      return {
+        key: `${m.companyId}:${m.userId}`,
+        userName: u?.name ?? String(m.userId),
+        userEmail: u?.email ?? '',
+        userId: m.userId,
+        role: m.role,
+        isSelf: m.userId === access.userId,
+        isOnlyAdmin: m.role === 'admin' && adminCount <= 1,
+      };
+    });
+  }, [access.userId, companyMembershipsQ.data, usersQ.data]);
 
   const selectedMembership = useMemo(
-    () => membershipRows.find((row) => row.userId === effectiveRoleUserId) ?? null,
+    () =>
+      membershipRows.find((row) => row.userId === effectiveRoleUserId) ?? null,
     [effectiveRoleUserId, membershipRows]
   );
   const wouldDemoteLastAdmin =
@@ -148,7 +154,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     selectedMembership.isOnlyAdmin &&
     membershipCompanyRole !== 'admin';
 
-  const membershipColumns = useMemo<MRT_ColumnDef<(typeof membershipRows)[number]>[]>(
+  const membershipColumns = useMemo<
+    MRT_ColumnDef<(typeof membershipRows)[number]>[]
+  >(
     () => [
       {
         accessorKey: 'userName',
@@ -186,7 +194,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                 setInviteError(null);
                 setInviteStatus(null);
                 try {
-                  const result = await sendInviteEmail.mutateAsync(row.original.userId);
+                  const result = await sendInviteEmail.mutateAsync(
+                    row.original.userId
+                  );
                   setInviteStatus(
                     result.onboardingDelivery === 'email'
                       ? `Password setup email sent to ${result.user.email}. Ask them to check spam or junk if it does not arrive soon, and to use the newest email if more than one was sent.`
@@ -194,7 +204,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                   );
                 } catch (err) {
                   setInviteError(
-                    err instanceof Error ? err.message : 'Could not send password setup email.'
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not send password setup email.'
                   );
                 }
               }}
@@ -206,16 +218,24 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               color="red"
               variant="light"
               className="tableActionButton"
-              disabled={!canAddCompanyUsers || row.original.isSelf || row.original.isOnlyAdmin}
+              disabled={
+                !canAddCompanyUsers ||
+                row.original.isSelf ||
+                row.original.isOnlyAdmin
+              }
               onClick={async () => {
                 setMembershipError(null);
                 setMembershipStatus(null);
                 try {
                   await removeCompanyMember.mutateAsync(row.original.userId);
-                  setMembershipStatus(`${row.original.userName} was removed from the company.`);
+                  setMembershipStatus(
+                    `${row.original.userName} was removed from the company.`
+                  );
                 } catch (err) {
                   setMembershipError(
-                    err instanceof Error ? err.message : 'Could not remove company member.'
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not remove company member.'
                   );
                 }
               }}
@@ -245,7 +265,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             </Badge>
           </Group>
           <Text size="sm" c="dimmed">
-            Define company-wide default categories and subcategories that can be safely added into projects later.
+            Define company-wide default categories and subcategories that can be
+            safely added into projects later.
           </Text>
           {companyDefaultsLoading ? (
             <Text size="sm" c="dimmed">
@@ -253,8 +274,12 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             </Text>
           ) : (
             <Group gap="sm" wrap="wrap">
-              <Badge variant="light">{companyDefaultsQ.data?.categories.length ?? 0} categories</Badge>
-              <Badge variant="light">{companyDefaultsQ.data?.subCategories.length ?? 0} subcategories</Badge>
+              <Badge variant="light">
+                {companyDefaultsQ.data?.categories.length ?? 0} categories
+              </Badge>
+              <Badge variant="light">
+                {companyDefaultsQ.data?.subCategories.length ?? 0} subcategories
+              </Badge>
             </Group>
           )}
           <Button
@@ -265,7 +290,8 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             Manage company defaults
           </Button>
           <Text size="xs" c="dimmed">
-            Applying company defaults to a project only adds missing categories and subcategories. Existing project taxonomy is left unchanged.
+            Applying company defaults to a project only adds missing categories
+            and subcategories. Existing project taxonomy is left unchanged.
           </Text>
         </Stack>
       </Paper>
@@ -279,7 +305,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             </Badge>
           </Group>
           <Text size="sm" c="dimmed">
-            Match imported transaction text to company default taxonomy so uncoded imports can be auto-coded in projects that already contain those defaults.
+            Match imported transaction text to company default taxonomy so
+            uncoded imports can be auto-coded in projects that already contain
+            those defaults.
           </Text>
           {companyDefaultsLoading ? (
             <Text size="sm" c="dimmed">
@@ -287,7 +315,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             </Text>
           ) : (
             <Group gap="sm" wrap="wrap">
-              <Badge variant="light">{companyDefaultsQ.data?.mappingRules.length ?? 0} mapping rules</Badge>
+              <Badge variant="light">
+                {companyDefaultsQ.data?.mappingRules.length ?? 0} mapping rules
+              </Badge>
             </Group>
           )}
           <Button
@@ -298,7 +328,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             Manage default mappings
           </Button>
           <Text size="xs" c="dimmed">
-            The first matching rule wins. Rules search transaction item and description text, support simple singular/plural matches, and mark auto-coded rows for approval in the transaction list.
+            The first matching rule wins. Rules search transaction item and
+            description text, support simple singular/plural matches, and mark
+            auto-coded rows for approval in the transaction list.
           </Text>
         </Stack>
       </Paper>
@@ -377,14 +409,19 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                     : `${result.user.email} was already in the company. Their role was updated and no email was sent.`
                 );
               } catch (err) {
-                setInviteError(err instanceof Error ? err.message : 'Could not invite user.');
+                setInviteError(
+                  err instanceof Error ? err.message : 'Could not invite user.'
+                );
               }
             }}
           >
             Add member
           </Button>
           <Text size="xs" c="dimmed">
-            Adding someone to the company and emailing them are now separate choices. New BetterAuth accounts still get their setup email automatically, while existing users can be added quietly and emailed later if needed.
+            Adding someone to the company and emailing them are now separate
+            choices. New BetterAuth accounts still get their setup email
+            automatically, while existing users can be added quietly and emailed
+            later if needed.
           </Text>
         </Stack>
       </Paper>
@@ -392,8 +429,12 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
           <Title order={5}>Company roles</Title>
-          {membershipError ? <Alert color="red">{membershipError}</Alert> : null}
-          {membershipStatus ? <Alert color="green">{membershipStatus}</Alert> : null}
+          {membershipError ? (
+            <Alert color="red">{membershipError}</Alert>
+          ) : null}
+          {membershipStatus ? (
+            <Alert color="green">{membershipStatus}</Alert>
+          ) : null}
           <Group align="flex-end" wrap="wrap">
             <Select
               label="User"
@@ -417,7 +458,11 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             />
             <Button
               size="sm"
-              disabled={!effectiveRoleUserId || !membershipCompanyRole || wouldDemoteLastAdmin}
+              disabled={
+                !effectiveRoleUserId ||
+                !membershipCompanyRole ||
+                wouldDemoteLastAdmin
+              }
               onClick={async () => {
                 if (!effectiveRoleUserId || !membershipCompanyRole) return;
                 setMembershipError(null);
@@ -430,7 +475,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                   setMembershipStatus('Company role updated.');
                 } catch (err) {
                   setMembershipError(
-                    err instanceof Error ? err.message : 'Could not update company role.'
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not update company role.'
                   );
                 }
               }}
@@ -440,19 +487,25 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           </Group>
           {wouldDemoteLastAdmin ? (
             <Alert color="yellow">
-              This company must retain at least one admin. Assign another admin before changing this role.
+              This company must retain at least one admin. Assign another admin
+              before changing this role.
             </Alert>
           ) : null}
           <Divider />
           <Text size="sm" c="dimmed">
-            Update a teammate’s company role or remove them from the company entirely.
+            Update a teammate’s company role or remove them from the company
+            entirely.
           </Text>
           <MantineReactTable
             columns={membershipColumns}
             data={membershipRows}
             getRowId={(row) => row.key}
             mantineTableContainerProps={{ className: 'financeTable' }}
-            mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+            mantineTableProps={{
+              highlightOnHover: true,
+              striped: 'odd',
+              withTableBorder: true,
+            }}
             mantineTableBodyCellProps={{
               style: { verticalAlign: 'middle' },
             }}
@@ -462,7 +515,10 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             enableTopToolbar={false}
             enableDensityToggle={false}
             enableFullScreenToggle={false}
-            initialState={{ density: 'xs', pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 } }}
+            initialState={{
+              density: 'xs',
+              pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+            }}
           />
         </Stack>
       </Paper>

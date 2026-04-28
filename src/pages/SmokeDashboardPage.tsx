@@ -13,7 +13,13 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import { IconAlertCircle, IconCheck, IconLoader2, IconPlayerPlay, IconX } from '@tabler/icons-react';
+import {
+  IconAlertCircle,
+  IconCheck,
+  IconLoader2,
+  IconPlayerPlay,
+  IconX,
+} from '@tabler/icons-react';
 
 import { useUsersQuery } from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
@@ -150,7 +156,10 @@ function humanizeSmokeStatusMessage(value: string) {
   ) {
     return 'This step hit a temporary rate limit. The raw provider response is shown below.';
   }
-  if (normalized.includes('not authenticated') || normalized.includes('unauthenticated')) {
+  if (
+    normalized.includes('not authenticated') ||
+    normalized.includes('unauthenticated')
+  ) {
     return 'This step could not continue because the smoke session was no longer authenticated.';
   }
   if (normalized.includes('forbidden')) {
@@ -174,7 +183,11 @@ function humanizeSmokeStatusMessage(value: string) {
 function isRateLimitMessage(value: string | undefined) {
   if (!value) return false;
   const normalized = value.toLowerCase();
-  return normalized.includes('429') || normalized.includes('too many requests') || normalized.includes('rate-limit');
+  return (
+    normalized.includes('429') ||
+    normalized.includes('too many requests') ||
+    normalized.includes('rate-limit')
+  );
 }
 
 function statusColor(status: SmokeSectionStatus) {
@@ -185,7 +198,13 @@ function statusColor(status: SmokeSectionStatus) {
   return 'gray';
 }
 
-function FocusStripCard({ label, status, title, message, active = false }: FocusStripCardProps) {
+function FocusStripCard({
+  label,
+  status,
+  title,
+  message,
+  active = false,
+}: FocusStripCardProps) {
   return (
     <Paper
       withBorder
@@ -202,7 +221,10 @@ function FocusStripCard({ label, status, title, message, active = false }: Focus
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
             {label}
           </Text>
-          <Badge color={statusColor(status)} variant={active ? 'filled' : 'light'}>
+          <Badge
+            color={statusColor(status)}
+            variant={active ? 'filled' : 'light'}
+          >
             {status === 'idle' ? 'Queued' : status}
           </Badge>
         </Group>
@@ -230,7 +252,12 @@ function SmokeStepRow({ step }: { step: SmokeStepView }) {
       <Stack gap={6}>
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Group align="flex-start" wrap="nowrap">
-            <ThemeIcon radius="xl" size="md" color={statusColor(step.status)} variant="filled">
+            <ThemeIcon
+              radius="xl"
+              size="md"
+              color={statusColor(step.status)}
+              variant="filled"
+            >
               {stepViewIcon(step)}
             </ThemeIcon>
             <Stack gap={2}>
@@ -270,7 +297,9 @@ function SmokeStepRow({ step }: { step: SmokeStepView }) {
 }
 
 function createIdleSection(sectionId: SmokeSectionId): SmokeSectionView {
-  const definition = smokeSectionDefinitions.find((section) => section.id === sectionId);
+  const definition = smokeSectionDefinitions.find(
+    (section) => section.id === sectionId
+  );
   return {
     sectionId,
     status: 'idle',
@@ -282,7 +311,10 @@ function createIdleSection(sectionId: SmokeSectionId): SmokeSectionView {
   };
 }
 
-function applyStepUpdate(section: SmokeSectionView, stepResult: SmokeStepResult): SmokeSectionView {
+function applyStepUpdate(
+  section: SmokeSectionView,
+  stepResult: SmokeStepResult
+): SmokeSectionView {
   const steps = section.steps.map((step) =>
     step.id === stepResult.id
       ? {
@@ -317,18 +349,28 @@ export default function SmokeDashboardPage() {
   const isSuperadmin = useMemo(
     () =>
       !!userId &&
-      (usersQ.data ?? []).find((user) => user.id === userId)?.isGlobalSuperadmin === true,
+      (usersQ.data ?? []).find((user) => user.id === userId)
+        ?.isGlobalSuperadmin === true,
     [userId, usersQ.data]
   );
 
-  const [results, setResults] = useState<Partial<Record<SmokeSectionId, SmokeSectionResult>>>({});
-  const [views, setViews] = useState<Partial<Record<SmokeSectionId, SmokeSectionView>>>({});
-  const [runningSectionId, setRunningSectionId] = useState<SmokeSectionId | null>(null);
+  const [results, setResults] = useState<
+    Partial<Record<SmokeSectionId, SmokeSectionResult>>
+  >({});
+  const [views, setViews] = useState<
+    Partial<Record<SmokeSectionId, SmokeSectionView>>
+  >({});
+  const [runningSectionId, setRunningSectionId] =
+    useState<SmokeSectionId | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const [runAllStatus, setRunAllStatus] = useState<string | null>(null);
   const [runAllActive, setRunAllActive] = useState(false);
-  const [runAllSectionIndex, setRunAllSectionIndex] = useState<number | null>(null);
-  const sectionRefs = useRef<Partial<Record<SmokeSectionId, HTMLDivElement | null>>>({});
+  const [runAllSectionIndex, setRunAllSectionIndex] = useState<number | null>(
+    null
+  );
+  const sectionRefs = useRef<
+    Partial<Record<SmokeSectionId, HTMLDivElement | null>>
+  >({});
 
   function resetSectionState(sectionId: SmokeSectionId) {
     setResults((current) => {
@@ -357,7 +399,9 @@ export default function SmokeDashboardPage() {
     }
   }
 
-  async function runSection(sectionId: SmokeSectionId): Promise<RunSectionOutcome> {
+  async function runSection(
+    sectionId: SmokeSectionId
+  ): Promise<RunSectionOutcome> {
     setPageError(null);
     setRunningSectionId(sectionId);
     let sectionSucceeded = true;
@@ -385,7 +429,7 @@ export default function SmokeDashboardPage() {
         const body: unknown = await res.json().catch(() => null);
         const parsed = apiMessageResponseSchema.safeParse(body);
         const message = parsed.success
-          ? parsed.data.message ?? 'Smoke run failed.'
+          ? (parsed.data.message ?? 'Smoke run failed.')
           : 'Smoke run failed.';
         throw new Error(message);
       }
@@ -413,7 +457,8 @@ export default function SmokeDashboardPage() {
           }
           if (event.type === 'step') {
             setViews((current) => {
-              const existing = current[sectionId] ?? createIdleSection(sectionId);
+              const existing =
+                current[sectionId] ?? createIdleSection(sectionId);
               return {
                 ...current,
                 [sectionId]: applyStepUpdate(existing, event.step),
@@ -423,7 +468,8 @@ export default function SmokeDashboardPage() {
           }
           if (event.type === 'status') {
             setViews((current) => {
-              const existing = current[sectionId] ?? createIdleSection(sectionId);
+              const existing =
+                current[sectionId] ?? createIdleSection(sectionId);
               return {
                 ...current,
                 [sectionId]: {
@@ -435,7 +481,9 @@ export default function SmokeDashboardPage() {
             setRunAllStatus((current) => {
               if (!current) return current;
               const sectionLabel =
-                smokeSectionDefinitions.find((section) => section.id === sectionId)?.label ?? sectionId;
+                smokeSectionDefinitions.find(
+                  (section) => section.id === sectionId
+                )?.label ?? sectionId;
               return `${sectionLabel}: ${event.message}`;
             });
             continue;
@@ -443,16 +491,19 @@ export default function SmokeDashboardPage() {
           if (event.type === 'result') {
             sectionSucceeded = event.result.status !== 'failed';
             retryableRateLimit = event.result.steps.some(
-              (step) => step.status === 'failed' && isRateLimitMessage(step.error)
+              (step) =>
+                step.status === 'failed' && isRateLimitMessage(step.error)
             );
             resultMessage =
-              event.result.steps.find((step) => step.status === 'failed')?.error ?? undefined;
+              event.result.steps.find((step) => step.status === 'failed')
+                ?.error ?? undefined;
             setResults((current) => ({
               ...current,
               [sectionId]: event.result,
             }));
             setViews((current) => {
-              const existing = current[sectionId] ?? createIdleSection(sectionId);
+              const existing =
+                current[sectionId] ?? createIdleSection(sectionId);
               return {
                 ...current,
                 [sectionId]: {
@@ -466,7 +517,9 @@ export default function SmokeDashboardPage() {
                       ? existing.statusMessage
                       : undefined,
                   steps: existing.steps.map((step) => {
-                    const completed = event.result.steps.find((item) => item.id === step.id);
+                    const completed = event.result.steps.find(
+                      (item) => item.id === step.id
+                    );
                     return completed
                       ? {
                           ...step,
@@ -498,7 +551,10 @@ export default function SmokeDashboardPage() {
         message: resultMessage,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not run the smoke section.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not run the smoke section.';
       retryableRateLimit = isRateLimitMessage(message);
       setPageError(message);
       setViews((current) => ({
@@ -538,21 +594,27 @@ export default function SmokeDashboardPage() {
           break;
         }
 
-        if (outcome.retryableRateLimit && attempts < RUN_ALL_RATE_LIMIT_SECTION_RETRIES) {
+        if (
+          outcome.retryableRateLimit &&
+          attempts < RUN_ALL_RATE_LIMIT_SECTION_RETRIES
+        ) {
           attempts += 1;
-          await waitWithCountdown(RUN_ALL_RATE_LIMIT_RETRY_MS, (secondsRemaining) => {
-            const message = `Rate limited on ${section.label}. Retrying in ${secondsRemaining}s.`;
-            setRunAllStatus(message);
-            setViews((current) => ({
-              ...current,
-              [section.id]: current[section.id]
-                ? {
-                    ...current[section.id],
-                    statusMessage: message,
-                  }
-                : current[section.id],
-            }));
-          });
+          await waitWithCountdown(
+            RUN_ALL_RATE_LIMIT_RETRY_MS,
+            (secondsRemaining) => {
+              const message = `Rate limited on ${section.label}. Retrying in ${secondsRemaining}s.`;
+              setRunAllStatus(message);
+              setViews((current) => ({
+                ...current,
+                [section.id]: current[section.id]
+                  ? {
+                      ...current[section.id],
+                      statusMessage: message,
+                    }
+                  : current[section.id],
+              }));
+            }
+          );
           resetSectionState(section.id);
           continue;
         }
@@ -570,8 +632,12 @@ export default function SmokeDashboardPage() {
 
       const nextSection = smokeSectionDefinitions[index + 1];
       if (nextSection) {
-        setRunAllStatus(`Awaiting ${RUN_ALL_COOLDOWN_MS / 1000}s before ${nextSection.label}`);
-        await new Promise((resolve) => setTimeout(resolve, RUN_ALL_COOLDOWN_MS));
+        setRunAllStatus(
+          `Awaiting ${RUN_ALL_COOLDOWN_MS / 1000}s before ${nextSection.label}`
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, RUN_ALL_COOLDOWN_MS)
+        );
       }
     }
     if (!failedSectionLabel) {
@@ -585,13 +651,18 @@ export default function SmokeDashboardPage() {
   }
 
   const summary = useMemo(() => {
-    const completedResults = Object.values(results).filter(Boolean) as SmokeSectionResult[];
+    const completedResults = Object.values(results).filter(
+      Boolean
+    ) as SmokeSectionResult[];
     return {
       totalConfigured: smokeSectionDefinitions.length,
       totalCompleted: completedResults.length,
-      passed: completedResults.filter((result) => result.status === 'passed').length,
-      failed: completedResults.filter((result) => result.status === 'failed').length,
-      skipped: completedResults.filter((result) => result.status === 'skipped').length,
+      passed: completedResults.filter((result) => result.status === 'passed')
+        .length,
+      failed: completedResults.filter((result) => result.status === 'failed')
+        .length,
+      skipped: completedResults.filter((result) => result.status === 'skipped')
+        .length,
       latestFinishedAt: completedResults
         .map((result) => result.finishedAt)
         .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0],
@@ -599,7 +670,8 @@ export default function SmokeDashboardPage() {
   }, [results]);
 
   const focusSections = useMemo(() => {
-    if (runAllSectionIndex == null) return { previous: null, current: null, next: null };
+    if (runAllSectionIndex == null)
+      return { previous: null, current: null, next: null };
     return {
       previous: smokeSectionDefinitions[runAllSectionIndex - 1] ?? null,
       current: smokeSectionDefinitions[runAllSectionIndex] ?? null,
@@ -621,7 +693,8 @@ export default function SmokeDashboardPage() {
           <Stack gap="xs">
             <Title order={2}>System Checks</Title>
             <Text c="dimmed">
-              Run visual system checks from the app without SSHing into the server.
+              Run visual system checks from the app without SSHing into the
+              server.
             </Text>
           </Stack>
         </Paper>
@@ -641,12 +714,19 @@ export default function SmokeDashboardPage() {
             <Stack gap="xs">
               <Title order={2}>System Checks</Title>
               <Text c="dimmed">
-                Run each system-check section separately, inspect the exact steps that passed or
-                failed, and keep the core server checks accessible from the app.
+                Run each system-check section separately, inspect the exact
+                steps that passed or failed, and keep the core server checks
+                accessible from the app.
               </Text>
             </Stack>
             <Button
-              leftSection={runningSectionId ? <IconLoader2 size={16} /> : <IconPlayerPlay size={16} />}
+              leftSection={
+                runningSectionId ? (
+                  <IconLoader2 size={16} />
+                ) : (
+                  <IconPlayerPlay size={16} />
+                )
+              }
               onClick={runFullSmoke}
               disabled={!!runningSectionId}
             >
@@ -654,10 +734,11 @@ export default function SmokeDashboardPage() {
             </Button>
           </Group>
           <Text size="sm" c="dimmed">
-            The dashboard runs the same server checks we use operationally today. It targets
-            `PROJEX_SMOKE_BASE_URL` when that value is set and otherwise uses the current app
-            origin. Base smoke login credentials are required for all sections, while optional
-            invite or privacy sections will mark themselves as skipped when their extra values are
+            The dashboard runs the same server checks we use operationally
+            today. It targets `PROJEX_SMOKE_BASE_URL` when that value is set and
+            otherwise uses the current app origin. Base smoke login credentials
+            are required for all sections, while optional invite or privacy
+            sections will mark themselves as skipped when their extra values are
             not configured in `.env.smoke.local`.
           </Text>
         </Stack>
@@ -694,26 +775,54 @@ export default function SmokeDashboardPage() {
               {focusSections.previous ? (
                 <FocusStripCard
                   label="Previous"
-                  status={results[focusSections.previous.id]?.status ?? views[focusSections.previous.id]?.status ?? 'idle'}
+                  status={
+                    results[focusSections.previous.id]?.status ??
+                    views[focusSections.previous.id]?.status ??
+                    'idle'
+                  }
                   title={focusSections.previous.label}
-                  message={views[focusSections.previous.id]?.statusMessage ?? focusSections.previous.description}
+                  message={
+                    views[focusSections.previous.id]?.statusMessage ??
+                    focusSections.previous.description
+                  }
                 />
               ) : (
-                <FocusStripCard label="Previous" status="idle" title="No previous section" message="This is the first section." />
+                <FocusStripCard
+                  label="Previous"
+                  status="idle"
+                  title="No previous section"
+                  message="This is the first section."
+                />
               )}
               <FocusStripCard
                 label={runAllActive ? 'Current' : 'Previous'}
-                status={runningSectionId ? 'running' : results[focusSections.current.id]?.status ?? views[focusSections.current.id]?.status ?? 'idle'}
+                status={
+                  runningSectionId
+                    ? 'running'
+                    : (results[focusSections.current.id]?.status ??
+                      views[focusSections.current.id]?.status ??
+                      'idle')
+                }
                 title={focusSections.current.label}
-                message={views[focusSections.current.id]?.statusMessage ?? focusSections.current.description}
+                message={
+                  views[focusSections.current.id]?.statusMessage ??
+                  focusSections.current.description
+                }
                 active={runAllActive}
               />
               {focusSections.next ? (
                 <FocusStripCard
                   label="Next"
-                  status={results[focusSections.next.id]?.status ?? views[focusSections.next.id]?.status ?? 'idle'}
+                  status={
+                    results[focusSections.next.id]?.status ??
+                    views[focusSections.next.id]?.status ??
+                    'idle'
+                  }
                   title={focusSections.next.label}
-                  message={views[focusSections.next.id]?.statusMessage ?? focusSections.next.description}
+                  message={
+                    views[focusSections.next.id]?.statusMessage ??
+                    focusSections.next.description
+                  }
                 />
               ) : (
                 <FocusStripCard
@@ -759,15 +868,27 @@ export default function SmokeDashboardPage() {
                   <Stack gap={4}>
                     <Group gap="xs">
                       <Title order={4}>{section.label}</Title>
-                      <Badge color={statusColor(isRunning ? 'running' : result?.status ?? 'idle')} variant="light">
-                        {isRunning ? 'Running' : result ? result.status : 'Idle'}
+                      <Badge
+                        color={statusColor(
+                          isRunning ? 'running' : (result?.status ?? 'idle')
+                        )}
+                        variant="light"
+                      >
+                        {isRunning
+                          ? 'Running'
+                          : result
+                            ? result.status
+                            : 'Idle'}
                       </Badge>
                     </Group>
                     <Text size="sm" c="dimmed">
                       {section.description}
                     </Text>
                     {view?.statusMessage ? (
-                      <Text size="sm" c={view.status === 'failed' ? 'red' : 'dimmed'}>
+                      <Text
+                        size="sm"
+                        c={view.status === 'failed' ? 'red' : 'dimmed'}
+                      >
                         {view.statusMessage}
                       </Text>
                     ) : null}
@@ -777,7 +898,13 @@ export default function SmokeDashboardPage() {
                     <Button
                       size="sm"
                       variant={result || view ? 'light' : 'filled'}
-                      leftSection={isRunning ? <IconLoader2 size={16} /> : <IconPlayerPlay size={16} />}
+                      leftSection={
+                        isRunning ? (
+                          <IconLoader2 size={16} />
+                        ) : (
+                          <IconPlayerPlay size={16} />
+                        )
+                      }
                       disabled={!!runningSectionId}
                       onClick={() => runSection(section.id)}
                     >
@@ -814,7 +941,10 @@ export default function SmokeDashboardPage() {
                     <Divider />
                     <Stack gap="xs">
                       {view.steps.map((step) => (
-                        <SmokeStepRow key={`${section.id}-${step.id}`} step={step} />
+                        <SmokeStepRow
+                          key={`${section.id}-${step.id}`}
+                          step={step}
+                        />
                       ))}
                     </Stack>
                   </>

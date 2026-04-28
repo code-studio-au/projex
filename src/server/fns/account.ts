@@ -13,7 +13,12 @@ import { emailSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { sendAuthEmail, type AuthEmailDelivery } from '../auth/email';
 import { getDb } from '../db/db';
-import { assertContextProvided, requireServerUserId, type ServerFnContextInput, withServerBoundary } from './runtime';
+import {
+  assertContextProvided,
+  requireServerUserId,
+  type ServerFnContextInput,
+  withServerBoundary,
+} from './runtime';
 
 type EmailChangeRow = {
   id: string;
@@ -76,7 +81,9 @@ function toPendingEmailChange(row: EmailChangeRow): PendingEmailChange {
   };
 }
 
-async function getPendingEmailChangeRow(userId: string): Promise<EmailChangeRow | null> {
+async function getPendingEmailChangeRow(
+  userId: string
+): Promise<EmailChangeRow | null> {
   const db = getDb();
   const row = (await db
     .selectFrom('email_change_requests')
@@ -89,11 +96,17 @@ async function getPendingEmailChangeRow(userId: string): Promise<EmailChangeRow 
   if (!row) return null;
   if (!hasExpired(row.expires_at)) return row;
 
-  await db.deleteFrom('email_change_requests').where('id', '=', row.id).execute();
+  await db
+    .deleteFrom('email_change_requests')
+    .where('id', '=', row.id)
+    .execute();
   return null;
 }
 
-async function assertEmailAvailable(args: { userId: string; newEmail: string }) {
+async function assertEmailAvailable(args: {
+  userId: string;
+  newEmail: string;
+}) {
   const db = getDb();
   const emailNorm = normalizeEmail(args.newEmail);
 
@@ -160,7 +173,10 @@ async function createPendingEmailChange(args: {
   const db = getDb();
 
   await db.transaction().execute(async (trx) => {
-    await trx.deleteFrom('email_change_requests').where('user_id', '=', args.userId).execute();
+    await trx
+      .deleteFrom('email_change_requests')
+      .where('user_id', '=', args.userId)
+      .execute();
     await trx
       .insertInto('email_change_requests')
       .values({
@@ -215,7 +231,10 @@ export async function requestEmailChangeServer(args: {
     const nextEmailNorm = normalizeEmail(nextEmail);
 
     if (nextEmailNorm == currentEmailNorm) {
-      throw new AppError('VALIDATION_ERROR', 'Enter a different email address.');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Enter a different email address.'
+      );
     }
 
     return createPendingEmailChange({
@@ -258,7 +277,10 @@ export async function cancelEmailChangeServer(args: {
     assertContextProvided(args.context);
     const userId = await requireServerUserId(args.context);
     const db = getDb();
-    await db.deleteFrom('email_change_requests').where('user_id', '=', userId).execute();
+    await db
+      .deleteFrom('email_change_requests')
+      .where('user_id', '=', userId)
+      .execute();
   });
 }
 
@@ -276,12 +298,12 @@ export async function confirmEmailChangeServer(args: {
     const db = getDb();
     const tokenHash = hashToken(token);
     const nowIso = new Date().toISOString();
-    const pending = await db
+    const pending = (await db
       .selectFrom('email_change_requests')
       .selectAll()
       .where('token_hash', '=', tokenHash)
       .where('consumed_at', 'is', null)
-      .executeTakeFirst() as EmailChangeRow | undefined;
+      .executeTakeFirst()) as EmailChangeRow | undefined;
 
     if (!pending || pending.expires_at <= nowIso) {
       throw new AppError(
@@ -290,7 +312,10 @@ export async function confirmEmailChangeServer(args: {
       );
     }
 
-    await assertEmailAvailable({ userId: pending.user_id, newEmail: pending.new_email });
+    await assertEmailAvailable({
+      userId: pending.user_id,
+      newEmail: pending.new_email,
+    });
 
     await db.transaction().execute(async (trx) => {
       await trx

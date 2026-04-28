@@ -19,7 +19,9 @@ const projectWorkspaceSearchSchema = z
       .optional(),
     view: z.enum(['all', 'uncoded', 'auto-mapped-pending']).optional(),
     source: z.enum(['company-summary']).optional(),
-    focus: z.enum(['budget', 'actual', 'remaining', 'uncoded', 'health']).optional(),
+    focus: z
+      .enum(['budget', 'actual', 'remaining', 'uncoded', 'health'])
+      .optional(),
   })
   .catch({});
 

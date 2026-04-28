@@ -46,11 +46,18 @@ export function buildImportPreview(args: {
     catByName.set(category.name.trim().toLowerCase(), category);
   }
 
-  const categoryNameById = new Map(args.categories.map((category) => [category.id, category.name]));
+  const categoryNameById = new Map(
+    args.categories.map((category) => [category.id, category.name])
+  );
   const subByKey = new Map<string, SubCategory>();
   for (const subCategory of args.subCategories) {
-    const categoryName = (categoryNameById.get(subCategory.categoryId) ?? '').trim().toLowerCase();
-    subByKey.set(`${categoryName}|||${subCategory.name.trim().toLowerCase()}`, subCategory);
+    const categoryName = (categoryNameById.get(subCategory.categoryId) ?? '')
+      .trim()
+      .toLowerCase();
+    subByKey.set(
+      `${categoryName}|||${subCategory.name.trim().toLowerCase()}`,
+      subCategory
+    );
   }
 
   const existingBudgetSubIds = new Set(
@@ -66,14 +73,18 @@ export function buildImportPreview(args: {
     const parsedDate = sanitizeImportDate(txn.date);
     const item = txn.item?.trim() ?? '';
     const description = txn.description?.trim() ?? '';
-    const amountCents = Number.isFinite(txn.amountCents) ? txn.amountCents : null;
+    const amountCents = Number.isFinite(txn.amountCents)
+      ? txn.amountCents
+      : null;
 
     const dedupeKey = dedupeKeyForTxn({
       id: String(txn.id ?? ''),
       externalId: txn.externalId?.trim() || undefined,
     });
     const duplicateReason = seenKeys.has(dedupeKey)
-      ? (args.existingKeys.has(dedupeKey) ? 'existing' : 'import')
+      ? args.existingKeys.has(dedupeKey)
+        ? 'existing'
+        : 'import'
       : undefined;
     if (!duplicateReason) {
       seenKeys.add(dedupeKey);
@@ -81,9 +92,13 @@ export function buildImportPreview(args: {
 
     let categoryId = txn.categoryId;
     let subCategoryId = txn.subCategoryId;
-    let categoryName = categoryId ? categoryNameById.get(categoryId) : undefined;
+    let categoryName = categoryId
+      ? categoryNameById.get(categoryId)
+      : undefined;
     let subCategoryName = subCategoryId
-      ? args.subCategories.find((subCategory) => subCategory.id === subCategoryId)?.name
+      ? args.subCategories.find(
+          (subCategory) => subCategory.id === subCategoryId
+        )?.name
       : undefined;
     let willCreateCategory = false;
     let willCreateSubCategory = false;
@@ -106,7 +121,9 @@ export function buildImportPreview(args: {
         willCreateCategory = true;
         categoryName = rawCategoryName;
       } else {
-        warnings.push(`Category "${rawCategoryName}" does not exist in this project.`);
+        warnings.push(
+          `Category "${rawCategoryName}" does not exist in this project.`
+        );
         csvTaxonomyBlockedRuleFallback = true;
       }
     }
@@ -119,7 +136,9 @@ export function buildImportPreview(args: {
     }
 
     if ((categoryId || willCreateCategory) && rawSubCategoryName) {
-      const effectiveCategoryName = (categoryName ?? rawCategoryName).trim().toLowerCase();
+      const effectiveCategoryName = (categoryName ?? rawCategoryName)
+        .trim()
+        .toLowerCase();
       const existingSubCategory = subByKey.get(
         `${effectiveCategoryName}|||${rawSubCategoryName.toLowerCase()}`
       );
@@ -138,7 +157,10 @@ export function buildImportPreview(args: {
     }
 
     if (subCategoryId || willCreateSubCategory) {
-      mappingStatus = willCreateCategory || willCreateSubCategory ? 'auto_created' : 'csv_taxonomy';
+      mappingStatus =
+        willCreateCategory || willCreateSubCategory
+          ? 'auto_created'
+          : 'csv_taxonomy';
     } else if (!hasCsvTaxonomyInput || !csvTaxonomyBlockedRuleFallback) {
       const matchedRule = findMatchingCompanyDefaultRule(
         {
@@ -160,13 +182,16 @@ export function buildImportPreview(args: {
           subCategoryId = resolved.subCategoryId;
           categoryName = categoryNameById.get(resolved.categoryId);
           subCategoryName =
-            args.subCategories.find((subCategory) => subCategory.id === resolved.subCategoryId)?.name ??
-            subCategoryName;
+            args.subCategories.find(
+              (subCategory) => subCategory.id === resolved.subCategoryId
+            )?.name ?? subCategoryName;
           ruleId = matchedRule.id;
           codingPendingApproval = true;
           mappingStatus = 'matched_rule';
         } else {
-          warnings.push('A company default rule matched, but its target taxonomy is missing in this project.');
+          warnings.push(
+            'A company default rule matched, but its target taxonomy is missing in this project.'
+          );
         }
       }
     } else {
@@ -204,7 +229,9 @@ export function buildImportPreview(args: {
         warnings.push(issue.message);
       }
     } else if (!subCategoryId && !willCreateSubCategory) {
-      warnings.push('No category/subcategory could be resolved. This row will remain uncoded.');
+      warnings.push(
+        'No category/subcategory could be resolved. This row will remain uncoded.'
+      );
     }
 
     if (duplicateReason) {

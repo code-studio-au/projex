@@ -74,7 +74,9 @@ async function run() {
         for (const stmt of statements) {
           await pool.query(stmt);
         }
-        await pool.query('insert into schema_migrations(id) values ($1)', [file]);
+        await pool.query('insert into schema_migrations(id) values ($1)', [
+          file,
+        ]);
         await pool.query('commit');
         console.log(`Applied migration: ${file}`);
       } catch (err) {

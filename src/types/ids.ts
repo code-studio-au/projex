@@ -10,9 +10,18 @@ export type ProjectId = Brand<string, 'ProjectId'>;
 export type UserId = Brand<string, 'UserId'>;
 export type CategoryId = Brand<string, 'CategoryId'>;
 export type SubCategoryId = Brand<string, 'SubCategoryId'>;
-export type CompanyDefaultCategoryId = Brand<string, 'CompanyDefaultCategoryId'>;
-export type CompanyDefaultSubCategoryId = Brand<string, 'CompanyDefaultSubCategoryId'>;
-export type CompanyDefaultMappingRuleId = Brand<string, 'CompanyDefaultMappingRuleId'>;
+export type CompanyDefaultCategoryId = Brand<
+  string,
+  'CompanyDefaultCategoryId'
+>;
+export type CompanyDefaultSubCategoryId = Brand<
+  string,
+  'CompanyDefaultSubCategoryId'
+>;
+export type CompanyDefaultMappingRuleId = Brand<
+  string,
+  'CompanyDefaultMappingRuleId'
+>;
 export type TxnId = Brand<string, 'TxnId'>;
 export type BudgetLineId = Brand<string, 'BudgetLineId'>;
 

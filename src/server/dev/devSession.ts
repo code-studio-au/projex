@@ -4,7 +4,10 @@ import type { UserId } from '../../types';
 export const DEV_SESSION_COOKIE = 'projex_dev_user_id';
 
 export function devEndpointsEnabled(): boolean {
-  return process.env.PROJEX_ENABLE_DEV_ENDPOINTS === 'true' && process.env.NODE_ENV !== 'production';
+  return (
+    process.env.PROJEX_ENABLE_DEV_ENDPOINTS === 'true' &&
+    process.env.NODE_ENV !== 'production'
+  );
 }
 
 export function assertDevEndpointsEnabled(): void {

@@ -1,9 +1,19 @@
 import { useMemo, useState } from 'react';
-import { ActionIcon, Alert, Button, Group, Menu, NumberInput, Paper, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import {
-  MantineReactTable,
-  type MRT_ColumnDef,
-} from 'mantine-react-table';
+  ActionIcon,
+  Alert,
+  Button,
+  Group,
+  Menu,
+  NumberInput,
+  Paper,
+  Select,
+  SimpleGrid,
+  Stack,
+  Switch,
+  Text,
+} from '@mantine/core';
+import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { IconCheck, IconColumns, IconPencil, IconX } from '@tabler/icons-react';
 import type { RollupsHook } from '../hooks/useRollups';
 import type { BudgetsHook } from '../hooks/useBudgets';
@@ -85,8 +95,12 @@ export default function BudgetPanel(props: {
 
   const { updateAllocated } = budgets;
   const [collapsedYears, setCollapsedYears] = useState<Set<number>>(new Set());
-  const [collapsedQuarters, setCollapsedQuarters] = useState<Set<string>>(new Set());
-  const [userColumnVisibility, setUserColumnVisibility] = useState<Record<string, boolean>>({});
+  const [collapsedQuarters, setCollapsedQuarters] = useState<Set<string>>(
+    new Set()
+  );
+  const [userColumnVisibility, setUserColumnVisibility] = useState<
+    Record<string, boolean>
+  >({});
   const [projectBudgetDraft, setProjectBudgetDraft] = useState<number | ''>('');
   const [isEditingProjectBudget, setIsEditingProjectBudget] = useState(false);
 
@@ -95,7 +109,8 @@ export default function BudgetPanel(props: {
   const projectRemainingCents = projectBudgetTotalCents - projectAllocatedCents;
   const allocatedVsActualCents = projectAllocatedCents - projectActualCents;
   const projectVsActualCents = projectBudgetTotalCents - projectActualCents;
-  const remainingAfterUncodedCents = projectRemainingCents - uncodedSummary.amountCents;
+  const remainingAfterUncodedCents =
+    projectRemainingCents - uncodedSummary.amountCents;
   const allocatedCoveragePct =
     projectBudgetTotalCents > 0
       ? (projectAllocatedCents / projectBudgetTotalCents) * 100
@@ -107,8 +122,18 @@ export default function BudgetPanel(props: {
 
   async function commitProjectBudgetTotal() {
     if (!onUpdateProjectBudgetTotal) return;
-    const nextCents = toCents(Number(projectBudgetDraft === '' ? fromCents(projectBudgetTotalCents) : projectBudgetDraft));
-    if (!Number.isFinite(nextCents) || nextCents < 0 || nextCents === projectBudgetTotalCents) {
+    const nextCents = toCents(
+      Number(
+        projectBudgetDraft === ''
+          ? fromCents(projectBudgetTotalCents)
+          : projectBudgetDraft
+      )
+    );
+    if (
+      !Number.isFinite(nextCents) ||
+      nextCents < 0 ||
+      nextCents === projectBudgetTotalCents
+    ) {
       setProjectBudgetDraft('');
       setIsEditingProjectBudget(false);
       return;
@@ -131,17 +156,26 @@ export default function BudgetPanel(props: {
       const quarterId = `qt_${year}_${quarter}`;
       const monthId = `m_${mk}`;
 
-      visibility[quarterId] = (userColumnVisibility[quarterId] ?? true) && !isYearCollapsed;
+      visibility[quarterId] =
+        (userColumnVisibility[quarterId] ?? true) && !isYearCollapsed;
       visibility[monthId] =
         (userColumnVisibility[monthId] ?? true) &&
         !(isYearCollapsed || isQuarterCollapsed);
     }
 
     return visibility;
-  }, [collapsedQuarters, collapsedYears, rollups.visibleMonthKeys, userColumnVisibility]);
+  }, [
+    collapsedQuarters,
+    collapsedYears,
+    rollups.visibleMonthKeys,
+    userColumnVisibility,
+  ]);
 
   const displayRows = useMemo<BudgetDisplayRow[]>(() => {
-    const grouped = new Map<string, { categoryId: string; categoryName: string; rows: RollupRow[] }>();
+    const grouped = new Map<
+      string,
+      { categoryId: string; categoryName: string; rows: RollupRow[] }
+    >();
 
     for (const row of rollups.rollupRows) {
       const key = row.categoryId ?? `uncategorized:${row.categoryName.trim()}`;
@@ -154,42 +188,47 @@ export default function BudgetPanel(props: {
       grouped.set(key, existing);
     }
 
-    return Array.from(grouped.values()).flatMap(({ categoryId, categoryName, rows }) => {
-      const actualByMonthKey = Object.fromEntries(
-        rollups.visibleMonthKeys.map((mk) => [
-          mk,
-          sum(rows.map((row) => row.actualByMonthKey[mk] ?? 0)),
-        ])
-      );
+    return Array.from(grouped.values()).flatMap(
+      ({ categoryId, categoryName, rows }) => {
+        const actualByMonthKey = Object.fromEntries(
+          rollups.visibleMonthKeys.map((mk) => [
+            mk,
+            sum(rows.map((row) => row.actualByMonthKey[mk] ?? 0)),
+          ])
+        );
 
-      const categoryRow: BudgetDisplayRow = {
-        ...rows[0],
-        id: rows[0].id,
-        categoryName,
-        subCategoryName: 'Total',
-        allocatedCents: sum(rows.map((row) => row.allocatedCents)),
-        totalActualCents: sum(rows.map((row) => row.totalActualCents)),
-        remainingCents: sum(rows.map((row) => row.remainingCents)),
-        actualByMonthKey,
-        rowKind: 'category',
-        rowId: `category:${categoryId}`,
-      };
+        const categoryRow: BudgetDisplayRow = {
+          ...rows[0],
+          id: rows[0].id,
+          categoryName,
+          subCategoryName: 'Total',
+          allocatedCents: sum(rows.map((row) => row.allocatedCents)),
+          totalActualCents: sum(rows.map((row) => row.totalActualCents)),
+          remainingCents: sum(rows.map((row) => row.remainingCents)),
+          actualByMonthKey,
+          rowKind: 'category',
+          rowId: `category:${categoryId}`,
+        };
 
-      const subRows = rows
-        .slice()
-        .sort((a, b) => a.subCategoryName.localeCompare(b.subCategoryName))
-        .map<BudgetDisplayRow>((row) => ({
-          ...row,
-          rowKind: 'subcategory',
-          rowId: `subcategory:${row.id}`,
-        }));
+        const subRows = rows
+          .slice()
+          .sort((a, b) => a.subCategoryName.localeCompare(b.subCategoryName))
+          .map<BudgetDisplayRow>((row) => ({
+            ...row,
+            rowKind: 'subcategory',
+            rowId: `subcategory:${row.id}`,
+          }));
 
-      return [categoryRow, ...subRows];
-    });
+        return [categoryRow, ...subRows];
+      }
+    );
   }, [rollups.rollupRows, rollups.visibleMonthKeys]);
 
   const timeHierarchy = useMemo(() => {
-    const byYear = new Map<number, { quarterIds: string[]; monthIds: string[] }>();
+    const byYear = new Map<
+      number,
+      { quarterIds: string[]; monthIds: string[] }
+    >();
     const byQuarter = new Map<string, { monthIds: string[] }>();
 
     for (const mk of rollups.visibleMonthKeys) {
@@ -199,7 +238,8 @@ export default function BudgetPanel(props: {
       const monthId = `m_${mk}`;
 
       const yearEntry = byYear.get(year) ?? { quarterIds: [], monthIds: [] };
-      if (!yearEntry.quarterIds.includes(quarterId)) yearEntry.quarterIds.push(quarterId);
+      if (!yearEntry.quarterIds.includes(quarterId))
+        yearEntry.quarterIds.push(quarterId);
       yearEntry.monthIds.push(monthId);
       byYear.set(year, yearEntry);
 
@@ -215,8 +255,7 @@ export default function BudgetPanel(props: {
     updater: VisibilityState | ((old: VisibilityState) => VisibilityState)
   ) {
     setUserColumnVisibility((current) => {
-      const next =
-        typeof updater === 'function' ? updater(current) : updater;
+      const next = typeof updater === 'function' ? updater(current) : updater;
       return { ...next };
     });
   }
@@ -308,15 +347,21 @@ export default function BudgetPanel(props: {
                   size: 124,
                   minSize: 124,
                   enableHiding: true,
-                  Header: () => <span style={HEADER_STYLE}>{quarter} Total</span>,
+                  Header: () => (
+                    <span style={HEADER_STYLE}>{quarter} Total</span>
+                  ),
                   accessorFn: (row) => sumMonths(row, months),
                   Cell: ({ cell }) => (
                     <Text className="table-body-emphasis">
-                      {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
+                      {formatCurrencyFromCents(
+                        cell.getValue<number>(),
+                        currencyCode
+                      )}
                     </Text>
                   ),
                   mantineTableHeadCellProps: {
-                    className: 'table-head-cell table-head-right budgetTable-head',
+                    className:
+                      'table-head-cell table-head-right budgetTable-head',
                     title: 'Click to collapse or expand this quarter',
                     onClick: () =>
                       setCollapsedQuarters((current) => {
@@ -338,15 +383,21 @@ export default function BudgetPanel(props: {
                   size: 112,
                   minSize: 112,
                   enableHiding: false,
-                  Header: () => <span style={HEADER_STYLE}>{formatMonthLabel(mk)}</span>,
+                  Header: () => (
+                    <span style={HEADER_STYLE}>{formatMonthLabel(mk)}</span>
+                  ),
                   accessorFn: (row) => row.actualByMonthKey[mk] ?? 0,
                   Cell: ({ cell }) => (
                     <Text className="table-body-right">
-                      {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
+                      {formatCurrencyFromCents(
+                        cell.getValue<number>(),
+                        currencyCode
+                      )}
                     </Text>
                   ),
                   mantineTableHeadCellProps: {
-                    className: 'table-head-cell table-head-right budgetTable-head',
+                    className:
+                      'table-head-cell table-head-right budgetTable-head',
                   },
                   mantineTableBodyCellProps: {
                     className: 'table-body-right budgetTable-cell',
@@ -365,11 +416,21 @@ export default function BudgetPanel(props: {
         header: 'Category',
         size: 112,
         minSize: 96,
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left budgetTable-head' },
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left budgetTable-head',
+        },
         mantineTableBodyCellProps: { className: 'budgetTable-cell' },
         Cell: ({ row }) => (
-          <Text className={row.original.rowKind === 'category' ? 'table-body-left-bold' : 'table-body-left'}>
-            {row.original.rowKind === 'category' ? row.original.categoryName : ''}
+          <Text
+            className={
+              row.original.rowKind === 'category'
+                ? 'table-body-left-bold'
+                : 'table-body-left'
+            }
+          >
+            {row.original.rowKind === 'category'
+              ? row.original.categoryName
+              : ''}
           </Text>
         ),
       },
@@ -378,11 +439,21 @@ export default function BudgetPanel(props: {
         header: 'Subcategory',
         size: 156,
         minSize: 136,
-        mantineTableHeadCellProps: { className: 'table-head-cell table-head-left budgetTable-head' },
+        mantineTableHeadCellProps: {
+          className: 'table-head-cell table-head-left budgetTable-head',
+        },
         mantineTableBodyCellProps: { className: 'budgetTable-cell' },
         Cell: ({ row }) => (
-          <Text className={row.original.rowKind === 'category' ? 'table-body-left-bold' : 'budgetTable-subcategory'}>
-            {row.original.rowKind === 'category' ? '' : row.original.subCategoryName}
+          <Text
+            className={
+              row.original.rowKind === 'category'
+                ? 'table-body-left-bold'
+                : 'budgetTable-subcategory'
+            }
+          >
+            {row.original.rowKind === 'category'
+              ? ''
+              : row.original.subCategoryName}
           </Text>
         ),
       },
@@ -398,10 +469,13 @@ export default function BudgetPanel(props: {
         mantineTableBodyCellProps: {
           className: 'table-body-right budgetTable-cell',
         },
-        Cell: ({ row }) => (
+        Cell: ({ row }) =>
           row.original.rowKind === 'category' ? (
             <Text className="table-body-emphasis">
-              {formatCurrencyFromCents(row.original.allocatedCents, currencyCode)}
+              {formatCurrencyFromCents(
+                row.original.allocatedCents,
+                currencyCode
+              )}
             </Text>
           ) : (
             <NumberInput
@@ -420,8 +494,7 @@ export default function BudgetPanel(props: {
                 void updateAllocated(row.original.id, toCents(Number(v ?? 0)))
               }
             />
-          )
-        ),
+          ),
       },
       {
         accessorKey: 'totalActualCents',
@@ -463,12 +536,7 @@ export default function BudgetPanel(props: {
       },
       ...timeColumns,
     ];
-  }, [
-    currencyCode,
-    updateAllocated,
-    readOnly,
-    timeColumns,
-  ]);
+  }, [currencyCode, updateAllocated, readOnly, timeColumns]);
 
   return (
     <Stack gap="md">
@@ -495,7 +563,9 @@ export default function BudgetPanel(props: {
             clearable
             disabled={!yearFilter}
             onChange={(value) => {
-              setQuarterFilter((value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null);
+              setQuarterFilter(
+                (value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null
+              );
               setMonthFilterKey(null);
             }}
             style={{ width: 150 }}
@@ -528,7 +598,12 @@ export default function BudgetPanel(props: {
             </Text>
           </Group>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
-            <Paper withBorder radius="md" p="sm" className="budgetMetricCard budgetSummaryPrimary">
+            <Paper
+              withBorder
+              radius="md"
+              p="sm"
+              className="budgetMetricCard budgetSummaryPrimary"
+            >
               <Stack gap={4}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Total project budget
@@ -536,7 +611,11 @@ export default function BudgetPanel(props: {
                 {canEditProjectBudgetTotal && isEditingProjectBudget ? (
                   <Group gap="xs" align="center" wrap="nowrap">
                     <NumberInput
-                      value={projectBudgetDraft === '' ? fromCents(projectBudgetTotalCents) : projectBudgetDraft}
+                      value={
+                        projectBudgetDraft === ''
+                          ? fromCents(projectBudgetTotalCents)
+                          : projectBudgetDraft
+                      }
                       min={0}
                       thousandSeparator=","
                       prefix="$"
@@ -545,7 +624,11 @@ export default function BudgetPanel(props: {
                       hideControls
                       classNames={{ input: 'budgetSummaryInput' }}
                       styles={{ input: { textAlign: 'right' } }}
-                      onChange={(value) => setProjectBudgetDraft(typeof value === 'number' ? value : Number(value ?? 0))}
+                      onChange={(value) =>
+                        setProjectBudgetDraft(
+                          typeof value === 'number' ? value : Number(value ?? 0)
+                        )
+                      }
                       onKeyDown={(event) => {
                         if (event.key === 'Enter') {
                           event.preventDefault();
@@ -582,7 +665,10 @@ export default function BudgetPanel(props: {
                 ) : (
                   <Group gap="xs" align="center" wrap="nowrap">
                     <Text fw={800} size="xl">
-                      {formatCurrencyFromCents(projectBudgetTotalCents, currencyCode)}
+                      {formatCurrencyFromCents(
+                        projectBudgetTotalCents,
+                        currencyCode
+                      )}
                     </Text>
                     {canEditProjectBudgetTotal ? (
                       <ActionIcon
@@ -590,7 +676,9 @@ export default function BudgetPanel(props: {
                         color="gray"
                         aria-label="Edit project budget total"
                         onClick={() => {
-                          setProjectBudgetDraft(fromCents(projectBudgetTotalCents));
+                          setProjectBudgetDraft(
+                            fromCents(projectBudgetTotalCents)
+                          );
                           setIsEditingProjectBudget(true);
                         }}
                       >
@@ -608,7 +696,11 @@ export default function BudgetPanel(props: {
                   Allocated
                 </Text>
                 <Text component="div" fw={800} size="lg">
-                  {isLoading ? <LoadingLine width={120} height={28} radius="md" /> : formatCurrencyFromCents(projectAllocatedCents, currencyCode)}
+                  {isLoading ? (
+                    <LoadingLine width={120} height={28} radius="md" />
+                  ) : (
+                    formatCurrencyFromCents(projectAllocatedCents, currencyCode)
+                  )}
                 </Text>
                 {isLoading ? (
                   <>
@@ -617,11 +709,21 @@ export default function BudgetPanel(props: {
                   </>
                 ) : (
                   <>
-                    <Text size="sm" c={allocatedCoveragePct > 100 ? 'red' : 'dimmed'}>
+                    <Text
+                      size="sm"
+                      c={allocatedCoveragePct > 100 ? 'red' : 'dimmed'}
+                    >
                       {allocatedCoveragePct.toFixed(1)}% of project budget
                     </Text>
-                    <Text size="sm" c={allocatedVsActualCents < 0 ? 'red' : 'dimmed'}>
-                      vs actual: {formatCurrencyFromCents(allocatedVsActualCents, currencyCode)}
+                    <Text
+                      size="sm"
+                      c={allocatedVsActualCents < 0 ? 'red' : 'dimmed'}
+                    >
+                      vs actual:{' '}
+                      {formatCurrencyFromCents(
+                        allocatedVsActualCents,
+                        currencyCode
+                      )}
                     </Text>
                   </>
                 )}
@@ -634,7 +736,11 @@ export default function BudgetPanel(props: {
                   Actual
                 </Text>
                 <Text component="div" fw={800} size="lg">
-                  {isLoading ? <LoadingLine width={120} height={28} radius="md" /> : formatCurrencyFromCents(projectActualCents, currencyCode)}
+                  {isLoading ? (
+                    <LoadingLine width={120} height={28} radius="md" />
+                  ) : (
+                    formatCurrencyFromCents(projectActualCents, currencyCode)
+                  )}
                 </Text>
                 {isLoading ? (
                   <>
@@ -643,11 +749,21 @@ export default function BudgetPanel(props: {
                   </>
                 ) : (
                   <>
-                    <Text size="sm" c={actualCoveragePct > 100 ? 'red' : 'dimmed'}>
+                    <Text
+                      size="sm"
+                      c={actualCoveragePct > 100 ? 'red' : 'dimmed'}
+                    >
                       {actualCoveragePct.toFixed(1)}% of project budget
                     </Text>
-                    <Text size="sm" c={projectVsActualCents < 0 ? 'red' : 'dimmed'}>
-                      budget headroom: {formatCurrencyFromCents(projectVsActualCents, currencyCode)}
+                    <Text
+                      size="sm"
+                      c={projectVsActualCents < 0 ? 'red' : 'dimmed'}
+                    >
+                      budget headroom:{' '}
+                      {formatCurrencyFromCents(
+                        projectVsActualCents,
+                        currencyCode
+                      )}
                     </Text>
                   </>
                 )}
@@ -659,8 +775,17 @@ export default function BudgetPanel(props: {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Remaining
                 </Text>
-                <Text component="div" fw={800} size="lg" c={projectRemainingCents < 0 ? 'red' : undefined}>
-                  {isLoading ? <LoadingLine width={120} height={28} radius="md" /> : formatCurrencyFromCents(projectRemainingCents, currencyCode)}
+                <Text
+                  component="div"
+                  fw={800}
+                  size="lg"
+                  c={projectRemainingCents < 0 ? 'red' : undefined}
+                >
+                  {isLoading ? (
+                    <LoadingLine width={120} height={28} radius="md" />
+                  ) : (
+                    formatCurrencyFromCents(projectRemainingCents, currencyCode)
+                  )}
                 </Text>
                 {isLoading ? (
                   <>
@@ -669,11 +794,22 @@ export default function BudgetPanel(props: {
                   </>
                 ) : (
                   <>
-                    <Text size="sm" c={remainingAfterUncodedCents < 0 ? 'red' : 'dimmed'}>
-                      after uncoded: {formatCurrencyFromCents(remainingAfterUncodedCents, currencyCode)}
+                    <Text
+                      size="sm"
+                      c={remainingAfterUncodedCents < 0 ? 'red' : 'dimmed'}
+                    >
+                      after uncoded:{' '}
+                      {formatCurrencyFromCents(
+                        remainingAfterUncodedCents,
+                        currencyCode
+                      )}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      uncoded impact: {formatCurrencyFromCents(uncodedSummary.amountCents, currencyCode)}
+                      uncoded impact:{' '}
+                      {formatCurrencyFromCents(
+                        uncodedSummary.amountCents,
+                        currencyCode
+                      )}
                     </Text>
                   </>
                 )}
@@ -691,7 +827,6 @@ export default function BudgetPanel(props: {
               .
             </Alert>
           ) : null}
-
         </Stack>
       </Paper>
 
@@ -727,7 +862,10 @@ export default function BudgetPanel(props: {
                         checked={userColumnVisibility[yearId] ?? true}
                         label={`${year} Total`}
                         onChange={(event) =>
-                          toggleYearVisibility(year, event.currentTarget.checked)
+                          toggleYearVisibility(
+                            year,
+                            event.currentTarget.checked
+                          )
                         }
                       />
                       {entry.quarterIds.map((quarterId) => (

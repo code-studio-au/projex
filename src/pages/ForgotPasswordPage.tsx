@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
         const parsed = apiMessageResponseSchema.safeParse(body);
         setError(
           parsed.success
-            ? parsed.data.message ?? 'Could not request a password reset.'
+            ? (parsed.data.message ?? 'Could not request a password reset.')
             : 'Could not request a password reset.'
         );
         return;
@@ -56,7 +56,11 @@ export default function ForgotPasswordPage() {
         'If that email exists, a password reset email is on its way. Check spam or junk if it does not appear soon, and use the newest email if you requested more than one.'
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not request a password reset.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not request a password reset.'
+      );
     } finally {
       setPending(false);
     }
@@ -68,7 +72,8 @@ export default function ForgotPasswordPage() {
         <Stack gap="md">
           <Title order={3}>Forgot Password</Title>
           <Text c="dimmed">
-            Enter your email and we&apos;ll send a password reset email if the account exists.
+            Enter your email and we&apos;ll send a password reset email if the
+            account exists.
           </Text>
           {error ? <Alert color="red">{error}</Alert> : null}
           {success ? <Alert color="green">{success}</Alert> : null}
@@ -80,10 +85,17 @@ export default function ForgotPasswordPage() {
             required
           />
           <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-            <Button variant="light" onClick={() => router.navigate({ to: loginRoute.to })}>
+            <Button
+              variant="light"
+              onClick={() => router.navigate({ to: loginRoute.to })}
+            >
               Back to sign in
             </Button>
-            <Button onClick={handleSubmit} loading={pending} disabled={!email.trim()}>
+            <Button
+              onClick={handleSubmit}
+              loading={pending}
+              disabled={!email.trim()}
+            >
               Send reset link
             </Button>
           </Group>

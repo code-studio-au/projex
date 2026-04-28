@@ -51,12 +51,15 @@ export default function AccountPage() {
     [userId, usersQ.data]
   );
   const myMemberships = useMemo(() => {
-    const companyNameById = new Map((companiesQ.data ?? []).map((company) => [company.id, company.name]));
+    const companyNameById = new Map(
+      (companiesQ.data ?? []).map((company) => [company.id, company.name])
+    );
     return (membershipsQ.data ?? [])
       .filter((membership) => membership.userId === userId)
       .map((membership) => ({
         ...membership,
-        companyName: companyNameById.get(membership.companyId) ?? membership.companyId,
+        companyName:
+          companyNameById.get(membership.companyId) ?? membership.companyId,
       }))
       .sort((a, b) => a.companyName.localeCompare(b.companyName));
   }, [companiesQ.data, membershipsQ.data, userId]);
@@ -66,9 +69,13 @@ export default function AccountPage() {
   const [profileError, setProfileError] = useState<string | null>(null);
 
   const [newEmail, setNewEmail] = useState('');
-  const [emailChangeMessage, setEmailChangeMessage] = useState<string | null>(null);
+  const [emailChangeMessage, setEmailChangeMessage] = useState<string | null>(
+    null
+  );
   const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
-  const [emailActivity, setEmailActivity] = useState<EmailActivity | null>(null);
+  const [emailActivity, setEmailActivity] = useState<EmailActivity | null>(
+    null
+  );
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -89,7 +96,11 @@ export default function AccountPage() {
       await updateProfile.mutateAsync({ name: name.trim() });
       setProfileMessage('Your display name was updated.');
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'Could not update your display name.');
+      setProfileError(
+        err instanceof Error
+          ? err.message
+          : 'Could not update your display name.'
+      );
     }
   }
 
@@ -98,7 +109,9 @@ export default function AccountPage() {
     setEmailChangeMessage(null);
     setEmailChangeError(null);
     try {
-      const result = await requestEmailChange.mutateAsync({ newEmail: newEmail.trim() });
+      const result = await requestEmailChange.mutateAsync({
+        newEmail: newEmail.trim(),
+      });
       setEmailChangeMessage(
         result.delivery === 'log'
           ? `Email delivery is not configured, so the verification link for ${result.newEmail} was logged on the server.`
@@ -111,7 +124,11 @@ export default function AccountPage() {
       });
       setNewEmail('');
     } catch (err) {
-      setEmailChangeError(err instanceof Error ? err.message : 'Could not start the email change flow.');
+      setEmailChangeError(
+        err instanceof Error
+          ? err.message
+          : 'Could not start the email change flow.'
+      );
     }
   }
 
@@ -131,7 +148,11 @@ export default function AccountPage() {
         at: new Date().toISOString(),
       });
     } catch (err) {
-      setEmailChangeError(err instanceof Error ? err.message : 'Could not resend the verification email.');
+      setEmailChangeError(
+        err instanceof Error
+          ? err.message
+          : 'Could not resend the verification email.'
+      );
     }
   }
 
@@ -140,14 +161,20 @@ export default function AccountPage() {
     setEmailChangeError(null);
     try {
       await cancelEmailChange.mutateAsync();
-      setEmailChangeMessage('The pending email change was cancelled. Your login email will stay unchanged unless you start a new request.');
+      setEmailChangeMessage(
+        'The pending email change was cancelled. Your login email will stay unchanged unless you start a new request.'
+      );
       setEmailActivity({
         kind: 'cancelled',
         message: 'Pending email change cancelled',
         at: new Date().toISOString(),
       });
     } catch (err) {
-      setEmailChangeError(err instanceof Error ? err.message : 'Could not cancel the pending email change.');
+      setEmailChangeError(
+        err instanceof Error
+          ? err.message
+          : 'Could not cancel the pending email change.'
+      );
     }
   }
 
@@ -178,7 +205,7 @@ export default function AccountPage() {
       if (!res.ok) {
         const parsed = apiMessageResponseSchema.safeParse(body);
         const message = parsed.success
-          ? parsed.data.message ?? 'Could not change password.'
+          ? (parsed.data.message ?? 'Could not change password.')
           : 'Could not change password.';
         throw new Error(message);
       }
@@ -188,7 +215,9 @@ export default function AccountPage() {
       setConfirmPassword('');
       setPasswordMessage('Your password was updated.');
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : 'Could not change password.');
+      setPasswordError(
+        err instanceof Error ? err.message : 'Could not change password.'
+      );
     } finally {
       setPasswordPending(false);
     }
@@ -208,7 +237,9 @@ export default function AccountPage() {
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="md">
           <Title order={4}>Profile</Title>
-          {profileMessage ? <Alert color="green">{profileMessage}</Alert> : null}
+          {profileMessage ? (
+            <Alert color="green">{profileMessage}</Alert>
+          ) : null}
           {profileError ? <Alert color="red">{profileError}</Alert> : null}
           <TextInput
             label="Display name"
@@ -219,7 +250,9 @@ export default function AccountPage() {
             <Button
               onClick={handleProfileSave}
               loading={updateProfile.isPending}
-              disabled={!name.trim() || name.trim() === (currentUser?.name ?? '')}
+              disabled={
+                !name.trim() || name.trim() === (currentUser?.name ?? '')
+              }
             >
               Save profile
             </Button>
@@ -227,13 +260,21 @@ export default function AccountPage() {
         </Stack>
       </Paper>
 
-
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="md">
           <Title order={4}>Email</Title>
-          <TextInput label="Current email" value={currentUser?.email ?? ''} readOnly disabled />
-          {emailChangeMessage ? <Alert color="green">{emailChangeMessage}</Alert> : null}
-          {emailChangeError ? <Alert color="red">{emailChangeError}</Alert> : null}
+          <TextInput
+            label="Current email"
+            value={currentUser?.email ?? ''}
+            readOnly
+            disabled
+          />
+          {emailChangeMessage ? (
+            <Alert color="green">{emailChangeMessage}</Alert>
+          ) : null}
+          {emailChangeError ? (
+            <Alert color="red">{emailChangeError}</Alert>
+          ) : null}
           {pendingEmailChangeQ.isLoading ? (
             <Text size="sm" c="dimmed">
               Checking for a pending email change...
@@ -247,13 +288,16 @@ export default function AccountPage() {
                   New email: {pendingEmailChangeQ.data.newEmail}
                 </Text>
                 <Text size="sm" c="dimmed">
-                  Requested: {formatDateTime(pendingEmailChangeQ.data.requestedAt)}
+                  Requested:{' '}
+                  {formatDateTime(pendingEmailChangeQ.data.requestedAt)}
                 </Text>
                 <Text size="sm" c="dimmed">
                   Expires: {formatDateTime(pendingEmailChangeQ.data.expiresAt)}
                 </Text>
                 <Text size="sm" c="dimmed">
-                  Check spam or junk if the email does not appear quickly. If you want to use a different email address, cancel this pending change first.
+                  Check spam or junk if the email does not appear quickly. If
+                  you want to use a different email address, cancel this pending
+                  change first.
                 </Text>
                 <Group gap="sm" align="center">
                   <Button
@@ -287,7 +331,8 @@ export default function AccountPage() {
             </Alert>
           ) : null}
           <Text size="sm" c="dimmed">
-            Your current login email remains active until you confirm the new address from your inbox.
+            Your current login email remains active until you confirm the new
+            address from your inbox.
           </Text>
           <TextInput
             label="New email"
@@ -311,7 +356,9 @@ export default function AccountPage() {
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="md">
           <Title order={4}>Password</Title>
-          {passwordMessage ? <Alert color="green">{passwordMessage}</Alert> : null}
+          {passwordMessage ? (
+            <Alert color="green">{passwordMessage}</Alert>
+          ) : null}
           {passwordError ? <Alert color="red">{passwordError}</Alert> : null}
           <PasswordInput
             label="Current password"
@@ -348,7 +395,11 @@ export default function AccountPage() {
           <Title order={4}>Company access</Title>
           {myMemberships.length ? (
             myMemberships.map((membership) => (
-              <Group key={`${membership.companyId}:${membership.role}`} justify="space-between" wrap="wrap">
+              <Group
+                key={`${membership.companyId}:${membership.role}`}
+                justify="space-between"
+                wrap="wrap"
+              >
                 <Stack gap={0}>
                   <Text fw={600}>{membership.companyName}</Text>
                   <Text size="sm" c="dimmed">
@@ -359,7 +410,9 @@ export default function AccountPage() {
               </Group>
             ))
           ) : (
-            <Text c="dimmed">No company memberships found for this account.</Text>
+            <Text c="dimmed">
+              No company memberships found for this account.
+            </Text>
           )}
         </Stack>
       </Paper>

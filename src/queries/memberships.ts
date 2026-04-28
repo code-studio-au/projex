@@ -68,10 +68,14 @@ export function useUpsertCompanyMembershipMutation(companyId: CompanyId) {
       api.upsertCompanyMembership(companyId, vars.userId, vars.role),
     onSuccess: () => {
       // Membership changes affect company settings and project visibility/listing.
-      qc.invalidateQueries({ queryKey: qk.companyMemberships(scopeUserId, companyId) });
+      qc.invalidateQueries({
+        queryKey: qk.companyMemberships(scopeUserId, companyId),
+      });
       qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
       qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
-      qc.invalidateQueries({ queryKey: qk.myProjectMemberships(scopeUserId, companyId) });
+      qc.invalidateQueries({
+        queryKey: qk.myProjectMemberships(scopeUserId, companyId),
+      });
     },
   });
 }
@@ -82,12 +86,17 @@ export function useDeleteCompanyMembershipMutation(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
 
   return useMutation({
-    mutationFn: (userId: UserId) => api.deleteCompanyMembership(companyId, userId),
+    mutationFn: (userId: UserId) =>
+      api.deleteCompanyMembership(companyId, userId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.companyMemberships(scopeUserId, companyId) });
+      qc.invalidateQueries({
+        queryKey: qk.companyMemberships(scopeUserId, companyId),
+      });
       qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
       qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
-      qc.invalidateQueries({ queryKey: qk.myProjectMemberships(scopeUserId, companyId) });
+      qc.invalidateQueries({
+        queryKey: qk.myProjectMemberships(scopeUserId, companyId),
+      });
     },
   });
 }
@@ -101,13 +110,17 @@ export function useUpsertProjectMembershipMutation(projectId: ProjectId) {
     mutationFn: (vars: { userId: UserId; role: ProjectRole }) =>
       api.upsertProjectMembership(projectId, vars.userId, vars.role),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.projectMemberships(scopeUserId, projectId) });
+      qc.invalidateQueries({
+        queryKey: qk.projectMemberships(scopeUserId, projectId),
+      });
 
       // Project membership changes can affect access/visibility across lists.
       qc.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) &&
-          ['myProjectMemberships', 'projects', 'project'].includes(String(q.queryKey[0])),
+          ['myProjectMemberships', 'projects', 'project'].includes(
+            String(q.queryKey[0])
+          ),
       });
     },
   });
@@ -122,11 +135,15 @@ export function useDeleteProjectMembershipMutation(projectId: ProjectId) {
     mutationFn: (vars: { userId: UserId; role: ProjectRole }) =>
       api.deleteProjectMembership(projectId, vars.userId, vars.role),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.projectMemberships(scopeUserId, projectId) });
+      qc.invalidateQueries({
+        queryKey: qk.projectMemberships(scopeUserId, projectId),
+      });
       qc.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) &&
-          ['myProjectMemberships', 'projects', 'project'].includes(String(q.queryKey[0])),
+          ['myProjectMemberships', 'projects', 'project'].includes(
+            String(q.queryKey[0])
+          ),
       });
     },
   });

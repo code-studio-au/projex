@@ -9,10 +9,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import {
-  MantineReactTable,
-  type MRT_ColumnDef,
-} from 'mantine-react-table';
+import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 
 import type { CompanyId, Project } from '../types';
 import { formatCurrencyFromCents } from '../utils/money';
@@ -56,10 +53,13 @@ function monthKeyMatchesFilters(args: {
   return quarterFromMonthNumber(Number(monthKey.slice(5, 7))) === quarterFilter;
 }
 
-function filteredBudgetCents(projectBudgetCents: number, args: {
-  quarterFilter: QuarterOption | null;
-  monthFilterKey: string | null;
-}) {
+function filteredBudgetCents(
+  projectBudgetCents: number,
+  args: {
+    quarterFilter: QuarterOption | null;
+    monthFilterKey: string | null;
+  }
+) {
   const { quarterFilter, monthFilterKey } = args;
   const visibleMonthCount = monthFilterKey ? 1 : quarterFilter ? 3 : 12;
   return Math.round((projectBudgetCents * visibleMonthCount) / 12);
@@ -67,10 +67,12 @@ function filteredBudgetCents(projectBudgetCents: number, args: {
 
 function formatCurrencyGroups(groups: Map<Project['currency'], number>) {
   if (groups.size === 0) return '—';
-  return [...groups.entries()]
-    .filter(([, amount]) => amount !== 0)
-    .map(([currency, amount]) => formatCurrencyFromCents(amount, currency))
-    .join(' • ') || '—';
+  return (
+    [...groups.entries()]
+      .filter(([, amount]) => amount !== 0)
+      .map(([currency, amount]) => formatCurrencyFromCents(amount, currency))
+      .join(' • ') || '—'
+  );
 }
 
 function totalsByCurrency(
@@ -155,7 +157,9 @@ export default function CompanySummaryPanel(props: {
   const { companyId, isMobile = false } = props;
   const companySummaryQ = useCompanySummaryQuery(companyId);
   const [yearFilter, setYearFilter] = useState<string | null>(null);
-  const [quarterFilter, setQuarterFilter] = useState<QuarterOption | null>(null);
+  const [quarterFilter, setQuarterFilter] = useState<QuarterOption | null>(
+    null
+  );
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(null);
   const summaryProjects = useMemo(
     () => companySummaryQ.data?.projects ?? [],
@@ -181,7 +185,9 @@ export default function CompanySummaryPanel(props: {
   }, [allMonthKeys]);
 
   const quarterFilterOptions = useMemo(() => {
-    const filteredMonths = allMonthKeys.filter((key) => !yearFilter || key.startsWith(`${yearFilter}-`));
+    const filteredMonths = allMonthKeys.filter(
+      (key) => !yearFilter || key.startsWith(`${yearFilter}-`)
+    );
     const quarters = new Set(
       filteredMonths.map((key) => {
         return quarterFromMonthNumber(Number(key.slice(5, 7)));
@@ -197,7 +203,9 @@ export default function CompanySummaryPanel(props: {
       .filter((key) => {
         if (yearFilter && !key.startsWith(`${yearFilter}-`)) return false;
         if (!quarterFilter) return true;
-        return quarterFromMonthNumber(Number(key.slice(5, 7))) === quarterFilter;
+        return (
+          quarterFromMonthNumber(Number(key.slice(5, 7))) === quarterFilter
+        );
       })
       .map((value) => ({ value, label: value }));
   }, [allMonthKeys, quarterFilter, yearFilter]);
@@ -213,9 +221,15 @@ export default function CompanySummaryPanel(props: {
         })
       );
 
-      const actualCodedCents = sum(visibleMonths.map((month) => month.actualCodedCents));
-      const uncodedCount = sum(visibleMonths.map((month) => month.uncodedCount));
-      const uncodedAmountCents = sum(visibleMonths.map((month) => month.uncodedAmountCents));
+      const actualCodedCents = sum(
+        visibleMonths.map((month) => month.actualCodedCents)
+      );
+      const uncodedCount = sum(
+        visibleMonths.map((month) => month.uncodedCount)
+      );
+      const uncodedAmountCents = sum(
+        visibleMonths.map((month) => month.uncodedAmountCents)
+      );
       const budgetCents = filteredBudgetCents(project.budgetCents, {
         quarterFilter,
         monthFilterKey,
@@ -244,8 +258,12 @@ export default function CompanySummaryPanel(props: {
   const summary = useMemo(
     () => ({
       activeProjects: activeRows.length,
-      totalBudget: formatCurrencyGroups(totalsByCurrency(activeRows, (row) => row.budgetCents)),
-      totalActual: formatCurrencyGroups(totalsByCurrency(activeRows, (row) => row.actualCodedCents)),
+      totalBudget: formatCurrencyGroups(
+        totalsByCurrency(activeRows, (row) => row.budgetCents)
+      ),
+      totalActual: formatCurrencyGroups(
+        totalsByCurrency(activeRows, (row) => row.actualCodedCents)
+      ),
       totalRemaining: formatCurrencyGroups(
         totalsByCurrency(activeRows, (row) => row.remainingCents)
       ),
@@ -291,7 +309,10 @@ export default function CompanySummaryPanel(props: {
             tab="budget"
             focus="budget"
           >
-            {formatCurrencyFromCents(row.original.budgetCents, row.original.currency)}
+            {formatCurrencyFromCents(
+              row.original.budgetCents,
+              row.original.currency
+            )}
           </SummaryDrilldownLink>
         ),
       },
@@ -309,7 +330,10 @@ export default function CompanySummaryPanel(props: {
             tab="transactions"
             focus="actual"
           >
-            {formatCurrencyFromCents(row.original.actualCodedCents, row.original.currency)}
+            {formatCurrencyFromCents(
+              row.original.actualCodedCents,
+              row.original.currency
+            )}
           </SummaryDrilldownLink>
         ),
       },
@@ -328,7 +352,10 @@ export default function CompanySummaryPanel(props: {
             focus="remaining"
             color={row.original.remainingCents < 0 ? 'red.7' : 'blue.7'}
           >
-            {formatCurrencyFromCents(row.original.remainingCents, row.original.currency)}
+            {formatCurrencyFromCents(
+              row.original.remainingCents,
+              row.original.currency
+            )}
           </SummaryDrilldownLink>
         ),
       },
@@ -372,10 +399,16 @@ export default function CompanySummaryPanel(props: {
               focus="uncoded"
               color="yellow.8"
             >
-              {formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency)}
+              {formatCurrencyFromCents(
+                row.original.uncodedAmountCents,
+                row.original.currency
+              )}
             </SummaryDrilldownLink>
           ) : (
-            formatCurrencyFromCents(row.original.uncodedAmountCents, row.original.currency)
+            formatCurrencyFromCents(
+              row.original.uncodedAmountCents,
+              row.original.currency
+            )
           ),
       },
       {
@@ -448,7 +481,10 @@ export default function CompanySummaryPanel(props: {
         header: 'Status',
         size: 96,
         Cell: ({ row }) => (
-          <Badge variant="light" color={row.original.status === 'active' ? 'green' : 'gray'}>
+          <Badge
+            variant="light"
+            color={row.original.status === 'active' ? 'green' : 'gray'}
+          >
             {row.original.status === 'active' ? 'Active' : 'Archived'}
           </Badge>
         ),
@@ -510,7 +546,8 @@ export default function CompanySummaryPanel(props: {
           </SimpleGrid>
           {monthFilterKey || quarterFilter || yearFilter ? (
             <Text size="xs" c="dimmed">
-              Budget, actual, remaining, and uncoded totals reflect the selected time filter.
+              Budget, actual, remaining, and uncoded totals reflect the selected
+              time filter.
             </Text>
           ) : null}
         </Stack>
@@ -572,7 +609,9 @@ export default function CompanySummaryPanel(props: {
           columns={columns}
           data={rows}
           getRowId={(row) => row.id}
-          mantineTableContainerProps={{ className: 'financeTable companySummaryTable' }}
+          mantineTableContainerProps={{
+            className: 'financeTable companySummaryTable',
+          }}
           enableColumnActions={false}
           enableColumnFilters={false}
           enableDensityToggle={false}
@@ -597,7 +636,9 @@ export default function CompanySummaryPanel(props: {
         />
       ) : (
         <Paper withBorder radius="lg" p="lg">
-          <Text c="dimmed">No accessible projects are available to summarize yet.</Text>
+          <Text c="dimmed">
+            No accessible projects are available to summarize yet.
+          </Text>
         </Paper>
       )}
     </Stack>

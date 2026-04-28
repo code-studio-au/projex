@@ -2,12 +2,28 @@ import { randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
 
 import { AppError } from '../../api/errors';
-import type { CompanyUpdateInput, CompanyUserInviteResult, ProfileUpdateInput } from '../../api/types';
-import type { Company, CompanyId, CompanyRole, CompanySummary, ProjectId, User, UserId } from '../../types';
+import type {
+  CompanyUpdateInput,
+  CompanyUserInviteResult,
+  ProfileUpdateInput,
+} from '../../api/types';
+import type {
+  Company,
+  CompanyId,
+  CompanyRole,
+  CompanySummary,
+  ProjectId,
+  User,
+  UserId,
+} from '../../types';
 import { asCompanyId, asUserId } from '../../types';
 import { buildCompanySummaryProjects } from '../../utils/companySummary';
 import { uid } from '../../utils/id';
-import { companyNameSchema, emailSchema, userNameSchema } from '../../validation/schemas';
+import {
+  companyNameSchema,
+  emailSchema,
+  userNameSchema,
+} from '../../validation/schemas';
 import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas';
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
@@ -50,7 +66,9 @@ type BetterAuthUserRow = {
   name: string;
 };
 
-async function findBetterAuthUserByEmail(emailNorm: string): Promise<BetterAuthUserRow | null> {
+async function findBetterAuthUserByEmail(
+  emailNorm: string
+): Promise<BetterAuthUserRow | null> {
   const db = getDb();
   const result = await sql<BetterAuthUserRow>`
     select id, email, name
@@ -61,7 +79,10 @@ async function findBetterAuthUserByEmail(emailNorm: string): Promise<BetterAuthU
   return result.rows[0] ?? null;
 }
 
-async function createBetterAuthUser(email: string, name: string): Promise<BetterAuthUserRow> {
+async function createBetterAuthUser(
+  email: string,
+  name: string
+): Promise<BetterAuthUserRow> {
   const auth = getBetterAuthInstance();
   const response = await auth.api.signUpEmail({
     body: {
@@ -92,7 +113,9 @@ function getResetPasswordRedirectUrl(): string {
   return new URL('/reset-password', base).toString();
 }
 
-async function requestPasswordSetupEmail(email: string): Promise<'email' | 'log'> {
+async function requestPasswordSetupEmail(
+  email: string
+): Promise<'email' | 'log'> {
   const base = process.env.BETTER_AUTH_URL?.trim();
   if (!base) {
     throw new AppError(
@@ -187,7 +210,10 @@ async function reconcileAppUserToAuthIdentity(args: {
     .where('id', '=', args.authUser.id)
     .executeTakeFirst();
 
-  if (conflictingById && conflictingById.email.trim().toLowerCase() !== emailNorm) {
+  if (
+    conflictingById &&
+    conflictingById.email.trim().toLowerCase() !== emailNorm
+  ) {
     throw new AppError(
       'CONFLICT',
       'A different app user already uses the BetterAuth account id for this email'
@@ -231,7 +257,10 @@ async function reconcileAppUserToAuthIdentity(args: {
       set role = excluded.role
     `.execute(trx);
 
-    await trx.deleteFrom('users').where('id', '=', existingByEmail.id).execute();
+    await trx
+      .deleteFrom('users')
+      .where('id', '=', existingByEmail.id)
+      .execute();
   });
 
   return {
@@ -312,20 +341,31 @@ export async function getCompanySummaryServer(args: {
     const db = getDb();
     const userId = await requireServerUserId(args.context);
     const isSuperadmin = await isGlobalSuperadminUser(userId, db);
-    const companyRole = (
-      await db
-        .selectFrom('company_memberships')
-        .select('role')
-        .where('company_id', '=', args.companyId)
-        .where('user_id', '=', userId)
-        .executeTakeFirst()
-    )?.role ?? null;
+    const companyRole =
+      (
+        await db
+          .selectFrom('company_memberships')
+          .select('role')
+          .where('company_id', '=', args.companyId)
+          .where('user_id', '=', userId)
+          .executeTakeFirst()
+      )?.role ?? null;
 
-    if (!isSuperadmin && companyRole !== 'admin' && companyRole !== 'executive') {
-      throw new AppError('FORBIDDEN', 'Company summary access requires admin or executive role');
+    if (
+      !isSuperadmin &&
+      companyRole !== 'admin' &&
+      companyRole !== 'executive'
+    ) {
+      throw new AppError(
+        'FORBIDDEN',
+        'Company summary access requires admin or executive role'
+      );
     }
 
-    const projects = await listProjectsServer({ context: args.context, companyId: args.companyId });
+    const projects = await listProjectsServer({
+      context: args.context,
+      companyId: args.companyId,
+    });
     if (!projects.length) return { projects: [] };
 
     const projectIds = projects.map((project) => project.id);
@@ -400,9 +440,21 @@ export async function listUsersServer(args: {
     const rows = await db
       .selectFrom('users as u')
       .innerJoin('company_memberships as m', 'm.user_id', 'u.id')
-      .select(['u.id', 'u.email', 'u.name', 'u.disabled', 'u.is_global_superadmin'])
+      .select([
+        'u.id',
+        'u.email',
+        'u.name',
+        'u.disabled',
+        'u.is_global_superadmin',
+      ])
       .where('m.company_id', 'in', companyIds)
-      .groupBy(['u.id', 'u.email', 'u.name', 'u.disabled', 'u.is_global_superadmin'])
+      .groupBy([
+        'u.id',
+        'u.email',
+        'u.name',
+        'u.disabled',
+        'u.is_global_superadmin',
+      ])
       .orderBy('u.name', 'asc')
       .execute();
 
@@ -432,8 +484,7 @@ export async function getDefaultCompanyIdForUserServer(args: {
         .orderBy('id', 'asc')
         .execute();
       const preferred =
-        companies.find((c) => c.status === 'active') ??
-        companies[0];
+        companies.find((c) => c.status === 'active') ?? companies[0];
       return preferred ? asCompanyId(preferred.id) : null;
     }
 
@@ -447,7 +498,10 @@ export async function getDefaultCompanyIdForUserServer(args: {
 
     const ranked = memberships
       .slice()
-      .sort((a, b) => (COMPANY_ROLE_RANK[b.role] ?? 0) - (COMPANY_ROLE_RANK[a.role] ?? 0));
+      .sort(
+        (a, b) =>
+          (COMPANY_ROLE_RANK[b.role] ?? 0) - (COMPANY_ROLE_RANK[a.role] ?? 0)
+      );
 
     const activePrimary = ranked.find((m) => m.status === 'active');
     if (activePrimary) return asCompanyId(activePrimary.company_id);
@@ -555,7 +609,8 @@ export async function createUserInCompanyServer(args: {
       )
       .execute();
 
-    const shouldSendOnboardingEmail = createdAuthUser || !!args.sendOnboardingEmail;
+    const shouldSendOnboardingEmail =
+      createdAuthUser || !!args.sendOnboardingEmail;
     const onboardingDelivery = shouldSendOnboardingEmail
       ? await requestPasswordSetupEmail(trimmedEmail)
       : 'none';
@@ -605,7 +660,9 @@ export async function sendCompanyUserInviteEmailServer(args: {
       throw new AppError('NOT_FOUND', 'User not found');
     }
 
-    const onboardingDelivery = await requestPasswordSetupEmail(user.email.trim());
+    const onboardingDelivery = await requestPasswordSetupEmail(
+      user.email.trim()
+    );
     return {
       user: {
         id: asUserId(user.id),
@@ -693,7 +750,8 @@ export async function updateCompanyServer(args: {
     }
 
     const patch: Record<string, unknown> = {};
-    if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
+    if (typeof args.input.name === 'string')
+      patch.name = args.input.name.trim();
     if (!Object.keys(patch).length) return toCompany(existing);
 
     const updated = await db
@@ -836,11 +894,17 @@ export async function deleteCompanyServer(args: {
       .executeTakeFirst();
     if (!company) throw new AppError('NOT_FOUND', 'Company not found');
     if (company.status !== 'deactivated') {
-      throw new AppError('VALIDATION_ERROR', 'Company must be deactivated before deletion');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Company must be deactivated before deletion'
+      );
     }
 
     await db.transaction().execute(async (trx) => {
-      await trx.deleteFrom('companies').where('id', '=', args.companyId).execute();
+      await trx
+        .deleteFrom('companies')
+        .where('id', '=', args.companyId)
+        .execute();
 
       await trx
         .deleteFrom('users')

@@ -18,11 +18,7 @@ import {
 } from 'mantine-react-table';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
-import {
-  monthKeyFromStart,
-  monthStart,
-  parseISODate,
-} from '../utils/finance';
+import { monthKeyFromStart, monthStart, parseISODate } from '../utils/finance';
 import { formatCurrencyFromCents } from '../utils/money';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
@@ -111,7 +107,8 @@ export default function TransactionsPanel(props: {
           const mk = monthKeyFromStart(monthStart(parseISODate(t.date)));
           const year = mk.slice(0, 4);
           const month = Number(mk.slice(5, 7));
-          const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+          const quarter =
+            month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
           if (yearFilter && year !== yearFilter) return false;
           if (quarterFilter && quarter !== quarterFilter) return false;
           return true;
@@ -153,10 +150,16 @@ export default function TransactionsPanel(props: {
   );
 
   function moveToSubcategoryCell(args: {
-    row: Parameters<NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>>[0]['row'];
-    table: Parameters<NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>>[0]['table'];
+    row: Parameters<
+      NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>
+    >[0]['row'];
+    table: Parameters<
+      NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>
+    >[0]['table'];
   }) {
-    const nextCell = args.row.getAllCells().find((cell) => cell.column.id === 'subCategory');
+    const nextCell = args.row
+      .getAllCells()
+      .find((cell) => cell.column.id === 'subCategory');
     args.table.setEditingCell(nextCell ?? null);
   }
 
@@ -171,7 +174,9 @@ export default function TransactionsPanel(props: {
         className: 'table-head-cell table-head-left txnTable-head',
       },
       mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      Cell: ({ cell }) => <Text className="table-body-left">{cell.getValue<string>()}</Text>,
+      Cell: ({ cell }) => (
+        <Text className="table-body-left">{cell.getValue<string>()}</Text>
+      ),
     },
     {
       accessorKey: 'item',
@@ -181,13 +186,17 @@ export default function TransactionsPanel(props: {
         className: 'table-head-cell table-head-left txnTable-head',
       },
       mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      Cell: ({ cell }) => <Text className="table-body-left">{cell.getValue<string>()}</Text>,
+      Cell: ({ cell }) => (
+        <Text className="table-body-left">{cell.getValue<string>()}</Text>
+      ),
     },
     {
       accessorKey: 'description',
       header: 'Description',
       size: 240,
-      Cell: ({ cell }) => <Text className="table-body-left">{cell.getValue<string>()}</Text>,
+      Cell: ({ cell }) => (
+        <Text className="table-body-left">{cell.getValue<string>()}</Text>
+      ),
       mantineTableHeadCellProps: {
         className: 'table-head-cell table-head-left txnTable-head',
       },
@@ -202,7 +211,9 @@ export default function TransactionsPanel(props: {
           {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
         </Text>
       ),
-      mantineTableBodyCellProps: { className: 'table-body-right txnTable-cell' },
+      mantineTableBodyCellProps: {
+        className: 'table-body-right txnTable-cell',
+      },
       mantineTableHeadCellProps: {
         className: 'table-head-cell table-head-right txnTable-head',
       },
@@ -216,7 +227,8 @@ export default function TransactionsPanel(props: {
       Edit: ({ row, table }) => {
         const current = row.original.categoryId ?? null;
         const shouldAutoAdvance =
-          !row.original.subCategoryId || !taxonomy.validSubIds.has(row.original.subCategoryId);
+          !row.original.subCategoryId ||
+          !taxonomy.validSubIds.has(row.original.subCategoryId);
         return (
           <Select
             data={taxonomy.categoryOptions}
@@ -316,8 +328,10 @@ export default function TransactionsPanel(props: {
       enableSorting: false,
       Cell: ({ row }) => {
         const hasValidSubCategory =
-          !!row.original.subCategoryId && taxonomy.validSubIds.has(row.original.subCategoryId);
-        if (!row.original.codingPendingApproval || !hasValidSubCategory) return null;
+          !!row.original.subCategoryId &&
+          taxonomy.validSubIds.has(row.original.subCategoryId);
+        if (!row.original.codingPendingApproval || !hasValidSubCategory)
+          return null;
         return (
           <Group gap="xs" wrap="wrap">
             <Badge color="yellow" variant="light">
@@ -372,7 +386,9 @@ export default function TransactionsPanel(props: {
             clearable
             disabled={!yearFilter}
             onChange={(value) => {
-              setQuarterFilter((value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null);
+              setQuarterFilter(
+                (value as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null) ?? null
+              );
               setMonthFilterKey(null);
             }}
             style={{ width: isMobile ? '100%' : 150 }}
@@ -403,7 +419,10 @@ export default function TransactionsPanel(props: {
             <Group gap="sm" align="center" wrap="wrap">
               <Title order={5}>Transaction coding</Title>
               <Badge variant="light">{filteredTxns.length} shown</Badge>
-              <Badge variant="light" color={autoMappedPendingTxns.length > 0 ? 'yellow' : 'gray'}>
+              <Badge
+                variant="light"
+                color={autoMappedPendingTxns.length > 0 ? 'yellow' : 'gray'}
+              >
                 {autoMappedPendingTxns.length} pending
               </Badge>
             </Group>
@@ -414,7 +433,10 @@ export default function TransactionsPanel(props: {
                 data={[
                   { value: 'all', label: 'All' },
                   { value: 'uncoded', label: 'Uncoded only' },
-                  { value: 'auto-mapped-pending', label: 'Auto-mapped pending approval' },
+                  {
+                    value: 'auto-mapped-pending',
+                    label: 'Auto-mapped pending approval',
+                  },
                 ]}
                 value={transactionView}
                 onChange={(v) =>
@@ -454,8 +476,8 @@ export default function TransactionsPanel(props: {
 
           {invalidDateCount > 0 && (
             <Text size="sm" c="dimmed">
-              {invalidDateCount} transaction(s) have invalid dates and may be excluded from
-              month filters or rollups.
+              {invalidDateCount} transaction(s) have invalid dates and may be
+              excluded from month filters or rollups.
             </Text>
           )}
         </Stack>

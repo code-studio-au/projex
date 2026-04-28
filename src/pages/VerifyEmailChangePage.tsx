@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Anchor, Button, Paper, Stack, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Anchor,
+  Button,
+  Paper,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { z } from 'zod';
 
 import {
@@ -15,7 +23,9 @@ type ConfirmState =
 export default function VerifyEmailChangePage() {
   const token = useMemo(() => {
     if (typeof window === 'undefined') return '';
-    return new URLSearchParams(window.location.search).get('token')?.trim() ?? '';
+    return (
+      new URLSearchParams(window.location.search).get('token')?.trim() ?? ''
+    );
   }, []);
   const [state, setState] = useState<ConfirmState>({ status: 'loading' });
 
@@ -24,7 +34,10 @@ export default function VerifyEmailChangePage() {
 
     async function run() {
       if (!token) {
-        setState({ status: 'error', message: 'This email change link is missing a token.' });
+        setState({
+          status: 'error',
+          message: 'This email change link is missing a token.',
+        });
         return;
       }
 
@@ -38,7 +51,7 @@ export default function VerifyEmailChangePage() {
         if (!res.ok) {
           const parsedError = apiMessageResponseSchema.safeParse(body);
           const message = parsedError.success
-            ? parsedError.data.message ?? 'Could not confirm your new email.'
+            ? (parsedError.data.message ?? 'Could not confirm your new email.')
             : 'Could not confirm your new email.';
           throw new Error(message);
         }
@@ -77,19 +90,23 @@ export default function VerifyEmailChangePage() {
         <Title order={2}>Confirm email change</Title>
         {state.status === 'loading' ? (
           <Text c="dimmed">
-            Confirming your new email address. This can take a moment if the link was opened in a fresh browser session.
+            Confirming your new email address. This can take a moment if the
+            link was opened in a fresh browser session.
           </Text>
         ) : null}
         {state.status === 'success' ? (
           <>
             <Alert color="green">
-              Your Projex login email has been changed from {state.previousEmail} to {state.email}.
+              Your Projex login email has been changed from{' '}
+              {state.previousEmail} to {state.email}.
             </Alert>
             <Text c="dimmed">
-              Future sign-ins, password resets, and invite emails will use your new email address.
+              Future sign-ins, password resets, and invite emails will use your
+              new email address.
             </Text>
             <Text c="dimmed">
-              If another user is currently signed in in this browser, sign out first and then sign back in with {state.email}.
+              If another user is currently signed in in this browser, sign out
+              first and then sign back in with {state.email}.
             </Text>
             <Stack>
               <Button component="a" href="/account">
@@ -105,7 +122,8 @@ export default function VerifyEmailChangePage() {
           <>
             <Alert color="red">{state.message}</Alert>
             <Text c="dimmed">
-              If the link expired, request a fresh email change from your account settings and use the newest verification email.
+              If the link expired, request a fresh email change from your
+              account settings and use the newest verification email.
             </Text>
             <Stack gap="xs">
               <Anchor href="/account">Return to account</Anchor>

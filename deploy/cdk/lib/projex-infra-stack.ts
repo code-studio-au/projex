@@ -52,7 +52,11 @@ export class ProjexInfraStack extends Stack {
     appSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), 'HTTP');
     appSg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'HTTPS');
     if (props.sshCidr.trim()) {
-      appSg.addIngressRule(ec2.Peer.ipv4(props.sshCidr), ec2.Port.tcp(22), 'SSH');
+      appSg.addIngressRule(
+        ec2.Peer.ipv4(props.sshCidr),
+        ec2.Port.tcp(22),
+        'SSH'
+      );
     }
 
     const dbSg = new ec2.SecurityGroup(this, 'ProjexDbSg', {
@@ -65,7 +69,9 @@ export class ProjexInfraStack extends Stack {
     const role = new iam.Role(this, 'ProjexEc2Role', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
       managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          'AmazonSSMManagedInstanceCore'
+        ),
       ],
     });
 
@@ -106,15 +112,21 @@ export class ProjexInfraStack extends Stack {
       instanceId: instance.instanceId,
     });
 
-    const dbCredentials = rds.Credentials.fromGeneratedSecret(props.dbUsername, {
-      secretName: `projex/${props.envName}/db-credentials`,
-    });
+    const dbCredentials = rds.Credentials.fromGeneratedSecret(
+      props.dbUsername,
+      {
+        secretName: `projex/${props.envName}/db-credentials`,
+      }
+    );
 
     const db = new rds.DatabaseInstance(this, 'ProjexPostgres', {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_16,
       }),
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
+      instanceType: ec2.InstanceType.of(
+        ec2.InstanceClass.T3,
+        ec2.InstanceSize.MICRO
+      ),
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [dbSg],
@@ -126,7 +138,9 @@ export class ProjexInfraStack extends Stack {
       backupRetention: Duration.days(props.envName === 'production' ? 7 : 1),
       deletionProtection: props.envName === 'production',
       removalPolicy:
-        props.envName === 'production' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+        props.envName === 'production'
+          ? RemovalPolicy.RETAIN
+          : RemovalPolicy.DESTROY,
       deleteAutomatedBackups: props.envName !== 'production',
       multiAz: props.envName === 'production',
       publiclyAccessible: false,
@@ -139,7 +153,9 @@ export class ProjexInfraStack extends Stack {
     new CfnOutput(this, 'VpcId', { value: vpc.vpcId });
     new CfnOutput(this, 'Ec2InstanceId', { value: instance.instanceId });
     new CfnOutput(this, 'Ec2PublicIp', { value: eip.ref });
-    new CfnOutput(this, 'DbEndpointAddress', { value: db.dbInstanceEndpointAddress });
+    new CfnOutput(this, 'DbEndpointAddress', {
+      value: db.dbInstanceEndpointAddress,
+    });
     new CfnOutput(this, 'DbEndpointPort', { value: db.dbInstanceEndpointPort });
     new CfnOutput(this, 'DbSecretArn', {
       value: db.secret?.secretArn ?? '',

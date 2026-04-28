@@ -1,4 +1,8 @@
-import { createFileRoute, lazyRouteComponent, notFound } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  lazyRouteComponent,
+  notFound,
+} from '@tanstack/react-router';
 
 import { RootNotFoundComponent } from '../components/routerErrors';
 import { isServerAuthMode } from './-authMode';

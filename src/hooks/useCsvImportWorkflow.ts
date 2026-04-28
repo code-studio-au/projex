@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { MRT_PaginationState, MRT_SortingState } from 'mantine-react-table';
+import type {
+  MRT_PaginationState,
+  MRT_SortingState,
+} from 'mantine-react-table';
 
 import { useApi } from './useApi';
 import type { TaxonomyHook } from './useTaxonomy';
@@ -48,8 +51,14 @@ export function useCsvImportWorkflow(params: {
   projectId: ProjectId;
   canEditBudgets: boolean;
   initialPageSize: number;
-  onAppend: (txns: Txn[], options?: { autoCreateBudgets?: boolean }) => Promise<void>;
-  onReplaceAll: (txns: Txn[], options?: { autoCreateBudgets?: boolean }) => Promise<void>;
+  onAppend: (
+    txns: Txn[],
+    options?: { autoCreateBudgets?: boolean }
+  ) => Promise<void>;
+  onReplaceAll: (
+    txns: Txn[],
+    options?: { autoCreateBudgets?: boolean }
+  ) => Promise<void>;
 }) {
   const {
     taxonomy,
@@ -69,13 +78,20 @@ export function useCsvImportWorkflow(params: {
   const [draftCsvText, setDraftCsvText] = useState('');
   const [autoCreateStructures, setAutoCreateStructures] = useState(true);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
-  const [previewFilter, setPreviewFilter] = useState<ImportPreviewFilter>('all');
+  const [previewFilter, setPreviewFilter] =
+    useState<ImportPreviewFilter>('all');
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [previewRows, setPreviewRows] = useState<ImportPreviewRow[] | null>(null);
-  const [previewSourceLabel, setPreviewSourceLabel] = useState<string | null>(null);
-  const [excludedImportIds, setExcludedImportIds] = useState<Set<string>>(new Set());
+  const [previewRows, setPreviewRows] = useState<ImportPreviewRow[] | null>(
+    null
+  );
+  const [previewSourceLabel, setPreviewSourceLabel] = useState<string | null>(
+    null
+  );
+  const [excludedImportIds, setExcludedImportIds] = useState<Set<string>>(
+    new Set()
+  );
   const [pagination, setPagination] = useState<MRT_PaginationState>({
     pageIndex: 0,
     pageSize: initialPageSize,
@@ -87,7 +103,8 @@ export function useCsvImportWorkflow(params: {
   const previewActive = previewRows !== null;
 
   const includedPreviewRows = useMemo(
-    () => (previewRows ?? []).filter((row) => !excludedImportIds.has(row.importId)),
+    () =>
+      (previewRows ?? []).filter((row) => !excludedImportIds.has(row.importId)),
     [excludedImportIds, previewRows]
   );
 
@@ -175,7 +192,8 @@ export function useCsvImportWorkflow(params: {
   const hasBlockingIssues = useMemo(
     () =>
       includedPreviewRows.some(
-        (row) => row.mappingStatus === 'invalid' || (!skipDuplicates && row.duplicate)
+        (row) =>
+          row.mappingStatus === 'invalid' || (!skipDuplicates && row.duplicate)
       ),
     [includedPreviewRows, skipDuplicates]
   );
@@ -183,7 +201,8 @@ export function useCsvImportWorkflow(params: {
   const hasReplaceAllBlockers = useMemo(
     () =>
       includedPreviewRows.some(
-        (row) => row.mappingStatus === 'invalid' || row.duplicateReason === 'import'
+        (row) =>
+          row.mappingStatus === 'invalid' || row.duplicateReason === 'import'
       ),
     [includedPreviewRows]
   );
@@ -201,7 +220,9 @@ export function useCsvImportWorkflow(params: {
     } catch (error) {
       setFile(null);
       setFileText('');
-      setImportError(error instanceof Error ? error.message : 'Could not read the CSV file.');
+      setImportError(
+        error instanceof Error ? error.message : 'Could not read the CSV file.'
+      );
     } finally {
       setIsReadingFile(false);
     }
@@ -241,7 +262,9 @@ export function useCsvImportWorkflow(params: {
       const sourceText = file ? fileText : draftCsvText;
       const sourceLabel = file ? `Uploaded file: ${file.name}` : 'Pasted CSV';
       if (!sourceText.trim()) {
-        throw new Error('Add a CSV file or paste CSV text before previewing the import.');
+        throw new Error(
+          'Add a CSV file or paste CSV text before previewing the import.'
+        );
       }
 
       const preview = await api.previewImportTransactions(projectId, {
@@ -262,7 +285,9 @@ export function useCsvImportWorkflow(params: {
       setPreviewSourceLabel(null);
       setPreviewFilter('all');
       setExcludedImportIds(new Set());
-      setImportError(error instanceof Error ? error.message : 'Could not preview the import.');
+      setImportError(
+        error instanceof Error ? error.message : 'Could not preview the import.'
+      );
     }
   }
 
@@ -324,12 +349,21 @@ export function useCsvImportWorkflow(params: {
     );
 
     const categoryIdByName = new Map<string, CategoryId>(
-      taxonomy.categories.map((category) => [category.name.trim().toLowerCase(), category.id])
+      taxonomy.categories.map((category) => [
+        category.name.trim().toLowerCase(),
+        category.id,
+      ])
     );
     const subCategoryIdByKey = new Map<string, SubCategoryId>(
       taxonomy.subCategories.map((subCategory) => {
-        const categoryName = taxonomy.getCategoryName(subCategory.categoryId).trim().toLowerCase();
-        return [`${categoryName}|||${subCategory.name.trim().toLowerCase()}`, subCategory.id];
+        const categoryName = taxonomy
+          .getCategoryName(subCategory.categoryId)
+          .trim()
+          .toLowerCase();
+        return [
+          `${categoryName}|||${subCategory.name.trim().toLowerCase()}`,
+          subCategory.id,
+        ];
       })
     );
 
@@ -342,7 +376,12 @@ export function useCsvImportWorkflow(params: {
     }
 
     for (const row of activeRows) {
-      if (!row.willCreateSubCategory || !row.categoryName || !row.subCategoryName) continue;
+      if (
+        !row.willCreateSubCategory ||
+        !row.categoryName ||
+        !row.subCategoryName
+      )
+        continue;
       const categoryKey = row.categoryName.trim().toLowerCase();
       const categoryId = categoryIdByName.get(categoryKey);
       if (!categoryId) {
@@ -352,7 +391,10 @@ export function useCsvImportWorkflow(params: {
       }
       const subKey = `${categoryKey}|||${row.subCategoryName.trim().toLowerCase()}`;
       if (subCategoryIdByKey.has(subKey)) continue;
-      const createdId = await taxonomy.addSubCategory(categoryId, row.subCategoryName);
+      const createdId = await taxonomy.addSubCategory(
+        categoryId,
+        row.subCategoryName
+      );
       subCategoryIdByKey.set(subKey, createdId);
     }
 
@@ -371,7 +413,9 @@ export function useCsvImportWorkflow(params: {
       let subCategoryId = row.subCategoryId;
 
       if (row.categoryName) {
-        categoryId = categoryIdByName.get(row.categoryName.trim().toLowerCase()) ?? categoryId;
+        categoryId =
+          categoryIdByName.get(row.categoryName.trim().toLowerCase()) ??
+          categoryId;
       }
       if (row.categoryName && row.subCategoryName) {
         const subKey = `${row.categoryName.trim().toLowerCase()}|||${row.subCategoryName
@@ -416,7 +460,11 @@ export function useCsvImportWorkflow(params: {
       );
     } catch (error) {
       setImportNotice(null);
-      setImportError(error instanceof Error ? error.message : 'Could not append imported transactions.');
+      setImportError(
+        error instanceof Error
+          ? error.message
+          : 'Could not append imported transactions.'
+      );
     }
   }
 
@@ -429,10 +477,16 @@ export function useCsvImportWorkflow(params: {
       const importedCount = txns.length;
       setConfirmReplaceOpen(false);
       resetImporter();
-      setImportNotice(`Replaced transactions with ${importedCount} imported rows.`);
+      setImportNotice(
+        `Replaced transactions with ${importedCount} imported rows.`
+      );
     } catch (error) {
       setImportNotice(null);
-      setImportError(error instanceof Error ? error.message : 'Could not replace imported transactions.');
+      setImportError(
+        error instanceof Error
+          ? error.message
+          : 'Could not replace imported transactions.'
+      );
     }
   }
 

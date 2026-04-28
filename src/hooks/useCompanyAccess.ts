@@ -4,7 +4,10 @@ import type { CompanyId, CompanyRole, ProjectId, UserId } from '../types';
 import { can, type Action } from '../utils/auth';
 import { getUserCompanyRole } from '../store/access';
 
-import { useAllCompanyMembershipsQuery, useMyProjectMembershipsQuery } from '../queries/memberships';
+import {
+  useAllCompanyMembershipsQuery,
+  useMyProjectMembershipsQuery,
+} from '../queries/memberships';
 import { useUsersQuery } from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
 
@@ -44,7 +47,9 @@ export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
     [myProjectMembershipsQ.data]
   );
   const isGlobalSuperadmin = useMemo(
-    () => (usersQ.data ?? []).find((user) => user.id === userId)?.isGlobalSuperadmin === true,
+    () =>
+      (usersQ.data ?? []).find((user) => user.id === userId)
+        ?.isGlobalSuperadmin === true,
     [userId, usersQ.data]
   );
 
@@ -63,7 +68,13 @@ export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
         companyMemberships,
         projectMemberships,
       }),
-    [userId, companyId, isGlobalSuperadmin, companyMemberships, projectMemberships]
+    [
+      userId,
+      companyId,
+      isGlobalSuperadmin,
+      companyMemberships,
+      projectMemberships,
+    ]
   );
 
   return {

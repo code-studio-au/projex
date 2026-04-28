@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Group, Modal, Paper, Stack, Text, TextInput, Title } from '@mantine/core';
+import {
+  Alert,
+  Badge,
+  Button,
+  Group,
+  Modal,
+  Paper,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
 import { Link, useRouter } from '@tanstack/react-router';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
@@ -44,12 +55,17 @@ export default function LandingPage() {
   );
   const isSuperadmin = useMemo(() => {
     if (!userId) return false;
-    return (usersQ.data ?? []).find((user) => user.id === userId)?.isGlobalSuperadmin === true;
+    return (
+      (usersQ.data ?? []).find((user) => user.id === userId)
+        ?.isGlobalSuperadmin === true
+    );
   }, [usersQ.data, userId]);
   const userCompanyCount = useMemo(() => {
     if (!userId) return 0;
     const ids = new Set(
-      (membershipsQ.data ?? []).filter((m) => m.userId === userId).map((m) => m.companyId)
+      (membershipsQ.data ?? [])
+        .filter((m) => m.userId === userId)
+        .map((m) => m.companyId)
     );
     return ids.size;
   }, [membershipsQ.data, userId]);
@@ -92,11 +108,14 @@ export default function LandingPage() {
     | null
   >(null);
 
-  const openConfirm = useCallback((target: NonNullable<typeof confirmTarget>) => {
-    setConfirmTarget(target);
-    setConfirmText('');
-    setConfirmOpen(true);
-  }, []);
+  const openConfirm = useCallback(
+    (target: NonNullable<typeof confirmTarget>) => {
+      setConfirmTarget(target);
+      setConfirmText('');
+      setConfirmOpen(true);
+    },
+    []
+  );
 
   const closeConfirm = () => {
     setConfirmOpen(false);
@@ -106,8 +125,10 @@ export default function LandingPage() {
 
   const confirmLabel = useMemo(() => {
     if (!confirmTarget) return '';
-    if (confirmTarget.kind === 'deactivate_company') return 'Deactivate company';
-    if (confirmTarget.kind === 'reactivate_company') return 'Reactivate company';
+    if (confirmTarget.kind === 'deactivate_company')
+      return 'Deactivate company';
+    if (confirmTarget.kind === 'reactivate_company')
+      return 'Reactivate company';
     return 'Delete company';
   }, [confirmTarget]);
 
@@ -165,7 +186,11 @@ export default function LandingPage() {
           return (
             <Group gap="xs" wrap="nowrap">
               <Link to={companyRoute.to} params={{ companyId: company.id }}>
-                <Button component="span" size="xs" variant={company.status === 'active' ? 'filled' : 'light'}>
+                <Button
+                  component="span"
+                  size="xs"
+                  variant={company.status === 'active' ? 'filled' : 'light'}
+                >
                   {company.status === 'active' ? 'Open' : 'View'}
                 </Button>
               </Link>
@@ -235,10 +260,19 @@ export default function LandingPage() {
             <Button variant="filled" onClick={() => setNewCompanyOpen(true)}>
               New company
             </Button>
-            <Modal opened={newCompanyOpen} onClose={() => setNewCompanyOpen(false)} title="Create company" fullScreen={isMobile}>
+            <Modal
+              opened={newCompanyOpen}
+              onClose={() => setNewCompanyOpen(false)}
+              title="Create company"
+              fullScreen={isMobile}
+            >
               <Stack>
-                {newCompanyError ? <Alert color="red">{newCompanyError}</Alert> : null}
-                {newCompanyStatus ? <Alert color="green">{newCompanyStatus}</Alert> : null}
+                {newCompanyError ? (
+                  <Alert color="red">{newCompanyError}</Alert>
+                ) : null}
+                {newCompanyStatus ? (
+                  <Alert color="green">{newCompanyStatus}</Alert>
+                ) : null}
                 <TextInput
                   label="Company name"
                   placeholder="e.g. Northwind"
@@ -247,19 +281,25 @@ export default function LandingPage() {
                   autoFocus
                 />
                 <Text size="sm" c="dimmed">
-                  Optionally assign the initial company admin now. This is useful when onboarding a company for the first time, and the invite can be re-sent later from company settings if needed.
+                  Optionally assign the initial company admin now. This is
+                  useful when onboarding a company for the first time, and the
+                  invite can be re-sent later from company settings if needed.
                 </Text>
                 <TextInput
                   label="Initial admin name"
                   placeholder="e.g. Jane Admin"
                   value={newCompanyAdminName}
-                  onChange={(e) => setNewCompanyAdminName(e.currentTarget.value)}
+                  onChange={(e) =>
+                    setNewCompanyAdminName(e.currentTarget.value)
+                  }
                 />
                 <TextInput
                   label="Initial admin email"
                   placeholder="e.g. jane@example.com"
                   value={newCompanyAdminEmail}
-                  onChange={(e) => setNewCompanyAdminEmail(e.currentTarget.value)}
+                  onChange={(e) =>
+                    setNewCompanyAdminEmail(e.currentTarget.value)
+                  }
                 />
                 <Group justify="flex-end">
                   <Button
@@ -279,15 +319,22 @@ export default function LandingPage() {
                       const adminName = newCompanyAdminName.trim();
                       const adminEmail = newCompanyAdminEmail.trim();
                       if (!name) return;
-                      if ((adminName && !adminEmail) || (!adminName && adminEmail)) {
-                        setNewCompanyError('Enter both initial admin name and email, or leave both blank.');
+                      if (
+                        (adminName && !adminEmail) ||
+                        (!adminName && adminEmail)
+                      ) {
+                        setNewCompanyError(
+                          'Enter both initial admin name and email, or leave both blank.'
+                        );
                         setNewCompanyStatus(null);
                         return;
                       }
                       setNewCompanyError(null);
                       setNewCompanyStatus(null);
                       try {
-                        const company = await createCompany.mutateAsync({ name });
+                        const company = await createCompany.mutateAsync({
+                          name,
+                        });
                         if (adminName && adminEmail) {
                           const result = await api.createUserInCompany(
                             company.id,
@@ -299,13 +346,16 @@ export default function LandingPage() {
                             }
                           );
                           await Promise.all([
-                            queryClient.invalidateQueries({ queryKey: qk.users() }),
+                            queryClient.invalidateQueries({
+                              queryKey: qk.users(),
+                            }),
                             queryClient.invalidateQueries({
                               predicate: (q) =>
                                 Array.isArray(q.queryKey) &&
-                                ['companyMemberships', 'allCompanyMemberships'].includes(
-                                  String(q.queryKey[0])
-                                ),
+                                [
+                                  'companyMemberships',
+                                  'allCompanyMemberships',
+                                ].includes(String(q.queryKey[0])),
                             }),
                           ]);
                           setNewCompanyStatus(
@@ -322,7 +372,9 @@ export default function LandingPage() {
                         setNewCompanyOpen(false);
                       } catch (err) {
                         setNewCompanyError(
-                          err instanceof Error ? err.message : 'Could not create company.'
+                          err instanceof Error
+                            ? err.message
+                            : 'Could not create company.'
                         );
                       }
                     }}
@@ -356,7 +408,11 @@ export default function LandingPage() {
                 density: 'xs',
                 pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
               }}
-              mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+              mantineTableProps={{
+                highlightOnHover: true,
+                striped: 'odd',
+                withTableBorder: true,
+              }}
             />
           ) : (
             <Paper withBorder radius="lg" p="lg">
@@ -368,7 +424,12 @@ export default function LandingPage() {
         </>
       )}
 
-      <Modal opened={confirmOpen} onClose={closeConfirm} title={confirmLabel} fullScreen={isMobile}>
+      <Modal
+        opened={confirmOpen}
+        onClose={closeConfirm}
+        title={confirmLabel}
+        fullScreen={isMobile}
+      >
         <Stack>
           <Text size="sm" c="dimmed">
             {confirmDescription}

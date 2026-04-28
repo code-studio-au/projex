@@ -79,6 +79,7 @@ In production, startup validation requires:
 
 Starter direct resolver file: `src/server/auth/authProvider.ts`.
 If using direct resolver with local BetterAuth instance, also set:
+
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
 - `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated, optional)

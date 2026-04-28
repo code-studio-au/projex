@@ -9,11 +9,16 @@ function requireEnv(name) {
 async function run() {
   const databaseUrl = requireEnv('DATABASE_URL');
   const email = requireEnv('PROJEX_AUTH_EMAIL');
-  const templateUserId = process.env.PROJEX_APP_TEMPLATE_USER_ID?.trim() || null;
-  const bootstrapCompanyName = process.env.PROJEX_BOOTSTRAP_COMPANY_NAME?.trim() || null;
-  const bootstrapCompanyId = process.env.PROJEX_BOOTSTRAP_COMPANY_ID?.trim() || null;
-  const bootstrapProjectName = process.env.PROJEX_BOOTSTRAP_PROJECT_NAME?.trim() || null;
-  const bootstrapProjectId = process.env.PROJEX_BOOTSTRAP_PROJECT_ID?.trim() || null;
+  const templateUserId =
+    process.env.PROJEX_APP_TEMPLATE_USER_ID?.trim() || null;
+  const bootstrapCompanyName =
+    process.env.PROJEX_BOOTSTRAP_COMPANY_NAME?.trim() || null;
+  const bootstrapCompanyId =
+    process.env.PROJEX_BOOTSTRAP_COMPANY_ID?.trim() || null;
+  const bootstrapProjectName =
+    process.env.PROJEX_BOOTSTRAP_PROJECT_NAME?.trim() || null;
+  const bootstrapProjectId =
+    process.env.PROJEX_BOOTSTRAP_PROJECT_ID?.trim() || null;
 
   const pool = new Pool({ connectionString: databaseUrl });
   try {
@@ -80,17 +85,17 @@ async function run() {
       );
       copiedProjectMemberships = projectRes.rowCount ?? 0;
     } else if (bootstrapCompanyName || bootstrapCompanyId) {
-      const makeId = (prefix) => `${prefix}_${Math.random().toString(16).slice(2, 14)}`;
+      const makeId = (prefix) =>
+        `${prefix}_${Math.random().toString(16).slice(2, 14)}`;
 
-      let company =
-        bootstrapCompanyId
-          ? (
-              await pool.query(
-                `select id, name from companies where id = $1 limit 1`,
-                [bootstrapCompanyId]
-              )
-            ).rows[0] ?? null
-          : null;
+      let company = bootstrapCompanyId
+        ? ((
+            await pool.query(
+              `select id, name from companies where id = $1 limit 1`,
+              [bootstrapCompanyId]
+            )
+          ).rows[0] ?? null)
+        : null;
 
       if (!company && bootstrapCompanyName) {
         company =
@@ -113,7 +118,10 @@ async function run() {
               `insert into companies (id, name, status, deactivated_at)
                values ($1, $2, 'active', null)
                returning id, name`,
-              [bootstrapCompanyId || makeId('co'), bootstrapCompanyName || bootstrapCompanyId]
+              [
+                bootstrapCompanyId || makeId('co'),
+                bootstrapCompanyName || bootstrapCompanyId,
+              ]
             )
           ).rows[0] ?? null;
       }
@@ -129,18 +137,17 @@ async function run() {
       bootstrapCompany = company;
 
       if (bootstrapProjectName || bootstrapProjectId) {
-        let project =
-          bootstrapProjectId
-            ? (
-                await pool.query(
-                  `select id, name
+        let project = bootstrapProjectId
+          ? ((
+              await pool.query(
+                `select id, name
                    from projects
                    where id = $1 and company_id = $2
                    limit 1`,
-                  [bootstrapProjectId, company.id]
-                )
-              ).rows[0] ?? null
-            : null;
+                [bootstrapProjectId, company.id]
+              )
+            ).rows[0] ?? null)
+          : null;
 
         if (!project && bootstrapProjectName) {
           project =
@@ -173,7 +180,11 @@ async function run() {
                  )
                  values ($1, $2, $3, 0, 'AUD', 'active', null, 'private', true)
                  returning id, name`,
-                [bootstrapProjectId || makeId('prj'), company.id, bootstrapProjectName || bootstrapProjectId]
+                [
+                  bootstrapProjectId || makeId('prj'),
+                  company.id,
+                  bootstrapProjectName || bootstrapProjectId,
+                ]
               )
             ).rows[0] ?? null;
         }

@@ -7,8 +7,16 @@ import { can, type Action } from '../../utils/auth';
 import { isGlobalSuperadminUser } from './globalSuperadmin';
 
 type MembershipSnapshot = {
-  companyMemberships: Array<{ companyId: CompanyId; userId: UserId; role: 'admin' | 'executive' | 'management' | 'member' }>;
-  projectMemberships: Array<{ projectId: ProjectId; userId: UserId; role: 'owner' | 'lead' | 'member' | 'viewer' }>;
+  companyMemberships: Array<{
+    companyId: CompanyId;
+    userId: UserId;
+    role: 'admin' | 'executive' | 'management' | 'member';
+  }>;
+  projectMemberships: Array<{
+    projectId: ProjectId;
+    userId: UserId;
+    role: 'owner' | 'lead' | 'member' | 'viewer';
+  }>;
   isGlobalSuperadmin: boolean;
 };
 
@@ -75,7 +83,12 @@ export async function isAuthorized(params: {
   projectId?: ProjectId;
 }): Promise<boolean> {
   const { db, userId, action, companyId, projectId } = params;
-  const snap = await loadMembershipSnapshot({ db, userId, companyId, projectId });
+  const snap = await loadMembershipSnapshot({
+    db,
+    userId,
+    companyId,
+    projectId,
+  });
   const isSuperadmin = snap.isGlobalSuperadmin;
 
   if (isSuperadmin && projectId) {

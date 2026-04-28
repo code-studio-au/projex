@@ -43,13 +43,20 @@ export default function ProjectWorkspace(props: {
     initialEntrySource,
     initialEntryFocus,
   } = props;
-  const derivedInitialYearFilter = initialYearFilter ?? initialMonthFilterKey?.slice(0, 4) ?? null;
+  const derivedInitialYearFilter =
+    initialYearFilter ?? initialMonthFilterKey?.slice(0, 4) ?? null;
   const derivedInitialQuarterFilter =
     initialQuarterFilter ??
     (initialMonthFilterKey
       ? (() => {
           const month = Number(initialMonthFilterKey.slice(5, 7));
-          return month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+          return month <= 3
+            ? 'Q1'
+            : month <= 6
+              ? 'Q2'
+              : month <= 9
+                ? 'Q3'
+                : 'Q4';
         })()
       : null);
   const isMobile = useMediaQuery('(max-width: 48em)');
@@ -68,19 +75,29 @@ export default function ProjectWorkspace(props: {
 
   const budgets = useBudgets({ companyId, projectId });
   const txns = useTransactions({ projectId });
-  const taxonomy = useTaxonomy({ companyId, projectId, budgets, txns, canEditBudgets });
+  const taxonomy = useTaxonomy({
+    companyId,
+    projectId,
+    budgets,
+    txns,
+    canEditBudgets,
+  });
 
-  const [activeTab, setActiveTab] = useState<'budget' | 'transactions' | 'import' | 'settings'>(
-    initialTab
+  const [activeTab, setActiveTab] = useState<
+    'budget' | 'transactions' | 'import' | 'settings'
+  >(initialTab);
+  const [yearFilter, setYearFilter] = useState<string | null>(
+    derivedInitialYearFilter
   );
-  const [yearFilter, setYearFilter] = useState<string | null>(derivedInitialYearFilter);
-  const [quarterFilter, setQuarterFilter] = useState<'Q1' | 'Q2' | 'Q3' | 'Q4' | null>(
-    derivedInitialQuarterFilter
+  const [quarterFilter, setQuarterFilter] = useState<
+    'Q1' | 'Q2' | 'Q3' | 'Q4' | null
+  >(derivedInitialQuarterFilter);
+  const [monthFilterKey, setMonthFilterKey] = useState<string | null>(
+    initialMonthFilterKey
   );
-  const [monthFilterKey, setMonthFilterKey] = useState<string | null>(initialMonthFilterKey);
-  const [transactionView, setTransactionView] = useState<'all' | 'uncoded' | 'auto-mapped-pending'>(
-    initialTransactionView
-  );
+  const [transactionView, setTransactionView] = useState<
+    'all' | 'uncoded' | 'auto-mapped-pending'
+  >(initialTransactionView);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -130,7 +147,9 @@ export default function ProjectWorkspace(props: {
 
   const quarterFilterOptions = useMemo(() => {
     if (!yearFilter) return [];
-    const filteredMonths = allMonthKeys.filter((key) => key.startsWith(`${yearFilter}-`));
+    const filteredMonths = allMonthKeys.filter((key) =>
+      key.startsWith(`${yearFilter}-`)
+    );
     const quarters = new Set(
       filteredMonths.map((key) => {
         const month = Number(key.slice(5, 7));
@@ -149,7 +168,8 @@ export default function ProjectWorkspace(props: {
           if (yearFilter && !key.startsWith(`${yearFilter}-`)) return false;
           if (!quarterFilter) return true;
           const month = Number(key.slice(5, 7));
-          const quarter = month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+          const quarter =
+            month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
           return quarter === quarterFilter;
         })
         .map((value) => ({ value, label: value })),
@@ -161,7 +181,8 @@ export default function ProjectWorkspace(props: {
     [txns, taxonomy.validSubIds]
   );
   const headerReady = Boolean(company.data && project.data);
-  const summaryReady = headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
+  const summaryReady =
+    headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
   const currencyCode = project.data?.currency ?? 'AUD';
   const entryMessage = useMemo(() => {
     if (initialEntrySource !== 'company-summary') return null;
@@ -223,13 +244,22 @@ export default function ProjectWorkspace(props: {
 
             <Group gap="sm" wrap="wrap">
               {headerReady && project.data?.allowSuperadminAccess ? (
-                <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="teal">
+                <Badge
+                  size={isMobile ? 'md' : 'lg'}
+                  variant="light"
+                  color="teal"
+                >
                   Superadmin access enabled
                 </Badge>
               ) : null}
               {summaryReady ? (
-                <Badge size={isMobile ? 'md' : 'lg'} variant="light" color={uncoded.count ? 'red' : 'gray'}>
-                  Uncoded: {uncoded.count} ({formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
+                <Badge
+                  size={isMobile ? 'md' : 'lg'}
+                  variant="light"
+                  color={uncoded.count ? 'red' : 'gray'}
+                >
+                  Uncoded: {uncoded.count} (
+                  {formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
                 </Badge>
               ) : (
                 <LoadingChip width={190} height={30} />
@@ -251,7 +281,10 @@ export default function ProjectWorkspace(props: {
         <Tabs
           value={activeTab}
           onChange={(value) =>
-            setActiveTab((value as 'budget' | 'transactions' | 'import' | 'settings') ?? 'budget')
+            setActiveTab(
+              (value as 'budget' | 'transactions' | 'import' | 'settings') ??
+                'budget'
+            )
           }
           keepMounted={false}
           variant="outline"
@@ -295,7 +328,8 @@ export default function ProjectWorkspace(props: {
                     month: undefined,
                     quarter: undefined,
                     year: undefined,
-                    view: transactionView === 'all' ? undefined : transactionView,
+                    view:
+                      transactionView === 'all' ? undefined : transactionView,
                     source: undefined,
                     focus: undefined,
                   },
@@ -333,7 +367,8 @@ export default function ProjectWorkspace(props: {
                     month: undefined,
                     quarter: undefined,
                     year: undefined,
-                    view: transactionView === 'all' ? undefined : transactionView,
+                    view:
+                      transactionView === 'all' ? undefined : transactionView,
                     source: undefined,
                     focus: undefined,
                   },
@@ -341,7 +376,10 @@ export default function ProjectWorkspace(props: {
                 });
               }}
               onUpdateProjectBudgetTotal={async (budgetTotalCents) => {
-                await updateProject.mutateAsync({ id: projectId, budgetTotalCents });
+                await updateProject.mutateAsync({
+                  id: projectId,
+                  budgetTotalCents,
+                });
               }}
               rollups={rollups}
               budgets={budgets}

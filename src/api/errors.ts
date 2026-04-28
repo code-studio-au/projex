@@ -17,7 +17,11 @@ export class AppError extends Error {
   public readonly code: AppErrorCode;
   public readonly meta?: Record<string, unknown>;
 
-  constructor(code: AppErrorCode, message: string, meta?: Record<string, unknown>) {
+  constructor(
+    code: AppErrorCode,
+    message: string,
+    meta?: Record<string, unknown>
+  ) {
     super(message);
     this.name = 'AppError';
     this.code = code;

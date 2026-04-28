@@ -3,9 +3,13 @@ import { toServerSession } from './session';
 import { readDevUserIdFromRequest } from '../dev/devSession';
 import { betterAuthLikePayloadSchema } from '../../validation/responseSchemas';
 
-type BetterAuthLikePayload = ReturnType<typeof betterAuthLikePayloadSchema.parse>;
+type BetterAuthLikePayload = ReturnType<
+  typeof betterAuthLikePayloadSchema.parse
+>;
 
-type DirectResolver = (req: Request) => Promise<BetterAuthLikePayload> | BetterAuthLikePayload;
+type DirectResolver = (
+  req: Request
+) => Promise<BetterAuthLikePayload> | BetterAuthLikePayload;
 
 let cachedDirectSpec: string | null = null;
 let cachedDirectResolver: DirectResolver | null = null;
@@ -15,7 +19,8 @@ async function resolveDirectResolverFromEnv(): Promise<DirectResolver | null> {
 
   const spec = process.env.BETTER_AUTH_DIRECT_SESSION_FN?.trim() ?? '';
   if (!spec) return null;
-  if (cachedDirectSpec === spec && cachedDirectResolver) return cachedDirectResolver;
+  if (cachedDirectSpec === spec && cachedDirectResolver)
+    return cachedDirectResolver;
 
   const hash = spec.lastIndexOf('#');
   const modulePath = hash >= 0 ? spec.slice(0, hash) : spec;
@@ -27,7 +32,10 @@ async function resolveDirectResolverFromEnv(): Promise<DirectResolver | null> {
       ? modulePath
       : await toFileUrl(modulePath);
 
-  const mod = (await import(/* @vite-ignore */ normalizedPath)) as Record<string, unknown>;
+  const mod = (await import(/* @vite-ignore */ normalizedPath)) as Record<
+    string,
+    unknown
+  >;
   const fn = mod[exportName];
   if (typeof fn !== 'function') {
     throw new Error(
@@ -48,14 +56,18 @@ async function toFileUrl(modulePath: string): Promise<string> {
   return pathToFileURL(path.resolve(process.cwd(), modulePath)).toString();
 }
 
-async function resolveFromBetterAuthDirect(req: Request): Promise<ServerSession | null> {
+async function resolveFromBetterAuthDirect(
+  req: Request
+): Promise<ServerSession | null> {
   const resolver = await resolveDirectResolverFromEnv();
   if (!resolver) return null;
   const payload = await resolver(req);
   return toServerSession(payload);
 }
 
-async function resolveFromBetterAuthEndpoint(req: Request): Promise<ServerSession | null> {
+async function resolveFromBetterAuthEndpoint(
+  req: Request
+): Promise<ServerSession | null> {
   const url = process.env.BETTER_AUTH_SESSION_URL?.trim();
   if (!url) return null;
 
@@ -67,15 +79,20 @@ async function resolveFromBetterAuthEndpoint(req: Request): Promise<ServerSessio
 
   const res = await fetch(url, { method: 'GET', headers });
   if (!res.ok) return null;
-  const payload: BetterAuthLikePayload = betterAuthLikePayloadSchema.parse(await res.json());
+  const payload: BetterAuthLikePayload = betterAuthLikePayloadSchema.parse(
+    await res.json()
+  );
   return toServerSession(payload);
 }
 
-async function resolveFromLocalBetterAuthEndpoint(req: Request): Promise<ServerSession | null> {
+async function resolveFromLocalBetterAuthEndpoint(
+  req: Request
+): Promise<ServerSession | null> {
   const configuredBase = process.env.BETTER_AUTH_URL?.trim();
   const requestBase = new URL(req.url).origin;
   const candidateBases = [requestBase, configuredBase].filter(
-    (value, index, arr): value is string => Boolean(value) && arr.indexOf(value) === index
+    (value, index, arr): value is string =>
+      Boolean(value) && arr.indexOf(value) === index
   );
 
   const headers = new Headers();
@@ -88,7 +105,9 @@ async function resolveFromLocalBetterAuthEndpoint(req: Request): Promise<ServerS
     const url = new URL('/api/auth/get-session', base).toString();
     const res = await fetch(url, { method: 'GET', headers });
     if (!res.ok) continue;
-    const payload: BetterAuthLikePayload = betterAuthLikePayloadSchema.parse(await res.json());
+    const payload: BetterAuthLikePayload = betterAuthLikePayloadSchema.parse(
+      await res.json()
+    );
     const session = toServerSession(payload);
     if (session) return session;
   }
@@ -139,9 +158,11 @@ export async function getAuthSessionFromRequest(
 /**
  * Utility for code paths that already have a Better Auth session payload.
  */
-export function fromBetterAuthSession(source: {
-  user?: { id?: string | null } | null;
-  userId?: string | null;
-} | null): ServerSession | null {
+export function fromBetterAuthSession(
+  source: {
+    user?: { id?: string | null } | null;
+    userId?: string | null;
+  } | null
+): ServerSession | null {
   return toServerSession(source);
 }

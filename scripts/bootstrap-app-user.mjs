@@ -49,8 +49,12 @@ async function ensureCompany(pool, userId, requestedId, requestedName) {
   let company = null;
   if (requestedId) {
     company =
-      (await pool.query(`select id, name from companies where id = $1 limit 1`, [requestedId]))
-        .rows[0] ?? null;
+      (
+        await pool.query(
+          `select id, name from companies where id = $1 limit 1`,
+          [requestedId]
+        )
+      ).rows[0] ?? null;
   }
   if (!company && requestedName) {
     company =
@@ -88,7 +92,13 @@ async function ensureCompany(pool, userId, requestedId, requestedName) {
   return company;
 }
 
-async function ensureProject(pool, companyId, userId, requestedId, requestedName) {
+async function ensureProject(
+  pool,
+  companyId,
+  userId,
+  requestedId,
+  requestedName
+) {
   if (!companyId || (!requestedId && !requestedName)) return null;
 
   let project = null;
@@ -134,7 +144,11 @@ async function ensureProject(pool, companyId, userId, requestedId, requestedName
            )
            values ($1, $2, $3, 0, 'AUD', 'active', null, 'private', true)
            returning id, name`,
-          [requestedId || makeId('prj'), companyId, requestedName || requestedId]
+          [
+            requestedId || makeId('prj'),
+            companyId,
+            requestedName || requestedId,
+          ]
         )
       ).rows[0] ?? null;
   }
@@ -153,7 +167,10 @@ async function ensureProject(pool, companyId, userId, requestedId, requestedName
 async function run() {
   const pool = new Pool({ connectionString: requireEnv('DATABASE_URL') });
   try {
-    const authUser = await ensureAuthUser(pool, requireEnv('PROJEX_AUTH_EMAIL'));
+    const authUser = await ensureAuthUser(
+      pool,
+      requireEnv('PROJEX_AUTH_EMAIL')
+    );
     await ensureAppUser(pool, authUser);
 
     const company = await ensureCompany(

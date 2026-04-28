@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-const maxLength = (value: string, label: string, max: number, ctx: z.RefinementCtx) => {
+const maxLength = (
+  value: string,
+  label: string,
+  max: number,
+  ctx: z.RefinementCtx
+) => {
   if (value.length > max) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -12,7 +17,10 @@ const maxLength = (value: string, label: string, max: number, ctx: z.RefinementC
 const nonEmptyTrimmed = (label: string, max?: number) =>
   z.string().superRefine((value, ctx) => {
     if (!value.trim()) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} is required` });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${label} is required`,
+      });
       return;
     }
     if (typeof max === 'number') {
@@ -22,10 +30,10 @@ const nonEmptyTrimmed = (label: string, max?: number) =>
 
 const nonNegativeInt = (label: string) =>
   z.number().superRefine((value, ctx) => {
-    if (!Number.isInteger(value) || value < 0) {
+    if (!Number.isSafeInteger(value) || value < 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `${label} must be a non-negative integer`,
+        message: `${label} must be a non-negative safe integer`,
       });
     }
   });
@@ -50,8 +58,12 @@ export const projectNameSchema = nonEmptyTrimmed('Project name', 120);
 export const companyNameSchema = nonEmptyTrimmed('Company name', 120);
 export const userNameSchema = nonEmptyTrimmed('User name', 120);
 
-export const budgetAllocatedCentsSchema = nonNegativeInt('Budget allocated amount');
-export const projectBudgetTotalCentsSchema = nonNegativeInt('Project budget total');
+export const budgetAllocatedCentsSchema = nonNegativeInt(
+  'Budget allocated amount'
+);
+export const projectBudgetTotalCentsSchema = nonNegativeInt(
+  'Project budget total'
+);
 
 export const emailSchema = z.string().superRefine((value, ctx) => {
   const email = value.trim();

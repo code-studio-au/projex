@@ -30,7 +30,10 @@ import {
   asSubCategoryId,
 } from '../../types';
 import { uid } from '../../utils/id';
-import { categoryNameSchema, subCategoryNameSchema } from '../../validation/schemas';
+import {
+  categoryNameSchema,
+  subCategoryNameSchema,
+} from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { defaultCategoryIdForRule } from '../../utils/companyDefaultMappings';
 import { planApplyCompanyDefaultTaxonomy } from '../../utils/companyDefaultTaxonomy';
@@ -80,7 +83,11 @@ async function requireCompanyContext(
 ) {
   const db = getDb();
   const userId = await requireServerUserId(context);
-  const company = await db.selectFrom('companies').select('id').where('id', '=', companyId).executeTakeFirst();
+  const company = await db
+    .selectFrom('companies')
+    .select('id')
+    .where('id', '=', companyId)
+    .executeTakeFirst();
   if (!company) throw new AppError('NOT_FOUND', 'Unknown company');
   await requireAuthorized({ db, userId, action, companyId });
 }
@@ -95,7 +102,14 @@ export async function listCategoriesServer(args: {
     const db = getDb();
     const rows = await db
       .selectFrom('categories')
-      .select(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
+      .select([
+        'id',
+        'company_id',
+        'project_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .where('project_id', '=', args.projectId)
       .orderBy('name', 'asc')
       .execute();
@@ -110,14 +124,25 @@ export async function createCategoryServer(args: {
 }): Promise<Category> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { companyId } = await requireProjectContext(args.context, args.projectId, 'taxonomy:edit');
+    const { companyId } = await requireProjectContext(
+      args.context,
+      args.projectId,
+      'taxonomy:edit'
+    );
     validateOrThrow(categoryNameSchema, args.input.name);
     const db = getDb();
     const name = args.input.name.trim();
 
     const existing = await db
       .selectFrom('categories')
-      .select(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
+      .select([
+        'id',
+        'company_id',
+        'project_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .where('project_id', '=', args.projectId)
       .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', name.toLowerCase()))
       .executeTakeFirst();
@@ -135,7 +160,14 @@ export async function createCategoryServer(args: {
         created_at: now,
         updated_at: now,
       })
-      .returning(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
+      .returning([
+        'id',
+        'company_id',
+        'project_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .executeTakeFirstOrThrow();
 
     return toCategory(row as CategoryRow);
@@ -153,7 +185,14 @@ export async function updateCategoryServer(args: {
     const db = getDb();
     const existing = await db
       .selectFrom('categories')
-      .select(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
+      .select([
+        'id',
+        'company_id',
+        'project_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .where('project_id', '=', args.projectId)
       .where('id', '=', args.input.id)
       .executeTakeFirst();
@@ -164,7 +203,8 @@ export async function updateCategoryServer(args: {
     }
 
     const patch: Record<string, unknown> = {};
-    if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
+    if (typeof args.input.name === 'string')
+      patch.name = args.input.name.trim();
     patch.updated_at = new Date().toISOString();
 
     const updated = await db
@@ -172,7 +212,14 @@ export async function updateCategoryServer(args: {
       .set(patch)
       .where('project_id', '=', args.projectId)
       .where('id', '=', args.input.id)
-      .returning(['id', 'company_id', 'project_id', 'name', 'created_at', 'updated_at'])
+      .returning([
+        'id',
+        'company_id',
+        'project_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .executeTakeFirstOrThrow();
 
     return toCategory(updated as CategoryRow);
@@ -214,7 +261,11 @@ export async function deleteCategoryServer(args: {
 
       await trx
         .updateTable('budget_lines')
-        .set({ category_id: null, sub_category_id: null, updated_at: new Date().toISOString() })
+        .set({
+          category_id: null,
+          sub_category_id: null,
+          updated_at: new Date().toISOString(),
+        })
         .where('project_id', '=', args.projectId)
         .where('category_id', '=', args.categoryId)
         .execute();
@@ -277,7 +328,15 @@ export async function listSubCategoriesServer(args: {
     const db = getDb();
     const rows = await db
       .selectFrom('sub_categories')
-      .select(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
+      .select([
+        'id',
+        'company_id',
+        'project_id',
+        'category_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .where('project_id', '=', args.projectId)
       .orderBy('name', 'asc')
       .execute();
@@ -292,7 +351,11 @@ export async function createSubCategoryServer(args: {
 }): Promise<SubCategory> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { companyId } = await requireProjectContext(args.context, args.projectId, 'taxonomy:edit');
+    const { companyId } = await requireProjectContext(
+      args.context,
+      args.projectId,
+      'taxonomy:edit'
+    );
     validateOrThrow(subCategoryNameSchema, args.input.name);
     const db = getDb();
     const name = args.input.name.trim();
@@ -307,7 +370,15 @@ export async function createSubCategoryServer(args: {
 
     const existing = await db
       .selectFrom('sub_categories')
-      .select(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
+      .select([
+        'id',
+        'company_id',
+        'project_id',
+        'category_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .where('project_id', '=', args.projectId)
       .where('category_id', '=', args.input.categoryId)
       .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', name.toLowerCase()))
@@ -327,7 +398,15 @@ export async function createSubCategoryServer(args: {
         created_at: now,
         updated_at: now,
       })
-      .returning(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
+      .returning([
+        'id',
+        'company_id',
+        'project_id',
+        'category_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .executeTakeFirstOrThrow();
     return toSubCategory(row as SubCategoryRow);
   });
@@ -344,7 +423,15 @@ export async function updateSubCategoryServer(args: {
     const db = getDb();
     const existing = await db
       .selectFrom('sub_categories')
-      .select(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
+      .select([
+        'id',
+        'company_id',
+        'project_id',
+        'category_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .where('project_id', '=', args.projectId)
       .where('id', '=', args.input.id)
       .executeTakeFirst();
@@ -365,8 +452,10 @@ export async function updateSubCategoryServer(args: {
     }
 
     const patch: Record<string, unknown> = {};
-    if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
-    if (typeof args.input.categoryId !== 'undefined') patch.category_id = args.input.categoryId;
+    if (typeof args.input.name === 'string')
+      patch.name = args.input.name.trim();
+    if (typeof args.input.categoryId !== 'undefined')
+      patch.category_id = args.input.categoryId;
     patch.updated_at = new Date().toISOString();
 
     const updated = await db
@@ -374,7 +463,15 @@ export async function updateSubCategoryServer(args: {
       .set(patch)
       .where('project_id', '=', args.projectId)
       .where('id', '=', args.input.id)
-      .returning(['id', 'company_id', 'project_id', 'category_id', 'name', 'created_at', 'updated_at'])
+      .returning([
+        'id',
+        'company_id',
+        'project_id',
+        'category_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
       .executeTakeFirstOrThrow();
     return toSubCategory(updated as SubCategoryRow);
   });
@@ -443,7 +540,9 @@ export async function listCompanyDefaultCategoriesServer(args: {
       .where('company_id', '=', args.companyId)
       .orderBy('name', 'asc')
       .execute();
-    return rows.map((row) => toCompanyDefaultCategory(row as CompanyDefaultCategoryRow));
+    return rows.map((row) =>
+      toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
+    );
   });
 }
 
@@ -494,7 +593,9 @@ export async function getCompanyDefaultsServer(args: {
     ]);
 
     return {
-      categories: categories.map((row) => toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)),
+      categories: categories.map((row) =>
+        toCompanyDefaultCategory(row as CompanyDefaultCategoryRow)
+      ),
       subCategories: subCategories.map((row) =>
         toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
       ),
@@ -526,7 +627,9 @@ export async function listCompanyDefaultSubCategoriesServer(args: {
       .where('company_id', '=', args.companyId)
       .orderBy('name', 'asc')
       .execute();
-    return rows.map((row) => toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow));
+    return rows.map((row) =>
+      toCompanyDefaultSubCategory(row as CompanyDefaultSubCategoryRow)
+    );
   });
 }
 
@@ -554,7 +657,9 @@ export async function listCompanyDefaultMappingRulesServer(args: {
       .orderBy('sort_order', 'asc')
       .orderBy('created_at', 'asc')
       .execute();
-    return rows.map((row) => toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow));
+    return rows.map((row) =>
+      toCompanyDefaultMappingRule(row as CompanyDefaultMappingRuleRow)
+    );
   });
 }
 
@@ -576,7 +681,8 @@ export async function createCompanyDefaultCategoryServer(args: {
       .where('company_id', '=', args.companyId)
       .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', name.toLowerCase()))
       .executeTakeFirst();
-    if (existing) return toCompanyDefaultCategory(existing as CompanyDefaultCategoryRow);
+    if (existing)
+      return toCompanyDefaultCategory(existing as CompanyDefaultCategoryRow);
 
     const id = args.input.id ?? asCompanyDefaultCategoryId(uid('ccat'));
     const now = new Date().toISOString();
@@ -610,7 +716,8 @@ export async function updateCompanyDefaultCategoryServer(args: {
       .where('company_id', '=', args.companyId)
       .where('id', '=', args.input.id)
       .executeTakeFirst();
-    if (!existing) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    if (!existing)
+      throw new AppError('NOT_FOUND', 'Unknown company default category');
     if (typeof args.input.name === 'string') {
       const nextName = args.input.name.trim();
       validateOrThrow(categoryNameSchema, nextName);
@@ -619,7 +726,9 @@ export async function updateCompanyDefaultCategoryServer(args: {
         .select('id')
         .where('company_id', '=', args.companyId)
         .where('id', '!=', args.input.id)
-        .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', nextName.toLowerCase()))
+        .where(({ fn, eb }) =>
+          eb(fn('lower', ['name']), '=', nextName.toLowerCase())
+        )
         .executeTakeFirst();
       if (duplicate) {
         throw new AppError(
@@ -629,7 +738,8 @@ export async function updateCompanyDefaultCategoryServer(args: {
       }
     }
     const patch: Record<string, unknown> = {};
-    if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
+    if (typeof args.input.name === 'string')
+      patch.name = args.input.name.trim();
     patch.updated_at = new Date().toISOString();
     const updated = await db
       .updateTable('company_default_categories')
@@ -677,7 +787,8 @@ export async function createCompanyDefaultSubCategoryServer(args: {
       .where('company_id', '=', args.companyId)
       .where('id', '=', args.input.companyDefaultCategoryId)
       .executeTakeFirst();
-    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    if (!category)
+      throw new AppError('NOT_FOUND', 'Unknown company default category');
 
     const existing = await db
       .selectFrom('company_default_sub_categories')
@@ -690,10 +801,17 @@ export async function createCompanyDefaultSubCategoryServer(args: {
         'updated_at',
       ])
       .where('company_id', '=', args.companyId)
-      .where('company_default_category_id', '=', args.input.companyDefaultCategoryId)
+      .where(
+        'company_default_category_id',
+        '=',
+        args.input.companyDefaultCategoryId
+      )
       .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', name.toLowerCase()))
       .executeTakeFirst();
-    if (existing) return toCompanyDefaultSubCategory(existing as CompanyDefaultSubCategoryRow);
+    if (existing)
+      return toCompanyDefaultSubCategory(
+        existing as CompanyDefaultSubCategoryRow
+      );
 
     const id = args.input.id ?? asCompanyDefaultSubCategoryId(uid('csub'));
     const now = new Date().toISOString();
@@ -742,7 +860,8 @@ export async function updateCompanyDefaultSubCategoryServer(args: {
       .where('company_id', '=', args.companyId)
       .where('id', '=', args.input.id)
       .executeTakeFirst();
-    if (!existing) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    if (!existing)
+      throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
     if (typeof args.input.name === 'string') {
       validateOrThrow(subCategoryNameSchema, args.input.name);
     }
@@ -753,17 +872,24 @@ export async function updateCompanyDefaultSubCategoryServer(args: {
         .where('company_id', '=', args.companyId)
         .where('id', '=', args.input.companyDefaultCategoryId)
         .executeTakeFirst();
-      if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+      if (!category)
+        throw new AppError('NOT_FOUND', 'Unknown company default category');
     }
-    const nextCategoryId = args.input.companyDefaultCategoryId ?? asCompanyDefaultCategoryId(existing.company_default_category_id);
-    const nextName = (typeof args.input.name === 'string' ? args.input.name : existing.name).trim();
+    const nextCategoryId =
+      args.input.companyDefaultCategoryId ??
+      asCompanyDefaultCategoryId(existing.company_default_category_id);
+    const nextName = (
+      typeof args.input.name === 'string' ? args.input.name : existing.name
+    ).trim();
     const duplicate = await db
       .selectFrom('company_default_sub_categories')
       .select('id')
       .where('company_id', '=', args.companyId)
       .where('id', '!=', args.input.id)
       .where('company_default_category_id', '=', nextCategoryId)
-      .where(({ fn, eb }) => eb(fn('lower', ['name']), '=', nextName.toLowerCase()))
+      .where(({ fn, eb }) =>
+        eb(fn('lower', ['name']), '=', nextName.toLowerCase())
+      )
       .executeTakeFirst();
     if (duplicate) {
       throw new AppError(
@@ -830,7 +956,8 @@ export async function createCompanyDefaultMappingRuleServer(args: {
       .where('company_id', '=', args.companyId)
       .where('id', '=', args.input.companyDefaultCategoryId)
       .executeTakeFirst();
-    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    if (!category)
+      throw new AppError('NOT_FOUND', 'Unknown company default category');
 
     const subCategory = await db
       .selectFrom('company_default_sub_categories')
@@ -838,9 +965,16 @@ export async function createCompanyDefaultMappingRuleServer(args: {
       .where('company_id', '=', args.companyId)
       .where('id', '=', args.input.companyDefaultSubCategoryId)
       .executeTakeFirst();
-    if (!subCategory) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
-    if (subCategory.company_default_category_id !== args.input.companyDefaultCategoryId) {
-      throw new AppError('VALIDATION_ERROR', 'Subcategory does not belong to the selected company default category');
+    if (!subCategory)
+      throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    if (
+      subCategory.company_default_category_id !==
+      args.input.companyDefaultCategoryId
+    ) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Subcategory does not belong to the selected company default category'
+      );
     }
 
     const existing = await db
@@ -856,10 +990,19 @@ export async function createCompanyDefaultMappingRuleServer(args: {
         'updated_at',
       ])
       .where('company_id', '=', args.companyId)
-      .where(({ fn, eb }) => eb(fn('lower', ['match_text']), '=', matchText.toLowerCase()))
-      .where('company_default_sub_category_id', '=', args.input.companyDefaultSubCategoryId)
+      .where(({ fn, eb }) =>
+        eb(fn('lower', ['match_text']), '=', matchText.toLowerCase())
+      )
+      .where(
+        'company_default_sub_category_id',
+        '=',
+        args.input.companyDefaultSubCategoryId
+      )
       .executeTakeFirst();
-    if (existing) return toCompanyDefaultMappingRule(existing as CompanyDefaultMappingRuleRow);
+    if (existing)
+      return toCompanyDefaultMappingRule(
+        existing as CompanyDefaultMappingRuleRow
+      );
 
     const maxSort = await db
       .selectFrom('company_default_mapping_rules')
@@ -869,7 +1012,7 @@ export async function createCompanyDefaultMappingRuleServer(args: {
     const nextSortOrder =
       typeof args.input.sortOrder === 'number'
         ? args.input.sortOrder
-        : (Number(maxSort?.max_sort_order ?? -1) + 1);
+        : Number(maxSort?.max_sort_order ?? -1) + 1;
     const now = new Date().toISOString();
     const row = await db
       .insertInto('company_default_mapping_rules')
@@ -922,7 +1065,8 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
       .where('company_id', '=', args.companyId)
       .where('id', '=', args.input.id)
       .executeTakeFirst();
-    if (!existing) throw new AppError('NOT_FOUND', 'Unknown company default mapping rule');
+    if (!existing)
+      throw new AppError('NOT_FOUND', 'Unknown company default mapping rule');
 
     if (typeof args.input.matchText === 'string') {
       validateOrThrow(subCategoryNameSchema, args.input.matchText);
@@ -943,7 +1087,9 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
         subCategories.map((row) => ({
           id: asCompanyDefaultSubCategoryId(row.id),
           companyId: args.companyId,
-          companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+          companyDefaultCategoryId: asCompanyDefaultCategoryId(
+            row.company_default_category_id
+          ),
           name: '',
         }))
       ) ??
@@ -955,22 +1101,33 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
       .where('company_id', '=', args.companyId)
       .where('id', '=', nextCategoryId)
       .executeTakeFirst();
-    if (!category) throw new AppError('NOT_FOUND', 'Unknown company default category');
+    if (!category)
+      throw new AppError('NOT_FOUND', 'Unknown company default category');
 
-    const subCategory = subCategories.find((row) => row.id === nextSubCategoryId);
-    if (!subCategory) throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
+    const subCategory = subCategories.find(
+      (row) => row.id === nextSubCategoryId
+    );
+    if (!subCategory)
+      throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
     if (subCategory.company_default_category_id !== nextCategoryId) {
-      throw new AppError('VALIDATION_ERROR', 'Subcategory does not belong to the selected company default category');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Subcategory does not belong to the selected company default category'
+      );
     }
 
     const nextMatchText =
-      typeof args.input.matchText === 'string' ? args.input.matchText.trim() : existing.match_text;
+      typeof args.input.matchText === 'string'
+        ? args.input.matchText.trim()
+        : existing.match_text;
     const duplicate = await db
       .selectFrom('company_default_mapping_rules')
       .select('id')
       .where('company_id', '=', args.companyId)
       .where('id', '!=', args.input.id)
-      .where(({ fn, eb }) => eb(fn('lower', ['match_text']), '=', nextMatchText.toLowerCase()))
+      .where(({ fn, eb }) =>
+        eb(fn('lower', ['match_text']), '=', nextMatchText.toLowerCase())
+      )
       .where('company_default_sub_category_id', '=', nextSubCategoryId)
       .executeTakeFirst();
     if (duplicate) {
@@ -983,14 +1140,16 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
     const patch: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
-    if (typeof args.input.matchText === 'string') patch.match_text = nextMatchText;
+    if (typeof args.input.matchText === 'string')
+      patch.match_text = nextMatchText;
     if (typeof args.input.companyDefaultCategoryId !== 'undefined') {
       patch.company_default_category_id = nextCategoryId;
     }
     if (typeof args.input.companyDefaultSubCategoryId !== 'undefined') {
       patch.company_default_sub_category_id = nextSubCategoryId;
     }
-    if (typeof args.input.sortOrder === 'number') patch.sort_order = args.input.sortOrder;
+    if (typeof args.input.sortOrder === 'number')
+      patch.sort_order = args.input.sortOrder;
 
     const updated = await db
       .updateTable('company_default_mapping_rules')
@@ -1035,7 +1194,11 @@ export async function applyCompanyDefaultTaxonomyServer(args: {
 }): Promise<ApplyCompanyDefaultsResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { companyId } = await requireProjectContext(args.context, args.projectId, 'taxonomy:edit');
+    const { companyId } = await requireProjectContext(
+      args.context,
+      args.projectId,
+      'taxonomy:edit'
+    );
     const db = getDb();
 
     const defaultCategories = await db

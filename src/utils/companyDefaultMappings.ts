@@ -21,8 +21,10 @@ function canonicalize(value: string | undefined | null): string {
   return normalize(value)
     .split(' ')
     .map((word) => {
-      if (word.endsWith('ies') && word.length > 4) return `${word.slice(0, -3)}y`;
-      if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) return word.slice(0, -1);
+      if (word.endsWith('ies') && word.length > 4)
+        return `${word.slice(0, -3)}y`;
+      if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3)
+        return word.slice(0, -1);
       return word;
     })
     .join(' ');
@@ -44,7 +46,11 @@ export function findMatchingCompanyDefaultRule(
     const needle = normalize(rule.matchText);
     const canonicalNeedle = canonicalize(rule.matchText);
     if (!needle) continue;
-    if (haystack.includes(needle) || canonicalHaystack.includes(canonicalNeedle)) return rule;
+    if (
+      haystack.includes(needle) ||
+      canonicalHaystack.includes(canonicalNeedle)
+    )
+      return rule;
   }
   return null;
 }
@@ -77,7 +83,8 @@ export function resolveCompanyDefaultRuleToProjectTaxonomy(args: {
     (subCategory) =>
       subCategory.categoryId === projectCategory.id &&
       (normalize(subCategory.name) === normalize(defaultSubCategory.name) ||
-        canonicalize(subCategory.name) === canonicalize(defaultSubCategory.name))
+        canonicalize(subCategory.name) ===
+          canonicalize(defaultSubCategory.name))
   );
   if (!projectSubCategory) return null;
 

@@ -7,8 +7,18 @@ export type SmokeSectionId =
   | 'inviteFlow'
   | 'privacyChecks';
 
-export type SmokeStepStatus = 'idle' | 'running' | 'passed' | 'failed' | 'skipped';
-export type SmokeSectionStatus = 'idle' | 'running' | 'passed' | 'failed' | 'skipped';
+export type SmokeStepStatus =
+  | 'idle'
+  | 'running'
+  | 'passed'
+  | 'failed'
+  | 'skipped';
+export type SmokeSectionStatus =
+  | 'idle'
+  | 'running'
+  | 'passed'
+  | 'failed'
+  | 'skipped';
 
 export type SmokeStepTemplate = {
   id: string;
@@ -92,7 +102,10 @@ export const smokeSectionDefinitions: Array<{
       { id: 'company-page', label: 'Checking company page HTML' },
       { id: 'project-page', label: 'Checking project page HTML' },
       { id: 'project-refresh', label: 'Checking project refresh HTML' },
-      { id: 'transactions', label: 'Loading transactions for the selected project' },
+      {
+        id: 'transactions',
+        label: 'Loading transactions for the selected project',
+      },
     ],
   },
   {
@@ -106,9 +119,15 @@ export const smokeSectionDefinitions: Array<{
       { id: 'session', label: 'Checking current session' },
       { id: 'email-change-request', label: 'Requesting verified email change' },
       { id: 'email-change-pending', label: 'Checking pending email change' },
-      { id: 'email-change-resend', label: 'Resending email change verification' },
+      {
+        id: 'email-change-resend',
+        label: 'Resending email change verification',
+      },
       { id: 'email-change-cancel', label: 'Cancelling pending email change' },
-      { id: 'email-change-cleared', label: 'Checking pending email change was cleared' },
+      {
+        id: 'email-change-cleared',
+        label: 'Checking pending email change was cleared',
+      },
     ],
   },
   {
@@ -139,21 +158,66 @@ export const smokeSectionDefinitions: Array<{
       { id: 'session', label: 'Checking current session' },
       { id: 'companies', label: 'Loading companies' },
       { id: 'projects', label: 'Loading projects for a company' },
-      { id: 'create-default-category', label: 'Creating a temporary company default category' },
-      { id: 'create-default-subcategory', label: 'Creating temporary company default subcategories' },
-      { id: 'create-default-mapping', label: 'Creating temporary company default mapping rules' },
-      { id: 'apply-company-defaults', label: 'Applying company defaults to the project' },
-      { id: 'import-mapped-transaction', label: 'Importing a matching uncoded transaction' },
-      { id: 'verify-auto-mapped', label: 'Verifying the imported transaction was auto-mapped' },
-      { id: 'verify-rule-ordering', label: 'Verifying the higher-priority mapping rule won' },
-      { id: 'approve-auto-mapped', label: 'Approving the auto-mapped transaction' },
-      { id: 'verify-budget-line', label: 'Verifying a budget line exists for the mapped subcategory' },
-      { id: 'cleanup-imported-transaction', label: 'Deleting the imported transaction' },
-      { id: 'cleanup-budget-line', label: 'Deleting the temporary budget line' },
-      { id: 'cleanup-project-category', label: 'Deleting the temporary project category' },
-      { id: 'cleanup-default-mapping', label: 'Deleting the temporary company default mapping rule' },
-      { id: 'cleanup-default-subcategory', label: 'Deleting the temporary company default subcategory' },
-      { id: 'cleanup-default-category', label: 'Deleting the temporary company default category' },
+      {
+        id: 'create-default-category',
+        label: 'Creating a temporary company default category',
+      },
+      {
+        id: 'create-default-subcategory',
+        label: 'Creating temporary company default subcategories',
+      },
+      {
+        id: 'create-default-mapping',
+        label: 'Creating temporary company default mapping rules',
+      },
+      {
+        id: 'apply-company-defaults',
+        label: 'Applying company defaults to the project',
+      },
+      {
+        id: 'import-mapped-transaction',
+        label: 'Importing a matching uncoded transaction',
+      },
+      {
+        id: 'verify-auto-mapped',
+        label: 'Verifying the imported transaction was auto-mapped',
+      },
+      {
+        id: 'verify-rule-ordering',
+        label: 'Verifying the higher-priority mapping rule won',
+      },
+      {
+        id: 'approve-auto-mapped',
+        label: 'Approving the auto-mapped transaction',
+      },
+      {
+        id: 'verify-budget-line',
+        label: 'Verifying a budget line exists for the mapped subcategory',
+      },
+      {
+        id: 'cleanup-imported-transaction',
+        label: 'Deleting the imported transaction',
+      },
+      {
+        id: 'cleanup-budget-line',
+        label: 'Deleting the temporary budget line',
+      },
+      {
+        id: 'cleanup-project-category',
+        label: 'Deleting the temporary project category',
+      },
+      {
+        id: 'cleanup-default-mapping',
+        label: 'Deleting the temporary company default mapping rule',
+      },
+      {
+        id: 'cleanup-default-subcategory',
+        label: 'Deleting the temporary company default subcategory',
+      },
+      {
+        id: 'cleanup-default-category',
+        label: 'Deleting the temporary company default category',
+      },
     ],
   },
   {
@@ -168,9 +232,15 @@ export const smokeSectionDefinitions: Array<{
       { id: 'companies', label: 'Loading companies' },
       { id: 'projects', label: 'Loading projects for a company' },
       { id: 'invite-user', label: 'Inviting a user to the company' },
-      { id: 'update-existing-member', label: 'Updating the existing member without sending email' },
+      {
+        id: 'update-existing-member',
+        label: 'Updating the existing member without sending email',
+      },
       { id: 'resend-invite', label: 'Attempting immediate invite resend' },
-      { id: 'invite-flow-skipped', label: 'Skipping invite flow when invite smoke vars are absent' },
+      {
+        id: 'invite-flow-skipped',
+        label: 'Skipping invite flow when invite smoke vars are absent',
+      },
     ],
   },
   {
@@ -182,15 +252,36 @@ export const smokeSectionDefinitions: Array<{
       { id: 'privacy-admin-login', label: 'Logging in as admin' },
       { id: 'privacy-admin-companies', label: 'Loading admin companies' },
       { id: 'privacy-admin-projects', label: 'Loading admin projects' },
-      { id: 'privacy-enable-access', label: 'Enabling superadmin access for the project' },
-      { id: 'privacy-disable-access', label: 'Disabling superadmin access for the project' },
-      { id: 'privacy-admin-page', label: 'Confirming admin can still view the project page' },
+      {
+        id: 'privacy-enable-access',
+        label: 'Enabling superadmin access for the project',
+      },
+      {
+        id: 'privacy-disable-access',
+        label: 'Disabling superadmin access for the project',
+      },
+      {
+        id: 'privacy-admin-page',
+        label: 'Confirming admin can still view the project page',
+      },
       { id: 'privacy-superadmin-login', label: 'Logging in as superadmin' },
-      { id: 'privacy-superadmin-list', label: 'Checking the project is hidden from the superadmin list' },
-      { id: 'privacy-superadmin-fetch', label: 'Checking the project cannot be fetched by superadmin' },
+      {
+        id: 'privacy-superadmin-list',
+        label: 'Checking the project is hidden from the superadmin list',
+      },
+      {
+        id: 'privacy-superadmin-fetch',
+        label: 'Checking the project cannot be fetched by superadmin',
+      },
       { id: 'privacy-admin-relogin', label: 'Relogging in as admin' },
-      { id: 'privacy-restore', label: 'Restoring the original superadmin access setting' },
-      { id: 'privacy-skipped', label: 'Skipping privacy flow when privacy smoke vars are absent' },
+      {
+        id: 'privacy-restore',
+        label: 'Restoring the original superadmin access setting',
+      },
+      {
+        id: 'privacy-skipped',
+        label: 'Skipping privacy flow when privacy smoke vars are absent',
+      },
     ],
   },
 ];

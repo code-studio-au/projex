@@ -8,7 +8,7 @@ import type {
   SubCategory,
   SubCategoryId,
 } from '../types';
-import { asCategoryId, asSubCategoryId } from "../types";
+import { asCategoryId, asSubCategoryId } from '../types';
 import { uid } from '../utils/id';
 import {
   useApplyCompanyDefaultTaxonomyMutation,
@@ -43,7 +43,9 @@ function ensureUniqueCategoryName(
   );
 
   if (duplicate) {
-    throw new Error(`Category "${name.trim()}" already exists in this project.`);
+    throw new Error(
+      `Category "${name.trim()}" already exists in this project.`
+    );
   }
 }
 
@@ -64,7 +66,9 @@ function ensureUniqueSubCategoryName(
   );
 
   if (duplicate) {
-    throw new Error(`Subcategory "${name.trim()}" already exists in this category.`);
+    throw new Error(
+      `Subcategory "${name.trim()}" already exists in this category.`
+    );
   }
 }
 
@@ -93,7 +97,10 @@ export function useTaxonomy(params: {
   const createSub = useCreateSubCategoryMutation(projectId);
   const updateSub = useUpdateSubCategoryMutation(projectId);
   const deleteSub = useDeleteSubCategoryMutation(projectId);
-  const applyCompanyDefaultsMutation = useApplyCompanyDefaultTaxonomyMutation(projectId, companyId);
+  const applyCompanyDefaultsMutation = useApplyCompanyDefaultTaxonomyMutation(
+    projectId,
+    companyId
+  );
 
   const categories = useMemo(() => catsQ.data ?? [], [catsQ.data]);
   const subCategories = useMemo(() => subsQ.data ?? [], [subsQ.data]);
@@ -136,9 +143,12 @@ export function useTaxonomy(params: {
   }, [subCategories]);
 
   const subCategoryOptionsForCategory = (categoryId?: CategoryId) =>
-    categoryId ? subCategoryOptionsByCategory.get(categoryId) ?? [] : [];
+    categoryId ? (subCategoryOptionsByCategory.get(categoryId) ?? []) : [];
 
-  const validSubIds = useMemo(() => new Set(subCategories.map((s) => s.id)), [subCategories]);
+  const validSubIds = useMemo(
+    () => new Set(subCategories.map((s) => s.id)),
+    [subCategories]
+  );
 
   /**
    * Creates a category and resolves with the generated branded ID after success.
@@ -150,7 +160,12 @@ export function useTaxonomy(params: {
     ensureUniqueCategoryName(categories, null, name);
 
     const id = asCategoryId(uid('cat'));
-    await createCat.mutateAsync({ id, companyId, projectId, name: name.trim() });
+    await createCat.mutateAsync({
+      id,
+      companyId,
+      projectId,
+      name: name.trim(),
+    });
     return id;
   };
 
@@ -166,7 +181,10 @@ export function useTaxonomy(params: {
   /**
    * Creates a subcategory and resolves with the generated branded ID after success.
    */
-  const addSubCategory = async (categoryId: CategoryId, name: string): Promise<SubCategoryId> => {
+  const addSubCategory = async (
+    categoryId: CategoryId,
+    name: string
+  ): Promise<SubCategoryId> => {
     ensureUniqueSubCategoryName(subCategories, categoryId, null, name);
 
     const id = asSubCategoryId(uid('sub'));
@@ -190,14 +208,25 @@ export function useTaxonomy(params: {
     return id;
   };
 
-  const renameSubCategory = async (subCategoryId: SubCategoryId, name: string) => {
+  const renameSubCategory = async (
+    subCategoryId: SubCategoryId,
+    name: string
+  ) => {
     const existing = subById.get(subCategoryId);
     if (!existing) return;
-    ensureUniqueSubCategoryName(subCategories, existing.categoryId, subCategoryId, name);
+    ensureUniqueSubCategoryName(
+      subCategories,
+      existing.categoryId,
+      subCategoryId,
+      name
+    );
     await updateSub.mutateAsync({ id: subCategoryId, name: name.trim() });
   };
 
-  const moveSubCategory = async (subCategoryId: SubCategoryId, newCategoryId: CategoryId) => {
+  const moveSubCategory = async (
+    subCategoryId: SubCategoryId,
+    newCategoryId: CategoryId
+  ) => {
     const existing = subById.get(subCategoryId);
     if (!existing) return;
     ensureUniqueSubCategoryName(
@@ -206,11 +235,19 @@ export function useTaxonomy(params: {
       subCategoryId,
       existing.name
     );
-    await updateSub.mutateAsync({ id: subCategoryId, categoryId: newCategoryId });
-    await budgets.updateBudgetCategoryForSubCategory(subCategoryId, newCategoryId);
+    await updateSub.mutateAsync({
+      id: subCategoryId,
+      categoryId: newCategoryId,
+    });
+    await budgets.updateBudgetCategoryForSubCategory(
+      subCategoryId,
+      newCategoryId
+    );
     // Update txn categoryId to match (keep subCategoryId)
     const next = txns.transactions.map((t) =>
-      t.subCategoryId === subCategoryId ? { ...t, categoryId: newCategoryId } : t
+      t.subCategoryId === subCategoryId
+        ? { ...t, categoryId: newCategoryId }
+        : t
     );
     await txns.replaceAll(next);
   };
@@ -221,12 +258,13 @@ export function useTaxonomy(params: {
 
   // Helpers used by the Transactions table
   const getCategoryName = (categoryId?: CategoryId) =>
-    categoryId ? categoryById.get(categoryId)?.name ?? '' : '';
+    categoryId ? (categoryById.get(categoryId)?.name ?? '') : '';
 
   const getSubCategoryName = (subId?: SubCategoryId) =>
-    subId ? subById.get(subId)?.name ?? '' : '';
+    subId ? (subById.get(subId)?.name ?? '') : '';
 
-  const getSubCategory = (subId?: SubCategoryId) => (subId ? subById.get(subId) ?? null : null);
+  const getSubCategory = (subId?: SubCategoryId) =>
+    subId ? (subById.get(subId) ?? null) : null;
 
   return {
     companyId,

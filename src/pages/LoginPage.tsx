@@ -64,7 +64,9 @@ function ServerLoginPanel() {
       }
       const userId = await waitForServerSession();
       if (!userId) {
-        setError('Sign in succeeded but the browser session was not ready yet. Please try again.');
+        setError(
+          'Sign in succeeded but the browser session was not ready yet. Please try again.'
+        );
         return;
       }
 
@@ -79,7 +81,11 @@ function ServerLoginPanel() {
   }
 
   return (
-    <Container size="lg" px={isMobile ? 'xs' : 'md'} py={isMobile ? 'lg' : 'xl'}>
+    <Container
+      size="lg"
+      px={isMobile ? 'xs' : 'md'}
+      py={isMobile ? 'lg' : 'xl'}
+    >
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing={isMobile ? 'md' : 'xl'}>
         <Paper
           radius="xl"
@@ -100,8 +106,8 @@ function ServerLoginPanel() {
                   ProjEx
                 </Title>
                 <Text c="dimmed" mt="xs" maw={460}>
-                  Keep budgets, imports, and coding decisions in one operational workspace built
-                  for project expense control.
+                  Keep budgets, imports, and coding decisions in one operational
+                  workspace built for project expense control.
                 </Text>
               </div>
             </Stack>
@@ -148,7 +154,11 @@ function ServerLoginPanel() {
               required
             />
             <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-              <Button variant="subtle" px={0} onClick={() => router.navigate({ to: forgotPasswordRoute.to })}>
+              <Button
+                variant="subtle"
+                px={0}
+                onClick={() => router.navigate({ to: forgotPasswordRoute.to })}
+              >
                 Forgot password?
               </Button>
               <Badge variant="dot" color="blue" radius="xl">
@@ -157,10 +167,17 @@ function ServerLoginPanel() {
             </Group>
             <Divider />
             <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-              <Button variant="light" onClick={() => router.navigate({ to: homeRoute.to })}>
+              <Button
+                variant="light"
+                onClick={() => router.navigate({ to: homeRoute.to })}
+              >
                 Back
               </Button>
-              <Button onClick={handleServerLogin} loading={pending} disabled={!email || !password}>
+              <Button
+                onClick={handleServerLogin}
+                loading={pending}
+                disabled={!email || !password}
+              >
                 Continue
               </Button>
             </Group>

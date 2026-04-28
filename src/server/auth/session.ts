@@ -17,7 +17,10 @@ export type ServerSession = {
  * Accepts either `{ userId }` or `{ user: { id } }` and returns a strict shape.
  */
 export function toServerSession(
-  source: { userId?: string | null; user?: { id?: string | null } | null } | null | undefined
+  source:
+    | { userId?: string | null; user?: { id?: string | null } | null }
+    | null
+    | undefined
 ): ServerSession | null {
   const raw = source?.userId ?? source?.user?.id ?? null;
   if (!raw) return null;

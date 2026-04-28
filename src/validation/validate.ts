@@ -7,5 +7,7 @@ export function validateOrThrow<T>(schema: z.ZodType<T>, value: unknown): T {
 
   const first = parsed.error.issues[0];
   const message = first?.message ?? 'Validation failed';
-  throw new AppError('VALIDATION_ERROR', message, { issues: parsed.error.issues });
+  throw new AppError('VALIDATION_ERROR', message, {
+    issues: parsed.error.issues,
+  });
 }

@@ -17,7 +17,11 @@ import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, ProjectId } from '../types';
 import { asCompanyId } from '../types';
-import { useCompanyQuery, useProjectsQuery, useUsersQuery } from '../queries/reference';
+import {
+  useCompanyQuery,
+  useProjectsQuery,
+  useUsersQuery,
+} from '../queries/reference';
 import {
   useCreateProjectMutation,
   useDeactivateProjectMutation,
@@ -55,7 +59,9 @@ export default function CompanyDashboardPage() {
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [activeTab, setActiveTab] = useState<'summary' | 'projects' | 'settings'>('summary');
+  const [activeTab, setActiveTab] = useState<
+    'summary' | 'projects' | 'settings'
+  >('summary');
 
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
   const sortedProjects = useMemo(
@@ -66,20 +72,28 @@ export default function CompanyDashboardPage() {
       }),
     [rows]
   );
-  const memberships = useMemo(() => membershipsQ.data ?? [], [membershipsQ.data]);
+  const memberships = useMemo(
+    () => membershipsQ.data ?? [],
+    [membershipsQ.data]
+  );
   const userCompanyCount = useMemo(() => {
     const ids = new Set(
-      memberships.filter((m) => m.userId === access.userId).map((m) => m.companyId)
+      memberships
+        .filter((m) => m.userId === access.userId)
+        .map((m) => m.companyId)
     );
     return ids.size;
   }, [memberships, access.userId]);
   const isGlobalSuperadmin = useMemo(
     () =>
-      (usersQ.data ?? []).find((user) => user.id === access.userId)?.isGlobalSuperadmin === true,
+      (usersQ.data ?? []).find((user) => user.id === access.userId)
+        ?.isGlobalSuperadmin === true,
     [access.userId, usersQ.data]
   );
   const canViewCompanySummary =
-    access.isAdmin || access.isExecutive || (isGlobalSuperadmin && sortedProjects.length > 0);
+    access.isAdmin ||
+    access.isExecutive ||
+    (isGlobalSuperadmin && sortedProjects.length > 0);
   const showSwitchCompany = isGlobalSuperadmin || userCompanyCount > 1;
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -91,11 +105,14 @@ export default function CompanyDashboardPage() {
     | null
   >(null);
 
-  const openConfirm = useCallback((target: NonNullable<typeof confirmTarget>) => {
-    setConfirmTarget(target);
-    setConfirmText('');
-    setConfirmOpen(true);
-  }, []);
+  const openConfirm = useCallback(
+    (target: NonNullable<typeof confirmTarget>) => {
+      setConfirmTarget(target);
+      setConfirmText('');
+      setConfirmOpen(true);
+    },
+    []
+  );
 
   const closeConfirm = () => {
     setConfirmOpen(false);
@@ -105,8 +122,10 @@ export default function CompanyDashboardPage() {
 
   const confirmLabel = useMemo(() => {
     if (!confirmTarget) return '';
-    if (confirmTarget.kind === 'deactivate_project') return 'Deactivate project';
-    if (confirmTarget.kind === 'reactivate_project') return 'Reactivate project';
+    if (confirmTarget.kind === 'deactivate_project')
+      return 'Deactivate project';
+    if (confirmTarget.kind === 'reactivate_project')
+      return 'Reactivate project';
     return 'Delete project';
   }, [confirmTarget]);
 
@@ -126,121 +145,122 @@ export default function CompanyDashboardPage() {
     return confirmText.trim() === confirmTarget.projectName;
   }, [confirmText, confirmTarget]);
 
-  const resolvedActiveTab: 'summary' | 'projects' | 'settings' = canViewCompanySummary
-    ? activeTab === 'settings'
-      ? 'settings'
-      : activeTab === 'projects'
+  const resolvedActiveTab: 'summary' | 'projects' | 'settings' =
+    canViewCompanySummary
+      ? activeTab === 'settings'
+        ? 'settings'
+        : activeTab === 'projects'
+          ? 'projects'
+          : 'summary'
+      : activeTab === 'summary'
         ? 'projects'
-        : 'summary'
-    : activeTab === 'summary'
-      ? 'projects'
-      : activeTab;
+        : activeTab;
 
   const projectColumns: MRT_ColumnDef<(typeof rows)[number]>[] = [
-      {
-        accessorKey: 'name',
-        header: 'Project',
-      },
-      {
-        accessorKey: 'visibility',
-        header: 'Visibility',
-        Cell: ({ row }) =>
-          row.original.visibility === 'private' ? (
-            <Badge variant="light">Private</Badge>
-          ) : (
-            <Badge variant="light" color="blue">
-              Company
-            </Badge>
-          ),
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        enableSorting: false,
-        size: 320,
-        minSize: 320,
-        Cell: ({ row }) => {
-          const project = row.original;
-          const canOpen =
-            project.status === 'active' &&
-            (isGlobalSuperadmin
-              ? project.allowSuperadminAccess
-              : access.can('project:view', project.id));
+    {
+      accessorKey: 'name',
+      header: 'Project',
+    },
+    {
+      accessorKey: 'visibility',
+      header: 'Visibility',
+      Cell: ({ row }) =>
+        row.original.visibility === 'private' ? (
+          <Badge variant="light">Private</Badge>
+        ) : (
+          <Badge variant="light" color="blue">
+            Company
+          </Badge>
+        ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      size: 320,
+      minSize: 320,
+      Cell: ({ row }) => {
+        const project = row.original;
+        const canOpen =
+          project.status === 'active' &&
+          (isGlobalSuperadmin
+            ? project.allowSuperadminAccess
+            : access.can('project:view', project.id));
 
-          return (
-            <Group gap="xs" wrap="nowrap">
-              {canOpen ? (
+        return (
+          <Group gap="xs" wrap="nowrap">
+            {canOpen ? (
+              <Button
+                size="xs"
+                variant="filled"
+                onClick={() =>
+                  router.navigate({
+                    to: projectRoute.to,
+                    params: { companyId, projectId: project.id },
+                  })
+                }
+              >
+                Open
+              </Button>
+            ) : (
+              <Button size="xs" variant="light" disabled>
+                Open
+              </Button>
+            )}
+
+            {canManageProjects &&
+              (project.status === 'active' ? (
                 <Button
                   size="xs"
-                  variant="filled"
+                  variant="light"
+                  color="orange"
                   onClick={() =>
-                    router.navigate({
-                      to: projectRoute.to,
-                      params: { companyId, projectId: project.id },
+                    openConfirm({
+                      kind: 'deactivate_project',
+                      projectId: project.id,
+                      projectName: project.name,
                     })
                   }
                 >
-                  Open
+                  Deactivate
                 </Button>
               ) : (
-                <Button size="xs" variant="light" disabled>
-                  Open
-                </Button>
-              )}
-
-              {canManageProjects &&
-                (project.status === 'active' ? (
+                <>
                   <Button
                     size="xs"
                     variant="light"
-                    color="orange"
+                    color="green"
                     onClick={() =>
                       openConfirm({
-                        kind: 'deactivate_project',
+                        kind: 'reactivate_project',
                         projectId: project.id,
                         projectName: project.name,
                       })
                     }
                   >
-                    Deactivate
+                    Reactivate
                   </Button>
-                ) : (
-                  <>
-                    <Button
-                      size="xs"
-                      variant="light"
-                      color="green"
-                      onClick={() =>
-                        openConfirm({
-                          kind: 'reactivate_project',
-                          projectId: project.id,
-                          projectName: project.name,
-                        })
-                      }
-                    >
-                      Reactivate
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="filled"
-                      color="red"
-                      onClick={() =>
-                        openConfirm({
-                          kind: 'delete_project',
-                          projectId: project.id,
-                          projectName: project.name,
-                        })
-                      }
-                    >
-                      Delete
-                    </Button>
-                  </>
-                ))}
-            </Group>
-          );
-        },
+                  <Button
+                    size="xs"
+                    variant="filled"
+                    color="red"
+                    onClick={() =>
+                      openConfirm({
+                        kind: 'delete_project',
+                        projectId: project.id,
+                        projectName: project.name,
+                      })
+                    }
+                  >
+                    Delete
+                  </Button>
+                </>
+              ))}
+          </Group>
+        );
       },
-    ];
+    },
+  ];
 
   return (
     <Stack gap="lg">
@@ -256,7 +276,11 @@ export default function CompanyDashboardPage() {
               <Button variant="filled" onClick={() => setNewProjectOpen(true)}>
                 New project
               </Button>
-              <Modal opened={newProjectOpen} onClose={() => setNewProjectOpen(false)} title="Create project">
+              <Modal
+                opened={newProjectOpen}
+                onClose={() => setNewProjectOpen(false)}
+                title="Create project"
+              >
                 <Stack>
                   <TextInput
                     label="Project name"
@@ -266,14 +290,20 @@ export default function CompanyDashboardPage() {
                     autoFocus
                   />
                   <Text size="sm" c="dimmed">
-                    New projects start with superadmin support access enabled. Company admins can change this later in Project settings.
+                    New projects start with superadmin support access enabled.
+                    Company admins can change this later in Project settings.
                   </Text>
                   <Group justify="flex-end">
-                    <Button variant="light" onClick={() => setNewProjectOpen(false)}>
+                    <Button
+                      variant="light"
+                      onClick={() => setNewProjectOpen(false)}
+                    >
                       Cancel
                     </Button>
                     <Button
-                      disabled={!newProjectName.trim() || createProject.isPending}
+                      disabled={
+                        !newProjectName.trim() || createProject.isPending
+                      }
                       onClick={async () => {
                         const name = newProjectName.trim();
                         if (!name) return;
@@ -303,12 +333,16 @@ export default function CompanyDashboardPage() {
       <Tabs
         value={resolvedActiveTab}
         onChange={(value) =>
-          setActiveTab((value as 'summary' | 'projects' | 'settings') ?? 'projects')
+          setActiveTab(
+            (value as 'summary' | 'projects' | 'settings') ?? 'projects'
+          )
         }
         keepMounted={false}
       >
         <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
-          {canViewCompanySummary ? <Tabs.Tab value="summary">Summary</Tabs.Tab> : null}
+          {canViewCompanySummary ? (
+            <Tabs.Tab value="summary">Summary</Tabs.Tab>
+          ) : null}
           <Tabs.Tab value="projects">Projects</Tabs.Tab>
           <Tabs.Tab value="settings" disabled={!canEditCompany}>
             Settings
@@ -333,7 +367,11 @@ export default function CompanyDashboardPage() {
                   density: 'xs',
                   pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
                 }}
-                mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+                mantineTableProps={{
+                  highlightOnHover: true,
+                  striped: 'odd',
+                  withTableBorder: true,
+                }}
               />
             </Stack>
           ) : (
@@ -354,7 +392,12 @@ export default function CompanyDashboardPage() {
         </Tabs.Panel>
       </Tabs>
 
-      <Modal opened={confirmOpen} onClose={closeConfirm} title={confirmLabel} fullScreen={isMobile}>
+      <Modal
+        opened={confirmOpen}
+        onClose={closeConfirm}
+        title={confirmLabel}
+        fullScreen={isMobile}
+      >
         <Stack>
           <Text size="sm" c="dimmed">
             {confirmDescription}

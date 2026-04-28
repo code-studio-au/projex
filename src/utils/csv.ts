@@ -113,9 +113,11 @@ export function rowsToImportTxns(
     const date =
       map['date'] || map['transactiondate'] || map['posteddate'] || '';
     const description = map['description'] || map['memo'] || '';
-    const item = map['item'] || map['merchant'] || map['payee'] || description || '';
+    const item =
+      map['item'] || map['merchant'] || map['payee'] || description || '';
     const amountRaw = map['amount'] || map['debit'] || '';
-    const amountParsed = Number(String(amountRaw).replace(/[^0-9.-]/g, '')) || 0;
+    const amountParsed =
+      Number(String(amountRaw).replace(/[^0-9.-]/g, '')) || 0;
     const amountCents = Math.abs(toCents(amountParsed));
 
     return {
@@ -155,7 +157,10 @@ function fnv1a32(str: string) {
 }
 
 function fingerprint(
-  t: Pick<ImportTxnWithTaxonomy, 'date' | 'item' | 'description' | 'amountCents'>
+  t: Pick<
+    ImportTxnWithTaxonomy,
+    'date' | 'item' | 'description' | 'amountCents'
+  >
 ) {
   return [
     t.date || '',
@@ -180,8 +185,12 @@ function deriveStableTxnId(
 ): TxnId | string {
   // Prefer external/bank-provided reference for deterministic local IDs.
   if (t.externalId && String(t.externalId).trim()) {
-    const hash = fnv1a32(String(t.externalId).trim().toLowerCase()).toString(36);
-    return occurrence === 1 ? `txn_ext_${hash}` : `txn_ext_${hash}_${occurrence}`;
+    const hash = fnv1a32(String(t.externalId).trim().toLowerCase()).toString(
+      36
+    );
+    return occurrence === 1
+      ? `txn_ext_${hash}`
+      : `txn_ext_${hash}_${occurrence}`;
   }
   if (t.id && String(t.id).trim()) return String(t.id).trim();
 
@@ -209,7 +218,9 @@ function dedupeKeyForTxn(t: { id: string; externalId?: string }) {
 }
 
 /** Filter out transactions whose dedupe keys already exist in the destination list */
-export function filterDuplicatesByKey<T extends { id: string; externalId?: string }>(
+export function filterDuplicatesByKey<
+  T extends { id: string; externalId?: string },
+>(
   items: T[],
   existingKeys: Set<string>,
   skipDuplicates: boolean

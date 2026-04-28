@@ -1,7 +1,18 @@
 import { useMemo } from 'react';
 
-import type { BudgetLineId, CategoryId, CompanyId, ProjectId, SubCategoryId } from '../types';
-import { useBudgetsQuery, useCreateBudgetMutation, useDeleteBudgetMutation, useUpdateBudgetMutation } from '../queries/budgets';
+import type {
+  BudgetLineId,
+  CategoryId,
+  CompanyId,
+  ProjectId,
+  SubCategoryId,
+} from '../types';
+import {
+  useBudgetsQuery,
+  useCreateBudgetMutation,
+  useDeleteBudgetMutation,
+  useUpdateBudgetMutation,
+} from '../queries/budgets';
 
 /**
  * Query-backed budgets model.
@@ -21,8 +32,14 @@ export function useBudgets(params: {
 
   const budgets = useMemo(() => q.data ?? [], [q.data]);
 
-  const updateAllocated = async (budgetId: BudgetLineId, allocatedCents: number) => {
-    await update.mutateAsync({ id: budgetId, allocatedCents: Number(allocatedCents ?? 0) });
+  const updateAllocated = async (
+    budgetId: BudgetLineId,
+    allocatedCents: number
+  ) => {
+    await update.mutateAsync({
+      id: budgetId,
+      allocatedCents: Number(allocatedCents ?? 0),
+    });
   };
 
   const upsertBudgetForSubCategory = async (
@@ -43,11 +60,15 @@ export function useBudgets(params: {
     });
   };
 
-  const deleteBudgetLinesForSubCategoryIds = async (subCategoryIds: SubCategoryId[]) => {
+  const deleteBudgetLinesForSubCategoryIds = async (
+    subCategoryIds: SubCategoryId[]
+  ) => {
     const setIds = new Set(subCategoryIds);
     await Promise.all(
       budgets
-        .filter((budget) => budget.subCategoryId && setIds.has(budget.subCategoryId))
+        .filter(
+          (budget) => budget.subCategoryId && setIds.has(budget.subCategoryId)
+        )
         .map((budget) => del.mutateAsync(budget.id))
     );
   };

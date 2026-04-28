@@ -1,4 +1,8 @@
-import { createFileRoute, lazyRouteComponent, redirect } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  lazyRouteComponent,
+  redirect,
+} from '@tanstack/react-router';
 import { getPostLoginTarget } from './-postLogin';
 
 export const Route = createFileRoute('/login')({

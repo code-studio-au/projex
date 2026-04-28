@@ -1,4 +1,13 @@
-import { Badge, Button, Container, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import {
+  Badge,
+  Button,
+  Container,
+  Group,
+  Paper,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { Link, isNotFound, useRouter } from '@tanstack/react-router';
 
 import { homeRoute } from '../router';
@@ -15,7 +24,8 @@ export function RootNotFoundComponent() {
             </Badge>
           </Group>
           <Text c="dimmed">
-            That route doesn’t exist. If you followed a link, it may be outdated.
+            That route doesn’t exist. If you followed a link, it may be
+            outdated.
           </Text>
           <Group justify="flex-end">
             <Link to={homeRoute.to}>
@@ -45,7 +55,9 @@ export function RootErrorComponent(props: { error: unknown }) {
       <Paper withBorder radius="lg" p="xl">
         <Stack gap="md">
           <Group justify="space-between" align="center">
-            <Title order={2}>{is404 ? 'Not found' : 'Something went wrong'}</Title>
+            <Title order={2}>
+              {is404 ? 'Not found' : 'Something went wrong'}
+            </Title>
             <Badge variant="light" color={is404 ? 'gray' : 'red'}>
               {is404 ? '404' : 'error'}
             </Badge>

@@ -5,7 +5,8 @@ import { withApi } from './-api-shared';
 export const Route = createFileRoute('/api/memberships/companies')({
   server: {
     handlers: {
-      GET: ({ request }) => withApi(request, (api) => api.listAllCompanyMemberships()),
+      GET: ({ request }) =>
+        withApi(request, (api) => api.listAllCompanyMemberships()),
     },
   },
 });

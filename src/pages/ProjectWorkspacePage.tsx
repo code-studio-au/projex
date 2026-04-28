@@ -7,7 +7,8 @@ import { asCompanyId, asProjectId } from '../types';
 export default function ProjectWorkspacePage() {
   // Route params are required by the route definition (c/$companyId/p/$projectId).
   // Using the route object's hook keeps types aligned with TanStack Router.
-  const { companyId: rawCompanyId, projectId: rawProjectId } = projectRoute.useParams();
+  const { companyId: rawCompanyId, projectId: rawProjectId } =
+    projectRoute.useParams();
   const search = projectRoute.useSearch();
 
   const companyId: CompanyId = asCompanyId(rawCompanyId);

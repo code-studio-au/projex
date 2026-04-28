@@ -48,7 +48,9 @@ function assertValidResendConfig() {
   }
 }
 
-async function sendViaResend(payload: AuthEmailPayload): Promise<AuthEmailDelivery> {
+async function sendViaResend(
+  payload: AuthEmailPayload
+): Promise<AuthEmailDelivery> {
   const apiKey = getResendApiKey();
   const from = getResendFrom();
   if (!apiKey || !from) return 'log';
@@ -73,13 +75,17 @@ async function sendViaResend(payload: AuthEmailPayload): Promise<AuthEmailDelive
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Resend delivery failed (${res.status}): ${text || 'empty response'}`);
+    throw new Error(
+      `Resend delivery failed (${res.status}): ${text || 'empty response'}`
+    );
   }
 
   return 'email';
 }
 
-export async function sendAuthEmail(payload: AuthEmailPayload): Promise<AuthEmailDelivery> {
+export async function sendAuthEmail(
+  payload: AuthEmailPayload
+): Promise<AuthEmailDelivery> {
   if (getResendApiKey() && getResendFrom()) {
     return sendViaResend(payload);
   }
@@ -105,7 +111,9 @@ export async function sendAuthEmail(payload: AuthEmailPayload): Promise<AuthEmai
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Invite email delivery failed (${res.status}): ${text || 'empty response'}`);
+    throw new Error(
+      `Invite email delivery failed (${res.status}): ${text || 'empty response'}`
+    );
   }
 
   return 'email';

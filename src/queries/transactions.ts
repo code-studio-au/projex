@@ -1,4 +1,9 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 
 import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
@@ -25,7 +30,9 @@ export function useCreateTxnMutation(projectId: ProjectId) {
     mutationFn: (input: TxnCreateInput) => api.createTxn(projectId, input),
     onSuccess: async () => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) }),
+        qc.invalidateQueries({
+          queryKey: qk.transactions(scopeUserId, projectId),
+        }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
       ]);
     },
@@ -73,7 +80,9 @@ export function useDeleteTxnMutation(projectId: ProjectId) {
     mutationFn: (txnId: TxnId) => api.deleteTxn(projectId, txnId),
     onSuccess: async () => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: qk.transactions(scopeUserId, projectId) }),
+        qc.invalidateQueries({
+          queryKey: qk.transactions(scopeUserId, projectId),
+        }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
       ]);
     },

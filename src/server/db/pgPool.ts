@@ -15,7 +15,10 @@ export type TypedPgCursor<T> = {
 };
 
 export type TypedPgPoolClient = {
-  query<R>(sql: string, parameters: ReadonlyArray<unknown>): Promise<TypedPgQueryResult<R>>;
+  query<R>(
+    sql: string,
+    parameters: ReadonlyArray<unknown>
+  ): Promise<TypedPgQueryResult<R>>;
   query<R>(cursor: TypedPgCursor<R>): TypedPgCursor<R>;
   release(): void;
 };

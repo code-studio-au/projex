@@ -10,7 +10,9 @@ export const Route = createFileRoute('/api/me/default-company')({
         withApi(request, async (api) => {
           const session = await api.getSession();
           if (!session) return { companyId: null };
-          const companyId = await api.getDefaultCompanyIdForUser(asUserId(session.userId));
+          const companyId = await api.getDefaultCompanyIdForUser(
+            asUserId(session.userId)
+          );
           return { companyId };
         }),
     },

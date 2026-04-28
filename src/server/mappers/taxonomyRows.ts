@@ -103,7 +103,9 @@ export function toCompanyDefaultSubCategory(
   return {
     id: asCompanyDefaultSubCategoryId(row.id),
     companyId: row.company_id as CompanyId,
-    companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+    companyDefaultCategoryId: asCompanyDefaultCategoryId(
+      row.company_default_category_id
+    ),
     name: row.name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -117,7 +119,9 @@ export function toCompanyDefaultMappingRule(
     id: asCompanyDefaultMappingRuleId(row.id),
     companyId: row.company_id as CompanyId,
     matchText: row.match_text,
-    companyDefaultCategoryId: asCompanyDefaultCategoryId(row.company_default_category_id),
+    companyDefaultCategoryId: asCompanyDefaultCategoryId(
+      row.company_default_category_id
+    ),
     companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
       row.company_default_sub_category_id
     ),

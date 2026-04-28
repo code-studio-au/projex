@@ -40,7 +40,10 @@ export type Session = {
 };
 
 export type CsvImportMode = 'append' | 'replaceAll';
-export type TxnImportTxnInput = Omit<Txn, 'internalId' | 'createdAt' | 'updatedAt'>;
+export type TxnImportTxnInput = Omit<
+  Txn,
+  'internalId' | 'createdAt' | 'updatedAt'
+>;
 export type TxnImportInput = {
   txns: TxnImportTxnInput[];
   mode: CsvImportMode;
@@ -55,9 +58,21 @@ export type TxnImportPreviewResult = {
 };
 
 // Inputs (command-style)
-export type TxnCreateInput = Omit<Txn, 'id' | 'internalId' | 'createdAt' | 'updatedAt'> & { id?: TxnId };
+export type TxnCreateInput = Omit<
+  Txn,
+  'id' | 'internalId' | 'createdAt' | 'updatedAt'
+> & { id?: TxnId };
 export type TxnUpdateInput = Partial<
-  Omit<Txn, 'id' | 'internalId' | 'createdAt' | 'updatedAt' | 'externalId' | 'categoryId' | 'subCategoryId'>
+  Omit<
+    Txn,
+    | 'id'
+    | 'internalId'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'externalId'
+    | 'categoryId'
+    | 'subCategoryId'
+  >
 > & {
   id: TxnId;
   externalId?: string | null;
@@ -65,15 +80,25 @@ export type TxnUpdateInput = Partial<
   subCategoryId?: Txn['subCategoryId'] | null;
 };
 
-export type BudgetCreateInput = Omit<BudgetLine, 'id' | 'createdAt' | 'updatedAt'> & {
+export type BudgetCreateInput = Omit<
+  BudgetLine,
+  'id' | 'createdAt' | 'updatedAt'
+> & {
   id?: BudgetLine['id'];
 };
-export type BudgetUpdateInput = Partial<Omit<BudgetLine, 'id' | 'createdAt' | 'updatedAt'>> & {
+export type BudgetUpdateInput = Partial<
+  Omit<BudgetLine, 'id' | 'createdAt' | 'updatedAt'>
+> & {
   id: BudgetLine['id'];
 };
 
-export type CategoryCreateInput = Omit<Category, 'id' | 'createdAt' | 'updatedAt'> & { id?: Category['id'] };
-export type CategoryUpdateInput = Partial<Omit<Category, 'id' | 'createdAt' | 'updatedAt'>> & {
+export type CategoryCreateInput = Omit<
+  Category,
+  'id' | 'createdAt' | 'updatedAt'
+> & { id?: Category['id'] };
+export type CategoryUpdateInput = Partial<
+  Omit<Category, 'id' | 'createdAt' | 'updatedAt'>
+> & {
   id: Category['id'];
 };
 
@@ -89,10 +114,15 @@ export type CompanyDefaultCategoryUpdateInput = Partial<
   id: CompanyDefaultCategory['id'];
 };
 
-export type SubCategoryCreateInput = Omit<SubCategory, 'id' | 'createdAt' | 'updatedAt'> & {
+export type SubCategoryCreateInput = Omit<
+  SubCategory,
+  'id' | 'createdAt' | 'updatedAt'
+> & {
   id?: SubCategory['id'];
 };
-export type SubCategoryUpdateInput = Partial<Omit<SubCategory, 'id' | 'createdAt' | 'updatedAt'>> & {
+export type SubCategoryUpdateInput = Partial<
+  Omit<SubCategory, 'id' | 'createdAt' | 'updatedAt'>
+> & {
   id: SubCategory['id'];
 };
 
@@ -115,7 +145,10 @@ export type CompanyDefaultMappingRuleCreateInput = Omit<
   id?: CompanyDefaultMappingRule['id'];
 };
 export type CompanyDefaultMappingRuleUpdateInput = Partial<
-  Omit<CompanyDefaultMappingRule, 'id' | 'companyId' | 'createdAt' | 'updatedAt'>
+  Omit<
+    CompanyDefaultMappingRule,
+    'id' | 'companyId' | 'createdAt' | 'updatedAt'
+  >
 > & {
   id: CompanyDefaultMappingRule['id'];
 };
@@ -129,7 +162,11 @@ export type ApplyCompanyDefaultsResult = {
 export type ProjectCreateInput = Pick<Project, 'name'> & { id?: ProjectId };
 export type ProjectUpdateInput = Pick<
   Partial<Project>,
-  'name' | 'budgetTotalCents' | 'currency' | 'visibility' | 'allowSuperadminAccess'
+  | 'name'
+  | 'budgetTotalCents'
+  | 'currency'
+  | 'visibility'
+  | 'allowSuperadminAccess'
 > & {
   id: ProjectId;
 };
@@ -202,22 +239,48 @@ export interface ProjexApi {
    * functions that validate session and enforce authorization.
    */
   listAllCompanyMemberships(): Promise<CompanyMembership[]>;
-  upsertCompanyMembership(companyId: CompanyId, userId: UserId, role: CompanyRole): Promise<CompanyMembership>;
+  upsertCompanyMembership(
+    companyId: CompanyId,
+    userId: UserId,
+    role: CompanyRole
+  ): Promise<CompanyMembership>;
   deleteCompanyMembership(companyId: CompanyId, userId: UserId): Promise<void>;
-  upsertProjectMembership(projectId: ProjectId, userId: UserId, role: ProjectRole): Promise<ProjectMembership>;
-  deleteProjectMembership(projectId: ProjectId, userId: UserId, role: ProjectRole): Promise<void>;
+  upsertProjectMembership(
+    projectId: ProjectId,
+    userId: UserId,
+    role: ProjectRole
+  ): Promise<ProjectMembership>;
+  deleteProjectMembership(
+    projectId: ProjectId,
+    userId: UserId,
+    role: ProjectRole
+  ): Promise<void>;
 
   /** Convenience wrappers (command-ish) */
-  setCompanyRole(companyId: CompanyId, userId: UserId, role: CompanyRole): Promise<void>;
-  setProjectRole(projectId: ProjectId, userId: UserId, role: ProjectRole): Promise<void>;
+  setCompanyRole(
+    companyId: CompanyId,
+    userId: UserId,
+    role: CompanyRole
+  ): Promise<void>;
+  setProjectRole(
+    projectId: ProjectId,
+    userId: UserId,
+    role: ProjectRole
+  ): Promise<void>;
   removeCompanyMember(companyId: CompanyId, userId: UserId): Promise<void>;
   removeProjectMember(projectId: ProjectId, userId: UserId): Promise<void>;
 
   // taxonomy
   getCompanyDefaults(companyId: CompanyId): Promise<CompanyDefaults>;
-  listCompanyDefaultCategories(companyId: CompanyId): Promise<CompanyDefaultCategory[]>;
-  listCompanyDefaultSubCategories(companyId: CompanyId): Promise<CompanyDefaultSubCategory[]>;
-  listCompanyDefaultMappingRules(companyId: CompanyId): Promise<CompanyDefaultMappingRule[]>;
+  listCompanyDefaultCategories(
+    companyId: CompanyId
+  ): Promise<CompanyDefaultCategory[]>;
+  listCompanyDefaultSubCategories(
+    companyId: CompanyId
+  ): Promise<CompanyDefaultSubCategory[]>;
+  listCompanyDefaultMappingRules(
+    companyId: CompanyId
+  ): Promise<CompanyDefaultMappingRule[]>;
   createCompanyDefaultCategory(
     companyId: CompanyId,
     input: CompanyDefaultCategoryCreateInput
@@ -254,20 +317,46 @@ export interface ProjexApi {
     companyId: CompanyId,
     ruleId: CompanyDefaultMappingRule['id']
   ): Promise<void>;
-  applyCompanyDefaultTaxonomy(projectId: ProjectId): Promise<ApplyCompanyDefaultsResult>;
+  applyCompanyDefaultTaxonomy(
+    projectId: ProjectId
+  ): Promise<ApplyCompanyDefaultsResult>;
   listCategories(projectId: ProjectId): Promise<Category[]>;
   listSubCategories(projectId: ProjectId): Promise<SubCategory[]>;
-  createCategory(projectId: ProjectId, input: CategoryCreateInput): Promise<Category>;
-  updateCategory(projectId: ProjectId, input: CategoryUpdateInput): Promise<Category>;
-  deleteCategory(projectId: ProjectId, categoryId: Category['id']): Promise<void>;
-  createSubCategory(projectId: ProjectId, input: SubCategoryCreateInput): Promise<SubCategory>;
-  updateSubCategory(projectId: ProjectId, input: SubCategoryUpdateInput): Promise<SubCategory>;
-  deleteSubCategory(projectId: ProjectId, subCategoryId: SubCategory['id']): Promise<void>;
+  createCategory(
+    projectId: ProjectId,
+    input: CategoryCreateInput
+  ): Promise<Category>;
+  updateCategory(
+    projectId: ProjectId,
+    input: CategoryUpdateInput
+  ): Promise<Category>;
+  deleteCategory(
+    projectId: ProjectId,
+    categoryId: Category['id']
+  ): Promise<void>;
+  createSubCategory(
+    projectId: ProjectId,
+    input: SubCategoryCreateInput
+  ): Promise<SubCategory>;
+  updateSubCategory(
+    projectId: ProjectId,
+    input: SubCategoryUpdateInput
+  ): Promise<SubCategory>;
+  deleteSubCategory(
+    projectId: ProjectId,
+    subCategoryId: SubCategory['id']
+  ): Promise<void>;
 
   // budgets
   listBudgets(projectId: ProjectId): Promise<BudgetLine[]>;
-  createBudget(projectId: ProjectId, input: BudgetCreateInput): Promise<BudgetLine>;
-  updateBudget(projectId: ProjectId, input: BudgetUpdateInput): Promise<BudgetLine>;
+  createBudget(
+    projectId: ProjectId,
+    input: BudgetCreateInput
+  ): Promise<BudgetLine>;
+  updateBudget(
+    projectId: ProjectId,
+    input: BudgetUpdateInput
+  ): Promise<BudgetLine>;
   deleteBudget(projectId: ProjectId, budgetId: BudgetLine['id']): Promise<void>;
 
   // transactions
@@ -294,17 +383,30 @@ export interface ProjexApi {
   getDefaultCompanyIdForUser(userId: UserId): Promise<CompanyId | null>;
   updateCurrentUserProfile(input: ProfileUpdateInput): Promise<User>;
   getPendingEmailChange(): Promise<PendingEmailChange | null>;
-  requestEmailChange(input: EmailChangeRequestInput): Promise<EmailChangeRequestResult>;
+  requestEmailChange(
+    input: EmailChangeRequestInput
+  ): Promise<EmailChangeRequestResult>;
   resendEmailChange(): Promise<EmailChangeRequestResult>;
   cancelEmailChange(): Promise<void>;
   confirmEmailChange(token: string): Promise<EmailChangeConfirmResult>;
-  createUserInCompany(companyId: CompanyId, input: CreateCompanyUserInput): Promise<CompanyUserInviteResult>;
-  sendCompanyUserInviteEmail(companyId: CompanyId, userId: UserId): Promise<CompanyUserInviteResult>;
+  createUserInCompany(
+    companyId: CompanyId,
+    input: CreateCompanyUserInput
+  ): Promise<CompanyUserInviteResult>;
+  sendCompanyUserInviteEmail(
+    companyId: CompanyId,
+    userId: UserId
+  ): Promise<CompanyUserInviteResult>;
 
   // projects / companies
-  createProject(companyId: CompanyId, input: ProjectCreateInput): Promise<Project>;
+  createProject(
+    companyId: CompanyId,
+    input: ProjectCreateInput
+  ): Promise<Project>;
   updateProject(input: ProjectUpdateInput): Promise<Project>;
-  createCompany(input: Pick<Company, 'name'> & { id?: CompanyId }): Promise<Company>;
+  createCompany(
+    input: Pick<Company, 'name'> & { id?: CompanyId }
+  ): Promise<Company>;
   updateCompany(input: CompanyUpdateInput): Promise<Company>;
 
   // lifecycle management (superadmin; exec/admin for projects)

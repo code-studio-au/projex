@@ -26,11 +26,21 @@
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Plus Jakarta Sans", "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
+        font-family:
+          'Plus Jakarta Sans', 'Avenir Next', 'Segoe UI Variable', 'Segoe UI',
+          sans-serif;
         color: var(--text);
         background:
-          radial-gradient(circle at top right, rgba(226, 232, 240, 0.45), transparent 35%),
-          radial-gradient(circle at bottom left, rgba(191, 219, 254, 0.35), transparent 28%),
+          radial-gradient(
+            circle at top right,
+            rgba(226, 232, 240, 0.45),
+            transparent 35%
+          ),
+          radial-gradient(
+            circle at bottom left,
+            rgba(191, 219, 254, 0.35),
+            transparent 28%
+          ),
           var(--bg);
         display: grid;
         place-items: center;
@@ -122,8 +132,15 @@
       }
 
       @keyframes pulse {
-        0%, 100% { transform: scale(0.85); opacity: 0.5; }
-        50% { transform: scale(1); opacity: 1; }
+        0%,
+        100% {
+          transform: scale(0.85);
+          opacity: 0.5;
+        }
+        50% {
+          transform: scale(1);
+          opacity: 1;
+        }
       }
     </style>
   </head>
@@ -133,30 +150,37 @@
         <div class="badge"><span class="dot"></span> Projex maintenance</div>
         <h1>We’re restarting Projex</h1>
         <p>
-          The app is coming back online now. We’ll keep checking in the background and return you
-          to what you were doing as soon as the site is healthy again.
+          The app is coming back online now. We’ll keep checking in the
+          background and return you to what you were doing as soon as the site
+          is healthy again.
         </p>
 
         <div class="status" aria-live="polite">
           <p class="status-title" id="status-title">Reconnecting…</p>
           <p class="status-copy" id="status-copy">
-            We’re polling the app every few seconds. You do not need to refresh manually.
+            We’re polling the app every few seconds. You do not need to refresh
+            manually.
           </p>
         </div>
 
         <p class="meta" id="meta-copy">
           If this message persists for more than 5 minutes, please contact
-          <a href="mailto:support@projectexpensetracker.com">support@projectexpensetracker.com</a>.
+          <a href="mailto:support@projectexpensetracker.com"
+            >support@projectexpensetracker.com</a
+          >.
         </p>
       </section>
     </main>
 
     <script>
       (function () {
-        var READY_URL = "/__maintenance_ready";
-        var statusTitle = document.getElementById("status-title");
-        var statusCopy = document.getElementById("status-copy");
-        var originalTarget = window.location.pathname + window.location.search + window.location.hash;
+        var READY_URL = '/__maintenance_ready';
+        var statusTitle = document.getElementById('status-title');
+        var statusCopy = document.getElementById('status-copy');
+        var originalTarget =
+          window.location.pathname +
+          window.location.search +
+          window.location.hash;
         var pollIntervalMs = 7000;
         var initialDelayMs = 2500;
         var isChecking = false;
@@ -167,21 +191,24 @@
         }
 
         function redirectBack() {
-          setStatus("Projex is ready", "Taking you back now…");
-          window.location.replace(originalTarget || "/");
+          setStatus('Projex is ready', 'Taking you back now…');
+          window.location.replace(originalTarget || '/');
         }
 
         async function checkReady() {
           if (isChecking) return;
           isChecking = true;
-          setStatus("Reconnecting…", "Checking whether the app is ready to accept traffic.");
+          setStatus(
+            'Reconnecting…',
+            'Checking whether the app is ready to accept traffic.'
+          );
 
           try {
-            var response = await fetch(READY_URL + "?ts=" + Date.now(), {
-              method: "GET",
-              cache: "no-store",
-              credentials: "same-origin",
-              headers: { "Accept": "application/json" }
+            var response = await fetch(READY_URL + '?ts=' + Date.now(), {
+              method: 'GET',
+              cache: 'no-store',
+              credentials: 'same-origin',
+              headers: { Accept: 'application/json' },
             });
 
             if (response.ok) {
@@ -189,14 +216,20 @@
               return;
             }
 
-            setStatus("Still restarting", "The app is not ready yet. We’ll check again automatically.");
+            setStatus(
+              'Still restarting',
+              'The app is not ready yet. We’ll check again automatically.'
+            );
           } catch (error) {
-            setStatus("Still reconnecting", "The app is still unavailable. We’ll keep polling in the background.");
+            setStatus(
+              'Still reconnecting',
+              'The app is still unavailable. We’ll keep polling in the background.'
+            );
           } finally {
             isChecking = false;
           }
         }
-        
+
         window.setTimeout(function () {
           void checkReady();
           window.setInterval(function () {

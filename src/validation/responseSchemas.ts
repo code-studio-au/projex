@@ -23,12 +23,21 @@ const userIdSchema = idSchema.transform(asUserId);
 const categoryIdSchema = idSchema.transform(asCategoryId);
 const subCategoryIdSchema = idSchema.transform(asSubCategoryId);
 const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
-const companyDefaultCategoryIdSchema = idSchema.transform(asCompanyDefaultCategoryId);
-const companyDefaultSubCategoryIdSchema = idSchema.transform(asCompanyDefaultSubCategoryId);
+const companyDefaultCategoryIdSchema = idSchema.transform(
+  asCompanyDefaultCategoryId
+);
+const companyDefaultSubCategoryIdSchema = idSchema.transform(
+  asCompanyDefaultSubCategoryId
+);
 const mappingRuleIdSchema = idSchema.transform(asCompanyDefaultMappingRuleId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const optionalIsoTimestampSchema = z.string().optional();
-const companyRoleSchema = z.enum(['admin', 'executive', 'management', 'member']);
+const companyRoleSchema = z.enum([
+  'admin',
+  'executive',
+  'management',
+  'member',
+]);
 const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
 
@@ -36,7 +45,8 @@ export const authenticatedSessionResponseSchema = z.object({
   userId: userIdSchema,
 });
 
-export const sessionResponseSchema = authenticatedSessionResponseSchema.nullable();
+export const sessionResponseSchema =
+  authenticatedSessionResponseSchema.nullable();
 
 export const companyResponseSchema = z.object({
   id: companyIdSchema,
@@ -98,7 +108,9 @@ export const companyMembershipResponseSchema = z.object({
   role: companyRoleSchema,
 });
 
-export const companyMembershipsResponseSchema = z.array(companyMembershipResponseSchema);
+export const companyMembershipsResponseSchema = z.array(
+  companyMembershipResponseSchema
+);
 
 export const projectMembershipResponseSchema = z.object({
   projectId: projectIdSchema,
@@ -106,7 +118,9 @@ export const projectMembershipResponseSchema = z.object({
   role: projectRoleSchema,
 });
 
-export const projectMembershipsResponseSchema = z.array(projectMembershipResponseSchema);
+export const projectMembershipsResponseSchema = z.array(
+  projectMembershipResponseSchema
+);
 
 export const companyDefaultCategoryResponseSchema = z.object({
   id: companyDefaultCategoryIdSchema,
@@ -116,7 +130,9 @@ export const companyDefaultCategoryResponseSchema = z.object({
   updatedAt: optionalIsoTimestampSchema,
 });
 
-export const companyDefaultCategoriesResponseSchema = z.array(companyDefaultCategoryResponseSchema);
+export const companyDefaultCategoriesResponseSchema = z.array(
+  companyDefaultCategoryResponseSchema
+);
 
 export const companyDefaultSubCategoryResponseSchema = z.object({
   id: companyDefaultSubCategoryIdSchema,
@@ -258,7 +274,13 @@ export const importPreviewRowResponseSchema = z.object({
   description: z.string().nullable(),
   duplicate: z.boolean(),
   duplicateReason: z.enum(['existing', 'import']).optional(),
-  mappingStatus: z.enum(['matched_rule', 'csv_taxonomy', 'auto_created', 'uncoded', 'invalid']),
+  mappingStatus: z.enum([
+    'matched_rule',
+    'csv_taxonomy',
+    'auto_created',
+    'uncoded',
+    'invalid',
+  ]),
   categoryId: categoryIdSchema.optional(),
   subCategoryId: subCategoryIdSchema.optional(),
   categoryName: z.string().optional(),

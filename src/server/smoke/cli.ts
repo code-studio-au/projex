@@ -3,7 +3,9 @@ import { smokeSectionDefinitions } from '../../types/index.ts';
 import { getSmokeBaseUrl } from './env.ts';
 import { runSmokeSection } from './runSection.ts';
 
-const validSections = new Set(smokeSectionDefinitions.map((section) => section.id));
+const validSections = new Set(
+  smokeSectionDefinitions.map((section) => section.id)
+);
 
 function parseRequestedSections(argv: string[]): Set<SmokeSectionId> {
   const sections: SmokeSectionId[] = [];
@@ -59,7 +61,8 @@ async function main() {
   let hasFailure = false;
 
   for (const section of smokeSectionDefinitions) {
-    if (requestedSections.size > 0 && !requestedSections.has(section.id)) continue;
+    if (requestedSections.size > 0 && !requestedSections.has(section.id))
+      continue;
 
     console.info(`\n== ${section.label} ==`);
     const result = await runSmokeSection(section.id, baseUrl, {

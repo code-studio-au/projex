@@ -7,7 +7,9 @@ export const Route = createFileRoute('/api/companies/$companyId/defaults')({
   server: {
     handlers: {
       GET: ({ request, params }) =>
-        withApi(request, (api) => api.getCompanyDefaults(asCompanyId(params.companyId))),
+        withApi(request, (api) =>
+          api.getCompanyDefaults(asCompanyId(params.companyId))
+        ),
     },
   },
 });

@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
         const parsed = apiMessageResponseSchema.safeParse(body);
         setError(
           parsed.success
-            ? parsed.data.message ?? 'Could not set your password.'
+            ? (parsed.data.message ?? 'Could not set your password.')
             : 'Could not set your password.'
         );
         return;
@@ -82,7 +82,9 @@ export default function ResetPasswordPage() {
       setPassword('');
       setConfirmPassword('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not set your password.');
+      setError(
+        err instanceof Error ? err.message : 'Could not set your password.'
+      );
     } finally {
       setPending(false);
     }
@@ -94,7 +96,8 @@ export default function ResetPasswordPage() {
         <Stack gap="md">
           <Title order={3}>Set Password</Title>
           <Text c="dimmed">
-            Finish your Projex invite by choosing a password for your BetterAuth account.
+            Finish your Projex invite by choosing a password for your BetterAuth
+            account.
           </Text>
           {searchError ? (
             <Alert color="red">
@@ -109,20 +112,29 @@ export default function ResetPasswordPage() {
               <Alert color="green">{success}</Alert>
               {sessionQ.data ? (
                 <Alert color="yellow">
-                  Another user is currently signed in in this browser. Sign out first, then return
-                  to sign in with the account whose password you just updated.
+                  Another user is currently signed in in this browser. Sign out
+                  first, then return to sign in with the account whose password
+                  you just updated.
                 </Alert>
               ) : null}
               <Text c="dimmed">
-                If you were testing with multiple accounts, use Return to sign in so you can start
-                a fresh login with the updated password.
+                If you were testing with multiple accounts, use Return to sign
+                in so you can start a fresh login with the updated password.
               </Text>
-              <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+              <Group
+                justify="space-between"
+                align="center"
+                wrap="wrap"
+                gap="sm"
+              >
                 <Button onClick={() => router.navigate({ to: loginRoute.to })}>
                   Return to sign in
                 </Button>
                 {sessionQ.data ? (
-                  <Button variant="light" onClick={() => router.navigate({ to: accountRoute.to })}>
+                  <Button
+                    variant="light"
+                    onClick={() => router.navigate({ to: accountRoute.to })}
+                  >
                     Stay with current session
                   </Button>
                 ) : null}
@@ -144,8 +156,16 @@ export default function ResetPasswordPage() {
                 autoComplete="new-password"
                 required
               />
-              <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-                <Button variant="light" onClick={() => router.navigate({ to: loginRoute.to })}>
+              <Group
+                justify="space-between"
+                align="center"
+                wrap="wrap"
+                gap="sm"
+              >
+                <Button
+                  variant="light"
+                  onClick={() => router.navigate({ to: loginRoute.to })}
+                >
                   Back to sign in
                 </Button>
                 <Button

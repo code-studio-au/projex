@@ -1,5 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Badge, Button, Group, Modal, Paper, Select, Stack, Switch, Text, Title } from '@mantine/core';
+import {
+  Badge,
+  Button,
+  Group,
+  Modal,
+  Paper,
+  Select,
+  Stack,
+  Switch,
+  Text,
+  Title,
+} from '@mantine/core';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
@@ -58,12 +69,17 @@ export default function ProjectSettingsPanel(props: {
 
   const [memberUserId, setMemberUserId] = useState<UserId | null>(null);
   const [memberRole, setMemberRole] = useState<ProjectRole | null>('member');
-  const [pendingSuperadminAccess, setPendingSuperadminAccess] = useState<boolean | null>(null);
+  const [pendingSuperadminAccess, setPendingSuperadminAccess] = useState<
+    boolean | null
+  >(null);
 
   const upsert = useUpsertProjectMembershipMutation(projectId);
   const del = useDeleteProjectMembershipMutation(projectId);
 
-  const members = useMemo(() => projectMembershipsQ.data ?? [], [projectMembershipsQ.data]);
+  const members = useMemo(
+    () => projectMembershipsQ.data ?? [],
+    [projectMembershipsQ.data]
+  );
   const memberRows = useMemo(
     () =>
       members
@@ -113,7 +129,12 @@ export default function ProjectSettingsPanel(props: {
             variant="light"
             className="tableActionButton"
             disabled={!canEditProject}
-            onClick={() => del.mutate({ userId: row.original.userId, role: row.original.role })}
+            onClick={() =>
+              del.mutate({
+                userId: row.original.userId,
+                role: row.original.role,
+              })
+            }
           >
             Remove
           </Button>
@@ -134,7 +155,8 @@ export default function ProjectSettingsPanel(props: {
     );
   }
 
-  const nextSuperadminAccess = pendingSuperadminAccess ?? project.data.allowSuperadminAccess;
+  const nextSuperadminAccess =
+    pendingSuperadminAccess ?? project.data.allowSuperadminAccess;
   const toggleLabel = nextSuperadminAccess
     ? 'Enable superadmin access'
     : 'Disable superadmin access';
@@ -159,7 +181,10 @@ export default function ProjectSettingsPanel(props: {
               value={project.data.currency}
               onChange={(v) => {
                 if (!v) return;
-                updateProject.mutate({ id: projectId, currency: v as 'AUD' | 'USD' | 'EUR' | 'GBP' });
+                updateProject.mutate({
+                  id: projectId,
+                  currency: v as 'AUD' | 'USD' | 'EUR' | 'GBP',
+                });
               }}
               data={[
                 { value: 'AUD', label: 'AUD' },
@@ -175,11 +200,17 @@ export default function ProjectSettingsPanel(props: {
               value={project.data.visibility}
               onChange={(v) => {
                 if (!v) return;
-                updateProject.mutate({ id: projectId, visibility: v as 'private' | 'company' });
+                updateProject.mutate({
+                  id: projectId,
+                  visibility: v as 'private' | 'company',
+                });
               }}
               data={[
                 { value: 'private', label: 'Private (members only)' },
-                { value: 'company', label: 'Company-wide (visible to all company users)' },
+                {
+                  value: 'company',
+                  label: 'Company-wide (visible to all company users)',
+                },
               ]}
               disabled={!canEditProject}
             />
@@ -187,7 +218,9 @@ export default function ProjectSettingsPanel(props: {
               label="Allow superadmin access"
               description="Controls whether the global superadmin can open this project for support and troubleshooting. This is on by default for now."
               checked={project.data.allowSuperadminAccess}
-              onChange={(event) => setPendingSuperadminAccess(event.currentTarget.checked)}
+              onChange={(event) =>
+                setPendingSuperadminAccess(event.currentTarget.checked)
+              }
               disabled={!canEditProject || updateProject.isPending}
             />
           </Stack>
@@ -223,14 +256,18 @@ export default function ProjectSettingsPanel(props: {
               disabled={!canEditProject || !memberUserId || !memberRole}
               onClick={async () => {
                 if (!memberUserId || !memberRole) return;
-                await upsert.mutateAsync({ userId: memberUserId, role: memberRole });
+                await upsert.mutateAsync({
+                  userId: memberUserId,
+                  role: memberRole,
+                });
               }}
             >
               Add to project
             </Button>
           </Group>
           <Text size="sm" c="dimmed">
-            Manage membership per project. Company settings manages company-level roles only.
+            Manage membership per project. Company settings manages
+            company-level roles only.
           </Text>
         </Stack>
       </Paper>
@@ -243,7 +280,11 @@ export default function ProjectSettingsPanel(props: {
             data={memberRows}
             getRowId={(row) => row.key}
             mantineTableContainerProps={{ className: 'financeTable' }}
-            mantineTableProps={{ highlightOnHover: true, striped: 'odd', withTableBorder: true }}
+            mantineTableProps={{
+              highlightOnHover: true,
+              striped: 'odd',
+              withTableBorder: true,
+            }}
             mantineTableBodyCellProps={{
               style: { verticalAlign: 'middle' },
             }}
@@ -253,7 +294,10 @@ export default function ProjectSettingsPanel(props: {
             enableTopToolbar={false}
             enableDensityToggle={false}
             enableFullScreenToggle={false}
-            initialState={{ density: 'xs', pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 } }}
+            initialState={{
+              density: 'xs',
+              pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+            }}
           />
         </Stack>
       </Paper>

@@ -3,7 +3,10 @@ import type { ProjectCreateInput, ProjectUpdateInput } from '../../api/types';
 import type { CompanyId, Project, ProjectId, UserId } from '../../types';
 import { asProjectId } from '../../types';
 import { uid } from '../../utils/id';
-import { projectBudgetTotalCentsSchema, projectNameSchema } from '../../validation/schemas';
+import {
+  projectBudgetTotalCentsSchema,
+  projectNameSchema,
+} from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
@@ -151,7 +154,10 @@ export async function getProjectServer(args: {
 
     if (company.status === 'deactivated' && !isSuperadmin) return null;
     if (project.status === 'archived' && !isSuperadmin) {
-      const cRole = await getCompanyRole(userId, project.company_id as CompanyId);
+      const cRole = await getCompanyRole(
+        userId,
+        project.company_id as CompanyId
+      );
       if (cRole !== 'admin' && cRole !== 'executive') {
         throw new AppError('FORBIDDEN', 'Project is deactivated');
       }
@@ -244,7 +250,10 @@ export async function updateProjectServer(args: {
       validateOrThrow(projectNameSchema, args.input.name);
     }
     if (typeof args.input.budgetTotalCents !== 'undefined') {
-      validateOrThrow(projectBudgetTotalCentsSchema, args.input.budgetTotalCents);
+      validateOrThrow(
+        projectBudgetTotalCentsSchema,
+        args.input.budgetTotalCents
+      );
     }
 
     const userId = await requireServerUserId(args.context);
@@ -257,12 +266,15 @@ export async function updateProjectServer(args: {
     });
 
     const patch: Record<string, unknown> = {};
-    if (typeof args.input.name === 'string') patch.name = args.input.name.trim();
+    if (typeof args.input.name === 'string')
+      patch.name = args.input.name.trim();
     if (typeof args.input.budgetTotalCents !== 'undefined') {
       patch.budget_total_cents = args.input.budgetTotalCents;
     }
-    if (typeof args.input.currency !== 'undefined') patch.currency = args.input.currency;
-    if (typeof args.input.visibility !== 'undefined') patch.visibility = args.input.visibility;
+    if (typeof args.input.currency !== 'undefined')
+      patch.currency = args.input.currency;
+    if (typeof args.input.visibility !== 'undefined')
+      patch.visibility = args.input.visibility;
     if (typeof args.input.allowSuperadminAccess !== 'undefined') {
       patch.allow_superadmin_access = args.input.allowSuperadminAccess;
     }
@@ -352,7 +364,10 @@ export async function reactivateProjectServer(args: {
       .executeTakeFirst();
     if (!company) throw new AppError('NOT_FOUND', 'Company not found');
     if (company.status !== 'active') {
-      throw new AppError('VALIDATION_ERROR', 'Company must be active to reactivate a project');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Company must be active to reactivate a project'
+      );
     }
     if (project.status === 'active') return;
 
@@ -390,7 +405,10 @@ export async function deleteProjectServer(args: {
     });
 
     if (project.status !== 'archived') {
-      throw new AppError('VALIDATION_ERROR', 'Project must be deactivated before deletion');
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Project must be deactivated before deletion'
+      );
     }
 
     await db.deleteFrom('projects').where('id', '=', args.projectId).execute();

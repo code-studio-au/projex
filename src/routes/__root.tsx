@@ -1,10 +1,17 @@
 import type { ReactNode } from 'react';
-import { createRootRouteWithContext, HeadContent, Scripts } from '@tanstack/react-router';
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Scripts,
+} from '@tanstack/react-router';
 import '@mantine/core/styles.css';
 import 'mantine-react-table/styles.css';
 import '../app.css';
 
-import { RootErrorComponent, RootNotFoundComponent } from '../components/routerErrors';
+import {
+  RootErrorComponent,
+  RootNotFoundComponent,
+} from '../components/routerErrors';
 import { RootLayout, RootProviders } from '../layouts';
 import type { RouterContext } from '../router-context';
 

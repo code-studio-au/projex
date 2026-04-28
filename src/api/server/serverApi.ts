@@ -149,7 +149,11 @@ export class ServerApi implements ProjexApi {
     }
   }
 
-  private validateResponse<T>(schema: z.ZodType<T> | undefined, body: unknown, path: string): T {
+  private validateResponse<T>(
+    schema: z.ZodType<T> | undefined,
+    body: unknown,
+    path: string
+  ): T {
     if (!schema) return body as T;
 
     const parsed = schema.safeParse(body);
@@ -160,14 +164,20 @@ export class ServerApi implements ProjexApi {
     });
   }
 
-  private async request<T>(path: string, init?: RequestInit, schema?: z.ZodType<T>): Promise<T> {
+  private async request<T>(
+    path: string,
+    init?: RequestInit,
+    schema?: z.ZodType<T>
+  ): Promise<T> {
     const serverHeaders = await this.getServerRequestHeaders();
     const res = await fetch(await this.resolveUrl(path), {
       credentials: 'include',
       ...init,
       headers: {
         'Content-Type': 'application/json',
-        ...(serverHeaders ? Object.fromEntries(new Headers(serverHeaders).entries()) : {}),
+        ...(serverHeaders
+          ? Object.fromEntries(new Headers(serverHeaders).entries())
+          : {}),
         ...(init?.headers ?? {}),
       },
     });
@@ -197,7 +207,11 @@ export class ServerApi implements ProjexApi {
 
   // session
   async getSession(): Promise<Session | null> {
-    return this.request('/api/session', { cache: 'no-store' }, sessionResponseSchema);
+    return this.request(
+      '/api/session',
+      { cache: 'no-store' },
+      sessionResponseSchema
+    );
   }
   async logout(): Promise<void> {
     await this.request<void>('/api/session', { method: 'DELETE' });
@@ -240,7 +254,9 @@ export class ServerApi implements ProjexApi {
   }
 
   // memberships
-  async listCompanyMemberships(_companyId: CompanyId): Promise<CompanyMembership[]> {
+  async listCompanyMemberships(
+    _companyId: CompanyId
+  ): Promise<CompanyMembership[]> {
     return this.request(
       `/api/companies/${encodeURIComponent(_companyId)}/memberships`,
       undefined,
@@ -248,16 +264,24 @@ export class ServerApi implements ProjexApi {
     );
   }
   async listAllCompanyMemberships(): Promise<CompanyMembership[]> {
-    return this.request('/api/memberships/companies', undefined, companyMembershipsResponseSchema);
+    return this.request(
+      '/api/memberships/companies',
+      undefined,
+      companyMembershipsResponseSchema
+    );
   }
-  async listProjectMemberships(_projectId: ProjectId): Promise<ProjectMembership[]> {
+  async listProjectMemberships(
+    _projectId: ProjectId
+  ): Promise<ProjectMembership[]> {
     return this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/memberships`,
       undefined,
       projectMembershipsResponseSchema
     );
   }
-  async listMyProjectMemberships(_companyId: CompanyId): Promise<ProjectMembership[]> {
+  async listMyProjectMemberships(
+    _companyId: CompanyId
+  ): Promise<ProjectMembership[]> {
     return this.request(
       `/api/companies/${encodeURIComponent(_companyId)}/my-project-memberships`,
       undefined,
@@ -278,7 +302,10 @@ export class ServerApi implements ProjexApi {
       companyMembershipResponseSchema
     );
   }
-  async deleteCompanyMembership(_companyId: CompanyId, _userId: UserId): Promise<void> {
+  async deleteCompanyMembership(
+    _companyId: CompanyId,
+    _userId: UserId
+  ): Promise<void> {
     await this.request(
       `/api/companies/${encodeURIComponent(_companyId)}/memberships?userId=${encodeURIComponent(_userId)}`,
       { method: 'DELETE' },
@@ -310,16 +337,30 @@ export class ServerApi implements ProjexApi {
       okResponseSchema
     );
   }
-  async setCompanyRole(companyId: CompanyId, userId: UserId, role: CompanyRole): Promise<void> {
+  async setCompanyRole(
+    companyId: CompanyId,
+    userId: UserId,
+    role: CompanyRole
+  ): Promise<void> {
     await this.upsertCompanyMembership(companyId, userId, role);
   }
-  async setProjectRole(projectId: ProjectId, userId: UserId, role: ProjectRole): Promise<void> {
+  async setProjectRole(
+    projectId: ProjectId,
+    userId: UserId,
+    role: ProjectRole
+  ): Promise<void> {
     await this.upsertProjectMembership(projectId, userId, role);
   }
-  async removeCompanyMember(companyId: CompanyId, userId: UserId): Promise<void> {
+  async removeCompanyMember(
+    companyId: CompanyId,
+    userId: UserId
+  ): Promise<void> {
     await this.deleteCompanyMembership(companyId, userId);
   }
-  async removeProjectMember(projectId: ProjectId, userId: UserId): Promise<void> {
+  async removeProjectMember(
+    projectId: ProjectId,
+    userId: UserId
+  ): Promise<void> {
     const existing = await this.listProjectMemberships(projectId);
     const membership = existing.find((m) => m.userId === userId);
     if (!membership) return;
@@ -381,7 +422,10 @@ export class ServerApi implements ProjexApi {
       companyDefaultCategoryResponseSchema
     );
   }
-  async deleteCompanyDefaultCategory(companyId: CompanyId, categoryId: string): Promise<void> {
+  async deleteCompanyDefaultCategory(
+    companyId: CompanyId,
+    categoryId: string
+  ): Promise<void> {
     await this.request(
       `/api/companies/${encodeURIComponent(companyId)}/default-categories/${encodeURIComponent(categoryId)}`,
       { method: 'DELETE' },
@@ -483,7 +527,10 @@ export class ServerApi implements ProjexApi {
       subCategoriesResponseSchema
     );
   }
-  async createCategory(_projectId: ProjectId, _input: CategoryCreateInput): Promise<Category> {
+  async createCategory(
+    _projectId: ProjectId,
+    _input: CategoryCreateInput
+  ): Promise<Category> {
     return this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/categories`,
       {
@@ -493,7 +540,10 @@ export class ServerApi implements ProjexApi {
       categoryResponseSchema
     );
   }
-  async updateCategory(_projectId: ProjectId, _input: CategoryUpdateInput): Promise<Category> {
+  async updateCategory(
+    _projectId: ProjectId,
+    _input: CategoryUpdateInput
+  ): Promise<Category> {
     return this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/categories`,
       {
@@ -503,7 +553,10 @@ export class ServerApi implements ProjexApi {
       categoryResponseSchema
     );
   }
-  async deleteCategory(_projectId: ProjectId, _categoryId: Category['id']): Promise<void> {
+  async deleteCategory(
+    _projectId: ProjectId,
+    _categoryId: Category['id']
+  ): Promise<void> {
     await this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/categories/${encodeURIComponent(_categoryId)}`,
       { method: 'DELETE' },
@@ -536,7 +589,10 @@ export class ServerApi implements ProjexApi {
       subCategoryResponseSchema
     );
   }
-  async deleteSubCategory(_projectId: ProjectId, _subCategoryId: SubCategory['id']): Promise<void> {
+  async deleteSubCategory(
+    _projectId: ProjectId,
+    _subCategoryId: SubCategory['id']
+  ): Promise<void> {
     await this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/sub-categories/${encodeURIComponent(_subCategoryId)}`,
       { method: 'DELETE' },
@@ -552,7 +608,10 @@ export class ServerApi implements ProjexApi {
       budgetLinesResponseSchema
     );
   }
-  async createBudget(_projectId: ProjectId, _input: BudgetCreateInput): Promise<BudgetLine> {
+  async createBudget(
+    _projectId: ProjectId,
+    _input: BudgetCreateInput
+  ): Promise<BudgetLine> {
     return this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/budgets`,
       {
@@ -562,7 +621,10 @@ export class ServerApi implements ProjexApi {
       budgetLineResponseSchema
     );
   }
-  async updateBudget(_projectId: ProjectId, _input: BudgetUpdateInput): Promise<BudgetLine> {
+  async updateBudget(
+    _projectId: ProjectId,
+    _input: BudgetUpdateInput
+  ): Promise<BudgetLine> {
     return this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/budgets`,
       {
@@ -572,7 +634,10 @@ export class ServerApi implements ProjexApi {
       budgetLineResponseSchema
     );
   }
-  async deleteBudget(_projectId: ProjectId, _budgetId: BudgetLine['id']): Promise<void> {
+  async deleteBudget(
+    _projectId: ProjectId,
+    _budgetId: BudgetLine['id']
+  ): Promise<void> {
     await this.request(
       `/api/projects/${encodeURIComponent(_projectId)}/budgets/${encodeURIComponent(_budgetId)}`,
       { method: 'DELETE' },
@@ -644,7 +709,11 @@ export class ServerApi implements ProjexApi {
 
   // helpers
   async getDefaultCompanyIdForUser(_userId: UserId): Promise<CompanyId | null> {
-    const res = await this.request('/api/me/default-company', undefined, defaultCompanyResponseSchema);
+    const res = await this.request(
+      '/api/me/default-company',
+      undefined,
+      defaultCompanyResponseSchema
+    );
     return res.companyId;
   }
   async updateCurrentUserProfile(input: ProfileUpdateInput): Promise<User> {
@@ -658,9 +727,15 @@ export class ServerApi implements ProjexApi {
     );
   }
   async getPendingEmailChange(): Promise<PendingEmailChange | null> {
-    return this.request('/api/me/email-change', undefined, pendingEmailChangeResponseSchema);
+    return this.request(
+      '/api/me/email-change',
+      undefined,
+      pendingEmailChangeResponseSchema
+    );
   }
-  async requestEmailChange(input: EmailChangeRequestInput): Promise<EmailChangeRequestResult> {
+  async requestEmailChange(
+    input: EmailChangeRequestInput
+  ): Promise<EmailChangeRequestResult> {
     return this.request(
       '/api/me/email-change',
       {
@@ -700,7 +775,12 @@ export class ServerApi implements ProjexApi {
   }
   async createUserInCompany(
     _companyId: CompanyId,
-    _input: { name: string; email: string; role: CompanyRole; sendOnboardingEmail?: boolean }
+    _input: {
+      name: string;
+      email: string;
+      role: CompanyRole;
+      sendOnboardingEmail?: boolean;
+    }
   ): Promise<CompanyUserInviteResult> {
     return this.request(
       `/api/companies/${encodeURIComponent(_companyId)}/users`,
@@ -711,7 +791,10 @@ export class ServerApi implements ProjexApi {
       companyUserInviteResultResponseSchema
     );
   }
-  async sendCompanyUserInviteEmail(_companyId: CompanyId, _userId: UserId): Promise<CompanyUserInviteResult> {
+  async sendCompanyUserInviteEmail(
+    _companyId: CompanyId,
+    _userId: UserId
+  ): Promise<CompanyUserInviteResult> {
     return this.request(
       `/api/companies/${encodeURIComponent(_companyId)}/users/${encodeURIComponent(_userId)}/invite`,
       {
@@ -722,7 +805,10 @@ export class ServerApi implements ProjexApi {
   }
 
   // projects / companies
-  async createProject(_companyId: CompanyId, _input: ProjectCreateInput): Promise<Project> {
+  async createProject(
+    _companyId: CompanyId,
+    _input: ProjectCreateInput
+  ): Promise<Project> {
     return this.request(
       `/api/companies/${encodeURIComponent(_companyId)}/projects`,
       {
@@ -743,7 +829,9 @@ export class ServerApi implements ProjexApi {
       projectResponseSchema
     );
   }
-  async createCompany(_input: Pick<Company, 'name'> & { id?: CompanyId }): Promise<Company> {
+  async createCompany(
+    _input: Pick<Company, 'name'> & { id?: CompanyId }
+  ): Promise<Company> {
     return this.request(
       '/api/companies',
       {

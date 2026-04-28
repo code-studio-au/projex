@@ -16,8 +16,12 @@ type SignInEmailInput = {
 };
 
 const fallbackBaseURL =
-  typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-const configuredBaseURL = String(import.meta.env.VITE_BETTER_AUTH_URL ?? fallbackBaseURL);
+  typeof window !== 'undefined'
+    ? window.location.origin
+    : 'http://localhost:3000';
+const configuredBaseURL = String(
+  import.meta.env.VITE_BETTER_AUTH_URL ?? fallbackBaseURL
+);
 
 function authUrl(path: string): string {
   return new URL(path, configuredBaseURL).toString();
@@ -42,7 +46,10 @@ function parseAuthError(body: unknown): AuthClientError | null {
   return null;
 }
 
-async function authFetch(path: string, init?: RequestInit): Promise<{ body: unknown; error: AuthClientError | null }> {
+async function authFetch(
+  path: string,
+  init?: RequestInit
+): Promise<{ body: unknown; error: AuthClientError | null }> {
   const res = await fetch(authUrl(path), {
     credentials: 'include',
     ...init,
@@ -58,7 +65,9 @@ async function authFetch(path: string, init?: RequestInit): Promise<{ body: unkn
   if (!res.ok) {
     return {
       body: null,
-      error: parseAuthError(body) ?? { message: `Request failed (${res.status})` },
+      error: parseAuthError(body) ?? {
+        message: `Request failed (${res.status})`,
+      },
     };
   }
 

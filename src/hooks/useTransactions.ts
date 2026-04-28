@@ -1,9 +1,18 @@
 import { useMemo } from 'react';
 
-import type { CategoryId, ProjectId, SubCategoryId, Txn, TxnId } from '../types';
+import type {
+  CategoryId,
+  ProjectId,
+  SubCategoryId,
+  Txn,
+  TxnId,
+} from '../types';
 import type { TxnUpdateInput } from '../api/contract';
 import { useImportTransactionsMutation } from '../queries/admin';
-import { useTransactionsQuery, useUpdateTxnMutation } from '../queries/transactions';
+import {
+  useTransactionsQuery,
+  useUpdateTxnMutation,
+} from '../queries/transactions';
 
 /**
  * Query-backed transactions model.
@@ -26,7 +35,10 @@ export function useTransactions(params: { projectId: ProjectId }) {
     await update.mutateAsync({ id, ...patch });
   };
 
-  const replaceAll = async (next: Txn[], options?: { autoCreateBudgets?: boolean }) => {
+  const replaceAll = async (
+    next: Txn[],
+    options?: { autoCreateBudgets?: boolean }
+  ) => {
     await importMut.mutateAsync({
       txns: next,
       mode: 'replaceAll',
@@ -34,7 +46,10 @@ export function useTransactions(params: { projectId: ProjectId }) {
     });
   };
 
-  const appendMany = async (next: Txn[], options?: { autoCreateBudgets?: boolean }) => {
+  const appendMany = async (
+    next: Txn[],
+    options?: { autoCreateBudgets?: boolean }
+  ) => {
     await importMut.mutateAsync({
       txns: next,
       mode: 'append',
@@ -42,7 +57,9 @@ export function useTransactions(params: { projectId: ProjectId }) {
     });
   };
 
-  const stripCodingForSubCategoryIds = async (subCategoryIds: SubCategoryId[]) => {
+  const stripCodingForSubCategoryIds = async (
+    subCategoryIds: SubCategoryId[]
+  ) => {
     const setIds = new Set(subCategoryIds);
     const next = transactions.map((t) =>
       t.subCategoryId && setIds.has(t.subCategoryId)

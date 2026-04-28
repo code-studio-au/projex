@@ -19,7 +19,8 @@ export function useUpdateCurrentUserProfileMutation() {
   const api = useApi();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { name: string }) => api.updateCurrentUserProfile(input),
+    mutationFn: (input: { name: string }) =>
+      api.updateCurrentUserProfile(input),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: qk.users() });
     },
@@ -32,7 +33,9 @@ export function useRequestEmailChangeMutation() {
   return useMutation({
     mutationFn: (input: { newEmail: string }) => api.requestEmailChange(input),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: accountKeys.pendingEmailChange() });
+      await qc.invalidateQueries({
+        queryKey: accountKeys.pendingEmailChange(),
+      });
     },
   });
 }
@@ -43,7 +46,9 @@ export function useResendEmailChangeMutation() {
   return useMutation({
     mutationFn: () => api.resendEmailChange(),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: accountKeys.pendingEmailChange() });
+      await qc.invalidateQueries({
+        queryKey: accountKeys.pendingEmailChange(),
+      });
     },
   });
 }
@@ -54,7 +59,9 @@ export function useCancelEmailChangeMutation() {
   return useMutation({
     mutationFn: () => api.cancelEmailChange(),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: accountKeys.pendingEmailChange() });
+      await qc.invalidateQueries({
+        queryKey: accountKeys.pendingEmailChange(),
+      });
     },
   });
 }

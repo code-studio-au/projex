@@ -13,7 +13,12 @@ import {
   TextInput,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+  IconArrowDown,
+  IconArrowUp,
+  IconPlus,
+  IconTrash,
+} from '@tabler/icons-react';
 
 import type {
   CompanyDefaultCategoryId,
@@ -41,7 +46,10 @@ export default function CompanyDefaultMappingsModal(props: {
   const updateRule = useUpdateCompanyDefaultMappingRuleMutation(companyId);
   const deleteRule = useDeleteCompanyDefaultMappingRuleMutation(companyId);
 
-  const categories = useMemo(() => companyDefaultsQ.data?.categories ?? [], [companyDefaultsQ.data]);
+  const categories = useMemo(
+    () => companyDefaultsQ.data?.categories ?? [],
+    [companyDefaultsQ.data]
+  );
   const subCategories = useMemo(
     () => companyDefaultsQ.data?.subCategories ?? [],
     [companyDefaultsQ.data]
@@ -49,24 +57,39 @@ export default function CompanyDefaultMappingsModal(props: {
   const rules = companyDefaultsQ.data?.mappingRules ?? [];
 
   const categoryOptions = useMemo(
-    () => categories.map((category) => ({ value: category.id, label: category.name })),
+    () =>
+      categories.map((category) => ({
+        value: category.id,
+        label: category.name,
+      })),
     [categories]
   );
 
   const [newMatchText, setNewMatchText] = useState('');
-  const [newCategoryId, setNewCategoryId] = useState<CompanyDefaultCategoryId | null>(null);
+  const [newCategoryId, setNewCategoryId] =
+    useState<CompanyDefaultCategoryId | null>(null);
   const [newSubCategoryId, setNewSubCategoryId] = useState<string | null>(null);
   const [matchDrafts, setMatchDrafts] = useState<Record<string, string>>({});
-  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>({});
-  const [subCategoryDrafts, setSubCategoryDrafts] = useState<Record<string, string>>({});
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>(
+    {}
+  );
+  const [subCategoryDrafts, setSubCategoryDrafts] = useState<
+    Record<string, string>
+  >({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const newSubCategoryOptions = useMemo(
     () =>
       subCategories
-        .filter((subCategory) => subCategory.companyDefaultCategoryId === newCategoryId)
-        .map((subCategory) => ({ value: subCategory.id, label: subCategory.name })),
+        .filter(
+          (subCategory) =>
+            subCategory.companyDefaultCategoryId === newCategoryId
+        )
+        .map((subCategory) => ({
+          value: subCategory.id,
+          label: subCategory.name,
+        })),
     [newCategoryId, subCategories]
   );
   const hasDefaultTaxonomy = categories.length > 0 && subCategories.length > 0;
@@ -83,13 +106,23 @@ export default function CompanyDefaultMappingsModal(props: {
     try {
       setError(null);
       setSuccess(null);
-      await updateRule.mutateAsync({ id: currentRule.id, sortOrder: targetRule.sortOrder });
-      await updateRule.mutateAsync({ id: targetRule.id, sortOrder: currentRule.sortOrder });
+      await updateRule.mutateAsync({
+        id: currentRule.id,
+        sortOrder: targetRule.sortOrder,
+      });
+      await updateRule.mutateAsync({
+        id: targetRule.id,
+        sortOrder: currentRule.sortOrder,
+      });
       setSuccess(
         direction < 0 ? 'Moved mapping rule up.' : 'Moved mapping rule down.'
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not reorder company default mapping.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not reorder company default mapping.'
+      );
     }
   }
 
@@ -114,16 +147,22 @@ export default function CompanyDefaultMappingsModal(props: {
         ) : (
           <Stack gap={4}>
             <Text size="sm" c="dimmed" className="panelHelperText">
-              Rules search imported transaction item and description text. The first matching rule wins and auto-codes the row if the project already contains the mapped company defaults.
+              Rules search imported transaction item and description text. The
+              first matching rule wins and auto-codes the row if the project
+              already contains the mapped company defaults.
             </Text>
             <Text size="xs" fw={600} c="dimmed" className="panelHelperText">
               Rules are checked from top to bottom. The top rule wins first.
             </Text>
             <Text size="xs" c="dimmed" className="panelHelperText">
-              Example matches: <strong>uber</strong>, <strong>airport taxi</strong>, <strong>officeworks</strong>, <strong>flight</strong>.
+              Example matches: <strong>uber</strong>,{' '}
+              <strong>airport taxi</strong>, <strong>officeworks</strong>,{' '}
+              <strong>flight</strong>.
             </Text>
             <Text size="xs" c="dimmed" className="panelHelperText">
-              Matching is case-insensitive and handles simple singular/plural variations like <strong>flight</strong> and <strong>flights</strong>.
+              Matching is case-insensitive and handles simple singular/plural
+              variations like <strong>flight</strong> and{' '}
+              <strong>flights</strong>.
             </Text>
             <Group gap="sm" wrap="wrap">
               <Text size="xs" fw={600} c="dimmed">
@@ -144,7 +183,8 @@ export default function CompanyDefaultMappingsModal(props: {
 
         {!readOnly && !hasDefaultTaxonomy ? (
           <Alert color="blue">
-            Add company default categories and subcategories first. Mapping rules need default taxonomy to point at.
+            Add company default categories and subcategories first. Mapping
+            rules need default taxonomy to point at.
           </Alert>
         ) : null}
 
@@ -174,7 +214,9 @@ export default function CompanyDefaultMappingsModal(props: {
                 onChange={(value) => {
                   setError(null);
                   setSuccess(null);
-                  setNewCategoryId((value as CompanyDefaultCategoryId | null) ?? null);
+                  setNewCategoryId(
+                    (value as CompanyDefaultCategoryId | null) ?? null
+                  );
                   setNewSubCategoryId(null);
                 }}
               />
@@ -192,12 +234,14 @@ export default function CompanyDefaultMappingsModal(props: {
             </Group>
             {!newCategoryId && hasDefaultTaxonomy ? (
               <Text size="xs" c="dimmed">
-                Choose a category first, then pick the matching default subcategory.
+                Choose a category first, then pick the matching default
+                subcategory.
               </Text>
             ) : null}
             {newCategoryId && newSubCategoryOptions.length === 0 ? (
               <Text size="xs" c="dimmed">
-                This category has no default subcategories yet. Add one in company default categories first.
+                This category has no default subcategories yet. Add one in
+                company default categories first.
               </Text>
             ) : null}
             <Group justify="flex-end">
@@ -218,7 +262,8 @@ export default function CompanyDefaultMappingsModal(props: {
                     await createRule.mutateAsync({
                       companyId,
                       matchText: newMatchText.trim(),
-                      companyDefaultCategoryId: newCategoryId as CompanyDefaultCategoryId,
+                      companyDefaultCategoryId:
+                        newCategoryId as CompanyDefaultCategoryId,
                       companyDefaultSubCategoryId:
                         newSubCategoryId as CompanyDefaultSubCategoryId,
                       sortOrder: rules.length,
@@ -228,7 +273,11 @@ export default function CompanyDefaultMappingsModal(props: {
                     setNewSubCategoryId(null);
                     setSuccess('Added company default mapping.');
                   } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Could not add company default mapping.');
+                    setError(
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not add company default mapping.'
+                    );
                   }
                 }}
               >
@@ -246,11 +295,18 @@ export default function CompanyDefaultMappingsModal(props: {
           <Stack gap="sm">
             {rules.map((rule, index) => {
               const selectedCategoryId =
-                (categoryDrafts[rule.id] as CompanyDefaultCategoryId | undefined) ??
-                rule.companyDefaultCategoryId;
+                (categoryDrafts[rule.id] as
+                  | CompanyDefaultCategoryId
+                  | undefined) ?? rule.companyDefaultCategoryId;
               const subCategoryOptions = subCategories
-                .filter((subCategory) => subCategory.companyDefaultCategoryId === selectedCategoryId)
-                .map((subCategory) => ({ value: subCategory.id, label: subCategory.name }));
+                .filter(
+                  (subCategory) =>
+                    subCategory.companyDefaultCategoryId === selectedCategoryId
+                )
+                .map((subCategory) => ({
+                  value: subCategory.id,
+                  label: subCategory.name,
+                }));
 
               return (
                 <Paper key={rule.id} withBorder radius="md" p="md">
@@ -291,7 +347,11 @@ export default function CompanyDefaultMappingsModal(props: {
                                 await deleteRule.mutateAsync(rule.id);
                                 setSuccess('Deleted company default mapping.');
                               } catch (err) {
-                                setError(err instanceof Error ? err.message : 'Could not delete company default mapping.');
+                                setError(
+                                  err instanceof Error
+                                    ? err.message
+                                    : 'Could not delete company default mapping.'
+                                );
                               }
                             }}
                           >
@@ -310,7 +370,11 @@ export default function CompanyDefaultMappingsModal(props: {
                                 await deleteRule.mutateAsync(rule.id);
                                 setSuccess('Deleted company default mapping.');
                               } catch (err) {
-                                setError(err instanceof Error ? err.message : 'Could not delete company default mapping.');
+                                setError(
+                                  err instanceof Error
+                                    ? err.message
+                                    : 'Could not delete company default mapping.'
+                                );
                               }
                             }}
                           >
@@ -329,10 +393,15 @@ export default function CompanyDefaultMappingsModal(props: {
                         const value = e.currentTarget.value;
                         setError(null);
                         setSuccess(null);
-                        setMatchDrafts((prev) => ({ ...prev, [rule.id]: value }));
+                        setMatchDrafts((prev) => ({
+                          ...prev,
+                          [rule.id]: value,
+                        }));
                       }}
                       onBlur={() => {
-                        const nextValue = (matchDrafts[rule.id] ?? rule.matchText).trim();
+                        const nextValue = (
+                          matchDrafts[rule.id] ?? rule.matchText
+                        ).trim();
                         if (!nextValue || nextValue === rule.matchText) return;
                         void updateRule
                           .mutateAsync({ id: rule.id, matchText: nextValue })
@@ -345,7 +414,11 @@ export default function CompanyDefaultMappingsModal(props: {
                             });
                           })
                           .catch((err) => {
-                            setError(err instanceof Error ? err.message : 'Could not update company default mapping.');
+                            setError(
+                              err instanceof Error
+                                ? err.message
+                                : 'Could not update company default mapping.'
+                            );
                           });
                       }}
                     />
@@ -359,14 +432,23 @@ export default function CompanyDefaultMappingsModal(props: {
                         onChange={(value) => {
                           setError(null);
                           setSuccess(null);
-                          setCategoryDrafts((prev) => ({ ...prev, [rule.id]: value ?? '' }));
-                          setSubCategoryDrafts((prev) => ({ ...prev, [rule.id]: '' }));
+                          setCategoryDrafts((prev) => ({
+                            ...prev,
+                            [rule.id]: value ?? '',
+                          }));
+                          setSubCategoryDrafts((prev) => ({
+                            ...prev,
+                            [rule.id]: '',
+                          }));
                         }}
                       />
                       <Select
                         label="Subcategory"
                         data={subCategoryOptions}
-                        value={subCategoryDrafts[rule.id] ?? rule.companyDefaultSubCategoryId}
+                        value={
+                          subCategoryDrafts[rule.id] ??
+                          rule.companyDefaultSubCategoryId
+                        }
                         disabled={readOnly || !selectedCategoryId}
                         onChange={async (value) => {
                           if (!value || !selectedCategoryId) return;
@@ -376,7 +458,8 @@ export default function CompanyDefaultMappingsModal(props: {
                             await updateRule.mutateAsync({
                               id: rule.id,
                               companyDefaultCategoryId: selectedCategoryId,
-                              companyDefaultSubCategoryId: value as CompanyDefaultSubCategoryId,
+                              companyDefaultSubCategoryId:
+                                value as CompanyDefaultSubCategoryId,
                             });
                             setCategoryDrafts((prev) => {
                               const next = { ...prev };
@@ -390,7 +473,11 @@ export default function CompanyDefaultMappingsModal(props: {
                             });
                             setSuccess('Updated company default mapping.');
                           } catch (err) {
-                            setError(err instanceof Error ? err.message : 'Could not update company default mapping.');
+                            setError(
+                              err instanceof Error
+                                ? err.message
+                                : 'Could not update company default mapping.'
+                            );
                           }
                         }}
                       />
@@ -400,7 +487,8 @@ export default function CompanyDefaultMappingsModal(props: {
               );
             })}
             <Text size="xs" c="dimmed" className="panelHelperText">
-              Priority runs from top to bottom. Move broader matches lower so specific rules win first.
+              Priority runs from top to bottom. Move broader matches lower so
+              specific rules win first.
             </Text>
           </Stack>
         )}

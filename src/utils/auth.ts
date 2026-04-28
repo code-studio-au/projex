@@ -93,9 +93,11 @@ export function can(params: {
   if (action.startsWith('company:')) {
     if (!cRole) return false;
     if (action === 'company:view') return true;
-    if (action === 'company:edit') return cRole === 'admin' || cRole === 'executive' || cRole === 'management';
-    if (action === 'company:manage_members')
-      return cRole === 'admin';
+    if (action === 'company:edit')
+      return (
+        cRole === 'admin' || cRole === 'executive' || cRole === 'management'
+      );
+    if (action === 'company:manage_members') return cRole === 'admin';
     return false;
   }
 
@@ -118,17 +120,30 @@ export function can(params: {
 
   // Project leads can do all actions for projects they lead.
   // Team members can work in txns + budget only.
-  if (action === 'project:edit') return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+  if (action === 'project:edit')
+    return companyCanEdit || pRole === 'owner' || pRole === 'lead';
 
   // Import + taxonomy are restricted to company exec/admin or project lead/owner.
-  if (action === 'project:import') return companyCanEdit || pRole === 'owner' || pRole === 'lead';
-  if (action === 'taxonomy:edit') return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+  if (action === 'project:import')
+    return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+  if (action === 'taxonomy:edit')
+    return companyCanEdit || pRole === 'owner' || pRole === 'lead';
 
   // Budgets + transactions can be edited by leads AND members (within projects they belong to).
   if (action === 'budget:edit')
-    return companyCanEdit || pRole === 'owner' || pRole === 'lead' || pRole === 'member';
+    return (
+      companyCanEdit ||
+      pRole === 'owner' ||
+      pRole === 'lead' ||
+      pRole === 'member'
+    );
   if (action === 'txns:edit')
-    return companyCanEdit || pRole === 'owner' || pRole === 'lead' || pRole === 'member';
+    return (
+      companyCanEdit ||
+      pRole === 'owner' ||
+      pRole === 'lead' ||
+      pRole === 'member'
+    );
 
   return false;
 }

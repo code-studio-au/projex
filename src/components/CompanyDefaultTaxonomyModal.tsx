@@ -43,26 +43,42 @@ export default function CompanyDefaultTaxonomyModal(props: {
   const createCategory = useCreateCompanyDefaultCategoryMutation(companyId);
   const updateCategory = useUpdateCompanyDefaultCategoryMutation(companyId);
   const deleteCategory = useDeleteCompanyDefaultCategoryMutation(companyId);
-  const createSubCategory = useCreateCompanyDefaultSubCategoryMutation(companyId);
-  const updateSubCategory = useUpdateCompanyDefaultSubCategoryMutation(companyId);
-  const deleteSubCategory = useDeleteCompanyDefaultSubCategoryMutation(companyId);
+  const createSubCategory =
+    useCreateCompanyDefaultSubCategoryMutation(companyId);
+  const updateSubCategory =
+    useUpdateCompanyDefaultSubCategoryMutation(companyId);
+  const deleteSubCategory =
+    useDeleteCompanyDefaultSubCategoryMutation(companyId);
 
-  const categories = useMemo(() => companyDefaultsQ.data?.categories ?? [], [companyDefaultsQ.data]);
+  const categories = useMemo(
+    () => companyDefaultsQ.data?.categories ?? [],
+    [companyDefaultsQ.data]
+  );
   const subCategories = useMemo(
     () => companyDefaultsQ.data?.subCategories ?? [],
     [companyDefaultsQ.data]
   );
   const categoryOptions = useMemo(
-    () => categories.map((category) => ({ value: category.id, label: category.name })),
+    () =>
+      categories.map((category) => ({
+        value: category.id,
+        label: category.name,
+      })),
     [categories]
   );
 
   const [newCategoryName, setNewCategoryName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>({});
-  const [subCategoryDrafts, setSubCategoryDrafts] = useState<Record<string, string>>({});
-  const [newSubNameByCat, setNewSubNameByCat] = useState<Record<string, string>>({});
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>(
+    {}
+  );
+  const [subCategoryDrafts, setSubCategoryDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [newSubNameByCat, setNewSubNameByCat] = useState<
+    Record<string, string>
+  >({});
   const [pendingDelete, setPendingDelete] = useState<
     | { kind: 'category'; id: string; name: string }
     | { kind: 'subcategory'; id: string; name: string }
@@ -84,7 +100,10 @@ export default function CompanyDefaultTaxonomyModal(props: {
     try {
       setError(null);
       setSuccess(null);
-      await updateCategory.mutateAsync({ id: asCompanyDefaultCategoryId(categoryId), name: nextName });
+      await updateCategory.mutateAsync({
+        id: asCompanyDefaultCategoryId(categoryId),
+        name: nextName,
+      });
       setCategoryDrafts((prev) => {
         const next = { ...prev };
         delete next[categoryId];
@@ -92,11 +111,18 @@ export default function CompanyDefaultTaxonomyModal(props: {
       });
       setSuccess('Updated company default category.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not rename company default category.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not rename company default category.'
+      );
     }
   }
 
-  async function commitSubCategoryName(subCategoryId: string, fallbackName: string) {
+  async function commitSubCategoryName(
+    subCategoryId: string,
+    fallbackName: string
+  ) {
     const nextName = (subCategoryDrafts[subCategoryId] ?? fallbackName).trim();
     const currentName = fallbackName.trim();
     if (!nextName || nextName === currentName) {
@@ -122,7 +148,11 @@ export default function CompanyDefaultTaxonomyModal(props: {
       });
       setSuccess('Updated company default subcategory.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not rename company default subcategory.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not rename company default subcategory.'
+      );
     }
   }
 
@@ -137,32 +167,33 @@ export default function CompanyDefaultTaxonomyModal(props: {
         <Stack gap="md" className="taxonomyModal">
           {error ? <Alert color="red">{error}</Alert> : null}
           {success ? <Alert color="green">{success}</Alert> : null}
-        {readOnly ? (
-          <Text size="sm" c="dimmed" className="panelHelperText">
-            You don’t have permission to edit company defaults.
-          </Text>
-        ) : companyDefaultsQ.isPending && !companyDefaultsQ.data ? (
-          <Text size="sm" c="dimmed" className="panelHelperText">
-            Loading company default taxonomy…
-          </Text>
-        ) : (
-          <Stack gap={4}>
+          {readOnly ? (
             <Text size="sm" c="dimmed" className="panelHelperText">
-              Company defaults can be applied into projects later. Existing project taxonomy is never overwritten.
+              You don’t have permission to edit company defaults.
             </Text>
-            <Group gap="sm" wrap="wrap">
-              <Text size="xs" fw={600} c="dimmed">
-                Current defaults:
+          ) : companyDefaultsQ.isPending && !companyDefaultsQ.data ? (
+            <Text size="sm" c="dimmed" className="panelHelperText">
+              Loading company default taxonomy…
+            </Text>
+          ) : (
+            <Stack gap={4}>
+              <Text size="sm" c="dimmed" className="panelHelperText">
+                Company defaults can be applied into projects later. Existing
+                project taxonomy is never overwritten.
               </Text>
-              <Text size="xs" c="dimmed">
-                {categories.length} categories
-              </Text>
-              <Text size="xs" c="dimmed">
-                {subCategories.length} subcategories
-              </Text>
-            </Group>
-          </Stack>
-        )}
+              <Group gap="sm" wrap="wrap">
+                <Text size="xs" fw={600} c="dimmed">
+                  Current defaults:
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {categories.length} categories
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {subCategories.length} subcategories
+                </Text>
+              </Group>
+            </Stack>
+          )}
 
           <Group align="flex-end" wrap="wrap">
             <TextInput
@@ -191,7 +222,11 @@ export default function CompanyDefaultTaxonomyModal(props: {
                   setNewCategoryName('');
                   setSuccess('Added company default category.');
                 } catch (err) {
-                  setError(err instanceof Error ? err.message : 'Could not add company default category.');
+                  setError(
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not add company default category.'
+                  );
                 }
               }}
             >
@@ -210,10 +245,17 @@ export default function CompanyDefaultTaxonomyModal(props: {
 
             {categories.map((category) => {
               const categorySubCategories = subCategories.filter(
-                (subCategory) => subCategory.companyDefaultCategoryId === category.id
+                (subCategory) =>
+                  subCategory.companyDefaultCategoryId === category.id
               );
               return (
-                <Paper key={category.id} withBorder radius="md" p="md" className="taxonomyCategoryCard">
+                <Paper
+                  key={category.id}
+                  withBorder
+                  radius="md"
+                  p="md"
+                  className="taxonomyCategoryCard"
+                >
                   <Stack gap="sm">
                     <Group justify="space-between" align="flex-end">
                       <TextInput
@@ -223,7 +265,10 @@ export default function CompanyDefaultTaxonomyModal(props: {
                           setError(null);
                           setSuccess(null);
                           const value = e?.currentTarget?.value ?? '';
-                          setCategoryDrafts((prev) => ({ ...prev, [category.id]: value }));
+                          setCategoryDrafts((prev) => ({
+                            ...prev,
+                            [category.id]: value,
+                          }));
                         }}
                         onBlur={() => {
                           void commitCategoryName(category.id, category.name);
@@ -244,7 +289,13 @@ export default function CompanyDefaultTaxonomyModal(props: {
                           fullWidth
                           leftSection={<IconTrash size={16} />}
                           disabled={readOnly}
-                          onClick={() => setPendingDelete({ kind: 'category', id: category.id, name: category.name })}
+                          onClick={() =>
+                            setPendingDelete({
+                              kind: 'category',
+                              id: category.id,
+                              name: category.name,
+                            })
+                          }
                         >
                           Delete category
                         </Button>
@@ -254,7 +305,13 @@ export default function CompanyDefaultTaxonomyModal(props: {
                           variant="subtle"
                           title="Delete category"
                           disabled={readOnly}
-                          onClick={() => setPendingDelete({ kind: 'category', id: category.id, name: category.name })}
+                          onClick={() =>
+                            setPendingDelete({
+                              kind: 'category',
+                              id: category.id,
+                              name: category.name,
+                            })
+                          }
                         >
                           <IconTrash size={16} />
                         </ActionIcon>
@@ -270,7 +327,10 @@ export default function CompanyDefaultTaxonomyModal(props: {
                           setError(null);
                           setSuccess(null);
                           const value = e?.currentTarget?.value ?? '';
-                          setNewSubNameByCat((prev) => ({ ...prev, [category.id]: value }));
+                          setNewSubNameByCat((prev) => ({
+                            ...prev,
+                            [category.id]: value,
+                          }));
                         }}
                         style={{ width: '100%' }}
                         disabled={readOnly}
@@ -281,7 +341,9 @@ export default function CompanyDefaultTaxonomyModal(props: {
                         disabled={readOnly || createSubCategory.isPending}
                         fullWidth={isMobile}
                         onClick={async () => {
-                          const name = (newSubNameByCat[category.id] ?? '').trim();
+                          const name = (
+                            newSubNameByCat[category.id] ?? ''
+                          ).trim();
                           if (!name) return;
                           try {
                             setError(null);
@@ -291,10 +353,17 @@ export default function CompanyDefaultTaxonomyModal(props: {
                               companyDefaultCategoryId: category.id,
                               name,
                             });
-                            setNewSubNameByCat((prev) => ({ ...prev, [category.id]: '' }));
+                            setNewSubNameByCat((prev) => ({
+                              ...prev,
+                              [category.id]: '',
+                            }));
                             setSuccess('Added company default subcategory.');
                           } catch (err) {
-                            setError(err instanceof Error ? err.message : 'Could not add company default subcategory.');
+                            setError(
+                              err instanceof Error
+                                ? err.message
+                                : 'Could not add company default subcategory.'
+                            );
                           }
                         }}
                       >
@@ -309,10 +378,17 @@ export default function CompanyDefaultTaxonomyModal(props: {
                     ) : (
                       <Stack gap={6}>
                         {categorySubCategories.map((subCategory) => (
-                          <Group key={subCategory.id} align="flex-end" wrap="wrap">
+                          <Group
+                            key={subCategory.id}
+                            align="flex-end"
+                            wrap="wrap"
+                          >
                             <TextInput
                               label="Subcategory"
-                              value={subCategoryDrafts[subCategory.id] ?? subCategory.name}
+                              value={
+                                subCategoryDrafts[subCategory.id] ??
+                                subCategory.name
+                              }
                               onChange={(e) => {
                                 setError(null);
                                 setSuccess(null);
@@ -323,12 +399,18 @@ export default function CompanyDefaultTaxonomyModal(props: {
                                 }));
                               }}
                               onBlur={() => {
-                                void commitSubCategoryName(subCategory.id, subCategory.name);
+                                void commitSubCategoryName(
+                                  subCategory.id,
+                                  subCategory.name
+                                );
                               }}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                   e.preventDefault();
-                                  void commitSubCategoryName(subCategory.id, subCategory.name);
+                                  void commitSubCategoryName(
+                                    subCategory.id,
+                                    subCategory.name
+                                  );
                                 }
                               }}
                               style={{ width: '100%', flex: 1 }}
@@ -339,20 +421,36 @@ export default function CompanyDefaultTaxonomyModal(props: {
                               data={categoryOptions}
                               value={subCategory.companyDefaultCategoryId}
                               onChange={async (value) => {
-                                if (!value || value === subCategory.companyDefaultCategoryId) return;
+                                if (
+                                  !value ||
+                                  value === subCategory.companyDefaultCategoryId
+                                )
+                                  return;
                                 try {
                                   setError(null);
                                   setSuccess(null);
                                   await updateSubCategory.mutateAsync({
-                                    id: asCompanyDefaultSubCategoryId(subCategory.id),
-                                    companyDefaultCategoryId: asCompanyDefaultCategoryId(value),
+                                    id: asCompanyDefaultSubCategoryId(
+                                      subCategory.id
+                                    ),
+                                    companyDefaultCategoryId:
+                                      asCompanyDefaultCategoryId(value),
                                   });
-                                  setSuccess('Moved company default subcategory.');
+                                  setSuccess(
+                                    'Moved company default subcategory.'
+                                  );
                                 } catch (err) {
-                                  setError(err instanceof Error ? err.message : 'Could not move company default subcategory.');
+                                  setError(
+                                    err instanceof Error
+                                      ? err.message
+                                      : 'Could not move company default subcategory.'
+                                  );
                                 }
                               }}
-                              style={{ width: '100%', maxWidth: isMobile ? '100%' : 220 }}
+                              style={{
+                                width: '100%',
+                                maxWidth: isMobile ? '100%' : 220,
+                              }}
                               disabled={readOnly}
                             />
                             {isMobile ? (
@@ -404,7 +502,11 @@ export default function CompanyDefaultTaxonomyModal(props: {
       <Modal
         opened={!!pendingDelete}
         onClose={() => setPendingDelete(null)}
-        title={pendingDelete?.kind === 'category' ? 'Delete company default category?' : 'Delete company default subcategory?'}
+        title={
+          pendingDelete?.kind === 'category'
+            ? 'Delete company default category?'
+            : 'Delete company default subcategory?'
+        }
         centered
       >
         <Stack gap="md">
@@ -425,15 +527,23 @@ export default function CompanyDefaultTaxonomyModal(props: {
                   setError(null);
                   setSuccess(null);
                   if (pendingDelete.kind === 'category') {
-                    await deleteCategory.mutateAsync(asCompanyDefaultCategoryId(pendingDelete.id));
+                    await deleteCategory.mutateAsync(
+                      asCompanyDefaultCategoryId(pendingDelete.id)
+                    );
                     setSuccess('Deleted company default category.');
                   } else {
-                    await deleteSubCategory.mutateAsync(asCompanyDefaultSubCategoryId(pendingDelete.id));
+                    await deleteSubCategory.mutateAsync(
+                      asCompanyDefaultSubCategoryId(pendingDelete.id)
+                    );
                     setSuccess('Deleted company default subcategory.');
                   }
                   setPendingDelete(null);
                 } catch (err) {
-                  setError(err instanceof Error ? err.message : 'Could not delete company default taxonomy item.');
+                  setError(
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not delete company default taxonomy item.'
+                  );
                 }
               }}
             >
