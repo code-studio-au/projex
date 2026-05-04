@@ -1,4 +1,5 @@
 import { getBetterAuthInstance } from './betterAuthInstance.ts';
+import { loadEnvFiles } from '../envFiles.ts';
 import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas';
 
 function requireEnv(name: string): string {
@@ -10,6 +11,8 @@ function requireEnv(name: string): string {
 }
 
 async function run() {
+  loadEnvFiles();
+
   const email = requireEnv('PROJEX_AUTH_EMAIL');
   const password = requireEnv('PROJEX_AUTH_PASSWORD');
   const name = process.env.PROJEX_AUTH_NAME?.trim() || email;

@@ -388,6 +388,9 @@ async function loadPrimaryCompanyAndProject(
   recorder: Recorder,
   client: SmokeHttpClient
 ) {
+  loadSmokeEnvFiles();
+  const preferredCompanyId = process.env.PROJEX_SMOKE_COMPANY_ID?.trim();
+  const preferredProjectId = process.env.PROJEX_SMOKE_PROJECT_ID?.trim();
   const companies = await recorder.step(
     'companies',
     'Loading companies',
@@ -398,7 +401,9 @@ async function loadPrimaryCompanyAndProject(
     }
   );
 
-  const company = companies[0];
+  const company = preferredCompanyId
+    ? companies.find((candidate) => candidate.id === preferredCompanyId)
+    : companies[0];
   if (!company?.id) throw new Error('No company available for smoke test.');
 
   const projects = await recorder.step(
@@ -413,8 +418,10 @@ async function loadPrimaryCompanyAndProject(
     }
   );
 
-  const project =
-    projects.find((candidate) => candidate.status === 'active') ?? projects[0];
+  const project = preferredProjectId
+    ? projects.find((candidate) => candidate.id === preferredProjectId)
+    : (projects.find((candidate) => candidate.status === 'active') ??
+      projects[0]);
   if (!project?.id) throw new Error('No project available for smoke test.');
 
   return { company, project };
@@ -1258,6 +1265,8 @@ async function runInviteFlowSection(
       `Invite user did not return a user id: ${JSON.stringify(invite)}`
     );
   }
+
+  await authenticatePrimaryUser(recorder, client, baseUrl);
 
   await recorder.step(
     'update-existing-member',

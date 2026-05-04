@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { getMigrations } from 'better-auth/db/migration';
 
 import { requireDatabaseUrl } from '../env.ts';
+import { loadEnvFiles } from '../envFiles.ts';
 import { buildBetterAuthOptions } from '../auth/betterAuthInstance.ts';
 import { createPgPool, type TypedPgPool } from './pgPool.ts';
 
@@ -39,6 +40,8 @@ function splitSqlStatements(sql: string): string[] {
 }
 
 async function run() {
+  loadEnvFiles();
+
   const hasBetterAuthEnv =
     Boolean(process.env.BETTER_AUTH_SECRET?.trim()) &&
     Boolean(process.env.BETTER_AUTH_URL?.trim());

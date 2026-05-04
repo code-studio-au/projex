@@ -1,6 +1,12 @@
 import type { SmokeSectionId, SmokeStepResult } from '../../types/index.ts';
 import { smokeSectionDefinitions } from '../../types/index.ts';
 import { getSmokeBaseUrl } from './env.ts';
+import {
+  cleanupSmokeFixtures,
+  createSmokeFixtures,
+  sweepSmokeFixtures,
+  type SmokeFixtures,
+} from './fixtures.ts';
 import { runSmokeSection } from './runSection.ts';
 
 const validSections = new Set(
@@ -43,6 +49,10 @@ function parseRequestedSections(argv: string[]): Set<SmokeSectionId> {
   return new Set(sections);
 }
 
+function hasFlag(argv: string[], flag: string) {
+  return argv.includes(flag);
+}
+
 function logStep(step: SmokeStepResult) {
   const prefix =
     step.status === 'passed'
@@ -60,26 +70,65 @@ function logStep(step: SmokeStepResult) {
 }
 
 async function main() {
-  const requestedSections = parseRequestedSections(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const requestedSections = parseRequestedSections(argv);
+  const useGeneratedFixtures = hasFlag(argv, '--use-generated-fixtures');
+  const sweepStaleFixtures = hasFlag(argv, '--sweep-stale-fixtures');
+  const cleanupOnly = hasFlag(argv, '--cleanup-stale-fixtures');
   const baseUrl = getSmokeBaseUrl();
   let hasFailure = false;
+  let fixtures: SmokeFixtures | null = null;
 
-  for (const section of smokeSectionDefinitions) {
-    if (requestedSections.size > 0 && !requestedSections.has(section.id))
-      continue;
+  try {
+    if (cleanupOnly) {
+      await sweepSmokeFixtures({
+        onStatus(message) {
+          console.info(`[..] ${message}`);
+        },
+      });
+      return;
+    }
 
-    console.info(`\n== ${section.label} ==`);
-    const result = await runSmokeSection(section.id, baseUrl, {
-      onStatus(message) {
-        console.info(`[..] ${message}`);
-      },
-      onStep(step) {
-        logStep(step);
-      },
-    });
+    if (useGeneratedFixtures) {
+      fixtures = await createSmokeFixtures({
+        sweepStale: sweepStaleFixtures,
+        onStatus(message) {
+          console.info(`[..] ${message}`);
+        },
+      });
+    } else if (sweepStaleFixtures) {
+      await sweepSmokeFixtures({
+        onStatus(message) {
+          console.info(`[..] ${message}`);
+        },
+      });
+    }
 
-    if (result.status === 'failed') {
-      hasFailure = true;
+    for (const section of smokeSectionDefinitions) {
+      if (requestedSections.size > 0 && !requestedSections.has(section.id))
+        continue;
+
+      console.info(`\n== ${section.label} ==`);
+      const result = await runSmokeSection(section.id, baseUrl, {
+        onStatus(message) {
+          console.info(`[..] ${message}`);
+        },
+        onStep(step) {
+          logStep(step);
+        },
+      });
+
+      if (result.status === 'failed') {
+        hasFailure = true;
+      }
+    }
+  } finally {
+    if (fixtures) {
+      await cleanupSmokeFixtures(fixtures, {
+        onStatus(message) {
+          console.info(`[..] ${message}`);
+        },
+      });
     }
   }
 

@@ -20,6 +20,8 @@
     "deploy:ec2": "bash scripts/deploy-ec2.sh",
     "deploy:ec2:quick": "SKIP_INSTALL=true bash scripts/deploy-ec2.sh",
     "smoke:server": "node scripts/smoke-server.mjs",
+    "smoke:server:generated": "node scripts/smoke-server.mjs --use-generated-fixtures --sweep-stale-fixtures",
+    "smoke:cleanup": "node scripts/smoke-server.mjs --cleanup-stale-fixtures",
     "cdk:install": "npm --prefix deploy/cdk install",
     "cdk:bootstrap": "npm --prefix deploy/cdk exec cdk -- bootstrap",
     "cdk:synth": "npm --prefix deploy/cdk run synth",

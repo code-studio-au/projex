@@ -53,6 +53,15 @@ Post-deploy verification on the target runtime:
 npm run smoke:server
 ```
 
+For the most repeatable run, use generated smoke fixtures. This creates
+disposable `smoke_*` users/company/project data, injects the matching
+`PROJEX_SMOKE_*` values for the process, runs smoke, then cleans the fixtures in
+`finally`:
+
+```bash
+npm run smoke:server:generated
+```
+
 Use targeted sections when retrying one workflow:
 
 ```bash
@@ -65,6 +74,11 @@ npm run smoke:server -- --section=privacyChecks
 ```
 
 Keep smoke credentials in `.env.smoke.local` at the repo root. On EC2 that is `/opt/projex/.env.smoke.local`.
+Generated fixture runs still require the normal deployed runtime env, including `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL`. If interrupted smoke runs leave data behind, run:
+
+```bash
+npm run smoke:cleanup
+```
 
 ## Required Production Env
 

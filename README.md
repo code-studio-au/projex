@@ -50,6 +50,12 @@ npm run start:server
 # Smoke test a running server
 npm run smoke:server
 npm run smoke:server -- --section=emailChange
+
+# Smoke test with disposable generated users/data, then clean them up
+npm run smoke:server:generated
+
+# Best-effort cleanup sweep for abandoned smoke_* fixtures
+npm run smoke:cleanup
 ```
 
 ## Architecture Boundaries

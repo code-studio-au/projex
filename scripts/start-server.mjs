@@ -4,6 +4,27 @@ import { spawnSync } from 'node:child_process';
 import { extname, join, normalize, resolve } from 'node:path';
 import { createApp, eventHandler, fromWebHandler, serve } from 'h3-v2';
 
+async function loadEnvFile(fileName) {
+  if (!existsSync(fileName)) return;
+  const content = await readFile(fileName, 'utf8');
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
+    if (!match) continue;
+    const [, key, rawValue] = match;
+    if (process.env[key] != null) continue;
+    let value = rawValue.trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+}
+
 function run(cmd, args) {
   const result = spawnSync(cmd, args, { stdio: 'inherit' });
   if (result.status !== 0) {
@@ -15,6 +36,8 @@ if (!existsSync('dist/server/server.js')) {
   console.error('Missing dist/server/server.js. Run `npm run build` first.');
   process.exit(1);
 }
+
+await loadEnvFile('.env.local');
 
 const runMigrations = process.env.PROJEX_RUN_MIGRATIONS !== 'false';
 if (runMigrations) {
