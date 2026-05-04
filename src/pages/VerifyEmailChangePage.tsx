@@ -10,10 +10,8 @@ import {
 } from '@mantine/core';
 import { z } from 'zod';
 
-import {
-  apiMessageResponseSchema,
-  emailChangeConfirmResponseSchema,
-} from '../validation/responseSchemas';
+import { apiErrorMessage } from '../api/errorResponses';
+import { emailChangeConfirmResponseSchema } from '../validation/responseSchemas';
 
 type ConfirmState =
   | { status: 'loading' }
@@ -49,11 +47,9 @@ export default function VerifyEmailChangePage() {
         });
         const body: unknown = await res.json().catch(() => null);
         if (!res.ok) {
-          const parsedError = apiMessageResponseSchema.safeParse(body);
-          const message = parsedError.success
-            ? (parsedError.data.message ?? 'Could not confirm your new email.')
-            : 'Could not confirm your new email.';
-          throw new Error(message);
+          throw new Error(
+            apiErrorMessage(body, 'Could not confirm your new email.')
+          );
         }
         if (!cancelled) {
           const payload = emailChangeConfirmResponseSchema.parse(body);

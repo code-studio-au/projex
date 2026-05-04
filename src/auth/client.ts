@@ -31,7 +31,8 @@ function parseAuthBody(text: string): unknown {
   if (!text) return null;
 
   try {
-    return JSON.parse(text) as unknown;
+    const body: unknown = JSON.parse(text);
+    return body;
   } catch {
     return null;
   }

@@ -1,7 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
 import { z } from 'zod';
 import { isServerAuthMode } from './-authMode';
-import ProjectWorkspacePage from '../pages/ProjectWorkspacePage';
 
 const quarterSchema = z.enum(['Q1', 'Q2', 'Q3', 'Q4']);
 
@@ -27,6 +26,6 @@ const projectWorkspaceSearchSchema = z
 
 export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
   validateSearch: (search) => projectWorkspaceSearchSchema.parse(search),
-  component: ProjectWorkspacePage,
+  component: lazyRouteComponent(() => import('../pages/ProjectWorkspacePage')),
   ssr: isServerAuthMode,
 });

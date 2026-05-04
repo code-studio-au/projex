@@ -45,6 +45,7 @@ import type {
   TxnUpdateInput,
 } from '../types';
 import {
+  apiErrorResponseSchema,
   applyCompanyDefaultsResultResponseSchema,
   budgetLineResponseSchema,
   budgetLinesResponseSchema,
@@ -82,12 +83,6 @@ import {
   userResponseSchema,
   usersResponseSchema,
 } from '../../validation/responseSchemas';
-
-type ApiErrorBody = {
-  code?: AppErrorCode;
-  message?: string;
-  meta?: Record<string, unknown> | null;
-};
 
 /**
  * Server-backed API adapter that talks to Start file routes under `/api/*`.
@@ -143,7 +138,8 @@ export class ServerApi implements ProjexApi {
     if (!text) return null;
 
     try {
-      return JSON.parse(text) as unknown;
+      const body: unknown = JSON.parse(text);
+      return body;
     } catch {
       throw new AppError('INTERNAL_ERROR', 'Invalid JSON response from API');
     }
@@ -186,7 +182,8 @@ export class ServerApi implements ProjexApi {
     const body = this.parseResponseBody(text);
 
     if (!res.ok) {
-      const errBody = (body ?? {}) as ApiErrorBody;
+      const parsedError = apiErrorResponseSchema.safeParse(body);
+      const errBody = parsedError.success ? parsedError.data : {};
       const code = errBody.code ?? this.statusToCode(res.status);
       const message = errBody.message ?? `Request failed (${res.status})`;
       throw new AppError(code, message, errBody.meta ?? undefined);

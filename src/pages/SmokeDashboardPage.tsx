@@ -21,9 +21,9 @@ import {
   IconX,
 } from '@tabler/icons-react';
 
+import { apiErrorMessage } from '../api/errorResponses';
 import { useUsersQuery } from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
-import { apiMessageResponseSchema } from '../validation/responseSchemas';
 import type {
   SmokeSectionId,
   SmokeSectionResult,
@@ -427,11 +427,7 @@ export default function SmokeDashboardPage() {
 
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => null);
-        const parsed = apiMessageResponseSchema.safeParse(body);
-        const message = parsed.success
-          ? (parsed.data.message ?? 'Smoke run failed.')
-          : 'Smoke run failed.';
-        throw new Error(message);
+        throw new Error(apiErrorMessage(body, 'Smoke run failed.'));
       }
 
       const reader = res.body?.getReader();

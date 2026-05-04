@@ -21,6 +21,14 @@ npm run format:check
 npm run build
 ```
 
+Optional DB-backed integration coverage is included in `npm run test`, but is skipped unless an explicit integration database is provided. Use a migrated disposable database whose name contains `test`:
+
+```bash
+PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test npm run test
+```
+
+`npm run build` should not emit client chunk-size warnings. Current known build noise is limited to SSR dynamic/static import warnings from TanStack Start server route wiring.
+
 ## Local Server Utilities
 
 ```bash

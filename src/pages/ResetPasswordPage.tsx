@@ -13,9 +13,9 @@ import {
 import { useRouter } from '@tanstack/react-router';
 import { useMediaQuery } from '@mantine/hooks';
 
+import { apiErrorMessage } from '../api/errorResponses';
 import { accountRoute, loginRoute } from '../router';
 import { useSessionQuery } from '../queries/session';
-import { apiMessageResponseSchema } from '../validation/responseSchemas';
 
 function useResetSearch() {
   return useMemo(() => {
@@ -68,12 +68,7 @@ export default function ResetPasswordPage() {
       });
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        const parsed = apiMessageResponseSchema.safeParse(body);
-        setError(
-          parsed.success
-            ? (parsed.data.message ?? 'Could not set your password.')
-            : 'Could not set your password.'
-        );
+        setError(apiErrorMessage(body, 'Could not set your password.'));
         return;
       }
       setSuccess(

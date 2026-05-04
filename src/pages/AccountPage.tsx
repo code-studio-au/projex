@@ -12,6 +12,7 @@ import {
   Title,
 } from '@mantine/core';
 
+import { apiErrorMessage } from '../api/errorResponses';
 import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import { useCompaniesQuery, useUsersQuery } from '../queries/reference';
@@ -22,7 +23,6 @@ import {
   useResendEmailChangeMutation,
   useUpdateCurrentUserProfileMutation,
 } from '../queries/account';
-import { apiMessageResponseSchema } from '../validation/responseSchemas';
 
 type EmailActivity = {
   kind: 'requested' | 'resent' | 'cancelled';
@@ -203,11 +203,7 @@ export default function AccountPage() {
 
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        const parsed = apiMessageResponseSchema.safeParse(body);
-        const message = parsed.success
-          ? (parsed.data.message ?? 'Could not change password.')
-          : 'Could not change password.';
-        throw new Error(message);
+        throw new Error(apiErrorMessage(body, 'Could not change password.'));
       }
 
       setCurrentPassword('');
