@@ -743,6 +743,11 @@ export default function SmokeDashboardPage() {
             sections will mark themselves as skipped when their extra values are
             not configured in `.env.smoke.local`.
           </Text>
+          <Alert color="blue" variant="light">
+            This UI uses the configured smoke credentials already present on the
+            server. For disposable generated users and automatic cleanup, run
+            `npm run smoke:server:generated` from the CLI.
+          </Alert>
         </Stack>
       </Paper>
 

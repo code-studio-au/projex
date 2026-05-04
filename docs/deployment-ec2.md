@@ -193,7 +193,9 @@ Notes:
 - On a fresh database, sign-in alone is not enough; the account must also exist in app `users`.
 
 - `npm run smoke:server` (from trusted network against deployed URL)
-- Save smoke-only credentials in `/opt/projex/.env.smoke.local` on EC2 so the smoke script can load them automatically from the repo root.
+- Prefer `npm run smoke:server:generated` for repeatable smoke runs. It creates disposable `smoke_*` users/company/project data, runs smoke with generated `PROJEX_SMOKE_*` values, and cleans the fixtures in `finally`.
+- Use `npm run smoke:cleanup` if an interrupted generated run leaves abandoned `smoke_*` fixtures behind.
+- Save smoke-only credentials in `/opt/projex/.env.smoke.local` on EC2 only when you want to run the older configured-credential flow or the admin smoke UI. The CLI generated-fixture flow does not require long-lived smoke users.
 - Use full smoke for broad confidence after deploy, and targeted section runs when retrying one workflow:
   - `npm run smoke:server -- --section=basics`
   - `npm run smoke:server -- --section=appPages`
@@ -201,6 +203,7 @@ Notes:
   - `npm run smoke:server -- --section=temporaryData`
   - `npm run smoke:server -- --section=inviteFlow`
   - `npm run smoke:server -- --section=privacyChecks`
+- Generated fixture runs can also be targeted with `npm run smoke:server:generated -- --section=inviteFlow`.
 - If `PROJEX_SMOKE_RESET_EMAIL` is set, the smoke script will also verify that the password-reset request endpoint accepts that email.
 - If `PROJEX_SMOKE_EMAIL_CHANGE_TO` is set, the smoke script will also verify the request / pending / resend / cancel email-change flow without actually switching the login email.
 - If `PROJEX_SMOKE_INVITE_EMAIL` is set, the smoke script will also verify the company invite and resend-invite admin flow.

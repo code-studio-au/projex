@@ -62,6 +62,12 @@ disposable `smoke_*` users/company/project data, injects the matching
 npm run smoke:server:generated
 ```
 
+Generated fixture runs can also be targeted:
+
+```bash
+npm run smoke:server:generated -- --section=inviteFlow
+```
+
 Use targeted sections when retrying one workflow:
 
 ```bash
@@ -165,15 +171,21 @@ sudo systemctl status projex --no-pager -l
    - for saved smoke credentials, put the `PROJEX_SMOKE_*` values in `.env.smoke.local` at the repo root (`/opt/projex/.env.smoke.local` on EC2, repo root locally)
    - use `npm run smoke:server` for a full pass
    - use `npm run smoke:server -- --section=...` when rerunning only one workflow
-8. Optional invite smoke:
+8. Prefer generated fixture smoke when you want a repeatable full pass without long-lived smoke users:
+   - run `npm run smoke:server:generated`
+   - use `npm run smoke:server:generated -- --section=...` when rerunning only one generated-fixture workflow
+   - run `npm run smoke:cleanup` if an interrupted generated run leaves abandoned `smoke_*` fixtures behind
+9. Optional configured-credential invite smoke:
    - set `PROJEX_SMOKE_INVITE_EMAIL`
    - run `npm run smoke:server -- --section=inviteFlow`
    - confirm invite + resend-invite requests both succeed
-9. Optional email-change smoke:
-   - set `PROJEX_SMOKE_EMAIL_CHANGE_TO`
-   - run `npm run smoke:server -- --section=emailChange`
-   - confirm the script can request, detect, resend, and cancel a pending email change
-10. Optional privacy-toggle smoke: set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run `npm run smoke:server -- --section=privacyChecks`.
+10. Optional configured-credential email-change smoke:
+
+- set `PROJEX_SMOKE_EMAIL_CHANGE_TO`
+- run `npm run smoke:server -- --section=emailChange`
+- confirm the script can request, detect, resend, and cancel a pending email change
+
+11. Optional configured-credential privacy-toggle smoke: set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run `npm run smoke:server -- --section=privacyChecks`.
 
 ## Create The First Global Superadmin
 
