@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { z } from 'zod';
+
+import {
+  parseJsonOrNull,
+  parseJsonOrText,
+  parseJsonWithSchema,
+  safeParseJson,
+} from '../src/utils/json.ts';
+
+test('safeParseJson returns parsed JSON or a syntax failure', () => {
+  assert.deepEqual(safeParseJson('{"ok":true}'), {
+    success: true,
+    data: { ok: true },
+  });
+
+  const invalid = safeParseJson('{bad json');
+  assert.equal(invalid.success, false);
+  if (!invalid.success) {
+    assert.ok(invalid.error instanceof SyntaxError);
+  }
+});
+
+test('parseJsonOrNull and parseJsonOrText preserve caller fallback behavior', () => {
+  assert.equal(parseJsonOrNull(''), null);
+  assert.equal(parseJsonOrNull('not json'), null);
+  assert.deepEqual(parseJsonOrNull('{"message":"hello"}'), {
+    message: 'hello',
+  });
+
+  assert.equal(parseJsonOrText(''), null);
+  assert.equal(parseJsonOrText('not json'), 'not json');
+  assert.deepEqual(parseJsonOrText('["a","b"]'), ['a', 'b']);
+});
+
+test('parseJsonWithSchema validates parsed JSON against a schema', () => {
+  const schema = z.object({ count: z.number().int().min(0) });
+
+  assert.deepEqual(parseJsonWithSchema('{"count":2}', schema), {
+    success: true,
+    data: { count: 2 },
+  });
+  assert.equal(parseJsonWithSchema('{"count":-1}', schema).success, false);
+  assert.equal(parseJsonWithSchema('{bad json', schema).success, false);
+});

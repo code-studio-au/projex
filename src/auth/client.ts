@@ -4,6 +4,7 @@ import {
   authClientSignOutResponseSchema,
   type AuthClientError,
 } from '../validation/responseSchemas';
+import { parseJsonOrNull } from '../utils/json';
 
 type AuthResult = {
   data: unknown;
@@ -28,14 +29,7 @@ function authUrl(path: string): string {
 }
 
 function parseAuthBody(text: string): unknown {
-  if (!text) return null;
-
-  try {
-    const body: unknown = JSON.parse(text);
-    return body;
-  } catch {
-    return null;
-  }
+  return parseJsonOrNull(text);
 }
 
 function parseAuthError(body: unknown): AuthClientError | null {

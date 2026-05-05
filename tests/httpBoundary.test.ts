@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { AppError } from '../src/api/errors.ts';
 import { withPublicApi } from '../src/routes/-api-shared.ts';
+import { safeParseJson } from '../src/utils/json.ts';
 
 type RequestLog = {
   level: string;
@@ -61,7 +62,10 @@ function optionalNumber(
 }
 
 function parseRequestLog(value: string): RequestLog {
-  const parsed: unknown = JSON.parse(value);
+  const parseResult = safeParseJson(value);
+  assert.equal(parseResult.success, true);
+  if (!parseResult.success) throw new Error('Expected valid JSON log entry');
+  const parsed = parseResult.data;
   assert.ok(isRecord(parsed));
   return {
     level: requiredString(parsed, 'level'),

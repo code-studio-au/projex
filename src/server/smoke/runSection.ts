@@ -6,6 +6,7 @@ import type {
   SmokeStepResult,
 } from '../../types/index.ts';
 import { smokeSectionDefinitions } from '../../types/index.ts';
+import { parseJsonOrText } from '../../utils/json.ts';
 import {
   apiMessageResponseSchema,
   authenticatedSessionResponseSchema,
@@ -179,14 +180,7 @@ class SmokeHttpClient {
     const res = await fetch(`${this.baseUrl}${urlPath}`, { ...init, headers });
     this.storeSetCookie(res.headers);
     const text = await res.text();
-    let body: unknown = null;
-    if (text) {
-      try {
-        body = JSON.parse(text);
-      } catch {
-        body = text;
-      }
-    }
+    const body = parseJsonOrText(text);
     return { res, body };
   }
 

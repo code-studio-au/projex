@@ -85,6 +85,7 @@ import {
   userResponseSchema,
   usersResponseSchema,
 } from '../../validation/responseSchemas';
+import { safeParseJson } from '../../utils/json';
 
 /**
  * Server-backed API adapter that talks to Start file routes under `/api/*`.
@@ -139,12 +140,11 @@ export class ServerApi implements ProjexApi {
   private parseResponseBody(text: string): unknown {
     if (!text) return null;
 
-    try {
-      const body: unknown = JSON.parse(text);
-      return body;
-    } catch {
+    const parsed = safeParseJson(text);
+    if (!parsed.success) {
       throw new AppError('INTERNAL_ERROR', 'Invalid JSON response from API');
     }
+    return parsed.data;
   }
 
   private validateResponse<T>(

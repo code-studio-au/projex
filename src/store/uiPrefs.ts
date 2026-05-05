@@ -1,6 +1,8 @@
 import type { ProjectId } from '../types';
 import { z } from 'zod';
 
+import { parseJsonWithSchema } from '../utils/json';
+
 /**
  * UI preference persistence.
  *
@@ -43,7 +45,7 @@ export function loadBudgetCollapseState(
   try {
     const raw = localStorage.getItem(budgetCollapseKey(projectId));
     if (!raw) return null;
-    const parsed = budgetCollapseStateSchema.safeParse(JSON.parse(raw));
+    const parsed = parseJsonWithSchema(raw, budgetCollapseStateSchema);
     if (!parsed.success) return null;
     return parsed.data;
   } catch {

@@ -34,6 +34,7 @@ import type {
   SmokeStepTemplate,
 } from '../types';
 import { smokeSectionDefinitions } from '../types';
+import { parseJsonWithSchema } from '../utils/json';
 import { z } from 'zod';
 
 type SmokeStepView = SmokeStepTemplate & {
@@ -445,12 +446,12 @@ export default function SmokeDashboardPage() {
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed) continue;
-          let event: SmokeStepStreamEvent;
-          try {
-            event = smokeStepStreamEventSchema.parse(JSON.parse(trimmed));
-          } catch {
-            continue;
-          }
+          const parsed = parseJsonWithSchema(
+            trimmed,
+            smokeStepStreamEventSchema
+          );
+          if (!parsed.success) continue;
+          const event: SmokeStepStreamEvent = parsed.data;
           if (event.type === 'step') {
             setViews((current) => {
               const existing =
