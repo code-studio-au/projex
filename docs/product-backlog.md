@@ -129,31 +129,38 @@ Why this matters:
 
 - keeps building on the now-working account basics without mixing simple profile edits with bigger admin features
 
-## Operational / Testing
+## Completed Baseline Improvements
 
-### Add smoke prep and cleanup automation
+These items were important enough to track, but are now implemented as baseline product/operational hygiene rather than active backlog work.
 
-Examples:
+### Smoke prep and cleanup automation
 
-- add a `smoke:prep` flow that creates or ensures the users, memberships, and starter company/project needed for smoke
-- generate unique per-run smoke users such as `smoke_admin_<runid>@...` rather than relying on many long-lived env credentials
-- run smoke against those generated users and clean them up in `finally`, even when a section fails
-- add a best-effort cleanup sweep for abandoned `smoke_*` users, memberships, companies, projects, and test data from earlier interrupted runs
-- keep one stable bootstrap superadmin credential or bootstrap command as the trusted entry point for provisioning the per-run test identities
+Implemented:
 
-Why this matters:
+- generated per-run smoke fixtures are available through the generated smoke command
+- generated smoke users, memberships, companies, projects, and test data are cleaned up after runs
+- `smoke:cleanup` can be run separately as a best-effort sweep for abandoned generated smoke data
+- the workflow keeps bootstrap/admin identity separate from disposable per-run fixtures
 
-- the current smoke flow still depends on manually managed credentials in env, which is easy to drift or misconfigure
-- a prep and cleanup harness would make local and staging smoke runs more repeatable and less dependent on curated long-lived test accounts
-- reducing static smoke credentials improves operational hygiene and lowers the chance of stale role or membership state masking real regressions
+Residual follow-up:
 
-Design direction:
+- run the generated smoke workflow against staging once AWS staging exists
+- keep staging runbooks aligned with any future smoke command changes
 
-- start with a hybrid model: one stable bootstrap admin plus generated per-run smoke users
-- keep invite, privacy, and email-change flows using distinct generated addresses where uniqueness matters
-- make cleanup resilient by running it in `finally` and by supporting a separate sweep of stale `smoke_*` data older than a safe threshold
-- prefer exercising real server bootstrap and admin APIs rather than bypassing app rules with direct DB-only setup
-- keep the smoke harness explicit about which identities are long-lived bootstrap identities and which are disposable per-run fixtures
+### Project and company deletion safety
+
+Implemented:
+
+- destructive delete actions require typing `DELETE <name>` in the UI
+- delete requests carry the confirmation text to the server
+- server-side delete handlers validate confirmation against the persisted company/project name before deleting
+- company deletion still requires the company to be deactivated first
+- project deletion still requires the project to be archived first
+- delete copy now gives clearer dependency warnings for related projects, budgets, transactions, taxonomy, and memberships
+
+Residual follow-up:
+
+- consider future restore windows or softer deletion flows if product requirements call for recoverability
 
 ## Future Features
 
@@ -331,18 +338,6 @@ Design direction:
 
 - start with in-app notifications only
 - add deduping and throttling rules early so repeated events do not become noise
-
-### Project and company deletion safety
-
-Examples:
-
-- stronger typed confirmation for destructive actions
-- clearer dependency warnings before delete
-- future restore windows or softer deletion flows where appropriate
-
-Why this matters:
-
-- destructive admin actions deserve extra friction and clearer consequences in a finance/admin product
 
 ## Not A Priority Right Now
 

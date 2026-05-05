@@ -144,13 +144,21 @@ export default function CompanyDashboardPage() {
     if (confirmTarget.kind === 'reactivate_project') {
       return 'This will reactivate the project so it becomes active again.';
     }
-    return 'This permanently deletes the project and all related budgets, transactions, and taxonomy. This cannot be undone.';
+    return 'This permanently deletes the project and all related budgets, transactions, and taxonomy. This cannot be undone. Type the exact destructive confirmation below.';
+  }, [confirmTarget]);
+
+  const requiredConfirmText = useMemo(() => {
+    if (!confirmTarget) return '';
+    if (confirmTarget.kind === 'delete_project') {
+      return `DELETE ${confirmTarget.projectName}`;
+    }
+    return confirmTarget.projectName;
   }, [confirmTarget]);
 
   const isConfirmMatch = useMemo(() => {
     if (!confirmTarget) return false;
-    return confirmText.trim() === confirmTarget.projectName;
-  }, [confirmText, confirmTarget]);
+    return confirmText.trim() === requiredConfirmText;
+  }, [confirmText, confirmTarget, requiredConfirmText]);
 
   const resolvedActiveTab: 'summary' | 'projects' | 'settings' =
     canViewCompanySummary
@@ -407,13 +415,17 @@ export default function CompanyDashboardPage() {
           </Text>
 
           <Text size="sm">
-            Type <b>{confirmTarget?.projectName ?? ''}</b> to confirm.
+            Type <b>{requiredConfirmText}</b> to confirm.
           </Text>
 
           <TextInput
             value={confirmText}
             onChange={(e) => setConfirmText(e.currentTarget.value)}
-            placeholder="Project name"
+            placeholder={
+              confirmTarget?.kind === 'delete_project'
+                ? 'DELETE project name'
+                : 'Project name'
+            }
             autoFocus
           />
 
@@ -443,7 +455,10 @@ export default function CompanyDashboardPage() {
                 } else if (confirmTarget.kind === 'reactivate_project') {
                   await reactivateProject.mutateAsync(confirmTarget.projectId);
                 } else {
-                  await deleteProject.mutateAsync(confirmTarget.projectId);
+                  await deleteProject.mutateAsync({
+                    projectId: confirmTarget.projectId,
+                    confirmation: confirmText,
+                  });
                 }
                 closeConfirm();
               }}

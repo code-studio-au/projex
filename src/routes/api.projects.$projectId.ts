@@ -2,7 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { readJsonBody, withApi } from './-api-shared';
 import { asProjectId } from '../types';
-import { updateProjectBodySchema } from '../validation/apiSchemas';
+import {
+  deleteProjectBodySchema,
+  updateProjectBodySchema,
+} from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/projects/$projectId')({
@@ -25,7 +28,14 @@ export const Route = createFileRoute('/api/projects/$projectId')({
         }),
       DELETE: ({ request, params }) =>
         withApi(request, async (api) => {
-          await api.deleteProject(asProjectId(params.projectId));
+          const body = validateOrThrow(
+            deleteProjectBodySchema,
+            await readJsonBody(request)
+          );
+          await api.deleteProject({
+            projectId: asProjectId(params.projectId),
+            confirmation: body.confirmation,
+          });
           return { ok: true as const };
         }),
     },

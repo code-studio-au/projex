@@ -191,14 +191,19 @@ export function useDeleteCompanyMutation() {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (companyId: CompanyId) => api.deleteCompany(companyId),
-    onSuccess: (_, companyId) => {
+    mutationFn: (input: { companyId: CompanyId; confirmation: string }) =>
+      api.deleteCompany(input),
+    onSuccess: (_, input) => {
       qc.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
       });
-      qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) });
-      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+      qc.invalidateQueries({
+        queryKey: qk.company(scopeUserId, input.companyId),
+      });
+      qc.invalidateQueries({
+        queryKey: qk.projects(scopeUserId, input.companyId),
+      });
       qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
       qc.invalidateQueries({ queryKey: qk.users() });
     },
@@ -246,10 +251,13 @@ export function useDeleteProjectMutation(companyId: CompanyId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (projectId: ProjectId) => api.deleteProject(projectId),
-    onSuccess: async (_, projectId) => {
+    mutationFn: (input: { projectId: ProjectId; confirmation: string }) =>
+      api.deleteProject(input),
+    onSuccess: async (_, input) => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) }),
+        qc.invalidateQueries({
+          queryKey: qk.project(scopeUserId, input.projectId),
+        }),
         qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
         qc.invalidateQueries({
           queryKey: qk.companySummary(scopeUserId, companyId),

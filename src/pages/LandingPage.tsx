@@ -140,13 +140,21 @@ export default function LandingPage() {
     if (confirmTarget.kind === 'reactivate_company') {
       return 'This will reactivate the company and reactivate all of its projects. Company users will be re-enabled for this company.';
     }
-    return 'This permanently deletes the company and all related projects, budgets, transactions, taxonomy, and memberships. This cannot be undone.';
+    return 'This permanently deletes the company and all related projects, budgets, transactions, taxonomy, and memberships. This cannot be undone. Type the exact destructive confirmation below.';
+  }, [confirmTarget]);
+
+  const requiredConfirmText = useMemo(() => {
+    if (!confirmTarget) return '';
+    if (confirmTarget.kind === 'delete_company') {
+      return `DELETE ${confirmTarget.companyName}`;
+    }
+    return confirmTarget.companyName;
   }, [confirmTarget]);
 
   const isConfirmMatch = useMemo(() => {
     if (!confirmTarget) return false;
-    return confirmText.trim() === confirmTarget.companyName;
-  }, [confirmText, confirmTarget]);
+    return confirmText.trim() === requiredConfirmText;
+  }, [confirmText, confirmTarget, requiredConfirmText]);
 
   const companyColumns = useMemo<MRT_ColumnDef<(typeof companies)[number]>[]>(
     () => [
@@ -436,13 +444,17 @@ export default function LandingPage() {
           </Text>
 
           <Text size="sm">
-            Type <b>{confirmTarget?.companyName ?? ''}</b> to confirm.
+            Type <b>{requiredConfirmText}</b> to confirm.
           </Text>
 
           <TextInput
             value={confirmText}
             onChange={(e) => setConfirmText(e.currentTarget.value)}
-            placeholder="Company name"
+            placeholder={
+              confirmTarget?.kind === 'delete_company'
+                ? 'DELETE company name'
+                : 'Company name'
+            }
             autoFocus
           />
 
@@ -472,7 +484,10 @@ export default function LandingPage() {
                 } else if (confirmTarget.kind === 'reactivate_company') {
                   await reactivateCompany.mutateAsync(confirmTarget.companyId);
                 } else {
-                  await deleteCompany.mutateAsync(confirmTarget.companyId);
+                  await deleteCompany.mutateAsync({
+                    companyId: confirmTarget.companyId,
+                    confirmation: confirmText,
+                  });
                 }
                 closeConfirm();
               }}

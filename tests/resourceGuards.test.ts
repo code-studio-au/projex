@@ -18,7 +18,9 @@ import {
   asUserId,
 } from '../src/types/index.ts';
 import {
+  deleteCompanyBodySchema,
   deleteCompanyMembershipQuerySchema,
+  deleteProjectBodySchema,
   deleteProjectMembershipQuerySchema,
 } from '../src/validation/apiSchemas.ts';
 import {
@@ -107,6 +109,28 @@ test('membership delete query schemas validate ids and roles', () => {
   );
   assert.equal(
     deleteProjectMembershipQuerySchema.safeParse({ userId: 'usr_1' }).success,
+    false
+  );
+});
+
+test('destructive delete body schemas require confirmation text', () => {
+  assert.equal(
+    deleteCompanyBodySchema.safeParse({ confirmation: 'DELETE Acme' }).success,
+    true
+  );
+  assert.equal(
+    deleteCompanyBodySchema.safeParse({ confirmation: '   ' }).success,
+    false
+  );
+  assert.equal(deleteCompanyBodySchema.safeParse({}).success, false);
+
+  assert.equal(
+    deleteProjectBodySchema.safeParse({ confirmation: 'DELETE Buildout' })
+      .success,
+    true
+  );
+  assert.equal(
+    deleteProjectBodySchema.safeParse({ confirmation: '' }).success,
     false
   );
 });

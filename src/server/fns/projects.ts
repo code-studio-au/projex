@@ -385,13 +385,14 @@ export async function reactivateProjectServer(args: {
 export async function deleteProjectServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
+  confirmation: string;
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
     const db = getDb();
     const project = await db
       .selectFrom('projects')
-      .select(['id', 'company_id', 'status'])
+      .select(['id', 'company_id', 'name', 'status'])
       .where('id', '=', args.projectId)
       .executeTakeFirst();
     if (!project) throw new AppError('NOT_FOUND', 'Project not found');
@@ -403,6 +404,13 @@ export async function deleteProjectServer(args: {
       action: 'company:edit',
       companyId: asCompanyId(project.company_id),
     });
+
+    if (args.confirmation.trim() !== `DELETE ${project.name}`) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Confirmation text does not match the project name'
+      );
+    }
 
     if (project.status !== 'archived') {
       throw new AppError(

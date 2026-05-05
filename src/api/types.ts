@@ -174,6 +174,14 @@ export type ProjectUpdateInput = Pick<
 export type CompanyUpdateInput = Pick<Partial<Company>, 'name'> & {
   id: CompanyId;
 };
+export type DeleteCompanyInput = {
+  companyId: CompanyId;
+  confirmation: string;
+};
+export type DeleteProjectInput = {
+  projectId: ProjectId;
+  confirmation: string;
+};
 export type ProfileUpdateInput = {
   name: string;
 };
@@ -413,9 +421,9 @@ export interface ProjexApi {
   deactivateCompany(companyId: CompanyId): Promise<void>;
   /** Reactivate a deactivated company (and associated projects/users). Superadmin only. */
   reactivateCompany(companyId: CompanyId): Promise<void>;
-  deleteCompany(companyId: CompanyId): Promise<void>;
+  deleteCompany(input: DeleteCompanyInput): Promise<void>;
   deactivateProject(projectId: ProjectId): Promise<void>;
   /** Reactivate an archived project. Requires company edit access. */
   reactivateProject(projectId: ProjectId): Promise<void>;
-  deleteProject(projectId: ProjectId): Promise<void>;
+  deleteProject(input: DeleteProjectInput): Promise<void>;
 }

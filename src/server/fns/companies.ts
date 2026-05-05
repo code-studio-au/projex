@@ -879,6 +879,7 @@ export async function reactivateCompanyServer(args: {
 export async function deleteCompanyServer(args: {
   context: ServerFnContextInput;
   companyId: CompanyId;
+  confirmation: string;
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -889,10 +890,16 @@ export async function deleteCompanyServer(args: {
 
     const company = await db
       .selectFrom('companies')
-      .select(['id', 'status'])
+      .select(['id', 'name', 'status'])
       .where('id', '=', args.companyId)
       .executeTakeFirst();
     if (!company) throw new AppError('NOT_FOUND', 'Company not found');
+    if (args.confirmation.trim() !== `DELETE ${company.name}`) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Confirmation text does not match the company name'
+      );
+    }
     if (company.status !== 'deactivated') {
       throw new AppError(
         'VALIDATION_ERROR',

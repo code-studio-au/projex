@@ -31,6 +31,8 @@ import type {
   CompanyDefaultMappingRuleUpdateInput,
   CompanyUserInviteResult,
   CompanyUpdateInput,
+  DeleteCompanyInput,
+  DeleteProjectInput,
   EmailChangeConfirmResult,
   EmailChangeRequestInput,
   EmailChangeRequestResult,
@@ -864,10 +866,13 @@ export class ServerApi implements ProjexApi {
       okResponseSchema
     );
   }
-  async deleteCompany(_companyId: CompanyId): Promise<void> {
+  async deleteCompany(_input: DeleteCompanyInput): Promise<void> {
     await this.request(
-      `/api/companies/${encodeURIComponent(_companyId)}`,
-      { method: 'DELETE' },
+      `/api/companies/${encodeURIComponent(_input.companyId)}`,
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmation: _input.confirmation }),
+      },
       okResponseSchema
     );
   }
@@ -885,10 +890,13 @@ export class ServerApi implements ProjexApi {
       okResponseSchema
     );
   }
-  async deleteProject(_projectId: ProjectId): Promise<void> {
+  async deleteProject(_input: DeleteProjectInput): Promise<void> {
     await this.request(
-      `/api/projects/${encodeURIComponent(_projectId)}`,
-      { method: 'DELETE' },
+      `/api/projects/${encodeURIComponent(_input.projectId)}`,
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmation: _input.confirmation }),
+      },
       okResponseSchema
     );
   }

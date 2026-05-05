@@ -1,4 +1,6 @@
 import type {
+  DeleteCompanyInput,
+  DeleteProjectInput,
   ProjectCreateInput,
   ProjectUpdateInput,
   ProjexApi,
@@ -535,8 +537,8 @@ export class StartServerApi implements ProjexApi {
   async reactivateCompany(companyId: CompanyId) {
     return reactivateCompanyServer({ context: this.context, companyId });
   }
-  async deleteCompany(companyId: CompanyId) {
-    return deleteCompanyServer({ context: this.context, companyId });
+  async deleteCompany(input: DeleteCompanyInput) {
+    return deleteCompanyServer({ context: this.context, ...input });
   }
   async deactivateProject(projectId: ProjectId) {
     return deactivateProjectServer({ context: this.context, projectId });
@@ -544,7 +546,7 @@ export class StartServerApi implements ProjexApi {
   async reactivateProject(projectId: ProjectId) {
     return reactivateProjectServer({ context: this.context, projectId });
   }
-  async deleteProject(projectId: ProjectId) {
-    return deleteProjectServer({ context: this.context, projectId });
+  async deleteProject(input: DeleteProjectInput) {
+    return deleteProjectServer({ context: this.context, ...input });
   }
 }

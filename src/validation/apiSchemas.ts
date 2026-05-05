@@ -68,6 +68,10 @@ const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const projectVisibilitySchema = z.enum(['company', 'private']);
 const currencySchema = z.enum(['AUD', 'USD', 'EUR', 'GBP']);
 const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
+const destructiveConfirmationSchema = z
+  .string()
+  .trim()
+  .min(1, 'Confirmation text is required');
 const csvImportModeSchema = z.enum(['append', 'replaceAll']);
 const smokeSectionIdSchema = z.enum([
   'basics',
@@ -120,6 +124,14 @@ export const updateProjectBodySchema = z.object({
   currency: currencySchema.optional(),
   visibility: projectVisibilitySchema.optional(),
   allowSuperadminAccess: z.boolean().optional(),
+});
+
+export const deleteCompanyBodySchema = z.object({
+  confirmation: destructiveConfirmationSchema,
+});
+
+export const deleteProjectBodySchema = z.object({
+  confirmation: destructiveConfirmationSchema,
 });
 
 export const upsertCompanyMembershipBodySchema = z.object({
