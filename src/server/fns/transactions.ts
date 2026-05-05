@@ -6,6 +6,8 @@ import type {
   TxnImportTxnInput,
   TxnSplitInput,
   TxnSplitResult,
+  TxnTransferInput,
+  TxnTransferResult,
   TxnUpdateInput,
 } from '../../api/types';
 import { uid } from '../../utils/id';
@@ -15,6 +17,7 @@ import { isAuthorized, requireAuthorized } from '../auth/authorize';
 import { planImportPreview } from '../../utils/importPreviewPlan';
 import { planTransactionImportCommit } from '../../utils/transactionImportCommitPlan';
 import { planTransactionSplit } from '../../utils/transactionSplitPlan';
+import { planTransactionTransfer } from '../../utils/transactionTransferPlan';
 import {
   assertTxnCodingAllowed,
   assertUniqueTransactionKeysInProject,
@@ -577,6 +580,205 @@ export async function splitTxnServer(args: {
         .execute();
 
       return { parent: toTxn(parent), children: children.map(toTxn) };
+    });
+
+    return result;
+  });
+}
+
+export async function transferTxnServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: TxnTransferInput;
+}): Promise<TxnTransferResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const sourceContext = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+    const destinationContext = await requireProjectForAction(
+      args.context,
+      args.input.destinationProjectId,
+      'txns:edit',
+      sourceContext.db
+    );
+    const { db } = sourceContext;
+
+    if (sourceContext.companyId !== destinationContext.companyId) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Transactions can only be moved within the same company'
+      );
+    }
+
+    const existing = await db
+      .selectFrom('txns')
+      .select([
+        'id',
+        'public_id',
+        'external_id',
+        'company_id',
+        'project_id',
+        'txn_date',
+        'item',
+        'description',
+        'amount_cents',
+        'txn_type',
+        'parent_public_id',
+        'source_public_id',
+        'transfer_project_id',
+        'budget_impact',
+        'categorisable',
+        'category_id',
+        'sub_category_id',
+        'company_default_mapping_rule_id',
+        'coding_source',
+        'coding_pending_approval',
+        'created_at',
+        'updated_at',
+      ])
+      .where('project_id', '=', args.projectId)
+      .where('public_id', '=', args.input.txnId)
+      .executeTakeFirst();
+    if (!existing) throw new AppError('NOT_FOUND', 'Unknown transaction');
+
+    const now = new Date().toISOString();
+    const transfer = planTransactionTransfer({
+      source: toTxn(existing),
+      input: args.input,
+      destinationCompanyId: destinationContext.companyId,
+      now,
+      createTxnId: () => asTxnId(uid('txn')),
+    });
+
+    validateOrThrow(txnInputSchema, transfer.destination);
+    await assertTransactionResourceOwnership(
+      destinationContext,
+      transfer.destination
+    );
+
+    const destinationRows = await db
+      .selectFrom('txns')
+      .select(['public_id', 'external_id'])
+      .where('project_id', '=', args.input.destinationProjectId)
+      .execute();
+    assertUniqueTransactionKeysInProject([
+      ...destinationRows.map((row) => ({
+        id: asTxnId(row.public_id),
+        externalId: normalizeExternalId(row.external_id),
+      })),
+      transfer.destination,
+    ]);
+
+    const result = await db.transaction().execute(async (trx) => {
+      const source = await trx
+        .updateTable('txns')
+        .set({
+          txn_type: transfer.source.txnType,
+          parent_public_id: transfer.source.parentTxnId ?? null,
+          source_public_id: transfer.source.sourceTxnId ?? null,
+          transfer_project_id: transfer.source.transferProjectId ?? null,
+          budget_impact: transfer.source.budgetImpact,
+          categorisable: transfer.source.categorisable,
+          category_id: null,
+          sub_category_id: null,
+          company_default_mapping_rule_id: null,
+          coding_source: null,
+          coding_pending_approval: false,
+          updated_at: now,
+        })
+        .where('project_id', '=', args.projectId)
+        .where('public_id', '=', args.input.txnId)
+        .where('txn_type', 'in', ['standard', 'split_child'])
+        .where('budget_impact', '=', true)
+        .where('categorisable', '=', true)
+        .returning([
+          'id',
+          'public_id',
+          'external_id',
+          'company_id',
+          'project_id',
+          'txn_date',
+          'item',
+          'description',
+          'amount_cents',
+          'txn_type',
+          'parent_public_id',
+          'source_public_id',
+          'transfer_project_id',
+          'budget_impact',
+          'categorisable',
+          'category_id',
+          'sub_category_id',
+          'company_default_mapping_rule_id',
+          'coding_source',
+          'coding_pending_approval',
+          'created_at',
+          'updated_at',
+        ])
+        .executeTakeFirst();
+
+      if (!source) {
+        throw new AppError(
+          'CONFLICT',
+          'Transaction was already moved, split, or changed'
+        );
+      }
+
+      const destination = await trx
+        .insertInto('txns')
+        .values({
+          public_id: transfer.destination.id,
+          external_id: null,
+          company_id: transfer.destination.companyId,
+          project_id: transfer.destination.projectId,
+          txn_date: transfer.destination.date,
+          item: transfer.destination.item,
+          description: transfer.destination.description,
+          amount_cents: transfer.destination.amountCents,
+          txn_type: transfer.destination.txnType,
+          parent_public_id: null,
+          source_public_id: transfer.destination.sourceTxnId ?? null,
+          transfer_project_id: transfer.destination.transferProjectId ?? null,
+          budget_impact: transfer.destination.budgetImpact,
+          categorisable: transfer.destination.categorisable,
+          category_id: null,
+          sub_category_id: null,
+          company_default_mapping_rule_id: null,
+          coding_source: null,
+          coding_pending_approval: false,
+          created_at: now,
+          updated_at: now,
+        })
+        .returning([
+          'id',
+          'public_id',
+          'external_id',
+          'company_id',
+          'project_id',
+          'txn_date',
+          'item',
+          'description',
+          'amount_cents',
+          'txn_type',
+          'parent_public_id',
+          'source_public_id',
+          'transfer_project_id',
+          'budget_impact',
+          'categorisable',
+          'category_id',
+          'sub_category_id',
+          'company_default_mapping_rule_id',
+          'coding_source',
+          'coding_pending_approval',
+          'created_at',
+          'updated_at',
+        ])
+        .executeTakeFirstOrThrow();
+
+      return { source: toTxn(source), destination: toTxn(destination) };
     });
 
     return result;

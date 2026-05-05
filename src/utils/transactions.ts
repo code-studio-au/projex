@@ -74,7 +74,7 @@ export function txnTypeLabel(txn: Pick<Txn, 'txnType'>): string {
     case 'split_child':
       return 'Split child';
     case 'transfer_source':
-      return 'Project transfer';
+      return 'Transferred out';
     case 'transfer_child':
       return 'Transferred in';
     case 'standard':

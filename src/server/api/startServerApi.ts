@@ -65,6 +65,7 @@ import {
   listTransactionsServer,
   previewImportTransactionsServer,
   splitTxnServer,
+  transferTxnServer,
   updateTxnServer,
 } from '../fns/transactions';
 import {
@@ -449,6 +450,16 @@ export class StartServerApi implements ProjexApi {
     input: Parameters<ProjexApi['splitTxn']>[1]
   ) {
     return splitTxnServer({
+      context: this.context,
+      projectId,
+      input,
+    });
+  }
+  async transferTxn(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['transferTxn']>[1]
+  ) {
+    return transferTxnServer({
       context: this.context,
       projectId,
       input,

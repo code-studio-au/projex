@@ -79,13 +79,13 @@ Why this matters:
 
 Design direction:
 
-- foundation in place: transactions now expose explicit type, source link, transfer project link, budget-impact, and categorisability metadata
+- implemented: move actions create an auditable transfer-out marker in the source project and an uncoded transfer-in transaction in the receiving project
 - treat project moves as explicit transfer records rather than destructive edits to the original transaction
 - preserve source transaction identity and transfer linkage for audit/reconciliation
 - create a receiving-side transaction or allocation that must be coded in the destination project
 - exclude the original-side transfer marker from budget/spend calculations
 - require same-company validation at the server and database boundary
-- define how transfers interact with split parents and split children before implementation
+- transfers currently support standard transactions and split children, not split parents
 
 ## Product/Admin
 

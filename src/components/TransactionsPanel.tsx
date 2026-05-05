@@ -18,7 +18,7 @@ import {
 } from 'mantine-react-table';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
-import type { Txn } from '../types';
+import type { ProjectId, Txn } from '../types';
 import { monthKeyFromStart, monthStart, parseISODate } from '../utils/finance';
 import { formatCurrencyFromCents } from '../utils/money';
 import {
@@ -27,6 +27,7 @@ import {
   txnTypeLabel,
 } from '../utils/transactions';
 import TransactionSplitModal from './TransactionSplitModal';
+import TransactionTransferModal from './TransactionTransferModal';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
 
@@ -55,6 +56,7 @@ export default function TransactionsPanel(props: {
   setMonthFilterKey: (value: string | null) => void;
   transactionView: 'all' | 'uncoded' | 'auto-mapped-pending';
   setTransactionView: (v: 'all' | 'uncoded' | 'auto-mapped-pending') => void;
+  transferProjectOptions: Array<{ value: ProjectId; label: string }>;
   onClearFilters: () => void;
   canEditTaxonomy: boolean;
   readOnly?: boolean;
@@ -74,6 +76,7 @@ export default function TransactionsPanel(props: {
     setMonthFilterKey,
     transactionView,
     setTransactionView,
+    transferProjectOptions,
     onClearFilters,
     canEditTaxonomy,
     readOnly = false,
@@ -81,6 +84,7 @@ export default function TransactionsPanel(props: {
 
   const [manageOpen, setManageOpen] = useState(false);
   const [splitTxn, setSplitTxn] = useState<Txn | null>(null);
+  const [transferTxn, setTransferTxn] = useState<Txn | null>(null);
   const isMobile = useMediaQuery('(max-width: 48em)');
   const [pagination, setPagination] = useState<MRT_PaginationState>({
     pageIndex: 0,
@@ -177,6 +181,16 @@ export default function TransactionsPanel(props: {
       isBudgetImpactTxn(txn) &&
       isCategorisableTxn(txn) &&
       (txn.txnType === 'standard' || txn.txnType === 'transfer_child')
+    );
+  }
+
+  function canTransferTransaction(txn: Txn): boolean {
+    return (
+      !readOnly &&
+      transferProjectOptions.length > 0 &&
+      isBudgetImpactTxn(txn) &&
+      isCategorisableTxn(txn) &&
+      (txn.txnType === 'standard' || txn.txnType === 'split_child')
     );
   }
 
@@ -416,15 +430,26 @@ export default function TransactionsPanel(props: {
       enableEditing: false,
       enableSorting: false,
       Cell: ({ row }) => (
-        <Button
-          size="xs"
-          variant="subtle"
-          className="tableActionButton"
-          disabled={!canSplitTransaction(row.original)}
-          onClick={() => setSplitTxn(row.original)}
-        >
-          Split
-        </Button>
+        <Group gap={4} wrap="nowrap">
+          <Button
+            size="xs"
+            variant="subtle"
+            className="tableActionButton"
+            disabled={!canSplitTransaction(row.original)}
+            onClick={() => setSplitTxn(row.original)}
+          >
+            Split
+          </Button>
+          <Button
+            size="xs"
+            variant="subtle"
+            className="tableActionButton"
+            disabled={!canTransferTransaction(row.original)}
+            onClick={() => setTransferTxn(row.original)}
+          >
+            Move
+          </Button>
+        </Group>
       ),
       mantineTableHeadCellProps: {
         className: 'table-head-cell table-head-left txnTable-head',
@@ -607,6 +632,19 @@ export default function TransactionsPanel(props: {
         onClose={() => setSplitTxn(null)}
         onSplit={(children) =>
           splitTxn ? txns.splitTxn(splitTxn.id, children) : Promise.resolve()
+        }
+      />
+
+      <TransactionTransferModal
+        opened={Boolean(transferTxn)}
+        txn={transferTxn}
+        currencyCode={currencyCode}
+        projectOptions={transferProjectOptions}
+        onClose={() => setTransferTxn(null)}
+        onTransfer={(input) =>
+          transferTxn
+            ? txns.transferTxn(transferTxn.id, input)
+            : Promise.resolve()
         }
       />
     </Stack>

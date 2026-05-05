@@ -12,7 +12,11 @@ import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useRollups } from '../hooks/useRollups';
 import { formatCurrencyFromCents } from '../utils/money';
 
-import { useCompanyQuery, useProjectQuery } from '../queries/reference';
+import {
+  useCompanyQuery,
+  useProjectQuery,
+  useProjectsQuery,
+} from '../queries/reference';
 import { useUpdateProjectMutation } from '../queries/admin';
 
 import TransactionsPanel from './TransactionsPanel';
@@ -79,6 +83,7 @@ export default function ProjectWorkspace(props: {
   const access = useCompanyAccess(companyId);
   const company = useCompanyQuery(companyId);
   const project = useProjectQuery(projectId);
+  const projects = useProjectsQuery(companyId);
   const updateProject = useUpdateProjectMutation(companyId);
 
   const canProjectEdit = access.can('project:edit', projectId);
@@ -186,6 +191,22 @@ export default function ProjectWorkspace(props: {
         })
         .map((value) => ({ value, label: value })),
     [allMonthKeys, quarterFilter, yearFilter]
+  );
+
+  const transferProjectOptions = useMemo(
+    () =>
+      (projects.data ?? [])
+        .filter(
+          (candidate) =>
+            candidate.id !== projectId &&
+            candidate.status === 'active' &&
+            access.can('txns:edit', candidate.id)
+        )
+        .map((candidate) => ({
+          value: candidate.id,
+          label: candidate.name,
+        })),
+    [access, projectId, projects.data]
   );
 
   const uncoded = useMemo(
@@ -323,6 +344,7 @@ export default function ProjectWorkspace(props: {
               setMonthFilterKey={setMonthFilterKey}
               transactionView={transactionView}
               setTransactionView={setTransactionView}
+              transferProjectOptions={transferProjectOptions}
               onClearFilters={() => {
                 setYearFilter(null);
                 setQuarterFilter(null);

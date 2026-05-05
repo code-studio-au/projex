@@ -260,6 +260,11 @@ export const txnSplitResponseSchema = z.object({
   children: txnsResponseSchema,
 });
 
+export const txnTransferResponseSchema = z.object({
+  source: txnResponseSchema,
+  destination: txnResponseSchema,
+});
+
 export const pendingEmailChangeResponseSchema = z
   .object({
     newEmail: z.string().email(),

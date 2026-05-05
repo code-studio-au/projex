@@ -84,6 +84,19 @@ export type TxnSplitResult = {
   children: Txn[];
 };
 
+export type TxnTransferInput = {
+  txnId: TxnId;
+  destinationProjectId: ProjectId;
+  destinationTxnId?: TxnId;
+  item?: string;
+  description?: string;
+};
+
+export type TxnTransferResult = {
+  source: Txn;
+  destination: Txn;
+};
+
 // Inputs (command-style)
 export type TxnCreateInput = Omit<
   Txn,
@@ -417,6 +430,10 @@ export interface ProjexApi {
   updateTxn(projectId: ProjectId, input: TxnUpdateInput): Promise<Txn>;
   deleteTxn(projectId: ProjectId, txnId: TxnId): Promise<void>;
   splitTxn(projectId: ProjectId, input: TxnSplitInput): Promise<TxnSplitResult>;
+  transferTxn(
+    projectId: ProjectId,
+    input: TxnTransferInput
+  ): Promise<TxnTransferResult>;
 
   /**
    * Batch import.

@@ -7,10 +7,15 @@ import type {
   Txn,
   TxnId,
 } from '../types';
-import type { TxnSplitInput, TxnUpdateInput } from '../api/contract';
+import type {
+  TxnSplitInput,
+  TxnTransferInput,
+  TxnUpdateInput,
+} from '../api/contract';
 import { useImportTransactionsMutation } from '../queries/admin';
 import {
   useSplitTxnMutation,
+  useTransferTxnMutation,
   useTransactionsQuery,
   useUpdateTxnMutation,
 } from '../queries/transactions';
@@ -30,6 +35,7 @@ export function useTransactions(params: { projectId: ProjectId }) {
   const q = useTransactionsQuery(projectId);
   const update = useUpdateTxnMutation(projectId);
   const split = useSplitTxnMutation(projectId);
+  const transfer = useTransferTxnMutation(projectId);
   const importMut = useImportTransactionsMutation(projectId);
 
   const transactions = useMemo(() => q.data ?? [], [q.data]);
@@ -40,6 +46,13 @@ export function useTransactions(params: { projectId: ProjectId }) {
 
   const splitTxn = async (id: TxnId, children: TxnSplitInput['children']) => {
     await split.mutateAsync({ txnId: id, children });
+  };
+
+  const transferTxn = async (
+    id: TxnId,
+    input: Omit<TxnTransferInput, 'txnId'>
+  ) => {
+    await transfer.mutateAsync({ txnId: id, ...input });
   };
 
   const replaceAll = async (
@@ -119,6 +132,7 @@ export function useTransactions(params: { projectId: ProjectId }) {
     transactions,
     updateTxn,
     splitTxn,
+    transferTxn,
     stripCodingForSubCategoryIds,
     stripCodingForCategoryIds,
     replaceAll,

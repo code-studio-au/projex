@@ -45,6 +45,8 @@ import type {
   TxnCreateInput,
   TxnSplitInput,
   TxnSplitResult,
+  TxnTransferInput,
+  TxnTransferResult,
   TxnUpdateInput,
 } from '../types';
 import {
@@ -83,6 +85,7 @@ import {
   txnResponseSchema,
   txnImportPreviewResultResponseSchema,
   txnSplitResponseSchema,
+  txnTransferResponseSchema,
   txnsResponseSchema,
   userResponseSchema,
   usersResponseSchema,
@@ -692,6 +695,19 @@ export class ServerApi implements ProjexApi {
         body: JSON.stringify({ split: input }),
       },
       txnSplitResponseSchema
+    );
+  }
+  async transferTxn(
+    projectId: ProjectId,
+    input: TxnTransferInput
+  ): Promise<TxnTransferResult> {
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(input.txnId)}/transfer`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ transfer: input }),
+      },
+      txnTransferResponseSchema
     );
   }
   async importTransactions(

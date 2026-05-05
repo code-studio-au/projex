@@ -319,6 +319,18 @@ export const splitTxnMutationBodySchema = z.object({
   split: splitTxnInputSchema,
 });
 
+export const transferTxnInputSchema = z.object({
+  txnId: txnIdSchema,
+  destinationProjectId: projectIdSchema,
+  destinationTxnId: txnIdSchema.optional(),
+  item: txnInputSchema.shape.item.optional(),
+  description: txnInputSchema.shape.description.optional(),
+});
+
+export const transferTxnMutationBodySchema = z.object({
+  transfer: transferTxnInputSchema,
+});
+
 const importedTxnInputSchema = createTxnInputSchema.extend({
   id: txnIdSchema,
 });

@@ -25,6 +25,7 @@ import {
 import { planImportPreview } from '../src/utils/importPreviewPlan.ts';
 import { planTransactionImportCommit } from '../src/utils/transactionImportCommitPlan.ts';
 import { planTransactionSplit } from '../src/utils/transactionSplitPlan.ts';
+import { planTransactionTransfer } from '../src/utils/transactionTransferPlan.ts';
 import {
   assertTxnCodingAllowed,
   withStandardTxnAccountingMetadata,
@@ -35,6 +36,7 @@ const companyId = asCompanyId('co_1');
 const projectId = asProjectId('prj_1');
 const otherCompanyId = asCompanyId('co_2');
 const otherProjectId = asProjectId('prj_2');
+const destinationProjectId = asProjectId('prj_destination');
 
 const category: Category = {
   id: asCategoryId('cat_travel'),
@@ -332,5 +334,57 @@ test('transaction split plan rejects remainder amounts', () => {
       }),
     'VALIDATION_ERROR',
     'Split child amounts must exactly equal the parent transaction amount'
+  );
+});
+
+test('transaction transfer plan creates a source marker and uncoded destination transaction', () => {
+  const result = planTransactionTransfer({
+    source: txn({
+      categoryId: category.id,
+      subCategoryId: subCategory.id,
+      codingSource: 'manual',
+    }),
+    destinationCompanyId: companyId,
+    now: '2026-05-05T00:00:00.000Z',
+    createTxnId: () => asTxnId('txn_transfer_child'),
+    input: {
+      txnId: asTxnId('txn_1'),
+      destinationProjectId,
+    },
+  });
+
+  assert.equal(result.source.txnType, 'transfer_source');
+  assert.equal(result.source.transferProjectId, destinationProjectId);
+  assert.equal(result.source.budgetImpact, false);
+  assert.equal(result.source.categorisable, false);
+  assert.equal(result.source.categoryId, undefined);
+  assert.equal(result.source.subCategoryId, undefined);
+
+  assert.equal(result.destination.id, asTxnId('txn_transfer_child'));
+  assert.equal(result.destination.projectId, destinationProjectId);
+  assert.equal(result.destination.txnType, 'transfer_child');
+  assert.equal(result.destination.sourceTxnId, result.source.id);
+  assert.equal(result.destination.transferProjectId, projectId);
+  assert.equal(result.destination.budgetImpact, true);
+  assert.equal(result.destination.categorisable, true);
+  assert.equal(result.destination.categoryId, undefined);
+  assert.equal(result.destination.subCategoryId, undefined);
+});
+
+test('transaction transfer plan rejects cross-company destinations', () => {
+  assertAppError(
+    () =>
+      planTransactionTransfer({
+        source: txn(),
+        destinationCompanyId: otherCompanyId,
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_transfer_child'),
+        input: {
+          txnId: asTxnId('txn_1'),
+          destinationProjectId,
+        },
+      }),
+    'VALIDATION_ERROR',
+    'Transactions can only be moved within the same company'
   );
 });
