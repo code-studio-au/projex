@@ -4,9 +4,90 @@ This backlog captures the next most useful product, admin, and operational impro
 
 It is intentionally short, opinionated, and ordered so we can pick the next job quickly.
 
+## Urgent Product Requests
+
+These have been raised as urgent feature priorities and should be shaped before the previous near-term product backlog.
+
+### 1. Add transaction comments and threaded resolution workflow
+
+Examples:
+
+- company members can add notes/comments directly to transaction line items
+- comments show author name and created date/time
+- comments support replies/sub-comments so discussion stays attached to the original point
+- comments can mention or assign company members using an `@member_name` style interaction
+- assigned members can see that a transaction comment needs their attention
+- comments can be marked resolved while keeping the history visible
+
+Why this matters:
+
+- transaction coding often needs clarification from the project team, not just finance/admin edits
+- keeping discussion attached to the transaction avoids context being lost in chat or email
+- assignment and resolution turn comments into a lightweight workflow rather than passive notes
+
+Design direction:
+
+- model comments as first-class rows with author, created/updated timestamps, optional parent comment, optional assigned user, and resolved metadata
+- preserve comment history for auditability; avoid hard-deleting comments by default
+- use company membership as the assignment/search boundary so users cannot tag people outside the company
+- decide notification behaviour separately so the core comment model does not depend on a future notification system
+
+### 2. Split transactions into fully allocated child line items
+
+Examples:
+
+- split one imported transaction into two or more child sub-transactions
+- child sub-transactions can be coded to different categories/subcategories
+- child subtotals are reflected in budget and spend reporting
+- the original rolled-up transaction remains visible as the imported source record
+- the original rolled-up transaction becomes uncategorisable once split
+- the original rolled-up transaction total is excluded from budget/spend calculations once split
+- the split cannot be accepted while any remainder is unallocated
+
+Why this matters:
+
+- one imported transaction can represent multiple purchases that need different coding
+- budget reporting must reflect the real allocation, not the raw bank/import line, once a split exists
+- preserving the original transaction keeps reconciliation back to imported data intact
+
+Design direction:
+
+- keep the imported parent transaction immutable as the source/reconciliation record
+- store split children as allocation rows or child transactions linked to the parent
+- enforce that child allocation totals exactly equal the parent amount before activating the split
+- keep draft split edits out of spend totals until the split is fully allocated and accepted
+- prevent category/subcategory coding on the split parent after activation
+- make reporting explicitly exclude split parents and include accepted split children
+
+### 3. Move transactions or split child transactions between projects
+
+Examples:
+
+- move a transaction, or one child from a split transaction, to another project in the same company
+- the receiving project sees it as a new uncoded transaction requiring local coding
+- the original project keeps a visible transfer/source row for traceability
+- the original-side transfer row is uncategorisable
+- the original-side transfer row does not affect the original project budget/spend totals
+- transfers are limited to projects within the same company
+
+Why this matters:
+
+- imported data may land in the wrong project even though the cost belongs elsewhere
+- teams need cross-project correction without losing the source/import history
+- project budgets must not double-count transferred amounts
+
+Design direction:
+
+- treat project moves as explicit transfer records rather than destructive edits to the original transaction
+- preserve source transaction identity and transfer linkage for audit/reconciliation
+- create a receiving-side transaction or allocation that must be coded in the destination project
+- exclude the original-side transfer marker from budget/spend calculations
+- require same-company validation at the server and database boundary
+- define how transfers interact with split parents and split children before implementation
+
 ## Product/Admin
 
-### 1. Add bulk transaction review actions
+### 4. Add bulk transaction review actions
 
 Examples:
 
@@ -21,7 +102,7 @@ Why this matters:
 - row-by-row transaction review will become the main bottleneck as data volume increases
 - bulk actions are one of the highest-value workflow improvements available now
 
-### 2. Add reviewed and locked transaction workflow
+### 5. Add reviewed and locked transaction workflow
 
 Examples:
 
@@ -41,7 +122,7 @@ Design direction:
 - define exactly which fields become immutable when locked
 - ensure all lock, unlock, review, and reopen actions emit audit events
 
-### 3. Clarify budget semantics, health messaging, and lightweight forecasting
+### 6. Clarify budget semantics, health messaging, and lightweight forecasting
 
 Examples:
 
@@ -57,7 +138,7 @@ Why this matters:
 - sharper financial semantics will make the app feel more trustworthy to finance-oriented users
 - users need interpretation and risk cues, not just raw spend totals
 
-### 4. Add rule suggestions from repeated manual coding
+### 7. Add rule suggestions from repeated manual coding
 
 Examples:
 
@@ -76,7 +157,7 @@ Design direction:
 - distinguish clearly between create-rule suggestions and update-rule suggestions
 - keep suggestions reviewable and dismissible so noisy patterns do not become brittle rules
 
-### 5. Expand audit logging into a first-class product feature
+### 8. Expand audit logging into a first-class product feature
 
 Examples:
 
@@ -118,7 +199,7 @@ Notes:
 - it needs careful schema, indexing, retention, and UI design before we build it
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 6. Extend self-service account/profile
+### 9. Extend self-service account/profile
 
 Examples:
 
@@ -184,33 +265,6 @@ Design direction:
 - prefer structural wins such as lazy runtime loading and boot-path pruning over brittle chunk hacks
 - keep the build stable and avoid Rollup chunk-cycle regressions while splitting
 - measure each change against actual build output so we know which shared dependencies are still anchoring the boot bundle
-
-### Split transactions with parent-child allocation model
-
-Examples:
-
-- split one imported transaction across multiple projects, categories, subcategories, or milestones
-- keep the original imported transaction as the source-of-truth parent
-- show child allocations as expandable rows beneath the parent
-
-Why this matters:
-
-- shared invoices and apportioned costs are normal finance workflows
-- splitting needs to preserve reconciliation back to the imported source record
-
-Design direction before implementation:
-
-- keep the imported parent as a source record and store financial allocations in a dedicated child table
-- decide reporting semantics up front so parent amounts are excluded from spend totals once split allocations exist
-- put review and approval state on child allocations, not just the parent, so mixed states are representable without ambiguity
-- keep the parent in a simpler structural state such as unsplit, split draft, split complete, or split locked rather than mixing coding review into the parent
-- separate unlock-request records from the transaction or allocation row so repeated requests remain auditable
-- define exactly how parent and child locking interact before building UI flows
-
-Why this tightening matters:
-
-- split children create a second review surface, and unclear parent-child state will leak into reporting, approvals, forecasting, and audit logs
-- getting the data model right first will avoid expensive rework later
 
 ### Milestone-aware budgeting and forecasting
 
