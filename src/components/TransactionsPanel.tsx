@@ -18,8 +18,15 @@ import {
 } from 'mantine-react-table';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
+import type { Txn } from '../types';
 import { monthKeyFromStart, monthStart, parseISODate } from '../utils/finance';
 import { formatCurrencyFromCents } from '../utils/money';
+import {
+  isBudgetImpactTxn,
+  isCategorisableTxn,
+  txnTypeLabel,
+} from '../utils/transactions';
+import TransactionSplitModal from './TransactionSplitModal';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
 
@@ -73,6 +80,7 @@ export default function TransactionsPanel(props: {
   } = props;
 
   const [manageOpen, setManageOpen] = useState(false);
+  const [splitTxn, setSplitTxn] = useState<Txn | null>(null);
   const isMobile = useMediaQuery('(max-width: 48em)');
   const [pagination, setPagination] = useState<MRT_PaginationState>({
     pageIndex: 0,
@@ -129,11 +137,14 @@ export default function TransactionsPanel(props: {
     }
     if (transactionView === 'uncoded')
       out = out.filter(
-        (t) => !t.subCategoryId || !taxonomy.validSubIds.has(t.subCategoryId)
+        (t) =>
+          isCategorisableTxn(t) &&
+          (!t.subCategoryId || !taxonomy.validSubIds.has(t.subCategoryId))
       );
     if (transactionView === 'auto-mapped-pending')
       out = out.filter(
         (t) =>
+          isCategorisableTxn(t) &&
           !!t.codingPendingApproval &&
           !!t.subCategoryId &&
           taxonomy.validSubIds.has(t.subCategoryId)
@@ -152,12 +163,22 @@ export default function TransactionsPanel(props: {
     () =>
       txns.transactions.filter(
         (t) =>
+          isCategorisableTxn(t) &&
           !!t.codingPendingApproval &&
           !!t.subCategoryId &&
           taxonomy.validSubIds.has(t.subCategoryId)
       ),
     [txns.transactions, taxonomy.validSubIds]
   );
+
+  function canSplitTransaction(txn: Txn): boolean {
+    return (
+      !readOnly &&
+      isBudgetImpactTxn(txn) &&
+      isCategorisableTxn(txn) &&
+      (txn.txnType === 'standard' || txn.txnType === 'transfer_child')
+    );
+  }
 
   function moveToSubcategoryCell(args: {
     row: Parameters<
@@ -235,6 +256,7 @@ export default function TransactionsPanel(props: {
       enableEditing: !readOnly,
       enableSorting: false,
       Edit: ({ row, table }) => {
+        const canCode = !readOnly && isCategorisableTxn(row.original);
         const current = row.original.categoryId ?? null;
         const shouldAutoAdvance =
           !row.original.subCategoryId ||
@@ -246,13 +268,13 @@ export default function TransactionsPanel(props: {
             placeholder="Select category"
             searchable
             clearable
-            disabled={readOnly}
+            disabled={!canCode}
             onChange={(v) => {
               void txns
                 .updateTxn(row.original.id, {
                   categoryId: v ? asCategoryId(v) : null,
                   subCategoryId: null,
-                  companyDefaultMappingRuleId: undefined,
+                  companyDefaultMappingRuleId: null,
                   codingSource: 'manual',
                   codingPendingApproval: false,
                 })
@@ -283,6 +305,7 @@ export default function TransactionsPanel(props: {
       enableEditing: !readOnly,
       enableSorting: false,
       Edit: ({ row, table }) => {
+        const canCode = !readOnly && isCategorisableTxn(row.original);
         const catId = row.original.categoryId;
         const options = catId
           ? taxonomy.subCategoryOptionsForCategory(catId)
@@ -295,13 +318,13 @@ export default function TransactionsPanel(props: {
             placeholder={catId ? 'Select subcategory' : 'Pick category first'}
             searchable
             clearable
-            disabled={!catId || readOnly}
+            disabled={!catId || !canCode}
             onChange={(v) => {
               void txns
                 .updateTxn(row.original.id, {
                   categoryId: catId ?? null,
                   subCategoryId: v ? asSubCategoryId(v) : null,
-                  companyDefaultMappingRuleId: undefined,
+                  companyDefaultMappingRuleId: null,
                   codingSource: 'manual',
                   codingPendingApproval: false,
                 })
@@ -311,6 +334,13 @@ export default function TransactionsPanel(props: {
         );
       },
       Cell: ({ row }) => {
+        if (!isCategorisableTxn(row.original)) {
+          return (
+            <Badge color="gray" variant="light">
+              Source only
+            </Badge>
+          );
+        }
         const sub = taxonomy.getSubCategoryName(row.original.subCategoryId);
         const ok =
           !!row.original.subCategoryId &&
@@ -337,6 +367,16 @@ export default function TransactionsPanel(props: {
       size: 180,
       enableSorting: false,
       Cell: ({ row }) => {
+        if (
+          !isBudgetImpactTxn(row.original) ||
+          !isCategorisableTxn(row.original)
+        ) {
+          return (
+            <Badge color="blue" variant="light">
+              {txnTypeLabel(row.original)}
+            </Badge>
+          );
+        }
         const hasValidSubCategory =
           !!row.original.subCategoryId &&
           taxonomy.validSubIds.has(row.original.subCategoryId);
@@ -364,6 +404,28 @@ export default function TransactionsPanel(props: {
           </Group>
         );
       },
+      mantineTableHeadCellProps: {
+        className: 'table-head-cell table-head-left txnTable-head',
+      },
+      mantineTableBodyCellProps: { className: 'txnTable-cell' },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      size: 108,
+      enableEditing: false,
+      enableSorting: false,
+      Cell: ({ row }) => (
+        <Button
+          size="xs"
+          variant="subtle"
+          className="tableActionButton"
+          disabled={!canSplitTransaction(row.original)}
+          onClick={() => setSplitTxn(row.original)}
+        >
+          Split
+        </Button>
+      ),
       mantineTableHeadCellProps: {
         className: 'table-head-cell table-head-left txnTable-head',
       },
@@ -524,7 +586,7 @@ export default function TransactionsPanel(props: {
           const ok =
             !!row.original.subCategoryId &&
             taxonomy.validSubIds.has(row.original.subCategoryId);
-          return !ok
+          return isCategorisableTxn(row.original) && !ok
             ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
             : {};
         }}
@@ -535,6 +597,17 @@ export default function TransactionsPanel(props: {
         onClose={() => setManageOpen(false)}
         taxonomy={taxonomy}
         readOnly={!canEditTaxonomy}
+      />
+
+      <TransactionSplitModal
+        opened={Boolean(splitTxn)}
+        txn={splitTxn}
+        taxonomy={taxonomy}
+        currencyCode={currencyCode}
+        onClose={() => setSplitTxn(null)}
+        onSplit={(children) =>
+          splitTxn ? txns.splitTxn(splitTxn.id, children) : Promise.resolve()
+        }
       />
     </Stack>
   );

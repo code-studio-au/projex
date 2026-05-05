@@ -9,7 +9,11 @@ import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import type { ProjectId, Txn, TxnId } from '../types';
-import type { TxnCreateInput, TxnUpdateInput } from '../api/contract';
+import type {
+  TxnCreateInput,
+  TxnSplitInput,
+  TxnUpdateInput,
+} from '../api/contract';
 import { normalizeTxnPatch } from '../utils/transactions';
 
 export function useTransactionsQuery(projectId: ProjectId) {
@@ -83,6 +87,22 @@ export function useDeleteTxnMutation(projectId: ProjectId) {
         qc.invalidateQueries({
           queryKey: qk.transactions(scopeUserId, projectId),
         }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
+    },
+  });
+}
+
+export function useSplitTxnMutation(projectId: ProjectId) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  const queryKey = qk.transactions(scopeUserId, projectId);
+  return useMutation({
+    mutationFn: (input: TxnSplitInput) => api.splitTxn(projectId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
       ]);
     },

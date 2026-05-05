@@ -20,6 +20,7 @@ import {
   quarterOfMonth,
   sum,
 } from '../utils/finance';
+import { isBudgetImpactTxn } from '../utils/transactions';
 import type { TaxonomyHook } from './useTaxonomy';
 
 /**
@@ -53,6 +54,7 @@ export function useRollups(params: {
     // Be resilient to malformed dates (e.g., from CSV imports).
     // A single NaN in Math.min/Math.max would poison the whole range.
     const times = transactions
+      .filter(isBudgetImpactTxn)
       .map((t) => {
         try {
           return parseISODate(t.date).getTime();
@@ -114,7 +116,10 @@ export function useRollups(params: {
   const codedTxns = useMemo(
     () =>
       transactions.filter(
-        (t) => t.subCategoryId && validSubIds.has(t.subCategoryId)
+        (t) =>
+          isBudgetImpactTxn(t) &&
+          t.subCategoryId &&
+          validSubIds.has(t.subCategoryId)
       ),
     [transactions, validSubIds]
   );

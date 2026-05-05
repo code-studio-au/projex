@@ -1,5 +1,5 @@
 import type { ServerSession } from './session';
-import { asUserId } from '../../types';
+import { asUserId } from '../../types/index.ts';
 
 import { getBetterAuthInstance } from './betterAuthInstance.ts';
 

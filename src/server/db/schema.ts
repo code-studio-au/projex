@@ -1,4 +1,5 @@
 import type { Generated } from 'kysely';
+import type { TxnType } from '../../types';
 
 // Minimal DB schema types for the Start + Kysely migration.
 // Extend as you move more logic server-side.
@@ -66,6 +67,12 @@ export interface TxnTable {
   item: string;
   description: string;
   amount_cents: number; // BIGINT in Postgres, represented as number in JS
+  txn_type: TxnType;
+  parent_public_id: string | null;
+  source_public_id: string | null;
+  transfer_project_id: string | null;
+  budget_impact: boolean;
+  categorisable: boolean;
   category_id: string | null;
   sub_category_id: string | null;
   company_default_mapping_rule_id: string | null;

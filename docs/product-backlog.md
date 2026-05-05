@@ -52,6 +52,7 @@ Why this matters:
 
 Design direction:
 
+- foundation in place: transactions now expose explicit type, parent/source links, transfer project link, budget-impact, and categorisability metadata
 - keep the imported parent transaction immutable as the source/reconciliation record
 - store split children as allocation rows or child transactions linked to the parent
 - enforce that child allocation totals exactly equal the parent amount before activating the split
@@ -78,6 +79,7 @@ Why this matters:
 
 Design direction:
 
+- foundation in place: transactions now expose explicit type, source link, transfer project link, budget-impact, and categorisability metadata
 - treat project moves as explicit transfer records rather than destructive edits to the original transaction
 - preserve source transaction identity and transfer linkage for audit/reconciliation
 - create a receiving-side transaction or allocation that must be coded in the destination project

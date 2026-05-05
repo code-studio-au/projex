@@ -65,6 +65,7 @@ import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImp
 import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport } from './routes/api.companies.$companyId.default-mapping-rules.$ruleId'
 import { Route as ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport } from './routes/api.companies.$companyId.default-categories.$categoryId'
 import { Route as AuthedCCompanyIdPProjectIdRouteImport } from './routes/_authed.c.$companyId.p.$projectId'
+import { Route as ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.split'
 import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
 
 const VerifyEmailChangeRoute = VerifyEmailChangeRouteImport.update({
@@ -375,6 +376,12 @@ const AuthedCCompanyIdPProjectIdRoute =
     path: '/p/$projectId',
     getParentRoute: () => AuthedCCompanyIdRoute,
   } as any)
+const ApiProjectsProjectIdTransactionsTxnIdSplitRoute =
+  ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport.update({
+    id: '/split',
+    path: '/split',
+    getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
+  } as any)
 const ApiCompaniesCompanyIdUsersUserIdInviteRoute =
   ApiCompaniesCompanyIdUsersUserIdInviteRouteImport.update({
     id: '/$userId/invite',
@@ -435,10 +442,11 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
-  '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRoute
+  '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRouteWithChildren
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -492,10 +500,11 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
-  '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRoute
+  '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRouteWithChildren
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -552,10 +561,11 @@ export interface FileRoutesById {
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
-  '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRoute
+  '/api/projects/$projectId/transactions/$txnId': typeof ApiProjectsProjectIdTransactionsTxnIdRouteWithChildren
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -616,6 +626,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/transactions/$txnId/split'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -673,6 +684,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/transactions/$txnId/split'
   id:
     | '__root__'
     | '/'
@@ -732,6 +744,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/transactions/$txnId/split'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1150,6 +1163,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedCCompanyIdPProjectIdRouteImport
       parentRoute: typeof AuthedCCompanyIdRoute
     }
+    '/api/projects/$projectId/transactions/$txnId/split': {
+      id: '/api/projects/$projectId/transactions/$txnId/split'
+      path: '/split'
+      fullPath: '/api/projects/$projectId/transactions/$txnId/split'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport
+      parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
+    }
     '/api/companies/$companyId/users/$userId/invite': {
       id: '/api/companies/$companyId/users/$userId/invite'
       path: '/$userId/invite'
@@ -1357,8 +1377,23 @@ const ApiProjectsProjectIdSubCategoriesRouteWithChildren =
     ApiProjectsProjectIdSubCategoriesRouteChildren,
   )
 
+interface ApiProjectsProjectIdTransactionsTxnIdRouteChildren {
+  ApiProjectsProjectIdTransactionsTxnIdSplitRoute: typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
+}
+
+const ApiProjectsProjectIdTransactionsTxnIdRouteChildren: ApiProjectsProjectIdTransactionsTxnIdRouteChildren =
+  {
+    ApiProjectsProjectIdTransactionsTxnIdSplitRoute:
+      ApiProjectsProjectIdTransactionsTxnIdSplitRoute,
+  }
+
+const ApiProjectsProjectIdTransactionsTxnIdRouteWithChildren =
+  ApiProjectsProjectIdTransactionsTxnIdRoute._addFileChildren(
+    ApiProjectsProjectIdTransactionsTxnIdRouteChildren,
+  )
+
 interface ApiProjectsProjectIdTransactionsRouteChildren {
-  ApiProjectsProjectIdTransactionsTxnIdRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
+  ApiProjectsProjectIdTransactionsTxnIdRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRouteWithChildren
   ApiProjectsProjectIdTransactionsImportRoute: typeof ApiProjectsProjectIdTransactionsImportRoute
   ApiProjectsProjectIdTransactionsImportPreviewRoute: typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
 }
@@ -1366,7 +1401,7 @@ interface ApiProjectsProjectIdTransactionsRouteChildren {
 const ApiProjectsProjectIdTransactionsRouteChildren: ApiProjectsProjectIdTransactionsRouteChildren =
   {
     ApiProjectsProjectIdTransactionsTxnIdRoute:
-      ApiProjectsProjectIdTransactionsTxnIdRoute,
+      ApiProjectsProjectIdTransactionsTxnIdRouteWithChildren,
     ApiProjectsProjectIdTransactionsImportRoute:
       ApiProjectsProjectIdTransactionsImportRoute,
     ApiProjectsProjectIdTransactionsImportPreviewRoute:

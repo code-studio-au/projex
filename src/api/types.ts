@@ -42,7 +42,15 @@ export type Session = {
 export type CsvImportMode = 'append' | 'replaceAll';
 export type TxnImportTxnInput = Omit<
   Txn,
-  'internalId' | 'createdAt' | 'updatedAt'
+  | 'internalId'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'txnType'
+  | 'parentTxnId'
+  | 'sourceTxnId'
+  | 'transferProjectId'
+  | 'budgetImpact'
+  | 'categorisable'
 >;
 export type TxnImportInput = {
   txns: TxnImportTxnInput[];
@@ -57,10 +65,38 @@ export type TxnImportPreviewResult = {
   rows: ImportPreviewRow[];
 };
 
+export type TxnSplitChildInput = {
+  id?: TxnId;
+  item?: string;
+  description?: string;
+  amountCents: number;
+  categoryId?: Txn['categoryId'] | null;
+  subCategoryId?: Txn['subCategoryId'] | null;
+};
+
+export type TxnSplitInput = {
+  txnId: TxnId;
+  children: TxnSplitChildInput[];
+};
+
+export type TxnSplitResult = {
+  parent: Txn;
+  children: Txn[];
+};
+
 // Inputs (command-style)
 export type TxnCreateInput = Omit<
   Txn,
-  'id' | 'internalId' | 'createdAt' | 'updatedAt'
+  | 'id'
+  | 'internalId'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'txnType'
+  | 'parentTxnId'
+  | 'sourceTxnId'
+  | 'transferProjectId'
+  | 'budgetImpact'
+  | 'categorisable'
 > & { id?: TxnId };
 export type TxnUpdateInput = Partial<
   Omit<
@@ -69,15 +105,23 @@ export type TxnUpdateInput = Partial<
     | 'internalId'
     | 'createdAt'
     | 'updatedAt'
+    | 'txnType'
+    | 'parentTxnId'
+    | 'sourceTxnId'
+    | 'transferProjectId'
+    | 'budgetImpact'
+    | 'categorisable'
     | 'externalId'
     | 'categoryId'
     | 'subCategoryId'
+    | 'companyDefaultMappingRuleId'
   >
 > & {
   id: TxnId;
   externalId?: string | null;
   categoryId?: Txn['categoryId'] | null;
   subCategoryId?: Txn['subCategoryId'] | null;
+  companyDefaultMappingRuleId?: Txn['companyDefaultMappingRuleId'] | null;
 };
 
 export type BudgetCreateInput = Omit<
@@ -372,6 +416,7 @@ export interface ProjexApi {
   createTxn(projectId: ProjectId, input: TxnCreateInput): Promise<Txn>;
   updateTxn(projectId: ProjectId, input: TxnUpdateInput): Promise<Txn>;
   deleteTxn(projectId: ProjectId, txnId: TxnId): Promise<void>;
+  splitTxn(projectId: ProjectId, input: TxnSplitInput): Promise<TxnSplitResult>;
 
   /**
    * Batch import.

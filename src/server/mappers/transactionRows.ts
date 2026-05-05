@@ -1,5 +1,5 @@
 import { AppError } from '../../api/errors';
-import type { BudgetLine, Txn } from '../../types';
+import type { BudgetLine, Txn, TxnType } from '../../types';
 import {
   asBudgetLineId,
   asCategoryId,
@@ -22,6 +22,12 @@ export type TxnRow = {
   item: string;
   description: string;
   amount_cents: number;
+  txn_type: TxnType;
+  parent_public_id: string | null;
+  source_public_id: string | null;
+  transfer_project_id: string | null;
+  budget_impact: boolean;
+  categorisable: boolean;
   category_id: string | null;
   sub_category_id: string | null;
   company_default_mapping_rule_id: string | null;
@@ -61,6 +67,18 @@ export function toTxn(row: TxnRow): Txn {
     item: row.item,
     description: row.description,
     amountCents: Number(row.amount_cents),
+    txnType: row.txn_type,
+    parentTxnId: row.parent_public_id
+      ? asTxnId(row.parent_public_id)
+      : undefined,
+    sourceTxnId: row.source_public_id
+      ? asTxnId(row.source_public_id)
+      : undefined,
+    transferProjectId: row.transfer_project_id
+      ? asProjectId(row.transfer_project_id)
+      : undefined,
+    budgetImpact: row.budget_impact,
+    categorisable: row.categorisable,
     categoryId: row.category_id ? asCategoryId(row.category_id) : undefined,
     subCategoryId: row.sub_category_id
       ? asSubCategoryId(row.sub_category_id)

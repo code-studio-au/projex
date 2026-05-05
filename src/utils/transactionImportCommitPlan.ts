@@ -17,6 +17,7 @@ import { mapImportedTransactionWithCompanyDefaults } from './companyDefaultMappi
 import {
   assertUniqueTransactionKeysInProject,
   normalizeExternalId,
+  withStandardTxnAccountingMetadata,
 } from './transactions';
 
 export function planTransactionImportCommit(args: {
@@ -54,10 +55,10 @@ export function planTransactionImportCommit(args: {
       );
     }
 
-    return {
+    return withStandardTxnAccountingMetadata({
       ...txn,
       externalId: normalizeExternalId(txn.externalId),
-    };
+    });
   });
 
   const importedTransactions = normalizedIncoming.map((txn) =>

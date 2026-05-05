@@ -3,7 +3,17 @@ import { asTxnId } from '../types';
 import { uid } from './id';
 import { toCents } from './money';
 
-type UnscopedTxn = Omit<Txn, 'companyId' | 'projectId'>;
+type CsvTxnAccountingFields =
+  | 'txnType'
+  | 'parentTxnId'
+  | 'sourceTxnId'
+  | 'transferProjectId'
+  | 'budgetImpact'
+  | 'categorisable';
+type UnscopedTxn = Omit<
+  Txn,
+  'companyId' | 'projectId' | CsvTxnAccountingFields
+>;
 
 /**
  * Minimal CSV parser (handles quotes, commas, newlines).

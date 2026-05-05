@@ -11,6 +11,7 @@ import type {
 } from '../api/contract';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
+import { withStandardTxnAccountingMetadata } from '../utils/transactions';
 
 export function useCreateCompanyMutation() {
   const api = useApi();
@@ -128,11 +129,12 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey: transactionQueryKey });
       const previous = qc.getQueryData<Txn[]>(transactionQueryKey);
+      const optimisticTxns = vars.txns.map(withStandardTxnAccountingMetadata);
       qc.setQueryData<Txn[]>(
         transactionQueryKey,
         vars.mode === 'replaceAll'
-          ? vars.txns
-          : [...(previous ?? []), ...vars.txns]
+          ? optimisticTxns
+          : [...(previous ?? []), ...optimisticTxns]
       );
       return { previous };
     },

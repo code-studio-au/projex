@@ -2,6 +2,86 @@ import { AppError } from '../api/errors';
 import type { TxnUpdateInput } from '../api/types';
 import type { Txn, TxnId } from '../types';
 
+type TxnAccountingMetadata = Pick<
+  Txn,
+  | 'txnType'
+  | 'parentTxnId'
+  | 'sourceTxnId'
+  | 'transferProjectId'
+  | 'budgetImpact'
+  | 'categorisable'
+>;
+
+export function standardTxnAccountingMetadata(): TxnAccountingMetadata {
+  return {
+    txnType: 'standard',
+    parentTxnId: undefined,
+    sourceTxnId: undefined,
+    transferProjectId: undefined,
+    budgetImpact: true,
+    categorisable: true,
+  };
+}
+
+export function withStandardTxnAccountingMetadata<T extends object>(
+  txn: T
+): T & TxnAccountingMetadata {
+  return {
+    ...standardTxnAccountingMetadata(),
+    ...txn,
+  };
+}
+
+export function isBudgetImpactTxn(txn: Pick<Txn, 'budgetImpact'>): boolean {
+  return txn.budgetImpact;
+}
+
+export function isCategorisableTxn(txn: Pick<Txn, 'categorisable'>): boolean {
+  return txn.categorisable;
+}
+
+export function assertTxnCodingAllowed(
+  txn: Pick<
+    Txn,
+    | 'categorisable'
+    | 'categoryId'
+    | 'subCategoryId'
+    | 'companyDefaultMappingRuleId'
+    | 'codingSource'
+    | 'codingPendingApproval'
+  >
+) {
+  if (txn.categorisable) return;
+
+  if (
+    txn.categoryId ||
+    txn.subCategoryId ||
+    txn.companyDefaultMappingRuleId ||
+    txn.codingSource ||
+    txn.codingPendingApproval
+  ) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Transaction cannot be coded because it is a source marker'
+    );
+  }
+}
+
+export function txnTypeLabel(txn: Pick<Txn, 'txnType'>): string {
+  switch (txn.txnType) {
+    case 'split_parent':
+      return 'Split parent';
+    case 'split_child':
+      return 'Split child';
+    case 'transfer_source':
+      return 'Project transfer';
+    case 'transfer_child':
+      return 'Transferred in';
+    case 'standard':
+      return 'Standard';
+  }
+}
+
 export function normalizeExternalId(
   value: string | null | undefined
 ): string | undefined {

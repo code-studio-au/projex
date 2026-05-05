@@ -7,12 +7,14 @@ import type {
   Txn,
   TxnId,
 } from '../types';
-import type { TxnUpdateInput } from '../api/contract';
+import type { TxnSplitInput, TxnUpdateInput } from '../api/contract';
 import { useImportTransactionsMutation } from '../queries/admin';
 import {
+  useSplitTxnMutation,
   useTransactionsQuery,
   useUpdateTxnMutation,
 } from '../queries/transactions';
+import { isCategorisableTxn } from '../utils/transactions';
 
 /**
  * Query-backed transactions model.
@@ -27,12 +29,17 @@ export function useTransactions(params: { projectId: ProjectId }) {
   const { projectId } = params;
   const q = useTransactionsQuery(projectId);
   const update = useUpdateTxnMutation(projectId);
+  const split = useSplitTxnMutation(projectId);
   const importMut = useImportTransactionsMutation(projectId);
 
   const transactions = useMemo(() => q.data ?? [], [q.data]);
 
   const updateTxn = async (id: TxnId, patch: Omit<TxnUpdateInput, 'id'>) => {
     await update.mutateAsync({ id, ...patch });
+  };
+
+  const splitTxn = async (id: TxnId, children: TxnSplitInput['children']) => {
+    await split.mutateAsync({ txnId: id, children });
   };
 
   const replaceAll = async (
@@ -61,41 +68,46 @@ export function useTransactions(params: { projectId: ProjectId }) {
     subCategoryIds: SubCategoryId[]
   ) => {
     const setIds = new Set(subCategoryIds);
-    const next = transactions.map((t) =>
-      t.subCategoryId && setIds.has(t.subCategoryId)
-        ? {
-            ...t,
-            categoryId: undefined,
-            subCategoryId: undefined,
-            companyDefaultMappingRuleId: undefined,
-            codingSource: 'manual' as const,
-            codingPendingApproval: false,
-          }
-        : t
+    const affected = transactions.filter(
+      (t) =>
+        isCategorisableTxn(t) && t.subCategoryId && setIds.has(t.subCategoryId)
     );
-    await replaceAll(next);
+    await Promise.all(
+      affected.map((t) =>
+        updateTxn(t.id, {
+          categoryId: null,
+          subCategoryId: null,
+          companyDefaultMappingRuleId: null,
+          codingSource: 'manual',
+          codingPendingApproval: false,
+        })
+      )
+    );
   };
 
   const stripCodingForCategoryIds = async (categoryIds: CategoryId[]) => {
     const setIds = new Set(categoryIds);
-    const next = transactions.map((t) =>
-      t.categoryId && setIds.has(t.categoryId)
-        ? {
-            ...t,
-            categoryId: undefined,
-            subCategoryId: undefined,
-            companyDefaultMappingRuleId: undefined,
-            codingSource: 'manual' as const,
-            codingPendingApproval: false,
-          }
-        : t
+    const affected = transactions.filter(
+      (t) => isCategorisableTxn(t) && t.categoryId && setIds.has(t.categoryId)
     );
-    await replaceAll(next);
+    await Promise.all(
+      affected.map((t) =>
+        updateTxn(t.id, {
+          categoryId: null,
+          subCategoryId: null,
+          companyDefaultMappingRuleId: null,
+          codingSource: 'manual',
+          codingPendingApproval: false,
+        })
+      )
+    );
   };
 
   const getUncodedSummary = (validSubIds: Set<SubCategoryId>) => {
     const bad = transactions.filter(
-      (t) => !t.subCategoryId || !validSubIds.has(t.subCategoryId)
+      (t) =>
+        isCategorisableTxn(t) &&
+        (!t.subCategoryId || !validSubIds.has(t.subCategoryId))
     );
     return {
       count: bad.length,
@@ -106,6 +118,7 @@ export function useTransactions(params: { projectId: ProjectId }) {
   return {
     transactions,
     updateTxn,
+    splitTxn,
     stripCodingForSubCategoryIds,
     stripCodingForCategoryIds,
     replaceAll,

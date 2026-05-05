@@ -57,6 +57,9 @@ const nullableOptionalCategoryIdSchema = categoryIdSchema.nullable().optional();
 const nullableOptionalSubCategoryIdSchema = subCategoryIdSchema
   .nullable()
   .optional();
+const nullableOptionalMappingRuleIdSchema = companyDefaultMappingRuleIdSchema
+  .nullable()
+  .optional();
 
 const companyRoleSchema = z.enum([
   'admin',
@@ -278,7 +281,7 @@ export const updateTxnInputSchema = z.object({
   externalId: z.string().nullable().optional(),
   categoryId: nullableOptionalCategoryIdSchema,
   subCategoryId: nullableOptionalSubCategoryIdSchema,
-  companyDefaultMappingRuleId: optionalMappingRuleIdSchema,
+  companyDefaultMappingRuleId: nullableOptionalMappingRuleIdSchema,
   codingSource: codingSourceSchema.optional(),
   codingPendingApproval: z.boolean().optional(),
 });
@@ -289,6 +292,31 @@ export const txnMutationBodySchema = z.object({
 
 export const txnUpdateMutationBodySchema = z.object({
   txn: updateTxnInputSchema,
+});
+
+const txnSplitChildAmountCentsSchema = txnInputSchema.shape.amountCents.refine(
+  (value) => value > 0,
+  'Split child amount must be greater than zero'
+);
+
+export const splitTxnInputSchema = z.object({
+  txnId: txnIdSchema,
+  children: z
+    .array(
+      z.object({
+        id: txnIdSchema.optional(),
+        item: txnInputSchema.shape.item.optional(),
+        description: txnInputSchema.shape.description.optional(),
+        amountCents: txnSplitChildAmountCentsSchema,
+        categoryId: nullableOptionalCategoryIdSchema,
+        subCategoryId: nullableOptionalSubCategoryIdSchema,
+      })
+    )
+    .min(2, 'At least two split children are required'),
+});
+
+export const splitTxnMutationBodySchema = z.object({
+  split: splitTxnInputSchema,
 });
 
 const importedTxnInputSchema = createTxnInputSchema.extend({

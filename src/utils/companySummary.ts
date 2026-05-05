@@ -21,6 +21,7 @@ export type CompanySummaryTxnInput = {
   projectId: ProjectId;
   date: DateOnlyInput;
   amountCents: number;
+  budgetImpact: boolean;
   subCategoryId?: SubCategoryId | string | null;
 };
 
@@ -35,6 +36,8 @@ export function buildCompanySummaryProjects(args: {
   >();
 
   for (const transaction of args.transactions) {
+    if (!transaction.budgetImpact) continue;
+
     const monthKey = monthKeyFromDateOnlyInput(transaction.date);
     if (!monthKey) continue;
 

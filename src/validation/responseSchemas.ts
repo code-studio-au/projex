@@ -10,6 +10,7 @@ import {
   asSubCategoryId,
   asTxnId,
   asUserId,
+  TXN_TYPES,
 } from '../types/index.ts';
 import {
   budgetAllocatedCentsSchema,
@@ -237,6 +238,12 @@ export const txnResponseSchema = z.object({
   item: z.string(),
   description: z.string(),
   amountCents: transactionAmountCentsSchema,
+  txnType: z.enum(TXN_TYPES),
+  parentTxnId: txnIdSchema.optional(),
+  sourceTxnId: txnIdSchema.optional(),
+  transferProjectId: projectIdSchema.optional(),
+  budgetImpact: z.boolean(),
+  categorisable: z.boolean(),
   categoryId: categoryIdSchema.optional(),
   subCategoryId: subCategoryIdSchema.optional(),
   companyDefaultMappingRuleId: mappingRuleIdSchema.optional(),
@@ -247,6 +254,11 @@ export const txnResponseSchema = z.object({
 });
 
 export const txnsResponseSchema = z.array(txnResponseSchema);
+
+export const txnSplitResponseSchema = z.object({
+  parent: txnResponseSchema,
+  children: txnsResponseSchema,
+});
 
 export const pendingEmailChangeResponseSchema = z
   .object({

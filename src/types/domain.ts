@@ -105,6 +105,16 @@ export type CompanyDefaultMappingRule = {
   updatedAt?: string;
 };
 
+export const TXN_TYPES = [
+  'standard',
+  'split_parent',
+  'split_child',
+  'transfer_source',
+  'transfer_child',
+] as const;
+
+export type TxnType = (typeof TXN_TYPES)[number];
+
 export type Txn = {
   id: TxnId;
   /**
@@ -121,6 +131,18 @@ export type Txn = {
   description: string;
   /** Monetary amount in minor units (e.g. cents). Expenses are positive. */
   amountCents: number;
+  /** How this transaction participates in split/transfer workflows. */
+  txnType: TxnType;
+  /** Parent/source transaction in the current project when this is a split child. */
+  parentTxnId?: TxnId;
+  /** Original transaction when this row was created from a transfer. */
+  sourceTxnId?: TxnId;
+  /** The other project involved when this row represents a transfer. */
+  transferProjectId?: ProjectId;
+  /** Whether this row contributes to actual spend and budget rollups. */
+  budgetImpact: boolean;
+  /** Whether users are allowed to apply category/subcategory coding to this row. */
+  categorisable: boolean;
   categoryId?: CategoryId;
   subCategoryId?: SubCategoryId;
   companyDefaultMappingRuleId?: CompanyDefaultMappingRuleId;

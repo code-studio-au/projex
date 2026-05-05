@@ -64,6 +64,7 @@ import {
   importTransactionsServer,
   listTransactionsServer,
   previewImportTransactionsServer,
+  splitTxnServer,
   updateTxnServer,
 } from '../fns/transactions';
 import {
@@ -442,6 +443,16 @@ export class StartServerApi implements ProjexApi {
   }
   async deleteTxn(projectId: ProjectId, txnId: TxnId) {
     return deleteTxnServer({ context: this.context, projectId, txnId });
+  }
+  async splitTxn(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['splitTxn']>[1]
+  ) {
+    return splitTxnServer({
+      context: this.context,
+      projectId,
+      input,
+    });
   }
   async importTransactions(
     projectId: ProjectId,

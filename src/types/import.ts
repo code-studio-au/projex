@@ -9,7 +9,16 @@ import type { CompanyDefaultMappingRuleId } from './ids.ts';
  */
 export type ImportTxn = Omit<
   Txn,
-  'id' | 'internalId' | 'companyId' | 'projectId'
+  | 'id'
+  | 'internalId'
+  | 'companyId'
+  | 'projectId'
+  | 'txnType'
+  | 'parentTxnId'
+  | 'sourceTxnId'
+  | 'transferProjectId'
+  | 'budgetImpact'
+  | 'categorisable'
 > & {
   id?: TxnId | string;
   externalId?: string;

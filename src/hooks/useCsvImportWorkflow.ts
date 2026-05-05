@@ -16,6 +16,7 @@ import type {
   Txn,
 } from '../types';
 import { asTxnId } from '../types';
+import { withStandardTxnAccountingMetadata } from '../utils/transactions';
 import { txnInputSchema } from '../validation/schemas';
 
 export type ImportPreviewFilter =
@@ -425,21 +426,23 @@ export function useCsvImportWorkflow(params: {
         subCategoryId = subCategoryIdByKey.get(subKey) ?? subCategoryId;
       }
 
-      txns.push({
-        id: asTxnId(row.importId),
-        externalId: row.externalId,
-        companyId,
-        projectId,
-        date: row.parsedDate ?? '',
-        item: row.item ?? '',
-        description: row.description ?? '',
-        amountCents: row.amountCents ?? 0,
-        categoryId,
-        subCategoryId,
-        companyDefaultMappingRuleId: row.ruleId,
-        codingSource: row.codingSource,
-        codingPendingApproval: row.codingPendingApproval,
-      });
+      txns.push(
+        withStandardTxnAccountingMetadata({
+          id: asTxnId(row.importId),
+          externalId: row.externalId,
+          companyId,
+          projectId,
+          date: row.parsedDate ?? '',
+          item: row.item ?? '',
+          description: row.description ?? '',
+          amountCents: row.amountCents ?? 0,
+          categoryId,
+          subCategoryId,
+          companyDefaultMappingRuleId: row.ruleId,
+          codingSource: row.codingSource,
+          codingPendingApproval: row.codingPendingApproval,
+        })
+      );
     }
 
     validateImportedRows(txns);

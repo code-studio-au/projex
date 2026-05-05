@@ -4,6 +4,8 @@ import { AppError } from '../../api/errors';
 import type {
   TxnCreateInput,
   TxnImportTxnInput,
+  TxnSplitInput,
+  TxnSplitResult,
   TxnUpdateInput,
 } from '../../api/types';
 import { uid } from '../../utils/id';
@@ -12,10 +14,13 @@ import { validateOrThrow } from '../../validation/validate';
 import { isAuthorized, requireAuthorized } from '../auth/authorize';
 import { planImportPreview } from '../../utils/importPreviewPlan';
 import { planTransactionImportCommit } from '../../utils/transactionImportCommitPlan';
+import { planTransactionSplit } from '../../utils/transactionSplitPlan';
 import {
+  assertTxnCodingAllowed,
   assertUniqueTransactionKeysInProject,
   normalizeExternalId,
   normalizeTxnPatch,
+  withStandardTxnAccountingMetadata,
 } from '../../utils/transactions';
 import {
   assertContextProvided,
@@ -39,6 +44,8 @@ async function assertTransactionResourceOwnership(
   context: ProjectActionContext,
   txn: Txn
 ): Promise<void> {
+  assertTxnCodingAllowed(txn);
+
   if (txn.subCategoryId && !txn.categoryId) {
     throw new AppError(
       'VALIDATION_ERROR',
@@ -95,6 +102,12 @@ export async function listTransactionsServer(args: {
         'item',
         'description',
         'amount_cents',
+        'txn_type',
+        'parent_public_id',
+        'source_public_id',
+        'transfer_project_id',
+        'budget_impact',
+        'categorisable',
         'category_id',
         'sub_category_id',
         'company_default_mapping_rule_id',
@@ -140,13 +153,13 @@ export async function createTxnServer(args: {
 
     validateOrThrow(txnInputSchema, args.input);
 
-    const next: Txn = {
+    const next: Txn = withStandardTxnAccountingMetadata({
       ...args.input,
       id: args.input.id ?? asTxnId(uid('txn')),
       externalId: normalizeExternalId(args.input.externalId),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
+    });
     await assertTransactionResourceOwnership(context, next);
 
     const existingRows = await db
@@ -171,6 +184,12 @@ export async function createTxnServer(args: {
         item: next.item,
         description: next.description,
         amount_cents: next.amountCents,
+        txn_type: next.txnType,
+        parent_public_id: next.parentTxnId ?? null,
+        source_public_id: next.sourceTxnId ?? null,
+        transfer_project_id: next.transferProjectId ?? null,
+        budget_impact: next.budgetImpact,
+        categorisable: next.categorisable,
         category_id: next.categoryId ?? null,
         sub_category_id: next.subCategoryId ?? null,
         company_default_mapping_rule_id:
@@ -190,6 +209,12 @@ export async function createTxnServer(args: {
         'item',
         'description',
         'amount_cents',
+        'txn_type',
+        'parent_public_id',
+        'source_public_id',
+        'transfer_project_id',
+        'budget_impact',
+        'categorisable',
         'category_id',
         'sub_category_id',
         'company_default_mapping_rule_id',
@@ -230,6 +255,12 @@ export async function updateTxnServer(args: {
         'item',
         'description',
         'amount_cents',
+        'txn_type',
+        'parent_public_id',
+        'source_public_id',
+        'transfer_project_id',
+        'budget_impact',
+        'categorisable',
         'category_id',
         'sub_category_id',
         'company_default_mapping_rule_id',
@@ -326,6 +357,12 @@ export async function updateTxnServer(args: {
         'item',
         'description',
         'amount_cents',
+        'txn_type',
+        'parent_public_id',
+        'source_public_id',
+        'transfer_project_id',
+        'budget_impact',
+        'categorisable',
         'category_id',
         'sub_category_id',
         'company_default_mapping_rule_id',
@@ -357,6 +394,192 @@ export async function deleteTxnServer(args: {
       .where('project_id', '=', args.projectId)
       .where('public_id', '=', args.txnId)
       .execute();
+  });
+}
+
+export async function splitTxnServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: TxnSplitInput;
+}): Promise<TxnSplitResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const context = await requireProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+    const { db } = context;
+
+    const existing = await db
+      .selectFrom('txns')
+      .select([
+        'id',
+        'public_id',
+        'external_id',
+        'company_id',
+        'project_id',
+        'txn_date',
+        'item',
+        'description',
+        'amount_cents',
+        'txn_type',
+        'parent_public_id',
+        'source_public_id',
+        'transfer_project_id',
+        'budget_impact',
+        'categorisable',
+        'category_id',
+        'sub_category_id',
+        'company_default_mapping_rule_id',
+        'coding_source',
+        'coding_pending_approval',
+        'created_at',
+        'updated_at',
+      ])
+      .where('project_id', '=', args.projectId)
+      .where('public_id', '=', args.input.txnId)
+      .executeTakeFirst();
+    if (!existing) throw new AppError('NOT_FOUND', 'Unknown transaction');
+
+    const now = new Date().toISOString();
+    const split = planTransactionSplit({
+      parent: toTxn(existing),
+      children: args.input.children,
+      now,
+      createTxnId: () => asTxnId(uid('txn')),
+    });
+
+    for (const child of split.children) {
+      validateOrThrow(txnInputSchema, child);
+      await assertTransactionResourceOwnership(context, child);
+    }
+
+    const existingRows = await db
+      .selectFrom('txns')
+      .select(['public_id', 'external_id'])
+      .where('project_id', '=', args.projectId)
+      .execute();
+    assertUniqueTransactionKeysInProject([
+      ...existingRows.map((row) => ({
+        id: asTxnId(row.public_id),
+        externalId: normalizeExternalId(row.external_id),
+      })),
+      ...split.children,
+    ]);
+
+    const result = await db.transaction().execute(async (trx) => {
+      const parent = await trx
+        .updateTable('txns')
+        .set({
+          txn_type: split.parent.txnType,
+          parent_public_id: split.parent.parentTxnId ?? null,
+          source_public_id: split.parent.sourceTxnId ?? null,
+          transfer_project_id: split.parent.transferProjectId ?? null,
+          budget_impact: split.parent.budgetImpact,
+          categorisable: split.parent.categorisable,
+          category_id: null,
+          sub_category_id: null,
+          company_default_mapping_rule_id: null,
+          coding_source: null,
+          coding_pending_approval: false,
+          updated_at: now,
+        })
+        .where('project_id', '=', args.projectId)
+        .where('public_id', '=', args.input.txnId)
+        .where('txn_type', 'in', ['standard', 'transfer_child'])
+        .where('budget_impact', '=', true)
+        .where('categorisable', '=', true)
+        .returning([
+          'id',
+          'public_id',
+          'external_id',
+          'company_id',
+          'project_id',
+          'txn_date',
+          'item',
+          'description',
+          'amount_cents',
+          'txn_type',
+          'parent_public_id',
+          'source_public_id',
+          'transfer_project_id',
+          'budget_impact',
+          'categorisable',
+          'category_id',
+          'sub_category_id',
+          'company_default_mapping_rule_id',
+          'coding_source',
+          'coding_pending_approval',
+          'created_at',
+          'updated_at',
+        ])
+        .executeTakeFirst();
+
+      if (!parent) {
+        throw new AppError(
+          'CONFLICT',
+          'Transaction was already split or changed'
+        );
+      }
+
+      const children = await trx
+        .insertInto('txns')
+        .values(
+          split.children.map((child) => ({
+            public_id: child.id,
+            external_id: null,
+            company_id: child.companyId,
+            project_id: child.projectId,
+            txn_date: child.date,
+            item: child.item,
+            description: child.description,
+            amount_cents: child.amountCents,
+            txn_type: child.txnType,
+            parent_public_id: child.parentTxnId ?? null,
+            source_public_id: child.sourceTxnId ?? null,
+            transfer_project_id: child.transferProjectId ?? null,
+            budget_impact: child.budgetImpact,
+            categorisable: child.categorisable,
+            category_id: child.categoryId ?? null,
+            sub_category_id: child.subCategoryId ?? null,
+            company_default_mapping_rule_id: null,
+            coding_source: child.codingSource ?? null,
+            coding_pending_approval: false,
+            created_at: now,
+            updated_at: now,
+          }))
+        )
+        .returning([
+          'id',
+          'public_id',
+          'external_id',
+          'company_id',
+          'project_id',
+          'txn_date',
+          'item',
+          'description',
+          'amount_cents',
+          'txn_type',
+          'parent_public_id',
+          'source_public_id',
+          'transfer_project_id',
+          'budget_impact',
+          'categorisable',
+          'category_id',
+          'sub_category_id',
+          'company_default_mapping_rule_id',
+          'coding_source',
+          'coding_pending_approval',
+          'created_at',
+          'updated_at',
+        ])
+        .execute();
+
+      return { parent: toTxn(parent), children: children.map(toTxn) };
+    });
+
+    return result;
   });
 }
 
@@ -441,6 +664,12 @@ export async function importTransactionsServer(args: {
               item: t.item,
               description: t.description,
               amount_cents: t.amountCents,
+              txn_type: 'standard',
+              parent_public_id: null,
+              source_public_id: null,
+              transfer_project_id: null,
+              budget_impact: true,
+              categorisable: true,
               category_id: t.categoryId ?? null,
               sub_category_id: t.subCategoryId ?? null,
               company_default_mapping_rule_id:
@@ -487,6 +716,12 @@ export async function importTransactionsServer(args: {
             item: t.item,
             description: t.description,
             amount_cents: t.amountCents,
+            txn_type: 'standard',
+            parent_public_id: null,
+            source_public_id: null,
+            transfer_project_id: null,
+            budget_impact: true,
+            categorisable: true,
             category_id: t.categoryId ?? null,
             sub_category_id: t.subCategoryId ?? null,
             company_default_mapping_rule_id:

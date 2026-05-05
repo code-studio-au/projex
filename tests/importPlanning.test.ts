@@ -24,6 +24,12 @@ import {
 } from '../src/types/index.ts';
 import { planImportPreview } from '../src/utils/importPreviewPlan.ts';
 import { planTransactionImportCommit } from '../src/utils/transactionImportCommitPlan.ts';
+import { planTransactionSplit } from '../src/utils/transactionSplitPlan.ts';
+import {
+  assertTxnCodingAllowed,
+  withStandardTxnAccountingMetadata,
+} from '../src/utils/transactions.ts';
+import { buildCompanySummaryProjects } from '../src/utils/companySummary.ts';
 
 const companyId = asCompanyId('co_1');
 const projectId = asProjectId('prj_1');
@@ -68,7 +74,7 @@ const mappingRule: CompanyDefaultMappingRule = {
 };
 
 function txn(overrides: Partial<Txn> = {}): Txn {
-  return {
+  return withStandardTxnAccountingMetadata({
     id: asTxnId('txn_1'),
     externalId: 'bank-1',
     companyId,
@@ -78,7 +84,7 @@ function txn(overrides: Partial<Txn> = {}): Txn {
     description: 'Sydney to Melbourne',
     amountCents: 12500,
     ...overrides,
-  };
+  });
 }
 
 function planImport(
@@ -218,5 +224,113 @@ test('import preview marks existing duplicates and invalid rows', () => {
   assert.match(
     result.rows[1].warnings.join('\n'),
     /Transaction date must be YYYY-MM-DD/
+  );
+});
+
+test('company summary excludes non-budget-impact transaction markers', () => {
+  const projects = [
+    {
+      id: projectId,
+      name: 'Project One',
+      status: 'active' as const,
+      visibility: 'company' as const,
+      currency: 'AUD' as const,
+      budgetTotalCents: 50000,
+    },
+  ];
+
+  const result = buildCompanySummaryProjects({
+    projects,
+    validSubCategoryIdsByProject: new Map([
+      [projectId, new Set<string>([subCategory.id])],
+    ]),
+    transactions: [
+      {
+        projectId,
+        date: '2026-04-28',
+        amountCents: 12500,
+        budgetImpact: true,
+        subCategoryId: subCategory.id,
+      },
+      {
+        projectId,
+        date: '2026-04-28',
+        amountCents: 12500,
+        budgetImpact: false,
+        subCategoryId: null,
+      },
+    ],
+  });
+
+  assert.equal(result[0].months.length, 1);
+  assert.equal(result[0].months[0].actualCodedCents, 12500);
+  assert.equal(result[0].months[0].uncodedCount, 0);
+  assert.equal(result[0].months[0].uncodedAmountCents, 0);
+});
+
+test('transaction coding guard rejects source markers with coding metadata', () => {
+  assertAppError(
+    () =>
+      assertTxnCodingAllowed(
+        txn({
+          txnType: 'split_parent',
+          budgetImpact: false,
+          categorisable: false,
+          categoryId: category.id,
+        })
+      ),
+    'VALIDATION_ERROR',
+    'Transaction cannot be coded because it is a source marker'
+  );
+});
+
+test('transaction split plan creates a non-budget parent and budget-impact children', () => {
+  const result = planTransactionSplit({
+    parent: txn(),
+    now: '2026-05-05T00:00:00.000Z',
+    createTxnId: () => asTxnId('txn_generated_child'),
+    children: [
+      {
+        id: asTxnId('txn_child_1'),
+        amountCents: 5000,
+        categoryId: category.id,
+        subCategoryId: subCategory.id,
+      },
+      {
+        id: asTxnId('txn_child_2'),
+        item: 'Hotel',
+        description: 'Conference hotel',
+        amountCents: 7500,
+      },
+    ],
+  });
+
+  assert.equal(result.parent.txnType, 'split_parent');
+  assert.equal(result.parent.budgetImpact, false);
+  assert.equal(result.parent.categorisable, false);
+  assert.equal(result.parent.categoryId, undefined);
+  assert.equal(result.parent.subCategoryId, undefined);
+
+  assert.equal(result.children.length, 2);
+  assert.equal(result.children[0].txnType, 'split_child');
+  assert.equal(result.children[0].parentTxnId, result.parent.id);
+  assert.equal(result.children[0].budgetImpact, true);
+  assert.equal(result.children[0].categorisable, true);
+  assert.equal(result.children[0].codingSource, 'manual');
+  assert.equal(result.children[1].item, 'Hotel');
+  assert.equal(result.children[1].codingSource, undefined);
+});
+
+test('transaction split plan rejects remainder amounts', () => {
+  assertAppError(
+    () =>
+      planTransactionSplit({
+        parent: txn(),
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_generated_child'),
+        children: [{ amountCents: 5000 }, { amountCents: 7000 }],
+      }),
+    'VALIDATION_ERROR',
+    'Split child amounts must exactly equal the parent transaction amount'
   );
 });

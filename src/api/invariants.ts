@@ -14,6 +14,8 @@ export const INVARIANTS: readonly string[] = [
   // Money
   'All money fields are stored in cents (minor units) as integers.',
   'Txn.amountCents is always positive for expenses; refunds/credits should be modeled explicitly if needed.',
+  'Only transactions with Txn.budgetImpact=true contribute to budget actuals and uncoded spend exposure.',
+  'Transactions with Txn.categorisable=false cannot carry category, subcategory, mapping rule, or pending-coding metadata.',
 
   // Dates & time
   'Txn.date is YYYY-MM-DD and maps to Postgres DATE.',

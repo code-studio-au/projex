@@ -43,6 +43,8 @@ import type {
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
   TxnCreateInput,
+  TxnSplitInput,
+  TxnSplitResult,
   TxnUpdateInput,
 } from '../types';
 import {
@@ -80,6 +82,7 @@ import {
   subCategoryResponseSchema,
   txnResponseSchema,
   txnImportPreviewResultResponseSchema,
+  txnSplitResponseSchema,
   txnsResponseSchema,
   userResponseSchema,
   usersResponseSchema,
@@ -676,6 +679,19 @@ export class ServerApi implements ProjexApi {
       `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(txnId)}`,
       { method: 'DELETE' },
       okResponseSchema
+    );
+  }
+  async splitTxn(
+    projectId: ProjectId,
+    input: TxnSplitInput
+  ): Promise<TxnSplitResult> {
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(input.txnId)}/split`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ split: input }),
+      },
+      txnSplitResponseSchema
     );
   }
   async importTransactions(

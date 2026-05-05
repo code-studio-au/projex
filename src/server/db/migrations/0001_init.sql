@@ -151,11 +151,27 @@ create table if not exists txns (
   item text not null,
   description text not null,
   amount_cents bigint not null check (amount_cents >= 0),
+  txn_type text not null default 'standard' constraint txns_txn_type_check check (txn_type in ('standard', 'split_parent', 'split_child', 'transfer_source', 'transfer_child')),
+  parent_public_id text null,
+  source_public_id text null,
+  transfer_project_id text null references projects(id) on delete set null,
+  budget_impact boolean not null default true,
+  categorisable boolean not null default true,
   category_id text null references categories(id) on delete set null,
   sub_category_id text null references sub_categories(id) on delete set null,
   company_default_mapping_rule_id text null references company_default_mapping_rules(id) on delete set null,
   coding_source text null check (coding_source in ('manual', 'company_default_rule')),
   coding_pending_approval boolean not null default false,
+  constraint txns_uncategorisable_has_no_coding_check check (
+    categorisable
+    or (
+      category_id is null
+      and sub_category_id is null
+      and company_default_mapping_rule_id is null
+      and coding_source is null
+      and coding_pending_approval = false
+    )
+  ),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -168,3 +184,15 @@ create unique index if not exists uq_txns_project_public_id
 create unique index if not exists uq_txns_project_external_id
   on txns(project_id, external_id)
   where external_id is not null and length(trim(external_id)) > 0;
+
+create index if not exists idx_txns_project_parent_public_id
+  on txns(project_id, parent_public_id)
+  where parent_public_id is not null;
+
+create index if not exists idx_txns_project_source_public_id
+  on txns(project_id, source_public_id)
+  where source_public_id is not null;
+
+create index if not exists idx_txns_transfer_project_id
+  on txns(transfer_project_id)
+  where transfer_project_id is not null;

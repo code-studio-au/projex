@@ -378,7 +378,13 @@ export async function getCompanySummaryServer(args: {
 
     const txnRows = await db
       .selectFrom('txns')
-      .select(['project_id', 'txn_date', 'amount_cents', 'sub_category_id'])
+      .select([
+        'project_id',
+        'txn_date',
+        'amount_cents',
+        'budget_impact',
+        'sub_category_id',
+      ])
       .where('project_id', 'in', projectIds)
       .execute();
 
@@ -397,6 +403,7 @@ export async function getCompanySummaryServer(args: {
           projectId: asProjectId(row.project_id),
           date: row.txn_date,
           amountCents: Number(row.amount_cents ?? 0),
+          budgetImpact: row.budget_impact,
           subCategoryId: row.sub_category_id,
         })),
         validSubCategoryIdsByProject: validSubIdsByProject,
