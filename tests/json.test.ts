@@ -6,6 +6,8 @@ import {
   parseJsonOrNull,
   parseJsonOrText,
   parseJsonWithSchema,
+  readJsonResponseOrNull,
+  readJsonResponseWithSchema,
   safeParseJson,
 } from '../src/utils/json.ts';
 
@@ -43,4 +45,22 @@ test('parseJsonWithSchema validates parsed JSON against a schema', () => {
   });
   assert.equal(parseJsonWithSchema('{"count":-1}', schema).success, false);
   assert.equal(parseJsonWithSchema('{bad json', schema).success, false);
+});
+
+test('response JSON helpers parse responses without throwing on invalid JSON', async () => {
+  assert.deepEqual(await readJsonResponseOrNull(new Response('{"ok":true}')), {
+    ok: true,
+  });
+  assert.equal(await readJsonResponseOrNull(new Response('not json')), null);
+
+  const schema = z.object({ ok: z.literal(true) });
+  assert.deepEqual(
+    await readJsonResponseWithSchema(new Response('{"ok":true}'), schema),
+    { success: true, data: { ok: true } }
+  );
+  assert.equal(
+    (await readJsonResponseWithSchema(new Response('{"ok":false}'), schema))
+      .success,
+    false
+  );
 });

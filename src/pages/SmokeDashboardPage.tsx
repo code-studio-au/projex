@@ -34,7 +34,7 @@ import type {
   SmokeStepTemplate,
 } from '../types';
 import { smokeSectionDefinitions } from '../types';
-import { parseJsonWithSchema } from '../utils/json';
+import { parseJsonWithSchema, readJsonResponseOrNull } from '../utils/json';
 import { z } from 'zod';
 
 type SmokeStepView = SmokeStepTemplate & {
@@ -427,7 +427,7 @@ export default function SmokeDashboardPage() {
       });
 
       if (!res.ok) {
-        const body: unknown = await res.json().catch(() => null);
+        const body = await readJsonResponseOrNull(res);
         throw new Error(apiErrorMessage(body, 'Smoke run failed.'));
       }
 

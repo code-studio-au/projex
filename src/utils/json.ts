@@ -47,3 +47,16 @@ export function parseJsonWithSchema<T>(
 
   return { success: true, data: schemaResult.data };
 }
+
+export async function readJsonResponseOrNull(
+  response: Response
+): Promise<unknown> {
+  return parseJsonOrNull(await response.text());
+}
+
+export async function readJsonResponseWithSchema<T>(
+  response: Response,
+  schema: z.ZodType<T>
+): Promise<JsonParseResult<T>> {
+  return parseJsonWithSchema(await response.text(), schema);
+}

@@ -23,6 +23,7 @@ import {
   useResendEmailChangeMutation,
   useUpdateCurrentUserProfileMutation,
 } from '../queries/account';
+import { readJsonResponseOrNull } from '../utils/json';
 
 type EmailActivity = {
   kind: 'requested' | 'resent' | 'cancelled';
@@ -201,7 +202,7 @@ export default function AccountPage() {
         }),
       });
 
-      const body: unknown = await res.json().catch(() => null);
+      const body = await readJsonResponseOrNull(res);
       if (!res.ok) {
         throw new Error(apiErrorMessage(body, 'Could not change password.'));
       }

@@ -2,6 +2,7 @@ import type { ServerSession } from './session';
 import { toServerSession } from './session';
 import { readDevUserIdFromRequest } from '../dev/devSession';
 import { betterAuthLikePayloadSchema } from '../../validation/responseSchemas';
+import { readJsonResponseWithSchema } from '../../utils/json';
 
 type BetterAuthLikePayload = ReturnType<
   typeof betterAuthLikePayloadSchema.parse
@@ -79,9 +80,12 @@ async function resolveFromBetterAuthEndpoint(
 
   const res = await fetch(url, { method: 'GET', headers });
   if (!res.ok) return null;
-  const payload: BetterAuthLikePayload = betterAuthLikePayloadSchema.parse(
-    await res.json()
+  const parsed = await readJsonResponseWithSchema(
+    res,
+    betterAuthLikePayloadSchema
   );
+  if (!parsed.success) return null;
+  const payload = parsed.data;
   return toServerSession(payload);
 }
 
@@ -105,9 +109,12 @@ async function resolveFromLocalBetterAuthEndpoint(
     const url = new URL('/api/auth/get-session', base).toString();
     const res = await fetch(url, { method: 'GET', headers });
     if (!res.ok) continue;
-    const payload: BetterAuthLikePayload = betterAuthLikePayloadSchema.parse(
-      await res.json()
+    const parsed = await readJsonResponseWithSchema(
+      res,
+      betterAuthLikePayloadSchema
     );
+    if (!parsed.success) continue;
+    const payload = parsed.data;
     const session = toServerSession(payload);
     if (session) return session;
   }

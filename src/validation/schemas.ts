@@ -28,7 +28,7 @@ const nonEmptyTrimmed = (label: string, max?: number) =>
     }
   });
 
-const nonNegativeInt = (label: string) =>
+export const nonNegativeInt = (label: string) =>
   z.number().superRefine((value, ctx) => {
     if (!Number.isSafeInteger(value) || value < 0) {
       ctx.addIssue({
@@ -45,11 +45,20 @@ const isoDateOnly = (label: string) =>
     }
   });
 
+export const budgetAllocatedCentsSchema = nonNegativeInt(
+  'Budget allocated amount'
+);
+export const projectBudgetTotalCentsSchema = nonNegativeInt(
+  'Project budget total'
+);
+export const transactionAmountCentsSchema =
+  nonNegativeInt('Transaction amount');
+
 export const txnInputSchema = z.object({
   date: isoDateOnly('Transaction date must be YYYY-MM-DD'),
   item: nonEmptyTrimmed('Transaction item', 160),
   description: nonEmptyTrimmed('Transaction description', 500),
-  amountCents: nonNegativeInt('Transaction amount'),
+  amountCents: transactionAmountCentsSchema,
 });
 
 export const categoryNameSchema = nonEmptyTrimmed('Category name', 120);
@@ -57,13 +66,6 @@ export const subCategoryNameSchema = nonEmptyTrimmed('Subcategory name', 120);
 export const projectNameSchema = nonEmptyTrimmed('Project name', 120);
 export const companyNameSchema = nonEmptyTrimmed('Company name', 120);
 export const userNameSchema = nonEmptyTrimmed('User name', 120);
-
-export const budgetAllocatedCentsSchema = nonNegativeInt(
-  'Budget allocated amount'
-);
-export const projectBudgetTotalCentsSchema = nonNegativeInt(
-  'Project budget total'
-);
 
 export const emailSchema = z.string().superRefine((value, ctx) => {
   const email = value.trim();

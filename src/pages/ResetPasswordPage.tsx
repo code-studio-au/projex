@@ -16,6 +16,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { apiErrorMessage } from '../api/errorResponses';
 import { accountRoute, loginRoute } from '../router';
 import { useSessionQuery } from '../queries/session';
+import { readJsonResponseOrNull } from '../utils/json';
 
 function useResetSearch() {
   return useMemo(() => {
@@ -66,7 +67,7 @@ export default function ResetPasswordPage() {
           newPassword: password,
         }),
       });
-      const body: unknown = await res.json().catch(() => null);
+      const body = await readJsonResponseOrNull(res);
       if (!res.ok) {
         setError(apiErrorMessage(body, 'Could not set your password.'));
         return;

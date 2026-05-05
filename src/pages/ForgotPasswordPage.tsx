@@ -15,6 +15,7 @@ import { useMediaQuery } from '@mantine/hooks';
 
 import { apiErrorMessage } from '../api/errorResponses';
 import { loginRoute } from '../router';
+import { readJsonResponseOrNull } from '../utils/json';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function ForgotPasswordPage() {
           redirectTo: `${window.location.origin}/reset-password`,
         }),
       });
-      const body: unknown = await res.json().catch(() => null);
+      const body = await readJsonResponseOrNull(res);
       if (!res.ok) {
         setError(apiErrorMessage(body, 'Could not request a password reset.'));
         return;

@@ -11,6 +11,11 @@ import {
   asTxnId,
   asUserId,
 } from '../types/index.ts';
+import {
+  budgetAllocatedCentsSchema,
+  projectBudgetTotalCentsSchema,
+  transactionAmountCentsSchema,
+} from './schemas.ts';
 
 export const apiMessageResponseSchema = z.object({
   message: z.string().optional(),
@@ -77,9 +82,9 @@ export const companiesResponseSchema = z.array(companyResponseSchema);
 
 export const companySummaryMonthResponseSchema = z.object({
   monthKey: z.string(),
-  actualCodedCents: z.number(),
+  actualCodedCents: transactionAmountCentsSchema,
   uncodedCount: z.number().int().nonnegative(),
-  uncodedAmountCents: z.number(),
+  uncodedAmountCents: transactionAmountCentsSchema,
 });
 
 export const companySummaryProjectResponseSchema = z.object({
@@ -88,7 +93,7 @@ export const companySummaryProjectResponseSchema = z.object({
   status: z.enum(['active', 'archived']),
   visibility: z.enum(['company', 'private']),
   currency: z.enum(['AUD', 'USD', 'EUR', 'GBP']),
-  budgetCents: z.number(),
+  budgetCents: projectBudgetTotalCentsSchema,
   months: z.array(companySummaryMonthResponseSchema),
 });
 
@@ -100,7 +105,7 @@ export const projectResponseSchema = z.object({
   id: projectIdSchema,
   companyId: companyIdSchema,
   name: z.string(),
-  budgetTotalCents: z.number(),
+  budgetTotalCents: projectBudgetTotalCentsSchema,
   currency: z.enum(['AUD', 'USD', 'EUR', 'GBP']),
   status: z.enum(['active', 'archived']),
   deactivatedAt: optionalIsoTimestampSchema,
@@ -215,7 +220,7 @@ export const budgetLineResponseSchema = z.object({
   projectId: projectIdSchema,
   categoryId: categoryIdSchema.optional(),
   subCategoryId: subCategoryIdSchema.optional(),
-  allocatedCents: z.number(),
+  allocatedCents: budgetAllocatedCentsSchema,
   createdAt: optionalIsoTimestampSchema,
   updatedAt: optionalIsoTimestampSchema,
 });
@@ -231,7 +236,7 @@ export const txnResponseSchema = z.object({
   date: z.string(),
   item: z.string(),
   description: z.string(),
-  amountCents: z.number(),
+  amountCents: transactionAmountCentsSchema,
   categoryId: categoryIdSchema.optional(),
   subCategoryId: subCategoryIdSchema.optional(),
   companyDefaultMappingRuleId: mappingRuleIdSchema.optional(),

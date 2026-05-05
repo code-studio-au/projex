@@ -11,6 +11,7 @@ import {
 import { z } from 'zod';
 
 import { apiErrorMessage } from '../api/errorResponses';
+import { readJsonResponseOrNull } from '../utils/json';
 import { emailChangeConfirmResponseSchema } from '../validation/responseSchemas';
 
 type ConfirmState =
@@ -45,7 +46,7 @@ export default function VerifyEmailChangePage() {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ token }),
         });
-        const body: unknown = await res.json().catch(() => null);
+        const body = await readJsonResponseOrNull(res);
         if (!res.ok) {
           throw new Error(
             apiErrorMessage(body, 'Could not confirm your new email.')

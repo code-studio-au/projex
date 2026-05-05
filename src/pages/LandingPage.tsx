@@ -135,7 +135,7 @@ export default function LandingPage() {
   const confirmDescription = useMemo(() => {
     if (!confirmTarget) return '';
     if (confirmTarget.kind === 'deactivate_company') {
-      return 'This will deactivate the company and archive all of its projects. Company users will be unable to use the company until reactivated (server mode can implement membership-level disable).';
+      return 'This will deactivate the company, archive all of its projects, and disable non-superadmin company users until the company is reactivated.';
     }
     if (confirmTarget.kind === 'reactivate_company') {
       return 'This will reactivate the company and reactivate all of its projects. Company users will be re-enabled for this company.';

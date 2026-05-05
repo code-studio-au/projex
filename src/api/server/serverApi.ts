@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { z } from 'zod';
 import type { ProjexApi } from '../types';
 import { AppError, type AppErrorCode } from '../errors';
@@ -707,7 +706,7 @@ export class ServerApi implements ProjexApi {
   }
 
   // helpers
-  async getDefaultCompanyIdForUser(_userId: UserId): Promise<CompanyId | null> {
+  async getDefaultCompanyIdForUser(): Promise<CompanyId | null> {
     const res = await this.request(
       '/api/me/default-company',
       undefined,
