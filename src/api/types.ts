@@ -16,6 +16,8 @@ import type {
   ProjectRole,
   SubCategory,
   Txn,
+  TxnComment,
+  TxnCommentId,
   TxnId,
   User,
   UserId,
@@ -95,6 +97,20 @@ export type TxnTransferInput = {
 export type TxnTransferResult = {
   source: Txn;
   destination: Txn;
+};
+
+export type TxnCommentCreateInput = {
+  txnId: TxnId;
+  body: string;
+  parentCommentId?: TxnCommentId;
+  assignedToUserId?: UserId | null;
+};
+
+export type TxnCommentUpdateInput = {
+  id: TxnCommentId;
+  body?: string;
+  assignedToUserId?: UserId | null;
+  resolved?: boolean;
 };
 
 // Inputs (command-style)
@@ -441,6 +457,24 @@ export interface ProjexApi {
     projectId: ProjectId,
     input: TxnTransferInput
   ): Promise<TxnTransferResult>;
+  listTransactionComments(
+    projectId: ProjectId,
+    txnId: TxnId
+  ): Promise<TxnComment[]>;
+  createTransactionComment(
+    projectId: ProjectId,
+    input: TxnCommentCreateInput
+  ): Promise<TxnComment>;
+  updateTransactionComment(
+    projectId: ProjectId,
+    txnId: TxnId,
+    input: TxnCommentUpdateInput
+  ): Promise<TxnComment>;
+  deleteTransactionComment(
+    projectId: ProjectId,
+    txnId: TxnId,
+    commentId: TxnCommentId
+  ): Promise<void>;
 
   /**
    * Batch import.

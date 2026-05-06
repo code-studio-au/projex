@@ -84,6 +84,21 @@ export interface TxnTable {
   updated_at: Generated<string>; // TIMESTAMPTZ (ISO)
 }
 
+export interface TxnCommentTable {
+  id: string;
+  company_id: string;
+  project_id: string;
+  txn_public_id: string;
+  parent_comment_id: string | null;
+  body: string;
+  assigned_to_user_id: string | null;
+  created_by_user_id: string;
+  resolved_at: string | null;
+  resolved_by_user_id: string | null;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
 export interface BudgetLineTable {
   id: string;
   company_id: string;
@@ -150,6 +165,7 @@ export interface DB {
   company_memberships: CompanyMembershipTable;
   project_memberships: ProjectMembershipTable;
   txns: TxnTable;
+  txn_comments: TxnCommentTable;
   budget_lines: BudgetLineTable;
   categories: CategoryTable;
   sub_categories: SubCategoryTable;

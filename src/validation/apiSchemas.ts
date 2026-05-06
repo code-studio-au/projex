@@ -8,6 +8,7 @@ import {
   asCompanyId,
   asProjectId,
   asSubCategoryId,
+  asTxnCommentId,
   asTxnId,
   asUserId,
 } from '../types/index.ts';
@@ -20,6 +21,7 @@ import {
   projectBudgetTotalCentsSchema,
   projectNameSchema,
   subCategoryNameSchema,
+  txnCommentBodySchema,
   txnInputSchema,
   userNameSchema,
 } from './schemas.ts';
@@ -40,6 +42,7 @@ const companyDefaultMappingRuleIdSchema = idSchema.transform(
   asCompanyDefaultMappingRuleId
 );
 const txnIdSchema = idSchema.transform(asTxnId);
+const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
 const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
 const optionalCategoryIdSchema = categoryIdSchema
   .nullable()
@@ -335,6 +338,28 @@ export const transferTxnInputSchema = z.object({
 
 export const transferTxnMutationBodySchema = z.object({
   transfer: transferTxnInputSchema,
+});
+
+export const createTxnCommentInputSchema = z.object({
+  txnId: txnIdSchema,
+  body: txnCommentBodySchema,
+  parentCommentId: txnCommentIdSchema.optional(),
+  assignedToUserId: userIdSchema.nullable().optional(),
+});
+
+export const updateTxnCommentInputSchema = z.object({
+  id: txnCommentIdSchema,
+  body: txnCommentBodySchema.optional(),
+  assignedToUserId: userIdSchema.nullable().optional(),
+  resolved: z.boolean().optional(),
+});
+
+export const txnCommentMutationBodySchema = z.object({
+  comment: createTxnCommentInputSchema,
+});
+
+export const txnCommentUpdateMutationBodySchema = z.object({
+  comment: updateTxnCommentInputSchema,
 });
 
 const importedTxnInputSchema = createTxnInputSchema.extend({

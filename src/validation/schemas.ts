@@ -61,6 +61,11 @@ export const txnInputSchema = z.object({
   amountCents: transactionAmountCentsSchema,
 });
 
+export const txnCommentBodySchema = nonEmptyTrimmed(
+  'Transaction comment',
+  2000
+);
+
 export const categoryNameSchema = nonEmptyTrimmed('Category name', 120);
 export const subCategoryNameSchema = nonEmptyTrimmed('Subcategory name', 120);
 export const projectNameSchema = nonEmptyTrimmed('Project name', 120);

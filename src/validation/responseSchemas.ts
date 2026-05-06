@@ -8,6 +8,7 @@ import {
   asCompanyDefaultSubCategoryId,
   asProjectId,
   asSubCategoryId,
+  asTxnCommentId,
   asTxnId,
   asUserId,
   TXN_TYPES,
@@ -56,6 +57,7 @@ const companyDefaultSubCategoryIdSchema = idSchema.transform(
 );
 const mappingRuleIdSchema = idSchema.transform(asCompanyDefaultMappingRuleId);
 const txnIdSchema = idSchema.transform(asTxnId);
+const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
 const optionalIsoTimestampSchema = z.string().optional();
 const companyRoleSchema = z.enum([
   'admin',
@@ -279,6 +281,24 @@ export const txnTransferResponseSchema = z.object({
   source: txnResponseSchema,
   destination: txnResponseSchema,
 });
+
+export const txnCommentResponseSchema = z.object({
+  id: txnCommentIdSchema,
+  companyId: companyIdSchema,
+  projectId: projectIdSchema,
+  txnId: txnIdSchema,
+  parentCommentId: txnCommentIdSchema.optional(),
+  body: z.string(),
+  assignedToUserId: userIdSchema.optional(),
+  createdByUserId: userIdSchema,
+  createdByName: z.string(),
+  resolvedAt: optionalIsoTimestampSchema,
+  resolvedByUserId: userIdSchema.optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const txnCommentsResponseSchema = z.array(txnCommentResponseSchema);
 
 export const pendingEmailChangeResponseSchema = z
   .object({

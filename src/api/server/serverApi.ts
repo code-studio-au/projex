@@ -16,6 +16,8 @@ import type {
   ProjectRole,
   SubCategory,
   Txn,
+  TxnComment,
+  TxnCommentId,
   TxnId,
   User,
   UserId,
@@ -43,6 +45,8 @@ import type {
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
   TxnCreateInput,
+  TxnCommentCreateInput,
+  TxnCommentUpdateInput,
   TxnSplitInput,
   TxnSplitResult,
   TxnTransferInput,
@@ -83,6 +87,8 @@ import {
   subCategoriesResponseSchema,
   subCategoryResponseSchema,
   txnResponseSchema,
+  txnCommentResponseSchema,
+  txnCommentsResponseSchema,
   txnImportPreviewResultResponseSchema,
   txnSplitResponseSchema,
   txnTransferResponseSchema,
@@ -708,6 +714,54 @@ export class ServerApi implements ProjexApi {
         body: JSON.stringify({ transfer: input }),
       },
       txnTransferResponseSchema
+    );
+  }
+  async listTransactionComments(
+    projectId: ProjectId,
+    txnId: TxnId
+  ): Promise<TxnComment[]> {
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(txnId)}/comments`,
+      undefined,
+      txnCommentsResponseSchema
+    );
+  }
+  async createTransactionComment(
+    projectId: ProjectId,
+    input: TxnCommentCreateInput
+  ): Promise<TxnComment> {
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(input.txnId)}/comments`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ comment: input }),
+      },
+      txnCommentResponseSchema
+    );
+  }
+  async updateTransactionComment(
+    projectId: ProjectId,
+    txnId: TxnId,
+    input: TxnCommentUpdateInput
+  ): Promise<TxnComment> {
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(txnId)}/comments/${encodeURIComponent(input.id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ comment: input }),
+      },
+      txnCommentResponseSchema
+    );
+  }
+  async deleteTransactionComment(
+    projectId: ProjectId,
+    txnId: TxnId,
+    commentId: TxnCommentId
+  ): Promise<void> {
+    await this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(txnId)}/comments/${encodeURIComponent(commentId)}`,
+      { method: 'DELETE' },
+      okResponseSchema
     );
   }
   async importTransactions(

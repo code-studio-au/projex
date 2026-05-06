@@ -7,6 +7,7 @@ import type {
   CompanyDefaultSubCategoryId,
   ProjectId,
   SubCategoryId,
+  TxnCommentId,
   TxnId,
   UserId,
 } from './ids.ts';
@@ -156,6 +157,22 @@ export type Txn = {
   /** Audit timestamps as ISO strings (UTC). */
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type TxnComment = {
+  id: TxnCommentId;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  txnId: TxnId;
+  parentCommentId?: TxnCommentId;
+  body: string;
+  assignedToUserId?: UserId;
+  createdByUserId: UserId;
+  createdByName: string;
+  resolvedAt?: string;
+  resolvedByUserId?: UserId;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type BudgetLine = {

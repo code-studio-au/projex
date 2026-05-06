@@ -67,7 +67,9 @@ import { Route as ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport } 
 import { Route as AuthedCCompanyIdPProjectIdRouteImport } from './routes/_authed.c.$companyId.p.$projectId'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.transfer'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.split'
+import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments'
 import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
+import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments.$commentId'
 
 const VerifyEmailChangeRoute = VerifyEmailChangeRouteImport.update({
   id: '/verify-email-change',
@@ -389,11 +391,23 @@ const ApiProjectsProjectIdTransactionsTxnIdSplitRoute =
     path: '/split',
     getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
   } as any)
+const ApiProjectsProjectIdTransactionsTxnIdCommentsRoute =
+  ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport.update({
+    id: '/comments',
+    path: '/comments',
+    getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
+  } as any)
 const ApiCompaniesCompanyIdUsersUserIdInviteRoute =
   ApiCompaniesCompanyIdUsersUserIdInviteRouteImport.update({
     id: '/$userId/invite',
     path: '/$userId/invite',
     getParentRoute: () => ApiCompaniesCompanyIdUsersRoute,
+  } as any)
+const ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRoute =
+  ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRouteImport.update({
+    id: '/$commentId',
+    path: '/$commentId',
+    getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdCommentsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -453,8 +467,10 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
+  '/api/projects/$projectId/transactions/$txnId/comments/$commentId': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -512,8 +528,10 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
+  '/api/projects/$projectId/transactions/$txnId/comments/$commentId': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -574,8 +592,10 @@ export interface FileRoutesById {
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
+  '/api/projects/$projectId/transactions/$txnId/comments/$commentId': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -636,8 +656,10 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
+    | '/api/projects/$projectId/transactions/$txnId/comments/$commentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -695,8 +717,10 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
+    | '/api/projects/$projectId/transactions/$txnId/comments/$commentId'
   id:
     | '__root__'
     | '/'
@@ -756,8 +780,10 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
+    | '/api/projects/$projectId/transactions/$txnId/comments/$commentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1190,12 +1216,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
     }
+    '/api/projects/$projectId/transactions/$txnId/comments': {
+      id: '/api/projects/$projectId/transactions/$txnId/comments'
+      path: '/comments'
+      fullPath: '/api/projects/$projectId/transactions/$txnId/comments'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport
+      parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
+    }
     '/api/companies/$companyId/users/$userId/invite': {
       id: '/api/companies/$companyId/users/$userId/invite'
       path: '/$userId/invite'
       fullPath: '/api/companies/$companyId/users/$userId/invite'
       preLoaderRoute: typeof ApiCompaniesCompanyIdUsersUserIdInviteRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdUsersRoute
+    }
+    '/api/projects/$projectId/transactions/$txnId/comments/$commentId': {
+      id: '/api/projects/$projectId/transactions/$txnId/comments/$commentId'
+      path: '/$commentId'
+      fullPath: '/api/projects/$projectId/transactions/$txnId/comments/$commentId'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRouteImport
+      parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRoute
     }
   }
 }
@@ -1397,13 +1437,31 @@ const ApiProjectsProjectIdSubCategoriesRouteWithChildren =
     ApiProjectsProjectIdSubCategoriesRouteChildren,
   )
 
+interface ApiProjectsProjectIdTransactionsTxnIdCommentsRouteChildren {
+  ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRoute
+}
+
+const ApiProjectsProjectIdTransactionsTxnIdCommentsRouteChildren: ApiProjectsProjectIdTransactionsTxnIdCommentsRouteChildren =
+  {
+    ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRoute:
+      ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRoute,
+  }
+
+const ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren =
+  ApiProjectsProjectIdTransactionsTxnIdCommentsRoute._addFileChildren(
+    ApiProjectsProjectIdTransactionsTxnIdCommentsRouteChildren,
+  )
+
 interface ApiProjectsProjectIdTransactionsTxnIdRouteChildren {
+  ApiProjectsProjectIdTransactionsTxnIdCommentsRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   ApiProjectsProjectIdTransactionsTxnIdSplitRoute: typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   ApiProjectsProjectIdTransactionsTxnIdTransferRoute: typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
 }
 
 const ApiProjectsProjectIdTransactionsTxnIdRouteChildren: ApiProjectsProjectIdTransactionsTxnIdRouteChildren =
   {
+    ApiProjectsProjectIdTransactionsTxnIdCommentsRoute:
+      ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren,
     ApiProjectsProjectIdTransactionsTxnIdSplitRoute:
       ApiProjectsProjectIdTransactionsTxnIdSplitRoute,
     ApiProjectsProjectIdTransactionsTxnIdTransferRoute:

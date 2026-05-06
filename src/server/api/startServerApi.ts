@@ -69,6 +69,12 @@ import {
   updateTxnServer,
 } from '../fns/transactions';
 import {
+  createTransactionCommentServer,
+  deleteTransactionCommentServer,
+  listTransactionCommentsServer,
+  updateTransactionCommentServer,
+} from '../fns/transactionComments';
+import {
   applyCompanyDefaultTaxonomyServer,
   getCompanyDefaultsServer,
   createCompanyDefaultCategoryServer,
@@ -463,6 +469,47 @@ export class StartServerApi implements ProjexApi {
       context: this.context,
       projectId,
       input,
+    });
+  }
+  async listTransactionComments(projectId: ProjectId, txnId: TxnId) {
+    return listTransactionCommentsServer({
+      context: this.context,
+      projectId,
+      txnId,
+    });
+  }
+  async createTransactionComment(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['createTransactionComment']>[1]
+  ) {
+    return createTransactionCommentServer({
+      context: this.context,
+      projectId,
+      input,
+    });
+  }
+  async updateTransactionComment(
+    projectId: ProjectId,
+    txnId: TxnId,
+    input: Parameters<ProjexApi['updateTransactionComment']>[2]
+  ) {
+    return updateTransactionCommentServer({
+      context: this.context,
+      projectId,
+      txnId,
+      input,
+    });
+  }
+  async deleteTransactionComment(
+    projectId: ProjectId,
+    txnId: TxnId,
+    commentId: Parameters<ProjexApi['deleteTransactionComment']>[2]
+  ) {
+    return deleteTransactionCommentServer({
+      context: this.context,
+      projectId,
+      txnId,
+      commentId,
     });
   }
   async importTransactions(

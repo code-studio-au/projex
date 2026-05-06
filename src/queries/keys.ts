@@ -34,6 +34,8 @@ export const qk = {
 
   transactions: (userId: string, projectId: string) =>
     ['transactions', userId, projectId] as const,
+  transactionComments: (userId: string, projectId: string, txnId: string) =>
+    ['transactionComments', userId, projectId, txnId] as const,
   budgets: (userId: string, projectId: string) =>
     ['budgets', userId, projectId] as const,
   categories: (userId: string, projectId: string) =>

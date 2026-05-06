@@ -22,6 +22,8 @@ import {
   deleteCompanyMembershipQuerySchema,
   deleteProjectBodySchema,
   deleteProjectMembershipQuerySchema,
+  txnCommentMutationBodySchema,
+  txnCommentUpdateMutationBodySchema,
 } from '../src/validation/apiSchemas.ts';
 import {
   budgetAllocatedCentsSchema,
@@ -131,6 +133,37 @@ test('destructive delete body schemas require confirmation text', () => {
   );
   assert.equal(
     deleteProjectBodySchema.safeParse({ confirmation: '' }).success,
+    false
+  );
+});
+
+test('transaction comment schemas require valid body and ids', () => {
+  assert.equal(
+    txnCommentMutationBodySchema.safeParse({
+      comment: {
+        txnId: 'txn_1',
+        body: 'Please confirm the supplier allocation.',
+        assignedToUserId: 'usr_1',
+      },
+    }).success,
+    true
+  );
+  assert.equal(
+    txnCommentMutationBodySchema.safeParse({
+      comment: { txnId: 'txn_1', body: '   ' },
+    }).success,
+    false
+  );
+  assert.equal(
+    txnCommentUpdateMutationBodySchema.safeParse({
+      comment: { id: 'txn_comment_1', resolved: true },
+    }).success,
+    true
+  );
+  assert.equal(
+    txnCommentUpdateMutationBodySchema.safeParse({
+      comment: { id: 'txn_comment_1', body: '' },
+    }).success,
     false
   );
 });

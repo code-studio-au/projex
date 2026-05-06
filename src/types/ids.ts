@@ -23,6 +23,7 @@ export type CompanyDefaultMappingRuleId = Brand<
   'CompanyDefaultMappingRuleId'
 >;
 export type TxnId = Brand<string, 'TxnId'>;
+export type TxnCommentId = Brand<string, 'TxnCommentId'>;
 export type BudgetLineId = Brand<string, 'BudgetLineId'>;
 
 /** Prefer specific ID types; this exists only for cases where a truly-generic ID is required. */
@@ -36,6 +37,7 @@ export type AnyId =
   | CompanyDefaultSubCategoryId
   | CompanyDefaultMappingRuleId
   | TxnId
+  | TxnCommentId
   | BudgetLineId;
 
 // --- cast helpers (no runtime validation) ---
@@ -51,4 +53,5 @@ export const asCompanyDefaultSubCategoryId = (v: string) =>
 export const asCompanyDefaultMappingRuleId = (v: string) =>
   brand<string, 'CompanyDefaultMappingRuleId'>(v);
 export const asTxnId = (v: string) => brand<string, 'TxnId'>(v);
+export const asTxnCommentId = (v: string) => brand<string, 'TxnCommentId'>(v);
 export const asBudgetLineId = (v: string) => brand<string, 'BudgetLineId'>(v);

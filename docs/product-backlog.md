@@ -32,6 +32,12 @@ Design direction:
 - use company membership as the assignment/search boundary so users cannot tag people outside the company
 - decide notification behaviour separately so the core comment model does not depend on a future notification system
 
+Status:
+
+- foundation implemented: transaction comments are first-class rows with author, timestamps, optional parent/reply linkage, optional assignee, and resolved metadata
+- UI entry point added from the transaction row action menu with add comment, reply, assign, resolve, and reopen flows
+- remaining polish: `@member_name` autocomplete/mention parsing, assigned-to-me surfacing, notification behavior, and richer comment-count indicators in the transaction table
+
 ### 2. Split transactions into fully allocated child line items
 
 Examples:
