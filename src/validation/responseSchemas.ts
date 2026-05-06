@@ -309,6 +309,9 @@ export const txnCommentSummaryResponseSchema = z.object({
   totalCount: z.number().int().nonnegative(),
   unresolvedCount: z.number().int().nonnegative(),
   assignedToMeUnresolvedCount: z.number().int().nonnegative(),
+  latestCommentBody: z.string().optional(),
+  latestCommentCreatedAt: optionalIsoTimestampSchema,
+  latestCommentAuthorName: z.string().optional(),
 });
 
 export const txnCommentSummariesResponseSchema = z.array(

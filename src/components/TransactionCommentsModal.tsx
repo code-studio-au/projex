@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Badge,
+  Box,
   Button,
   Group,
   Modal,
@@ -15,54 +16,37 @@ import { IconCornerDownRight } from '@tabler/icons-react';
 
 import type { Txn, TxnComment, TxnCommentId, UserId } from '../types';
 import { asProjectId, asTxnId, asUserId } from '../types';
+import { useProjectMembershipsQuery } from '../queries/memberships';
 import { useUsersQuery } from '../queries/reference';
 import {
   useCreateTransactionCommentMutation,
   useTransactionCommentsQuery,
   useUpdateTransactionCommentMutation,
 } from '../queries/transactionComments';
+import {
+  buildTxnCommentRepliesByParent,
+  formatTxnCommentDateTime,
+} from '../utils/transactionComments';
 
-function mentionToken(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
+type MentionRange = { start: number; end: number; query: string };
+
+function activeMentionFromSelection(
+  value: string,
+  selectionStart: number
+): MentionRange | null {
+  const beforeCursor = value.slice(0, selectionStart);
+  const match = beforeCursor.match(/(?:^|\s)@([^\s@]*)$/);
+  if (!match) return null;
+
+  return {
+    start: beforeCursor.lastIndexOf('@'),
+    end: selectionStart,
+    query: match[1] ?? '',
+  };
 }
 
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
-}
-
-function findMentionedUser(
-  body: string,
-  users: Array<{ id: UserId; name: string; email: string }>
-) {
-  const mentions = new Set(
-    [...body.matchAll(/@([a-zA-Z0-9._-]+)/g)].map((match) =>
-      mentionToken(match[1] ?? '')
-    )
-  );
-  if (!mentions.size) return null;
-
-  return (
-    users.find((user) => {
-      const nameToken = mentionToken(user.name);
-      const emailToken = mentionToken(user.email.split('@')[0] ?? user.email);
-      return mentions.has(nameToken) || mentions.has(emailToken);
-    }) ?? null
-  );
-}
-
-function buildRepliesByParent(comments: TxnComment[]) {
-  const repliesByParent = new Map<TxnCommentId, TxnComment[]>();
-  for (const comment of comments) {
-    if (!comment.parentCommentId) continue;
-    const current = repliesByParent.get(comment.parentCommentId) ?? [];
-    current.push(comment);
-    repliesByParent.set(comment.parentCommentId, current);
-  }
-  return repliesByParent;
+function userLabel(user: { name: string; email: string }): string {
+  return user.name || user.email;
 }
 
 export default function TransactionCommentsModal(props: {
@@ -71,8 +55,10 @@ export default function TransactionCommentsModal(props: {
   onClose: () => void;
 }) {
   const { opened, txn, onClose } = props;
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [body, setBody] = useState('');
   const [assignedToUserId, setAssignedToUserId] = useState<UserId | null>(null);
+  const [mentionRange, setMentionRange] = useState<MentionRange | null>(null);
   const [replyToCommentId, setReplyToCommentId] = useState<TxnCommentId | null>(
     null
   );
@@ -83,6 +69,9 @@ export default function TransactionCommentsModal(props: {
   const commentsQ = useTransactionCommentsQuery(projectId, txnId, {
     enabled: opened && Boolean(txn),
   });
+  const projectMembershipsQ = useProjectMembershipsQuery(projectId, {
+    enabled: opened && Boolean(txn),
+  });
   const usersQ = useUsersQuery();
   const createComment = useCreateTransactionCommentMutation(projectId);
   const updateComment = useUpdateTransactionCommentMutation(projectId, txnId);
@@ -90,6 +79,7 @@ export default function TransactionCommentsModal(props: {
   function resetDraft() {
     setBody('');
     setAssignedToUserId(null);
+    setMentionRange(null);
     setReplyToCommentId(null);
     setError(null);
   }
@@ -103,43 +93,89 @@ export default function TransactionCommentsModal(props: {
     () => new Map((usersQ.data ?? []).map((user) => [user.id, user])),
     [usersQ.data]
   );
-  const userOptions = useMemo(
+  const projectMemberUserIds = useMemo(
+    () =>
+      new Set(
+        (projectMembershipsQ.data ?? []).map((membership) => membership.userId)
+      ),
+    [projectMembershipsQ.data]
+  );
+  const assignableUsers = useMemo(
     () =>
       (usersQ.data ?? [])
-        .filter((user) => !user.disabled)
-        .map((user) => ({
-          value: user.id,
-          label: user.name || user.email,
-        })),
-    [usersQ.data]
+        .filter((user) => !user.disabled && projectMemberUserIds.has(user.id))
+        .sort((a, b) => userLabel(a).localeCompare(userLabel(b))),
+    [projectMemberUserIds, usersQ.data]
   );
-  const mentionedUser = useMemo(
-    () => findMentionedUser(body, usersQ.data ?? []),
-    [body, usersQ.data]
+  const userOptions = useMemo(
+    () =>
+      assignableUsers.map((user) => ({
+        value: user.id,
+        label: userLabel(user),
+      })),
+    [assignableUsers]
+  );
+  const mentionOptions = useMemo(
+    () =>
+      !mentionRange
+        ? []
+        : assignableUsers
+            .filter((user) => {
+              const query = mentionRange.query.trim().toLowerCase();
+              if (!query) return true;
+              return (
+                user.name.toLowerCase().includes(query) ||
+                user.email.toLowerCase().includes(query)
+              );
+            })
+            .slice(0, 6),
+    [assignableUsers, mentionRange]
   );
   const comments = commentsQ.data ?? [];
   const topLevelComments = comments.filter(
     (comment) => !comment.parentCommentId
   );
-  const repliesByParent = buildRepliesByParent(comments);
+  const repliesByParent = buildTxnCommentRepliesByParent(comments);
   const replyTarget = replyToCommentId
     ? comments.find((comment) => comment.id === replyToCommentId)
     : null;
   const submitting = createComment.isPending;
 
+  function syncMentionState(value: string, selectionStart: number) {
+    setMentionRange(activeMentionFromSelection(value, selectionStart));
+  }
+
+  function selectMentionedUser(user: (typeof assignableUsers)[number]) {
+    const selectionStart = textareaRef.current?.selectionStart ?? body.length;
+    const range =
+      mentionRange ?? activeMentionFromSelection(body, selectionStart);
+    if (!range) return;
+
+    const label = userLabel(user);
+    const nextBody = `${body.slice(0, range.start)}@${label} ${body.slice(range.end)}`;
+    const nextCursor = range.start + label.length + 2;
+    setBody(nextBody);
+    setAssignedToUserId(user.id);
+    setMentionRange(null);
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(nextCursor, nextCursor);
+    });
+  }
+
   async function submit() {
     if (!txn || !body.trim()) return;
     try {
       setError(null);
-      const inferredAssignedToUserId = assignedToUserId ?? mentionedUser?.id;
       await createComment.mutateAsync({
         txnId: txn.id,
         body,
         parentCommentId: replyToCommentId ?? undefined,
-        assignedToUserId: inferredAssignedToUserId ?? null,
+        assignedToUserId: assignedToUserId ?? null,
       });
       setBody('');
       setAssignedToUserId(null);
+      setMentionRange(null);
       setReplyToCommentId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save comment');
@@ -190,7 +226,7 @@ export default function TransactionCommentsModal(props: {
                   {comment.createdByName}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  {formatDateTime(comment.createdAt)}
+                  {formatTxnCommentDateTime(comment.createdAt)}
                 </Text>
                 {comment.resolvedAt ? (
                   <Badge size="xs" color="green" variant="light">
@@ -232,6 +268,8 @@ export default function TransactionCommentsModal(props: {
                   onClick={() => {
                     setReplyToCommentId(comment.id);
                     setBody('');
+                    setAssignedToUserId(null);
+                    setMentionRange(null);
                   }}
                 >
                   Reply
@@ -312,34 +350,98 @@ export default function TransactionCommentsModal(props: {
                   </Button>
                 </Group>
               ) : null}
-              <Textarea
-                label={replyTarget ? 'Reply' : 'New comment'}
-                placeholder="Add a note, decision, or @member follow-up..."
-                minRows={3}
-                value={body}
-                disabled={submitting}
-                onChange={(event) => setBody(event.currentTarget.value)}
-              />
-              {!assignedToUserId && mentionedUser ? (
-                <Text size="xs" c="dimmed">
-                  Mention detected: this will assign the comment to{' '}
-                  {mentionedUser.name || mentionedUser.email}.
-                </Text>
+              <Box pos="relative">
+                <Textarea
+                  ref={textareaRef}
+                  label={replyTarget ? 'Reply' : 'New comment'}
+                  placeholder="Add a note, decision, or type @ to assign someone..."
+                  minRows={3}
+                  value={body}
+                  disabled={submitting}
+                  onChange={(event) => {
+                    const nextBody = event.currentTarget.value;
+                    setBody(nextBody);
+                    syncMentionState(
+                      nextBody,
+                      event.currentTarget.selectionStart
+                    );
+                  }}
+                  onClick={(event) =>
+                    syncMentionState(body, event.currentTarget.selectionStart)
+                  }
+                  onKeyUp={(event) =>
+                    syncMentionState(body, event.currentTarget.selectionStart)
+                  }
+                  description="Type @ to pick a project member and assign the comment."
+                />
+                {mentionRange ? (
+                  <Paper
+                    withBorder
+                    shadow="md"
+                    radius="md"
+                    p={4}
+                    style={{
+                      left: 10,
+                      maxHeight: 220,
+                      overflowY: 'auto',
+                      position: 'absolute',
+                      right: 10,
+                      top: '100%',
+                      zIndex: 20,
+                    }}
+                  >
+                    {mentionOptions.length > 0 ? (
+                      <Stack gap={2}>
+                        {mentionOptions.map((user) => (
+                          <Button
+                            key={user.id}
+                            variant="subtle"
+                            color="gray"
+                            size="xs"
+                            justify="flex-start"
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              selectMentionedUser(user);
+                            }}
+                          >
+                            {userLabel(user)}
+                          </Button>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Text size="xs" c="dimmed" p="xs">
+                        No project members match that name.
+                      </Text>
+                    )}
+                  </Paper>
+                ) : null}
+              </Box>
+              {assignedToUserId ? (
+                <Group gap="xs">
+                  <Badge variant="light" color="orange">
+                    Assigned to{' '}
+                    {userLabel(
+                      usersById.get(assignedToUserId) ?? {
+                        name: '',
+                        email: assignedToUserId,
+                      }
+                    )}
+                  </Badge>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    disabled={submitting}
+                    onClick={() => setAssignedToUserId(null)}
+                  >
+                    Clear assignment
+                  </Button>
+                </Group>
               ) : null}
               <Group justify="space-between" align="flex-end" wrap="wrap">
-                <Select
-                  label="Assign to"
-                  placeholder="Optional"
-                  data={userOptions}
-                  value={assignedToUserId}
-                  clearable
-                  searchable
-                  disabled={submitting}
-                  onChange={(value) =>
-                    setAssignedToUserId(value ? asUserId(value) : null)
-                  }
-                  style={{ width: 220 }}
-                />
+                <Text size="xs" c="dimmed">
+                  Assignment is optional and limited to members of this project.
+                </Text>
                 <Button
                   disabled={!body.trim() || submitting}
                   loading={submitting}

@@ -21,7 +21,6 @@ import {
   withServerBoundary,
 } from './runtime';
 import {
-  requireCompanyMember,
   requireOperationalProjectForAction,
   type ProjectActionContext,
 } from './resourceGuards';
@@ -82,16 +81,26 @@ async function assertParentCommentInThread(
   }
 }
 
-async function assertAssignableCompanyMember(
+async function assertAssignableProjectMember(
   context: ProjectActionContext,
   assignedToUserId: TxnCommentCreateInput['assignedToUserId']
 ): Promise<void> {
   if (!assignedToUserId) return;
-  await requireCompanyMember({
-    db: context.db,
-    companyId: context.companyId,
-    userId: assignedToUserId,
-  });
+  const membership = await context.db
+    .selectFrom('project_memberships')
+    .innerJoin('users', 'users.id', 'project_memberships.user_id')
+    .select('project_memberships.user_id')
+    .where('project_memberships.project_id', '=', context.projectId)
+    .where('project_memberships.user_id', '=', assignedToUserId)
+    .where('users.disabled', '=', false)
+    .executeTakeFirst();
+
+  if (!membership) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Comments can only be assigned to active members of this project'
+    );
+  }
 }
 
 async function loadComment(
@@ -162,8 +171,23 @@ export async function listTransactionCommentSummariesServer(args: {
 
     const rows = await context.db
       .selectFrom('txn_comments')
-      .select(['txn_public_id', 'assigned_to_user_id', 'resolved_at', 'id'])
-      .where('project_id', '=', args.projectId)
+      .innerJoin(
+        'users as created_by',
+        'created_by.id',
+        'txn_comments.created_by_user_id'
+      )
+      .select([
+        'txn_comments.txn_public_id',
+        'txn_comments.assigned_to_user_id',
+        'txn_comments.resolved_at',
+        'txn_comments.id',
+        'txn_comments.body',
+        'txn_comments.created_at',
+        'created_by.name as created_by_name',
+      ])
+      .where('txn_comments.project_id', '=', args.projectId)
+      .orderBy('txn_comments.created_at', 'asc')
+      .orderBy('txn_comments.id', 'asc')
       .execute();
 
     const byTxn = new Map<string, TxnCommentSummary>();
@@ -175,8 +199,14 @@ export async function listTransactionCommentSummariesServer(args: {
           totalCount: 0,
           unresolvedCount: 0,
           assignedToMeUnresolvedCount: 0,
+          latestCommentBody: undefined,
+          latestCommentCreatedAt: undefined,
+          latestCommentAuthorName: undefined,
         } satisfies TxnCommentSummary);
       current.totalCount += 1;
+      current.latestCommentBody = row.body;
+      current.latestCommentCreatedAt = row.created_at;
+      current.latestCommentAuthorName = row.created_by_name;
       if (!row.resolved_at) {
         current.unresolvedCount += 1;
         if (row.assigned_to_user_id === context.userId) {
@@ -205,7 +235,7 @@ export async function createTransactionCommentServer(args: {
 
     validateOrThrow(txnCommentBodySchema, args.input.body);
     await assertTxnInProject(context, args.input.txnId);
-    await assertAssignableCompanyMember(context, args.input.assignedToUserId);
+    await assertAssignableProjectMember(context, args.input.assignedToUserId);
     if (args.input.parentCommentId) {
       await assertParentCommentInThread(
         context,
@@ -283,7 +313,7 @@ export async function updateTransactionCommentServer(args: {
     if (typeof args.input.body !== 'undefined') {
       validateOrThrow(txnCommentBodySchema, args.input.body);
     }
-    await assertAssignableCompanyMember(context, args.input.assignedToUserId);
+    await assertAssignableProjectMember(context, args.input.assignedToUserId);
 
     const now = new Date().toISOString();
     const patch = {

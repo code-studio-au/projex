@@ -29,12 +29,15 @@ export function useAllCompanyMembershipsQuery() {
   });
 }
 
-export function useProjectMembershipsQuery(projectId: ProjectId) {
+export function useProjectMembershipsQuery(
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
   return useQuery({
-    enabled: !!session.data?.userId,
+    enabled: !!session.data?.userId && (options.enabled ?? true),
     queryKey: qk.projectMemberships(scopeUserId, projectId),
     queryFn: () => api.listProjectMemberships(projectId),
   });

@@ -3,6 +3,7 @@ import {
   ActionIcon,
   Badge,
   Button,
+  Collapse,
   Group,
   Menu,
   Paper,
@@ -26,9 +27,13 @@ import {
 } from '@tabler/icons-react';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
-import type { ProjectId, Txn } from '../types';
+import type { ProjectId, Txn, TxnComment } from '../types';
 import { monthKeyFromStart, monthStart, parseISODate } from '../utils/finance';
 import { formatCurrencyFromCents } from '../utils/money';
+import {
+  buildTxnCommentRepliesByParent,
+  formatTxnCommentDateTime,
+} from '../utils/transactionComments';
 import {
   isBudgetImpactTxn,
   isCategorisableTxn,
@@ -38,8 +43,11 @@ import TransactionSplitModal from './TransactionSplitModal';
 import TransactionTransferModal from './TransactionTransferModal';
 import TransactionCommentsModal from './TransactionCommentsModal';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
-import { asCategoryId, asSubCategoryId } from '../types/ids';
-import { useTransactionCommentSummariesQuery } from '../queries/transactionComments';
+import { asCategoryId, asSubCategoryId, asTxnId } from '../types/ids';
+import {
+  useTransactionCommentsQuery,
+  useTransactionCommentSummariesQuery,
+} from '../queries/transactionComments';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 type TransactionView =
@@ -54,6 +62,14 @@ function toQuarterOption(value: string | null): QuarterOption | null {
     return value;
   }
   return null;
+}
+
+function commentExcerpt(value: string | undefined): string {
+  const normalized = (value ?? '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return 'No comment text';
+  return normalized.length > 96
+    ? `${normalized.slice(0, 96).trim()}...`
+    : normalized;
 }
 
 export default function TransactionsPanel(props: {
@@ -103,6 +119,9 @@ export default function TransactionsPanel(props: {
   const [splitTxn, setSplitTxn] = useState<Txn | null>(null);
   const [transferTxn, setTransferTxn] = useState<Txn | null>(null);
   const [commentsTxn, setCommentsTxn] = useState<Txn | null>(null);
+  const [expandedCommentsTxn, setExpandedCommentsTxn] = useState<Txn | null>(
+    null
+  );
   const isMobile = useMediaQuery('(max-width: 48em)');
   const [pagination, setPagination] = useState<MRT_PaginationState>({
     pageIndex: 0,
@@ -112,6 +131,13 @@ export default function TransactionsPanel(props: {
     { id: 'date', desc: true },
   ]);
   const commentSummariesQ = useTransactionCommentSummariesQuery(projectId);
+  const expandedCommentsTxnId =
+    expandedCommentsTxn?.id ?? asTxnId('__no_expanded_txn__');
+  const expandedCommentsQ = useTransactionCommentsQuery(
+    projectId,
+    expandedCommentsTxnId,
+    { enabled: Boolean(expandedCommentsTxn) }
+  );
   const commentSummaryByTxnId = useMemo(
     () =>
       new Map(
@@ -291,6 +317,74 @@ export default function TransactionsPanel(props: {
     args.table.setEditingCell(nextCell ?? null);
   }
 
+  function renderCompactComment(comment: TxnComment, nested = false) {
+    return (
+      <Paper
+        key={comment.id}
+        withBorder
+        radius="sm"
+        p="xs"
+        bg={comment.resolvedAt ? 'gray.0' : undefined}
+        style={{ marginLeft: nested ? 14 : 0 }}
+      >
+        <Stack gap={3}>
+          <Group gap={5} wrap="wrap">
+            <Text fw={600} size="xs">
+              {comment.createdByName}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {formatTxnCommentDateTime(comment.createdAt)}
+            </Text>
+            {comment.resolvedAt ? (
+              <Badge size="xs" color="green" variant="light">
+                Resolved
+              </Badge>
+            ) : null}
+          </Group>
+          <Text size="xs" lineClamp={3} style={{ whiteSpace: 'pre-wrap' }}>
+            {comment.body}
+          </Text>
+        </Stack>
+      </Paper>
+    );
+  }
+
+  function renderExpandedCommentThread(txn: Txn) {
+    const isExpanded = expandedCommentsTxn?.id === txn.id;
+    if (!isExpanded) return null;
+
+    const comments = expandedCommentsQ.data ?? [];
+    const repliesByParent = buildTxnCommentRepliesByParent(comments);
+    const topLevelComments = comments.filter(
+      (comment) => !comment.parentCommentId
+    );
+
+    return (
+      <Collapse in={isExpanded}>
+        <Stack gap="xs" mt={4}>
+          {expandedCommentsQ.isLoading ? (
+            <Text size="xs" c="dimmed">
+              Loading thread...
+            </Text>
+          ) : topLevelComments.length > 0 ? (
+            topLevelComments.map((comment) => (
+              <Stack key={comment.id} gap={4}>
+                {renderCompactComment(comment)}
+                {(repliesByParent.get(comment.id) ?? []).map((reply) =>
+                  renderCompactComment(reply, true)
+                )}
+              </Stack>
+            ))
+          ) : (
+            <Text size="xs" c="dimmed">
+              No thread comments found.
+            </Text>
+          )}
+        </Stack>
+      </Collapse>
+    );
+  }
+
   // Note: keep columns as a plain value (no manual memoization).
   // This avoids conflicts with the React Compiler's memoization preservation rule.
   const txnColumns: MRT_ColumnDef<(typeof txns.transactions)[number]>[] = [
@@ -317,7 +411,6 @@ export default function TransactionsPanel(props: {
       mantineTableBodyCellProps: { className: 'txnTable-cell' },
       Cell: ({ row }) => {
         const description = row.original.description.trim();
-        const commentSummary = commentSummaryByTxnId.get(row.original.id);
         return (
           <Stack gap={2} style={{ minWidth: 0 }}>
             <Text className="table-body-left-bold" lineClamp={1}>
@@ -326,22 +419,88 @@ export default function TransactionsPanel(props: {
             <Text c="dimmed" className="table-body-left" lineClamp={2}>
               {description || 'No description provided'}
             </Text>
-            {commentSummary ? (
-              <Group gap={4} wrap="wrap">
-                <Badge size="xs" variant="light" color="gray">
-                  {commentSummary.totalCount} comment
-                  {commentSummary.totalCount === 1 ? '' : 's'}
-                </Badge>
-                {commentSummary.assignedToMeUnresolvedCount > 0 ? (
-                  <Badge size="xs" variant="light" color="orange">
-                    Assigned to me
-                  </Badge>
-                ) : null}
-              </Group>
-            ) : null}
           </Stack>
         );
       },
+    },
+    {
+      id: 'comments',
+      header: 'Comments',
+      size: 292,
+      enableSorting: false,
+      Cell: ({ row }) => {
+        const summary = commentSummaryByTxnId.get(row.original.id);
+        const isExpanded = expandedCommentsTxn?.id === row.original.id;
+
+        if (!summary) {
+          return (
+            <Button
+              size="xs"
+              variant="subtle"
+              color="gray"
+              leftSection={<IconMessageCircle size={14} />}
+              onClick={() => setCommentsTxn(row.original)}
+            >
+              Add comment
+            </Button>
+          );
+        }
+
+        return (
+          <Stack gap={6} style={{ minWidth: 0 }}>
+            <Paper
+              withBorder
+              radius="md"
+              p="xs"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setCommentsTxn(row.original)}
+            >
+              <Stack gap={4} style={{ minWidth: 0 }}>
+                <Group gap={5} wrap="wrap">
+                  <Badge size="xs" variant="light" color="gray">
+                    {summary.totalCount}
+                  </Badge>
+                  {summary.unresolvedCount > 0 ? (
+                    <Badge size="xs" variant="light" color="yellow">
+                      {summary.unresolvedCount} unresolved
+                    </Badge>
+                  ) : null}
+                  {summary.assignedToMeUnresolvedCount > 0 ? (
+                    <Badge size="xs" variant="light" color="orange">
+                      Assigned to me
+                    </Badge>
+                  ) : null}
+                </Group>
+                <Text size="xs" lineClamp={2}>
+                  {`${summary.latestCommentAuthorName ?? 'Someone'} said "${commentExcerpt(
+                    summary.latestCommentBody
+                  )}"`}
+                </Text>
+                {summary.latestCommentCreatedAt ? (
+                  <Text size="xs" c="dimmed">
+                    {formatTxnCommentDateTime(summary.latestCommentCreatedAt)}
+                  </Text>
+                ) : null}
+              </Stack>
+            </Paper>
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              color="gray"
+              onClick={() =>
+                setExpandedCommentsTxn(isExpanded ? null : row.original)
+              }
+            >
+              {isExpanded ? 'Hide thread' : 'View thread'}
+            </Button>
+            {renderExpandedCommentThread(row.original)}
+          </Stack>
+        );
+      },
+      mantineTableHeadCellProps: {
+        className: 'table-head-cell table-head-left txnTable-head',
+      },
+      mantineTableBodyCellProps: { className: 'txnTable-cell' },
     },
     {
       accessorKey: 'amountCents',
@@ -583,7 +742,6 @@ export default function TransactionsPanel(props: {
       Cell: ({ row }) => {
         const canSplit = canSplitTransaction(row.original);
         const canTransfer = canTransferTransaction(row.original);
-        const commentSummary = commentSummaryByTxnId.get(row.original.id);
         return (
           <Menu withinPortal position="bottom-end" shadow="md">
             <Menu.Target>
@@ -601,7 +759,6 @@ export default function TransactionsPanel(props: {
                 onClick={() => setCommentsTxn(row.original)}
               >
                 Comments
-                {commentSummary ? ` (${commentSummary.totalCount})` : ''}
               </Menu.Item>
               {!readOnly ? (
                 <>

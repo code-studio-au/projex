@@ -184,6 +184,9 @@ export type TxnCommentSummary = {
   totalCount: number;
   unresolvedCount: number;
   assignedToMeUnresolvedCount: number;
+  latestCommentBody?: string;
+  latestCommentCreatedAt?: string;
+  latestCommentAuthorName?: string;
 };
 
 export type BudgetLine = {
