@@ -83,6 +83,7 @@ export default function ProjectSettingsPanel(props: {
   const updateProject = useUpdateProjectMutation(companyId);
 
   const canEditProject = access.can('project:edit', projectId);
+  const canEditCompanyStructure = access.can('company:edit');
   const programmeOptions = useMemo(
     () =>
       (projects.data ?? [])
@@ -227,7 +228,7 @@ export default function ProjectSettingsPanel(props: {
           <Stack gap="sm" style={{ width: '100%', maxWidth: 460 }}>
             <Select
               label="Type"
-              description="Programmes are reporting-only; projects hold budgets, transactions, imports, and coding."
+              description="Programmes are reporting-only; projects hold budgets, transactions, imports, and coding. Company admins/executives manage this structure."
               value={project.data.projectType}
               onChange={(v) => {
                 if (!v || !isProjectType(v)) return;
@@ -241,16 +242,17 @@ export default function ProjectSettingsPanel(props: {
                 { value: 'project', label: 'Project' },
                 { value: 'programme', label: 'Programme (reporting only)' },
               ]}
-              disabled={!canEditProject}
+              disabled={!canEditCompanyStructure}
             />
             <Select
               label="Programme"
-              description="Optional reporting programme that this project rolls up into."
+              description="Optional reporting programme that this project rolls up into. Company admins/executives manage this structure."
               value={project.data.parentProjectId ?? null}
               data={programmeOptions}
               clearable
               disabled={
-                !canEditProject || project.data.projectType === 'programme'
+                !canEditCompanyStructure ||
+                project.data.projectType === 'programme'
               }
               onChange={(v) =>
                 updateProject.mutate({

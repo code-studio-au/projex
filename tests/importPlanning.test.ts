@@ -320,6 +320,53 @@ test('company summary rolls sub-project totals into programmes', () => {
   assert.equal(result[0].children?.[0].id, childProjectId);
 });
 
+test('company summary keeps active sub-projects visible when programme is archived', () => {
+  const childProjectId = asProjectId('prj_child');
+  const result = buildCompanySummaryProjects({
+    projects: [
+      {
+        id: programmeId,
+        name: 'Archived Programme',
+        projectType: 'programme' as const,
+        parentProjectId: undefined,
+        status: 'archived' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 0,
+      },
+      {
+        id: childProjectId,
+        name: 'Active Child Project',
+        projectType: 'project' as const,
+        parentProjectId: programmeId,
+        status: 'active' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 75000,
+      },
+    ],
+    validSubCategoryIdsByProject: new Map([
+      [childProjectId, new Set<string>([subCategory.id])],
+    ]),
+    transactions: [
+      {
+        projectId: childProjectId,
+        date: '2026-04-28',
+        amountCents: 15000,
+        budgetImpact: true,
+        subCategoryId: subCategory.id,
+      },
+    ],
+  });
+
+  assert.equal(result.length, 2);
+  assert.equal(result[0].projectType, 'programme');
+  assert.deepEqual(result[0].children, []);
+  assert.equal(result[1].id, childProjectId);
+  assert.equal(result[1].budgetCents, 75000);
+  assert.equal(result[1].months[0].actualCodedCents, 15000);
+});
+
 test('transaction coding guard rejects source markers with coding metadata', () => {
   assertAppError(
     () =>

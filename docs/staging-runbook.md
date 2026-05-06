@@ -54,9 +54,10 @@ npm run smoke:server
 ```
 
 For the most repeatable run, use generated smoke fixtures. This creates
-disposable `smoke_*` users/company/project data, injects the matching
-`PROJEX_SMOKE_*` values for the process, runs smoke, then cleans the fixtures in
-`finally`:
+disposable `smoke_*` users/company/project data, creates temporary
+programme/sub-project records in the temporary-data section, injects the
+matching `PROJEX_SMOKE_*` values for the process, runs smoke, then cleans the
+fixtures in `finally`:
 
 ```bash
 npm run smoke:server:generated
@@ -157,7 +158,7 @@ sudo systemctl status projex --no-pager -l
 2. Sign in with a linked BetterAuth user
 3. Confirm redirect to `/companies`
 4. Open a company
-5. Open a project
+5. Open a project or programme
 6. Refresh:
    - `/companies`
    - company page

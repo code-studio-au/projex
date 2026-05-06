@@ -58,6 +58,14 @@ npm run smoke:server:generated
 npm run smoke:cleanup
 ```
 
+## Product Model
+
+- Companies own users, company defaults, projects, and programmes.
+- Programmes are reporting-only containers. They can group one or more operational projects and show rollups for company admins, executives, and global superadmins.
+- Projects are the operational workspace for budgets, imports, transactions, taxonomy, coding, splits, and transfers.
+- Programme rollups are derived from active sub-project data; transactions and budgets are never duplicated onto the programme.
+- Sub-projects must belong to the same company and use the same currency as their programme.
+
 ## Architecture Boundaries
 
 - UI routes and components should depend on queries and the `ProjexApi` contract, not directly on storage.

@@ -143,9 +143,24 @@ export default function CompanyDashboardPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [confirmTarget, setConfirmTarget] = useState<
-    | { kind: 'deactivate_project'; projectId: ProjectId; projectName: string }
-    | { kind: 'reactivate_project'; projectId: ProjectId; projectName: string }
-    | { kind: 'delete_project'; projectId: ProjectId; projectName: string }
+    | {
+        kind: 'deactivate_project';
+        projectId: ProjectId;
+        projectName: string;
+        projectType: Project['projectType'];
+      }
+    | {
+        kind: 'reactivate_project';
+        projectId: ProjectId;
+        projectName: string;
+        projectType: Project['projectType'];
+      }
+    | {
+        kind: 'delete_project';
+        projectId: ProjectId;
+        projectName: string;
+        projectType: Project['projectType'];
+      }
     | null
   >(null);
 
@@ -166,20 +181,27 @@ export default function CompanyDashboardPage() {
 
   const confirmLabel = useMemo(() => {
     if (!confirmTarget) return '';
+    const label =
+      confirmTarget.projectType === 'programme' ? 'programme' : 'project';
     if (confirmTarget.kind === 'deactivate_project')
-      return 'Deactivate project';
+      return `Deactivate ${label}`;
     if (confirmTarget.kind === 'reactivate_project')
-      return 'Reactivate project';
-    return 'Delete project';
+      return `Reactivate ${label}`;
+    return `Delete ${label}`;
   }, [confirmTarget]);
 
   const confirmDescription = useMemo(() => {
     if (!confirmTarget) return '';
+    const label =
+      confirmTarget.projectType === 'programme' ? 'programme' : 'project';
     if (confirmTarget.kind === 'deactivate_project') {
-      return 'This will archive the project. Archived projects cannot be opened by regular members.';
+      return `This will archive the ${label}. Archived ${label}s cannot be opened by regular members.`;
     }
     if (confirmTarget.kind === 'reactivate_project') {
-      return 'This will reactivate the project so it becomes active again.';
+      return `This will reactivate the ${label} so it becomes active again.`;
+    }
+    if (confirmTarget.projectType === 'programme') {
+      return 'This permanently deletes the programme. Programme rollups are derived from sub-project data, so operational project records are not deleted by deleting an empty programme. This cannot be undone.';
     }
     return 'This permanently deletes the project and all related budgets, transactions, and taxonomy. This cannot be undone. Type the exact destructive confirmation below.';
   }, [confirmTarget]);
@@ -211,7 +233,7 @@ export default function CompanyDashboardPage() {
   const projectColumns: MRT_ColumnDef<(typeof rows)[number]>[] = [
     {
       accessorKey: 'name',
-      header: 'Project',
+      header: 'Project / programme',
       Cell: ({ row }) => (
         <Stack gap={2}>
           <Group gap="xs" wrap="wrap">
@@ -304,6 +326,7 @@ export default function CompanyDashboardPage() {
                       kind: 'deactivate_project',
                       projectId: project.id,
                       projectName: project.name,
+                      projectType: project.projectType,
                     })
                   }
                 >
@@ -320,6 +343,7 @@ export default function CompanyDashboardPage() {
                         kind: 'reactivate_project',
                         projectId: project.id,
                         projectName: project.name,
+                        projectType: project.projectType,
                       })
                     }
                   >
@@ -334,6 +358,7 @@ export default function CompanyDashboardPage() {
                         kind: 'delete_project',
                         projectId: project.id,
                         projectName: project.name,
+                        projectType: project.projectType,
                       })
                     }
                   >
@@ -359,7 +384,7 @@ export default function CompanyDashboardPage() {
           {canAddProjects && (
             <>
               <Button variant="filled" onClick={() => setNewProjectOpen(true)}>
-                New project / programme
+                New project or programme
               </Button>
               <Modal
                 opened={newProjectOpen}
@@ -487,7 +512,7 @@ export default function CompanyDashboardPage() {
           {canViewCompanySummary ? (
             <Tabs.Tab value="summary">Summary</Tabs.Tab>
           ) : null}
-          <Tabs.Tab value="projects">Projects</Tabs.Tab>
+          <Tabs.Tab value="projects">Projects & programmes</Tabs.Tab>
           <Tabs.Tab value="settings" disabled={!canEditCompany}>
             Settings
           </Tabs.Tab>
@@ -520,7 +545,9 @@ export default function CompanyDashboardPage() {
             </Stack>
           ) : (
             <Paper withBorder radius="lg" p="lg">
-              <Text c="dimmed">No projects found for this company yet.</Text>
+              <Text c="dimmed">
+                No projects or programmes found for this company yet.
+              </Text>
             </Paper>
           )}
         </Tabs.Panel>
@@ -556,8 +583,8 @@ export default function CompanyDashboardPage() {
             onChange={(e) => setConfirmText(e.currentTarget.value)}
             placeholder={
               confirmTarget?.kind === 'delete_project'
-                ? 'DELETE project name'
-                : 'Project name'
+                ? 'DELETE project or programme name'
+                : 'Project or programme name'
             }
             autoFocus
           />

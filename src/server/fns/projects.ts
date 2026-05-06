@@ -388,6 +388,17 @@ export async function updateProjectServer(args: {
       companyId: asCompanyId(existing.company_id),
       projectId: asProjectId(existing.id),
     });
+    const isHierarchyPatch =
+      typeof args.input.projectType !== 'undefined' ||
+      Object.prototype.hasOwnProperty.call(args.input, 'parentProjectId');
+    if (isHierarchyPatch) {
+      await requireAuthorized({
+        db,
+        userId,
+        action: 'company:edit',
+        companyId: asCompanyId(existing.company_id),
+      });
+    }
 
     const patch: Record<string, unknown> = {};
     const nextProjectType = args.input.projectType ?? existing.project_type;

@@ -4,6 +4,7 @@ import {
   Button,
   Group,
   Paper,
+  Select,
   SimpleGrid,
   Stack,
   Table,
@@ -38,6 +39,7 @@ import ProjectSettingsPanel from './ProjectSettingsPanel';
 import { LoadingChip, LoadingLine } from './LoadingValue';
 
 type ProjectWorkspaceTab = 'budget' | 'transactions' | 'import' | 'settings';
+type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
 function toProjectWorkspaceTab(value: string | null): ProjectWorkspaceTab {
   if (
@@ -49,6 +51,39 @@ function toProjectWorkspaceTab(value: string | null): ProjectWorkspaceTab {
     return value;
   }
   return 'budget';
+}
+
+function quarterFromMonthKey(monthKey: string): QuarterOption {
+  const month = Number(monthKey.slice(5, 7));
+  if (month <= 3) return 'Q1';
+  if (month <= 6) return 'Q2';
+  if (month <= 9) return 'Q3';
+  return 'Q4';
+}
+
+function monthKeyMatchesFilters(args: {
+  monthKey: string;
+  yearFilter: string | null;
+  quarterFilter: QuarterOption | null;
+  monthFilterKey: string | null;
+}) {
+  const { monthKey, yearFilter, quarterFilter, monthFilterKey } = args;
+  if (monthFilterKey) return monthKey === monthFilterKey;
+  if (yearFilter && !monthKey.startsWith(`${yearFilter}-`)) return false;
+  if (!quarterFilter) return true;
+  return quarterFromMonthKey(monthKey) === quarterFilter;
+}
+
+function filteredBudgetCents(
+  budgetCents: number,
+  args: { quarterFilter: QuarterOption | null; monthFilterKey: string | null }
+) {
+  const visibleMonthCount = args.monthFilterKey
+    ? 1
+    : args.quarterFilter
+      ? 3
+      : 12;
+  return Math.round((budgetCents * visibleMonthCount) / 12);
 }
 
 export default function ProjectWorkspace(props: {
@@ -134,9 +169,9 @@ export default function ProjectWorkspace(props: {
   const [yearFilter, setYearFilter] = useState<string | null>(
     derivedInitialYearFilter
   );
-  const [quarterFilter, setQuarterFilter] = useState<
-    'Q1' | 'Q2' | 'Q3' | 'Q4' | null
-  >(derivedInitialQuarterFilter);
+  const [quarterFilter, setQuarterFilter] = useState<QuarterOption | null>(
+    derivedInitialQuarterFilter
+  );
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(
     initialMonthFilterKey
   );
@@ -172,8 +207,15 @@ export default function ProjectWorkspace(props: {
     quarterFilter,
     monthFilterKey,
   });
+  const programmeSummary = useMemo(
+    () =>
+      (companySummary.data?.projects ?? []).find(
+        (candidate) => candidate.id === projectId
+      ),
+    [companySummary.data?.projects, projectId]
+  );
 
-  const allMonthKeys = useMemo(
+  const operationalMonthKeys = useMemo(
     () =>
       rollups.monthStarts.map((date) => {
         const y = date.getUTCFullYear();
@@ -182,6 +224,21 @@ export default function ProjectWorkspace(props: {
       }),
     [rollups.monthStarts]
   );
+  const programmeMonthKeys = useMemo(() => {
+    const keys = new Set<string>();
+    if (programmeSummary) {
+      for (const project of [
+        programmeSummary,
+        ...(programmeSummary.children ?? []),
+      ]) {
+        for (const month of project.months) keys.add(month.monthKey);
+      }
+    }
+    return [...keys].sort((a, b) => b.localeCompare(a));
+  }, [programmeSummary]);
+  const allMonthKeys = isOperationalProject
+    ? operationalMonthKeys
+    : programmeMonthKeys;
 
   const yearFilterOptions = useMemo(() => {
     const years = new Set(allMonthKeys.map((key) => key.slice(0, 4)));
@@ -197,8 +254,7 @@ export default function ProjectWorkspace(props: {
     );
     const quarters = new Set(
       filteredMonths.map((key) => {
-        const month = Number(key.slice(5, 7));
-        return month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
+        return quarterFromMonthKey(key);
       })
     );
     return (['Q1', 'Q2', 'Q3', 'Q4'] as const)
@@ -212,10 +268,7 @@ export default function ProjectWorkspace(props: {
         .filter((key) => {
           if (yearFilter && !key.startsWith(`${yearFilter}-`)) return false;
           if (!quarterFilter) return true;
-          const month = Number(key.slice(5, 7));
-          const quarter =
-            month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
-          return quarter === quarterFilter;
+          return quarterFromMonthKey(key) === quarterFilter;
         })
         .map((value) => ({ value, label: value })),
     [allMonthKeys, quarterFilter, yearFilter]
@@ -246,31 +299,34 @@ export default function ProjectWorkspace(props: {
   const summaryReady =
     headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
   const currencyCode = project.data?.currency ?? 'AUD';
-  const programmeSummary = useMemo(
-    () =>
-      (companySummary.data?.projects ?? []).find(
-        (candidate) => candidate.id === projectId
-      ),
-    [companySummary.data?.projects, projectId]
-  );
   const programmeTotals = useMemo(() => {
-    const months = programmeSummary?.months ?? [];
+    const visibleMonths = (programmeSummary?.months ?? []).filter((month) =>
+      monthKeyMatchesFilters({
+        monthKey: month.monthKey,
+        yearFilter,
+        quarterFilter,
+        monthFilterKey,
+      })
+    );
     return {
-      budgetCents: programmeSummary?.budgetCents ?? 0,
-      actualCents: months.reduce(
+      budgetCents: filteredBudgetCents(programmeSummary?.budgetCents ?? 0, {
+        quarterFilter,
+        monthFilterKey,
+      }),
+      actualCents: visibleMonths.reduce(
         (total, month) => total + month.actualCodedCents,
         0
       ),
-      uncodedCount: months.reduce(
+      uncodedCount: visibleMonths.reduce(
         (total, month) => total + month.uncodedCount,
         0
       ),
-      uncodedAmountCents: months.reduce(
+      uncodedAmountCents: visibleMonths.reduce(
         (total, month) => total + month.uncodedAmountCents,
         0
       ),
     };
-  }, [programmeSummary]);
+  }, [monthFilterKey, programmeSummary, quarterFilter, yearFilter]);
   const entryMessage = useMemo(() => {
     if (initialEntrySource !== 'company-summary') return null;
     switch (initialEntryFocus) {
@@ -351,42 +407,110 @@ export default function ProjectWorkspace(props: {
         ) : null}
 
         {canViewProgrammeSummary ? (
-          <SimpleGrid cols={isMobile ? 1 : 4} spacing="md">
+          <>
             <Paper withBorder radius="lg" p="lg">
-              <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                Sub-projects
-              </Text>
-              <Title order={3}>{childProjects.length}</Title>
+              <Stack gap="md">
+                <Group justify="space-between" align="center" wrap="wrap">
+                  <Title order={5}>Programme rollup</Title>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    disabled={!yearFilter && !quarterFilter && !monthFilterKey}
+                    onClick={() => {
+                      setYearFilter(null);
+                      setQuarterFilter(null);
+                      setMonthFilterKey(null);
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                </Group>
+                <SimpleGrid cols={isMobile ? 1 : 3} spacing="md">
+                  <Select
+                    label="Year"
+                    placeholder="All years"
+                    data={yearFilterOptions}
+                    value={yearFilter}
+                    clearable
+                    onChange={(value) => {
+                      setYearFilter(value);
+                      setQuarterFilter(null);
+                      setMonthFilterKey(null);
+                    }}
+                  />
+                  <Select
+                    label="Quarter"
+                    placeholder="All quarters"
+                    data={quarterFilterOptions}
+                    value={quarterFilter}
+                    clearable
+                    onChange={(value) => {
+                      setQuarterFilter(
+                        value === 'Q1' ||
+                          value === 'Q2' ||
+                          value === 'Q3' ||
+                          value === 'Q4'
+                          ? value
+                          : null
+                      );
+                      setMonthFilterKey(null);
+                    }}
+                  />
+                  <Select
+                    label="Month"
+                    placeholder="All months"
+                    data={monthFilterOptions}
+                    value={monthFilterKey}
+                    clearable
+                    onChange={setMonthFilterKey}
+                  />
+                </SimpleGrid>
+                {monthFilterKey || quarterFilter || yearFilter ? (
+                  <Text size="xs" c="dimmed">
+                    Programme budget, actual, and uncoded totals reflect the
+                    selected time filter.
+                  </Text>
+                ) : null}
+              </Stack>
             </Paper>
-            <Paper withBorder radius="lg" p="lg">
-              <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                Total budget
-              </Text>
-              <Title order={4}>
-                {formatCurrencyFromCents(
-                  programmeTotals.budgetCents,
-                  currencyCode
-                )}
-              </Title>
-            </Paper>
-            <Paper withBorder radius="lg" p="lg">
-              <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                Actual
-              </Text>
-              <Title order={4}>
-                {formatCurrencyFromCents(
-                  programmeTotals.actualCents,
-                  currencyCode
-                )}
-              </Title>
-            </Paper>
-            <Paper withBorder radius="lg" p="lg">
-              <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                Uncoded
-              </Text>
-              <Title order={4}>{programmeTotals.uncodedCount}</Title>
-            </Paper>
-          </SimpleGrid>
+
+            <SimpleGrid cols={isMobile ? 1 : 4} spacing="md">
+              <Paper withBorder radius="lg" p="lg">
+                <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+                  Sub-projects
+                </Text>
+                <Title order={3}>{childProjects.length}</Title>
+              </Paper>
+              <Paper withBorder radius="lg" p="lg">
+                <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+                  Total budget
+                </Text>
+                <Title order={4}>
+                  {formatCurrencyFromCents(
+                    programmeTotals.budgetCents,
+                    currencyCode
+                  )}
+                </Title>
+              </Paper>
+              <Paper withBorder radius="lg" p="lg">
+                <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+                  Actual
+                </Text>
+                <Title order={4}>
+                  {formatCurrencyFromCents(
+                    programmeTotals.actualCents,
+                    currencyCode
+                  )}
+                </Title>
+              </Paper>
+              <Paper withBorder radius="lg" p="lg">
+                <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+                  Uncoded
+                </Text>
+                <Title order={4}>{programmeTotals.uncodedCount}</Title>
+              </Paper>
+            </SimpleGrid>
+          </>
         ) : null}
 
         {canViewProgrammeSummary ? (
@@ -408,20 +532,35 @@ export default function ProjectWorkspace(props: {
                     </Table.Thead>
                     <Table.Tbody>
                       {childProjects.map((child) => {
-                        const actualCents = child.months.reduce(
+                        const visibleMonths = child.months.filter((month) =>
+                          monthKeyMatchesFilters({
+                            monthKey: month.monthKey,
+                            yearFilter,
+                            quarterFilter,
+                            monthFilterKey,
+                          })
+                        );
+                        const actualCents = visibleMonths.reduce(
                           (total, month) => total + month.actualCodedCents,
                           0
                         );
-                        const uncodedCount = child.months.reduce(
+                        const uncodedCount = visibleMonths.reduce(
                           (total, month) => total + month.uncodedCount,
                           0
+                        );
+                        const budgetCents = filteredBudgetCents(
+                          child.budgetCents,
+                          {
+                            quarterFilter,
+                            monthFilterKey,
+                          }
                         );
                         return (
                           <Table.Tr key={child.id}>
                             <Table.Td>{child.name}</Table.Td>
                             <Table.Td>
                               {formatCurrencyFromCents(
-                                child.budgetCents,
+                                budgetCents,
                                 child.currency
                               )}
                             </Table.Td>

@@ -103,13 +103,15 @@ Why this matters:
 - programme rollups make company reporting easier to scan while preserving project-level ownership and coding boundaries
 - reporting-only programmes avoid double-counting and prevent transactions being imported into the wrong layer
 
-Design direction:
+Implemented:
 
-- in progress: projects now have `projectType` and optional `parentProjectId`
+- projects now have `projectType` and optional `parentProjectId`
 - programmes are guarded server-side from operational project endpoints
 - sub-projects must belong to the same company and use the same currency as their programme
 - programme rollups are derived from sub-project data rather than duplicated transactions or budgets
-- future polish should add richer programme filtering and permissions-specific detail visibility
+- programme rollups are visible to company admins, executives, and global superadmins
+- programme dashboards support year, quarter, and month filtering
+- generated smoke coverage verifies programme creation, sub-project rollup, and operational endpoint rejection
 
 ## Product/Admin
 

@@ -102,7 +102,8 @@ export function buildCompanySummaryProjects(args: {
   for (const project of summaries) {
     if (
       project.parentProjectId &&
-      byId.get(project.parentProjectId)?.projectType === 'programme'
+      byId.get(project.parentProjectId)?.projectType === 'programme' &&
+      byId.get(project.parentProjectId)?.status === 'active'
     ) {
       const children = childrenByProgramme.get(project.parentProjectId) ?? [];
       children.push(project);
