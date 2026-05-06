@@ -14,6 +14,7 @@ import type {
   TxnSplitInput,
   TxnTransferInput,
   TxnUpdateInput,
+  TxnWorkflowStateInput,
 } from '../api/contract';
 import { normalizeTxnPatch } from '../utils/transactions';
 
@@ -127,6 +128,23 @@ export function useTransferTxnMutation(projectId: ProjectId) {
         qc.invalidateQueries({
           queryKey: qk.transactions(scopeUserId, input.destinationProjectId),
         }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
+    },
+  });
+}
+
+export function useUpdateTxnWorkflowStateMutation(projectId: ProjectId) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  const queryKey = qk.transactions(scopeUserId, projectId);
+  return useMutation({
+    mutationFn: (input: TxnWorkflowStateInput) =>
+      api.updateTxnWorkflowState(projectId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
       ]);
     },

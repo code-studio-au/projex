@@ -104,7 +104,7 @@ function buildProjectDrilldownSearch(args: {
   quarterFilter: QuarterOption | null;
   monthFilterKey: string | null;
   tab?: 'budget' | 'transactions';
-  view?: 'all' | 'uncoded' | 'auto-mapped-pending';
+  view?: 'all' | 'uncoded' | 'auto-mapped-pending' | 'assigned-to-me';
   focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 }) {
   return {
@@ -125,7 +125,7 @@ function SummaryDrilldownLink(props: {
   quarterFilter: QuarterOption | null;
   monthFilterKey: string | null;
   tab: 'budget' | 'transactions';
-  view?: 'all' | 'uncoded' | 'auto-mapped-pending';
+  view?: 'all' | 'uncoded' | 'auto-mapped-pending' | 'assigned-to-me';
   focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
   children: ReactNode;
   color?: string;

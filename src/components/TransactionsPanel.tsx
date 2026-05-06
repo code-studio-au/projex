@@ -20,6 +20,7 @@ import {
 } from 'mantine-react-table';
 import {
   IconDotsVertical,
+  IconLock,
   IconMessageCircle,
   IconSettings,
 } from '@tabler/icons-react';
@@ -38,8 +39,14 @@ import TransactionTransferModal from './TransactionTransferModal';
 import TransactionCommentsModal from './TransactionCommentsModal';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
+import { useTransactionCommentSummariesQuery } from '../queries/transactionComments';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
+type TransactionView =
+  | 'all'
+  | 'uncoded'
+  | 'auto-mapped-pending'
+  | 'assigned-to-me';
 
 function toQuarterOption(value: string | null): QuarterOption | null {
   if (!value) return null;
@@ -50,6 +57,7 @@ function toQuarterOption(value: string | null): QuarterOption | null {
 }
 
 export default function TransactionsPanel(props: {
+  projectId: ProjectId;
   txns: TransactionsHook;
   taxonomy: TaxonomyHook;
   currencyCode: string;
@@ -62,14 +70,15 @@ export default function TransactionsPanel(props: {
   monthFilterOptions: { value: string; label: string }[];
   monthFilterKey: string | null;
   setMonthFilterKey: (value: string | null) => void;
-  transactionView: 'all' | 'uncoded' | 'auto-mapped-pending';
-  setTransactionView: (v: 'all' | 'uncoded' | 'auto-mapped-pending') => void;
+  transactionView: TransactionView;
+  setTransactionView: (v: TransactionView) => void;
   transferProjectOptions: Array<{ value: ProjectId; label: string }>;
   onClearFilters: () => void;
   canEditTaxonomy: boolean;
   readOnly?: boolean;
 }) {
   const {
+    projectId,
     txns,
     taxonomy,
     currencyCode,
@@ -102,6 +111,17 @@ export default function TransactionsPanel(props: {
   const [sorting, setSorting] = useState<MRT_SortingState>([
     { id: 'date', desc: true },
   ]);
+  const commentSummariesQ = useTransactionCommentSummariesQuery(projectId);
+  const commentSummaryByTxnId = useMemo(
+    () =>
+      new Map(
+        (commentSummariesQ.data ?? []).map((summary) => [
+          summary.txnId,
+          summary,
+        ])
+      ),
+    [commentSummariesQ.data]
+  );
 
   /**
    * Count invalid transaction dates so the UI can surface problems early.
@@ -162,8 +182,15 @@ export default function TransactionsPanel(props: {
           !!t.subCategoryId &&
           taxonomy.validSubIds.has(t.subCategoryId)
       );
+    if (transactionView === 'assigned-to-me')
+      out = out.filter(
+        (t) =>
+          (commentSummaryByTxnId.get(t.id)?.assignedToMeUnresolvedCount ?? 0) >
+          0
+      );
     return out;
   }, [
+    commentSummaryByTxnId,
     txns.transactions,
     yearFilter,
     quarterFilter,
@@ -176,6 +203,7 @@ export default function TransactionsPanel(props: {
     () =>
       txns.transactions.filter(
         (t) =>
+          !t.lockedAt &&
           isCategorisableTxn(t) &&
           !!t.codingPendingApproval &&
           !!t.subCategoryId &&
@@ -189,8 +217,12 @@ export default function TransactionsPanel(props: {
     let uncodedCount = 0;
     let uncodedCents = 0;
     let sourceOnlyCount = 0;
+    let assignedToMeCount = 0;
+    let reviewedCount = 0;
+    let lockedCount = 0;
 
     for (const txn of filteredTxns) {
+      const summary = commentSummaryByTxnId.get(txn.id);
       if (isBudgetImpactTxn(txn)) {
         budgetImpactCents += txn.amountCents;
       }
@@ -206,19 +238,28 @@ export default function TransactionsPanel(props: {
           uncodedCents += txn.amountCents;
         }
       }
+      if ((summary?.assignedToMeUnresolvedCount ?? 0) > 0) {
+        assignedToMeCount += 1;
+      }
+      if (txn.reviewedAt) reviewedCount += 1;
+      if (txn.lockedAt) lockedCount += 1;
     }
 
     return {
+      assignedToMeCount,
       budgetImpactCents,
+      lockedCount,
+      reviewedCount,
       sourceOnlyCount,
       uncodedCents,
       uncodedCount,
     };
-  }, [filteredTxns, taxonomy.validSubIds]);
+  }, [commentSummaryByTxnId, filteredTxns, taxonomy.validSubIds]);
 
   function canSplitTransaction(txn: Txn): boolean {
     return (
       !readOnly &&
+      !txn.lockedAt &&
       isBudgetImpactTxn(txn) &&
       isCategorisableTxn(txn) &&
       (txn.txnType === 'standard' || txn.txnType === 'transfer_child')
@@ -228,6 +269,7 @@ export default function TransactionsPanel(props: {
   function canTransferTransaction(txn: Txn): boolean {
     return (
       !readOnly &&
+      !txn.lockedAt &&
       transferProjectOptions.length > 0 &&
       isBudgetImpactTxn(txn) &&
       isCategorisableTxn(txn) &&
@@ -275,6 +317,7 @@ export default function TransactionsPanel(props: {
       mantineTableBodyCellProps: { className: 'txnTable-cell' },
       Cell: ({ row }) => {
         const description = row.original.description.trim();
+        const commentSummary = commentSummaryByTxnId.get(row.original.id);
         return (
           <Stack gap={2} style={{ minWidth: 0 }}>
             <Text className="table-body-left-bold" lineClamp={1}>
@@ -283,6 +326,19 @@ export default function TransactionsPanel(props: {
             <Text c="dimmed" className="table-body-left" lineClamp={2}>
               {description || 'No description provided'}
             </Text>
+            {commentSummary ? (
+              <Group gap={4} wrap="wrap">
+                <Badge size="xs" variant="light" color="gray">
+                  {commentSummary.totalCount} comment
+                  {commentSummary.totalCount === 1 ? '' : 's'}
+                </Badge>
+                {commentSummary.assignedToMeUnresolvedCount > 0 ? (
+                  <Badge size="xs" variant="light" color="orange">
+                    Assigned to me
+                  </Badge>
+                ) : null}
+              </Group>
+            ) : null}
           </Stack>
         );
       },
@@ -320,7 +376,10 @@ export default function TransactionsPanel(props: {
       enableEditing: !readOnly,
       enableSorting: false,
       Edit: ({ row, table }) => {
-        const canCode = !readOnly && isCategorisableTxn(row.original);
+        const canCode =
+          !readOnly &&
+          !row.original.lockedAt &&
+          isCategorisableTxn(row.original);
         const current = row.original.categoryId ?? null;
         const shouldAutoAdvance =
           !row.original.subCategoryId ||
@@ -376,7 +435,10 @@ export default function TransactionsPanel(props: {
       enableEditing: !readOnly,
       enableSorting: false,
       Edit: ({ row, table }) => {
-        const canCode = !readOnly && isCategorisableTxn(row.original);
+        const canCode =
+          !readOnly &&
+          !row.original.lockedAt &&
+          isCategorisableTxn(row.original);
         const catId = row.original.categoryId;
         const options = catId
           ? taxonomy.subCategoryOptionsForCategory(catId)
@@ -463,6 +525,19 @@ export default function TransactionsPanel(props: {
         }
         return (
           <Group gap="xs" wrap="wrap">
+            {row.original.lockedAt ? (
+              <Badge
+                color="gray"
+                variant="light"
+                leftSection={<IconLock size={11} />}
+              >
+                Locked
+              </Badge>
+            ) : row.original.reviewedAt ? (
+              <Badge color="green" variant="light">
+                Reviewed
+              </Badge>
+            ) : null}
             {provenanceLabel ? (
               <Badge color="blue" variant="light">
                 {provenanceLabel}
@@ -474,6 +549,7 @@ export default function TransactionsPanel(props: {
               </Badge>
             ) : null}
             {!readOnly &&
+            !row.original.lockedAt &&
             row.original.codingPendingApproval &&
             hasValidSubCategory ? (
               <Button
@@ -507,6 +583,7 @@ export default function TransactionsPanel(props: {
       Cell: ({ row }) => {
         const canSplit = canSplitTransaction(row.original);
         const canTransfer = canTransferTransaction(row.original);
+        const commentSummary = commentSummaryByTxnId.get(row.original.id);
         return (
           <Menu withinPortal position="bottom-end" shadow="md">
             <Menu.Target>
@@ -524,7 +601,36 @@ export default function TransactionsPanel(props: {
                 onClick={() => setCommentsTxn(row.original)}
               >
                 Comments
+                {commentSummary ? ` (${commentSummary.totalCount})` : ''}
               </Menu.Item>
+              {!readOnly ? (
+                <>
+                  <Menu.Divider />
+                  <Menu.Item
+                    onClick={() =>
+                      void txns.updateWorkflowState(row.original.id, {
+                        reviewed: !row.original.reviewedAt,
+                      })
+                    }
+                  >
+                    {row.original.reviewedAt
+                      ? 'Mark unreviewed'
+                      : 'Mark reviewed'}
+                  </Menu.Item>
+                  <Menu.Item
+                    onClick={() =>
+                      void txns.updateWorkflowState(row.original.id, {
+                        locked: !row.original.lockedAt,
+                      })
+                    }
+                  >
+                    {row.original.lockedAt
+                      ? 'Unlock transaction'
+                      : 'Lock transaction'}
+                  </Menu.Item>
+                  <Menu.Divider />
+                </>
+              ) : null}
               <Menu.Item
                 disabled={!canSplit}
                 onClick={() => setSplitTxn(row.original)}
@@ -581,6 +687,21 @@ export default function TransactionsPanel(props: {
                     {visibleMetrics.sourceOnlyCount} source only
                   </Badge>
                 ) : null}
+                {visibleMetrics.assignedToMeCount > 0 ? (
+                  <Badge variant="light" color="orange">
+                    {visibleMetrics.assignedToMeCount} assigned to me
+                  </Badge>
+                ) : null}
+                {visibleMetrics.reviewedCount > 0 ? (
+                  <Badge variant="light" color="green">
+                    {visibleMetrics.reviewedCount} reviewed
+                  </Badge>
+                ) : null}
+                {visibleMetrics.lockedCount > 0 ? (
+                  <Badge variant="light" color="gray">
+                    {visibleMetrics.lockedCount} locked
+                  </Badge>
+                ) : null}
                 <Badge
                   variant="light"
                   color={autoMappedPendingTxns.length > 0 ? 'yellow' : 'gray'}
@@ -604,11 +725,16 @@ export default function TransactionsPanel(props: {
                     value: 'auto-mapped-pending',
                     label: 'Auto-mapped pending approval',
                   },
+                  { value: 'assigned-to-me', label: 'Assigned to me' },
                 ]}
                 value={transactionView}
                 onChange={(v) =>
                   setTransactionView(
-                    v === 'uncoded' || v === 'auto-mapped-pending' ? v : 'all'
+                    v === 'uncoded' ||
+                      v === 'auto-mapped-pending' ||
+                      v === 'assigned-to-me'
+                      ? v
+                      : 'all'
                   )
                 }
                 style={{ width: isMobile ? '100%' : 250 }}

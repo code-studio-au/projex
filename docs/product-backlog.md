@@ -36,7 +36,9 @@ Status:
 
 - foundation implemented: transaction comments are first-class rows with author, timestamps, optional parent/reply linkage, optional assignee, and resolved metadata
 - UI entry point added from the transaction row action menu with add comment, reply, assign, resolve, and reopen flows
-- remaining polish: `@member_name` autocomplete/mention parsing, assigned-to-me surfacing, notification behavior, and richer comment-count indicators in the transaction table
+- transaction table now surfaces comment counts and assigned-to-me indicators, with an assigned-to-me transaction view
+- lightweight `@member_name` / `@email_prefix` mention parsing now auto-assigns new comments when no explicit assignee is selected
+- remaining polish: richer inline mention autocomplete and notification behavior
 
 ### 2. Split transactions into fully allocated child line items
 
@@ -155,6 +157,13 @@ Design direction:
 - keep the core review state machine separate from unlock-request workflow state
 - define exactly which fields become immutable when locked
 - ensure all lock, unlock, review, and reopen actions emit audit events
+
+Implemented:
+
+- transactions now store reviewed/locked metadata with the acting user and timestamp
+- transaction rows expose reviewed and locked badges, plus row actions to review/unreview and lock/unlock
+- locked transactions are blocked from normal edit, delete, split, and transfer paths
+- remaining work: unlock request workflow, bulk review/lock actions, and audit event history for workflow transitions
 
 ### 7. Clarify budget semantics, health messaging, and lightweight forecasting
 

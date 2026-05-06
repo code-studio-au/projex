@@ -29,6 +29,20 @@ export function useTransactionCommentsQuery(
   });
 }
 
+export function useTransactionCommentSummariesQuery(
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
+  const api = useApi();
+  const scopeUserId = useQueryScopeUserId();
+  return useQuery({
+    queryKey: qk.transactionCommentSummaries(scopeUserId, projectId),
+    queryFn: () => api.listTransactionCommentSummaries(projectId),
+    placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
+  });
+}
+
 export function useCreateTransactionCommentMutation(projectId: ProjectId) {
   const api = useApi();
   const qc = useQueryClient();
@@ -37,9 +51,14 @@ export function useCreateTransactionCommentMutation(projectId: ProjectId) {
     mutationFn: (input: TxnCommentCreateInput) =>
       api.createTransactionComment(projectId, input),
     onSuccess: async (_comment, input) => {
-      await qc.invalidateQueries({
-        queryKey: qk.transactionComments(scopeUserId, projectId, input.txnId),
-      });
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.transactionComments(scopeUserId, projectId, input.txnId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.transactionCommentSummaries(scopeUserId, projectId),
+        }),
+      ]);
     },
   });
 }
@@ -55,9 +74,14 @@ export function useUpdateTransactionCommentMutation(
     mutationFn: (input: TxnCommentUpdateInput) =>
       api.updateTransactionComment(projectId, txnId, input),
     onSuccess: async () => {
-      await qc.invalidateQueries({
-        queryKey: qk.transactionComments(scopeUserId, projectId, txnId),
-      });
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.transactionComments(scopeUserId, projectId, txnId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.transactionCommentSummaries(scopeUserId, projectId),
+        }),
+      ]);
     },
   });
 }
@@ -73,9 +97,14 @@ export function useDeleteTransactionCommentMutation(
     mutationFn: (commentId: TxnCommentId) =>
       api.deleteTransactionComment(projectId, txnId, commentId),
     onSuccess: async () => {
-      await qc.invalidateQueries({
-        queryKey: qk.transactionComments(scopeUserId, projectId, txnId),
-      });
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.transactionComments(scopeUserId, projectId, txnId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.transactionCommentSummaries(scopeUserId, projectId),
+        }),
+      ]);
     },
   });
 }

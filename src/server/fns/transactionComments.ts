@@ -1,5 +1,11 @@
-import type { ProjectId, TxnComment, TxnCommentId, TxnId } from '../../types';
-import { asTxnCommentId } from '../../types';
+import type {
+  ProjectId,
+  TxnComment,
+  TxnCommentId,
+  TxnCommentSummary,
+  TxnId,
+} from '../../types';
+import { asTxnCommentId, asTxnId } from '../../types';
 import { AppError } from '../../api/errors';
 import type {
   TxnCommentCreateInput,
@@ -139,6 +145,48 @@ export async function listTransactionCommentsServer(args: {
       .execute();
 
     return rows.map(toTxnComment);
+  });
+}
+
+export async function listTransactionCommentSummariesServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+}): Promise<TxnCommentSummary[]> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const context = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'project:view'
+    );
+
+    const rows = await context.db
+      .selectFrom('txn_comments')
+      .select(['txn_public_id', 'assigned_to_user_id', 'resolved_at', 'id'])
+      .where('project_id', '=', args.projectId)
+      .execute();
+
+    const byTxn = new Map<string, TxnCommentSummary>();
+    for (const row of rows) {
+      const current =
+        byTxn.get(row.txn_public_id) ??
+        ({
+          txnId: asTxnId(row.txn_public_id),
+          totalCount: 0,
+          unresolvedCount: 0,
+          assignedToMeUnresolvedCount: 0,
+        } satisfies TxnCommentSummary);
+      current.totalCount += 1;
+      if (!row.resolved_at) {
+        current.unresolvedCount += 1;
+        if (row.assigned_to_user_id === context.userId) {
+          current.assignedToMeUnresolvedCount += 1;
+        }
+      }
+      byTxn.set(row.txn_public_id, current);
+    }
+
+    return [...byTxn.values()];
   });
 }
 

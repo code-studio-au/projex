@@ -66,11 +66,13 @@ import {
   previewImportTransactionsServer,
   splitTxnServer,
   transferTxnServer,
+  updateTxnWorkflowStateServer,
   updateTxnServer,
 } from '../fns/transactions';
 import {
   createTransactionCommentServer,
   deleteTransactionCommentServer,
+  listTransactionCommentSummariesServer,
   listTransactionCommentsServer,
   updateTransactionCommentServer,
 } from '../fns/transactionComments';
@@ -471,11 +473,27 @@ export class StartServerApi implements ProjexApi {
       input,
     });
   }
+  async updateTxnWorkflowState(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['updateTxnWorkflowState']>[1]
+  ) {
+    return updateTxnWorkflowStateServer({
+      context: this.context,
+      projectId,
+      input,
+    });
+  }
   async listTransactionComments(projectId: ProjectId, txnId: TxnId) {
     return listTransactionCommentsServer({
       context: this.context,
       projectId,
       txnId,
+    });
+  }
+  async listTransactionCommentSummaries(projectId: ProjectId) {
+    return listTransactionCommentSummariesServer({
+      context: this.context,
+      projectId,
     });
   }
   async createTransactionComment(

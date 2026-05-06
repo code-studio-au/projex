@@ -24,6 +24,7 @@ import {
   deleteProjectMembershipQuerySchema,
   txnCommentMutationBodySchema,
   txnCommentUpdateMutationBodySchema,
+  txnWorkflowStateMutationBodySchema,
 } from '../src/validation/apiSchemas.ts';
 import {
   budgetAllocatedCentsSchema,
@@ -163,6 +164,27 @@ test('transaction comment schemas require valid body and ids', () => {
   assert.equal(
     txnCommentUpdateMutationBodySchema.safeParse({
       comment: { id: 'txn_comment_1', body: '' },
+    }).success,
+    false
+  );
+});
+
+test('transaction workflow schema requires an explicit state change', () => {
+  assert.equal(
+    txnWorkflowStateMutationBodySchema.safeParse({
+      workflow: { txnId: 'txn_1', reviewed: true },
+    }).success,
+    true
+  );
+  assert.equal(
+    txnWorkflowStateMutationBodySchema.safeParse({
+      workflow: { txnId: 'txn_1', locked: false },
+    }).success,
+    true
+  );
+  assert.equal(
+    txnWorkflowStateMutationBodySchema.safeParse({
+      workflow: { txnId: 'txn_1' },
     }).success,
     false
   );

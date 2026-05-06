@@ -18,6 +18,7 @@ import type {
   Txn,
   TxnComment,
   TxnCommentId,
+  TxnCommentSummary,
   TxnId,
   User,
   UserId,
@@ -97,6 +98,12 @@ export type TxnTransferInput = {
 export type TxnTransferResult = {
   source: Txn;
   destination: Txn;
+};
+
+export type TxnWorkflowStateInput = {
+  txnId: TxnId;
+  reviewed?: boolean;
+  locked?: boolean;
 };
 
 export type TxnCommentCreateInput = {
@@ -457,10 +464,17 @@ export interface ProjexApi {
     projectId: ProjectId,
     input: TxnTransferInput
   ): Promise<TxnTransferResult>;
+  updateTxnWorkflowState(
+    projectId: ProjectId,
+    input: TxnWorkflowStateInput
+  ): Promise<Txn>;
   listTransactionComments(
     projectId: ProjectId,
     txnId: TxnId
   ): Promise<TxnComment[]>;
+  listTransactionCommentSummaries(
+    projectId: ProjectId
+  ): Promise<TxnCommentSummary[]>;
   createTransactionComment(
     projectId: ProjectId,
     input: TxnCommentCreateInput

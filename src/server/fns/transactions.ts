@@ -1,5 +1,11 @@
 import type { ProjectId, Txn, TxnId, ImportPreviewRow } from '../../types';
-import { asBudgetLineId, asCompanyId, asProjectId, asTxnId } from '../../types';
+import {
+  asBudgetLineId,
+  asCompanyId,
+  asProjectId,
+  asTxnId,
+  asUserId,
+} from '../../types';
 import { AppError } from '../../api/errors';
 import type {
   TxnCreateInput,
@@ -9,6 +15,7 @@ import type {
   TxnTransferInput,
   TxnTransferResult,
   TxnUpdateInput,
+  TxnWorkflowStateInput,
 } from '../../api/types';
 import { uid } from '../../utils/id';
 import { txnInputSchema } from '../../validation/schemas';
@@ -18,6 +25,7 @@ import { planImportPreview } from '../../utils/importPreviewPlan';
 import { planTransactionImportCommit } from '../../utils/transactionImportCommitPlan';
 import { planTransactionSplit } from '../../utils/transactionSplitPlan';
 import { planTransactionTransfer } from '../../utils/transactionTransferPlan';
+import { planTxnWorkflowState } from '../../utils/transactionWorkflow';
 import {
   assertTxnCodingAllowed,
   assertUniqueTransactionKeysInProject,
@@ -42,6 +50,15 @@ import {
   loadTransactionImportCommitContext,
   loadTransactionImportPreviewContext,
 } from '../loaders/importContext';
+
+function assertTxnUnlocked(txn: Txn): void {
+  if (txn.lockedAt) {
+    throw new AppError(
+      'CONFLICT',
+      'Transaction is locked and cannot be changed'
+    );
+  }
+}
 
 async function assertTransactionResourceOwnership(
   context: ProjectActionContext,
@@ -116,6 +133,10 @@ export async function listTransactionsServer(args: {
         'company_default_mapping_rule_id',
         'coding_source',
         'coding_pending_approval',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'locked_at',
+        'locked_by_user_id',
         'created_at',
         'updated_at',
       ])
@@ -223,6 +244,10 @@ export async function createTxnServer(args: {
         'company_default_mapping_rule_id',
         'coding_source',
         'coding_pending_approval',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'locked_at',
+        'locked_by_user_id',
         'created_at',
         'updated_at',
       ])
@@ -269,6 +294,10 @@ export async function updateTxnServer(args: {
         'company_default_mapping_rule_id',
         'coding_source',
         'coding_pending_approval',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'locked_at',
+        'locked_by_user_id',
         'created_at',
         'updated_at',
       ])
@@ -297,6 +326,7 @@ export async function updateTxnServer(args: {
     }
 
     const prev = toTxn(existing);
+    assertTxnUnlocked(prev);
     const normalizedInput = normalizeTxnPatch(args.input);
     const nextExternalId = Object.prototype.hasOwnProperty.call(
       normalizedInput,
@@ -371,6 +401,10 @@ export async function updateTxnServer(args: {
         'company_default_mapping_rule_id',
         'coding_source',
         'coding_pending_approval',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'locked_at',
+        'locked_by_user_id',
         'created_at',
         'updated_at',
       ])
@@ -392,6 +426,19 @@ export async function deleteTxnServer(args: {
       args.projectId,
       'txns:edit'
     );
+    const existing = await db
+      .selectFrom('txns')
+      .select('locked_at')
+      .where('project_id', '=', args.projectId)
+      .where('public_id', '=', args.txnId)
+      .executeTakeFirst();
+    if (!existing) throw new AppError('NOT_FOUND', 'Unknown transaction');
+    if (existing.locked_at) {
+      throw new AppError(
+        'CONFLICT',
+        'Transaction is locked and cannot be deleted'
+      );
+    }
     await db
       .deleteFrom('txns')
       .where('project_id', '=', args.projectId)
@@ -437,6 +484,10 @@ export async function splitTxnServer(args: {
         'company_default_mapping_rule_id',
         'coding_source',
         'coding_pending_approval',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'locked_at',
+        'locked_by_user_id',
         'created_at',
         'updated_at',
       ])
@@ -445,9 +496,11 @@ export async function splitTxnServer(args: {
       .executeTakeFirst();
     if (!existing) throw new AppError('NOT_FOUND', 'Unknown transaction');
 
+    const parentTxn = toTxn(existing);
+    assertTxnUnlocked(parentTxn);
     const now = new Date().toISOString();
     const split = planTransactionSplit({
-      parent: toTxn(existing),
+      parent: parentTxn,
       children: args.input.children,
       now,
       createTxnId: () => asTxnId(uid('txn')),
@@ -493,6 +546,7 @@ export async function splitTxnServer(args: {
         .where('txn_type', 'in', ['standard', 'transfer_child'])
         .where('budget_impact', '=', true)
         .where('categorisable', '=', true)
+        .where('locked_at', 'is', null)
         .returning([
           'id',
           'public_id',
@@ -514,6 +568,10 @@ export async function splitTxnServer(args: {
           'company_default_mapping_rule_id',
           'coding_source',
           'coding_pending_approval',
+          'reviewed_at',
+          'reviewed_by_user_id',
+          'locked_at',
+          'locked_by_user_id',
           'created_at',
           'updated_at',
         ])
@@ -574,6 +632,10 @@ export async function splitTxnServer(args: {
           'company_default_mapping_rule_id',
           'coding_source',
           'coding_pending_approval',
+          'reviewed_at',
+          'reviewed_by_user_id',
+          'locked_at',
+          'locked_by_user_id',
           'created_at',
           'updated_at',
         ])
@@ -636,6 +698,10 @@ export async function transferTxnServer(args: {
         'company_default_mapping_rule_id',
         'coding_source',
         'coding_pending_approval',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'locked_at',
+        'locked_by_user_id',
         'created_at',
         'updated_at',
       ])
@@ -644,9 +710,11 @@ export async function transferTxnServer(args: {
       .executeTakeFirst();
     if (!existing) throw new AppError('NOT_FOUND', 'Unknown transaction');
 
+    const sourceTxn = toTxn(existing);
+    assertTxnUnlocked(sourceTxn);
     const now = new Date().toISOString();
     const transfer = planTransactionTransfer({
-      source: toTxn(existing),
+      source: sourceTxn,
       input: args.input,
       destinationCompanyId: destinationContext.companyId,
       now,
@@ -694,6 +762,7 @@ export async function transferTxnServer(args: {
         .where('txn_type', 'in', ['standard', 'split_child'])
         .where('budget_impact', '=', true)
         .where('categorisable', '=', true)
+        .where('locked_at', 'is', null)
         .returning([
           'id',
           'public_id',
@@ -715,6 +784,10 @@ export async function transferTxnServer(args: {
           'company_default_mapping_rule_id',
           'coding_source',
           'coding_pending_approval',
+          'reviewed_at',
+          'reviewed_by_user_id',
+          'locked_at',
+          'locked_by_user_id',
           'created_at',
           'updated_at',
         ])
@@ -773,6 +846,10 @@ export async function transferTxnServer(args: {
           'company_default_mapping_rule_id',
           'coding_source',
           'coding_pending_approval',
+          'reviewed_at',
+          'reviewed_by_user_id',
+          'locked_at',
+          'locked_by_user_id',
           'created_at',
           'updated_at',
         ])
@@ -782,6 +859,93 @@ export async function transferTxnServer(args: {
     });
 
     return result;
+  });
+}
+
+export async function updateTxnWorkflowStateServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: TxnWorkflowStateInput;
+}): Promise<Txn> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const context = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+    const now = new Date().toISOString();
+
+    const existing = await context.db
+      .selectFrom('txns')
+      .select([
+        'public_id',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'locked_at',
+        'locked_by_user_id',
+      ])
+      .where('project_id', '=', args.projectId)
+      .where('public_id', '=', args.input.txnId)
+      .executeTakeFirst();
+    if (!existing) throw new AppError('NOT_FOUND', 'Unknown transaction');
+
+    const patch = {
+      ...planTxnWorkflowState({
+        current: {
+          reviewedAt: existing.reviewed_at ?? undefined,
+          reviewedByUserId: existing.reviewed_by_user_id
+            ? asUserId(existing.reviewed_by_user_id)
+            : undefined,
+          lockedAt: existing.locked_at ?? undefined,
+          lockedByUserId: existing.locked_by_user_id
+            ? asUserId(existing.locked_by_user_id)
+            : undefined,
+        },
+        reviewed: args.input.reviewed,
+        locked: args.input.locked,
+        actorUserId: context.userId,
+        now,
+      }),
+      updated_at: now,
+    };
+
+    const updated = await context.db
+      .updateTable('txns')
+      .set(patch)
+      .where('project_id', '=', args.projectId)
+      .where('public_id', '=', args.input.txnId)
+      .returning([
+        'id',
+        'public_id',
+        'external_id',
+        'company_id',
+        'project_id',
+        'txn_date',
+        'item',
+        'description',
+        'amount_cents',
+        'txn_type',
+        'parent_public_id',
+        'source_public_id',
+        'transfer_project_id',
+        'budget_impact',
+        'categorisable',
+        'category_id',
+        'sub_category_id',
+        'company_default_mapping_rule_id',
+        'coding_source',
+        'coding_pending_approval',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'locked_at',
+        'locked_by_user_id',
+        'created_at',
+        'updated_at',
+      ])
+      .executeTakeFirstOrThrow();
+
+    return toTxn(updated);
   });
 }
 

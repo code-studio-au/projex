@@ -8,6 +8,7 @@ import {
   asProjectId,
   asSubCategoryId,
   asTxnId,
+  asUserId,
 } from '../../types';
 import { dateOnlyFromInput } from '../../utils/finance';
 import { normalizeExternalId } from '../../utils/transactions';
@@ -33,6 +34,10 @@ export type TxnRow = {
   company_default_mapping_rule_id: string | null;
   coding_source: 'manual' | 'company_default_rule' | null;
   coding_pending_approval: boolean;
+  reviewed_at: string | null;
+  reviewed_by_user_id: string | null;
+  locked_at: string | null;
+  locked_by_user_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -88,6 +93,14 @@ export function toTxn(row: TxnRow): Txn {
       : undefined,
     codingSource: row.coding_source ?? undefined,
     codingPendingApproval: row.coding_pending_approval,
+    reviewedAt: row.reviewed_at ?? undefined,
+    reviewedByUserId: row.reviewed_by_user_id
+      ? asUserId(row.reviewed_by_user_id)
+      : undefined,
+    lockedAt: row.locked_at ?? undefined,
+    lockedByUserId: row.locked_by_user_id
+      ? asUserId(row.locked_by_user_id)
+      : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

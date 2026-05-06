@@ -340,6 +340,21 @@ export const transferTxnMutationBodySchema = z.object({
   transfer: transferTxnInputSchema,
 });
 
+export const txnWorkflowStateInputSchema = z.object({
+  txnId: txnIdSchema,
+  reviewed: z.boolean().optional(),
+  locked: z.boolean().optional(),
+});
+
+export const txnWorkflowStateMutationBodySchema = z.object({
+  workflow: txnWorkflowStateInputSchema.refine(
+    (value) =>
+      typeof value.reviewed !== 'undefined' ||
+      typeof value.locked !== 'undefined',
+    'At least one workflow state field is required'
+  ),
+});
+
 export const createTxnCommentInputSchema = z.object({
   txnId: txnIdSchema,
   body: txnCommentBodySchema,

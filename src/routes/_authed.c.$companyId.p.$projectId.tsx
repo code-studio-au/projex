@@ -16,7 +16,9 @@ const projectWorkspaceSearchSchema = z
       .string()
       .regex(/^\d{4}-\d{2}$/)
       .optional(),
-    view: z.enum(['all', 'uncoded', 'auto-mapped-pending']).optional(),
+    view: z
+      .enum(['all', 'uncoded', 'auto-mapped-pending', 'assigned-to-me'])
+      .optional(),
     source: z.enum(['company-summary']).optional(),
     focus: z
       .enum(['budget', 'actual', 'remaining', 'uncoded', 'health'])

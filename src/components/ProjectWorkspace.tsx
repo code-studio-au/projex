@@ -40,6 +40,11 @@ import { LoadingChip, LoadingLine } from './LoadingValue';
 
 type ProjectWorkspaceTab = 'budget' | 'transactions' | 'import' | 'settings';
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
+type TransactionView =
+  | 'all'
+  | 'uncoded'
+  | 'auto-mapped-pending'
+  | 'assigned-to-me';
 
 function toProjectWorkspaceTab(value: string | null): ProjectWorkspaceTab {
   if (
@@ -93,7 +98,7 @@ export default function ProjectWorkspace(props: {
   initialYearFilter?: string | null;
   initialQuarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   initialMonthFilterKey?: string | null;
-  initialTransactionView?: 'all' | 'uncoded' | 'auto-mapped-pending';
+  initialTransactionView?: TransactionView;
   initialEntrySource?: 'company-summary';
   initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 }) {
@@ -175,9 +180,9 @@ export default function ProjectWorkspace(props: {
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(
     initialMonthFilterKey
   );
-  const [transactionView, setTransactionView] = useState<
-    'all' | 'uncoded' | 'auto-mapped-pending'
-  >(initialTransactionView);
+  const [transactionView, setTransactionView] = useState<TransactionView>(
+    initialTransactionView
+  );
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -685,6 +690,7 @@ export default function ProjectWorkspace(props: {
 
           <Tabs.Panel value="transactions" pt="md">
             <TransactionsPanel
+              projectId={projectId}
               txns={txns}
               taxonomy={taxonomy}
               currencyCode={currencyCode}

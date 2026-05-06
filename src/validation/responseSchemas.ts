@@ -266,6 +266,10 @@ export const txnResponseSchema = z.object({
   companyDefaultMappingRuleId: mappingRuleIdSchema.optional(),
   codingSource: codingSourceSchema.optional(),
   codingPendingApproval: z.boolean().optional(),
+  reviewedAt: optionalIsoTimestampSchema,
+  reviewedByUserId: userIdSchema.optional(),
+  lockedAt: optionalIsoTimestampSchema,
+  lockedByUserId: userIdSchema.optional(),
   createdAt: optionalIsoTimestampSchema,
   updatedAt: optionalIsoTimestampSchema,
 });
@@ -299,6 +303,17 @@ export const txnCommentResponseSchema = z.object({
 });
 
 export const txnCommentsResponseSchema = z.array(txnCommentResponseSchema);
+
+export const txnCommentSummaryResponseSchema = z.object({
+  txnId: txnIdSchema,
+  totalCount: z.number().int().nonnegative(),
+  unresolvedCount: z.number().int().nonnegative(),
+  assignedToMeUnresolvedCount: z.number().int().nonnegative(),
+});
+
+export const txnCommentSummariesResponseSchema = z.array(
+  txnCommentSummaryResponseSchema
+);
 
 export const pendingEmailChangeResponseSchema = z
   .object({

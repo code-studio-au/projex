@@ -22,8 +22,36 @@ import {
   useUpdateTransactionCommentMutation,
 } from '../queries/transactionComments';
 
+function mentionToken(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString();
+}
+
+function findMentionedUser(
+  body: string,
+  users: Array<{ id: UserId; name: string; email: string }>
+) {
+  const mentions = new Set(
+    [...body.matchAll(/@([a-zA-Z0-9._-]+)/g)].map((match) =>
+      mentionToken(match[1] ?? '')
+    )
+  );
+  if (!mentions.size) return null;
+
+  return (
+    users.find((user) => {
+      const nameToken = mentionToken(user.name);
+      const emailToken = mentionToken(user.email.split('@')[0] ?? user.email);
+      return mentions.has(nameToken) || mentions.has(emailToken);
+    }) ?? null
+  );
 }
 
 function buildRepliesByParent(comments: TxnComment[]) {
@@ -85,6 +113,10 @@ export default function TransactionCommentsModal(props: {
         })),
     [usersQ.data]
   );
+  const mentionedUser = useMemo(
+    () => findMentionedUser(body, usersQ.data ?? []),
+    [body, usersQ.data]
+  );
   const comments = commentsQ.data ?? [];
   const topLevelComments = comments.filter(
     (comment) => !comment.parentCommentId
@@ -99,11 +131,12 @@ export default function TransactionCommentsModal(props: {
     if (!txn || !body.trim()) return;
     try {
       setError(null);
+      const inferredAssignedToUserId = assignedToUserId ?? mentionedUser?.id;
       await createComment.mutateAsync({
         txnId: txn.id,
         body,
         parentCommentId: replyToCommentId ?? undefined,
-        assignedToUserId,
+        assignedToUserId: inferredAssignedToUserId ?? null,
       });
       setBody('');
       setAssignedToUserId(null);
@@ -281,12 +314,18 @@ export default function TransactionCommentsModal(props: {
               ) : null}
               <Textarea
                 label={replyTarget ? 'Reply' : 'New comment'}
-                placeholder="Add a note, decision, or follow-up..."
+                placeholder="Add a note, decision, or @member follow-up..."
                 minRows={3}
                 value={body}
                 disabled={submitting}
                 onChange={(event) => setBody(event.currentTarget.value)}
               />
+              {!assignedToUserId && mentionedUser ? (
+                <Text size="xs" c="dimmed">
+                  Mention detected: this will assign the comment to{' '}
+                  {mentionedUser.name || mentionedUser.email}.
+                </Text>
+              ) : null}
               <Group justify="space-between" align="flex-end" wrap="wrap">
                 <Select
                   label="Assign to"

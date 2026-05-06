@@ -18,6 +18,7 @@ import type {
   Txn,
   TxnComment,
   TxnCommentId,
+  TxnCommentSummary,
   TxnId,
   User,
   UserId,
@@ -52,6 +53,7 @@ import type {
   TxnTransferInput,
   TxnTransferResult,
   TxnUpdateInput,
+  TxnWorkflowStateInput,
 } from '../types';
 import {
   apiErrorResponseSchema,
@@ -88,6 +90,7 @@ import {
   subCategoryResponseSchema,
   txnResponseSchema,
   txnCommentResponseSchema,
+  txnCommentSummariesResponseSchema,
   txnCommentsResponseSchema,
   txnImportPreviewResultResponseSchema,
   txnSplitResponseSchema,
@@ -716,6 +719,19 @@ export class ServerApi implements ProjexApi {
       txnTransferResponseSchema
     );
   }
+  async updateTxnWorkflowState(
+    projectId: ProjectId,
+    input: TxnWorkflowStateInput
+  ): Promise<Txn> {
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(input.txnId)}/workflow`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ workflow: input }),
+      },
+      txnResponseSchema
+    );
+  }
   async listTransactionComments(
     projectId: ProjectId,
     txnId: TxnId
@@ -724,6 +740,15 @@ export class ServerApi implements ProjexApi {
       `/api/projects/${encodeURIComponent(projectId)}/transactions/${encodeURIComponent(txnId)}/comments`,
       undefined,
       txnCommentsResponseSchema
+    );
+  }
+  async listTransactionCommentSummaries(
+    projectId: ProjectId
+  ): Promise<TxnCommentSummary[]> {
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions/comment-summaries`,
+      undefined,
+      txnCommentSummariesResponseSchema
     );
   }
   async createTransactionComment(

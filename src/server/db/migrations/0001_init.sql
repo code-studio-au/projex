@@ -165,6 +165,10 @@ create table if not exists txns (
   company_default_mapping_rule_id text null references company_default_mapping_rules(id) on delete set null,
   coding_source text null check (coding_source in ('manual', 'company_default_rule')),
   coding_pending_approval boolean not null default false,
+  reviewed_at timestamptz null,
+  reviewed_by_user_id text null references users(id) on delete set null,
+  locked_at timestamptz null,
+  locked_by_user_id text null references users(id) on delete set null,
   constraint txns_uncategorisable_has_no_coding_check check (
     categorisable
     or (
@@ -173,6 +177,19 @@ create table if not exists txns (
       and company_default_mapping_rule_id is null
       and coding_source is null
       and coding_pending_approval = false
+    )
+  ),
+  constraint txns_reviewed_consistency_check check (
+    (reviewed_at is null and reviewed_by_user_id is null)
+    or (reviewed_at is not null and reviewed_by_user_id is not null)
+  ),
+  constraint txns_locked_consistency_check check (
+    (locked_at is null and locked_by_user_id is null)
+    or (
+      locked_at is not null
+      and locked_by_user_id is not null
+      and reviewed_at is not null
+      and reviewed_by_user_id is not null
     )
   ),
   created_at timestamptz not null default now(),

@@ -18,6 +18,7 @@ import {
   useTransferTxnMutation,
   useTransactionsQuery,
   useUpdateTxnMutation,
+  useUpdateTxnWorkflowStateMutation,
 } from '../queries/transactions';
 import { isCategorisableTxn } from '../utils/transactions';
 
@@ -39,6 +40,7 @@ export function useTransactions(params: {
   const update = useUpdateTxnMutation(projectId);
   const split = useSplitTxnMutation(projectId);
   const transfer = useTransferTxnMutation(projectId);
+  const workflowState = useUpdateTxnWorkflowStateMutation(projectId);
   const importMut = useImportTransactionsMutation(projectId);
 
   const transactions = useMemo(() => q.data ?? [], [q.data]);
@@ -56,6 +58,13 @@ export function useTransactions(params: {
     input: Omit<TxnTransferInput, 'txnId'>
   ) => {
     await transfer.mutateAsync({ txnId: id, ...input });
+  };
+
+  const updateWorkflowState = async (
+    id: TxnId,
+    patch: { reviewed?: boolean; locked?: boolean }
+  ) => {
+    await workflowState.mutateAsync({ txnId: id, ...patch });
   };
 
   const replaceAll = async (
@@ -136,6 +145,7 @@ export function useTransactions(params: {
     updateTxn,
     splitTxn,
     transferTxn,
+    updateWorkflowState,
     stripCodingForSubCategoryIds,
     stripCodingForCategoryIds,
     replaceAll,

@@ -154,6 +154,10 @@ export type Txn = {
   companyDefaultMappingRuleId?: CompanyDefaultMappingRuleId;
   codingSource?: 'manual' | 'company_default_rule';
   codingPendingApproval?: boolean;
+  reviewedAt?: string;
+  reviewedByUserId?: UserId;
+  lockedAt?: string;
+  lockedByUserId?: UserId;
   /** Audit timestamps as ISO strings (UTC). */
   createdAt?: string;
   updatedAt?: string;
@@ -173,6 +177,13 @@ export type TxnComment = {
   resolvedByUserId?: UserId;
   createdAt: string;
   updatedAt: string;
+};
+
+export type TxnCommentSummary = {
+  txnId: TxnId;
+  totalCount: number;
+  unresolvedCount: number;
+  assignedToMeUnresolvedCount: number;
 };
 
 export type BudgetLine = {

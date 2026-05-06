@@ -189,6 +189,10 @@ function selectProjectTransactions(db: Kysely<DB>, projectId: ProjectId) {
       'company_default_mapping_rule_id',
       'coding_source',
       'coding_pending_approval',
+      'reviewed_at',
+      'reviewed_by_user_id',
+      'locked_at',
+      'locked_by_user_id',
       'created_at',
       'updated_at',
     ])

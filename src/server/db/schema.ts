@@ -80,6 +80,10 @@ export interface TxnTable {
   company_default_mapping_rule_id: string | null;
   coding_source: 'manual' | 'company_default_rule' | null;
   coding_pending_approval: boolean;
+  reviewed_at: string | null;
+  reviewed_by_user_id: string | null;
+  locked_at: string | null;
+  locked_by_user_id: string | null;
   created_at: Generated<string>; // TIMESTAMPTZ (ISO)
   updated_at: Generated<string>; // TIMESTAMPTZ (ISO)
 }
