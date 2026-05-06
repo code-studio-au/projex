@@ -34,7 +34,7 @@ import {
   assertCategoryInProject,
   assertCompanyDefaultMappingRuleInCompany,
   assertSubCategoryInProject,
-  requireProjectForAction,
+  requireOperationalProjectForAction,
   type ProjectActionContext,
 } from './resourceGuards';
 import { toTxn } from '../mappers/transactionRows';
@@ -88,7 +88,7 @@ export async function listTransactionsServer(args: {
 }): Promise<Txn[]> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db } = await requireProjectForAction(
+    const { db } = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'project:view'
@@ -134,7 +134,7 @@ export async function createTxnServer(args: {
 }): Promise<Txn> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const context = await requireProjectForAction(
+    const context = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'txns:edit'
@@ -239,7 +239,7 @@ export async function updateTxnServer(args: {
 }): Promise<Txn> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const context = await requireProjectForAction(
+    const context = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'txns:edit'
@@ -387,7 +387,7 @@ export async function deleteTxnServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db } = await requireProjectForAction(
+    const { db } = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'txns:edit'
@@ -407,7 +407,7 @@ export async function splitTxnServer(args: {
 }): Promise<TxnSplitResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const context = await requireProjectForAction(
+    const context = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'txns:edit'
@@ -593,12 +593,12 @@ export async function transferTxnServer(args: {
 }): Promise<TxnTransferResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const sourceContext = await requireProjectForAction(
+    const sourceContext = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'txns:edit'
     );
-    const destinationContext = await requireProjectForAction(
+    const destinationContext = await requireOperationalProjectForAction(
       args.context,
       args.input.destinationProjectId,
       'txns:edit',
@@ -794,7 +794,7 @@ export async function importTransactionsServer(args: {
 }): Promise<{ count: number }> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const context = await requireProjectForAction(
+    const context = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'project:import'
@@ -948,7 +948,7 @@ export async function previewImportTransactionsServer(args: {
 }): Promise<{ rows: ImportPreviewRow[] }> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const context = await requireProjectForAction(
+    const context = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'project:import'

@@ -22,7 +22,7 @@ import {
 import {
   assertCategoryInProject,
   assertSubCategoryInProject,
-  requireProjectForAction,
+  requireOperationalProjectForAction,
 } from './resourceGuards';
 
 type BudgetRow = Selectable<BudgetLineTable>;
@@ -48,7 +48,7 @@ export async function listBudgetsServer(args: {
 }): Promise<BudgetLine[]> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db } = await requireProjectForAction(
+    const { db } = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'project:view'
@@ -79,7 +79,7 @@ export async function createBudgetServer(args: {
 }): Promise<BudgetLine> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db, companyId } = await requireProjectForAction(
+    const { db, companyId } = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'budget:edit'
@@ -181,7 +181,7 @@ export async function updateBudgetServer(args: {
 }): Promise<BudgetLine> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db } = await requireProjectForAction(
+    const { db } = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'budget:edit'
@@ -277,7 +277,7 @@ export async function deleteBudgetServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db } = await requireProjectForAction(
+    const { db } = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'budget:edit'

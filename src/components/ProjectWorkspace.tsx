@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
+import {
+  Badge,
+  Button,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Table,
+  Tabs,
+  Text,
+  Title,
+} from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
@@ -14,6 +25,7 @@ import { formatCurrencyFromCents } from '../utils/money';
 
 import {
   useCompanyQuery,
+  useCompanySummaryQuery,
   useProjectQuery,
   useProjectsQuery,
 } from '../queries/reference';
@@ -84,22 +96,38 @@ export default function ProjectWorkspace(props: {
   const company = useCompanyQuery(companyId);
   const project = useProjectQuery(projectId);
   const projects = useProjectsQuery(companyId);
+  const canViewProgrammeSummary =
+    access.isAdmin || access.isExecutive || access.isSuperadmin;
+  const companySummary = useCompanySummaryQuery(companyId, {
+    enabled:
+      project.data?.projectType === 'programme' && canViewProgrammeSummary,
+  });
   const updateProject = useUpdateProjectMutation(companyId);
+  const isOperationalProject = project.data?.projectType === 'project';
 
   const canProjectEdit = access.can('project:edit', projectId);
-  const canImport = access.can('project:import', projectId);
-  const canEditBudgets = access.can('budget:edit', projectId);
-  const canEditTxns = access.can('txns:edit', projectId);
-  const canEditTaxonomy = access.can('taxonomy:edit', projectId);
+  const canImport =
+    isOperationalProject && access.can('project:import', projectId);
+  const canEditBudgets =
+    isOperationalProject && access.can('budget:edit', projectId);
+  const canEditTxns =
+    isOperationalProject && access.can('txns:edit', projectId);
+  const canEditTaxonomy =
+    isOperationalProject && access.can('taxonomy:edit', projectId);
 
-  const budgets = useBudgets({ companyId, projectId });
-  const txns = useTransactions({ projectId });
+  const budgets = useBudgets({
+    companyId,
+    projectId,
+    enabled: isOperationalProject,
+  });
+  const txns = useTransactions({ projectId, enabled: isOperationalProject });
   const taxonomy = useTaxonomy({
     companyId,
     projectId,
     budgets,
     txns,
     canEditBudgets,
+    enabled: isOperationalProject,
   });
 
   const [activeTab, setActiveTab] = useState<ProjectWorkspaceTab>(initialTab);
@@ -200,6 +228,7 @@ export default function ProjectWorkspace(props: {
           (candidate) =>
             candidate.id !== projectId &&
             candidate.status === 'active' &&
+            candidate.projectType === 'project' &&
             access.can('txns:edit', candidate.id)
         )
         .map((candidate) => ({
@@ -217,6 +246,31 @@ export default function ProjectWorkspace(props: {
   const summaryReady =
     headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
   const currencyCode = project.data?.currency ?? 'AUD';
+  const programmeSummary = useMemo(
+    () =>
+      (companySummary.data?.projects ?? []).find(
+        (candidate) => candidate.id === projectId
+      ),
+    [companySummary.data?.projects, projectId]
+  );
+  const programmeTotals = useMemo(() => {
+    const months = programmeSummary?.months ?? [];
+    return {
+      budgetCents: programmeSummary?.budgetCents ?? 0,
+      actualCents: months.reduce(
+        (total, month) => total + month.actualCodedCents,
+        0
+      ),
+      uncodedCount: months.reduce(
+        (total, month) => total + month.uncodedCount,
+        0
+      ),
+      uncodedAmountCents: months.reduce(
+        (total, month) => total + month.uncodedAmountCents,
+        0
+      ),
+    };
+  }, [programmeSummary]);
   const entryMessage = useMemo(() => {
     if (initialEntrySource !== 'company-summary') return null;
     switch (initialEntryFocus) {
@@ -261,6 +315,168 @@ export default function ProjectWorkspace(props: {
     router,
     transactionView,
   ]);
+
+  if (project.data?.projectType === 'programme') {
+    const childProjects = programmeSummary?.children ?? [];
+    return (
+      <Stack gap="lg">
+        <Paper withBorder p={isMobile ? 'md' : 'lg'} radius="lg">
+          <Stack gap="sm">
+            <Group justify="space-between" align="center" wrap="wrap">
+              {headerReady ? (
+                <Title order={3}>
+                  {company.data?.name} • {project.data.name}
+                </Title>
+              ) : (
+                <LoadingLine width={320} height={30} radius="md" />
+              )}
+              <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="blue">
+                Programme
+              </Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Programmes are reporting-only containers. Budgets, imports,
+              transactions, taxonomy, and coding live in the sub-projects below.
+            </Text>
+          </Stack>
+        </Paper>
+
+        {!canViewProgrammeSummary ? (
+          <Paper withBorder radius="lg" p="lg">
+            <Text c="dimmed">
+              Programme rollups are available to company admins, executives, and
+              superadmins.
+            </Text>
+          </Paper>
+        ) : null}
+
+        {canViewProgrammeSummary ? (
+          <SimpleGrid cols={isMobile ? 1 : 4} spacing="md">
+            <Paper withBorder radius="lg" p="lg">
+              <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+                Sub-projects
+              </Text>
+              <Title order={3}>{childProjects.length}</Title>
+            </Paper>
+            <Paper withBorder radius="lg" p="lg">
+              <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+                Total budget
+              </Text>
+              <Title order={4}>
+                {formatCurrencyFromCents(
+                  programmeTotals.budgetCents,
+                  currencyCode
+                )}
+              </Title>
+            </Paper>
+            <Paper withBorder radius="lg" p="lg">
+              <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+                Actual
+              </Text>
+              <Title order={4}>
+                {formatCurrencyFromCents(
+                  programmeTotals.actualCents,
+                  currencyCode
+                )}
+              </Title>
+            </Paper>
+            <Paper withBorder radius="lg" p="lg">
+              <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+                Uncoded
+              </Text>
+              <Title order={4}>{programmeTotals.uncodedCount}</Title>
+            </Paper>
+          </SimpleGrid>
+        ) : null}
+
+        {canViewProgrammeSummary ? (
+          <Paper withBorder radius="lg" p="lg">
+            <Stack gap="sm">
+              <Title order={5}>Sub-projects</Title>
+              {childProjects.length ? (
+                <Table.ScrollContainer minWidth={720}>
+                  <Table striped highlightOnHover withTableBorder>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Project</Table.Th>
+                        <Table.Th>Budget</Table.Th>
+                        <Table.Th>Actual</Table.Th>
+                        <Table.Th>Uncoded</Table.Th>
+                        <Table.Th>Status</Table.Th>
+                        <Table.Th>Action</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {childProjects.map((child) => {
+                        const actualCents = child.months.reduce(
+                          (total, month) => total + month.actualCodedCents,
+                          0
+                        );
+                        const uncodedCount = child.months.reduce(
+                          (total, month) => total + month.uncodedCount,
+                          0
+                        );
+                        return (
+                          <Table.Tr key={child.id}>
+                            <Table.Td>{child.name}</Table.Td>
+                            <Table.Td>
+                              {formatCurrencyFromCents(
+                                child.budgetCents,
+                                child.currency
+                              )}
+                            </Table.Td>
+                            <Table.Td>
+                              {formatCurrencyFromCents(
+                                actualCents,
+                                child.currency
+                              )}
+                            </Table.Td>
+                            <Table.Td>{uncodedCount}</Table.Td>
+                            <Table.Td>
+                              <Badge
+                                variant="light"
+                                color={
+                                  child.status === 'active' ? 'green' : 'gray'
+                                }
+                              >
+                                {child.status === 'active'
+                                  ? 'Active'
+                                  : 'Archived'}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Button
+                                size="xs"
+                                variant="light"
+                                disabled={child.status !== 'active'}
+                                onClick={() =>
+                                  router.navigate({
+                                    to: '/c/$companyId/p/$projectId',
+                                    params: {
+                                      companyId,
+                                      projectId: child.id,
+                                    },
+                                  })
+                                }
+                              >
+                                Open
+                              </Button>
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              ) : (
+                <Text c="dimmed">No sub-projects are assigned yet.</Text>
+              )}
+            </Stack>
+          </Paper>
+        ) : null}
+      </Stack>
+    );
+  }
 
   return (
     <Stack gap="lg">

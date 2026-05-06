@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import {
   Badge,
+  Group,
   Paper,
   Select,
   SimpleGrid,
@@ -31,6 +32,9 @@ function toQuarterOption(value: string | null): QuarterOption | null {
 type ProjectSummaryRow = {
   id: Project['id'];
   name: string;
+  projectType: Project['projectType'];
+  parentProjectId?: Project['id'];
+  isChild: boolean;
   status: Project['status'];
   visibility: Project['visibility'];
   currency: Project['currency'];
@@ -220,7 +224,10 @@ export default function CompanySummaryPanel(props: {
   }, [allMonthKeys, quarterFilter, yearFilter]);
 
   const rows = useMemo<ProjectSummaryRow[]>(() => {
-    return summaryProjects.map((project) => {
+    const toRow = (
+      project: (typeof summaryProjects)[number],
+      isChild: boolean
+    ): ProjectSummaryRow => {
       const visibleMonths = project.months.filter((month) =>
         monthKeyMatchesFilters({
           monthKey: month.monthKey,
@@ -246,6 +253,9 @@ export default function CompanySummaryPanel(props: {
       return {
         id: project.id,
         name: project.name,
+        projectType: project.projectType,
+        parentProjectId: project.parentProjectId,
+        isChild,
         status: project.status,
         visibility: project.visibility,
         currency: project.currency,
@@ -256,11 +266,16 @@ export default function CompanySummaryPanel(props: {
         uncodedAmountCents,
         isOverBudget: actualCodedCents > budgetCents,
       };
-    });
+    };
+
+    return summaryProjects.flatMap((project) => [
+      toRow(project, false),
+      ...(project.children ?? []).map((child) => toRow(child, true)),
+    ]);
   }, [monthFilterKey, quarterFilter, summaryProjects, yearFilter]);
 
   const activeRows = useMemo(
-    () => rows.filter((row) => row.status === 'active'),
+    () => rows.filter((row) => row.status === 'active' && !row.isChild),
     [rows]
   );
 
@@ -291,17 +306,28 @@ export default function CompanySummaryPanel(props: {
         header: 'Project',
         size: 180,
         Cell: ({ row }) => (
-          <SummaryDrilldownLink
-            companyId={companyId}
-            projectId={row.original.id}
-            yearFilter={yearFilter}
-            quarterFilter={quarterFilter}
-            monthFilterKey={monthFilterKey}
-            tab="budget"
-            focus="budget"
-          >
-            {row.original.name}
-          </SummaryDrilldownLink>
+          <Stack gap={2} pl={row.original.isChild ? 'md' : 0}>
+            <Group gap="xs" wrap="wrap">
+              <SummaryDrilldownLink
+                companyId={companyId}
+                projectId={row.original.id}
+                yearFilter={yearFilter}
+                quarterFilter={quarterFilter}
+                monthFilterKey={monthFilterKey}
+                tab="budget"
+                focus="budget"
+              >
+                {row.original.isChild
+                  ? `- ${row.original.name}`
+                  : row.original.name}
+              </SummaryDrilldownLink>
+              {row.original.projectType === 'programme' ? (
+                <Badge variant="light" color="blue">
+                  Programme
+                </Badge>
+              ) : null}
+            </Group>
+          </Stack>
         ),
       },
       {
@@ -566,7 +592,7 @@ export default function CompanySummaryPanel(props: {
         <Paper withBorder radius="lg" p="lg">
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Active projects
+              Active programmes/projects
             </Text>
             <Title order={3}>{summary.activeProjects}</Title>
           </Stack>

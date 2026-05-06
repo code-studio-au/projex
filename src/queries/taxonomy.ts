@@ -31,7 +31,10 @@ import type {
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 
-export function useCategoriesQuery(projectId: ProjectId) {
+export function useCategoriesQuery(
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
@@ -39,6 +42,7 @@ export function useCategoriesQuery(projectId: ProjectId) {
     queryFn: () => api.listCategories(projectId),
     // Avoid UI flicker (e.g. transactions momentarily appearing uncoded) while refetching.
     placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
   });
 }
 
@@ -82,7 +86,10 @@ export function useCompanyDefaultMappingRulesQuery(companyId: CompanyId) {
   });
 }
 
-export function useSubCategoriesQuery(projectId: ProjectId) {
+export function useSubCategoriesQuery(
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
@@ -90,6 +97,7 @@ export function useSubCategoriesQuery(projectId: ProjectId) {
     queryFn: () => api.listSubCategories(projectId),
     // Avoid UI flicker (e.g. transactions momentarily appearing uncoded) while refetching.
     placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
   });
 }
 

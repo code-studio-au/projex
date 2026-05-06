@@ -12,6 +12,7 @@ import {
   asUserId,
   TXN_TYPES,
 } from '../types/index.ts';
+import type { CompanySummaryProject } from '../types/index.ts';
 import {
   budgetAllocatedCentsSchema,
   projectBudgetTotalCentsSchema,
@@ -63,6 +64,7 @@ const companyRoleSchema = z.enum([
   'member',
 ]);
 const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
+const projectTypeSchema = z.enum(['project', 'programme']);
 const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
 
 export const authenticatedSessionResponseSchema = z.object({
@@ -88,15 +90,26 @@ export const companySummaryMonthResponseSchema = z.object({
   uncodedAmountCents: transactionAmountCentsSchema,
 });
 
-export const companySummaryProjectResponseSchema = z.object({
-  id: projectIdSchema,
-  name: z.string(),
-  status: z.enum(['active', 'archived']),
-  visibility: z.enum(['company', 'private']),
-  currency: z.enum(['AUD', 'USD', 'EUR', 'GBP']),
-  budgetCents: projectBudgetTotalCentsSchema,
-  months: z.array(companySummaryMonthResponseSchema),
-});
+export const companySummaryProjectResponseSchema: z.ZodType<CompanySummaryProject> =
+  z.object({
+    id: projectIdSchema,
+    name: z.string(),
+    projectType: projectTypeSchema,
+    parentProjectId: projectIdSchema.optional(),
+    status: z.enum(['active', 'archived']),
+    visibility: z.enum(['company', 'private']),
+    currency: z.enum(['AUD', 'USD', 'EUR', 'GBP']),
+    budgetCents: projectBudgetTotalCentsSchema,
+    months: z.array(companySummaryMonthResponseSchema),
+    children: z
+      .array(
+        z.lazy(
+          (): z.ZodType<CompanySummaryProject> =>
+            companySummaryProjectResponseSchema
+        )
+      )
+      .optional(),
+  });
 
 export const companySummaryResponseSchema = z.object({
   projects: z.array(companySummaryProjectResponseSchema),
@@ -106,6 +119,8 @@ export const projectResponseSchema = z.object({
   id: projectIdSchema,
   companyId: companyIdSchema,
   name: z.string(),
+  projectType: projectTypeSchema,
+  parentProjectId: projectIdSchema.optional(),
   budgetTotalCents: projectBudgetTotalCentsSchema,
   currency: z.enum(['AUD', 'USD', 'EUR', 'GBP']),
   status: z.enum(['active', 'archived']),

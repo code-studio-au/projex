@@ -87,9 +87,33 @@ Design direction:
 - require same-company validation at the server and database boundary
 - transfers currently support standard transactions and split children, not split parents
 
+### 4. Programmes for reporting-only project rollups
+
+Examples:
+
+- create a programme as a reporting-only container inside a company
+- assign one or more operational projects as sub-projects of a programme
+- keep budgets, transactions, imports, taxonomy, coding, splits, and transfers scoped to operational projects only
+- show programme totals as a rollup of its active sub-projects
+- list the sub-project totals under the programme on the company dashboard
+
+Why this matters:
+
+- teams need a top-level reporting layer without creating duplicate operational project data
+- programme rollups make company reporting easier to scan while preserving project-level ownership and coding boundaries
+- reporting-only programmes avoid double-counting and prevent transactions being imported into the wrong layer
+
+Design direction:
+
+- in progress: projects now have `projectType` and optional `parentProjectId`
+- programmes are guarded server-side from operational project endpoints
+- sub-projects must belong to the same company and use the same currency as their programme
+- programme rollups are derived from sub-project data rather than duplicated transactions or budgets
+- future polish should add richer programme filtering and permissions-specific detail visibility
+
 ## Product/Admin
 
-### 4. Add bulk transaction review actions
+### 5. Add bulk transaction review actions
 
 Examples:
 
@@ -104,7 +128,7 @@ Why this matters:
 - row-by-row transaction review will become the main bottleneck as data volume increases
 - bulk actions are one of the highest-value workflow improvements available now
 
-### 5. Add reviewed and locked transaction workflow
+### 6. Add reviewed and locked transaction workflow
 
 Examples:
 
@@ -124,7 +148,7 @@ Design direction:
 - define exactly which fields become immutable when locked
 - ensure all lock, unlock, review, and reopen actions emit audit events
 
-### 6. Clarify budget semantics, health messaging, and lightweight forecasting
+### 7. Clarify budget semantics, health messaging, and lightweight forecasting
 
 Examples:
 
@@ -140,7 +164,7 @@ Why this matters:
 - sharper financial semantics will make the app feel more trustworthy to finance-oriented users
 - users need interpretation and risk cues, not just raw spend totals
 
-### 7. Add rule suggestions from repeated manual coding
+### 8. Add rule suggestions from repeated manual coding
 
 Examples:
 
@@ -159,7 +183,7 @@ Design direction:
 - distinguish clearly between create-rule suggestions and update-rule suggestions
 - keep suggestions reviewable and dismissible so noisy patterns do not become brittle rules
 
-### 8. Expand audit logging into a first-class product feature
+### 9. Expand audit logging into a first-class product feature
 
 Examples:
 
@@ -201,7 +225,7 @@ Notes:
 - it needs careful schema, indexing, retention, and UI design before we build it
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 9. Extend self-service account/profile
+### 10. Extend self-service account/profile
 
 Examples:
 

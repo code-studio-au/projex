@@ -84,11 +84,19 @@ export function useTaxonomy(params: {
   budgets: BudgetsHook;
   txns: TransactionsHook;
   canEditBudgets: boolean;
+  enabled?: boolean;
 }) {
-  const { companyId, projectId, budgets, txns, canEditBudgets } = params;
+  const {
+    companyId,
+    projectId,
+    budgets,
+    txns,
+    canEditBudgets,
+    enabled = true,
+  } = params;
 
-  const catsQ = useCategoriesQuery(projectId);
-  const subsQ = useSubCategoriesQuery(projectId);
+  const catsQ = useCategoriesQuery(projectId, { enabled });
+  const subsQ = useSubCategoriesQuery(projectId, { enabled });
 
   const createCat = useCreateCategoryMutation(projectId);
   const updateCat = useUpdateCategoryMutation(projectId);

@@ -34,6 +34,7 @@ import { buildCompanySummaryProjects } from '../src/utils/companySummary.ts';
 
 const companyId = asCompanyId('co_1');
 const projectId = asProjectId('prj_1');
+const programmeId = asProjectId('prg_1');
 const otherCompanyId = asCompanyId('co_2');
 const otherProjectId = asProjectId('prj_2');
 const destinationProjectId = asProjectId('prj_destination');
@@ -234,6 +235,8 @@ test('company summary excludes non-budget-impact transaction markers', () => {
     {
       id: projectId,
       name: 'Project One',
+      projectType: 'project' as const,
+      parentProjectId: undefined,
       status: 'active' as const,
       visibility: 'company' as const,
       currency: 'AUD' as const,
@@ -268,6 +271,53 @@ test('company summary excludes non-budget-impact transaction markers', () => {
   assert.equal(result[0].months[0].actualCodedCents, 12500);
   assert.equal(result[0].months[0].uncodedCount, 0);
   assert.equal(result[0].months[0].uncodedAmountCents, 0);
+});
+
+test('company summary rolls sub-project totals into programmes', () => {
+  const childProjectId = asProjectId('prj_child');
+  const result = buildCompanySummaryProjects({
+    projects: [
+      {
+        id: programmeId,
+        name: 'Programme One',
+        projectType: 'programme' as const,
+        parentProjectId: undefined,
+        status: 'active' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 0,
+      },
+      {
+        id: childProjectId,
+        name: 'Child Project',
+        projectType: 'project' as const,
+        parentProjectId: programmeId,
+        status: 'active' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 75000,
+      },
+    ],
+    validSubCategoryIdsByProject: new Map([
+      [childProjectId, new Set<string>([subCategory.id])],
+    ]),
+    transactions: [
+      {
+        projectId: childProjectId,
+        date: '2026-04-28',
+        amountCents: 15000,
+        budgetImpact: true,
+        subCategoryId: subCategory.id,
+      },
+    ],
+  });
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].projectType, 'programme');
+  assert.equal(result[0].budgetCents, 75000);
+  assert.equal(result[0].months[0].actualCodedCents, 15000);
+  assert.equal(result[0].children?.length, 1);
+  assert.equal(result[0].children?.[0].id, childProjectId);
 });
 
 test('transaction coding guard rejects source markers with coding metadata', () => {

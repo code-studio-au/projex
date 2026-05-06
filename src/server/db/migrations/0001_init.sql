@@ -34,6 +34,8 @@ create table if not exists projects (
   id text primary key,
   company_id text not null references companies(id) on delete cascade,
   name text not null,
+  project_type text not null default 'project' check (project_type in ('project', 'programme')),
+  parent_project_id text null references projects(id) on delete set null,
   currency text not null check (currency in ('AUD', 'USD', 'EUR', 'GBP')),
   status text not null check (status in ('active', 'archived')),
   deactivated_at timestamptz null,
@@ -42,6 +44,7 @@ create table if not exists projects (
 );
 
 create index if not exists idx_projects_company on projects(company_id);
+create index if not exists idx_projects_parent_project on projects(parent_project_id);
 
 create table if not exists company_memberships (
   company_id text not null references companies(id) on delete cascade,

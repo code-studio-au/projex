@@ -23,11 +23,16 @@ export type Company = {
 };
 
 export type ProjectVisibility = 'company' | 'private';
+export type ProjectType = 'project' | 'programme';
 
 export type Project = {
   id: ProjectId;
   companyId: CompanyId;
   name: string;
+  /** Programmes are reporting-only containers. Projects are operational. */
+  projectType: ProjectType;
+  /** Optional reporting programme that this operational project rolls up into. */
+  parentProjectId?: ProjectId;
   budgetTotalCents: number;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
@@ -176,11 +181,14 @@ export type CompanySummaryMonth = {
 export type CompanySummaryProject = {
   id: ProjectId;
   name: string;
+  projectType: ProjectType;
+  parentProjectId?: ProjectId;
   status: Project['status'];
   visibility: ProjectVisibility;
   currency: Project['currency'];
   budgetCents: number;
   months: CompanySummaryMonth[];
+  children?: CompanySummaryProject[];
 };
 
 export type CompanySummary = {

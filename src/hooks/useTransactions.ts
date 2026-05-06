@@ -30,9 +30,12 @@ import { isCategorisableTxn } from '../utils/transactions';
  * - For batch operations (strip coding / replaceAll / appendMany) we currently
  *   route through the import endpoint until dedicated batch mutations exist.
  */
-export function useTransactions(params: { projectId: ProjectId }) {
-  const { projectId } = params;
-  const q = useTransactionsQuery(projectId);
+export function useTransactions(params: {
+  projectId: ProjectId;
+  enabled?: boolean;
+}) {
+  const { projectId, enabled = true } = params;
+  const q = useTransactionsQuery(projectId, { enabled });
   const update = useUpdateTxnMutation(projectId);
   const split = useSplitTxnMutation(projectId);
   const transfer = useTransferTxnMutation(projectId);

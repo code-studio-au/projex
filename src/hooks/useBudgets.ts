@@ -22,10 +22,11 @@ import {
 export function useBudgets(params: {
   companyId: CompanyId;
   projectId: ProjectId;
+  enabled?: boolean;
 }) {
-  const { companyId, projectId } = params;
+  const { companyId, projectId, enabled = true } = params;
 
-  const q = useBudgetsQuery(projectId);
+  const q = useBudgetsQuery(projectId, { enabled });
   const create = useCreateBudgetMutation(projectId);
   const update = useUpdateBudgetMutation(projectId);
   const del = useDeleteBudgetMutation(projectId);

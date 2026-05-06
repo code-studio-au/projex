@@ -38,12 +38,15 @@ export function useCompanyQuery(companyId: CompanyId) {
   });
 }
 
-export function useCompanySummaryQuery(companyId: CompanyId) {
+export function useCompanySummaryQuery(
+  companyId: CompanyId,
+  options: { enabled?: boolean } = {}
+) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
   return useQuery({
-    enabled: !!session.data?.userId,
+    enabled: !!session.data?.userId && (options.enabled ?? true),
     queryKey: qk.companySummary(scopeUserId, companyId),
     queryFn: () => api.getCompanySummary(companyId),
   });

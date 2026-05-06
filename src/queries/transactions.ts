@@ -17,13 +17,17 @@ import type {
 } from '../api/contract';
 import { normalizeTxnPatch } from '../utils/transactions';
 
-export function useTransactionsQuery(projectId: ProjectId) {
+export function useTransactionsQuery(
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.transactions(scopeUserId, projectId),
     queryFn: () => api.listTransactions(projectId),
     placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
   });
 }
 

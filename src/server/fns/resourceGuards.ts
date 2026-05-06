@@ -6,6 +6,7 @@ import type {
   CompanyDefaultMappingRuleId,
   CompanyId,
   ProjectId,
+  ProjectType,
   SubCategoryId,
   UserId,
 } from '../../types';
@@ -21,6 +22,7 @@ export type ProjectActionContext = {
   userId: UserId;
   companyId: CompanyId;
   projectId: ProjectId;
+  projectType: ProjectType;
 };
 
 export async function requireProjectForAction(
@@ -32,7 +34,7 @@ export async function requireProjectForAction(
   const userId = await requireServerUserId(context);
   const project = await db
     .selectFrom('projects')
-    .select(['id', 'company_id'])
+    .select(['id', 'company_id', 'project_type'])
     .where('id', '=', projectId)
     .executeTakeFirst();
 
@@ -40,7 +42,34 @@ export async function requireProjectForAction(
 
   const companyId = asCompanyId(project.company_id);
   await requireAuthorized({ db, userId, action, companyId, projectId });
-  return { db, userId, companyId, projectId };
+  return {
+    db,
+    userId,
+    companyId,
+    projectId,
+    projectType: project.project_type,
+  };
+}
+
+export async function requireOperationalProjectForAction(
+  context: ServerFnContextInput,
+  projectId: ProjectId,
+  action: Action,
+  db: Kysely<DB> = getDb()
+): Promise<ProjectActionContext> {
+  const projectContext = await requireProjectForAction(
+    context,
+    projectId,
+    action,
+    db
+  );
+  if (projectContext.projectType !== 'project') {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Programmes are reporting-only and cannot be used for project operations'
+    );
+  }
+  return projectContext;
 }
 
 export async function requireCompanyMember(params: {

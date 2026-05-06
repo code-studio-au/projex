@@ -216,16 +216,23 @@ export type ApplyCompanyDefaultsResult = {
   subCategoriesAdded: number;
 };
 
-export type ProjectCreateInput = Pick<Project, 'name'> & { id?: ProjectId };
+export type ProjectCreateInput = Pick<Project, 'name'> & {
+  id?: ProjectId;
+  projectType?: Project['projectType'];
+  parentProjectId?: ProjectId | null;
+  currency?: Project['currency'];
+};
 export type ProjectUpdateInput = Pick<
   Partial<Project>,
   | 'name'
+  | 'projectType'
   | 'budgetTotalCents'
   | 'currency'
   | 'visibility'
   | 'allowSuperadminAccess'
 > & {
   id: ProjectId;
+  parentProjectId?: ProjectId | null;
 };
 
 export type CompanyUpdateInput = Pick<Partial<Company>, 'name'> & {

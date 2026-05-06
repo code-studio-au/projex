@@ -5,6 +5,7 @@ import {
   Group,
   Modal,
   Paper,
+  Select,
   Stack,
   Tabs,
   Text,
@@ -15,7 +16,7 @@ import { Link, useRouter } from '@tanstack/react-router';
 import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { useMediaQuery } from '@mantine/hooks';
 
-import type { CompanyId, ProjectId } from '../types';
+import type { CompanyId, Project, ProjectId } from '../types';
 import { asCompanyId } from '../types';
 import {
   useCompanyQuery,
@@ -68,6 +69,12 @@ export default function CompanyDashboardPage() {
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectType, setNewProjectType] =
+    useState<Project['projectType']>('project');
+  const [newProjectCurrency, setNewProjectCurrency] =
+    useState<Project['currency']>('AUD');
+  const [newProjectParentId, setNewProjectParentId] =
+    useState<ProjectId | null>(null);
   const [activeTab, setActiveTab] = useState<CompanyDashboardTab>('summary');
 
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
@@ -75,8 +82,38 @@ export default function CompanyDashboardPage() {
     () =>
       [...rows].sort((a, b) => {
         if (a.status !== b.status) return a.status.localeCompare(b.status);
+        if (a.projectType !== b.projectType) {
+          return a.projectType === 'programme' ? -1 : 1;
+        }
+        if (a.parentProjectId !== b.parentProjectId) {
+          return (a.parentProjectId ?? '').localeCompare(
+            b.parentProjectId ?? ''
+          );
+        }
         return a.name.localeCompare(b.name);
       }),
+    [rows]
+  );
+  const programmeOptions = useMemo(
+    () =>
+      rows
+        .filter(
+          (project) =>
+            project.status === 'active' &&
+            project.projectType === 'programme' &&
+            project.currency === newProjectCurrency
+        )
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((project) => ({ value: project.id, label: project.name })),
+    [newProjectCurrency, rows]
+  );
+  const programmeNameById = useMemo(
+    () =>
+      new Map(
+        rows
+          .filter((project) => project.projectType === 'programme')
+          .map((project) => [project.id, project.name])
+      ),
     [rows]
   );
   const memberships = useMemo(
@@ -175,6 +212,39 @@ export default function CompanyDashboardPage() {
     {
       accessorKey: 'name',
       header: 'Project',
+      Cell: ({ row }) => (
+        <Stack gap={2}>
+          <Group gap="xs" wrap="wrap">
+            <Text fw={600}>{row.original.name}</Text>
+            {row.original.projectType === 'programme' ? (
+              <Badge variant="light" color="blue">
+                Programme
+              </Badge>
+            ) : null}
+          </Group>
+          {row.original.parentProjectId ? (
+            <Text size="xs" c="dimmed">
+              Sub-project of{' '}
+              {programmeNameById.get(row.original.parentProjectId) ??
+                'programme'}
+            </Text>
+          ) : null}
+        </Stack>
+      ),
+    },
+    {
+      accessorKey: 'projectType',
+      header: 'Type',
+      Cell: ({ row }) =>
+        row.original.projectType === 'programme' ? (
+          <Badge variant="light" color="blue">
+            Programme
+          </Badge>
+        ) : (
+          <Badge variant="light" color="gray">
+            Project
+          </Badge>
+        ),
     },
     {
       accessorKey: 'visibility',
@@ -289,24 +359,76 @@ export default function CompanyDashboardPage() {
           {canAddProjects && (
             <>
               <Button variant="filled" onClick={() => setNewProjectOpen(true)}>
-                New project
+                New project / programme
               </Button>
               <Modal
                 opened={newProjectOpen}
                 onClose={() => setNewProjectOpen(false)}
-                title="Create project"
+                title="Create project or programme"
               >
                 <Stack>
                   <TextInput
-                    label="Project name"
+                    label={
+                      newProjectType === 'programme'
+                        ? 'Programme name'
+                        : 'Project name'
+                    }
                     placeholder="e.g. Website Refresh"
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.currentTarget.value)}
                     autoFocus
                   />
+                  <Select
+                    label="Type"
+                    value={newProjectType}
+                    data={[
+                      { value: 'project', label: 'Project' },
+                      {
+                        value: 'programme',
+                        label: 'Programme (reporting only)',
+                      },
+                    ]}
+                    onChange={(value) => {
+                      const next =
+                        value === 'programme' ? 'programme' : 'project';
+                      setNewProjectType(next);
+                      if (next === 'programme') setNewProjectParentId(null);
+                    }}
+                  />
+                  <Select
+                    label="Currency"
+                    value={newProjectCurrency}
+                    data={[
+                      { value: 'AUD', label: 'AUD' },
+                      { value: 'USD', label: 'USD' },
+                      { value: 'EUR', label: 'EUR' },
+                      { value: 'GBP', label: 'GBP' },
+                    ]}
+                    onChange={(value) => {
+                      const next =
+                        value === 'USD' || value === 'EUR' || value === 'GBP'
+                          ? value
+                          : 'AUD';
+                      setNewProjectCurrency(next);
+                      setNewProjectParentId(null);
+                    }}
+                  />
+                  <Select
+                    label="Programme"
+                    description="Optional. Assigns this project into a reporting programme."
+                    placeholder="No programme"
+                    value={newProjectParentId}
+                    data={programmeOptions}
+                    clearable
+                    disabled={newProjectType === 'programme'}
+                    onChange={(value) =>
+                      setNewProjectParentId(value ? (value as ProjectId) : null)
+                    }
+                  />
                   <Text size="sm" c="dimmed">
-                    New projects start with superadmin support access enabled.
-                    Company admins can change this later in Project settings.
+                    Programmes are reporting-only. Projects hold budgets,
+                    imports, transactions, and coding. New records start with
+                    superadmin support access enabled.
                   </Text>
                   <Group justify="flex-end">
                     <Button
@@ -322,8 +444,19 @@ export default function CompanyDashboardPage() {
                       onClick={async () => {
                         const name = newProjectName.trim();
                         if (!name) return;
-                        await createProject.mutateAsync({ name });
+                        await createProject.mutateAsync({
+                          name,
+                          projectType: newProjectType,
+                          currency: newProjectCurrency,
+                          parentProjectId:
+                            newProjectType === 'project'
+                              ? (newProjectParentId ?? undefined)
+                              : undefined,
+                        });
                         setNewProjectName('');
+                        setNewProjectType('project');
+                        setNewProjectCurrency('AUD');
+                        setNewProjectParentId(null);
                         setNewProjectOpen(false);
                       }}
                     >

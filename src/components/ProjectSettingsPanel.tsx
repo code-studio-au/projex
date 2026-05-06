@@ -24,7 +24,11 @@ import type {
 } from '../types';
 import { asUserId } from '../types';
 
-import { useProjectQuery, useUsersQuery } from '../queries/reference';
+import {
+  useProjectQuery,
+  useProjectsQuery,
+  useUsersQuery,
+} from '../queries/reference';
 import { useUpdateProjectMutation } from '../queries/admin';
 import {
   useCompanyMembershipsQuery,
@@ -57,6 +61,10 @@ function isProjectVisibility(value: string): value is Project['visibility'] {
   return ['private', 'company'].includes(value);
 }
 
+function isProjectType(value: string): value is Project['projectType'] {
+  return ['project', 'programme'].includes(value);
+}
+
 export default function ProjectSettingsPanel(props: {
   companyId: CompanyId;
   projectId: ProjectId;
@@ -66,6 +74,7 @@ export default function ProjectSettingsPanel(props: {
   const router = useRouter();
 
   const project = useProjectQuery(projectId);
+  const projects = useProjectsQuery(companyId);
   const usersQ = useUsersQuery();
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
   const projectMembershipsQ = useProjectMembershipsQuery(projectId);
@@ -74,6 +83,20 @@ export default function ProjectSettingsPanel(props: {
   const updateProject = useUpdateProjectMutation(companyId);
 
   const canEditProject = access.can('project:edit', projectId);
+  const programmeOptions = useMemo(
+    () =>
+      (projects.data ?? [])
+        .filter(
+          (candidate) =>
+            candidate.id !== projectId &&
+            candidate.status === 'active' &&
+            candidate.projectType === 'programme' &&
+            candidate.currency === project.data?.currency
+        )
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((candidate) => ({ value: candidate.id, label: candidate.name })),
+    [project.data?.currency, projectId, projects.data]
+  );
 
   const companyUsers = useMemo(
     () =>
@@ -202,6 +225,40 @@ export default function ProjectSettingsPanel(props: {
             </Badge>
           </Group>
           <Stack gap="sm" style={{ width: '100%', maxWidth: 460 }}>
+            <Select
+              label="Type"
+              description="Programmes are reporting-only; projects hold budgets, transactions, imports, and coding."
+              value={project.data.projectType}
+              onChange={(v) => {
+                if (!v || !isProjectType(v)) return;
+                updateProject.mutate({
+                  id: projectId,
+                  projectType: v,
+                  parentProjectId: v === 'programme' ? null : undefined,
+                });
+              }}
+              data={[
+                { value: 'project', label: 'Project' },
+                { value: 'programme', label: 'Programme (reporting only)' },
+              ]}
+              disabled={!canEditProject}
+            />
+            <Select
+              label="Programme"
+              description="Optional reporting programme that this project rolls up into."
+              value={project.data.parentProjectId ?? null}
+              data={programmeOptions}
+              clearable
+              disabled={
+                !canEditProject || project.data.projectType === 'programme'
+              }
+              onChange={(v) =>
+                updateProject.mutate({
+                  id: projectId,
+                  parentProjectId: v ? (v as ProjectId) : null,
+                })
+              }
+            />
             <Select
               label="Currency"
               description="Controls how money is formatted throughout this project workspace."

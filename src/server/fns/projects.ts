@@ -1,6 +1,12 @@
 import { AppError } from '../../api/errors';
 import type { ProjectCreateInput, ProjectUpdateInput } from '../../api/types';
-import type { CompanyId, Project, ProjectId, UserId } from '../../types';
+import type {
+  CompanyId,
+  Project,
+  ProjectId,
+  ProjectType,
+  UserId,
+} from '../../types';
 import { asCompanyId, asProjectId } from '../../types';
 import { uid } from '../../utils/id';
 import {
@@ -22,6 +28,8 @@ type ProjectRow = {
   id: string;
   company_id: string;
   name: string;
+  project_type: ProjectType;
+  parent_project_id: string | null;
   budget_total_cents: number;
   currency: 'AUD' | 'USD' | 'EUR' | 'GBP';
   status: 'active' | 'archived';
@@ -30,11 +38,29 @@ type ProjectRow = {
   allow_superadmin_access: boolean;
 };
 
+const projectSelectFields = [
+  'id',
+  'company_id',
+  'name',
+  'project_type',
+  'parent_project_id',
+  'budget_total_cents',
+  'currency',
+  'status',
+  'deactivated_at',
+  'visibility',
+  'allow_superadmin_access',
+] as const;
+
 function toProject(row: ProjectRow): Project {
   return {
     id: asProjectId(row.id),
     companyId: asCompanyId(row.company_id),
     name: row.name,
+    projectType: row.project_type,
+    parentProjectId: row.parent_project_id
+      ? asProjectId(row.parent_project_id)
+      : undefined,
     budgetTotalCents: Number(row.budget_total_cents),
     currency: row.currency,
     status: row.status,
@@ -42,6 +68,130 @@ function toProject(row: ProjectRow): Project {
     visibility: row.visibility,
     allowSuperadminAccess: row.allow_superadmin_access,
   };
+}
+
+async function assertValidProjectHierarchy(args: {
+  db: ReturnType<typeof getDb>;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  projectType: ProjectType;
+  currency: Project['currency'];
+  parentProjectId?: ProjectId | null;
+}) {
+  if (args.projectType === 'programme') {
+    if (args.parentProjectId) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Programmes cannot be assigned to another programme'
+      );
+    }
+    const childRows = await args.db
+      .selectFrom('projects')
+      .select(['id', 'currency'])
+      .where('parent_project_id', '=', args.projectId)
+      .execute();
+    const mismatchedChild = childRows.find(
+      (child) => child.currency !== args.currency
+    );
+    if (mismatchedChild) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Programme currency must match all assigned sub-projects'
+      );
+    }
+    return;
+  }
+
+  if (!args.parentProjectId) return;
+  if (args.parentProjectId === args.projectId) {
+    throw new AppError('VALIDATION_ERROR', 'Project cannot parent itself');
+  }
+
+  const parent = await args.db
+    .selectFrom('projects')
+    .select(['id', 'company_id', 'project_type', 'status', 'currency'])
+    .where('id', '=', args.parentProjectId)
+    .executeTakeFirst();
+
+  if (!parent) throw new AppError('NOT_FOUND', 'Unknown programme');
+  if (parent.company_id !== args.companyId) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Programme must belong to the same company'
+    );
+  }
+  if (parent.project_type !== 'programme') {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Parent project must be a programme'
+    );
+  }
+  if (parent.status !== 'active') {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Project can only be assigned to an active programme'
+    );
+  }
+  if (parent.currency !== args.currency) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Project currency must match its programme currency'
+    );
+  }
+}
+
+async function assertProjectTypeTransitionAllowed(args: {
+  db: ReturnType<typeof getDb>;
+  projectId: ProjectId;
+  currentType: ProjectType;
+  nextType: ProjectType;
+}) {
+  if (args.currentType === args.nextType) return;
+
+  if (args.currentType === 'programme' && args.nextType === 'project') {
+    const child = await args.db
+      .selectFrom('projects')
+      .select('id')
+      .where('parent_project_id', '=', args.projectId)
+      .executeTakeFirst();
+    if (child) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Move sub-projects out of the programme before changing it to a project'
+      );
+    }
+    return;
+  }
+
+  const [budget, category, subCategory, txn] = await Promise.all([
+    args.db
+      .selectFrom('budget_lines')
+      .select('id')
+      .where('project_id', '=', args.projectId)
+      .executeTakeFirst(),
+    args.db
+      .selectFrom('categories')
+      .select('id')
+      .where('project_id', '=', args.projectId)
+      .executeTakeFirst(),
+    args.db
+      .selectFrom('sub_categories')
+      .select('id')
+      .where('project_id', '=', args.projectId)
+      .executeTakeFirst(),
+    args.db
+      .selectFrom('txns')
+      .select('id')
+      .where('project_id', '=', args.projectId)
+      .executeTakeFirst(),
+  ]);
+
+  if (budget || category || subCategory || txn) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Projects with budgets, taxonomy, or transactions cannot be changed into programmes'
+    );
+  }
 }
 
 async function getCompanyRole(userId: UserId, companyId: CompanyId) {
@@ -72,17 +222,7 @@ export async function listProjectsServer(args: {
 
     const allRows = await db
       .selectFrom('projects')
-      .select([
-        'id',
-        'company_id',
-        'name',
-        'budget_total_cents',
-        'currency',
-        'status',
-        'deactivated_at',
-        'visibility',
-        'allow_superadmin_access',
-      ])
+      .select(projectSelectFields)
       .where('company_id', '=', args.companyId)
       .orderBy('name', 'asc')
       .execute();
@@ -128,17 +268,7 @@ export async function getProjectServer(args: {
     const isSuperadmin = await isGlobalSuperadminUser(userId, db);
     const project = await db
       .selectFrom('projects')
-      .select([
-        'id',
-        'company_id',
-        'name',
-        'budget_total_cents',
-        'currency',
-        'status',
-        'deactivated_at',
-        'visibility',
-        'allow_superadmin_access',
-      ])
+      .select(projectSelectFields)
       .where('id', '=', args.projectId)
       .executeTakeFirst();
     if (!project) return null;
@@ -192,30 +322,34 @@ export async function createProjectServer(args: {
     });
 
     const id = args.input.id ?? asProjectId(uid('prj'));
+    const projectType = args.input.projectType ?? 'project';
+    const parentProjectId = args.input.parentProjectId ?? null;
+    const currency = args.input.currency ?? 'AUD';
+    await assertValidProjectHierarchy({
+      db,
+      companyId: args.companyId,
+      projectId: id,
+      projectType,
+      currency,
+      parentProjectId,
+    });
+
     const row = await db
       .insertInto('projects')
       .values({
         id,
         company_id: args.companyId,
         name: args.input.name.trim(),
+        project_type: projectType,
+        parent_project_id: parentProjectId,
         budget_total_cents: 0,
-        currency: 'AUD',
+        currency,
         status: 'active',
         deactivated_at: null,
         visibility: 'private',
         allow_superadmin_access: true,
       })
-      .returning([
-        'id',
-        'company_id',
-        'name',
-        'budget_total_cents',
-        'currency',
-        'status',
-        'deactivated_at',
-        'visibility',
-        'allow_superadmin_access',
-      ])
+      .returning(projectSelectFields)
       .executeTakeFirstOrThrow();
 
     return toProject(row);
@@ -231,17 +365,7 @@ export async function updateProjectServer(args: {
     const db = getDb();
     const existing = await db
       .selectFrom('projects')
-      .select([
-        'id',
-        'company_id',
-        'name',
-        'budget_total_cents',
-        'currency',
-        'status',
-        'deactivated_at',
-        'visibility',
-        'allow_superadmin_access',
-      ])
+      .select(projectSelectFields)
       .where('id', '=', args.input.id)
       .executeTakeFirst();
     if (!existing) throw new AppError('NOT_FOUND', 'Unknown project');
@@ -266,9 +390,55 @@ export async function updateProjectServer(args: {
     });
 
     const patch: Record<string, unknown> = {};
+    const nextProjectType = args.input.projectType ?? existing.project_type;
+    const nextCurrency = args.input.currency ?? existing.currency;
+    const nextParentProjectId = Object.prototype.hasOwnProperty.call(
+      args.input,
+      'parentProjectId'
+    )
+      ? (args.input.parentProjectId ?? null)
+      : existing.parent_project_id
+        ? asProjectId(existing.parent_project_id)
+        : null;
+
+    await assertProjectTypeTransitionAllowed({
+      db,
+      projectId: asProjectId(existing.id),
+      currentType: existing.project_type,
+      nextType: nextProjectType,
+    });
+
+    await assertValidProjectHierarchy({
+      db,
+      companyId: asCompanyId(existing.company_id),
+      projectId: asProjectId(existing.id),
+      projectType: nextProjectType,
+      currency: nextCurrency,
+      parentProjectId: nextParentProjectId,
+    });
+
     if (typeof args.input.name === 'string')
       patch.name = args.input.name.trim();
+    if (typeof args.input.projectType !== 'undefined') {
+      patch.project_type = args.input.projectType;
+      if (args.input.projectType === 'programme') {
+        patch.parent_project_id = null;
+        patch.budget_total_cents = 0;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(args.input, 'parentProjectId')) {
+      patch.parent_project_id =
+        nextProjectType === 'programme'
+          ? null
+          : (args.input.parentProjectId ?? null);
+    }
     if (typeof args.input.budgetTotalCents !== 'undefined') {
+      if (nextProjectType === 'programme') {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Programmes do not have their own budgets'
+        );
+      }
       patch.budget_total_cents = args.input.budgetTotalCents;
     }
     if (typeof args.input.currency !== 'undefined')
@@ -285,17 +455,7 @@ export async function updateProjectServer(args: {
       .updateTable('projects')
       .set(patch)
       .where('id', '=', args.input.id)
-      .returning([
-        'id',
-        'company_id',
-        'name',
-        'budget_total_cents',
-        'currency',
-        'status',
-        'deactivated_at',
-        'visibility',
-        'allow_superadmin_access',
-      ])
+      .returning(projectSelectFields)
       .executeTakeFirstOrThrow();
     return toProject(updated);
   });

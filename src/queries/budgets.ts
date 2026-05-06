@@ -7,12 +7,16 @@ import type { BudgetCreateInput, BudgetUpdateInput } from '../api/contract';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 
-export function useBudgetsQuery(projectId: ProjectId) {
+export function useBudgetsQuery(
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
   const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.budgets(scopeUserId, projectId),
     queryFn: () => api.listBudgets(projectId),
+    enabled: options.enabled ?? true,
   });
 }
 

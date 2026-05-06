@@ -63,10 +63,16 @@ async function requireProjectContext(
   const userId = await requireServerUserId(context);
   const project = await db
     .selectFrom('projects')
-    .select(['id', 'company_id'])
+    .select(['id', 'company_id', 'project_type'])
     .where('id', '=', projectId)
     .executeTakeFirst();
   if (!project) throw new AppError('NOT_FOUND', 'Unknown project');
+  if (project.project_type !== 'project') {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Programmes are reporting-only and cannot be used for project operations'
+    );
+  }
   const companyId = asCompanyId(project.company_id);
   await requireAuthorized({ db, userId, action, companyId, projectId });
   return { companyId };

@@ -14,7 +14,14 @@ type CompanySummaryMonthBucket = {
 
 type CompanySummaryProjectInput = Pick<
   Project,
-  'id' | 'name' | 'status' | 'visibility' | 'currency' | 'budgetTotalCents'
+  | 'id'
+  | 'name'
+  | 'projectType'
+  | 'parentProjectId'
+  | 'status'
+  | 'visibility'
+  | 'currency'
+  | 'budgetTotalCents'
 >;
 
 export type CompanySummaryTxnInput = {
@@ -68,20 +75,78 @@ export function buildCompanySummaryProjects(args: {
     monthBucketsByProject.set(transaction.projectId, projectBuckets);
   }
 
-  return args.projects.map((project) => {
+  const summaries = args.projects.map((project) => {
     const monthBuckets =
       monthBucketsByProject.get(project.id) ??
       new Map<string, CompanySummaryMonthBucket>();
     return {
       id: project.id,
       name: project.name,
+      projectType: project.projectType,
+      parentProjectId: project.parentProjectId,
       status: project.status,
       visibility: project.visibility,
       currency: project.currency,
-      budgetCents: project.budgetTotalCents,
+      budgetCents:
+        project.projectType === 'programme' ? 0 : project.budgetTotalCents,
       months: [...monthBuckets.entries()]
         .sort(([a], [b]) => b.localeCompare(a))
         .map(([monthKey, bucket]) => ({ monthKey, ...bucket })),
+    };
+  });
+
+  const byId = new Map(summaries.map((project) => [project.id, project]));
+  const childrenByProgramme = new Map<ProjectId, CompanySummaryProject[]>();
+  const topLevel: CompanySummaryProject[] = [];
+
+  for (const project of summaries) {
+    if (
+      project.parentProjectId &&
+      byId.get(project.parentProjectId)?.projectType === 'programme'
+    ) {
+      const children = childrenByProgramme.get(project.parentProjectId) ?? [];
+      children.push(project);
+      childrenByProgramme.set(project.parentProjectId, children);
+    } else {
+      topLevel.push(project);
+    }
+  }
+
+  return topLevel.map((project) => {
+    if (project.projectType !== 'programme') return project;
+
+    const children = (childrenByProgramme.get(project.id) ?? []).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+    const activeChildren = children.filter(
+      (child) => child.status === 'active'
+    );
+    const monthBuckets = new Map<string, CompanySummaryMonthBucket>();
+
+    for (const child of activeChildren) {
+      for (const month of child.months) {
+        const bucket = monthBuckets.get(month.monthKey) ?? {
+          actualCodedCents: 0,
+          uncodedCount: 0,
+          uncodedAmountCents: 0,
+        };
+        bucket.actualCodedCents += month.actualCodedCents;
+        bucket.uncodedCount += month.uncodedCount;
+        bucket.uncodedAmountCents += month.uncodedAmountCents;
+        monthBuckets.set(month.monthKey, bucket);
+      }
+    }
+
+    return {
+      ...project,
+      budgetCents: activeChildren.reduce(
+        (total, child) => total + child.budgetCents,
+        0
+      ),
+      months: [...monthBuckets.entries()]
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([monthKey, bucket]) => ({ monthKey, ...bucket })),
+      children,
     };
   });
 }
