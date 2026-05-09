@@ -27,7 +27,7 @@ import {
 } from '@tabler/icons-react';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
-import type { ProjectId, Txn, TxnComment } from '../types';
+import type { ProjectId, Txn, TxnComment, TxnId } from '../types';
 import { monthKeyFromStart, monthStart, parseISODate } from '../utils/finance';
 import { formatCurrencyFromCents } from '../utils/money';
 import {
@@ -88,6 +88,7 @@ export default function TransactionsPanel(props: {
   setMonthFilterKey: (value: string | null) => void;
   transactionView: TransactionView;
   setTransactionView: (v: TransactionView) => void;
+  initialCommentTxnId?: TxnId | null;
   transferProjectOptions: Array<{ value: ProjectId; label: string }>;
   onClearFilters: () => void;
   canEditTaxonomy: boolean;
@@ -109,6 +110,7 @@ export default function TransactionsPanel(props: {
     setMonthFilterKey,
     transactionView,
     setTransactionView,
+    initialCommentTxnId = null,
     transferProjectOptions,
     onClearFilters,
     canEditTaxonomy,
@@ -119,6 +121,8 @@ export default function TransactionsPanel(props: {
   const [splitTxn, setSplitTxn] = useState<Txn | null>(null);
   const [transferTxn, setTransferTxn] = useState<Txn | null>(null);
   const [commentsTxn, setCommentsTxn] = useState<Txn | null>(null);
+  const [dismissedLinkedCommentTxnId, setDismissedLinkedCommentTxnId] =
+    useState<TxnId | null>(null);
   const [expandedCommentsTxn, setExpandedCommentsTxn] = useState<Txn | null>(
     null
   );
@@ -148,6 +152,12 @@ export default function TransactionsPanel(props: {
       ),
     [commentSummariesQ.data]
   );
+  const linkedCommentsTxn =
+    initialCommentTxnId && dismissedLinkedCommentTxnId !== initialCommentTxnId
+      ? (txns.transactions.find((txn) => txn.id === initialCommentTxnId) ??
+        null)
+      : null;
+  const activeCommentsTxn = commentsTxn ?? linkedCommentsTxn;
 
   /**
    * Count invalid transaction dates so the UI can surface problems early.
@@ -1052,9 +1062,14 @@ export default function TransactionsPanel(props: {
       />
 
       <TransactionCommentsModal
-        opened={Boolean(commentsTxn)}
-        txn={commentsTxn}
-        onClose={() => setCommentsTxn(null)}
+        opened={Boolean(activeCommentsTxn)}
+        txn={activeCommentsTxn}
+        onClose={() => {
+          setCommentsTxn(null);
+          if (initialCommentTxnId) {
+            setDismissedLinkedCommentTxnId(initialCommentTxnId);
+          }
+        }}
       />
     </Stack>
   );

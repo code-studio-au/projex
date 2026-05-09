@@ -1,0 +1,112 @@
+import type {
+  CompanyId,
+  ProjectId,
+  TxnCommentId,
+  TxnId,
+  UserId,
+} from '../../types';
+import { sendAuthEmail, type AuthEmailDelivery } from '../auth/email';
+
+type UserEmailTarget = {
+  id: UserId;
+  email: string;
+  name: string;
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function getAppBaseUrl(): string | null {
+  return (
+    process.env.PROJEX_APP_BASE_URL?.trim() ||
+    process.env.BETTER_AUTH_URL?.trim() ||
+    null
+  );
+}
+
+export function buildTransactionCommentUrl(args: {
+  companyId: CompanyId;
+  projectId: ProjectId;
+  txnId: TxnId;
+  commentId: TxnCommentId;
+}): string | null {
+  const baseUrl = getAppBaseUrl();
+  if (!baseUrl) return null;
+
+  const url = new URL(
+    `/c/${encodeURIComponent(args.companyId)}/p/${encodeURIComponent(args.projectId)}`,
+    baseUrl
+  );
+  url.searchParams.set('tab', 'transactions');
+  url.searchParams.set('commentTxn', args.txnId);
+  url.searchParams.set('commentId', args.commentId);
+  return url.toString();
+}
+
+export async function sendTransactionCommentAssignmentEmail(args: {
+  to: UserEmailTarget;
+  actor: UserEmailTarget;
+  companyName: string;
+  projectName: string;
+  txnItem: string;
+  txnDescription: string;
+  txnDate: string;
+  commentBody: string;
+  commentUrl: string | null;
+}): Promise<AuthEmailDelivery> {
+  const recipientName = args.to.name || args.to.email;
+  const actorName = args.actor.name || args.actor.email;
+  const txnLabel = [args.txnDate, args.txnItem].filter(Boolean).join(' - ');
+  const linkLine = args.commentUrl
+    ? ['Open the comment:', args.commentUrl, '']
+    : [
+        'Open Projex and go to the transaction comments to review this thread.',
+        '',
+      ];
+
+  return sendAuthEmail({
+    to: args.to.email,
+    subject: `${actorName} mentioned you in a Projex transaction comment`,
+    text: [
+      `Hi ${recipientName},`,
+      '',
+      `${actorName} mentioned or assigned you in a transaction comment.`,
+      '',
+      `Company: ${args.companyName}`,
+      `Project: ${args.projectName}`,
+      `Transaction: ${txnLabel || args.txnItem || 'Transaction'}`,
+      args.txnDescription ? `Description: ${args.txnDescription}` : '',
+      '',
+      'Comment:',
+      args.commentBody,
+      '',
+      ...linkLine,
+      'If this was not relevant to you, you can ignore this email.',
+    ]
+      .filter((line) => line !== '')
+      .join('\n'),
+    html: [
+      `<p>Hi ${escapeHtml(recipientName)},</p>`,
+      `<p>${escapeHtml(actorName)} mentioned or assigned you in a transaction comment.</p>`,
+      '<ul>',
+      `<li><strong>Company:</strong> ${escapeHtml(args.companyName)}</li>`,
+      `<li><strong>Project:</strong> ${escapeHtml(args.projectName)}</li>`,
+      `<li><strong>Transaction:</strong> ${escapeHtml(txnLabel || args.txnItem || 'Transaction')}</li>`,
+      args.txnDescription
+        ? `<li><strong>Description:</strong> ${escapeHtml(args.txnDescription)}</li>`
+        : '',
+      '</ul>',
+      `<blockquote>${escapeHtml(args.commentBody)}</blockquote>`,
+      args.commentUrl
+        ? `<p><a href="${escapeHtml(args.commentUrl)}">Open the comment in Projex</a></p>`
+        : '<p>Open Projex and go to the transaction comments to review this thread.</p>',
+      '<p>If this was not relevant to you, you can ignore this email.</p>',
+    ].join(''),
+  });
+}

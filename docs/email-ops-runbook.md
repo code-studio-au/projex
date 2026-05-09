@@ -1,6 +1,6 @@
 # Email Ops Runbook
 
-This runbook covers invite and password-reset delivery for the live Resend-backed setup.
+This runbook covers invite, password-reset, and transaction-comment notification delivery for the live Resend-backed setup.
 
 ## Purpose
 
@@ -9,6 +9,7 @@ Use this when:
 - invite emails are not arriving
 - forgot-password emails are delayed
 - resend-invite behavior is unclear
+- transaction comment assignment emails are not arriving
 - you need to verify email delivery from EC2
 
 ## Required Runtime Env
@@ -20,12 +21,14 @@ RESEND_API_KEY=...
 RESEND_BASE_URL=https://api.resend.com
 RESEND_FROM='Projex <noreply@projectexpensetracker.com>'
 PROJEX_AUTH_RESET_REDIRECT_URL=https://projectexpensetracker.com/reset-password
+PROJEX_APP_BASE_URL=https://projectexpensetracker.com
 ```
 
 Notes:
 
 - `RESEND_FROM` must use a verified domain/sender in Resend.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should match the public HTTPS reset page users open from email.
+- `PROJEX_APP_BASE_URL` should match the public app origin used by transaction-comment deep links.
 
 ## What The App Sends
 
@@ -37,13 +40,16 @@ Notes:
   - requests another password-setup/reset email for an existing company member
 - Forgot password:
   - requests a password reset email for the entered address
+- Transaction comment assignment:
+  - sends a notification to the assigned project member
+  - includes a deep link back to the project transactions tab and comment thread
 
 ## Fast Env Check
 
 On EC2:
 
 ```bash
-sudo sh -c '. /etc/projex/projex.env && printf "RESEND_API_KEY=%s\nRESEND_FROM=%s\nRESEND_BASE_URL=%s\nPROJEX_AUTH_RESET_REDIRECT_URL=%s\n" "${RESEND_API_KEY:+set}" "$RESEND_FROM" "$RESEND_BASE_URL" "$PROJEX_AUTH_RESET_REDIRECT_URL"'
+sudo sh -c '. /etc/projex/projex.env && printf "RESEND_API_KEY=%s\nRESEND_FROM=%s\nRESEND_BASE_URL=%s\nPROJEX_AUTH_RESET_REDIRECT_URL=%s\nPROJEX_APP_BASE_URL=%s\n" "${RESEND_API_KEY:+set}" "$RESEND_FROM" "$RESEND_BASE_URL" "$PROJEX_AUTH_RESET_REDIRECT_URL" "$PROJEX_APP_BASE_URL"'
 ```
 
 Expected:
@@ -51,6 +57,7 @@ Expected:
 - `RESEND_API_KEY=set`
 - `RESEND_BASE_URL=https://api.resend.com`
 - `RESEND_FROM=Projex <...>`
+- `PROJEX_APP_BASE_URL=https://projectexpensetracker.com`
 - `PROJEX_AUTH_RESET_REDIRECT_URL=https://projectexpensetracker.com/reset-password`
 
 ## Direct Resend Test From EC2

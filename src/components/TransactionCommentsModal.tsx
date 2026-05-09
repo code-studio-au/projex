@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -27,27 +27,13 @@ import {
   buildTxnCommentRepliesByParent,
   formatTxnCommentDateTime,
 } from '../utils/transactionComments';
-
-type MentionRange = { start: number; end: number; query: string };
-
-function activeMentionFromSelection(
-  value: string,
-  selectionStart: number
-): MentionRange | null {
-  const beforeCursor = value.slice(0, selectionStart);
-  const match = beforeCursor.match(/(?:^|\s)@([^\s@]*)$/);
-  if (!match) return null;
-
-  return {
-    start: beforeCursor.lastIndexOf('@'),
-    end: selectionStart,
-    query: match[1] ?? '',
-  };
-}
-
-function userLabel(user: { name: string; email: string }): string {
-  return user.name || user.email;
-}
+import {
+  activeMentionFromSelection,
+  filterMentionUsers,
+  insertMention,
+  mentionUserLabel,
+  type MentionRange,
+} from '../utils/commentMentions';
 
 export default function TransactionCommentsModal(props: {
   opened: boolean;
@@ -59,6 +45,7 @@ export default function TransactionCommentsModal(props: {
   const [body, setBody] = useState('');
   const [assignedToUserId, setAssignedToUserId] = useState<UserId | null>(null);
   const [mentionRange, setMentionRange] = useState<MentionRange | null>(null);
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const [replyToCommentId, setReplyToCommentId] = useState<TxnCommentId | null>(
     null
   );
@@ -80,6 +67,7 @@ export default function TransactionCommentsModal(props: {
     setBody('');
     setAssignedToUserId(null);
     setMentionRange(null);
+    setActiveMentionIndex(0);
     setReplyToCommentId(null);
     setError(null);
   }
@@ -104,14 +92,14 @@ export default function TransactionCommentsModal(props: {
     () =>
       (usersQ.data ?? [])
         .filter((user) => !user.disabled && projectMemberUserIds.has(user.id))
-        .sort((a, b) => userLabel(a).localeCompare(userLabel(b))),
+        .sort((a, b) => mentionUserLabel(a).localeCompare(mentionUserLabel(b))),
     [projectMemberUserIds, usersQ.data]
   );
   const userOptions = useMemo(
     () =>
       assignableUsers.map((user) => ({
         value: user.id,
-        label: userLabel(user),
+        label: mentionUserLabel(user),
       })),
     [assignableUsers]
   );
@@ -119,16 +107,7 @@ export default function TransactionCommentsModal(props: {
     () =>
       !mentionRange
         ? []
-        : assignableUsers
-            .filter((user) => {
-              const query = mentionRange.query.trim().toLowerCase();
-              if (!query) return true;
-              return (
-                user.name.toLowerCase().includes(query) ||
-                user.email.toLowerCase().includes(query)
-              );
-            })
-            .slice(0, 6),
+        : filterMentionUsers(assignableUsers, mentionRange.query),
     [assignableUsers, mentionRange]
   );
   const comments = commentsQ.data ?? [];
@@ -140,9 +119,17 @@ export default function TransactionCommentsModal(props: {
     ? comments.find((comment) => comment.id === replyToCommentId)
     : null;
   const submitting = createComment.isPending;
+  const selectedMentionIndex =
+    mentionOptions.length === 0
+      ? 0
+      : Math.min(activeMentionIndex, mentionOptions.length - 1);
 
   function syncMentionState(value: string, selectionStart: number) {
-    setMentionRange(activeMentionFromSelection(value, selectionStart));
+    const nextRange = activeMentionFromSelection(value, selectionStart);
+    if (nextRange?.query !== mentionRange?.query) {
+      setActiveMentionIndex(0);
+    }
+    setMentionRange(nextRange);
   }
 
   function selectMentionedUser(user: (typeof assignableUsers)[number]) {
@@ -151,16 +138,50 @@ export default function TransactionCommentsModal(props: {
       mentionRange ?? activeMentionFromSelection(body, selectionStart);
     if (!range) return;
 
-    const label = userLabel(user);
-    const nextBody = `${body.slice(0, range.start)}@${label} ${body.slice(range.end)}`;
-    const nextCursor = range.start + label.length + 2;
-    setBody(nextBody);
+    const next = insertMention(body, range, mentionUserLabel(user));
+    setBody(next.value);
     setAssignedToUserId(user.id);
     setMentionRange(null);
+    setActiveMentionIndex(0);
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(nextCursor, nextCursor);
+      textareaRef.current?.setSelectionRange(next.cursor, next.cursor);
     });
+  }
+
+  function handleCommentKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (!mentionRange) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setMentionRange(null);
+      setActiveMentionIndex(0);
+      return;
+    }
+
+    if (mentionOptions.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveMentionIndex((current) => (current + 1) % mentionOptions.length);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveMentionIndex(
+        (current) =>
+          (current - 1 + mentionOptions.length) % mentionOptions.length
+      );
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault();
+      selectMentionedUser(
+        mentionOptions[selectedMentionIndex] ?? mentionOptions[0]
+      );
+    }
   }
 
   async function submit() {
@@ -176,6 +197,7 @@ export default function TransactionCommentsModal(props: {
       setBody('');
       setAssignedToUserId(null);
       setMentionRange(null);
+      setActiveMentionIndex(0);
       setReplyToCommentId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save comment');
@@ -270,6 +292,7 @@ export default function TransactionCommentsModal(props: {
                     setBody('');
                     setAssignedToUserId(null);
                     setMentionRange(null);
+                    setActiveMentionIndex(0);
                   }}
                 >
                   Reply
@@ -372,10 +395,16 @@ export default function TransactionCommentsModal(props: {
                   onKeyUp={(event) =>
                     syncMentionState(body, event.currentTarget.selectionStart)
                   }
+                  onKeyDown={handleCommentKeyDown}
+                  onBlur={() => {
+                    window.setTimeout(() => setMentionRange(null));
+                  }}
                   description="Type @ to pick a project member and assign the comment."
                 />
                 {mentionRange ? (
                   <Paper
+                    role="listbox"
+                    aria-label="Project members"
                     withBorder
                     shadow="md"
                     radius="md"
@@ -392,11 +421,15 @@ export default function TransactionCommentsModal(props: {
                   >
                     {mentionOptions.length > 0 ? (
                       <Stack gap={2}>
-                        {mentionOptions.map((user) => (
+                        {mentionOptions.map((user, index) => (
                           <Button
                             key={user.id}
+                            role="option"
+                            aria-selected={index === selectedMentionIndex}
                             variant="subtle"
-                            color="gray"
+                            color={
+                              index === selectedMentionIndex ? 'blue' : 'gray'
+                            }
                             size="xs"
                             justify="flex-start"
                             onMouseDown={(event) => {
@@ -404,7 +437,7 @@ export default function TransactionCommentsModal(props: {
                               selectMentionedUser(user);
                             }}
                           >
-                            {userLabel(user)}
+                            {mentionUserLabel(user)}
                           </Button>
                         ))}
                       </Stack>
@@ -420,7 +453,7 @@ export default function TransactionCommentsModal(props: {
                 <Group gap="xs">
                   <Badge variant="light" color="orange">
                     Assigned to{' '}
-                    {userLabel(
+                    {mentionUserLabel(
                       usersById.get(assignedToUserId) ?? {
                         name: '',
                         email: assignedToUserId,

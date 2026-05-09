@@ -29,16 +29,17 @@ Design direction:
 
 - model comments as first-class rows with author, created/updated timestamps, optional parent comment, optional assigned user, and resolved metadata
 - preserve comment history for auditability; avoid hard-deleting comments by default
-- use company membership as the assignment/search boundary so users cannot tag people outside the company
-- decide notification behaviour separately so the core comment model does not depend on a future notification system
+- use project membership as the assignment/search boundary so users cannot tag people outside the active project team
+- send assignment notifications through the existing email delivery path without making comment creation depend on mail delivery uptime
 
 Status:
 
 - foundation implemented: transaction comments are first-class rows with author, timestamps, optional parent/reply linkage, optional assignee, and resolved metadata
-- UI entry point added from the transaction row action menu with add comment, reply, assign, resolve, and reopen flows
-- transaction table now surfaces comment counts and assigned-to-me indicators, with an assigned-to-me transaction view
-- lightweight `@member_name` / `@email_prefix` mention parsing now auto-assigns new comments when no explicit assignee is selected
-- remaining polish: richer inline mention autocomplete and notification behavior
+- UI entry point added from the transaction row action menu and transaction comments column with add comment, reply, assign, resolve, reopen, and inline thread review flows
+- transaction table now surfaces latest comment preview, comment counts, unresolved/assigned indicators, and an assigned-to-me transaction view
+- inline `@` mention autocomplete is limited to active project members and assigns the selected teammate
+- assignment emails are sent through the existing Resend/webhook/log email adapter with a deep link back to the transaction comment thread
+- remaining polish: richer comment focus/highlighting after opening a deep link
 
 ### 2. Split transactions into fully allocated child line items
 

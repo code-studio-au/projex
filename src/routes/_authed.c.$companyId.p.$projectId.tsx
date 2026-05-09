@@ -19,6 +19,8 @@ const projectWorkspaceSearchSchema = z
     view: z
       .enum(['all', 'uncoded', 'auto-mapped-pending', 'assigned-to-me'])
       .optional(),
+    commentTxn: z.string().trim().min(1).optional(),
+    commentId: z.string().trim().min(1).optional(),
     source: z.enum(['company-summary']).optional(),
     focus: z
       .enum(['budget', 'actual', 'remaining', 'uncoded', 'health'])

@@ -112,6 +112,7 @@ RESEND_FROM=
 PROJEX_AUTH_EMAIL_WEBHOOK_URL=
 PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN=
 PROJEX_AUTH_RESET_REDIRECT_URL=https://projectexpensetracker.com/reset-password
+PROJEX_APP_BASE_URL=https://projectexpensetracker.com
 
 PROJEX_ENABLE_DEV_ENDPOINTS=false
 ```
@@ -225,6 +226,7 @@ If you already have an app-side template user and want to copy its memberships i
   - `RESEND_API_KEY`
   - `RESEND_BASE_URL=https://api.resend.com`
   - `RESEND_FROM` as the verified sender address
+- Transaction comment assignment emails use `PROJEX_APP_BASE_URL` for deep links and fall back to `BETTER_AUTH_URL` when it is not set.
 - If neither Resend nor `PROJEX_AUTH_EMAIL_WEBHOOK_URL` is configured, the password setup link is logged on the server instead.
 - For email troubleshooting and direct provider checks, see `docs/email-ops-runbook.md`.
 

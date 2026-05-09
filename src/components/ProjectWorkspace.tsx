@@ -15,7 +15,7 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
-import type { CompanyId, ProjectId } from '../types';
+import type { CompanyId, ProjectId, TxnId } from '../types';
 
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useBudgets } from '../hooks/useBudgets';
@@ -99,6 +99,7 @@ export default function ProjectWorkspace(props: {
   initialQuarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   initialMonthFilterKey?: string | null;
   initialTransactionView?: TransactionView;
+  initialCommentTxnId?: TxnId | null;
   initialEntrySource?: 'company-summary';
   initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 }) {
@@ -110,6 +111,7 @@ export default function ProjectWorkspace(props: {
     initialQuarterFilter = null,
     initialMonthFilterKey = null,
     initialTransactionView = 'all',
+    initialCommentTxnId = null,
     initialEntrySource,
     initialEntryFocus,
   } = props;
@@ -705,6 +707,7 @@ export default function ProjectWorkspace(props: {
               setMonthFilterKey={setMonthFilterKey}
               transactionView={transactionView}
               setTransactionView={setTransactionView}
+              initialCommentTxnId={initialCommentTxnId}
               transferProjectOptions={transferProjectOptions}
               onClearFilters={() => {
                 setYearFilter(null);

@@ -4,6 +4,7 @@ import type {
   TxnCommentId,
   TxnCommentSummary,
   TxnId,
+  UserId,
 } from '../../types';
 import { asTxnCommentId, asTxnId } from '../../types';
 import { AppError } from '../../api/errors';
@@ -28,6 +29,10 @@ import {
   toTxnComment,
   type TxnCommentRow,
 } from '../mappers/transactionCommentRows';
+import {
+  buildTransactionCommentUrl,
+  sendTransactionCommentAssignmentEmail,
+} from '../notifications/transactionCommentNotifications';
 
 const commentSelect = [
   'txn_comments.id',
@@ -100,6 +105,87 @@ async function assertAssignableProjectMember(
       'VALIDATION_ERROR',
       'Comments can only be assigned to active members of this project'
     );
+  }
+}
+
+async function maybeSendAssignmentNotification(args: {
+  context: ProjectActionContext;
+  txnId: TxnId;
+  comment: TxnComment;
+  assignedToUserId: UserId | null | undefined;
+}): Promise<void> {
+  if (!args.assignedToUserId || args.assignedToUserId === args.context.userId) {
+    return;
+  }
+
+  const [assignedUser, actor, txn, project, company] = await Promise.all([
+    args.context.db
+      .selectFrom('users')
+      .select(['id', 'email', 'name'])
+      .where('id', '=', args.assignedToUserId)
+      .where('disabled', '=', false)
+      .executeTakeFirst(),
+    args.context.db
+      .selectFrom('users')
+      .select(['id', 'email', 'name'])
+      .where('id', '=', args.context.userId)
+      .executeTakeFirst(),
+    args.context.db
+      .selectFrom('txns')
+      .select(['item', 'description', 'txn_date'])
+      .where('project_id', '=', args.context.projectId)
+      .where('public_id', '=', args.txnId)
+      .executeTakeFirst(),
+    args.context.db
+      .selectFrom('projects')
+      .select('name')
+      .where('id', '=', args.context.projectId)
+      .executeTakeFirst(),
+    args.context.db
+      .selectFrom('companies')
+      .select('name')
+      .where('id', '=', args.context.companyId)
+      .executeTakeFirst(),
+  ]);
+
+  if (!assignedUser || !actor || !txn || !project || !company) return;
+
+  await sendTransactionCommentAssignmentEmail({
+    to: {
+      id: args.assignedToUserId,
+      email: assignedUser.email,
+      name: assignedUser.name,
+    },
+    actor: {
+      id: args.context.userId,
+      email: actor.email,
+      name: actor.name,
+    },
+    companyName: company.name,
+    projectName: project.name,
+    txnItem: txn.item,
+    txnDescription: txn.description,
+    txnDate: txn.txn_date,
+    commentBody: args.comment.body,
+    commentUrl: buildTransactionCommentUrl({
+      companyId: args.context.companyId,
+      projectId: args.context.projectId,
+      txnId: args.txnId,
+      commentId: args.comment.id,
+    }),
+  });
+}
+
+async function safelySendAssignmentNotification(args: {
+  context: ProjectActionContext;
+  txnId: TxnId;
+  comment: TxnComment;
+  assignedToUserId: UserId | null | undefined;
+}): Promise<void> {
+  try {
+    await maybeSendAssignmentNotification(args);
+  } catch (error) {
+    console.warn('[transaction-comments] Assignment email failed', error);
   }
 }
 
@@ -264,9 +350,18 @@ export async function createTransactionCommentServer(args: {
       .returning('id')
       .executeTakeFirstOrThrow();
 
-    return toTxnComment(
+    const comment = toTxnComment(
       await loadComment(context, args.input.txnId, asTxnCommentId(created.id))
     );
+
+    await safelySendAssignmentNotification({
+      context,
+      txnId: args.input.txnId,
+      comment,
+      assignedToUserId: args.input.assignedToUserId,
+    });
+
+    return comment;
   });
 }
 
@@ -340,7 +435,24 @@ export async function updateTransactionCommentServer(args: {
       .where('id', '=', args.input.id)
       .executeTakeFirstOrThrow();
 
-    return toTxnComment(await loadComment(context, args.txnId, args.input.id));
+    const comment = toTxnComment(
+      await loadComment(context, args.txnId, args.input.id)
+    );
+
+    if (
+      typeof args.input.assignedToUserId !== 'undefined' &&
+      args.input.assignedToUserId &&
+      args.input.assignedToUserId !== existing.assigned_to_user_id
+    ) {
+      await safelySendAssignmentNotification({
+        context,
+        txnId: args.txnId,
+        comment,
+        assignedToUserId: args.input.assignedToUserId,
+      });
+    }
+
+    return comment;
   });
 }
 

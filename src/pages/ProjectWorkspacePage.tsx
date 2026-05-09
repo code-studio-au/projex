@@ -2,7 +2,7 @@ import { projectRoute } from '../router';
 
 import ProjectWorkspace from '../components/ProjectWorkspace';
 import type { CompanyId, ProjectId } from '../types';
-import { asCompanyId, asProjectId } from '../types';
+import { asCompanyId, asProjectId, asTxnId } from '../types';
 
 export default function ProjectWorkspacePage() {
   // Route params are required by the route definition (c/$companyId/p/$projectId).
@@ -18,11 +18,16 @@ export default function ProjectWorkspacePage() {
     <ProjectWorkspace
       companyId={companyId}
       projectId={projectId}
-      initialTab={search.tab}
+      initialTab={
+        search.tab ?? (search.commentTxn ? 'transactions' : undefined)
+      }
       initialYearFilter={search.year ?? null}
       initialQuarterFilter={search.quarter ?? null}
       initialMonthFilterKey={search.month ?? null}
       initialTransactionView={search.view}
+      initialCommentTxnId={
+        search.commentTxn ? asTxnId(search.commentTxn) : null
+      }
       initialEntrySource={search.source}
       initialEntryFocus={search.focus}
     />

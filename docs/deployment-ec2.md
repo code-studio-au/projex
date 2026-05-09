@@ -45,6 +45,7 @@ RESEND_FROM=
 PROJEX_AUTH_EMAIL_WEBHOOK_URL=
 PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN=
 PROJEX_AUTH_RESET_REDIRECT_URL=https://app.example.com/reset-password
+PROJEX_APP_BASE_URL=https://app.example.com
 
 # Must remain false in staging/production
 PROJEX_ENABLE_DEV_ENDPOINTS=false
@@ -57,6 +58,7 @@ Notes:
 - Set `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to the canonical public origin users will actually visit.
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.
+- `PROJEX_APP_BASE_URL` should point at the public app origin used for transaction-comment notification links; it falls back to `BETTER_AUTH_URL` when unset.
 - `RESEND_FROM` should be a verified sender, for example `Projex <noreply@projectexpensetracker.com>`.
 
 ## 4) Build + run
