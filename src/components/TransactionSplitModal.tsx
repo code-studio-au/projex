@@ -78,7 +78,13 @@ export default function TransactionSplitModal(props: {
     [rows]
   );
   const remainingCents = txn ? txn.amountCents - totalCents : 0;
-  const hasInvalidAmount = rows.some((row) => row.amountCents <= 0);
+  const hasInvalidAmount = rows.some((row) => {
+    if (!txn) return true;
+    if (row.amountCents === 0) return true;
+    if (txn.amountCents > 0) return row.amountCents < 0;
+    if (txn.amountCents < 0) return row.amountCents > 0;
+    return true;
+  });
   const canSubmit =
     Boolean(txn) &&
     rows.length >= 2 &&
@@ -212,7 +218,8 @@ export default function TransactionSplitModal(props: {
                       <NumberInput
                         label="Amount"
                         value={fromCents(row.amountCents)}
-                        min={0}
+                        min={txn.amountCents < 0 ? undefined : 0}
+                        max={txn.amountCents < 0 ? 0 : undefined}
                         thousandSeparator=","
                         prefix="$"
                         decimalScale={2}

@@ -21,6 +21,8 @@ export const qk = {
     ['companyDefaultSubCategories', userId, companyId] as const,
   companyDefaultMappingRules: (userId: string, companyId: string) =>
     ['companyDefaultMappingRules', userId, companyId] as const,
+  importRules: (userId: string, companyId: string) =>
+    ['importRules', userId, companyId] as const,
 
   projects: (userId: string, companyId: string) =>
     ['projects', userId, companyId] as const,
@@ -34,6 +36,8 @@ export const qk = {
 
   transactions: (userId: string, projectId: string) =>
     ['transactions', userId, projectId] as const,
+  importCandidates: (userId: string, projectId: string) =>
+    ['importCandidates', userId, projectId] as const,
   transactionComments: (userId: string, projectId: string, txnId: string) =>
     ['transactionComments', userId, projectId, txnId] as const,
   transactionCommentSummaries: (userId: string, projectId: string) =>

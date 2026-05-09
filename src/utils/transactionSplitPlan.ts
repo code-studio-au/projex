@@ -30,10 +30,19 @@ export function planTransactionSplit(args: {
   }
 
   const total = args.children.reduce((sum, child) => {
-    if (!Number.isSafeInteger(child.amountCents) || child.amountCents <= 0) {
+    if (!Number.isSafeInteger(child.amountCents) || child.amountCents === 0) {
       throw new AppError(
         'VALIDATION_ERROR',
-        'Split child amount must be a positive safe integer'
+        'Split child amount must be a non-zero safe integer'
+      );
+    }
+    if (
+      (args.parent.amountCents > 0 && child.amountCents < 0) ||
+      (args.parent.amountCents < 0 && child.amountCents > 0)
+    ) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Split child amounts must use the same sign as the parent transaction'
       );
     }
     return sum + child.amountCents;

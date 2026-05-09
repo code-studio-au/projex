@@ -38,6 +38,7 @@ import { Route as ApiProjectsProjectIdTransactionsRouteImport } from './routes/a
 import { Route as ApiProjectsProjectIdSubCategoriesRouteImport } from './routes/api.projects.$projectId.sub-categories'
 import { Route as ApiProjectsProjectIdReactivateRouteImport } from './routes/api.projects.$projectId.reactivate'
 import { Route as ApiProjectsProjectIdMembershipsRouteImport } from './routes/api.projects.$projectId.memberships'
+import { Route as ApiProjectsProjectIdImportCandidatesRouteImport } from './routes/api.projects.$projectId.import-candidates'
 import { Route as ApiProjectsProjectIdDeactivateRouteImport } from './routes/api.projects.$projectId.deactivate'
 import { Route as ApiProjectsProjectIdCategoriesRouteImport } from './routes/api.projects.$projectId.categories'
 import { Route as ApiProjectsProjectIdBudgetsRouteImport } from './routes/api.projects.$projectId.budgets'
@@ -50,6 +51,7 @@ import { Route as ApiCompaniesCompanyIdReactivateRouteImport } from './routes/ap
 import { Route as ApiCompaniesCompanyIdProjectsRouteImport } from './routes/api.companies.$companyId.projects'
 import { Route as ApiCompaniesCompanyIdMyProjectMembershipsRouteImport } from './routes/api.companies.$companyId.my-project-memberships'
 import { Route as ApiCompaniesCompanyIdMembershipsRouteImport } from './routes/api.companies.$companyId.memberships'
+import { Route as ApiCompaniesCompanyIdImportRulesRouteImport } from './routes/api.companies.$companyId.import-rules'
 import { Route as ApiCompaniesCompanyIdDefaultsRouteImport } from './routes/api.companies.$companyId.defaults'
 import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport } from './routes/api.companies.$companyId.default-sub-categories'
 import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRouteImport } from './routes/api.companies.$companyId.default-mapping-rules'
@@ -62,6 +64,7 @@ import { Route as ApiProjectsProjectIdTransactionsTxnIdRouteImport } from './rou
 import { Route as ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport } from './routes/api.projects.$projectId.sub-categories.$subCategoryId'
 import { Route as ApiProjectsProjectIdCategoriesCategoryIdRouteImport } from './routes/api.projects.$projectId.categories.$categoryId'
 import { Route as ApiProjectsProjectIdBudgetsBudgetIdRouteImport } from './routes/api.projects.$projectId.budgets.$budgetId'
+import { Route as ApiCompaniesCompanyIdImportRulesRuleIdRouteImport } from './routes/api.companies.$companyId.import-rules.$ruleId'
 import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport } from './routes/api.companies.$companyId.default-sub-categories.$subCategoryId'
 import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport } from './routes/api.companies.$companyId.default-mapping-rules.$ruleId'
 import { Route as ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport } from './routes/api.companies.$companyId.default-categories.$categoryId'
@@ -70,6 +73,7 @@ import { Route as ApiProjectsProjectIdTransactionsTxnIdWorkflowRouteImport } fro
 import { Route as ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.transfer'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.split'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments'
+import { Route as ApiProjectsProjectIdImportCandidatesCandidateIdReviewRouteImport } from './routes/api.projects.$projectId.import-candidates.$candidateId.review'
 import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments.$commentId'
 
@@ -221,6 +225,12 @@ const ApiProjectsProjectIdMembershipsRoute =
     path: '/memberships',
     getParentRoute: () => ApiProjectsProjectIdRoute,
   } as any)
+const ApiProjectsProjectIdImportCandidatesRoute =
+  ApiProjectsProjectIdImportCandidatesRouteImport.update({
+    id: '/import-candidates',
+    path: '/import-candidates',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
 const ApiProjectsProjectIdDeactivateRoute =
   ApiProjectsProjectIdDeactivateRouteImport.update({
     id: '/deactivate',
@@ -289,6 +299,12 @@ const ApiCompaniesCompanyIdMembershipsRoute =
   ApiCompaniesCompanyIdMembershipsRouteImport.update({
     id: '/memberships',
     path: '/memberships',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdImportRulesRoute =
+  ApiCompaniesCompanyIdImportRulesRouteImport.update({
+    id: '/import-rules',
+    path: '/import-rules',
     getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
 const ApiCompaniesCompanyIdDefaultsRoute =
@@ -363,6 +379,12 @@ const ApiProjectsProjectIdBudgetsBudgetIdRoute =
     path: '/$budgetId',
     getParentRoute: () => ApiProjectsProjectIdBudgetsRoute,
   } as any)
+const ApiCompaniesCompanyIdImportRulesRuleIdRoute =
+  ApiCompaniesCompanyIdImportRulesRuleIdRouteImport.update({
+    id: '/$ruleId',
+    path: '/$ruleId',
+    getParentRoute: () => ApiCompaniesCompanyIdImportRulesRoute,
+  } as any)
 const ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute =
   ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport.update({
     id: '/$subCategoryId',
@@ -411,6 +433,12 @@ const ApiProjectsProjectIdTransactionsTxnIdCommentsRoute =
     path: '/comments',
     getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
   } as any)
+const ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute =
+  ApiProjectsProjectIdImportCandidatesCandidateIdReviewRouteImport.update({
+    id: '/$candidateId/review',
+    path: '/$candidateId/review',
+    getParentRoute: () => ApiProjectsProjectIdImportCandidatesRoute,
+  } as any)
 const ApiCompaniesCompanyIdUsersUserIdInviteRoute =
   ApiCompaniesCompanyIdUsersUserIdInviteRouteImport.update({
     id: '/$userId/invite',
@@ -453,6 +481,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/default-mapping-rules': typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   '/api/companies/$companyId/defaults': typeof ApiCompaniesCompanyIdDefaultsRoute
+  '/api/companies/$companyId/import-rules': typeof ApiCompaniesCompanyIdImportRulesRouteWithChildren
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
@@ -465,6 +494,7 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
+  '/api/projects/$projectId/import-candidates': typeof ApiProjectsProjectIdImportCandidatesRouteWithChildren
   '/api/projects/$projectId/memberships': typeof ApiProjectsProjectIdMembershipsRoute
   '/api/projects/$projectId/reactivate': typeof ApiProjectsProjectIdReactivateRoute
   '/api/projects/$projectId/sub-categories': typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
@@ -474,6 +504,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/default-categories/$categoryId': typeof ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRoute
   '/api/companies/$companyId/default-mapping-rules/$ruleId': typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute
   '/api/companies/$companyId/default-sub-categories/$subCategoryId': typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute
+  '/api/companies/$companyId/import-rules/$ruleId': typeof ApiCompaniesCompanyIdImportRulesRuleIdRoute
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
@@ -482,6 +513,7 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/import-candidates/$candidateId/review': typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
@@ -516,6 +548,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/default-mapping-rules': typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   '/api/companies/$companyId/defaults': typeof ApiCompaniesCompanyIdDefaultsRoute
+  '/api/companies/$companyId/import-rules': typeof ApiCompaniesCompanyIdImportRulesRouteWithChildren
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
@@ -528,6 +561,7 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
+  '/api/projects/$projectId/import-candidates': typeof ApiProjectsProjectIdImportCandidatesRouteWithChildren
   '/api/projects/$projectId/memberships': typeof ApiProjectsProjectIdMembershipsRoute
   '/api/projects/$projectId/reactivate': typeof ApiProjectsProjectIdReactivateRoute
   '/api/projects/$projectId/sub-categories': typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
@@ -537,6 +571,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/default-categories/$categoryId': typeof ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRoute
   '/api/companies/$companyId/default-mapping-rules/$ruleId': typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute
   '/api/companies/$companyId/default-sub-categories/$subCategoryId': typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute
+  '/api/companies/$companyId/import-rules/$ruleId': typeof ApiCompaniesCompanyIdImportRulesRuleIdRoute
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
@@ -545,6 +580,7 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/import-candidates/$candidateId/review': typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
@@ -582,6 +618,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/default-mapping-rules': typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   '/api/companies/$companyId/defaults': typeof ApiCompaniesCompanyIdDefaultsRoute
+  '/api/companies/$companyId/import-rules': typeof ApiCompaniesCompanyIdImportRulesRouteWithChildren
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   '/api/companies/$companyId/projects': typeof ApiCompaniesCompanyIdProjectsRoute
@@ -594,6 +631,7 @@ export interface FileRoutesById {
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
+  '/api/projects/$projectId/import-candidates': typeof ApiProjectsProjectIdImportCandidatesRouteWithChildren
   '/api/projects/$projectId/memberships': typeof ApiProjectsProjectIdMembershipsRoute
   '/api/projects/$projectId/reactivate': typeof ApiProjectsProjectIdReactivateRoute
   '/api/projects/$projectId/sub-categories': typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
@@ -603,6 +641,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/default-categories/$categoryId': typeof ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRoute
   '/api/companies/$companyId/default-mapping-rules/$ruleId': typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute
   '/api/companies/$companyId/default-sub-categories/$subCategoryId': typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute
+  '/api/companies/$companyId/import-rules/$ruleId': typeof ApiCompaniesCompanyIdImportRulesRuleIdRoute
   '/api/projects/$projectId/budgets/$budgetId': typeof ApiProjectsProjectIdBudgetsBudgetIdRoute
   '/api/projects/$projectId/categories/$categoryId': typeof ApiProjectsProjectIdCategoriesCategoryIdRoute
   '/api/projects/$projectId/sub-categories/$subCategoryId': typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
@@ -611,6 +650,7 @@ export interface FileRoutesById {
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/import-candidates/$candidateId/review': typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
@@ -648,6 +688,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-mapping-rules'
     | '/api/companies/$companyId/default-sub-categories'
     | '/api/companies/$companyId/defaults'
+    | '/api/companies/$companyId/import-rules'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
     | '/api/companies/$companyId/projects'
@@ -660,6 +701,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
+    | '/api/projects/$projectId/import-candidates'
     | '/api/projects/$projectId/memberships'
     | '/api/projects/$projectId/reactivate'
     | '/api/projects/$projectId/sub-categories'
@@ -669,6 +711,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-categories/$categoryId'
     | '/api/companies/$companyId/default-mapping-rules/$ruleId'
     | '/api/companies/$companyId/default-sub-categories/$subCategoryId'
+    | '/api/companies/$companyId/import-rules/$ruleId'
     | '/api/projects/$projectId/budgets/$budgetId'
     | '/api/projects/$projectId/categories/$categoryId'
     | '/api/projects/$projectId/sub-categories/$subCategoryId'
@@ -677,6 +720,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/import-candidates/$candidateId/review'
     | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
@@ -711,6 +755,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-mapping-rules'
     | '/api/companies/$companyId/default-sub-categories'
     | '/api/companies/$companyId/defaults'
+    | '/api/companies/$companyId/import-rules'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
     | '/api/companies/$companyId/projects'
@@ -723,6 +768,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
+    | '/api/projects/$projectId/import-candidates'
     | '/api/projects/$projectId/memberships'
     | '/api/projects/$projectId/reactivate'
     | '/api/projects/$projectId/sub-categories'
@@ -732,6 +778,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-categories/$categoryId'
     | '/api/companies/$companyId/default-mapping-rules/$ruleId'
     | '/api/companies/$companyId/default-sub-categories/$subCategoryId'
+    | '/api/companies/$companyId/import-rules/$ruleId'
     | '/api/projects/$projectId/budgets/$budgetId'
     | '/api/projects/$projectId/categories/$categoryId'
     | '/api/projects/$projectId/sub-categories/$subCategoryId'
@@ -740,6 +787,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/import-candidates/$candidateId/review'
     | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
@@ -776,6 +824,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-mapping-rules'
     | '/api/companies/$companyId/default-sub-categories'
     | '/api/companies/$companyId/defaults'
+    | '/api/companies/$companyId/import-rules'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
     | '/api/companies/$companyId/projects'
@@ -788,6 +837,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
+    | '/api/projects/$projectId/import-candidates'
     | '/api/projects/$projectId/memberships'
     | '/api/projects/$projectId/reactivate'
     | '/api/projects/$projectId/sub-categories'
@@ -797,6 +847,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-categories/$categoryId'
     | '/api/companies/$companyId/default-mapping-rules/$ruleId'
     | '/api/companies/$companyId/default-sub-categories/$subCategoryId'
+    | '/api/companies/$companyId/import-rules/$ruleId'
     | '/api/projects/$projectId/budgets/$budgetId'
     | '/api/projects/$projectId/categories/$categoryId'
     | '/api/projects/$projectId/sub-categories/$subCategoryId'
@@ -805,6 +856,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/import-candidates/$candidateId/review'
     | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
@@ -1039,6 +1091,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdMembershipsRouteImport
       parentRoute: typeof ApiProjectsProjectIdRoute
     }
+    '/api/projects/$projectId/import-candidates': {
+      id: '/api/projects/$projectId/import-candidates'
+      path: '/import-candidates'
+      fullPath: '/api/projects/$projectId/import-candidates'
+      preLoaderRoute: typeof ApiProjectsProjectIdImportCandidatesRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
     '/api/projects/$projectId/deactivate': {
       id: '/api/projects/$projectId/deactivate'
       path: '/deactivate'
@@ -1121,6 +1180,13 @@ declare module '@tanstack/react-router' {
       path: '/memberships'
       fullPath: '/api/companies/$companyId/memberships'
       preLoaderRoute: typeof ApiCompaniesCompanyIdMembershipsRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/import-rules': {
+      id: '/api/companies/$companyId/import-rules'
+      path: '/import-rules'
+      fullPath: '/api/companies/$companyId/import-rules'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdImportRulesRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
     '/api/companies/$companyId/defaults': {
@@ -1207,6 +1273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdBudgetsBudgetIdRouteImport
       parentRoute: typeof ApiProjectsProjectIdBudgetsRoute
     }
+    '/api/companies/$companyId/import-rules/$ruleId': {
+      id: '/api/companies/$companyId/import-rules/$ruleId'
+      path: '/$ruleId'
+      fullPath: '/api/companies/$companyId/import-rules/$ruleId'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdImportRulesRuleIdRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdImportRulesRoute
+    }
     '/api/companies/$companyId/default-sub-categories/$subCategoryId': {
       id: '/api/companies/$companyId/default-sub-categories/$subCategoryId'
       path: '/$subCategoryId'
@@ -1262,6 +1335,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/projects/$projectId/transactions/$txnId/comments'
       preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
+    }
+    '/api/projects/$projectId/import-candidates/$candidateId/review': {
+      id: '/api/projects/$projectId/import-candidates/$candidateId/review'
+      path: '/$candidateId/review'
+      fullPath: '/api/projects/$projectId/import-candidates/$candidateId/review'
+      preLoaderRoute: typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRouteImport
+      parentRoute: typeof ApiProjectsProjectIdImportCandidatesRoute
     }
     '/api/companies/$companyId/users/$userId/invite': {
       id: '/api/companies/$companyId/users/$userId/invite'
@@ -1355,6 +1435,21 @@ const ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren =
     ApiCompaniesCompanyIdDefaultSubCategoriesRouteChildren,
   )
 
+interface ApiCompaniesCompanyIdImportRulesRouteChildren {
+  ApiCompaniesCompanyIdImportRulesRuleIdRoute: typeof ApiCompaniesCompanyIdImportRulesRuleIdRoute
+}
+
+const ApiCompaniesCompanyIdImportRulesRouteChildren: ApiCompaniesCompanyIdImportRulesRouteChildren =
+  {
+    ApiCompaniesCompanyIdImportRulesRuleIdRoute:
+      ApiCompaniesCompanyIdImportRulesRuleIdRoute,
+  }
+
+const ApiCompaniesCompanyIdImportRulesRouteWithChildren =
+  ApiCompaniesCompanyIdImportRulesRoute._addFileChildren(
+    ApiCompaniesCompanyIdImportRulesRouteChildren,
+  )
+
 interface ApiCompaniesCompanyIdUsersRouteChildren {
   ApiCompaniesCompanyIdUsersUserIdInviteRoute: typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
 }
@@ -1376,6 +1471,7 @@ interface ApiCompaniesCompanyIdRouteChildren {
   ApiCompaniesCompanyIdDefaultMappingRulesRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteWithChildren
   ApiCompaniesCompanyIdDefaultSubCategoriesRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   ApiCompaniesCompanyIdDefaultsRoute: typeof ApiCompaniesCompanyIdDefaultsRoute
+  ApiCompaniesCompanyIdImportRulesRoute: typeof ApiCompaniesCompanyIdImportRulesRouteWithChildren
   ApiCompaniesCompanyIdMembershipsRoute: typeof ApiCompaniesCompanyIdMembershipsRoute
   ApiCompaniesCompanyIdMyProjectMembershipsRoute: typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
   ApiCompaniesCompanyIdProjectsRoute: typeof ApiCompaniesCompanyIdProjectsRoute
@@ -1393,6 +1489,8 @@ const ApiCompaniesCompanyIdRouteChildren: ApiCompaniesCompanyIdRouteChildren = {
   ApiCompaniesCompanyIdDefaultSubCategoriesRoute:
     ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren,
   ApiCompaniesCompanyIdDefaultsRoute: ApiCompaniesCompanyIdDefaultsRoute,
+  ApiCompaniesCompanyIdImportRulesRoute:
+    ApiCompaniesCompanyIdImportRulesRouteWithChildren,
   ApiCompaniesCompanyIdMembershipsRoute: ApiCompaniesCompanyIdMembershipsRoute,
   ApiCompaniesCompanyIdMyProjectMembershipsRoute:
     ApiCompaniesCompanyIdMyProjectMembershipsRoute,
@@ -1460,6 +1558,21 @@ const ApiProjectsProjectIdCategoriesRouteChildren: ApiProjectsProjectIdCategorie
 const ApiProjectsProjectIdCategoriesRouteWithChildren =
   ApiProjectsProjectIdCategoriesRoute._addFileChildren(
     ApiProjectsProjectIdCategoriesRouteChildren,
+  )
+
+interface ApiProjectsProjectIdImportCandidatesRouteChildren {
+  ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute: typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
+}
+
+const ApiProjectsProjectIdImportCandidatesRouteChildren: ApiProjectsProjectIdImportCandidatesRouteChildren =
+  {
+    ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute:
+      ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute,
+  }
+
+const ApiProjectsProjectIdImportCandidatesRouteWithChildren =
+  ApiProjectsProjectIdImportCandidatesRoute._addFileChildren(
+    ApiProjectsProjectIdImportCandidatesRouteChildren,
   )
 
 interface ApiProjectsProjectIdSubCategoriesRouteChildren {
@@ -1545,6 +1658,7 @@ interface ApiProjectsProjectIdRouteChildren {
   ApiProjectsProjectIdBudgetsRoute: typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   ApiProjectsProjectIdCategoriesRoute: typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   ApiProjectsProjectIdDeactivateRoute: typeof ApiProjectsProjectIdDeactivateRoute
+  ApiProjectsProjectIdImportCandidatesRoute: typeof ApiProjectsProjectIdImportCandidatesRouteWithChildren
   ApiProjectsProjectIdMembershipsRoute: typeof ApiProjectsProjectIdMembershipsRoute
   ApiProjectsProjectIdReactivateRoute: typeof ApiProjectsProjectIdReactivateRoute
   ApiProjectsProjectIdSubCategoriesRoute: typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
@@ -1559,6 +1673,8 @@ const ApiProjectsProjectIdRouteChildren: ApiProjectsProjectIdRouteChildren = {
   ApiProjectsProjectIdCategoriesRoute:
     ApiProjectsProjectIdCategoriesRouteWithChildren,
   ApiProjectsProjectIdDeactivateRoute: ApiProjectsProjectIdDeactivateRoute,
+  ApiProjectsProjectIdImportCandidatesRoute:
+    ApiProjectsProjectIdImportCandidatesRouteWithChildren,
   ApiProjectsProjectIdMembershipsRoute: ApiProjectsProjectIdMembershipsRoute,
   ApiProjectsProjectIdReactivateRoute: ApiProjectsProjectIdReactivateRoute,
   ApiProjectsProjectIdSubCategoriesRoute:

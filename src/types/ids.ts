@@ -22,6 +22,9 @@ export type CompanyDefaultMappingRuleId = Brand<
   string,
   'CompanyDefaultMappingRuleId'
 >;
+export type ImportRuleId = Brand<string, 'ImportRuleId'>;
+export type ImportBatchId = Brand<string, 'ImportBatchId'>;
+export type ImportCandidateId = Brand<string, 'ImportCandidateId'>;
 export type TxnId = Brand<string, 'TxnId'>;
 export type TxnCommentId = Brand<string, 'TxnCommentId'>;
 export type BudgetLineId = Brand<string, 'BudgetLineId'>;
@@ -36,6 +39,9 @@ export type AnyId =
   | CompanyDefaultCategoryId
   | CompanyDefaultSubCategoryId
   | CompanyDefaultMappingRuleId
+  | ImportRuleId
+  | ImportBatchId
+  | ImportCandidateId
   | TxnId
   | TxnCommentId
   | BudgetLineId;
@@ -52,6 +58,10 @@ export const asCompanyDefaultSubCategoryId = (v: string) =>
   brand<string, 'CompanyDefaultSubCategoryId'>(v);
 export const asCompanyDefaultMappingRuleId = (v: string) =>
   brand<string, 'CompanyDefaultMappingRuleId'>(v);
+export const asImportRuleId = (v: string) => brand<string, 'ImportRuleId'>(v);
+export const asImportBatchId = (v: string) => brand<string, 'ImportBatchId'>(v);
+export const asImportCandidateId = (v: string) =>
+  brand<string, 'ImportCandidateId'>(v);
 export const asTxnId = (v: string) => brand<string, 'TxnId'>(v);
 export const asTxnCommentId = (v: string) => brand<string, 'TxnCommentId'>(v);
 export const asBudgetLineId = (v: string) => brand<string, 'BudgetLineId'>(v);

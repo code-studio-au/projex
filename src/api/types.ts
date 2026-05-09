@@ -10,6 +10,9 @@ import type {
   CompanyMembership,
   CompanyRole,
   CompanySummary,
+  ImportCandidate,
+  ImportRule,
+  ImportCandidateId,
   Project,
   ProjectId,
   ProjectMembership,
@@ -42,7 +45,7 @@ export type Session = {
   userId: UserId;
 };
 
-export type CsvImportMode = 'append' | 'replaceAll';
+export type TxnImportMode = 'append' | 'replaceAll';
 export type TxnImportTxnInput = Omit<
   Txn,
   | 'internalId'
@@ -57,15 +60,26 @@ export type TxnImportTxnInput = Omit<
 >;
 export type TxnImportInput = {
   txns: TxnImportTxnInput[];
-  mode: CsvImportMode;
+  mode: TxnImportMode;
   autoCreateBudgets?: boolean;
 };
 export type TxnImportPreviewInput = {
   csvText: string;
+  sourceType?: 'powerbi_expenditure_actuals';
+  fileName?: string;
   autoCreateStructures?: boolean;
 };
 export type TxnImportPreviewResult = {
+  importBatchId?: Txn['importBatchId'];
   rows: ImportPreviewRow[];
+};
+export type ImportCandidateReviewInput = {
+  candidateId: ImportCandidateId;
+  decision: 'import' | 'reject';
+};
+export type ImportCandidateReviewResult = {
+  candidate: ImportCandidate;
+  txn?: Txn;
 };
 
 export type TxnSplitChildInput = {
@@ -231,6 +245,18 @@ export type CompanyDefaultMappingRuleUpdateInput = Partial<
   >
 > & {
   id: CompanyDefaultMappingRule['id'];
+};
+
+export type ImportRuleCreateInput = Omit<
+  ImportRule,
+  'id' | 'createdAt' | 'updatedAt'
+> & {
+  id?: ImportRule['id'];
+};
+export type ImportRuleUpdateInput = Partial<
+  Omit<ImportRule, 'id' | 'companyId' | 'createdAt' | 'updatedAt'>
+> & {
+  id: ImportRule['id'];
 };
 
 export type ApplyCompanyDefaultsResult = {
@@ -412,6 +438,19 @@ export interface ProjexApi {
     companyId: CompanyId,
     ruleId: CompanyDefaultMappingRule['id']
   ): Promise<void>;
+  listImportRules(companyId: CompanyId): Promise<ImportRule[]>;
+  createImportRule(
+    companyId: CompanyId,
+    input: ImportRuleCreateInput
+  ): Promise<ImportRule>;
+  updateImportRule(
+    companyId: CompanyId,
+    input: ImportRuleUpdateInput
+  ): Promise<ImportRule>;
+  deleteImportRule(
+    companyId: CompanyId,
+    ruleId: ImportRule['id']
+  ): Promise<void>;
   applyCompanyDefaultTaxonomy(
     projectId: ProjectId
   ): Promise<ApplyCompanyDefaultsResult>;
@@ -503,6 +542,11 @@ export interface ProjexApi {
     projectId: ProjectId,
     input: TxnImportPreviewInput
   ): Promise<TxnImportPreviewResult>;
+  listImportCandidates(projectId: ProjectId): Promise<ImportCandidate[]>;
+  reviewImportCandidate(
+    projectId: ProjectId,
+    input: ImportCandidateReviewInput
+  ): Promise<ImportCandidateReviewResult>;
 
   // helpers
   getDefaultCompanyIdForUser(userId: UserId): Promise<CompanyId | null>;

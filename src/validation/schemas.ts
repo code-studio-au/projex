@@ -38,6 +38,16 @@ export const nonNegativeInt = (label: string) =>
     }
   });
 
+export const safeInt = (label: string) =>
+  z.number().superRefine((value, ctx) => {
+    if (!Number.isSafeInteger(value)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${label} must be a safe integer`,
+      });
+    }
+  });
+
 const isoDateOnly = (label: string) =>
   z.string().superRefine((value, ctx) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -51,8 +61,7 @@ export const budgetAllocatedCentsSchema = nonNegativeInt(
 export const projectBudgetTotalCentsSchema = nonNegativeInt(
   'Project budget total'
 );
-export const transactionAmountCentsSchema =
-  nonNegativeInt('Transaction amount');
+export const transactionAmountCentsSchema = safeInt('Transaction amount');
 
 export const txnInputSchema = z.object({
   date: isoDateOnly('Transaction date must be YYYY-MM-DD'),

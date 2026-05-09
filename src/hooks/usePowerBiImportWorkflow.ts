@@ -10,6 +10,7 @@ import type { BudgetsHook } from './useBudgets';
 import type {
   CategoryId,
   CompanyId,
+  ImportBatchId,
   ImportPreviewRow,
   ProjectId,
   SubCategoryId,
@@ -22,12 +23,14 @@ import { txnInputSchema } from '../validation/schemas';
 export type ImportPreviewFilter =
   | 'all'
   | 'exceptions'
+  | 'excluded'
+  | 'review'
   | 'invalid'
   | 'duplicate'
   | 'uncoded'
   | 'warnings';
 
-type CsvImportMode = 'append' | 'replaceAll';
+type PowerBiImportMode = 'append' | 'replaceAll';
 
 function validateImportedRows(
   rows: Array<Pick<Txn, 'date' | 'item' | 'description' | 'amountCents'>>
@@ -46,7 +49,7 @@ function validateImportedRows(
   }
 }
 
-export function useCsvImportWorkflow(params: {
+export function usePowerBiImportWorkflow(params: {
   taxonomy: TaxonomyHook;
   budgets: BudgetsHook;
   companyId: CompanyId;
@@ -80,12 +83,16 @@ export function useCsvImportWorkflow(params: {
   const [draftCsvText, setDraftCsvText] = useState('');
   const [autoCreateStructures, setAutoCreateStructures] = useState(true);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [showExcludedRows, setShowExcludedRows] = useState(true);
   const [previewFilter, setPreviewFilter] =
     useState<ImportPreviewFilter>('all');
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [previewRows, setPreviewRows] = useState<ImportPreviewRow[] | null>(
+    null
+  );
+  const [previewBatchId, setPreviewBatchId] = useState<ImportBatchId | null>(
     null
   );
   const [previewSourceLabel, setPreviewSourceLabel] = useState<string | null>(
@@ -111,25 +118,33 @@ export function useCsvImportWorkflow(params: {
   );
 
   const filteredPreviewRows = useMemo(() => {
-    const rows = previewRows ?? [];
+    const rows = showExcludedRows
+      ? (previewRows ?? [])
+      : (previewRows ?? []).filter(
+          (row) => !excludedImportIds.has(row.importId)
+        );
     if (previewFilter === 'all') return rows;
 
     return rows.filter((row) => {
       const isException =
         excludedImportIds.has(row.importId) ||
+        row.importAction === 'review' ||
         row.duplicate ||
         row.mappingStatus === 'invalid' ||
         row.mappingStatus === 'uncoded' ||
         row.warnings.length > 0;
 
       if (previewFilter === 'exceptions') return isException;
+      if (previewFilter === 'excluded')
+        return excludedImportIds.has(row.importId);
+      if (previewFilter === 'review') return row.importAction === 'review';
       if (previewFilter === 'invalid') return row.mappingStatus === 'invalid';
       if (previewFilter === 'duplicate') return row.duplicate;
       if (previewFilter === 'uncoded') return row.mappingStatus === 'uncoded';
       if (previewFilter === 'warnings') return row.warnings.length > 0;
       return true;
     });
-  }, [excludedImportIds, previewFilter, previewRows]);
+  }, [excludedImportIds, previewFilter, previewRows, showExcludedRows]);
 
   const previewSummary = useMemo(() => {
     const counts = {
@@ -139,9 +154,11 @@ export function useCsvImportWorkflow(params: {
       invalid: 0,
       duplicate: 0,
       uncoded: 0,
+      review: 0,
     };
 
     for (const row of previewRows ?? []) {
+      if (row.importAction === 'review') counts.review += 1;
       if (excludedImportIds.has(row.importId)) {
         counts.excluded += 1;
         continue;
@@ -162,11 +179,15 @@ export function useCsvImportWorkflow(params: {
       exceptions: rows.filter(
         (row) =>
           excludedImportIds.has(row.importId) ||
+          row.importAction === 'review' ||
           row.duplicate ||
           row.mappingStatus === 'invalid' ||
           row.mappingStatus === 'uncoded' ||
           row.warnings.length > 0
       ).length,
+      excluded: rows.filter((row) => excludedImportIds.has(row.importId))
+        .length,
+      review: rows.filter((row) => row.importAction === 'review').length,
       invalid: rows.filter((row) => row.mappingStatus === 'invalid').length,
       duplicate: rows.filter((row) => row.duplicate).length,
       uncoded: rows.filter((row) => row.mappingStatus === 'uncoded').length,
@@ -195,7 +216,9 @@ export function useCsvImportWorkflow(params: {
     () =>
       includedPreviewRows.some(
         (row) =>
-          row.mappingStatus === 'invalid' || (!skipDuplicates && row.duplicate)
+          row.mappingStatus === 'invalid' ||
+          row.importAction === 'review' ||
+          (!skipDuplicates && row.duplicate)
       ),
     [includedPreviewRows, skipDuplicates]
   );
@@ -204,7 +227,9 @@ export function useCsvImportWorkflow(params: {
     () =>
       includedPreviewRows.some(
         (row) =>
-          row.mappingStatus === 'invalid' || row.duplicateReason === 'import'
+          row.mappingStatus === 'invalid' ||
+          row.importAction === 'review' ||
+          row.duplicateReason === 'import'
       ),
     [includedPreviewRows]
   );
@@ -223,7 +248,9 @@ export function useCsvImportWorkflow(params: {
       setFile(null);
       setFileText('');
       setImportError(
-        error instanceof Error ? error.message : 'Could not read the CSV file.'
+        error instanceof Error
+          ? error.message
+          : 'Could not read the PowerBI CSV file.'
       );
     } finally {
       setIsReadingFile(false);
@@ -249,8 +276,10 @@ export function useCsvImportWorkflow(params: {
     setFileText('');
     setDraftCsvText('');
     setPreviewRows(null);
+    setPreviewBatchId(null);
     setPreviewSourceLabel(null);
     setPreviewFilter('all');
+    setShowExcludedRows(true);
     setExcludedImportIds(new Set());
     setImportError(null);
     setPagination((current) => ({ ...current, pageIndex: 0 }));
@@ -262,28 +291,42 @@ export function useCsvImportWorkflow(params: {
       clearFeedback();
 
       const sourceText = file ? fileText : draftCsvText;
-      const sourceLabel = file ? `Uploaded file: ${file.name}` : 'Pasted CSV';
+      const sourceLabel = file
+        ? `Uploaded PowerBI export: ${file.name}`
+        : 'Pasted PowerBI CSV';
       if (!sourceText.trim()) {
         throw new Error(
-          'Add a CSV file or paste CSV text before previewing the import.'
+          'Add a PowerBI CSV file or paste PowerBI CSV text before previewing the import.'
         );
       }
 
       const preview = await api.previewImportTransactions(projectId, {
         csvText: sourceText,
+        sourceType: 'powerbi_expenditure_actuals',
+        fileName: file?.name,
         autoCreateStructures,
       });
       if (!preview.rows.length) {
-        throw new Error('No importable rows were found in the provided CSV.');
+        throw new Error(
+          'No importable rows were found in the provided PowerBI CSV.'
+        );
       }
 
       setPreviewRows(preview.rows);
+      setPreviewBatchId(preview.importBatchId ?? null);
       setPreviewSourceLabel(sourceLabel);
       setPreviewFilter('all');
-      setExcludedImportIds(new Set());
+      setExcludedImportIds(
+        new Set(
+          preview.rows
+            .filter((row) => row.importAction === 'exclude')
+            .map((row) => row.importId)
+        )
+      );
       setPagination((current) => ({ ...current, pageIndex: 0 }));
     } catch (error) {
       setPreviewRows(null);
+      setPreviewBatchId(null);
       setPreviewSourceLabel(null);
       setPreviewFilter('all');
       setExcludedImportIds(new Set());
@@ -341,11 +384,12 @@ export function useCsvImportWorkflow(params: {
   };
 
   const buildImportPayloadFromPreview = async (
-    mode: CsvImportMode
+    mode: PowerBiImportMode
   ): Promise<{ txns: Txn[]; skipped: number }> => {
     const activeRows = (previewRows ?? []).filter(
       (row) =>
         !excludedImportIds.has(row.importId) &&
+        row.importAction === 'import' &&
         row.mappingStatus !== 'invalid' &&
         (mode === 'replaceAll' || !skipDuplicates || !row.duplicate)
     );
@@ -441,6 +485,9 @@ export function useCsvImportWorkflow(params: {
           companyDefaultMappingRuleId: row.ruleId,
           codingSource: row.codingSource,
           codingPendingApproval: row.codingPendingApproval,
+          importBatchId: previewBatchId ?? undefined,
+          importSourceType: row.sourceType,
+          importSourceMeta: row.rawSourceRow,
         })
       );
     }
@@ -500,6 +547,7 @@ export function useCsvImportWorkflow(params: {
     draftCsvText,
     autoCreateStructures,
     skipDuplicates,
+    showExcludedRows,
     previewFilter,
     confirmReplaceOpen,
     importNotice,
@@ -520,6 +568,7 @@ export function useCsvImportWorkflow(params: {
     hasReplaceAllBlockers,
     setAutoCreateStructures,
     setSkipDuplicates,
+    setShowExcludedRows,
     setPreviewFilter,
     setConfirmReplaceOpen,
     setPagination,

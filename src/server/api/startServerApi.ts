@@ -62,8 +62,10 @@ import {
   createTxnServer,
   deleteTxnServer,
   importTransactionsServer,
+  listImportCandidatesServer,
   listTransactionsServer,
   previewImportTransactionsServer,
+  reviewImportCandidateServer,
   splitTxnServer,
   transferTxnServer,
   updateTxnWorkflowStateServer,
@@ -106,6 +108,12 @@ import {
   listBudgetsServer,
   updateBudgetServer,
 } from '../fns/budgets';
+import {
+  createImportRuleServer,
+  deleteImportRuleServer,
+  listImportRulesServer,
+  updateImportRuleServer,
+} from '../fns/importRules';
 
 /**
  * Server-only adapter for TanStack Start server functions/routes.
@@ -346,6 +354,39 @@ export class StartServerApi implements ProjexApi {
       ruleId,
     });
   }
+  async listImportRules(companyId: CompanyId) {
+    return listImportRulesServer({ context: this.context, companyId });
+  }
+  async createImportRule(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['createImportRule']>[1]
+  ) {
+    return createImportRuleServer({
+      context: this.context,
+      companyId,
+      input,
+    });
+  }
+  async updateImportRule(
+    companyId: CompanyId,
+    input: Parameters<ProjexApi['updateImportRule']>[1]
+  ) {
+    return updateImportRuleServer({
+      context: this.context,
+      companyId,
+      input,
+    });
+  }
+  async deleteImportRule(
+    companyId: CompanyId,
+    ruleId: Parameters<ProjexApi['deleteImportRule']>[1]
+  ) {
+    return deleteImportRuleServer({
+      context: this.context,
+      companyId,
+      ruleId,
+    });
+  }
   async applyCompanyDefaultTaxonomy(projectId: ProjectId) {
     return applyCompanyDefaultTaxonomyServer({
       context: this.context,
@@ -550,7 +591,23 @@ export class StartServerApi implements ProjexApi {
       context: this.context,
       projectId,
       csvText: input.csvText,
+      sourceType: input.sourceType,
+      fileName: input.fileName,
       autoCreateStructures: input.autoCreateStructures,
+    });
+  }
+  async listImportCandidates(projectId: ProjectId) {
+    return listImportCandidatesServer({ context: this.context, projectId });
+  }
+  async reviewImportCandidate(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['reviewImportCandidate']>[1]
+  ) {
+    return reviewImportCandidateServer({
+      context: this.context,
+      projectId,
+      candidateId: input.candidateId,
+      decision: input.decision,
     });
   }
 

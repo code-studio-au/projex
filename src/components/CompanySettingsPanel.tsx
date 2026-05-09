@@ -34,6 +34,7 @@ import {
 import { useCompanyDefaultsQuery } from '../queries/taxonomy';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
+import CompanyImportRulesModal from './CompanyImportRulesModal';
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
@@ -95,6 +96,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [roleUserId, setRoleUserId] = useState<UserId | null>(null);
   const [defaultsModalOpen, setDefaultsModalOpen] = useState(false);
   const [mappingsModalOpen, setMappingsModalOpen] = useState(false);
+  const [importRulesModalOpen, setImportRulesModalOpen] = useState(false);
 
   // Derive a sensible default selection without synchronously setting state in an effect.
   // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
@@ -299,24 +301,51 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
       <Paper withBorder radius="lg" p="lg">
         <Stack gap="sm">
           <Group justify="space-between">
-            <Title order={5}>Company default mappings</Title>
+            <Title order={5}>Import Rules</Title>
+            <Badge variant="light" color={defaultsStatusColor}>
+              {defaultsStatusLabel}
+            </Badge>
+          </Group>
+          <Text size="sm" c="dimmed">
+            Decide which PowerBI rows import, which are excluded, and which are
+            staged for project review before Auto-Categorise Rules run.
+          </Text>
+          <Button
+            variant="light"
+            disabled={!canEditCompanyDefaults}
+            onClick={() => setImportRulesModalOpen(true)}
+          >
+            Manage Import Rules
+          </Button>
+          <Text size="xs" c="dimmed">
+            Defaults are seeded for SAL, EXA, and suspected salary transfers,
+            then can be adjusted for the company without code changes.
+          </Text>
+        </Stack>
+      </Paper>
+
+      <Paper withBorder radius="lg" p="lg">
+        <Stack gap="sm">
+          <Group justify="space-between">
+            <Title order={5}>Auto-Categorise Rules</Title>
             <Badge variant="light" color={defaultsStatusColor}>
               {defaultsStatusLabel}
             </Badge>
           </Group>
           <Text size="sm" c="dimmed">
             Match imported transaction text to company default taxonomy so
-            uncoded imports can be auto-coded in projects that already contain
-            those defaults.
+            uncoded imports can be auto-categorised in projects that already
+            contain those defaults.
           </Text>
           {companyDefaultsLoading ? (
             <Text size="sm" c="dimmed">
-              Loading company default mappings…
+              Loading Auto-Categorise Rules…
             </Text>
           ) : (
             <Group gap="sm" wrap="wrap">
               <Badge variant="light">
-                {companyDefaultsQ.data?.mappingRules.length ?? 0} mapping rules
+                {companyDefaultsQ.data?.mappingRules.length ?? 0}{' '}
+                Auto-Categorise Rules
               </Badge>
             </Group>
           )}
@@ -325,12 +354,12 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             disabled={!canEditCompanyDefaults}
             onClick={() => setMappingsModalOpen(true)}
           >
-            Manage default mappings
+            Manage Auto-Categorise Rules
           </Button>
           <Text size="xs" c="dimmed">
             The first matching rule wins. Rules search transaction item and
             description text, support simple singular/plural matches, and mark
-            auto-coded rows for approval in the transaction list.
+            auto-categorised rows for approval in the transaction list.
           </Text>
         </Stack>
       </Paper>
@@ -532,6 +561,12 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
       <CompanyDefaultMappingsModal
         opened={mappingsModalOpen}
         onClose={() => setMappingsModalOpen(false)}
+        companyId={companyId}
+        readOnly={!canEditCompanyDefaults}
+      />
+      <CompanyImportRulesModal
+        opened={importRulesModalOpen}
+        onClose={() => setImportRulesModalOpen(false)}
         companyId={companyId}
         readOnly={!canEditCompanyDefaults}
       />

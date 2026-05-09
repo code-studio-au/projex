@@ -6,6 +6,9 @@ import {
   asCompanyDefaultMappingRuleId,
   asCompanyId,
   asCompanyDefaultSubCategoryId,
+  asImportBatchId,
+  asImportCandidateId,
+  asImportRuleId,
   asProjectId,
   asSubCategoryId,
   asTxnCommentId,
@@ -56,6 +59,9 @@ const companyDefaultSubCategoryIdSchema = idSchema.transform(
   asCompanyDefaultSubCategoryId
 );
 const mappingRuleIdSchema = idSchema.transform(asCompanyDefaultMappingRuleId);
+const importBatchIdSchema = idSchema.transform(asImportBatchId);
+const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
+const importRuleIdSchema = idSchema.transform(asImportRuleId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
 const optionalIsoTimestampSchema = z.string().optional();
@@ -209,6 +215,31 @@ export const companyDefaultsResponseSchema = z.object({
   mappingRules: companyDefaultMappingRulesResponseSchema,
 });
 
+export const importRuleResponseSchema = z.object({
+  id: importRuleIdSchema,
+  companyId: companyIdSchema,
+  name: z.string(),
+  action: z.enum(['import', 'exclude', 'review']),
+  field: z.enum([
+    'source',
+    'journalId',
+    'journalLineDescription',
+    'ccAndDescription',
+    'vendorName',
+    'poId',
+    'referenceNum',
+    'anyText',
+  ]),
+  operator: z.enum(['equals', 'contains', 'starts_with', 'regex']),
+  value: z.string(),
+  sortOrder: z.number().int(),
+  enabled: z.boolean(),
+  createdAt: optionalIsoTimestampSchema,
+  updatedAt: optionalIsoTimestampSchema,
+});
+
+export const importRulesResponseSchema = z.array(importRuleResponseSchema);
+
 export const categoryResponseSchema = z.object({
   id: categoryIdSchema,
   companyId: companyIdSchema,
@@ -261,6 +292,9 @@ export const txnResponseSchema = z.object({
   transferProjectId: projectIdSchema.optional(),
   budgetImpact: z.boolean(),
   categorisable: z.boolean(),
+  importBatchId: importBatchIdSchema.optional(),
+  importSourceType: z.enum(['powerbi_expenditure_actuals']).optional(),
+  importSourceMeta: z.record(z.string(), z.string()).optional(),
   categoryId: categoryIdSchema.optional(),
   subCategoryId: subCategoryIdSchema.optional(),
   companyDefaultMappingRuleId: mappingRuleIdSchema.optional(),
@@ -367,9 +401,13 @@ export const importPreviewRowResponseSchema = z.object({
   description: z.string().nullable(),
   duplicate: z.boolean(),
   duplicateReason: z.enum(['existing', 'import']).optional(),
+  importAction: z.enum(['import', 'exclude', 'review']),
+  importRuleId: importRuleIdSchema.optional(),
+  importRuleName: z.string().optional(),
+  importDecisionReason: z.string().optional(),
   mappingStatus: z.enum([
     'matched_rule',
-    'csv_taxonomy',
+    'source_taxonomy',
     'auto_created',
     'uncoded',
     'invalid',
@@ -384,11 +422,49 @@ export const importPreviewRowResponseSchema = z.object({
   willCreateCategory: z.boolean(),
   willCreateSubCategory: z.boolean(),
   willCreateBudgetLine: z.boolean(),
+  sourceType: z.enum(['powerbi_expenditure_actuals']).optional(),
+  rawSourceRow: z.record(z.string(), z.string()).optional(),
   warnings: z.array(z.string()),
 });
 
 export const txnImportPreviewResultResponseSchema = z.object({
+  importBatchId: importBatchIdSchema.optional(),
   rows: z.array(importPreviewRowResponseSchema),
+});
+
+export const importCandidateResponseSchema = z.object({
+  id: importCandidateIdSchema,
+  companyId: companyIdSchema,
+  projectId: projectIdSchema,
+  batchId: importBatchIdSchema,
+  sourceRowIndex: z.number().int().nonnegative(),
+  rawRow: z.record(z.string(), z.string()),
+  status: z.enum([
+    'ready',
+    'excluded',
+    'needs_project_review',
+    'approved',
+    'rejected',
+    'imported',
+    'invalid',
+    'duplicate',
+  ]),
+  matchedImportRuleId: importRuleIdSchema.optional(),
+  statusReason: z.string().optional(),
+  txnId: txnIdSchema.optional(),
+  reviewedByUserId: userIdSchema.optional(),
+  reviewedAt: optionalIsoTimestampSchema,
+  createdAt: optionalIsoTimestampSchema,
+  updatedAt: optionalIsoTimestampSchema,
+});
+
+export const importCandidatesResponseSchema = z.array(
+  importCandidateResponseSchema
+);
+
+export const importCandidateReviewResultResponseSchema = z.object({
+  candidate: importCandidateResponseSchema,
+  txn: txnResponseSchema.optional(),
 });
 
 export const applyCompanyDefaultsResultResponseSchema = z.object({

@@ -56,7 +56,7 @@ export function buildCompanySummaryProjects(args: {
       uncodedCount: 0,
       uncodedAmountCents: 0,
     };
-    const amount = Math.abs(Number(transaction.amountCents ?? 0));
+    const amount = Number(transaction.amountCents ?? 0);
     const validSubIds =
       args.validSubCategoryIdsByProject.get(transaction.projectId) ??
       new Set<string>();

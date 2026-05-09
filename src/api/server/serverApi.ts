@@ -10,6 +10,8 @@ import type {
   CompanyMembership,
   CompanyRole,
   CompanySummary,
+  ImportCandidate,
+  ImportRule,
   Project,
   ProjectId,
   ProjectMembership,
@@ -22,7 +24,6 @@ import type {
   TxnId,
   User,
   UserId,
-  ImportPreviewRow,
 } from '../../types';
 import type {
   BudgetCreateInput,
@@ -38,6 +39,10 @@ import type {
   EmailChangeConfirmResult,
   EmailChangeRequestInput,
   EmailChangeRequestResult,
+  ImportRuleCreateInput,
+  ImportRuleUpdateInput,
+  ImportCandidateReviewInput,
+  ImportCandidateReviewResult,
   PendingEmailChange,
   ProjectCreateInput,
   ProjectUpdateInput,
@@ -53,6 +58,7 @@ import type {
   TxnTransferInput,
   TxnTransferResult,
   TxnUpdateInput,
+  TxnImportPreviewResult,
   TxnWorkflowStateInput,
 } from '../types';
 import {
@@ -79,6 +85,10 @@ import {
   defaultCompanyResponseSchema,
   emailChangeConfirmResponseSchema,
   emailChangeRequestResponseSchema,
+  importRuleResponseSchema,
+  importRulesResponseSchema,
+  importCandidateReviewResultResponseSchema,
+  importCandidatesResponseSchema,
   okResponseSchema,
   pendingEmailChangeResponseSchema,
   projectMembershipsResponseSchema,
@@ -517,6 +527,49 @@ export class ServerApi implements ProjexApi {
       okResponseSchema
     );
   }
+  async listImportRules(companyId: CompanyId): Promise<ImportRule[]> {
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/import-rules`,
+      undefined,
+      importRulesResponseSchema
+    );
+  }
+  async createImportRule(
+    companyId: CompanyId,
+    input: ImportRuleCreateInput
+  ): Promise<ImportRule> {
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/import-rules`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      importRuleResponseSchema
+    );
+  }
+  async updateImportRule(
+    companyId: CompanyId,
+    input: ImportRuleUpdateInput
+  ): Promise<ImportRule> {
+    return this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/import-rules`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      importRuleResponseSchema
+    );
+  }
+  async deleteImportRule(
+    companyId: CompanyId,
+    ruleId: ImportRule['id']
+  ): Promise<void> {
+    await this.request(
+      `/api/companies/${encodeURIComponent(companyId)}/import-rules/${encodeURIComponent(ruleId)}`,
+      { method: 'DELETE' },
+      okResponseSchema
+    );
+  }
   async applyCompanyDefaultTaxonomy(projectId: ProjectId) {
     return this.request(
       `/api/projects/${encodeURIComponent(projectId)}/apply-company-default-taxonomy`,
@@ -805,7 +858,7 @@ export class ServerApi implements ProjexApi {
   async previewImportTransactions(
     projectId: ProjectId,
     input: Parameters<ProjexApi['previewImportTransactions']>[1]
-  ): Promise<{ rows: ImportPreviewRow[] }> {
+  ): Promise<TxnImportPreviewResult> {
     return this.request(
       `/api/projects/${encodeURIComponent(projectId)}/transactions/import-preview`,
       {
@@ -813,6 +866,26 @@ export class ServerApi implements ProjexApi {
         body: JSON.stringify(input),
       },
       txnImportPreviewResultResponseSchema
+    );
+  }
+  async listImportCandidates(projectId: ProjectId): Promise<ImportCandidate[]> {
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/import-candidates`,
+      undefined,
+      importCandidatesResponseSchema
+    );
+  }
+  async reviewImportCandidate(
+    projectId: ProjectId,
+    input: ImportCandidateReviewInput
+  ): Promise<ImportCandidateReviewResult> {
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/import-candidates/${encodeURIComponent(input.candidateId)}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ review: input }),
+      },
+      importCandidateReviewResultResponseSchema
     );
   }
 

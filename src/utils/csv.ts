@@ -1,33 +1,10 @@
-import type { ImportTxnWithTaxonomy, Txn, TxnId } from '../types';
-import { asTxnId } from '../types';
-import { uid } from './id';
-import { toCents } from './money';
-
-type CsvTxnAccountingFields =
-  | 'txnType'
-  | 'parentTxnId'
-  | 'sourceTxnId'
-  | 'transferProjectId'
-  | 'budgetImpact'
-  | 'categorisable';
-type UnscopedTxn = Omit<
-  Txn,
-  'companyId' | 'projectId' | CsvTxnAccountingFields
->;
+import type { ImportTxnWithTaxonomy, TxnId } from '../types';
 
 /**
  * Minimal CSV parser (handles quotes, commas, newlines).
- * Expected headers (case-insensitive):
- * - id
- * - date (yyyy-mm-dd)
- * - item
- * - description
- * - amount
- * Optional:
- * - category
- * - subcategory
- *
- * NOTE: mapping category/subcategory -> IDs is handled elsewhere (taxonomy lookup).
+ * PowerBI exports can still be delivered as CSV, so this stays deliberately
+ * small and format-agnostic. PowerBI-specific column mapping lives in
+ * `powerBiImport.ts`.
  */
 export function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
@@ -100,46 +77,6 @@ export function parseCsv(text: string): Record<string, string>[] {
     out.push(obj);
   }
   return out;
-}
-
-export function normalizeHeader(h: string) {
-  return h.trim().toLowerCase().replace(/\s+/g, '');
-}
-
-export function rowsToImportTxns(
-  rows: Record<string, string>[]
-): ImportTxnWithTaxonomy[] {
-  return rows.map((r) => {
-    const map: Record<string, string> = {};
-    for (const k of Object.keys(r)) map[normalizeHeader(k)] = r[k];
-
-    const externalId =
-      map['id'] ||
-      map['transactionid'] ||
-      map['txn_id'] ||
-      map['reference'] ||
-      '';
-
-    const date =
-      map['date'] || map['transactiondate'] || map['posteddate'] || '';
-    const description = map['description'] || map['memo'] || '';
-    const item =
-      map['item'] || map['merchant'] || map['payee'] || description || '';
-    const amountRaw = map['amount'] || map['debit'] || '';
-    const amountParsed =
-      Number(String(amountRaw).replace(/[^0-9.-]/g, '')) || 0;
-    const amountCents = Math.abs(toCents(amountParsed));
-
-    return {
-      externalId: externalId.trim() || undefined, // optional (many CSVs won't have it)
-      date,
-      item,
-      description,
-      amountCents,
-      category: map['category'] || '',
-      subcategory: map['subcategory'] || '',
-    };
-  });
 }
 
 /** Normalize text so tiny differences don't change IDs */
@@ -220,65 +157,4 @@ export function assignStableIds(
     seen.set(fp, occ);
     return { ...t, id: deriveStableTxnId(t, occ) };
   });
-}
-
-function dedupeKeyForTxn(t: { id: string; externalId?: string }) {
-  const ext = (t.externalId ?? '').trim();
-  return ext ? `external:${ext}` : `id:${t.id}`;
-}
-
-/** Filter out transactions whose dedupe keys already exist in the destination list */
-export function filterDuplicatesByKey<
-  T extends { id: string; externalId?: string },
->(
-  items: T[],
-  existingKeys: Set<string>,
-  skipDuplicates: boolean
-): { kept: T[]; skipped: number } {
-  if (!skipDuplicates) return { kept: items, skipped: 0 };
-  const kept: T[] = [];
-  let skipped = 0;
-  for (const it of items) {
-    const key = dedupeKeyForTxn(it);
-    if (existingKeys.has(key)) {
-      skipped++;
-      continue;
-    }
-    existingKeys.add(key);
-    kept.push(it);
-  }
-  return { kept, skipped };
-}
-
-export function finalizeImportTxns(
-  importTxns: ImportTxnWithTaxonomy[],
-  opts?: { existingKeys?: Set<string>; skipDuplicates?: boolean }
-): { txns: UnscopedTxn[]; skipped: number } {
-  const existingKeys = new Set(opts?.existingKeys ?? []);
-  const skipDuplicates = opts?.skipDuplicates ?? true;
-
-  const withIds = assignStableIds(importTxns).map((t) => ({
-    ...t,
-    id: String(t.id), // normalize to string for dedupe lookup
-    externalId: t.externalId?.trim() || undefined,
-  }));
-
-  const { kept, skipped } = filterDuplicatesByKey(
-    withIds,
-    existingKeys,
-    skipDuplicates
-  );
-
-  const out: UnscopedTxn[] = kept.map((t) => ({
-    id: asTxnId(t.id || uid()),
-    externalId: t.externalId,
-    date: t.date,
-    item: t.item,
-    description: t.description,
-    amountCents: t.amountCents,
-    categoryId: t.categoryId,
-    subCategoryId: t.subCategoryId,
-  }));
-
-  return { txns: out, skipped };
 }

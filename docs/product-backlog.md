@@ -122,9 +122,35 @@ Implemented:
 - programme dashboards support year, quarter, and month filtering
 - generated smoke coverage verifies programme creation, sub-project rollup, and operational endpoint rejection
 
+### 5. PowerBI expenditure import, Import Rules, and project review staging
+
+Examples:
+
+- PowerBI expenditure actuals are the primary user-facing import format
+- Import Rules can exclude SAL, EXA, and other company-specific rows before import
+- suspected salary transfers can be staged for project review instead of imported immediately
+- excluded rows can be hidden in the preview so admins can focus on rows that need action
+- signed actuals are supported so credits, refunds, reversals, and recoveries reduce net spend
+- Auto-Categorise Rules run only after Import Rules have decided that a row should import
+
+Why this matters:
+
+- finance/admin users should not have to manually filter hundreds of known exclusions from every PowerBI export
+- project leads may understand spend context better than admins, so review staging reduces incorrect coding decisions
+- preserving the raw PowerBI row keeps reconciliation back to the source export possible
+
+Implemented:
+
+- transaction actuals now support signed amounts while budgets remain non-negative
+- PowerBI row normalization maps expected export columns into transaction date, amount, item, description, external ID, and raw metadata
+- default Import Rules exclude SAL and EXA and flag suspected salary transfers for review
+- PowerBI preview stores import batches and candidates with ready, excluded, needs-project-review, duplicate, invalid, and imported statuses
+- preview UI shows import-rule decisions, auto-excludes rule-excluded rows, and supports showing or hiding excluded rows
+- remaining work: direct `.xlsx` parsing if admins cannot export PowerBI as CSV, richer review-queue filters/history, and audit-event history for import rule and candidate decisions
+
 ## Product/Admin
 
-### 5. Add bulk transaction review actions
+### 6. Add bulk transaction review actions
 
 Examples:
 
@@ -139,7 +165,7 @@ Why this matters:
 - row-by-row transaction review will become the main bottleneck as data volume increases
 - bulk actions are one of the highest-value workflow improvements available now
 
-### 6. Add reviewed and locked transaction workflow
+### 7. Add reviewed and locked transaction workflow
 
 Examples:
 
@@ -166,7 +192,7 @@ Implemented:
 - locked transactions are blocked from normal edit, delete, split, and transfer paths
 - remaining work: unlock request workflow, bulk review/lock actions, and audit event history for workflow transitions
 
-### 7. Clarify budget semantics, health messaging, and lightweight forecasting
+### 8. Clarify budget semantics, health messaging, and lightweight forecasting
 
 Examples:
 
@@ -182,7 +208,7 @@ Why this matters:
 - sharper financial semantics will make the app feel more trustworthy to finance-oriented users
 - users need interpretation and risk cues, not just raw spend totals
 
-### 8. Add rule suggestions from repeated manual coding
+### 9. Add rule suggestions from repeated manual coding
 
 Examples:
 
@@ -201,7 +227,7 @@ Design direction:
 - distinguish clearly between create-rule suggestions and update-rule suggestions
 - keep suggestions reviewable and dismissible so noisy patterns do not become brittle rules
 
-### 9. Expand audit logging into a first-class product feature
+### 10. Expand audit logging into a first-class product feature
 
 Examples:
 
@@ -243,7 +269,7 @@ Notes:
 - it needs careful schema, indexing, retention, and UI design before we build it
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 10. Extend self-service account/profile
+### 11. Extend self-service account/profile
 
 Examples:
 

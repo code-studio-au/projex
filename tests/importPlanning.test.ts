@@ -201,12 +201,12 @@ test('transaction import commit skips budget targets that already exist', () => 
 test('import preview marks existing duplicates and invalid rows', () => {
   const result = planImportPreview({
     csvText: [
-      'id,date,item,description,amount',
-      'bank-1,2026-04-28,Flight,Sydney to Melbourne,125.00',
-      'bank-2,not-a-date,Hotel,Conference stay,200.00',
+      'Ledger,Fiscal Year,Period,CC and Description,RC and Description,PC and Description,AC,Expenditure Actuals,Journal Line Description,Journal ID,Reference Num,Journal Date,Journal Line,Journal Line Ref,Posted Date,Unpost Seq,Source,Operator ID,PO ID,Vendor ID,Vendor Name',
+      'ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,125.00,Flight Sydney to Melbourne,JRNL-100,REF-1,46137,12,A,46138,0,EXP,OP-1,PO-44,VEN-10,Flight Vendor',
+      'ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,200.00,Conference stay,JRNL-101,REF-2,,13,A,not-a-date,0,EXP,OP-1,PO-45,VEN-11,Hotel Vendor',
     ].join('\n'),
     existingTransactions: [
-      { id: asTxnId('txn_existing'), externalId: 'bank-1' },
+      { id: asTxnId('txn_existing'), externalId: 'JRNL-100:12:A' },
     ],
     categories: [category],
     subCategories: [subCategory],

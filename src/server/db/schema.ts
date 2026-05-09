@@ -1,5 +1,11 @@
 import type { Generated } from 'kysely';
-import type { TxnType } from '../../types';
+import type {
+  ImportCandidateStatus,
+  ImportRuleAction,
+  ImportRuleField,
+  ImportRuleOperator,
+  TxnType,
+} from '../../types';
 
 // Minimal DB schema types for the Start + Kysely migration.
 // Extend as you move more logic server-side.
@@ -75,6 +81,9 @@ export interface TxnTable {
   transfer_project_id: string | null;
   budget_impact: boolean;
   categorisable: boolean;
+  import_batch_id: string | null;
+  import_source_type: 'powerbi_expenditure_actuals' | null;
+  import_source_meta: Record<string, string> | null;
   category_id: string | null;
   sub_category_id: string | null;
   company_default_mapping_rule_id: string | null;
@@ -161,6 +170,50 @@ export interface CompanyDefaultMappingRuleTable {
   updated_at: Generated<string>;
 }
 
+export interface ImportRuleTable {
+  id: string;
+  company_id: string;
+  name: string;
+  action: ImportRuleAction;
+  field: ImportRuleField;
+  operator: ImportRuleOperator;
+  value: string;
+  sort_order: number;
+  enabled: boolean;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface ImportBatchTable {
+  id: string;
+  company_id: string;
+  project_id: string;
+  source_type: 'powerbi_expenditure_actuals';
+  file_name: string;
+  status: 'previewed' | 'partially_imported' | 'imported' | 'cancelled';
+  created_by_user_id: string;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface ImportCandidateTable {
+  id: string;
+  company_id: string;
+  project_id: string;
+  batch_id: string;
+  source_row_index: number;
+  preview_import_id: string | null;
+  raw_row: Record<string, string>;
+  status: ImportCandidateStatus;
+  matched_import_rule_id: string | null;
+  status_reason: string | null;
+  txn_public_id: string | null;
+  reviewed_by_user_id: string | null;
+  reviewed_at: string | null;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
 export interface DB {
   companies: CompanyTable;
   projects: ProjectTable;
@@ -176,4 +229,7 @@ export interface DB {
   company_default_categories: CompanyDefaultCategoryTable;
   company_default_sub_categories: CompanyDefaultSubCategoryTable;
   company_default_mapping_rules: CompanyDefaultMappingRuleTable;
+  import_rules: ImportRuleTable;
+  import_batches: ImportBatchTable;
+  import_candidates: ImportCandidateTable;
 }

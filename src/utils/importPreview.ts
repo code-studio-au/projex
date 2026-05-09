@@ -109,8 +109,10 @@ export function buildImportPreview(args: {
 
     const rawCategoryName = String(txn.category ?? '').trim();
     const rawSubCategoryName = String(txn.subcategory ?? '').trim();
-    const hasCsvTaxonomyInput = Boolean(rawCategoryName || rawSubCategoryName);
-    let csvTaxonomyBlockedRuleFallback = false;
+    const hasSourceTaxonomyInput = Boolean(
+      rawCategoryName || rawSubCategoryName
+    );
+    let sourceTaxonomyBlockedRuleFallback = false;
 
     if (rawCategoryName) {
       const existingCategory = catByName.get(rawCategoryName.toLowerCase());
@@ -124,7 +126,7 @@ export function buildImportPreview(args: {
         warnings.push(
           `Category "${rawCategoryName}" does not exist in this project.`
         );
-        csvTaxonomyBlockedRuleFallback = true;
+        sourceTaxonomyBlockedRuleFallback = true;
       }
     }
 
@@ -132,7 +134,7 @@ export function buildImportPreview(args: {
       warnings.push(
         `Subcategory "${rawSubCategoryName}" was provided without a project category that could be resolved.`
       );
-      csvTaxonomyBlockedRuleFallback = true;
+      sourceTaxonomyBlockedRuleFallback = true;
     }
 
     if ((categoryId || willCreateCategory) && rawSubCategoryName) {
@@ -152,7 +154,7 @@ export function buildImportPreview(args: {
         warnings.push(
           `Subcategory "${rawSubCategoryName}" does not exist under "${categoryName ?? rawCategoryName}".`
         );
-        csvTaxonomyBlockedRuleFallback = true;
+        sourceTaxonomyBlockedRuleFallback = true;
       }
     }
 
@@ -160,8 +162,8 @@ export function buildImportPreview(args: {
       mappingStatus =
         willCreateCategory || willCreateSubCategory
           ? 'auto_created'
-          : 'csv_taxonomy';
-    } else if (!hasCsvTaxonomyInput || !csvTaxonomyBlockedRuleFallback) {
+          : 'source_taxonomy';
+    } else if (!hasSourceTaxonomyInput || !sourceTaxonomyBlockedRuleFallback) {
       const matchedRule = findMatchingCompanyDefaultRule(
         {
           item,
@@ -196,7 +198,7 @@ export function buildImportPreview(args: {
       }
     } else {
       warnings.push(
-        'CSV category or subcategory input could not be resolved, so this row was left for manual review instead of falling back to a company rule.'
+        'Provided category or subcategory input could not be resolved, so this row was left for manual review instead of falling back to an Auto-Categorise Rule.'
       );
     }
 
@@ -234,6 +236,17 @@ export function buildImportPreview(args: {
       );
     }
 
+    const importAction = txn.importAction ?? 'import';
+    if (importAction === 'exclude') {
+      warnings.push(
+        `Excluded by import rule: ${txn.importRuleName ?? txn.importDecisionReason ?? 'Rule matched'}.`
+      );
+    } else if (importAction === 'review') {
+      warnings.push(
+        `Needs project review: ${txn.importRuleName ?? txn.importDecisionReason ?? 'Rule matched'}.`
+      );
+    }
+
     if (duplicateReason) {
       warnings.push(
         duplicateReason === 'existing'
@@ -252,6 +265,10 @@ export function buildImportPreview(args: {
       description: description || null,
       duplicate: Boolean(duplicateReason),
       duplicateReason,
+      importAction,
+      importRuleId: txn.importRuleId,
+      importRuleName: txn.importRuleName,
+      importDecisionReason: txn.importDecisionReason,
       mappingStatus,
       categoryId,
       subCategoryId,
@@ -263,6 +280,8 @@ export function buildImportPreview(args: {
       willCreateCategory,
       willCreateSubCategory,
       willCreateBudgetLine,
+      sourceType: txn.importSourceType,
+      rawSourceRow: txn.rawSourceRow,
       warnings,
     };
   });

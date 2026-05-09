@@ -162,7 +162,7 @@ export default function TransactionsPanel(props: {
   /**
    * Count invalid transaction dates so the UI can surface problems early.
    * We keep this local (UI concern) rather than making the store reject rows,
-   * because CSV imports and manual edits can be messy during prototyping.
+   * because imports and manual edits can be messy during prototyping.
    */
   const invalidDateCount = useMemo(() => {
     let bad = 0;

@@ -120,13 +120,15 @@ export default function CompanyDefaultMappingsModal(props: {
         sortOrder: currentRule.sortOrder,
       });
       setSuccess(
-        direction < 0 ? 'Moved mapping rule up.' : 'Moved mapping rule down.'
+        direction < 0
+          ? 'Moved Auto-Categorise Rule up.'
+          : 'Moved Auto-Categorise Rule down.'
       );
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Could not reorder company default mapping.'
+          : 'Could not reorder Auto-Categorise Rule.'
       );
     }
   }
@@ -135,7 +137,7 @@ export default function CompanyDefaultMappingsModal(props: {
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Manage company default mappings"
+      title="Manage Auto-Categorise Rules"
       size={isMobile ? '100%' : 'xl'}
     >
       <Stack gap="md">
@@ -143,11 +145,11 @@ export default function CompanyDefaultMappingsModal(props: {
         {success ? <Alert color="green">{success}</Alert> : null}
         {readOnly ? (
           <Text size="sm" c="dimmed" className="panelHelperText">
-            You don’t have permission to edit company default mappings.
+            You don’t have permission to edit Auto-Categorise Rules.
           </Text>
         ) : companyDefaultsQ.isPending && !companyDefaultsQ.data ? (
           <Text size="sm" c="dimmed" className="panelHelperText">
-            Loading company default mappings…
+            Loading Auto-Categorise Rules…
           </Text>
         ) : (
           <Stack gap={4}>
@@ -180,7 +182,7 @@ export default function CompanyDefaultMappingsModal(props: {
                 {subCategories.length} subcategories
               </Text>
               <Text size="xs" c="dimmed">
-                {rules.length} mapping rules
+                {rules.length} Auto-Categorise Rules
               </Text>
             </Group>
           </Stack>
@@ -196,7 +198,7 @@ export default function CompanyDefaultMappingsModal(props: {
         <Paper withBorder radius="md" p="md">
           <Stack gap="sm">
             <Group justify="space-between">
-              <Text fw={600}>Add default mapping</Text>
+              <Text fw={600}>Add Auto-Categorise Rule</Text>
               <Badge variant="light">{rules.length} rules</Badge>
             </Group>
             <TextInput
@@ -277,12 +279,12 @@ export default function CompanyDefaultMappingsModal(props: {
                     setNewMatchText('');
                     setNewCategoryId(null);
                     setNewSubCategoryId(null);
-                    setSuccess('Added company default mapping.');
+                    setSuccess('Added Auto-Categorise Rule.');
                   } catch (err) {
                     setError(
                       err instanceof Error
                         ? err.message
-                        : 'Could not add company default mapping.'
+                        : 'Could not add Auto-Categorise Rule.'
                     );
                   }
                 }}
@@ -295,7 +297,7 @@ export default function CompanyDefaultMappingsModal(props: {
 
         {rules.length === 0 ? (
           <Text size="sm" c="dimmed" className="panelHelperText">
-            No company default mappings yet.
+            No Auto-Categorise Rules yet.
           </Text>
         ) : (
           <Stack gap="sm">
@@ -349,12 +351,12 @@ export default function CompanyDefaultMappingsModal(props: {
                                 setError(null);
                                 setSuccess(null);
                                 await deleteRule.mutateAsync(rule.id);
-                                setSuccess('Deleted company default mapping.');
+                                setSuccess('Deleted Auto-Categorise Rule.');
                               } catch (err) {
                                 setError(
                                   err instanceof Error
                                     ? err.message
-                                    : 'Could not delete company default mapping.'
+                                    : 'Could not delete Auto-Categorise Rule.'
                                 );
                               }
                             }}
@@ -372,12 +374,12 @@ export default function CompanyDefaultMappingsModal(props: {
                                 setError(null);
                                 setSuccess(null);
                                 await deleteRule.mutateAsync(rule.id);
-                                setSuccess('Deleted company default mapping.');
+                                setSuccess('Deleted Auto-Categorise Rule.');
                               } catch (err) {
                                 setError(
                                   err instanceof Error
                                     ? err.message
-                                    : 'Could not delete company default mapping.'
+                                    : 'Could not delete Auto-Categorise Rule.'
                                 );
                               }
                             }}
@@ -410,7 +412,7 @@ export default function CompanyDefaultMappingsModal(props: {
                         void updateRule
                           .mutateAsync({ id: rule.id, matchText: nextValue })
                           .then(() => {
-                            setSuccess('Updated company default mapping.');
+                            setSuccess('Updated Auto-Categorise Rule.');
                             setMatchDrafts((prev) => {
                               const next = { ...prev };
                               delete next[rule.id];
@@ -421,7 +423,7 @@ export default function CompanyDefaultMappingsModal(props: {
                             setError(
                               err instanceof Error
                                 ? err.message
-                                : 'Could not update company default mapping.'
+                                : 'Could not update Auto-Categorise Rule.'
                             );
                           });
                       }}
@@ -481,12 +483,12 @@ export default function CompanyDefaultMappingsModal(props: {
                               delete next[rule.id];
                               return next;
                             });
-                            setSuccess('Updated company default mapping.');
+                            setSuccess('Updated Auto-Categorise Rule.');
                           } catch (err) {
                             setError(
                               err instanceof Error
                                 ? err.message
-                                : 'Could not update company default mapping.'
+                                : 'Could not update Auto-Categorise Rule.'
                             );
                           }
                         }}

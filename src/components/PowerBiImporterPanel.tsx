@@ -20,9 +20,9 @@ import type { CompanyId, ImportPreviewRow, ProjectId, Txn } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { BudgetsHook } from '../hooks/useBudgets';
 import { formatCurrencyFromCents } from '../utils/money';
-import { useCsvImportWorkflow } from '../hooks/useCsvImportWorkflow';
+import { usePowerBiImportWorkflow } from '../hooks/usePowerBiImportWorkflow';
 
-export default function CsvImporterPanel(props: {
+export default function PowerBiImporterPanel(props: {
   taxonomy: TaxonomyHook;
   budgets: BudgetsHook;
   companyId: CompanyId;
@@ -52,7 +52,7 @@ export default function CsvImporterPanel(props: {
   } = props;
 
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const importer = useCsvImportWorkflow({
+  const importer = usePowerBiImportWorkflow({
     taxonomy,
     budgets,
     companyId,
@@ -63,13 +63,9 @@ export default function CsvImporterPanel(props: {
     onReplaceAll,
   });
 
-  const exampleCsv = `date,description,amount,category,subcategory
-2024-01-08,Taxi from airport to hotel,46.80,Transport,Rideshare
-2024-01-08,Accommodation - Sydney,389.00,Travel,Accommodation
-2024-01-09,Flight SYD to MEL,245.60,Travel,Flights
-2024-01-09,Coffee with client,7.50,Meals,Client Meals
-2024-01-10,USB-C adapter,29.95,Work Supplies,Electronics
-2024-01-10,Snacks for team meeting,18.40,Meals,Team Catering
+  const exampleCsv = `Ledger,Fiscal Year,Period,CC and Description,RC and Description,PC and Description,AC,Expenditure Actuals,Journal Line Description,Journal ID,Reference Num,Journal Date,Journal Line,Journal Line Ref,Posted Date,Unpost Seq,Source,Operator ID,PO ID,Vendor ID,Vendor Name
+ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,1234.56,External training course,JRNL-100,REF-9,46137,12,A,46138,0,EXP,OP-1,PO-44,VEN-10,Learning Vendor
+ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll recharge,JRNL-101,REF-10,46137,13,A,46138,0,SAL,OP-1,,,
 `;
 
   const {
@@ -78,6 +74,7 @@ export default function CsvImporterPanel(props: {
     draftCsvText,
     autoCreateStructures,
     skipDuplicates,
+    showExcludedRows,
     previewFilter,
     confirmReplaceOpen,
     importNotice,
@@ -97,6 +94,7 @@ export default function CsvImporterPanel(props: {
     hasReplaceAllBlockers,
     setAutoCreateStructures,
     setSkipDuplicates,
+    setShowExcludedRows,
     setPreviewFilter,
     setConfirmReplaceOpen,
     setPagination,
@@ -213,6 +211,16 @@ export default function CsvImporterPanel(props: {
                   Excluded
                 </Badge>
               ) : null}
+              {row.original.importAction === 'review' ? (
+                <Badge size="sm" variant="light" color="yellow">
+                  Needs review
+                </Badge>
+              ) : null}
+              {row.original.importAction === 'exclude' ? (
+                <Badge size="sm" variant="light" color="gray">
+                  Rule excluded
+                </Badge>
+              ) : null}
               <Badge
                 size="sm"
                 variant="light"
@@ -229,8 +237,8 @@ export default function CsvImporterPanel(props: {
                 }
               >
                 {row.original.mappingStatus === 'matched_rule'
-                  ? 'Company rule match'
-                  : row.original.mappingStatus === 'csv_taxonomy'
+                  ? 'Auto-Categorise match'
+                  : row.original.mappingStatus === 'source_taxonomy'
                     ? 'Category match'
                     : row.original.mappingStatus === 'auto_created'
                       ? 'Will auto-create'
@@ -249,6 +257,11 @@ export default function CsvImporterPanel(props: {
             {row.original.categoryName && row.original.subCategoryName ? (
               <Text size="xs" c="dimmed">
                 {row.original.categoryName} &gt; {row.original.subCategoryName}
+              </Text>
+            ) : null}
+            {row.original.importRuleName ? (
+              <Text size="xs" c="dimmed">
+                Import rule: {row.original.importRuleName}
               </Text>
             ) : null}
           </Stack>
@@ -322,7 +335,7 @@ export default function CsvImporterPanel(props: {
       <Paper withBorder radius="lg" p="lg" className="importPanelCard">
         <Stack gap="md">
           <Group justify="space-between" align="center" wrap="wrap">
-            <Title order={5}>CSV import</Title>
+            <Title order={5}>PowerBI expenditure import</Title>
             {previewActive ? (
               <Button variant="subtle" color="gray" onClick={resetImporter}>
                 Clear preview
@@ -342,13 +355,13 @@ export default function CsvImporterPanel(props: {
           ) : null}
 
           <Text size="sm" c="dimmed" className="panelHelperText">
-            Upload a CSV file or paste CSV text, then preview the import before
-            committing it. If a file is selected, the preview uses the uploaded
-            file.
+            Upload or paste the PowerBI expenditure actuals CSV export, then
+            preview the import before committing it. Import Rules run first to
+            exclude SAL/EXA and flag suspected salary transfers for review.
           </Text>
 
           <FileInput
-            label="Upload CSV"
+            label="Upload PowerBI CSV"
             placeholder="Select file"
             value={file}
             disabled={previewActive}
@@ -357,7 +370,7 @@ export default function CsvImporterPanel(props: {
           />
 
           <Textarea
-            label="Paste CSV"
+            label="Paste PowerBI CSV"
             minRows={8}
             value={draftCsvText}
             disabled={previewActive}
@@ -411,7 +424,7 @@ export default function CsvImporterPanel(props: {
             <Stack gap="sm">
               <Group justify="space-between" align="center" wrap="wrap">
                 <Group gap="sm" align="center" wrap="wrap">
-                  <Title order={5}>Import preview</Title>
+                  <Title order={5}>PowerBI import preview</Title>
                   <Badge variant="light">{previewSummary.rows} rows</Badge>
                   <Badge
                     variant="light"
@@ -421,6 +434,12 @@ export default function CsvImporterPanel(props: {
                   </Badge>
                   <Badge variant="light" color="gray">
                     {previewSummary.excluded} excluded
+                  </Badge>
+                  <Badge
+                    variant="light"
+                    color={previewSummary.review ? 'yellow' : 'gray'}
+                  >
+                    {previewSummary.review} review
                   </Badge>
                   <Badge
                     variant="light"
@@ -458,6 +477,22 @@ export default function CsvImporterPanel(props: {
                   onClick={() => setPreviewFilter('exceptions')}
                 >
                   Exceptions ({previewFilterCounts.exceptions})
+                </Button>
+                <Button
+                  size="xs"
+                  variant={previewFilter === 'excluded' ? 'filled' : 'light'}
+                  color="gray"
+                  onClick={() => setPreviewFilter('excluded')}
+                >
+                  Excluded ({previewFilterCounts.excluded})
+                </Button>
+                <Button
+                  size="xs"
+                  variant={previewFilter === 'review' ? 'filled' : 'light'}
+                  color="yellow"
+                  onClick={() => setPreviewFilter('review')}
+                >
+                  Review ({previewFilterCounts.review})
                 </Button>
                 <Button
                   size="xs"
@@ -500,6 +535,14 @@ export default function CsvImporterPanel(props: {
                     : 'Current filter shows no rows.'}
                 </Text>
                 <Group gap="xs" wrap="wrap">
+                  <Switch
+                    size="sm"
+                    label="Show excluded"
+                    checked={showExcludedRows}
+                    onChange={(event) =>
+                      setShowExcludedRows(event.currentTarget.checked)
+                    }
+                  />
                   <Button
                     size="xs"
                     variant="light"
@@ -533,8 +576,9 @@ export default function CsvImporterPanel(props: {
 
               {hasBlockingIssues ? (
                 <Alert color="red" variant="light">
-                  Invalid rows or duplicate handling settings will block append
-                  until those rows are excluded or corrected.
+                  Invalid rows, review rows, or duplicate handling settings will
+                  block append until those rows are excluded, reviewed, or
+                  corrected.
                 </Alert>
               ) : null}
 
@@ -634,7 +678,7 @@ export default function CsvImporterPanel(props: {
           className="importPanelCard importExampleCard"
         >
           <Stack gap="sm">
-            <Text fw={700}>Example CSV</Text>
+            <Text fw={700}>Example PowerBI CSV</Text>
             <pre className="importExamplePre">{exampleCsv}</pre>
           </Stack>
         </Paper>

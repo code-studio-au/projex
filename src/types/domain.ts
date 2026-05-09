@@ -5,6 +5,9 @@ import type {
   CompanyDefaultCategoryId,
   CompanyDefaultMappingRuleId,
   CompanyDefaultSubCategoryId,
+  ImportBatchId,
+  ImportCandidateId,
+  ImportRuleId,
   ProjectId,
   SubCategoryId,
   TxnCommentId,
@@ -111,6 +114,81 @@ export type CompanyDefaultMappingRule = {
   updatedAt?: string;
 };
 
+export type ImportRuleAction = 'import' | 'exclude' | 'review';
+export type ImportRuleField =
+  | 'source'
+  | 'journalId'
+  | 'journalLineDescription'
+  | 'ccAndDescription'
+  | 'vendorName'
+  | 'poId'
+  | 'referenceNum'
+  | 'anyText';
+export type ImportRuleOperator =
+  | 'equals'
+  | 'contains'
+  | 'starts_with'
+  | 'regex';
+
+export type ImportRule = {
+  id: ImportRuleId;
+  companyId: CompanyId;
+  name: string;
+  action: ImportRuleAction;
+  field: ImportRuleField;
+  operator: ImportRuleOperator;
+  value: string;
+  sortOrder: number;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ImportBatchStatus =
+  | 'previewed'
+  | 'partially_imported'
+  | 'imported'
+  | 'cancelled';
+
+export type ImportBatch = {
+  id: ImportBatchId;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  sourceType: 'powerbi_expenditure_actuals';
+  fileName: string;
+  status: ImportBatchStatus;
+  createdByUserId: UserId;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ImportCandidateStatus =
+  | 'ready'
+  | 'excluded'
+  | 'needs_project_review'
+  | 'approved'
+  | 'rejected'
+  | 'imported'
+  | 'invalid'
+  | 'duplicate';
+
+export type ImportCandidate = {
+  id: ImportCandidateId;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  batchId: ImportBatchId;
+  sourceRowIndex: number;
+  rawRow: Record<string, string>;
+  status: ImportCandidateStatus;
+  matchedImportRuleId?: ImportRuleId;
+  statusReason?: string;
+  txnId?: TxnId;
+  reviewedByUserId?: UserId;
+  reviewedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export const TXN_TYPES = [
   'standard',
   'split_parent',
@@ -135,7 +213,7 @@ export type Txn = {
   date: string; // ISO yyyy-mm-dd
   item: string;
   description: string;
-  /** Monetary amount in minor units (e.g. cents). Expenses are positive. */
+  /** Signed monetary amount in minor units. Positive increases spend; negative reduces net actuals. */
   amountCents: number;
   /** How this transaction participates in split/transfer workflows. */
   txnType: TxnType;
@@ -149,6 +227,9 @@ export type Txn = {
   budgetImpact: boolean;
   /** Whether users are allowed to apply category/subcategory coding to this row. */
   categorisable: boolean;
+  importBatchId?: ImportBatchId;
+  importSourceType?: 'powerbi_expenditure_actuals';
+  importSourceMeta?: Record<string, string>;
   categoryId?: CategoryId;
   subCategoryId?: SubCategoryId;
   companyDefaultMappingRuleId?: CompanyDefaultMappingRuleId;

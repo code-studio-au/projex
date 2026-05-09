@@ -51,7 +51,7 @@ export function useRollups(params: {
   } = params;
 
   const monthStarts = useMemo(() => {
-    // Be resilient to malformed dates (e.g., from CSV imports).
+    // Be resilient to malformed dates at import boundaries.
     // A single NaN in Math.min/Math.max would poison the whole range.
     const times = transactions
       .filter(isBudgetImpactTxn)
@@ -145,9 +145,7 @@ export function useRollups(params: {
 
       if (!mk) continue;
 
-      // Projex treats expense amounts as positive. Be resilient to Concur-style
-      // exports (negative expenses) and any legacy data.
-      rec[mk] = (rec[mk] ?? 0) + Math.abs(t.amountCents);
+      rec[mk] = (rec[mk] ?? 0) + t.amountCents;
     }
 
     return { actualsBySubMonth: map, badDateCount: bad };

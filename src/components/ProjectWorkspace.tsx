@@ -34,7 +34,8 @@ import { useUpdateProjectMutation } from '../queries/admin';
 
 import TransactionsPanel from './TransactionsPanel';
 import BudgetPanel from './BudgetPanel';
-import CsvImporterPanel from './CsvImporterPanel';
+import PowerBiImporterPanel from './PowerBiImporterPanel';
+import ImportReviewQueuePanel from './ImportReviewQueuePanel';
 import ProjectSettingsPanel from './ProjectSettingsPanel';
 import { LoadingChip, LoadingLine } from './LoadingValue';
 
@@ -784,17 +785,24 @@ export default function ProjectWorkspace(props: {
           </Tabs.Panel>
 
           <Tabs.Panel value="import" pt="md">
-            <CsvImporterPanel
-              taxonomy={taxonomy}
-              budgets={budgets}
-              companyId={companyId}
-              projectId={projectId}
-              currencyCode={currencyCode}
-              canEditTaxonomy={canEditTaxonomy}
-              canEditBudgets={canEditBudgets}
-              onReplaceAll={(next, options) => txns.replaceAll(next, options)}
-              onAppend={(next, options) => txns.appendMany(next, options)}
-            />
+            <Stack gap="md">
+              <ImportReviewQueuePanel
+                projectId={projectId}
+                currencyCode={currencyCode}
+                enabled={canImport}
+              />
+              <PowerBiImporterPanel
+                taxonomy={taxonomy}
+                budgets={budgets}
+                companyId={companyId}
+                projectId={projectId}
+                currencyCode={currencyCode}
+                canEditTaxonomy={canEditTaxonomy}
+                canEditBudgets={canEditBudgets}
+                onReplaceAll={(next, options) => txns.replaceAll(next, options)}
+                onAppend={(next, options) => txns.appendMany(next, options)}
+              />
+            </Stack>
           </Tabs.Panel>
 
           <Tabs.Panel value="settings" pt="md">

@@ -1,7 +1,19 @@
-import type { ProjectId, Txn, TxnId, ImportPreviewRow } from '../../types';
+import type {
+  ImportBatchId,
+  ImportCandidate,
+  ImportCandidateId,
+  ImportCandidateStatus,
+  ImportPreviewRow,
+  ProjectId,
+  Txn,
+  TxnId,
+} from '../../types';
 import {
   asBudgetLineId,
   asCompanyId,
+  asImportBatchId,
+  asImportCandidateId,
+  asImportRuleId,
   asProjectId,
   asTxnId,
   asUserId,
@@ -26,6 +38,14 @@ import { planTransactionImportCommit } from '../../utils/transactionImportCommit
 import { planTransactionSplit } from '../../utils/transactionSplitPlan';
 import { planTransactionTransfer } from '../../utils/transactionTransferPlan';
 import { planTxnWorkflowState } from '../../utils/transactionWorkflow';
+import {
+  powerBiAmountCents,
+  powerBiDescription,
+  powerBiExternalId,
+  powerBiItem,
+  powerBiTransactionDate,
+  toPowerBiExpenditureActualsRow,
+} from '../../utils/powerBiImport';
 import {
   assertTxnCodingAllowed,
   assertUniqueTransactionKeysInProject,
@@ -128,6 +148,9 @@ export async function listTransactionsServer(args: {
         'transfer_project_id',
         'budget_impact',
         'categorisable',
+        'import_batch_id',
+        'import_source_type',
+        'import_source_meta',
         'category_id',
         'sub_category_id',
         'company_default_mapping_rule_id',
@@ -214,6 +237,9 @@ export async function createTxnServer(args: {
         transfer_project_id: next.transferProjectId ?? null,
         budget_impact: next.budgetImpact,
         categorisable: next.categorisable,
+        import_batch_id: next.importBatchId ?? null,
+        import_source_type: next.importSourceType ?? null,
+        import_source_meta: next.importSourceMeta ?? null,
         category_id: next.categoryId ?? null,
         sub_category_id: next.subCategoryId ?? null,
         company_default_mapping_rule_id:
@@ -239,6 +265,9 @@ export async function createTxnServer(args: {
         'transfer_project_id',
         'budget_impact',
         'categorisable',
+        'import_batch_id',
+        'import_source_type',
+        'import_source_meta',
         'category_id',
         'sub_category_id',
         'company_default_mapping_rule_id',
@@ -1036,6 +1065,9 @@ export async function importTransactionsServer(args: {
               transfer_project_id: null,
               budget_impact: true,
               categorisable: true,
+              import_batch_id: t.importBatchId ?? null,
+              import_source_type: t.importSourceType ?? null,
+              import_source_meta: t.importSourceMeta ?? null,
               category_id: t.categoryId ?? null,
               sub_category_id: t.subCategoryId ?? null,
               company_default_mapping_rule_id:
@@ -1047,6 +1079,7 @@ export async function importTransactionsServer(args: {
             }))
           )
           .execute();
+        await markImportedBatchCandidates(trx, plan.importedTransactions, now);
       });
       return { count: plan.importedTransactions.length };
     }
@@ -1088,6 +1121,9 @@ export async function importTransactionsServer(args: {
             transfer_project_id: null,
             budget_impact: true,
             categorisable: true,
+            import_batch_id: t.importBatchId ?? null,
+            import_source_type: t.importSourceType ?? null,
+            import_source_meta: t.importSourceMeta ?? null,
             category_id: t.categoryId ?? null,
             sub_category_id: t.subCategoryId ?? null,
             company_default_mapping_rule_id:
@@ -1099,17 +1135,56 @@ export async function importTransactionsServer(args: {
           }))
         )
         .execute();
+      await markImportedBatchCandidates(db, plan.importedTransactions, now);
     }
     return { count: plan.importedTransactions.length };
   });
+}
+
+async function markImportedBatchCandidates(
+  db: ProjectActionContext['db'],
+  importedTransactions: Txn[],
+  now: string
+): Promise<void> {
+  const batchIds = [
+    ...new Set(
+      importedTransactions
+        .map((txn) => txn.importBatchId)
+        .filter((id): id is ImportBatchId => Boolean(id))
+    ),
+  ];
+  if (!batchIds.length) return;
+  const importedIds = importedTransactions.map((txn) => String(txn.id));
+
+  await db
+    .updateTable('import_candidates')
+    .set({
+      status: 'imported',
+      updated_at: now,
+    })
+    .where('batch_id', 'in', batchIds)
+    .where('preview_import_id', 'in', importedIds)
+    .where('status', '=', 'ready')
+    .execute();
+
+  await db
+    .updateTable('import_batches')
+    .set({
+      status: 'partially_imported',
+      updated_at: now,
+    })
+    .where('id', 'in', batchIds)
+    .execute();
 }
 
 export async function previewImportTransactionsServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
   csvText: string;
+  sourceType?: 'powerbi_expenditure_actuals';
+  fileName?: string;
   autoCreateStructures?: boolean;
-}): Promise<{ rows: ImportPreviewRow[] }> {
+}): Promise<{ importBatchId?: ImportBatchId; rows: ImportPreviewRow[] }> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
     const context = await requireOperationalProjectForAction(
@@ -1140,8 +1215,9 @@ export async function previewImportTransactionsServer(args: {
       }),
     ]);
 
-    return planImportPreview({
+    const preview = planImportPreview({
       csvText: args.csvText,
+      importRules: importContext.importRules,
       existingTransactions: importContext.existingTransactions,
       categories: importContext.projectCategories,
       subCategories: importContext.projectSubCategories,
@@ -1153,5 +1229,343 @@ export async function previewImportTransactionsServer(args: {
       canEditTaxonomy,
       canEditBudgets,
     });
+
+    const importBatchId = await createPowerBiImportBatch({
+      db,
+      companyId,
+      projectId: args.projectId,
+      userId,
+      fileName: args.fileName ?? 'PowerBI expenditure actuals CSV',
+      rows: preview.rows,
+    });
+
+    return { importBatchId, rows: preview.rows };
+  });
+}
+
+async function createPowerBiImportBatch(args: {
+  db: ProjectActionContext['db'];
+  companyId: ProjectActionContext['companyId'];
+  projectId: ProjectActionContext['projectId'];
+  userId: ProjectActionContext['userId'];
+  fileName: string;
+  rows: ImportPreviewRow[];
+}): Promise<ImportBatchId> {
+  const now = new Date().toISOString();
+  const batchId = asImportBatchId(uid('impb'));
+
+  await args.db.transaction().execute(async (trx) => {
+    await trx
+      .insertInto('import_batches')
+      .values({
+        id: batchId,
+        company_id: args.companyId,
+        project_id: args.projectId,
+        source_type: 'powerbi_expenditure_actuals',
+        file_name: args.fileName,
+        status: 'previewed',
+        created_by_user_id: args.userId,
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    if (!args.rows.length) return;
+
+    await trx
+      .insertInto('import_candidates')
+      .values(
+        args.rows.map((row) => ({
+          id: uid('impc'),
+          company_id: args.companyId,
+          project_id: args.projectId,
+          batch_id: batchId,
+          source_row_index: row.sourceRowIndex,
+          preview_import_id: row.importId,
+          raw_row: row.rawSourceRow ?? {},
+          status: importCandidateStatusForPreviewRow(row),
+          matched_import_rule_id: persistedImportRuleId(row),
+          status_reason:
+            row.importDecisionReason ?? row.warnings[0] ?? 'Previewed',
+          txn_public_id: null,
+          reviewed_by_user_id: null,
+          reviewed_at: null,
+          created_at: now,
+          updated_at: now,
+        }))
+      )
+      .execute();
+  });
+
+  return batchId;
+}
+
+function importCandidateStatusForPreviewRow(
+  row: ImportPreviewRow
+): ImportCandidateStatus {
+  if (row.importAction === 'exclude') return 'excluded';
+  if (row.importAction === 'review') return 'needs_project_review';
+  if (row.mappingStatus === 'invalid') return 'invalid';
+  if (row.duplicate) return 'duplicate';
+  return 'ready';
+}
+
+function persistedImportRuleId(row: ImportPreviewRow) {
+  if (!row.importRuleId) return null;
+  return String(row.importRuleId).startsWith('default_import_rule_')
+    ? null
+    : row.importRuleId;
+}
+
+type ImportCandidateRow = {
+  id: string;
+  company_id: string;
+  project_id: string;
+  batch_id: string;
+  source_row_index: number;
+  raw_row: Record<string, string>;
+  status: ImportCandidateStatus;
+  matched_import_rule_id: string | null;
+  status_reason: string | null;
+  txn_public_id: string | null;
+  reviewed_by_user_id: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function importCandidateSelectColumns() {
+  return [
+    'id',
+    'company_id',
+    'project_id',
+    'batch_id',
+    'source_row_index',
+    'raw_row',
+    'status',
+    'matched_import_rule_id',
+    'status_reason',
+    'txn_public_id',
+    'reviewed_by_user_id',
+    'reviewed_at',
+    'created_at',
+    'updated_at',
+  ] as const;
+}
+
+function toImportCandidate(row: ImportCandidateRow): ImportCandidate {
+  return {
+    id: asImportCandidateId(row.id),
+    companyId: asCompanyId(row.company_id),
+    projectId: asProjectId(row.project_id),
+    batchId: asImportBatchId(row.batch_id),
+    sourceRowIndex: row.source_row_index,
+    rawRow: row.raw_row,
+    status: row.status,
+    matchedImportRuleId: row.matched_import_rule_id
+      ? asImportRuleId(row.matched_import_rule_id)
+      : undefined,
+    statusReason: row.status_reason ?? undefined,
+    txnId: row.txn_public_id ? asTxnId(row.txn_public_id) : undefined,
+    reviewedByUserId: row.reviewed_by_user_id
+      ? asUserId(row.reviewed_by_user_id)
+      : undefined,
+    reviewedAt: row.reviewed_at ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function listImportCandidatesServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+}): Promise<ImportCandidate[]> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'project:import'
+    );
+
+    const rows = await db
+      .selectFrom('import_candidates')
+      .select(importCandidateSelectColumns())
+      .where('project_id', '=', args.projectId)
+      .orderBy('created_at', 'desc')
+      .orderBy('source_row_index', 'asc')
+      .execute();
+    return rows.map(toImportCandidate);
+  });
+}
+
+export async function reviewImportCandidateServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  candidateId: ImportCandidateId;
+  decision: 'import' | 'reject';
+}): Promise<{ candidate: ImportCandidate; txn?: Txn }> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const context = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'project:import'
+    );
+    const { db, userId, companyId } = context;
+
+    const existing = await db
+      .selectFrom('import_candidates')
+      .select(importCandidateSelectColumns())
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', args.candidateId)
+      .executeTakeFirst();
+    if (!existing) throw new AppError('NOT_FOUND', 'Unknown import candidate');
+    if (existing.status !== 'needs_project_review') {
+      throw new AppError(
+        'CONFLICT',
+        'Only candidates waiting for project review can be actioned'
+      );
+    }
+
+    const now = new Date().toISOString();
+    if (args.decision === 'reject') {
+      const row = await db
+        .updateTable('import_candidates')
+        .set({
+          status: 'rejected',
+          reviewed_by_user_id: userId,
+          reviewed_at: now,
+          updated_at: now,
+        })
+        .where('project_id', '=', args.projectId)
+        .where('id', '=', args.candidateId)
+        .returning(importCandidateSelectColumns())
+        .executeTakeFirstOrThrow();
+      return { candidate: toImportCandidate(row) };
+    }
+
+    const powerBiRow = toPowerBiExpenditureActualsRow(existing.raw_row);
+    const importContext = await loadTransactionImportCommitContext(db, {
+      companyId,
+      projectId: args.projectId,
+    });
+    const planned = planTransactionImportCommit({
+      projectId: args.projectId,
+      companyId,
+      incomingTransactions: [
+        {
+          id: asTxnId(uid('txn')),
+          externalId: powerBiExternalId(powerBiRow) || undefined,
+          companyId,
+          projectId: args.projectId,
+          date: powerBiTransactionDate(powerBiRow),
+          item: powerBiItem(powerBiRow),
+          description: powerBiDescription(powerBiRow),
+          amountCents: powerBiAmountCents(powerBiRow),
+          importBatchId: asImportBatchId(existing.batch_id),
+          importSourceType: 'powerbi_expenditure_actuals',
+          importSourceMeta: existing.raw_row,
+        },
+      ],
+      existingTransactions: importContext.existingTransactions,
+      existingBudgets: importContext.budgets,
+      defaultCategories: importContext.defaultCategories,
+      defaultSubCategories: importContext.defaultSubCategories,
+      mappingRules: importContext.mappingRules,
+      projectCategories: importContext.projectCategories,
+      projectSubCategories: importContext.projectSubCategories,
+      mode: 'append',
+      autoCreateBudgets: false,
+    });
+    const txn = planned.importedTransactions[0];
+    if (!txn) throw new AppError('INTERNAL_ERROR', 'Import candidate failed');
+
+    let insertedTxn: Txn | undefined;
+    let updatedCandidate: ImportCandidate | undefined;
+    await db.transaction().execute(async (trx) => {
+      const txnRow = await trx
+        .insertInto('txns')
+        .values({
+          public_id: txn.id,
+          external_id: txn.externalId ?? null,
+          company_id: txn.companyId,
+          project_id: txn.projectId,
+          txn_date: txn.date,
+          item: txn.item,
+          description: txn.description,
+          amount_cents: txn.amountCents,
+          txn_type: 'standard',
+          parent_public_id: null,
+          source_public_id: null,
+          transfer_project_id: null,
+          budget_impact: true,
+          categorisable: true,
+          import_batch_id: txn.importBatchId ?? null,
+          import_source_type: txn.importSourceType ?? null,
+          import_source_meta: txn.importSourceMeta ?? null,
+          category_id: txn.categoryId ?? null,
+          sub_category_id: txn.subCategoryId ?? null,
+          company_default_mapping_rule_id:
+            txn.companyDefaultMappingRuleId ?? null,
+          coding_source: txn.codingSource ?? null,
+          coding_pending_approval: !!txn.codingPendingApproval,
+          created_at: now,
+          updated_at: now,
+        })
+        .returning([
+          'id',
+          'public_id',
+          'external_id',
+          'company_id',
+          'project_id',
+          'txn_date',
+          'item',
+          'description',
+          'amount_cents',
+          'txn_type',
+          'parent_public_id',
+          'source_public_id',
+          'transfer_project_id',
+          'budget_impact',
+          'categorisable',
+          'import_batch_id',
+          'import_source_type',
+          'import_source_meta',
+          'category_id',
+          'sub_category_id',
+          'company_default_mapping_rule_id',
+          'coding_source',
+          'coding_pending_approval',
+          'reviewed_at',
+          'reviewed_by_user_id',
+          'locked_at',
+          'locked_by_user_id',
+          'created_at',
+          'updated_at',
+        ])
+        .executeTakeFirstOrThrow();
+      insertedTxn = toTxn(txnRow);
+
+      const candidateRow = await trx
+        .updateTable('import_candidates')
+        .set({
+          status: 'imported',
+          txn_public_id: txn.id,
+          reviewed_by_user_id: userId,
+          reviewed_at: now,
+          updated_at: now,
+        })
+        .where('project_id', '=', args.projectId)
+        .where('id', '=', args.candidateId)
+        .returning(importCandidateSelectColumns())
+        .executeTakeFirstOrThrow();
+      updatedCandidate = toImportCandidate(candidateRow);
+    });
+
+    if (!updatedCandidate || !insertedTxn) {
+      throw new AppError('INTERNAL_ERROR', 'Import candidate failed');
+    }
+    return { candidate: updatedCandidate, txn: insertedTxn };
   });
 }

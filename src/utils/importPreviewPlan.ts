@@ -5,11 +5,22 @@ import type {
   CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
   ImportPreviewRow,
+  ImportRule,
+  ImportTxnWithTaxonomy,
   SubCategory,
   Txn,
 } from '../types';
-import { parseCsv, rowsToImportTxns } from './csv';
+import { parseCsv } from './csv';
 import { buildImportPreview } from './importPreview';
+import {
+  decidePowerBiImportRule,
+  powerBiAmountCents,
+  powerBiDescription,
+  powerBiExternalId,
+  powerBiItem,
+  powerBiTransactionDate,
+  toPowerBiExpenditureActualsRow,
+} from './powerBiImport';
 import { normalizeExternalId } from './transactions';
 
 function transactionImportKey(txn: Pick<Txn, 'id' | 'externalId'>) {
@@ -21,6 +32,7 @@ function transactionImportKey(txn: Pick<Txn, 'id' | 'externalId'>) {
 
 export function planImportPreview(args: {
   csvText: string;
+  importRules?: ImportRule[];
   existingTransactions: Array<Pick<Txn, 'id' | 'externalId'>>;
   categories: Category[];
   subCategories: SubCategory[];
@@ -33,7 +45,7 @@ export function planImportPreview(args: {
   canEditBudgets: boolean;
 }): { rows: ImportPreviewRow[] } {
   const rows = parseCsv(args.csvText);
-  const importTxns = rowsToImportTxns(rows);
+  const importTxns = rowsToPowerBiImportTxns(rows, args.importRules ?? []);
   const existingKeys = new Set(
     args.existingTransactions.map(transactionImportKey)
   );
@@ -54,4 +66,29 @@ export function planImportPreview(args: {
       canEditBudgets: args.canEditBudgets,
     }),
   };
+}
+
+function rowsToPowerBiImportTxns(
+  rows: Record<string, string>[],
+  importRules: ImportRule[]
+): ImportTxnWithTaxonomy[] {
+  return rows.map((rawRow) => {
+    const row = toPowerBiExpenditureActualsRow(rawRow);
+    const decision = decidePowerBiImportRule({ row, rules: importRules });
+
+    return {
+      externalId: powerBiExternalId(row) || undefined,
+      date: powerBiTransactionDate(row),
+      item: powerBiItem(row),
+      description: powerBiDescription(row),
+      amountCents: powerBiAmountCents(row),
+      importSourceType: 'powerbi_expenditure_actuals',
+      importSourceMeta: row.raw,
+      importAction: decision.action,
+      importRuleId: decision.matchedRule?.id,
+      importRuleName: decision.matchedRule?.name,
+      importDecisionReason: decision.reason,
+      rawSourceRow: row.raw,
+    };
+  });
 }

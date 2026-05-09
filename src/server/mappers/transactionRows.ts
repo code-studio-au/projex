@@ -5,6 +5,7 @@ import {
   asCategoryId,
   asCompanyId,
   asCompanyDefaultMappingRuleId,
+  asImportBatchId,
   asProjectId,
   asSubCategoryId,
   asTxnId,
@@ -29,6 +30,9 @@ export type TxnRow = {
   transfer_project_id: string | null;
   budget_impact: boolean;
   categorisable: boolean;
+  import_batch_id?: string | null;
+  import_source_type?: 'powerbi_expenditure_actuals' | null;
+  import_source_meta?: Record<string, string> | null;
   category_id: string | null;
   sub_category_id: string | null;
   company_default_mapping_rule_id: string | null;
@@ -84,6 +88,11 @@ export function toTxn(row: TxnRow): Txn {
       : undefined,
     budgetImpact: row.budget_impact,
     categorisable: row.categorisable,
+    importBatchId: row.import_batch_id
+      ? asImportBatchId(row.import_batch_id)
+      : undefined,
+    importSourceType: row.import_source_type ?? undefined,
+    importSourceMeta: row.import_source_meta ?? undefined,
     categoryId: row.category_id ? asCategoryId(row.category_id) : undefined,
     subCategoryId: row.sub_category_id
       ? asSubCategoryId(row.sub_category_id)

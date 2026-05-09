@@ -136,7 +136,7 @@ export function useTransactions(params: {
     );
     return {
       count: bad.length,
-      amountCents: bad.reduce((a, b) => a + Math.abs(b.amountCents ?? 0), 0),
+      amountCents: bad.reduce((a, b) => a + (b.amountCents ?? 0), 0),
     };
   };
 

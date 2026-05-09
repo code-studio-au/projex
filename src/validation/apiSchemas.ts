@@ -6,6 +6,8 @@ import {
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
   asCompanyId,
+  asImportCandidateId,
+  asImportRuleId,
   asProjectId,
   asSubCategoryId,
   asTxnCommentId,
@@ -41,6 +43,8 @@ const companyDefaultSubCategoryIdSchema = idSchema.transform(
 const companyDefaultMappingRuleIdSchema = idSchema.transform(
   asCompanyDefaultMappingRuleId
 );
+const importRuleIdSchema = idSchema.transform(asImportRuleId);
+const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
 const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
@@ -75,11 +79,30 @@ const projectVisibilitySchema = z.enum(['company', 'private']);
 const projectTypeSchema = z.enum(['project', 'programme']);
 const currencySchema = z.enum(['AUD', 'USD', 'EUR', 'GBP']);
 const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
+const importSourceTypeSchema = z.enum(['powerbi_expenditure_actuals']);
+const importRuleActionSchema = z.enum(['import', 'exclude', 'review']);
+const importRuleFieldSchema = z.enum([
+  'source',
+  'journalId',
+  'journalLineDescription',
+  'ccAndDescription',
+  'vendorName',
+  'poId',
+  'referenceNum',
+  'anyText',
+]);
+const importRuleOperatorSchema = z.enum([
+  'equals',
+  'contains',
+  'starts_with',
+  'regex',
+]);
 const destructiveConfirmationSchema = z
   .string()
   .trim()
   .min(1, 'Confirmation text is required');
 const csvImportModeSchema = z.enum(['append', 'replaceAll']);
+const importPreviewSourceTypeSchema = z.enum(['powerbi_expenditure_actuals']);
 const smokeSectionIdSchema = z.enum([
   'basics',
   'appPages',
@@ -94,6 +117,16 @@ const matchTextSchema = z
   .trim()
   .min(1, 'Match text is required')
   .max(160);
+const importRuleNameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Import Rule name is required')
+  .max(160);
+const importRuleValueSchema = z
+  .string()
+  .trim()
+  .min(1, 'Import Rule value is required')
+  .max(500);
 
 export const smokeSectionInputSchema = z.object({
   sectionId: smokeSectionIdSchema,
@@ -245,6 +278,29 @@ export const updateCompanyDefaultMappingRuleInputSchema = z.object({
   sortOrder: z.number().int().min(0).optional(),
 });
 
+export const createImportRuleInputSchema = z.object({
+  id: importRuleIdSchema.optional(),
+  companyId: companyIdSchema,
+  name: importRuleNameSchema,
+  action: importRuleActionSchema,
+  field: importRuleFieldSchema,
+  operator: importRuleOperatorSchema,
+  value: importRuleValueSchema,
+  sortOrder: z.number().int().min(0),
+  enabled: z.boolean(),
+});
+
+export const updateImportRuleInputSchema = z.object({
+  id: importRuleIdSchema,
+  name: importRuleNameSchema.optional(),
+  action: importRuleActionSchema.optional(),
+  field: importRuleFieldSchema.optional(),
+  operator: importRuleOperatorSchema.optional(),
+  value: importRuleValueSchema.optional(),
+  sortOrder: z.number().int().min(0).optional(),
+  enabled: z.boolean().optional(),
+});
+
 export const createBudgetInputSchema = z.object({
   id: budgetLineIdSchema.optional(),
   companyId: companyIdSchema,
@@ -277,6 +333,8 @@ export const createTxnInputSchema = z.object({
   companyDefaultMappingRuleId: optionalMappingRuleIdSchema,
   codingSource: codingSourceSchema.optional(),
   codingPendingApproval: z.boolean().optional(),
+  importSourceType: importSourceTypeSchema.optional(),
+  importSourceMeta: z.record(z.string(), z.string()).optional(),
 });
 
 export const updateTxnInputSchema = z.object({
@@ -304,8 +362,8 @@ export const txnUpdateMutationBodySchema = z.object({
 });
 
 const txnSplitChildAmountCentsSchema = txnInputSchema.shape.amountCents.refine(
-  (value) => value > 0,
-  'Split child amount must be greater than zero'
+  (value) => value !== 0,
+  'Split child amount must be non-zero'
 );
 
 export const splitTxnInputSchema = z.object({
@@ -389,7 +447,18 @@ export const txnImportInputSchema = z.object({
 
 export const txnImportPreviewInputSchema = z.object({
   csvText: z.string(),
+  sourceType: importPreviewSourceTypeSchema.optional(),
+  fileName: z.string().trim().min(1).max(255).optional(),
   autoCreateStructures: z.boolean().optional(),
+});
+
+export const importCandidateReviewInputSchema = z.object({
+  candidateId: importCandidateIdSchema,
+  decision: z.enum(['import', 'reject']),
+});
+
+export const importCandidateReviewMutationBodySchema = z.object({
+  review: importCandidateReviewInputSchema,
 });
 
 export const devSessionBodySchema = z.object({

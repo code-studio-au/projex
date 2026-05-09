@@ -65,6 +65,8 @@ npm run smoke:cleanup
 - Projects are the operational workspace for budgets, imports, transactions, taxonomy, coding, splits, and transfers.
 - Programme rollups are derived from active sub-project data; transactions and budgets are never duplicated onto the programme.
 - Sub-projects must belong to the same company and use the same currency as their programme.
+- PowerBI expenditure actuals are the primary import shape. Import Rules run before Auto-Categorise Rules so rows can be imported, excluded, or staged for project review before any category/subcategory coding is applied.
+- Transaction actuals support signed amounts for credits, reversals, and recoveries. Budget allocations remain non-negative.
 
 ## Architecture Boundaries
 

@@ -1,9 +1,10 @@
 import type { Kysely } from 'kysely';
 
 import type { DB } from '../db/schema';
-import type { CompanyId, ProjectId, Txn } from '../../types';
-import { asTxnId } from '../../types';
+import type { CompanyId, ImportRule, ProjectId, Txn } from '../../types';
+import { asCompanyId, asImportRuleId, asTxnId } from '../../types';
 import { normalizeExternalId } from '../../utils/transactions';
+import { defaultPowerBiImportRules } from '../../utils/powerBiImport';
 import { toBudgetLines, toTxn } from '../mappers/transactionRows';
 import {
   toCategory,
@@ -57,6 +58,7 @@ export async function loadTransactionImportPreviewContext(
     defaultCategoriesRows,
     defaultSubCategoriesRows,
     mappingRuleRows,
+    importRuleRows,
     projectCategoryRows,
     projectSubCategoryRows,
     budgetRows,
@@ -65,6 +67,7 @@ export async function loadTransactionImportPreviewContext(
     selectCompanyDefaultCategories(db, args.companyId),
     selectCompanyDefaultSubCategories(db, args.companyId),
     selectCompanyDefaultMappingRules(db, args.companyId),
+    selectImportRules(db, args.companyId),
     selectProjectCategories(db, args.projectId),
     selectProjectSubCategories(db, args.projectId),
     selectProjectBudgetLines(db, args.projectId),
@@ -80,6 +83,9 @@ export async function loadTransactionImportPreviewContext(
       toCompanyDefaultSubCategory
     ),
     mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
+    importRules: importRuleRows.length
+      ? importRuleRows.map(toImportRule)
+      : defaultImportRules(args.companyId),
     projectCategories: projectCategoryRows.map(toCategory),
     projectSubCategories: projectSubCategoryRows.map(toSubCategory),
     budgets: toBudgetLines(budgetRows),
@@ -132,6 +138,53 @@ function selectCompanyDefaultMappingRules(
     .orderBy('sort_order', 'asc')
     .orderBy('created_at', 'asc')
     .execute();
+}
+
+function selectImportRules(db: Kysely<DB>, companyId: CompanyId) {
+  return db
+    .selectFrom('import_rules')
+    .select([
+      'id',
+      'company_id',
+      'name',
+      'action',
+      'field',
+      'operator',
+      'value',
+      'sort_order',
+      'enabled',
+      'created_at',
+      'updated_at',
+    ])
+    .where('company_id', '=', companyId)
+    .orderBy('sort_order', 'asc')
+    .orderBy('created_at', 'asc')
+    .execute();
+}
+
+function toImportRule(
+  row: Awaited<ReturnType<typeof selectImportRules>>[number]
+): ImportRule {
+  return {
+    id: asImportRuleId(row.id),
+    companyId: asCompanyId(row.company_id),
+    name: row.name,
+    action: row.action,
+    field: row.field,
+    operator: row.operator,
+    value: row.value,
+    sortOrder: row.sort_order,
+    enabled: row.enabled,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function defaultImportRules(companyId: CompanyId): ImportRule[] {
+  return defaultPowerBiImportRules(companyId).map((rule, index) => ({
+    ...rule,
+    id: asImportRuleId(`default_import_rule_${index + 1}`),
+  }));
 }
 
 function selectProjectCategories(db: Kysely<DB>, projectId: ProjectId) {
