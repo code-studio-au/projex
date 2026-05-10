@@ -1392,10 +1392,39 @@ export async function listImportCandidatesServer(args: {
       .selectFrom('import_candidates')
       .select(importCandidateSelectColumns())
       .where('project_id', '=', args.projectId)
+      .where('batch_id', 'in', (eb) =>
+        eb
+          .selectFrom('import_batches')
+          .select('id')
+          .where('project_id', '=', args.projectId)
+          .where('status', 'in', ['partially_imported', 'imported'])
+      )
       .orderBy('created_at', 'desc')
       .orderBy('source_row_index', 'asc')
       .execute();
     return rows.map(toImportCandidate);
+  });
+}
+
+export async function cancelImportPreviewServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  importBatchId: ImportBatchId;
+}): Promise<void> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'project:import'
+    );
+
+    await db
+      .deleteFrom('import_batches')
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', args.importBatchId)
+      .where('status', '=', 'previewed')
+      .execute();
   });
 }
 
@@ -1425,6 +1454,18 @@ export async function reviewImportCandidateServer(args: {
       throw new AppError(
         'CONFLICT',
         'Only candidates waiting for project review can be actioned'
+      );
+    }
+    const batch = await db
+      .selectFrom('import_batches')
+      .select('status')
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', existing.batch_id)
+      .executeTakeFirst();
+    if (!batch || !['partially_imported', 'imported'].includes(batch.status)) {
+      throw new AppError(
+        'CONFLICT',
+        'Import preview must be committed before review candidates can be actioned'
       );
     }
 

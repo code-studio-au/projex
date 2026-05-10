@@ -60,6 +60,7 @@ import {
 } from '../fns/projects';
 import {
   createTxnServer,
+  cancelImportPreviewServer,
   deleteTxnServer,
   importTransactionsServer,
   listImportCandidatesServer,
@@ -594,6 +595,16 @@ export class StartServerApi implements ProjexApi {
       sourceType: input.sourceType,
       fileName: input.fileName,
       autoCreateStructures: input.autoCreateStructures,
+    });
+  }
+  async cancelImportPreview(
+    projectId: ProjectId,
+    importBatchId: Parameters<ProjexApi['cancelImportPreview']>[1]
+  ) {
+    return cancelImportPreviewServer({
+      context: this.context,
+      projectId,
+      importBatchId,
     });
   }
   async listImportCandidates(projectId: ProjectId) {

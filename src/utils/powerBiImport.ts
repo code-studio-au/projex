@@ -37,6 +37,31 @@ function normalize(value: string | undefined | null): string {
   return String(value ?? '').trim();
 }
 
+function normalizeColumnName(value: string): string {
+  return value
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function valueForColumn(
+  row: Record<string, string>,
+  columnName: string
+): string {
+  const directValue = row[columnName];
+  const normalizedDirectValue = normalize(directValue);
+  if (normalizedDirectValue) return normalizedDirectValue;
+
+  const targetColumnName = normalizeColumnName(columnName);
+  for (const [key, value] of Object.entries(row)) {
+    if (key === columnName) continue;
+    if (normalizeColumnName(key) === targetColumnName) return normalize(value);
+  }
+
+  return normalizedDirectValue;
+}
+
 function normalizeForMatch(value: string | undefined | null): string {
   return normalize(value).toLowerCase().replace(/\s+/g, ' ');
 }
@@ -51,6 +76,89 @@ function excelSerialDateToIso(value: string): string | null {
   return date.toISOString().slice(0, 10);
 }
 
+function datePartsToIso(args: {
+  year: number;
+  month: number;
+  day: number;
+}): string | null {
+  const { year, month, day } = args;
+  if (year < 1900 || month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function parseDelimitedDateToIso(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) {
+    return datePartsToIso({
+      year: Number(isoMatch[1]),
+      month: Number(isoMatch[2]),
+      day: Number(isoMatch[3]),
+    });
+  }
+
+  const dayMonthYearMatch = trimmed.match(
+    /^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})(?:\b|\s)/
+  );
+  if (!dayMonthYearMatch) return null;
+
+  const first = Number(dayMonthYearMatch[1]);
+  const second = Number(dayMonthYearMatch[2]);
+  const rawYear = Number(dayMonthYearMatch[3]);
+  const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+
+  const [day, month] =
+    first > 12
+      ? [first, second]
+      : second > 12
+        ? [second, first]
+        : [first, second];
+
+  return datePartsToIso({ year, month, day });
+}
+
+function parseCompactDateToIso(value: string): string | null {
+  const trimmed = value.trim();
+  if (!/^\d{8}$/.test(trimmed)) return null;
+
+  const firstFour = Number(trimmed.slice(0, 4));
+  if (firstFour >= 1900 && firstFour <= 2100) {
+    return datePartsToIso({
+      year: firstFour,
+      month: Number(trimmed.slice(4, 6)),
+      day: Number(trimmed.slice(6, 8)),
+    });
+  }
+
+  return datePartsToIso({
+    year: Number(trimmed.slice(4, 8)),
+    month: Number(trimmed.slice(2, 4)),
+    day: Number(trimmed.slice(0, 2)),
+  });
+}
+
+function parsePowerBiDateToIso(value: string): string | null {
+  return (
+    parseDelimitedDateToIso(value) ??
+    parseCompactDateToIso(value) ??
+    excelSerialDateToIso(value)
+  );
+}
+
 function parsePowerBiAmount(value: string): number {
   const trimmed = value.trim();
   const isAccountingNegative = trimmed.startsWith('(') && trimmed.endsWith(')');
@@ -62,29 +170,33 @@ export function toPowerBiExpenditureActualsRow(
   row: Record<string, string>
 ): PowerBiExpenditureActualsRow {
   return {
-    ledger: normalize(row[POWER_BI_COLUMNS.ledger]),
-    fiscalYear: normalize(row[POWER_BI_COLUMNS.fiscalYear]),
-    period: normalize(row[POWER_BI_COLUMNS.period]),
-    ccAndDescription: normalize(row[POWER_BI_COLUMNS.ccAndDescription]),
-    rcAndDescription: normalize(row[POWER_BI_COLUMNS.rcAndDescription]),
-    pcAndDescription: normalize(row[POWER_BI_COLUMNS.pcAndDescription]),
-    ac: normalize(row[POWER_BI_COLUMNS.ac]),
-    expenditureActuals: normalize(row[POWER_BI_COLUMNS.expenditureActuals]),
-    journalLineDescription: normalize(
-      row[POWER_BI_COLUMNS.journalLineDescription]
+    ledger: valueForColumn(row, POWER_BI_COLUMNS.ledger),
+    fiscalYear: valueForColumn(row, POWER_BI_COLUMNS.fiscalYear),
+    period: valueForColumn(row, POWER_BI_COLUMNS.period),
+    ccAndDescription: valueForColumn(row, POWER_BI_COLUMNS.ccAndDescription),
+    rcAndDescription: valueForColumn(row, POWER_BI_COLUMNS.rcAndDescription),
+    pcAndDescription: valueForColumn(row, POWER_BI_COLUMNS.pcAndDescription),
+    ac: valueForColumn(row, POWER_BI_COLUMNS.ac),
+    expenditureActuals: valueForColumn(
+      row,
+      POWER_BI_COLUMNS.expenditureActuals
     ),
-    journalId: normalize(row[POWER_BI_COLUMNS.journalId]),
-    referenceNum: normalize(row[POWER_BI_COLUMNS.referenceNum]),
-    journalDate: normalize(row[POWER_BI_COLUMNS.journalDate]),
-    journalLine: normalize(row[POWER_BI_COLUMNS.journalLine]),
-    journalLineRef: normalize(row[POWER_BI_COLUMNS.journalLineRef]),
-    postedDate: normalize(row[POWER_BI_COLUMNS.postedDate]),
-    unpostSeq: normalize(row[POWER_BI_COLUMNS.unpostSeq]),
-    source: normalize(row[POWER_BI_COLUMNS.source]),
-    operatorId: normalize(row[POWER_BI_COLUMNS.operatorId]),
-    poId: normalize(row[POWER_BI_COLUMNS.poId]),
-    vendorId: normalize(row[POWER_BI_COLUMNS.vendorId]),
-    vendorName: normalize(row[POWER_BI_COLUMNS.vendorName]),
+    journalLineDescription: valueForColumn(
+      row,
+      POWER_BI_COLUMNS.journalLineDescription
+    ),
+    journalId: valueForColumn(row, POWER_BI_COLUMNS.journalId),
+    referenceNum: valueForColumn(row, POWER_BI_COLUMNS.referenceNum),
+    journalDate: valueForColumn(row, POWER_BI_COLUMNS.journalDate),
+    journalLine: valueForColumn(row, POWER_BI_COLUMNS.journalLine),
+    journalLineRef: valueForColumn(row, POWER_BI_COLUMNS.journalLineRef),
+    postedDate: valueForColumn(row, POWER_BI_COLUMNS.postedDate),
+    unpostSeq: valueForColumn(row, POWER_BI_COLUMNS.unpostSeq),
+    source: valueForColumn(row, POWER_BI_COLUMNS.source),
+    operatorId: valueForColumn(row, POWER_BI_COLUMNS.operatorId),
+    poId: valueForColumn(row, POWER_BI_COLUMNS.poId),
+    vendorId: valueForColumn(row, POWER_BI_COLUMNS.vendorId),
+    vendorName: valueForColumn(row, POWER_BI_COLUMNS.vendorName),
     raw: row,
   };
 }
@@ -100,8 +212,8 @@ export function powerBiTransactionDate(
   row: PowerBiExpenditureActualsRow
 ): string {
   return (
-    excelSerialDateToIso(row.postedDate) ??
-    excelSerialDateToIso(row.journalDate) ??
+    parsePowerBiDateToIso(row.journalDate) ??
+    parsePowerBiDateToIso(row.postedDate) ??
     ''
   );
 }

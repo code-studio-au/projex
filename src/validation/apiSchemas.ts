@@ -6,6 +6,7 @@ import {
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
   asCompanyId,
+  asImportBatchId,
   asImportCandidateId,
   asImportRuleId,
   asProjectId,
@@ -44,6 +45,7 @@ const companyDefaultMappingRuleIdSchema = idSchema.transform(
   asCompanyDefaultMappingRuleId
 );
 const importRuleIdSchema = idSchema.transform(asImportRuleId);
+export const importBatchIdParamSchema = idSchema.transform(asImportBatchId);
 const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const txnCommentIdSchema = idSchema.transform(asTxnCommentId);

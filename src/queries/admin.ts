@@ -146,6 +146,9 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
       await Promise.all([
         qc.invalidateQueries({ queryKey: transactionQueryKey }),
         qc.invalidateQueries({ queryKey: budgetQueryKey }),
+        qc.invalidateQueries({
+          queryKey: qk.importCandidates(scopeUserId, projectId),
+        }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
       ]);
     },

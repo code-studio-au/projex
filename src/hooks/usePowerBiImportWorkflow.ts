@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type {
   MRT_PaginationState,
   MRT_SortingState,
@@ -19,6 +20,8 @@ import type {
 import { asTxnId } from '../types';
 import { withStandardTxnAccountingMetadata } from '../utils/transactions';
 import { txnInputSchema } from '../validation/schemas';
+import { qk } from '../queries/keys';
+import { useQueryScopeUserId } from '../queries/scope';
 
 export type ImportPreviewFilter =
   | 'all'
@@ -76,6 +79,8 @@ export function usePowerBiImportWorkflow(params: {
     onReplaceAll,
   } = params;
   const api = useApi();
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
 
   const [file, setFile] = useState<File | null>(null);
   const [fileText, setFileText] = useState('');
@@ -284,6 +289,25 @@ export function usePowerBiImportWorkflow(params: {
     setImportError(null);
     setPagination((current) => ({ ...current, pageIndex: 0 }));
     setSorting([{ id: 'sourceRowIndex', desc: false }]);
+  }
+
+  async function clearPreview() {
+    const batchId = previewBatchId;
+    resetImporter();
+    if (!batchId) return;
+
+    try {
+      await api.cancelImportPreview(projectId, batchId);
+      await qc.invalidateQueries({
+        queryKey: qk.importCandidates(scopeUserId, projectId),
+      });
+    } catch (error) {
+      setImportError(
+        error instanceof Error
+          ? `Preview was cleared locally, but the server draft could not be cancelled: ${error.message}`
+          : 'Preview was cleared locally, but the server draft could not be cancelled.'
+      );
+    }
   }
 
   async function previewImport() {
@@ -575,6 +599,7 @@ export function usePowerBiImportWorkflow(params: {
     setSorting,
     handleFileChange,
     handleDraftCsvTextChange,
+    clearPreview,
     resetImporter,
     previewImport,
     excludePreviewRows,

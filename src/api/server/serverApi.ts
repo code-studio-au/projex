@@ -11,6 +11,7 @@ import type {
   CompanyRole,
   CompanySummary,
   ImportCandidate,
+  ImportBatchId,
   ImportRule,
   Project,
   ProjectId,
@@ -866,6 +867,16 @@ export class ServerApi implements ProjexApi {
         body: JSON.stringify(input),
       },
       txnImportPreviewResultResponseSchema
+    );
+  }
+  async cancelImportPreview(
+    projectId: ProjectId,
+    importBatchId: ImportBatchId
+  ): Promise<void> {
+    await this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/import-batches/${encodeURIComponent(importBatchId)}/cancel`,
+      { method: 'POST' },
+      okResponseSchema
     );
   }
   async listImportCandidates(projectId: ProjectId): Promise<ImportCandidate[]> {

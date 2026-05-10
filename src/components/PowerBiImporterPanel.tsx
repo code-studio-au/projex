@@ -101,7 +101,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     setSorting,
     handleFileChange,
     handleDraftCsvTextChange,
-    resetImporter,
+    clearPreview,
     previewImport,
     excludePreviewRows,
     includePreviewRows,
@@ -337,7 +337,11 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           <Group justify="space-between" align="center" wrap="wrap">
             <Title order={5}>PowerBI expenditure import</Title>
             {previewActive ? (
-              <Button variant="subtle" color="gray" onClick={resetImporter}>
+              <Button
+                variant="subtle"
+                color="gray"
+                onClick={() => void clearPreview()}
+              >
                 Clear preview
               </Button>
             ) : null}
@@ -646,7 +650,11 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 tracker, then commit the included rows.
               </Text>
               <Group wrap="wrap">
-                <Button variant="subtle" color="gray" onClick={resetImporter}>
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  onClick={() => void clearPreview()}
+                >
                   Clear preview
                 </Button>
                 <Button

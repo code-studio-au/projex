@@ -74,6 +74,7 @@ import { Route as ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport } fro
 import { Route as ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.split'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments'
 import { Route as ApiProjectsProjectIdImportCandidatesCandidateIdReviewRouteImport } from './routes/api.projects.$projectId.import-candidates.$candidateId.review'
+import { Route as ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport } from './routes/api.projects.$projectId.import-batches.$batchId.cancel'
 import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments.$commentId'
 
@@ -439,6 +440,12 @@ const ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute =
     path: '/$candidateId/review',
     getParentRoute: () => ApiProjectsProjectIdImportCandidatesRoute,
   } as any)
+const ApiProjectsProjectIdImportBatchesBatchIdCancelRoute =
+  ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport.update({
+    id: '/import-batches/$batchId/cancel',
+    path: '/import-batches/$batchId/cancel',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
 const ApiCompaniesCompanyIdUsersUserIdInviteRoute =
   ApiCompaniesCompanyIdUsersUserIdInviteRouteImport.update({
     id: '/$userId/invite',
@@ -513,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/import-batches/$batchId/cancel': typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
   '/api/projects/$projectId/import-candidates/$candidateId/review': typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
@@ -580,6 +588,7 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/import-batches/$batchId/cancel': typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
   '/api/projects/$projectId/import-candidates/$candidateId/review': typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
@@ -650,6 +659,7 @@ export interface FileRoutesById {
   '/api/projects/$projectId/transactions/import': typeof ApiProjectsProjectIdTransactionsImportRoute
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
+  '/api/projects/$projectId/import-batches/$batchId/cancel': typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
   '/api/projects/$projectId/import-candidates/$candidateId/review': typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
@@ -720,6 +730,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/import-batches/$batchId/cancel'
     | '/api/projects/$projectId/import-candidates/$candidateId/review'
     | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
@@ -787,6 +798,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/import-batches/$batchId/cancel'
     | '/api/projects/$projectId/import-candidates/$candidateId/review'
     | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
@@ -856,6 +868,7 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import'
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
+    | '/api/projects/$projectId/import-batches/$batchId/cancel'
     | '/api/projects/$projectId/import-candidates/$candidateId/review'
     | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
@@ -1343,6 +1356,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRouteImport
       parentRoute: typeof ApiProjectsProjectIdImportCandidatesRoute
     }
+    '/api/projects/$projectId/import-batches/$batchId/cancel': {
+      id: '/api/projects/$projectId/import-batches/$batchId/cancel'
+      path: '/import-batches/$batchId/cancel'
+      fullPath: '/api/projects/$projectId/import-batches/$batchId/cancel'
+      preLoaderRoute: typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
     '/api/companies/$companyId/users/$userId/invite': {
       id: '/api/companies/$companyId/users/$userId/invite'
       path: '/$userId/invite'
@@ -1663,6 +1683,7 @@ interface ApiProjectsProjectIdRouteChildren {
   ApiProjectsProjectIdReactivateRoute: typeof ApiProjectsProjectIdReactivateRoute
   ApiProjectsProjectIdSubCategoriesRoute: typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
   ApiProjectsProjectIdTransactionsRoute: typeof ApiProjectsProjectIdTransactionsRouteWithChildren
+  ApiProjectsProjectIdImportBatchesBatchIdCancelRoute: typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
 }
 
 const ApiProjectsProjectIdRouteChildren: ApiProjectsProjectIdRouteChildren = {
@@ -1681,6 +1702,8 @@ const ApiProjectsProjectIdRouteChildren: ApiProjectsProjectIdRouteChildren = {
     ApiProjectsProjectIdSubCategoriesRouteWithChildren,
   ApiProjectsProjectIdTransactionsRoute:
     ApiProjectsProjectIdTransactionsRouteWithChildren,
+  ApiProjectsProjectIdImportBatchesBatchIdCancelRoute:
+    ApiProjectsProjectIdImportBatchesBatchIdCancelRoute,
 }
 
 const ApiProjectsProjectIdRouteWithChildren =

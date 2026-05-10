@@ -11,6 +11,7 @@ import type {
   CompanyRole,
   CompanySummary,
   ImportCandidate,
+  ImportBatchId,
   ImportRule,
   ImportCandidateId,
   Project,
@@ -542,6 +543,10 @@ export interface ProjexApi {
     projectId: ProjectId,
     input: TxnImportPreviewInput
   ): Promise<TxnImportPreviewResult>;
+  cancelImportPreview(
+    projectId: ProjectId,
+    importBatchId: ImportBatchId
+  ): Promise<void>;
   listImportCandidates(projectId: ProjectId): Promise<ImportCandidate[]>;
   reviewImportCandidate(
     projectId: ProjectId,

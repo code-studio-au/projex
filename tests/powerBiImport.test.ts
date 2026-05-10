@@ -62,7 +62,7 @@ test('PowerBI expenditure rows normalize into transaction-friendly fields', () =
   const row = toPowerBiExpenditureActualsRow(rawPowerBiRow());
 
   assert.equal(powerBiExternalId(row), 'JRNL-100:12:A');
-  assert.equal(powerBiTransactionDate(row), '2026-04-26');
+  assert.equal(powerBiTransactionDate(row), '2026-04-25');
   assert.equal(powerBiAmountCents(row), 123456);
   assert.equal(powerBiItem(row), 'Learning Vendor');
   assert.match(powerBiDescription(row), /External training course/);
@@ -89,6 +89,56 @@ test('PowerBI amount parsing preserves negative actuals', () => {
   );
 });
 
+test('PowerBI date parsing prefers journal date and accepts exported date strings', () => {
+  assert.equal(
+    powerBiTransactionDate(
+      toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          'Journal Date': '26/04/2026',
+          'Posted Date': '2026-04-27',
+        })
+      )
+    ),
+    '2026-04-26'
+  );
+
+  assert.equal(
+    powerBiTransactionDate(
+      toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          'Journal Date': '2026-04-26 00:00:00',
+          'Posted Date': '',
+        })
+      )
+    ),
+    '2026-04-26'
+  );
+
+  assert.equal(
+    powerBiTransactionDate(
+      toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          'Journal Date': '4/26/2026',
+          'Posted Date': '',
+        })
+      )
+    ),
+    '2026-04-26'
+  );
+
+  assert.equal(
+    powerBiTransactionDate(
+      toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          'Journal Date': '26042026',
+          'Posted Date': '',
+        })
+      )
+    ),
+    '2026-04-26'
+  );
+});
+
 test('PowerBI date parsing does not turn blank dates into Excel epoch dates', () => {
   assert.equal(
     powerBiTransactionDate(
@@ -98,6 +148,19 @@ test('PowerBI date parsing does not turn blank dates into Excel epoch dates', ()
     ),
     ''
   );
+});
+
+test('PowerBI column mapping tolerates harmless header differences', () => {
+  const row = toPowerBiExpenditureActualsRow({
+    ...rawPowerBiRow(),
+    'Journal Date': '',
+    ' journal date ': '26/04/2026',
+    'Vendor Name': '',
+    'vendor name': 'Case-insensitive Vendor',
+  });
+
+  assert.equal(powerBiTransactionDate(row), '2026-04-26');
+  assert.equal(powerBiItem(row), 'Case-insensitive Vendor');
 });
 
 test('PowerBI default import rules exclude SAL and EXA while reviewing salary transfers', () => {
