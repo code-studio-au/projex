@@ -9,6 +9,7 @@ import {
   Paper,
   Stack,
   Switch,
+  Tabs,
   Text,
   Textarea,
   Title,
@@ -20,7 +21,20 @@ import type { CompanyId, ImportPreviewRow, ProjectId, Txn } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { BudgetsHook } from '../hooks/useBudgets';
 import { formatCurrencyFromCents } from '../utils/money';
-import { usePowerBiImportWorkflow } from '../hooks/usePowerBiImportWorkflow';
+import {
+  type ImportPreviewTab,
+  usePowerBiImportWorkflow,
+} from '../hooks/usePowerBiImportWorkflow';
+
+function displayWarningsForRow(row: ImportPreviewRow): string[] {
+  return row.warnings.filter(
+    (warning) =>
+      !(
+        row.mappingStatus === 'uncoded' &&
+        warning.startsWith('No category/subcategory could be resolved.')
+      )
+  );
+}
 
 export default function PowerBiImporterPanel(props: {
   taxonomy: TaxonomyHook;
@@ -74,8 +88,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     draftCsvText,
     autoCreateStructures,
     skipDuplicates,
-    showExcludedRows,
-    previewFilter,
+    previewTab,
     confirmReplaceOpen,
     importNotice,
     importError,
@@ -84,18 +97,19 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     pagination,
     sorting,
     previewActive,
-    filteredPreviewRows,
+    activePreviewRows,
+    includedPreviewRows,
+    needsReviewPreviewRows,
+    duplicatePreviewRows,
+    invalidPreviewRows,
+    excludedPreviewRows,
+    visiblePreviewRows,
     previewSummary,
-    previewFilterCounts,
-    filteredPreviewIds,
-    filteredIncludedCount,
-    filteredExcludedCount,
     hasBlockingIssues,
     hasReplaceAllBlockers,
     setAutoCreateStructures,
     setSkipDuplicates,
-    setShowExcludedRows,
-    setPreviewFilter,
+    setPreviewTab,
     setConfirmReplaceOpen,
     setPagination,
     setSorting,
@@ -103,8 +117,6 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     handleDraftCsvTextChange,
     clearPreview,
     previewImport,
-    excludePreviewRows,
-    includePreviewRows,
     togglePreviewRow,
     commitAppend,
     commitReplaceAll,
@@ -275,12 +287,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         id: 'warnings',
         header: 'Warnings',
         size: 320,
-        accessorFn: (row) => row.warnings.join(' '),
+        accessorFn: (row) => displayWarningsForRow(row).join(' '),
         enableSorting: false,
-        Cell: ({ row }) =>
-          row.original.warnings.length ? (
+        Cell: ({ row }) => {
+          const warnings = displayWarningsForRow(row.original);
+          return warnings.length ? (
             <Stack gap={2}>
-              {row.original.warnings.map((warning, index) => (
+              {warnings.map((warning, index) => (
                 <Text
                   key={`${row.original.importId}-warning-${index}`}
                   size="xs"
@@ -294,7 +307,8 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Text size="xs" c="dimmed">
               No warnings
             </Text>
-          ),
+          );
+        },
         mantineTableHeadCellProps: {
           className: 'table-head-cell table-head-left txnTable-head',
         },
@@ -429,147 +443,15 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               <Group justify="space-between" align="center" wrap="wrap">
                 <Group gap="sm" align="center" wrap="wrap">
                   <Title order={5}>PowerBI import preview</Title>
-                  <Badge variant="light">{previewSummary.rows} rows</Badge>
-                  <Badge
-                    variant="light"
-                    color={previewSummary.included ? 'blue' : 'gray'}
-                  >
-                    {previewSummary.included} included
-                  </Badge>
-                  <Badge variant="light" color="gray">
-                    {previewSummary.excluded} excluded
-                  </Badge>
-                  <Badge
-                    variant="light"
-                    color={previewSummary.review ? 'yellow' : 'gray'}
-                  >
-                    {previewSummary.review} review
-                  </Badge>
-                  <Badge
-                    variant="light"
-                    color={previewSummary.invalid ? 'red' : 'gray'}
-                  >
-                    {previewSummary.invalid} invalid
-                  </Badge>
-                  <Badge
-                    variant="light"
-                    color={previewSummary.duplicate ? 'orange' : 'gray'}
-                  >
-                    {previewSummary.duplicate} duplicate
-                  </Badge>
-                  <Badge
-                    variant="light"
-                    color={previewSummary.uncoded ? 'yellow' : 'gray'}
-                  >
-                    {previewSummary.uncoded} uncoded
-                  </Badge>
                 </Group>
-              </Group>
-
-              <Group gap="xs" wrap="wrap">
-                <Button
-                  size="xs"
-                  variant={previewFilter === 'all' ? 'filled' : 'light'}
-                  onClick={() => setPreviewFilter('all')}
-                >
-                  All ({previewFilterCounts.all})
-                </Button>
-                <Button
-                  size="xs"
-                  variant={previewFilter === 'exceptions' ? 'filled' : 'light'}
-                  color="gray"
-                  onClick={() => setPreviewFilter('exceptions')}
-                >
-                  Exceptions ({previewFilterCounts.exceptions})
-                </Button>
-                <Button
-                  size="xs"
-                  variant={previewFilter === 'excluded' ? 'filled' : 'light'}
-                  color="gray"
-                  onClick={() => setPreviewFilter('excluded')}
-                >
-                  Excluded ({previewFilterCounts.excluded})
-                </Button>
-                <Button
-                  size="xs"
-                  variant={previewFilter === 'review' ? 'filled' : 'light'}
-                  color="yellow"
-                  onClick={() => setPreviewFilter('review')}
-                >
-                  Review ({previewFilterCounts.review})
-                </Button>
-                <Button
-                  size="xs"
-                  variant={previewFilter === 'invalid' ? 'filled' : 'light'}
-                  color="red"
-                  onClick={() => setPreviewFilter('invalid')}
-                >
-                  Invalid ({previewFilterCounts.invalid})
-                </Button>
-                <Button
-                  size="xs"
-                  variant={previewFilter === 'duplicate' ? 'filled' : 'light'}
-                  color="orange"
-                  onClick={() => setPreviewFilter('duplicate')}
-                >
-                  Duplicate ({previewFilterCounts.duplicate})
-                </Button>
-                <Button
-                  size="xs"
-                  variant={previewFilter === 'uncoded' ? 'filled' : 'light'}
-                  color="yellow"
-                  onClick={() => setPreviewFilter('uncoded')}
-                >
-                  Uncoded ({previewFilterCounts.uncoded})
-                </Button>
-                <Button
-                  size="xs"
-                  variant={previewFilter === 'warnings' ? 'filled' : 'light'}
-                  color="blue"
-                  onClick={() => setPreviewFilter('warnings')}
-                >
-                  Warnings ({previewFilterCounts.warnings})
-                </Button>
               </Group>
 
               <Group justify="space-between" align="center" wrap="wrap">
                 <Text size="sm" c="dimmed">
-                  {filteredPreviewRows.length
-                    ? `Current filter shows ${filteredPreviewRows.length} rows: ${filteredIncludedCount} included, ${filteredExcludedCount} excluded.`
-                    : 'Current filter shows no rows.'}
+                  Included rows are what will be committed. Excluded rows are
+                  kept separate so rule exclusions do not crowd the working
+                  table.
                 </Text>
-                <Group gap="xs" wrap="wrap">
-                  <Switch
-                    size="sm"
-                    label="Show excluded"
-                    checked={showExcludedRows}
-                    onChange={(event) =>
-                      setShowExcludedRows(event.currentTarget.checked)
-                    }
-                  />
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="gray"
-                    disabled={
-                      !filteredPreviewRows.length || filteredIncludedCount === 0
-                    }
-                    onClick={() => excludePreviewRows(filteredPreviewIds)}
-                  >
-                    Exclude filtered
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="blue"
-                    disabled={
-                      !filteredPreviewRows.length || filteredExcludedCount === 0
-                    }
-                    onClick={() => includePreviewRows(filteredPreviewIds)}
-                  >
-                    Include filtered
-                  </Button>
-                </Group>
               </Group>
 
               {previewSourceLabel ? (
@@ -611,43 +493,204 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             </Stack>
           </Paper>
 
-          <MantineReactTable
-            columns={previewColumns}
-            data={filteredPreviewRows}
-            getRowId={(row) => row.importId}
-            state={{ pagination, sorting }}
-            onPaginationChange={setPagination}
-            onSortingChange={setSorting}
-            enableColumnResizing
-            enableSorting
-            enableSortingRemoval={false}
-            enableGlobalFilter
-            enablePagination
-            autoResetPageIndex={false}
-            initialState={{ density: 'xs' }}
-            mantineTableContainerProps={{ className: 'financeTable txnTable' }}
-            mantineTableProps={{
-              highlightOnHover: true,
-              striped: 'odd',
-              withTableBorder: true,
-              style: { tableLayout: 'auto' },
+          <Tabs
+            value={previewTab}
+            onChange={(value) => {
+              if (
+                value === 'included' ||
+                value === 'needsReview' ||
+                value === 'duplicate' ||
+                value === 'invalid' ||
+                value === 'excluded'
+              ) {
+                setPreviewTab(value as ImportPreviewTab);
+              }
             }}
-            enableDensityToggle={false}
-            enableFullScreenToggle={false}
-            mantineTableBodyRowProps={({ row }) =>
-              excludedImportIds.has(row.original.importId)
-                ? { style: { opacity: 0.6 } }
-                : row.original.mappingStatus === 'invalid'
-                  ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-                  : {}
-            }
-          />
+          >
+            <Tabs.List>
+              <Tabs.Tab value="included">
+                Included ({includedPreviewRows.length})
+              </Tabs.Tab>
+              <Tabs.Tab value="needsReview">
+                Needs review ({needsReviewPreviewRows.length})
+              </Tabs.Tab>
+              <Tabs.Tab value="duplicate">
+                Duplicate ({duplicatePreviewRows.length})
+              </Tabs.Tab>
+              <Tabs.Tab value="invalid">
+                Invalid ({invalidPreviewRows.length})
+              </Tabs.Tab>
+              <Tabs.Tab value="excluded">
+                Excluded ({excludedPreviewRows.length})
+              </Tabs.Tab>
+            </Tabs.List>
+
+            <Tabs.Panel value="included" pt="md">
+              <MantineReactTable
+                columns={previewColumns}
+                data={visiblePreviewRows}
+                getRowId={(row) => row.importId}
+                state={{ pagination, sorting }}
+                onPaginationChange={setPagination}
+                onSortingChange={setSorting}
+                enableColumnResizing
+                enableSorting
+                enableSortingRemoval={false}
+                enableGlobalFilter
+                enablePagination
+                autoResetPageIndex={false}
+                initialState={{ density: 'xs' }}
+                mantineTableContainerProps={{
+                  className: 'financeTable txnTable',
+                }}
+                mantineTableProps={{
+                  highlightOnHover: true,
+                  striped: 'odd',
+                  withTableBorder: true,
+                  style: { tableLayout: 'auto' },
+                }}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+                mantineTableBodyRowProps={({ row }) =>
+                  row.original.mappingStatus === 'invalid'
+                    ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
+                    : {}
+                }
+              />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="needsReview" pt="md">
+              <MantineReactTable
+                columns={previewColumns}
+                data={visiblePreviewRows}
+                getRowId={(row) => row.importId}
+                state={{ pagination, sorting }}
+                onPaginationChange={setPagination}
+                onSortingChange={setSorting}
+                enableColumnResizing
+                enableSorting
+                enableSortingRemoval={false}
+                enableGlobalFilter
+                enablePagination
+                autoResetPageIndex={false}
+                initialState={{ density: 'xs' }}
+                mantineTableContainerProps={{
+                  className: 'financeTable txnTable',
+                }}
+                mantineTableProps={{
+                  highlightOnHover: true,
+                  striped: 'odd',
+                  withTableBorder: true,
+                  style: { tableLayout: 'auto' },
+                }}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+              />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="duplicate" pt="md">
+              <MantineReactTable
+                columns={previewColumns}
+                data={visiblePreviewRows}
+                getRowId={(row) => row.importId}
+                state={{ pagination, sorting }}
+                onPaginationChange={setPagination}
+                onSortingChange={setSorting}
+                enableColumnResizing
+                enableSorting
+                enableSortingRemoval={false}
+                enableGlobalFilter
+                enablePagination
+                autoResetPageIndex={false}
+                initialState={{ density: 'xs' }}
+                mantineTableContainerProps={{
+                  className: 'financeTable txnTable',
+                }}
+                mantineTableProps={{
+                  highlightOnHover: true,
+                  striped: 'odd',
+                  withTableBorder: true,
+                  style: { tableLayout: 'auto' },
+                }}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+              />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="invalid" pt="md">
+              <MantineReactTable
+                columns={previewColumns}
+                data={visiblePreviewRows}
+                getRowId={(row) => row.importId}
+                state={{ pagination, sorting }}
+                onPaginationChange={setPagination}
+                onSortingChange={setSorting}
+                enableColumnResizing
+                enableSorting
+                enableSortingRemoval={false}
+                enableGlobalFilter
+                enablePagination
+                autoResetPageIndex={false}
+                initialState={{ density: 'xs' }}
+                mantineTableContainerProps={{
+                  className: 'financeTable txnTable',
+                }}
+                mantineTableProps={{
+                  highlightOnHover: true,
+                  striped: 'odd',
+                  withTableBorder: true,
+                  style: { tableLayout: 'auto' },
+                }}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+                mantineTableBodyRowProps={() => ({
+                  style: { outline: '1px solid rgba(255,0,0,0.20)' },
+                })}
+              />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="excluded" pt="md">
+              <MantineReactTable
+                columns={previewColumns}
+                data={visiblePreviewRows}
+                getRowId={(row) => row.importId}
+                state={{ pagination, sorting }}
+                onPaginationChange={setPagination}
+                onSortingChange={setSorting}
+                enableColumnResizing
+                enableSorting
+                enableSortingRemoval={false}
+                enableGlobalFilter
+                enablePagination
+                autoResetPageIndex={false}
+                initialState={{ density: 'xs' }}
+                mantineTableContainerProps={{
+                  className: 'financeTable txnTable',
+                }}
+                mantineTableProps={{
+                  highlightOnHover: true,
+                  striped: 'odd',
+                  withTableBorder: true,
+                  style: { tableLayout: 'auto' },
+                }}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+                mantineTableBodyRowProps={({ row }) =>
+                  row.original.mappingStatus === 'invalid'
+                    ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
+                    : {}
+                }
+              />
+            </Tabs.Panel>
+          </Tabs>
 
           <Paper withBorder radius="lg" p="md">
             <Group justify="space-between" align="center" wrap="wrap">
               <Text size="sm" c="dimmed">
                 Review the preview, exclude anything that should stay out of the
-                tracker, then commit the included rows.
+                tracker, then commit the included rows.{' '}
+                {activePreviewRows.length} active row(s) remain outside the
+                excluded tab.
               </Text>
               <Group wrap="wrap">
                 <Button

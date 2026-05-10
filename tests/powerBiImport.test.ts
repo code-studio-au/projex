@@ -169,6 +169,30 @@ test('PowerBI default import rules exclude SAL and EXA while reviewing salary tr
     id: asImportRuleId(`rule_${index + 1}`),
   }));
 
+  const footerDecision = decidePowerBiImportRule({
+    row: toPowerBiExpenditureActualsRow(
+      rawPowerBiRow({
+        Ledger: 'Total',
+        Source: '',
+        'Journal Line Description': 'Grand total',
+      })
+    ),
+    rules,
+  });
+  assert.equal(footerDecision.action, 'exclude');
+  assert.equal(
+    footerDecision.matchedRule?.name,
+    'Exclude non-actual ledger/footer rows'
+  );
+
+  assert.equal(
+    decidePowerBiImportRule({
+      row: toPowerBiExpenditureActualsRow(rawPowerBiRow({ Ledger: '' })),
+      rules,
+    }).action,
+    'exclude'
+  );
+
   assert.equal(
     decidePowerBiImportRule({
       row: toPowerBiExpenditureActualsRow(rawPowerBiRow({ Source: 'SAL' })),

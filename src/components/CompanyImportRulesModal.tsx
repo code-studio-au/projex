@@ -42,6 +42,7 @@ const actionOptions: Array<{ value: ImportRuleAction; label: string }> = [
 ];
 
 const fieldOptions: Array<{ value: ImportRuleField; label: string }> = [
+  { value: 'ledger', label: 'Ledger' },
   { value: 'source', label: 'Source' },
   { value: 'journalId', label: 'Journal ID' },
   { value: 'journalLineDescription', label: 'Journal Line Description' },

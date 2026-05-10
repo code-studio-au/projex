@@ -133,7 +133,7 @@ create table if not exists import_rules (
   company_id text not null references companies(id) on delete cascade,
   name text not null,
   action text not null check (action in ('import', 'exclude', 'review')),
-  field text not null check (field in ('source', 'journalId', 'journalLineDescription', 'ccAndDescription', 'vendorName', 'poId', 'referenceNum', 'anyText')),
+  field text not null check (field in ('ledger', 'source', 'journalId', 'journalLineDescription', 'ccAndDescription', 'vendorName', 'poId', 'referenceNum', 'anyText')),
   operator text not null check (operator in ('equals', 'contains', 'starts_with', 'regex')),
   value text not null,
   sort_order integer not null default 0,

@@ -23,17 +23,13 @@ import { txnInputSchema } from '../validation/schemas';
 import { qk } from '../queries/keys';
 import { useQueryScopeUserId } from '../queries/scope';
 
-export type ImportPreviewFilter =
-  | 'all'
-  | 'exceptions'
-  | 'excluded'
-  | 'review'
-  | 'invalid'
-  | 'duplicate'
-  | 'uncoded'
-  | 'warnings';
-
 type PowerBiImportMode = 'append' | 'replaceAll';
+export type ImportPreviewTab =
+  | 'included'
+  | 'needsReview'
+  | 'duplicate'
+  | 'invalid'
+  | 'excluded';
 
 function validateImportedRows(
   rows: Array<Pick<Txn, 'date' | 'item' | 'description' | 'amountCents'>>
@@ -88,9 +84,7 @@ export function usePowerBiImportWorkflow(params: {
   const [draftCsvText, setDraftCsvText] = useState('');
   const [autoCreateStructures, setAutoCreateStructures] = useState(true);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
-  const [showExcludedRows, setShowExcludedRows] = useState(true);
-  const [previewFilter, setPreviewFilter] =
-    useState<ImportPreviewFilter>('all');
+  const [previewTab, setPreviewTab] = useState<ImportPreviewTab>('included');
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -116,45 +110,64 @@ export function usePowerBiImportWorkflow(params: {
 
   const previewActive = previewRows !== null;
 
-  const includedPreviewRows = useMemo(
+  const activePreviewRows = useMemo(
     () =>
       (previewRows ?? []).filter((row) => !excludedImportIds.has(row.importId)),
     [excludedImportIds, previewRows]
   );
 
-  const filteredPreviewRows = useMemo(() => {
-    const rows = showExcludedRows
-      ? (previewRows ?? [])
-      : (previewRows ?? []).filter(
-          (row) => !excludedImportIds.has(row.importId)
-        );
-    if (previewFilter === 'all') return rows;
+  const needsReviewPreviewRows = useMemo(
+    () => activePreviewRows.filter((row) => row.importAction === 'review'),
+    [activePreviewRows]
+  );
 
-    return rows.filter((row) => {
-      const isException =
-        excludedImportIds.has(row.importId) ||
-        row.importAction === 'review' ||
-        row.duplicate ||
-        row.mappingStatus === 'invalid' ||
-        row.mappingStatus === 'uncoded' ||
-        row.warnings.length > 0;
+  const duplicatePreviewRows = useMemo(
+    () => activePreviewRows.filter((row) => row.duplicate),
+    [activePreviewRows]
+  );
 
-      if (previewFilter === 'exceptions') return isException;
-      if (previewFilter === 'excluded')
-        return excludedImportIds.has(row.importId);
-      if (previewFilter === 'review') return row.importAction === 'review';
-      if (previewFilter === 'invalid') return row.mappingStatus === 'invalid';
-      if (previewFilter === 'duplicate') return row.duplicate;
-      if (previewFilter === 'uncoded') return row.mappingStatus === 'uncoded';
-      if (previewFilter === 'warnings') return row.warnings.length > 0;
-      return true;
-    });
-  }, [excludedImportIds, previewFilter, previewRows, showExcludedRows]);
+  const invalidPreviewRows = useMemo(
+    () => activePreviewRows.filter((row) => row.mappingStatus === 'invalid'),
+    [activePreviewRows]
+  );
+
+  const includedPreviewRows = useMemo(
+    () =>
+      activePreviewRows.filter(
+        (row) =>
+          row.importAction === 'import' &&
+          row.mappingStatus !== 'invalid' &&
+          !row.duplicate
+      ),
+    [activePreviewRows]
+  );
+
+  const excludedPreviewRows = useMemo(
+    () =>
+      (previewRows ?? []).filter((row) => excludedImportIds.has(row.importId)),
+    [excludedImportIds, previewRows]
+  );
+
+  const visiblePreviewRows = useMemo(() => {
+    if (previewTab === 'needsReview') return needsReviewPreviewRows;
+    if (previewTab === 'duplicate') return duplicatePreviewRows;
+    if (previewTab === 'invalid') return invalidPreviewRows;
+    if (previewTab === 'excluded') return excludedPreviewRows;
+    return includedPreviewRows;
+  }, [
+    duplicatePreviewRows,
+    excludedPreviewRows,
+    includedPreviewRows,
+    invalidPreviewRows,
+    needsReviewPreviewRows,
+    previewTab,
+  ]);
 
   const previewSummary = useMemo(() => {
     const counts = {
       rows: (previewRows ?? []).length,
-      included: 0,
+      active: activePreviewRows.length,
+      included: includedPreviewRows.length,
       excluded: 0,
       invalid: 0,
       duplicate: 0,
@@ -168,75 +181,43 @@ export function usePowerBiImportWorkflow(params: {
         counts.excluded += 1;
         continue;
       }
-      counts.included += 1;
       if (row.mappingStatus === 'invalid') counts.invalid += 1;
       if (row.duplicate) counts.duplicate += 1;
       if (row.mappingStatus === 'uncoded') counts.uncoded += 1;
     }
 
     return counts;
-  }, [excludedImportIds, previewRows]);
-
-  const previewFilterCounts = useMemo(() => {
-    const rows = previewRows ?? [];
-    return {
-      all: rows.length,
-      exceptions: rows.filter(
-        (row) =>
-          excludedImportIds.has(row.importId) ||
-          row.importAction === 'review' ||
-          row.duplicate ||
-          row.mappingStatus === 'invalid' ||
-          row.mappingStatus === 'uncoded' ||
-          row.warnings.length > 0
-      ).length,
-      excluded: rows.filter((row) => excludedImportIds.has(row.importId))
-        .length,
-      review: rows.filter((row) => row.importAction === 'review').length,
-      invalid: rows.filter((row) => row.mappingStatus === 'invalid').length,
-      duplicate: rows.filter((row) => row.duplicate).length,
-      uncoded: rows.filter((row) => row.mappingStatus === 'uncoded').length,
-      warnings: rows.filter((row) => row.warnings.length > 0).length,
-    };
-  }, [excludedImportIds, previewRows]);
-
-  const filteredPreviewIds = useMemo(
-    () => filteredPreviewRows.map((row) => row.importId),
-    [filteredPreviewRows]
-  );
-  const filteredIncludedCount = useMemo(
-    () => filteredPreviewIds.filter((id) => !excludedImportIds.has(id)).length,
-    [excludedImportIds, filteredPreviewIds]
-  );
-  const filteredExcludedCount = useMemo(
-    () => filteredPreviewIds.filter((id) => excludedImportIds.has(id)).length,
-    [excludedImportIds, filteredPreviewIds]
-  );
+  }, [
+    activePreviewRows.length,
+    excludedImportIds,
+    includedPreviewRows.length,
+    previewRows,
+  ]);
 
   useEffect(() => {
     setPagination((current) => ({ ...current, pageIndex: 0 }));
-  }, [previewFilter]);
+  }, [previewTab]);
 
   const hasBlockingIssues = useMemo(
     () =>
-      includedPreviewRows.some(
+      activePreviewRows.some(
         (row) =>
           row.mappingStatus === 'invalid' ||
           row.importAction === 'review' ||
           (!skipDuplicates && row.duplicate)
       ),
-    [includedPreviewRows, skipDuplicates]
+    [activePreviewRows, skipDuplicates]
   );
 
   const hasReplaceAllBlockers = useMemo(
     () =>
-      includedPreviewRows.some(
+      activePreviewRows.some(
         (row) =>
           row.mappingStatus === 'invalid' ||
           row.importAction === 'review' ||
           row.duplicateReason === 'import'
       ),
-    [includedPreviewRows]
+    [activePreviewRows]
   );
 
   function clearFeedback() {
@@ -283,8 +264,7 @@ export function usePowerBiImportWorkflow(params: {
     setPreviewRows(null);
     setPreviewBatchId(null);
     setPreviewSourceLabel(null);
-    setPreviewFilter('all');
-    setShowExcludedRows(true);
+    setPreviewTab('included');
     setExcludedImportIds(new Set());
     setImportError(null);
     setPagination((current) => ({ ...current, pageIndex: 0 }));
@@ -339,7 +319,7 @@ export function usePowerBiImportWorkflow(params: {
       setPreviewRows(preview.rows);
       setPreviewBatchId(preview.importBatchId ?? null);
       setPreviewSourceLabel(sourceLabel);
-      setPreviewFilter('all');
+      setPreviewTab('included');
       setExcludedImportIds(
         new Set(
           preview.rows
@@ -352,28 +332,12 @@ export function usePowerBiImportWorkflow(params: {
       setPreviewRows(null);
       setPreviewBatchId(null);
       setPreviewSourceLabel(null);
-      setPreviewFilter('all');
+      setPreviewTab('included');
       setExcludedImportIds(new Set());
       setImportError(
         error instanceof Error ? error.message : 'Could not preview the import.'
       );
     }
-  }
-
-  function excludePreviewRows(importIds: string[]) {
-    setExcludedImportIds((current) => {
-      const next = new Set(current);
-      for (const importId of importIds) next.add(importId);
-      return next;
-    });
-  }
-
-  function includePreviewRows(importIds: string[]) {
-    setExcludedImportIds((current) => {
-      const next = new Set(current);
-      for (const importId of importIds) next.delete(importId);
-      return next;
-    });
   }
 
   function togglePreviewRow(importId: string) {
@@ -473,6 +437,7 @@ export function usePowerBiImportWorkflow(params: {
 
     for (const row of previewRows ?? []) {
       if (excludedImportIds.has(row.importId)) continue;
+      if (row.importAction !== 'import') continue;
       if (row.mappingStatus === 'invalid') continue;
       if (mode === 'append' && skipDuplicates && row.duplicate) {
         skipped += 1;
@@ -571,29 +536,29 @@ export function usePowerBiImportWorkflow(params: {
     draftCsvText,
     autoCreateStructures,
     skipDuplicates,
-    showExcludedRows,
-    previewFilter,
+    previewTab,
     confirmReplaceOpen,
     importNotice,
     importError,
     previewRows,
+    activePreviewRows,
+    includedPreviewRows,
+    needsReviewPreviewRows,
+    duplicatePreviewRows,
+    invalidPreviewRows,
+    excludedPreviewRows,
     previewSourceLabel,
     excludedImportIds,
     pagination,
     sorting,
     previewActive,
-    filteredPreviewRows,
+    visiblePreviewRows,
     previewSummary,
-    previewFilterCounts,
-    filteredPreviewIds,
-    filteredIncludedCount,
-    filteredExcludedCount,
     hasBlockingIssues,
     hasReplaceAllBlockers,
     setAutoCreateStructures,
     setSkipDuplicates,
-    setShowExcludedRows,
-    setPreviewFilter,
+    setPreviewTab,
     setConfirmReplaceOpen,
     setPagination,
     setSorting,
@@ -602,8 +567,6 @@ export function usePowerBiImportWorkflow(params: {
     clearPreview,
     resetImporter,
     previewImport,
-    excludePreviewRows,
-    includePreviewRows,
     togglePreviewRow,
     commitAppend,
     commitReplaceAll,

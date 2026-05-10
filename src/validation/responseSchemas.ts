@@ -221,6 +221,7 @@ export const importRuleResponseSchema = z.object({
   name: z.string(),
   action: z.enum(['import', 'exclude', 'review']),
   field: z.enum([
+    'ledger',
     'source',
     'journalId',
     'journalLineDescription',

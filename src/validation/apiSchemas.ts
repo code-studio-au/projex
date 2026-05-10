@@ -84,6 +84,7 @@ const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
 const importSourceTypeSchema = z.enum(['powerbi_expenditure_actuals']);
 const importRuleActionSchema = z.enum(['import', 'exclude', 'review']);
 const importRuleFieldSchema = z.enum([
+  'ledger',
   'source',
   'journalId',
   'journalLineDescription',

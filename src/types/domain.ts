@@ -116,6 +116,7 @@ export type CompanyDefaultMappingRule = {
 
 export type ImportRuleAction = 'import' | 'exclude' | 'review';
 export type ImportRuleField =
+  | 'ledger'
   | 'source'
   | 'journalId'
   | 'journalLineDescription'

@@ -243,6 +243,8 @@ function valueForRuleField(
   field: ImportRuleField
 ): string {
   switch (field) {
+    case 'ledger':
+      return row.ledger;
     case 'source':
       return row.source;
     case 'journalId':
@@ -312,6 +314,16 @@ export function defaultPowerBiImportRules(
   companyId: ImportRule['companyId']
 ): Array<Omit<ImportRule, 'id' | 'createdAt' | 'updatedAt'>> {
   return [
+    {
+      companyId,
+      name: 'Exclude non-actual ledger/footer rows',
+      action: 'exclude',
+      field: 'ledger',
+      operator: 'regex',
+      value: '^(?!\\s*actuals?\\s*$).*$',
+      sortOrder: 5,
+      enabled: true,
+    },
     {
       companyId,
       name: 'Exclude SAL payroll source',
