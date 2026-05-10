@@ -344,6 +344,11 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     [currencyCode, excludedImportIds, togglePreviewRow]
   );
 
+  const excludedPreviewColumns = useMemo(
+    () => previewColumns.filter((column) => column.id !== 'mapping'),
+    [previewColumns]
+  );
+
   return (
     <Stack gap="md">
       <Paper withBorder radius="lg" p="lg" className="importPanelCard">
@@ -651,7 +656,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
 
             <Tabs.Panel value="excluded" pt="md">
               <MantineReactTable
-                columns={previewColumns}
+                columns={excludedPreviewColumns}
                 data={visiblePreviewRows}
                 getRowId={(row) => row.importId}
                 state={{ pagination, sorting }}
