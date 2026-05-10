@@ -89,6 +89,19 @@ test('PowerBI amount parsing preserves negative actuals', () => {
   );
 });
 
+test('PowerBI amount parsing treats blank amounts as missing', () => {
+  assert.equal(
+    Number.isNaN(
+      powerBiAmountCents(
+        toPowerBiExpenditureActualsRow(
+          rawPowerBiRow({ 'Expenditure Actuals': '' })
+        )
+      )
+    ),
+    true
+  );
+});
+
 test('PowerBI date parsing prefers journal date and accepts exported date strings', () => {
   assert.equal(
     powerBiTransactionDate(
@@ -188,7 +201,7 @@ test('PowerBI default import rules exclude SAL and EXA while reviewing salary tr
   assert.equal(
     decidePowerBiImportRule({
       row: toPowerBiExpenditureActualsRow(rawPowerBiRow({ Ledger: '' })),
-      rules,
+      rules: [],
     }).action,
     'exclude'
   );

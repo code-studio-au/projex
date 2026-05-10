@@ -162,8 +162,14 @@ function parsePowerBiDateToIso(value: string): string | null {
 function parsePowerBiAmount(value: string): number {
   const trimmed = value.trim();
   const isAccountingNegative = trimmed.startsWith('(') && trimmed.endsWith(')');
-  const numeric = Number(trimmed.replace(/[^0-9.-]/g, ''));
+  const normalized = trimmed.replace(/[^0-9.-]/g, '');
+  if (!/[0-9]/.test(normalized)) return Number.NaN;
+  const numeric = Number(normalized);
   return isAccountingNegative ? -numeric : numeric;
+}
+
+function isActualLedger(value: string): boolean {
+  return /^actuals?$/i.test(value.trim());
 }
 
 export function toPowerBiExpenditureActualsRow(
@@ -219,7 +225,8 @@ export function powerBiTransactionDate(
 }
 
 export function powerBiAmountCents(row: PowerBiExpenditureActualsRow): number {
-  return toCents(parsePowerBiAmount(row.expenditureActuals));
+  const amount = parsePowerBiAmount(row.expenditureActuals);
+  return Number.isFinite(amount) ? toCents(amount) : Number.NaN;
 }
 
 export function powerBiItem(row: PowerBiExpenditureActualsRow): string {
@@ -301,6 +308,13 @@ export function decidePowerBiImportRule(args: {
       action: rule.action,
       matchedRule: rule,
       reason: rule.name,
+    };
+  }
+
+  if (!isActualLedger(args.row.ledger)) {
+    return {
+      action: 'exclude',
+      reason: 'Ledger is not ACTUAL/ACTUALS',
     };
   }
 
