@@ -40,7 +40,8 @@ create table if not exists projects (
   status text not null check (status in ('active', 'archived')),
   deactivated_at timestamptz null,
   visibility text not null check (visibility in ('company', 'private')),
-  allow_superadmin_access boolean not null default true
+  allow_superadmin_access boolean not null default true,
+  allow_txn_transfers boolean not null default false
 );
 
 create index if not exists idx_projects_company on projects(company_id);

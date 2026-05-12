@@ -36,6 +36,7 @@ type ProjectRow = {
   deactivated_at: string | null;
   visibility: 'company' | 'private';
   allow_superadmin_access: boolean;
+  allow_txn_transfers: boolean;
 };
 
 const projectSelectFields = [
@@ -50,6 +51,7 @@ const projectSelectFields = [
   'deactivated_at',
   'visibility',
   'allow_superadmin_access',
+  'allow_txn_transfers',
 ] as const;
 
 function toProject(row: ProjectRow): Project {
@@ -67,6 +69,7 @@ function toProject(row: ProjectRow): Project {
     deactivatedAt: row.deactivated_at ?? undefined,
     visibility: row.visibility,
     allowSuperadminAccess: row.allow_superadmin_access,
+    allowTxnTransfers: row.allow_txn_transfers,
   };
 }
 
@@ -348,6 +351,7 @@ export async function createProjectServer(args: {
         deactivated_at: null,
         visibility: 'private',
         allow_superadmin_access: true,
+        allow_txn_transfers: false,
       })
       .returning(projectSelectFields)
       .executeTakeFirstOrThrow();
@@ -381,22 +385,39 @@ export async function updateProjectServer(args: {
     }
 
     const userId = await requireServerUserId(args.context);
-    await requireAuthorized({
-      db,
-      userId,
-      action: 'project:edit',
-      companyId: asCompanyId(existing.company_id),
-      projectId: asProjectId(existing.id),
-    });
     const isHierarchyPatch =
       typeof args.input.projectType !== 'undefined' ||
       Object.prototype.hasOwnProperty.call(args.input, 'parentProjectId');
-    if (isHierarchyPatch) {
+    const isTransferCapabilityPatch = Object.prototype.hasOwnProperty.call(
+      args.input,
+      'allowTxnTransfers'
+    );
+    const requiresCompanyEdit = isHierarchyPatch || isTransferCapabilityPatch;
+    const requiresProjectEdit =
+      Object.prototype.hasOwnProperty.call(args.input, 'name') ||
+      Object.prototype.hasOwnProperty.call(args.input, 'budgetTotalCents') ||
+      Object.prototype.hasOwnProperty.call(args.input, 'currency') ||
+      Object.prototype.hasOwnProperty.call(args.input, 'visibility') ||
+      Object.prototype.hasOwnProperty.call(args.input, 'allowSuperadminAccess');
+    const companyId = asCompanyId(existing.company_id);
+    const projectId = asProjectId(existing.id);
+
+    if (requiresProjectEdit || (!requiresCompanyEdit && !requiresProjectEdit)) {
+      await requireAuthorized({
+        db,
+        userId,
+        action: 'project:edit',
+        companyId,
+        projectId,
+      });
+    }
+    if (requiresCompanyEdit) {
       await requireAuthorized({
         db,
         userId,
         action: 'company:edit',
-        companyId: asCompanyId(existing.company_id),
+        companyId,
+        projectId,
       });
     }
 
@@ -414,19 +435,28 @@ export async function updateProjectServer(args: {
 
     await assertProjectTypeTransitionAllowed({
       db,
-      projectId: asProjectId(existing.id),
+      projectId,
       currentType: existing.project_type,
       nextType: nextProjectType,
     });
 
     await assertValidProjectHierarchy({
       db,
-      companyId: asCompanyId(existing.company_id),
-      projectId: asProjectId(existing.id),
+      companyId,
+      projectId,
       projectType: nextProjectType,
       currency: nextCurrency,
       parentProjectId: nextParentProjectId,
     });
+    if (
+      args.input.allowTxnTransfers === true &&
+      nextProjectType === 'programme'
+    ) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Programmes are reporting-only and cannot transfer transactions'
+      );
+    }
 
     if (typeof args.input.name === 'string')
       patch.name = args.input.name.trim();
@@ -435,6 +465,7 @@ export async function updateProjectServer(args: {
       if (args.input.projectType === 'programme') {
         patch.parent_project_id = null;
         patch.budget_total_cents = 0;
+        patch.allow_txn_transfers = false;
       }
     }
     if (Object.prototype.hasOwnProperty.call(args.input, 'parentProjectId')) {
@@ -458,6 +489,9 @@ export async function updateProjectServer(args: {
       patch.visibility = args.input.visibility;
     if (typeof args.input.allowSuperadminAccess !== 'undefined') {
       patch.allow_superadmin_access = args.input.allowSuperadminAccess;
+    }
+    if (typeof args.input.allowTxnTransfers !== 'undefined') {
+      patch.allow_txn_transfers = args.input.allowTxnTransfers;
     }
 
     if (!Object.keys(patch).length) return toProject(existing);

@@ -280,6 +280,7 @@ export type ProjectUpdateInput = Pick<
   | 'currency'
   | 'visibility'
   | 'allowSuperadminAccess'
+  | 'allowTxnTransfers'
 > & {
   id: ProjectId;
   parentProjectId?: ProjectId | null;

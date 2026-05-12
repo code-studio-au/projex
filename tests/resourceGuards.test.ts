@@ -25,7 +25,9 @@ import {
   txnCommentMutationBodySchema,
   txnCommentUpdateMutationBodySchema,
   txnWorkflowStateMutationBodySchema,
+  updateProjectBodySchema,
 } from '../src/validation/apiSchemas.ts';
+import { projectResponseSchema } from '../src/validation/responseSchemas.ts';
 import {
   budgetAllocatedCentsSchema,
   projectBudgetTotalCentsSchema,
@@ -136,6 +138,32 @@ test('destructive delete body schemas require confirmation text', () => {
     deleteProjectBodySchema.safeParse({ confirmation: '' }).success,
     false
   );
+});
+
+test('project schemas include transaction transfer capability', () => {
+  assert.equal(
+    updateProjectBodySchema.safeParse({ allowTxnTransfers: false }).success,
+    true
+  );
+  assert.equal(
+    updateProjectBodySchema.safeParse({ allowTxnTransfers: 'no' }).success,
+    false
+  );
+
+  const parsed = projectResponseSchema.parse({
+    id: 'prj_1',
+    companyId: 'co_1',
+    name: 'Buildout',
+    projectType: 'project',
+    budgetTotalCents: 0,
+    currency: 'AUD',
+    status: 'active',
+    visibility: 'private',
+    allowSuperadminAccess: true,
+    allowTxnTransfers: false,
+  });
+
+  assert.equal(parsed.allowTxnTransfers, false);
 });
 
 test('transaction comment schemas require valid body and ids', () => {

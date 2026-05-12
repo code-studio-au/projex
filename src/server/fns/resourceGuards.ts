@@ -23,6 +23,7 @@ export type ProjectActionContext = {
   companyId: CompanyId;
   projectId: ProjectId;
   projectType: ProjectType;
+  allowTxnTransfers: boolean;
 };
 
 export async function requireProjectForAction(
@@ -34,7 +35,7 @@ export async function requireProjectForAction(
   const userId = await requireServerUserId(context);
   const project = await db
     .selectFrom('projects')
-    .select(['id', 'company_id', 'project_type'])
+    .select(['id', 'company_id', 'project_type', 'allow_txn_transfers'])
     .where('id', '=', projectId)
     .executeTakeFirst();
 
@@ -48,6 +49,7 @@ export async function requireProjectForAction(
     companyId,
     projectId,
     projectType: project.project_type,
+    allowTxnTransfers: project.allow_txn_transfers,
   };
 }
 

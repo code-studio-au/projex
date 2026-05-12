@@ -135,6 +135,7 @@ export const projectResponseSchema = z.object({
   deactivatedAt: optionalIsoTimestampSchema,
   visibility: z.enum(['company', 'private']),
   allowSuperadminAccess: z.boolean(),
+  allowTxnTransfers: z.boolean(),
 });
 
 export const projectsResponseSchema = z.array(projectResponseSchema);

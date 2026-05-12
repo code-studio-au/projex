@@ -84,6 +84,9 @@ export default function ProjectSettingsPanel(props: {
 
   const canEditProject = access.can('project:edit', projectId);
   const canEditCompanyStructure = access.can('company:edit');
+  const canManageTransferCapability =
+    canEditCompanyStructure &&
+    (!access.isSuperadmin || (project.data?.allowSuperadminAccess ?? false));
   const programmeOptions = useMemo(
     () =>
       (projects.data ?? [])
@@ -308,6 +311,22 @@ export default function ProjectSettingsPanel(props: {
                 setPendingSuperadminAccess(event.currentTarget.checked)
               }
               disabled={!canEditProject || updateProject.isPending}
+            />
+            <Switch
+              label="Allow transaction transfers out"
+              description="Company admins, executives, and management can enable whether this project may move transactions to another project. Programmes cannot transfer transactions."
+              checked={project.data.allowTxnTransfers}
+              onChange={(event) =>
+                updateProject.mutate({
+                  id: projectId,
+                  allowTxnTransfers: event.currentTarget.checked,
+                })
+              }
+              disabled={
+                !canManageTransferCapability ||
+                project.data.projectType === 'programme' ||
+                updateProject.isPending
+              }
             />
           </Stack>
         </Stack>

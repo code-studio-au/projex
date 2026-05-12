@@ -709,6 +709,7 @@ export default function ProjectWorkspace(props: {
               transactionView={transactionView}
               setTransactionView={setTransactionView}
               initialCommentTxnId={initialCommentTxnId}
+              transferOutEnabled={project.data?.allowTxnTransfers === true}
               transferProjectOptions={transferProjectOptions}
               onClearFilters={() => {
                 setYearFilter(null);

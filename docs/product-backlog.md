@@ -94,6 +94,7 @@ Design direction:
 - create a receiving-side transaction or allocation that must be coded in the destination project
 - exclude the original-side transfer marker from budget/spend calculations
 - require same-company validation at the server and database boundary
+- transfers are disabled by default per project and must be enabled in project settings by company admin/executive/management users, or by global superadmin when project superadmin access is enabled
 - transfers currently support standard transactions and split children, not split parents
 
 ### 4. Programmes for reporting-only project rollups

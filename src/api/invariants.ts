@@ -17,6 +17,7 @@ export const INVARIANTS: readonly string[] = [
   'Budget allocations remain non-negative approved spend capacity.',
   'Only transactions with Txn.budgetImpact=true contribute to budget actuals and uncoded spend exposure.',
   'Transactions with Txn.categorisable=false cannot carry category, subcategory, mapping rule, or pending-coding metadata.',
+  'Project.allowTxnTransfers is the server-enforced source-project gate for moving transactions to another project and defaults to false.',
 
   // Dates & time
   'Txn.date is YYYY-MM-DD and maps to Postgres DATE.',

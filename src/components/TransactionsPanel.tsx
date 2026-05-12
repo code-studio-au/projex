@@ -89,6 +89,7 @@ export default function TransactionsPanel(props: {
   transactionView: TransactionView;
   setTransactionView: (v: TransactionView) => void;
   initialCommentTxnId?: TxnId | null;
+  transferOutEnabled: boolean;
   transferProjectOptions: Array<{ value: ProjectId; label: string }>;
   onClearFilters: () => void;
   canEditTaxonomy: boolean;
@@ -111,6 +112,7 @@ export default function TransactionsPanel(props: {
     transactionView,
     setTransactionView,
     initialCommentTxnId = null,
+    transferOutEnabled,
     transferProjectOptions,
     onClearFilters,
     canEditTaxonomy,
@@ -305,6 +307,7 @@ export default function TransactionsPanel(props: {
   function canTransferTransaction(txn: Txn): boolean {
     return (
       !readOnly &&
+      transferOutEnabled &&
       !txn.lockedAt &&
       transferProjectOptions.length > 0 &&
       isBudgetImpactTxn(txn) &&

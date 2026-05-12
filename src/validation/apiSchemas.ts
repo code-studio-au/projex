@@ -172,6 +172,7 @@ export const updateProjectBodySchema = z.object({
   currency: currencySchema.optional(),
   visibility: projectVisibilitySchema.optional(),
   allowSuperadminAccess: z.boolean().optional(),
+  allowTxnTransfers: z.boolean().optional(),
 });
 
 export const deleteCompanyBodySchema = z.object({

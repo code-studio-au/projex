@@ -62,7 +62,7 @@ npm run smoke:cleanup
 
 - Companies own users, company defaults, projects, and programmes.
 - Programmes are reporting-only containers. They can group one or more operational projects and show rollups for company admins, executives, and global superadmins.
-- Projects are the operational workspace for budgets, imports, transactions, taxonomy, coding, splits, and transfers.
+- Projects are the operational workspace for budgets, imports, transactions, taxonomy, coding, splits, and transfers. Transaction transfer-out is disabled by default and can be enabled per project by company admins, executives, management, or an enabled global superadmin.
 - Programme rollups are derived from active sub-project data; transactions and budgets are never duplicated onto the programme.
 - Sub-projects must belong to the same company and use the same currency as their programme.
 - PowerBI expenditure actuals are the primary import shape. Import Rules run before Auto-Categorise Rules so rows can be imported, excluded, or staged for project review before any category/subcategory coding is applied.

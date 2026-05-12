@@ -689,6 +689,12 @@ export async function transferTxnServer(args: {
       args.projectId,
       'txns:edit'
     );
+    if (!sourceContext.allowTxnTransfers) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Transaction transfers are not enabled for this project'
+      );
+    }
     const destinationContext = await requireOperationalProjectForAction(
       args.context,
       args.input.destinationProjectId,
