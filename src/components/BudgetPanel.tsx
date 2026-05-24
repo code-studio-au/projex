@@ -17,7 +17,13 @@ import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
 import { IconCheck, IconColumns, IconPencil, IconX } from '@tabler/icons-react';
 import type { RollupsHook } from '../hooks/useRollups';
 import type { BudgetsHook } from '../hooks/useBudgets';
-import type { ProjectId, RollupRow } from '../types';
+import type {
+  CategoryId,
+  ProjectId,
+  RollupRow,
+  SubCategoryId,
+  TransactionDrilldownFilter,
+} from '../types';
 import {
   formatMonthLabel,
   parseYearMonth,
@@ -28,7 +34,12 @@ import {
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 import { LoadingLine } from './LoadingValue';
 
-type BudgetDisplayRow = RollupRow & {
+type BudgetRollupRowWithTaxonomy = RollupRow & {
+  categoryId: CategoryId;
+  subCategoryId: SubCategoryId;
+};
+
+type BudgetDisplayRow = BudgetRollupRowWithTaxonomy & {
   rowKind: 'category' | 'subcategory';
   rowId: string;
 };
@@ -52,6 +63,20 @@ const HEADER_STYLE = {
   justifyContent: 'flex-end',
 } as const;
 
+const DRILLDOWN_BUTTON_STYLE = {
+  appearance: 'none',
+  background: 'transparent',
+  border: 0,
+  color: 'inherit',
+  cursor: 'pointer',
+  font: 'inherit',
+  padding: 0,
+  textAlign: 'left',
+  textDecoration: 'underline',
+  textDecorationColor: 'rgba(0, 0, 0, 0.25)',
+  textUnderlineOffset: 3,
+} as const;
+
 /**
  * Budget rollup table (UI-only).
  *
@@ -73,6 +98,7 @@ export default function BudgetPanel(props: {
   monthFilterKey: string | null;
   setMonthFilterKey: (value: string | null) => void;
   onClearFilters: () => void;
+  onTransactionDrilldown?: (filter: TransactionDrilldownFilter) => void;
   onUpdateProjectBudgetTotal?: (budgetTotalCents: number) => Promise<void>;
   rollups: RollupsHook;
   budgets: BudgetsHook;
@@ -94,6 +120,7 @@ export default function BudgetPanel(props: {
     monthFilterKey,
     setMonthFilterKey,
     onClearFilters,
+    onTransactionDrilldown,
     onUpdateProjectBudgetTotal,
     rollups,
     budgets,
@@ -184,15 +211,24 @@ export default function BudgetPanel(props: {
   const displayRows = useMemo<BudgetDisplayRow[]>(() => {
     const grouped = new Map<
       string,
-      { categoryId: string; categoryName: string; rows: RollupRow[] }
+      {
+        categoryId: CategoryId;
+        categoryName: string;
+        rows: BudgetRollupRowWithTaxonomy[];
+      }
     >();
 
-    for (const row of rollups.rollupRows) {
-      const key = row.categoryId ?? `uncategorized:${row.categoryName.trim()}`;
+    const visibleRollupRows = rollups.rollupRows.filter(
+      (row): row is BudgetRollupRowWithTaxonomy =>
+        Boolean(row.categoryId && row.subCategoryId)
+    );
+
+    for (const row of visibleRollupRows) {
+      const key = row.categoryId;
       const existing = grouped.get(key) ?? {
-        categoryId: key,
+        categoryId: row.categoryId,
         categoryName: row.categoryName.trim(),
-        rows: [] as RollupRow[],
+        rows: [] as BudgetRollupRowWithTaxonomy[],
       };
       existing.rows.push(row);
       grouped.set(key, existing);
@@ -430,19 +466,34 @@ export default function BudgetPanel(props: {
           className: 'table-head-cell table-head-left budgetTable-head',
         },
         mantineTableBodyCellProps: { className: 'budgetTable-cell' },
-        Cell: ({ row }) => (
-          <Text
-            className={
-              row.original.rowKind === 'category'
-                ? 'table-body-left-bold'
-                : 'table-body-left'
-            }
-          >
-            {row.original.rowKind === 'category'
-              ? row.original.categoryName
-              : ''}
-          </Text>
-        ),
+        Cell: ({ row }) => {
+          const handleDrilldown =
+            row.original.rowKind === 'category'
+              ? () =>
+                  onTransactionDrilldown?.({
+                    kind: 'category',
+                    categoryId: row.original.categoryId,
+                    categoryName: row.original.categoryName,
+                  })
+              : undefined;
+          return (
+            <Text
+              component={handleDrilldown ? 'button' : 'span'}
+              type={handleDrilldown ? 'button' : undefined}
+              className={
+                row.original.rowKind === 'category'
+                  ? 'table-body-left-bold'
+                  : 'table-body-left'
+              }
+              style={handleDrilldown ? DRILLDOWN_BUTTON_STYLE : undefined}
+              onClick={handleDrilldown}
+            >
+              {row.original.rowKind === 'category'
+                ? row.original.categoryName
+                : ''}
+            </Text>
+          );
+        },
       },
       {
         accessorKey: 'subCategoryName',
@@ -453,19 +504,36 @@ export default function BudgetPanel(props: {
           className: 'table-head-cell table-head-left budgetTable-head',
         },
         mantineTableBodyCellProps: { className: 'budgetTable-cell' },
-        Cell: ({ row }) => (
-          <Text
-            className={
-              row.original.rowKind === 'category'
-                ? 'table-body-left-bold'
-                : 'budgetTable-subcategory'
-            }
-          >
-            {row.original.rowKind === 'category'
-              ? ''
-              : row.original.subCategoryName}
-          </Text>
-        ),
+        Cell: ({ row }) => {
+          const handleDrilldown =
+            row.original.rowKind === 'subcategory'
+              ? () =>
+                  onTransactionDrilldown?.({
+                    kind: 'subcategory',
+                    categoryId: row.original.categoryId,
+                    categoryName: row.original.categoryName,
+                    subCategoryId: row.original.subCategoryId,
+                    subCategoryName: row.original.subCategoryName,
+                  })
+              : undefined;
+          return (
+            <Text
+              component={handleDrilldown ? 'button' : 'span'}
+              type={handleDrilldown ? 'button' : undefined}
+              className={
+                row.original.rowKind === 'category'
+                  ? 'table-body-left-bold'
+                  : 'budgetTable-subcategory'
+              }
+              style={handleDrilldown ? DRILLDOWN_BUTTON_STYLE : undefined}
+              onClick={handleDrilldown}
+            >
+              {row.original.rowKind === 'category'
+                ? ''
+                : row.original.subCategoryName}
+            </Text>
+          );
+        },
       },
       {
         accessorKey: 'allocatedCents',
@@ -546,7 +614,13 @@ export default function BudgetPanel(props: {
       },
       ...timeColumns,
     ];
-  }, [currencyCode, updateAllocated, readOnly, timeColumns]);
+  }, [
+    currencyCode,
+    onTransactionDrilldown,
+    updateAllocated,
+    readOnly,
+    timeColumns,
+  ]);
 
   return (
     <Stack gap="md">

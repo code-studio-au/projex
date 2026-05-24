@@ -50,6 +50,20 @@ export type Project = {
   allowTxnTransfers: boolean;
 };
 
+export type TransactionDrilldownFilter =
+  | {
+      kind: 'category';
+      categoryId: CategoryId;
+      categoryName: string;
+    }
+  | {
+      kind: 'subcategory';
+      categoryId: CategoryId;
+      categoryName: string;
+      subCategoryId: SubCategoryId;
+      subCategoryName: string;
+    };
+
 export type User = {
   id: UserId;
   email: string;

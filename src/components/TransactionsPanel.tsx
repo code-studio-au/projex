@@ -27,7 +27,13 @@ import {
 } from '@tabler/icons-react';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
-import type { ProjectId, Txn, TxnComment, TxnId } from '../types';
+import type {
+  ProjectId,
+  TransactionDrilldownFilter,
+  Txn,
+  TxnComment,
+  TxnId,
+} from '../types';
 import { monthKeyFromStart, monthStart, parseISODate } from '../utils/finance';
 import { formatCurrencyFromCents } from '../utils/money';
 import {
@@ -88,6 +94,8 @@ export default function TransactionsPanel(props: {
   setMonthFilterKey: (value: string | null) => void;
   transactionView: TransactionView;
   setTransactionView: (v: TransactionView) => void;
+  transactionDrilldown?: TransactionDrilldownFilter | null;
+  onClearTransactionDrilldown?: () => void;
   initialCommentTxnId?: TxnId | null;
   transferOutEnabled: boolean;
   transferProjectOptions: Array<{ value: ProjectId; label: string }>;
@@ -111,6 +119,8 @@ export default function TransactionsPanel(props: {
     setMonthFilterKey,
     transactionView,
     setTransactionView,
+    transactionDrilldown = null,
+    onClearTransactionDrilldown,
     initialCommentTxnId = null,
     transferOutEnabled,
     transferProjectOptions,
@@ -226,6 +236,19 @@ export default function TransactionsPanel(props: {
           (commentSummaryByTxnId.get(t.id)?.assignedToMeUnresolvedCount ?? 0) >
           0
       );
+    if (transactionDrilldown) {
+      out = out.filter((t) => {
+        if (!isBudgetImpactTxn(t)) return false;
+        if (!isCategorisableTxn(t)) return false;
+        if (!t.subCategoryId || !taxonomy.validSubIds.has(t.subCategoryId)) {
+          return false;
+        }
+        if (transactionDrilldown.kind === 'subcategory') {
+          return t.subCategoryId === transactionDrilldown.subCategoryId;
+        }
+        return t.categoryId === transactionDrilldown.categoryId;
+      });
+    }
     return out;
   }, [
     commentSummaryByTxnId,
@@ -234,8 +257,15 @@ export default function TransactionsPanel(props: {
     quarterFilter,
     monthFilterKey,
     transactionView,
+    transactionDrilldown,
     taxonomy.validSubIds,
   ]);
+
+  const drilldownLabel = transactionDrilldown
+    ? transactionDrilldown.kind === 'subcategory'
+      ? `${transactionDrilldown.categoryName} > ${transactionDrilldown.subCategoryName}`
+      : transactionDrilldown.categoryName
+    : null;
 
   const autoMappedPendingTxns = useMemo(
     () =>
@@ -983,6 +1013,24 @@ export default function TransactionsPanel(props: {
             </Button>
           </Group>
 
+          {drilldownLabel ? (
+            <Group gap="sm" align="center" wrap="wrap">
+              <Badge variant="light" color="blue">
+                Budget drilldown
+              </Badge>
+              <Text size="sm" c="dimmed">
+                Showing budget-impact transactions for {drilldownLabel}.
+              </Text>
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={onClearTransactionDrilldown}
+              >
+                Clear drilldown
+              </Button>
+            </Group>
+          ) : null}
+
           {invalidDateCount > 0 && (
             <Text size="sm" c="dimmed">
               {invalidDateCount} transaction(s) have invalid dates and may be
@@ -993,7 +1041,7 @@ export default function TransactionsPanel(props: {
       </Paper>
 
       <MantineReactTable
-        key={`${yearFilter ?? 'all'}-${quarterFilter ?? 'all'}-${monthFilterKey ?? 'all'}-${transactionView}`}
+        key={`${yearFilter ?? 'all'}-${quarterFilter ?? 'all'}-${monthFilterKey ?? 'all'}-${transactionView}-${transactionDrilldown?.kind ?? 'none'}-${transactionDrilldown?.kind === 'subcategory' ? transactionDrilldown.subCategoryId : (transactionDrilldown?.categoryId ?? 'all')}`}
         columns={txnColumns}
         data={filteredTxns}
         getRowId={(row) => row.id}

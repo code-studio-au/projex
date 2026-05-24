@@ -15,7 +15,12 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
-import type { CompanyId, ProjectId, TxnId } from '../types';
+import type {
+  CompanyId,
+  ProjectId,
+  TransactionDrilldownFilter,
+  TxnId,
+} from '../types';
 
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useBudgets } from '../hooks/useBudgets';
@@ -186,6 +191,8 @@ export default function ProjectWorkspace(props: {
   const [transactionView, setTransactionView] = useState<TransactionView>(
     initialTransactionView
   );
+  const [transactionDrilldown, setTransactionDrilldown] =
+    useState<TransactionDrilldownFilter | null>(null);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -206,6 +213,12 @@ export default function ProjectWorkspace(props: {
   useEffect(() => {
     setTransactionView(initialTransactionView);
   }, [initialTransactionView]);
+
+  function openTransactionDrilldown(filter: TransactionDrilldownFilter) {
+    setTransactionDrilldown(filter);
+    setTransactionView('all');
+    setActiveTab('transactions');
+  }
 
   const rollups = useRollups({
     transactions: txns.transactions,
@@ -708,6 +721,8 @@ export default function ProjectWorkspace(props: {
               setMonthFilterKey={setMonthFilterKey}
               transactionView={transactionView}
               setTransactionView={setTransactionView}
+              transactionDrilldown={transactionDrilldown}
+              onClearTransactionDrilldown={() => setTransactionDrilldown(null)}
               initialCommentTxnId={initialCommentTxnId}
               transferOutEnabled={project.data?.allowTxnTransfers === true}
               transferProjectOptions={transferProjectOptions}
@@ -715,6 +730,7 @@ export default function ProjectWorkspace(props: {
                 setYearFilter(null);
                 setQuarterFilter(null);
                 setMonthFilterKey(null);
+                setTransactionDrilldown(null);
                 void router.navigate({
                   to: '/c/$companyId/p/$projectId',
                   params: { companyId, projectId },
@@ -770,6 +786,7 @@ export default function ProjectWorkspace(props: {
                   replace: true,
                 });
               }}
+              onTransactionDrilldown={openTransactionDrilldown}
               onUpdateProjectBudgetTotal={async (budgetTotalCents) => {
                 await updateProject.mutateAsync({
                   id: projectId,
