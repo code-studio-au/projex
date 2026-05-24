@@ -81,7 +81,7 @@ async function requireProjectContext(
 async function requireCompanyContext(
   context: ServerFnContextInput,
   companyId: CompanyId,
-  action: 'company:view' | 'company:edit'
+  action: 'company:view' | 'company:manage_defaults'
 ) {
   const db = getDb();
   const userId = await requireServerUserId(context);
@@ -287,7 +287,7 @@ export async function deleteCategoryServer(args: {
           category_id: null,
           sub_category_id: null,
           company_default_mapping_rule_id: null,
-          coding_source: 'manual',
+          coding_source: null,
           coding_pending_approval: false,
           updated_at: new Date().toISOString(),
         })
@@ -302,7 +302,7 @@ export async function deleteCategoryServer(args: {
             category_id: null,
             sub_category_id: null,
             company_default_mapping_rule_id: null,
-            coding_source: 'manual',
+            coding_source: null,
             coding_pending_approval: false,
             updated_at: new Date().toISOString(),
           })
@@ -511,7 +511,7 @@ export async function deleteSubCategoryServer(args: {
           category_id: null,
           sub_category_id: null,
           company_default_mapping_rule_id: null,
-          coding_source: 'manual',
+          coding_source: null,
           coding_pending_approval: false,
           updated_at: now,
         })
@@ -660,7 +660,7 @@ export async function createCompanyDefaultCategoryServer(args: {
 }): Promise<CompanyDefaultCategory> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(args.context, args.companyId, 'company:manage_defaults');
     validateOrThrow(categoryNameSchema, args.input.name);
     const db = getDb();
     const name = args.input.name.trim();
@@ -697,7 +697,7 @@ export async function updateCompanyDefaultCategoryServer(args: {
 }): Promise<CompanyDefaultCategory> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(args.context, args.companyId, 'company:manage_defaults');
     const db = getDb();
     const existing = await db
       .selectFrom('company_default_categories')
@@ -748,7 +748,7 @@ export async function deleteCompanyDefaultCategoryServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(args.context, args.companyId, 'company:manage_defaults');
     const db = getDb();
     await db
       .deleteFrom('company_default_categories')
@@ -765,7 +765,7 @@ export async function createCompanyDefaultSubCategoryServer(args: {
 }): Promise<CompanyDefaultSubCategory> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(args.context, args.companyId, 'company:manage_defaults');
     validateOrThrow(subCategoryNameSchema, args.input.name);
     const db = getDb();
     const name = args.input.name.trim();
@@ -831,7 +831,7 @@ export async function updateCompanyDefaultSubCategoryServer(args: {
 }): Promise<CompanyDefaultSubCategory> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(args.context, args.companyId, 'company:manage_defaults');
     const db = getDb();
     const existing = await db
       .selectFrom('company_default_sub_categories')
@@ -914,7 +914,7 @@ export async function deleteCompanyDefaultSubCategoryServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(args.context, args.companyId, 'company:manage_defaults');
     const db = getDb();
     await db
       .deleteFrom('company_default_sub_categories')
@@ -931,7 +931,7 @@ export async function createCompanyDefaultMappingRuleServer(args: {
 }): Promise<CompanyDefaultMappingRule> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(args.context, args.companyId, 'company:manage_defaults');
     validateOrThrow(subCategoryNameSchema, args.input.matchText);
     const db = getDb();
     const matchText = args.input.matchText.trim();
@@ -1031,7 +1031,7 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
 }): Promise<CompanyDefaultMappingRule> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(args.context, args.companyId, 'company:manage_defaults');
     const db = getDb();
     const existing = await db
       .selectFrom('company_default_mapping_rules')
@@ -1161,7 +1161,7 @@ export async function deleteCompanyDefaultMappingRuleServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(args.context, args.companyId, 'company:manage_defaults');
     const db = getDb();
     await db
       .deleteFrom('company_default_mapping_rules')

@@ -7,6 +7,7 @@ import type { CompanyId, ImportRule } from '../../types';
 import { asCompanyId, asImportRuleId } from '../../types';
 import { defaultPowerBiImportRules } from '../../utils/powerBiImport';
 import { uid } from '../../utils/id';
+import type { Action } from '../../utils/auth';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
 import {
@@ -33,7 +34,7 @@ type ImportRuleRow = {
 async function requireCompanyContext(
   context: ServerFnContextInput,
   companyId: CompanyId,
-  action: 'company:view' | 'company:edit'
+  action: Action
 ) {
   const db = getDb();
   const userId = await requireServerUserId(context);
@@ -136,7 +137,11 @@ export async function createImportRuleServer(args: {
 }): Promise<ImportRule> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(
+      args.context,
+      args.companyId,
+      'company:manage_defaults'
+    );
     if (args.input.companyId !== args.companyId) {
       throw new AppError(
         'VALIDATION_ERROR',
@@ -173,7 +178,11 @@ export async function updateImportRuleServer(args: {
 }): Promise<ImportRule> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(
+      args.context,
+      args.companyId,
+      'company:manage_defaults'
+    );
 
     const existing = await getDb()
       .selectFrom('import_rules')
@@ -218,7 +227,11 @@ export async function deleteImportRuleServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(args.context, args.companyId, 'company:edit');
+    await requireCompanyContext(
+      args.context,
+      args.companyId,
+      'company:manage_defaults'
+    );
     await getDb()
       .deleteFrom('import_rules')
       .where('company_id', '=', args.companyId)

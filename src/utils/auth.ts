@@ -10,13 +10,21 @@ import type {
 
 export type Action =
   | 'company:view'
-  | 'company:edit'
+  | 'company:update_details'
   | 'company:manage_members'
+  | 'company:manage_defaults'
+  | 'project:create'
   | 'project:list'
   | 'project:view'
   | 'project:edit'
+  | 'project:configure'
+  | 'project:lifecycle'
   | 'project:import'
   | 'budget:edit'
+  | 'comments:create'
+  | 'comments:assign'
+  | 'comments:resolve'
+  | 'comments:moderate'
   | 'taxonomy:edit'
   | 'txns:edit';
 
@@ -93,12 +101,18 @@ export function can(params: {
   if (action.startsWith('company:')) {
     if (!cRole) return false;
     if (action === 'company:view') return true;
-    if (action === 'company:edit')
+    if (action === 'company:update_details')
       return (
         cRole === 'admin' || cRole === 'executive' || cRole === 'management'
       );
     if (action === 'company:manage_members') return cRole === 'admin';
+    if (action === 'company:manage_defaults')
+      return cRole === 'admin' || cRole === 'executive';
     return false;
+  }
+
+  if (action === 'project:create') {
+    return cRole === 'admin' || cRole === 'executive';
   }
 
   // project-level permissions
@@ -122,11 +136,27 @@ export function can(params: {
   // Team members can work in txns + budget only.
   if (action === 'project:edit')
     return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+  if (action === 'project:configure' || action === 'project:lifecycle') {
+    return companyCanEdit;
+  }
 
   // Import + taxonomy are restricted to company exec/admin or project lead/owner.
   if (action === 'project:import')
     return companyCanEdit || pRole === 'owner' || pRole === 'lead';
   if (action === 'taxonomy:edit')
+    return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+  if (action === 'comments:create')
+    return (
+      companyCanEdit ||
+      pRole === 'owner' ||
+      pRole === 'lead' ||
+      pRole === 'member'
+    );
+  if (
+    action === 'comments:assign' ||
+    action === 'comments:resolve' ||
+    action === 'comments:moderate'
+  )
     return companyCanEdit || pRole === 'owner' || pRole === 'lead';
 
   // Budgets + transactions can be edited by leads AND members (within projects they belong to).

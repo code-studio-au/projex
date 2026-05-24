@@ -83,7 +83,7 @@ export default function ProjectSettingsPanel(props: {
   const updateProject = useUpdateProjectMutation(companyId);
 
   const canEditProject = access.can('project:edit', projectId);
-  const canEditCompanyStructure = access.can('company:edit');
+  const canEditCompanyStructure = access.can('project:configure', projectId);
   const canManageTransferCapability =
     canEditCompanyStructure &&
     (!access.isSuperadmin || (project.data?.allowSuperadminAccess ?? false));

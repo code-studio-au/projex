@@ -320,7 +320,7 @@ export async function createProjectServer(args: {
     await requireAuthorized({
       db,
       userId,
-      action: 'company:edit',
+      action: 'project:create',
       companyId: args.companyId,
     });
 
@@ -415,7 +415,7 @@ export async function updateProjectServer(args: {
       await requireAuthorized({
         db,
         userId,
-        action: 'company:edit',
+        action: 'project:configure',
         companyId,
         projectId,
       });
@@ -524,8 +524,9 @@ export async function deactivateProjectServer(args: {
     await requireAuthorized({
       db,
       userId,
-      action: 'company:edit',
+      action: 'project:lifecycle',
       companyId: asCompanyId(project.company_id),
+      projectId: args.projectId,
     });
     if (project.status === 'archived') return;
 
@@ -558,8 +559,9 @@ export async function reactivateProjectServer(args: {
     await requireAuthorized({
       db,
       userId,
-      action: 'company:edit',
+      action: 'project:lifecycle',
       companyId: asCompanyId(project.company_id),
+      projectId: args.projectId,
     });
 
     const company = await db
@@ -606,8 +608,9 @@ export async function deleteProjectServer(args: {
     await requireAuthorized({
       db,
       userId,
-      action: 'company:edit',
+      action: 'project:lifecycle',
       companyId: asCompanyId(project.company_id),
+      projectId: args.projectId,
     });
 
     if (args.confirmation.trim() !== `DELETE ${project.name}`) {

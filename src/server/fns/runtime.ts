@@ -1,6 +1,7 @@
 import { AppError, toAppError } from '../../api/errors';
 import type { UserId } from '../../types';
 import { getAuthSessionFromRequest } from '../auth/betterAuth';
+import { getDb } from '../db/db';
 import {
   requireUserId,
   toServerSession,
@@ -39,7 +40,19 @@ export async function requireServerUserId(
   context: ServerFnContextInput
 ): Promise<UserId> {
   const session = await resolveSession(context);
-  return requireUserId(session);
+  const userId = requireUserId(session);
+  const user = await getDb()
+    .selectFrom('users')
+    .select(['id', 'disabled'])
+    .where('id', '=', userId)
+    .executeTakeFirst();
+  if (!user) {
+    throw new AppError('UNAUTHENTICATED', 'Not authenticated');
+  }
+  if (user.disabled) {
+    throw new AppError('FORBIDDEN', 'User is disabled');
+  }
+  return userId;
 }
 
 /**

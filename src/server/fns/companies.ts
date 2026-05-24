@@ -748,7 +748,7 @@ export async function updateCompanyServer(args: {
     await requireAuthorized({
       db,
       userId,
-      action: 'company:edit',
+      action: 'company:update_details',
       companyId: args.input.id,
     });
 
@@ -807,26 +807,46 @@ export async function deactivateCompanyServer(args: {
         .execute();
 
       const memberRows = await trx
-        .selectFrom('company_memberships')
-        .select('user_id')
-        .where('company_id', '=', args.companyId)
+        .selectFrom('company_memberships as memberships')
+        .innerJoin('users', 'users.id', 'memberships.user_id')
+        .select([
+          'memberships.user_id as user_id',
+          'users.disabled as disabled',
+          'users.disabled_reason as disabled_reason',
+          'users.is_global_superadmin as is_global_superadmin',
+        ])
+        .where('memberships.company_id', '=', args.companyId)
         .execute();
       const memberIds = memberRows.map((r) => r.user_id);
       if (!memberIds.length) return;
 
-      const superRows = await trx
-        .selectFrom('users')
-        .select('id')
-        .where('is_global_superadmin', '=', true)
-        .where('id', 'in', memberIds)
+      const otherActiveMembershipRows = await trx
+        .selectFrom('company_memberships as memberships')
+        .innerJoin('companies', 'companies.id', 'memberships.company_id')
+        .select('memberships.user_id')
+        .where('memberships.user_id', 'in', memberIds)
+        .where('memberships.company_id', '!=', args.companyId)
+        .where('companies.status', '=', 'active')
         .execute();
-      const superIds = new Set(superRows.map((r) => r.id));
-      const disableIds = memberIds.filter((id) => !superIds.has(id));
+      const usersWithOtherActiveCompanies = new Set(
+        otherActiveMembershipRows.map((row) => row.user_id)
+      );
+      const disableIds = memberRows
+        .filter((row) => !row.is_global_superadmin)
+        .filter((row) => !usersWithOtherActiveCompanies.has(row.user_id))
+        .filter(
+          (row) =>
+            !row.disabled || row.disabled_reason === 'company_deactivated'
+        )
+        .map((row) => row.user_id);
       if (!disableIds.length) return;
 
       await trx
         .updateTable('users')
-        .set({ disabled: true })
+        .set({
+          disabled: true,
+          disabled_reason: 'company_deactivated',
+        })
         .where('id', 'in', disableIds)
         .execute();
     });
@@ -867,17 +887,23 @@ export async function reactivateCompanyServer(args: {
         .execute();
 
       const memberRows = await trx
-        .selectFrom('company_memberships')
-        .select('user_id')
-        .where('company_id', '=', args.companyId)
+        .selectFrom('company_memberships as memberships')
+        .innerJoin('users', 'users.id', 'memberships.user_id')
+        .select([
+          'memberships.user_id as user_id',
+          'users.disabled_reason as disabled_reason',
+        ])
+        .where('memberships.company_id', '=', args.companyId)
         .execute();
-      const memberIds = memberRows.map((r) => r.user_id);
-      if (!memberIds.length) return;
+      const reenableIds = memberRows
+        .filter((row) => row.disabled_reason === 'company_deactivated')
+        .map((row) => row.user_id);
+      if (!reenableIds.length) return;
 
       await trx
         .updateTable('users')
-        .set({ disabled: false })
-        .where('id', 'in', memberIds)
+        .set({ disabled: false, disabled_reason: null })
+        .where('id', 'in', reenableIds)
         .execute();
     });
   });

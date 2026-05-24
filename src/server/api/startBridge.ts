@@ -38,9 +38,6 @@ export async function runWithStartServerApi<T>(
     return await run(api);
   } catch (err) {
     if (err instanceof AppError) throw err;
-    throw new AppError(
-      'INTERNAL_ERROR',
-      err instanceof Error ? err.message : 'Unexpected server error'
-    );
+    throw new AppError('INTERNAL_ERROR', 'Unexpected server error');
   }
 }

@@ -91,7 +91,7 @@ Production/staging server mode requires:
 Recommended direct resolver:
 
 ```bash
-BETTER_AUTH_DIRECT_SESSION_FN=src/server/auth/authProvider.ts#getSessionFromRequest
+BETTER_AUTH_DIRECT_SESSION_FN=./dist/server/auth/authProvider.js#getSessionFromRequest
 ```
 
 Operational defaults:

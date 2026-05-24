@@ -120,11 +120,15 @@ export async function createBudgetServer(args: {
       (b) => b.sub_category_id === (args.input.subCategoryId ?? null)
     );
     if (existing) {
-      if (existing.category_id !== (args.input.categoryId ?? null)) {
+      if (
+        existing.category_id !== (args.input.categoryId ?? null) ||
+        existing.allocated_cents !== args.input.allocatedCents
+      ) {
         const updated = await db
           .updateTable('budget_lines')
           .set({
             category_id: args.input.categoryId ?? null,
+            allocated_cents: args.input.allocatedCents,
             updated_at: new Date().toISOString(),
           })
           .where('project_id', '=', args.projectId)

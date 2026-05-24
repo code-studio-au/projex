@@ -17,7 +17,6 @@ let startupValidated = false;
  */
 export function validateServerStartupEnv(): void {
   if (startupValidated) return;
-  startupValidated = true;
 
   const isProd = process.env.NODE_ENV === 'production';
   if (!isProd) return;
@@ -46,6 +45,8 @@ export function validateServerStartupEnv(): void {
       `Missing required production env var(s): ${missing.join(', ')}`
     );
   }
+
+  startupValidated = true;
 }
 
 // Test-only helper to allow deterministic env-validation assertions.

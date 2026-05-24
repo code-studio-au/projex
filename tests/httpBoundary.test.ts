@@ -80,7 +80,7 @@ function parseRequestLog(value: string): RequestLog {
   };
 }
 
-function captureConsole(method: 'info' | 'warn') {
+function captureConsole(method: 'info' | 'warn' | 'error') {
   const original = console[method];
   const messages: string[] = [];
   console[method] = (message?: unknown) => {
@@ -153,6 +153,36 @@ test('withPublicApi converts AppError into request-id responses and warning logs
     assert.equal(log.status, 422);
     assert.equal(log.code, 'VALIDATION_ERROR');
     assert.equal(log.message, 'Bad input');
+  } finally {
+    logs.restore();
+  }
+});
+
+test('withPublicApi hides unexpected error messages from clients', async () => {
+  const logs = captureConsole('error');
+  try {
+    const response = await withPublicApi(
+      new Request('http://localhost/api/example', {
+        method: 'POST',
+        headers: { 'x-request-id': 'req_test_internal' },
+      }),
+      async () => {
+        throw new Error('database connection exploded');
+      }
+    );
+
+    assert.equal(response.status, 500);
+    assert.equal(response.headers.get('x-request-id'), 'req_test_internal');
+    assert.deepEqual(await response.json(), {
+      code: 'INTERNAL_ERROR',
+      message: 'Unexpected server error',
+    });
+
+    assert.equal(logs.messages.length, 1);
+    const log = parseRequestLog(logs.messages[0]);
+    assert.equal(log.level, 'error');
+    assert.equal(log.status, 500);
+    assert.equal(log.message, undefined);
   } finally {
     logs.restore();
   }

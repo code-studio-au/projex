@@ -141,7 +141,7 @@ async function withApiCore(
     const res = Response.json(
       {
         code: 'INTERNAL_ERROR',
-        message: err instanceof Error ? err.message : 'Unexpected server error',
+        message: 'Unexpected server error',
       },
       { status: 500 }
     );

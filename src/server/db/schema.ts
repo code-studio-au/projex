@@ -37,6 +37,7 @@ export interface UserTable {
   email: string;
   name: string;
   disabled: boolean;
+  disabled_reason: Generated<'company_deactivated' | 'admin_disabled' | null>;
   is_global_superadmin: boolean;
 }
 

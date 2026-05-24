@@ -28,6 +28,10 @@ import {
   txnInputSchema,
   userNameSchema,
 } from './schemas.ts';
+import {
+  MAX_IMPORT_PREVIEW_CSV_TEXT_LENGTH,
+  MAX_IMPORT_TXN_COUNT,
+} from '../utils/importLimits.ts';
 
 const idSchema = z.string().trim().min(1, 'Id is required');
 const companyIdSchema = idSchema.transform(asCompanyId);
@@ -444,13 +448,13 @@ const importedTxnInputSchema = createTxnInputSchema.extend({
 });
 
 export const txnImportInputSchema = z.object({
-  txns: z.array(importedTxnInputSchema),
+  txns: z.array(importedTxnInputSchema).max(MAX_IMPORT_TXN_COUNT),
   mode: csvImportModeSchema,
   autoCreateBudgets: z.boolean().optional(),
 });
 
 export const txnImportPreviewInputSchema = z.object({
-  csvText: z.string(),
+  csvText: z.string().max(MAX_IMPORT_PREVIEW_CSV_TEXT_LENGTH),
   sourceType: importPreviewSourceTypeSchema.optional(),
   fileName: z.string().trim().min(1).max(255).optional(),
   autoCreateStructures: z.boolean().optional(),

@@ -53,7 +53,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   // works across companies even without explicit membership.
   const currentCompanyRole = access.companyRole;
   const canAddCompanyUsers = access.can('company:manage_members');
-  const canEditCompanyDefaults = access.can('company:edit');
+  const canEditCompanyDefaults = access.can('company:manage_defaults');
   const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
   const companyDefaultsLoading =
     companyDefaultsQ.isPending && !companyDefaultsQ.data;

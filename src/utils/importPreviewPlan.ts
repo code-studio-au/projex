@@ -1,3 +1,4 @@
+import { AppError } from '../api/errors';
 import type {
   BudgetLine,
   Category,
@@ -12,6 +13,7 @@ import type {
 } from '../types';
 import { parseCsv } from './csv';
 import { buildImportPreview } from './importPreview';
+import { MAX_IMPORT_PREVIEW_ROW_COUNT } from './importLimits';
 import {
   decidePowerBiImportRule,
   powerBiAmountCents,
@@ -45,6 +47,12 @@ export function planImportPreview(args: {
   canEditBudgets: boolean;
 }): { rows: ImportPreviewRow[] } {
   const rows = parseCsv(args.csvText);
+  if (rows.length > MAX_IMPORT_PREVIEW_ROW_COUNT) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      `CSV import preview is limited to ${MAX_IMPORT_PREVIEW_ROW_COUNT} data rows`
+    );
+  }
   const importTxns = rowsToPowerBiImportTxns(rows, args.importRules ?? []);
   const existingKeys = new Set(
     args.existingTransactions.map(transactionImportKey)

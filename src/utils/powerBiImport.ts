@@ -6,6 +6,9 @@ import type {
 } from '../types';
 import { toCents } from './money';
 
+const MAX_REGEX_PATTERN_LENGTH = 128;
+const MAX_REGEX_HAYSTACK_LENGTH = 512;
+
 const POWER_BI_COLUMNS = {
   ledger: 'Ledger',
   fiscalYear: 'Fiscal Year',
@@ -285,8 +288,9 @@ function ruleMatches(row: PowerBiExpenditureActualsRow, rule: ImportRule) {
       return haystack.startsWith(needle);
     case 'regex':
       try {
+        if (rule.value.length > MAX_REGEX_PATTERN_LENGTH) return false;
         return new RegExp(rule.value, 'i').test(
-          valueForRuleField(row, rule.field)
+          valueForRuleField(row, rule.field).slice(0, MAX_REGEX_HAYSTACK_LENGTH)
         );
       } catch {
         return false;

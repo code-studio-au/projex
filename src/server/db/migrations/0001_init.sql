@@ -13,6 +13,7 @@ create table if not exists users (
   email text not null unique,
   name text not null,
   disabled boolean not null default false,
+  disabled_reason text null check (disabled_reason in ('company_deactivated', 'admin_disabled')),
   is_global_superadmin boolean not null default false
 );
 

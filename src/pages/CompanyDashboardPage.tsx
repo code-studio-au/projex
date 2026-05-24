@@ -55,17 +55,22 @@ export default function CompanyDashboardPage() {
   const projectsQ = useProjectsQuery(companyId);
 
   const access = useCompanyAccess(companyId);
-  const canEditCompany = access.can('company:edit');
+  const canUpdateCompanyDetails = access.can('company:update_details');
+  const canManageCompanyMembers = access.can('company:manage_members');
+  const canManageCompanyDefaults = access.can('company:manage_defaults');
   const membershipsQ = useAllCompanyMembershipsQuery();
   const usersQ = useUsersQuery();
 
   const createProject = useCreateProjectMutation(companyId);
-  const canAddProjects = canEditCompany;
+  const canAddProjects = access.can('project:create');
 
-  const canManageProjects = canEditCompany; // executive/admin/global superadmin
   const deactivateProject = useDeactivateProjectMutation(companyId);
   const reactivateProject = useReactivateProjectMutation(companyId);
   const deleteProject = useDeleteProjectMutation(companyId);
+  const canAccessSettings =
+    canUpdateCompanyDetails ||
+    canManageCompanyMembers ||
+    canManageCompanyDefaults;
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -315,7 +320,7 @@ export default function CompanyDashboardPage() {
               </Button>
             )}
 
-            {canManageProjects &&
+            {access.can('project:lifecycle', project.id) &&
               (project.status === 'active' ? (
                 <Button
                   size="xs"
@@ -513,7 +518,7 @@ export default function CompanyDashboardPage() {
             <Tabs.Tab value="summary">Summary</Tabs.Tab>
           ) : null}
           <Tabs.Tab value="projects">Projects & programmes</Tabs.Tab>
-          <Tabs.Tab value="settings" disabled={!canEditCompany}>
+          <Tabs.Tab value="settings" disabled={!canAccessSettings}>
             Settings
           </Tabs.Tab>
         </Tabs.List>

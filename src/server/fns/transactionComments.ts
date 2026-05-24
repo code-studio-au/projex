@@ -316,7 +316,7 @@ export async function createTransactionCommentServer(args: {
     const context = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
-      'project:view'
+      'comments:create'
     );
 
     validateOrThrow(txnCommentBodySchema, args.input.body);
@@ -399,7 +399,33 @@ export async function updateTransactionCommentServer(args: {
       await requireAuthorized({
         db: context.db,
         userId: context.userId,
-        action: 'txns:edit',
+        action: 'comments:moderate',
+        companyId: context.companyId,
+        projectId: context.projectId,
+      });
+    } else if (typeof args.input.body !== 'undefined') {
+      await requireAuthorized({
+        db: context.db,
+        userId: context.userId,
+        action: 'comments:create',
+        companyId: context.companyId,
+        projectId: context.projectId,
+      });
+    }
+    if (typeof args.input.assignedToUserId !== 'undefined') {
+      await requireAuthorized({
+        db: context.db,
+        userId: context.userId,
+        action: 'comments:assign',
+        companyId: context.companyId,
+        projectId: context.projectId,
+      });
+    }
+    if (typeof args.input.resolved !== 'undefined') {
+      await requireAuthorized({
+        db: context.db,
+        userId: context.userId,
+        action: 'comments:resolve',
         companyId: context.companyId,
         projectId: context.projectId,
       });
@@ -476,7 +502,15 @@ export async function deleteTransactionCommentServer(args: {
       await requireAuthorized({
         db: context.db,
         userId: context.userId,
-        action: 'txns:edit',
+        action: 'comments:moderate',
+        companyId: context.companyId,
+        projectId: context.projectId,
+      });
+    } else {
+      await requireAuthorized({
+        db: context.db,
+        userId: context.userId,
+        action: 'comments:create',
         companyId: context.companyId,
         projectId: context.projectId,
       });

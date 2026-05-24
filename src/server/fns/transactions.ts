@@ -1092,56 +1092,58 @@ export async function importTransactionsServer(args: {
 
     if (plan.importedTransactions.length) {
       const now = new Date().toISOString();
-      if (plan.budgetTargetsToCreate.length) {
-        await db
-          .insertInto('budget_lines')
+      await db.transaction().execute(async (trx) => {
+        if (plan.budgetTargetsToCreate.length) {
+          await trx
+            .insertInto('budget_lines')
+            .values(
+              plan.budgetTargetsToCreate.map((target) => ({
+                id: asBudgetLineId(uid('bud')),
+                company_id: companyId,
+                project_id: args.projectId,
+                category_id: target.categoryId,
+                sub_category_id: target.subCategoryId,
+                allocated_cents: 0,
+                created_at: now,
+                updated_at: now,
+              }))
+            )
+            .execute();
+        }
+        await trx
+          .insertInto('txns')
           .values(
-            plan.budgetTargetsToCreate.map((target) => ({
-              id: asBudgetLineId(uid('bud')),
-              company_id: companyId,
-              project_id: args.projectId,
-              category_id: target.categoryId,
-              sub_category_id: target.subCategoryId,
-              allocated_cents: 0,
+            plan.importedTransactions.map((t) => ({
+              public_id: t.id,
+              external_id: t.externalId ?? null,
+              company_id: t.companyId,
+              project_id: t.projectId,
+              txn_date: t.date,
+              item: t.item,
+              description: t.description,
+              amount_cents: t.amountCents,
+              txn_type: 'standard',
+              parent_public_id: null,
+              source_public_id: null,
+              transfer_project_id: null,
+              budget_impact: true,
+              categorisable: true,
+              import_batch_id: t.importBatchId ?? null,
+              import_source_type: t.importSourceType ?? null,
+              import_source_meta: t.importSourceMeta ?? null,
+              category_id: t.categoryId ?? null,
+              sub_category_id: t.subCategoryId ?? null,
+              company_default_mapping_rule_id:
+                t.companyDefaultMappingRuleId ?? null,
+              coding_source: t.codingSource ?? null,
+              coding_pending_approval: !!t.codingPendingApproval,
               created_at: now,
               updated_at: now,
             }))
           )
           .execute();
-      }
-      await db
-        .insertInto('txns')
-        .values(
-          plan.importedTransactions.map((t) => ({
-            public_id: t.id,
-            external_id: t.externalId ?? null,
-            company_id: t.companyId,
-            project_id: t.projectId,
-            txn_date: t.date,
-            item: t.item,
-            description: t.description,
-            amount_cents: t.amountCents,
-            txn_type: 'standard',
-            parent_public_id: null,
-            source_public_id: null,
-            transfer_project_id: null,
-            budget_impact: true,
-            categorisable: true,
-            import_batch_id: t.importBatchId ?? null,
-            import_source_type: t.importSourceType ?? null,
-            import_source_meta: t.importSourceMeta ?? null,
-            category_id: t.categoryId ?? null,
-            sub_category_id: t.subCategoryId ?? null,
-            company_default_mapping_rule_id:
-              t.companyDefaultMappingRuleId ?? null,
-            coding_source: t.codingSource ?? null,
-            coding_pending_approval: !!t.codingPendingApproval,
-            created_at: now,
-            updated_at: now,
-          }))
-        )
-        .execute();
-      await markImportedBatchCandidates(db, plan.importedTransactions, now);
+        await markImportedBatchCandidates(trx, plan.importedTransactions, now);
+      });
     }
     return { count: plan.importedTransactions.length };
   });
@@ -1181,6 +1183,58 @@ async function markImportedBatchCandidates(
     })
     .where('id', 'in', batchIds)
     .execute();
+
+  await syncImportBatchStatuses(db, batchIds, now);
+}
+
+async function syncImportBatchStatuses(
+  db: ProjectActionContext['db'],
+  batchIds: ImportBatchId[],
+  now: string
+): Promise<void> {
+  if (!batchIds.length) return;
+
+  const candidateRows = await db
+    .selectFrom('import_candidates')
+    .select(['batch_id', 'status'])
+    .where('batch_id', 'in', batchIds)
+    .execute();
+
+  const partiallyImportedIds = new Set<string>();
+  for (const row of candidateRows) {
+    if (row.status === 'ready' || row.status === 'needs_project_review') {
+      partiallyImportedIds.add(row.batch_id);
+    }
+  }
+
+  const importedBatchIds = batchIds.filter(
+    (batchId) => !partiallyImportedIds.has(batchId)
+  );
+  const partialBatchIds = batchIds.filter((batchId) =>
+    partiallyImportedIds.has(batchId)
+  );
+
+  if (partialBatchIds.length) {
+    await db
+      .updateTable('import_batches')
+      .set({
+        status: 'partially_imported',
+        updated_at: now,
+      })
+      .where('id', 'in', partialBatchIds)
+      .execute();
+  }
+
+  if (importedBatchIds.length) {
+    await db
+      .updateTable('import_batches')
+      .set({
+        status: 'imported',
+        updated_at: now,
+      })
+      .where('id', 'in', importedBatchIds)
+      .execute();
+  }
 }
 
 export async function previewImportTransactionsServer(args: {
@@ -1477,18 +1531,26 @@ export async function reviewImportCandidateServer(args: {
 
     const now = new Date().toISOString();
     if (args.decision === 'reject') {
-      const row = await db
-        .updateTable('import_candidates')
-        .set({
-          status: 'rejected',
-          reviewed_by_user_id: userId,
-          reviewed_at: now,
-          updated_at: now,
-        })
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', args.candidateId)
-        .returning(importCandidateSelectColumns())
-        .executeTakeFirstOrThrow();
+      const row = await db.transaction().execute(async (trx) => {
+        const candidate = await trx
+          .updateTable('import_candidates')
+          .set({
+            status: 'rejected',
+            reviewed_by_user_id: userId,
+            reviewed_at: now,
+            updated_at: now,
+          })
+          .where('project_id', '=', args.projectId)
+          .where('id', '=', args.candidateId)
+          .returning(importCandidateSelectColumns())
+          .executeTakeFirstOrThrow();
+        await syncImportBatchStatuses(
+          trx,
+          [asImportBatchId(existing.batch_id)],
+          now
+        );
+        return candidate;
+      });
       return { candidate: toImportCandidate(row) };
     }
 
@@ -1608,6 +1670,8 @@ export async function reviewImportCandidateServer(args: {
         .returning(importCandidateSelectColumns())
         .executeTakeFirstOrThrow();
       updatedCandidate = toImportCandidate(candidateRow);
+
+      await syncImportBatchStatuses(trx, [asImportBatchId(existing.batch_id)], now);
     });
 
     if (!updatedCandidate || !insertedTxn) {
