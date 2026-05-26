@@ -34,7 +34,6 @@ import type {
   TxnComment,
   TxnId,
 } from '../types';
-import { monthKeyFromStart, monthStart, parseISODate } from '../utils/finance';
 import { formatCurrencyFromCents } from '../utils/money';
 import {
   buildTxnCommentRepliesByParent,
@@ -54,6 +53,7 @@ import {
   useTransactionCommentsQuery,
   useTransactionCommentSummariesQuery,
 } from '../queries/transactionComments';
+import { useTransactionsPageQuery } from '../queries/transactions';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 type TransactionView =
@@ -146,6 +146,52 @@ export default function TransactionsPanel(props: {
   const [sorting, setSorting] = useState<MRT_SortingState>([
     { id: 'date', desc: true },
   ]);
+  const paginationScopeKey = `${yearFilter ?? 'all'}-${quarterFilter ?? 'all'}-${monthFilterKey ?? 'all'}-${transactionView}-${transactionDrilldown?.kind ?? 'none'}-${transactionDrilldown?.kind === 'subcategory' ? transactionDrilldown.subCategoryId : transactionDrilldown?.categoryId ?? 'all'}`;
+  const transactionsPageInput = useMemo(() => {
+    const sortField =
+      sorting[0]?.id === 'transaction' ||
+      sorting[0]?.id === 'amountCents' ||
+      sorting[0]?.id === 'date'
+        ? sorting[0].id
+        : 'date';
+    return {
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
+      sort: {
+        field: sortField,
+        direction: sorting[0]?.desc ? 'desc' : 'asc',
+      } as const,
+      yearFilter,
+      quarterFilter,
+      monthFilterKey,
+      transactionView,
+      drilldown: transactionDrilldown
+        ? transactionDrilldown.kind === 'subcategory'
+          ? {
+              kind: 'subcategory' as const,
+              categoryId: transactionDrilldown.categoryId,
+              subCategoryId: transactionDrilldown.subCategoryId,
+            }
+          : {
+              kind: 'category' as const,
+              categoryId: transactionDrilldown.categoryId,
+            }
+        : undefined,
+    };
+  }, [
+    monthFilterKey,
+    pagination.pageIndex,
+    pagination.pageSize,
+    quarterFilter,
+    sorting,
+    transactionDrilldown,
+    transactionView,
+    yearFilter,
+  ]);
+  const transactionsPageQ = useTransactionsPageQuery(
+    projectId,
+    transactionsPageInput
+  );
   const commentSummariesQ = useTransactionCommentSummariesQuery(projectId);
   const expandedCommentsTxnId =
     expandedCommentsTxn?.id ?? asTxnId('__no_expanded_txn__');
@@ -170,96 +216,18 @@ export default function TransactionsPanel(props: {
         null)
       : null;
   const activeCommentsTxn = commentsTxn ?? linkedCommentsTxn;
-
-  /**
-   * Count invalid transaction dates so the UI can surface problems early.
-   * We keep this local (UI concern) rather than making the store reject rows,
-   * because imports and manual edits can be messy during prototyping.
-   */
-  const invalidDateCount = useMemo(() => {
-    let bad = 0;
-    for (const t of txns.transactions) {
-      try {
-        parseISODate(t.date);
-      } catch {
-        bad += 1;
-      }
-    }
-    return bad;
-  }, [txns.transactions]);
-
-  const filteredTxns = useMemo(() => {
-    let out = txns.transactions;
-    if (monthFilterKey) {
-      out = out.filter((t) => {
-        try {
-          const mk = monthKeyFromStart(monthStart(parseISODate(t.date)));
-          return mk === monthFilterKey;
-        } catch {
-          // Invalid dates never match a specific month filter.
-          return false;
-        }
-      });
-    } else if (yearFilter || quarterFilter) {
-      out = out.filter((t) => {
-        try {
-          const mk = monthKeyFromStart(monthStart(parseISODate(t.date)));
-          const year = mk.slice(0, 4);
-          const month = Number(mk.slice(5, 7));
-          const quarter =
-            month <= 3 ? 'Q1' : month <= 6 ? 'Q2' : month <= 9 ? 'Q3' : 'Q4';
-          if (yearFilter && year !== yearFilter) return false;
-          if (quarterFilter && quarter !== quarterFilter) return false;
-          return true;
-        } catch {
-          return false;
-        }
-      });
-    }
-    if (transactionView === 'uncoded')
-      out = out.filter(
-        (t) =>
-          isCategorisableTxn(t) &&
-          (!t.subCategoryId || !taxonomy.validSubIds.has(t.subCategoryId))
-      );
-    if (transactionView === 'auto-mapped-pending')
-      out = out.filter(
-        (t) =>
-          isCategorisableTxn(t) &&
-          !!t.codingPendingApproval &&
-          !!t.subCategoryId &&
-          taxonomy.validSubIds.has(t.subCategoryId)
-      );
-    if (transactionView === 'assigned-to-me')
-      out = out.filter(
-        (t) =>
-          (commentSummaryByTxnId.get(t.id)?.assignedToMeUnresolvedCount ?? 0) >
-          0
-      );
-    if (transactionDrilldown) {
-      out = out.filter((t) => {
-        if (!isBudgetImpactTxn(t)) return false;
-        if (!isCategorisableTxn(t)) return false;
-        if (!t.subCategoryId || !taxonomy.validSubIds.has(t.subCategoryId)) {
-          return false;
-        }
-        if (transactionDrilldown.kind === 'subcategory') {
-          return t.subCategoryId === transactionDrilldown.subCategoryId;
-        }
-        return t.categoryId === transactionDrilldown.categoryId;
-      });
-    }
-    return out;
-  }, [
-    commentSummaryByTxnId,
-    txns.transactions,
-    yearFilter,
-    quarterFilter,
-    monthFilterKey,
-    transactionView,
-    transactionDrilldown,
-    taxonomy.validSubIds,
-  ]);
+  const pagedTxns = transactionsPageQ.data?.rows ?? [];
+  const pageSummary = transactionsPageQ.data?.summary ?? {
+    totalCount: 0,
+    budgetImpactCents: 0,
+    uncodedCount: 0,
+    uncodedCents: 0,
+    sourceOnlyCount: 0,
+    assignedToMeCount: 0,
+    reviewedCount: 0,
+    lockedCount: 0,
+    invalidDateCount: 0,
+  };
 
   const drilldownLabel = transactionDrilldown
     ? transactionDrilldown.kind === 'subcategory'
@@ -279,50 +247,6 @@ export default function TransactionsPanel(props: {
       ),
     [txns.transactions, taxonomy.validSubIds]
   );
-
-  const visibleMetrics = useMemo(() => {
-    let budgetImpactCents = 0;
-    let uncodedCount = 0;
-    let uncodedCents = 0;
-    let sourceOnlyCount = 0;
-    let assignedToMeCount = 0;
-    let reviewedCount = 0;
-    let lockedCount = 0;
-
-    for (const txn of filteredTxns) {
-      const summary = commentSummaryByTxnId.get(txn.id);
-      if (isBudgetImpactTxn(txn)) {
-        budgetImpactCents += txn.amountCents;
-      }
-      if (!isBudgetImpactTxn(txn) || !isCategorisableTxn(txn)) {
-        sourceOnlyCount += 1;
-      }
-      const isUncoded =
-        isCategorisableTxn(txn) &&
-        (!txn.subCategoryId || !taxonomy.validSubIds.has(txn.subCategoryId));
-      if (isUncoded) {
-        uncodedCount += 1;
-        if (isBudgetImpactTxn(txn)) {
-          uncodedCents += txn.amountCents;
-        }
-      }
-      if ((summary?.assignedToMeUnresolvedCount ?? 0) > 0) {
-        assignedToMeCount += 1;
-      }
-      if (txn.reviewedAt) reviewedCount += 1;
-      if (txn.lockedAt) lockedCount += 1;
-    }
-
-    return {
-      assignedToMeCount,
-      budgetImpactCents,
-      lockedCount,
-      reviewedCount,
-      sourceOnlyCount,
-      uncodedCents,
-      uncodedCount,
-    };
-  }, [commentSummaryByTxnId, filteredTxns, taxonomy.validSubIds]);
 
   function canSplitTransaction(txn: Txn): boolean {
     return (
@@ -862,44 +786,44 @@ export default function TransactionsPanel(props: {
             <Stack gap={6}>
               <Group gap="sm" align="center" wrap="wrap">
                 <Title order={5}>Transaction coding</Title>
-                <Badge variant="light">{filteredTxns.length} shown</Badge>
+                <Badge variant="light">{pageSummary.totalCount} shown</Badge>
                 <Badge variant="light" color="blue">
                   {formatCurrencyFromCents(
-                    visibleMetrics.budgetImpactCents,
+                    pageSummary.budgetImpactCents,
                     currencyCode
                   )}{' '}
                   budget impact
                 </Badge>
                 <Badge
                   variant="light"
-                  color={visibleMetrics.uncodedCount > 0 ? 'red' : 'gray'}
+                  color={pageSummary.uncodedCount > 0 ? 'red' : 'gray'}
                 >
-                  {visibleMetrics.uncodedCount} uncoded
-                  {visibleMetrics.uncodedCount > 0
+                  {pageSummary.uncodedCount} uncoded
+                  {pageSummary.uncodedCount > 0
                     ? ` · ${formatCurrencyFromCents(
-                        visibleMetrics.uncodedCents,
+                        pageSummary.uncodedCents,
                         currencyCode
                       )}`
                     : ''}
                 </Badge>
-                {visibleMetrics.sourceOnlyCount > 0 ? (
+                {pageSummary.sourceOnlyCount > 0 ? (
                   <Badge variant="light" color="gray">
-                    {visibleMetrics.sourceOnlyCount} source only
+                    {pageSummary.sourceOnlyCount} source only
                   </Badge>
                 ) : null}
-                {visibleMetrics.assignedToMeCount > 0 ? (
+                {pageSummary.assignedToMeCount > 0 ? (
                   <Badge variant="light" color="orange">
-                    {visibleMetrics.assignedToMeCount} assigned to me
+                    {pageSummary.assignedToMeCount} assigned to me
                   </Badge>
                 ) : null}
-                {visibleMetrics.reviewedCount > 0 ? (
+                {pageSummary.reviewedCount > 0 ? (
                   <Badge variant="light" color="green">
-                    {visibleMetrics.reviewedCount} reviewed
+                    {pageSummary.reviewedCount} reviewed
                   </Badge>
                 ) : null}
-                {visibleMetrics.lockedCount > 0 ? (
+                {pageSummary.lockedCount > 0 ? (
                   <Badge variant="light" color="gray">
-                    {visibleMetrics.lockedCount} locked
+                    {pageSummary.lockedCount} locked
                   </Badge>
                 ) : null}
                 <Badge
@@ -928,15 +852,16 @@ export default function TransactionsPanel(props: {
                   { value: 'assigned-to-me', label: 'Assigned to me' },
                 ]}
                 value={transactionView}
-                onChange={(v) =>
+                onChange={(v) => {
+                  setPagination((current) => ({ ...current, pageIndex: 0 }));
                   setTransactionView(
                     v === 'uncoded' ||
                       v === 'auto-mapped-pending' ||
                       v === 'assigned-to-me'
                       ? v
                       : 'all'
-                  )
-                }
+                  );
+                }}
                 style={{ width: isMobile ? '100%' : 250 }}
               />
               <Button
@@ -975,6 +900,7 @@ export default function TransactionsPanel(props: {
               value={yearFilter}
               clearable
               onChange={(value) => {
+                setPagination((current) => ({ ...current, pageIndex: 0 }));
                 setYearFilter(value);
                 setQuarterFilter(null);
                 setMonthFilterKey(null);
@@ -989,6 +915,7 @@ export default function TransactionsPanel(props: {
               clearable
               disabled={!yearFilter}
               onChange={(value) => {
+                setPagination((current) => ({ ...current, pageIndex: 0 }));
                 setQuarterFilter(toQuarterOption(value));
                 setMonthFilterKey(null);
               }}
@@ -1000,14 +927,20 @@ export default function TransactionsPanel(props: {
               data={monthFilterOptions}
               value={monthFilterKey}
               clearable
-              onChange={setMonthFilterKey}
+              onChange={(value) => {
+                setPagination((current) => ({ ...current, pageIndex: 0 }));
+                setMonthFilterKey(value);
+              }}
               style={{ width: isMobile ? '100%' : 180 }}
             />
             <Button
               size="sm"
               variant="subtle"
               disabled={!yearFilter && !quarterFilter && !monthFilterKey}
-              onClick={onClearFilters}
+              onClick={() => {
+                setPagination((current) => ({ ...current, pageIndex: 0 }));
+                onClearFilters();
+              }}
             >
               Remove filter(s)
             </Button>
@@ -1024,16 +957,19 @@ export default function TransactionsPanel(props: {
               <Button
                 size="xs"
                 variant="subtle"
-                onClick={onClearTransactionDrilldown}
+                onClick={() => {
+                  setPagination((current) => ({ ...current, pageIndex: 0 }));
+                  onClearTransactionDrilldown?.();
+                }}
               >
                 Clear drilldown
               </Button>
             </Group>
           ) : null}
 
-          {invalidDateCount > 0 && (
+          {pageSummary.invalidDateCount > 0 && (
             <Text size="sm" c="dimmed">
-              {invalidDateCount} transaction(s) have invalid dates and may be
+              {pageSummary.invalidDateCount} transaction(s) have invalid dates and may be
               excluded from month filters or rollups.
             </Text>
           )}
@@ -1041,20 +977,31 @@ export default function TransactionsPanel(props: {
       </Paper>
 
       <MantineReactTable
-        key={`${yearFilter ?? 'all'}-${quarterFilter ?? 'all'}-${monthFilterKey ?? 'all'}-${transactionView}-${transactionDrilldown?.kind ?? 'none'}-${transactionDrilldown?.kind === 'subcategory' ? transactionDrilldown.subCategoryId : (transactionDrilldown?.categoryId ?? 'all')}`}
+        key={paginationScopeKey}
         columns={txnColumns}
-        data={filteredTxns}
+        data={pagedTxns}
         getRowId={(row) => row.id}
         enableEditing={!readOnly}
         editDisplayMode="cell"
-        state={{ pagination, sorting }}
+        state={{
+          pagination,
+          sorting,
+          showProgressBars: transactionsPageQ.isFetching,
+        }}
         onPaginationChange={setPagination}
-        onSortingChange={setSorting}
+        onSortingChange={(updater) => {
+          const nextSorting =
+            typeof updater === 'function' ? updater(sorting) : updater;
+          setSorting(nextSorting);
+          setPagination((current) => ({ ...current, pageIndex: 0 }));
+        }}
         enableColumnResizing
         enableColumnActions={false}
         enableSorting
         enableSortingRemoval={false}
-        enableGlobalFilter
+        manualPagination
+        manualSorting
+        rowCount={pageSummary.totalCount}
         enablePagination
         autoResetPageIndex={false}
         initialState={{

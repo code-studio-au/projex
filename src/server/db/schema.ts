@@ -216,6 +216,13 @@ export interface ImportCandidateTable {
   updated_at: Generated<string>;
 }
 
+export interface RequestRateLimitTable {
+  bucket: string;
+  window_started_at: string;
+  count: number;
+  updated_at: Generated<string>;
+}
+
 export interface DB {
   companies: CompanyTable;
   projects: ProjectTable;
@@ -234,4 +241,5 @@ export interface DB {
   import_rules: ImportRuleTable;
   import_batches: ImportBatchTable;
   import_candidates: ImportCandidateTable;
+  request_rate_limits: RequestRateLimitTable;
 }

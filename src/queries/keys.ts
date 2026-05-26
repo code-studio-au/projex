@@ -36,6 +36,11 @@ export const qk = {
 
   transactions: (userId: string, projectId: string) =>
     ['transactions', userId, projectId] as const,
+  transactionsPage: (
+    userId: string,
+    projectId: string,
+    params: Record<string, unknown>
+  ) => ['transactions', userId, projectId, 'page', params] as const,
   importCandidates: (userId: string, projectId: string) =>
     ['importCandidates', userId, projectId] as const,
   transactionComments: (userId: string, projectId: string, txnId: string) =>

@@ -102,10 +102,12 @@ Recommended:
 The maintenance fallback relies on the static file:
 
 - `deploy/nginx/maintenance.html`
+- `deploy/nginx/maintenance.js`
 
 In the repo template, nginx serves that file directly from:
 
 - `/opt/projex/deploy/nginx/maintenance.html`
+- `/opt/projex/deploy/nginx/maintenance.js`
 
 So as long as the repo is deployed at `/opt/projex`, no extra copy step is required.
 
@@ -158,6 +160,7 @@ The readiness response body is intentionally minimal; rely on the HTTP status co
   - `Permissions-Policy`
   - a pragmatic `Content-Security-Policy`
 - Review the CSP before adding third-party scripts, fonts, or image hosts.
+- The current CSP keeps `style-src 'unsafe-inline'` because the React UI still uses inline style attributes in several places.
 
 ## 5.3) Friendly restart page
 
@@ -168,6 +171,7 @@ How it works:
 - normal app traffic proxies to `http://127.0.0.1:3000`
 - if the app is unavailable and nginx would normally return `502`, `503`, or `504`
 - nginx serves `deploy/nginx/maintenance.html` instead
+- the maintenance response keeps the original upstream error status for health-check accuracy
 - that page polls:
   - `/__maintenance_ready`
 - once `/api/ready` is healthy again, the page redirects the browser back to the original URL

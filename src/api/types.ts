@@ -47,6 +47,52 @@ export type Session = {
 };
 
 export type TxnImportMode = 'append' | 'replaceAll';
+export type TxnListView =
+  | 'all'
+  | 'uncoded'
+  | 'auto-mapped-pending'
+  | 'assigned-to-me';
+export type TxnListSortField = 'date' | 'transaction' | 'amountCents';
+export type TxnListSortDirection = 'asc' | 'desc';
+export type TxnListSort = {
+  field: TxnListSortField;
+  direction: TxnListSortDirection;
+};
+export type TxnListDrilldown =
+  | {
+      kind: 'category';
+      categoryId: Txn['categoryId'];
+    }
+  | {
+      kind: 'subcategory';
+      categoryId: Txn['categoryId'];
+      subCategoryId: Txn['subCategoryId'];
+    };
+export type TxnListPageInput = {
+  pageIndex: number;
+  pageSize: number;
+  sort?: TxnListSort;
+  yearFilter?: string | null;
+  quarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
+  monthFilterKey?: string | null;
+  transactionView?: TxnListView;
+  drilldown?: TxnListDrilldown | null;
+};
+export type TxnListPageSummary = {
+  totalCount: number;
+  budgetImpactCents: number;
+  uncodedCount: number;
+  uncodedCents: number;
+  sourceOnlyCount: number;
+  assignedToMeCount: number;
+  reviewedCount: number;
+  lockedCount: number;
+  invalidDateCount: number;
+};
+export type TxnListPageResult = {
+  rows: Txn[];
+  summary: TxnListPageSummary;
+};
 export type TxnImportTxnInput = Omit<
   Txn,
   | 'internalId'
@@ -497,6 +543,10 @@ export interface ProjexApi {
 
   // transactions
   listTransactions(projectId: ProjectId): Promise<Txn[]>;
+  listTransactionsPage(
+    projectId: ProjectId,
+    input: TxnListPageInput
+  ): Promise<TxnListPageResult>;
   createTxn(projectId: ProjectId, input: TxnCreateInput): Promise<Txn>;
   updateTxn(projectId: ProjectId, input: TxnUpdateInput): Promise<Txn>;
   deleteTxn(projectId: ProjectId, txnId: TxnId): Promise<void>;

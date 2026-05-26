@@ -5,6 +5,11 @@ import type { ImportTxnWithTaxonomy, TxnId } from '../types';
  * PowerBI exports can still be delivered as CSV, so this stays deliberately
  * small and format-agnostic. PowerBI-specific column mapping lives in
  * `powerBiImport.ts`.
+ *
+ * Known limits:
+ * - assumes a simple header row followed by flat data rows
+ * - does not try to recover malformed quoting
+ * - is intended for bounded import payloads, not arbitrary CSV dialects
  */
 export function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];

@@ -1,3 +1,4 @@
+import { sql, type RawBuilder, type SelectQueryBuilder } from 'kysely';
 import type {
   ImportBatchId,
   ImportCandidate,
@@ -22,6 +23,8 @@ import { AppError } from '../../api/errors';
 import type {
   TxnCreateInput,
   TxnImportTxnInput,
+  TxnListPageInput,
+  TxnListPageResult,
   TxnSplitInput,
   TxnSplitResult,
   TxnTransferInput,
@@ -70,6 +73,139 @@ import {
   loadTransactionImportCommitContext,
   loadTransactionImportPreviewContext,
 } from '../loaders/importContext';
+import { enforceRateLimit } from '../rateLimit';
+import type { DB, TxnTable } from '../db/schema';
+
+const IMPORT_PREVIEW_RATE_LIMIT = {
+  limit: 12,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
+const IMPORT_COMMIT_RATE_LIMIT = {
+  limit: 8,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
+const IMPORT_REVIEW_RATE_LIMIT = {
+  limit: 30,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
+type TxnAliasDb = DB & { t: TxnTable };
+
+type TxnPageSummaryRow = {
+  total_count: number | string;
+  budget_impact_cents: number | string;
+  uncoded_count: number | string;
+  uncoded_cents: number | string;
+  source_only_count: number | string;
+  assigned_to_me_count: number | string;
+  reviewed_count: number | string;
+  locked_count: number | string;
+};
+
+function txnValidSubCategorySql() {
+  return sql<boolean>`exists (
+    select 1
+    from sub_categories sc
+    where sc.id = t.sub_category_id
+      and sc.project_id = t.project_id
+  )`;
+}
+
+function txnAssignedToUserSql(userId: string) {
+  return sql<boolean>`exists (
+    select 1
+    from txn_comments tc
+    where tc.project_id = t.project_id
+      and tc.txn_public_id = t.public_id
+      and tc.assigned_to_user_id = ${userId}
+      and tc.resolved_at is null
+  )`;
+}
+
+function quarterFilterNumber(value: TxnListPageInput['quarterFilter']) {
+  if (value === 'Q1') return 1;
+  if (value === 'Q2') return 2;
+  if (value === 'Q3') return 3;
+  if (value === 'Q4') return 4;
+  return null;
+}
+
+function buildTransactionsPageFilters(args: {
+  projectId: ProjectId;
+  userId: string;
+  input: TxnListPageInput;
+}): RawBuilder<boolean>[] {
+  const filters: RawBuilder<boolean>[] = [
+    sql<boolean>`t.project_id = ${args.projectId}`,
+  ];
+  const validSubCategory = txnValidSubCategorySql();
+  const assignedToUser = txnAssignedToUserSql(args.userId);
+
+  if (args.input.monthFilterKey) {
+    filters.push(
+      sql<boolean>`to_char(t.txn_date, 'YYYY-MM') = ${args.input.monthFilterKey}`
+    );
+  } else {
+    if (args.input.yearFilter) {
+      filters.push(
+        sql<boolean>`extract(year from t.txn_date) = ${Number(args.input.yearFilter)}`
+      );
+    }
+    const quarterNumber = quarterFilterNumber(args.input.quarterFilter);
+    if (quarterNumber) {
+      filters.push(
+        sql<boolean>`extract(quarter from t.txn_date) = ${quarterNumber}`
+      );
+    }
+  }
+
+  if (args.input.transactionView === 'uncoded') {
+    filters.push(
+      sql<boolean>`t.categorisable and (t.sub_category_id is null or not (${validSubCategory}))`
+    );
+  }
+
+  if (args.input.transactionView === 'auto-mapped-pending') {
+    filters.push(
+      sql<boolean>`t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory}`
+    );
+  }
+
+  if (args.input.transactionView === 'assigned-to-me') {
+    filters.push(assignedToUser);
+  }
+
+  if (args.input.drilldown?.kind === 'category') {
+    filters.push(
+      sql<boolean>`t.budget_impact and t.categorisable and ${validSubCategory} and t.category_id = ${args.input.drilldown.categoryId}`
+    );
+  }
+
+  if (args.input.drilldown?.kind === 'subcategory') {
+    filters.push(
+      sql<boolean>`t.budget_impact and t.categorisable and ${validSubCategory} and t.category_id = ${args.input.drilldown.categoryId} and t.sub_category_id = ${args.input.drilldown.subCategoryId}`
+    );
+  }
+
+  return filters;
+}
+
+function applyTxnPageFilters<O>(
+  query: SelectQueryBuilder<TxnAliasDb, 't', O>,
+  filters: RawBuilder<boolean>[]
+): SelectQueryBuilder<TxnAliasDb, 't', O> {
+  let next = query;
+  for (const filter of filters) {
+    next = next.where(filter);
+  }
+  return next;
+}
+
+function toCount(value: number | string | null | undefined): number {
+  return Number(value ?? 0);
+}
 
 function assertTxnUnlocked(txn: Txn): void {
   if (txn.lockedAt) {
@@ -168,6 +304,141 @@ export async function listTransactionsServer(args: {
       .orderBy('id', 'asc')
       .execute();
     return rows.map(toTxn);
+  });
+}
+
+export async function listTransactionsPageServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: TxnListPageInput;
+}): Promise<TxnListPageResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const context = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'project:view'
+    );
+    const { db, userId } = context;
+    const sort = args.input.sort ?? { field: 'date' as const, direction: 'desc' as const };
+    const offset = args.input.pageIndex * args.input.pageSize;
+    const filters = buildTransactionsPageFilters({
+      projectId: args.projectId,
+      userId,
+      input: args.input,
+    });
+
+    let rowsQuery = applyTxnPageFilters(
+      db.selectFrom('txns as t').select([
+        't.id',
+        't.public_id',
+        't.external_id',
+        't.company_id',
+        't.project_id',
+        't.txn_date',
+        't.item',
+        't.description',
+        't.amount_cents',
+        't.txn_type',
+        't.parent_public_id',
+        't.source_public_id',
+        't.transfer_project_id',
+        't.budget_impact',
+        't.categorisable',
+        't.import_batch_id',
+        't.import_source_type',
+        't.import_source_meta',
+        't.category_id',
+        't.sub_category_id',
+        't.company_default_mapping_rule_id',
+        't.coding_source',
+        't.coding_pending_approval',
+        't.reviewed_at',
+        't.reviewed_by_user_id',
+        't.locked_at',
+        't.locked_by_user_id',
+        't.created_at',
+        't.updated_at',
+      ]),
+      filters
+    );
+
+    if (sort.field === 'transaction') {
+      rowsQuery = rowsQuery
+        .orderBy('t.item', sort.direction)
+        .orderBy('t.description', sort.direction)
+        .orderBy('t.id', 'desc');
+    } else if (sort.field === 'amountCents') {
+      rowsQuery = rowsQuery
+        .orderBy('t.amount_cents', sort.direction)
+        .orderBy('t.txn_date', 'desc')
+        .orderBy('t.id', 'desc');
+    } else {
+      rowsQuery = rowsQuery
+        .orderBy('t.txn_date', sort.direction)
+        .orderBy('t.id', sort.direction);
+    }
+
+    const [rows, summaryRow] = await Promise.all([
+      rowsQuery.limit(args.input.pageSize).offset(offset).execute(),
+      (() => {
+        const summaryQuery = applyTxnPageFilters(
+          db.selectFrom('txns as t').select(() => {
+            const validSubCategory = txnValidSubCategorySql();
+            const assignedToUser = txnAssignedToUserSql(userId);
+            return [
+              sql<number>`count(*)`.as('total_count'),
+              sql<number>`coalesce(sum(case when t.budget_impact then t.amount_cents else 0 end), 0)`.as(
+                'budget_impact_cents'
+              ),
+              sql<number>`coalesce(sum(case when t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then 1 else 0 end), 0)`.as(
+                'uncoded_count'
+              ),
+              sql<number>`coalesce(sum(case when t.budget_impact and t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then t.amount_cents else 0 end), 0)`.as(
+                'uncoded_cents'
+              ),
+              sql<number>`coalesce(sum(case when (not t.budget_impact) or (not t.categorisable) then 1 else 0 end), 0)`.as(
+                'source_only_count'
+              ),
+              sql<number>`coalesce(sum(case when ${assignedToUser} then 1 else 0 end), 0)`.as(
+                'assigned_to_me_count'
+              ),
+              sql<number>`coalesce(sum(case when t.reviewed_at is not null then 1 else 0 end), 0)`.as(
+                'reviewed_count'
+              ),
+              sql<number>`coalesce(sum(case when t.locked_at is not null then 1 else 0 end), 0)`.as(
+                'locked_count'
+              ),
+            ];
+          }),
+          filters
+        );
+        return summaryQuery.executeTakeFirstOrThrow();
+      })(),
+    ]);
+
+    return {
+      rows: rows.map(toTxn),
+      summary: {
+        totalCount: toCount((summaryRow as TxnPageSummaryRow).total_count),
+        budgetImpactCents: toCount(
+          (summaryRow as TxnPageSummaryRow).budget_impact_cents
+        ),
+        uncodedCount: toCount((summaryRow as TxnPageSummaryRow).uncoded_count),
+        uncodedCents: toCount((summaryRow as TxnPageSummaryRow).uncoded_cents),
+        sourceOnlyCount: toCount(
+          (summaryRow as TxnPageSummaryRow).source_only_count
+        ),
+        assignedToMeCount: toCount(
+          (summaryRow as TxnPageSummaryRow).assigned_to_me_count
+        ),
+        reviewedCount: toCount(
+          (summaryRow as TxnPageSummaryRow).reviewed_count
+        ),
+        lockedCount: toCount((summaryRow as TxnPageSummaryRow).locked_count),
+        invalidDateCount: 0,
+      },
+    };
   });
 }
 
@@ -999,6 +1270,13 @@ export async function importTransactionsServer(args: {
       'project:import'
     );
     const { db, userId, companyId } = context;
+    await enforceRateLimit({
+      db,
+      bucket: `project-import-commit:${companyId}:${args.projectId}:${userId}`,
+      limit: IMPORT_COMMIT_RATE_LIMIT.limit,
+      windowMs: IMPORT_COMMIT_RATE_LIMIT.windowMs,
+      message: 'Too many import commits. Please wait a few minutes and try again.',
+    });
     if (args.autoCreateBudgets) {
       await requireAuthorized({
         db,
@@ -1253,6 +1531,24 @@ export async function previewImportTransactionsServer(args: {
       'project:import'
     );
     const { db, userId, companyId } = context;
+    await enforceRateLimit({
+      db,
+      bucket: `project-import-preview:${companyId}:${args.projectId}:${userId}`,
+      limit: IMPORT_PREVIEW_RATE_LIMIT.limit,
+      windowMs: IMPORT_PREVIEW_RATE_LIMIT.windowMs,
+      message:
+        'Too many import previews. Please wait a few minutes and try again.',
+    });
+
+    if (
+      args.sourceType &&
+      args.sourceType !== 'powerbi_expenditure_actuals'
+    ) {
+      throw new AppError(
+        'NOT_IMPLEMENTED',
+        `Unsupported import source type: ${args.sourceType}`
+      );
+    }
 
     const [importContext, canEditTaxonomy, canEditBudgets] = await Promise.all([
       loadTransactionImportPreviewContext(db, {
@@ -1289,6 +1585,13 @@ export async function previewImportTransactionsServer(args: {
       canEditTaxonomy,
       canEditBudgets,
     });
+
+    if (!preview.rows.length) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'CSV import preview did not contain any transaction rows'
+      );
+    }
 
     const importBatchId = await createPowerBiImportBatch({
       db,
@@ -1502,6 +1805,14 @@ export async function reviewImportCandidateServer(args: {
       'project:import'
     );
     const { db, userId, companyId } = context;
+    await enforceRateLimit({
+      db,
+      bucket: `project-import-review:${companyId}:${args.projectId}:${userId}`,
+      limit: IMPORT_REVIEW_RATE_LIMIT.limit,
+      windowMs: IMPORT_REVIEW_RATE_LIMIT.windowMs,
+      message:
+        'Too many import review actions. Please wait a few minutes and try again.',
+    });
 
     const existing = await db
       .selectFrom('import_candidates')

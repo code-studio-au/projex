@@ -19,6 +19,12 @@ import {
   type ServerFnContextInput,
   withServerBoundary,
 } from './runtime';
+import { enforceRateLimit } from '../rateLimit';
+
+const EMAIL_CHANGE_RATE_LIMIT = {
+  limit: 5,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 type EmailChangeRow = {
   id: string;
@@ -225,6 +231,14 @@ export async function requestEmailChangeServer(args: {
     validateOrThrow(emailSchema, args.input.newEmail);
 
     const userId = await requireServerUserId(args.context);
+    await enforceRateLimit({
+      db: getDb(),
+      bucket: `email-change-request:${userId}`,
+      limit: EMAIL_CHANGE_RATE_LIMIT.limit,
+      windowMs: EMAIL_CHANGE_RATE_LIMIT.windowMs,
+      message:
+        'Too many email change requests. Please wait a few minutes and try again.',
+    });
     const currentUser = await requireCurrentUserRow(userId);
     const nextEmail = args.input.newEmail.trim();
     const currentEmailNorm = normalizeEmail(currentUser.email);
@@ -252,6 +266,14 @@ export async function resendEmailChangeServer(args: {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
     const userId = await requireServerUserId(args.context);
+    await enforceRateLimit({
+      db: getDb(),
+      bucket: `email-change-resend:${userId}`,
+      limit: EMAIL_CHANGE_RATE_LIMIT.limit,
+      windowMs: EMAIL_CHANGE_RATE_LIMIT.windowMs,
+      message:
+        'Too many email change resends. Please wait a few minutes and try again.',
+    });
     const currentUser = await requireCurrentUserRow(userId);
     const pending = await getPendingEmailChangeRow(userId);
     if (!pending) {

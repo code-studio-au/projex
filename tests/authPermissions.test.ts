@@ -144,3 +144,30 @@ test('company and project permissions split company details, defaults, creation,
     true
   );
 });
+
+test('global superadmins pass client-side permission checks for gated actions', () => {
+  assert.equal(
+    can({
+      userId: viewerId,
+      companyId,
+      projectId,
+      action: 'project:lifecycle',
+      isGlobalSuperadmin: true,
+      companyMemberships: [],
+      projectMemberships: [],
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: viewerId,
+      companyId,
+      projectId,
+      action: 'comments:moderate',
+      isGlobalSuperadmin: true,
+      companyMemberships: [],
+      projectMemberships: [],
+    }),
+    true
+  );
+});

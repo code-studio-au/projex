@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { AppError } from '../src/api/errors.ts';
 import {
+  txnListPageQuerySchema,
   txnImportInputSchema,
   txnImportPreviewInputSchema,
 } from '../src/validation/apiSchemas.ts';
@@ -71,4 +72,30 @@ test('import preview planning rejects CSVs with too many rows', () => {
       return true;
     }
   );
+});
+
+test('transaction import preview schema accepts a header-only payload but server planning rejects empty rows later', () => {
+  const result = txnImportPreviewInputSchema.safeParse({
+    csvText:
+      'Ledger,Fiscal Year,Period,CC and Description,RC and Description,PC and Description,AC,Expenditure Actuals,Journal Line Description,Journal ID,Reference Num,Journal Date,Journal Line,Journal Line Ref,Posted Date,Unpost Seq,Source,Operator ID,PO ID,Vendor ID,Vendor Name',
+  });
+  assert.equal(result.success, true);
+});
+
+test('transaction list page query schema coerces pagination and validates supported filters', () => {
+  const result = txnListPageQuerySchema.safeParse({
+    mode: 'page',
+    pageIndex: '2',
+    pageSize: '25',
+    sortField: 'amountCents',
+    sortDirection: 'asc',
+    yearFilter: '2026',
+    quarterFilter: 'Q2',
+    transactionView: 'assigned-to-me',
+  });
+
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  assert.equal(result.data.pageIndex, 2);
+  assert.equal(result.data.pageSize, 25);
 });

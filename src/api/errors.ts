@@ -2,6 +2,7 @@ export type AppErrorCode =
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
   | 'NOT_FOUND'
+  | 'RATE_LIMITED'
   | 'VALIDATION_ERROR'
   | 'CONFLICT'
   | 'NOT_IMPLEMENTED'

@@ -5,6 +5,7 @@ function appErrorStatus(code: AppError['code']): number {
   if (code === 'UNAUTHENTICATED') return 401;
   if (code === 'FORBIDDEN') return 403;
   if (code === 'NOT_FOUND') return 404;
+  if (code === 'RATE_LIMITED') return 429;
   if (code === 'CONFLICT') return 409;
   if (code === 'VALIDATION_ERROR') return 422;
   if (code === 'NOT_IMPLEMENTED') return 501;
@@ -123,6 +124,14 @@ async function withApiCore(
         { status: appErrorStatus(err.code) }
       );
       const finalRes = withRequestId(res);
+      const retryAfterSeconds =
+        err.code === 'RATE_LIMITED' &&
+        typeof err.meta?.retryAfterSeconds === 'number'
+          ? Math.max(1, Math.ceil(err.meta.retryAfterSeconds))
+          : null;
+      if (retryAfterSeconds) {
+        finalRes.headers.set('retry-after', String(retryAfterSeconds));
+      }
       console.warn(
         JSON.stringify({
           level: 'warn',

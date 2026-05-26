@@ -158,6 +158,41 @@ test('withPublicApi converts AppError into request-id responses and warning logs
   }
 });
 
+test('withPublicApi maps rate-limited errors to 429 and retry-after', async () => {
+  const logs = captureConsole('warn');
+  try {
+    const response = await withPublicApi(
+      new Request('http://localhost/api/example', {
+        method: 'POST',
+        headers: { 'x-request-id': 'req_test_rate_limit' },
+      }),
+      async () => {
+        throw new AppError('RATE_LIMITED', 'Slow down', {
+          retryAfterSeconds: 17,
+        });
+      }
+    );
+
+    assert.equal(response.status, 429);
+    assert.equal(response.headers.get('x-request-id'), 'req_test_rate_limit');
+    assert.equal(response.headers.get('retry-after'), '17');
+    assert.deepEqual(await response.json(), {
+      code: 'RATE_LIMITED',
+      message: 'Slow down',
+      meta: { retryAfterSeconds: 17 },
+    });
+
+    assert.equal(logs.messages.length, 1);
+    const log = parseRequestLog(logs.messages[0]);
+    assert.equal(log.level, 'warn');
+    assert.equal(log.status, 429);
+    assert.equal(log.code, 'RATE_LIMITED');
+    assert.equal(log.message, 'Slow down');
+  } finally {
+    logs.restore();
+  }
+});
+
 test('withPublicApi hides unexpected error messages from clients', async () => {
   const logs = captureConsole('error');
   try {

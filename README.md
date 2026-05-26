@@ -106,8 +106,10 @@ Operational defaults:
 Keep this list short. If a new note overlaps an existing item, update the existing source of truth instead of adding another markdown file.
 
 - `docs/staging-runbook.md`: operational runbook, readiness checklist, deploy verification, first-admin bootstrap, and troubleshooting.
+- `docs/database-migrations.md`: migration strategy, baseline rules, and runner expectations.
 - `docs/deployment-ec2.md`: first-time EC2/RDS host provisioning only. Ongoing deploy operations belong in the runbook.
 - `docs/email-ops-runbook.md`: email provider configuration, Resend checks, and email troubleshooting.
+- `docs/permissions-matrix.md`: current company/project/comment permission model and superadmin rules.
 - `docs/product-backlog.md`: product/admin backlog and non-priority ideas.
 - `docs/verified-email-change-design.md`: design record for verified email-change behavior.
 - `deploy/cdk/README.md`: AWS CDK stack notes.

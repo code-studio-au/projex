@@ -38,6 +38,12 @@ import {
   type ServerFnContextInput,
   withServerBoundary,
 } from './runtime';
+import { enforceRateLimit } from '../rateLimit';
+
+const COMPANY_INVITE_RATE_LIMIT = {
+  limit: 10,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const COMPANY_ROLE_RANK: Record<CompanyRole, number> = {
   admin: 4,
@@ -578,6 +584,14 @@ export async function createUserInCompanyServer(args: {
       action: 'company:manage_members',
       companyId: args.companyId,
     });
+    await enforceRateLimit({
+      db,
+      bucket: `company-membership-create:${args.companyId}:${sessionUserId}`,
+      limit: COMPANY_INVITE_RATE_LIMIT.limit,
+      windowMs: COMPANY_INVITE_RATE_LIMIT.windowMs,
+      message:
+        'Too many company invite actions. Please wait a few minutes and try again.',
+    });
 
     const emailNorm = args.email.trim().toLowerCase();
     const trimmedName = args.name.trim();
@@ -646,6 +660,14 @@ export async function sendCompanyUserInviteEmailServer(args: {
       userId: sessionUserId,
       action: 'company:manage_members',
       companyId: args.companyId,
+    });
+    await enforceRateLimit({
+      db,
+      bucket: `company-invite-email:${args.companyId}:${sessionUserId}`,
+      limit: COMPANY_INVITE_RATE_LIMIT.limit,
+      windowMs: COMPANY_INVITE_RATE_LIMIT.windowMs,
+      message:
+        'Too many invite emails. Please wait a few minutes and try again.',
     });
 
     const membership = await db

@@ -60,6 +60,7 @@ import type {
   TxnTransferResult,
   TxnUpdateInput,
   TxnImportPreviewResult,
+  TxnListPageInput,
   TxnWorkflowStateInput,
 } from '../types';
 import {
@@ -104,6 +105,7 @@ import {
   txnCommentSummariesResponseSchema,
   txnCommentsResponseSchema,
   txnImportPreviewResultResponseSchema,
+  txnListPageResultResponseSchema,
   txnSplitResponseSchema,
   txnTransferResponseSchema,
   txnsResponseSchema,
@@ -223,6 +225,7 @@ export class ServerApi implements ProjexApi {
     if (status === 401) return 'UNAUTHENTICATED';
     if (status === 403) return 'FORBIDDEN';
     if (status === 404) return 'NOT_FOUND';
+    if (status === 429) return 'RATE_LIMITED';
     if (status === 409) return 'CONFLICT';
     if (status === 422) return 'VALIDATION_ERROR';
     if (status === 501) return 'NOT_IMPLEMENTED';
@@ -718,6 +721,39 @@ export class ServerApi implements ProjexApi {
       `/api/projects/${encodeURIComponent(projectId)}/transactions`,
       undefined,
       txnsResponseSchema
+    );
+  }
+  async listTransactionsPage(
+    projectId: ProjectId,
+    input: TxnListPageInput
+  ) {
+    const params = new URLSearchParams({
+      mode: 'page',
+      pageIndex: String(input.pageIndex),
+      pageSize: String(input.pageSize),
+    });
+    if (input.sort?.field) params.set('sortField', input.sort.field);
+    if (input.sort?.direction)
+      params.set('sortDirection', input.sort.direction);
+    if (input.yearFilter) params.set('yearFilter', input.yearFilter);
+    if (input.quarterFilter) params.set('quarterFilter', input.quarterFilter);
+    if (input.monthFilterKey) params.set('monthFilterKey', input.monthFilterKey);
+    if (input.transactionView)
+      params.set('transactionView', input.transactionView);
+    if (input.drilldown?.kind) params.set('drilldownKind', input.drilldown.kind);
+    if (input.drilldown?.categoryId)
+      params.set('categoryId', input.drilldown.categoryId);
+    if (
+      input.drilldown?.kind === 'subcategory' &&
+      input.drilldown.subCategoryId
+    ) {
+      params.set('subCategoryId', input.drilldown.subCategoryId);
+    }
+
+    return this.request(
+      `/api/projects/${encodeURIComponent(projectId)}/transactions?${params.toString()}`,
+      undefined,
+      txnListPageResultResponseSchema
     );
   }
   async createTxn(projectId: ProjectId, txn: TxnCreateInput): Promise<Txn> {

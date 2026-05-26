@@ -110,6 +110,14 @@ const destructiveConfirmationSchema = z
   .min(1, 'Confirmation text is required');
 const csvImportModeSchema = z.enum(['append', 'replaceAll']);
 const importPreviewSourceTypeSchema = z.enum(['powerbi_expenditure_actuals']);
+const txnListViewSchema = z.enum([
+  'all',
+  'uncoded',
+  'auto-mapped-pending',
+  'assigned-to-me',
+]);
+const txnListSortFieldSchema = z.enum(['date', 'transaction', 'amountCents']);
+const txnListSortDirectionSchema = z.enum(['asc', 'desc']);
 const smokeSectionIdSchema = z.enum([
   'basics',
   'appPages',
@@ -458,6 +466,29 @@ export const txnImportPreviewInputSchema = z.object({
   sourceType: importPreviewSourceTypeSchema.optional(),
   fileName: z.string().trim().min(1).max(255).optional(),
   autoCreateStructures: z.boolean().optional(),
+});
+
+export const txnListPageQuerySchema = z.object({
+  mode: z.literal('page'),
+  pageIndex: z.coerce.number().int().min(0).default(0),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  sortField: txnListSortFieldSchema.optional(),
+  sortDirection: txnListSortDirectionSchema.optional(),
+  yearFilter: z
+    .string()
+    .trim()
+    .regex(/^\d{4}$/)
+    .optional(),
+  quarterFilter: z.enum(['Q1', 'Q2', 'Q3', 'Q4']).optional(),
+  monthFilterKey: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}$/)
+    .optional(),
+  transactionView: txnListViewSchema.optional(),
+  drilldownKind: z.enum(['category', 'subcategory']).optional(),
+  categoryId: categoryIdSchema.optional(),
+  subCategoryId: subCategoryIdSchema.optional(),
 });
 
 export const importCandidateReviewInputSchema = z.object({

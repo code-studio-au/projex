@@ -10,6 +10,7 @@ import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import type { ProjectId, Txn, TxnId } from '../types';
 import type {
+  TxnListPageInput,
   TxnCreateInput,
   TxnSplitInput,
   TxnTransferInput,
@@ -27,6 +28,21 @@ export function useTransactionsQuery(
   return useQuery({
     queryKey: qk.transactions(scopeUserId, projectId),
     queryFn: () => api.listTransactions(projectId),
+    placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
+  });
+}
+
+export function useTransactionsPageQuery(
+  projectId: ProjectId,
+  input: TxnListPageInput,
+  options: { enabled?: boolean } = {}
+) {
+  const api = useApi();
+  const scopeUserId = useQueryScopeUserId();
+  return useQuery({
+    queryKey: qk.transactionsPage(scopeUserId, projectId, input),
+    queryFn: () => api.listTransactionsPage(projectId, input),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
   });

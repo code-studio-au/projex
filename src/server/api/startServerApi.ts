@@ -65,6 +65,7 @@ import {
   importTransactionsServer,
   listImportCandidatesServer,
   listTransactionsServer,
+  listTransactionsPageServer,
   previewImportTransactionsServer,
   reviewImportCandidateServer,
   splitTxnServer,
@@ -471,6 +472,16 @@ export class StartServerApi implements ProjexApi {
   // transactions
   async listTransactions(projectId: ProjectId) {
     return listTransactionsServer({ context: this.context, projectId });
+  }
+  async listTransactionsPage(
+    projectId: ProjectId,
+    input: Parameters<ProjexApi['listTransactionsPage']>[1]
+  ) {
+    return listTransactionsPageServer({
+      context: this.context,
+      projectId,
+      input,
+    });
   }
   async createTxn(
     projectId: ProjectId,

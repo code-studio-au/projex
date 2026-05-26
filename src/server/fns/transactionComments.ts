@@ -33,6 +33,12 @@ import {
   buildTransactionCommentUrl,
   sendTransactionCommentAssignmentEmail,
 } from '../notifications/transactionCommentNotifications';
+import { enforceRateLimit } from '../rateLimit';
+
+const COMMENT_CREATE_RATE_LIMIT = {
+  limit: 30,
+  windowMs: 10 * 60 * 1000,
+} as const;
 
 const commentSelect = [
   'txn_comments.id',
@@ -318,6 +324,14 @@ export async function createTransactionCommentServer(args: {
       args.projectId,
       'comments:create'
     );
+    await enforceRateLimit({
+      db: context.db,
+      bucket: `txn-comment-create:${context.companyId}:${context.projectId}:${context.userId}`,
+      limit: COMMENT_CREATE_RATE_LIMIT.limit,
+      windowMs: COMMENT_CREATE_RATE_LIMIT.windowMs,
+      message:
+        'Too many transaction comments. Please wait a few minutes and try again.',
+    });
 
     validateOrThrow(txnCommentBodySchema, args.input.body);
     await assertTxnInProject(context, args.input.txnId);

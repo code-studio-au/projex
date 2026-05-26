@@ -34,6 +34,7 @@ export const apiErrorResponseSchema = z
         'UNAUTHENTICATED',
         'FORBIDDEN',
         'NOT_FOUND',
+        'RATE_LIMITED',
         'VALIDATION_ERROR',
         'CONFLICT',
         'NOT_IMPLEMENTED',
@@ -74,6 +75,14 @@ const companyRoleSchema = z.enum([
 const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const projectTypeSchema = z.enum(['project', 'programme']);
 const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
+const txnListViewSchema = z.enum([
+  'all',
+  'uncoded',
+  'auto-mapped-pending',
+  'assigned-to-me',
+]);
+const txnListSortFieldSchema = z.enum(['date', 'transaction', 'amountCents']);
+const txnListSortDirectionSchema = z.enum(['asc', 'desc']);
 
 export const authenticatedSessionResponseSchema = z.object({
   userId: userIdSchema,
@@ -311,6 +320,51 @@ export const txnResponseSchema = z.object({
 });
 
 export const txnsResponseSchema = z.array(txnResponseSchema);
+
+export const txnListPageSummaryResponseSchema = z.object({
+  totalCount: z.number().int().nonnegative(),
+  budgetImpactCents: z.number().int(),
+  uncodedCount: z.number().int().nonnegative(),
+  uncodedCents: z.number().int(),
+  sourceOnlyCount: z.number().int().nonnegative(),
+  assignedToMeCount: z.number().int().nonnegative(),
+  reviewedCount: z.number().int().nonnegative(),
+  lockedCount: z.number().int().nonnegative(),
+  invalidDateCount: z.number().int().nonnegative(),
+});
+
+export const txnListPageResultResponseSchema = z.object({
+  rows: txnsResponseSchema,
+  summary: txnListPageSummaryResponseSchema,
+});
+
+export const txnListPageInputResponseSchema = z.object({
+  pageIndex: z.number().int().nonnegative(),
+  pageSize: z.number().int().positive(),
+  sort: z
+    .object({
+      field: txnListSortFieldSchema,
+      direction: txnListSortDirectionSchema,
+    })
+    .optional(),
+  yearFilter: z.string().optional(),
+  quarterFilter: z.enum(['Q1', 'Q2', 'Q3', 'Q4']).optional(),
+  monthFilterKey: z.string().optional(),
+  transactionView: txnListViewSchema.optional(),
+  drilldown: z
+    .union([
+      z.object({
+        kind: z.literal('category'),
+        categoryId: categoryIdSchema,
+      }),
+      z.object({
+        kind: z.literal('subcategory'),
+        categoryId: categoryIdSchema,
+        subCategoryId: subCategoryIdSchema,
+      }),
+    ])
+    .optional(),
+});
 
 export const txnSplitResponseSchema = z.object({
   parent: txnResponseSchema,
