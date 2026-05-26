@@ -1,4 +1,5 @@
 import { Kysely, PostgresDialect } from 'kysely';
+import type { PostgresDialectConfig } from 'kysely';
 import type { DB } from './schema';
 import { createPgPool } from './pgPool.ts';
 import { requireDatabaseUrl, validateServerStartupEnv } from '../env.ts';
@@ -18,7 +19,9 @@ export function getDb(): Kysely<DB> {
   const pool = createPgPool(connectionString);
 
   _db = new Kysely<DB>({
-    dialect: new PostgresDialect({ pool }),
+    dialect: new PostgresDialect({
+      pool: pool as unknown as PostgresDialectConfig['pool'],
+    }),
   });
 
   return _db;

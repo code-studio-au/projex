@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Kysely, PostgresDialect } from 'kysely';
+import type { PostgresDialectConfig } from 'kysely';
 
 import { AppError } from '../src/api/errors.ts';
 import { isAuthorized } from '../src/server/auth/authorize.ts';
@@ -40,7 +41,9 @@ function createIntegrationDb() {
   assertTestDatabaseUrl(integrationDatabaseUrl);
   return new Kysely<DB>({
     dialect: new PostgresDialect({
-      pool: createPgPool(integrationDatabaseUrl),
+      pool: createPgPool(
+        integrationDatabaseUrl
+      ) as unknown as PostgresDialectConfig['pool'],
     }),
   });
 }

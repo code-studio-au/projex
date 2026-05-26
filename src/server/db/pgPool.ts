@@ -24,12 +24,23 @@ export type TypedPgPoolClient = {
 };
 
 export type TypedPgPool = {
+  Client?: new (options: unknown) => {
+    connect(): Promise<unknown>;
+    end(): void;
+    processID?: number;
+    query<R>(
+      sql: string,
+      parameters: ReadonlyArray<unknown>
+    ): Promise<TypedPgQueryResult<R>>;
+    query<R>(cursor: TypedPgCursor<R>): TypedPgCursor<R>;
+  };
   connect(): Promise<TypedPgPoolClient>;
   query<R extends Record<string, unknown> = Record<string, unknown>>(
     sql: string,
     params?: readonly unknown[]
   ): Promise<TypedPgQueryResult<R>>;
   end(): Promise<void>;
+  options: object;
 };
 
 type PgModule = {
