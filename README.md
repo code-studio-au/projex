@@ -97,6 +97,7 @@ BETTER_AUTH_DIRECT_SESSION_FN=./dist/server/auth/authProvider.js#getSessionFromR
 Operational defaults:
 
 - `pnpm run db:migrate` runs BetterAuth schema migration plus app SQL migrations.
+- `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
 - API responses include `x-request-id`; structured request logs are emitted server-side.
 - Public deployments should use the nginx template at `deploy/nginx/projex.conf` for HTTPS redirects, security headers, forwarded headers, and the restart maintenance page.

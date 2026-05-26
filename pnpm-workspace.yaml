@@ -1,2 +1,14 @@
 packages:
   - deploy/cdk
+
+# Delay dependency resolution for newly published packages to reduce
+# exposure to fresh supply-chain compromises and registry hijacks.
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
+minimumReleaseAgeExclude:
+  - '@types/*'
+
+# Refuse weaker trust evidence than previous releases and block exotic
+# dependency specs unless we opt into them deliberately.
+trustPolicy: no-downgrade
+blockExoticSubdeps: true
