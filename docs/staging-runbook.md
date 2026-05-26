@@ -29,8 +29,8 @@ Before cutting over or handing a deployed environment to another developer, conf
 - `BETTER_AUTH_DIRECT_SESSION_FN` is configured, or `BETTER_AUTH_SESSION_URL` is intentionally used as the fallback.
 - `PROJEX_ENABLE_DEV_ENDPOINTS` is `false` or unset outside controlled local workflows.
 - `CORS_ALLOWED_ORIGINS` only includes explicit trusted browser origins.
-- `npm run db:migrate` has run successfully against the target database.
-- The first app-side global superadmin has been created with `npm run auth:bootstrap-user` on fresh databases.
+- `pnpm run db:migrate` has run successfully against the target database.
+- The first app-side global superadmin has been created with `pnpm run auth:bootstrap-user` on fresh databases.
 - Unauthorized requests return `401` and scoped resources are not visible across companies/projects.
 - The public proxy uses `deploy/nginx/projex.conf` or equivalent HTTPS redirect, forwarded headers, hardening headers, and maintenance fallback behavior.
 - `/api/health` returns `200` when the process is running.
@@ -40,17 +40,17 @@ Before cutting over or handing a deployed environment to another developer, conf
 Pre-deploy verification from a clean local checkout:
 
 ```bash
-npm run test
-npm run typecheck
-npm run lint
-npm run format:check
-npm run build
+pnpm run test
+pnpm run typecheck
+pnpm run lint
+pnpm run format:check
+pnpm run build
 ```
 
 Post-deploy verification on the target runtime:
 
 ```bash
-npm run smoke:server
+pnpm run smoke:server
 ```
 
 For the most repeatable run, use generated smoke fixtures. This creates
@@ -60,31 +60,31 @@ matching `PROJEX_SMOKE_*` values for the process, runs smoke, then cleans the
 fixtures in `finally`:
 
 ```bash
-npm run smoke:server:generated
+pnpm run smoke:server:generated
 ```
 
 Generated fixture runs can also be targeted:
 
 ```bash
-npm run smoke:server:generated -- --section=inviteFlow
+pnpm run smoke:server:generated -- --section=inviteFlow
 ```
 
 Use targeted sections when retrying one workflow:
 
 ```bash
-npm run smoke:server -- --section=basics
-npm run smoke:server -- --section=appPages
-npm run smoke:server -- --section=emailChange
-npm run smoke:server -- --section=temporaryData
-npm run smoke:server -- --section=inviteFlow
-npm run smoke:server -- --section=privacyChecks
+pnpm run smoke:server -- --section=basics
+pnpm run smoke:server -- --section=appPages
+pnpm run smoke:server -- --section=emailChange
+pnpm run smoke:server -- --section=temporaryData
+pnpm run smoke:server -- --section=inviteFlow
+pnpm run smoke:server -- --section=privacyChecks
 ```
 
 Keep smoke credentials in `.env.smoke.local` at the repo root. On EC2 that is `/opt/projex/.env.smoke.local`.
 Generated fixture runs still require the normal deployed runtime env, including `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL`. If interrupted smoke runs leave data behind, run:
 
 ```bash
-npm run smoke:cleanup
+pnpm run smoke:cleanup
 ```
 
 ## Required Production Env
@@ -137,10 +137,10 @@ From `/opt/projex`:
 
 ```bash
 # Full deploy
-npm run deploy:ec2
+pnpm run deploy:ec2
 
 # Faster deploy if dependencies definitely did not change
-npm run deploy:ec2:quick
+pnpm run deploy:ec2:quick
 ```
 
 ## Manual Deploy Fallback
@@ -148,7 +148,7 @@ npm run deploy:ec2:quick
 ```bash
 cd /opt/projex
 git pull --ff-only
-sudo sh -c 'cd /opt/projex && set -a && . /etc/projex/projex.env && set +a && npm run build'
+sudo sh -c 'cd /opt/projex && set -a && . /etc/projex/projex.env && set +a && pnpm run build'
 sudo systemctl restart projex
 sudo systemctl status projex --no-pager -l
 ```
@@ -171,23 +171,23 @@ sudo systemctl status projex --no-pager -l
    - open the link
    - set a new password
    - for saved smoke credentials, put the `PROJEX_SMOKE_*` values in `.env.smoke.local` at the repo root (`/opt/projex/.env.smoke.local` on EC2, repo root locally)
-   - use `npm run smoke:server` for a full pass
-   - use `npm run smoke:server -- --section=...` when rerunning only one workflow
+   - use `pnpm run smoke:server` for a full pass
+   - use `pnpm run smoke:server -- --section=...` when rerunning only one workflow
 8. Prefer generated fixture smoke when you want a repeatable full pass without long-lived smoke users:
-   - run `npm run smoke:server:generated`
-   - use `npm run smoke:server:generated -- --section=...` when rerunning only one generated-fixture workflow
-   - run `npm run smoke:cleanup` if an interrupted generated run leaves abandoned `smoke_*` fixtures behind
+   - run `pnpm run smoke:server:generated`
+   - use `pnpm run smoke:server:generated -- --section=...` when rerunning only one generated-fixture workflow
+   - run `pnpm run smoke:cleanup` if an interrupted generated run leaves abandoned `smoke_*` fixtures behind
 9. Optional configured-credential invite smoke:
    - set `PROJEX_SMOKE_INVITE_EMAIL`
-   - run `npm run smoke:server -- --section=inviteFlow`
+   - run `pnpm run smoke:server -- --section=inviteFlow`
    - confirm invite + resend-invite requests both succeed
 10. Optional configured-credential email-change smoke:
 
 - set `PROJEX_SMOKE_EMAIL_CHANGE_TO`
-- run `npm run smoke:server -- --section=emailChange`
+- run `pnpm run smoke:server -- --section=emailChange`
 - confirm the script can request, detect, resend, and cancel a pending email change
 
-11. Optional configured-credential privacy-toggle smoke: set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run `npm run smoke:server -- --section=privacyChecks`.
+11. Optional configured-credential privacy-toggle smoke: set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run `pnpm run smoke:server -- --section=privacyChecks`.
 
 ## Create The First Global Superadmin
 
@@ -195,7 +195,7 @@ Create a BetterAuth user:
 
 ```bash
 cd /opt/projex
-sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_AUTH_PASSWORD="replace-me" PROJEX_AUTH_NAME="Staging User" npm run auth:create-user'
+sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_AUTH_PASSWORD="replace-me" PROJEX_AUTH_NAME="Staging User" pnpm run auth:create-user'
 ```
 
 Bootstrap that BetterAuth user into the app as a global superadmin.
@@ -203,16 +203,16 @@ On a fresh database, this is the required step that makes the account usable in 
 
 ```bash
 cd /opt/projex
-sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" npm run auth:bootstrap-user'
+sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" pnpm run auth:bootstrap-user'
 ```
 
 Notes:
 
-- `npm run auth:bootstrap-user` creates or updates the app-side `users` row and sets `is_global_superadmin = true`.
+- `pnpm run auth:bootstrap-user` creates or updates the app-side `users` row and sets `is_global_superadmin = true`.
 - The optional bootstrap company/project values are just a convenient starting point; the global-superadmin grant is the important part.
 - If you skip this step on a fresh database, sign-in may succeed in BetterAuth but the account will not see any companies in the app.
 
-If you already have an app-side template user and want to copy its memberships instead, keep using `npm run auth:link-user` with `PROJEX_APP_TEMPLATE_USER_ID`. That command also grants global superadmin to the linked BetterAuth user.
+If you already have an app-side template user and want to copy its memberships instead, keep using `pnpm run auth:link-user` with `PROJEX_APP_TEMPLATE_USER_ID`. That command also grants global superadmin to the linked BetterAuth user.
 
 ## Company Invites
 
@@ -247,7 +247,7 @@ Then rebuild and restart:
 
 ```bash
 cd /opt/projex
-sudo sh -c 'cd /opt/projex && set -a && . /etc/projex/projex.env && set +a && npm run build'
+sudo sh -c 'cd /opt/projex && set -a && . /etc/projex/projex.env && set +a && pnpm run build'
 sudo systemctl restart projex
 ```
 

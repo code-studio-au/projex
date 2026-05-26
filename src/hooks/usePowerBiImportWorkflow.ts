@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
   MRT_PaginationState,
@@ -194,10 +194,6 @@ export function usePowerBiImportWorkflow(params: {
     previewRows,
   ]);
 
-  useEffect(() => {
-    setPagination((current) => ({ ...current, pageIndex: 0 }));
-  }, [previewTab]);
-
   const hasBlockingIssues = useMemo(
     () =>
       activePreviewRows.some(
@@ -223,6 +219,13 @@ export function usePowerBiImportWorkflow(params: {
   function clearFeedback() {
     setImportError(null);
     setImportNotice(null);
+  }
+
+  function updatePreviewTab(nextTab: ImportPreviewTab) {
+    setPreviewTab(nextTab);
+    setPagination((current) =>
+      current.pageIndex === 0 ? current : { ...current, pageIndex: 0 }
+    );
   }
 
   async function loadFileText(nextFile: File) {
@@ -264,7 +267,7 @@ export function usePowerBiImportWorkflow(params: {
     setPreviewRows(null);
     setPreviewBatchId(null);
     setPreviewSourceLabel(null);
-    setPreviewTab('included');
+    updatePreviewTab('included');
     setExcludedImportIds(new Set());
     setImportError(null);
     setPagination((current) => ({ ...current, pageIndex: 0 }));
@@ -319,7 +322,7 @@ export function usePowerBiImportWorkflow(params: {
       setPreviewRows(preview.rows);
       setPreviewBatchId(preview.importBatchId ?? null);
       setPreviewSourceLabel(sourceLabel);
-      setPreviewTab('included');
+      updatePreviewTab('included');
       setExcludedImportIds(
         new Set(
           preview.rows
@@ -332,7 +335,7 @@ export function usePowerBiImportWorkflow(params: {
       setPreviewRows(null);
       setPreviewBatchId(null);
       setPreviewSourceLabel(null);
-      setPreviewTab('included');
+      updatePreviewTab('included');
       setExcludedImportIds(new Set());
       setImportError(
         error instanceof Error ? error.message : 'Could not preview the import.'
@@ -558,7 +561,7 @@ export function usePowerBiImportWorkflow(params: {
     hasReplaceAllBlockers,
     setAutoCreateStructures,
     setSkipDuplicates,
-    setPreviewTab,
+    setPreviewTab: updatePreviewTab,
     setConfirmReplaceOpen,
     setPagination,
     setSorting,

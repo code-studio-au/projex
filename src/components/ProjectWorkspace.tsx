@@ -97,7 +97,7 @@ function filteredBudgetCents(
   return Math.round((budgetCents * visibleMonthCount) / 12);
 }
 
-export default function ProjectWorkspace(props: {
+type ProjectWorkspaceProps = {
   companyId: CompanyId;
   projectId: ProjectId;
   initialTab?: ProjectWorkspaceTab;
@@ -108,7 +108,22 @@ export default function ProjectWorkspace(props: {
   initialCommentTxnId?: TxnId | null;
   initialEntrySource?: 'company-summary';
   initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
-}) {
+};
+
+type ProjectWorkspaceInnerProps = {
+  companyId: CompanyId;
+  projectId: ProjectId;
+  initialTab: ProjectWorkspaceTab;
+  initialYearFilter: string | null;
+  initialQuarterFilter: QuarterOption | null;
+  initialMonthFilterKey: string | null;
+  initialTransactionView: TransactionView;
+  initialCommentTxnId: TxnId | null;
+  initialEntrySource?: 'company-summary';
+  initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
+};
+
+export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
   const {
     companyId,
     projectId,
@@ -121,9 +136,9 @@ export default function ProjectWorkspace(props: {
     initialEntrySource,
     initialEntryFocus,
   } = props;
-  const derivedInitialYearFilter =
+  const resolvedInitialYearFilter =
     initialYearFilter ?? initialMonthFilterKey?.slice(0, 4) ?? null;
-  const derivedInitialQuarterFilter =
+  const resolvedInitialQuarterFilter =
     initialQuarterFilter ??
     (initialMonthFilterKey
       ? (() => {
@@ -133,10 +148,52 @@ export default function ProjectWorkspace(props: {
             : month <= 6
               ? 'Q2'
               : month <= 9
-                ? 'Q3'
-                : 'Q4';
+              ? 'Q3'
+              : 'Q4';
         })()
       : null);
+  const resetKey = [
+    projectId,
+    initialTab,
+    resolvedInitialYearFilter ?? '',
+    resolvedInitialQuarterFilter ?? '',
+    initialMonthFilterKey ?? '',
+    initialTransactionView,
+    initialCommentTxnId ?? '',
+    initialEntrySource ?? '',
+    initialEntryFocus ?? '',
+  ].join('|');
+
+  return (
+    <ProjectWorkspaceInner
+      key={resetKey}
+      companyId={companyId}
+      projectId={projectId}
+      initialTab={initialTab}
+      initialYearFilter={resolvedInitialYearFilter}
+      initialQuarterFilter={resolvedInitialQuarterFilter}
+      initialMonthFilterKey={initialMonthFilterKey}
+      initialTransactionView={initialTransactionView}
+      initialCommentTxnId={initialCommentTxnId}
+      initialEntrySource={initialEntrySource}
+      initialEntryFocus={initialEntryFocus}
+    />
+  );
+}
+
+function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
+  const {
+    companyId,
+    projectId,
+    initialTab,
+    initialYearFilter,
+    initialQuarterFilter,
+    initialMonthFilterKey,
+    initialTransactionView,
+    initialCommentTxnId,
+    initialEntrySource,
+    initialEntryFocus,
+  } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
   const router = useRouter();
 
@@ -179,11 +236,9 @@ export default function ProjectWorkspace(props: {
   });
 
   const [activeTab, setActiveTab] = useState<ProjectWorkspaceTab>(initialTab);
-  const [yearFilter, setYearFilter] = useState<string | null>(
-    derivedInitialYearFilter
-  );
+  const [yearFilter, setYearFilter] = useState<string | null>(initialYearFilter);
   const [quarterFilter, setQuarterFilter] = useState<QuarterOption | null>(
-    derivedInitialQuarterFilter
+    initialQuarterFilter
   );
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(
     initialMonthFilterKey
@@ -193,26 +248,6 @@ export default function ProjectWorkspace(props: {
   );
   const [transactionDrilldown, setTransactionDrilldown] =
     useState<TransactionDrilldownFilter | null>(null);
-
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
-
-  useEffect(() => {
-    setYearFilter(derivedInitialYearFilter);
-  }, [derivedInitialYearFilter]);
-
-  useEffect(() => {
-    setQuarterFilter(derivedInitialQuarterFilter);
-  }, [derivedInitialQuarterFilter]);
-
-  useEffect(() => {
-    setMonthFilterKey(initialMonthFilterKey);
-  }, [initialMonthFilterKey]);
-
-  useEffect(() => {
-    setTransactionView(initialTransactionView);
-  }, [initialTransactionView]);
 
   function openTransactionDrilldown(filter: TransactionDrilldownFilter) {
     setTransactionDrilldown(filter);

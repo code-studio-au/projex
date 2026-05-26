@@ -33,7 +33,7 @@ function run(cmd, args) {
 }
 
 if (!existsSync('dist/server/server.js')) {
-  console.error('Missing dist/server/server.js. Run `npm run build` first.');
+  console.error('Missing dist/server/server.js. Run `pnpm run build` first.');
   process.exit(1);
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -85,16 +85,13 @@ export default function AccountPage() {
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (currentUser?.name) setName((existing) => existing || currentUser.name);
-  }, [currentUser?.name]);
-
   async function handleProfileSave() {
-    if (!name.trim()) return;
+    const trimmedName = (name || currentUser?.name || '').trim();
+    if (!trimmedName) return;
     setProfileMessage(null);
     setProfileError(null);
     try {
-      await updateProfile.mutateAsync({ name: name.trim() });
+      await updateProfile.mutateAsync({ name: trimmedName });
       setProfileMessage('Your display name was updated.');
     } catch (err) {
       setProfileError(
@@ -240,7 +237,7 @@ export default function AccountPage() {
           {profileError ? <Alert color="red">{profileError}</Alert> : null}
           <TextInput
             label="Display name"
-            value={name}
+            value={name || currentUser?.name || ''}
             onChange={(event) => setName(event.currentTarget.value)}
           />
           <Group justify="flex-end">

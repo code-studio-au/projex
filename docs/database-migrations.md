@@ -20,4 +20,4 @@ Projex currently uses a mixed migration history:
 
 ## Operational note
 
-`npm run db:migrate` applies Better Auth migrations first when auth env vars are available, then applies app SQL migrations from `src/server/db/migrations`.
+`pnpm run db:migrate` applies Better Auth migrations first when auth env vars are available, then applies app SQL migrations from `src/server/db/migrations`.

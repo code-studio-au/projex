@@ -29,7 +29,7 @@ require_command() {
 }
 
 require_command git
-require_command npm
+require_command pnpm
 require_command curl
 require_file "$ENV_FILE"
 
@@ -42,7 +42,7 @@ if [[ "$SKIP_INSTALL" == "true" ]]; then
   log "Skipping dependency install"
 else
   log "Installing dependencies"
-  npm ci
+  pnpm install --frozen-lockfile
 fi
 
 log "Loading environment from $ENV_FILE"
@@ -52,10 +52,10 @@ source "$ENV_FILE"
 set +a
 
 log "Running database migrations"
-npm run db:migrate
+pnpm run db:migrate
 
 log "Building application"
-npm run build
+pnpm run build
 
 log "Restarting $SERVICE_NAME"
 sudo systemctl restart "$SERVICE_NAME"

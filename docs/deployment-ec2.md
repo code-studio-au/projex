@@ -11,7 +11,7 @@ Use this guide for first-time EC2/RDS host provisioning. Once the host, systemd 
 ## 2) Install runtime
 
 - Install Node.js 22
-- Install npm
+- Enable Corepack and install pnpm
 - Clone repo to `/opt/projex`
 
 ## 3) Configure environment
@@ -65,8 +65,9 @@ Notes:
 
 ```bash
 cd /opt/projex
-npm ci
-npm run build
+corepack enable
+pnpm install --frozen-lockfile
+pnpm run build
 ```
 
 Install systemd unit:
@@ -117,24 +118,24 @@ Once the service is installed and `/etc/projex/projex.env` is configured, use on
 
 ```bash
 # Full deploy: pull, install deps, migrate, build, restart, health checks
-npm run deploy:ec2
+pnpm run deploy:ec2
 
 # Faster deploy when dependencies did not change
-npm run deploy:ec2:quick
+pnpm run deploy:ec2:quick
 ```
 
 The full deploy command performs:
 
 - `git pull --ff-only`
-- `npm ci`
+- `pnpm install --frozen-lockfile`
 - env load from `/etc/projex/projex.env`
-- `npm run db:migrate`
-- `npm run build`
+- `pnpm run db:migrate`
+- `pnpm run build`
 - `sudo systemctl restart projex`
 - `/api/health` and `/api/ready` checks
 - recent `journalctl` output
 
-Use `deploy:ec2:quick` only when `package-lock.json` and runtime dependencies have not changed.
+Use `deploy:ec2:quick` only when `pnpm-lock.yaml` and runtime dependencies have not changed.
 
 ## 5) Health checks
 
@@ -188,8 +189,8 @@ Before normal app verification on a fresh database, create the first global supe
 
 ```bash
 cd /opt/projex
-sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_AUTH_PASSWORD="replace-me" PROJEX_AUTH_NAME="Production Admin" npm run auth:create-user'
-sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" npm run auth:bootstrap-user'
+sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_AUTH_PASSWORD="replace-me" PROJEX_AUTH_NAME="Production Admin" pnpm run auth:create-user'
+sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" pnpm run auth:bootstrap-user'
 ```
 
 Notes:
@@ -198,18 +199,18 @@ Notes:
 - `auth:bootstrap-user` links that login into the app database and grants global superadmin.
 - On a fresh database, sign-in alone is not enough; the account must also exist in app `users`.
 
-- `npm run smoke:server` (from trusted network against deployed URL)
-- Prefer `npm run smoke:server:generated` for repeatable smoke runs. It creates disposable `smoke_*` users/company/project data, creates temporary programme/sub-project data in the targeted smoke section, runs smoke with generated `PROJEX_SMOKE_*` values, and cleans the fixtures in `finally`.
-- Use `npm run smoke:cleanup` if an interrupted generated run leaves abandoned `smoke_*` fixtures behind.
+- `pnpm run smoke:server` (from trusted network against deployed URL)
+- Prefer `pnpm run smoke:server:generated` for repeatable smoke runs. It creates disposable `smoke_*` users/company/project data, creates temporary programme/sub-project data in the targeted smoke section, runs smoke with generated `PROJEX_SMOKE_*` values, and cleans the fixtures in `finally`.
+- Use `pnpm run smoke:cleanup` if an interrupted generated run leaves abandoned `smoke_*` fixtures behind.
 - Save smoke-only credentials in `/opt/projex/.env.smoke.local` on EC2 only when you want to run the older configured-credential flow or the admin smoke UI. The CLI generated-fixture flow does not require long-lived smoke users.
 - Use full smoke for broad confidence after deploy, and targeted section runs when retrying one workflow:
-  - `npm run smoke:server -- --section=basics`
-  - `npm run smoke:server -- --section=appPages`
-  - `npm run smoke:server -- --section=emailChange`
-  - `npm run smoke:server -- --section=temporaryData`
-  - `npm run smoke:server -- --section=inviteFlow`
-  - `npm run smoke:server -- --section=privacyChecks`
-- Generated fixture runs can also be targeted with `npm run smoke:server:generated -- --section=inviteFlow`.
+  - `pnpm run smoke:server -- --section=basics`
+  - `pnpm run smoke:server -- --section=appPages`
+  - `pnpm run smoke:server -- --section=emailChange`
+  - `pnpm run smoke:server -- --section=temporaryData`
+  - `pnpm run smoke:server -- --section=inviteFlow`
+  - `pnpm run smoke:server -- --section=privacyChecks`
+- Generated fixture runs can also be targeted with `pnpm run smoke:server:generated -- --section=inviteFlow`.
 - If `PROJEX_SMOKE_RESET_EMAIL` is set, the smoke script will also verify that the password-reset request endpoint accepts that email.
 - If `PROJEX_SMOKE_EMAIL_CHANGE_TO` is set, the smoke script will also verify the request / pending / resend / cancel email-change flow without actually switching the login email.
 - If `PROJEX_SMOKE_INVITE_EMAIL` is set, the smoke script will also verify the company invite and resend-invite admin flow.

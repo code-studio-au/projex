@@ -24,7 +24,7 @@ async function ensureAuthUser(pool, email) {
   const user = result.rows[0];
   if (!user) {
     throw new Error(
-      `No BetterAuth user found for email "${email}". Run npm run auth:create-user first.`
+      `No BetterAuth user found for email "${email}". Run pnpm run auth:create-user first.`
     );
   }
   return user;

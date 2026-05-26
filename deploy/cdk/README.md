@@ -19,13 +19,13 @@ This CDK app provisions a staging/prod baseline:
 From repo root:
 
 ```bash
-npm run cdk:install
+pnpm run cdk:install
 ```
 
 ## Bootstrap CDK (once per account/region)
 
 ```bash
-AWS_PROFILE=<profile> AWS_REGION=<region> npm run cdk:bootstrap
+AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:bootstrap
 ```
 
 ## Context values
@@ -41,7 +41,7 @@ You can override per run using `-c key=value`:
 ## Preview
 
 ```bash
-AWS_PROFILE=<profile> AWS_REGION=<region> npm run cdk:synth -- \
+AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:synth -- \
   -c envName=staging \
   -c instanceType=t3.small \
   -c dbName=projex \
@@ -51,7 +51,7 @@ AWS_PROFILE=<profile> AWS_REGION=<region> npm run cdk:synth -- \
 ## Deploy Staging
 
 ```bash
-AWS_PROFILE=<profile> AWS_REGION=<region> npm run cdk:deploy -- \
+AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:deploy -- \
   -c envName=staging \
   -c instanceType=t3.small \
   -c dbName=projex \

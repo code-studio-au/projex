@@ -337,7 +337,7 @@ async function authenticatePrimaryUser(
   if (!email || !password) {
     throw new Error(
       isLocalBaseUrl
-        ? 'Server smoke runs now require PROJEX_SMOKE_EMAIL and PROJEX_SMOKE_PASSWORD in .env.smoke.local. Bootstrap a real app user first with npm run auth:bootstrap-user.'
+        ? 'Server smoke runs now require PROJEX_SMOKE_EMAIL and PROJEX_SMOKE_PASSWORD in .env.smoke.local. Bootstrap a real app user first with pnpm run auth:bootstrap-user.'
         : 'Server smoke runs on non-local URLs require PROJEX_SMOKE_EMAIL and PROJEX_SMOKE_PASSWORD in .env.smoke.local.'
     );
   }

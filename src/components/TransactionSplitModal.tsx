@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActionIcon,
   Alert,
@@ -62,35 +62,54 @@ export default function TransactionSplitModal(props: {
   onSplit: (children: TxnSplitInput['children']) => Promise<void>;
 }) {
   const { opened, txn, taxonomy, currencyCode, onClose, onSplit } = props;
-  const [rows, setRows] = useState<SplitDraftRow[]>([]);
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title="Split transaction"
+      size="xl"
+      centered
+    >
+      {!txn ? null : (
+        <TransactionSplitModalContent
+          key={`${txn.id}:${opened ? 'open' : 'closed'}`}
+          txn={txn}
+          taxonomy={taxonomy}
+          currencyCode={currencyCode}
+          onClose={onClose}
+          onSplit={onSplit}
+        />
+      )}
+    </Modal>
+  );
+}
+
+function TransactionSplitModalContent(props: {
+  txn: Txn;
+  taxonomy: TaxonomyHook;
+  currencyCode: string;
+  onClose: () => void;
+  onSplit: (children: TxnSplitInput['children']) => Promise<void>;
+}) {
+  const { txn, taxonomy, currencyCode, onClose, onSplit } = props;
+  const [rows, setRows] = useState<SplitDraftRow[]>(() => createInitialRows(txn));
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!opened || !txn) return;
-    setRows(createInitialRows(txn));
-    setError(null);
-    setSubmitting(false);
-  }, [opened, txn]);
 
   const totalCents = useMemo(
     () => rows.reduce((sum, row) => sum + row.amountCents, 0),
     [rows]
   );
-  const remainingCents = txn ? txn.amountCents - totalCents : 0;
+  const remainingCents = txn.amountCents - totalCents;
   const hasInvalidAmount = rows.some((row) => {
-    if (!txn) return true;
     if (row.amountCents === 0) return true;
     if (txn.amountCents > 0) return row.amountCents < 0;
     if (txn.amountCents < 0) return row.amountCents > 0;
     return true;
   });
   const canSubmit =
-    Boolean(txn) &&
-    rows.length >= 2 &&
-    !hasInvalidAmount &&
-    remainingCents === 0 &&
-    !submitting;
+    rows.length >= 2 && !hasInvalidAmount && remainingCents === 0 && !submitting;
 
   function updateRow(key: string, patch: Partial<SplitDraftRow>) {
     setRows((current) =>
@@ -103,8 +122,8 @@ export default function TransactionSplitModal(props: {
       ...current,
       {
         key: `split-${Date.now()}-${current.length}`,
-        item: txn ? `${txn.item} split ${current.length + 1}` : '',
-        description: txn?.description ?? '',
+        item: `${txn.item} split ${current.length + 1}`,
+        description: txn.description,
         amountCents: 0,
         categoryId: null,
         subCategoryId: null,
@@ -117,7 +136,7 @@ export default function TransactionSplitModal(props: {
   }
 
   async function submit() {
-    if (!txn || !canSubmit) return;
+    if (!canSubmit) return;
 
     try {
       setSubmitting(true);
@@ -142,42 +161,34 @@ export default function TransactionSplitModal(props: {
   }
 
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      title="Split transaction"
-      size="xl"
-      centered
-    >
-      {!txn ? null : (
-        <Stack gap="md">
-          <Paper withBorder radius="md" p="md">
-            <Stack gap={4}>
-              <Group justify="space-between" gap="sm" wrap="wrap">
-                <Text fw={700}>{txn.item}</Text>
-                <Badge variant="light">
-                  {formatCurrencyFromCents(txn.amountCents, currencyCode)}
-                </Badge>
-              </Group>
-              <Text size="sm" c="dimmed">
-                {txn.date} · {txn.description}
-              </Text>
-            </Stack>
-          </Paper>
+    <Stack gap="md">
+      <Paper withBorder radius="md" p="md">
+        <Stack gap={4}>
+          <Group justify="space-between" gap="sm" wrap="wrap">
+            <Text fw={700}>{txn.item}</Text>
+            <Badge variant="light">
+              {formatCurrencyFromCents(txn.amountCents, currencyCode)}
+            </Badge>
+          </Group>
+          <Text size="sm" c="dimmed">
+            {txn.date} · {txn.description}
+          </Text>
+        </Stack>
+      </Paper>
 
-          {error ? (
-            <Alert color="red" variant="light">
-              {error}
-            </Alert>
-          ) : null}
+      {error ? (
+        <Alert color="red" variant="light">
+          {error}
+        </Alert>
+      ) : null}
 
-          <Stack gap="sm">
-            {rows.map((row, index) => {
-              const subCategoryOptions = row.categoryId
-                ? taxonomy.subCategoryOptionsForCategory(row.categoryId)
-                : [];
-              return (
-                <Paper key={row.key} withBorder radius="md" p="sm">
+      <Stack gap="sm">
+        {rows.map((row, index) => {
+          const subCategoryOptions = row.categoryId
+            ? taxonomy.subCategoryOptionsForCategory(row.categoryId)
+            : [];
+          return (
+            <Paper key={row.key} withBorder radius="md" p="sm">
                   <Stack gap="xs">
                     <Group justify="space-between" align="center">
                       <Text fw={600} size="sm">
@@ -270,49 +281,45 @@ export default function TransactionSplitModal(props: {
                       />
                     </Group>
                   </Stack>
-                </Paper>
-              );
-            })}
-          </Stack>
+            </Paper>
+          );
+        })}
+      </Stack>
 
-          <Group justify="space-between" align="center" wrap="wrap">
-            <Button
-              variant="light"
-              leftSection={<IconPlus size={16} />}
-              disabled={submitting}
-              onClick={addRow}
-            >
-              Add split line
-            </Button>
-            <Stack gap={2} align="flex-end">
-              <Text size="sm">
-                Allocated:{' '}
-                <strong>
-                  {formatCurrencyFromCents(totalCents, currencyCode)}
-                </strong>
-              </Text>
-              <Text
-                size="sm"
-                c={remainingCents === 0 && !hasInvalidAmount ? 'teal' : 'red'}
-              >
-                Remainder:{' '}
-                <strong>
-                  {formatCurrencyFromCents(remainingCents, currencyCode)}
-                </strong>
-              </Text>
-            </Stack>
-          </Group>
-
-          <Group justify="flex-end">
-            <Button variant="subtle" disabled={submitting} onClick={onClose}>
-              Cancel
-            </Button>
-            <Button disabled={!canSubmit} loading={submitting} onClick={submit}>
-              Split transaction
-            </Button>
-          </Group>
+      <Group justify="space-between" align="center" wrap="wrap">
+        <Button
+          variant="light"
+          leftSection={<IconPlus size={16} />}
+          disabled={submitting}
+          onClick={addRow}
+        >
+          Add split line
+        </Button>
+        <Stack gap={2} align="flex-end">
+          <Text size="sm">
+            Allocated:{' '}
+            <strong>{formatCurrencyFromCents(totalCents, currencyCode)}</strong>
+          </Text>
+          <Text
+            size="sm"
+            c={remainingCents === 0 && !hasInvalidAmount ? 'teal' : 'red'}
+          >
+            Remainder:{' '}
+            <strong>
+              {formatCurrencyFromCents(remainingCents, currencyCode)}
+            </strong>
+          </Text>
         </Stack>
-      )}
-    </Modal>
+      </Group>
+
+      <Group justify="flex-end">
+        <Button variant="subtle" disabled={submitting} onClick={onClose}>
+          Cancel
+        </Button>
+        <Button disabled={!canSubmit} loading={submitting} onClick={submit}>
+          Split transaction
+        </Button>
+      </Group>
+    </Stack>
   );
 }

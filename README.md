@@ -7,55 +7,55 @@ Projex is a TanStack Start, React, TypeScript, BetterAuth, and Postgres app. The
 ## Quick Start
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 Useful checks before handing work over or opening a PR:
 
 ```bash
-npm run test
-npm run typecheck
-npm run lint
-npm run format:check
-npm run build
+pnpm run test
+pnpm run typecheck
+pnpm run lint
+pnpm run format:check
+pnpm run build
 ```
 
-Optional DB-backed integration coverage is included in `npm run test`, but is skipped unless an explicit integration database is provided. Use a migrated disposable database whose name contains `test`:
+Optional DB-backed integration coverage is included in `pnpm run test`, but is skipped unless an explicit integration database is provided. Use a migrated disposable database whose name contains `test`:
 
 ```bash
-PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test npm run test
+PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test
 ```
 
-`npm run build` should not emit client chunk-size warnings. Current known build noise is limited to SSR dynamic/static import warnings from TanStack Start server route wiring.
+`pnpm run build` should not emit client chunk-size warnings. Current known build noise is limited to SSR dynamic/static import warnings from TanStack Start server route wiring.
 
 ## Local Server Utilities
 
 ```bash
 # Apply BetterAuth + app SQL migrations to DATABASE_URL
-npm run db:migrate
+pnpm run db:migrate
 
 # Create a BetterAuth user
-PROJEX_AUTH_EMAIL=... PROJEX_AUTH_PASSWORD=... PROJEX_AUTH_NAME=... npm run auth:create-user
+PROJEX_AUTH_EMAIL=... PROJEX_AUTH_PASSWORD=... PROJEX_AUTH_NAME=... pnpm run auth:create-user
 
 # Bootstrap the first app-side global superadmin on a fresh database
-PROJEX_AUTH_EMAIL=... PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" npm run auth:bootstrap-user
+PROJEX_AUTH_EMAIL=... PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" pnpm run auth:bootstrap-user
 
 # Link an existing BetterAuth user into the app and grant global superadmin
-PROJEX_AUTH_EMAIL=... PROJEX_APP_TEMPLATE_USER_ID=u_superadmin npm run auth:link-user
+PROJEX_AUTH_EMAIL=... PROJEX_APP_TEMPLATE_USER_ID=u_superadmin pnpm run auth:link-user
 
 # Start the built server, including startup migrations
-npm run start:server
+pnpm run start:server
 
 # Smoke test a running server
-npm run smoke:server
-npm run smoke:server -- --section=emailChange
+pnpm run smoke:server
+pnpm run smoke:server -- --section=emailChange
 
 # Smoke test with disposable generated users/data, then clean them up
-npm run smoke:server:generated
+pnpm run smoke:server:generated
 
 # Best-effort cleanup sweep for abandoned smoke_* fixtures
-npm run smoke:cleanup
+pnpm run smoke:cleanup
 ```
 
 ## Product Model
@@ -96,7 +96,7 @@ BETTER_AUTH_DIRECT_SESSION_FN=./dist/server/auth/authProvider.js#getSessionFromR
 
 Operational defaults:
 
-- `npm run db:migrate` runs BetterAuth schema migration plus app SQL migrations.
+- `pnpm run db:migrate` runs BetterAuth schema migration plus app SQL migrations.
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
 - API responses include `x-request-id`; structured request logs are emitted server-side.
 - Public deployments should use the nginx template at `deploy/nginx/projex.conf` for HTTPS redirects, security headers, forwarded headers, and the restart maintenance page.
