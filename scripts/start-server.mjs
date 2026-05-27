@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { createApp, eventHandler, fromWebHandler } from 'h3-v2';
-import { toNodeListener } from 'h3-v2/node';
+import { toNodeHandler } from 'srvx/node';
 
 const CSP_NONCE_REQUEST_HEADER = 'x-projex-csp-nonce';
 
@@ -239,7 +239,7 @@ app.use(
 );
 
 console.info(`Starting Projex SSR server on http://${host}:${port}`);
-const httpServer = createServer(toNodeListener(app));
+const httpServer = createServer(toNodeHandler(app.fetch));
 
 await new Promise((resolve, reject) => {
   httpServer.once('error', reject);
