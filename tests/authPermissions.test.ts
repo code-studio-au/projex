@@ -171,3 +171,106 @@ test('global superadmins pass client-side permission checks for gated actions', 
     true
   );
 });
+
+test('mutation permissions stay narrow for viewer, member, lead, and company roles', () => {
+  const adminId = asUserId('usr_admin');
+  const companyMemberships = [
+    { companyId, userId: viewerId, role: 'member' as const },
+    { companyId, userId: memberId, role: 'member' as const },
+    { companyId, userId: leadId, role: 'member' as const },
+    { companyId, userId: adminId, role: 'admin' as const },
+  ];
+  const projectMemberships = [
+    { projectId, userId: viewerId, role: 'viewer' as const },
+    { projectId, userId: memberId, role: 'member' as const },
+    { projectId, userId: leadId, role: 'lead' as const },
+  ];
+
+  assert.equal(
+    can({
+      userId: viewerId,
+      companyId,
+      projectId,
+      action: 'txns:edit',
+      companyMemberships,
+      projectMemberships,
+    }),
+    false
+  );
+  assert.equal(
+    can({
+      userId: memberId,
+      companyId,
+      projectId,
+      action: 'txns:edit',
+      companyMemberships,
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: memberId,
+      companyId,
+      projectId,
+      action: 'budget:edit',
+      companyMemberships,
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: viewerId,
+      companyId,
+      projectId,
+      action: 'project:edit',
+      companyMemberships,
+      projectMemberships,
+    }),
+    false
+  );
+  assert.equal(
+    can({
+      userId: leadId,
+      companyId,
+      projectId,
+      action: 'project:edit',
+      companyMemberships,
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: leadId,
+      companyId,
+      projectId,
+      action: 'project:configure',
+      companyMemberships,
+      projectMemberships,
+    }),
+    false
+  );
+  assert.equal(
+    can({
+      userId: adminId,
+      companyId,
+      projectId,
+      action: 'project:configure',
+      companyMemberships,
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: memberId,
+      companyId,
+      action: 'company:manage_members',
+      companyMemberships,
+      projectMemberships,
+    }),
+    false
+  );
+});

@@ -266,3 +266,56 @@ test('PowerBI import rules use enabled sorted precedence', () => {
   assert.equal(decision.matchedRule?.id, asImportRuleId('rule_first'));
   assert.equal(decision.reason, 'First enabled match');
 });
+
+test('PowerBI regex rules fail closed for invalid and oversized patterns', () => {
+  const row = toPowerBiExpenditureActualsRow(rawPowerBiRow());
+
+  const invalidPatternDecision = decidePowerBiImportRule({
+    row,
+    rules: [
+      importRule({
+        id: asImportRuleId('rule_invalid_regex'),
+        operator: 'regex',
+        value: '(',
+      }),
+    ],
+  });
+  assert.equal(invalidPatternDecision.action, 'import');
+  assert.equal(invalidPatternDecision.matchedRule, undefined);
+
+  const oversizedPatternDecision = decidePowerBiImportRule({
+    row,
+    rules: [
+      importRule({
+        id: asImportRuleId('rule_oversized_regex'),
+        operator: 'regex',
+        value: 'a'.repeat(129),
+      }),
+    ],
+  });
+  assert.equal(oversizedPatternDecision.action, 'import');
+  assert.equal(oversizedPatternDecision.matchedRule, undefined);
+});
+
+test('PowerBI regex matching bounds the haystack length', () => {
+  const longPrefix = 'x'.repeat(520);
+  const row = toPowerBiExpenditureActualsRow(
+    rawPowerBiRow({
+      'Journal Line Description': `${longPrefix}training-after-limit`,
+    })
+  );
+
+  const decision = decidePowerBiImportRule({
+    row,
+    rules: [
+      importRule({
+        id: asImportRuleId('rule_regex_boundary'),
+        operator: 'regex',
+        value: 'training-after-limit',
+      }),
+    ],
+  });
+
+  assert.equal(decision.action, 'import');
+  assert.equal(decision.matchedRule, undefined);
+});

@@ -28,6 +28,7 @@ Before cutting over or handing a deployed environment to another developer, conf
 - `BETTER_AUTH_URL` is the canonical public origin users will visit.
 - `BETTER_AUTH_DIRECT_SESSION_FN` is configured, or `BETTER_AUTH_SESSION_URL` is intentionally used as the fallback.
 - `PROJEX_ENABLE_DEV_ENDPOINTS` is `false` or unset outside controlled local workflows.
+- `PROJEX_ENABLE_SMOKE_TOOLS` is `false` or unset outside controlled local workflows.
 - `CORS_ALLOWED_ORIGINS` only includes explicit trusted browser origins.
 - `pnpm run db:migrate` has run successfully against the target database.
 - The first app-side global superadmin has been created with `pnpm run auth:bootstrap-user` on fresh databases.
@@ -45,12 +46,19 @@ pnpm run typecheck
 pnpm run lint
 pnpm run format:check
 pnpm run build
+pnpm run verify:security
 ```
 
 Post-deploy verification on the target runtime:
 
 ```bash
 pnpm run smoke:server
+```
+
+Public deployment-surface verification:
+
+```bash
+PROJEX_VERIFY_BASE_URL=https://projectexpensetracker.com pnpm run verify:deploy-security
 ```
 
 For the most repeatable run, use generated smoke fixtures. This creates
@@ -115,6 +123,7 @@ PROJEX_AUTH_RESET_REDIRECT_URL=https://projectexpensetracker.com/reset-password
 PROJEX_APP_BASE_URL=https://projectexpensetracker.com
 
 PROJEX_ENABLE_DEV_ENDPOINTS=false
+PROJEX_ENABLE_SMOKE_TOOLS=false
 ```
 
 Notes:

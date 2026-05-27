@@ -444,8 +444,10 @@ export async function listUsersServer(args: {
 
     const companyRows = await db
       .selectFrom('company_memberships')
-      .select('company_id')
+      .innerJoin('companies', 'companies.id', 'company_memberships.company_id')
+      .select('company_memberships.company_id')
       .where('user_id', '=', userId)
+      .where('companies.status', '=', 'active')
       .execute();
     const companyIds = companyRows.map((r) => r.company_id);
     if (!companyIds.length) return [];
@@ -475,8 +477,8 @@ export async function listUsersServer(args: {
       id: asUserId(r.id),
       email: r.email,
       name: r.name,
-      disabled: r.disabled || undefined,
-      isGlobalSuperadmin: r.is_global_superadmin || undefined,
+      disabled: undefined,
+      isGlobalSuperadmin: undefined,
     }));
   });
 }

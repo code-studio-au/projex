@@ -49,12 +49,14 @@ PROJEX_APP_BASE_URL=https://app.example.com
 
 # Must remain false in staging/production
 PROJEX_ENABLE_DEV_ENDPOINTS=false
+PROJEX_ENABLE_SMOKE_TOOLS=false
 ```
 
 Notes:
 
 - Keep `NODE_ENV=production` in deployed runtime env such as `/etc/projex/projex.env` or the systemd unit, not in repo `.env.production` / `.env.staging` files consumed by Vite.
 - Do not deploy staging or production with development-only auth helpers enabled.
+- Keep both `PROJEX_ENABLE_DEV_ENDPOINTS` and `PROJEX_ENABLE_SMOKE_TOOLS` disabled outside controlled local workflows.
 - Set `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to the canonical public origin users will actually visit.
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.
@@ -201,6 +203,7 @@ Notes:
 - On a fresh database, sign-in alone is not enough; the account must also exist in app `users`.
 
 - `pnpm run smoke:server` (from trusted network against deployed URL)
+- `PROJEX_VERIFY_BASE_URL=https://app.example.com pnpm run verify:deploy-security`
 - Prefer `pnpm run smoke:server:generated` for repeatable smoke runs. It creates disposable `smoke_*` users/company/project data, creates temporary programme/sub-project data in the targeted smoke section, runs smoke with generated `PROJEX_SMOKE_*` values, and cleans the fixtures in `finally`.
 - Use `pnpm run smoke:cleanup` if an interrupted generated run leaves abandoned `smoke_*` fixtures behind.
 - Save smoke-only credentials in `/opt/projex/.env.smoke.local` on EC2 only when you want to run the older configured-credential flow or the admin smoke UI. The CLI generated-fixture flow does not require long-lived smoke users.
@@ -217,6 +220,13 @@ Notes:
 - If `PROJEX_SMOKE_INVITE_EMAIL` is set, the smoke script will also verify the company invite and resend-invite admin flow.
 - If `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD` are set, the smoke script will also verify the project-level superadmin access toggle.
 - Confirm auth/session, company scoping, transaction CRUD, taxonomy/budget CRUD, and programme rollups.
+- `verify:deploy-security` checks the public deployment surface for:
+  - `/api/health` and `/api/ready`
+  - nonce-based CSP on `/login`
+  - expected browser hardening headers
+  - disabled `/api/dev/session`
+  - non-public `/api/admin/smoke`
+  - HTTP -> HTTPS redirect when verifying an HTTPS deployment
 - Refresh test:
   - `/companies`
   - a company page
@@ -224,3 +234,17 @@ Notes:
   - a budget page
 
 Email change verification uses `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL` when set, and otherwise falls back to `BETTER_AUTH_URL/verify-email-change`.
+
+For local pre-deploy security hygiene before you even have staging up, run:
+
+```bash
+pnpm run verify:security
+```
+
+This bundles:
+
+- repo env/config safety checks
+- dependency audit
+- test suite
+- typecheck
+- lint

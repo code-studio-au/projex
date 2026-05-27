@@ -35,8 +35,16 @@ export async function requireProjectForAction(
   const userId = await requireServerUserId(context);
   const project = await db
     .selectFrom('projects')
-    .select(['id', 'company_id', 'project_type', 'allow_txn_transfers'])
-    .where('id', '=', projectId)
+    .innerJoin('companies', 'companies.id', 'projects.company_id')
+    .select([
+      'projects.id',
+      'projects.company_id',
+      'projects.project_type',
+      'projects.allow_txn_transfers',
+      'projects.status as project_status',
+      'companies.status as company_status',
+    ])
+    .where('projects.id', '=', projectId)
     .executeTakeFirst();
 
   if (!project) throw new AppError('NOT_FOUND', 'Unknown project');
@@ -65,6 +73,21 @@ export async function requireOperationalProjectForAction(
     action,
     db
   );
+  const project = await db
+    .selectFrom('projects')
+    .innerJoin('companies', 'companies.id', 'projects.company_id')
+    .select([
+      'projects.status as project_status',
+      'companies.status as company_status',
+    ])
+    .where('projects.id', '=', projectId)
+    .executeTakeFirstOrThrow();
+  if (project.company_status !== 'active') {
+    throw new AppError('FORBIDDEN', 'Company is deactivated');
+  }
+  if (project.project_status !== 'active') {
+    throw new AppError('FORBIDDEN', 'Project is deactivated');
+  }
   if (projectContext.projectType !== 'project') {
     throw new AppError(
       'VALIDATION_ERROR',

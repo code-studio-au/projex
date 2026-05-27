@@ -87,16 +87,20 @@ export async function listAllCompanyMembershipsServer(args: {
 
     const companyRows = await db
       .selectFrom('company_memberships')
-      .select('company_id')
+      .innerJoin('companies', 'companies.id', 'company_memberships.company_id')
+      .select('company_memberships.company_id')
       .where('user_id', '=', userId)
+      .where('companies.status', '=', 'active')
       .execute();
     const companyIds = companyRows.map((r) => r.company_id);
     if (!companyIds.length) return [];
 
     const rows = await db
       .selectFrom('company_memberships')
+      .innerJoin('companies', 'companies.id', 'company_memberships.company_id')
       .select(['company_id', 'user_id', 'role'])
       .where('company_id', 'in', companyIds)
+      .where('companies.status', '=', 'active')
       .execute();
 
     return rows.map(toCompanyMembership);

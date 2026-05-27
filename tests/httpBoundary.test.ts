@@ -5,6 +5,8 @@ import { AppError } from '../src/api/errors.ts';
 import { withPublicApi } from '../src/routes/-api-shared.ts';
 import { safeParseJson } from '../src/utils/json.ts';
 
+const ORIGINAL_ENV = { ...process.env };
+
 type RequestLog = {
   level: string;
   type: string;
@@ -93,6 +95,15 @@ function captureConsole(method: 'info' | 'warn' | 'error') {
     },
   };
 }
+
+test.afterEach(() => {
+  for (const key of Object.keys(process.env)) {
+    if (!(key in ORIGINAL_ENV)) delete process.env[key];
+  }
+  for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
+    process.env[key] = value;
+  }
+});
 
 test('withPublicApi propagates request ids and emits structured success logs', async () => {
   const logs = captureConsole('info');
@@ -221,4 +232,75 @@ test('withPublicApi hides unexpected error messages from clients', async () => {
   } finally {
     logs.restore();
   }
+});
+
+test('withPublicApi rejects disallowed cross-origin browser requests', async () => {
+  process.env.CORS_ALLOWED_ORIGINS = 'https://app.example.com';
+  const logs = captureConsole('warn');
+
+  try {
+    const response = await withPublicApi(
+      new Request('https://api.example.com/api/example', {
+        method: 'POST',
+        headers: {
+          origin: 'https://evil.example.com',
+          'x-request-id': 'req_test_origin_block',
+        },
+      }),
+      async () => ({ ok: true })
+    );
+
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get('x-request-id'), 'req_test_origin_block');
+    assert.equal(response.headers.get('access-control-allow-origin'), null);
+    assert.deepEqual(await response.json(), {
+      code: 'FORBIDDEN',
+      message: 'Origin not allowed',
+    });
+
+    assert.equal(logs.messages.length, 1);
+    const log = parseRequestLog(logs.messages[0]);
+    assert.equal(log.level, 'warn');
+    assert.equal(log.status, 403);
+    assert.equal(log.code, 'FORBIDDEN');
+    assert.equal(log.message, undefined);
+  } finally {
+    logs.restore();
+  }
+});
+
+test('withPublicApi answers allowed CORS preflight requests without invoking handlers', async () => {
+  process.env.CORS_ALLOWED_ORIGINS = 'https://app.example.com';
+
+  let invoked = false;
+  const response = await withPublicApi(
+    new Request('https://api.example.com/api/example', {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'https://app.example.com',
+        'access-control-request-method': 'POST',
+        'x-request-id': 'req_test_preflight',
+      },
+    }),
+    async () => {
+      invoked = true;
+      return { ok: true };
+    }
+  );
+
+  assert.equal(invoked, false);
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get('x-request-id'), 'req_test_preflight');
+  assert.equal(
+    response.headers.get('access-control-allow-origin'),
+    'https://app.example.com'
+  );
+  assert.equal(
+    response.headers.get('access-control-allow-credentials'),
+    'true'
+  );
+  assert.match(
+    response.headers.get('access-control-allow-methods') ?? '',
+    /OPTIONS/
+  );
 });
