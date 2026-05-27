@@ -1,8 +1,13 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
-import { createApp, eventHandler, fromWebHandler, serve } from 'h3-v2';
+import { createApp, eventHandler, fromWebHandler } from 'h3-v2';
+import { toNodeListener } from 'h3-v2/node';
+
+const CSP_NONCE_REQUEST_HEADER = 'x-projex-csp-nonce';
 
 async function loadEnvFile(fileName) {
   if (!existsSync(fileName)) return;
@@ -99,6 +104,73 @@ function resolveStaticFile(pathname) {
   return null;
 }
 
+function createCspNonce() {
+  return randomBytes(16).toString('base64url');
+}
+
+function buildAppCsp(nonce) {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}'`,
+    "script-src-attr 'none'",
+    `style-src 'self' 'nonce-${nonce}'`,
+    `style-src-elem 'self' 'nonce-${nonce}'`,
+    "style-src-attr 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    'upgrade-insecure-requests',
+  ].join('; ');
+}
+
+function injectNonceIntoHtml(html, nonce) {
+  let output = html;
+
+  if (!output.includes('property="csp-nonce"')) {
+    output = output.replace(
+      '</head>',
+      `  <meta property="csp-nonce" content="${nonce}" />\n      </head>`
+    );
+  }
+
+  output = output.replace(/\bnonce=(['"])\1/g, `nonce="${nonce}"`);
+
+  output = output.replace(
+    /<script\b(?![^>]*\bnonce=)/g,
+    `<script nonce="${nonce}"`
+  );
+  output = output.replace(
+    /<style\b(?![^>]*\bnonce=)/g,
+    `<style nonce="${nonce}"`
+  );
+
+  return output;
+}
+
+function cloneRequestWithHeaders(request, headers) {
+  return new Request(request.url, {
+    method: request.method,
+    headers,
+    body:
+      request.method === 'GET' || request.method === 'HEAD'
+        ? undefined
+        : request.body,
+    duplex:
+      request.method === 'GET' || request.method === 'HEAD'
+        ? undefined
+        : 'half',
+    redirect: request.redirect,
+    signal: request.signal,
+  });
+}
+
 const app = createApp();
 
 app.use(
@@ -139,7 +211,42 @@ app.use(
   })
 );
 
-app.use(fromWebHandler((request) => server.fetch(request)));
+app.use(
+  fromWebHandler(async (request) => {
+    const nonce = createCspNonce();
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set(CSP_NONCE_REQUEST_HEADER, nonce);
+
+    const response = await server.fetch(
+      cloneRequestWithHeaders(request, requestHeaders)
+    );
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.includes('text/html')) {
+      return response;
+    }
+
+    const html = injectNonceIntoHtml(await response.text(), nonce);
+    const headers = new Headers(response.headers);
+    headers.set('content-security-policy', buildAppCsp(nonce));
+
+    return new Response(request.method === 'HEAD' ? null : html, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  })
+);
 
 console.info(`Starting Projex SSR server on http://${host}:${port}`);
-serve(app, { hostname: host, port });
+const httpServer = createServer(toNodeListener(app));
+
+await new Promise((resolve, reject) => {
+  httpServer.once('error', reject);
+  httpServer.listen(port, host, () => {
+    httpServer.off('error', reject);
+    resolve();
+  });
+});
+
+await new Promise(() => {});

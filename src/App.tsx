@@ -6,6 +6,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { queryClient } from './queryClient';
 import { router } from './router';
 import { theme } from './theme';
+import { getCspNonce } from './utils/csp';
 
 const Devtools = import.meta.env.DEV
   ? lazy(async () => import('./components/Devtools'))
@@ -13,7 +14,11 @@ const Devtools = import.meta.env.DEV
 
 export default function App() {
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider
+      theme={theme}
+      defaultColorScheme="light"
+      getStyleNonce={getCspNonce}
+    >
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
         {Devtools ? (

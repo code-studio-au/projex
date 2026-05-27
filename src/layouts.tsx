@@ -28,6 +28,7 @@ import { theme } from './theme';
 import { asCompanyId } from './types/ids';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
 import { useCompaniesQuery, useUsersQuery } from './queries/reference';
+import { getCspNonce } from './utils/csp';
 
 const smokeToolsEnabled = import.meta.env.VITE_ENABLE_SMOKE_TOOLS === 'true';
 
@@ -36,7 +37,11 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider
+      theme={theme}
+      defaultColorScheme="light"
+      getStyleNonce={getCspNonce}
+    >
       <QueryClientProvider client={router.options.context.queryClient}>
         {children}
       </QueryClientProvider>

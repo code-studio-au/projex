@@ -159,9 +159,10 @@ The readiness response body is intentionally minimal; rely on the HTTP status co
   - `X-Frame-Options`
   - `Referrer-Policy`
   - `Permissions-Policy`
-  - a pragmatic `Content-Security-Policy`
+- a static maintenance-page `Content-Security-Policy`
+- The SSR app server now emits the main app CSP per HTML response so it can attach a fresh nonce to inline scripts and runtime style tags.
 - Review the CSP before adding third-party scripts, fonts, or image hosts.
-- The current CSP keeps `style-src 'unsafe-inline'` because the React UI still uses inline style attributes in several places.
+- The current app CSP uses per-request nonces for `<script>` and `<style>` tags, but still allows style attributes because Mantine-rendered HTML uses inline `style=""` attributes at runtime.
 
 ## 5.3) Friendly restart page
 
