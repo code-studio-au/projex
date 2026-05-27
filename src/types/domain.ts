@@ -143,9 +143,13 @@ export type ImportRuleField =
   | 'anyText';
 export type ImportRuleOperator =
   | 'equals'
+  | 'equals_any'
   | 'contains'
+  | 'contains_any'
   | 'starts_with'
-  | 'regex';
+  | 'starts_with_any'
+  | 'ends_with'
+  | 'ends_with_any';
 
 export type ImportRule = {
   id: ImportRuleId;

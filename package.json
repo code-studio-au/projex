@@ -17,6 +17,7 @@
     "test": "node --import tsx --test tests/**/*.test.ts",
     "verify:security:repo": "node scripts/verify-repo-security.mjs",
     "verify:security": "pnpm run verify:security:repo && pnpm audit --json >/dev/null && pnpm test && pnpm run typecheck && pnpm run lint",
+    "verify:ci": "pnpm run verify:security && pnpm run build && pnpm run test:integration:db && pnpm run smoke:server:disposable -- --skip-build --section=basics",
     "verify:precommit": "pnpm run db:migrate && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm test && pnpm run build",
     "typecheck": "tsc -b --noemit",
     "lint": "eslint .",

@@ -41,13 +41,15 @@ Before cutting over or handing a deployed environment to another developer, conf
 Pre-deploy verification from a clean local checkout:
 
 ```bash
-pnpm run test
-pnpm run typecheck
-pnpm run lint
-pnpm run format:check
-pnpm run build
 pnpm run verify:security
+pnpm run verify:ci
 ```
+
+How to think about those commands:
+
+- `pnpm run verify:security` is the fast non-Docker pass for repo config, audit, tests, typecheck, and lint.
+- `pnpm run verify:ci` is the fuller local/CI-shaped pass. It adds build, disposable DB integration tests, and isolated disposable smoke basics.
+- Both disposable DB steps require local Docker access.
 
 Post-deploy verification on the target runtime:
 
@@ -94,6 +96,12 @@ Generated fixture runs still require the normal deployed runtime env, including 
 ```bash
 pnpm run smoke:cleanup
 ```
+
+Use the smoke commands like this:
+
+- `pnpm run smoke:server:disposable` is for local or CI use when you want full isolation from shared databases.
+- `pnpm run smoke:server:generated` is for running against an already-running app/database and still relies on `smoke_*` fixture rows in normal tables.
+- `pnpm run smoke:server` is for configured-credential or targeted runtime verification against a real deployed environment.
 
 ## Required Production Env
 

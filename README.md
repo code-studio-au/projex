@@ -21,16 +21,34 @@ pnpm run format:check
 pnpm run build
 ```
 
-Optional DB-backed integration coverage is included in `pnpm run test`, but is skipped unless an explicit integration database is provided. Use a migrated disposable database whose name contains `test`:
+For the most complete local or future-CI verification pass, use:
 
 ```bash
-PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test
+pnpm run verify:ci
 ```
 
-For a fully local disposable Postgres-backed integration run, use:
+That pipeline-shaped command runs:
+
+- repo security/config verification
+- dependency audit
+- unit and route-level tests
+- typecheck and lint
+- production build
+- disposable Postgres-backed DB integration tests
+- disposable Postgres-backed end-to-end smoke for the `basics` section
+
+Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`, and `pnpm run smoke:server:disposable`.
+
+`pnpm run test` includes optional DB-backed integration coverage, but those tests are skipped unless `PROJEX_INTEGRATION_DATABASE_URL` is set. For the normal local workflow, prefer the automated disposable runner:
 
 ```bash
 pnpm run test:integration:db
+```
+
+If you need to point the suite at an explicit integration database yourself, use a migrated disposable database whose name contains `test`:
+
+```bash
+PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test
 ```
 
 `pnpm run build` should not emit client chunk-size warnings. Current known build noise is limited to SSR dynamic/static import warnings from TanStack Start server route wiring.
@@ -70,6 +88,10 @@ pnpm run smoke:cleanup
 
 Notes:
 
+- `pnpm run verify:security` is the fast non-Docker safety pass for daily work.
+- `pnpm run verify:ci` is the fuller pipeline-shaped local check before bigger merges or deploy handoff.
+- `pnpm run test:integration:db` is for real Postgres-backed authz/data-integrity coverage.
+- `pnpm run smoke:server:disposable` is for isolated local end-to-end smoke with Better Auth and app tables inside a disposable DB.
 - `pnpm run smoke:server:generated` still uses whatever `DATABASE_URL` the current server/runtime points at and creates disposable `smoke_*` rows in normal app tables.
 - `pnpm run smoke:server:disposable` keeps Better Auth tables, app tables, and smoke fixture data inside a disposable local Postgres container instead.
 - Both disposable commands accept `--keep-db` if you want to leave the container running for debugging.

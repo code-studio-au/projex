@@ -136,7 +136,7 @@ create table if not exists import_rules (
   name text not null,
   action text not null check (action in ('import', 'exclude', 'review')),
   field text not null check (field in ('ledger', 'source', 'journalId', 'journalLineDescription', 'ccAndDescription', 'vendorName', 'poId', 'referenceNum', 'anyText')),
-  operator text not null check (operator in ('equals', 'contains', 'starts_with', 'regex')),
+  operator text not null check (operator in ('equals', 'equals_any', 'contains', 'contains_any', 'starts_with', 'starts_with_any', 'ends_with', 'ends_with_any')),
   value text not null,
   sort_order integer not null default 0,
   enabled boolean not null default true,

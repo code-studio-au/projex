@@ -55,9 +55,13 @@ const fieldOptions: Array<{ value: ImportRuleField; label: string }> = [
 
 const operatorOptions: Array<{ value: ImportRuleOperator; label: string }> = [
   { value: 'equals', label: 'Equals' },
+  { value: 'equals_any', label: 'Equals any of' },
   { value: 'contains', label: 'Contains' },
+  { value: 'contains_any', label: 'Contains any of' },
   { value: 'starts_with', label: 'Starts with' },
-  { value: 'regex', label: 'Regex' },
+  { value: 'starts_with_any', label: 'Starts with any of' },
+  { value: 'ends_with', label: 'Ends with' },
+  { value: 'ends_with_any', label: 'Ends with any of' },
 ];
 
 function toImportRuleAction(value: string | null): ImportRuleAction | null {
@@ -197,6 +201,9 @@ export default function CompanyImportRulesModal(props: {
               Import Rules run before Auto-Categorise Rules. Use them to exclude
               known non-project spend, or to hold uncertain rows for project
               review.
+            </Text>
+            <Text size="xs" c="dimmed">
+              For any "any of" operator, separate values with commas or new lines.
             </Text>
             <Text size="xs" fw={600} c="dimmed">
               Rules are checked from top to bottom. The first enabled match

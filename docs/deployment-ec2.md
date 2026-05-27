@@ -188,6 +188,19 @@ Why this matters:
 
 ## 6) Post-deploy verification
 
+Local or future-CI verification before you deploy:
+
+```bash
+pnpm run verify:security
+pnpm run verify:ci
+```
+
+Use those like this:
+
+- `pnpm run verify:security` is the fast non-Docker repo safety pass.
+- `pnpm run verify:ci` adds build, disposable DB integration tests, and isolated disposable smoke basics.
+- The disposable DB commands are for local or CI use only; they are not part of the deployed EC2 runtime.
+
 Before normal app verification on a fresh database, create the first global superadmin:
 
 ```bash
@@ -248,3 +261,15 @@ This bundles:
 - test suite
 - typecheck
 - lint
+
+When you want the fuller pipeline-shaped local check, run:
+
+```bash
+pnpm run verify:ci
+```
+
+That adds:
+
+- production build
+- disposable Postgres-backed DB integration tests
+- disposable Postgres-backed isolated smoke basics

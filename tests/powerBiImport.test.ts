@@ -182,22 +182,6 @@ test('PowerBI default import rules exclude SAL and EXA while reviewing salary tr
     id: asImportRuleId(`rule_${index + 1}`),
   }));
 
-  const footerDecision = decidePowerBiImportRule({
-    row: toPowerBiExpenditureActualsRow(
-      rawPowerBiRow({
-        Ledger: 'Total',
-        Source: '',
-        'Journal Line Description': 'Grand total',
-      })
-    ),
-    rules,
-  });
-  assert.equal(footerDecision.action, 'exclude');
-  assert.equal(
-    footerDecision.matchedRule?.name,
-    'Exclude non-actual ledger/footer rows'
-  );
-
   assert.equal(
     decidePowerBiImportRule({
       row: toPowerBiExpenditureActualsRow(rawPowerBiRow({ Ledger: '' })),
@@ -226,6 +210,18 @@ test('PowerBI default import rules exclude SAL and EXA while reviewing salary tr
         rawPowerBiRow({
           Source: 'EXP',
           'Journal Line Description': 'Salaries TRF between cost centres',
+        })
+      ),
+      rules,
+    }).action,
+    'review'
+  );
+  assert.equal(
+    decidePowerBiImportRule({
+      row: toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          Source: 'EXP',
+          'CC and Description': '4141 People costs',
         })
       ),
       rules,
@@ -267,55 +263,64 @@ test('PowerBI import rules use enabled sorted precedence', () => {
   assert.equal(decision.reason, 'First enabled match');
 });
 
-test('PowerBI regex rules fail closed for invalid and oversized patterns', () => {
+test('PowerBI multi-value operators match against comma and newline separated lists', () => {
   const row = toPowerBiExpenditureActualsRow(rawPowerBiRow());
 
-  const invalidPatternDecision = decidePowerBiImportRule({
+  const equalsAnyDecision = decidePowerBiImportRule({
     row,
     rules: [
       importRule({
-        id: asImportRuleId('rule_invalid_regex'),
-        operator: 'regex',
-        value: '(',
+        id: asImportRuleId('rule_equals_any'),
+        field: 'source',
+        operator: 'equals_any',
+        value: 'sal,\nexp,\nexa',
       }),
     ],
   });
-  assert.equal(invalidPatternDecision.action, 'import');
-  assert.equal(invalidPatternDecision.matchedRule, undefined);
+  assert.equal(equalsAnyDecision.action, 'review');
 
-  const oversizedPatternDecision = decidePowerBiImportRule({
+  const containsAnyDecision = decidePowerBiImportRule({
     row,
     rules: [
       importRule({
-        id: asImportRuleId('rule_oversized_regex'),
-        operator: 'regex',
-        value: 'a'.repeat(129),
+        id: asImportRuleId('rule_contains_any'),
+        operator: 'contains_any',
+        value: 'tuition,\ntraining,\ntravel',
       }),
     ],
   });
-  assert.equal(oversizedPatternDecision.action, 'import');
-  assert.equal(oversizedPatternDecision.matchedRule, undefined);
+  assert.equal(containsAnyDecision.action, 'review');
 });
 
-test('PowerBI regex matching bounds the haystack length', () => {
-  const longPrefix = 'x'.repeat(520);
-  const row = toPowerBiExpenditureActualsRow(
-    rawPowerBiRow({
-      'Journal Line Description': `${longPrefix}training-after-limit`,
-    })
+test('PowerBI predefined operators support starts-with and ends-with matching', () => {
+  const startsWithRow = toPowerBiExpenditureActualsRow(
+    rawPowerBiRow({ 'Journal Line Description': 'Transfer to payroll clearing' })
+  );
+  const endsWithRow = toPowerBiExpenditureActualsRow(
+    rawPowerBiRow({ 'Journal Line Description': 'Processed via suspense' })
   );
 
-  const decision = decidePowerBiImportRule({
-    row,
+  const startsWithDecision = decidePowerBiImportRule({
+    row: startsWithRow,
     rules: [
       importRule({
-        id: asImportRuleId('rule_regex_boundary'),
-        operator: 'regex',
-        value: 'training-after-limit',
+        id: asImportRuleId('rule_starts_with_any'),
+        operator: 'starts_with_any',
+        value: 'transfer,\nreclass',
       }),
     ],
   });
+  assert.equal(startsWithDecision.action, 'review');
 
-  assert.equal(decision.action, 'import');
-  assert.equal(decision.matchedRule, undefined);
+  const endsWithDecision = decidePowerBiImportRule({
+    row: endsWithRow,
+    rules: [
+      importRule({
+        id: asImportRuleId('rule_ends_with'),
+        operator: 'ends_with',
+        value: 'suspense',
+      }),
+    ],
+  });
+  assert.equal(endsWithDecision.action, 'review');
 });

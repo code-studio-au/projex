@@ -100,9 +100,13 @@ const importRuleFieldSchema = z.enum([
 ]);
 const importRuleOperatorSchema = z.enum([
   'equals',
+  'equals_any',
   'contains',
+  'contains_any',
   'starts_with',
-  'regex',
+  'starts_with_any',
+  'ends_with',
+  'ends_with_any',
 ]);
 const destructiveConfirmationSchema = z
   .string()

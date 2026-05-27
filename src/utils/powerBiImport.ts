@@ -6,9 +6,6 @@ import type {
 } from '../types';
 import { toCents } from './money';
 
-const MAX_REGEX_PATTERN_LENGTH = 128;
-const MAX_REGEX_HAYSTACK_LENGTH = 512;
-
 const POWER_BI_COLUMNS = {
   ledger: 'Ledger',
   fiscalYear: 'Fiscal Year',
@@ -67,6 +64,13 @@ function valueForColumn(
 
 function normalizeForMatch(value: string | undefined | null): string {
   return normalize(value).toLowerCase().replace(/\s+/g, ' ');
+}
+
+function splitRuleValues(value: string): string[] {
+  return value
+    .split(/[\n,]/)
+    .map((entry) => normalizeForMatch(entry))
+    .filter(Boolean);
 }
 
 function excelSerialDateToIso(value: string): string | null {
@@ -277,24 +281,26 @@ function valueForRuleField(
 function ruleMatches(row: PowerBiExpenditureActualsRow, rule: ImportRule) {
   const haystack = normalizeForMatch(valueForRuleField(row, rule.field));
   const needle = normalizeForMatch(rule.value);
+  const needles = splitRuleValues(rule.value);
   if (!needle) return false;
 
   switch (rule.operator) {
     case 'equals':
       return haystack === needle;
+    case 'equals_any':
+      return needles.some((candidate) => haystack === candidate);
     case 'contains':
       return haystack.includes(needle);
+    case 'contains_any':
+      return needles.some((candidate) => haystack.includes(candidate));
     case 'starts_with':
       return haystack.startsWith(needle);
-    case 'regex':
-      try {
-        if (rule.value.length > MAX_REGEX_PATTERN_LENGTH) return false;
-        return new RegExp(rule.value, 'i').test(
-          valueForRuleField(row, rule.field).slice(0, MAX_REGEX_HAYSTACK_LENGTH)
-        );
-      } catch {
-        return false;
-      }
+    case 'starts_with_any':
+      return needles.some((candidate) => haystack.startsWith(candidate));
+    case 'ends_with':
+      return haystack.endsWith(needle);
+    case 'ends_with_any':
+      return needles.some((candidate) => haystack.endsWith(candidate));
   }
 }
 
@@ -334,16 +340,6 @@ export function defaultPowerBiImportRules(
   return [
     {
       companyId,
-      name: 'Exclude non-actual ledger/footer rows',
-      action: 'exclude',
-      field: 'ledger',
-      operator: 'regex',
-      value: '^(?!\\s*actuals?\\s*$).*$',
-      sortOrder: 5,
-      enabled: true,
-    },
-    {
-      companyId,
       name: 'Exclude SAL payroll source',
       action: 'exclude',
       field: 'source',
@@ -367,8 +363,8 @@ export function defaultPowerBiImportRules(
       name: 'Review internal salary transfer cost codes',
       action: 'review',
       field: 'ccAndDescription',
-      operator: 'regex',
-      value: '^(4041|4141)\\b|salaries trf',
+      operator: 'contains_any',
+      value: '4041,4141,salaries trf',
       sortOrder: 30,
       enabled: true,
     },
@@ -377,8 +373,8 @@ export function defaultPowerBiImportRules(
       name: 'Review suspected salary transfer descriptions',
       action: 'review',
       field: 'journalLineDescription',
-      operator: 'regex',
-      value: '\\b(sal|salary|salaries|payroll|wages?|suspense|trf)\\b',
+      operator: 'contains_any',
+      value: 'sal,salary,salaries,payroll,wage,wages,suspense,trf',
       sortOrder: 40,
       enabled: true,
     },
