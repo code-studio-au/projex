@@ -27,6 +27,12 @@ Optional DB-backed integration coverage is included in `pnpm run test`, but is s
 PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test
 ```
 
+For a fully local disposable Postgres-backed integration run, use:
+
+```bash
+pnpm run test:integration:db
+```
+
 `pnpm run build` should not emit client chunk-size warnings. Current known build noise is limited to SSR dynamic/static import warnings from TanStack Start server route wiring.
 
 ## Local Server Utilities
@@ -54,9 +60,19 @@ pnpm run smoke:server -- --section=emailChange
 # Smoke test with disposable generated users/data, then clean them up
 pnpm run smoke:server:generated
 
+# Start a disposable Postgres instance, migrate it, build the app, run a local
+# server against that isolated DB, then execute generated smoke end to end
+pnpm run smoke:server:disposable
+
 # Best-effort cleanup sweep for abandoned smoke_* fixtures
 pnpm run smoke:cleanup
 ```
+
+Notes:
+
+- `pnpm run smoke:server:generated` still uses whatever `DATABASE_URL` the current server/runtime points at and creates disposable `smoke_*` rows in normal app tables.
+- `pnpm run smoke:server:disposable` keeps Better Auth tables, app tables, and smoke fixture data inside a disposable local Postgres container instead.
+- Both disposable commands accept `--keep-db` if you want to leave the container running for debugging.
 
 ## Product Model
 
