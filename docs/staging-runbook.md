@@ -2,6 +2,33 @@
 
 This is the operational source of truth for deployed Projex environments. It covers runtime readiness, deploys, post-deploy verification, first-admin bootstrap, and common troubleshooting.
 
+## Organisation Handoff Checklist
+
+Before handing this repo to another developer or team, make sure:
+
+- local verification is green:
+  - `pnpm run verify:security`
+  - `pnpm run verify:ci`
+- required runtime secrets and envs are known and documented:
+  - `DATABASE_URL`
+  - `BETTER_AUTH_SECRET`
+  - `BETTER_AUTH_URL`
+  - `BETTER_AUTH_TRUSTED_ORIGINS`
+  - `CORS_ALLOWED_ORIGINS`
+  - one auth session resolution mode, preferably `BETTER_AUTH_DIRECT_SESSION_FN`
+- production-only expectations are understood:
+  - `PROJEX_ENABLE_DEV_ENDPOINTS=false`
+  - `PROJEX_ENABLE_SMOKE_TOOLS=false`
+  - secrets come from the org-managed secret store, not committed files
+  - the app DB user should be least-privilege and not a superuser
+  - only nginx/public ports should be browser-facing
+- the eventual pipeline shape is clear:
+  - local/CI gate: `pnpm run verify:ci`
+  - deployed-environment checks: `pnpm run smoke:server` and `pnpm run verify:deploy-security`
+- the first-admin bootstrap path is understood for fresh databases:
+  - `pnpm run auth:create-user`
+  - `pnpm run auth:bootstrap-user`
+
 ## Checkpoint
 
 - Last known stable checkpoint tag: `staging-auth-stable-2026-03-17`

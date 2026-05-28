@@ -188,6 +188,8 @@ Why this matters:
 
 ## 6) Post-deploy verification
 
+For organisation handoff and the full operational checklist, use `docs/staging-runbook.md`.
+
 Local or future-CI verification before you deploy:
 
 ```bash
@@ -198,7 +200,7 @@ pnpm run verify:ci
 Use those like this:
 
 - `pnpm run verify:security` is the fast non-Docker repo safety pass.
-- `pnpm run verify:ci` adds build, disposable DB integration tests, and isolated disposable smoke basics.
+- `pnpm run verify:ci` is the fuller local or future-CI gate.
 - The disposable DB commands are for local or CI use only; they are not part of the deployed EC2 runtime.
 
 Before normal app verification on a fresh database, create the first global superadmin:

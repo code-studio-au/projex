@@ -39,6 +39,25 @@ That pipeline-shaped command runs:
 
 Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`, and `pnpm run smoke:server:disposable`.
 
+## Verification Workflow
+
+Use the verification commands like this:
+
+- `pnpm run verify:security`
+  - fast daily safety pass
+  - repo config checks, dependency audit, tests, typecheck, lint
+- `pnpm run verify:ci`
+  - fuller local or future-CI gate
+  - runs `verify:security`, build, disposable DB integration, and disposable smoke basics
+- `pnpm run test:integration:db`
+  - targeted real-Postgres authz/data-integrity coverage
+- `pnpm run smoke:server:disposable`
+  - isolated local end-to-end smoke with Better Auth and app tables inside a disposable DB
+- `pnpm run smoke:server`
+  - smoke a real running environment
+- `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security`
+  - verify public deploy-surface headers and endpoint exposure
+
 `pnpm run test` includes optional DB-backed integration coverage, but those tests are skipped unless `PROJEX_INTEGRATION_DATABASE_URL` is set. For the normal local workflow, prefer the automated disposable runner:
 
 ```bash
