@@ -111,7 +111,7 @@ function createCspNonce() {
 function buildAppCsp(nonce) {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
+    `script-src 'nonce-${nonce}' 'strict-dynamic'`,
     "script-src-attr 'none'",
     `style-src 'self' 'nonce-${nonce}'`,
     `style-src-elem 'self' 'nonce-${nonce}'`,
@@ -123,7 +123,7 @@ function buildAppCsp(nonce) {
     "manifest-src 'self'",
     "frame-src 'none'",
     "object-src 'none'",
-    "base-uri 'self'",
+    "base-uri 'none'",
     "form-action 'self'",
     "frame-ancestors 'none'",
     'upgrade-insecure-requests',
