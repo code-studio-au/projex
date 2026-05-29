@@ -13,7 +13,10 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import {
+  MantineReactTable,
+  type MRT_ColumnDef,
+} from 'mantine-react-table-open';
 import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, CompanyRole, UserId } from '../types';

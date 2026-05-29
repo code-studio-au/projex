@@ -18,7 +18,7 @@ import {
   type MRT_ColumnDef,
   type MRT_PaginationState,
   type MRT_SortingState,
-} from 'mantine-react-table';
+} from 'mantine-react-table-open';
 import {
   IconDotsVertical,
   IconLock,
@@ -327,7 +327,7 @@ export default function TransactionsPanel(props: {
     );
 
     return (
-      <Collapse in={isExpanded}>
+      <Collapse expanded={isExpanded}>
         <Stack gap="xs" mt={4}>
           {expandedCommentsQ.isLoading ? (
             <Text size="xs" c="dimmed">

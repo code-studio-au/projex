@@ -13,7 +13,10 @@ import {
   Switch,
   Text,
 } from '@mantine/core';
-import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import {
+  MantineReactTable,
+  type MRT_ColumnDef,
+} from 'mantine-react-table-open';
 import { IconCheck, IconColumns, IconPencil, IconX } from '@tabler/icons-react';
 import type { RollupsHook } from '../hooks/useRollups';
 import type { BudgetsHook } from '../hooks/useBudgets';
