@@ -15,7 +15,10 @@ import {
   Title,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import {
+  MantineReactTable,
+  type MRT_ColumnDef,
+} from 'mantine-react-table-open';
 
 import type { CompanyId, ImportPreviewRow, ProjectId, Txn } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';

@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type {
   MRT_PaginationState,
   MRT_SortingState,
-} from 'mantine-react-table';
+} from 'mantine-react-table-open';
 
 import { useApi } from './useApi';
 import type { TaxonomyHook } from './useTaxonomy';

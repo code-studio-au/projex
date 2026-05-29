@@ -13,7 +13,10 @@ import {
   Title,
 } from '@mantine/core';
 import { Link, useRouter } from '@tanstack/react-router';
-import { MantineReactTable, type MRT_ColumnDef } from 'mantine-react-table';
+import {
+  MantineReactTable,
+  type MRT_ColumnDef,
+} from 'mantine-react-table-open';
 import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, Project, ProjectId } from '../types';

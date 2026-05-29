@@ -5,7 +5,7 @@ import {
   Scripts,
 } from '@tanstack/react-router';
 import '@mantine/core/styles.css';
-import 'mantine-react-table/styles.css';
+import 'mantine-react-table-open/styles.css';
 import '../app.css';
 
 import {
