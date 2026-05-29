@@ -2,7 +2,7 @@
 
 Project and grant budget tracking app.
 
-Projex is a TanStack Start, React, TypeScript, BetterAuth, and Postgres app. The UI talks through the stable `ProjexApi` boundary, while server-backed behavior lives behind TanStack Start API routes and `src/server/fns/*`.
+Projex is a TanStack Start, React, TypeScript, Mantine 9, BetterAuth, and Postgres app. The UI talks through the stable `ProjexApi` boundary, while server-backed behavior lives behind TanStack Start API routes and `src/server/fns/*`.
 
 ## Quick Start
 
@@ -71,6 +71,8 @@ PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test
 ```
 
 `pnpm run build` should not emit client chunk-size warnings. Current known build noise is limited to SSR dynamic/static import warnings from TanStack Start server route wiring.
+
+The current table layer is `mantine-react-table-open` on the Mantine 9 line.
 
 ## Local Server Utilities
 

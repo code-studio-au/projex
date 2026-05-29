@@ -466,7 +466,7 @@ Design direction:
 
 ## Not A Priority Right Now
 
-- Mantine 9 migration until `mantine-react-table` has a compatible release or we replace the table layer
+- large table-layer replacement work beyond the current Mantine 9 + `mantine-react-table-open` stack unless the fork becomes unmaintained or product needs outgrow it
 - replacing the app company model with BetterAuth organizations
 - automatic account switching after password reset
 - large visual redesign work
