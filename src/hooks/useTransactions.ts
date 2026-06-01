@@ -25,8 +25,6 @@ import { isCategorisableTxn } from '../utils/transactions';
 /**
  * Query-backed transactions model.
  *
- * Provides a mostly compatible surface area with the earlier local-state hook.
- *
  * Notes:
  * - For batch operations (strip coding / replaceAll / appendMany) we currently
  *   route through the import endpoint until dedicated batch mutations exist.

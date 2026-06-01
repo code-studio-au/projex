@@ -16,6 +16,14 @@ import {
   upsertProjectMembershipServerFn,
 } from '../server/start/functions/memberships';
 
+export function allCompanyMembershipsQueryOptions(userId?: UserId) {
+  return {
+    enabled: !!userId,
+    queryKey: userId ? qk.allCompanyMemberships(userId) : ['memberships', 'anonymous'],
+    queryFn: () => listAllCompanyMembershipsServerFn(),
+  } as const;
+}
+
 export function useCompanyMembershipsQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
@@ -27,13 +35,8 @@ export function useCompanyMembershipsQuery(companyId: CompanyId) {
 }
 
 export function useAllCompanyMembershipsQuery() {
-  const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
-  return useQuery({
-    enabled: !!session.data?.userId,
-    queryKey: qk.allCompanyMemberships(scopeUserId),
-    queryFn: () => listAllCompanyMembershipsServerFn(),
-  });
+  return useQuery(allCompanyMembershipsQueryOptions(session.data?.userId));
 }
 
 export function useProjectMembershipsQuery(

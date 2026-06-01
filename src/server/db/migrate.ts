@@ -15,6 +15,7 @@ const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 type MigrationQueryResultRow = { id: string };
 
 type Queryable = Pick<TypedPgPool, 'query' | 'end'>;
+const MIGRATION_ADVISORY_LOCK_ID = 7_021_115_091;
 
 async function ensureMigrationsTable(pool: Queryable) {
   await pool.query(`
@@ -30,6 +31,14 @@ async function appliedMigrationIds(pool: Queryable): Promise<Set<string>> {
     'select id from schema_migrations order by id'
   );
   return new Set(res.rows.map((r) => r.id));
+}
+
+async function acquireMigrationLock(pool: Queryable) {
+  await pool.query('select pg_advisory_lock($1)', [MIGRATION_ADVISORY_LOCK_ID]);
+}
+
+async function releaseMigrationLock(pool: Queryable) {
+  await pool.query('select pg_advisory_unlock($1)', [MIGRATION_ADVISORY_LOCK_ID]);
 }
 
 export function splitSqlStatements(sql: string): string[] {
@@ -166,6 +175,7 @@ async function run() {
 
   const pool: Queryable = createPgPool(connectionString);
   try {
+    await acquireMigrationLock(pool);
     await ensureMigrationsTable(pool);
     const applied = await appliedMigrationIds(pool);
 
@@ -195,6 +205,11 @@ async function run() {
       }
     }
   } finally {
+    try {
+      await releaseMigrationLock(pool);
+    } catch {
+      // Best effort unlock on shutdown/error path.
+    }
     await pool.end();
   }
 }

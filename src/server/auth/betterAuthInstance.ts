@@ -3,6 +3,7 @@ import { tanstackStartCookies } from 'better-auth/tanstack-start';
 import type { BetterAuthOptions } from 'better-auth';
 import { getDb } from '../db/db.ts';
 import { sendAuthEmail } from './email.ts';
+import { AppError } from '../../api/errors.ts';
 
 export type BetterAuthSessionApi = ReturnType<typeof betterAuth>;
 
@@ -11,9 +12,7 @@ let authInstance: BetterAuthSessionApi | undefined;
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
-    throw new Error(
-      `BetterAuth is not configured. Missing required env var: ${name}`
-    );
+    throw new AppError('INTERNAL_ERROR', 'Invalid server configuration');
   }
   return value;
 }

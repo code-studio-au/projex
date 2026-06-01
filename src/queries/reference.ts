@@ -17,10 +17,14 @@ import {
 } from '../server/start/functions/projectReads';
 
 export function useUsersQuery() {
-  return useQuery({
+  return useQuery(usersQueryOptions());
+}
+
+export function usersQueryOptions() {
+  return {
     queryKey: qk.users(),
     queryFn: () => listUsersServerFn(),
-  });
+  } as const;
 }
 
 /**
@@ -28,15 +32,19 @@ export function useUsersQuery() {
  * We key by userId and disable the query until a session exists.
  */
 export function useCompaniesQuery(userId?: UserId) {
-  return useQuery({
+  return useQuery(companiesQueryOptions(userId));
+}
+
+export function companiesQueryOptions(userId?: UserId) {
+  return {
     enabled: !!userId,
     queryKey: userId ? qk.companies(userId) : ['companies', 'anonymous'],
     queryFn: () => listCompaniesServerFn(),
-  });
+  } as const;
 }
 
-export async function getDefaultCompanyIdForUser(userId: UserId) {
-  return getDefaultCompanyIdForUserServerFn({ data: { userId } });
+export async function getDefaultCompanyIdForUser() {
+  return getDefaultCompanyIdForUserServerFn();
 }
 
 export function useCompanyQuery(companyId: CompanyId) {

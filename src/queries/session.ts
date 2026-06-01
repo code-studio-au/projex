@@ -8,8 +8,9 @@ export function sessionQueryOptions() {
   return {
     queryKey: qk.session(),
     queryFn: () => getSessionServerFn(),
-    // Session is an auth boundary; do not treat it as fresh for long.
-    staleTime: 0,
+    // Session is an auth boundary, but a brief freshness window avoids
+    // immediate duplicate refetches after route-level server preloading.
+    staleTime: 5_000,
   } as const;
 }
 

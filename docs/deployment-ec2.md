@@ -30,12 +30,6 @@ BETTER_AUTH_TRUSTED_ORIGINS=https://app.example.com
 # Browser/API origin allowlist
 CORS_ALLOWED_ORIGINS=https://app.example.com
 
-# Prefer direct request-scoped session resolution for SSR:
-BETTER_AUTH_DIRECT_SESSION_FN=src/server/auth/authProvider.ts#getSessionFromRequest
-
-# Optional fallback if you prefer an internal HTTP session check instead:
-# BETTER_AUTH_SESSION_URL=http://127.0.0.1:3000/api/auth/get-session
-
 # Preferred: direct Resend delivery.
 RESEND_API_KEY=
 RESEND_BASE_URL=https://api.resend.com
@@ -62,6 +56,7 @@ Notes:
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.
 - `PROJEX_APP_BASE_URL` should point at the public app origin used for transaction-comment notification links; it falls back to `BETTER_AUTH_URL` when unset.
 - `RESEND_FROM` should be a verified sender, for example `Projex <noreply@projectexpensetracker.com>`.
+- Run `pnpm run db:migrate` as an explicit deploy step before restarting the service; `pnpm run start:server` no longer auto-migrates by default.
 
 ## 4) Build + run
 

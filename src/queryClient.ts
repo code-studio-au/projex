@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
+function createDefaultOptions() {
+  return {
     queries: {
       // Local backend is synchronous; keep data “fresh” to avoid refetch spam.
       staleTime: 30_000,
@@ -12,5 +12,21 @@ export const queryClient = new QueryClient({
     mutations: {
       retry: 0,
     },
-  },
-});
+  } as const;
+}
+
+let browserQueryClient: QueryClient | null = null;
+
+export function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: createDefaultOptions(),
+  });
+}
+
+export function getQueryClient() {
+  if (typeof window === 'undefined') return makeQueryClient();
+  if (!browserQueryClient) {
+    browserQueryClient = makeQueryClient();
+  }
+  return browserQueryClient;
+}

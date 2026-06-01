@@ -54,11 +54,6 @@ export function validateServerStartupEnv(): void {
     { key: 'BETTER_AUTH_SECRET', ok: nonEmpty(process.env.BETTER_AUTH_SECRET) },
     { key: 'BETTER_AUTH_URL', ok: nonEmpty(process.env.BETTER_AUTH_URL) },
   ]);
-  const hasEndpointAuth = nonEmpty(process.env.BETTER_AUTH_SESSION_URL);
-  const hasDirectAuth = nonEmpty(process.env.BETTER_AUTH_DIRECT_SESSION_FN);
-  if (!hasEndpointAuth && !hasDirectAuth) {
-    missing.push('BETTER_AUTH_SESSION_URL or BETTER_AUTH_DIRECT_SESSION_FN');
-  }
   if (!nonEmpty(process.env.BETTER_AUTH_TRUSTED_ORIGINS)) {
     missing.push('BETTER_AUTH_TRUSTED_ORIGINS');
   }

@@ -5,7 +5,7 @@ import { AppError } from '../../api/errors';
 /**
  * Session/auth boundary.
  *
- * In TanStack Start, replace this with Better Auth (or your preferred auth).
+ * Better Auth is normalized into this minimal internal session shape.
  * Server functions should call `requireUserId()` at the top.
  */
 

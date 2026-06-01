@@ -15,7 +15,6 @@ Before handing this repo to another developer or team, make sure:
   - `BETTER_AUTH_URL`
   - `BETTER_AUTH_TRUSTED_ORIGINS`
   - `CORS_ALLOWED_ORIGINS`
-  - one auth session resolution mode, preferably `BETTER_AUTH_DIRECT_SESSION_FN`
 - production-only expectations are understood:
   - `PROJEX_ENABLE_DEV_ENDPOINTS=false`
   - `PROJEX_ENABLE_SMOKE_TOOLS=false`
@@ -53,7 +52,7 @@ Before cutting over or handing a deployed environment to another developer, conf
 - `NODE_ENV=production` is supplied by runtime env or systemd, not committed repo env files consumed by Vite.
 - `BETTER_AUTH_SECRET` is present and generated from a strong random value.
 - `BETTER_AUTH_URL` is the canonical public origin users will visit.
-- `BETTER_AUTH_DIRECT_SESSION_FN` is configured, or `BETTER_AUTH_SESSION_URL` is intentionally used as the fallback.
+- `BETTER_AUTH_TRUSTED_ORIGINS` contains only the canonical public origin(s) that should be allowed to complete auth flows.
 - `PROJEX_ENABLE_DEV_ENDPOINTS` is `false` or unset outside controlled local workflows.
 - `PROJEX_ENABLE_SMOKE_TOOLS` is `false` or unset outside controlled local workflows.
 - `CORS_ALLOWED_ORIGINS` only includes explicit trusted browser origins.
@@ -77,6 +76,7 @@ How to think about those commands:
 - `pnpm run verify:security` is the fast non-Docker pass for repo config, audit, tests, typecheck, and lint.
 - `pnpm run verify:ci` is the fuller local/CI-shaped pass. It adds build, disposable DB integration tests, and isolated disposable smoke basics.
 - Both disposable DB steps require local Docker access.
+- `pnpm run db:migrate` remains an explicit deployment step; the runtime server should be restarted only after migrations succeed.
 
 Post-deploy verification on the target runtime:
 
@@ -143,8 +143,6 @@ BETTER_AUTH_SECRET=replace-with-long-random-secret
 BETTER_AUTH_URL=https://projectexpensetracker.com
 BETTER_AUTH_TRUSTED_ORIGINS=https://projectexpensetracker.com,https://www.projectexpensetracker.com
 CORS_ALLOWED_ORIGINS=https://projectexpensetracker.com,https://www.projectexpensetracker.com
-
-BETTER_AUTH_DIRECT_SESSION_FN=src/server/auth/authProvider.ts#getSessionFromRequest
 
 # Preferred: direct Resend delivery.
 RESEND_API_KEY=
@@ -344,7 +342,7 @@ Expected behavior:
 If login works but refresh breaks:
 
 - check `/etc/projex/projex.env`
-- confirm `BETTER_AUTH_DIRECT_SESSION_FN` is set
+- confirm `BETTER_AUTH_URL` and `BETTER_AUTH_TRUSTED_ORIGINS` match the public origin
 - confirm `PROJEX_ENABLE_DEV_ENDPOINTS=false`
 
 ## Intentional Local/Server Split

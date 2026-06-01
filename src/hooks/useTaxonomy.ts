@@ -160,9 +160,6 @@ export function useTaxonomy(params: {
 
   /**
    * Creates a category and resolves with the generated branded ID after success.
-   *
-   * This keeps the UI deterministic (important for import previews) while remaining
-   * compatible with a future TanStack Start / Postgres backend.
    */
   const addCategory = async (name: string): Promise<CategoryId> => {
     ensureUniqueCategoryName(categories, null, name);

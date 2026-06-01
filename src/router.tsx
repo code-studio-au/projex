@@ -1,10 +1,11 @@
 import { createRouter, getRouteApi } from '@tanstack/react-router';
 
-import { queryClient } from './queryClient';
+import { getQueryClient } from './queryClient';
 import type { RouterContext } from './router-context';
 import { routeTree } from './routeTree.gen';
 
 export function getRouter() {
+  const queryClient = getQueryClient();
   return createRouter({
     routeTree,
     context: {
@@ -15,8 +16,6 @@ export function getRouter() {
     scrollRestoration: true,
   });
 }
-
-export const router = getRouter();
 
 // Compatibility exports used across existing pages/components/hooks.
 const homeRouteApi = getRouteApi('/');

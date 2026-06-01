@@ -27,9 +27,6 @@ test('production env validation does not cache a failed validation attempt', () 
   process.env.BETTER_AUTH_SECRET = 'secret';
   process.env.BETTER_AUTH_URL = 'https://app.example.com';
   process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://app.example.com';
-  delete process.env.BETTER_AUTH_SESSION_URL;
-  process.env.BETTER_AUTH_DIRECT_SESSION_FN =
-    './dist/server/auth/authProvider.js#getSessionFromRequest';
 
   assert.throws(() => validateServerStartupEnv(), (error) => {
     assert.ok(error instanceof AppError);
@@ -48,8 +45,6 @@ test('production env validation rejects dev and smoke tooling flags', () => {
   process.env.BETTER_AUTH_SECRET = 'secret';
   process.env.BETTER_AUTH_URL = 'https://app.example.com';
   process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://app.example.com';
-  process.env.BETTER_AUTH_DIRECT_SESSION_FN =
-    './dist/server/auth/authProvider.js#getSessionFromRequest';
 
   process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'true';
   assert.throws(() => validateServerStartupEnv(), (error) => {
@@ -75,8 +70,6 @@ test('production env validation requires trusted auth origins', () => {
   process.env.DATABASE_URL = 'postgres://localhost/projex_test';
   process.env.BETTER_AUTH_SECRET = 'secret';
   process.env.BETTER_AUTH_URL = 'https://app.example.com';
-  process.env.BETTER_AUTH_DIRECT_SESSION_FN =
-    './dist/server/auth/authProvider.js#getSessionFromRequest';
   delete process.env.BETTER_AUTH_TRUSTED_ORIGINS;
 
   assert.throws(() => validateServerStartupEnv(), (error) => {
@@ -91,8 +84,6 @@ test('production env validation rejects insecure auth urls and origins', () => {
   process.env.NODE_ENV = 'production';
   process.env.DATABASE_URL = 'postgres://localhost/projex_test';
   process.env.BETTER_AUTH_SECRET = 'secret';
-  process.env.BETTER_AUTH_DIRECT_SESSION_FN =
-    './dist/server/auth/authProvider.js#getSessionFromRequest';
 
   process.env.BETTER_AUTH_URL = 'http://app.example.com';
   process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://app.example.com';

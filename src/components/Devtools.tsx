@@ -1,9 +1,10 @@
+import { useRouter } from '@tanstack/react-router';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 
-import { router } from '../router';
-
 export default function Devtools() {
+  const router = useRouter();
+
   return (
     <>
       <ReactQueryDevtools initialIsOpen={false} />

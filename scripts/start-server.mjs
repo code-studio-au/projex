@@ -42,9 +42,11 @@ if (!existsSync('dist/server/server.js')) {
   process.exit(1);
 }
 
-await loadEnvFile('.env.local');
+if (process.env.NODE_ENV !== 'production') {
+  await loadEnvFile('.env.local');
+}
 
-const runMigrations = process.env.PROJEX_RUN_MIGRATIONS !== 'false';
+const runMigrations = process.env.PROJEX_RUN_MIGRATIONS === 'true';
 if (runMigrations) {
   run('npm', ['run', 'db:migrate']);
 }

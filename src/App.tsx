@@ -1,22 +1,10 @@
-import { lazy, Suspense } from 'react';
+import { useState } from 'react';
 import { RouterProvider } from '@tanstack/react-router';
 
-import { RootProviders } from './layouts';
-import { router } from './router';
-
-const Devtools = import.meta.env.DEV
-  ? lazy(async () => import('./components/Devtools'))
-  : null;
+import { getRouter } from './router';
 
 export default function App() {
-  return (
-    <RootProviders>
-      <RouterProvider router={router} />
-      {Devtools ? (
-        <Suspense fallback={null}>
-          <Devtools />
-        </Suspense>
-      ) : null}
-    </RootProviders>
-  );
+  const [router] = useState(() => getRouter());
+
+  return <RouterProvider router={router} />;
 }

@@ -1,6 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
 
-import { asUserId } from '../../../types';
 import {
   getDefaultCompanyIdForUserServer,
   listCompaniesServer,
@@ -16,13 +15,11 @@ export const getSessionServerFn = createServerFn({ method: 'GET' })
 
 export const getPostLoginTargetServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { userId: string }) => ({
-    userId: asUserId(input.userId),
-  }))
-  .handler(async ({ context, data }) => {
+  .handler(async ({ context }) => {
     const users = await listUsersServer({ context: context.serverContext });
     const isSuperadmin =
-      users.find((user) => user.id === data.userId)?.isGlobalSuperadmin ===
+      users.find((user) => user.id === context.session?.userId)
+        ?.isGlobalSuperadmin ===
       true;
     if (isSuperadmin) return { to: '/companies' as const };
 

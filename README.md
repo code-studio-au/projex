@@ -144,18 +144,13 @@ Production/staging server mode requires:
 - `DATABASE_URL`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
-- one auth session resolution mode, preferably `BETTER_AUTH_DIRECT_SESSION_FN`
+- `BETTER_AUTH_TRUSTED_ORIGINS`
 - `PROJEX_ENABLE_DEV_ENDPOINTS=false`
-
-Recommended direct resolver:
-
-```bash
-BETTER_AUTH_DIRECT_SESSION_FN=./dist/server/auth/authProvider.js#getSessionFromRequest
-```
 
 Operational defaults:
 
 - `pnpm run db:migrate` runs BetterAuth schema migration plus app SQL migrations.
+- `pnpm run start:server` does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
 - API responses include `x-request-id`; structured request logs are emitted server-side.

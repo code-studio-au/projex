@@ -4,6 +4,7 @@ import {
   getPostLoginTargetServerFn,
   getSessionServerFn,
 } from '../server/start/functions/auth';
+import { sessionQueryOptions } from '../queries/session';
 
 function HomeRedirect() {
   return null;
@@ -11,15 +12,18 @@ function HomeRedirect() {
 
 export const Route = createFileRoute('/')({
   component: HomeRedirect,
-  beforeLoad: async () => {
-    const session = await getSessionServerFn();
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(sessionQueryOptions());
+  },
+  beforeLoad: async ({ context }) => {
+    const session =
+      context.queryClient.getQueryData(sessionQueryOptions().queryKey) ??
+      (await getSessionServerFn());
     if (!session) {
       throw redirect({ to: '/login' });
     }
 
-    const target = await getPostLoginTargetServerFn({
-      data: { userId: session.userId },
-    });
+    const target = await getPostLoginTargetServerFn();
     throw redirect(target);
   },
 });

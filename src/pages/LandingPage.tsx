@@ -84,7 +84,7 @@ export default function LandingPage() {
     if (!shouldRedirect || !userId) return;
     let cancelled = false;
     (async () => {
-      const companyId = await getDefaultCompanyIdForUser(userId);
+      const companyId = await getDefaultCompanyIdForUser();
       if (!companyId || cancelled) return;
       router.navigate({ to: companyRoute.to, params: { companyId } });
     })();

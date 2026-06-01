@@ -69,14 +69,11 @@ export const apiRouteMiddleware = createMiddleware().server(
     return withApiCore(
       request,
       async ({ requestId, origin, requestOrigin, started }) => {
-        const [{ getAuthSessionFromRequest }, { validateServerStartupEnv }] =
-          await Promise.all([
-            import('../server/auth/betterAuth'),
-            import('../server/env'),
-          ]);
-        validateServerStartupEnv();
-        const session = await getAuthSessionFromRequest(request);
-        const serverContext: ServerFnContextInput = { request, session };
+        const { resolveRequestServerContext } = await import(
+          '../server/http/requestContext'
+        );
+        const { session, serverContext } =
+          await resolveRequestServerContext(request);
         return next({
           context: {
             session,

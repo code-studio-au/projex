@@ -71,9 +71,7 @@ function ServerLoginPanel() {
         return;
       }
 
-      const target = await getPostLoginTargetServerFn({
-        data: { userId },
-      });
+      const target = await getPostLoginTargetServerFn();
       await router.invalidate();
       await router.navigate(target);
     } catch (err) {

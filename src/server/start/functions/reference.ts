@@ -1,6 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
 
-import { asUserId } from '../../../types';
 import {
   getDefaultCompanyIdForUserServer,
   listCompaniesServer,
@@ -20,15 +19,9 @@ export const listCompaniesServerFn = createServerFn({ method: 'GET' })
     return listCompaniesServer({ context: context.serverContext });
   });
 
-export const getDefaultCompanyIdForUserServerFn = createServerFn({
-  method: 'GET',
-})
+export const getDefaultCompanyIdForUserServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { userId: string }) => ({
-    userId: asUserId(input.userId),
-  }))
-  .handler(async ({ context, data }) => {
-    void data;
+  .handler(async ({ context }) => {
     return getDefaultCompanyIdForUserServer({
       context: context.serverContext,
     });
