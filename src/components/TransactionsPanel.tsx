@@ -540,13 +540,23 @@ export default function TransactionsPanel(props: {
       },
       Cell: ({ row }) => {
         const cat = taxonomy.getCategoryName(row.original.categoryId);
+        const isFullyCoded =
+          !!row.original.subCategoryId &&
+          taxonomy.validSubIds.has(row.original.subCategoryId);
         return (
-          <Text
-            className="table-body-left"
-            c={row.original.categoryId ? undefined : 'dimmed'}
-          >
-            {cat}
-          </Text>
+          <Group gap="xs" wrap="wrap">
+            <Text
+              className="table-body-left"
+              c={row.original.categoryId ? undefined : 'dimmed'}
+            >
+              {cat}
+            </Text>
+            {!isFullyCoded && isCategorisableTxn(row.original) && (
+              <Badge color="red" variant="light">
+                Uncoded
+              </Badge>
+            )}
+          </Group>
         );
       },
       mantineTableHeadCellProps: {
@@ -601,13 +611,13 @@ export default function TransactionsPanel(props: {
           );
         }
         const sub = taxonomy.getSubCategoryName(row.original.subCategoryId);
-        const ok =
+        const isFullyCoded =
           !!row.original.subCategoryId &&
           taxonomy.validSubIds.has(row.original.subCategoryId);
         return (
           <Group gap="xs" wrap="wrap">
             <Text className="table-body-left">{sub}</Text>
-            {!ok && (
+            {!isFullyCoded && (
               <Badge color="red" variant="light">
                 Uncoded
               </Badge>
