@@ -40,13 +40,23 @@ export function useTransactionCommentSummariesQuery(
   options: { enabled?: boolean } = {}
 ) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.transactionCommentSummaries(scopeUserId, projectId),
+  return useQuery(
+    transactionCommentSummariesQueryOptions(scopeUserId, projectId, options)
+  );
+}
+
+export function transactionCommentSummariesQueryOptions(
+  userId: string,
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    queryKey: qk.transactionCommentSummaries(userId, projectId),
     queryFn: () =>
       listTransactionCommentSummariesServerFn({ data: { projectId } }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
-  });
+  } as const;
 }
 
 export function useCreateTransactionCommentMutation(projectId: ProjectId) {

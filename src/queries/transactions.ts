@@ -33,12 +33,20 @@ export function useTransactionsQuery(
   options: { enabled?: boolean } = {}
 ) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.transactions(scopeUserId, projectId),
+  return useQuery(transactionsQueryOptions(scopeUserId, projectId, options));
+}
+
+export function transactionsQueryOptions(
+  userId: string,
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    queryKey: qk.transactions(userId, projectId),
     queryFn: () => listTransactionsServerFn({ data: { projectId } }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
-  });
+  } as const;
 }
 
 export function useTransactionsPageQuery(
@@ -47,13 +55,24 @@ export function useTransactionsPageQuery(
   options: { enabled?: boolean } = {}
 ) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.transactionsPage(scopeUserId, projectId, input),
+  return useQuery(
+    transactionsPageQueryOptions(scopeUserId, projectId, input, options)
+  );
+}
+
+export function transactionsPageQueryOptions(
+  userId: string,
+  projectId: ProjectId,
+  input: TxnListPageInput,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    queryKey: qk.transactionsPage(userId, projectId, input),
     queryFn: () =>
       listTransactionsPageServerFn({ data: { projectId, query: input } }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
-  });
+  } as const;
 }
 
 export function useCreateTxnMutation(projectId: ProjectId) {

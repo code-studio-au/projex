@@ -21,11 +21,15 @@ import {
 
 export function useImportRulesQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.importRules(scopeUserId, companyId),
+  return useQuery(importRulesQueryOptions(scopeUserId, companyId));
+}
+
+export function importRulesQueryOptions(userId: string, companyId: CompanyId) {
+  return {
+    queryKey: qk.importRules(userId, companyId),
     queryFn: () => listImportRulesServerFn({ data: { companyId } }),
     placeholderData: keepPreviousData,
-  });
+  } as const;
 }
 
 export function useCreateImportRuleMutation(companyId: CompanyId) {

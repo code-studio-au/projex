@@ -50,11 +50,15 @@ export async function getDefaultCompanyIdForUser() {
 export function useCompanyQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
-  return useQuery({
-    enabled: !!session.data?.userId,
-    queryKey: qk.company(scopeUserId, companyId),
+  return useQuery(companyQueryOptions(session.data?.userId ?? scopeUserId, companyId));
+}
+
+export function companyQueryOptions(userId: string, companyId: CompanyId) {
+  return {
+    enabled: !!userId,
+    queryKey: qk.company(userId, companyId),
     queryFn: () => getCompanyServerFn({ data: { companyId } }),
-  });
+  } as const;
 }
 
 export function useCompanySummaryQuery(
@@ -63,29 +67,55 @@ export function useCompanySummaryQuery(
 ) {
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
-  return useQuery({
-    enabled: !!session.data?.userId && (options.enabled ?? true),
-    queryKey: qk.companySummary(scopeUserId, companyId),
+  return useQuery(
+    companySummaryQueryOptions(
+      session.data?.userId ?? scopeUserId,
+      companyId,
+      options
+    )
+  );
+}
+
+export function companySummaryQueryOptions(
+  userId: string,
+  companyId: CompanyId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    enabled: !!userId && (options.enabled ?? true),
+    queryKey: qk.companySummary(userId, companyId),
     queryFn: () => getCompanySummaryServerFn({ data: { companyId } }),
-  });
+  } as const;
 }
 
 export function useProjectsQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
-  return useQuery({
-    enabled: !!session.data?.userId,
-    queryKey: qk.projects(scopeUserId, companyId),
+  return useQuery(
+    projectsQueryOptions(session.data?.userId ?? scopeUserId, companyId)
+  );
+}
+
+export function projectsQueryOptions(userId: string, companyId: CompanyId) {
+  return {
+    enabled: !!userId,
+    queryKey: qk.projects(userId, companyId),
     queryFn: () => listProjectsServerFn({ data: { companyId } }),
-  });
+  } as const;
 }
 
 export function useProjectQuery(projectId: ProjectId) {
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
-  return useQuery({
-    enabled: !!session.data?.userId,
-    queryKey: qk.project(scopeUserId, projectId),
+  return useQuery(
+    projectQueryOptions(session.data?.userId ?? scopeUserId, projectId)
+  );
+}
+
+export function projectQueryOptions(userId: string, projectId: ProjectId) {
+  return {
+    enabled: !!userId,
+    queryKey: qk.project(userId, projectId),
     queryFn: () => getProjectServerFn({ data: { projectId } }),
-  });
+  } as const;
 }

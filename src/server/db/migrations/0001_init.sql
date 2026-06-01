@@ -37,12 +37,14 @@ create table if not exists projects (
   name text not null,
   project_type text not null default 'project' check (project_type in ('project', 'programme')),
   parent_project_id text null references projects(id) on delete set null,
+  budget_total_cents bigint not null default 0,
   currency text not null check (currency in ('AUD', 'USD', 'EUR', 'GBP')),
   status text not null check (status in ('active', 'archived')),
   deactivated_at timestamptz null,
   visibility text not null check (visibility in ('company', 'private')),
   allow_superadmin_access boolean not null default true,
-  allow_txn_transfers boolean not null default false
+  allow_txn_transfers boolean not null default false,
+  constraint projects_parent_not_self_check check (parent_project_id is null or parent_project_id <> id)
 );
 
 create index if not exists idx_projects_company on projects(company_id);
@@ -79,6 +81,9 @@ create table if not exists categories (
 create unique index if not exists uq_categories_project_lower_name
   on categories(project_id, lower(name));
 
+create unique index if not exists uq_categories_project_id
+  on categories(project_id, id);
+
 create table if not exists sub_categories (
   id text primary key,
   company_id text not null references companies(id) on delete cascade,
@@ -92,6 +97,9 @@ create table if not exists sub_categories (
 -- Case-insensitive uniqueness per (project, category)
 create unique index if not exists uq_sub_categories_project_category_lower_name
   on sub_categories(project_id, category_id, lower(name));
+
+create unique index if not exists uq_sub_categories_project_id
+  on sub_categories(project_id, id);
 
 create table if not exists company_default_categories (
   id text primary key,
@@ -129,6 +137,9 @@ create table if not exists company_default_mapping_rules (
 
 create index if not exists idx_company_default_mapping_rules_company_sort
   on company_default_mapping_rules(company_id, sort_order, created_at);
+
+create unique index if not exists uq_company_default_mapping_rules_company_id
+  on company_default_mapping_rules(company_id, id);
 
 create table if not exists import_rules (
   id text primary key,
@@ -177,6 +188,16 @@ create table if not exists budget_lines (
 create unique index if not exists uq_budget_lines_project_sub_category
   on budget_lines(project_id, sub_category_id)
   where sub_category_id is not null;
+
+alter table budget_lines
+  add constraint fk_budget_lines_project_category
+  foreign key (project_id, category_id)
+  references categories(project_id, id);
+
+alter table budget_lines
+  add constraint fk_budget_lines_project_sub_category
+  foreign key (project_id, sub_category_id)
+  references sub_categories(project_id, id);
 
 create table if not exists txns (
   id bigint generated always as identity primary key,
@@ -233,6 +254,21 @@ create table if not exists txns (
   updated_at timestamptz not null default now()
 );
 
+alter table txns
+  add constraint fk_txns_project_category
+  foreign key (project_id, category_id)
+  references categories(project_id, id);
+
+alter table txns
+  add constraint fk_txns_project_sub_category
+  foreign key (project_id, sub_category_id)
+  references sub_categories(project_id, id);
+
+alter table txns
+  add constraint fk_txns_company_default_mapping_rule
+  foreign key (company_id, company_default_mapping_rule_id)
+  references company_default_mapping_rules(company_id, id);
+
 -- Public ID uniqueness in project scope.
 create unique index if not exists uq_txns_project_public_id
   on txns(project_id, public_id);
@@ -253,6 +289,14 @@ create index if not exists idx_txns_project_source_public_id
 create index if not exists idx_txns_transfer_project_id
   on txns(transfer_project_id)
   where transfer_project_id is not null;
+
+create index if not exists idx_txns_project_reviewed
+  on txns(project_id, reviewed_at)
+  where reviewed_at is not null;
+
+create index if not exists idx_txns_project_locked
+  on txns(project_id, locked_at)
+  where locked_at is not null;
 
 create table if not exists import_candidates (
   id text primary key,
@@ -308,3 +352,13 @@ create index if not exists idx_txn_comments_parent
 create index if not exists idx_txn_comments_assigned_to
   on txn_comments(assigned_to_user_id)
   where assigned_to_user_id is not null;
+
+create table if not exists request_rate_limits (
+  bucket text primary key,
+  window_started_at timestamptz not null,
+  count integer not null check (count >= 0),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_request_rate_limits_updated_at
+  on request_rate_limits(updated_at);

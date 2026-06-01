@@ -19,12 +19,20 @@ export function useImportCandidatesQuery(
   options: { enabled?: boolean } = {}
 ) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.importCandidates(scopeUserId, projectId),
+  return useQuery(importCandidatesQueryOptions(scopeUserId, projectId, options));
+}
+
+export function importCandidatesQueryOptions(
+  userId: string,
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    queryKey: qk.importCandidates(userId, projectId),
     queryFn: () => listImportCandidatesServerFn({ data: { projectId } }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
-  });
+  } as const;
 }
 
 export function useReviewImportCandidateMutation(projectId: ProjectId) {

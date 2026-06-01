@@ -90,6 +90,17 @@ Public deployment-surface verification:
 PROJEX_VERIFY_BASE_URL=https://projectexpensetracker.com pnpm run verify:deploy-security
 ```
 
+Optional authenticated deployment verification:
+
+```bash
+PROJEX_VERIFY_BASE_URL=https://projectexpensetracker.com \
+PROJEX_VERIFY_AUTH_EMAIL=smoke-or-test-user@example.com \
+PROJEX_VERIFY_AUTH_PASSWORD=replace-me \
+pnpm run verify:deploy-security
+```
+
+When auth credentials are provided, the verifier also checks that sign-in sets `HttpOnly` cookies, requires `Secure` on HTTPS deployments, and that authenticated `/api/session` returns a `userId`.
+
 For the most repeatable run, use generated smoke fixtures. This creates
 disposable `smoke_*` users/company/project data, creates temporary
 programme/sub-project records in the temporary-data section, injects the

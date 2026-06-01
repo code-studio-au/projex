@@ -17,11 +17,19 @@ export function useBudgetsQuery(
   options: { enabled?: boolean } = {}
 ) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.budgets(scopeUserId, projectId),
+  return useQuery(budgetsQueryOptions(scopeUserId, projectId, options));
+}
+
+export function budgetsQueryOptions(
+  userId: string,
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    queryKey: qk.budgets(userId, projectId),
     queryFn: () => listBudgetsServerFn({ data: { projectId } }),
     enabled: options.enabled ?? true,
-  });
+  } as const;
 }
 
 export function useCreateBudgetMutation(projectId: ProjectId) {

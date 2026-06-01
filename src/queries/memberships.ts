@@ -39,6 +39,20 @@ export function useAllCompanyMembershipsQuery() {
   return useQuery(allCompanyMembershipsQueryOptions(session.data?.userId));
 }
 
+export function myProjectMembershipsQueryOptions(
+  userId?: string,
+  companyId?: CompanyId
+) {
+  return {
+    enabled: !!userId && !!companyId,
+    queryKey:
+      userId && companyId
+        ? qk.myProjectMemberships(userId, companyId)
+        : (['myProjectMemberships', 'anonymous'] as const),
+    queryFn: () => listMyProjectMembershipsServerFn({ data: { companyId: companyId as CompanyId } }),
+  } as const;
+}
+
 export function useProjectMembershipsQuery(
   projectId: ProjectId,
   options: { enabled?: boolean } = {}
@@ -62,11 +76,9 @@ export function useProjectMembershipsQuery(
 export function useMyProjectMembershipsQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
-  return useQuery({
-    enabled: !!session.data?.userId,
-    queryKey: qk.myProjectMemberships(scopeUserId, companyId),
-    queryFn: () => listMyProjectMembershipsServerFn({ data: { companyId } }),
-  });
+  return useQuery(
+    myProjectMembershipsQueryOptions(session.data?.userId ?? scopeUserId, companyId)
+  );
 }
 
 export function useUpsertCompanyMembershipMutation(companyId: CompanyId) {

@@ -59,13 +59,20 @@ export function useCategoriesQuery(
   options: { enabled?: boolean } = {}
 ) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.categories(scopeUserId, projectId),
+  return useQuery(categoriesQueryOptions(scopeUserId, projectId, options));
+}
+
+export function categoriesQueryOptions(
+  userId: string,
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    queryKey: qk.categories(userId, projectId),
     queryFn: () => listCategoriesServerFn({ data: { projectId } }),
-    // Avoid UI flicker (e.g. transactions momentarily appearing uncoded) while refetching.
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
-  });
+  } as const;
 }
 
 export function useCompanyDefaultCategoriesQuery(companyId: CompanyId) {
@@ -80,11 +87,18 @@ export function useCompanyDefaultCategoriesQuery(companyId: CompanyId) {
 
 export function useCompanyDefaultsQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery<CompanyDefaults>({
-    queryKey: qk.companyDefaults(scopeUserId, companyId),
+  return useQuery<CompanyDefaults>(companyDefaultsQueryOptions(scopeUserId, companyId));
+}
+
+export function companyDefaultsQueryOptions(
+  userId: string,
+  companyId: CompanyId
+) {
+  return {
+    queryKey: qk.companyDefaults(userId, companyId),
     queryFn: () => getCompanyDefaultsServerFn({ data: { companyId } }),
     placeholderData: keepPreviousData,
-  });
+  } as const;
 }
 
 export function useCompanyDefaultSubCategoriesQuery(companyId: CompanyId) {
@@ -112,13 +126,20 @@ export function useSubCategoriesQuery(
   options: { enabled?: boolean } = {}
 ) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.subCategories(scopeUserId, projectId),
+  return useQuery(subCategoriesQueryOptions(scopeUserId, projectId, options));
+}
+
+export function subCategoriesQueryOptions(
+  userId: string,
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    queryKey: qk.subCategories(userId, projectId),
     queryFn: () => listSubCategoriesServerFn({ data: { projectId } }),
-    // Avoid UI flicker (e.g. transactions momentarily appearing uncoded) while refetching.
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
-  });
+  } as const;
 }
 
 export function useCreateCategoryMutation(projectId: ProjectId) {

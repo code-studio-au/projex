@@ -1,7 +1,9 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getMigrations } from 'better-auth/db/migration';
+import { Kysely, PostgresDialect, type PostgresDialectConfig } from 'kysely';
+import { FileMigrationProvider, Migrator } from 'kysely/migration';
 
 import { requireDatabaseUrl } from '../env.ts';
 import { loadEnvFiles } from '../envFiles.ts';
@@ -10,28 +12,17 @@ import { createPgPool, type TypedPgPool } from './pgPool.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
+const KYSELY_MIGRATIONS_DIR = path.join(__dirname, 'kysely-migrations');
+const KYSELY_MIGRATION_TABLE = 'kysely_migration';
+const KYSELY_MIGRATION_LOCK_TABLE = 'kysely_migration_lock';
+const BASELINE_MIGRATION_NAME = '0001_init.sql';
+const APP_SCHEMA_SENTINEL_TABLE = 'public.companies';
 
-type MigrationQueryResultRow = { id: string };
+type KyselyMigrationRow = { name: string };
+type ToRegclassRow = { table_name: string | null };
 
-type Queryable = Pick<TypedPgPool, 'query' | 'end'>;
+type Queryable = Pick<TypedPgPool, 'query'>;
 const MIGRATION_ADVISORY_LOCK_ID = 7_021_115_091;
-
-async function ensureMigrationsTable(pool: Queryable) {
-  await pool.query(`
-    create table if not exists schema_migrations (
-      id text primary key,
-      applied_at timestamptz not null default now()
-    )
-  `);
-}
-
-async function appliedMigrationIds(pool: Queryable): Promise<Set<string>> {
-  const res = await pool.query<MigrationQueryResultRow>(
-    'select id from schema_migrations order by id'
-  );
-  return new Set(res.rows.map((r) => r.id));
-}
 
 async function acquireMigrationLock(pool: Queryable) {
   await pool.query('select pg_advisory_lock($1)', [MIGRATION_ADVISORY_LOCK_ID]);
@@ -41,176 +32,130 @@ async function releaseMigrationLock(pool: Queryable) {
   await pool.query('select pg_advisory_unlock($1)', [MIGRATION_ADVISORY_LOCK_ID]);
 }
 
-export function splitSqlStatements(sql: string): string[] {
-  const statements: string[] = [];
-  let current = '';
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inLineComment = false;
-  let inBlockComment = false;
-  let dollarQuoteTag: string | null = null;
+function createMigrationDb(pool: TypedPgPool) {
+  return new Kysely<Record<string, never>>({
+    dialect: new PostgresDialect({
+      pool: pool as unknown as PostgresDialectConfig['pool'],
+    }),
+  });
+}
 
-  for (let index = 0; index < sql.length; index += 1) {
-    const char = sql[index];
-    const next = sql[index + 1] ?? '';
+async function doesTableExist(pool: Queryable, tableName: string) {
+  const result = await pool.query<ToRegclassRow>(
+    'select to_regclass($1) as table_name',
+    [tableName]
+  );
+  return Boolean(result.rows[0]?.table_name);
+}
 
-    if (inLineComment) {
-      current += char;
-      if (char === '\n') inLineComment = false;
-      continue;
-    }
+async function ensureKyselyMigrationTables(pool: Queryable) {
+  await pool.query(`
+    create table if not exists ${KYSELY_MIGRATION_TABLE} (
+      name varchar(255) primary key,
+      timestamp varchar(255) not null
+    )
+  `);
+  await pool.query(`
+    create table if not exists ${KYSELY_MIGRATION_LOCK_TABLE} (
+      id varchar(255) primary key,
+      is_locked integer not null default 0
+    )
+  `);
+  await pool.query(
+    `insert into ${KYSELY_MIGRATION_LOCK_TABLE}(id, is_locked)
+     values ('migration_lock', 0)
+     on conflict (id) do nothing`
+  );
+}
 
-    if (inBlockComment) {
-      current += char;
-      if (char === '*' && next === '/') {
-        current += next;
-        index += 1;
-        inBlockComment = false;
-      }
-      continue;
-    }
+async function syncExistingSchemaToBaseline(pool: Queryable) {
+  const hasAppSchema = await doesTableExist(pool, APP_SCHEMA_SENTINEL_TABLE);
+  if (!hasAppSchema) return;
 
-    if (dollarQuoteTag) {
-      if (sql.startsWith(dollarQuoteTag, index)) {
-        current += dollarQuoteTag;
-        index += dollarQuoteTag.length - 1;
-        dollarQuoteTag = null;
-      } else {
-        current += char;
-      }
-      continue;
-    }
+  await ensureKyselyMigrationTables(pool);
 
-    if (inSingleQuote) {
-      current += char;
-      if (char === "'" && next === "'") {
-        current += next;
-        index += 1;
-      } else if (char === "'") {
-        inSingleQuote = false;
-      }
-      continue;
-    }
+  const existing = await pool.query<KyselyMigrationRow>(
+    `select name from ${KYSELY_MIGRATION_TABLE} order by name`
+  );
 
-    if (inDoubleQuote) {
-      current += char;
-      if (char === '"' && next === '"') {
-        current += next;
-        index += 1;
-      } else if (char === '"') {
-        inDoubleQuote = false;
-      }
-      continue;
-    }
-
-    if (char === '-' && next === '-') {
-      current += char + next;
-      index += 1;
-      inLineComment = true;
-      continue;
-    }
-
-    if (char === '/' && next === '*') {
-      current += char + next;
-      index += 1;
-      inBlockComment = true;
-      continue;
-    }
-
-    if (char === "'") {
-      current += char;
-      inSingleQuote = true;
-      continue;
-    }
-
-    if (char === '"') {
-      current += char;
-      inDoubleQuote = true;
-      continue;
-    }
-
-    if (char === '$') {
-      const rest = sql.slice(index);
-      const match = rest.match(/^\$[A-Za-z0-9_]*\$/);
-      if (match) {
-        dollarQuoteTag = match[0];
-        current += dollarQuoteTag;
-        index += dollarQuoteTag.length - 1;
-        continue;
-      }
-    }
-
-    if (char === ';') {
-      const statement = current.trim();
-      if (statement) statements.push(statement);
-      current = '';
-      continue;
-    }
-
-    current += char;
+  if (
+    existing.rows.length === 1 &&
+    existing.rows[0]?.name === BASELINE_MIGRATION_NAME
+  ) {
+    return;
   }
 
-  const tail = current.trim();
-  if (tail) statements.push(tail);
-  return statements;
+  await pool.query('begin');
+  try {
+    await pool.query(`delete from ${KYSELY_MIGRATION_TABLE}`);
+    await pool.query(
+      `insert into ${KYSELY_MIGRATION_TABLE}(name, timestamp)
+       values ($1, $2)`,
+      [BASELINE_MIGRATION_NAME, new Date().toISOString()]
+    );
+    await pool.query('drop table if exists schema_migrations');
+    await pool.query('commit');
+  } catch (error) {
+    await pool.query('rollback');
+    throw error;
+  }
+}
+
+async function runAppMigrations(db: Kysely<Record<string, never>>) {
+  const migrator = new Migrator({
+    db,
+    provider: new FileMigrationProvider({
+      fs,
+      path,
+      migrationFolder: KYSELY_MIGRATIONS_DIR,
+    }),
+  });
+
+  const { error, results } = await migrator.migrateToLatest();
+
+  for (const result of results ?? []) {
+    if (result.status === 'Success') {
+      console.log(`Applied migration: ${result.migrationName}`);
+    }
+  }
+
+  if (error) {
+    throw error;
+  }
 }
 
 async function run() {
   loadEnvFiles();
 
-  const hasBetterAuthEnv =
-    Boolean(process.env.BETTER_AUTH_SECRET?.trim()) &&
-    Boolean(process.env.BETTER_AUTH_URL?.trim());
-
-  if (hasBetterAuthEnv) {
-    const { runMigrations } = await getMigrations(buildBetterAuthOptions());
-    await runMigrations();
-  } else {
-    console.warn(
-      '[db:migrate] Skipping BetterAuth migrations (set BETTER_AUTH_SECRET and BETTER_AUTH_URL to enable)'
-    );
-  }
-
   const connectionString = requireDatabaseUrl();
+  const pool = createPgPool(connectionString);
+  const db = createMigrationDb(pool);
 
-  const pool: Queryable = createPgPool(connectionString);
+  await acquireMigrationLock(pool);
+
   try {
-    await acquireMigrationLock(pool);
-    await ensureMigrationsTable(pool);
-    const applied = await appliedMigrationIds(pool);
+    const hasBetterAuthEnv =
+      Boolean(process.env.BETTER_AUTH_SECRET?.trim()) &&
+      Boolean(process.env.BETTER_AUTH_URL?.trim());
 
-    const files = (await readdir(MIGRATIONS_DIR))
-      .filter((f) => f.endsWith('.sql'))
-      .sort();
-
-    for (const file of files) {
-      if (applied.has(file)) continue;
-      const fullPath = path.join(MIGRATIONS_DIR, file);
-      const sql = await readFile(fullPath, 'utf8');
-      const statements = splitSqlStatements(sql);
-
-      await pool.query('begin');
-      try {
-        for (const stmt of statements) {
-          await pool.query(stmt);
-        }
-        await pool.query('insert into schema_migrations(id) values ($1)', [
-          file,
-        ]);
-        await pool.query('commit');
-        console.log(`Applied migration: ${file}`);
-      } catch (err) {
-        await pool.query('rollback');
-        throw err;
-      }
+    if (hasBetterAuthEnv) {
+      const { runMigrations } = await getMigrations(buildBetterAuthOptions());
+      await runMigrations();
+    } else {
+      console.warn(
+        '[db:migrate] Skipping BetterAuth migrations (set BETTER_AUTH_SECRET and BETTER_AUTH_URL to enable)'
+      );
     }
+
+    await syncExistingSchemaToBaseline(pool);
+    await runAppMigrations(db);
   } finally {
     try {
       await releaseMigrationLock(pool);
     } catch {
       // Best effort unlock on shutdown/error path.
     }
-    await pool.end();
+    await db.destroy();
   }
 }
 

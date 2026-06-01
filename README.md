@@ -89,7 +89,7 @@ PROJEX_AUTH_EMAIL=... PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTST
 # Link an existing BetterAuth user into the app and grant global superadmin
 PROJEX_AUTH_EMAIL=... PROJEX_APP_TEMPLATE_USER_ID=u_superadmin pnpm run auth:link-user
 
-# Start the built server, including startup migrations
+# Start the built server
 pnpm run start:server
 
 # Smoke test a running server
@@ -111,6 +111,7 @@ Notes:
 
 - `pnpm run verify:security` is the fast non-Docker safety pass for daily work.
 - `pnpm run verify:ci` is the fuller pipeline-shaped local check before bigger merges or deploy handoff.
+- `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security` verifies the deployed public surface; add `PROJEX_VERIFY_AUTH_EMAIL` and `PROJEX_VERIFY_AUTH_PASSWORD` to also verify auth cookie flags and authenticated session behavior.
 - `pnpm run test:integration:db` is for real Postgres-backed authz/data-integrity coverage.
 - `pnpm run smoke:server:disposable` is for isolated local end-to-end smoke with Better Auth and app tables inside a disposable DB.
 - `pnpm run smoke:server:generated` still uses whatever `DATABASE_URL` the current server/runtime points at and creates disposable `smoke_*` rows in normal app tables.
@@ -149,7 +150,7 @@ Production/staging server mode requires:
 
 Operational defaults:
 
-- `pnpm run db:migrate` runs BetterAuth schema migration plus app SQL migrations.
+- `pnpm run db:migrate` runs BetterAuth schema migration plus the squashed app baseline/future app migrations through Kysely's standard migrator.
 - `pnpm run start:server` does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.

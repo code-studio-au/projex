@@ -2,6 +2,9 @@ const configuredBaseUrl =
   process.env.PROJEX_VERIFY_BASE_URL?.trim() ||
   process.env.PROJEX_SMOKE_BASE_URL?.trim() ||
   'http://localhost:3000';
+const verifyAuthEmail = process.env.PROJEX_VERIFY_AUTH_EMAIL?.trim() ?? '';
+const verifyAuthPassword =
+  process.env.PROJEX_VERIFY_AUTH_PASSWORD?.trim() ?? '';
 
 const baseUrl = new URL(configuredBaseUrl);
 
@@ -119,6 +122,81 @@ async function verifyNonProductionEndpointsDisabled() {
   );
 }
 
+function getSetCookieHeaders(response) {
+  const headers = response.headers;
+  if (typeof headers.getSetCookie === 'function') {
+    return headers.getSetCookie();
+  }
+  const single = headers.get('set-cookie');
+  return single ? [single] : [];
+}
+
+function parseCookieHeaderValue(setCookieHeaders) {
+  return setCookieHeaders
+    .map((header) => header.split(';', 1)[0]?.trim())
+    .filter(Boolean)
+    .join('; ');
+}
+
+async function verifySessionEndpointCacheControl() {
+  const session = await fetchWithRedirectControl(new URL('/api/session', baseUrl));
+  assertCondition(session.status === 200, `/api/session returned ${session.status}`);
+  requireHeader(
+    session.headers,
+    'cache-control',
+    (value) => value.toLowerCase().includes('no-store'),
+    '/api/session must be served with cache-control: no-store'
+  );
+}
+
+async function verifyAuthSessionCookies() {
+  if (!verifyAuthEmail || !verifyAuthPassword) return;
+
+  const signIn = await fetchWithRedirectControl(
+    new URL('/api/auth/sign-in/email', baseUrl),
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: verifyAuthEmail,
+        password: verifyAuthPassword,
+      }),
+    }
+  );
+  assertCondition(signIn.status === 200, `/api/auth/sign-in/email returned ${signIn.status}`);
+
+  const setCookieHeaders = getSetCookieHeaders(signIn);
+  assertCondition(setCookieHeaders.length > 0, 'Sign-in response did not set any cookies');
+
+  for (const header of setCookieHeaders) {
+    const lower = header.toLowerCase();
+    assertCondition(lower.includes('httponly'), `Auth cookie is missing HttpOnly: ${header}`);
+    assertCondition(
+      lower.includes('samesite='),
+      `Auth cookie is missing SameSite: ${header}`
+    );
+    if (baseUrl.protocol === 'https:') {
+      assertCondition(lower.includes('secure'), `HTTPS auth cookie is missing Secure: ${header}`);
+    }
+  }
+
+  const cookieHeader = parseCookieHeaderValue(setCookieHeaders);
+  assertCondition(cookieHeader, 'Unable to build Cookie header from sign-in response');
+
+  const session = await fetchWithRedirectControl(new URL('/api/session', baseUrl), {
+    headers: { cookie: cookieHeader },
+  });
+  assertCondition(
+    session.status === 200,
+    `Authenticated /api/session returned ${session.status}`
+  );
+  const sessionBody = await session.json();
+  assertCondition(
+    sessionBody && typeof sessionBody.userId === 'string' && sessionBody.userId.length > 0,
+    'Authenticated /api/session did not return a userId'
+  );
+}
+
 async function verifyHttpsRedirect() {
   if (baseUrl.protocol !== 'https:') return;
 
@@ -141,8 +219,10 @@ async function verifyHttpsRedirect() {
 async function main() {
   console.log(`Verifying deployed security surface at ${baseUrl.origin}`);
   await verifyHealthEndpoints();
+  await verifySessionEndpointCacheControl();
   await verifyHtmlHeaders();
   await verifyNonProductionEndpointsDisabled();
+  await verifyAuthSessionCookies();
   await verifyHttpsRedirect();
   console.log('Security verification checks passed.');
 }
