@@ -8,6 +8,8 @@ import type {
   EmailChangeRequestResult,
   PendingEmailChange,
 } from '../../api/types';
+import type { User } from '../../types';
+import { asUserId } from '../../types';
 import { uid } from '../../utils/id';
 import { emailSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
@@ -72,11 +74,21 @@ async function requireCurrentUserRow(userId: string) {
   const db = getDb();
   const row = await db
     .selectFrom('users')
-    .select(['id', 'email', 'name'])
+    .select(['id', 'email', 'name', 'disabled', 'is_global_superadmin'])
     .where('id', '=', userId)
     .executeTakeFirst();
   if (!row) throw new AppError('NOT_FOUND', 'Unknown user');
   return row;
+}
+
+function toCurrentUser(row: Awaited<ReturnType<typeof requireCurrentUserRow>>): User {
+  return {
+    id: asUserId(row.id),
+    email: row.email,
+    name: row.name,
+    disabled: row.disabled || undefined,
+    isGlobalSuperadmin: row.is_global_superadmin || undefined,
+  };
 }
 
 function toPendingEmailChange(row: EmailChangeRow): PendingEmailChange {
@@ -219,6 +231,16 @@ export async function getPendingEmailChangeServer(args: {
     const userId = await requireServerUserId(args.context);
     const pending = await getPendingEmailChangeRow(userId);
     return pending ? toPendingEmailChange(pending) : null;
+  });
+}
+
+export async function getCurrentUserServer(args: {
+  context: ServerFnContextInput;
+}): Promise<User> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const userId = await requireServerUserId(args.context);
+    return toCurrentUser(await requireCurrentUserRow(userId));
   });
 }
 

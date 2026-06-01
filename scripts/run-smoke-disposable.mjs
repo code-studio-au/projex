@@ -59,9 +59,13 @@ async function main() {
       PORT: String(PORT),
     };
 
-    serverProcess = spawnProjexCommand('node', ['scripts/start-server.mjs'], {
-      env: sharedEnv,
-    });
+    serverProcess = spawnProjexCommand(
+      'node',
+      ['--experimental-strip-types', 'scripts/start-server.mjs'],
+      {
+        env: sharedEnv,
+      }
+    );
     await waitForHttpOk(`${baseUrl}/api/health`);
 
     runProjexCommand(

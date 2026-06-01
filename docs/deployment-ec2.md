@@ -82,7 +82,7 @@ Check logs:
 sudo journalctl -u projex -f
 ```
 
-`start:server` runs database migrations, serves built client assets, and starts the SSR app server (host/port via `HOST` and `PORT`, default `0.0.0.0:3000`).
+`start:server` validates the runtime env, serves built client assets, and starts the SSR app server (host/port via `HOST` and `PORT`, default `0.0.0.0:3000`). It does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
 
 If you front the app with nginx, proxy to `http://127.0.0.1:3000` and preserve `Host` plus standard forwarded headers.
 

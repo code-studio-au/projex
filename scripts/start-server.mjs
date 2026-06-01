@@ -46,6 +46,9 @@ if (process.env.NODE_ENV !== 'production') {
   await loadEnvFile('.env.local');
 }
 
+const { validateServerStartupEnv } = await import('../src/server/env.ts');
+validateServerStartupEnv();
+
 const runMigrations = process.env.PROJEX_RUN_MIGRATIONS === 'true';
 if (runMigrations) {
   run('npm', ['run', 'db:migrate']);
@@ -117,6 +120,8 @@ function buildAppCsp(nonce) {
     "script-src-attr 'none'",
     `style-src 'self' 'nonce-${nonce}'`,
     `style-src-elem 'self' 'nonce-${nonce}'`,
+    // Mantine and several app surfaces still emit runtime style attributes.
+    // Keep this until a future UI pass eliminates those style="" sinks.
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self' data:",

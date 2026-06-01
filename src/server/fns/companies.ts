@@ -130,19 +130,22 @@ async function requestPasswordSetupEmail(
     );
   }
 
-  const endpoint = new URL('/api/auth/request-password-reset', base).toString();
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      origin: base,
-      referer: base,
-    },
-    body: JSON.stringify({
-      email,
-      redirectTo: getResetPasswordRedirectUrl(),
-    }),
-  });
+  const auth = getBetterAuthInstance();
+  const endpoint = new URL('/api/auth/request-password-reset', base);
+  const res = await auth.handler(
+    new Request(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: base,
+        referer: base,
+      },
+      body: JSON.stringify({
+        email,
+        redirectTo: getResetPasswordRedirectUrl(),
+      }),
+    })
+  );
 
   if (!res.ok) {
     const text = await res.text();

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense } from 'react';
 import { Outlet, useRouter, useRouterState } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
 import {
@@ -28,7 +28,8 @@ import { theme } from './theme';
 import { asCompanyId } from './types/ids';
 import { getDefaultCompanyIdForUser } from './queries/reference';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
-import { useCompaniesQuery, useUsersQuery } from './queries/reference';
+import { useCompaniesQuery } from './queries/reference';
+import { useCurrentUserQuery } from './queries/account';
 import { getCspNonce } from './utils/csp';
 
 const smokeToolsEnabled = import.meta.env.VITE_ENABLE_SMOKE_TOOLS === 'true';
@@ -87,13 +88,10 @@ export function AuthedLayout() {
   const userId = session.data?.userId ?? null;
   const isMobile = useMediaQuery('(max-width: 48em)');
   const companiesQ = useCompaniesQuery(userId ?? undefined);
-  const usersQ = useUsersQuery();
+  const currentUserQ = useCurrentUserQuery();
 
   const companyCount = (companiesQ.data ?? []).length;
-  const currentUser = useMemo(
-    () => (usersQ.data ?? []).find((user) => user.id === userId) ?? null,
-    [userId, usersQ.data]
-  );
+  const currentUser = currentUserQ.data ?? null;
   const isSuperadmin = currentUser?.isGlobalSuperadmin === true;
   const accountLabel = isMobile
     ? (currentUser?.name?.split(' ')[0] ?? 'Account')

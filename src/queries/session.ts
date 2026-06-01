@@ -20,35 +20,27 @@ export function useSessionQuery() {
 
 /**
  * When auth changes, user-scoped queries (companies/projects/etc) must be refreshed.
- * We keep the users list warm, but invalidate everything else.
  */
 export async function refreshAfterAuthChange(queryClient: QueryClient) {
-  // Drop any anonymous companies cache (pre-login), otherwise staleTime can keep it “fresh” post-login.
+  // Drop any anonymous caches (pre-login), otherwise staleTime can keep them
+  // looking “fresh” after the auth boundary changes.
   queryClient.removeQueries({
     predicate: (q) =>
       Array.isArray(q.queryKey) &&
-      q.queryKey[0] === 'companies' &&
+      ['companies', 'users', 'currentUser'].includes(String(q.queryKey[0])) &&
       q.queryKey[1] === 'anonymous',
   });
 
-  await queryClient.invalidateQueries({
-    predicate: (q) => !(Array.isArray(q.queryKey) && q.queryKey[0] === 'users'),
-  });
+  await queryClient.invalidateQueries();
 }
 
 export async function clearProtectedDataAfterLogout(queryClient: QueryClient) {
   await queryClient.cancelQueries({
-    predicate: (q) =>
-      Array.isArray(q.queryKey) &&
-      q.queryKey[0] !== 'users' &&
-      q.queryKey[0] !== 'session',
+    predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] !== 'session',
   });
 
   queryClient.removeQueries({
-    predicate: (q) =>
-      Array.isArray(q.queryKey) &&
-      q.queryKey[0] !== 'users' &&
-      q.queryKey[0] !== 'session',
+    predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] !== 'session',
   });
 }
 

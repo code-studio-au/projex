@@ -15,9 +15,10 @@ import {
 import { apiErrorMessage } from '../api/errorResponses';
 import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
-import { useCompaniesQuery, useUsersQuery } from '../queries/reference';
+import { useCompaniesQuery } from '../queries/reference';
 import {
   useCancelEmailChangeMutation,
+  useCurrentUserQuery,
   usePendingEmailChangeQuery,
   useRequestEmailChangeMutation,
   useResendEmailChangeMutation,
@@ -38,7 +39,7 @@ function formatDateTime(value: string) {
 export default function AccountPage() {
   const session = useSessionQuery();
   const userId = session.data?.userId;
-  const usersQ = useUsersQuery();
+  const currentUserQ = useCurrentUserQuery();
   const membershipsQ = useAllCompanyMembershipsQuery();
   const companiesQ = useCompaniesQuery(userId ?? undefined);
   const updateProfile = useUpdateCurrentUserProfileMutation();
@@ -47,10 +48,7 @@ export default function AccountPage() {
   const resendEmailChange = useResendEmailChangeMutation();
   const cancelEmailChange = useCancelEmailChangeMutation();
 
-  const currentUser = useMemo(
-    () => (usersQ.data ?? []).find((user) => user.id === userId) ?? null,
-    [userId, usersQ.data]
-  );
+  const currentUser = currentUserQ.data ?? null;
   const myMemberships = useMemo(() => {
     const companyNameById = new Map(
       (companiesQ.data ?? []).map((company) => [company.id, company.name])

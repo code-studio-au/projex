@@ -17,12 +17,14 @@ import {
 } from '../server/start/functions/projectReads';
 
 export function useUsersQuery() {
-  return useQuery(usersQueryOptions());
+  const session = useSessionQuery();
+  return useQuery(usersQueryOptions(session.data?.userId));
 }
 
-export function usersQueryOptions() {
+export function usersQueryOptions(userId?: UserId) {
   return {
-    queryKey: qk.users(),
+    enabled: !!userId,
+    queryKey: userId ? qk.users(userId) : ['users', 'anonymous'],
     queryFn: () => listUsersServerFn(),
   } as const;
 }

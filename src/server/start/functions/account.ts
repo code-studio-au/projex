@@ -6,6 +6,7 @@ import type {
 } from '../../../api/contract';
 import {
   cancelEmailChangeServer,
+  getCurrentUserServer,
   getPendingEmailChangeServer,
   requestEmailChangeServer,
   resendEmailChangeServer,
@@ -17,6 +18,12 @@ export const getPendingEmailChangeServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .handler(async ({ context }) => {
     return getPendingEmailChangeServer({ context: context.serverContext });
+  });
+
+export const getCurrentUserServerFn = createServerFn({ method: 'GET' })
+  .middleware([startApiMiddleware])
+  .handler(async ({ context }) => {
+    return getCurrentUserServer({ context: context.serverContext });
   });
 
 export const updateCurrentUserProfileServerFn = createServerFn({

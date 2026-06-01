@@ -104,7 +104,10 @@ export function useCreateUserInCompanyMutation(companyId: CompanyId) {
         data: { companyId, payload: vars },
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.users() });
+      qc.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
+      });
       qc.invalidateQueries({
         queryKey: qk.companyMemberships(scopeUserId, companyId),
       });
@@ -122,7 +125,10 @@ export function useSendCompanyUserInviteEmailMutation(companyId: CompanyId) {
         data: { companyId, userId },
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.users() });
+      qc.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
+      });
       qc.invalidateQueries({
         queryKey: qk.companyMemberships(scopeUserId, companyId),
       });
@@ -198,7 +204,10 @@ export function useReactivateCompanyMutation() {
       });
       qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) });
       qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
-      qc.invalidateQueries({ queryKey: qk.users() });
+      qc.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
+      });
       qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
     },
   });
@@ -222,7 +231,10 @@ export function useDeleteCompanyMutation() {
         queryKey: qk.projects(scopeUserId, input.companyId),
       });
       qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
-      qc.invalidateQueries({ queryKey: qk.users() });
+      qc.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
+      });
     },
   });
 }

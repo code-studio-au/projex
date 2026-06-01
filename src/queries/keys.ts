@@ -1,8 +1,10 @@
 export const qk = {
   session: () => ['session'] as const,
-  users: () => ['users'] as const,
+  currentUser: (userId: string) => ['currentUser', userId] as const,
+  users: (userId: string) => ['users', userId] as const,
 
-  // Everything else is session-scoped because visibility/permissions depend on who is logged in.
+  // Everything else is session-scoped because visibility/permissions depend on
+  // who is logged in.
   companies: (userId: string) => ['companies', userId] as const,
   company: (userId: string, companyId: string) =>
     ['company', userId, companyId] as const,

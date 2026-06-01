@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { qk } from './keys';
+import { useSessionQuery } from './session';
 import {
   cancelEmailChangeServerFn,
+  getCurrentUserServerFn,
   getPendingEmailChangeServerFn,
   requestEmailChangeServerFn,
   resendEmailChangeServerFn,
@@ -10,12 +12,31 @@ import {
 } from '../server/start/functions/account';
 
 const accountKeys = {
-  pendingEmailChange: () => ['account', 'pendingEmailChange'] as const,
+  pendingEmailChange: (userId: string) =>
+    ['account', 'pendingEmailChange', userId] as const,
 };
 
+export function useCurrentUserQuery() {
+  const session = useSessionQuery();
+  return useQuery(currentUserQueryOptions(session.data?.userId));
+}
+
+export function currentUserQueryOptions(userId?: string) {
+  return {
+    enabled: !!userId,
+    queryKey: userId ? qk.currentUser(userId) : ['currentUser', 'anonymous'],
+    queryFn: () => getCurrentUserServerFn(),
+  } as const;
+}
+
 export function usePendingEmailChangeQuery() {
+  const session = useSessionQuery();
+  const userId = session.data?.userId;
   return useQuery({
-    queryKey: accountKeys.pendingEmailChange(),
+    enabled: !!userId,
+    queryKey: userId
+      ? accountKeys.pendingEmailChange(userId)
+      : ['account', 'pendingEmailChange', 'anonymous'],
     queryFn: () => getPendingEmailChangeServerFn(),
   });
 }
@@ -26,7 +47,16 @@ export function useUpdateCurrentUserProfileMutation() {
     mutationFn: (input: { name: string }) =>
       updateCurrentUserProfileServerFn({ data: input }),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: qk.users() });
+      await Promise.all([
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
+        }),
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === 'currentUser',
+        }),
+      ]);
     },
   });
 }
@@ -38,7 +68,10 @@ export function useRequestEmailChangeMutation() {
       requestEmailChangeServerFn({ data: input }),
     onSuccess: async () => {
       await qc.invalidateQueries({
-        queryKey: accountKeys.pendingEmailChange(),
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'account' &&
+          q.queryKey[1] === 'pendingEmailChange',
       });
     },
   });
@@ -50,7 +83,10 @@ export function useResendEmailChangeMutation() {
     mutationFn: () => resendEmailChangeServerFn(),
     onSuccess: async () => {
       await qc.invalidateQueries({
-        queryKey: accountKeys.pendingEmailChange(),
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'account' &&
+          q.queryKey[1] === 'pendingEmailChange',
       });
     },
   });
@@ -62,7 +98,10 @@ export function useCancelEmailChangeMutation() {
     mutationFn: () => cancelEmailChangeServerFn(),
     onSuccess: async () => {
       await qc.invalidateQueries({
-        queryKey: accountKeys.pendingEmailChange(),
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'account' &&
+          q.queryKey[1] === 'pendingEmailChange',
       });
     },
   });

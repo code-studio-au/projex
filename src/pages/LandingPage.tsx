@@ -25,7 +25,6 @@ import { companyRoute } from '../router';
 import {
   getDefaultCompanyIdForUser,
   useCompaniesQuery,
-  useUsersQuery,
 } from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
@@ -35,7 +34,7 @@ import {
   useDeleteCompanyMutation,
   useReactivateCompanyMutation,
 } from '../queries/admin';
-import { qk } from '../queries/keys';
+import { useCurrentUserQuery } from '../queries/account';
 import { createUserInCompanyServerFn } from '../server/start/functions/admin';
 
 export default function LandingPage() {
@@ -47,7 +46,7 @@ export default function LandingPage() {
   const userId = sessionQ.data?.userId;
 
   const companiesQ = useCompaniesQuery(userId);
-  const usersQ = useUsersQuery();
+  const currentUserQ = useCurrentUserQuery();
   const membershipsQ = useAllCompanyMembershipsQuery();
 
   const companies = useMemo(() => companiesQ.data ?? [], [companiesQ.data]);
@@ -59,13 +58,7 @@ export default function LandingPage() {
       }),
     [companies]
   );
-  const isSuperadmin = useMemo(() => {
-    if (!userId) return false;
-    return (
-      (usersQ.data ?? []).find((user) => user.id === userId)
-        ?.isGlobalSuperadmin === true
-    );
-  }, [usersQ.data, userId]);
+  const isSuperadmin = currentUserQ.data?.isGlobalSuperadmin === true;
   const userCompanyCount = useMemo(() => {
     if (!userId) return 0;
     const ids = new Set(
@@ -363,7 +356,9 @@ export default function LandingPage() {
                           });
                           await Promise.all([
                             queryClient.invalidateQueries({
-                              queryKey: qk.users(),
+                              predicate: (q) =>
+                                Array.isArray(q.queryKey) &&
+                                q.queryKey[0] === 'users',
                             }),
                             queryClient.invalidateQueries({
                               predicate: (q) =>

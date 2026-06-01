@@ -9,7 +9,7 @@ import {
   useAllCompanyMembershipsQuery,
   useMyProjectMembershipsQuery,
 } from '../queries/memberships';
-import { useUsersQuery } from '../queries/reference';
+import { useCurrentUserQuery } from '../queries/account';
 import { useSessionQuery } from '../queries/session';
 
 export type CompanyAccess = {
@@ -32,7 +32,7 @@ export type CompanyAccess = {
 export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
   const sessionQ = useSessionQuery();
   const userId = asUserId(sessionQ.data?.userId ?? '');
-  const usersQ = useUsersQuery();
+  const currentUserQ = useCurrentUserQuery();
 
   const companyMembershipsQ = useAllCompanyMembershipsQuery();
   const myProjectMembershipsQ = useMyProjectMembershipsQuery(companyId);
@@ -48,10 +48,8 @@ export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
     [myProjectMembershipsQ.data]
   );
   const isGlobalSuperadmin = useMemo(
-    () =>
-      (usersQ.data ?? []).find((user) => user.id === userId)
-        ?.isGlobalSuperadmin === true,
-    [userId, usersQ.data]
+    () => currentUserQ.data?.isGlobalSuperadmin === true,
+    [currentUserQ.data?.isGlobalSuperadmin]
   );
 
   const companyRole = useMemo(() => {

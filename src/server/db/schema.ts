@@ -7,8 +7,8 @@ import type {
   TxnType,
 } from '../../types';
 
-// Minimal DB schema types for the Start + Kysely migration.
-// Extend as you move more logic server-side.
+// Application DB schema mirrored from the squashed SQL baseline. Keep this
+// exhaustive so Kysely query typing and the SQL baseline evolve together.
 
 export interface CompanyTable {
   id: string;
@@ -243,3 +243,29 @@ export interface DB {
   import_candidates: ImportCandidateTable;
   request_rate_limits: RequestRateLimitTable;
 }
+
+export const APP_DB_TABLES = [
+  'companies',
+  'projects',
+  'users',
+  'email_change_requests',
+  'company_memberships',
+  'project_memberships',
+  'txns',
+  'txn_comments',
+  'budget_lines',
+  'categories',
+  'sub_categories',
+  'company_default_categories',
+  'company_default_sub_categories',
+  'company_default_mapping_rules',
+  'import_rules',
+  'import_batches',
+  'import_candidates',
+  'request_rate_limits',
+] as const satisfies ReadonlyArray<keyof DB>;
+
+type AppDbTableName = (typeof APP_DB_TABLES)[number];
+type AssertEveryDbTableIsListed =
+  Exclude<keyof DB, AppDbTableName> extends never ? true : never;
+export const _assertEveryDbTableIsListed: AssertEveryDbTableIsListed = true;

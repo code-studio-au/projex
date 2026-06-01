@@ -1,6 +1,5 @@
 import type { ServerSession } from '../auth/session';
 import { getAuthSessionFromRequest } from '../auth/betterAuth';
-import { validateServerStartupEnv } from '../env';
 import type { ServerFnContextInput } from '../fns/runtime';
 
 export type ResolvedRequestServerContext = {
@@ -8,13 +7,25 @@ export type ResolvedRequestServerContext = {
   serverContext: ServerFnContextInput;
 };
 
+const requestContextCache = new WeakMap<
+  Request,
+  Promise<ResolvedRequestServerContext>
+>();
+
 export async function resolveRequestServerContext(
   request: Request
 ): Promise<ResolvedRequestServerContext> {
-  validateServerStartupEnv();
-  const session = await getAuthSessionFromRequest(request);
-  return {
-    session,
-    serverContext: { request, session },
-  };
+  const cached = requestContextCache.get(request);
+  if (cached) return cached;
+
+  const pending = (async () => {
+    const session = await getAuthSessionFromRequest(request);
+    return {
+      session,
+      serverContext: { request, session },
+    };
+  })();
+
+  requestContextCache.set(request, pending);
+  return pending;
 }

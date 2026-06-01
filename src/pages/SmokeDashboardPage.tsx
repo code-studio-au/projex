@@ -22,7 +22,7 @@ import {
 } from '@tabler/icons-react';
 
 import { apiErrorMessage } from '../api/errorResponses';
-import { useUsersQuery } from '../queries/reference';
+import { useCurrentUserQuery } from '../queries/account';
 import { useSessionQuery } from '../queries/session';
 import type {
   SmokeSectionId,
@@ -344,15 +344,12 @@ function applyStepUpdate(
 
 export default function SmokeDashboardPage() {
   const session = useSessionQuery();
-  const usersQ = useUsersQuery();
+  const currentUserQ = useCurrentUserQuery();
 
   const userId = session.data?.userId ?? null;
   const isSuperadmin = useMemo(
-    () =>
-      !!userId &&
-      (usersQ.data ?? []).find((user) => user.id === userId)
-        ?.isGlobalSuperadmin === true,
-    [userId, usersQ.data]
+    () => !!userId && currentUserQ.data?.isGlobalSuperadmin === true,
+    [currentUserQ.data?.isGlobalSuperadmin, userId]
   );
 
   const [results, setResults] = useState<

@@ -25,7 +25,7 @@ export const Route = createFileRoute('/_authed/c/$companyId')({
     if (!session?.userId) return null;
 
     await Promise.all([
-      context.queryClient.ensureQueryData(usersQueryOptions()),
+      context.queryClient.ensureQueryData(usersQueryOptions(session.userId)),
       context.queryClient.ensureQueryData(companiesQueryOptions(session.userId)),
       context.queryClient.ensureQueryData(
         allCompanyMembershipsQueryOptions(session.userId)

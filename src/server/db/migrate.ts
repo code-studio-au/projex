@@ -17,6 +17,31 @@ const KYSELY_MIGRATION_TABLE = 'kysely_migration';
 const KYSELY_MIGRATION_LOCK_TABLE = 'kysely_migration_lock';
 const BASELINE_MIGRATION_NAME = '0001_init.sql';
 const APP_SCHEMA_SENTINEL_TABLE = 'public.companies';
+const LEGACY_APP_MIGRATION_NAMES = new Set([
+  '0001_init.sql',
+  '0002_project_budget_total.sql',
+  '0003_project_superadmin_access.sql',
+  '0004_email_change_requests.sql',
+  '0005_drop_project_description.sql',
+  '0006_company_default_taxonomy.sql',
+  '0007_company_default_mapping_rules.sql',
+  '0008_global_superadmin.sql',
+  '0009_company_role_cleanup.sql',
+  '0010_company_membership_role_constraint.sql',
+  '0011_resource_ownership_constraints.sql',
+  '0012_transaction_accounting_metadata.sql',
+  '0013_programmes.sql',
+  '0014_transaction_comments.sql',
+  '0015_transaction_review_workflow.sql',
+  '0016_signed_transaction_amounts.sql',
+  '0017_powerbi_import_foundations.sql',
+  '0018_import_rule_ledger_field.sql',
+  '0019_project_transfer_toggle.sql',
+  '0019_user_disabled_reason.sql',
+  '0020_validate_resource_ownership_constraints.sql',
+  '0021_request_rate_limits.sql',
+  '0022_remove_regex_import_rule_operator.sql',
+]);
 
 type KyselyMigrationRow = { name: string };
 type ToRegclassRow = { table_name: string | null };
@@ -73,6 +98,10 @@ async function syncExistingSchemaToBaseline(pool: Queryable) {
   if (!hasAppSchema) return;
 
   await ensureKyselyMigrationTables(pool);
+  const hasLegacySchemaMigrations = await doesTableExist(
+    pool,
+    'public.schema_migrations'
+  );
 
   const existing = await pool.query<KyselyMigrationRow>(
     `select name from ${KYSELY_MIGRATION_TABLE} order by name`
@@ -82,7 +111,26 @@ async function syncExistingSchemaToBaseline(pool: Queryable) {
     existing.rows.length === 1 &&
     existing.rows[0]?.name === BASELINE_MIGRATION_NAME
   ) {
+    if (hasLegacySchemaMigrations) {
+      await pool.query('drop table if exists schema_migrations');
+    }
     return;
+  }
+
+  const hasOnlyRecognizedLegacyHistory =
+    existing.rows.length > 0 &&
+    existing.rows.every((row) => LEGACY_APP_MIGRATION_NAMES.has(row.name));
+
+  if (!hasLegacySchemaMigrations && !hasOnlyRecognizedLegacyHistory) {
+    const reason =
+      existing.rows.length === 0
+        ? 'Existing application tables were found without legacy migration history.'
+        : `Unrecognized migration history found: ${existing.rows
+            .map((row) => row.name)
+            .join(', ')}`;
+    throw new Error(
+      `${reason} Reset the database or align it manually before running the squashed baseline migration.`
+    );
   }
 
   await pool.query('begin');
@@ -93,7 +141,9 @@ async function syncExistingSchemaToBaseline(pool: Queryable) {
        values ($1, $2)`,
       [BASELINE_MIGRATION_NAME, new Date().toISOString()]
     );
-    await pool.query('drop table if exists schema_migrations');
+    if (hasLegacySchemaMigrations) {
+      await pool.query('drop table if exists schema_migrations');
+    }
     await pool.query('commit');
   } catch (error) {
     await pool.query('rollback');
