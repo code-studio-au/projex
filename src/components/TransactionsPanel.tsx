@@ -540,9 +540,7 @@ export default function TransactionsPanel(props: {
       },
       Cell: ({ row }) => {
         const cat = taxonomy.getCategoryName(row.original.categoryId);
-        const isFullyCoded =
-          !!row.original.subCategoryId &&
-          taxonomy.validSubIds.has(row.original.subCategoryId);
+        const isCategoryCoded = !!row.original.categoryId;
         return (
           <Group gap="xs" wrap="wrap">
             <Text
@@ -551,7 +549,7 @@ export default function TransactionsPanel(props: {
             >
               {cat}
             </Text>
-            {!isFullyCoded && isCategorisableTxn(row.original) && (
+            {!isCategoryCoded && isCategorisableTxn(row.original) && (
               <Badge color="red" variant="light">
                 Uncoded
               </Badge>
