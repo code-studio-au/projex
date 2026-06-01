@@ -1,22 +1,20 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { ProjexApi } from '../api/contract';
-import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
+import { getSessionServerFn } from '../server/start/functions/auth';
 
-export function sessionQueryOptions(boundary: ProjexApi) {
+export function sessionQueryOptions() {
   return {
     queryKey: qk.session(),
-    queryFn: () => boundary.getSession(),
+    queryFn: () => getSessionServerFn(),
     // Session is an auth boundary; do not treat it as fresh for long.
     staleTime: 0,
   } as const;
 }
 
 export function useSessionQuery() {
-  const api = useApi();
-  return useQuery(sessionQueryOptions(api));
+  return useQuery(sessionQueryOptions());
 }
 
 /**

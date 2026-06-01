@@ -1,16 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { AppError } from '../api/errors';
-import { readJsonBody, withApi } from './-api-shared';
+import {
+  apiRouteMiddleware,
+  readJsonBody,
+  requireApiRouteContext,
+} from './-api-shared';
 import { asUserId } from '../types';
 import { devSessionBodySchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/dev/session')({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      POST: ({ request }) =>
-        withApi(request, async () => {
+      POST: async ({ context, request }) => {
+        requireApiRouteContext(context);
           const [{ getDb }, devSession] = await Promise.all([
             import('../server/db/db'),
             import('../server/dev/devSession'),
@@ -41,9 +46,9 @@ export const Route = createFileRoute('/api/dev/session')({
               'set-cookie': createDevSessionSetCookie(asUserId(user.id)),
             },
           });
-        }),
-      DELETE: ({ request }) =>
-        withApi(request, async () => {
+      },
+      DELETE: async ({ context }) => {
+        requireApiRouteContext(context);
           const { assertDevEndpointsEnabled, clearDevSessionSetCookie } =
             await import('../server/dev/devSession');
           assertDevEndpointsEnabled();
@@ -54,7 +59,7 @@ export const Route = createFileRoute('/api/dev/session')({
               'set-cookie': clearDevSessionSetCookie(),
             },
           });
-        }),
+      },
     },
   },
 });

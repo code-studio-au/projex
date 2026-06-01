@@ -18,16 +18,17 @@ import {
 import { useRouter } from '@tanstack/react-router';
 import { useMediaQuery } from '@mantine/hooks';
 
-import { useApi } from '../hooks/useApi';
 import { forgotPasswordRoute, homeRoute } from '../router';
-import { getPostLoginTarget } from '../routes/-postLogin';
+import {
+  getPostLoginTargetServerFn,
+  getSessionServerFn,
+} from '../server/start/functions/auth';
 
 export default function LoginPage() {
   return <ServerLoginPanel />;
 }
 
 function ServerLoginPanel() {
-  const api = useApi();
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width: 48em)');
   const [email, setEmail] = useState('');
@@ -39,7 +40,7 @@ function ServerLoginPanel() {
     const attempts = 12;
 
     for (let i = 0; i < attempts; i += 1) {
-      const session = await api.getSession();
+      const session = await getSessionServerFn();
       if (session?.userId) return session.userId;
       await new Promise((resolve) => window.setTimeout(resolve, 250));
     }
@@ -70,7 +71,9 @@ function ServerLoginPanel() {
         return;
       }
 
-      const target = await getPostLoginTarget(api, userId);
+      const target = await getPostLoginTargetServerFn({
+        data: { userId },
+      });
       await router.invalidate();
       await router.navigate(target);
     } catch (err) {

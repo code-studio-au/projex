@@ -1,35 +1,31 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { withApi } from './-api-shared';
+import { apiRouteMiddleware, jsonApi, requireApiRouteContext } from './-api-shared';
 
 export const Route = createFileRoute('/api/session')({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      GET: ({ request }) =>
-        withApi(request, async (api) => {
-          const session = await api.getSession();
-          return new Response(JSON.stringify(session), {
-            status: 200,
-            headers: {
-              'content-type': 'application/json',
-              'cache-control': 'no-store',
-            },
-          });
-        }),
-      DELETE: ({ request }) =>
-        withApi(request, async (api) => {
-          const { clearDevSessionSetCookie } =
-            await import('../server/dev/devSession');
-          await api.logout();
-          return new Response(JSON.stringify({ ok: true }), {
-            status: 200,
-            headers: {
-              'content-type': 'application/json',
-              'cache-control': 'no-store',
-              'set-cookie': clearDevSessionSetCookie(),
-            },
-          });
-        }),
+      GET: async ({ context }) => {
+        const { session } = requireApiRouteContext(context);
+        return jsonApi(session, {
+          status: 200,
+          headers: {
+            'cache-control': 'no-store',
+          },
+        });
+      },
+      DELETE: async () => {
+        const { clearDevSessionSetCookie } =
+          await import('../server/dev/devSession');
+        return jsonApi({ ok: true }, {
+          status: 200,
+          headers: {
+            'cache-control': 'no-store',
+            'set-cookie': clearDevSessionSetCookie(),
+          },
+        });
+      },
     },
   },
 });

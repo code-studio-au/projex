@@ -1,20 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { withApi } from './-api-shared';
-import { asUserId } from '../types';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  requireApiRouteContext,
+} from './-api-shared';
+import {
+  getDefaultCompanyIdForUserServer,
+} from '../server/fns/companies';
 
 export const Route = createFileRoute('/api/me/default-company')({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      GET: ({ request }) =>
-        withApi(request, async (api) => {
-          const session = await api.getSession();
-          if (!session) return { companyId: null };
-          const companyId = await api.getDefaultCompanyIdForUser(
-            asUserId(session.userId)
-          );
-          return { companyId };
-        }),
+      GET: async ({ context }) => {
+        const { session, serverContext } = requireApiRouteContext(context);
+        if (!session) return jsonApi({ companyId: null });
+        const companyId = await getDefaultCompanyIdForUserServer({
+          context: serverContext,
+        });
+        return jsonApi({ companyId });
+      },
     },
   },
 });

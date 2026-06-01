@@ -1,31 +1,38 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useApi } from '../hooks/useApi';
 import type { CompanyId, ProjectId, UserId } from '../types';
 import type { CompanyRole, ProjectRole } from '../types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import { useSessionQuery } from './session';
+import {
+  listAllCompanyMembershipsServerFn,
+  deleteCompanyMembershipServerFn,
+  deleteProjectMembershipServerFn,
+  listCompanyMembershipsServerFn,
+  listMyProjectMembershipsServerFn,
+  listProjectMembershipsServerFn,
+  upsertCompanyMembershipServerFn,
+  upsertProjectMembershipServerFn,
+} from '../server/start/functions/memberships';
 
 export function useCompanyMembershipsQuery(companyId: CompanyId) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
   return useQuery({
     enabled: !!session.data?.userId,
     queryKey: qk.companyMemberships(scopeUserId, companyId),
-    queryFn: () => api.listCompanyMemberships(companyId),
+    queryFn: () => listCompanyMembershipsServerFn({ data: { companyId } }),
   });
 }
 
 export function useAllCompanyMembershipsQuery() {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
   return useQuery({
     enabled: !!session.data?.userId,
     queryKey: qk.allCompanyMemberships(scopeUserId),
-    queryFn: () => api.listAllCompanyMemberships(),
+    queryFn: () => listAllCompanyMembershipsServerFn(),
   });
 }
 
@@ -33,13 +40,12 @@ export function useProjectMembershipsQuery(
   projectId: ProjectId,
   options: { enabled?: boolean } = {}
 ) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
   return useQuery({
     enabled: !!session.data?.userId && (options.enabled ?? true),
     queryKey: qk.projectMemberships(scopeUserId, projectId),
-    queryFn: () => api.listProjectMemberships(projectId),
+    queryFn: () => listProjectMembershipsServerFn({ data: { projectId } }),
   });
 }
 
@@ -51,24 +57,24 @@ export function useProjectMembershipsQuery(
  * UI only needs *my* memberships to compute which projects are openable.
  */
 export function useMyProjectMembershipsQuery(companyId: CompanyId) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
   return useQuery({
     enabled: !!session.data?.userId,
     queryKey: qk.myProjectMemberships(scopeUserId, companyId),
-    queryFn: () => api.listMyProjectMemberships(companyId),
+    queryFn: () => listMyProjectMembershipsServerFn({ data: { companyId } }),
   });
 }
 
 export function useUpsertCompanyMembershipMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
 
   return useMutation({
     mutationFn: (vars: { userId: UserId; role: CompanyRole }) =>
-      api.upsertCompanyMembership(companyId, vars.userId, vars.role),
+      upsertCompanyMembershipServerFn({
+        data: { companyId, userId: vars.userId, role: vars.role },
+      }),
     onSuccess: () => {
       // Membership changes affect company settings and project visibility/listing.
       qc.invalidateQueries({
@@ -84,13 +90,12 @@ export function useUpsertCompanyMembershipMutation(companyId: CompanyId) {
 }
 
 export function useDeleteCompanyMembershipMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
 
   return useMutation({
     mutationFn: (userId: UserId) =>
-      api.deleteCompanyMembership(companyId, userId),
+      deleteCompanyMembershipServerFn({ data: { companyId, userId } }),
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: qk.companyMemberships(scopeUserId, companyId),
@@ -105,13 +110,14 @@ export function useDeleteCompanyMembershipMutation(companyId: CompanyId) {
 }
 
 export function useUpsertProjectMembershipMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
 
   return useMutation({
     mutationFn: (vars: { userId: UserId; role: ProjectRole }) =>
-      api.upsertProjectMembership(projectId, vars.userId, vars.role),
+      upsertProjectMembershipServerFn({
+        data: { projectId, userId: vars.userId, role: vars.role },
+      }),
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: qk.projectMemberships(scopeUserId, projectId),
@@ -130,13 +136,14 @@ export function useUpsertProjectMembershipMutation(projectId: ProjectId) {
 }
 
 export function useDeleteProjectMembershipMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
 
   return useMutation({
     mutationFn: (vars: { userId: UserId; role: ProjectRole }) =>
-      api.deleteProjectMembership(projectId, vars.userId, vars.role),
+      deleteProjectMembershipServerFn({
+        data: { projectId, userId: vars.userId, role: vars.role },
+      }),
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: qk.projectMemberships(scopeUserId, projectId),

@@ -9,28 +9,31 @@ import type {
   ImportRuleCreateInput,
   ImportRuleUpdateInput,
 } from '../api/contract';
-import { useApi } from '../hooks/useApi';
 import type { CompanyId, ImportRule } from '../types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
+import {
+  createImportRuleServerFn,
+  deleteImportRuleServerFn,
+  listImportRulesServerFn,
+  updateImportRuleServerFn,
+} from '../server/start/functions/importReads';
 
 export function useImportRulesQuery(companyId: CompanyId) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.importRules(scopeUserId, companyId),
-    queryFn: () => api.listImportRules(companyId),
+    queryFn: () => listImportRulesServerFn({ data: { companyId } }),
     placeholderData: keepPreviousData,
   });
 }
 
 export function useCreateImportRuleMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: ImportRuleCreateInput) =>
-      api.createImportRule(companyId, input),
+      createImportRuleServerFn({ data: { companyId, payload: input } }),
     onSuccess: () =>
       qc.invalidateQueries({
         queryKey: qk.importRules(scopeUserId, companyId),
@@ -39,12 +42,11 @@ export function useCreateImportRuleMutation(companyId: CompanyId) {
 }
 
 export function useUpdateImportRuleMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: ImportRuleUpdateInput) =>
-      api.updateImportRule(companyId, input),
+      updateImportRuleServerFn({ data: { companyId, payload: input } }),
     onSuccess: () =>
       qc.invalidateQueries({
         queryKey: qk.importRules(scopeUserId, companyId),
@@ -53,12 +55,11 @@ export function useUpdateImportRuleMutation(companyId: CompanyId) {
 }
 
 export function useDeleteImportRuleMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (ruleId: ImportRule['id']) =>
-      api.deleteImportRule(companyId, ruleId),
+      deleteImportRuleServerFn({ data: { companyId, ruleId } }),
     onSuccess: () =>
       qc.invalidateQueries({
         queryKey: qk.importRules(scopeUserId, companyId),

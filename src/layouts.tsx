@@ -15,7 +15,6 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import { QueryClientProvider } from '@tanstack/react-query';
 
-import { useApi } from './hooks/useApi';
 import {
   accountRoute,
   companyRoute,
@@ -24,8 +23,10 @@ import {
   loginRoute,
   smokeRoute,
 } from './router';
+import { queryClient } from './queryClient';
 import { theme } from './theme';
 import { asCompanyId } from './types/ids';
+import { getDefaultCompanyIdForUser } from './queries/reference';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
 import { useCompaniesQuery, useUsersQuery } from './queries/reference';
 import { getCspNonce } from './utils/csp';
@@ -34,27 +35,19 @@ const smokeToolsEnabled = import.meta.env.VITE_ENABLE_SMOKE_TOOLS === 'true';
 
 /** Root layout: intentionally minimal to keep route config clean. */
 export function RootProviders({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-
   return (
     <MantineProvider
       theme={theme}
       defaultColorScheme="light"
       getStyleNonce={getCspNonce}
     >
-      <QueryClientProvider client={router.options.context.queryClient}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </MantineProvider>
   );
 }
 
 export function RootLayout() {
-  return (
-    <RootProviders>
-      <Outlet />
-    </RootProviders>
-  );
+  return <Outlet />;
 }
 
 /**
@@ -64,7 +57,6 @@ export function RootLayout() {
  * component defensive for smoother local/dev behavior.
  */
 export function AuthedLayout() {
-  const api = useApi();
   const session = useSessionQuery();
   const logout = useLogoutMutation();
   const router = useRouter();
@@ -158,7 +150,7 @@ export function AuthedLayout() {
                       // Prefer current company from URL, otherwise fall back to user's default company.
                       const companyId =
                         companyIdFromUrl ??
-                        (await api.getDefaultCompanyIdForUser(userId));
+                        (await getDefaultCompanyIdForUser(userId));
                       if (companyId) {
                         router.navigate({
                           to: companyRoute.to,

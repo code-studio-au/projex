@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { sql } from 'kysely';
 
-import { withPublicApi } from './-api-shared';
+import { jsonApi, publicApiRouteMiddleware } from './-api-shared';
 
 export const Route = createFileRoute('/api/ready')({
   server: {
+    middleware: [publicApiRouteMiddleware],
     handlers: {
-      GET: ({ request }) =>
-        withPublicApi(request, async () => {
+      GET: async () => {
           const [{ getDb }, { validateServerStartupEnv }] = await Promise.all([
             import('../server/db/db'),
             import('../server/env'),
@@ -15,11 +15,11 @@ export const Route = createFileRoute('/api/ready')({
           validateServerStartupEnv();
           const db = getDb();
           await db.selectNoFrom(sql`1`.as('ok')).executeTakeFirst();
-          return {
+          return jsonApi({
             ok: true as const,
             now: new Date().toISOString(),
-          };
-        }),
+          });
+        },
     },
   },
 });

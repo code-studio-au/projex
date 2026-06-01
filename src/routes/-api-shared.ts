@@ -1,5 +1,7 @@
-import type { ProjexApi } from '../api/types';
+import { createMiddleware } from '@tanstack/react-start';
 import { AppError } from '../api/errors';
+import type { ServerSession } from '../server/auth/session';
+import type { ServerFnContextInput } from '../server/fns/runtime';
 
 function appErrorStatus(code: AppError['code']): number {
   if (code === 'UNAUTHENTICATED') return 401;
@@ -12,22 +14,107 @@ function appErrorStatus(code: AppError['code']): number {
   return 500;
 }
 
-export async function withApi(
-  request: Request,
-  run: (api: ProjexApi) => Promise<unknown>
-): Promise<Response> {
-  return withApiCore(request, async () => {
-    const { createStartServerApi } = await import('../server/api/startBridge');
-    const api = await createStartServerApi({ request });
-    return run(api);
-  });
+function isRequestServerResult(
+  value: unknown
+): value is { response: Response } {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    'response' in value &&
+    (value as { response?: unknown }).response instanceof Response
+  );
 }
+
+export type ApiRouteContext = {
+  session: ServerSession | null;
+  serverContext: ServerFnContextInput;
+  requestId: string;
+  origin: string | null;
+  requestOrigin: string;
+  started: number;
+};
+
+export type PublicApiRouteContext = {
+  requestId: string;
+  origin: string | null;
+  requestOrigin: string;
+  started: number;
+};
 
 export async function withPublicApi(
   request: Request,
   run: () => Promise<unknown>
 ): Promise<Response> {
   return withApiCore(request, run);
+}
+
+export function requireApiRouteContext(context: unknown): ApiRouteContext {
+  if (!context || typeof context !== 'object' || !('serverContext' in context)) {
+    throw new AppError('INTERNAL_ERROR', 'Missing API route context');
+  }
+  return context as ApiRouteContext;
+}
+
+export function requirePublicApiRouteContext(
+  context: unknown
+): PublicApiRouteContext {
+  if (!context || typeof context !== 'object' || !('requestId' in context)) {
+    throw new AppError('INTERNAL_ERROR', 'Missing public API route context');
+  }
+  return context as PublicApiRouteContext;
+}
+
+export const apiRouteMiddleware = createMiddleware().server(
+  async ({ request, next }) => {
+    return withApiCore(
+      request,
+      async ({ requestId, origin, requestOrigin, started }) => {
+        const [{ getAuthSessionFromRequest }, { validateServerStartupEnv }] =
+          await Promise.all([
+            import('../server/auth/betterAuth'),
+            import('../server/env'),
+          ]);
+        validateServerStartupEnv();
+        const session = await getAuthSessionFromRequest(request);
+        const serverContext: ServerFnContextInput = { request, session };
+        return next({
+          context: {
+            session,
+            serverContext,
+            requestId,
+            origin,
+            requestOrigin,
+            started,
+          } satisfies ApiRouteContext,
+        });
+      }
+    );
+  }
+);
+
+export const publicApiRouteMiddleware = createMiddleware().server(
+  async ({ request, next }) => {
+    return withApiCore(
+      request,
+      async ({ requestId, origin, requestOrigin, started }) => {
+        return next({
+          context: {
+            requestId,
+            origin,
+            requestOrigin,
+            started,
+          } satisfies PublicApiRouteContext,
+        });
+      }
+    );
+  }
+);
+
+export function jsonApi(
+  data: unknown,
+  init?: ResponseInit & { headers?: HeadersInit }
+): Response {
+  return Response.json(data, init);
 }
 
 export async function readJsonBody(request: Request): Promise<unknown> {
@@ -40,7 +127,12 @@ export async function readJsonBody(request: Request): Promise<unknown> {
 
 async function withApiCore(
   request: Request,
-  run: () => Promise<unknown>
+  run: (meta: {
+    requestId: string;
+    origin: string | null;
+    requestOrigin: string;
+    started: number;
+  }) => Promise<unknown>
 ): Promise<Response> {
   const { buildCorsHeaders, isOriginAllowed } =
     await import('../server/http/security');
@@ -102,8 +194,12 @@ async function withApiCore(
   };
 
   try {
-    const data = await run();
-    const res = data instanceof Response ? data : Response.json(data);
+    const data = await run({ requestId, origin, requestOrigin, started });
+    const res = data instanceof Response
+      ? data
+      : isRequestServerResult(data)
+        ? data.response
+        : Response.json(data);
     const finalRes = withRequestId(res);
     console.info(
       JSON.stringify({

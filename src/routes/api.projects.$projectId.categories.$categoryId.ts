@@ -1,21 +1,28 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { withApi } from './-api-shared';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  requireApiRouteContext,
+} from './-api-shared';
 import { asCategoryId, asProjectId } from '../types';
+import { deleteCategoryServer } from '../server/fns/taxonomy';
 
 export const Route = createFileRoute(
   '/api/projects/$projectId/categories/$categoryId'
 )({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      DELETE: ({ request, params }) =>
-        withApi(request, async (api) => {
-          await api.deleteCategory(
-            asProjectId(params.projectId),
-            asCategoryId(params.categoryId)
-          );
-          return { ok: true as const };
-        }),
+      DELETE: async ({ context, params }) => {
+          const { serverContext } = requireApiRouteContext(context);
+          await deleteCategoryServer({
+            context: serverContext,
+            projectId: asProjectId(params.projectId),
+            categoryId: asCategoryId(params.categoryId),
+          });
+          return jsonApi({ ok: true as const });
+        },
     },
   },
 });

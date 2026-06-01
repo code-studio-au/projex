@@ -3,14 +3,19 @@ import {
   lazyRouteComponent,
   redirect,
 } from '@tanstack/react-router';
-import { getPostLoginTarget } from './-postLogin';
+import {
+  getPostLoginTargetServerFn,
+  getSessionServerFn,
+} from '../server/start/functions/auth';
 
 export const Route = createFileRoute('/login')({
   component: lazyRouteComponent(() => import('../pages/LoginPage')),
-  beforeLoad: async ({ context }) => {
-    const session = await context.api.getSession();
+  beforeLoad: async () => {
+    const session = await getSessionServerFn();
     if (!session) return;
-    const target = await getPostLoginTarget(context.api, session.userId);
+    const target = await getPostLoginTargetServerFn({
+      data: { userId: session.userId },
+    });
     throw redirect(target);
   },
 });

@@ -1,6 +1,5 @@
 import { createRouter, getRouteApi } from '@tanstack/react-router';
 
-import { api } from './api';
 import { queryClient } from './queryClient';
 import type { RouterContext } from './router-context';
 import { routeTree } from './routeTree.gen';
@@ -9,7 +8,6 @@ export function getRouter() {
   return createRouter({
     routeTree,
     context: {
-      api,
       queryClient,
     } satisfies RouterContext,
     defaultPreload: 'intent',

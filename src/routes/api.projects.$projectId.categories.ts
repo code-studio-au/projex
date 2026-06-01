@@ -1,7 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { readJsonBody, withApi } from './-api-shared';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  readJsonBody,
+  requireApiRouteContext,
+} from './-api-shared';
 import { asProjectId } from '../types';
+import {
+  createCategoryServer,
+  listCategoriesServer,
+  updateCategoryServer,
+} from '../server/fns/taxonomy';
 import {
   createCategoryInputSchema,
   updateCategoryInputSchema,
@@ -10,27 +20,45 @@ import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/projects/$projectId/categories')({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      GET: ({ request, params }) =>
-        withApi(request, (api) =>
-          api.listCategories(asProjectId(params.projectId))
-        ),
-      POST: async ({ request, params }) =>
-        withApi(request, async (api) => {
+      GET: async ({ context, params }) => {
+        const { serverContext } = requireApiRouteContext(context);
+        return jsonApi(
+          await listCategoriesServer({
+            context: serverContext,
+            projectId: asProjectId(params.projectId),
+          })
+        );
+      },
+      POST: async ({ request, params, context }) => {
+        const { serverContext } = requireApiRouteContext(context);
           const body = validateOrThrow(
             createCategoryInputSchema,
             await readJsonBody(request)
           );
-          return api.createCategory(asProjectId(params.projectId), body);
-        }),
-      PATCH: async ({ request, params }) =>
-        withApi(request, async (api) => {
+          return jsonApi(
+            await createCategoryServer({
+              context: serverContext,
+              projectId: asProjectId(params.projectId),
+              input: body,
+            })
+          );
+        },
+      PATCH: async ({ request, params, context }) => {
+        const { serverContext } = requireApiRouteContext(context);
           const body = validateOrThrow(
             updateCategoryInputSchema,
             await readJsonBody(request)
           );
-          return api.updateCategory(asProjectId(params.projectId), body);
-        }),
+          return jsonApi(
+            await updateCategoryServer({
+              context: serverContext,
+              projectId: asProjectId(params.projectId),
+              input: body,
+            })
+          );
+        },
     },
   },
 });

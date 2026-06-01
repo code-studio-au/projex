@@ -4,26 +4,73 @@ import test from 'node:test';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { PostgresDialectConfig } from 'kysely';
 
+import type {
+  BudgetCreateInput,
+  CategoryCreateInput,
+  CompanyDefaultCategoryCreateInput,
+  CompanyDefaultMappingRuleCreateInput,
+  CompanyDefaultSubCategoryCreateInput,
+  CompanyUpdateInput,
+  CreateCompanyUserInput,
+  DeleteCompanyInput,
+  DeleteProjectInput,
+  ImportCandidateReviewInput,
+  ImportRuleCreateInput,
+  ProjectCreateInput,
+  ProjectUpdateInput,
+  SubCategoryCreateInput,
+  TxnCommentCreateInput,
+  TxnCommentUpdateInput,
+  TxnCreateInput,
+  TxnImportInput,
+  TxnImportPreviewInput,
+  TxnListPageInput,
+  TxnSplitInput,
+  TxnTransferInput,
+  TxnUpdateInput,
+  TxnWorkflowStateInput,
+} from '../src/api/contract.ts';
 import { AppError } from '../src/api/errors.ts';
 import { isAuthorized } from '../src/server/auth/authorize.ts';
-import { StartServerApi } from '../src/server/api/startServerApi.ts';
 import { createPgPool } from '../src/server/db/pgPool.ts';
 import type { DB } from '../src/server/db/schema.ts';
 import {
   createBudgetServer,
+  listBudgetsServer,
   deleteBudgetServer,
+  updateBudgetServer,
 } from '../src/server/fns/budgets.ts';
 import {
   deleteCompanyMembershipServer,
-  upsertProjectMembershipServer,
   listAllCompanyMembershipsServer,
+  listCompanyMembershipsServer,
+  listMyProjectMembershipsServer,
+  listProjectMembershipsServer,
+  upsertCompanyMembershipServer,
+  upsertProjectMembershipServer,
+  deleteProjectMembershipServer,
 } from '../src/server/fns/memberships.ts';
 import {
+  createCompanyServer,
+  createUserInCompanyServer,
+  deactivateCompanyServer,
+  deleteCompanyServer,
+  getCompanyServer,
+  getCompanySummaryServer,
   listUsersServer,
+  listCompaniesServer,
+  reactivateCompanyServer,
+  sendCompanyUserInviteEmailServer,
+  updateCompanyServer,
 } from '../src/server/fns/companies.ts';
 import {
+  createProjectServer,
+  deactivateProjectServer,
   getProjectServer,
   listProjectsServer,
+  reactivateProjectServer,
+  updateProjectServer,
+  deleteProjectServer,
 } from '../src/server/fns/projects.ts';
 import {
   assertCategoryInProject,
@@ -34,12 +81,57 @@ import {
   requireCompanyMember,
 } from '../src/server/fns/resourceGuards.ts';
 import {
+  deleteTransactionCommentServer,
   createTransactionCommentServer,
+  listTransactionCommentsServer,
+  listTransactionCommentSummariesServer,
+  updateTransactionCommentServer,
 } from '../src/server/fns/transactionComments.ts';
-import { updateTxnServer } from '../src/server/fns/transactions.ts';
+import {
+  cancelImportPreviewServer,
+  createTxnServer,
+  deleteTxnServer,
+  importTransactionsServer,
+  listImportCandidatesServer,
+  listTransactionsPageServer,
+  listTransactionsServer,
+  previewImportTransactionsServer,
+  reviewImportCandidateServer,
+  splitTxnServer,
+  transferTxnServer,
+  updateTxnServer,
+  updateTxnWorkflowStateServer,
+} from '../src/server/fns/transactions.ts';
+import {
+  applyCompanyDefaultTaxonomyServer,
+  createCategoryServer,
+  createCompanyDefaultCategoryServer,
+  createCompanyDefaultMappingRuleServer,
+  createCompanyDefaultSubCategoryServer,
+  createSubCategoryServer,
+  deleteCategoryServer,
+  deleteCompanyDefaultCategoryServer,
+  deleteCompanyDefaultMappingRuleServer,
+  deleteCompanyDefaultSubCategoryServer,
+  deleteSubCategoryServer,
+  getCompanyDefaultsServer,
+  listCategoriesServer,
+  listCompanyDefaultCategoriesServer,
+  listCompanyDefaultMappingRulesServer,
+  listCompanyDefaultSubCategoriesServer,
+  listSubCategoriesServer,
+  updateCompanyDefaultSubCategoryServer,
+} from '../src/server/fns/taxonomy.ts';
+import {
+  createImportRuleServer,
+  deleteImportRuleServer,
+  listImportRulesServer,
+} from '../src/server/fns/importRules.ts';
+import type { ServerFnContextInput } from '../src/server/fns/runtime.ts';
 import {
   asCategoryId,
   asBudgetLineId,
+  type CompanyRole,
   asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
@@ -48,6 +140,7 @@ import {
   asImportCandidateId,
   asImportRuleId,
   asProjectId,
+  type ProjectRole,
   asSubCategoryId,
   asTxnCommentId,
   asTxnId,
@@ -103,10 +196,279 @@ async function assertAppErrorCode(
 }
 
 function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
-  return new StartServerApi({
+  const context = {
     session: userId ? { userId } : null,
-  });
+  } satisfies ServerFnContextInput;
+
+  return {
+    listUsers: () => listUsersServer({ context }),
+    listCompanies: () => listCompaniesServer({ context }),
+    createCompany: (input: { name: string; id?: string }) =>
+      createCompanyServer({
+        context,
+        input: {
+          name: input.name,
+          id: input.id ? asCompanyId(input.id) : undefined,
+        },
+      }),
+    getCompany: (companyId: ReturnType<typeof asCompanyId>) =>
+      getCompanyServer({ context, companyId }),
+    updateCompany: (input: CompanyUpdateInput) =>
+      updateCompanyServer({ context, input }),
+    deleteCompany: (input: DeleteCompanyInput) =>
+      deleteCompanyServer({ context, ...input }),
+    deactivateCompany: (companyId: ReturnType<typeof asCompanyId>) =>
+      deactivateCompanyServer({ context, companyId }),
+    reactivateCompany: (companyId: ReturnType<typeof asCompanyId>) =>
+      reactivateCompanyServer({ context, companyId }),
+    getCompanySummary: (companyId: ReturnType<typeof asCompanyId>) =>
+      getCompanySummaryServer({ context, companyId }),
+    getCompanyDefaults: (companyId: ReturnType<typeof asCompanyId>) =>
+      getCompanyDefaultsServer({ context, companyId }),
+    listProjects: (companyId: ReturnType<typeof asCompanyId>) =>
+      listProjectsServer({ context, companyId }),
+    createProject: (
+      companyId: ReturnType<typeof asCompanyId>,
+      input: ProjectCreateInput
+    ) => createProjectServer({ context, companyId, input }),
+    listCompanyMemberships: (companyId: ReturnType<typeof asCompanyId>) =>
+      listCompanyMembershipsServer({ context, companyId }),
+    listAllCompanyMemberships: () => listAllCompanyMembershipsServer({ context }),
+    upsertCompanyMembership: (
+      companyId: ReturnType<typeof asCompanyId>,
+      userId: ReturnType<typeof asUserId>,
+      role: CompanyRole
+    ) => upsertCompanyMembershipServer({ context, companyId, userId, role }),
+    deleteCompanyMembership: (
+      companyId: ReturnType<typeof asCompanyId>,
+      userId: ReturnType<typeof asUserId>
+    ) => deleteCompanyMembershipServer({ context, companyId, userId }),
+    listMyProjectMemberships: (companyId: ReturnType<typeof asCompanyId>) =>
+      listMyProjectMembershipsServer({ context, companyId }),
+    createUserInCompany: (
+      companyId: ReturnType<typeof asCompanyId>,
+      input: CreateCompanyUserInput
+    ) =>
+      createUserInCompanyServer({
+        context,
+        companyId,
+        name: input.name,
+        email: input.email,
+        role: input.role,
+        sendOnboardingEmail: input.sendOnboardingEmail,
+      }),
+    sendCompanyUserInviteEmail: (
+      companyId: ReturnType<typeof asCompanyId>,
+      userId: ReturnType<typeof asUserId>
+    ) => sendCompanyUserInviteEmailServer({ context, companyId, userId }),
+    listCompanyDefaultCategories: (companyId: ReturnType<typeof asCompanyId>) =>
+      listCompanyDefaultCategoriesServer({ context, companyId }),
+    createCompanyDefaultCategory: (
+      companyId: ReturnType<typeof asCompanyId>,
+      input: CompanyDefaultCategoryCreateInput
+    ) => createCompanyDefaultCategoryServer({ context, companyId, input }),
+    deleteCompanyDefaultCategory: (
+      companyId: ReturnType<typeof asCompanyId>,
+      categoryId: ReturnType<typeof asCompanyDefaultCategoryId>
+    ) => deleteCompanyDefaultCategoryServer({ context, companyId, categoryId }),
+    listCompanyDefaultSubCategories: (
+      companyId: ReturnType<typeof asCompanyId>
+    ) => listCompanyDefaultSubCategoriesServer({ context, companyId }),
+    createCompanyDefaultSubCategory: (
+      companyId: ReturnType<typeof asCompanyId>,
+      input: CompanyDefaultSubCategoryCreateInput
+    ) => createCompanyDefaultSubCategoryServer({ context, companyId, input }),
+    updateCompanyDefaultSubCategory: (
+      companyId: ReturnType<typeof asCompanyId>,
+      input: Parameters<typeof updateCompanyDefaultSubCategoryServer>[0]['input']
+    ) =>
+      updateCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        input,
+      }),
+    deleteCompanyDefaultSubCategory: (
+      companyId: ReturnType<typeof asCompanyId>,
+      subCategoryId: ReturnType<typeof asCompanyDefaultSubCategoryId>
+    ) =>
+      deleteCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        subCategoryId,
+      }),
+    listCompanyDefaultMappingRules: (
+      companyId: ReturnType<typeof asCompanyId>
+    ) => listCompanyDefaultMappingRulesServer({ context, companyId }),
+    createCompanyDefaultMappingRule: (
+      companyId: ReturnType<typeof asCompanyId>,
+      input: CompanyDefaultMappingRuleCreateInput
+    ) => createCompanyDefaultMappingRuleServer({ context, companyId, input }),
+    deleteCompanyDefaultMappingRule: (
+      companyId: ReturnType<typeof asCompanyId>,
+      ruleId: ReturnType<typeof asCompanyDefaultMappingRuleId>
+    ) => deleteCompanyDefaultMappingRuleServer({ context, companyId, ruleId }),
+    listImportRules: (companyId: ReturnType<typeof asCompanyId>) =>
+      listImportRulesServer({ context, companyId }),
+    createImportRule: (
+      companyId: ReturnType<typeof asCompanyId>,
+      input: ImportRuleCreateInput
+    ) => createImportRuleServer({ context, companyId, input }),
+    deleteImportRule: (
+      companyId: ReturnType<typeof asCompanyId>,
+      ruleId: ReturnType<typeof asImportRuleId>
+    ) => deleteImportRuleServer({ context, companyId, ruleId }),
+    getProject: (projectId: ReturnType<typeof asProjectId>) =>
+      getProjectServer({ context, projectId }),
+    updateProject: (input: ProjectUpdateInput) =>
+      updateProjectServer({ context, input }),
+    deleteProject: (input: DeleteProjectInput) =>
+      deleteProjectServer({ context, ...input }),
+    deactivateProject: (projectId: ReturnType<typeof asProjectId>) =>
+      deactivateProjectServer({ context, projectId }),
+    reactivateProject: (projectId: ReturnType<typeof asProjectId>) =>
+      reactivateProjectServer({ context, projectId }),
+    listProjectMemberships: (projectId: ReturnType<typeof asProjectId>) =>
+      listProjectMembershipsServer({ context, projectId }),
+    upsertProjectMembership: (
+      projectId: ReturnType<typeof asProjectId>,
+      userId: ReturnType<typeof asUserId>,
+      role: ProjectRole
+    ) => upsertProjectMembershipServer({ context, projectId, userId, role }),
+    deleteProjectMembership: (
+      projectId: ReturnType<typeof asProjectId>,
+      userId: ReturnType<typeof asUserId>,
+      role: ProjectRole
+    ) => deleteProjectMembershipServer({ context, projectId, userId, role }),
+    applyCompanyDefaultTaxonomy: (projectId: ReturnType<typeof asProjectId>) =>
+      applyCompanyDefaultTaxonomyServer({ context, projectId }),
+    listCategories: (projectId: ReturnType<typeof asProjectId>) =>
+      listCategoriesServer({ context, projectId }),
+    createCategory: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: CategoryCreateInput
+    ) => createCategoryServer({ context, projectId, input }),
+    deleteCategory: (
+      projectId: ReturnType<typeof asProjectId>,
+      categoryId: ReturnType<typeof asCategoryId>
+    ) => deleteCategoryServer({ context, projectId, categoryId }),
+    listSubCategories: (projectId: ReturnType<typeof asProjectId>) =>
+      listSubCategoriesServer({ context, projectId }),
+    createSubCategory: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: SubCategoryCreateInput
+    ) => createSubCategoryServer({ context, projectId, input }),
+    deleteSubCategory: (
+      projectId: ReturnType<typeof asProjectId>,
+      subCategoryId: ReturnType<typeof asSubCategoryId>
+    ) => deleteSubCategoryServer({ context, projectId, subCategoryId }),
+    listBudgets: (projectId: ReturnType<typeof asProjectId>) =>
+      listBudgetsServer({ context, projectId }),
+    createBudget: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: BudgetCreateInput
+    ) => createBudgetServer({ context, projectId, input }),
+    updateBudget: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: Parameters<typeof updateBudgetServer>[0]['input']
+    ) => updateBudgetServer({ context, projectId, input }),
+    deleteBudget: (
+      projectId: ReturnType<typeof asProjectId>,
+      budgetId: ReturnType<typeof asBudgetLineId>
+    ) => deleteBudgetServer({ context, projectId, budgetId }),
+    listTransactions: (projectId: ReturnType<typeof asProjectId>) =>
+      listTransactionsServer({ context, projectId }),
+    listTransactionsPage: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: TxnListPageInput
+    ) => listTransactionsPageServer({ context, projectId, input }),
+    createTxn: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: TxnCreateInput
+    ) => createTxnServer({ context, projectId, input }),
+    updateTxn: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: TxnUpdateInput
+    ) => updateTxnServer({ context, projectId, input }),
+    deleteTxn: (
+      projectId: ReturnType<typeof asProjectId>,
+      txnId: ReturnType<typeof asTxnId>
+    ) => deleteTxnServer({ context, projectId, txnId }),
+    splitTxn: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: TxnSplitInput
+    ) => splitTxnServer({ context, projectId, input }),
+    transferTxn: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: TxnTransferInput
+    ) => transferTxnServer({ context, projectId, input }),
+    updateTxnWorkflowState: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: TxnWorkflowStateInput
+    ) => updateTxnWorkflowStateServer({ context, projectId, input }),
+    listTransactionCommentSummaries: (
+      projectId: ReturnType<typeof asProjectId>
+    ) => listTransactionCommentSummariesServer({ context, projectId }),
+    listTransactionComments: (
+      projectId: ReturnType<typeof asProjectId>,
+      txnId: ReturnType<typeof asTxnId>
+    ) => listTransactionCommentsServer({ context, projectId, txnId }),
+    createTransactionComment: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: TxnCommentCreateInput
+    ) => createTransactionCommentServer({ context, projectId, input }),
+    updateTransactionComment: (
+      projectId: ReturnType<typeof asProjectId>,
+      txnId: ReturnType<typeof asTxnId>,
+      input: TxnCommentUpdateInput
+    ) => updateTransactionCommentServer({ context, projectId, txnId, input }),
+    deleteTransactionComment: (
+      projectId: ReturnType<typeof asProjectId>,
+      txnId: ReturnType<typeof asTxnId>,
+      commentId: ReturnType<typeof asTxnCommentId>
+    ) => deleteTransactionCommentServer({ context, projectId, txnId, commentId }),
+    previewImportTransactions: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: TxnImportPreviewInput
+    ) =>
+      previewImportTransactionsServer({
+        context,
+        projectId,
+        csvText: input.csvText,
+        sourceType: input.sourceType,
+        fileName: input.fileName,
+        autoCreateStructures: input.autoCreateStructures,
+      }),
+    importTransactions: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: TxnImportInput
+    ) =>
+      importTransactionsServer({
+        context,
+        projectId,
+        txns: input.txns,
+        mode: input.mode,
+        autoCreateBudgets: input.autoCreateBudgets,
+      }),
+    listImportCandidates: (projectId: ReturnType<typeof asProjectId>) =>
+      listImportCandidatesServer({ context, projectId }),
+    reviewImportCandidate: (
+      projectId: ReturnType<typeof asProjectId>,
+      input: ImportCandidateReviewInput
+    ) =>
+      reviewImportCandidateServer({
+        context,
+        projectId,
+        candidateId: input.candidateId,
+        decision: input.decision,
+      }),
+    cancelImportPreview: (
+      projectId: ReturnType<typeof asProjectId>,
+      importBatchId: ReturnType<typeof asImportBatchId>
+    ) => cancelImportPreviewServer({ context, projectId, importBatchId }),
+  };
 }
+
+type RouteApi = ReturnType<typeof createRouteApi>;
 
 test(
   'resource ownership guards enforce persisted parent scope',
@@ -1592,7 +1954,7 @@ test(
       const api = createRouteApi(null);
       const unauthenticatedOps: Array<{
         route: string;
-        run: (api: StartServerApi) => Promise<unknown>;
+        run: (api: RouteApi) => Promise<unknown>;
       }> = [
         { route: 'GET /api/users', run: (x) => x.listUsers() },
         { route: 'GET /api/companies', run: (x) => x.listCompanies() },

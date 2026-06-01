@@ -35,7 +35,9 @@ function Document({ children }: { children: ReactNode }) {
 function RootDocument() {
   return (
     <Document>
-      <RootLayout />
+      <RootProviders>
+        <RootLayout />
+      </RootProviders>
     </Document>
   );
 }

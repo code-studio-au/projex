@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { useApi } from '../hooks/useApi';
 import type { Company, CompanyId, ProjectId, Txn, UserId } from '../types';
 import type {
   CreateCompanyUserInput,
@@ -12,13 +11,27 @@ import type {
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import { withStandardTxnAccountingMetadata } from '../utils/transactions';
+import {
+  createCompanyServerFn,
+  createProjectServerFn,
+  createUserInCompanyServerFn,
+  deactivateCompanyServerFn,
+  deactivateProjectServerFn,
+  deleteCompanyServerFn,
+  deleteProjectServerFn,
+  importTransactionsServerFn,
+  reactivateCompanyServerFn,
+  reactivateProjectServerFn,
+  sendCompanyUserInviteEmailServerFn,
+  updateCompanyServerFn,
+  updateProjectServerFn,
+} from '../server/start/functions/admin';
 
 export function useCreateCompanyMutation() {
-  const api = useApi();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: Pick<Company, 'name'> & { id?: CompanyId }) =>
-      api.createCompany(input),
+      createCompanyServerFn({ data: input }),
     onSuccess: () => {
       qc.invalidateQueries({
         predicate: (q) =>
@@ -29,12 +42,11 @@ export function useCreateCompanyMutation() {
 }
 
 export function useCreateProjectMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: ProjectCreateInput) =>
-      api.createProject(companyId, input),
+      createProjectServerFn({ data: { companyId, payload: input } }),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
@@ -47,11 +59,11 @@ export function useCreateProjectMutation(companyId: CompanyId) {
 }
 
 export function useUpdateProjectMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (input: ProjectUpdateInput) => api.updateProject(input),
+    mutationFn: (input: ProjectUpdateInput) =>
+      updateProjectServerFn({ data: input }),
     onSuccess: async (_, vars) => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.project(scopeUserId, vars.id) }),
@@ -68,11 +80,11 @@ export function useUpdateProjectMutation(companyId: CompanyId) {
 }
 
 export function useUpdateCompanyMutation() {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (input: CompanyUpdateInput) => api.updateCompany(input),
+    mutationFn: (input: CompanyUpdateInput) =>
+      updateCompanyServerFn({ data: input }),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: qk.company(scopeUserId, vars.id) });
       qc.invalidateQueries({
@@ -84,12 +96,13 @@ export function useUpdateCompanyMutation() {
 }
 
 export function useCreateUserInCompanyMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (vars: CreateCompanyUserInput) =>
-      api.createUserInCompany(companyId, vars),
+      createUserInCompanyServerFn({
+        data: { companyId, payload: vars },
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.users() });
       qc.invalidateQueries({
@@ -101,12 +114,13 @@ export function useCreateUserInCompanyMutation(companyId: CompanyId) {
 }
 
 export function useSendCompanyUserInviteEmailMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (userId: UserId) =>
-      api.sendCompanyUserInviteEmail(companyId, userId),
+      sendCompanyUserInviteEmailServerFn({
+        data: { companyId, userId },
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.users() });
       qc.invalidateQueries({
@@ -118,14 +132,13 @@ export function useSendCompanyUserInviteEmailMutation(companyId: CompanyId) {
 }
 
 export function useImportTransactionsMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   const transactionQueryKey = qk.transactions(scopeUserId, projectId);
   const budgetQueryKey = qk.budgets(scopeUserId, projectId);
   return useMutation({
     mutationFn: (vars: TxnImportInput) =>
-      api.importTransactions(projectId, vars),
+      importTransactionsServerFn({ data: { projectId, payload: vars } }),
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey: transactionQueryKey });
       const previous = qc.getQueryData<Txn[]>(transactionQueryKey);
@@ -156,11 +169,11 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
 }
 
 export function useDeactivateCompanyMutation() {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (companyId: CompanyId) => api.deactivateCompany(companyId),
+    mutationFn: (companyId: CompanyId) =>
+      deactivateCompanyServerFn({ data: { companyId } }),
     onSuccess: (_, companyId) => {
       qc.invalidateQueries({
         predicate: (q) =>
@@ -173,11 +186,11 @@ export function useDeactivateCompanyMutation() {
 }
 
 export function useReactivateCompanyMutation() {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (companyId: CompanyId) => api.reactivateCompany(companyId),
+    mutationFn: (companyId: CompanyId) =>
+      reactivateCompanyServerFn({ data: { companyId } }),
     onSuccess: (_, companyId) => {
       qc.invalidateQueries({
         predicate: (q) =>
@@ -192,12 +205,11 @@ export function useReactivateCompanyMutation() {
 }
 
 export function useDeleteCompanyMutation() {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: { companyId: CompanyId; confirmation: string }) =>
-      api.deleteCompany(input),
+      deleteCompanyServerFn({ data: input }),
     onSuccess: (_, input) => {
       qc.invalidateQueries({
         predicate: (q) =>
@@ -216,11 +228,11 @@ export function useDeleteCompanyMutation() {
 }
 
 export function useDeactivateProjectMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (projectId: ProjectId) => api.deactivateProject(projectId),
+    mutationFn: (projectId: ProjectId) =>
+      deactivateProjectServerFn({ data: { projectId } }),
     onSuccess: async (_, projectId) => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) }),
@@ -234,11 +246,11 @@ export function useDeactivateProjectMutation(companyId: CompanyId) {
 }
 
 export function useReactivateProjectMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (projectId: ProjectId) => api.reactivateProject(projectId),
+    mutationFn: (projectId: ProjectId) =>
+      reactivateProjectServerFn({ data: { projectId } }),
     onSuccess: async (_, projectId) => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.project(scopeUserId, projectId) }),
@@ -252,12 +264,11 @@ export function useReactivateProjectMutation(companyId: CompanyId) {
 }
 
 export function useDeleteProjectMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: { projectId: ProjectId; confirmation: string }) =>
-      api.deleteProject(input),
+      deleteProjectServerFn({ data: input }),
     onSuccess: async (_, input) => {
       await Promise.all([
         qc.invalidateQueries({

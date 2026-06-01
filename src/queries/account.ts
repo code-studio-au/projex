@@ -1,26 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
+import {
+  cancelEmailChangeServerFn,
+  getPendingEmailChangeServerFn,
+  requestEmailChangeServerFn,
+  resendEmailChangeServerFn,
+  updateCurrentUserProfileServerFn,
+} from '../server/start/functions/account';
 
 const accountKeys = {
   pendingEmailChange: () => ['account', 'pendingEmailChange'] as const,
 };
 
 export function usePendingEmailChangeQuery() {
-  const api = useApi();
   return useQuery({
     queryKey: accountKeys.pendingEmailChange(),
-    queryFn: () => api.getPendingEmailChange(),
+    queryFn: () => getPendingEmailChangeServerFn(),
   });
 }
 
 export function useUpdateCurrentUserProfileMutation() {
-  const api = useApi();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { name: string }) =>
-      api.updateCurrentUserProfile(input),
+      updateCurrentUserProfileServerFn({ data: input }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: qk.users() });
     },
@@ -28,10 +32,10 @@ export function useUpdateCurrentUserProfileMutation() {
 }
 
 export function useRequestEmailChangeMutation() {
-  const api = useApi();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { newEmail: string }) => api.requestEmailChange(input),
+    mutationFn: (input: { newEmail: string }) =>
+      requestEmailChangeServerFn({ data: input }),
     onSuccess: async () => {
       await qc.invalidateQueries({
         queryKey: accountKeys.pendingEmailChange(),
@@ -41,10 +45,9 @@ export function useRequestEmailChangeMutation() {
 }
 
 export function useResendEmailChangeMutation() {
-  const api = useApi();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.resendEmailChange(),
+    mutationFn: () => resendEmailChangeServerFn(),
     onSuccess: async () => {
       await qc.invalidateQueries({
         queryKey: accountKeys.pendingEmailChange(),
@@ -54,10 +57,9 @@ export function useResendEmailChangeMutation() {
 }
 
 export function useCancelEmailChangeMutation() {
-  const api = useApi();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.cancelEmailChange(),
+    mutationFn: () => cancelEmailChangeServerFn(),
     onSuccess: async () => {
       await qc.invalidateQueries({
         queryKey: accountKeys.pendingEmailChange(),

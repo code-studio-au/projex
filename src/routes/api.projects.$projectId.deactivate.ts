@@ -1,16 +1,25 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { withApi } from './-api-shared';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  requireApiRouteContext,
+} from './-api-shared';
 import { asProjectId } from '../types';
+import { deactivateProjectServer } from '../server/fns/projects';
 
 export const Route = createFileRoute('/api/projects/$projectId/deactivate')({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      POST: ({ request, params }) =>
-        withApi(request, async (api) => {
-          await api.deactivateProject(asProjectId(params.projectId));
-          return { ok: true as const };
-        }),
+      POST: async ({ context, params }) => {
+        const { serverContext } = requireApiRouteContext(context);
+        await deactivateProjectServer({
+          context: serverContext,
+          projectId: asProjectId(params.projectId),
+        });
+        return jsonApi({ ok: true as const });
+      },
     },
   },
 });

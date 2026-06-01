@@ -1,7 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { readJsonBody, withApi } from './-api-shared';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  readJsonBody,
+  requireApiRouteContext,
+} from './-api-shared';
 import { asCompanyId } from '../types';
+import {
+  createCompanyDefaultCategoryServer,
+  listCompanyDefaultCategoriesServer,
+  updateCompanyDefaultCategoryServer,
+} from '../server/fns/taxonomy';
 import {
   createCompanyDefaultCategoryInputSchema,
   updateCompanyDefaultCategoryInputSchema,
@@ -12,33 +22,45 @@ export const Route = createFileRoute(
   '/api/companies/$companyId/default-categories'
 )({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      GET: ({ request, params }) =>
-        withApi(request, (api) =>
-          api.listCompanyDefaultCategories(asCompanyId(params.companyId))
-        ),
-      POST: async ({ request, params }) =>
-        withApi(request, async (api) => {
-          const body = validateOrThrow(
-            createCompanyDefaultCategoryInputSchema,
-            await readJsonBody(request)
-          );
-          return api.createCompanyDefaultCategory(
-            asCompanyId(params.companyId),
-            body
-          );
-        }),
-      PATCH: async ({ request, params }) =>
-        withApi(request, async (api) => {
-          const body = validateOrThrow(
-            updateCompanyDefaultCategoryInputSchema,
-            await readJsonBody(request)
-          );
-          return api.updateCompanyDefaultCategory(
-            asCompanyId(params.companyId),
-            body
-          );
-        }),
+      GET: async ({ context, params }) => {
+        const { serverContext } = requireApiRouteContext(context);
+        return jsonApi(
+          await listCompanyDefaultCategoriesServer({
+            context: serverContext,
+            companyId: asCompanyId(params.companyId),
+          })
+        );
+      },
+      POST: async ({ request, params, context }) => {
+        const { serverContext } = requireApiRouteContext(context);
+        const body = validateOrThrow(
+          createCompanyDefaultCategoryInputSchema,
+          await readJsonBody(request)
+        );
+        return jsonApi(
+          await createCompanyDefaultCategoryServer({
+            context: serverContext,
+            companyId: asCompanyId(params.companyId),
+            input: body,
+          })
+        );
+      },
+      PATCH: async ({ request, params, context }) => {
+        const { serverContext } = requireApiRouteContext(context);
+        const body = validateOrThrow(
+          updateCompanyDefaultCategoryInputSchema,
+          await readJsonBody(request)
+        );
+        return jsonApi(
+          await updateCompanyDefaultCategoryServer({
+            context: serverContext,
+            companyId: asCompanyId(params.companyId),
+            input: body,
+          })
+        );
+      },
     },
   },
 });

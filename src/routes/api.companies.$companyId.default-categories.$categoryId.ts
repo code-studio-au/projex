@@ -1,22 +1,29 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { withApi } from './-api-shared';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  requireApiRouteContext,
+} from './-api-shared';
 import { asCompanyDefaultCategoryId, asCompanyId } from '../types';
+import { deleteCompanyDefaultCategoryServer } from '../server/fns/taxonomy';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/default-categories/$categoryId'
 )({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      DELETE: ({ request, params }) =>
-        withApi(request, async (api) => {
-          await api.deleteCompanyDefaultCategory(
-            asCompanyId(params.companyId),
-            asCompanyDefaultCategoryId(params.categoryId)
-          );
+      DELETE: async ({ context, params }) => {
+          const { serverContext } = requireApiRouteContext(context);
+          await deleteCompanyDefaultCategoryServer({
+            context: serverContext,
+            companyId: asCompanyId(params.companyId),
+            categoryId: asCompanyDefaultCategoryId(params.categoryId),
+          });
 
-          return { ok: true as const };
-        }),
+          return jsonApi({ ok: true as const });
+        },
     },
   },
 });

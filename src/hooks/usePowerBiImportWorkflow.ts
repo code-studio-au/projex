@@ -5,7 +5,6 @@ import type {
   MRT_SortingState,
 } from 'mantine-react-table-open';
 
-import { useApi } from './useApi';
 import type { TaxonomyHook } from './useTaxonomy';
 import type { BudgetsHook } from './useBudgets';
 import type {
@@ -22,6 +21,10 @@ import { withStandardTxnAccountingMetadata } from '../utils/transactions';
 import { txnInputSchema } from '../validation/schemas';
 import { qk } from '../queries/keys';
 import { useQueryScopeUserId } from '../queries/scope';
+import {
+  cancelImportPreviewServerFn,
+  previewImportTransactionsServerFn,
+} from '../server/start/functions/importReads';
 
 type PowerBiImportMode = 'append' | 'replaceAll';
 export type ImportPreviewTab =
@@ -63,7 +66,7 @@ export function usePowerBiImportWorkflow(params: {
     txns: Txn[],
     options?: { autoCreateBudgets?: boolean }
   ) => Promise<void>;
-}) {
+  }) {
   const {
     taxonomy,
     budgets,
@@ -74,7 +77,6 @@ export function usePowerBiImportWorkflow(params: {
     onAppend,
     onReplaceAll,
   } = params;
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
 
@@ -280,7 +282,9 @@ export function usePowerBiImportWorkflow(params: {
     if (!batchId) return;
 
     try {
-      await api.cancelImportPreview(projectId, batchId);
+      await cancelImportPreviewServerFn({
+        data: { projectId, importBatchId: batchId },
+      });
       await qc.invalidateQueries({
         queryKey: qk.importCandidates(scopeUserId, projectId),
       });
@@ -307,11 +311,16 @@ export function usePowerBiImportWorkflow(params: {
         );
       }
 
-      const preview = await api.previewImportTransactions(projectId, {
-        csvText: sourceText,
-        sourceType: 'powerbi_expenditure_actuals',
-        fileName: file?.name,
-        autoCreateStructures,
+      const preview = await previewImportTransactionsServerFn({
+        data: {
+          projectId,
+          payload: {
+            csvText: sourceText,
+            sourceType: 'powerbi_expenditure_actuals',
+            fileName: file?.name,
+            autoCreateStructures,
+          },
+        },
       });
       if (!preview.rows.length) {
         throw new Error(

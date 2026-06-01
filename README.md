@@ -2,7 +2,7 @@
 
 Project and grant budget tracking app.
 
-Projex is a TanStack Start, React, TypeScript, Mantine 9, BetterAuth, and Postgres app. The UI talks through the stable `ProjexApi` boundary, while server-backed behavior lives behind TanStack Start API routes and `src/server/fns/*`.
+Projex is a TanStack Start, React, TypeScript, Mantine 9, BetterAuth, and Postgres app. The UI uses TanStack Start server functions for app internals, while route-backed HTTP endpoints stay thin over `src/server/fns/*`.
 
 ## Quick Start
 
@@ -129,9 +129,9 @@ Notes:
 
 ## Architecture Boundaries
 
-- UI routes and components should depend on queries and the `ProjexApi` contract, not directly on storage.
-- Client-safe API adapter code lives in `src/api/server/serverApi.ts`.
-- Business logic belongs in `src/server/fns/*`.
+- UI routes and components should depend on queries and TanStack Start server functions, not directly on storage.
+- Shared business logic belongs in `src/server/fns/*`.
+- TanStack Start request middleware lives in `src/server/start/*` and should own request-scoped session/context setup.
 - File routes under `src/routes/api.*.ts` should stay thin: parse input, call server functions, and return validated JSON.
 - Request body validation belongs at the route boundary with Zod.
 - Runtime ownership and authorization checks should be centralized through server guard helpers, not duplicated ad hoc inside route files.

@@ -1,12 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { MantineProvider } from '@mantine/core';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 
-import { queryClient } from './queryClient';
+import { RootProviders } from './layouts';
 import { router } from './router';
-import { theme } from './theme';
-import { getCspNonce } from './utils/csp';
 
 const Devtools = import.meta.env.DEV
   ? lazy(async () => import('./components/Devtools'))
@@ -14,19 +10,13 @@ const Devtools = import.meta.env.DEV
 
 export default function App() {
   return (
-    <MantineProvider
-      theme={theme}
-      defaultColorScheme="light"
-      getStyleNonce={getCspNonce}
-    >
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-        {Devtools ? (
-          <Suspense fallback={null}>
-            <Devtools />
-          </Suspense>
-        ) : null}
-      </QueryClientProvider>
-    </MantineProvider>
+    <RootProviders>
+      <RouterProvider router={router} />
+      {Devtools ? (
+        <Suspense fallback={null}>
+          <Devtools />
+        </Suspense>
+      ) : null}
+    </RootProviders>
   );
 }

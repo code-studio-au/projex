@@ -5,7 +5,6 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 
-import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import type { ProjectId, TxnCommentId, TxnId } from '../types';
@@ -13,17 +12,24 @@ import type {
   TxnCommentCreateInput,
   TxnCommentUpdateInput,
 } from '../api/contract';
+import {
+  createTransactionCommentServerFn,
+  deleteTransactionCommentServerFn,
+  listTransactionCommentSummariesServerFn,
+  listTransactionCommentsServerFn,
+  updateTransactionCommentServerFn,
+} from '../server/start/functions/transactionReads';
 
 export function useTransactionCommentsQuery(
   projectId: ProjectId,
   txnId: TxnId,
   options: { enabled?: boolean } = {}
 ) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.transactionComments(scopeUserId, projectId, txnId),
-    queryFn: () => api.listTransactionComments(projectId, txnId),
+    queryFn: () =>
+      listTransactionCommentsServerFn({ data: { projectId, txnId } }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
   });
@@ -33,23 +39,22 @@ export function useTransactionCommentSummariesQuery(
   projectId: ProjectId,
   options: { enabled?: boolean } = {}
 ) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.transactionCommentSummaries(scopeUserId, projectId),
-    queryFn: () => api.listTransactionCommentSummaries(projectId),
+    queryFn: () =>
+      listTransactionCommentSummariesServerFn({ data: { projectId } }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
   });
 }
 
 export function useCreateTransactionCommentMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: TxnCommentCreateInput) =>
-      api.createTransactionComment(projectId, input),
+      createTransactionCommentServerFn({ data: { projectId, payload: input } }),
     onSuccess: async (_comment, input) => {
       await Promise.all([
         qc.invalidateQueries({
@@ -67,12 +72,13 @@ export function useUpdateTransactionCommentMutation(
   projectId: ProjectId,
   txnId: TxnId
 ) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: TxnCommentUpdateInput) =>
-      api.updateTransactionComment(projectId, txnId, input),
+      updateTransactionCommentServerFn({
+        data: { projectId, txnId, payload: input },
+      }),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({
@@ -90,12 +96,13 @@ export function useDeleteTransactionCommentMutation(
   projectId: ProjectId,
   txnId: TxnId
 ) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (commentId: TxnCommentId) =>
-      api.deleteTransactionComment(projectId, txnId, commentId),
+      deleteTransactionCommentServerFn({
+        data: { projectId, txnId, commentId },
+      }),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({

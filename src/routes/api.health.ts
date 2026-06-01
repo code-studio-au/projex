@@ -1,16 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { withPublicApi } from './-api-shared';
+import { jsonApi, publicApiRouteMiddleware } from './-api-shared';
 
 export const Route = createFileRoute('/api/health')({
   server: {
+    middleware: [publicApiRouteMiddleware],
     handlers: {
-      GET: ({ request }) =>
-        withPublicApi(request, async () => ({
+      GET: () =>
+        jsonApi({
           ok: true as const,
           service: 'projex',
           now: new Date().toISOString(),
-        })),
+        }),
     },
   },
 });

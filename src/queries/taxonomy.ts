@@ -5,7 +5,6 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 
-import { useApi } from '../hooks/useApi';
 import type {
   Category,
   CompanyDefaultCategory,
@@ -30,16 +29,39 @@ import type {
 } from '../api/contract';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
+import {
+  applyCompanyDefaultTaxonomyServerFn,
+  createCategoryServerFn,
+  createCompanyDefaultCategoryServerFn,
+  createCompanyDefaultMappingRuleServerFn,
+  createCompanyDefaultSubCategoryServerFn,
+  createSubCategoryServerFn,
+  deleteCategoryServerFn,
+  deleteCompanyDefaultCategoryServerFn,
+  deleteCompanyDefaultMappingRuleServerFn,
+  deleteCompanyDefaultSubCategoryServerFn,
+  deleteSubCategoryServerFn,
+  getCompanyDefaultsServerFn,
+  listCategoriesServerFn,
+  listCompanyDefaultCategoriesServerFn,
+  listCompanyDefaultMappingRulesServerFn,
+  listCompanyDefaultSubCategoriesServerFn,
+  listSubCategoriesServerFn,
+  updateCategoryServerFn,
+  updateCompanyDefaultCategoryServerFn,
+  updateCompanyDefaultMappingRuleServerFn,
+  updateCompanyDefaultSubCategoryServerFn,
+  updateSubCategoryServerFn,
+} from '../server/start/functions/taxonomyReads';
 
 export function useCategoriesQuery(
   projectId: ProjectId,
   options: { enabled?: boolean } = {}
 ) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.categories(scopeUserId, projectId),
-    queryFn: () => api.listCategories(projectId),
+    queryFn: () => listCategoriesServerFn({ data: { projectId } }),
     // Avoid UI flicker (e.g. transactions momentarily appearing uncoded) while refetching.
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
@@ -47,41 +69,40 @@ export function useCategoriesQuery(
 }
 
 export function useCompanyDefaultCategoriesQuery(companyId: CompanyId) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
-    queryFn: () => api.listCompanyDefaultCategories(companyId),
+    queryFn: () =>
+      listCompanyDefaultCategoriesServerFn({ data: { companyId } }),
     placeholderData: keepPreviousData,
   });
 }
 
 export function useCompanyDefaultsQuery(companyId: CompanyId) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery<CompanyDefaults>({
     queryKey: qk.companyDefaults(scopeUserId, companyId),
-    queryFn: () => api.getCompanyDefaults(companyId),
+    queryFn: () => getCompanyDefaultsServerFn({ data: { companyId } }),
     placeholderData: keepPreviousData,
   });
 }
 
 export function useCompanyDefaultSubCategoriesQuery(companyId: CompanyId) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId),
-    queryFn: () => api.listCompanyDefaultSubCategories(companyId),
+    queryFn: () =>
+      listCompanyDefaultSubCategoriesServerFn({ data: { companyId } }),
     placeholderData: keepPreviousData,
   });
 }
 
 export function useCompanyDefaultMappingRulesQuery(companyId: CompanyId) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
-    queryFn: () => api.listCompanyDefaultMappingRules(companyId),
+    queryFn: () =>
+      listCompanyDefaultMappingRulesServerFn({ data: { companyId } }),
     placeholderData: keepPreviousData,
   });
 }
@@ -90,11 +111,10 @@ export function useSubCategoriesQuery(
   projectId: ProjectId,
   options: { enabled?: boolean } = {}
 ) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.subCategories(scopeUserId, projectId),
-    queryFn: () => api.listSubCategories(projectId),
+    queryFn: () => listSubCategoriesServerFn({ data: { projectId } }),
     // Avoid UI flicker (e.g. transactions momentarily appearing uncoded) while refetching.
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
@@ -102,24 +122,24 @@ export function useSubCategoriesQuery(
 }
 
 export function useCreateCategoryMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: CategoryCreateInput) =>
-      api.createCategory(projectId, input),
+      createCategoryServerFn({ data: { projectId, payload: input } }),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) }),
   });
 }
 
 export function useCreateCompanyDefaultCategoryMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: CompanyDefaultCategoryCreateInput) =>
-      api.createCompanyDefaultCategory(companyId, input),
+      createCompanyDefaultCategoryServerFn({
+        data: { companyId, payload: input },
+      }),
     onSuccess: () =>
       Promise.all([
         qc.invalidateQueries({
@@ -136,12 +156,13 @@ export function useCreateCompanyDefaultCategoryMutation(companyId: CompanyId) {
 }
 
 export function useUpdateCompanyDefaultCategoryMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: CompanyDefaultCategoryUpdateInput) =>
-      api.updateCompanyDefaultCategory(companyId, input),
+      updateCompanyDefaultCategoryServerFn({
+        data: { companyId, payload: input },
+      }),
     onSuccess: () =>
       Promise.all([
         qc.invalidateQueries({
@@ -155,12 +176,11 @@ export function useUpdateCompanyDefaultCategoryMutation(companyId: CompanyId) {
 }
 
 export function useDeleteCompanyDefaultCategoryMutation(companyId: CompanyId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (categoryId: CompanyDefaultCategory['id']) =>
-      api.deleteCompanyDefaultCategory(companyId, categoryId),
+      deleteCompanyDefaultCategoryServerFn({ data: { companyId, categoryId } }),
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: qk.companyDefaults(scopeUserId, companyId),
@@ -179,24 +199,22 @@ export function useDeleteCompanyDefaultCategoryMutation(companyId: CompanyId) {
 }
 
 export function useUpdateCategoryMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: CategoryUpdateInput) =>
-      api.updateCategory(projectId, input),
+      updateCategoryServerFn({ data: { projectId, payload: input } }),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) }),
   });
 }
 
 export function useDeleteCategoryMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (categoryId: Category['id']) =>
-      api.deleteCategory(projectId, categoryId),
+      deleteCategoryServerFn({ data: { projectId, categoryId } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) });
       qc.invalidateQueries({
@@ -212,12 +230,11 @@ export function useDeleteCategoryMutation(projectId: ProjectId) {
 }
 
 export function useCreateSubCategoryMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: SubCategoryCreateInput) =>
-      api.createSubCategory(projectId, input),
+      createSubCategoryServerFn({ data: { projectId, payload: input } }),
     onSuccess: () =>
       qc.invalidateQueries({
         queryKey: qk.subCategories(scopeUserId, projectId),
@@ -228,12 +245,13 @@ export function useCreateSubCategoryMutation(projectId: ProjectId) {
 export function useCreateCompanyDefaultSubCategoryMutation(
   companyId: CompanyId
 ) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: CompanyDefaultSubCategoryCreateInput) =>
-      api.createCompanyDefaultSubCategory(companyId, input),
+      createCompanyDefaultSubCategoryServerFn({
+        data: { companyId, payload: input },
+      }),
     onSuccess: () =>
       Promise.all([
         qc.invalidateQueries({
@@ -252,12 +270,13 @@ export function useCreateCompanyDefaultSubCategoryMutation(
 export function useCreateCompanyDefaultMappingRuleMutation(
   companyId: CompanyId
 ) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: CompanyDefaultMappingRuleCreateInput) =>
-      api.createCompanyDefaultMappingRule(companyId, input),
+      createCompanyDefaultMappingRuleServerFn({
+        data: { companyId, payload: input },
+      }),
     onSuccess: () =>
       Promise.all([
         qc.invalidateQueries({
@@ -271,12 +290,11 @@ export function useCreateCompanyDefaultMappingRuleMutation(
 }
 
 export function useUpdateSubCategoryMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: SubCategoryUpdateInput) =>
-      api.updateSubCategory(projectId, input),
+      updateSubCategoryServerFn({ data: { projectId, payload: input } }),
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: qk.subCategories(scopeUserId, projectId),
@@ -293,12 +311,13 @@ export function useUpdateSubCategoryMutation(projectId: ProjectId) {
 export function useUpdateCompanyDefaultSubCategoryMutation(
   companyId: CompanyId
 ) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: CompanyDefaultSubCategoryUpdateInput) =>
-      api.updateCompanyDefaultSubCategory(companyId, input),
+      updateCompanyDefaultSubCategoryServerFn({
+        data: { companyId, payload: input },
+      }),
     onSuccess: () =>
       Promise.all([
         qc.invalidateQueries({
@@ -314,34 +333,12 @@ export function useUpdateCompanyDefaultSubCategoryMutation(
   });
 }
 
-export function useUpdateCompanyDefaultMappingRuleMutation(
-  companyId: CompanyId
-) {
-  const api = useApi();
-  const qc = useQueryClient();
-  const scopeUserId = useQueryScopeUserId();
-  return useMutation({
-    mutationFn: (input: CompanyDefaultMappingRuleUpdateInput) =>
-      api.updateCompanyDefaultMappingRule(companyId, input),
-    onSuccess: () =>
-      Promise.all([
-        qc.invalidateQueries({
-          queryKey: qk.companyDefaults(scopeUserId, companyId),
-        }),
-        qc.invalidateQueries({
-          queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
-        }),
-      ]),
-  });
-}
-
 export function useDeleteSubCategoryMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (subCategoryId: SubCategory['id']) =>
-      api.deleteSubCategory(projectId, subCategoryId),
+      deleteSubCategoryServerFn({ data: { projectId, subCategoryId } }),
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: qk.subCategories(scopeUserId, projectId),
@@ -358,12 +355,13 @@ export function useDeleteSubCategoryMutation(projectId: ProjectId) {
 export function useDeleteCompanyDefaultSubCategoryMutation(
   companyId: CompanyId
 ) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (subCategoryId: CompanyDefaultSubCategory['id']) =>
-      api.deleteCompanyDefaultSubCategory(companyId, subCategoryId),
+      deleteCompanyDefaultSubCategoryServerFn({
+        data: { companyId, subCategoryId },
+      }),
     onSuccess: () =>
       Promise.all([
         qc.invalidateQueries({
@@ -372,6 +370,29 @@ export function useDeleteCompanyDefaultSubCategoryMutation(
         qc.invalidateQueries({
           queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId),
         }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
+        }),
+      ]),
+  });
+}
+
+export function useUpdateCompanyDefaultMappingRuleMutation(companyId: CompanyId) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: CompanyDefaultMappingRuleUpdateInput) =>
+      updateCompanyDefaultMappingRuleServerFn({
+        data: { companyId, payload: input },
+      }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaults(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
+        }),
       ]),
   });
 }
@@ -379,12 +400,11 @@ export function useDeleteCompanyDefaultSubCategoryMutation(
 export function useDeleteCompanyDefaultMappingRuleMutation(
   companyId: CompanyId
 ) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (ruleId: CompanyDefaultMappingRule['id']) =>
-      api.deleteCompanyDefaultMappingRule(companyId, ruleId),
+      deleteCompanyDefaultMappingRuleServerFn({ data: { companyId, ruleId } }),
     onSuccess: () =>
       Promise.all([
         qc.invalidateQueries({
@@ -401,27 +421,28 @@ export function useApplyCompanyDefaultTaxonomyMutation(
   projectId: ProjectId,
   companyId: CompanyId
 ) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: () => api.applyCompanyDefaultTaxonomy(projectId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) });
-      qc.invalidateQueries({
-        queryKey: qk.subCategories(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
-      qc.invalidateQueries({
-        queryKey: qk.transactions(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) });
-      qc.invalidateQueries({
-        queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
-      });
-      qc.invalidateQueries({
-        queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId),
-      });
+    mutationFn: () => applyCompanyDefaultTaxonomyServerFn({ data: { projectId } }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) }),
+        qc.invalidateQueries({
+          queryKey: qk.subCategories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+        qc.invalidateQueries({
+          queryKey: qk.transactions(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId),
+        }),
+      ]);
     },
   });
 }

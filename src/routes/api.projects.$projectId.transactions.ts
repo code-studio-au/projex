@@ -1,7 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { readJsonBody, withApi } from './-api-shared';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  readJsonBody,
+  requireApiRouteContext,
+} from './-api-shared';
 import { asProjectId } from '../types';
+import {
+  createTxnServer,
+  listTransactionsPageServer,
+  listTransactionsServer,
+  updateTxnServer,
+} from '../server/fns/transactions';
 import {
   txnListPageQuerySchema,
   txnMutationBodySchema,
@@ -11,9 +22,10 @@ import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/projects/$projectId/transactions')({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      GET: ({ request, params }) =>
-        withApi(request, (api) => {
+      GET: async ({ request, params, context }) => {
+          const { serverContext } = requireApiRouteContext(context);
           const url = new URL(request.url);
           const search = Object.fromEntries(url.searchParams.entries());
           if (search.mode === 'page') {
@@ -34,42 +46,65 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
                     }
                   : undefined;
 
-            return api.listTransactionsPage(asProjectId(params.projectId), {
-              pageIndex: query.pageIndex,
-              pageSize: query.pageSize,
-              sort:
-                query.sortField && query.sortDirection
-                  ? {
-                      field: query.sortField,
-                      direction: query.sortDirection,
-                    }
-                  : undefined,
-              yearFilter: query.yearFilter,
-              quarterFilter: query.quarterFilter,
-              monthFilterKey: query.monthFilterKey,
-              transactionView: query.transactionView,
-              drilldown,
-            });
+            return jsonApi(
+              await listTransactionsPageServer({
+                context: serverContext,
+                projectId: asProjectId(params.projectId),
+                input: {
+                  pageIndex: query.pageIndex,
+                  pageSize: query.pageSize,
+                  sort:
+                    query.sortField && query.sortDirection
+                      ? {
+                          field: query.sortField,
+                          direction: query.sortDirection,
+                        }
+                      : undefined,
+                  yearFilter: query.yearFilter,
+                  quarterFilter: query.quarterFilter,
+                  monthFilterKey: query.monthFilterKey,
+                  transactionView: query.transactionView,
+                  drilldown,
+                },
+              })
+            );
           }
 
-          return api.listTransactions(asProjectId(params.projectId));
-        }),
-      POST: async ({ request, params }) =>
-        withApi(request, async (api) => {
+          return jsonApi(
+            await listTransactionsServer({
+              context: serverContext,
+              projectId: asProjectId(params.projectId),
+            })
+          );
+        },
+      POST: async ({ request, params, context }) => {
+        const { serverContext } = requireApiRouteContext(context);
           const body = validateOrThrow(
             txnMutationBodySchema,
             await readJsonBody(request)
           );
-          return api.createTxn(asProjectId(params.projectId), body.txn);
-        }),
-      PATCH: async ({ request, params }) =>
-        withApi(request, async (api) => {
+          return jsonApi(
+            await createTxnServer({
+              context: serverContext,
+              projectId: asProjectId(params.projectId),
+              input: body.txn,
+            })
+          );
+        },
+      PATCH: async ({ request, params, context }) => {
+        const { serverContext } = requireApiRouteContext(context);
           const body = validateOrThrow(
             txnUpdateMutationBodySchema,
             await readJsonBody(request)
           );
-          return api.updateTxn(asProjectId(params.projectId), body.txn);
-        }),
+          return jsonApi(
+            await updateTxnServer({
+              context: serverContext,
+              projectId: asProjectId(params.projectId),
+              input: body.txn,
+            })
+          );
+        },
     },
   },
 });

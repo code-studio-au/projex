@@ -1,8 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { AppError } from '../api/errors';
-import { readJsonBody } from './-api-shared';
-import { createStartServerApi } from '../server/api/startBridge';
+import {
+  apiRouteMiddleware,
+  readJsonBody,
+  requireApiRouteContext,
+} from './-api-shared';
+import { listUsersServer } from '../server/fns/companies';
 import { getSmokeBaseUrl } from '../server/smoke/env';
 import { runSmokeSection } from '../server/smoke/runSection';
 import type { SmokeSectionId, SmokeStepStreamEvent } from '../types';
@@ -19,8 +23,9 @@ function smokeToolsApiEnabled() {
 
 export const Route = createFileRoute('/api/admin/smoke')({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      POST: async ({ request }) => {
+      POST: async ({ context, request }) => {
         if (!smokeToolsApiEnabled()) {
           return Response.json(
             { code: 'NOT_FOUND', message: 'Not found' },
@@ -47,8 +52,7 @@ export const Route = createFileRoute('/api/admin/smoke')({
           );
         }
 
-        const api = await createStartServerApi({ request });
-        const session = await api.getSession();
+        const { session, serverContext } = requireApiRouteContext(context);
         if (!session?.userId) {
           return Response.json(
             { code: 'UNAUTHENTICATED', message: 'Not authenticated' },
@@ -56,7 +60,7 @@ export const Route = createFileRoute('/api/admin/smoke')({
           );
         }
 
-        const users = await api.listUsers();
+        const users = await listUsersServer({ context: serverContext });
         const isSuperadmin =
           users.find((user) => user.id === session.userId)
             ?.isGlobalSuperadmin === true;

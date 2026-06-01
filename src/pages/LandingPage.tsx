@@ -21,9 +21,12 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import type { CompanyId } from '../types';
 
-import { useApi } from '../hooks/useApi';
 import { companyRoute } from '../router';
-import { useCompaniesQuery, useUsersQuery } from '../queries/reference';
+import {
+  getDefaultCompanyIdForUser,
+  useCompaniesQuery,
+  useUsersQuery,
+} from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import {
@@ -33,9 +36,9 @@ import {
   useReactivateCompanyMutation,
 } from '../queries/admin';
 import { qk } from '../queries/keys';
+import { createUserInCompanyServerFn } from '../server/start/functions/admin';
 
 export default function LandingPage() {
-  const api = useApi();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 48em)');
@@ -81,14 +84,14 @@ export default function LandingPage() {
     if (!shouldRedirect || !userId) return;
     let cancelled = false;
     (async () => {
-      const companyId = await api.getDefaultCompanyIdForUser(userId);
+      const companyId = await getDefaultCompanyIdForUser(userId);
       if (!companyId || cancelled) return;
       router.navigate({ to: companyRoute.to, params: { companyId } });
     })();
     return () => {
       cancelled = true;
     };
-  }, [api, router, shouldRedirect, userId]);
+  }, [router, shouldRedirect, userId]);
 
   const deactivateCompany = useDeactivateCompanyMutation();
   const reactivateCompany = useReactivateCompanyMutation();
@@ -347,15 +350,17 @@ export default function LandingPage() {
                           name,
                         });
                         if (adminName && adminEmail) {
-                          const result = await api.createUserInCompany(
-                            company.id,
-                            {
+                          const result = await createUserInCompanyServerFn({
+                            data: {
+                              companyId: company.id,
+                              payload: {
                               name: adminName,
                               email: adminEmail,
                               role: 'admin',
                               sendOnboardingEmail: true,
-                            }
-                          );
+                              },
+                            },
+                          });
                           await Promise.all([
                             queryClient.invalidateQueries({
                               queryKey: qk.users(),

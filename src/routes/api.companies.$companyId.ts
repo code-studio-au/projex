@@ -1,7 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { readJsonBody, withApi } from './-api-shared';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  readJsonBody,
+  requireApiRouteContext,
+} from './-api-shared';
 import { asCompanyId } from '../types';
+import {
+  deleteCompanyServer,
+  getCompanyServer,
+  updateCompanyServer,
+} from '../server/fns/companies';
 import {
   deleteCompanyBodySchema,
   updateCompanyBodySchema,
@@ -10,34 +20,46 @@ import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/companies/$companyId')({
   server: {
+    middleware: [apiRouteMiddleware],
     handlers: {
-      GET: ({ request, params }) =>
-        withApi(request, (api) =>
-          api.getCompany(asCompanyId(params.companyId))
-        ),
-      PATCH: async ({ request, params }) =>
-        withApi(request, async (api) => {
-          const body = validateOrThrow(
-            updateCompanyBodySchema,
-            await readJsonBody(request)
-          );
-          return api.updateCompany({
-            id: asCompanyId(params.companyId),
-            ...body,
-          });
-        }),
-      DELETE: ({ request, params }) =>
-        withApi(request, async (api) => {
-          const body = validateOrThrow(
-            deleteCompanyBodySchema,
-            await readJsonBody(request)
-          );
-          await api.deleteCompany({
+      GET: async ({ context, params }) => {
+        const { serverContext } = requireApiRouteContext(context);
+        return jsonApi(
+          await getCompanyServer({
+            context: serverContext,
             companyId: asCompanyId(params.companyId),
-            confirmation: body.confirmation,
-          });
-          return { ok: true as const };
-        }),
+          })
+        );
+      },
+      PATCH: async ({ context, request, params }) => {
+        const { serverContext } = requireApiRouteContext(context);
+        const body = validateOrThrow(
+          updateCompanyBodySchema,
+          await readJsonBody(request)
+        );
+        return jsonApi(
+          await updateCompanyServer({
+            context: serverContext,
+            input: {
+              id: asCompanyId(params.companyId),
+              ...body,
+            },
+          })
+        );
+      },
+      DELETE: async ({ context, request, params }) => {
+        const { serverContext } = requireApiRouteContext(context);
+        const body = validateOrThrow(
+          deleteCompanyBodySchema,
+          await readJsonBody(request)
+        );
+        await deleteCompanyServer({
+          context: serverContext,
+          companyId: asCompanyId(params.companyId),
+          confirmation: body.confirmation,
+        });
+        return jsonApi({ ok: true as const });
+      },
     },
   },
 });

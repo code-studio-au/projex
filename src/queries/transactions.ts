@@ -5,7 +5,6 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 
-import { useApi } from '../hooks/useApi';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import type { ProjectId, Txn, TxnId } from '../types';
@@ -18,16 +17,25 @@ import type {
   TxnWorkflowStateInput,
 } from '../api/contract';
 import { normalizeTxnPatch } from '../utils/transactions';
+import {
+  createTxnServerFn,
+  deleteTxnServerFn,
+  listTransactionsPageServerFn,
+  listTransactionsServerFn,
+  splitTxnServerFn,
+  transferTxnServerFn,
+  updateTxnServerFn,
+  updateTxnWorkflowStateServerFn,
+} from '../server/start/functions/transactionReads';
 
 export function useTransactionsQuery(
   projectId: ProjectId,
   options: { enabled?: boolean } = {}
 ) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.transactions(scopeUserId, projectId),
-    queryFn: () => api.listTransactions(projectId),
+    queryFn: () => listTransactionsServerFn({ data: { projectId } }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
   });
@@ -38,22 +46,22 @@ export function useTransactionsPageQuery(
   input: TxnListPageInput,
   options: { enabled?: boolean } = {}
 ) {
-  const api = useApi();
   const scopeUserId = useQueryScopeUserId();
   return useQuery({
     queryKey: qk.transactionsPage(scopeUserId, projectId, input),
-    queryFn: () => api.listTransactionsPage(projectId, input),
+    queryFn: () =>
+      listTransactionsPageServerFn({ data: { projectId, query: input } }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
   });
 }
 
 export function useCreateTxnMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (input: TxnCreateInput) => api.createTxn(projectId, input),
+    mutationFn: (input: TxnCreateInput) =>
+      createTxnServerFn({ data: { projectId, payload: input } }),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({
@@ -66,12 +74,12 @@ export function useCreateTxnMutation(projectId: ProjectId) {
 }
 
 export function useUpdateTxnMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   const queryKey = qk.transactions(scopeUserId, projectId);
   return useMutation({
-    mutationFn: (input: TxnUpdateInput) => api.updateTxn(projectId, input),
+    mutationFn: (input: TxnUpdateInput) =>
+      updateTxnServerFn({ data: { projectId, payload: input } }),
     onMutate: async (input) => {
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueryData<Txn[]>(queryKey);
@@ -99,11 +107,11 @@ export function useUpdateTxnMutation(projectId: ProjectId) {
 }
 
 export function useDeleteTxnMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (txnId: TxnId) => api.deleteTxn(projectId, txnId),
+    mutationFn: (txnId: TxnId) =>
+      deleteTxnServerFn({ data: { projectId, txnId } }),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({
@@ -116,12 +124,12 @@ export function useDeleteTxnMutation(projectId: ProjectId) {
 }
 
 export function useSplitTxnMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   const queryKey = qk.transactions(scopeUserId, projectId);
   return useMutation({
-    mutationFn: (input: TxnSplitInput) => api.splitTxn(projectId, input),
+    mutationFn: (input: TxnSplitInput) =>
+      splitTxnServerFn({ data: { projectId, payload: input } }),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey }),
@@ -132,12 +140,12 @@ export function useSplitTxnMutation(projectId: ProjectId) {
 }
 
 export function useTransferTxnMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   const sourceQueryKey = qk.transactions(scopeUserId, projectId);
   return useMutation({
-    mutationFn: (input: TxnTransferInput) => api.transferTxn(projectId, input),
+    mutationFn: (input: TxnTransferInput) =>
+      transferTxnServerFn({ data: { projectId, payload: input } }),
     onSuccess: async (_result, input) => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: sourceQueryKey }),
@@ -151,13 +159,12 @@ export function useTransferTxnMutation(projectId: ProjectId) {
 }
 
 export function useUpdateTxnWorkflowStateMutation(projectId: ProjectId) {
-  const api = useApi();
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   const queryKey = qk.transactions(scopeUserId, projectId);
   return useMutation({
     mutationFn: (input: TxnWorkflowStateInput) =>
-      api.updateTxnWorkflowState(projectId, input),
+      updateTxnWorkflowStateServerFn({ data: { projectId, payload: input } }),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey }),
