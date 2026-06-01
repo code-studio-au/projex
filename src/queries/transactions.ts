@@ -28,6 +28,26 @@ import {
   updateTxnWorkflowStateServerFn,
 } from '../server/start/functions/transactionReads';
 
+function toTransactionsPageServerQuery(input: TxnListPageInput) {
+  return {
+    mode: 'page' as const,
+    pageIndex: input.pageIndex,
+    pageSize: input.pageSize,
+    sortField: input.sort?.field,
+    sortDirection: input.sort?.direction,
+    yearFilter: input.yearFilter ?? undefined,
+    quarterFilter: input.quarterFilter ?? undefined,
+    monthFilterKey: input.monthFilterKey ?? undefined,
+    transactionView: input.transactionView ?? undefined,
+    drilldownKind: input.drilldown?.kind,
+    categoryId: input.drilldown?.categoryId,
+    subCategoryId:
+      input.drilldown?.kind === 'subcategory'
+        ? input.drilldown.subCategoryId
+        : undefined,
+  };
+}
+
 export function useTransactionsQuery(
   projectId: ProjectId,
   options: { enabled?: boolean } = {}
@@ -69,7 +89,9 @@ export function transactionsPageQueryOptions(
   return {
     queryKey: qk.transactionsPage(userId, projectId, input),
     queryFn: () =>
-      listTransactionsPageServerFn({ data: { projectId, query: input } }),
+      listTransactionsPageServerFn({
+        data: { projectId, query: toTransactionsPageServerQuery(input) },
+      }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
   } as const;
