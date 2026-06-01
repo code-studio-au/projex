@@ -39,26 +39,19 @@ That pipeline-shaped command runs:
 
 Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`, and `pnpm run smoke:server:disposable`.
 
-## Verification Workflow
+## Verification
 
-Use the verification commands like this:
+The short version:
 
-- `pnpm run verify:security`
-  - fast daily safety pass
-  - repo config checks, dependency audit, tests, typecheck, lint
-- `pnpm run verify:ci`
-  - fuller local or future-CI gate
-  - runs `verify:security`, build, disposable DB integration, and disposable smoke basics
-- `pnpm run test:integration:db`
-  - targeted real-Postgres authz/data-integrity coverage
-- `pnpm run smoke:server:disposable`
-  - isolated local end-to-end smoke with Better Auth and app tables inside a disposable DB
-- `pnpm run smoke:server`
-  - smoke a real running environment
-- `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security`
-  - verify public deploy-surface headers and endpoint exposure
+- `pnpm run verify:security` for the fast non-Docker safety pass
+- `pnpm run verify:ci` for the fuller local or future-CI gate
+- `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
+- `pnpm run smoke:server:disposable` for isolated local end-to-end smoke
+- `pnpm run smoke:server` and `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security` for deployed-environment verification
 
-`pnpm run test` includes optional DB-backed integration coverage, but those tests are skipped unless `PROJEX_INTEGRATION_DATABASE_URL` is set. For the normal local workflow, prefer the automated disposable runner:
+For the full operational verification workflow, use [docs/staging-runbook.md](/Users/scas0196/Documents/code/projex/docs/staging-runbook.md:1).
+
+`pnpm run test` still includes optional DB-backed integration coverage, but those tests are skipped unless `PROJEX_INTEGRATION_DATABASE_URL` is set. For the normal local workflow, prefer the automated disposable runner:
 
 ```bash
 pnpm run test:integration:db
@@ -74,7 +67,7 @@ PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test
 
 The current table layer is `mantine-react-table-open` on the Mantine 9 line.
 
-## Local Server Utilities
+## Local Commands
 
 ```bash
 # Apply BetterAuth + app SQL migrations to DATABASE_URL
@@ -96,7 +89,7 @@ pnpm run start:server
 pnpm run smoke:server
 pnpm run smoke:server -- --section=emailChange
 
-# Smoke test with disposable generated users/data, then clean them up
+# Smoke test with generated users/data against the current runtime DB
 pnpm run smoke:server:generated
 
 # Start a disposable Postgres instance, migrate it, build the app, run a local
@@ -107,16 +100,7 @@ pnpm run smoke:server:disposable
 pnpm run smoke:cleanup
 ```
 
-Notes:
-
-- `pnpm run verify:security` is the fast non-Docker safety pass for daily work.
-- `pnpm run verify:ci` is the fuller pipeline-shaped local check before bigger merges or deploy handoff.
-- `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security` verifies the deployed public surface; add `PROJEX_VERIFY_AUTH_EMAIL` and `PROJEX_VERIFY_AUTH_PASSWORD` to also verify auth cookie flags and authenticated session behavior.
-- `pnpm run test:integration:db` is for real Postgres-backed authz/data-integrity coverage.
-- `pnpm run smoke:server:disposable` is for isolated local end-to-end smoke with Better Auth and app tables inside a disposable DB.
-- `pnpm run smoke:server:generated` still uses whatever `DATABASE_URL` the current server/runtime points at and creates disposable `smoke_*` rows in normal app tables.
-- `pnpm run smoke:server:disposable` keeps Better Auth tables, app tables, and smoke fixture data inside a disposable local Postgres container instead.
-- Both disposable commands accept `--keep-db` if you want to leave the container running for debugging.
+Command semantics and deploy-time verification details live in [docs/staging-runbook.md](/Users/scas0196/Documents/code/projex/docs/staging-runbook.md:1) and [docs/database-migrations.md](/Users/scas0196/Documents/code/projex/docs/database-migrations.md:1).
 
 ## Product Model
 

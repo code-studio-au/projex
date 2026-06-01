@@ -1,157 +1,10 @@
 # Product Backlog
 
-This backlog captures the next most useful product, admin, and operational improvements after the recent auth, account, privacy, and system-checks work.
+This backlog is intentionally focused on unfinished work. Implemented platform capabilities such as transaction comments, split/transfer workflows, programme rollups, PowerBI import foundations, smoke cleanup automation, and destructive delete safeguards are no longer tracked here as active backlog items.
 
-It is intentionally short, opinionated, and ordered so we can pick the next job quickly.
+## Active Backlog
 
-## Urgent Product Requests
-
-These have been raised as urgent feature priorities and should be shaped before the previous near-term product backlog.
-
-### 1. Add transaction comments and threaded resolution workflow
-
-Examples:
-
-- company members can add notes/comments directly to transaction line items
-- comments show author name and created date/time
-- comments support replies/sub-comments so discussion stays attached to the original point
-- comments can mention or assign company members using an `@member_name` style interaction
-- assigned members can see that a transaction comment needs their attention
-- comments can be marked resolved while keeping the history visible
-
-Why this matters:
-
-- transaction coding often needs clarification from the project team, not just finance/admin edits
-- keeping discussion attached to the transaction avoids context being lost in chat or email
-- assignment and resolution turn comments into a lightweight workflow rather than passive notes
-
-Design direction:
-
-- model comments as first-class rows with author, created/updated timestamps, optional parent comment, optional assigned user, and resolved metadata
-- preserve comment history for auditability; avoid hard-deleting comments by default
-- use project membership as the assignment/search boundary so users cannot tag people outside the active project team
-- send assignment notifications through the existing email delivery path without making comment creation depend on mail delivery uptime
-
-Status:
-
-- foundation implemented: transaction comments are first-class rows with author, timestamps, optional parent/reply linkage, optional assignee, and resolved metadata
-- UI entry point added from the transaction row action menu and transaction comments column with add comment, reply, assign, resolve, reopen, and inline thread review flows
-- transaction table now surfaces latest comment preview, comment counts, unresolved/assigned indicators, and an assigned-to-me transaction view
-- inline `@` mention autocomplete is limited to active project members and assigns the selected teammate
-- assignment emails are sent through the existing Resend/webhook/log email adapter with a deep link back to the transaction comment thread
-- remaining polish: richer comment focus/highlighting after opening a deep link
-
-### 2. Split transactions into fully allocated child line items
-
-Examples:
-
-- split one imported transaction into two or more child sub-transactions
-- child sub-transactions can be coded to different categories/subcategories
-- child subtotals are reflected in budget and spend reporting
-- the original rolled-up transaction remains visible as the imported source record
-- the original rolled-up transaction becomes uncategorisable once split
-- the original rolled-up transaction total is excluded from budget/spend calculations once split
-- the split cannot be accepted while any remainder is unallocated
-
-Why this matters:
-
-- one imported transaction can represent multiple purchases that need different coding
-- budget reporting must reflect the real allocation, not the raw bank/import line, once a split exists
-- preserving the original transaction keeps reconciliation back to imported data intact
-
-Design direction:
-
-- foundation in place: transactions now expose explicit type, parent/source links, transfer project link, budget-impact, and categorisability metadata
-- keep the imported parent transaction immutable as the source/reconciliation record
-- store split children as allocation rows or child transactions linked to the parent
-- enforce that child allocation totals exactly equal the parent amount before activating the split
-- keep draft split edits out of spend totals until the split is fully allocated and accepted
-- prevent category/subcategory coding on the split parent after activation
-- make reporting explicitly exclude split parents and include accepted split children
-
-### 3. Move transactions or split child transactions between projects
-
-Examples:
-
-- move a transaction, or one child from a split transaction, to another project in the same company
-- the receiving project sees it as a new uncoded transaction requiring local coding
-- the original project keeps a visible transfer/source row for traceability
-- the original-side transfer row is uncategorisable
-- the original-side transfer row does not affect the original project budget/spend totals
-- transfers are limited to projects within the same company
-
-Why this matters:
-
-- imported data may land in the wrong project even though the cost belongs elsewhere
-- teams need cross-project correction without losing the source/import history
-- project budgets must not double-count transferred amounts
-
-Design direction:
-
-- implemented: move actions create an auditable transfer-out marker in the source project and an uncoded transfer-in transaction in the receiving project
-- treat project moves as explicit transfer records rather than destructive edits to the original transaction
-- preserve source transaction identity and transfer linkage for audit/reconciliation
-- create a receiving-side transaction or allocation that must be coded in the destination project
-- exclude the original-side transfer marker from budget/spend calculations
-- require same-company validation at the server and database boundary
-- transfers are disabled by default per project and must be enabled in project settings by company admin/executive/management users, or by global superadmin when project superadmin access is enabled
-- transfers currently support standard transactions and split children, not split parents
-
-### 4. Programmes for reporting-only project rollups
-
-Examples:
-
-- create a programme as a reporting-only container inside a company
-- assign one or more operational projects as sub-projects of a programme
-- keep budgets, transactions, imports, taxonomy, coding, splits, and transfers scoped to operational projects only
-- show programme totals as a rollup of its active sub-projects
-- list the sub-project totals under the programme on the company dashboard
-
-Why this matters:
-
-- teams need a top-level reporting layer without creating duplicate operational project data
-- programme rollups make company reporting easier to scan while preserving project-level ownership and coding boundaries
-- reporting-only programmes avoid double-counting and prevent transactions being imported into the wrong layer
-
-Implemented:
-
-- projects now have `projectType` and optional `parentProjectId`
-- programmes are guarded server-side from operational project endpoints
-- sub-projects must belong to the same company and use the same currency as their programme
-- programme rollups are derived from sub-project data rather than duplicated transactions or budgets
-- programme rollups are visible to company admins, executives, and global superadmins
-- programme dashboards support year, quarter, and month filtering
-- generated smoke coverage verifies programme creation, sub-project rollup, and operational endpoint rejection
-
-### 5. PowerBI expenditure import, Import Rules, and project review staging
-
-Examples:
-
-- PowerBI expenditure actuals are the primary user-facing import format
-- Import Rules can exclude SAL, EXA, and other company-specific rows before import
-- suspected salary transfers can be staged for project review instead of imported immediately
-- excluded rows can be hidden in the preview so admins can focus on rows that need action
-- signed actuals are supported so credits, refunds, reversals, and recoveries reduce net spend
-- Auto-Categorise Rules run only after Import Rules have decided that a row should import
-
-Why this matters:
-
-- finance/admin users should not have to manually filter hundreds of known exclusions from every PowerBI export
-- project leads may understand spend context better than admins, so review staging reduces incorrect coding decisions
-- preserving the raw PowerBI row keeps reconciliation back to the source export possible
-
-Implemented:
-
-- transaction actuals now support signed amounts while budgets remain non-negative
-- PowerBI row normalization maps expected export columns into transaction date, amount, item, description, external ID, and raw metadata
-- default Import Rules exclude SAL and EXA and flag suspected salary transfers for review
-- PowerBI preview stores import batches and candidates with ready, excluded, needs-project-review, duplicate, invalid, and imported statuses
-- preview UI shows import-rule decisions, auto-excludes rule-excluded rows, and supports showing or hiding excluded rows
-- remaining work: direct `.xlsx` parsing if admins cannot export PowerBI as CSV, richer review-queue filters/history, and audit-event history for import rule and candidate decisions
-
-## Product/Admin
-
-### 6. Add bulk transaction review actions
+### 1. Add bulk transaction review actions
 
 Examples:
 
@@ -166,7 +19,7 @@ Why this matters:
 - row-by-row transaction review will become the main bottleneck as data volume increases
 - bulk actions are one of the highest-value workflow improvements available now
 
-### 7. Add reviewed and locked transaction workflow
+### 2. Finish reviewed and locked transaction workflow
 
 Examples:
 
@@ -193,7 +46,7 @@ Implemented:
 - locked transactions are blocked from normal edit, delete, split, and transfer paths
 - remaining work: unlock request workflow, bulk review/lock actions, and audit event history for workflow transitions
 
-### 8. Clarify budget semantics, health messaging, and lightweight forecasting
+### 3. Clarify budget semantics, health messaging, and lightweight forecasting
 
 Examples:
 
@@ -209,7 +62,7 @@ Why this matters:
 - sharper financial semantics will make the app feel more trustworthy to finance-oriented users
 - users need interpretation and risk cues, not just raw spend totals
 
-### 9. Add rule suggestions from repeated manual coding
+### 4. Add rule suggestions from repeated manual coding
 
 Examples:
 
@@ -228,7 +81,7 @@ Design direction:
 - distinguish clearly between create-rule suggestions and update-rule suggestions
 - keep suggestions reviewable and dismissible so noisy patterns do not become brittle rules
 
-### 10. Expand audit logging into a first-class product feature
+### 5. Expand audit logging into a first-class product feature
 
 Examples:
 
@@ -270,7 +123,7 @@ Notes:
 - it needs careful schema, indexing, retention, and UI design before we build it
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 11. Extend self-service account/profile
+### 6. Extend self-service account/profile
 
 Examples:
 
@@ -280,39 +133,6 @@ Examples:
 Why this matters:
 
 - keeps building on the now-working account basics without mixing simple profile edits with bigger admin features
-
-## Completed Baseline Improvements
-
-These items were important enough to track, but are now implemented as baseline product/operational hygiene rather than active backlog work.
-
-### Smoke prep and cleanup automation
-
-Implemented:
-
-- generated per-run smoke fixtures are available through the generated smoke command
-- generated smoke users, memberships, companies, projects, and test data are cleaned up after runs
-- `smoke:cleanup` can be run separately as a best-effort sweep for abandoned generated smoke data
-- the workflow keeps bootstrap/admin identity separate from disposable per-run fixtures
-
-Residual follow-up:
-
-- run the generated smoke workflow against staging once AWS staging exists
-- keep staging runbooks aligned with any future smoke command changes
-
-### Project and company deletion safety
-
-Implemented:
-
-- destructive delete actions require typing `DELETE <name>` in the UI
-- delete requests carry the confirmation text to the server
-- server-side delete handlers validate confirmation against the persisted company/project name before deleting
-- company deletion still requires the company to be deactivated first
-- project deletion still requires the project to be archived first
-- delete copy now gives clearer dependency warnings for related projects, budgets, transactions, taxonomy, and memberships
-
-Residual follow-up:
-
-- consider future restore windows or softer deletion flows if product requirements call for recoverability
 
 ## Future Features
 
