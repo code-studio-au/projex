@@ -285,6 +285,7 @@ export type TxnCommentSummary = {
   txnId: TxnId;
   totalCount: number;
   unresolvedCount: number;
+  resolvedCount: number;
   assignedToMeUnresolvedCount: number;
   latestCommentBody?: string;
   latestCommentCreatedAt?: string;

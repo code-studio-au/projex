@@ -36,6 +36,16 @@ import {
 } from '../utils/commentMentions';
 import classes from '../styles/ui.module.css';
 
+function commentInitials(name: string) {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+  if (parts.length === 0) return '?';
+  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('');
+}
+
 export default function TransactionCommentsModal(props: {
   opened: boolean;
   txn: Txn | null;
@@ -239,32 +249,40 @@ export default function TransactionCommentsModal(props: {
     const replies = repliesByParent.get(comment.id) ?? [];
 
     return (
-      <Paper key={comment.id} withBorder radius="md" p="sm">
+      <Paper
+        key={comment.id}
+        className={`${classes.commentCard}${comment.resolvedAt ? ` ${classes.commentCardResolved}` : ''}${nested ? ` ${classes.commentCardReply}` : ''}`}
+      >
         <Stack gap="xs">
-          <Group justify="space-between" align="flex-start" wrap="wrap">
-            <Stack gap={2}>
-              <Group gap="xs" wrap="wrap">
-                {nested ? <IconCornerDownRight size={14} /> : null}
-                <Text fw={600} size="sm">
-                  {comment.createdByName}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {formatTxnCommentDateTime(comment.createdAt)}
-                </Text>
-                {comment.resolvedAt ? (
-                  <Badge size="xs" color="green" variant="light">
-                    Resolved
-                  </Badge>
+          <div className={classes.commentHeader}>
+            <div className={classes.commentAuthorBlock}>
+              <span className={classes.commentAvatar}>
+                {commentInitials(comment.createdByName)}
+              </span>
+              <div className={classes.commentMeta}>
+                <Group gap={6} wrap="wrap">
+                  {nested ? <IconCornerDownRight size={14} /> : null}
+                  <Text fw={650} size="sm">
+                    {comment.createdByName}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {formatTxnCommentDateTime(comment.createdAt)}
+                  </Text>
+                  {comment.resolvedAt ? (
+                    <Badge size="xs" color="green" variant="light">
+                      Resolved
+                    </Badge>
+                  ) : null}
+                </Group>
+                {assignedUser ? (
+                  <div className={classes.commentAssignment}>
+                    Assigned to {assignedUser.name || assignedUser.email}
+                  </div>
                 ) : null}
-              </Group>
-              {assignedUser ? (
-                <Text size="xs" c="dimmed">
-                  Assigned to {assignedUser.name || assignedUser.email}
-                </Text>
-              ) : null}
-            </Stack>
+              </div>
+            </div>
 
-            <Group gap="xs" align="flex-end">
+            <div className={classes.commentActionRow}>
               <Select
                 size="xs"
                 placeholder="Assign"
@@ -299,17 +317,17 @@ export default function TransactionCommentsModal(props: {
                   Reply
                 </Button>
               ) : null}
-            </Group>
-          </Group>
+            </div>
+          </div>
 
           <Text size="sm" className={classes.commentBody}>
             {comment.body}
           </Text>
 
           {replies.length > 0 ? (
-            <Stack gap="xs" pl="md">
+            <div className={classes.commentReplies}>
               {replies.map((reply) => renderComment(reply, true))}
-            </Stack>
+            </div>
           ) : null}
         </Stack>
       </Paper>
@@ -344,7 +362,7 @@ export default function TransactionCommentsModal(props: {
             </Alert>
           ) : null}
 
-          <Stack gap="sm">
+          <Stack gap="sm" className={classes.commentThread}>
             {commentsQ.isLoading ? (
               <Text className={classes.emptyState}>
                 Loading comments...
@@ -358,21 +376,23 @@ export default function TransactionCommentsModal(props: {
             )}
           </Stack>
 
-          <Paper withBorder radius="md" p="sm" className={classes.subtleCard}>
+          <Paper className={classes.commentComposer}>
             <Stack gap="sm">
               {replyTarget ? (
-                <Group justify="space-between" gap="sm">
-                  <Text size="sm" c="dimmed">
-                    Replying to {replyTarget.createdByName}
-                  </Text>
-                  <Button
-                    size="xs"
-                    variant="subtle"
-                    onClick={() => setReplyToCommentId(null)}
-                  >
-                    Cancel reply
-                  </Button>
-                </Group>
+                <div className={classes.commentComposerReply}>
+                  <Group justify="space-between" gap="sm">
+                    <Text size="sm" c="dimmed">
+                      Replying to {replyTarget.createdByName}
+                    </Text>
+                    <Button
+                      size="xs"
+                      variant="subtle"
+                      onClick={() => setReplyToCommentId(null)}
+                    >
+                      Cancel reply
+                    </Button>
+                  </Group>
+                </div>
               ) : null}
               <Box pos="relative">
                 <Textarea

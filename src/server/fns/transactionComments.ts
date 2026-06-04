@@ -290,6 +290,7 @@ export async function listTransactionCommentSummariesServer(args: {
           txnId: asTxnId(row.txn_public_id),
           totalCount: 0,
           unresolvedCount: 0,
+          resolvedCount: 0,
           assignedToMeUnresolvedCount: 0,
           latestCommentBody: undefined,
           latestCommentCreatedAt: undefined,
@@ -304,6 +305,8 @@ export async function listTransactionCommentSummariesServer(args: {
         if (row.assigned_to_user_id === context.userId) {
           current.assignedToMeUnresolvedCount += 1;
         }
+      } else {
+        current.resolvedCount += 1;
       }
       byTxn.set(row.txn_public_id, current);
     }
