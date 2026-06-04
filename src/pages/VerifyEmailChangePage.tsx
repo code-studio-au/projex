@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { apiErrorMessage } from '../api/errorResponses';
 import { readJsonResponseOrNull } from '../utils/json';
 import { emailChangeConfirmResponseSchema } from '../validation/responseSchemas';
+import classes from '../styles/ui.module.css';
 
 type ConfirmState =
   | { status: 'loading' }
@@ -82,11 +83,11 @@ export default function VerifyEmailChangePage() {
   }, [token]);
 
   return (
-    <Paper withBorder radius="lg" p="xl">
-      <Stack gap="md">
+    <Paper withBorder radius="lg" p="xl" className={classes.modalCard}>
+      <Stack className={classes.modalStack}>
         <Title order={2}>Confirm email change</Title>
         {state.status === 'loading' ? (
-          <Text c="dimmed">
+          <Text c="dimmed" className={classes.modalIntro}>
             Confirming your new email address. This can take a moment if the
             link was opened in a fresh browser session.
           </Text>
@@ -97,15 +98,15 @@ export default function VerifyEmailChangePage() {
               Your Projex login email has been changed from{' '}
               {state.previousEmail} to {state.email}.
             </Alert>
-            <Text c="dimmed">
+            <Text c="dimmed" className={classes.modalIntro}>
               Future sign-ins, password resets, and invite emails will use your
               new email address.
             </Text>
-            <Text c="dimmed">
+            <Text c="dimmed" className={classes.modalIntro}>
               If another user is currently signed in in this browser, sign out
               first and then sign back in with {state.email}.
             </Text>
-            <Stack>
+            <Stack className={classes.footerRow}>
               <Button component="a" href="/account">
                 Return to account
               </Button>
@@ -118,7 +119,7 @@ export default function VerifyEmailChangePage() {
         {state.status === 'error' ? (
           <>
             <Alert color="red">{state.message}</Alert>
-            <Text c="dimmed">
+            <Text c="dimmed" className={classes.modalIntro}>
               If the link expired, request a fresh email change from your
               account settings and use the newest verification email.
             </Text>

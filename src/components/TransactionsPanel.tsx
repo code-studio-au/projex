@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   ActionIcon,
   Badge,
@@ -10,7 +10,6 @@ import {
   Select,
   Stack,
   Text,
-  Title,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
@@ -54,6 +53,7 @@ import {
   useTransactionCommentSummariesQuery,
 } from '../queries/transactionComments';
 import { useTransactionsPageQuery } from '../queries/transactions';
+import classes from '../styles/ui.module.css';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 type TransactionView =
@@ -61,6 +61,10 @@ type TransactionView =
   | 'uncoded'
   | 'auto-mapped-pending'
   | 'assigned-to-me';
+
+const hydrateSubscription = () => () => {};
+const getClientHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 function toQuarterOption(value: string | null): QuarterOption | null {
   if (!value) return null;
@@ -139,6 +143,11 @@ export default function TransactionsPanel(props: {
     null
   );
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const isHydrated = useSyncExternalStore(
+    hydrateSubscription,
+    getClientHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
   const [pagination, setPagination] = useState<MRT_PaginationState>({
     pageIndex: 0,
     pageSize: isMobile ? 10 : 20,
@@ -787,66 +796,103 @@ export default function TransactionsPanel(props: {
   ];
 
   return (
-    <Stack gap="md">
-      <Paper withBorder radius="lg" p="md">
-        <Stack gap="md">
-          <Group justify="space-between" align="flex-start" wrap="wrap">
-            <Stack gap={6}>
-              <Group gap="sm" align="center" wrap="wrap">
-                <Title order={5}>Transaction coding</Title>
-                <Badge variant="light">{pageSummary.totalCount} shown</Badge>
-                <Badge variant="light" color="blue">
-                  {formatCurrencyFromCents(
-                    pageSummary.budgetImpactCents,
-                    currencyCode
-                  )}{' '}
-                  budget impact
-                </Badge>
-                <Badge
-                  variant="light"
-                  color={pageSummary.uncodedCount > 0 ? 'red' : 'gray'}
-                >
-                  {pageSummary.uncodedCount} uncoded
-                  {pageSummary.uncodedCount > 0
-                    ? ` · ${formatCurrencyFromCents(
-                        pageSummary.uncodedCents,
-                        currencyCode
-                      )}`
-                    : ''}
-                </Badge>
-                {pageSummary.sourceOnlyCount > 0 ? (
-                  <Badge variant="light" color="gray">
-                    {pageSummary.sourceOnlyCount} source only
-                  </Badge>
-                ) : null}
-                {pageSummary.assignedToMeCount > 0 ? (
-                  <Badge variant="light" color="orange">
-                    {pageSummary.assignedToMeCount} assigned to me
-                  </Badge>
-                ) : null}
-                {pageSummary.reviewedCount > 0 ? (
-                  <Badge variant="light" color="green">
-                    {pageSummary.reviewedCount} reviewed
-                  </Badge>
-                ) : null}
-                {pageSummary.lockedCount > 0 ? (
-                  <Badge variant="light" color="gray">
-                    {pageSummary.lockedCount} locked
-                  </Badge>
-                ) : null}
-                <Badge
-                  variant="light"
-                  color={autoMappedPendingTxns.length > 0 ? 'yellow' : 'gray'}
-                >
-                  {autoMappedPendingTxns.length} pending
-                </Badge>
-              </Group>
-              <Text size="sm" c="dimmed">
-                Code budget-impact transactions, review auto-matches, and keep
-                split or transferred source rows audit-only.
-              </Text>
-            </Stack>
+    <Stack gap="lg" className={classes.pageStack}>
+      <Paper className={classes.filterCard} radius="xl">
+        <Group align="flex-end" gap="sm" wrap="wrap">
+          <Select
+            label="Year"
+            placeholder="All years"
+            data={yearFilterOptions}
+            value={yearFilter}
+            clearable
+            onChange={(value) => {
+              setPagination((current) => ({ ...current, pageIndex: 0 }));
+              setYearFilter(value);
+              setQuarterFilter(null);
+              setMonthFilterKey(null);
+            }}
+            style={{ width: isMobile ? '100%' : 140 }}
+          />
+          <Select
+            label="Quarter"
+            placeholder="All quarters"
+            data={quarterFilterOptions}
+            value={quarterFilter}
+            clearable
+            disabled={!yearFilter}
+            onChange={(value) => {
+              setPagination((current) => ({ ...current, pageIndex: 0 }));
+              setQuarterFilter(toQuarterOption(value));
+              setMonthFilterKey(null);
+            }}
+            style={{ width: isMobile ? '100%' : 150 }}
+          />
+          <Select
+            label="Month"
+            placeholder="All months"
+            data={monthFilterOptions}
+            value={monthFilterKey}
+            clearable
+            onChange={(value) => {
+              setPagination((current) => ({ ...current, pageIndex: 0 }));
+              setMonthFilterKey(value);
+            }}
+            style={{ width: isMobile ? '100%' : 180 }}
+          />
+          <Button
+            size="sm"
+            variant="subtle"
+            disabled={!yearFilter && !quarterFilter && !monthFilterKey}
+            onClick={() => {
+              setPagination((current) => ({ ...current, pageIndex: 0 }));
+              onClearFilters();
+            }}
+          >
+            Remove filter(s)
+          </Button>
+        </Group>
+      </Paper>
 
+      <Paper className={classes.surfaceCard} radius="xl" p="md">
+        <Stack gap="md">
+          <Group gap="sm" align="center" wrap="wrap">
+              <Badge variant="light">{pageSummary.totalCount} shown</Badge>
+              <Badge
+                variant="light"
+                color={pageSummary.uncodedCount > 0 ? 'red' : 'gray'}
+              >
+                {pageSummary.uncodedCount} uncoded
+                {pageSummary.uncodedCount > 0
+                  ? ` · ${formatCurrencyFromCents(
+                      pageSummary.uncodedCents,
+                      currencyCode
+                    )}`
+                  : ''}
+              </Badge>
+              {pageSummary.assignedToMeCount > 0 ? (
+                <Badge variant="light" color="orange">
+                  {pageSummary.assignedToMeCount} assigned to me
+                </Badge>
+              ) : null}
+              {pageSummary.reviewedCount > 0 ? (
+                <Badge variant="light" color="green">
+                  {pageSummary.reviewedCount} reviewed
+                </Badge>
+              ) : null}
+              {pageSummary.lockedCount > 0 ? (
+                <Badge variant="light" color="gray">
+                  {pageSummary.lockedCount} locked
+                </Badge>
+              ) : null}
+              <Badge
+                variant="light"
+                color={autoMappedPendingTxns.length > 0 ? 'yellow' : 'gray'}
+              >
+                {autoMappedPendingTxns.length} pending review
+              </Badge>
+          </Group>
+
+          {isHydrated ? (
             <Group gap="sm" align="flex-end" wrap="wrap">
               <Select
                 label="View"
@@ -881,7 +927,9 @@ export default function TransactionsPanel(props: {
                 onClick={() => {
                   void Promise.all(
                     autoMappedPendingTxns.map((txn) =>
-                      txns.updateTxn(txn.id, { codingPendingApproval: false })
+                      txns.updateTxn(txn.id, {
+                        codingPendingApproval: false,
+                      })
                     )
                   );
                 }}
@@ -898,61 +946,13 @@ export default function TransactionsPanel(props: {
                 Manage categories
               </Button>
             </Group>
-          </Group>
-
-          <Group align="flex-end" gap="sm" wrap="wrap">
-            <Select
-              label="Year"
-              placeholder="All years"
-              data={yearFilterOptions}
-              value={yearFilter}
-              clearable
-              onChange={(value) => {
-                setPagination((current) => ({ ...current, pageIndex: 0 }));
-                setYearFilter(value);
-                setQuarterFilter(null);
-                setMonthFilterKey(null);
-              }}
-              style={{ width: isMobile ? '100%' : 140 }}
-            />
-            <Select
-              label="Quarter"
-              placeholder="All quarters"
-              data={quarterFilterOptions}
-              value={quarterFilter}
-              clearable
-              disabled={!yearFilter}
-              onChange={(value) => {
-                setPagination((current) => ({ ...current, pageIndex: 0 }));
-                setQuarterFilter(toQuarterOption(value));
-                setMonthFilterKey(null);
-              }}
-              style={{ width: isMobile ? '100%' : 150 }}
-            />
-            <Select
-              label="Month"
-              placeholder="All months"
-              data={monthFilterOptions}
-              value={monthFilterKey}
-              clearable
-              onChange={(value) => {
-                setPagination((current) => ({ ...current, pageIndex: 0 }));
-                setMonthFilterKey(value);
-              }}
-              style={{ width: isMobile ? '100%' : 180 }}
-            />
-            <Button
-              size="sm"
-              variant="subtle"
-              disabled={!yearFilter && !quarterFilter && !monthFilterKey}
-              onClick={() => {
-                setPagination((current) => ({ ...current, pageIndex: 0 }));
-                onClearFilters();
-              }}
-            >
-              Remove filter(s)
-            </Button>
-          </Group>
+          ) : (
+            <Paper className={classes.surfaceMuted} radius="xl" p="md">
+              <Text size="sm" c="dimmed">
+                Loading transaction controls...
+              </Text>
+            </Paper>
+          )}
 
           {drilldownLabel ? (
             <Group gap="sm" align="center" wrap="wrap">
@@ -977,64 +977,66 @@ export default function TransactionsPanel(props: {
 
           {pageSummary.invalidDateCount > 0 && (
             <Text size="sm" c="dimmed">
-              {pageSummary.invalidDateCount} transaction(s) have invalid dates and may be
-              excluded from month filters or rollups.
+              {pageSummary.invalidDateCount} transaction(s) have invalid dates
+              and may be excluded from month filters or rollups.
             </Text>
           )}
         </Stack>
       </Paper>
 
-      <MantineReactTable
-        key={paginationScopeKey}
-        columns={txnColumns}
-        data={pagedTxns}
-        getRowId={(row) => row.id}
-        enableEditing={!readOnly}
-        editDisplayMode="cell"
-        state={{
-          pagination,
-          sorting,
-          showProgressBars: transactionsPageQ.isFetching,
-        }}
-        onPaginationChange={setPagination}
-        onSortingChange={(updater) => {
-          const nextSorting =
-            typeof updater === 'function' ? updater(sorting) : updater;
-          setSorting(nextSorting);
-          setPagination((current) => ({ ...current, pageIndex: 0 }));
-        }}
-        enableColumnResizing
-        enableColumnActions={false}
-        enableSorting
-        enableSortingRemoval={false}
-        manualPagination
-        manualSorting
-        rowCount={pageSummary.totalCount}
-        enablePagination
-        autoResetPageIndex={false}
-        initialState={{
-          density: 'xs',
-        }}
-        mantineTableContainerProps={{ className: 'financeTable txnTable' }}
-        mantineTableBodyCellProps={{ style: { verticalAlign: 'middle' } }}
-        mantineTableProps={{
-          highlightOnHover: true,
-          striped: 'odd',
-          withTableBorder: true,
-          style: { tableLayout: 'auto' },
-        }}
-        enableTopToolbar={false}
-        enableDensityToggle={false}
-        enableFullScreenToggle={false}
-        mantineTableBodyRowProps={({ row }) => {
-          const ok =
-            !!row.original.subCategoryId &&
-            taxonomy.validSubIds.has(row.original.subCategoryId);
-          return isCategorisableTxn(row.original) && !ok
-            ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-            : {};
-        }}
-      />
+      <div className={classes.tableWrap}>
+        <MantineReactTable
+          key={paginationScopeKey}
+          columns={txnColumns}
+          data={pagedTxns}
+          getRowId={(row) => row.id}
+          enableEditing={!readOnly}
+          editDisplayMode="cell"
+          state={{
+            pagination,
+            sorting,
+            showProgressBars: transactionsPageQ.isFetching,
+          }}
+          onPaginationChange={setPagination}
+          onSortingChange={(updater) => {
+            const nextSorting =
+              typeof updater === 'function' ? updater(sorting) : updater;
+            setSorting(nextSorting);
+            setPagination((current) => ({ ...current, pageIndex: 0 }));
+          }}
+          enableColumnResizing
+          enableColumnActions={false}
+          enableSorting
+          enableSortingRemoval={false}
+          manualPagination
+          manualSorting
+          rowCount={pageSummary.totalCount}
+          enablePagination
+          autoResetPageIndex={false}
+          initialState={{
+            density: 'xs',
+          }}
+          mantineTableContainerProps={{ className: 'financeTable txnTable' }}
+          mantineTableBodyCellProps={{ style: { verticalAlign: 'middle' } }}
+          mantineTableProps={{
+            highlightOnHover: true,
+            striped: 'odd',
+            withTableBorder: true,
+            style: { tableLayout: 'auto' },
+          }}
+          enableTopToolbar={false}
+          enableDensityToggle={false}
+          enableFullScreenToggle={false}
+          mantineTableBodyRowProps={({ row }) => {
+            const ok =
+              !!row.original.subCategoryId &&
+              taxonomy.validSubIds.has(row.original.subCategoryId);
+            return isCategorisableTxn(row.original) && !ok
+              ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
+              : {};
+          }}
+        />
+      </div>
 
       <TaxonomyManagerModal
         opened={manageOpen}

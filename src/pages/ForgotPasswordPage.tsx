@@ -16,6 +16,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { apiErrorMessage } from '../api/errorResponses';
 import { loginRoute } from '../router';
 import { readJsonResponseOrNull } from '../utils/json';
+import classes from '../styles/ui.module.css';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -64,10 +65,15 @@ export default function ForgotPasswordPage() {
 
   return (
     <Container size="sm" px={isMobile ? 'xs' : 'md'}>
-      <Paper withBorder radius="lg" p={isMobile ? 'md' : 'xl'}>
-        <Stack gap="md">
+      <Paper
+        withBorder
+        radius="lg"
+        p={isMobile ? 'md' : 'xl'}
+        className={classes.modalCard}
+      >
+        <Stack className={classes.modalStack}>
           <Title order={3}>Forgot Password</Title>
-          <Text c="dimmed">
+          <Text c="dimmed" className={classes.modalIntro}>
             Enter your email and we&apos;ll send a password reset email if the
             account exists.
           </Text>
@@ -80,7 +86,7 @@ export default function ForgotPasswordPage() {
             autoComplete="email"
             required
           />
-          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+          <Group className={classes.footerRowBetween}>
             <Button
               variant="light"
               onClick={() => router.navigate({ to: loginRoute.to })}

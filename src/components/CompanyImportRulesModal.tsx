@@ -34,6 +34,7 @@ import {
   useImportRulesQuery,
   useUpdateImportRuleMutation,
 } from '../queries/importRules';
+import classes from '../styles/ui.module.css';
 
 const actionOptions: Array<{ value: ImportRuleAction; label: string }> = [
   { value: 'exclude', label: 'Exclude' },
@@ -187,17 +188,17 @@ export default function CompanyImportRulesModal(props: {
       title="Manage Import Rules"
       size={isMobile ? '100%' : 'xl'}
     >
-      <Stack gap="md">
+      <Stack className={classes.modalStack}>
         {error ? <Alert color="red">{error}</Alert> : null}
         {success ? <Alert color="green">{success}</Alert> : null}
 
         {readOnly ? (
-          <Text size="sm" c="dimmed" className="panelHelperText">
+          <Text size="sm" c="dimmed" className={classes.modalIntro}>
             You don’t have permission to edit Import Rules.
           </Text>
         ) : (
           <Stack gap={4}>
-            <Text size="sm" c="dimmed" className="panelHelperText">
+            <Text size="sm" c="dimmed" className={classes.modalIntro}>
               Import Rules run before Auto-Categorise Rules. Use them to exclude
               known non-project spend, or to hold uncertain rows for project
               review.
@@ -212,7 +213,7 @@ export default function CompanyImportRulesModal(props: {
           </Stack>
         )}
 
-        <Paper withBorder radius="md" p="md">
+        <Paper withBorder radius="md" p="md" className={classes.modalCard}>
           <Stack gap="sm">
             <Group justify="space-between">
               <Text fw={600}>Add Import Rule</Text>
@@ -270,7 +271,7 @@ export default function CompanyImportRulesModal(props: {
                 setNewValue(event.currentTarget.value);
               }}
             />
-            <Group justify="flex-end">
+            <Group className={classes.footerRow}>
               <Button
                 leftSection={<IconPlus size={16} />}
                 disabled={
@@ -316,11 +317,11 @@ export default function CompanyImportRulesModal(props: {
         </Paper>
 
         {importRulesQ.isPending && !importRulesQ.data ? (
-          <Text size="sm" c="dimmed">
+          <Text className={classes.emptyState}>
             Loading Import Rules…
           </Text>
         ) : rules.length === 0 ? (
-          <Text size="sm" c="dimmed">
+          <Text className={classes.emptyState}>
             No Import Rules yet.
           </Text>
         ) : (

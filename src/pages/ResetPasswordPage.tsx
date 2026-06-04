@@ -17,6 +17,7 @@ import { apiErrorMessage } from '../api/errorResponses';
 import { accountRoute, loginRoute } from '../router';
 import { useSessionQuery } from '../queries/session';
 import { readJsonResponseOrNull } from '../utils/json';
+import classes from '../styles/ui.module.css';
 
 function useResetSearch() {
   return useMemo(() => {
@@ -88,10 +89,15 @@ export default function ResetPasswordPage() {
 
   return (
     <Container size="sm" px={isMobile ? 'xs' : 'md'}>
-      <Paper withBorder radius="lg" p={isMobile ? 'md' : 'xl'}>
-        <Stack gap="md">
+      <Paper
+        withBorder
+        radius="lg"
+        p={isMobile ? 'md' : 'xl'}
+        className={classes.modalCard}
+      >
+        <Stack className={classes.modalStack}>
           <Title order={3}>Set Password</Title>
-          <Text c="dimmed">
+          <Text c="dimmed" className={classes.modalIntro}>
             Finish your Projex invite by choosing a password for your BetterAuth
             account.
           </Text>
@@ -113,16 +119,11 @@ export default function ResetPasswordPage() {
                   you just updated.
                 </Alert>
               ) : null}
-              <Text c="dimmed">
+              <Text c="dimmed" className={classes.modalIntro}>
                 If you were testing with multiple accounts, use Return to sign
                 in so you can start a fresh login with the updated password.
               </Text>
-              <Group
-                justify="space-between"
-                align="center"
-                wrap="wrap"
-                gap="sm"
-              >
+              <Group className={classes.footerRowBetween}>
                 <Button onClick={() => router.navigate({ to: loginRoute.to })}>
                   Return to sign in
                 </Button>
@@ -152,12 +153,7 @@ export default function ResetPasswordPage() {
                 autoComplete="new-password"
                 required
               />
-              <Group
-                justify="space-between"
-                align="center"
-                wrap="wrap"
-                gap="sm"
-              >
+              <Group className={classes.footerRowBetween}>
                 <Button
                   variant="light"
                   onClick={() => router.navigate({ to: loginRoute.to })}

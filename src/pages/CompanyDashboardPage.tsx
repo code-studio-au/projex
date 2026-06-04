@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Badge,
   Button,
@@ -36,10 +36,16 @@ import CompanySummaryPanel from '../components/CompanySummaryPanel';
 import CompanySettingsPanel from '../components/CompanySettingsPanel';
 import { LoadingLine } from '../components/LoadingValue';
 import { companyRoute, landingRoute, projectRoute } from '../router';
+import { Route as companyDashboardIndexRoute } from '../routes/_authed.c.$companyId.index';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
+import classes from '../styles/ui.module.css';
 
 type CompanyDashboardTab = 'summary' | 'projects' | 'settings';
+
+const hydrateSubscription = () => () => {};
+const getClientHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 function toCompanyDashboardTab(value: string | null): CompanyDashboardTab {
   if (value === 'summary' || value === 'projects' || value === 'settings') {
@@ -50,9 +56,16 @@ function toCompanyDashboardTab(value: string | null): CompanyDashboardTab {
 
 export default function CompanyDashboardPage() {
   const { companyId: rawCompanyId } = companyRoute.useParams();
+  const loaderData = companyRoute.useLoaderData();
+  const dashboardSearch = companyDashboardIndexRoute.useSearch();
   const companyId: CompanyId = asCompanyId(rawCompanyId);
   const isMobile = useMediaQuery('(max-width: 48em)');
   const router = useRouter();
+  const isHydrated = useSyncExternalStore(
+    hydrateSubscription,
+    getClientHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
 
   const companyQ = useCompanyQuery(companyId);
   const projectsQ = useProjectsQuery(companyId);
@@ -65,15 +78,16 @@ export default function CompanyDashboardPage() {
   const usersQ = useUsersQuery();
 
   const createProject = useCreateProjectMutation(companyId);
-  const canAddProjects = access.can('project:create');
+  const canAddProjectsByAccess = access.can('project:create');
 
   const deactivateProject = useDeactivateProjectMutation(companyId);
   const reactivateProject = useReactivateProjectMutation(companyId);
   const deleteProject = useDeleteProjectMutation(companyId);
   const canAccessSettings =
-    canUpdateCompanyDetails ||
-    canManageCompanyMembers ||
-    canManageCompanyDefaults;
+    loaderData?.canAccessSettings ??
+    (canUpdateCompanyDetails ||
+      canManageCompanyMembers ||
+      canManageCompanyDefaults);
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -83,25 +97,39 @@ export default function CompanyDashboardPage() {
     useState<Project['currency']>('AUD');
   const [newProjectParentId, setNewProjectParentId] =
     useState<ProjectId | null>(null);
-  const [activeTab, setActiveTab] = useState<CompanyDashboardTab>('summary');
 
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
-  const sortedProjects = useMemo(
-    () =>
-      [...rows].sort((a, b) => {
-        if (a.status !== b.status) return a.status.localeCompare(b.status);
-        if (a.projectType !== b.projectType) {
-          return a.projectType === 'programme' ? -1 : 1;
-        }
-        if (a.parentProjectId !== b.parentProjectId) {
-          return (a.parentProjectId ?? '').localeCompare(
-            b.parentProjectId ?? ''
-          );
-        }
-        return a.name.localeCompare(b.name);
-      }),
-    [rows]
-  );
+  const groupedProjects = useMemo(() => {
+    const projectsById = new Map(rows.map((project) => [project.id, project]));
+    const childProjectsByParent = new Map<ProjectId, Project[]>();
+    const topLevelProjects: Project[] = [];
+
+    for (const project of rows) {
+      if (
+        project.parentProjectId &&
+        projectsById.get(project.parentProjectId)?.projectType === 'programme' &&
+        projectsById.get(project.parentProjectId)?.status === 'active'
+      ) {
+        const current = childProjectsByParent.get(project.parentProjectId) ?? [];
+        current.push(project);
+        childProjectsByParent.set(project.parentProjectId, current);
+      } else {
+        topLevelProjects.push(project);
+      }
+    }
+
+    return topLevelProjects.flatMap((project) => [
+      { ...project, isChild: false },
+      ...(project.projectType === 'programme'
+        ? [...(childProjectsByParent.get(project.id) ?? [])]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((childProject) => ({
+              ...childProject,
+              isChild: true,
+            }))
+        : []),
+    ]);
+  }, [rows]);
   const programmeOptions = useMemo(
     () =>
       rows
@@ -136,17 +164,21 @@ export default function CompanyDashboardPage() {
     );
     return ids.size;
   }, [memberships, access.userId]);
-  const isGlobalSuperadmin = useMemo(
-    () =>
-      (usersQ.data ?? []).find((user) => user.id === access.userId)
-        ?.isGlobalSuperadmin === true,
-    [access.userId, usersQ.data]
-  );
+  const isGlobalSuperadmin =
+    (usersQ.data ?? []).find((user) => user.id === access.userId)
+      ?.isGlobalSuperadmin ??
+    loaderData?.isGlobalSuperadmin ??
+    false;
   const canViewCompanySummary =
-    access.isAdmin ||
-    access.isExecutive ||
-    (isGlobalSuperadmin && sortedProjects.length > 0);
-  const showSwitchCompany = isGlobalSuperadmin || userCompanyCount > 1;
+    loaderData?.canViewCompanySummary ??
+    (access.isAdmin ||
+      access.isExecutive ||
+      (isGlobalSuperadmin && rows.length > 0));
+  const showSwitchCompany =
+    (loaderData?.isGlobalSuperadmin ?? isGlobalSuperadmin) ||
+    (loaderData?.userCompanyCount ?? userCompanyCount) > 1;
+  const canAddProjects =
+    canAddProjectsByAccess || (loaderData?.isGlobalSuperadmin ?? false);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -228,46 +260,77 @@ export default function CompanyDashboardPage() {
   }, [confirmText, confirmTarget, requiredConfirmText]);
 
   const resolvedActiveTab: 'summary' | 'projects' | 'settings' =
+    (dashboardSearch.tab
+      ? toCompanyDashboardTab(dashboardSearch.tab)
+      : loaderData?.canViewCompanySummary
+        ? 'summary'
+        : 'projects') as CompanyDashboardTab;
+  const safeActiveTab: 'summary' | 'projects' | 'settings' =
     canViewCompanySummary
-      ? activeTab === 'settings'
+      ? resolvedActiveTab === 'settings'
         ? 'settings'
-        : activeTab === 'projects'
+        : resolvedActiveTab === 'projects'
           ? 'projects'
           : 'summary'
-      : activeTab === 'summary'
+      : resolvedActiveTab === 'summary'
         ? 'projects'
-        : activeTab;
+        : resolvedActiveTab;
 
-  const projectColumns: MRT_ColumnDef<(typeof rows)[number]>[] = [
+  const projectColumns: MRT_ColumnDef<(typeof groupedProjects)[number]>[] = [
     {
       accessorKey: 'name',
       header: 'Project / programme',
-      Cell: ({ row }) => (
-        <Stack gap={2}>
-          <Group gap="xs" wrap="wrap">
-            <Text fw={600}>{row.original.name}</Text>
-            {row.original.projectType === 'programme' ? (
-              <Badge variant="light" color="blue">
-                Programme
-              </Badge>
-            ) : null}
-          </Group>
-          {row.original.parentProjectId ? (
-            <Text size="xs" c="dimmed">
-              Sub-project of{' '}
-              {programmeNameById.get(row.original.parentProjectId) ??
-                'programme'}
+      Cell: ({ row }) => {
+        const project = row.original;
+        const canOpen =
+          project.status === 'active' &&
+          (isGlobalSuperadmin
+            ? project.allowSuperadminAccess
+            : access.can('project:view', project.id));
+
+        const nameContent = canOpen ? (
+          <Link
+            to={projectRoute.to}
+            params={{ companyId, projectId: project.id }}
+            className={classes.plainLink}
+          >
+            <Text
+              component="span"
+              className="table-body-left-bold table-link-text"
+            >
+              {project.isChild ? `- ${project.name}` : project.name}
             </Text>
-          ) : null}
-        </Stack>
-      ),
+          </Link>
+        ) : (
+          <Text className="table-body-left-bold">
+            {project.isChild ? `- ${project.name}` : project.name}
+          </Text>
+        );
+
+        return (
+          <Stack gap={2} pl={project.isChild ? 'md' : 0}>
+            <Group gap="xs" wrap="wrap">
+              {nameContent}
+              {project.projectType === 'programme' ? (
+                <Badge variant="light">Programme</Badge>
+              ) : null}
+            </Group>
+            {project.parentProjectId ? (
+              <Text className="table-body-left" c="dimmed">
+                Sub-project of{' '}
+                {programmeNameById.get(project.parentProjectId) ?? 'programme'}
+              </Text>
+            ) : null}
+          </Stack>
+        );
+      },
     },
     {
       accessorKey: 'projectType',
       header: 'Type',
       Cell: ({ row }) =>
         row.original.projectType === 'programme' ? (
-          <Badge variant="light" color="blue">
+          <Badge variant="light">
             Programme
           </Badge>
         ) : (
@@ -283,7 +346,7 @@ export default function CompanyDashboardPage() {
         row.original.visibility === 'private' ? (
           <Badge variant="light">Private</Badge>
         ) : (
-          <Badge variant="light" color="blue">
+          <Badge variant="light">
             Company
           </Badge>
         ),
@@ -292,37 +355,13 @@ export default function CompanyDashboardPage() {
       id: 'actions',
       header: 'Actions',
       enableSorting: false,
-      size: 320,
-      minSize: 320,
+      size: 240,
+      minSize: 240,
       Cell: ({ row }) => {
         const project = row.original;
-        const canOpen =
-          project.status === 'active' &&
-          (isGlobalSuperadmin
-            ? project.allowSuperadminAccess
-            : access.can('project:view', project.id));
 
         return (
           <Group gap="xs" wrap="nowrap">
-            {canOpen ? (
-              <Button
-                size="xs"
-                variant="filled"
-                onClick={() =>
-                  router.navigate({
-                    to: projectRoute.to,
-                    params: { companyId, projectId: project.id },
-                  })
-                }
-              >
-                Open
-              </Button>
-            ) : (
-              <Button size="xs" variant="light" disabled>
-                Open
-              </Button>
-            )}
-
             {access.can('project:lifecycle', project.id) &&
               (project.status === 'active' ? (
                 <Button
@@ -381,14 +420,30 @@ export default function CompanyDashboardPage() {
   ];
 
   return (
-    <Stack gap="lg">
-      <Group justify="space-between" align="center" wrap="wrap">
-        {companyQ.isLoading ? (
-          <LoadingLine width={220} height={34} radius="md" />
-        ) : (
-          <Title order={2}>{companyQ.data?.name}</Title>
-        )}
-        <Group gap="sm" wrap="wrap">
+    <Stack gap="lg" className={classes.pageStack}>
+      <Paper className={classes.pageHero} radius="xl">
+        <div className={classes.sectionHeader}>
+          <div>
+            <Text className={classes.sectionEyebrow}>Company workspace</Text>
+            {companyQ.isLoading ? (
+              loaderData?.companyName ? (
+                <Title order={2} className={classes.pageHeroTitle} mt={4}>
+                  {loaderData.companyName}
+                </Title>
+              ) : (
+                <LoadingLine width={220} height={34} radius="md" />
+              )
+            ) : (
+              <Title order={2} className={classes.pageHeroTitle} mt={4}>
+                {companyQ.data?.name}
+              </Title>
+            )}
+            <Text className={classes.pageHeroCopy} mt="xs">
+              Review projects and programmes, switch into company settings, and
+              keep company-level reporting streamlined.
+            </Text>
+          </div>
+          <div className={classes.pageHeroActions}>
           {canAddProjects && (
             <>
               <Button variant="filled" onClick={() => setNewProjectOpen(true)}>
@@ -503,20 +558,33 @@ export default function CompanyDashboardPage() {
 
           {showSwitchCompany && (
             <Link to={landingRoute.to}>
-              <Button component="span" variant="light">
+              <Button component="span" variant="default">
                 Switch company
               </Button>
             </Link>
           )}
-        </Group>
-      </Group>
+          </div>
+        </div>
+      </Paper>
 
       <Tabs
-        value={resolvedActiveTab}
-        onChange={(value) => setActiveTab(toCompanyDashboardTab(value))}
+        value={safeActiveTab}
+        onChange={(value) => {
+          const nextTab = toCompanyDashboardTab(value);
+          router.navigate({
+            to: companyDashboardIndexRoute.to,
+            params: { companyId },
+            search: (prev) => ({
+              ...prev,
+              tab: nextTab,
+            }),
+            replace: true,
+          });
+        }}
         keepMounted={false}
+        className={classes.softTabs}
       >
-        <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
+        <Tabs.List>
           {canViewCompanySummary ? (
             <Tabs.Tab value="summary">Summary</Tabs.Tab>
           ) : null}
@@ -527,11 +595,15 @@ export default function CompanyDashboardPage() {
         </Tabs.List>
 
         <Tabs.Panel value="projects" pt="md">
-          {rows.length > 0 ? (
-            <Stack gap="md">
+          {!isHydrated ? (
+            <Paper className={classes.surfaceCard} radius="xl" p="lg">
+              <Text c="dimmed">Loading projects and programmes...</Text>
+            </Paper>
+          ) : rows.length > 0 ? (
+            <div className={classes.tableWrap}>
               <MantineReactTable
                 columns={projectColumns}
-                data={sortedProjects}
+                data={groupedProjects}
                 mantineTableContainerProps={{ className: 'financeTable' }}
                 enableColumnActions={false}
                 enableColumnFilters={false}
@@ -550,9 +622,9 @@ export default function CompanyDashboardPage() {
                   withTableBorder: true,
                 }}
               />
-            </Stack>
+            </div>
           ) : (
-            <Paper withBorder radius="lg" p="lg">
+            <Paper className={classes.surfaceCard} radius="xl" p="lg">
               <Text c="dimmed">
                 No projects or programmes found for this company yet.
               </Text>

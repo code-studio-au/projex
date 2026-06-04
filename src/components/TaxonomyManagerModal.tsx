@@ -16,6 +16,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
+import classes from '../styles/ui.module.css';
 
 export default function TaxonomyManagerModal(props: {
   opened: boolean;
@@ -262,7 +263,7 @@ export default function TaxonomyManagerModal(props: {
                           setError(null);
                         }
                       }}
-                      style={{ flex: 1, minWidth: isMobile ? '100%' : 0 }}
+                      className={classes.fieldGrow}
                       disabled={readOnly}
                     />
                     {isMobile ? (
@@ -317,7 +318,7 @@ export default function TaxonomyManagerModal(props: {
                           [cat.id]: value,
                         }));
                       }}
-                      style={{ width: '100%' }}
+                      className={classes.fieldGrow}
                       disabled={readOnly}
                     />
                     <Button
@@ -350,7 +351,7 @@ export default function TaxonomyManagerModal(props: {
                   </Group>
 
                   {subcats.length === 0 ? (
-                    <Text size="sm" c="dimmed" className="panelHelperText">
+                    <Text className={classes.emptyState}>
                       No subcategories yet.
                     </Text>
                   ) : (
@@ -385,7 +386,7 @@ export default function TaxonomyManagerModal(props: {
                                 setError(null);
                               }
                             }}
-                            style={{ width: '100%', flex: 1 }}
+                            className={classes.fieldGrow}
                             disabled={readOnly}
                           />
                           <Select
@@ -409,10 +410,7 @@ export default function TaxonomyManagerModal(props: {
                                 );
                               }
                             }}
-                            style={{
-                              width: '100%',
-                              maxWidth: isMobile ? '100%' : 220,
-                            }}
+                            className={classes.fieldGrow}
                             disabled={readOnly}
                           />
                           {isMobile ? (
@@ -471,12 +469,12 @@ export default function TaxonomyManagerModal(props: {
         fullScreen={isMobile}
       >
         <Stack gap="md">
-          <Text size="sm" c="dimmed" className="panelHelperText">
+          <Text size="sm" c="dimmed" className={classes.modalIntro}>
             {pendingDelete?.kind === 'category'
               ? `Deleting "${pendingDelete.name}" will remove its subcategories and uncoded affected transactions and budgets.`
               : `Deleting "${pendingDelete?.name ?? ''}" will uncode affected transactions and budgets.`}
           </Text>
-          <Group justify="flex-end" wrap="wrap">
+          <Group className={classes.footerRow}>
             <Button
               variant="light"
               fullWidth={isMobile}

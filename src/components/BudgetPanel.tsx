@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   ActionIcon,
   Alert,
@@ -36,6 +36,11 @@ import {
 } from '../utils/finance';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 import { LoadingLine } from './LoadingValue';
+import classes from '../styles/ui.module.css';
+
+const hydrateSubscription = () => () => {};
+const getClientHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 type BudgetRollupRowWithTaxonomy = RollupRow & {
   categoryId: CategoryId;
@@ -58,27 +63,6 @@ function toQuarter(value: string | null): Quarter | null {
   }
   return null;
 }
-
-const HEADER_STYLE = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 4,
-  justifyContent: 'flex-end',
-} as const;
-
-const DRILLDOWN_BUTTON_STYLE = {
-  appearance: 'none',
-  background: 'transparent',
-  border: 0,
-  color: 'inherit',
-  cursor: 'pointer',
-  font: 'inherit',
-  padding: 0,
-  textAlign: 'left',
-  textDecoration: 'underline',
-  textDecorationColor: 'rgba(0, 0, 0, 0.25)',
-  textUnderlineOffset: 3,
-} as const;
 
 /**
  * Budget rollup table (UI-only).
@@ -134,6 +118,11 @@ export default function BudgetPanel(props: {
   } = props;
 
   const { updateAllocated } = budgets;
+  const isHydrated = useSyncExternalStore(
+    hydrateSubscription,
+    getClientHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
   const [collapsedYears, setCollapsedYears] = useState<Set<number>>(new Set());
   const [collapsedQuarters, setCollapsedQuarters] = useState<Set<string>>(
     new Set()
@@ -362,7 +351,7 @@ export default function BudgetPanel(props: {
             size: 128,
             minSize: 128,
             enableHiding: true,
-            Header: () => <span style={HEADER_STYLE}>{year} Total</span>,
+            Header: () => <span className={classes.inlineHeader}>{year} Total</span>,
             accessorFn: (row) => sumMonths(row, yearMonths),
             Cell: ({ cell }) => (
               <Text className="table-body-emphasis">
@@ -397,7 +386,7 @@ export default function BudgetPanel(props: {
                   minSize: 124,
                   enableHiding: true,
                   Header: () => (
-                    <span style={HEADER_STYLE}>{quarter} Total</span>
+                  <span className={classes.inlineHeader}>{quarter} Total</span>
                   ),
                   accessorFn: (row) => sumMonths(row, months),
                   Cell: ({ cell }) => (
@@ -433,7 +422,7 @@ export default function BudgetPanel(props: {
                   minSize: 112,
                   enableHiding: false,
                   Header: () => (
-                    <span style={HEADER_STYLE}>{formatMonthLabel(mk)}</span>
+                  <span className={classes.inlineHeader}>{formatMonthLabel(mk)}</span>
                   ),
                   accessorFn: (row) => row.actualByMonthKey[mk] ?? 0,
                   Cell: ({ cell }) => (
@@ -483,12 +472,7 @@ export default function BudgetPanel(props: {
             <Text
               component={handleDrilldown ? 'button' : 'span'}
               type={handleDrilldown ? 'button' : undefined}
-              className={
-                row.original.rowKind === 'category'
-                  ? 'table-body-left-bold'
-                  : 'table-body-left'
-              }
-              style={handleDrilldown ? DRILLDOWN_BUTTON_STYLE : undefined}
+              className={`${row.original.rowKind === 'category' ? 'table-body-left-bold' : 'table-body-left'}${handleDrilldown ? ` ${classes.drilldownButton}` : ''}`}
               onClick={handleDrilldown}
             >
               {row.original.rowKind === 'category'
@@ -523,12 +507,7 @@ export default function BudgetPanel(props: {
             <Text
               component={handleDrilldown ? 'button' : 'span'}
               type={handleDrilldown ? 'button' : undefined}
-              className={
-                row.original.rowKind === 'category'
-                  ? 'table-body-left-bold'
-                  : 'budgetTable-subcategory'
-              }
-              style={handleDrilldown ? DRILLDOWN_BUTTON_STYLE : undefined}
+              className={`${row.original.rowKind === 'category' ? 'table-body-left-bold' : 'budgetTable-subcategory'}${handleDrilldown ? ` ${classes.drilldownButton}` : ''}`}
               onClick={handleDrilldown}
             >
               {row.original.rowKind === 'category'
@@ -626,8 +605,8 @@ export default function BudgetPanel(props: {
   ]);
 
   return (
-    <Stack gap="md">
-      <Paper withBorder radius="md" p="md">
+    <Stack gap="lg" className={classes.pageStack}>
+      <Paper className={classes.filterCard} radius="xl">
         <Group align="flex-end" gap="sm" wrap="wrap">
           <Select
             label="Year"
@@ -675,19 +654,21 @@ export default function BudgetPanel(props: {
         </Group>
       </Paper>
 
-      <Paper withBorder radius="md" p="md" className="budgetSummaryCard">
+      <Paper
+        className={`${classes.surfaceCard} budgetSummaryCard`}
+        radius="xl"
+        p="md"
+      >
         <Stack gap="xs">
           <Group justify="space-between" align="center" wrap="wrap">
-            <Text fw={700} size="sm">
+            <Text className={classes.sectionEyebrow}>
               Project totals
             </Text>
           </Group>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
             <Paper
-              withBorder
-              radius="md"
-              p="sm"
-              className="budgetMetricCard budgetSummaryPrimary"
+              withBorder={false}
+              className={`${classes.statCard} budgetMetricCard budgetSummaryPrimary`}
             >
               <Stack gap={4}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
@@ -775,7 +756,10 @@ export default function BudgetPanel(props: {
               </Stack>
             </Paper>
 
-            <Paper withBorder radius="md" p="sm" className="budgetMetricCard">
+            <Paper
+              withBorder={false}
+              className={`${classes.statCard} budgetMetricCard`}
+            >
               <Stack gap={4}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Allocated
@@ -815,7 +799,10 @@ export default function BudgetPanel(props: {
               </Stack>
             </Paper>
 
-            <Paper withBorder radius="md" p="sm" className="budgetMetricCard">
+            <Paper
+              withBorder={false}
+              className={`${classes.statCard} budgetMetricCard`}
+            >
               <Stack gap={4}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Actual
@@ -855,7 +842,10 @@ export default function BudgetPanel(props: {
               </Stack>
             </Paper>
 
-            <Paper withBorder radius="md" p="sm" className="budgetMetricCard">
+            <Paper
+              withBorder={false}
+              className={`${classes.statCard} budgetMetricCard`}
+            >
               <Stack gap={4}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Remaining
@@ -915,84 +905,101 @@ export default function BudgetPanel(props: {
         </Stack>
       </Paper>
 
-      <MantineReactTable
-        columns={budgetColumns}
-        data={displayRows}
-        getRowId={(row) => row.rowId}
-        state={{ columnVisibility }}
-        onColumnVisibilityChange={handleColumnVisibilityChange}
-        mantineTableContainerProps={{ className: 'financeTable budgetTable' }}
-        mantineTableBodyCellProps={{
-          style: { verticalAlign: 'middle' },
-        }}
-        renderToolbarInternalActions={() => (
-          <Menu withinPortal position="bottom-end" shadow="md">
-            <Menu.Target>
-              <ActionIcon
-                variant="light"
-                color="gray"
-                aria-label="Show or hide budget columns"
-              >
-                <IconColumns size={16} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown className="budgetColumnMenu">
-              {Array.from(timeHierarchy.byYear.entries())
-                .sort(([a], [b]) => a - b)
-                .map(([year, entry]) => {
-                  const yearId = `yt_${year}`;
-                  return (
-                    <Stack key={yearId} gap={4} p="xs">
-                      <Switch
-                        checked={userColumnVisibility[yearId] ?? true}
-                        label={`${year} Total`}
-                        onChange={(event) =>
-                          toggleYearVisibility(
-                            year,
-                            event.currentTarget.checked
-                          )
-                        }
-                      />
-                      {entry.quarterIds.map((quarterId) => (
-                        <Switch
-                          key={quarterId}
-                          checked={userColumnVisibility[quarterId] ?? true}
-                          label={quarterId.replace(/^qt_\d+_/, '') + ' Total'}
-                          onChange={(event) =>
-                            toggleQuarterVisibility(
-                              quarterId,
-                              event.currentTarget.checked
-                            )
-                          }
-                          ml="lg"
-                        />
-                      ))}
-                      <Menu.Divider />
-                    </Stack>
-                  );
-                })}
-            </Menu.Dropdown>
-          </Menu>
+      <div className={classes.tableWrap}>
+        {isHydrated ? (
+          <MantineReactTable
+            columns={budgetColumns}
+            data={displayRows}
+            getRowId={(row) => row.rowId}
+            state={{ columnVisibility }}
+            onColumnVisibilityChange={handleColumnVisibilityChange}
+            mantineTableContainerProps={{
+              className: 'financeTable budgetTable',
+            }}
+            mantineTableBodyCellProps={{
+              style: { verticalAlign: 'middle' },
+            }}
+            renderToolbarInternalActions={() => (
+              <Menu withinPortal position="bottom-end" shadow="md">
+                <Menu.Target>
+                  <ActionIcon
+                    variant="light"
+                    color="gray"
+                    aria-label="Show or hide budget columns"
+                  >
+                    <IconColumns size={16} />
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown className="budgetColumnMenu">
+                  {Array.from(timeHierarchy.byYear.entries())
+                    .sort(([a], [b]) => a - b)
+                    .map(([year, entry]) => {
+                      const yearId = `yt_${year}`;
+                      return (
+                        <Stack key={yearId} gap={4} p="xs">
+                          <Switch
+                            checked={userColumnVisibility[yearId] ?? true}
+                            label={`${year} Total`}
+                            onChange={(event) =>
+                              toggleYearVisibility(
+                                year,
+                                event.currentTarget.checked
+                              )
+                            }
+                          />
+                          {entry.quarterIds.map((quarterId) => (
+                            <Switch
+                              key={quarterId}
+                              checked={userColumnVisibility[quarterId] ?? true}
+                              label={
+                                quarterId.replace(/^qt_\d+_/, '') + ' Total'
+                              }
+                              onChange={(event) =>
+                                toggleQuarterVisibility(
+                                  quarterId,
+                                  event.currentTarget.checked
+                                )
+                              }
+                              ml="lg"
+                            />
+                          ))}
+                          <Menu.Divider />
+                        </Stack>
+                      );
+                    })}
+                </Menu.Dropdown>
+              </Menu>
+            )}
+            mantineTableBodyRowProps={({ row }) => ({
+              className:
+                row.original.rowKind === 'category'
+                  ? 'budgetTable-row budgetTable-row-category'
+                  : 'budgetTable-row budgetTable-row-subcategory',
+            })}
+            mantineTableProps={{
+              highlightOnHover: false,
+              withTableBorder: true,
+              style: { tableLayout: 'fixed' },
+            }}
+            mantineTopToolbarProps={{ className: 'budgetTable-toolbar' }}
+            enablePagination={false}
+            enableSorting={false}
+            enableTopToolbar
+            enableDensityToggle={false}
+            enableFullScreenToggle={false}
+            enableColumnActions={false}
+          />
+        ) : (
+          <Paper className={classes.surfaceMuted} radius="xl" p="md">
+            <Stack gap="sm">
+              <LoadingLine width="100%" height={18} radius="sm" />
+              <LoadingLine width="100%" height={18} radius="sm" />
+              <LoadingLine width="100%" height={18} radius="sm" />
+              <LoadingLine width="100%" height={18} radius="sm" />
+            </Stack>
+          </Paper>
         )}
-        mantineTableBodyRowProps={({ row }) => ({
-          className:
-            row.original.rowKind === 'category'
-              ? 'budgetTable-row budgetTable-row-category'
-              : 'budgetTable-row budgetTable-row-subcategory',
-        })}
-        mantineTableProps={{
-          highlightOnHover: false,
-          withTableBorder: true,
-          style: { tableLayout: 'fixed' },
-        }}
-        mantineTopToolbarProps={{ className: 'budgetTable-toolbar' }}
-        enablePagination={false}
-        enableSorting={false}
-        enableTopToolbar
-        enableDensityToggle={false}
-        enableFullScreenToggle={false}
-        enableColumnActions={false}
-      />
+      </div>
     </Stack>
   );
 }

@@ -11,23 +11,24 @@ import {
 import { Link, isNotFound, useRouter } from '@tanstack/react-router';
 
 import { homeRoute } from '../router';
+import classes from '../styles/ui.module.css';
 
 export function RootNotFoundComponent() {
   return (
     <Container size="sm" py="xl">
-      <Paper withBorder radius="lg" p="xl">
-        <Stack gap="md">
+      <Paper withBorder radius="lg" p="xl" className={classes.modalCard}>
+        <Stack className={classes.modalStack}>
           <Group justify="space-between" align="center">
             <Title order={2}>Page not found</Title>
             <Badge variant="light" color="gray">
               404
             </Badge>
           </Group>
-          <Text c="dimmed">
+          <Text c="dimmed" className={classes.modalIntro}>
             That route doesn’t exist. If you followed a link, it may be
             outdated.
           </Text>
-          <Group justify="flex-end">
+          <Group className={classes.footerRow}>
             <Link to={homeRoute.to}>
               <Button component="span">Go home</Button>
             </Link>
@@ -52,8 +53,8 @@ export function RootErrorComponent(props: { error: unknown }) {
 
   return (
     <Container size="sm" py="xl">
-      <Paper withBorder radius="lg" p="xl">
-        <Stack gap="md">
+      <Paper withBorder radius="lg" p="xl" className={classes.modalCard}>
+        <Stack className={classes.modalStack}>
           <Group justify="space-between" align="center">
             <Title order={2}>
               {is404 ? 'Not found' : 'Something went wrong'}
@@ -62,9 +63,11 @@ export function RootErrorComponent(props: { error: unknown }) {
               {is404 ? '404' : 'error'}
             </Badge>
           </Group>
-          <Text c="dimmed">{message}</Text>
+          <Text c="dimmed" className={classes.modalIntro}>
+            {message}
+          </Text>
 
-          <Group justify="flex-end">
+          <Group className={classes.footerRow}>
             <Button
               variant="light"
               onClick={() => {

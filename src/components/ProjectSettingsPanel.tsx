@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Badge,
   Button,
@@ -42,6 +42,12 @@ import {
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { getCompanyUsers } from '../store/access';
 import { companyRoute } from '../router';
+import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
+import classes from '../styles/ui.module.css';
+
+const hydrateSubscription = () => () => {};
+const getClientHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 function toProjectRole(value: string | null): ProjectRole | null {
   if (!value) return null;
@@ -73,7 +79,13 @@ export default function ProjectSettingsPanel(props: {
   projectId: ProjectId;
 }) {
   const { companyId, projectId } = props;
+  const loaderData = projectWorkspaceRoute.useLoaderData();
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const isHydrated = useSyncExternalStore(
+    hydrateSubscription,
+    getClientHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
   const router = useRouter();
 
   const project = useProjectQuery(projectId);
@@ -84,12 +96,65 @@ export default function ProjectSettingsPanel(props: {
 
   const access = useCompanyAccess(companyId);
   const updateProject = useUpdateProjectMutation(companyId);
+  const effectiveProject = useMemo(
+    () => ({
+      id: projectId,
+      projectType:
+        (isHydrated ? project.data?.projectType : undefined) ??
+        loaderData?.projectType ??
+        'project',
+      currency:
+        (isHydrated ? project.data?.currency : undefined) ??
+        loaderData?.currencyCode ??
+        'AUD',
+      visibility:
+        (isHydrated ? project.data?.visibility : undefined) ??
+        loaderData?.projectVisibility ??
+        'private',
+      parentProjectId:
+        (isHydrated ? project.data?.parentProjectId : undefined) ??
+        loaderData?.parentProjectId ??
+        null,
+      allowSuperadminAccess:
+        (isHydrated ? project.data?.allowSuperadminAccess : undefined) ??
+        loaderData?.allowSuperadminAccess ??
+        false,
+      allowTxnTransfers:
+        (isHydrated ? project.data?.allowTxnTransfers : undefined) ??
+        loaderData?.allowTxnTransfers ??
+        false,
+    }),
+    [
+      isHydrated,
+      loaderData?.allowSuperadminAccess,
+      loaderData?.allowTxnTransfers,
+      loaderData?.currencyCode,
+      loaderData?.parentProjectId,
+      loaderData?.projectType,
+      loaderData?.projectVisibility,
+      project.data?.allowSuperadminAccess,
+      project.data?.allowTxnTransfers,
+      project.data?.currency,
+      project.data?.parentProjectId,
+      project.data?.projectType,
+      project.data?.visibility,
+      projectId,
+    ]
+  );
 
-  const canEditProject = access.can('project:edit', projectId);
-  const canEditCompanyStructure = access.can('project:configure', projectId);
+  const canEditProject = isHydrated
+    ? loaderData?.canProjectEdit || access.can('project:edit', projectId)
+    : (loaderData?.canProjectEdit ?? false);
+  const canEditCompanyStructure = isHydrated
+    ? loaderData?.canEditCompanyStructure ||
+      access.can('project:configure', projectId)
+    : (loaderData?.canEditCompanyStructure ?? false);
+  const effectiveIsSuperadmin = isHydrated
+    ? access.isSuperadmin
+    : (loaderData?.isGlobalSuperadmin ?? false);
   const canManageTransferCapability =
     canEditCompanyStructure &&
-    (!access.isSuperadmin || (project.data?.allowSuperadminAccess ?? false));
+    (!effectiveIsSuperadmin || effectiveProject.allowSuperadminAccess);
   const programmeOptions = useMemo(
     () =>
       (projects.data ?? [])
@@ -98,11 +163,11 @@ export default function ProjectSettingsPanel(props: {
             candidate.id !== projectId &&
             candidate.status === 'active' &&
             candidate.projectType === 'programme' &&
-            candidate.currency === project.data?.currency
+            candidate.currency === effectiveProject.currency
         )
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((candidate) => ({ value: candidate.id, label: candidate.name })),
-    [project.data?.currency, projectId, projects.data]
+    [effectiveProject.currency, projectId, projects.data]
   );
 
   const companyUsers = useMemo(
@@ -161,9 +226,9 @@ export default function ProjectSettingsPanel(props: {
         header: 'User',
         Cell: ({ row }) => (
           <Stack gap={2}>
-            <Text fw={600}>{row.original.name}</Text>
+            <Text className="table-body-left-bold">{row.original.name}</Text>
             {row.original.email ? (
-              <Text size="xs" c="dimmed">
+              <Text className="table-body-left" c="dimmed">
                 {row.original.email}
               </Text>
             ) : null}
@@ -201,19 +266,8 @@ export default function ProjectSettingsPanel(props: {
     [canEditProject, del]
   );
 
-  if (!project.data) {
-    return (
-      <Paper withBorder radius="lg" p="lg">
-        <Stack>
-          <Title order={4}>No project selected</Title>
-          <Text c="dimmed">Select a project from the dashboard.</Text>
-        </Stack>
-      </Paper>
-    );
-  }
-
   const nextSuperadminAccess =
-    pendingSuperadminAccess ?? project.data.allowSuperadminAccess;
+    pendingSuperadminAccess ?? effectiveProject.allowSuperadminAccess;
   const toggleLabel = nextSuperadminAccess
     ? 'Enable superadmin access'
     : 'Disable superadmin access';
@@ -222,8 +276,8 @@ export default function ProjectSettingsPanel(props: {
     : 'Superadmin will no longer be able to see this project, its budget, transactions, or settings unless access is re-enabled later. Are you sure you want to disable this access?';
 
   return (
-    <Stack gap="lg">
-      <Paper withBorder radius="lg" p="lg">
+    <Stack gap="lg" className={classes.pageStack}>
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
           <Group justify="space-between" align="flex-start" wrap="wrap">
             <Title order={5}>Project settings</Title>
@@ -235,7 +289,7 @@ export default function ProjectSettingsPanel(props: {
             <Select
               label="Type"
               description="Programmes are reporting-only; projects hold budgets, transactions, imports, and coding. Company admins/executives manage this structure."
-              value={project.data.projectType}
+              value={effectiveProject.projectType}
               onChange={(v) => {
                 if (!v || !isProjectType(v)) return;
                 updateProject.mutate({
@@ -253,12 +307,12 @@ export default function ProjectSettingsPanel(props: {
             <Select
               label="Programme"
               description="Optional reporting programme that this project rolls up into. Company admins/executives manage this structure."
-              value={project.data.parentProjectId ?? null}
+              value={effectiveProject.parentProjectId ?? null}
               data={programmeOptions}
               clearable
               disabled={
                 !canEditCompanyStructure ||
-                project.data.projectType === 'programme'
+                effectiveProject.projectType === 'programme'
               }
               onChange={(v) =>
                 updateProject.mutate({
@@ -270,7 +324,7 @@ export default function ProjectSettingsPanel(props: {
             <Select
               label="Currency"
               description="Controls how money is formatted throughout this project workspace."
-              value={project.data.currency}
+              value={effectiveProject.currency}
               onChange={(v) => {
                 if (!v || !isProjectCurrency(v)) return;
                 updateProject.mutate({
@@ -289,7 +343,7 @@ export default function ProjectSettingsPanel(props: {
             <Select
               label="Visibility"
               description="Controls whether non-members can see this project in the company project list. Opening still requires membership unless you are Admin/Exec/Superadmin."
-              value={project.data.visibility}
+              value={effectiveProject.visibility}
               onChange={(v) => {
                 if (!v || !isProjectVisibility(v)) return;
                 updateProject.mutate({
@@ -309,7 +363,7 @@ export default function ProjectSettingsPanel(props: {
             <Switch
               label="Allow superadmin access"
               description="Controls whether the global superadmin can open this project for support and troubleshooting. This is on by default for now."
-              checked={project.data.allowSuperadminAccess}
+              checked={effectiveProject.allowSuperadminAccess}
               onChange={(event) =>
                 setPendingSuperadminAccess(event.currentTarget.checked)
               }
@@ -318,7 +372,7 @@ export default function ProjectSettingsPanel(props: {
             <Switch
               label="Allow transaction transfers out"
               description="Company admins, executives, and management can enable whether this project may move transactions to another project. Programmes cannot transfer transactions."
-              checked={project.data.allowTxnTransfers}
+              checked={effectiveProject.allowTxnTransfers}
               onChange={(event) =>
                 updateProject.mutate({
                   id: projectId,
@@ -327,7 +381,7 @@ export default function ProjectSettingsPanel(props: {
               }
               disabled={
                 !canManageTransferCapability ||
-                project.data.projectType === 'programme' ||
+                effectiveProject.projectType === 'programme' ||
                 updateProject.isPending
               }
             />
@@ -335,7 +389,7 @@ export default function ProjectSettingsPanel(props: {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
           <Title order={5}>Assign team members</Title>
           <Group align="flex-end" wrap="wrap">
@@ -380,33 +434,45 @@ export default function ProjectSettingsPanel(props: {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
           <Title order={5}>Current members</Title>
-          <MantineReactTable
-            columns={memberColumns}
-            data={memberRows}
-            getRowId={(row) => row.key}
-            mantineTableContainerProps={{ className: 'financeTable' }}
-            mantineTableProps={{
-              highlightOnHover: true,
-              striped: 'odd',
-              withTableBorder: true,
-            }}
-            mantineTableBodyCellProps={{
-              style: { verticalAlign: 'middle' },
-            }}
-            enableColumnActions={false}
-            enableColumnFilters={false}
-            enableSorting
-            enableTopToolbar={false}
-            enableDensityToggle={false}
-            enableFullScreenToggle={false}
-            initialState={{
-              density: 'xs',
-              pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
-            }}
-          />
+          <div className={classes.tableWrap}>
+            {isHydrated ? (
+              <MantineReactTable
+                columns={memberColumns}
+                data={memberRows}
+                getRowId={(row) => row.key}
+                mantineTableContainerProps={{ className: 'financeTable' }}
+                mantineTableProps={{
+                  highlightOnHover: true,
+                  striped: 'odd',
+                  withTableBorder: true,
+                }}
+                mantineTableBodyCellProps={{
+                  style: { verticalAlign: 'middle' },
+                }}
+                enableColumnActions={false}
+                enableColumnFilters={false}
+                enableSorting
+                enableTopToolbar={false}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+                initialState={{
+                  density: 'xs',
+                  pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+                }}
+              />
+            ) : (
+              <Paper className={classes.surfaceMuted} radius="xl" p="md">
+                <Stack gap="sm">
+                  <Text size="sm" c="dimmed">
+                    Loading project members...
+                  </Text>
+                </Stack>
+              </Paper>
+            )}
+          </div>
         </Stack>
       </Paper>
 

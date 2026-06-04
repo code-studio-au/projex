@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Badge,
   Button,
@@ -18,6 +18,7 @@ import { useRouter } from '@tanstack/react-router';
 import type {
   CompanyId,
   ProjectId,
+  ProjectType,
   TransactionDrilldownFilter,
   TxnId,
 } from '../types';
@@ -42,7 +43,12 @@ import BudgetPanel from './BudgetPanel';
 import PowerBiImporterPanel from './PowerBiImporterPanel';
 import ImportReviewQueuePanel from './ImportReviewQueuePanel';
 import ProjectSettingsPanel from './ProjectSettingsPanel';
-import { LoadingChip, LoadingLine } from './LoadingValue';
+import { LoadingLine } from './LoadingValue';
+import classes from '../styles/ui.module.css';
+
+const hydrateSubscription = () => () => {};
+const getClientHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 type ProjectWorkspaceTab = 'budget' | 'transactions' | 'import' | 'settings';
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
@@ -100,6 +106,19 @@ function filteredBudgetCents(
 type ProjectWorkspaceProps = {
   companyId: CompanyId;
   projectId: ProjectId;
+  initialCompanyName?: string | null;
+  initialProjectName?: string | null;
+  initialProjectType?: ProjectType;
+  initialCurrencyCode?: 'AUD' | 'USD' | 'EUR' | 'GBP';
+  initialAllowSuperadminAccess?: boolean;
+  initialAllowTxnTransfers?: boolean;
+  initialProjectBudgetTotalCents?: number;
+  initialCanViewProgrammeSummary?: boolean;
+  initialCanImport?: boolean;
+  initialCanEditBudgets?: boolean;
+  initialCanEditTxns?: boolean;
+  initialCanEditTaxonomy?: boolean;
+  initialCanProjectEdit?: boolean;
   initialTab?: ProjectWorkspaceTab;
   initialYearFilter?: string | null;
   initialQuarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
@@ -113,6 +132,19 @@ type ProjectWorkspaceProps = {
 type ProjectWorkspaceInnerProps = {
   companyId: CompanyId;
   projectId: ProjectId;
+  initialCompanyName: string | null;
+  initialProjectName: string | null;
+  initialProjectType: ProjectType;
+  initialCurrencyCode: 'AUD' | 'USD' | 'EUR' | 'GBP';
+  initialAllowSuperadminAccess: boolean;
+  initialAllowTxnTransfers: boolean;
+  initialProjectBudgetTotalCents: number;
+  initialCanViewProgrammeSummary: boolean;
+  initialCanImport: boolean;
+  initialCanEditBudgets: boolean;
+  initialCanEditTxns: boolean;
+  initialCanEditTaxonomy: boolean;
+  initialCanProjectEdit: boolean;
   initialTab: ProjectWorkspaceTab;
   initialYearFilter: string | null;
   initialQuarterFilter: QuarterOption | null;
@@ -127,6 +159,19 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
   const {
     companyId,
     projectId,
+    initialCompanyName = null,
+    initialProjectName = null,
+    initialProjectType = 'project',
+    initialCurrencyCode = 'AUD',
+    initialAllowSuperadminAccess = false,
+    initialAllowTxnTransfers = false,
+    initialProjectBudgetTotalCents = 0,
+    initialCanViewProgrammeSummary = false,
+    initialCanImport = false,
+    initialCanEditBudgets = false,
+    initialCanEditTxns = false,
+    initialCanEditTaxonomy = false,
+    initialCanProjectEdit = false,
     initialTab = 'budget',
     initialYearFilter = null,
     initialQuarterFilter = null,
@@ -169,6 +214,19 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
       key={resetKey}
       companyId={companyId}
       projectId={projectId}
+      initialCompanyName={initialCompanyName}
+      initialProjectName={initialProjectName}
+      initialProjectType={initialProjectType}
+      initialCurrencyCode={initialCurrencyCode}
+      initialAllowSuperadminAccess={initialAllowSuperadminAccess}
+      initialAllowTxnTransfers={initialAllowTxnTransfers}
+      initialProjectBudgetTotalCents={initialProjectBudgetTotalCents}
+      initialCanViewProgrammeSummary={initialCanViewProgrammeSummary}
+      initialCanImport={initialCanImport}
+      initialCanEditBudgets={initialCanEditBudgets}
+      initialCanEditTxns={initialCanEditTxns}
+      initialCanEditTaxonomy={initialCanEditTaxonomy}
+      initialCanProjectEdit={initialCanProjectEdit}
       initialTab={initialTab}
       initialYearFilter={resolvedInitialYearFilter}
       initialQuarterFilter={resolvedInitialQuarterFilter}
@@ -185,6 +243,19 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   const {
     companyId,
     projectId,
+    initialCompanyName,
+    initialProjectName,
+    initialProjectType,
+    initialCurrencyCode,
+    initialAllowSuperadminAccess,
+    initialAllowTxnTransfers,
+    initialProjectBudgetTotalCents,
+    initialCanViewProgrammeSummary,
+    initialCanImport,
+    initialCanEditBudgets,
+    initialCanEditTxns,
+    initialCanEditTaxonomy,
+    initialCanProjectEdit,
     initialTab,
     initialYearFilter,
     initialQuarterFilter,
@@ -196,29 +267,53 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
   const router = useRouter();
+  const isHydrated = useSyncExternalStore(
+    hydrateSubscription,
+    getClientHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
 
   const access = useCompanyAccess(companyId);
   const company = useCompanyQuery(companyId);
   const project = useProjectQuery(projectId);
   const projects = useProjectsQuery(companyId);
-  const canViewProgrammeSummary =
+  const liveCanViewProgrammeSummary =
     access.isAdmin || access.isExecutive || access.isSuperadmin;
+  const canViewProgrammeSummary = isHydrated
+    ? liveCanViewProgrammeSummary
+    : initialCanViewProgrammeSummary;
+  const effectiveProjectType =
+    (isHydrated ? project.data?.projectType : undefined) ?? initialProjectType;
   const companySummary = useCompanySummaryQuery(companyId, {
     enabled:
-      project.data?.projectType === 'programme' && canViewProgrammeSummary,
+      effectiveProjectType === 'programme' && canViewProgrammeSummary,
   });
   const updateProject = useUpdateProjectMutation(companyId);
-  const isOperationalProject = project.data?.projectType === 'project';
+  const isOperationalProject = effectiveProjectType === 'project';
 
-  const canProjectEdit = access.can('project:edit', projectId);
+  const canProjectEdit = isHydrated
+    ? initialCanProjectEdit || access.can('project:edit', projectId)
+    : initialCanProjectEdit;
   const canImport =
-    isOperationalProject && access.can('project:import', projectId);
+    isOperationalProject &&
+    (isHydrated
+      ? initialCanImport || access.can('project:import', projectId)
+      : initialCanImport);
   const canEditBudgets =
-    isOperationalProject && access.can('budget:edit', projectId);
+    isOperationalProject &&
+    (isHydrated
+      ? initialCanEditBudgets || access.can('budget:edit', projectId)
+      : initialCanEditBudgets);
   const canEditTxns =
-    isOperationalProject && access.can('txns:edit', projectId);
+    isOperationalProject &&
+    (isHydrated
+      ? initialCanEditTxns || access.can('txns:edit', projectId)
+      : initialCanEditTxns);
   const canEditTaxonomy =
-    isOperationalProject && access.can('taxonomy:edit', projectId);
+    isOperationalProject &&
+    (isHydrated
+      ? initialCanEditTaxonomy || access.can('taxonomy:edit', projectId)
+      : initialCanEditTaxonomy);
 
   const budgets = useBudgets({
     companyId,
@@ -248,6 +343,22 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   );
   const [transactionDrilldown, setTransactionDrilldown] =
     useState<TransactionDrilldownFilter | null>(null);
+
+  const effectiveCompanyName =
+    (isHydrated ? company.data?.name : undefined) ?? initialCompanyName;
+  const effectiveProjectName =
+    (isHydrated ? project.data?.name : undefined) ?? initialProjectName;
+  const effectiveCurrencyCode =
+    (isHydrated ? project.data?.currency : undefined) ?? initialCurrencyCode;
+  const effectiveAllowSuperadminAccess =
+    (isHydrated ? project.data?.allowSuperadminAccess : undefined) ??
+    initialAllowSuperadminAccess;
+  const effectiveAllowTxnTransfers =
+    (isHydrated ? project.data?.allowTxnTransfers : undefined) ??
+    initialAllowTxnTransfers;
+  const effectiveProjectBudgetTotalCents =
+    (isHydrated ? project.data?.budgetTotalCents : undefined) ??
+    initialProjectBudgetTotalCents;
 
   function openTransactionDrilldown(filter: TransactionDrilldownFilter) {
     setTransactionDrilldown(filter);
@@ -351,10 +462,10 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     () => txns.getUncodedSummary(taxonomy.validSubIds),
     [txns, taxonomy.validSubIds]
   );
-  const headerReady = Boolean(company.data && project.data);
+  const headerReady = Boolean(effectiveCompanyName && effectiveProjectName);
   const summaryReady =
     headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
-  const currencyCode = project.data?.currency ?? 'AUD';
+  const currencyCode = effectiveCurrencyCode;
   const programmeTotals = useMemo(() => {
     const visibleMonths = (programmeSummary?.months ?? []).filter((month) =>
       monthKeyMatchesFilters({
@@ -428,16 +539,16 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     transactionView,
   ]);
 
-  if (project.data?.projectType === 'programme') {
+  if (effectiveProjectType === 'programme') {
     const childProjects = programmeSummary?.children ?? [];
     return (
-      <Stack gap="lg">
-        <Paper withBorder p={isMobile ? 'md' : 'lg'} radius="lg">
+      <Stack gap="lg" className={classes.pageStack}>
+        <Paper className={classes.pageHero} p={isMobile ? 'md' : 'lg'} radius="xl">
           <Stack gap="sm">
             <Group justify="space-between" align="center" wrap="wrap">
               {headerReady ? (
-                <Title order={3}>
-                  {company.data?.name} • {project.data.name}
+                <Title order={3} className={classes.pageHeroTitle}>
+                  {effectiveCompanyName} • {effectiveProjectName}
                 </Title>
               ) : (
                 <LoadingLine width={320} height={30} radius="md" />
@@ -454,7 +565,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
         </Paper>
 
         {!canViewProgrammeSummary ? (
-          <Paper withBorder radius="lg" p="lg">
+          <Paper className={classes.surfaceCard} radius="xl" p="lg">
             <Text c="dimmed">
               Programme rollups are available to company admins, executives, and
               superadmins.
@@ -464,7 +575,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
 
         {canViewProgrammeSummary ? (
           <>
-            <Paper withBorder radius="lg" p="lg">
+            <Paper className={classes.surfaceCard} radius="xl" p="lg">
               <Stack gap="md">
                 <Group justify="space-between" align="center" wrap="wrap">
                   <Title order={5}>Programme rollup</Title>
@@ -531,13 +642,13 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
             </Paper>
 
             <SimpleGrid cols={isMobile ? 1 : 4} spacing="md">
-              <Paper withBorder radius="lg" p="lg">
+              <Paper className={classes.statCard} withBorder={false}>
                 <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
                   Sub-projects
                 </Text>
                 <Title order={3}>{childProjects.length}</Title>
               </Paper>
-              <Paper withBorder radius="lg" p="lg">
+              <Paper className={classes.statCard} withBorder={false}>
                 <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
                   Total budget
                 </Text>
@@ -548,7 +659,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                   )}
                 </Title>
               </Paper>
-              <Paper withBorder radius="lg" p="lg">
+              <Paper className={classes.statCard} withBorder={false}>
                 <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
                   Actual
                 </Text>
@@ -559,7 +670,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                   )}
                 </Title>
               </Paper>
-              <Paper withBorder radius="lg" p="lg">
+              <Paper className={classes.statCard} withBorder={false}>
                 <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
                   Uncoded
                 </Text>
@@ -570,7 +681,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
         ) : null}
 
         {canViewProgrammeSummary ? (
-          <Paper withBorder radius="lg" p="lg">
+          <Paper className={classes.surfaceCard} radius="xl" p="lg">
             <Stack gap="sm">
               <Title order={5}>Sub-projects</Title>
               {childProjects.length ? (
@@ -583,7 +694,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                         <Table.Th>Actual</Table.Th>
                         <Table.Th>Uncoded</Table.Th>
                         <Table.Th>Status</Table.Th>
-                        <Table.Th>Action</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
@@ -611,22 +721,55 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                             monthFilterKey,
                           }
                         );
+                        const canOpenChild = child.status === 'active';
                         return (
                           <Table.Tr key={child.id}>
-                            <Table.Td>{child.name}</Table.Td>
                             <Table.Td>
-                              {formatCurrencyFromCents(
-                                budgetCents,
-                                child.currency
+                              {canOpenChild ? (
+                                <button
+                                  type="button"
+                                  className={classes.drilldownButton}
+                                  onClick={() =>
+                                    router.navigate({
+                                      to: '/c/$companyId/p/$projectId',
+                                      params: {
+                                        companyId,
+                                        projectId: child.id,
+                                      },
+                                    })
+                                  }
+                                >
+                                  <Text component="span" className="table-body-left-bold table-link-text">
+                                    {child.name}
+                                  </Text>
+                                </button>
+                              ) : (
+                                <Text className="table-body-left-bold">
+                                  {child.name}
+                                </Text>
                               )}
                             </Table.Td>
                             <Table.Td>
-                              {formatCurrencyFromCents(
-                                actualCents,
-                                child.currency
-                              )}
+                              <Text className="table-body-right">
+                                {formatCurrencyFromCents(
+                                  budgetCents,
+                                  child.currency
+                                )}
+                              </Text>
                             </Table.Td>
-                            <Table.Td>{uncodedCount}</Table.Td>
+                            <Table.Td>
+                              <Text className="table-body-right">
+                                {formatCurrencyFromCents(
+                                  actualCents,
+                                  child.currency
+                                )}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text className="table-body-right">
+                                {uncodedCount}
+                              </Text>
+                            </Table.Td>
                             <Table.Td>
                               <Badge
                                 variant="light"
@@ -638,24 +781,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                                   ? 'Active'
                                   : 'Archived'}
                               </Badge>
-                            </Table.Td>
-                            <Table.Td>
-                              <Button
-                                size="xs"
-                                variant="light"
-                                disabled={child.status !== 'active'}
-                                onClick={() =>
-                                  router.navigate({
-                                    to: '/c/$companyId/p/$projectId',
-                                    params: {
-                                      companyId,
-                                      projectId: child.id,
-                                    },
-                                  })
-                                }
-                              >
-                                Open
-                              </Button>
                             </Table.Td>
                           </Table.Tr>
                         );
@@ -674,20 +799,20 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   }
 
   return (
-    <Stack gap="lg">
-      <Paper withBorder p={isMobile ? 'md' : 'lg'} radius="lg">
+    <Stack gap="lg" className={classes.pageStack}>
+      <Paper className={classes.pageHero} p={isMobile ? 'md' : 'lg'} radius="xl">
         <Stack gap="sm">
           <Group justify="space-between" align="center" wrap="wrap">
-            {headerReady ? (
-              <Title order={3}>
-                {company.data?.name} • {project.data?.name}
+            {headerReady || (initialCompanyName && initialProjectName) ? (
+              <Title order={3} className={classes.pageHeroTitle}>
+                {effectiveCompanyName ?? ''} • {effectiveProjectName ?? ''}
               </Title>
             ) : (
               <LoadingLine width={320} height={30} radius="md" />
             )}
 
             <Group gap="sm" wrap="wrap">
-              {headerReady && project.data?.allowSuperadminAccess ? (
+              {effectiveAllowSuperadminAccess ? (
                 <Badge
                   size={isMobile ? 'md' : 'lg'}
                   variant="light"
@@ -705,9 +830,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                   Uncoded: {uncoded.count} (
                   {formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
                 </Badge>
-              ) : (
-                <LoadingChip width={190} height={30} />
-              )}
+              ) : null}
             </Group>
           </Group>
 
@@ -721,14 +844,14 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="md">
+      <Paper className={classes.surfaceCard} radius="xl" p="md">
         <Tabs
           value={activeTab}
           onChange={(value) => setActiveTab(toProjectWorkspaceTab(value))}
           keepMounted={false}
-          variant="outline"
+          className={classes.softTabs}
         >
-          <Tabs.List style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
+          <Tabs.List>
             <Tabs.Tab value="budget">Budget</Tabs.Tab>
             <Tabs.Tab value="transactions">Transactions</Tabs.Tab>
             <Tabs.Tab value="import" disabled={!canImport}>
@@ -759,7 +882,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
               transactionDrilldown={transactionDrilldown}
               onClearTransactionDrilldown={() => setTransactionDrilldown(null)}
               initialCommentTxnId={initialCommentTxnId}
-              transferOutEnabled={project.data?.allowTxnTransfers === true}
+              transferOutEnabled={effectiveAllowTxnTransfers}
               transferProjectOptions={transferProjectOptions}
               onClearFilters={() => {
                 setYearFilter(null);
@@ -791,7 +914,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
             <BudgetPanel
               projectId={projectId}
               currencyCode={currencyCode}
-              projectBudgetTotalCents={project.data?.budgetTotalCents ?? 0}
+              projectBudgetTotalCents={effectiveProjectBudgetTotalCents}
               yearFilterOptions={yearFilterOptions}
               yearFilter={yearFilter}
               setYearFilter={setYearFilter}

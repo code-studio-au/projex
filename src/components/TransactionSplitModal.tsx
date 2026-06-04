@@ -20,6 +20,7 @@ import type { CategoryId, SubCategoryId, Txn } from '../types';
 import { asCategoryId, asSubCategoryId } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
+import classes from '../styles/ui.module.css';
 
 type SplitDraftRow = {
   key: string;
@@ -161,8 +162,8 @@ function TransactionSplitModalContent(props: {
   }
 
   return (
-    <Stack gap="md">
-      <Paper withBorder radius="md" p="md">
+    <Stack className={classes.modalStack}>
+      <Paper withBorder radius="md" p="md" className={classes.modalCard}>
         <Stack gap={4}>
           <Group justify="space-between" gap="sm" wrap="wrap">
             <Text fw={700}>{txn.item}</Text>
@@ -188,7 +189,13 @@ function TransactionSplitModalContent(props: {
             ? taxonomy.subCategoryOptionsForCategory(row.categoryId)
             : [];
           return (
-            <Paper key={row.key} withBorder radius="md" p="sm">
+            <Paper
+              key={row.key}
+              withBorder
+              radius="md"
+              p="sm"
+              className={classes.subtleCard}
+            >
                   <Stack gap="xs">
                     <Group justify="space-between" align="center">
                       <Text fw={600} size="sm">
@@ -286,7 +293,7 @@ function TransactionSplitModalContent(props: {
         })}
       </Stack>
 
-      <Group justify="space-between" align="center" wrap="wrap">
+      <Group className={classes.footerRowBetween}>
         <Button
           variant="light"
           leftSection={<IconPlus size={16} />}
@@ -312,7 +319,7 @@ function TransactionSplitModalContent(props: {
         </Stack>
       </Group>
 
-      <Group justify="flex-end">
+      <Group className={classes.footerRow}>
         <Button variant="subtle" disabled={submitting} onClick={onClose}>
           Cancel
         </Button>

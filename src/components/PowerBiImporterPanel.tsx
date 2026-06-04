@@ -28,6 +28,7 @@ import {
   type ImportPreviewTab,
   usePowerBiImportWorkflow,
 } from '../hooks/usePowerBiImportWorkflow';
+import classes from '../styles/ui.module.css';
 
 function displayWarningsForRow(row: ImportPreviewRow): string[] {
   return row.warnings.filter(
@@ -353,11 +354,20 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
   );
 
   return (
-    <Stack gap="md">
-      <Paper withBorder radius="lg" p="lg" className="importPanelCard">
+    <Stack gap="lg" className={classes.pageStack}>
+      <Paper
+        className={`${classes.surfaceCard} importPanelCard`}
+        radius="xl"
+        p="lg"
+      >
         <Stack gap="md">
           <Group justify="space-between" align="center" wrap="wrap">
-            <Title order={5}>PowerBI expenditure import</Title>
+            <div>
+              <Text className={classes.sectionEyebrow}>Import</Text>
+              <Title order={5} mt={4}>
+                PowerBI expenditure import
+              </Title>
+            </div>
             {previewActive ? (
               <Button
                 variant="subtle"
@@ -370,17 +380,17 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           </Group>
 
           {importError ? (
-            <Alert color="red" variant="light">
+            <Alert color="red" className={classes.notice}>
               {importError}
             </Alert>
           ) : null}
           {importNotice ? (
-            <Alert color="green" variant="light">
+            <Alert color="green" className={classes.notice}>
               {importNotice}
             </Alert>
           ) : null}
 
-          <Text size="sm" c="dimmed" className="panelHelperText">
+          <Text size="sm" c="dimmed" className={classes.filterIntro}>
             Upload or paste the PowerBI expenditure actuals CSV export, then
             preview the import before committing it. Import Rules run first to
             exclude SAL/EXA and flag suspected salary transfers for review.
@@ -414,7 +424,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               onChange={(event) =>
                 setAutoCreateStructures(event.currentTarget.checked)
               }
-              style={{ width: isMobile ? '100%' : 'auto' }}
+              className={isMobile ? classes.fieldFull : undefined}
             />
             <Switch
               label="Skip duplicates (existing and within this import)"
@@ -423,11 +433,11 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               onChange={(event) =>
                 setSkipDuplicates(event.currentTarget.checked)
               }
-              style={{ width: isMobile ? '100%' : 'auto' }}
+              className={isMobile ? classes.fieldFull : undefined}
             />
           </Group>
 
-          <Group justify="flex-end" wrap="wrap">
+          <Group className={classes.footerRow}>
             <Button
               fullWidth={isMobile}
               onClick={() => void previewImport()}
@@ -446,7 +456,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
 
       {previewActive ? (
         <Stack gap="md">
-          <Paper withBorder radius="lg" p="md">
+          <Paper className={classes.surfaceCard} radius="xl" p="md">
             <Stack gap="sm">
               <Group justify="space-between" align="center" wrap="wrap">
                 <Group gap="sm" align="center" wrap="wrap">
@@ -469,7 +479,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               ) : null}
 
               {hasBlockingIssues ? (
-                <Alert color="red" variant="light">
+                <Alert color="red" className={classes.notice}>
                   Invalid rows, review rows, or duplicate handling settings will
                   block append until those rows are excluded, reviewed, or
                   corrected.
@@ -479,7 +489,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               {!hasBlockingIssues &&
               skipDuplicates &&
               previewSummary.duplicate > 0 ? (
-                <Alert color="blue" variant="light">
+                <Alert color="blue" className={classes.notice}>
                   Duplicate rows will be skipped automatically during append
                   unless you explicitly include them by turning off duplicate
                   skipping first.
@@ -487,14 +497,14 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               ) : null}
 
               {!hasBlockingIssues && hasReplaceAllBlockers ? (
-                <Alert color="red" variant="light">
+                <Alert color="red" className={classes.notice}>
                   Duplicate rows inside the import file will block replace all
                   until they are excluded.
                 </Alert>
               ) : null}
 
               {!previewSummary.included ? (
-                <Alert color="yellow" variant="light">
+                <Alert color="yellow" className={classes.notice}>
                   All preview rows are currently excluded from import.
                 </Alert>
               ) : null}
@@ -503,6 +513,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
 
           <Tabs
             value={previewTab}
+            className={classes.softTabs}
             onChange={(value) => {
               if (
                 value === 'included' ||
@@ -534,41 +545,44 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             </Tabs.List>
 
             <Tabs.Panel value="included" pt="md">
-              <MantineReactTable
-                columns={previewColumns}
-                data={visiblePreviewRows}
-                getRowId={(row) => row.importId}
-                state={{ pagination, sorting }}
-                onPaginationChange={setPagination}
-                onSortingChange={setSorting}
-                enableColumnResizing
-                enableSorting
-                enableSortingRemoval={false}
-                enableGlobalFilter
-                enablePagination
-                autoResetPageIndex={false}
-                initialState={{ density: 'xs' }}
-                mantineTableContainerProps={{
-                  className: 'financeTable txnTable',
-                }}
-                mantineTableProps={{
-                  highlightOnHover: true,
-                  striped: 'odd',
-                  withTableBorder: true,
-                  style: { tableLayout: 'auto' },
-                }}
-                enableDensityToggle={false}
-                enableFullScreenToggle={false}
-                mantineTableBodyRowProps={({ row }) =>
-                  row.original.mappingStatus === 'invalid'
-                    ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-                    : {}
-                }
-              />
+              <div className={classes.tableWrap}>
+                <MantineReactTable
+                  columns={previewColumns}
+                  data={visiblePreviewRows}
+                  getRowId={(row) => row.importId}
+                  state={{ pagination, sorting }}
+                  onPaginationChange={setPagination}
+                  onSortingChange={setSorting}
+                  enableColumnResizing
+                  enableSorting
+                  enableSortingRemoval={false}
+                  enableGlobalFilter
+                  enablePagination
+                  autoResetPageIndex={false}
+                  initialState={{ density: 'xs' }}
+                  mantineTableContainerProps={{
+                    className: 'financeTable txnTable',
+                  }}
+                  mantineTableProps={{
+                    highlightOnHover: true,
+                    striped: 'odd',
+                    withTableBorder: true,
+                    style: { tableLayout: 'auto' },
+                  }}
+                  enableDensityToggle={false}
+                  enableFullScreenToggle={false}
+                  mantineTableBodyRowProps={({ row }) =>
+                    row.original.mappingStatus === 'invalid'
+                      ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
+                      : {}
+                  }
+                />
+              </div>
             </Tabs.Panel>
 
             <Tabs.Panel value="needsReview" pt="md">
-              <MantineReactTable
+              <div className={classes.tableWrap}>
+                <MantineReactTable
                 columns={previewColumns}
                 data={visiblePreviewRows}
                 getRowId={(row) => row.importId}
@@ -593,11 +607,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 }}
                 enableDensityToggle={false}
                 enableFullScreenToggle={false}
-              />
+                />
+              </div>
             </Tabs.Panel>
 
             <Tabs.Panel value="duplicate" pt="md">
-              <MantineReactTable
+              <div className={classes.tableWrap}>
+                <MantineReactTable
                 columns={previewColumns}
                 data={visiblePreviewRows}
                 getRowId={(row) => row.importId}
@@ -622,11 +638,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 }}
                 enableDensityToggle={false}
                 enableFullScreenToggle={false}
-              />
+                />
+              </div>
             </Tabs.Panel>
 
             <Tabs.Panel value="invalid" pt="md">
-              <MantineReactTable
+              <div className={classes.tableWrap}>
+                <MantineReactTable
                 columns={previewColumns}
                 data={visiblePreviewRows}
                 getRowId={(row) => row.importId}
@@ -654,11 +672,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 mantineTableBodyRowProps={() => ({
                   style: { outline: '1px solid rgba(255,0,0,0.20)' },
                 })}
-              />
+                />
+              </div>
             </Tabs.Panel>
 
             <Tabs.Panel value="excluded" pt="md">
-              <MantineReactTable
+              <div className={classes.tableWrap}>
+                <MantineReactTable
                 columns={excludedPreviewColumns}
                 data={visiblePreviewRows}
                 getRowId={(row) => row.importId}
@@ -688,12 +708,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                     ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
                     : {}
                 }
-              />
+                />
+              </div>
             </Tabs.Panel>
           </Tabs>
 
-          <Paper withBorder radius="lg" p="md">
-            <Group justify="space-between" align="center" wrap="wrap">
+          <Paper className={classes.surfaceCard} radius="xl" p="md">
+            <Group className={classes.footerRowBetween}>
               <Text size="sm" c="dimmed">
                 Review the preview, exclude anything that should stay out of the
                 tracker, then commit the included rows.{' '}
@@ -731,10 +752,9 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
 
       {!previewActive ? (
         <Paper
-          withBorder
-          radius="lg"
+          radius="xl"
           p="lg"
-          className="importPanelCard importExampleCard"
+          className={`${classes.surfaceCard} importPanelCard importExampleCard`}
         >
           <Stack gap="sm">
             <Text fw={700}>Example PowerBI CSV</Text>
@@ -750,11 +770,11 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         fullScreen={isMobile}
       >
         <Stack gap="md">
-          <Text size="sm" c="dimmed" className="panelHelperText">
+          <Text size="sm" c="dimmed" className={classes.modalIntro}>
             This will replace all existing transactions in this project with the
             currently included preview rows. This cannot be undone.
           </Text>
-          <Group justify="flex-end" wrap="wrap">
+          <Group className={classes.footerRow}>
             <Button
               variant="light"
               fullWidth={isMobile}

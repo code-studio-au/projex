@@ -15,6 +15,7 @@ import {
 import type { ProjectId, Txn } from '../types';
 import { asProjectId } from '../types';
 import { formatCurrencyFromCents } from '../utils/money';
+import classes from '../styles/ui.module.css';
 
 export default function TransactionTransferModal(props: {
   opened: boolean;
@@ -94,8 +95,8 @@ function TransactionTransferModalContent(props: {
   }
 
   return (
-    <Stack gap="md">
-      <Paper withBorder radius="md" p="md">
+    <Stack className={classes.modalStack}>
+      <Paper withBorder radius="md" p="md" className={classes.modalCard}>
         <Stack gap={4}>
           <Group justify="space-between" gap="sm" wrap="wrap">
             <Text fw={700}>{txn.item}</Text>
@@ -109,7 +110,7 @@ function TransactionTransferModalContent(props: {
         </Stack>
       </Paper>
 
-      <Alert color="blue" variant="light">
+      <Alert color="blue" className={classes.notice}>
         The current project will keep a transfer-out marker for audit, but this
         amount will no longer affect its budget actuals. The receiving project
         gets a new uncoded transaction to review.
@@ -147,7 +148,7 @@ function TransactionTransferModalContent(props: {
         onChange={(event) => setDescription(event.currentTarget.value)}
       />
 
-      <Group justify="flex-end">
+      <Group className={classes.footerRow}>
         <Button variant="subtle" disabled={submitting} onClick={onClose}>
           Cancel
         </Button>
