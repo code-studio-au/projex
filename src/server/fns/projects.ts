@@ -17,6 +17,7 @@ import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
+import { requireCompanyMember } from './resourceGuards';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -323,6 +324,52 @@ export async function createProjectServer(args: {
       action: 'project:create',
       companyId: args.companyId,
     });
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
+
+    if (isSuperadmin) {
+      const eligibleOwnerRows = await db
+        .selectFrom('company_memberships')
+        .innerJoin('users', 'users.id', 'company_memberships.user_id')
+        .select('company_memberships.user_id')
+        .where('company_memberships.company_id', '=', args.companyId)
+        .where('users.is_global_superadmin', '=', false)
+        .execute();
+
+      if (!eligibleOwnerRows.length) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'This company has no non-superadmin members yet. Add a company member before creating a project.'
+        );
+      }
+
+      if (!args.input.initialOwnerUserId) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Superadmin must assign an initial project owner when creating a project.'
+        );
+      }
+
+      const selectedOwner = await db
+        .selectFrom('users')
+        .select(['id', 'is_global_superadmin'])
+        .where('id', '=', args.input.initialOwnerUserId)
+        .executeTakeFirst();
+      if (!selectedOwner) {
+        throw new AppError('NOT_FOUND', 'Unknown initial project owner');
+      }
+      if (selectedOwner.is_global_superadmin) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Initial project owner must be a non-superadmin company member.'
+        );
+      }
+
+      await requireCompanyMember({
+        db,
+        companyId: args.companyId,
+        userId: args.input.initialOwnerUserId,
+      });
+    }
 
     const id = args.input.id ?? asProjectId(uid('prj'));
     const projectType = args.input.projectType ?? 'project';
@@ -337,24 +384,44 @@ export async function createProjectServer(args: {
       parentProjectId,
     });
 
-    const row = await db
-      .insertInto('projects')
-      .values({
-        id,
-        company_id: args.companyId,
-        name: args.input.name.trim(),
-        project_type: projectType,
-        parent_project_id: parentProjectId,
-        budget_total_cents: 0,
-        currency,
-        status: 'active',
-        deactivated_at: null,
-        visibility: 'private',
-        allow_superadmin_access: true,
-        allow_txn_transfers: false,
-      })
-      .returning(projectSelectFields)
-      .executeTakeFirstOrThrow();
+    const row = await db.transaction().execute(async (trx) => {
+      const created = await trx
+        .insertInto('projects')
+        .values({
+          id,
+          company_id: args.companyId,
+          name: args.input.name.trim(),
+          project_type: projectType,
+          parent_project_id: parentProjectId,
+          budget_total_cents: 0,
+          currency,
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        })
+        .returning(projectSelectFields)
+        .executeTakeFirstOrThrow();
+
+      if (isSuperadmin && args.input.initialOwnerUserId) {
+        await trx
+          .insertInto('project_memberships')
+          .values({
+            project_id: id,
+            user_id: args.input.initialOwnerUserId,
+            role: 'owner',
+          })
+          .onConflict((oc) =>
+            oc.columns(['project_id', 'user_id']).doUpdateSet({
+              role: 'owner',
+            })
+          )
+          .execute();
+      }
+
+      return created;
+    });
 
     return toProject(row);
   });

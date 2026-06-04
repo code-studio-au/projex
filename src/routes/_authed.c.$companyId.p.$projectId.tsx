@@ -1,7 +1,6 @@
 import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
 import { z } from 'zod';
 import { isServerAuthMode } from './-authMode';
-import type { TxnListPageInput } from '../api/contract';
 import type { UserId } from '../types';
 import { asCompanyId, asProjectId } from '../types';
 import { getUserCompanyRole } from '../store/access';
@@ -24,7 +23,6 @@ import {
   subCategoriesQueryOptions,
 } from '../queries/taxonomy';
 import { transactionCommentSummariesQueryOptions } from '../queries/transactionComments';
-import { transactionsPageQueryOptions } from '../queries/transactions';
 
 const quarterSchema = z.enum(['Q1', 'Q2', 'Q3', 'Q4']);
 
@@ -49,6 +47,11 @@ const projectWorkspaceSearchSchema = z
     focus: z
       .enum(['budget', 'actual', 'remaining', 'uncoded', 'health'])
       .optional(),
+    drilldownKind: z.enum(['category', 'subcategory']).optional(),
+    categoryId: z.string().trim().min(1).optional(),
+    subCategoryId: z.string().trim().min(1).optional(),
+    categoryName: z.string().trim().min(1).optional(),
+    subCategoryName: z.string().trim().min(1).optional(),
   })
   .catch({});
 
@@ -106,24 +109,6 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
         companySummaryQueryOptions(session.userId, companyId)
       );
     } else {
-      const transactionsPageInput: TxnListPageInput = {
-        pageIndex: 0,
-        pageSize: 25,
-        sort: { field: 'date', direction: 'desc' },
-        yearFilter: search.year ?? null,
-        quarterFilter: search.quarter ?? null,
-        monthFilterKey: search.month ?? null,
-        transactionView: search.view ?? 'all',
-      };
-
-      await context.queryClient.ensureQueryData(
-        transactionsPageQueryOptions(
-          session.userId,
-          projectId,
-          transactionsPageInput
-        )
-      );
-
       if (search.tab === 'import') {
         await context.queryClient.ensureQueryData(
           importCandidatesQueryOptions(session.userId, projectId)

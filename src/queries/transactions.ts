@@ -20,13 +20,14 @@ import { normalizeTxnPatch } from '../utils/transactions';
 import {
   createTxnServerFn,
   deleteTxnServerFn,
-  listTransactionsPageServerFn,
   listTransactionsServerFn,
   splitTxnServerFn,
   transferTxnServerFn,
   updateTxnServerFn,
   updateTxnWorkflowStateServerFn,
 } from '../server/start/functions/transactionReads';
+import type { TxnListPageResult } from '../api/contract';
+import { AppError } from '../api/errors';
 
 function toTransactionsPageServerQuery(input: TxnListPageInput) {
   return {
@@ -46,6 +47,48 @@ function toTransactionsPageServerQuery(input: TxnListPageInput) {
         ? input.drilldown.subCategoryId
         : undefined,
   };
+}
+
+async function fetchTransactionsPageViaApi(
+  projectId: ProjectId,
+  input: TxnListPageInput
+): Promise<TxnListPageResult> {
+  const query = toTransactionsPageServerQuery(input);
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined) continue;
+    params.set(key, String(value));
+  }
+  const res = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/transactions?${params.toString()}`,
+    {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' },
+    }
+  );
+  const payload = (await res.json()) as
+    | TxnListPageResult
+    | { code?: string; message?: string };
+  if (!res.ok) {
+    throw new AppError(
+      (typeof payload === 'object' && payload && 'code' in payload
+        ? (payload.code as
+            | 'UNAUTHENTICATED'
+            | 'FORBIDDEN'
+            | 'NOT_FOUND'
+            | 'RATE_LIMITED'
+            | 'VALIDATION_ERROR'
+            | 'CONFLICT'
+            | 'NOT_IMPLEMENTED'
+            | 'INTERNAL_ERROR')
+        : 'INTERNAL_ERROR') ?? 'INTERNAL_ERROR',
+      (typeof payload === 'object' && payload && 'message' in payload
+        ? payload.message
+        : 'Could not load transactions page') ?? 'Could not load transactions page'
+    );
+  }
+  return payload as TxnListPageResult;
 }
 
 export function useTransactionsQuery(
@@ -88,11 +131,7 @@ export function transactionsPageQueryOptions(
 ) {
   return {
     queryKey: qk.transactionsPage(userId, projectId, input),
-    queryFn: () =>
-      listTransactionsPageServerFn({
-        data: { projectId, query: toTransactionsPageServerQuery(input) },
-      }),
-    placeholderData: keepPreviousData,
+    queryFn: () => fetchTransactionsPageViaApi(projectId, input),
     enabled: options.enabled ?? true,
   } as const;
 }

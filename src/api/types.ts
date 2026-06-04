@@ -304,11 +304,23 @@ export type ApplyCompanyDefaultsResult = {
   subCategoriesAdded: number;
 };
 
+export type CompanyCreateInput = Pick<Company, 'name'> & {
+  id?: CompanyId;
+  initialAdminName?: string;
+  initialAdminEmail?: string;
+};
+
+export type CompanyCreateResult = {
+  company: Company;
+  initialAdmin?: CompanyUserInviteResult;
+};
+
 export type ProjectCreateInput = Pick<Project, 'name'> & {
   id?: ProjectId;
   projectType?: Project['projectType'];
   parentProjectId?: ProjectId | null;
   currency?: Project['currency'];
+  initialOwnerUserId?: UserId;
 };
 export type ProjectUpdateInput = Pick<
   Partial<Project>,

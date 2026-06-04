@@ -199,7 +199,8 @@ export default function TransactionsPanel(props: {
   ]);
   const transactionsPageQ = useTransactionsPageQuery(
     projectId,
-    transactionsPageInput
+    transactionsPageInput,
+    { enabled: isHydrated }
   );
   const commentSummariesQ = useTransactionCommentSummariesQuery(projectId);
   const expandedCommentsTxnId =
@@ -225,6 +226,8 @@ export default function TransactionsPanel(props: {
         null)
       : null;
   const activeCommentsTxn = commentsTxn ?? linkedCommentsTxn;
+  const isTransitioningPageData =
+    transactionsPageQ.isFetching && transactionsPageQ.isPlaceholderData;
   const pagedTxns = transactionsPageQ.data?.rows ?? [];
   const pageSummary = transactionsPageQ.data?.summary ?? {
     totalCount: 0,
@@ -276,6 +279,15 @@ export default function TransactionsPanel(props: {
       isBudgetImpactTxn(txn) &&
       isCategorisableTxn(txn) &&
       (txn.txnType === 'standard' || txn.txnType === 'split_child')
+    );
+  }
+
+  function canEditTxnAmount(txn: Txn): boolean {
+    return (
+      !readOnly &&
+      txn.txnType !== 'split_parent' &&
+      txn.txnType !== 'transfer_source' &&
+      txn.txnType !== 'transfer_child'
     );
   }
 
@@ -386,7 +398,19 @@ export default function TransactionsPanel(props: {
       },
       mantineTableBodyCellProps: { className: 'txnTable-cell' },
       Cell: ({ row }) => {
+        const provenanceLabel =
+          row.original.txnType === 'standard'
+            ? null
+            : txnTypeLabel(row.original);
         const description = row.original.description.trim();
+        const hasValidSubCategory =
+          !!row.original.subCategoryId &&
+          taxonomy.validSubIds.has(row.original.subCategoryId);
+        const showStateBadges =
+          !!provenanceLabel ||
+          !!row.original.lockedAt ||
+          !!row.original.reviewedAt ||
+          (!!row.original.codingPendingApproval && hasValidSubCategory);
         return (
           <Stack gap={2} style={{ minWidth: 0 }}>
             <Text className="table-body-left-bold" lineClamp={1}>
@@ -395,6 +419,34 @@ export default function TransactionsPanel(props: {
             <Text c="dimmed" className="table-body-left" lineClamp={2}>
               {description || 'No description provided'}
             </Text>
+            {showStateBadges ? (
+              <Group gap={6} wrap="wrap">
+                {row.original.lockedAt ? (
+                  <Badge
+                    size="xs"
+                    color="gray"
+                    variant="light"
+                    leftSection={<IconLock size={11} />}
+                  >
+                    Locked
+                  </Badge>
+                ) : row.original.reviewedAt ? (
+                  <Badge size="xs" color="green" variant="light">
+                    Reviewed
+                  </Badge>
+                ) : null}
+                {provenanceLabel ? (
+                  <Badge size="xs" color="blue" variant="light">
+                    {provenanceLabel}
+                  </Badge>
+                ) : null}
+                {row.original.codingPendingApproval && hasValidSubCategory ? (
+                  <Badge size="xs" color="yellow" variant="light">
+                    Auto-mapped
+                  </Badge>
+                ) : null}
+              </Group>
+            ) : null}
           </Stack>
         );
       },
@@ -482,6 +534,7 @@ export default function TransactionsPanel(props: {
       accessorKey: 'amountCents',
       header: 'Amount',
       size: 118,
+      enableEditing: (row) => canEditTxnAmount(row.original),
       Cell: ({ cell, row }) => {
         const excluded = !isBudgetImpactTxn(row.original);
         return (
@@ -548,6 +601,13 @@ export default function TransactionsPanel(props: {
         );
       },
       Cell: ({ row }) => {
+        if (!isCategorisableTxn(row.original)) {
+          return (
+            <Badge color="gray" variant="light">
+              Source only
+            </Badge>
+          );
+        }
         const cat = taxonomy.getCategoryName(row.original.categoryId);
         const isCategoryCoded = !!row.original.categoryId;
         return (
@@ -558,7 +618,7 @@ export default function TransactionsPanel(props: {
             >
               {cat}
             </Text>
-            {!isCategoryCoded && isCategorisableTxn(row.original) && (
+            {!isCategoryCoded && (
               <Badge color="red" variant="light">
                 Uncoded
               </Badge>
@@ -638,85 +698,6 @@ export default function TransactionsPanel(props: {
       mantineTableBodyCellProps: { className: 'txnTable-cell' },
     },
     {
-      id: 'codingStatus',
-      header: 'Coding',
-      size: 164,
-      enableSorting: false,
-      Cell: ({ row }) => {
-        const provenanceLabel =
-          row.original.txnType === 'standard'
-            ? null
-            : txnTypeLabel(row.original);
-        if (
-          !isBudgetImpactTxn(row.original) ||
-          !isCategorisableTxn(row.original)
-        ) {
-          return (
-            <Badge color="blue" variant="light">
-              {provenanceLabel ?? txnTypeLabel(row.original)}
-            </Badge>
-          );
-        }
-        const hasValidSubCategory =
-          !!row.original.subCategoryId &&
-          taxonomy.validSubIds.has(row.original.subCategoryId);
-        if (
-          !provenanceLabel &&
-          (!row.original.codingPendingApproval || !hasValidSubCategory)
-        ) {
-          return null;
-        }
-        return (
-          <Group gap="xs" wrap="wrap">
-            {row.original.lockedAt ? (
-              <Badge
-                color="gray"
-                variant="light"
-                leftSection={<IconLock size={11} />}
-              >
-                Locked
-              </Badge>
-            ) : row.original.reviewedAt ? (
-              <Badge color="green" variant="light">
-                Reviewed
-              </Badge>
-            ) : null}
-            {provenanceLabel ? (
-              <Badge color="blue" variant="light">
-                {provenanceLabel}
-              </Badge>
-            ) : null}
-            {row.original.codingPendingApproval && hasValidSubCategory ? (
-              <Badge color="yellow" variant="light">
-                Auto-mapped
-              </Badge>
-            ) : null}
-            {!readOnly &&
-            !row.original.lockedAt &&
-            row.original.codingPendingApproval &&
-            hasValidSubCategory ? (
-              <Button
-                size="xs"
-                variant="subtle"
-                className="tableActionButton"
-                onClick={() => {
-                  void txns.updateTxn(row.original.id, {
-                    codingPendingApproval: false,
-                  });
-                }}
-              >
-                Approve
-              </Button>
-            ) : null}
-          </Group>
-        );
-      },
-      mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-left txnTable-head',
-      },
-      mantineTableBodyCellProps: { className: 'txnTable-cell' },
-    },
-    {
       id: 'actions',
       header: '',
       Header: () => <IconSettings size={16} aria-label="Actions" />,
@@ -726,6 +707,14 @@ export default function TransactionsPanel(props: {
       Cell: ({ row }) => {
         const canSplit = canSplitTransaction(row.original);
         const canTransfer = canTransferTransaction(row.original);
+        const hasValidSubCategory =
+          !!row.original.subCategoryId &&
+          taxonomy.validSubIds.has(row.original.subCategoryId);
+        const canApproveAutoMapping =
+          !readOnly &&
+          !row.original.lockedAt &&
+          row.original.codingPendingApproval &&
+          hasValidSubCategory;
         return (
           <Menu withinPortal position="bottom-end" shadow="md">
             <Menu.Target>
@@ -758,6 +747,17 @@ export default function TransactionsPanel(props: {
                       ? 'Mark unreviewed'
                       : 'Mark reviewed'}
                   </Menu.Item>
+                  {canApproveAutoMapping ? (
+                    <Menu.Item
+                      onClick={() => {
+                        void txns.updateTxn(row.original.id, {
+                          codingPendingApproval: false,
+                        });
+                      }}
+                    >
+                      Approve auto-mapping
+                    </Menu.Item>
+                  ) : null}
                   <Menu.Item
                     onClick={() =>
                       void txns.updateWorkflowState(row.original.id, {
@@ -984,59 +984,71 @@ export default function TransactionsPanel(props: {
         </Stack>
       </Paper>
 
-      <div className={classes.tableWrap}>
-        <MantineReactTable
-          key={paginationScopeKey}
-          columns={txnColumns}
-          data={pagedTxns}
-          getRowId={(row) => row.id}
-          enableEditing={!readOnly}
-          editDisplayMode="cell"
-          state={{
-            pagination,
-            sorting,
-            showProgressBars: transactionsPageQ.isFetching,
-          }}
-          onPaginationChange={setPagination}
-          onSortingChange={(updater) => {
-            const nextSorting =
-              typeof updater === 'function' ? updater(sorting) : updater;
-            setSorting(nextSorting);
-            setPagination((current) => ({ ...current, pageIndex: 0 }));
-          }}
-          enableColumnResizing
-          enableColumnActions={false}
-          enableSorting
-          enableSortingRemoval={false}
-          manualPagination
-          manualSorting
-          rowCount={pageSummary.totalCount}
-          enablePagination
-          autoResetPageIndex={false}
-          initialState={{
-            density: 'xs',
-          }}
-          mantineTableContainerProps={{ className: 'financeTable txnTable' }}
-          mantineTableBodyCellProps={{ style: { verticalAlign: 'middle' } }}
-          mantineTableProps={{
-            highlightOnHover: true,
-            striped: 'odd',
-            withTableBorder: true,
-            style: { tableLayout: 'auto' },
-          }}
-          enableTopToolbar={false}
-          enableDensityToggle={false}
-          enableFullScreenToggle={false}
-          mantineTableBodyRowProps={({ row }) => {
-            const ok =
-              !!row.original.subCategoryId &&
-              taxonomy.validSubIds.has(row.original.subCategoryId);
-            return isCategorisableTxn(row.original) && !ok
-              ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-              : {};
-          }}
-        />
-      </div>
+      {!isHydrated || transactionsPageQ.isLoading || isTransitioningPageData ? (
+        <Paper className={classes.surfaceCard} radius="xl" p="lg">
+          <Text c="dimmed">
+            {!isHydrated
+              ? 'Loading transactions...'
+              : transactionDrilldown
+              ? 'Loading budget drilldown transactions...'
+              : 'Loading transactions...'}
+          </Text>
+        </Paper>
+      ) : (
+        <div className={classes.tableWrap}>
+          <MantineReactTable
+            key={paginationScopeKey}
+            columns={txnColumns}
+            data={pagedTxns}
+            getRowId={(row) => row.id}
+            enableEditing={!readOnly}
+            editDisplayMode="cell"
+            state={{
+              pagination,
+              sorting,
+              showProgressBars: transactionsPageQ.isFetching,
+            }}
+            onPaginationChange={setPagination}
+            onSortingChange={(updater) => {
+              const nextSorting =
+                typeof updater === 'function' ? updater(sorting) : updater;
+              setSorting(nextSorting);
+              setPagination((current) => ({ ...current, pageIndex: 0 }));
+            }}
+            enableColumnResizing
+            enableColumnActions={false}
+            enableSorting
+            enableSortingRemoval={false}
+            manualPagination
+            manualSorting
+            rowCount={pageSummary.totalCount}
+            enablePagination
+            autoResetPageIndex={false}
+            initialState={{
+              density: 'xs',
+            }}
+            mantineTableContainerProps={{ className: 'financeTable txnTable' }}
+            mantineTableBodyCellProps={{ style: { verticalAlign: 'middle' } }}
+            mantineTableProps={{
+              highlightOnHover: true,
+              striped: 'odd',
+              withTableBorder: true,
+              style: { tableLayout: 'auto' },
+            }}
+            enableTopToolbar={false}
+            enableDensityToggle={false}
+            enableFullScreenToggle={false}
+            mantineTableBodyRowProps={({ row }) => {
+              const ok =
+                !!row.original.subCategoryId &&
+                taxonomy.validSubIds.has(row.original.subCategoryId);
+              return isCategorisableTxn(row.original) && !ok
+                ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
+                : {};
+            }}
+          />
+        </div>
+      )}
 
       <TaxonomyManagerModal
         opened={manageOpen}

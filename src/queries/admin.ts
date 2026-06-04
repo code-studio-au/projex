@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import type { Company, CompanyId, ProjectId, Txn, UserId } from '../types';
+import type { CompanyId, ProjectId, Txn, UserId } from '../types';
 import type {
+  CompanyCreateInput,
+  CompanyCreateResult,
   CreateCompanyUserInput,
   CompanyUpdateInput,
   ProjectCreateInput,
@@ -29,9 +31,8 @@ import {
 
 export function useCreateCompanyMutation() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: Pick<Company, 'name'> & { id?: CompanyId }) =>
-      createCompanyServerFn({ data: input }),
+  return useMutation<CompanyCreateResult, Error, CompanyCreateInput>({
+    mutationFn: (input) => createCompanyServerFn({ data: input }),
     onSuccess: () => {
       qc.invalidateQueries({
         predicate: (q) =>

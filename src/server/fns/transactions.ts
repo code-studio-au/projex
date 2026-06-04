@@ -628,6 +628,22 @@ export async function updateTxnServer(args: {
     const prev = toTxn(existing);
     assertTxnUnlocked(prev);
     const normalizedInput = normalizeTxnPatch(args.input);
+    if (
+      (prev.txnType === 'split_parent' ||
+        prev.txnType === 'transfer_source' ||
+        prev.txnType === 'transfer_child') &&
+      typeof normalizedInput.amountCents !== 'undefined' &&
+      normalizedInput.amountCents !== prev.amountCents
+    ) {
+      throw new AppError(
+        'CONFLICT',
+        prev.txnType === 'split_parent'
+          ? 'Split parent amount cannot be edited directly. Update the split children instead.'
+          : prev.txnType === 'transfer_source'
+            ? 'Transferred-out source amount cannot be edited directly. Update the transfer destination instead.'
+            : 'Transferred-in amount cannot be edited directly. Split it if you need to reallocate it.'
+      );
+    }
     const nextExternalId = Object.prototype.hasOwnProperty.call(
       normalizedInput,
       'externalId'

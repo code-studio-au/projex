@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 
 import { asCompanyId, asProjectId, asUserId } from '../../../types';
 import type {
+  CompanyCreateInput,
   CompanyUpdateInput,
   CreateCompanyUserInput,
   DeleteCompanyInput,
@@ -33,9 +34,11 @@ import { startApiMiddleware } from '../middleware';
 
 export const createCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { name: string; id?: string }) => ({
+  .inputValidator((input: CompanyCreateInput) => ({
     name: input.name,
     id: input.id ? asCompanyId(input.id) : undefined,
+    initialAdminName: input.initialAdminName,
+    initialAdminEmail: input.initialAdminEmail,
   }))
   .handler(async ({ context, data }) => {
     return createCompanyServer({
