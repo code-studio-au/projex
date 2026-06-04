@@ -55,14 +55,36 @@ const projectWorkspaceSearchSchema = z
   })
   .catch({});
 
+function projectWorkspaceLoaderDeps(
+  search: z.infer<typeof projectWorkspaceSearchSchema>
+) {
+  return {
+    tab: search.tab,
+    year: search.year,
+    quarter: search.quarter,
+    month: search.month,
+    view: search.view,
+    commentTxn: search.commentTxn,
+    commentId: search.commentId,
+    source: search.source,
+    focus: search.focus,
+    drilldownKind: search.drilldownKind,
+    categoryId: search.categoryId,
+    subCategoryId: search.subCategoryId,
+    categoryName: search.categoryName,
+    subCategoryName: search.subCategoryName,
+  } as const;
+}
+
 export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
   validateSearch: (search) => projectWorkspaceSearchSchema.parse(search),
+  loaderDeps: ({ search }) => projectWorkspaceLoaderDeps(search),
   component: lazyRouteComponent(() => import('../pages/ProjectWorkspacePage')),
   ssr: isServerAuthMode,
-  loader: async ({ context, params, location }) => {
+  loader: async ({ context, params, deps }) => {
     const companyId = asCompanyId(params.companyId);
     const projectId = asProjectId(params.projectId);
-    const search = projectWorkspaceSearchSchema.parse(location.search);
+    const search = deps;
     const session = (
       context.queryClient.getQueryData(sessionQueryOptions().queryKey) ??
       (await context.queryClient.ensureQueryData(sessionQueryOptions()))

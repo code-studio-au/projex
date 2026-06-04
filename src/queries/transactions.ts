@@ -10,6 +10,8 @@ import { useQueryScopeUserId } from './scope';
 import type { ProjectId, Txn, TxnId } from '../types';
 import type {
   TxnListPageInput,
+  TxnListSortDirection,
+  TxnListSortField,
   TxnCreateInput,
   TxnSplitInput,
   TxnTransferInput,
@@ -29,7 +31,24 @@ import {
 import type { TxnListPageResult } from '../api/contract';
 import { AppError } from '../api/errors';
 
-function toTransactionsPageServerQuery(input: TxnListPageInput) {
+type TransactionsPageQueryParams = {
+  mode: 'page';
+  pageIndex: number;
+  pageSize: number;
+  sortField?: TxnListSortField;
+  sortDirection?: TxnListSortDirection;
+  yearFilter?: string;
+  quarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  monthFilterKey?: string;
+  transactionView?: TxnListPageInput['transactionView'];
+  drilldownKind?: 'category' | 'subcategory';
+  categoryId?: string;
+  subCategoryId?: string;
+};
+
+export function toTransactionsPageQueryParams(
+  input: TxnListPageInput
+): TransactionsPageQueryParams {
   return {
     mode: 'page' as const,
     pageIndex: input.pageIndex,
@@ -53,7 +72,7 @@ async function fetchTransactionsPageViaApi(
   projectId: ProjectId,
   input: TxnListPageInput
 ): Promise<TxnListPageResult> {
-  const query = toTransactionsPageServerQuery(input);
+  const query = toTransactionsPageQueryParams(input);
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value === undefined) continue;
@@ -129,8 +148,9 @@ export function transactionsPageQueryOptions(
   input: TxnListPageInput,
   options: { enabled?: boolean } = {}
 ) {
+  const queryParams = toTransactionsPageQueryParams(input);
   return {
-    queryKey: qk.transactionsPage(userId, projectId, input),
+    queryKey: qk.transactionsPage(userId, projectId, queryParams),
     queryFn: () => fetchTransactionsPageViaApi(projectId, input),
     enabled: options.enabled ?? true,
   } as const;
