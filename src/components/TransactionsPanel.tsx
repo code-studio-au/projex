@@ -1012,19 +1012,20 @@ export default function TransactionsPanel(props: {
         </Stack>
       </Paper>
 
-      {!isHydrated || transactionsPageQ.isLoading || isTransitioningPageData ? (
-        <Paper className={classes.surfaceCard} radius="xl" p="lg">
-          <Text c="dimmed">
-            {!isHydrated
-              ? 'Loading transactions...'
-              : transactionDrilldown
-              ? 'Loading budget drilldown transactions...'
-              : 'Loading transactions...'}
-          </Text>
-        </Paper>
-      ) : (
-        <div className={classes.tableWrap}>
-          <MantineReactTable
+      <div className={classes.tableBreakout}>
+        {!isHydrated || transactionsPageQ.isLoading || isTransitioningPageData ? (
+          <Paper className={classes.surfaceCard} radius="xl" p="lg">
+            <Text c="dimmed">
+              {!isHydrated
+                ? 'Loading transactions...'
+                : transactionDrilldown
+                ? 'Loading budget drilldown transactions...'
+                : 'Loading transactions...'}
+            </Text>
+          </Paper>
+        ) : (
+          <div className={classes.tableWrap}>
+            <MantineReactTable
             key={paginationScopeKey}
             columns={txnColumns}
             data={pagedTxns}
@@ -1074,9 +1075,10 @@ export default function TransactionsPanel(props: {
                 ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
                 : {};
             }}
-          />
-        </div>
-      )}
+            />
+          </div>
+        )}
+      </div>
 
       <TaxonomyManagerModal
         opened={manageOpen}

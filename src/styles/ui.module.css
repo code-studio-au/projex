@@ -207,6 +207,11 @@
   overflow: hidden;
 }
 
+.tableBreakout {
+  width: 100%;
+  max-width: 100%;
+}
+
 .inlineHeader {
   display: inline-flex;
   align-items: center;
@@ -536,5 +541,13 @@
 
   .statGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 100em) {
+  .tableBreakout {
+    width: min(calc(100vw - 2rem), 118rem);
+    max-width: none;
+    margin-left: calc(50% - min(calc(100vw - 2rem), 118rem) / 2);
   }
 }

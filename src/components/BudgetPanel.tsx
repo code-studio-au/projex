@@ -341,7 +341,7 @@ export default function BudgetPanel(props: {
       months.reduce((acc, mk) => acc + (row.actualByMonthKey[mk] ?? 0), 0);
 
     return Array.from(years.entries())
-      .sort(([a], [b]) => a - b)
+      .sort(([a], [b]) => b - a)
       .flatMap(([year, quarterMap]) => {
         const yearMonths = Array.from(quarterMap.values()).flat().sort();
         return [
@@ -905,9 +905,10 @@ export default function BudgetPanel(props: {
         </Stack>
       </Paper>
 
-      <div className={classes.tableWrap}>
-        {isHydrated ? (
-          <MantineReactTable
+      <div className={classes.tableBreakout}>
+        <div className={classes.tableWrap}>
+          {isHydrated ? (
+            <MantineReactTable
             columns={budgetColumns}
             data={displayRows}
             getRowId={(row) => row.rowId}
@@ -932,7 +933,7 @@ export default function BudgetPanel(props: {
                 </Menu.Target>
                 <Menu.Dropdown className="budgetColumnMenu">
                   {Array.from(timeHierarchy.byYear.entries())
-                    .sort(([a], [b]) => a - b)
+                    .sort(([a], [b]) => b - a)
                     .map(([year, entry]) => {
                       const yearId = `yt_${year}`;
                       return (
@@ -988,17 +989,18 @@ export default function BudgetPanel(props: {
             enableDensityToggle={false}
             enableFullScreenToggle={false}
             enableColumnActions={false}
-          />
-        ) : (
-          <Paper className={classes.surfaceMuted} radius="xl" p="md">
-            <Stack gap="sm">
-              <LoadingLine width="100%" height={18} radius="sm" />
-              <LoadingLine width="100%" height={18} radius="sm" />
-              <LoadingLine width="100%" height={18} radius="sm" />
-              <LoadingLine width="100%" height={18} radius="sm" />
-            </Stack>
-          </Paper>
-        )}
+            />
+          ) : (
+            <Paper className={classes.surfaceMuted} radius="xl" p="md">
+              <Stack gap="sm">
+                <LoadingLine width="100%" height={18} radius="sm" />
+                <LoadingLine width="100%" height={18} radius="sm" />
+                <LoadingLine width="100%" height={18} radius="sm" />
+                <LoadingLine width="100%" height={18} radius="sm" />
+              </Stack>
+            </Paper>
+          )}
+        </div>
       </div>
     </Stack>
   );
