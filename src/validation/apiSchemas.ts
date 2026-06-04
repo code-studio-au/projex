@@ -166,6 +166,8 @@ export const profileUpdateBodySchema = z.object({
 export const createCompanyInputSchema = z.object({
   id: companyIdSchema.optional(),
   name: companyNameSchema,
+  initialAdminName: userNameSchema.optional(),
+  initialAdminEmail: emailSchema.optional(),
 });
 
 export const updateCompanyBodySchema = z.object({
@@ -178,6 +180,7 @@ export const createProjectInputSchema = z.object({
   projectType: projectTypeSchema.optional(),
   parentProjectId: projectIdSchema.nullable().optional(),
   currency: currencySchema.optional(),
+  initialOwnerUserId: userIdSchema.optional(),
 });
 
 export const updateProjectBodySchema = z.object({

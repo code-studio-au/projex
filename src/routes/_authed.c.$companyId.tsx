@@ -74,12 +74,17 @@ export const Route = createFileRoute('/_authed/c/$companyId')({
       isGlobalSuperadmin ||
       companyRole === 'admin' ||
       companyRole === 'executive';
+    const canCreateProjects =
+      isGlobalSuperadmin ||
+      companyRole === 'admin' ||
+      companyRole === 'executive';
 
     return {
       companyName: company?.name ?? null,
       companyRole,
       isGlobalSuperadmin,
       userCompanyCount,
+      canCreateProjects,
       canViewCompanySummary,
       canAccessSettings,
       canManageCompanyMembers,

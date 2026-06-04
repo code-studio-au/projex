@@ -323,6 +323,7 @@ export default function CompanySummaryPanel(props: {
                 monthFilterKey={monthFilterKey}
                 tab="budget"
                 focus="budget"
+                className="table-body-left-bold table-link-text"
               >
                 {row.original.isChild
                   ? `- ${row.original.name}`

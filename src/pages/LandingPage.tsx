@@ -36,7 +36,6 @@ import {
   useReactivateCompanyMutation,
 } from '../queries/admin';
 import { useCurrentUserQuery } from '../queries/account';
-import { createUserInCompanyServerFn } from '../server/start/functions/admin';
 import classes from '../styles/ui.module.css';
 
 const hydrateSubscription = () => () => {};
@@ -334,9 +333,9 @@ export default function LandingPage() {
                   autoFocus
                 />
                 <Text size="sm" c="dimmed">
-                  Optionally assign the initial company admin now. This is
-                  useful when onboarding a company for the first time, and the
-                  invite can be re-sent later from company settings if needed.
+                  Assign the initial company admin now. A company cannot be
+                  created without one, and the invite can be re-sent later from
+                  company settings if needed.
                 </Text>
                 <TextInput
                   label="Initial admin name"
@@ -366,18 +365,20 @@ export default function LandingPage() {
                     Cancel
                   </Button>
                   <Button
-                    disabled={!newCompanyName.trim() || createCompany.isPending}
+                    disabled={
+                      !newCompanyName.trim() ||
+                      !newCompanyAdminName.trim() ||
+                      !newCompanyAdminEmail.trim() ||
+                      createCompany.isPending
+                    }
                     onClick={async () => {
                       const name = newCompanyName.trim();
                       const adminName = newCompanyAdminName.trim();
                       const adminEmail = newCompanyAdminEmail.trim();
                       if (!name) return;
-                      if (
-                        (adminName && !adminEmail) ||
-                        (!adminName && adminEmail)
-                      ) {
+                      if (!adminName || !adminEmail) {
                         setNewCompanyError(
-                          'Enter both initial admin name and email, or leave both blank.'
+                          'Initial admin name and email are required when creating a company.'
                         );
                         setNewCompanyStatus(null);
                         return;
@@ -385,21 +386,13 @@ export default function LandingPage() {
                       setNewCompanyError(null);
                       setNewCompanyStatus(null);
                       try {
-                        const company = await createCompany.mutateAsync({
+                        const result = await createCompany.mutateAsync({
                           name,
+                          initialAdminName: adminName || undefined,
+                          initialAdminEmail: adminEmail || undefined,
                         });
-                        if (adminName && adminEmail) {
-                          const result = await createUserInCompanyServerFn({
-                            data: {
-                              companyId: company.id,
-                              payload: {
-                              name: adminName,
-                              email: adminEmail,
-                              role: 'admin',
-                              sendOnboardingEmail: true,
-                              },
-                            },
-                          });
+                        const company = result.company;
+                        if (result.initialAdmin) {
                           await Promise.all([
                             queryClient.invalidateQueries({
                               predicate: (q) =>
@@ -416,9 +409,9 @@ export default function LandingPage() {
                             }),
                           ]);
                           setNewCompanyStatus(
-                            result.onboardingEmailSent
-                              ? `${company.name} was created and ${result.user.email} was invited as the initial admin. A password setup email is on its way.`
-                              : `${company.name} was created and ${result.user.email} was added as the initial admin. You can send their password setup email later from company settings if needed.`
+                            result.initialAdmin.onboardingEmailSent
+                              ? `${company.name} was created and ${result.initialAdmin.user.email} was invited as the initial admin. A password setup email is on its way.`
+                              : `${company.name} was created and ${result.initialAdmin.user.email} was added as the initial admin. You can send their password setup email later from company settings if needed.`
                           );
                         } else {
                           setNewCompanyStatus(`${company.name} was created.`);

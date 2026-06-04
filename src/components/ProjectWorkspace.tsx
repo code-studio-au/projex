@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Badge,
   Button,
@@ -16,9 +16,11 @@ import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
 import type {
+  CategoryId,
   CompanyId,
   ProjectId,
   ProjectType,
+  SubCategoryId,
   TransactionDrilldownFilter,
   TxnId,
 } from '../types';
@@ -57,6 +59,19 @@ type TransactionView =
   | 'uncoded'
   | 'auto-mapped-pending'
   | 'assigned-to-me';
+type TransactionDrilldownSearch =
+  | {
+      kind: 'category';
+      categoryId: CategoryId;
+      categoryName?: string;
+    }
+  | {
+      kind: 'subcategory';
+      categoryId: CategoryId;
+      subCategoryId: SubCategoryId;
+      categoryName?: string;
+      subCategoryName?: string;
+    };
 
 function toProjectWorkspaceTab(value: string | null): ProjectWorkspaceTab {
   if (
@@ -125,6 +140,7 @@ type ProjectWorkspaceProps = {
   initialMonthFilterKey?: string | null;
   initialTransactionView?: TransactionView;
   initialCommentTxnId?: TxnId | null;
+  initialTransactionDrilldown?: TransactionDrilldownSearch | null;
   initialEntrySource?: 'company-summary';
   initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 };
@@ -151,6 +167,7 @@ type ProjectWorkspaceInnerProps = {
   initialMonthFilterKey: string | null;
   initialTransactionView: TransactionView;
   initialCommentTxnId: TxnId | null;
+  initialTransactionDrilldown: TransactionDrilldownSearch | null;
   initialEntrySource?: 'company-summary';
   initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 };
@@ -178,6 +195,7 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
     initialMonthFilterKey = null,
     initialTransactionView = 'all',
     initialCommentTxnId = null,
+    initialTransactionDrilldown = null,
     initialEntrySource,
     initialEntryFocus,
   } = props;
@@ -205,6 +223,15 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
     initialMonthFilterKey ?? '',
     initialTransactionView,
     initialCommentTxnId ?? '',
+    initialTransactionDrilldown?.kind ?? '',
+    initialTransactionDrilldown?.categoryId ?? '',
+    initialTransactionDrilldown?.kind === 'subcategory'
+      ? initialTransactionDrilldown.subCategoryId
+      : '',
+    initialTransactionDrilldown?.categoryName ?? '',
+    initialTransactionDrilldown?.kind === 'subcategory'
+      ? initialTransactionDrilldown.subCategoryName ?? ''
+      : '',
     initialEntrySource ?? '',
     initialEntryFocus ?? '',
   ].join('|');
@@ -233,6 +260,7 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
       initialMonthFilterKey={initialMonthFilterKey}
       initialTransactionView={initialTransactionView}
       initialCommentTxnId={initialCommentTxnId}
+      initialTransactionDrilldown={initialTransactionDrilldown}
       initialEntrySource={initialEntrySource}
       initialEntryFocus={initialEntryFocus}
     />
@@ -262,6 +290,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     initialMonthFilterKey,
     initialTransactionView,
     initialCommentTxnId,
+    initialTransactionDrilldown,
     initialEntrySource,
     initialEntryFocus,
   } = props;
@@ -342,7 +371,8 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     initialTransactionView
   );
   const [transactionDrilldown, setTransactionDrilldown] =
-    useState<TransactionDrilldownFilter | null>(null);
+    useState<TransactionDrilldownSearch | null>(initialTransactionDrilldown);
+  const nextUrlSyncShouldReplaceRef = useRef(true);
 
   const effectiveCompanyName =
     (isHydrated ? company.data?.name : undefined) ?? initialCompanyName;
@@ -360,8 +390,55 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     (isHydrated ? project.data?.budgetTotalCents : undefined) ??
     initialProjectBudgetTotalCents;
 
+  const effectiveTransactionDrilldown = useMemo(() => {
+    if (!transactionDrilldown) return null;
+    const categoryName =
+      taxonomy.categories.find(
+        (category) => category.id === transactionDrilldown.categoryId
+      )?.name ??
+      transactionDrilldown.categoryName ??
+      transactionDrilldown.categoryId;
+    if (transactionDrilldown.kind === 'category') {
+      return {
+        kind: 'category' as const,
+        categoryId: transactionDrilldown.categoryId,
+        categoryName,
+      };
+    }
+
+    const subCategoryName =
+      taxonomy.subCategories.find(
+        (subCategory) =>
+          subCategory.id === transactionDrilldown.subCategoryId
+      )?.name ??
+      transactionDrilldown.subCategoryName ??
+      transactionDrilldown.subCategoryId;
+    return {
+      kind: 'subcategory' as const,
+      categoryId: transactionDrilldown.categoryId,
+      categoryName,
+      subCategoryId: transactionDrilldown.subCategoryId,
+      subCategoryName,
+    };
+  }, [taxonomy.categories, taxonomy.subCategories, transactionDrilldown]);
+
   function openTransactionDrilldown(filter: TransactionDrilldownFilter) {
-    setTransactionDrilldown(filter);
+    nextUrlSyncShouldReplaceRef.current = false;
+    setTransactionDrilldown(
+      filter.kind === 'subcategory'
+        ? {
+            kind: 'subcategory',
+            categoryId: filter.categoryId,
+            subCategoryId: filter.subCategoryId,
+            categoryName: filter.categoryName,
+            subCategoryName: filter.subCategoryName,
+          }
+        : {
+            kind: 'category',
+            categoryId: filter.categoryId,
+            categoryName: filter.categoryName,
+          }
+    );
     setTransactionView('all');
     setActiveTab('transactions');
   }
@@ -512,6 +589,8 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   }, [initialEntryFocus, initialEntrySource]);
 
   useEffect(() => {
+    const replace = nextUrlSyncShouldReplaceRef.current;
+    nextUrlSyncShouldReplaceRef.current = true;
     void router.navigate({
       to: '/c/$companyId/p/$projectId',
       params: { companyId, projectId },
@@ -523,8 +602,19 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
         view: transactionView === 'all' ? undefined : transactionView,
         source: initialEntrySource,
         focus: initialEntryFocus,
+        drilldownKind: transactionDrilldown?.kind,
+        categoryId: transactionDrilldown?.categoryId,
+        categoryName: transactionDrilldown?.categoryName,
+        subCategoryId:
+          transactionDrilldown?.kind === 'subcategory'
+            ? transactionDrilldown.subCategoryId
+            : undefined,
+        subCategoryName:
+          transactionDrilldown?.kind === 'subcategory'
+            ? transactionDrilldown.subCategoryName
+            : undefined,
       },
-      replace: true,
+      replace,
     });
   }, [
     activeTab,
@@ -536,6 +626,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     monthFilterKey,
     projectId,
     router,
+    transactionDrilldown,
     transactionView,
   ]);
 
@@ -879,7 +970,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
               setMonthFilterKey={setMonthFilterKey}
               transactionView={transactionView}
               setTransactionView={setTransactionView}
-              transactionDrilldown={transactionDrilldown}
+              transactionDrilldown={effectiveTransactionDrilldown}
               onClearTransactionDrilldown={() => setTransactionDrilldown(null)}
               initialCommentTxnId={initialCommentTxnId}
               transferOutEnabled={effectiveAllowTxnTransfers}
@@ -901,6 +992,11 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                       transactionView === 'all' ? undefined : transactionView,
                     source: undefined,
                     focus: undefined,
+                    drilldownKind: undefined,
+                    categoryId: undefined,
+                    categoryName: undefined,
+                    subCategoryId: undefined,
+                    subCategoryName: undefined,
                   },
                   replace: true,
                 });
@@ -940,6 +1036,11 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                       transactionView === 'all' ? undefined : transactionView,
                     source: undefined,
                     focus: undefined,
+                    drilldownKind: undefined,
+                    categoryId: undefined,
+                    categoryName: undefined,
+                    subCategoryId: undefined,
+                    subCategoryName: undefined,
                   },
                   replace: true,
                 });

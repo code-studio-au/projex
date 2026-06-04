@@ -1,8 +1,9 @@
-import { randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
 
 import { AppError } from '../../api/errors';
 import type {
+  CompanyCreateInput,
+  CompanyCreateResult,
   CompanyUpdateInput,
   CompanyUserInviteResult,
   ProfileUpdateInput,
@@ -24,7 +25,6 @@ import {
   emailSchema,
   userNameSchema,
 } from '../../validation/schemas';
-import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas';
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
 import { getBetterAuthInstance } from '../auth/betterAuthInstance';
@@ -72,10 +72,12 @@ type BetterAuthUserRow = {
   name: string;
 };
 
+type DbLike = ReturnType<typeof getDb>;
+
 async function findBetterAuthUserByEmail(
+  db: DbLike,
   emailNorm: string
 ): Promise<BetterAuthUserRow | null> {
-  const db = getDb();
   const result = await sql<BetterAuthUserRow>`
     select id, email, name
     from ba_user
@@ -86,23 +88,36 @@ async function findBetterAuthUserByEmail(
 }
 
 async function createBetterAuthUser(
+  db: DbLike,
   email: string,
   name: string
 ): Promise<BetterAuthUserRow> {
-  const auth = getBetterAuthInstance();
-  const response = await auth.api.signUpEmail({
-    body: {
-      email,
+  const userId = uid('bau');
+  const normalizedEmail = email.trim().toLowerCase();
+  const now = new Date().toISOString();
+  await sql`
+    insert into ba_user (
+      id,
       name,
-      password: randomBytes(24).toString('hex'),
-    },
-  });
-  const payload = betterAuthSignUpResponseSchema.parse(response);
-  const userId = payload.user.id.trim();
+      email,
+      "emailVerified",
+      image,
+      "createdAt",
+      "updatedAt"
+    ) values (
+      ${userId},
+      ${name.trim()},
+      ${normalizedEmail},
+      false,
+      null,
+      ${now},
+      ${now}
+    )
+  `.execute(db);
   return {
     id: userId,
-    email: payload.user.email?.trim() || email,
-    name: payload.user.name?.trim() || name,
+    email: normalizedEmail,
+    name: name.trim(),
   };
 }
 
@@ -159,10 +174,11 @@ async function requestPasswordSetupEmail(
 }
 
 async function reconcileAppUserToAuthIdentity(args: {
+  db: DbLike;
   authUser: BetterAuthUserRow;
   preferredName: string;
 }): Promise<User> {
-  const db = getDb();
+  const db = args.db;
   const emailNorm = args.authUser.email.trim().toLowerCase();
   const existingByEmail = await db
     .selectFrom('users')
@@ -602,14 +618,15 @@ export async function createUserInCompanyServer(args: {
     const trimmedName = args.name.trim();
     const trimmedEmail = args.email.trim();
 
-    let authUser = await findBetterAuthUserByEmail(emailNorm);
+    let authUser = await findBetterAuthUserByEmail(db, emailNorm);
     let createdAuthUser = false;
     if (!authUser) {
-      authUser = await createBetterAuthUser(trimmedEmail, trimmedName);
+      authUser = await createBetterAuthUser(db, trimmedEmail, trimmedName);
       createdAuthUser = true;
     }
 
     const user = await reconcileAppUserToAuthIdentity({
+      db,
       authUser,
       preferredName: trimmedName,
     });
@@ -714,45 +731,108 @@ export async function sendCompanyUserInviteEmailServer(args: {
 
 export async function createCompanyServer(args: {
   context: ServerFnContextInput;
-  input: Pick<Company, 'name'> & { id?: CompanyId };
-}): Promise<Company> {
+  input: CompanyCreateInput;
+}): Promise<CompanyCreateResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
     validateOrThrow(companyNameSchema, args.input.name);
+    const trimmedAdminName = args.input.initialAdminName?.trim();
+    const trimmedAdminEmail = args.input.initialAdminEmail?.trim();
+    if (!trimmedAdminName || !trimmedAdminEmail) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Initial admin name and email are required when creating a company.'
+      );
+    }
+    validateOrThrow(userNameSchema, trimmedAdminName);
+    validateOrThrow(emailSchema, trimmedAdminEmail);
     const db = getDb();
     const userId = await requireServerUserId(args.context);
     const isSuperadmin = await isGlobalSuperadminUser(userId, db);
     if (!isSuperadmin) throw new AppError('FORBIDDEN', 'Forbidden');
 
     const companyId = args.input.id ?? asCompanyId(uid('co'));
-    await db.transaction().execute(async (trx) => {
+    const trimmedCompanyName = args.input.name.trim();
+    let initialAdminResult: CompanyUserInviteResult | undefined;
+
+    const company = await db.transaction().execute(async (trx) => {
       await trx
         .insertInto('companies')
         .values({
           id: companyId,
-          name: args.input.name.trim(),
+          name: trimmedCompanyName,
           status: 'active',
           deactivated_at: null,
         })
         .execute();
 
-      await trx
-        .insertInto('company_memberships')
-        .values({
-          company_id: companyId,
-          user_id: userId,
-          role: 'admin',
-        })
-        .onConflict((oc) =>
-          oc.columns(['company_id', 'user_id']).doUpdateSet({ role: 'admin' })
-        )
-        .execute();
+      if (trimmedAdminName && trimmedAdminEmail) {
+        const emailNorm = trimmedAdminEmail.toLowerCase();
+        let authUser = await findBetterAuthUserByEmail(trx as DbLike, emailNorm);
+        let createdAuthUser = false;
+        if (!authUser) {
+          authUser = await createBetterAuthUser(
+            trx as DbLike,
+            trimmedAdminEmail,
+            trimmedAdminName
+          );
+          createdAuthUser = true;
+        }
+
+        const user = await reconcileAppUserToAuthIdentity({
+          db: trx as DbLike,
+          authUser,
+          preferredName: trimmedAdminName,
+        });
+
+        const existingMembership = await trx
+          .selectFrom('company_memberships')
+          .select('user_id')
+          .where('company_id', '=', companyId)
+          .where('user_id', '=', user.id)
+          .executeTakeFirst();
+
+        await trx
+          .insertInto('company_memberships')
+          .values({
+            company_id: companyId,
+            user_id: user.id,
+            role: 'admin',
+          })
+          .onConflict((oc) =>
+            oc.columns(['company_id', 'user_id']).doUpdateSet({ role: 'admin' })
+          )
+          .execute();
+
+        initialAdminResult = {
+          user,
+          createdAuthUser,
+          membershipCreated: !existingMembership,
+          onboardingEmailSent: false,
+          onboardingDelivery: 'none',
+        };
+      }
+
+      return {
+        id: companyId,
+        name: trimmedCompanyName,
+        status: 'active' as const,
+      };
     });
 
+    if (initialAdminResult) {
+      initialAdminResult = {
+        ...initialAdminResult,
+        onboardingEmailSent: true,
+        onboardingDelivery: await requestPasswordSetupEmail(
+          trimmedAdminEmail as string
+        ),
+      };
+    }
+
     return {
-      id: companyId,
-      name: args.input.name.trim(),
-      status: 'active',
+      company,
+      initialAdmin: initialAdminResult,
     };
   });
 }

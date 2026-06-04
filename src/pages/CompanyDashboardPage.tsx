@@ -20,7 +20,7 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, Project, ProjectId } from '../types';
-import { asCompanyId } from '../types';
+import { asCompanyId, asUserId } from '../types';
 import {
   useCompanyQuery,
   useProjectsQuery,
@@ -78,7 +78,6 @@ export default function CompanyDashboardPage() {
   const usersQ = useUsersQuery();
 
   const createProject = useCreateProjectMutation(companyId);
-  const canAddProjectsByAccess = access.can('project:create');
 
   const deactivateProject = useDeactivateProjectMutation(companyId);
   const reactivateProject = useReactivateProjectMutation(companyId);
@@ -97,6 +96,9 @@ export default function CompanyDashboardPage() {
     useState<Project['currency']>('AUD');
   const [newProjectParentId, setNewProjectParentId] =
     useState<ProjectId | null>(null);
+  const [newProjectOwnerId, setNewProjectOwnerId] = useState<string | null>(
+    null
+  );
 
   const rows = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
   const groupedProjects = useMemo(() => {
@@ -156,6 +158,23 @@ export default function CompanyDashboardPage() {
     () => membershipsQ.data ?? [],
     [membershipsQ.data]
   );
+  const eligibleInitialOwnerOptions = useMemo(() => {
+    const companyMemberIds = new Set(
+      memberships
+        .filter((membership) => membership.companyId === companyId)
+        .map((membership) => membership.userId)
+    );
+    return (usersQ.data ?? [])
+      .filter((user) => companyMemberIds.has(user.id) && !user.isGlobalSuperadmin)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((user) => ({
+        value: user.id,
+        label: `${user.name} (${user.email})`,
+      }));
+  }, [companyId, memberships, usersQ.data]);
+  const effectiveNewProjectOwnerId =
+    newProjectOwnerId ?? eligibleInitialOwnerOptions[0]?.value ?? null;
+  const hasEligibleInitialOwners = eligibleInitialOwnerOptions.length > 0;
   const userCompanyCount = useMemo(() => {
     const ids = new Set(
       memberships
@@ -169,6 +188,7 @@ export default function CompanyDashboardPage() {
       ?.isGlobalSuperadmin ??
     loaderData?.isGlobalSuperadmin ??
     false;
+  const superadminNeedsInitialOwner = isGlobalSuperadmin;
   const canViewCompanySummary =
     loaderData?.canViewCompanySummary ??
     (access.isAdmin ||
@@ -178,7 +198,7 @@ export default function CompanyDashboardPage() {
     (loaderData?.isGlobalSuperadmin ?? isGlobalSuperadmin) ||
     (loaderData?.userCompanyCount ?? userCompanyCount) > 1;
   const canAddProjects =
-    canAddProjectsByAccess || (loaderData?.isGlobalSuperadmin ?? false);
+    loaderData?.canCreateProjects ?? access.can('project:create');
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -451,7 +471,10 @@ export default function CompanyDashboardPage() {
               </Button>
               <Modal
                 opened={newProjectOpen}
-                onClose={() => setNewProjectOpen(false)}
+                onClose={() => {
+                  setNewProjectOpen(false);
+                  setNewProjectOwnerId(null);
+                }}
                 title="Create project or programme"
               >
                 <Stack>
@@ -501,6 +524,27 @@ export default function CompanyDashboardPage() {
                       setNewProjectParentId(null);
                     }}
                   />
+                  {superadminNeedsInitialOwner ? (
+                    <Select
+                      label="Initial project owner"
+                      description={
+                        hasEligibleInitialOwners
+                          ? 'Required when global superadmin creates a project or programme.'
+                          : 'Add a non-superadmin company member before creating a project or programme.'
+                      }
+                      placeholder={
+                        hasEligibleInitialOwners
+                          ? 'Select project owner'
+                          : 'No eligible company members'
+                      }
+                      value={effectiveNewProjectOwnerId}
+                      data={eligibleInitialOwnerOptions}
+                      disabled={!hasEligibleInitialOwners}
+                      searchable
+                      clearable={false}
+                      onChange={(value) => setNewProjectOwnerId(value)}
+                    />
+                  ) : null}
                   <Select
                     label="Programme"
                     description="Optional. Assigns this project into a reporting programme."
@@ -518,16 +562,29 @@ export default function CompanyDashboardPage() {
                     imports, transactions, and coding. New records start with
                     superadmin support access enabled.
                   </Text>
+                  {superadminNeedsInitialOwner && !hasEligibleInitialOwners ? (
+                    <Text size="sm" c="red">
+                      This company has no non-superadmin members yet. Add a
+                      company member before creating a project or programme.
+                    </Text>
+                  ) : null}
                   <Group justify="flex-end">
                     <Button
                       variant="light"
-                      onClick={() => setNewProjectOpen(false)}
+                      onClick={() => {
+                        setNewProjectOpen(false);
+                        setNewProjectOwnerId(null);
+                      }}
                     >
                       Cancel
                     </Button>
                     <Button
                       disabled={
-                        !newProjectName.trim() || createProject.isPending
+                        !newProjectName.trim() ||
+                        createProject.isPending ||
+                        (superadminNeedsInitialOwner &&
+                          (!hasEligibleInitialOwners ||
+                            !effectiveNewProjectOwnerId))
                       }
                       onClick={async () => {
                         const name = newProjectName.trim();
@@ -536,6 +593,11 @@ export default function CompanyDashboardPage() {
                           name,
                           projectType: newProjectType,
                           currency: newProjectCurrency,
+                          initialOwnerUserId:
+                            superadminNeedsInitialOwner &&
+                            effectiveNewProjectOwnerId
+                              ? asUserId(effectiveNewProjectOwnerId)
+                              : undefined,
                           parentProjectId:
                             newProjectType === 'project'
                               ? (newProjectParentId ?? undefined)
@@ -545,6 +607,7 @@ export default function CompanyDashboardPage() {
                         setNewProjectType('project');
                         setNewProjectCurrency('AUD');
                         setNewProjectParentId(null);
+                        setNewProjectOwnerId(null);
                         setNewProjectOpen(false);
                       }}
                     >

@@ -11,11 +11,9 @@ import type {
   TxnWorkflowStateInput,
 } from '../../../api/contract';
 import { asTxnCommentId } from '../../../types';
-import { txnListPageQuerySchema } from '../../../validation/apiSchemas';
 import {
   createTxnServer,
   deleteTxnServer,
-  listTransactionsPageServer,
   listTransactionsServer,
   splitTxnServer,
   transferTxnServer,
@@ -40,20 +38,6 @@ export const listTransactionsServerFn = createServerFn({ method: 'GET' })
     return listTransactionsServer({
       context: context.serverContext,
       projectId: data.projectId,
-    });
-  });
-
-export const listTransactionsPageServerFn = createServerFn({ method: 'GET' })
-  .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; query: unknown }) => ({
-    projectId: asProjectId(input.projectId),
-    query: txnListPageQuerySchema.parse(input.query),
-  }))
-  .handler(async ({ context, data }) => {
-    return listTransactionsPageServer({
-      context: context.serverContext,
-      projectId: data.projectId,
-      input: data.query,
     });
   });
 

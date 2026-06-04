@@ -3,7 +3,7 @@ import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p
 
 import ProjectWorkspace from '../components/ProjectWorkspace';
 import type { CompanyId, ProjectId } from '../types';
-import { asCompanyId, asProjectId, asTxnId } from '../types';
+import { asCategoryId, asCompanyId, asProjectId, asSubCategoryId, asTxnId } from '../types';
 
 export default function ProjectWorkspacePage() {
   // Route params are required by the route definition (c/$companyId/p/$projectId).
@@ -44,6 +44,25 @@ export default function ProjectWorkspacePage() {
       initialTransactionView={search.view}
       initialCommentTxnId={
         search.commentTxn ? asTxnId(search.commentTxn) : null
+      }
+      initialTransactionDrilldown={
+        search.drilldownKind === 'subcategory' &&
+        search.categoryId &&
+        search.subCategoryId
+          ? {
+              kind: 'subcategory',
+              categoryId: asCategoryId(search.categoryId),
+              subCategoryId: asSubCategoryId(search.subCategoryId),
+              categoryName: search.categoryName,
+              subCategoryName: search.subCategoryName,
+            }
+          : search.drilldownKind === 'category' && search.categoryId
+            ? {
+                kind: 'category',
+                categoryId: asCategoryId(search.categoryId),
+                categoryName: search.categoryName,
+              }
+            : null
       }
       initialEntrySource={search.source}
       initialEntryFocus={search.focus}
