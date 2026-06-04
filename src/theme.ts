@@ -9,103 +9,176 @@ import { createTheme } from '@mantine/core';
  * - sensible component defaults
  */
 export const theme = createTheme({
-  primaryColor: 'blue',
-  defaultRadius: 'md',
+  primaryColor: 'gray',
+  defaultRadius: 'sm',
   fontFamily:
-    '"Plus Jakarta Sans", "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif',
+    '"Avenir Next", "Segoe UI Variable", "Inter", "Segoe UI", sans-serif',
   headings: {
     fontFamily:
-      '"Plus Jakarta Sans", "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif',
-    fontWeight: '650',
+      '"Avenir Next", "Segoe UI Variable", "Inter", "Segoe UI", sans-serif',
+    fontWeight: '620',
   },
   spacing: {
-    xs: '0.625rem', // 10px
-    sm: '0.875rem', // 14px
-    md: '1.125rem', // 18px
-    lg: '1.5rem', // 24px
-    xl: '2rem', // 32px
-  },
-  radius: {
     xs: '0.5rem',
     sm: '0.75rem',
     md: '1rem',
-    lg: '1.25rem',
-    xl: '1.5rem',
+    lg: '1.5rem',
+    xl: '2rem',
+  },
+  radius: {
+    xs: '0.375rem',
+    sm: '0.5rem',
+    md: '0.75rem',
+    lg: '1rem',
+    xl: '1.25rem',
   },
   shadows: {
-    xs: '0 1px 2px rgba(0,0,0,0.06)',
-    sm: '0 2px 10px rgba(0,0,0,0.06)',
-    md: '0 6px 20px rgba(0,0,0,0.08)',
+    xs: '0 1px 2px rgba(15, 23, 42, 0.04)',
+    sm: '0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.03)',
+    md: '0 8px 24px rgba(15, 23, 42, 0.08)',
   },
   components: {
     AppShell: {
       styles: {
         main: {
-          background:
-            'radial-gradient(circle at top right, rgba(226, 232, 240, 0.45), transparent 35%), var(--mantine-color-gray-0)',
+          backgroundColor: 'var(--app-bg)',
         },
       },
     },
     Card: {
       defaultProps: {
-        radius: 'lg',
+        radius: 'md',
         withBorder: true,
         shadow: 'xs',
       },
     },
     Paper: {
       defaultProps: {
-        radius: 'lg',
+        radius: 'md',
         withBorder: true,
       },
       styles: {
         root: {
-          backgroundColor: 'rgba(255,255,255,0.92)',
-          backdropFilter: 'blur(2px)',
+          backgroundColor: 'var(--surface-0)',
+          borderColor: 'var(--surface-border)',
+          boxShadow: 'var(--surface-shadow)',
         },
       },
     },
     Button: {
       defaultProps: {
-        radius: 'md',
+        radius: 'sm',
         size: 'sm',
+      },
+      styles: {
+        root: {
+          fontWeight: 550,
+        },
       },
     },
     Badge: {
       defaultProps: {
         radius: 'sm',
-        variant: 'light',
+        variant: 'default',
+        size: 'sm',
+      },
+      styles: {
+        root: {
+          minHeight: '1.15rem',
+          paddingInline: '0.35rem',
+        },
+        label: {
+          fontSize: '0.875rem',
+          fontWeight: 400,
+          textTransform: 'none',
+          letterSpacing: '0',
+          lineHeight: 1.2,
+        },
       },
     },
     Modal: {
       defaultProps: {
-        radius: 'lg',
+        radius: 'md',
         centered: true,
-        overlayProps: { blur: 2 },
+        overlayProps: {
+          backgroundOpacity: 0.55,
+          blur: 2,
+        },
+      },
+      styles: {
+        content: {
+          border: '1px solid var(--surface-border)',
+          boxShadow: 'var(--surface-shadow-lg)',
+          background:
+            'linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.96))',
+        },
+        header: {
+          padding: '1rem 1.1rem 0.5rem',
+          background: 'transparent',
+        },
+        title: {
+          fontSize: '1rem',
+          fontWeight: 620,
+          letterSpacing: '-0.01em',
+        },
+        body: {
+          padding: '0.5rem 1.1rem 1.1rem',
+        },
+      },
+    },
+    Alert: {
+      defaultProps: {
+        radius: 'md',
+        variant: 'light',
+      },
+      styles: {
+        root: {
+          border: '1px solid var(--surface-border)',
+        },
+        label: {
+          fontSize: '0.92rem',
+          fontWeight: 500,
+          lineHeight: 1.5,
+        },
+        title: {
+          fontSize: '0.92rem',
+          fontWeight: 620,
+        },
       },
     },
     TextInput: {
       defaultProps: {
-        radius: 'md',
+        radius: 'sm',
       },
     },
     Select: {
       defaultProps: {
-        radius: 'md',
+        radius: 'sm',
       },
     },
     NumberInput: {
       defaultProps: {
-        radius: 'md',
+        radius: 'sm',
+      },
+    },
+    PasswordInput: {
+      defaultProps: {
+        radius: 'sm',
       },
     },
     Tabs: {
       defaultProps: {
-        radius: 'md',
+        radius: 'sm',
       },
     },
     ActionIcon: {
       defaultProps: { variant: 'subtle' },
+    },
+    Table: {
+      defaultProps: {
+        verticalSpacing: 'sm',
+        horizontalSpacing: 'md',
+      },
     },
   },
 });

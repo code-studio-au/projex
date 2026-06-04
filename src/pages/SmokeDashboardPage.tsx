@@ -36,6 +36,7 @@ import type {
 import { smokeSectionDefinitions } from '../types';
 import { parseJsonWithSchema, readJsonResponseOrNull } from '../utils/json';
 import { z } from 'zod';
+import classes from '../styles/ui.module.css';
 
 type SmokeStepView = SmokeStepTemplate & {
   status: SmokeStepStatus;
@@ -211,8 +212,8 @@ function FocusStripCard({
       withBorder
       radius="lg"
       p="md"
+      className={classes.surfaceCard}
       style={{
-        background: 'var(--mantine-color-body)',
         transform: active ? 'scale(1)' : 'scale(0.985)',
         transition: 'transform 120ms ease',
       }}
@@ -232,7 +233,7 @@ function FocusStripCard({
         <Text fw={700} size={active ? 'md' : 'sm'}>
           {title}
         </Text>
-        <Text size="sm" c="dimmed">
+        <Text size="sm" c="dimmed" className={classes.sectionCopy}>
           {message ?? 'Waiting to run.'}
         </Text>
       </Stack>
@@ -287,7 +288,7 @@ function SmokeStepRow({ step }: { step: SmokeStepView }) {
             <Text size="sm" c="red">
               {humanizeSmokeStatusMessage(step.error)}
             </Text>
-            <Code block style={{ whiteSpace: 'pre-wrap' }}>
+            <Code block className={classes.commentBody}>
               {step.error}
             </Code>
           </Stack>
@@ -692,7 +693,7 @@ export default function SmokeDashboardPage() {
         <Paper withBorder radius="lg" p="lg">
           <Stack gap="xs">
             <Title order={2}>System Checks</Title>
-            <Text c="dimmed">
+            <Text c="dimmed" className={classes.modalIntro}>
               Run visual system checks from the app without SSHing into the
               server.
             </Text>
@@ -713,7 +714,7 @@ export default function SmokeDashboardPage() {
           <Group justify="space-between" align="flex-start">
             <Stack gap="xs">
               <Title order={2}>System Checks</Title>
-              <Text c="dimmed">
+              <Text c="dimmed" className={classes.modalIntro}>
                 Run each system-check section separately, inspect the exact
                 steps that passed or failed, and keep the core server checks
                 accessible from the app.
@@ -733,7 +734,7 @@ export default function SmokeDashboardPage() {
               Run all checks
             </Button>
           </Group>
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="dimmed" className={classes.sectionCopy}>
             The dashboard runs the same server checks we use operationally
             today. It targets `PROJEX_SMOKE_BASE_URL` when that value is set and
             otherwise uses the current app origin. Base smoke login credentials
@@ -741,7 +742,7 @@ export default function SmokeDashboardPage() {
             sections will mark themselves as skipped when their extra values are
             not configured in `.env.smoke.local`.
           </Text>
-          <Alert color="blue" variant="light">
+          <Alert color="blue" className={classes.notice}>
             This UI uses the configured smoke credentials already present on the
             server. For disposable generated users and automatic cleanup, run
             `pnpm run smoke:server:generated` from the CLI.
@@ -754,12 +755,11 @@ export default function SmokeDashboardPage() {
           withBorder
           radius="lg"
           p="lg"
+          className={classes.surfaceCard}
           style={{
             position: 'sticky',
             top: RUN_ALL_FOCUS_OFFSET_PX,
             zIndex: 20,
-            background: 'var(--mantine-color-body)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.08)',
           }}
         >
           <Stack gap="md">
@@ -886,9 +886,9 @@ export default function SmokeDashboardPage() {
                             : 'Idle'}
                       </Badge>
                     </Group>
-                    <Text size="sm" c="dimmed">
-                      {section.description}
-                    </Text>
+                  <Text size="sm" c="dimmed" className={classes.sectionCopy}>
+                    {section.description}
+                  </Text>
                     {view?.statusMessage ? (
                       <Text
                         size="sm"
@@ -954,7 +954,7 @@ export default function SmokeDashboardPage() {
                     </Stack>
                   </>
                 ) : (
-                  <Text size="sm" c="dimmed">
+                  <Text className={classes.emptyState}>
                     No run recorded yet.
                   </Text>
                 )}

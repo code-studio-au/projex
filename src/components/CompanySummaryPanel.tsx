@@ -1,13 +1,14 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import {
+  Button,
   Badge,
   Group,
   Paper,
   Select,
-  SimpleGrid,
   Stack,
   Text,
+  SimpleGrid,
   Title,
 } from '@mantine/core';
 import {
@@ -20,6 +21,7 @@ import { formatCurrencyFromCents } from '../utils/money';
 import { sum } from '../utils/finance';
 import { projectRoute } from '../router';
 import { useCompanySummaryQuery } from '../queries/reference';
+import classes from '../styles/ui.module.css';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 const quarterOptions: readonly QuarterOption[] = ['Q1', 'Q2', 'Q3', 'Q4'];
@@ -132,6 +134,7 @@ function SummaryDrilldownLink(props: {
   focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
   children: ReactNode;
   color?: string;
+  className?: string;
 }) {
   const {
     companyId,
@@ -143,7 +146,8 @@ function SummaryDrilldownLink(props: {
     view,
     focus,
     children,
-    color = 'blue.7',
+    color = 'black',
+    className = 'table-body-left',
   } = props;
   return (
     <Link
@@ -157,9 +161,9 @@ function SummaryDrilldownLink(props: {
         view,
         focus,
       })}
-      style={{ textDecoration: 'none' }}
+      className={classes.plainLink}
     >
-      <Text fw={600} c={color}>
+      <Text className={className} c={color}>
         {children}
       </Text>
     </Link>
@@ -325,7 +329,7 @@ export default function CompanySummaryPanel(props: {
                   : row.original.name}
               </SummaryDrilldownLink>
               {row.original.projectType === 'programme' ? (
-                <Badge variant="light" color="blue">
+                <Badge variant="light">
                   Programme
                 </Badge>
               ) : null}
@@ -346,6 +350,7 @@ export default function CompanySummaryPanel(props: {
             monthFilterKey={monthFilterKey}
             tab="budget"
             focus="budget"
+            className="table-body-right"
           >
             {formatCurrencyFromCents(
               row.original.budgetCents,
@@ -367,6 +372,7 @@ export default function CompanySummaryPanel(props: {
             monthFilterKey={monthFilterKey}
             tab="transactions"
             focus="actual"
+            className="table-body-right"
           >
             {formatCurrencyFromCents(
               row.original.actualCodedCents,
@@ -388,7 +394,8 @@ export default function CompanySummaryPanel(props: {
             monthFilterKey={monthFilterKey}
             tab="budget"
             focus="remaining"
-            color={row.original.remainingCents < 0 ? 'red.7' : 'blue.7'}
+            color={row.original.remainingCents < 0 ? 'red.7' : 'black'}
+            className="table-body-right"
           >
             {formatCurrencyFromCents(
               row.original.remainingCents,
@@ -412,12 +419,13 @@ export default function CompanySummaryPanel(props: {
               tab="transactions"
               view="uncoded"
               focus="uncoded"
-              color="yellow.8"
+              color="black"
+              className="table-body-right"
             >
               {row.original.uncodedCount}
             </SummaryDrilldownLink>
           ) : (
-            row.original.uncodedCount
+            <Text className="table-body-right">{row.original.uncodedCount}</Text>
           ),
       },
       {
@@ -435,7 +443,8 @@ export default function CompanySummaryPanel(props: {
               tab="transactions"
               view="uncoded"
               focus="uncoded"
-              color="yellow.8"
+              color="black"
+              className="table-body-right"
             >
               {formatCurrencyFromCents(
                 row.original.uncodedAmountCents,
@@ -443,10 +452,12 @@ export default function CompanySummaryPanel(props: {
               )}
             </SummaryDrilldownLink>
           ) : (
-            formatCurrencyFromCents(
-              row.original.uncodedAmountCents,
-              row.original.currency
-            )
+            <Text className="table-body-right">
+              {formatCurrencyFromCents(
+                row.original.uncodedAmountCents,
+                row.original.currency
+              )}
+            </Text>
           ),
       },
       {
@@ -467,7 +478,7 @@ export default function CompanySummaryPanel(props: {
                   tab: 'budget',
                   focus: 'health',
                 })}
-                style={{ textDecoration: 'none', width: 'fit-content' }}
+                className={classes.badgeLink}
               >
                 <Badge variant="light" color="red">
                   Over budget
@@ -486,9 +497,9 @@ export default function CompanySummaryPanel(props: {
                   view: 'uncoded',
                   focus: 'uncoded',
                 })}
-                style={{ textDecoration: 'none', width: 'fit-content' }}
+                className={classes.badgeLink}
               >
-                <Badge variant="light" color="yellow">
+                <Badge variant="light">
                   Has uncoded
                 </Badge>
               </Link>
@@ -504,7 +515,7 @@ export default function CompanySummaryPanel(props: {
                   tab: 'budget',
                   focus: 'health',
                 })}
-                style={{ textDecoration: 'none', width: 'fit-content' }}
+                className={classes.badgeLink}
               >
                 <Badge variant="light" color="green">
                   Healthy
@@ -521,7 +532,6 @@ export default function CompanySummaryPanel(props: {
         Cell: ({ row }) => (
           <Badge
             variant="light"
-            color={row.original.status === 'active' ? 'green' : 'gray'}
           >
             {row.original.status === 'active' ? 'Active' : 'Archived'}
           </Badge>
@@ -535,7 +545,7 @@ export default function CompanySummaryPanel(props: {
           row.original.visibility === 'private' ? (
             <Badge variant="light">Private</Badge>
           ) : (
-            <Badge variant="light" color="blue">
+            <Badge variant="light">
               Company
             </Badge>
           ),
@@ -545,54 +555,61 @@ export default function CompanySummaryPanel(props: {
   );
 
   return (
-    <Stack gap="md">
-      <Paper withBorder radius="lg" p="lg">
-        <Stack gap="md">
-          <Title order={5}>Company summary</Title>
-          <SimpleGrid cols={isMobile ? 1 : 3} spacing="md">
-            <Select
-              label="Year"
-              placeholder="All years"
-              data={yearFilterOptions}
-              value={yearFilter}
-              clearable
-              onChange={(value) => {
-                setYearFilter(value);
-                setQuarterFilter(null);
-                setMonthFilterKey(null);
-              }}
-            />
-            <Select
-              label="Quarter"
-              placeholder="All quarters"
-              data={quarterFilterOptions}
-              value={quarterFilter}
-              clearable
-              onChange={(value) => {
-                setQuarterFilter(toQuarterOption(value));
-                setMonthFilterKey(null);
-              }}
-            />
-            <Select
-              label="Month"
-              placeholder="All months"
-              data={monthFilterOptions}
-              value={monthFilterKey}
-              clearable
-              onChange={setMonthFilterKey}
-            />
-          </SimpleGrid>
-          {monthFilterKey || quarterFilter || yearFilter ? (
-            <Text size="xs" c="dimmed">
-              Budget, actual, remaining, and uncoded totals reflect the selected
-              time filter.
-            </Text>
-          ) : null}
-        </Stack>
+    <Stack gap="lg" className={classes.pageStack}>
+      <Paper className={classes.filterCard} radius="xl">
+        <Group align="flex-end" gap="sm" wrap="wrap">
+          <Select
+            label="Year"
+            placeholder="All years"
+            data={yearFilterOptions}
+            value={yearFilter}
+            clearable
+            onChange={(value) => {
+              setYearFilter(value);
+              setQuarterFilter(null);
+              setMonthFilterKey(null);
+            }}
+            style={{ width: isMobile ? '100%' : 140 }}
+          />
+          <Select
+            label="Quarter"
+            placeholder="All quarters"
+            data={quarterFilterOptions}
+            value={quarterFilter}
+            clearable
+            disabled={!yearFilter}
+            onChange={(value) => {
+              setQuarterFilter(toQuarterOption(value));
+              setMonthFilterKey(null);
+            }}
+            style={{ width: isMobile ? '100%' : 150 }}
+          />
+          <Select
+            label="Month"
+            placeholder="All months"
+            data={monthFilterOptions}
+            value={monthFilterKey}
+            clearable
+            onChange={setMonthFilterKey}
+            style={{ width: isMobile ? '100%' : 180 }}
+          />
+          <Button
+            size="sm"
+            variant="subtle"
+            disabled={!yearFilter && !quarterFilter && !monthFilterKey}
+            onClick={() => {
+              setYearFilter(null);
+              setQuarterFilter(null);
+              setMonthFilterKey(null);
+            }}
+          >
+            Remove filter(s)
+          </Button>
+        </Group>
       </Paper>
 
       <SimpleGrid cols={isMobile ? 1 : 3} spacing="md" verticalSpacing="md">
-        <Paper withBorder radius="lg" p="lg">
+        <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Active programmes/projects
@@ -600,7 +617,7 @@ export default function CompanySummaryPanel(props: {
             <Title order={3}>{summary.activeProjects}</Title>
           </Stack>
         </Paper>
-        <Paper withBorder radius="lg" p="lg">
+        <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Total budget
@@ -608,7 +625,7 @@ export default function CompanySummaryPanel(props: {
             <Title order={4}>{summary.totalBudget}</Title>
           </Stack>
         </Paper>
-        <Paper withBorder radius="lg" p="lg">
+        <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Total actual
@@ -616,7 +633,7 @@ export default function CompanySummaryPanel(props: {
             <Title order={4}>{summary.totalActual}</Title>
           </Stack>
         </Paper>
-        <Paper withBorder radius="lg" p="lg">
+        <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Remaining
@@ -624,7 +641,7 @@ export default function CompanySummaryPanel(props: {
             <Title order={4}>{summary.totalRemaining}</Title>
           </Stack>
         </Paper>
-        <Paper withBorder radius="lg" p="lg">
+        <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Uncoded transactions
@@ -632,7 +649,7 @@ export default function CompanySummaryPanel(props: {
             <Title order={3}>{summary.totalUncodedCount}</Title>
           </Stack>
         </Paper>
-        <Paper withBorder radius="lg" p="lg">
+        <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Uncoded amount
@@ -643,37 +660,39 @@ export default function CompanySummaryPanel(props: {
       </SimpleGrid>
 
       {rows.length > 0 ? (
-        <MantineReactTable
-          columns={columns}
-          data={rows}
-          getRowId={(row) => row.id}
-          mantineTableContainerProps={{
-            className: 'financeTable companySummaryTable',
-          }}
-          enableColumnActions={false}
-          enableColumnFilters={false}
-          enableDensityToggle={false}
-          enableFullScreenToggle={false}
-          enableTopToolbar={false}
-          enablePagination
-          enableSorting
-          state={{ isLoading }}
-          initialState={{
-            density: 'xs',
-            pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 7 },
-          }}
-          mantineTableProps={{
-            highlightOnHover: true,
-            striped: 'odd',
-            withTableBorder: true,
-            style: { tableLayout: 'fixed' },
-          }}
-          mantineTableBodyCellProps={{
-            style: { verticalAlign: 'middle' },
-          }}
-        />
+        <div className={classes.tableWrap}>
+          <MantineReactTable
+            columns={columns}
+            data={rows}
+            getRowId={(row) => row.id}
+            mantineTableContainerProps={{
+              className: 'financeTable companySummaryTable',
+            }}
+            enableColumnActions={false}
+            enableColumnFilters={false}
+            enableDensityToggle={false}
+            enableFullScreenToggle={false}
+            enableTopToolbar={false}
+            enablePagination
+            enableSorting
+            state={{ isLoading }}
+            initialState={{
+              density: 'xs',
+              pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 7 },
+            }}
+            mantineTableProps={{
+              highlightOnHover: true,
+              striped: 'odd',
+              withTableBorder: true,
+              style: { tableLayout: 'fixed' },
+            }}
+            mantineTableBodyCellProps={{
+              style: { verticalAlign: 'middle' },
+            }}
+          />
+        </div>
       ) : (
-        <Paper withBorder radius="lg" p="lg">
+        <Paper className={classes.surfaceCard} radius="xl" p="lg">
           <Text c="dimmed">
             No accessible projects are available to summarize yet.
           </Text>

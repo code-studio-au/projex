@@ -23,6 +23,7 @@ import {
   powerBiTransactionDate,
   toPowerBiExpenditureActualsRow,
 } from '../utils/powerBiImport';
+import classes from '../styles/ui.module.css';
 
 export default function ImportReviewQueuePanel(props: {
   projectId: ProjectId;
@@ -44,10 +45,15 @@ export default function ImportReviewQueuePanel(props: {
   if (!enabled) return null;
 
   return (
-    <Paper withBorder radius="lg" p="md">
+    <Paper className={classes.surfaceCard} radius="xl" p="md">
       <Stack gap="sm">
         <Group justify="space-between" align="center" wrap="wrap">
-          <Title order={5}>Project review queue</Title>
+          <div>
+            <Text className={classes.sectionEyebrow}>Review queue</Text>
+            <Title order={5} mt={4}>
+              Project review queue
+            </Title>
+          </div>
           <Badge
             variant="light"
             color={pendingCandidates.length ? 'yellow' : 'gray'}
@@ -55,20 +61,20 @@ export default function ImportReviewQueuePanel(props: {
             {pendingCandidates.length} waiting
           </Badge>
         </Group>
-        <Text size="sm" c="dimmed">
+        <Text size="sm" c="dimmed" className={classes.filterIntro}>
           These PowerBI rows matched Import Rules that need project context.
           Importing a row creates an uncoded transaction in this project;
           rejecting it keeps the audit trail without affecting the budget.
         </Text>
 
         {candidatesQ.isError ? (
-          <Alert color="red" variant="light">
+          <Alert color="red" className={classes.notice}>
             Could not load import review candidates.
           </Alert>
         ) : null}
 
         {!pendingCandidates.length ? (
-          <Text size="sm" c="dimmed">
+          <Text className={classes.emptyState}>
             No PowerBI rows are waiting for project review.
           </Text>
         ) : (
@@ -78,7 +84,13 @@ export default function ImportReviewQueuePanel(props: {
               const amount = powerBiAmountCents(row);
 
               return (
-                <Paper key={candidate.id} withBorder radius="md" p="md">
+                <Paper
+                  key={candidate.id}
+                  className={classes.surfaceMuted}
+                  withBorder
+                  radius="md"
+                  p="md"
+                >
                   <Stack gap="xs">
                     <Group
                       justify="space-between"
@@ -116,7 +128,7 @@ export default function ImportReviewQueuePanel(props: {
                         </Badge>
                       ) : null}
                     </Group>
-                    <Group justify="flex-end" gap="xs" wrap="wrap">
+                    <Group className={classes.footerRow}>
                       <Button
                         size="xs"
                         variant="light"

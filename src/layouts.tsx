@@ -5,12 +5,9 @@ import {
   AppShell,
   Button,
   Container,
-  Group,
   Menu,
-  Paper,
   Stack,
   Text,
-  ThemeIcon,
   MantineProvider,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
@@ -31,6 +28,7 @@ import { useLogoutMutation, useSessionQuery } from './queries/session';
 import { useCompaniesQuery } from './queries/reference';
 import { useCurrentUserQuery } from './queries/account';
 import { getCspNonce } from './utils/csp';
+import classes from './styles/ui.module.css';
 
 const smokeToolsEnabled = import.meta.env.VITE_ENABLE_SMOKE_TOOLS === 'true';
 const Devtools = import.meta.env.DEV
@@ -93,9 +91,6 @@ export function AuthedLayout() {
   const companyCount = (companiesQ.data ?? []).length;
   const currentUser = currentUserQ.data ?? null;
   const isSuperadmin = currentUser?.isGlobalSuperadmin === true;
-  const accountLabel = isMobile
-    ? (currentUser?.name?.split(' ')[0] ?? 'Account')
-    : (currentUser?.name ?? 'Account');
 
   // Prefer companyId from the active route match (project route also includes companyId).
   // We avoid route.useMatch() here to keep types aligned across router versions and to
@@ -122,73 +117,48 @@ export function AuthedLayout() {
 
   return (
     <AppShell padding={0} header={{ height: isMobile ? 64 : 70 }}>
-      <AppShell.Header
-        style={{
-          borderBottom: 'none',
-          background: 'rgba(255,255,255,0.9)',
-          overflow: 'hidden',
-        }}
-      >
-        <Paper
-          withBorder={false}
-          radius={0}
-          p="sm"
-          h="100%"
-          bg="rgba(255,255,255,0.9)"
-          style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}
-        >
-          <Container size="xl">
-            <Group justify="space-between" wrap="nowrap">
-              <Group gap="sm">
-                <ThemeIcon
-                  radius="md"
-                  size="lg"
-                  variant="gradient"
-                  gradient={{ from: 'blue.6', to: 'cyan.5' }}
-                >
-                  PX
-                </ThemeIcon>
-                <Stack gap={0}>
-                  <Text fw={800} lh={1.1} size={isMobile ? 'md' : 'lg'}>
-                    ProjEx
-                  </Text>
-                  <Text size="xs" c="dimmed" lh={1.1} visibleFrom="sm">
-                    Project Expense Tracker
-                  </Text>
-                </Stack>
-              </Group>
+      <AppShell.Header className={classes.shellHeader}>
+        <Container size="xl" className={classes.shellBar}>
+          <div className={classes.shellTopRow}>
+            <div className={classes.brand}>
+              <span className={classes.brandMark}>PX</span>
+              <Stack gap={0}>
+                <Text className={classes.brandTitle}>ProjEx</Text>
+                <Text className={classes.brandEyebrow} visibleFrom="sm">
+                  Project expense control
+                </Text>
+              </Stack>
+            </div>
 
-              <Group gap="sm">
-                {userId && (
-                  <Button
-                    variant="light"
-                    onClick={async () => {
-                      if (isSuperadmin || companyCount > 1) {
-                        router.navigate({ to: landingRoute.to });
-                        return;
-                      }
+            <div className={classes.shellActions}>
+              <Button
+                variant="default"
+                onClick={async () => {
+                  if (isSuperadmin || companyCount > 1) {
+                    router.navigate({ to: landingRoute.to });
+                    return;
+                  }
 
-                      // Prefer current company from URL, otherwise fall back to user's default company.
-                      const companyId =
-                        companyIdFromUrl ??
-                        (await getDefaultCompanyIdForUser());
-                      if (companyId) {
-                        router.navigate({
-                          to: companyRoute.to,
-                          params: { companyId },
-                        });
-                      } else {
-                        router.navigate({ to: homeRoute.to });
-                      }
-                    }}
-                  >
-                    Workspace
-                  </Button>
-                )}
+                  // Prefer current company from URL, otherwise fall back to user's default company.
+                  const companyId =
+                    companyIdFromUrl ?? (await getDefaultCompanyIdForUser());
+                  if (companyId) {
+                    router.navigate({
+                      to: companyRoute.to,
+                      params: { companyId },
+                    });
+                  } else {
+                    router.navigate({ to: homeRoute.to });
+                  }
+                }}
+              >
+                Workspace
+              </Button>
+              <div className={classes.accountMenuWrap}>
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
                     <Button variant="subtle" px="sm">
-                      <Text fw={600}>{accountLabel}</Text>
+                      <span style={{ fontWeight: 600 }}>Account</span>
                     </Button>
                   </Menu.Target>
                   <Menu.Dropdown>
@@ -232,13 +202,13 @@ export function AuthedLayout() {
                     </Menu.Item>
                   </Menu.Dropdown>
                 </Menu>
-              </Group>
-            </Group>
-          </Container>
-        </Paper>
+              </div>
+            </div>
+          </div>
+        </Container>
       </AppShell.Header>
       <AppShell.Main>
-        <Container size="xl" py="xl">
+        <Container size="xl" className={classes.mainWrap}>
           <Outlet />
         </Container>
       </AppShell.Main>

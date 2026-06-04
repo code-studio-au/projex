@@ -2,12 +2,13 @@ import { Outlet, createFileRoute } from '@tanstack/react-router';
 import { isServerAuthMode } from './-authMode';
 import type { UserId } from '../types';
 import { asCompanyId } from '../types';
+import { getUserCompanyRole } from '../store/access';
 import { allCompanyMembershipsQueryOptions, myProjectMembershipsQueryOptions } from '../queries/memberships';
+import { currentUserQueryOptions } from '../queries/account';
 import {
   companiesQueryOptions,
   companyQueryOptions,
   projectsQueryOptions,
-  usersQueryOptions,
 } from '../queries/reference';
 import { companyDefaultsQueryOptions } from '../queries/taxonomy';
 import { importRulesQueryOptions } from '../queries/importRules';
@@ -24,8 +25,8 @@ export const Route = createFileRoute('/_authed/c/$companyId')({
     ) as { userId: UserId } | null;
     if (!session?.userId) return null;
 
-    await Promise.all([
-      context.queryClient.ensureQueryData(usersQueryOptions(session.userId)),
+    const [currentUser, , companyMemberships, , company, projects, companyDefaults] = await Promise.all([
+      context.queryClient.ensureQueryData(currentUserQueryOptions(session.userId)),
       context.queryClient.ensureQueryData(companiesQueryOptions(session.userId)),
       context.queryClient.ensureQueryData(
         allCompanyMembershipsQueryOptions(session.userId)
@@ -47,6 +48,47 @@ export const Route = createFileRoute('/_authed/c/$companyId')({
       ),
     ]);
 
-    return null;
+    const userCompanyCount = new Set(
+      (companyMemberships ?? [])
+        .filter((membership) => membership.userId === session.userId)
+        .map((membership) => membership.companyId)
+    ).size;
+    const companyRole = getUserCompanyRole(
+      session.userId,
+      companyId,
+      companyMemberships ?? []
+    );
+    const isGlobalSuperadmin = currentUser?.isGlobalSuperadmin === true;
+    const canViewCompanySummary =
+      companyRole === 'admin' ||
+      companyRole === 'executive' ||
+      (isGlobalSuperadmin && (projects?.length ?? 0) > 0);
+    const canAccessSettings =
+      isGlobalSuperadmin ||
+      companyRole === 'admin' ||
+      companyRole === 'executive' ||
+      companyRole === 'management';
+    const canManageCompanyMembers =
+      isGlobalSuperadmin || companyRole === 'admin';
+    const canManageCompanyDefaults =
+      isGlobalSuperadmin ||
+      companyRole === 'admin' ||
+      companyRole === 'executive';
+
+    return {
+      companyName: company?.name ?? null,
+      companyRole,
+      isGlobalSuperadmin,
+      userCompanyCount,
+      canViewCompanySummary,
+      canAccessSettings,
+      canManageCompanyMembers,
+      canManageCompanyDefaults,
+      companyDefaultsCategoryCount: companyDefaults?.categories.length ?? 0,
+      companyDefaultsSubCategoryCount:
+        companyDefaults?.subCategories.length ?? 0,
+      companyDefaultsMappingRuleCount:
+        companyDefaults?.mappingRules.length ?? 0,
+    };
   },
 });

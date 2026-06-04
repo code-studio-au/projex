@@ -22,6 +22,7 @@ function Document({ children }: { children: ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <HeadContent />
       </head>
       <body>

@@ -1,6 +1,8 @@
 import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
 import { isServerAuthMode } from './-authMode';
 import { allCompanyMembershipsQueryOptions } from '../queries/memberships';
+import { currentUserQueryOptions } from '../queries/account';
+import { companiesQueryOptions } from '../queries/reference';
 import { sessionQueryOptions } from '../queries/session';
 import type { UserId } from '../types';
 
@@ -12,12 +14,29 @@ export const Route = createFileRoute('/_authed/companies')({
       context.queryClient.getQueryData(sessionQueryOptions().queryKey) ??
       (await context.queryClient.ensureQueryData(sessionQueryOptions()))
     ) as { userId: UserId } | null;
-    if (!session?.userId) return null;
+    if (!session?.userId)
+      return { isSuperadmin: false, userId: null, userCompanyCount: 0 };
 
-    await context.queryClient.ensureQueryData(
+    const companyMemberships = await context.queryClient.ensureQueryData(
       allCompanyMembershipsQueryOptions(session.userId)
     );
+    const companies = await context.queryClient.ensureQueryData(
+      companiesQueryOptions(session.userId)
+    );
+    const currentUser = await context.queryClient.ensureQueryData(
+      currentUserQueryOptions(session.userId)
+    );
+    const userCompanyCount = new Set(
+      (companyMemberships ?? [])
+        .filter((membership) => membership.userId === session.userId)
+        .map((membership) => membership.companyId)
+    ).size;
 
-    return null;
+    return {
+      isSuperadmin: currentUser.isGlobalSuperadmin === true,
+      userId: session.userId,
+      userCompanyCount,
+      companies,
+    };
   },
 });

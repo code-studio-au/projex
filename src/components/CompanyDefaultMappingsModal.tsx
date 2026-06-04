@@ -35,6 +35,7 @@ import {
   useDeleteCompanyDefaultMappingRuleMutation,
   useUpdateCompanyDefaultMappingRuleMutation,
 } from '../queries/taxonomy';
+import classes from '../styles/ui.module.css';
 
 export default function CompanyDefaultMappingsModal(props: {
   opened: boolean;
@@ -140,20 +141,20 @@ export default function CompanyDefaultMappingsModal(props: {
       title="Manage Auto-Categorise Rules"
       size={isMobile ? '100%' : 'xl'}
     >
-      <Stack gap="md">
+      <Stack className={classes.modalStack}>
         {error ? <Alert color="red">{error}</Alert> : null}
         {success ? <Alert color="green">{success}</Alert> : null}
         {readOnly ? (
-          <Text size="sm" c="dimmed" className="panelHelperText">
+          <Text size="sm" c="dimmed" className={classes.modalIntro}>
             You don’t have permission to edit Auto-Categorise Rules.
           </Text>
         ) : companyDefaultsQ.isPending && !companyDefaultsQ.data ? (
-          <Text size="sm" c="dimmed" className="panelHelperText">
+          <Text className={classes.emptyState}>
             Loading Auto-Categorise Rules…
           </Text>
         ) : (
           <Stack gap={4}>
-            <Text size="sm" c="dimmed" className="panelHelperText">
+            <Text size="sm" c="dimmed" className={classes.modalIntro}>
               Rules search imported transaction item and description text. The
               first matching rule wins and auto-codes the row if the project
               already contains the mapped company defaults.
@@ -189,13 +190,13 @@ export default function CompanyDefaultMappingsModal(props: {
         )}
 
         {!readOnly && !hasDefaultTaxonomy ? (
-          <Alert color="blue">
+          <Alert color="blue" className={classes.notice}>
             Add company default categories and subcategories first. Mapping
             rules need default taxonomy to point at.
           </Alert>
         ) : null}
 
-        <Paper withBorder radius="md" p="md">
+        <Paper withBorder radius="md" p="md" className={classes.modalCard}>
           <Stack gap="sm">
             <Group justify="space-between">
               <Text fw={600}>Add Auto-Categorise Rule</Text>
@@ -253,7 +254,7 @@ export default function CompanyDefaultMappingsModal(props: {
                 company default categories first.
               </Text>
             ) : null}
-            <Group justify="flex-end">
+            <Group className={classes.footerRow}>
               <Button
                 leftSection={<IconPlus size={16} />}
                 disabled={
@@ -296,7 +297,7 @@ export default function CompanyDefaultMappingsModal(props: {
         </Paper>
 
         {rules.length === 0 ? (
-          <Text size="sm" c="dimmed" className="panelHelperText">
+          <Text className={classes.emptyState}>
             No Auto-Categorise Rules yet.
           </Text>
         ) : (

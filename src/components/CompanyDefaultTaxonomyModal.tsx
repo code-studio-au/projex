@@ -29,6 +29,7 @@ import {
   useUpdateCompanyDefaultCategoryMutation,
   useUpdateCompanyDefaultSubCategoryMutation,
 } from '../queries/taxonomy';
+import classes from '../styles/ui.module.css';
 
 export default function CompanyDefaultTaxonomyModal(props: {
   opened: boolean;
@@ -164,20 +165,20 @@ export default function CompanyDefaultTaxonomyModal(props: {
         title="Manage company default categories"
         size={isMobile ? '100%' : 'lg'}
       >
-        <Stack gap="md" className="taxonomyModal">
+        <Stack gap="md" className={classes.modalStack}>
           {error ? <Alert color="red">{error}</Alert> : null}
           {success ? <Alert color="green">{success}</Alert> : null}
           {readOnly ? (
-            <Text size="sm" c="dimmed" className="panelHelperText">
+            <Text size="sm" c="dimmed" className={classes.modalIntro}>
               You don’t have permission to edit company defaults.
             </Text>
           ) : companyDefaultsQ.isPending && !companyDefaultsQ.data ? (
-            <Text size="sm" c="dimmed" className="panelHelperText">
+            <Text className={classes.emptyState}>
               Loading company default taxonomy…
             </Text>
           ) : (
             <Stack gap={4}>
-              <Text size="sm" c="dimmed" className="panelHelperText">
+              <Text size="sm" c="dimmed" className={classes.modalIntro}>
                 Company defaults can be applied into projects later. Existing
                 project taxonomy is never overwritten.
               </Text>
@@ -205,7 +206,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
                 setSuccess(null);
                 setNewCategoryName(e.currentTarget.value);
               }}
-              style={{ width: '100%' }}
+              className={classes.fieldGrow}
               disabled={readOnly}
             />
             <Button
@@ -238,10 +239,10 @@ export default function CompanyDefaultTaxonomyModal(props: {
 
           <Stack gap="lg">
             {categories.length === 0 ? (
-              <Text size="sm" c="dimmed" className="panelHelperText">
-                No company default categories yet.
-              </Text>
-            ) : null}
+                <Text className={classes.emptyState}>
+                  No company default categories yet.
+                </Text>
+              ) : null}
 
             {categories.map((category) => {
               const categorySubCategories = subCategories.filter(
@@ -279,7 +280,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
                             void commitCategoryName(category.id, category.name);
                           }
                         }}
-                        style={{ flex: 1, minWidth: isMobile ? '100%' : 0 }}
+                        className={classes.fieldGrow}
                         disabled={readOnly}
                       />
                       {isMobile ? (
@@ -332,7 +333,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
                             [category.id]: value,
                           }));
                         }}
-                        style={{ width: '100%' }}
+                        className={classes.fieldGrow}
                         disabled={readOnly}
                       />
                       <Button
@@ -372,7 +373,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
                     </Group>
 
                     {categorySubCategories.length === 0 ? (
-                      <Text size="sm" c="dimmed" className="panelHelperText">
+                      <Text className={classes.emptyState}>
                         No subcategories yet.
                       </Text>
                     ) : (
@@ -413,7 +414,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
                                   );
                                 }
                               }}
-                              style={{ width: '100%', flex: 1 }}
+                              className={classes.fieldGrow}
                               disabled={readOnly}
                             />
                             <Select

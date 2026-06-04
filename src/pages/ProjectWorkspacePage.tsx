@@ -1,4 +1,5 @@
 import { projectRoute } from '../router';
+import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
 
 import ProjectWorkspace from '../components/ProjectWorkspace';
 import type { CompanyId, ProjectId } from '../types';
@@ -10,6 +11,7 @@ export default function ProjectWorkspacePage() {
   const { companyId: rawCompanyId, projectId: rawProjectId } =
     projectRoute.useParams();
   const search = projectRoute.useSearch();
+  const loaderData = projectWorkspaceRoute.useLoaderData();
 
   const companyId: CompanyId = asCompanyId(rawCompanyId);
   const projectId: ProjectId = asProjectId(rawProjectId);
@@ -18,6 +20,21 @@ export default function ProjectWorkspacePage() {
     <ProjectWorkspace
       companyId={companyId}
       projectId={projectId}
+      initialCompanyName={loaderData?.companyName ?? null}
+      initialProjectName={loaderData?.projectName ?? null}
+      initialProjectType={loaderData?.projectType ?? 'project'}
+      initialCurrencyCode={loaderData?.currencyCode ?? 'AUD'}
+      initialAllowSuperadminAccess={loaderData?.allowSuperadminAccess ?? false}
+      initialAllowTxnTransfers={loaderData?.allowTxnTransfers ?? false}
+      initialProjectBudgetTotalCents={loaderData?.projectBudgetTotalCents ?? 0}
+      initialCanViewProgrammeSummary={
+        loaderData?.canViewProgrammeSummary ?? false
+      }
+      initialCanImport={loaderData?.canImport ?? false}
+      initialCanEditBudgets={loaderData?.canEditBudgets ?? false}
+      initialCanEditTxns={loaderData?.canEditTxns ?? false}
+      initialCanEditTaxonomy={loaderData?.canEditTaxonomy ?? false}
+      initialCanProjectEdit={loaderData?.canProjectEdit ?? false}
       initialTab={
         search.tab ?? (search.commentTxn ? 'transactions' : undefined)
       }

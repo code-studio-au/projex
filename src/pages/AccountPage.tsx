@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
   Badge,
@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 
 import { apiErrorMessage } from '../api/errorResponses';
+import { Route as accountRoute } from '../routes/_authed.account';
 import { useSessionQuery } from '../queries/session';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import { useCompaniesQuery } from '../queries/reference';
@@ -25,6 +26,11 @@ import {
   useUpdateCurrentUserProfileMutation,
 } from '../queries/account';
 import { readJsonResponseOrNull } from '../utils/json';
+import classes from '../styles/ui.module.css';
+
+const hydrateSubscription = () => () => {};
+const getClientHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 type EmailActivity = {
   kind: 'requested' | 'resent' | 'cancelled';
@@ -33,10 +39,20 @@ type EmailActivity = {
 };
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString();
+  return new Intl.DateTimeFormat('en-AU', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(value));
 }
 
 export default function AccountPage() {
+  const loaderData = accountRoute.useLoaderData();
+  const isHydrated = useSyncExternalStore(
+    hydrateSubscription,
+    getClientHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
   const session = useSessionQuery();
   const userId = session.data?.userId;
   const currentUserQ = useCurrentUserQuery();
@@ -48,7 +64,11 @@ export default function AccountPage() {
   const resendEmailChange = useResendEmailChangeMutation();
   const cancelEmailChange = useCancelEmailChangeMutation();
 
-  const currentUser = currentUserQ.data ?? null;
+  const currentUser = currentUserQ.data ?? loaderData?.currentUser ?? null;
+  const pendingEmailChange =
+    pendingEmailChangeQ.data ?? loaderData?.pendingEmailChange ?? null;
+  const pendingEmailChangeReady =
+    pendingEmailChangeQ.status !== 'pending' || loaderData?.pendingEmailChange !== undefined;
   const myMemberships = useMemo(() => {
     const companyNameById = new Map(
       (companiesQ.data ?? []).map((company) => [company.id, company.name])
@@ -216,17 +236,20 @@ export default function AccountPage() {
   }
 
   return (
-    <Stack gap="lg">
-      <Paper withBorder radius="lg" p="lg">
+    <Stack gap="lg" className={classes.pageStack}>
+      <Paper className={classes.pageHero} radius="xl" p="lg">
         <Stack gap="xs">
-          <Title order={2}>Account</Title>
-          <Text c="dimmed">
+          <Text className={classes.sectionEyebrow}>Account</Text>
+          <Title order={2} className={classes.pageHeroTitle}>
+            Account
+          </Title>
+          <Text className={classes.pageHeroCopy}>
             Manage your profile details and review the companies you can access.
           </Text>
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="md">
           <Title order={4}>Profile</Title>
           {profileMessage ? (
@@ -252,7 +275,7 @@ export default function AccountPage() {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="md">
           <Title order={4}>Email</Title>
           <TextInput
@@ -267,24 +290,23 @@ export default function AccountPage() {
           {emailChangeError ? (
             <Alert color="red">{emailChangeError}</Alert>
           ) : null}
-          {pendingEmailChangeQ.isLoading ? (
+          {!pendingEmailChangeReady ? (
             <Text size="sm" c="dimmed">
               Checking for a pending email change...
             </Text>
           ) : null}
-          {pendingEmailChangeQ.data ? (
+          {pendingEmailChange ? (
             <Alert color="blue">
               <Stack gap="xs">
                 <Text fw={600}>Pending email change</Text>
                 <Text size="sm">
-                  New email: {pendingEmailChangeQ.data.newEmail}
+                  New email: {pendingEmailChange.newEmail}
                 </Text>
                 <Text size="sm" c="dimmed">
-                  Requested:{' '}
-                  {formatDateTime(pendingEmailChangeQ.data.requestedAt)}
+                  Requested: {formatDateTime(pendingEmailChange.requestedAt)}
                 </Text>
                 <Text size="sm" c="dimmed">
-                  Expires: {formatDateTime(pendingEmailChangeQ.data.expiresAt)}
+                  Expires: {formatDateTime(pendingEmailChange.expiresAt)}
                 </Text>
                 <Text size="sm" c="dimmed">
                   Check spam or junk if the email does not appear quickly. If
@@ -326,26 +348,36 @@ export default function AccountPage() {
             Your current login email remains active until you confirm the new
             address from your inbox.
           </Text>
-          <TextInput
-            label="New email"
-            value={newEmail}
-            onChange={(event) => setNewEmail(event.currentTarget.value)}
-            autoComplete="email"
-            disabled={Boolean(pendingEmailChangeQ.data)}
-          />
-          <Group justify="flex-end" gap="sm">
-            <Button
-              onClick={handleEmailChangeRequest}
-              loading={requestEmailChange.isPending}
-              disabled={!newEmail.trim() || Boolean(pendingEmailChangeQ.data)}
-            >
-              Send verification email
-            </Button>
-          </Group>
+          {isHydrated ? (
+            <>
+              <TextInput
+                label="New email"
+                value={newEmail}
+                onChange={(event) => setNewEmail(event.currentTarget.value)}
+                autoComplete="email"
+                disabled={Boolean(pendingEmailChange)}
+              />
+              <Group justify="flex-end" gap="sm">
+                <Button
+                  onClick={handleEmailChangeRequest}
+                  loading={requestEmailChange.isPending}
+                  disabled={!newEmail.trim() || Boolean(pendingEmailChange)}
+                >
+                  Send verification email
+                </Button>
+              </Group>
+            </>
+          ) : (
+            <Paper className={classes.surfaceMuted} radius="xl" p="md">
+              <Text size="sm" c="dimmed">
+                Loading email change controls...
+              </Text>
+            </Paper>
+          )}
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="md">
           <Title order={4}>Password</Title>
           {passwordMessage ? (
@@ -382,7 +414,7 @@ export default function AccountPage() {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="md">
           <Title order={4}>Company access</Title>
           {myMemberships.length ? (

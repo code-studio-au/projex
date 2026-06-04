@@ -4,14 +4,19 @@ import { isServerAuthMode } from './-authMode';
 import type { TxnListPageInput } from '../api/contract';
 import type { UserId } from '../types';
 import { asCompanyId, asProjectId } from '../types';
+import { getUserCompanyRole } from '../store/access';
+import { can } from '../utils/auth';
 import { budgetsQueryOptions } from '../queries/budgets';
 import { importCandidatesQueryOptions } from '../queries/importCandidates';
-import { myProjectMembershipsQueryOptions } from '../queries/memberships';
+import {
+  allCompanyMembershipsQueryOptions,
+  myProjectMembershipsQueryOptions,
+} from '../queries/memberships';
+import { currentUserQueryOptions } from '../queries/account';
 import {
   companyQueryOptions,
   companySummaryQueryOptions,
   projectQueryOptions,
-  projectsQueryOptions,
 } from '../queries/reference';
 import { sessionQueryOptions } from '../queries/session';
 import {
@@ -61,64 +66,154 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
     ) as { userId: UserId } | null;
     if (!session?.userId) return null;
 
-    await Promise.all([
+    const [company, companyMemberships, myProjectMemberships, currentUser] =
+      await Promise.all([
       context.queryClient.ensureQueryData(
         companyQueryOptions(session.userId, companyId)
       ),
       context.queryClient.ensureQueryData(
-        projectsQueryOptions(session.userId, companyId)
+        allCompanyMembershipsQueryOptions(session.userId)
       ),
       context.queryClient.ensureQueryData(
         myProjectMembershipsQueryOptions(session.userId, companyId)
       ),
-      context.queryClient.ensureQueryData(
-        budgetsQueryOptions(session.userId, projectId)
-      ),
-      context.queryClient.ensureQueryData(
-        categoriesQueryOptions(session.userId, projectId)
-      ),
-      context.queryClient.ensureQueryData(
-        subCategoriesQueryOptions(session.userId, projectId)
-      ),
-      context.queryClient.ensureQueryData(
-        transactionCommentSummariesQueryOptions(session.userId, projectId)
-      ),
+      context.queryClient.ensureQueryData(currentUserQueryOptions(session.userId)),
     ]);
 
     const project = await context.queryClient.ensureQueryData(
       projectQueryOptions(session.userId, projectId)
     );
 
-    const transactionsPageInput: TxnListPageInput = {
-      pageIndex: 0,
-      pageSize: 25,
-      sort: { field: 'date', direction: 'desc' },
-      yearFilter: search.year ?? null,
-      quarterFilter: search.quarter ?? null,
-      monthFilterKey: search.month ?? null,
-      transactionView: search.view ?? 'all',
-    };
-
-    await context.queryClient.ensureQueryData(
-      transactionsPageQueryOptions(
-        session.userId,
-        projectId,
-        transactionsPageInput
-      )
-    );
-
-    if (search.tab === 'import') {
-      await context.queryClient.ensureQueryData(
-        importCandidatesQueryOptions(session.userId, projectId)
-      );
+    if (project?.projectType === 'project') {
+      await Promise.all([
+        context.queryClient.ensureQueryData(
+          budgetsQueryOptions(session.userId, projectId)
+        ),
+        context.queryClient.ensureQueryData(
+          categoriesQueryOptions(session.userId, projectId)
+        ),
+        context.queryClient.ensureQueryData(
+          subCategoriesQueryOptions(session.userId, projectId)
+        ),
+        context.queryClient.ensureQueryData(
+          transactionCommentSummariesQueryOptions(session.userId, projectId)
+        ),
+      ]);
     }
 
     if (project?.projectType === 'programme') {
       await context.queryClient.ensureQueryData(
         companySummaryQueryOptions(session.userId, companyId)
       );
+    } else {
+      const transactionsPageInput: TxnListPageInput = {
+        pageIndex: 0,
+        pageSize: 25,
+        sort: { field: 'date', direction: 'desc' },
+        yearFilter: search.year ?? null,
+        quarterFilter: search.quarter ?? null,
+        monthFilterKey: search.month ?? null,
+        transactionView: search.view ?? 'all',
+      };
+
+      await context.queryClient.ensureQueryData(
+        transactionsPageQueryOptions(
+          session.userId,
+          projectId,
+          transactionsPageInput
+        )
+      );
+
+      if (search.tab === 'import') {
+        await context.queryClient.ensureQueryData(
+          importCandidatesQueryOptions(session.userId, projectId)
+        );
+      }
     }
 
-    return null;
+    const isGlobalSuperadmin = currentUser?.isGlobalSuperadmin === true;
+    const companyRole = getUserCompanyRole(
+      session.userId,
+      companyId,
+      companyMemberships ?? []
+    );
+    const canViewProgrammeSummary =
+      companyRole === 'admin' ||
+      companyRole === 'executive' ||
+      isGlobalSuperadmin;
+    const canImport = can({
+      userId: session.userId,
+      companyId,
+      projectId,
+      action: 'project:import',
+      isGlobalSuperadmin,
+      companyMemberships: companyMemberships ?? [],
+      projectMemberships: myProjectMemberships ?? [],
+    });
+    const canEditBudgets = can({
+      userId: session.userId,
+      companyId,
+      projectId,
+      action: 'budget:edit',
+      isGlobalSuperadmin,
+      companyMemberships: companyMemberships ?? [],
+      projectMemberships: myProjectMemberships ?? [],
+    });
+    const canEditTaxonomy = can({
+      userId: session.userId,
+      companyId,
+      projectId,
+      action: 'taxonomy:edit',
+      isGlobalSuperadmin,
+      companyMemberships: companyMemberships ?? [],
+      projectMemberships: myProjectMemberships ?? [],
+    });
+    const canProjectEdit = can({
+      userId: session.userId,
+      companyId,
+      projectId,
+      action: 'project:edit',
+      isGlobalSuperadmin,
+      companyMemberships: companyMemberships ?? [],
+      projectMemberships: myProjectMemberships ?? [],
+    });
+    const canEditCompanyStructure = can({
+      userId: session.userId,
+      companyId,
+      projectId,
+      action: 'project:configure',
+      isGlobalSuperadmin,
+      companyMemberships: companyMemberships ?? [],
+      projectMemberships: myProjectMemberships ?? [],
+    });
+    const canEditTxns = can({
+      userId: session.userId,
+      companyId,
+      projectId,
+      action: 'txns:edit',
+      isGlobalSuperadmin,
+      companyMemberships: companyMemberships ?? [],
+      projectMemberships: myProjectMemberships ?? [],
+    });
+
+    return {
+      companyName: company?.name ?? null,
+      projectName: project?.name ?? null,
+      projectType: project?.projectType ?? 'project',
+      currencyCode: project?.currency ?? 'AUD',
+      projectVisibility: project?.visibility ?? 'private',
+      parentProjectId: project?.parentProjectId ?? null,
+      allowSuperadminAccess: project?.allowSuperadminAccess ?? false,
+      allowTxnTransfers: project?.allowTxnTransfers ?? false,
+      projectBudgetTotalCents: project?.budgetTotalCents ?? 0,
+      isGlobalSuperadmin,
+      canViewProgrammeSummary,
+      canImport,
+      canEditBudgets,
+      canEditTxns,
+      canEditTaxonomy,
+      canProjectEdit,
+      canEditCompanyStructure,
+    };
   },
 });

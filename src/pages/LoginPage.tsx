@@ -1,28 +1,28 @@
 import { useState } from 'react';
 import {
   Alert,
-  Badge,
   Button,
   Container,
   Divider,
   Group,
   Paper,
   PasswordInput,
-  SimpleGrid,
   Stack,
   Text,
   TextInput,
-  ThemeIcon,
   Title,
 } from '@mantine/core';
 import { useRouter } from '@tanstack/react-router';
 import { useMediaQuery } from '@mantine/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { forgotPasswordRoute, homeRoute } from '../router';
 import {
   getPostLoginTargetServerFn,
   getSessionServerFn,
 } from '../server/start/functions/auth';
+import { refreshAfterAuthChange } from '../queries/session';
+import classes from '../styles/ui.module.css';
 
 export default function LoginPage() {
   return <ServerLoginPanel />;
@@ -30,6 +30,7 @@ export default function LoginPage() {
 
 function ServerLoginPanel() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 48em)');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,6 +73,7 @@ function ServerLoginPanel() {
       }
 
       const target = await getPostLoginTargetServerFn();
+      await refreshAfterAuthChange(queryClient);
       await router.invalidate();
       await router.navigate(target);
     } catch (err) {
@@ -87,33 +89,26 @@ function ServerLoginPanel() {
       px={isMobile ? 'xs' : 'md'}
       py={isMobile ? 'lg' : 'xl'}
     >
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing={isMobile ? 'md' : 'xl'}>
-        <Paper
-          radius="xl"
-          p={isMobile ? 'lg' : 'xl'}
-          style={{
-            background:
-              'linear-gradient(160deg, rgba(239,246,255,0.96), rgba(255,255,255,0.98))',
-            border: '1px solid rgba(148,163,184,0.22)',
-          }}
-        >
-          <Stack gap="lg" h="100%" justify="space-between">
+      <div className={classes.authShell}>
+        <Paper className={classes.authPanel} radius="xl">
+          <Stack gap="xl">
             <Stack gap="md">
-              <Badge variant="light" color="blue" radius="xl" w="fit-content">
-                Secure sign in
-              </Badge>
               <div>
-                <Title order={1} size={isMobile ? 'h2' : 'h1'}>
+                <Title
+                  order={1}
+                  size={isMobile ? 'h2' : 'h1'}
+                  className={classes.pageHeroTitle}
+                >
                   ProjEx
                 </Title>
-                <Text c="dimmed" mt="xs" maw={460}>
+                <Text className={classes.authLead} mt="xs">
                   Keep budgets, imports, and coding decisions in one operational
                   workspace built for project expense control.
                 </Text>
               </div>
             </Stack>
 
-            <Stack gap="sm">
+            <div className={classes.infoList}>
               <InfoRow
                 title="Clear project visibility"
                 detail="Move from company summary into the exact budget or transaction view you need."
@@ -126,11 +121,11 @@ function ServerLoginPanel() {
                 title="Built for operational teams"
                 detail="Use one workspace for imports, budgeting, approvals, and company oversight."
               />
-            </Stack>
+            </div>
           </Stack>
         </Paper>
 
-        <Paper withBorder radius="xl" p={isMobile ? 'lg' : 'xl'}>
+        <Paper className={classes.authPanel} radius="xl">
           <Stack gap="md">
             <div>
               <Title order={3}>Sign In</Title>
@@ -162,9 +157,6 @@ function ServerLoginPanel() {
               >
                 Forgot password?
               </Button>
-              <Badge variant="dot" color="blue" radius="xl">
-                Encrypted session
-              </Badge>
             </Group>
             <Divider />
             <Group justify="space-between" align="center" wrap="wrap" gap="sm">
@@ -184,25 +176,21 @@ function ServerLoginPanel() {
             </Group>
           </Stack>
         </Paper>
-      </SimpleGrid>
+      </div>
     </Container>
   );
 }
 
 function InfoRow({ title, detail }: { title: string; detail: string }) {
   return (
-    <Group align="flex-start" gap="sm" wrap="nowrap">
-      <ThemeIcon variant="light" color="blue" radius="xl" size={30}>
-        <Text fw={700} size="sm">
-          •
-        </Text>
-      </ThemeIcon>
+    <div className={classes.infoRow}>
+      <span className={classes.infoBullet}>•</span>
       <div>
         <Text fw={700}>{title}</Text>
         <Text size="sm" c="dimmed">
           {detail}
         </Text>
       </div>
-    </Group>
+    </div>
   );
 }

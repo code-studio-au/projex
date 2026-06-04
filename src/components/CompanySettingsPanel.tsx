@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
   Badge,
@@ -35,13 +35,25 @@ import {
   useSendCompanyUserInviteEmailMutation,
 } from '../queries/admin';
 import { useCompanyDefaultsQuery } from '../queries/taxonomy';
+import { Route as companyLayoutRoute } from '../routes/_authed.c.$companyId';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
 import CompanyImportRulesModal from './CompanyImportRulesModal';
+import classes from '../styles/ui.module.css';
+
+const hydrateSubscription = () => () => {};
+const getClientHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
+  const loaderData = companyLayoutRoute.useLoaderData();
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const isHydrated = useSyncExternalStore(
+    hydrateSubscription,
+    getClientHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
 
   const access = useCompanyAccess(companyId);
   const usersQ = useUsersQuery();
@@ -54,12 +66,39 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
   // Permissions are evaluated via `access.can(...)` so that global superadmin
   // works across companies even without explicit membership.
-  const currentCompanyRole = access.companyRole;
-  const canAddCompanyUsers = access.can('company:manage_members');
-  const canEditCompanyDefaults = access.can('company:manage_defaults');
+  const currentCompanyRole =
+    (isHydrated ? access.companyRole : undefined) ??
+    loaderData?.companyRole ??
+    'none';
+  const effectiveIsSuperadmin =
+    (isHydrated ? access.isSuperadmin : undefined) ??
+    loaderData?.isGlobalSuperadmin ??
+    false;
+  const canAddCompanyUsers =
+    (isHydrated ? access.can('company:manage_members') : undefined) ??
+    loaderData?.canManageCompanyMembers ??
+    false;
+  const canEditCompanyDefaults =
+    (isHydrated ? access.can('company:manage_defaults') : undefined) ??
+    loaderData?.canManageCompanyDefaults ??
+    false;
   const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
-  const companyDefaultsLoading =
-    companyDefaultsQ.isPending && !companyDefaultsQ.data;
+  const effectiveDefaults = isHydrated
+    ? companyDefaultsQ.data
+    : {
+        categories: Array.from({
+          length: loaderData?.companyDefaultsCategoryCount ?? 0,
+        }),
+        subCategories: Array.from({
+          length: loaderData?.companyDefaultsSubCategoryCount ?? 0,
+        }),
+        mappingRules: Array.from({
+          length: loaderData?.companyDefaultsMappingRuleCount ?? 0,
+        }),
+      };
+  const companyDefaultsLoading = isHydrated
+    ? companyDefaultsQ.isPending && !companyDefaultsQ.data
+    : false;
   const defaultsStatusLabel = !canEditCompanyDefaults
     ? 'Not allowed'
     : companyDefaultsLoading
@@ -105,7 +144,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
   const effectiveRoleUserId: UserId | null =
     roleUserId ??
-    (userOptions[0]?.value ? asUserId(userOptions[0].value) : null);
+    (isHydrated && userOptions[0]?.value ? asUserId(userOptions[0].value) : null);
 
   const [membershipCompanyRole, setMembershipCompanyRole] =
     useState<CompanyRole | null>('member');
@@ -126,7 +165,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const highestRoleBadge = (
     <Badge variant="light">
       Your company role: {currentCompanyRole}
-      {access.isSuperadmin ? ' (global superadmin)' : ''}
+      {effectiveIsSuperadmin ? ' (global superadmin)' : ''}
     </Badge>
   );
 
@@ -168,9 +207,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         header: 'User',
         Cell: ({ row }) => (
           <Stack gap={2}>
-            <Text fw={600}>{row.original.userName}</Text>
+            <Text className="table-body-left-bold">{row.original.userName}</Text>
             {row.original.userEmail ? (
-              <Text size="xs" c="dimmed">
+              <Text className="table-body-left" c="dimmed">
                 {row.original.userEmail}
               </Text>
             ) : null}
@@ -255,13 +294,13 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   );
 
   return (
-    <Stack gap="lg">
+    <Stack gap="lg" className={classes.pageStack}>
       <Group justify="space-between" align="center" wrap="wrap">
         <Title order={4}>Company settings</Title>
         {highestRoleBadge}
       </Group>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
           <Group justify="space-between">
             <Title order={5}>Company default categories</Title>
@@ -280,10 +319,10 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           ) : (
             <Group gap="sm" wrap="wrap">
               <Badge variant="light">
-                {companyDefaultsQ.data?.categories.length ?? 0} categories
+                {effectiveDefaults?.categories.length ?? 0} categories
               </Badge>
               <Badge variant="light">
-                {companyDefaultsQ.data?.subCategories.length ?? 0} subcategories
+                {effectiveDefaults?.subCategories.length ?? 0} subcategories
               </Badge>
             </Group>
           )}
@@ -301,7 +340,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
           <Group justify="space-between">
             <Title order={5}>Import Rules</Title>
@@ -327,7 +366,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
           <Group justify="space-between">
             <Title order={5}>Auto-Categorise Rules</Title>
@@ -347,7 +386,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           ) : (
             <Group gap="sm" wrap="wrap">
               <Badge variant="light">
-                {companyDefaultsQ.data?.mappingRules.length ?? 0}{' '}
+                {effectiveDefaults?.mappingRules.length ?? 0}{' '}
                 Auto-Categorise Rules
               </Badge>
             </Group>
@@ -367,7 +406,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
           <Group justify="space-between">
             <Title order={5}>Add member</Title>
@@ -458,7 +497,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         </Stack>
       </Paper>
 
-      <Paper withBorder radius="lg" p="lg">
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
           <Title order={5}>Company roles</Title>
           {membershipError ? (
@@ -467,56 +506,64 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
           {membershipStatus ? (
             <Alert color="green">{membershipStatus}</Alert>
           ) : null}
-          <Group align="flex-end" wrap="wrap">
-            <Select
-              label="User"
-              data={userOptions}
-              value={effectiveRoleUserId}
-              onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
-              searchable
-              style={{ width: '100%', maxWidth: 420 }}
-            />
-            <Select
-              label="Company role"
-              data={[
-                { value: 'member', label: 'member' },
-                { value: 'management', label: 'management' },
-                { value: 'executive', label: 'executive' },
-                { value: 'admin', label: 'admin' },
-              ]}
-              value={membershipCompanyRole}
-              onChange={(v) => setMembershipCompanyRole(toCompanyRole(v))}
-              style={{ width: '100%', maxWidth: 220 }}
-            />
-            <Button
-              size="sm"
-              disabled={
-                !effectiveRoleUserId ||
-                !membershipCompanyRole ||
-                wouldDemoteLastAdmin
-              }
-              onClick={async () => {
-                if (!effectiveRoleUserId || !membershipCompanyRole) return;
-                setMembershipError(null);
-                setMembershipStatus(null);
-                try {
-                  await upsertCompanyMembership.mutateAsync({
-                    userId: effectiveRoleUserId,
-                    role: membershipCompanyRole,
-                  });
-                  setMembershipStatus('Company role updated.');
-                } catch (err) {
-                  setMembershipError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not update company role.'
-                  );
+          {isHydrated ? (
+            <Group align="flex-end" wrap="wrap">
+              <Select
+                label="User"
+                data={userOptions}
+                value={effectiveRoleUserId}
+                onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
+                searchable
+                style={{ width: '100%', maxWidth: 420 }}
+              />
+              <Select
+                label="Company role"
+                data={[
+                  { value: 'member', label: 'member' },
+                  { value: 'management', label: 'management' },
+                  { value: 'executive', label: 'executive' },
+                  { value: 'admin', label: 'admin' },
+                ]}
+                value={membershipCompanyRole}
+                onChange={(v) => setMembershipCompanyRole(toCompanyRole(v))}
+                style={{ width: '100%', maxWidth: 220 }}
+              />
+              <Button
+                size="sm"
+                disabled={
+                  !effectiveRoleUserId ||
+                  !membershipCompanyRole ||
+                  wouldDemoteLastAdmin
                 }
-              }}
-            >
-              Set
-            </Button>
-          </Group>
+                onClick={async () => {
+                  if (!effectiveRoleUserId || !membershipCompanyRole) return;
+                  setMembershipError(null);
+                  setMembershipStatus(null);
+                  try {
+                    await upsertCompanyMembership.mutateAsync({
+                      userId: effectiveRoleUserId,
+                      role: membershipCompanyRole,
+                    });
+                    setMembershipStatus('Company role updated.');
+                  } catch (err) {
+                    setMembershipError(
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not update company role.'
+                    );
+                  }
+                }}
+              >
+                Set
+              </Button>
+            </Group>
+          ) : (
+            <Paper className={classes.surfaceMuted} radius="xl" p="md">
+              <Text size="sm" c="dimmed">
+                Loading role controls...
+              </Text>
+            </Paper>
+          )}
           {wouldDemoteLastAdmin ? (
             <Alert color="yellow">
               This company must retain at least one admin. Assign another admin
@@ -528,30 +575,40 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             Update a teammate’s company role or remove them from the company
             entirely.
           </Text>
-          <MantineReactTable
-            columns={membershipColumns}
-            data={membershipRows}
-            getRowId={(row) => row.key}
-            mantineTableContainerProps={{ className: 'financeTable' }}
-            mantineTableProps={{
-              highlightOnHover: true,
-              striped: 'odd',
-              withTableBorder: true,
-            }}
-            mantineTableBodyCellProps={{
-              style: { verticalAlign: 'middle' },
-            }}
-            enableColumnActions={false}
-            enableColumnFilters={false}
-            enableSorting
-            enableTopToolbar={false}
-            enableDensityToggle={false}
-            enableFullScreenToggle={false}
-            initialState={{
-              density: 'xs',
-              pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
-            }}
-          />
+          <div className={classes.tableWrap}>
+            {isHydrated ? (
+              <MantineReactTable
+                columns={membershipColumns}
+                data={membershipRows}
+                getRowId={(row) => row.key}
+                mantineTableContainerProps={{ className: 'financeTable' }}
+                mantineTableProps={{
+                  highlightOnHover: true,
+                  striped: 'odd',
+                  withTableBorder: true,
+                }}
+                mantineTableBodyCellProps={{
+                  style: { verticalAlign: 'middle' },
+                }}
+                enableColumnActions={false}
+                enableColumnFilters={false}
+                enableSorting
+                enableTopToolbar={false}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+                initialState={{
+                  density: 'xs',
+                  pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+                }}
+              />
+            ) : (
+              <Paper className={classes.surfaceMuted} radius="xl" p="md">
+                <Text size="sm" c="dimmed">
+                  Loading company members...
+                </Text>
+              </Paper>
+            )}
+          </div>
         </Stack>
       </Paper>
 

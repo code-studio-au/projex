@@ -34,6 +34,7 @@ import {
   mentionUserLabel,
   type MentionRange,
 } from '../utils/commentMentions';
+import classes from '../styles/ui.module.css';
 
 export default function TransactionCommentsModal(props: {
   opened: boolean;
@@ -301,7 +302,7 @@ export default function TransactionCommentsModal(props: {
             </Group>
           </Group>
 
-          <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+          <Text size="sm" className={classes.commentBody}>
             {comment.body}
           </Text>
 
@@ -324,8 +325,8 @@ export default function TransactionCommentsModal(props: {
       centered
     >
       {!txn ? null : (
-        <Stack gap="md">
-          <Paper withBorder radius="md" p="md">
+        <Stack className={classes.modalStack}>
+          <Paper withBorder radius="md" p="md" className={classes.modalCard}>
             <Stack gap={4}>
               <Group justify="space-between" gap="sm" wrap="wrap">
                 <Text fw={700}>{txn.item}</Text>
@@ -345,19 +346,19 @@ export default function TransactionCommentsModal(props: {
 
           <Stack gap="sm">
             {commentsQ.isLoading ? (
-              <Text size="sm" c="dimmed">
+              <Text className={classes.emptyState}>
                 Loading comments...
               </Text>
             ) : topLevelComments.length > 0 ? (
               topLevelComments.map((comment) => renderComment(comment))
             ) : (
-              <Text size="sm" c="dimmed">
+              <Text className={classes.emptyState}>
                 No comments yet. Add the first note for this transaction.
               </Text>
             )}
           </Stack>
 
-          <Paper withBorder radius="md" p="sm">
+          <Paper withBorder radius="md" p="sm" className={classes.subtleCard}>
             <Stack gap="sm">
               {replyTarget ? (
                 <Group justify="space-between" gap="sm">
@@ -409,15 +410,7 @@ export default function TransactionCommentsModal(props: {
                     shadow="md"
                     radius="md"
                     p={4}
-                    style={{
-                      left: 10,
-                      maxHeight: 220,
-                      overflowY: 'auto',
-                      position: 'absolute',
-                      right: 10,
-                      top: '100%',
-                      zIndex: 20,
-                    }}
+                    className={classes.mentionMenu}
                   >
                     {mentionOptions.length > 0 ? (
                       <Stack gap={2}>
@@ -471,7 +464,7 @@ export default function TransactionCommentsModal(props: {
                   </Button>
                 </Group>
               ) : null}
-              <Group justify="space-between" align="flex-end" wrap="wrap">
+              <Group className={classes.footerRowBetween}>
                 <Text size="xs" c="dimmed">
                   Assignment is optional and limited to members of this project.
                 </Text>

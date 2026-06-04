@@ -32,13 +32,17 @@ export function currentUserQueryOptions(userId?: string) {
 export function usePendingEmailChangeQuery() {
   const session = useSessionQuery();
   const userId = session.data?.userId;
-  return useQuery({
+  return useQuery(pendingEmailChangeQueryOptions(userId));
+}
+
+export function pendingEmailChangeQueryOptions(userId?: string) {
+  return {
     enabled: !!userId,
     queryKey: userId
       ? accountKeys.pendingEmailChange(userId)
-      : ['account', 'pendingEmailChange', 'anonymous'],
+      : (['account', 'pendingEmailChange', 'anonymous'] as const),
     queryFn: () => getPendingEmailChangeServerFn(),
-  });
+  } as const;
 }
 
 export function useUpdateCurrentUserProfileMutation() {

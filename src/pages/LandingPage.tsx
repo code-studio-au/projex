@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
   Badge,
@@ -22,6 +22,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { CompanyId } from '../types';
 
 import { companyRoute } from '../router';
+import { Route as companiesRoute } from '../routes/_authed.companies';
 import {
   getDefaultCompanyIdForUser,
   useCompaniesQuery,
@@ -36,20 +37,41 @@ import {
 } from '../queries/admin';
 import { useCurrentUserQuery } from '../queries/account';
 import { createUserInCompanyServerFn } from '../server/start/functions/admin';
+import classes from '../styles/ui.module.css';
+
+const hydrateSubscription = () => () => {};
+const getClientHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 export default function LandingPage() {
+  const loaderData = companiesRoute.useLoaderData();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const isHydrated = useSyncExternalStore(
+    hydrateSubscription,
+    getClientHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
 
   const sessionQ = useSessionQuery();
-  const userId = sessionQ.data?.userId;
+  const userId = sessionQ.data?.userId ?? loaderData.userId ?? undefined;
 
   const companiesQ = useCompaniesQuery(userId);
   const currentUserQ = useCurrentUserQuery();
   const membershipsQ = useAllCompanyMembershipsQuery();
+  const isWaitingForSession =
+    sessionQ.fetchStatus === 'fetching' && sessionQ.data == null;
+  const isWaitingForFirstCompaniesLoad =
+    !!userId &&
+    companiesQ.fetchStatus === 'fetching' &&
+    !companiesQ.data &&
+    !loaderData.companies;
 
-  const companies = useMemo(() => companiesQ.data ?? [], [companiesQ.data]);
+  const companies = useMemo(
+    () => companiesQ.data ?? loaderData.companies ?? [],
+    [companiesQ.data, loaderData.companies]
+  );
   const sortedCompanies = useMemo(
     () =>
       [...companies].sort((a, b) => {
@@ -58,16 +80,17 @@ export default function LandingPage() {
       }),
     [companies]
   );
-  const isSuperadmin = currentUserQ.data?.isGlobalSuperadmin === true;
+  const isSuperadmin =
+    currentUserQ.data?.isGlobalSuperadmin ?? loaderData.isSuperadmin;
   const userCompanyCount = useMemo(() => {
-    if (!userId) return 0;
+    if (!userId) return loaderData.userCompanyCount ?? 0;
     const ids = new Set(
       (membershipsQ.data ?? [])
         .filter((m) => m.userId === userId)
         .map((m) => m.companyId)
     );
-    return ids.size;
-  }, [membershipsQ.data, userId]);
+    return ids.size || (loaderData.userCompanyCount ?? 0);
+  }, [loaderData.userCompanyCount, membershipsQ.data, userId]);
   const shouldRedirect = useMemo(
     () => !!userId && !isSuperadmin && userCompanyCount === 1,
     [isSuperadmin, userCompanyCount, userId]
@@ -160,12 +183,26 @@ export default function LandingPage() {
       {
         accessorKey: 'name',
         header: 'Company',
+        Cell: ({ row }) => (
+          <Link
+            to={companyRoute.to}
+            params={{ companyId: row.original.id }}
+            className={classes.plainLink}
+          >
+            <Text
+              component="span"
+              className="table-body-left-bold table-link-text"
+            >
+              {row.original.name}
+            </Text>
+          </Link>
+        ),
       },
       {
         accessorKey: 'id',
         header: 'ID',
         Cell: ({ cell }) => (
-          <Text size="sm" c="dimmed">
+          <Text className="table-body-left" c="dimmed">
             {cell.getValue<string>()}
           </Text>
         ),
@@ -186,22 +223,12 @@ export default function LandingPage() {
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
-        size: 280,
-        minSize: 280,
+        size: 180,
+        minSize: 180,
         Cell: ({ row }) => {
           const company = row.original;
           return (
             <Group gap="xs" wrap="nowrap">
-              <Link to={companyRoute.to} params={{ companyId: company.id }}>
-                <Button
-                  component="span"
-                  size="xs"
-                  variant={company.status === 'active' ? 'filled' : 'light'}
-                >
-                  {company.status === 'active' ? 'Open' : 'View'}
-                </Button>
-              </Link>
-
               {isSuperadmin &&
                 (company.status === 'active' ? (
                   <Button
@@ -258,10 +285,29 @@ export default function LandingPage() {
     [isSuperadmin, openConfirm]
   );
 
+  const loadingCompaniesPlaceholder = (
+    <Paper className={classes.surfaceCard} p="lg" radius="xl">
+      <Text c="dimmed" size="sm">
+        Loading your companies...
+      </Text>
+    </Paper>
+  );
+
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="center" wrap="wrap">
-        <Title order={2}>Companies</Title>
+    <Stack gap="lg" className={classes.pageStack}>
+      <Paper className={classes.pageHero} radius="xl">
+        <div className={classes.sectionHeader}>
+          <div>
+            <Text className={classes.sectionEyebrow}>Workspace</Text>
+            <Title order={2} className={classes.pageHeroTitle} mt={4}>
+              Companies
+            </Title>
+            <Text className={classes.pageHeroCopy} mt="xs">
+              Open an existing company workspace, create a new company, or
+              manage lifecycle actions from one calm admin surface.
+            </Text>
+          </div>
+          <div className={classes.pageHeroActions}>
         {isSuperadmin ? (
           <>
             <Button variant="filled" onClick={() => setNewCompanyOpen(true)}>
@@ -397,36 +443,48 @@ export default function LandingPage() {
             </Modal>
           </>
         ) : null}
-      </Group>
+          </div>
+        </div>
+      </Paper>
 
       {shouldRedirect ? (
-        <Text c="dimmed">Redirecting to your company...</Text>
+        <Paper className={classes.surfaceCard} p="lg" radius="xl">
+          <Text c="dimmed">Redirecting to your company...</Text>
+        </Paper>
+      ) : isWaitingForSession || isWaitingForFirstCompaniesLoad ? (
+        loadingCompaniesPlaceholder
       ) : (
         <>
-          {companies.length > 0 ? (
-            <MantineReactTable
-              columns={companyColumns}
-              data={sortedCompanies}
-              mantineTableContainerProps={{ className: 'financeTable' }}
-              enableColumnActions={false}
-              enableColumnFilters={false}
-              enableDensityToggle={false}
-              enableFullScreenToggle={false}
-              enableTopToolbar={false}
-              enablePagination
-              enableSorting
-              initialState={{
-                density: 'xs',
-                pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
-              }}
-              mantineTableProps={{
-                highlightOnHover: true,
-                striped: 'odd',
-                withTableBorder: true,
-              }}
-            />
+          {!isHydrated ? (
+            loadingCompaniesPlaceholder
+          ) : companies.length > 0 ? (
+            <div className={classes.tableWrap}>
+              <MantineReactTable
+                columns={companyColumns}
+                data={sortedCompanies}
+                mantineTableContainerProps={{
+                  className: 'financeTable companyListTable',
+                }}
+                enableColumnActions={false}
+                enableColumnFilters={false}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+                enableTopToolbar={false}
+                enablePagination
+                enableSorting
+                initialState={{
+                  density: 'xs',
+                  pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+                }}
+                mantineTableProps={{
+                  highlightOnHover: true,
+                  striped: 'odd',
+                  withTableBorder: true,
+                }}
+              />
+            </div>
           ) : (
-            <Paper withBorder radius="lg" p="lg">
+            <Paper className={classes.surfaceCard} radius="xl" p="lg">
               <Text c="dimmed" size="sm">
                 No companies are available for this account yet.
               </Text>
