@@ -489,6 +489,8 @@ export default function TransactionsPanel(props: {
           );
         }
 
+        const threadResolved = summary.resolvedCount > 0;
+
         return (
           <Stack gap={6} style={{ minWidth: 0 }}>
             <Paper
@@ -497,17 +499,16 @@ export default function TransactionsPanel(props: {
             >
               <Stack gap={4} style={{ minWidth: 0 }}>
                 <Group gap={5} wrap="wrap">
-                  {summary.unresolvedCount > 0 ? (
+                  {threadResolved ? (
+                    <Badge size="xs" variant="light" color="green">
+                      Resolved
+                    </Badge>
+                  ) : summary.unresolvedCount > 0 ? (
                     <Badge size="xs" variant="light" color="yellow">
                       Unresolved
                     </Badge>
                   ) : null}
-                  {summary.resolvedCount > 0 ? (
-                    <Badge size="xs" variant="light" color="green">
-                      Resolved
-                    </Badge>
-                  ) : null}
-                  {summary.assignedToMeUnresolvedCount > 0 ? (
+                  {!threadResolved && summary.assignedToMeUnresolvedCount > 0 ? (
                     <Badge size="xs" variant="light" color="orange">
                       Assigned to me
                     </Badge>
