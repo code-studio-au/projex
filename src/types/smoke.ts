@@ -134,17 +134,46 @@ export const smokeSectionDefinitions: Array<{
     id: 'temporaryData',
     label: 'Temporary Data',
     description:
-      'Creates and removes a temporary category and budget so write paths get exercised safely.',
+      'Creates and removes temporary taxonomy, budget, and programme test data so write and rollup paths get exercised safely.',
     steps: [
       { id: 'login-page', label: 'Checking login page HTML' },
       { id: 'auth-login', label: 'Logging in with smoke credentials' },
       { id: 'session', label: 'Checking current session' },
       { id: 'companies', label: 'Loading companies' },
       { id: 'projects', label: 'Loading projects for a company' },
+      {
+        id: 'project-owner',
+        label: 'Selecting a non-superadmin project owner',
+      },
       { id: 'create-category', label: 'Creating a temporary category' },
       { id: 'create-budget', label: 'Creating a temporary budget' },
       { id: 'delete-budget', label: 'Deleting the temporary budget' },
       { id: 'delete-category', label: 'Deleting the temporary category' },
+      { id: 'create-programme', label: 'Creating a temporary programme' },
+      {
+        id: 'create-programme-child',
+        label: 'Creating a temporary sub-project',
+      },
+      {
+        id: 'programme-child-budget-total',
+        label: 'Setting total budget on the temporary sub-project',
+      },
+      {
+        id: 'programme-child-taxonomy',
+        label: 'Creating taxonomy for the temporary sub-project',
+      },
+      {
+        id: 'programme-child-transaction',
+        label: 'Creating a coded transaction for the temporary sub-project',
+      },
+      {
+        id: 'programme-summary-rollup',
+        label: 'Checking programme summary rollup',
+      },
+      {
+        id: 'programme-operational-guard',
+        label: 'Checking programme operational guardrails',
+      },
     ],
   },
   {

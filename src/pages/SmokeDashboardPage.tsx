@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   Alert,
   Badge,
@@ -76,6 +82,9 @@ const RUN_ALL_RATE_LIMIT_SECTION_RETRIES = 2;
 const APP_HEADER_OFFSET_PX = 70;
 const RUN_ALL_FOCUS_OFFSET_PX = APP_HEADER_OFFSET_PX;
 const SECTION_SCROLL_MARGIN_TOP_PX = 320;
+const hydrateSubscription = () => () => {};
+const getClientHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 const smokeStepResultSchema = z.object({
   id: z.string(),
@@ -343,6 +352,11 @@ function applyStepUpdate(
 }
 
 export default function SmokeDashboardPage() {
+  const isHydrated = useSyncExternalStore(
+    hydrateSubscription,
+    getClientHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
   const session = useSessionQuery();
   const currentUserQ = useCurrentUserQuery();
 
@@ -685,6 +699,21 @@ export default function SmokeDashboardPage() {
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [runAllActive, runningSectionId]);
+
+  if (!isHydrated) {
+    return (
+      <Stack gap="md">
+        <Paper withBorder radius="lg" p="lg">
+          <Stack gap="xs">
+            <Title order={2}>System Checks</Title>
+            <Text c="dimmed" className={classes.modalIntro}>
+              Loading system checks...
+            </Text>
+          </Stack>
+        </Paper>
+      </Stack>
+    );
+  }
 
   if (!isSuperadmin) {
     return (

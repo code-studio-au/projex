@@ -13,6 +13,7 @@ import {
   applyCompanyDefaultsResultResponseSchema,
   budgetLinesResponseSchema,
   categoriesResponseSchema,
+  companyMembershipsResponseSchema,
   companiesResponseSchema,
   companySummaryResponseSchema,
   companyUserInviteResultResponseSchema,
@@ -23,6 +24,7 @@ import {
   subCategoriesResponseSchema,
   txnResponseSchema,
   txnsResponseSchema,
+  usersResponseSchema,
 } from '../../validation/responseSchemas.ts';
 import { getSmokeBaseUrl, loadSmokeEnvFiles } from './env.ts';
 const smokeSectionMap = new Map(
@@ -422,6 +424,46 @@ async function loadPrimaryCompanyAndProject(
   return { company, project };
 }
 
+async function selectInitialProjectOwnerUserId(
+  recorder: Recorder,
+  client: SmokeHttpClient,
+  companyId: string
+): Promise<string> {
+  return recorder.step(
+    'project-owner',
+    'Selecting a non-superadmin project owner',
+    async () => {
+      const membershipsResult = await client.request(
+        `/api/companies/${encodeURIComponent(companyId)}/memberships`
+      );
+      assertOk(membershipsResult, 'list company memberships');
+      const memberships = parseBody(
+        companyMembershipsResponseSchema,
+        membershipsResult.body,
+        'list company memberships'
+      );
+
+      const usersResult = await client.request('/api/users');
+      assertOk(usersResult, 'list users');
+      const users = parseBody(usersResponseSchema, usersResult.body, 'list users');
+      const usersById = new Map(users.map((user) => [user.id, user]));
+
+      const eligibleMembership = memberships.find((membership) => {
+        const user = usersById.get(membership.userId);
+        return user && user.isGlobalSuperadmin !== true;
+      });
+
+      if (!eligibleMembership) {
+        throw new Error(
+          'No non-superadmin company member is available to assign as the initial project owner.'
+        );
+      }
+
+      return eligibleMembership.userId;
+    }
+  );
+}
+
 async function runBasicsSection(
   recorder: Recorder,
   client: SmokeHttpClient,
@@ -619,6 +661,11 @@ async function runTemporaryDataSection(
     recorder,
     client
   );
+  const initialOwnerUserId = await selectInitialProjectOwnerUserId(
+    recorder,
+    client,
+    company.id
+  );
   const categoryId = uniqueId('cat_smoke');
   const budgetId = uniqueId('bud_smoke');
   const categoryName = uniqueId('Smoke Category');
@@ -701,13 +748,19 @@ async function runTemporaryDataSection(
     }
   );
 
-  await runProgrammesTemporaryDataSteps(recorder, client, company.id);
+  await runProgrammesTemporaryDataSteps(
+    recorder,
+    client,
+    company.id,
+    initialOwnerUserId
+  );
 }
 
 async function runProgrammesTemporaryDataSteps(
   recorder: Recorder,
   client: SmokeHttpClient,
-  companyId: string
+  companyId: string,
+  initialOwnerUserId: string
 ) {
   const programmeId = uniqueId('prg_smoke');
   const childProjectId = uniqueId('prj_programme_smoke');
@@ -734,6 +787,7 @@ async function runProgrammesTemporaryDataSteps(
               name: programmeName,
               projectType: 'programme',
               currency: 'AUD',
+              initialOwnerUserId,
             }),
           }
         );
@@ -764,6 +818,7 @@ async function runProgrammesTemporaryDataSteps(
               projectType: 'project',
               parentProjectId: programmeId,
               currency: 'AUD',
+              initialOwnerUserId,
             }),
           }
         );

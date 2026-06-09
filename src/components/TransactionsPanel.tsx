@@ -315,11 +315,25 @@ export default function TransactionsPanel(props: {
     args.table.setEditingCell(nextCell ?? null);
   }
 
-  function renderCompactComment(comment: TxnComment, nested = false) {
+  function renderCompactComment(
+    comment: TxnComment,
+    nested = false,
+    onActivate?: () => void
+  ) {
     return (
       <Paper
         key={comment.id}
         className={`${classes.commentCard}${comment.resolvedAt ? ` ${classes.commentCardResolved}` : ''}${nested ? ` ${classes.commentCardReply}` : ''}`}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onActivate?.();
+        }}
+        onDoubleClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onActivate?.();
+        }}
       >
         <Stack gap={4}>
           <div className={classes.commentHeader}>
@@ -372,9 +386,11 @@ export default function TransactionsPanel(props: {
           ) : topLevelComments.length > 0 ? (
             topLevelComments.map((comment) => (
               <Stack key={comment.id} gap={4}>
-                {renderCompactComment(comment)}
+                {renderCompactComment(comment, false, () =>
+                  setCommentsTxn(txn)
+                )}
                 {(repliesByParent.get(comment.id) ?? []).map((reply) =>
-                  renderCompactComment(reply, true)
+                  renderCompactComment(reply, true, () => setCommentsTxn(txn))
                 )}
               </Stack>
             ))
@@ -470,6 +486,7 @@ export default function TransactionsPanel(props: {
       id: 'comments',
       header: 'Comments',
       size: 292,
+      enableEditing: false,
       enableSorting: false,
       Cell: ({ row }) => {
         const summary = commentSummaryByTxnId.get(row.original.id);
@@ -493,51 +510,60 @@ export default function TransactionsPanel(props: {
 
         return (
           <Stack gap={6} style={{ minWidth: 0 }}>
-            <Paper
-              className={classes.commentSummaryCard}
-              onClick={() => setCommentsTxn(row.original)}
-            >
-              <Stack gap={4} style={{ minWidth: 0 }}>
-                <Group gap={5} wrap="wrap">
-                  {threadResolved ? (
-                    <Badge size="xs" variant="light" color="green">
-                      Resolved
-                    </Badge>
-                  ) : summary.unresolvedCount > 0 ? (
-                    <Badge size="xs" variant="light" color="yellow">
-                      Unresolved
-                    </Badge>
-                  ) : null}
-                  {!threadResolved && summary.assignedToMeUnresolvedCount > 0 ? (
-                    <Badge size="xs" variant="light" color="orange">
-                      Assigned to me
-                    </Badge>
-                  ) : null}
-                </Group>
-                <Group gap={8} align="flex-start" wrap="nowrap">
-                  <span className={classes.commentAvatar}>
-                    {commentInitials(summary.latestCommentAuthorName ?? 'Someone')}
-                  </span>
-                  <Stack gap={3} style={{ minWidth: 0, flex: 1 }}>
-                    <Text fw={650} size="xs">
-                      {summary.latestCommentAuthorName ?? 'Someone'}
-                    </Text>
-                    {summary.latestCommentCreatedAt ? (
-                      <Text size="xs" c="dimmed">
-                        {formatTxnCommentDateTime(summary.latestCommentCreatedAt)}
-                      </Text>
+            {isExpanded ? (
+              renderExpandedCommentThread(row.original)
+            ) : (
+              <Paper
+                className={classes.commentSummaryCard}
+                onClick={() => setCommentsTxn(row.original)}
+              >
+                <Stack gap={4} style={{ minWidth: 0 }}>
+                  <Group gap={5} wrap="wrap">
+                    {threadResolved ? (
+                      <Badge size="xs" variant="light" color="green">
+                        Resolved
+                      </Badge>
+                    ) : summary.unresolvedCount > 0 ? (
+                      <Badge size="xs" variant="light" color="yellow">
+                        Unresolved
+                      </Badge>
                     ) : null}
-                    <Text
-                      size="xs"
-                      lineClamp={2}
-                      style={{ whiteSpace: 'pre-wrap' }}
-                    >
-                      {commentExcerpt(summary.latestCommentBody)}
-                    </Text>
-                  </Stack>
-                </Group>
-              </Stack>
-            </Paper>
+                    {!threadResolved &&
+                    summary.assignedToMeUnresolvedCount > 0 ? (
+                      <Badge size="xs" variant="light" color="orange">
+                        Assigned to me
+                      </Badge>
+                    ) : null}
+                  </Group>
+                  <Group gap={8} align="flex-start" wrap="nowrap">
+                    <span className={classes.commentAvatar}>
+                      {commentInitials(
+                        summary.latestCommentAuthorName ?? 'Someone'
+                      )}
+                    </span>
+                    <Stack gap={3} style={{ minWidth: 0, flex: 1 }}>
+                      <Text fw={650} size="xs">
+                        {summary.latestCommentAuthorName ?? 'Someone'}
+                      </Text>
+                      {summary.latestCommentCreatedAt ? (
+                        <Text size="xs" c="dimmed">
+                          {formatTxnCommentDateTime(
+                            summary.latestCommentCreatedAt
+                          )}
+                        </Text>
+                      ) : null}
+                      <Text
+                        size="xs"
+                        lineClamp={2}
+                        style={{ whiteSpace: 'pre-wrap' }}
+                      >
+                        {commentExcerpt(summary.latestCommentBody)}
+                      </Text>
+                    </Stack>
+                  </Group>
+                </Stack>
+              </Paper>
+            )}
             <Button
               size="compact-xs"
               variant="subtle"
@@ -550,7 +576,6 @@ export default function TransactionsPanel(props: {
                 ? 'Hide thread'
                 : `View thread (${summary.totalCount} comment${summary.totalCount === 1 ? '' : 's'})`}
             </Button>
-            {renderExpandedCommentThread(row.original)}
           </Stack>
         );
       },

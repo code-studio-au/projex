@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Button,
@@ -16,27 +16,16 @@ import { useMediaQuery } from '@mantine/hooks';
 import { apiErrorMessage } from '../api/errorResponses';
 import { accountRoute, loginRoute } from '../router';
 import { useSessionQuery } from '../queries/session';
+import { Route as resetPasswordRoute } from '../routes/reset-password';
 import { readJsonResponseOrNull } from '../utils/json';
 import classes from '../styles/ui.module.css';
-
-function useResetSearch() {
-  return useMemo(() => {
-    if (typeof window === 'undefined') {
-      return { token: '', error: '' };
-    }
-    const params = new URLSearchParams(window.location.search);
-    return {
-      token: params.get('token')?.trim() ?? '',
-      error: params.get('error')?.trim() ?? '',
-    };
-  }, []);
-}
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width: 48em)');
   const sessionQ = useSessionQuery();
-  const { token, error: searchError } = useResetSearch();
+  const { token = '', error: searchError = '' } =
+    resetPasswordRoute.useSearch();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pending, setPending] = useState(false);

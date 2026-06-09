@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Anchor,
@@ -11,6 +11,7 @@ import {
 import { z } from 'zod';
 
 import { apiErrorMessage } from '../api/errorResponses';
+import { Route as verifyEmailChangeRoute } from '../routes/verify-email-change';
 import { readJsonResponseOrNull } from '../utils/json';
 import { emailChangeConfirmResponseSchema } from '../validation/responseSchemas';
 import classes from '../styles/ui.module.css';
@@ -21,12 +22,7 @@ type ConfirmState =
   | { status: 'error'; message: string };
 
 export default function VerifyEmailChangePage() {
-  const token = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    return (
-      new URLSearchParams(window.location.search).get('token')?.trim() ?? ''
-    );
-  }, []);
+  const { token = '' } = verifyEmailChangeRoute.useSearch();
   const [state, setState] = useState<ConfirmState>({ status: 'loading' });
 
   useEffect(() => {
