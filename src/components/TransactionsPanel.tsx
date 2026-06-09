@@ -6,6 +6,7 @@ import {
   Collapse,
   Group,
   Menu,
+  NumberInput,
   Paper,
   Select,
   Stack,
@@ -33,7 +34,11 @@ import type {
   TxnComment,
   TxnId,
 } from '../types';
-import { formatCurrencyFromCents } from '../utils/money';
+import {
+  formatCurrencyFromCents,
+  fromCents,
+  toCents,
+} from '../utils/money';
 import {
   buildTxnCommentRepliesByParent,
   formatTxnCommentDateTime,
@@ -589,6 +594,25 @@ export default function TransactionsPanel(props: {
       header: 'Amount',
       size: 118,
       enableEditing: (row) => canEditTxnAmount(row.original),
+      Edit: ({ row, table }) => (
+        <NumberInput
+          value={fromCents(row.original.amountCents)}
+          size="xs"
+          thousandSeparator=","
+          prefix="$"
+          decimalScale={2}
+          fixedDecimalScale
+          hideControls
+          styles={{ input: { textAlign: 'right' } }}
+          onChange={(value) => {
+            void txns
+              .updateTxn(row.original.id, {
+                amountCents: toCents(Number(value ?? 0)),
+              })
+              .then(() => table.setEditingCell(null));
+          }}
+        />
+      ),
       Cell: ({ cell, row }) => {
         const excluded = !isBudgetImpactTxn(row.original);
         return (
