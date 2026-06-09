@@ -25,6 +25,7 @@ import {
   useResendEmailChangeMutation,
   useUpdateCurrentUserProfileMutation,
 } from '../queries/account';
+import { formatUtcDateTime } from '../utils/dateTime';
 import { readJsonResponseOrNull } from '../utils/json';
 import classes from '../styles/ui.module.css';
 
@@ -37,14 +38,6 @@ type EmailActivity = {
   message: string;
   at: string;
 };
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('en-AU', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'UTC',
-  }).format(new Date(value));
-}
 
 export default function AccountPage() {
   const loaderData = accountRoute.useLoaderData();
@@ -303,10 +296,10 @@ export default function AccountPage() {
                   New email: {pendingEmailChange.newEmail}
                 </Text>
                 <Text size="sm" c="dimmed">
-                  Requested: {formatDateTime(pendingEmailChange.requestedAt)}
+                  Requested: {formatUtcDateTime(pendingEmailChange.requestedAt)}
                 </Text>
                 <Text size="sm" c="dimmed">
-                  Expires: {formatDateTime(pendingEmailChange.expiresAt)}
+                  Expires: {formatUtcDateTime(pendingEmailChange.expiresAt)}
                 </Text>
                 <Text size="sm" c="dimmed">
                   Check spam or junk if the email does not appear quickly. If
@@ -339,7 +332,7 @@ export default function AccountPage() {
                 <Text fw={600}>Latest email change activity</Text>
                 <Text size="sm">{emailActivity.message}</Text>
                 <Text size="sm" c="dimmed">
-                  {formatDateTime(emailActivity.at)}
+                  {formatUtcDateTime(emailActivity.at)}
                 </Text>
               </Stack>
             </Alert>

@@ -1,7 +1,8 @@
 import type { TxnComment, TxnCommentId } from '../types';
+import { formatUtcDate } from './dateTime';
 
 export function formatTxnCommentDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatUtcDate(value);
 }
 
 export function buildTxnCommentRepliesByParent(

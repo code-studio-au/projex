@@ -34,6 +34,7 @@ import type {
   SmokeStepTemplate,
 } from '../types';
 import { smokeSectionDefinitions } from '../types';
+import { formatUtcDateTime } from '../utils/dateTime';
 import { parseJsonWithSchema, readJsonResponseOrNull } from '../utils/json';
 import { z } from 'zod';
 import classes from '../styles/ui.module.css';
@@ -85,6 +86,8 @@ const smokeStepResultSchema = z.object({
   detail: z.string().optional(),
 });
 
+const isoTimestampSchema = z.iso.datetime({ offset: true });
+
 const smokeSectionResultSchema = z.object({
   sectionId: z.enum([
     'basics',
@@ -97,8 +100,8 @@ const smokeSectionResultSchema = z.object({
   ]),
   label: z.string(),
   status: z.enum(['passed', 'failed', 'skipped']),
-  startedAt: z.string(),
-  finishedAt: z.string(),
+  startedAt: isoTimestampSchema,
+  finishedAt: isoTimestampSchema,
   durationMs: z.number(),
   steps: z.array(smokeStepResultSchema),
 });
@@ -139,10 +142,6 @@ const smokeStepStreamEventSchema = z.union([
     message: z.string(),
   }),
 ]);
-
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString();
-}
 
 function formatDuration(durationMs: number) {
   if (durationMs < 1000) return `${durationMs}ms`;
@@ -840,7 +839,7 @@ export default function SmokeDashboardPage() {
                         : 'running'
                   }
                   title="Run summary"
-                  message={`Completed ${summary.totalCompleted}/${summary.totalConfigured}. Passed ${summary.passed}, failed ${summary.failed}, skipped ${summary.skipped}.${summary.latestFinishedAt ? ` Last completed ${formatDateTime(summary.latestFinishedAt)}.` : ''}`}
+                  message={`Completed ${summary.totalCompleted}/${summary.totalConfigured}. Passed ${summary.passed}, failed ${summary.failed}, skipped ${summary.skipped}.${summary.latestFinishedAt ? ` Last completed ${formatUtcDateTime(summary.latestFinishedAt)}.` : ''}`}
                   active={!runAllActive}
                 />
               )}
@@ -934,7 +933,7 @@ export default function SmokeDashboardPage() {
                     <Group gap="md">
                       {view.finishedAt ? (
                         <Text size="sm" c="dimmed">
-                          Last run: {formatDateTime(view.finishedAt)}
+                          Last run: {formatUtcDateTime(view.finishedAt)}
                         </Text>
                       ) : null}
                       {typeof view.durationMs === 'number' ? (

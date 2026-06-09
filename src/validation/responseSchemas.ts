@@ -65,7 +65,8 @@ const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
 const importRuleIdSchema = idSchema.transform(asImportRuleId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
-const optionalIsoTimestampSchema = z.string().optional();
+const isoTimestampSchema = z.iso.datetime({ offset: true });
+const optionalIsoTimestampSchema = isoTimestampSchema.optional();
 const companyRoleSchema = z.enum([
   'admin',
   'executive',
@@ -397,8 +398,8 @@ export const txnCommentResponseSchema = z.object({
   createdByName: z.string(),
   resolvedAt: optionalIsoTimestampSchema,
   resolvedByUserId: userIdSchema.optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: isoTimestampSchema,
+  updatedAt: isoTimestampSchema,
 });
 
 export const txnCommentsResponseSchema = z.array(txnCommentResponseSchema);
@@ -421,14 +422,14 @@ export const txnCommentSummariesResponseSchema = z.array(
 export const pendingEmailChangeResponseSchema = z
   .object({
     newEmail: z.string().email(),
-    requestedAt: z.string(),
-    expiresAt: z.string(),
+    requestedAt: isoTimestampSchema,
+    expiresAt: isoTimestampSchema,
   })
   .nullable();
 
 export const emailChangeRequestResponseSchema = z.object({
   newEmail: z.string().email(),
-  expiresAt: z.string(),
+  expiresAt: isoTimestampSchema,
   delivery: z.enum(['email', 'log']),
 });
 

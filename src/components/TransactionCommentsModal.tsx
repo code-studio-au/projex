@@ -46,6 +46,14 @@ function commentInitials(name: string) {
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('');
 }
 
+function commentExcerpt(value: string | undefined) {
+  const normalized = (value ?? '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return 'No comment text';
+  return normalized.length > 140
+    ? `${normalized.slice(0, 140).trim()}...`
+    : normalized;
+}
+
 export default function TransactionCommentsModal(props: {
   opened: boolean;
   txn: Txn | null;
@@ -247,6 +255,7 @@ export default function TransactionCommentsModal(props: {
       ? usersById.get(comment.assignedToUserId)
       : null;
     const replies = repliesByParent.get(comment.id) ?? [];
+    const resolved = Boolean(comment.resolvedAt);
 
     return (
       <Paper
@@ -274,7 +283,7 @@ export default function TransactionCommentsModal(props: {
                     </Badge>
                   ) : null}
                 </Group>
-                {assignedUser ? (
+                {assignedUser && !resolved ? (
                   <div className={classes.commentAssignment}>
                     Assigned to {assignedUser.name || assignedUser.email}
                   </div>
@@ -285,12 +294,12 @@ export default function TransactionCommentsModal(props: {
             <div className={classes.commentActionRow}>
               <Select
                 size="xs"
-                placeholder="Assign"
+                placeholder={resolved ? 'Resolved' : 'Assign'}
                 data={userOptions}
                 value={comment.assignedToUserId ?? null}
                 clearable
                 searchable
-                disabled={updateComment.isPending}
+                disabled={updateComment.isPending || resolved}
                 onChange={(value) => void assignComment(comment, value)}
                 style={{ width: 170 }}
               />
@@ -380,18 +389,26 @@ export default function TransactionCommentsModal(props: {
             <Stack gap="sm">
               {replyTarget ? (
                 <div className={classes.commentComposerReply}>
-                  <Group justify="space-between" gap="sm">
-                    <Text size="sm" c="dimmed">
-                      Replying to {replyTarget.createdByName}
+                  <Stack gap={6}>
+                    <Group justify="space-between" gap="sm">
+                      <Text size="sm" c="dimmed">
+                        Replying to {replyTarget.createdByName}
+                      </Text>
+                      <Button
+                        size="xs"
+                        variant="subtle"
+                        onClick={() => setReplyToCommentId(null)}
+                      >
+                        Cancel reply
+                      </Button>
+                    </Group>
+                    <Text size="xs" c="dimmed">
+                      {formatTxnCommentDateTime(replyTarget.createdAt)}
                     </Text>
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      onClick={() => setReplyToCommentId(null)}
-                    >
-                      Cancel reply
-                    </Button>
-                  </Group>
+                    <Text className={classes.commentReplyContext}>
+                      {commentExcerpt(replyTarget.body)}
+                    </Text>
+                  </Stack>
                 </div>
               ) : null}
               <Box pos="relative">
