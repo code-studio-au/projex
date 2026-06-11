@@ -74,6 +74,10 @@ export const Route = createFileRoute('/_authed/c/$companyId')({
       isGlobalSuperadmin ||
       companyRole === 'admin' ||
       companyRole === 'executive';
+    const canExportCompany =
+      isGlobalSuperadmin ||
+      companyRole === 'admin' ||
+      companyRole === 'executive';
     const canCreateProjects =
       isGlobalSuperadmin ||
       companyRole === 'admin' ||
@@ -89,6 +93,7 @@ export const Route = createFileRoute('/_authed/c/$companyId')({
       canAccessSettings,
       canManageCompanyMembers,
       canManageCompanyDefaults,
+      canExportCompany,
       companyDefaultsCategoryCount: companyDefaults?.categories.length ?? 0,
       companyDefaultsSubCategoryCount:
         companyDefaults?.subCategories.length ?? 0,

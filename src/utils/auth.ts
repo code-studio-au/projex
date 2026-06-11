@@ -13,6 +13,7 @@ export type Action =
   | 'company:update_details'
   | 'company:manage_members'
   | 'company:manage_defaults'
+  | 'company:export'
   | 'project:create'
   | 'project:list'
   | 'project:view'
@@ -106,6 +107,8 @@ export function can(params: {
         cRole === 'admin' || cRole === 'executive' || cRole === 'management'
       );
     if (action === 'company:manage_members') return cRole === 'admin';
+    if (action === 'company:export')
+      return cRole === 'admin' || cRole === 'executive';
     if (action === 'company:manage_defaults')
       return cRole === 'admin' || cRole === 'executive';
     return false;

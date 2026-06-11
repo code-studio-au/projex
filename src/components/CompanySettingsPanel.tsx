@@ -82,6 +82,11 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     (isHydrated ? access.can('company:manage_defaults') : undefined) ??
     loaderData?.canManageCompanyDefaults ??
     false;
+  const canExportCompany =
+    (isHydrated ? access.can('company:export') : undefined) ??
+    loaderData?.canExportCompany ??
+    false;
+  const exportHref = `/api/companies/${encodeURIComponent(companyId)}/export`;
   const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
   const effectiveDefaults = isHydrated
     ? companyDefaultsQ.data
@@ -299,6 +304,33 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
         <Title order={4}>Company settings</Title>
         {highestRoleBadge}
       </Group>
+
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
+        <Stack gap="sm">
+          <Group justify="space-between">
+            <Title order={5}>Exports</Title>
+            <Badge variant="light" color={canExportCompany ? 'gray' : 'red'}>
+              {canExportCompany ? 'Ready' : 'Not allowed'}
+            </Badge>
+          </Group>
+          <Text size="sm" c="dimmed">
+            Download a full-company Excel workbook for finance handoff,
+            offline analysis, or executive reporting.
+          </Text>
+          <Button
+            component="a"
+            href={exportHref}
+            variant="light"
+            disabled={!canExportCompany}
+          >
+            Export company to Excel
+          </Button>
+          <Text size="xs" c="dimmed">
+            The workbook includes company-wide projects, programmes, budgets,
+            transactions, taxonomy, rules, and memberships in separate sheets.
+          </Text>
+        </Stack>
+      </Paper>
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
