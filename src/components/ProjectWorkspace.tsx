@@ -18,6 +18,7 @@ import { useRouter } from '@tanstack/react-router';
 import type {
   CategoryId,
   CompanyId,
+  CompanySummaryProject,
   ProjectId,
   ProjectType,
   SubCategoryId,
@@ -128,6 +129,7 @@ type ProjectWorkspaceProps = {
   initialAllowSuperadminAccess?: boolean;
   initialAllowTxnTransfers?: boolean;
   initialProjectBudgetTotalCents?: number;
+  initialProgrammeSummary?: CompanySummaryProject | null;
   initialCanViewProgrammeSummary?: boolean;
   initialCanImport?: boolean;
   initialCanEditBudgets?: boolean;
@@ -155,6 +157,7 @@ type ProjectWorkspaceInnerProps = {
   initialAllowSuperadminAccess: boolean;
   initialAllowTxnTransfers: boolean;
   initialProjectBudgetTotalCents: number;
+  initialProgrammeSummary: CompanySummaryProject | null;
   initialCanViewProgrammeSummary: boolean;
   initialCanImport: boolean;
   initialCanEditBudgets: boolean;
@@ -183,6 +186,7 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
     initialAllowSuperadminAccess = false,
     initialAllowTxnTransfers = false,
     initialProjectBudgetTotalCents = 0,
+    initialProgrammeSummary = null,
     initialCanViewProgrammeSummary = false,
     initialCanImport = false,
     initialCanEditBudgets = false,
@@ -248,6 +252,7 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
       initialAllowSuperadminAccess={initialAllowSuperadminAccess}
       initialAllowTxnTransfers={initialAllowTxnTransfers}
       initialProjectBudgetTotalCents={initialProjectBudgetTotalCents}
+      initialProgrammeSummary={initialProgrammeSummary}
       initialCanViewProgrammeSummary={initialCanViewProgrammeSummary}
       initialCanImport={initialCanImport}
       initialCanEditBudgets={initialCanEditBudgets}
@@ -278,6 +283,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     initialAllowSuperadminAccess,
     initialAllowTxnTransfers,
     initialProjectBudgetTotalCents,
+    initialProgrammeSummary,
     initialCanViewProgrammeSummary,
     initialCanImport,
     initialCanEditBudgets,
@@ -451,13 +457,12 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     quarterFilter,
     monthFilterKey,
   });
-  const programmeSummary = useMemo(
-    () =>
-      (companySummary.data?.projects ?? []).find(
-        (candidate) => candidate.id === projectId
-      ),
-    [companySummary.data?.projects, projectId]
-  );
+  const programmeSummary = useMemo(() => {
+    const liveProgrammeSummary = (companySummary.data?.projects ?? []).find(
+      (candidate) => candidate.id === projectId
+    );
+    return liveProgrammeSummary ?? initialProgrammeSummary;
+  }, [companySummary.data?.projects, initialProgrammeSummary, projectId]);
 
   const operationalMonthKeys = useMemo(
     () =>

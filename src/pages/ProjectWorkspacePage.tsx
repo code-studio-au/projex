@@ -27,6 +27,7 @@ export default function ProjectWorkspacePage() {
       initialAllowSuperadminAccess={loaderData?.allowSuperadminAccess ?? false}
       initialAllowTxnTransfers={loaderData?.allowTxnTransfers ?? false}
       initialProjectBudgetTotalCents={loaderData?.projectBudgetTotalCents ?? 0}
+      initialProgrammeSummary={loaderData?.initialProgrammeSummary ?? null}
       initialCanViewProgrammeSummary={
         loaderData?.canViewProgrammeSummary ?? false
       }

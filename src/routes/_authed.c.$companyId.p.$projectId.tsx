@@ -126,11 +126,14 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
       ]);
     }
 
-    if (project?.projectType === 'programme') {
-      await context.queryClient.ensureQueryData(
+    const companySummary =
+      project?.projectType === 'programme'
+        ? await context.queryClient.ensureQueryData(
         companySummaryQueryOptions(session.userId, companyId)
-      );
-    } else {
+          )
+        : null;
+
+    if (project?.projectType !== 'programme') {
       if (search.tab === 'import') {
         await context.queryClient.ensureQueryData(
           importCandidatesQueryOptions(session.userId, projectId)
@@ -215,6 +218,12 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
       projectBudgetTotalCents: project?.budgetTotalCents ?? 0,
       isGlobalSuperadmin,
       canViewProgrammeSummary,
+      initialProgrammeSummary:
+        project?.projectType === 'programme'
+          ? (companySummary?.projects ?? []).find(
+              (candidate) => candidate.id === projectId
+            ) ?? null
+          : null,
       canImport,
       canEditBudgets,
       canEditTxns,
