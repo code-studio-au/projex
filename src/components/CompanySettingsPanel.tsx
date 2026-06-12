@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
   Badge,
@@ -19,7 +19,7 @@ import {
 } from 'mantine-react-table-open';
 import { useMediaQuery } from '@mantine/hooks';
 
-import type { CompanyId, CompanyRole, UserId } from '../types';
+import type { CompanyExportJob, CompanyId, CompanyRole, UserId } from '../types';
 import { asUserId } from '../types';
 
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
@@ -46,6 +46,13 @@ import classes from '../styles/ui.module.css';
 const hydrateSubscription = () => () => {};
 const getClientHydratedSnapshot = () => true;
 const getServerHydratedSnapshot = () => false;
+const EXPORT_JOB_POLL_INTERVAL_MS = 2000;
+
+type ExportJobState = {
+  job: CompanyExportJob | null;
+  error: string | null;
+  isStarting: boolean;
+};
 
 export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const { companyId } = props;
@@ -104,16 +111,6 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const companyDefaultsLoading = isHydrated
     ? companyDefaultsQ.isPending && !companyDefaultsQ.data
     : false;
-  const defaultsStatusLabel = !canEditCompanyDefaults
-    ? 'Not allowed'
-    : companyDefaultsLoading
-      ? 'Loading'
-      : 'Ready';
-  const defaultsStatusColor = !canEditCompanyDefaults
-    ? 'red'
-    : companyDefaultsLoading
-      ? 'blue'
-      : 'gray';
 
   const companyUsers = useMemo(() => {
     return getCompanyUsers(
@@ -148,6 +145,12 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [exportDetail, setExportDetail] = useState<'full' | 'summary'>('full');
   const [exportFromDate, setExportFromDate] = useState('');
   const [exportToDate, setExportToDate] = useState('');
+  const [exportJobState, setExportJobState] = useState<ExportJobState>({
+    job: null,
+    error: null,
+    isStarting: false,
+  });
+  const autoDownloadJobIdRef = useRef<string | null>(null);
 
   // Derive a sensible default selection without synchronously setting state in an effect.
   // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
@@ -158,15 +161,154 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [membershipCompanyRole, setMembershipCompanyRole] =
     useState<CompanyRole | null>('member');
 
-  const exportHref = useMemo(() => {
-    const params = new URLSearchParams();
-    if (exportScope !== 'all') params.set('scope', exportScope);
-    if (exportDetail !== 'full') params.set('detail', exportDetail);
-    if (exportFromDate) params.set('from', exportFromDate);
-    if (exportToDate) params.set('to', exportToDate);
-    const query = params.toString();
-    return `/api/companies/${encodeURIComponent(companyId)}/export${query ? `?${query}` : ''}`;
-  }, [companyId, exportDetail, exportFromDate, exportScope, exportToDate]);
+  const currentExportOptions = useMemo(
+    () => ({
+      scope: exportScope,
+      detail: exportDetail,
+      from: exportFromDate || undefined,
+      to: exportToDate || undefined,
+    }),
+    [exportDetail, exportFromDate, exportScope, exportToDate]
+  );
+
+  useEffect(() => {
+    if (!isHydrated || !canExportCompany) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/companies/${encodeURIComponent(companyId)}/export-jobs`,
+          {
+            method: 'GET',
+            headers: { accept: 'application/json' },
+          }
+        );
+        const payload = (await response.json()) as CompanyExportJob | {
+          message?: string;
+        } | null;
+        if (cancelled || !response.ok || !payload) return;
+        autoDownloadJobIdRef.current = (payload as CompanyExportJob).id;
+        setExportJobState((current) => ({
+          ...current,
+          job: payload as CompanyExportJob,
+        }));
+      } catch {
+        if (cancelled) return;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canExportCompany, companyId, isHydrated]);
+
+  useEffect(() => {
+    const job = exportJobState.job;
+    if (!job) return;
+    if (job.status !== 'queued' && job.status !== 'running') return;
+
+    let cancelled = false;
+    const intervalId = window.setInterval(async () => {
+      try {
+        const response = await fetch(
+          `/api/export-jobs/${encodeURIComponent(job.id)}`,
+          {
+            method: 'GET',
+            headers: { accept: 'application/json' },
+          }
+        );
+        const payload = (await response.json()) as CompanyExportJob | {
+          message?: string;
+        };
+        if (cancelled) return;
+        if (!response.ok) {
+          setExportJobState((current) => ({
+            ...current,
+            error:
+              typeof payload === 'object' && payload && 'message' in payload
+                ? payload.message ?? 'Could not refresh export job status.'
+                : 'Could not refresh export job status.',
+          }));
+          return;
+        }
+        setExportJobState((current) => ({
+          ...current,
+          job: payload as CompanyExportJob,
+        }));
+      } catch {
+        if (cancelled) return;
+        setExportJobState((current) => ({
+          ...current,
+          error: 'Could not refresh export job status.',
+        }));
+      }
+    }, EXPORT_JOB_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [exportJobState.job]);
+
+  useEffect(() => {
+    const job = exportJobState.job;
+    if (!job || job.status !== 'completed' || !job.downloadPath) return;
+    if (autoDownloadJobIdRef.current === job.id) return;
+
+    autoDownloadJobIdRef.current = job.id;
+    window.location.assign(job.downloadPath);
+  }, [exportJobState.job]);
+
+  async function handleStartExport() {
+    setExportJobState((current) => ({
+      ...current,
+      error: null,
+      isStarting: true,
+    }));
+
+    try {
+      const response = await fetch(
+        `/api/companies/${encodeURIComponent(companyId)}/export-jobs`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            accept: 'application/json',
+          },
+          body: JSON.stringify(currentExportOptions),
+        }
+      );
+      const payload = (await response.json()) as CompanyExportJob | {
+        message?: string;
+      };
+      if (!response.ok) {
+        throw new Error(
+          typeof payload === 'object' && payload && 'message' in payload
+            ? payload.message ?? 'Could not start export.'
+            : 'Could not start export.'
+        );
+      }
+      autoDownloadJobIdRef.current = null;
+      setExportJobState({
+        job: payload as CompanyExportJob,
+        error: null,
+        isStarting: false,
+      });
+    } catch (error) {
+      setExportJobState((current) => ({
+        ...current,
+        isStarting: false,
+        error: error instanceof Error ? error.message : 'Could not start export.',
+      }));
+    }
+  }
+
+  const exportJob = exportJobState.job;
+  const exportInFlight =
+    exportJobState.isStarting ||
+    exportJob?.status === 'queued' ||
+    exportJob?.status === 'running';
 
   const toCompanyRole = (v: string | null): CompanyRole | null => {
     if (!v) return null;
@@ -321,12 +463,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
-          <Group justify="space-between">
-            <Title order={5}>Exports</Title>
-            <Badge variant="light" color={canExportCompany ? 'gray' : 'red'}>
-              {canExportCompany ? 'Ready' : 'Not allowed'}
-            </Badge>
-          </Group>
+          <Title order={5}>Exports</Title>
           <Text size="sm" c="dimmed">
             Download a full-company Excel workbook for finance handoff,
             offline analysis, or executive reporting.
@@ -341,7 +478,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             onChange={(value) =>
               setExportScope(value === 'active' ? 'active' : 'all')
             }
-            disabled={!canExportCompany}
+            disabled={!canExportCompany || exportInFlight}
           />
           <Select
             label="Workbook detail"
@@ -353,7 +490,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             onChange={(value) =>
               setExportDetail(value === 'summary' ? 'summary' : 'full')
             }
-            disabled={!canExportCompany}
+            disabled={!canExportCompany || exportInFlight}
           />
           <Group grow align="flex-end">
             <TextInput
@@ -361,40 +498,66 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               type="date"
               value={exportFromDate}
               onChange={(event) => setExportFromDate(event.currentTarget.value)}
-              disabled={!canExportCompany}
+              disabled={!canExportCompany || exportInFlight}
             />
             <TextInput
               label="Transactions to"
               type="date"
               value={exportToDate}
               onChange={(event) => setExportToDate(event.currentTarget.value)}
-              disabled={!canExportCompany}
+              disabled={!canExportCompany || exportInFlight}
             />
           </Group>
-          <Button
-            component="a"
-            href={exportHref}
-            variant="light"
-            disabled={!canExportCompany}
-          >
-            Export company to Excel
-          </Button>
+          {exportJobState.error ? (
+            <Alert color="red">{exportJobState.error}</Alert>
+          ) : null}
+          {exportJob ? (
+            <Alert color={exportJob.status === 'failed' ? 'red' : 'blue'}>
+              {exportJob.status === 'queued'
+                ? 'Export queued. We are preparing the workbook in the background.'
+                : exportJob.status === 'running'
+                  ? 'Export in progress. The workbook will download automatically when it is ready.'
+                  : exportJob.status === 'completed'
+                    ? `Workbook ready${exportJob.fileName ? `: ${exportJob.fileName}` : ''}.`
+                    : exportJob.status === 'expired'
+                      ? 'That prepared workbook expired. Start a fresh export to regenerate it.'
+                      : exportJob.errorMessage ?? 'Export failed.'}
+            </Alert>
+          ) : null}
+          <Group gap="sm" wrap="wrap">
+            <Button
+              variant="light"
+              disabled={!canExportCompany || exportInFlight}
+              loading={exportJobState.isStarting}
+              onClick={() => {
+                void handleStartExport();
+              }}
+            >
+              {exportJob?.status === 'completed' || exportJob?.status === 'failed'
+                ? 'Generate fresh export'
+                : 'Prepare company export'}
+            </Button>
+            {exportJob?.status === 'completed' && exportJob.downloadPath ? (
+              <Button
+                component="a"
+                href={exportJob.downloadPath}
+                variant="default"
+              >
+                Download workbook
+              </Button>
+            ) : null}
+          </Group>
           <Text size="xs" c="dimmed">
-            V2 exports can be narrowed to active records, filtered by
-            transaction date range, or generated as a lighter summary workbook
-            with monthly actuals and workflow reporting sheets.
+            Current exports support active-only scope, transaction date ranges,
+            full or summary workbooks, and detailed reporting tabs. Large
+            workbooks now prepare in the background and download when ready.
           </Text>
         </Stack>
       </Paper>
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
-          <Group justify="space-between">
-            <Title order={5}>Company default categories</Title>
-            <Badge variant="light" color={defaultsStatusColor}>
-              {defaultsStatusLabel}
-            </Badge>
-          </Group>
+          <Title order={5}>Company default categories</Title>
           <Text size="sm" c="dimmed">
             Define company-wide default categories and subcategories that can be
             safely added into projects later.
@@ -429,12 +592,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
-          <Group justify="space-between">
-            <Title order={5}>Import Rules</Title>
-            <Badge variant="light" color={defaultsStatusColor}>
-              {defaultsStatusLabel}
-            </Badge>
-          </Group>
+          <Title order={5}>Import Rules</Title>
           <Text size="sm" c="dimmed">
             Decide which PowerBI rows import, which are excluded, and which are
             staged for project review before Auto-Categorise Rules run.
@@ -455,12 +613,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
-          <Group justify="space-between">
-            <Title order={5}>Auto-Categorise Rules</Title>
-            <Badge variant="light" color={defaultsStatusColor}>
-              {defaultsStatusLabel}
-            </Badge>
-          </Group>
+          <Title order={5}>Auto-Categorise Rules</Title>
           <Text size="sm" c="dimmed">
             Match imported transaction text to company default taxonomy so
             uncoded imports can be auto-categorised in projects that already
@@ -495,12 +648,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
-          <Group justify="space-between">
-            <Title order={5}>Add member</Title>
-            <Badge variant="light" color={canAddCompanyUsers ? 'gray' : 'red'}>
-              {canAddCompanyUsers ? 'Ready' : 'Not allowed'}
-            </Badge>
-          </Group>
+          <Title order={5}>Add member</Title>
           {inviteError ? <Alert color="red">{inviteError}</Alert> : null}
           {inviteStatus ? <Alert color="green">{inviteStatus}</Alert> : null}
           <TextInput

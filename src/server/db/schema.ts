@@ -216,6 +216,29 @@ export interface ImportCandidateTable {
   updated_at: Generated<string>;
 }
 
+export interface CompanyExportJobTable {
+  id: string;
+  company_id: string;
+  created_by_user_id: string;
+  scope: 'all' | 'active';
+  detail: 'full' | 'summary';
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  from_date: string | null;
+  to_date: string | null;
+  file_name: string | null;
+  content_type: string | null;
+  file_bytes: Uint8Array | null;
+  file_size_bytes: number | null;
+  error_message: string | null;
+  requested_at: Generated<string>;
+  started_at: string | null;
+  completed_at: string | null;
+  failed_at: string | null;
+  expires_at: string | null;
+  last_heartbeat_at: string | null;
+  updated_at: Generated<string>;
+}
+
 export interface RequestRateLimitTable {
   bucket: string;
   window_started_at: string;
@@ -241,6 +264,7 @@ export interface DB {
   import_rules: ImportRuleTable;
   import_batches: ImportBatchTable;
   import_candidates: ImportCandidateTable;
+  company_export_jobs: CompanyExportJobTable;
   request_rate_limits: RequestRateLimitTable;
 }
 
@@ -262,6 +286,7 @@ export const APP_DB_TABLES = [
   'import_rules',
   'import_batches',
   'import_candidates',
+  'company_export_jobs',
   'request_rate_limits',
 ] as const satisfies ReadonlyArray<keyof DB>;
 

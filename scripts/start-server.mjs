@@ -89,7 +89,9 @@ function contentTypeFor(pathname) {
 }
 
 function resolveStaticFile(pathname) {
-  const cleanPath = normalize(pathname).replace(/^(\.\.(\/|\\|$))+/, '');
+  const cleanPath = normalize(pathname)
+    .replace(/^(\.\.(\/|\\|$))+/, '')
+    .replace(/^[/\\]+/, '');
   const candidates = [
     join(clientDistDir, cleanPath),
     join(fallbackDistDir, cleanPath),
@@ -156,6 +158,13 @@ function injectNonceIntoHtml(html, nonce) {
     output = output.replace(
       '</head>',
       `  <meta property="csp-nonce" content="${nonce}" />\n      </head>`
+    );
+  }
+
+  if (!output.includes('__zod_globalConfig')) {
+    output = output.replace(
+      '</head>',
+      `  <script>globalThis.__zod_globalConfig = { ...(globalThis.__zod_globalConfig ?? {}), jitless: true };</script>\n      </head>`
     );
   }
 

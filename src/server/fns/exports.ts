@@ -1,12 +1,21 @@
 import ExcelJS from 'exceljs';
+import type { Kysely } from 'kysely';
 
 import { AppError } from '../../api/errors';
-import type { CompanyId, CompanySummaryProject, Project, ProjectId } from '../../types';
+import type {
+  CompanyExportOptions,
+  CompanyId,
+  CompanySummaryProject,
+  Project,
+  ProjectId,
+  UserId,
+} from '../../types';
 import { asCompanyId, asProjectId } from '../../types';
 import { buildCompanySummaryProjects } from '../../utils/companySummary';
 import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
+import type { DB } from '../db/schema';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -17,13 +26,6 @@ import {
 type CompanyExportResult = {
   bytes: Uint8Array;
   fileName: string;
-};
-
-export type CompanyExportOptions = {
-  scope: 'all' | 'active';
-  detail: 'full' | 'summary';
-  fromDate?: string;
-  toDate?: string;
 };
 
 type WorksheetRowValue = string | number | boolean | null | undefined;
@@ -360,15 +362,14 @@ function addReadmeWorksheet(args: {
   worksheet.views = [{ state: 'frozen', ySplit: 1 }];
 }
 
-export async function exportCompanyWorkbookServer(args: {
-  context: ServerFnContextInput;
+export async function exportCompanyWorkbookForUser(args: {
+  db: Kysely<DB>;
+  userId: UserId;
   companyId: CompanyId;
   options: CompanyExportOptions;
 }): Promise<CompanyExportResult> {
-  return withServerBoundary(async () => {
-    assertContextProvided(args.context);
-    const db = getDb();
-    const userId = await requireServerUserId(args.context);
+    const db = args.db;
+    const userId = args.userId;
 
     const company = await db
       .selectFrom('companies')
@@ -1665,5 +1666,23 @@ export async function exportCompanyWorkbookServer(args: {
         options: args.options,
       }),
     };
+}
+
+export async function exportCompanyWorkbookServer(args: {
+  context: ServerFnContextInput;
+  companyId: CompanyId;
+  options: CompanyExportOptions;
+}): Promise<CompanyExportResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const db = getDb();
+    const userId = await requireServerUserId(args.context);
+
+    return exportCompanyWorkbookForUser({
+      db,
+      userId,
+      companyId: args.companyId,
+      options: args.options,
+    });
   });
 }

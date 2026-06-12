@@ -28,6 +28,7 @@ import { Route as ApiMembershipsCompaniesRouteImport } from './routes/api.member
 import { Route as ApiMeProfileRouteImport } from './routes/api.me.profile'
 import { Route as ApiMeEmailChangeRouteImport } from './routes/api.me.email-change'
 import { Route as ApiMeDefaultCompanyRouteImport } from './routes/api.me.default-company'
+import { Route as ApiExportJobsJobIdRouteImport } from './routes/api.export-jobs.$jobId'
 import { Route as ApiDevSessionRouteImport } from './routes/api.dev.session'
 import { Route as ApiCompaniesCompanyIdRouteImport } from './routes/api.companies.$companyId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
@@ -45,6 +46,7 @@ import { Route as ApiProjectsProjectIdBudgetsRouteImport } from './routes/api.pr
 import { Route as ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRouteImport } from './routes/api.projects.$projectId.apply-company-default-taxonomy'
 import { Route as ApiMeEmailChangeResendRouteImport } from './routes/api.me.email-change.resend'
 import { Route as ApiMeEmailChangeConfirmRouteImport } from './routes/api.me.email-change.confirm'
+import { Route as ApiExportJobsJobIdDownloadRouteImport } from './routes/api.export-jobs.$jobId.download'
 import { Route as ApiCompaniesCompanyIdUsersRouteImport } from './routes/api.companies.$companyId.users'
 import { Route as ApiCompaniesCompanyIdSummaryRouteImport } from './routes/api.companies.$companyId.summary'
 import { Route as ApiCompaniesCompanyIdReactivateRouteImport } from './routes/api.companies.$companyId.reactivate'
@@ -52,6 +54,7 @@ import { Route as ApiCompaniesCompanyIdProjectsRouteImport } from './routes/api.
 import { Route as ApiCompaniesCompanyIdMyProjectMembershipsRouteImport } from './routes/api.companies.$companyId.my-project-memberships'
 import { Route as ApiCompaniesCompanyIdMembershipsRouteImport } from './routes/api.companies.$companyId.memberships'
 import { Route as ApiCompaniesCompanyIdImportRulesRouteImport } from './routes/api.companies.$companyId.import-rules'
+import { Route as ApiCompaniesCompanyIdExportJobsRouteImport } from './routes/api.companies.$companyId.export-jobs'
 import { Route as ApiCompaniesCompanyIdExportRouteImport } from './routes/api.companies.$companyId.export'
 import { Route as ApiCompaniesCompanyIdDefaultsRouteImport } from './routes/api.companies.$companyId.defaults'
 import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport } from './routes/api.companies.$companyId.default-sub-categories'
@@ -173,6 +176,11 @@ const ApiMeDefaultCompanyRoute = ApiMeDefaultCompanyRouteImport.update({
   path: '/api/me/default-company',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiExportJobsJobIdRoute = ApiExportJobsJobIdRouteImport.update({
+  id: '/api/export-jobs/$jobId',
+  path: '/api/export-jobs/$jobId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDevSessionRoute = ApiDevSessionRouteImport.update({
   id: '/api/dev/session',
   path: '/api/dev/session',
@@ -267,6 +275,12 @@ const ApiMeEmailChangeConfirmRoute = ApiMeEmailChangeConfirmRouteImport.update({
   path: '/confirm',
   getParentRoute: () => ApiMeEmailChangeRoute,
 } as any)
+const ApiExportJobsJobIdDownloadRoute =
+  ApiExportJobsJobIdDownloadRouteImport.update({
+    id: '/download',
+    path: '/download',
+    getParentRoute: () => ApiExportJobsJobIdRoute,
+  } as any)
 const ApiCompaniesCompanyIdUsersRoute =
   ApiCompaniesCompanyIdUsersRouteImport.update({
     id: '/users',
@@ -307,6 +321,12 @@ const ApiCompaniesCompanyIdImportRulesRoute =
   ApiCompaniesCompanyIdImportRulesRouteImport.update({
     id: '/import-rules',
     path: '/import-rules',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdExportJobsRoute =
+  ApiCompaniesCompanyIdExportJobsRouteImport.update({
+    id: '/export-jobs',
+    path: '/export-jobs',
     getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
 const ApiCompaniesCompanyIdExportRoute =
@@ -485,6 +505,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
   '/api/dev/session': typeof ApiDevSessionRoute
+  '/api/export-jobs/$jobId': typeof ApiExportJobsJobIdRouteWithChildren
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
   '/api/me/email-change': typeof ApiMeEmailChangeRouteWithChildren
   '/api/me/profile': typeof ApiMeProfileRoute
@@ -496,6 +517,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   '/api/companies/$companyId/defaults': typeof ApiCompaniesCompanyIdDefaultsRoute
   '/api/companies/$companyId/export': typeof ApiCompaniesCompanyIdExportRoute
+  '/api/companies/$companyId/export-jobs': typeof ApiCompaniesCompanyIdExportJobsRoute
   '/api/companies/$companyId/import-rules': typeof ApiCompaniesCompanyIdImportRulesRouteWithChildren
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
@@ -503,6 +525,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/summary': typeof ApiCompaniesCompanyIdSummaryRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  '/api/export-jobs/$jobId/download': typeof ApiExportJobsJobIdDownloadRoute
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
   '/api/projects/$projectId/apply-company-default-taxonomy': typeof ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute
@@ -554,6 +577,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
   '/api/dev/session': typeof ApiDevSessionRoute
+  '/api/export-jobs/$jobId': typeof ApiExportJobsJobIdRouteWithChildren
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
   '/api/me/email-change': typeof ApiMeEmailChangeRouteWithChildren
   '/api/me/profile': typeof ApiMeProfileRoute
@@ -565,6 +589,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   '/api/companies/$companyId/defaults': typeof ApiCompaniesCompanyIdDefaultsRoute
   '/api/companies/$companyId/export': typeof ApiCompaniesCompanyIdExportRoute
+  '/api/companies/$companyId/export-jobs': typeof ApiCompaniesCompanyIdExportJobsRoute
   '/api/companies/$companyId/import-rules': typeof ApiCompaniesCompanyIdImportRulesRouteWithChildren
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
@@ -572,6 +597,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/summary': typeof ApiCompaniesCompanyIdSummaryRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  '/api/export-jobs/$jobId/download': typeof ApiExportJobsJobIdDownloadRoute
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
   '/api/projects/$projectId/apply-company-default-taxonomy': typeof ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute
@@ -626,6 +652,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/companies/$companyId': typeof ApiCompaniesCompanyIdRouteWithChildren
   '/api/dev/session': typeof ApiDevSessionRoute
+  '/api/export-jobs/$jobId': typeof ApiExportJobsJobIdRouteWithChildren
   '/api/me/default-company': typeof ApiMeDefaultCompanyRoute
   '/api/me/email-change': typeof ApiMeEmailChangeRouteWithChildren
   '/api/me/profile': typeof ApiMeProfileRoute
@@ -637,6 +664,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/default-sub-categories': typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   '/api/companies/$companyId/defaults': typeof ApiCompaniesCompanyIdDefaultsRoute
   '/api/companies/$companyId/export': typeof ApiCompaniesCompanyIdExportRoute
+  '/api/companies/$companyId/export-jobs': typeof ApiCompaniesCompanyIdExportJobsRoute
   '/api/companies/$companyId/import-rules': typeof ApiCompaniesCompanyIdImportRulesRouteWithChildren
   '/api/companies/$companyId/memberships': typeof ApiCompaniesCompanyIdMembershipsRoute
   '/api/companies/$companyId/my-project-memberships': typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
@@ -644,6 +672,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/summary': typeof ApiCompaniesCompanyIdSummaryRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  '/api/export-jobs/$jobId/download': typeof ApiExportJobsJobIdDownloadRoute
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
   '/api/projects/$projectId/apply-company-default-taxonomy': typeof ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute
@@ -698,6 +727,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/companies/$companyId'
     | '/api/dev/session'
+    | '/api/export-jobs/$jobId'
     | '/api/me/default-company'
     | '/api/me/email-change'
     | '/api/me/profile'
@@ -709,6 +739,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-sub-categories'
     | '/api/companies/$companyId/defaults'
     | '/api/companies/$companyId/export'
+    | '/api/companies/$companyId/export-jobs'
     | '/api/companies/$companyId/import-rules'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
@@ -716,6 +747,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/summary'
     | '/api/companies/$companyId/users'
+    | '/api/export-jobs/$jobId/download'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
     | '/api/projects/$projectId/apply-company-default-taxonomy'
@@ -767,6 +799,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/companies/$companyId'
     | '/api/dev/session'
+    | '/api/export-jobs/$jobId'
     | '/api/me/default-company'
     | '/api/me/email-change'
     | '/api/me/profile'
@@ -778,6 +811,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-sub-categories'
     | '/api/companies/$companyId/defaults'
     | '/api/companies/$companyId/export'
+    | '/api/companies/$companyId/export-jobs'
     | '/api/companies/$companyId/import-rules'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
@@ -785,6 +819,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/summary'
     | '/api/companies/$companyId/users'
+    | '/api/export-jobs/$jobId/download'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
     | '/api/projects/$projectId/apply-company-default-taxonomy'
@@ -838,6 +873,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/companies/$companyId'
     | '/api/dev/session'
+    | '/api/export-jobs/$jobId'
     | '/api/me/default-company'
     | '/api/me/email-change'
     | '/api/me/profile'
@@ -849,6 +885,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/default-sub-categories'
     | '/api/companies/$companyId/defaults'
     | '/api/companies/$companyId/export'
+    | '/api/companies/$companyId/export-jobs'
     | '/api/companies/$companyId/import-rules'
     | '/api/companies/$companyId/memberships'
     | '/api/companies/$companyId/my-project-memberships'
@@ -856,6 +893,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/summary'
     | '/api/companies/$companyId/users'
+    | '/api/export-jobs/$jobId/download'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
     | '/api/projects/$projectId/apply-company-default-taxonomy'
@@ -905,6 +943,7 @@ export interface RootRouteChildren {
   ApiAdminSmokeRoute: typeof ApiAdminSmokeRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDevSessionRoute: typeof ApiDevSessionRoute
+  ApiExportJobsJobIdRoute: typeof ApiExportJobsJobIdRouteWithChildren
   ApiMeDefaultCompanyRoute: typeof ApiMeDefaultCompanyRoute
   ApiMeEmailChangeRoute: typeof ApiMeEmailChangeRouteWithChildren
   ApiMeProfileRoute: typeof ApiMeProfileRoute
@@ -1047,6 +1086,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMeDefaultCompanyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/export-jobs/$jobId': {
+      id: '/api/export-jobs/$jobId'
+      path: '/api/export-jobs/$jobId'
+      fullPath: '/api/export-jobs/$jobId'
+      preLoaderRoute: typeof ApiExportJobsJobIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/dev/session': {
       id: '/api/dev/session'
       path: '/api/dev/session'
@@ -1166,6 +1212,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMeEmailChangeConfirmRouteImport
       parentRoute: typeof ApiMeEmailChangeRoute
     }
+    '/api/export-jobs/$jobId/download': {
+      id: '/api/export-jobs/$jobId/download'
+      path: '/download'
+      fullPath: '/api/export-jobs/$jobId/download'
+      preLoaderRoute: typeof ApiExportJobsJobIdDownloadRouteImport
+      parentRoute: typeof ApiExportJobsJobIdRoute
+    }
     '/api/companies/$companyId/users': {
       id: '/api/companies/$companyId/users'
       path: '/users'
@@ -1213,6 +1266,13 @@ declare module '@tanstack/react-router' {
       path: '/import-rules'
       fullPath: '/api/companies/$companyId/import-rules'
       preLoaderRoute: typeof ApiCompaniesCompanyIdImportRulesRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/export-jobs': {
+      id: '/api/companies/$companyId/export-jobs'
+      path: '/export-jobs'
+      fullPath: '/api/companies/$companyId/export-jobs'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdExportJobsRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
     '/api/companies/$companyId/export': {
@@ -1512,6 +1572,7 @@ interface ApiCompaniesCompanyIdRouteChildren {
   ApiCompaniesCompanyIdDefaultSubCategoriesRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren
   ApiCompaniesCompanyIdDefaultsRoute: typeof ApiCompaniesCompanyIdDefaultsRoute
   ApiCompaniesCompanyIdExportRoute: typeof ApiCompaniesCompanyIdExportRoute
+  ApiCompaniesCompanyIdExportJobsRoute: typeof ApiCompaniesCompanyIdExportJobsRoute
   ApiCompaniesCompanyIdImportRulesRoute: typeof ApiCompaniesCompanyIdImportRulesRouteWithChildren
   ApiCompaniesCompanyIdMembershipsRoute: typeof ApiCompaniesCompanyIdMembershipsRoute
   ApiCompaniesCompanyIdMyProjectMembershipsRoute: typeof ApiCompaniesCompanyIdMyProjectMembershipsRoute
@@ -1531,6 +1592,7 @@ const ApiCompaniesCompanyIdRouteChildren: ApiCompaniesCompanyIdRouteChildren = {
     ApiCompaniesCompanyIdDefaultSubCategoriesRouteWithChildren,
   ApiCompaniesCompanyIdDefaultsRoute: ApiCompaniesCompanyIdDefaultsRoute,
   ApiCompaniesCompanyIdExportRoute: ApiCompaniesCompanyIdExportRoute,
+  ApiCompaniesCompanyIdExportJobsRoute: ApiCompaniesCompanyIdExportJobsRoute,
   ApiCompaniesCompanyIdImportRulesRoute:
     ApiCompaniesCompanyIdImportRulesRouteWithChildren,
   ApiCompaniesCompanyIdMembershipsRoute: ApiCompaniesCompanyIdMembershipsRoute,
@@ -1558,6 +1620,17 @@ const ApiCompaniesRouteChildren: ApiCompaniesRouteChildren = {
 const ApiCompaniesRouteWithChildren = ApiCompaniesRoute._addFileChildren(
   ApiCompaniesRouteChildren,
 )
+
+interface ApiExportJobsJobIdRouteChildren {
+  ApiExportJobsJobIdDownloadRoute: typeof ApiExportJobsJobIdDownloadRoute
+}
+
+const ApiExportJobsJobIdRouteChildren: ApiExportJobsJobIdRouteChildren = {
+  ApiExportJobsJobIdDownloadRoute: ApiExportJobsJobIdDownloadRoute,
+}
+
+const ApiExportJobsJobIdRouteWithChildren =
+  ApiExportJobsJobIdRoute._addFileChildren(ApiExportJobsJobIdRouteChildren)
 
 interface ApiMeEmailChangeRouteChildren {
   ApiMeEmailChangeConfirmRoute: typeof ApiMeEmailChangeConfirmRoute
@@ -1746,6 +1819,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminSmokeRoute: ApiAdminSmokeRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDevSessionRoute: ApiDevSessionRoute,
+  ApiExportJobsJobIdRoute: ApiExportJobsJobIdRouteWithChildren,
   ApiMeDefaultCompanyRoute: ApiMeDefaultCompanyRoute,
   ApiMeEmailChangeRoute: ApiMeEmailChangeRouteWithChildren,
   ApiMeProfileRoute: ApiMeProfileRoute,

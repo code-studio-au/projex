@@ -256,9 +256,9 @@ Why this matters:
 
 Examples:
 
-- export transactions
-- export budgets
-- export project or company summaries
+- shipped: company Excel export with full/detail summary modes, active/all scope, transaction date filters, reporting rollups, and background job generation
+- next: scheduled delivery, export audit history, governance-grade tracking, and BI/export contract hardening
+- future: project-level export variants only if users prove they need a narrower handoff than the current company workbook
 
 Why this matters:
 

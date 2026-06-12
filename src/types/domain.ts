@@ -8,6 +8,7 @@ import type {
   ImportBatchId,
   ImportCandidateId,
   ImportRuleId,
+  CompanyExportJobId,
   ProjectId,
   SubCategoryId,
   TxnCommentId,
@@ -208,6 +209,41 @@ export type ImportCandidate = {
   reviewedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type CompanyExportScope = 'all' | 'active';
+export type CompanyExportDetail = 'full' | 'summary';
+export type CompanyExportJobStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'expired';
+
+export type CompanyExportOptions = {
+  scope: CompanyExportScope;
+  detail: CompanyExportDetail;
+  fromDate?: string;
+  toDate?: string;
+};
+
+export type CompanyExportJob = {
+  id: CompanyExportJobId;
+  companyId: CompanyId;
+  createdByUserId: UserId;
+  scope: CompanyExportScope;
+  detail: CompanyExportDetail;
+  status: CompanyExportJobStatus;
+  fileName?: string;
+  downloadPath?: string;
+  errorMessage?: string;
+  fromDate?: string;
+  toDate?: string;
+  requestedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  failedAt?: string;
+  expiresAt?: string;
 };
 
 export const TXN_TYPES = [

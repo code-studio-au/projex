@@ -114,24 +114,19 @@ Command semantics and deploy-time verification details live in [docs/staging-run
 
 ## Company Export Roadmap
 
-Projex is planned to support a full company Excel export in three deliberate increments so the first release is operationally useful, while later releases add reporting depth, automation, and governance.
+Projex now supports a production-ready full company Excel export, with the remaining roadmap focused on automation, governance, and downstream interoperability rather than basic workbook coverage.
 
-### V1
+### Current Functionality
 
-- one-click `.xlsx` export at company scope for admins, executives, and eligible global superadmins
-- complete workbook across the selected company with separate sheets for workbook guidance, executive summary, programmes, projects, programme membership, budgets, transactions, project taxonomy, company default taxonomy, import rules, and memberships
-- explicit row-level identifiers and relationship columns so exported data can be filtered, audited, reconciled, and re-used outside Projex without losing context
+- company-scope `.xlsx` export from Company Settings for admins, executives, and eligible global superadmins
+- workbook options for active-only vs all visible projects/programmes, transaction date range filters, and full-detail vs summary workbook shape
+- background export generation with job status polling and a reliable download handoff once the workbook is ready
+- complete workbook coverage across the selected company, including workbook guidance, overview, executive summary, programmes, projects, programme membership, budgets, transactions, reviewed/locked/uncoded workflow tabs, taxonomy rollups, company default taxonomy, import rules, and memberships
+- explicit row-level identifiers and relationship columns so exported data can be filtered, audited, reconciled, and reused outside Projex without losing context
 - programme reporting exported as derived rollups only; operational transactions and budgets remain attached to the underlying projects so the workbook does not double count programme data
 - stable workbook formatting suitable for finance handoff: frozen headers, consistent column naming, currencies preserved per row, and generated-at metadata
 
-### V2
-
-- richer reporting tabs such as monthly actuals by project/programme, budget-vs-actual pivots, uncoded transaction views, and workflow-state summaries
-- export options so users can choose scope and shape, for example active-only vs all records, transaction date ranges, summary-only vs full-detail workbooks, and separate tabs for reviewed or locked transactions
-- saved export presets for recurring finance and executive reporting packs
-- asynchronous generation for larger companies, with export job status and reliable download handoff instead of tying workbook generation to a single browser request
-
-### V3
+### Remaining Roadmap
 
 - scheduled and automated delivery, including recurring exports for finance, executive, and audit audiences
 - governance-grade history such as export audit logs, who generated which workbook, scope used, and when it was delivered
