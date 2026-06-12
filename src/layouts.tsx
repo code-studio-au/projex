@@ -27,11 +27,12 @@ import { getDefaultCompanyIdForUser } from './queries/reference';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
 import { useCompaniesQuery } from './queries/reference';
 import { useCurrentUserQuery } from './queries/account';
-import { getCspNonce } from './utils/csp';
 import classes from './styles/ui.module.css';
 
 const smokeToolsEnabled = import.meta.env.VITE_ENABLE_SMOKE_TOOLS === 'true';
-const Devtools = import.meta.env.DEV
+const devtoolsEnabled =
+  import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEVTOOLS === 'true';
+const Devtools = devtoolsEnabled
   ? lazy(async () => import('./components/Devtools'))
   : null;
 
@@ -50,7 +51,6 @@ export function RootProviders({
     <MantineProvider
       theme={theme}
       defaultColorScheme="light"
-      getStyleNonce={getCspNonce}
     >
       <QueryClientProvider client={activeQueryClient}>
         {children}

@@ -109,6 +109,18 @@ function resolveStaticFile(pathname) {
   return null;
 }
 
+function buildStaticResponse(filePath, method, cacheControl) {
+  return readFile(filePath).then((body) =>
+    new Response(method === 'HEAD' ? null : body, {
+      status: 200,
+      headers: {
+        'content-type': contentTypeFor(filePath),
+        'cache-control': cacheControl,
+      },
+    })
+  );
+}
+
 function createCspNonce() {
   return randomBytes(16).toString('base64url');
 }
@@ -118,10 +130,10 @@ function buildAppCsp(nonce) {
     "default-src 'self'",
     `script-src 'nonce-${nonce}' 'strict-dynamic'`,
     "script-src-attr 'none'",
-    `style-src 'self' 'nonce-${nonce}'`,
-    `style-src-elem 'self' 'nonce-${nonce}'`,
-    // Mantine and several app surfaces still emit runtime style attributes.
-    // Keep this until a future UI pass eliminates those style="" sinks.
+    // Keep script CSP strict, but allow inline styles because Mantine runtime
+    // style tags and browser nonce redaction cause SSR hydration mismatches.
+    "style-src 'self' 'unsafe-inline'",
+    "style-src-elem 'self' 'unsafe-inline'",
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self' data:",
@@ -153,10 +165,6 @@ function injectNonceIntoHtml(html, nonce) {
     /<script\b(?![^>]*\bnonce=)/g,
     `<script nonce="${nonce}"`
   );
-  output = output.replace(
-    /<style\b(?![^>]*\bnonce=)/g,
-    `<style nonce="${nonce}"`
-  );
 
   return output;
 }
@@ -187,15 +195,22 @@ app.use(
     if (!filePath) {
       return new Response('Not found', { status: 404 });
     }
+    return buildStaticResponse(
+      filePath,
+      event.req.method,
+      'public, max-age=31536000, immutable'
+    );
+  })
+);
 
-    const body = await readFile(filePath);
-    return new Response(event.req.method === 'HEAD' ? null : body, {
-      status: 200,
-      headers: {
-        'content-type': contentTypeFor(filePath),
-        'cache-control': 'public, max-age=31536000, immutable',
-      },
-    });
+app.use(
+  '/favicon.svg',
+  eventHandler(async (event) => {
+    const filePath = resolveStaticFile(event.url.pathname);
+    if (!filePath) {
+      return new Response('Not found', { status: 404 });
+    }
+    return buildStaticResponse(filePath, event.req.method, 'public, max-age=3600');
   })
 );
 
@@ -206,15 +221,7 @@ app.use(
     if (!filePath) {
       return new Response('Not found', { status: 404 });
     }
-
-    const body = await readFile(filePath);
-    return new Response(event.req.method === 'HEAD' ? null : body, {
-      status: 200,
-      headers: {
-        'content-type': contentTypeFor(filePath),
-        'cache-control': 'public, max-age=3600',
-      },
-    });
+    return buildStaticResponse(filePath, event.req.method, 'public, max-age=3600');
   })
 );
 
