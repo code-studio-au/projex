@@ -35,7 +35,9 @@ import {
   useSendCompanyUserInviteEmailMutation,
 } from '../queries/admin';
 import { useCompanyDefaultsQuery } from '../queries/taxonomy';
-import { Route as companyLayoutRoute } from '../routes/_authed.c.$companyId';
+import {
+  Route as companyLayoutRoute,
+} from '../routes/_authed.c.$companyId';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
 import CompanyImportRulesModal from './CompanyImportRulesModal';
@@ -63,7 +65,6 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const sendInviteEmail = useSendCompanyUserInviteEmailMutation(companyId);
   const removeCompanyMember = useDeleteCompanyMembershipMutation(companyId);
   const upsertCompanyMembership = useUpsertCompanyMembershipMutation(companyId);
-
   // Permissions are evaluated via `access.can(...)` so that global superadmin
   // works across companies even without explicit membership.
   const currentCompanyRole =
@@ -86,7 +87,6 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     (isHydrated ? access.can('company:export') : undefined) ??
     loaderData?.canExportCompany ??
     false;
-  const exportHref = `/api/companies/${encodeURIComponent(companyId)}/export`;
   const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
   const effectiveDefaults = isHydrated
     ? companyDefaultsQ.data
@@ -144,6 +144,10 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [defaultsModalOpen, setDefaultsModalOpen] = useState(false);
   const [mappingsModalOpen, setMappingsModalOpen] = useState(false);
   const [importRulesModalOpen, setImportRulesModalOpen] = useState(false);
+  const [exportScope, setExportScope] = useState<'all' | 'active'>('all');
+  const [exportDetail, setExportDetail] = useState<'full' | 'summary'>('full');
+  const [exportFromDate, setExportFromDate] = useState('');
+  const [exportToDate, setExportToDate] = useState('');
 
   // Derive a sensible default selection without synchronously setting state in an effect.
   // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
@@ -153,6 +157,16 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
   const [membershipCompanyRole, setMembershipCompanyRole] =
     useState<CompanyRole | null>('member');
+
+  const exportHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (exportScope !== 'all') params.set('scope', exportScope);
+    if (exportDetail !== 'full') params.set('detail', exportDetail);
+    if (exportFromDate) params.set('from', exportFromDate);
+    if (exportToDate) params.set('to', exportToDate);
+    const query = params.toString();
+    return `/api/companies/${encodeURIComponent(companyId)}/export${query ? `?${query}` : ''}`;
+  }, [companyId, exportDetail, exportFromDate, exportScope, exportToDate]);
 
   const toCompanyRole = (v: string | null): CompanyRole | null => {
     if (!v) return null;
@@ -317,6 +331,46 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             Download a full-company Excel workbook for finance handoff,
             offline analysis, or executive reporting.
           </Text>
+          <Select
+            label="Project scope"
+            data={[
+              { value: 'all', label: 'All visible projects and programmes' },
+              { value: 'active', label: 'Active projects and programmes only' },
+            ]}
+            value={exportScope}
+            onChange={(value) =>
+              setExportScope(value === 'active' ? 'active' : 'all')
+            }
+            disabled={!canExportCompany}
+          />
+          <Select
+            label="Workbook detail"
+            data={[
+              { value: 'full', label: 'Full detail workbook' },
+              { value: 'summary', label: 'Summary and reporting only' },
+            ]}
+            value={exportDetail}
+            onChange={(value) =>
+              setExportDetail(value === 'summary' ? 'summary' : 'full')
+            }
+            disabled={!canExportCompany}
+          />
+          <Group grow align="flex-end">
+            <TextInput
+              label="Transactions from"
+              type="date"
+              value={exportFromDate}
+              onChange={(event) => setExportFromDate(event.currentTarget.value)}
+              disabled={!canExportCompany}
+            />
+            <TextInput
+              label="Transactions to"
+              type="date"
+              value={exportToDate}
+              onChange={(event) => setExportToDate(event.currentTarget.value)}
+              disabled={!canExportCompany}
+            />
+          </Group>
           <Button
             component="a"
             href={exportHref}
@@ -326,8 +380,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
             Export company to Excel
           </Button>
           <Text size="xs" c="dimmed">
-            The workbook includes company-wide projects, programmes, budgets,
-            transactions, taxonomy, rules, and memberships in separate sheets.
+            V2 exports can be narrowed to active records, filtered by
+            transaction date range, or generated as a lighter summary workbook
+            with monthly actuals and workflow reporting sheets.
           </Text>
         </Stack>
       </Paper>

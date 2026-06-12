@@ -112,6 +112,7 @@ const destructiveConfirmationSchema = z
   .string()
   .trim()
   .min(1, 'Confirmation text is required');
+const dateOnlyStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const csvImportModeSchema = z.enum(['append', 'replaceAll']);
 const importPreviewSourceTypeSchema = z.enum(['powerbi_expenditure_actuals']);
 const txnListViewSchema = z.enum([
@@ -197,6 +198,24 @@ export const updateProjectBodySchema = z.object({
 export const deleteCompanyBodySchema = z.object({
   confirmation: destructiveConfirmationSchema,
 });
+
+export const companyExportQuerySchema = z
+  .object({
+    scope: z.enum(['all', 'active']).optional(),
+    detail: z.enum(['full', 'summary']).optional(),
+    from: dateOnlyStringSchema.optional(),
+    to: dateOnlyStringSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.from && value.to && value.from > value.to) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '`from` date must be on or before `to` date',
+        path: ['from'],
+      });
+    }
+  });
+
 
 export const deleteProjectBodySchema = z.object({
   confirmation: destructiveConfirmationSchema,

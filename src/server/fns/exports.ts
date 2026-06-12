@@ -19,6 +19,13 @@ type CompanyExportResult = {
   fileName: string;
 };
 
+export type CompanyExportOptions = {
+  scope: 'all' | 'active';
+  detail: 'full' | 'summary';
+  fromDate?: string;
+  toDate?: string;
+};
+
 type WorksheetRowValue = string | number | boolean | null | undefined;
 
 type WorksheetColumn = {
@@ -52,8 +59,27 @@ function slugifyCompanyName(name: string): string {
   return normalized || 'company';
 }
 
+function compact<T>(values: Array<T | null | undefined | false>): T[] {
+  return values.filter(Boolean) as T[];
+}
+
 function centsToMajorUnits(cents: number): number {
   return cents / 100;
+}
+
+function buildExportFileName(args: {
+  companyName: string;
+  options: CompanyExportOptions;
+}): string {
+  const parts = [
+    slugifyCompanyName(args.companyName),
+    args.options.scope === 'active' ? 'active' : null,
+    args.options.detail === 'summary' ? 'summary' : 'full',
+    args.options.fromDate ? `from-${args.options.fromDate}` : null,
+    args.options.toDate ? `to-${args.options.toDate}` : null,
+    'export',
+  ];
+  return `${compact(parts).join('-')}.xlsx`;
 }
 
 function toProject(row: ProjectExportRow): Project {
@@ -161,6 +187,7 @@ function addReadmeWorksheet(args: {
   transactionCount: number;
   budgetCount: number;
   isScopedForSuperadmin: boolean;
+  options: CompanyExportOptions;
 }) {
   const worksheet = args.workbook.addWorksheet('README');
   const rows = [
@@ -169,6 +196,11 @@ function addReadmeWorksheet(args: {
     [`Generated at: ${args.generatedAt}`],
     [
       `Scope: ${args.isScopedForSuperadmin ? 'global superadmin visible projects only' : 'full company access scope'}`,
+    ],
+    [`Project filter: ${args.options.scope === 'active' ? 'active projects/programmes only' : 'all visible projects/programmes'}`],
+    [`Workbook detail: ${args.options.detail === 'summary' ? 'summary only' : 'full detail'}`],
+    [
+      `Transaction date range: ${args.options.fromDate ?? 'beginning'} to ${args.options.toDate ?? 'latest'}`,
     ],
     [''],
     ['This workbook contains:'],
@@ -192,6 +224,7 @@ function addReadmeWorksheet(args: {
 export async function exportCompanyWorkbookServer(args: {
   context: ServerFnContextInput;
   companyId: CompanyId;
+  options: CompanyExportOptions;
 }): Promise<CompanyExportResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -235,9 +268,13 @@ export async function exportCompanyWorkbookServer(args: {
       .orderBy('name', 'asc')
       .execute();
 
-    const projectRows = isSuperadmin
+    const visibleProjectRows = isSuperadmin
       ? allProjectRows.filter((row) => row.allow_superadmin_access)
       : allProjectRows;
+    const projectRows =
+      args.options.scope === 'active'
+        ? visibleProjectRows.filter((row) => row.status === 'active')
+        : visibleProjectRows;
     const projectIds = projectRows.map((row) => row.id);
     const projectIdSet = new Set(projectIds);
 
@@ -329,44 +366,53 @@ export async function exportCompanyWorkbookServer(args: {
             .execute()
         : Promise.resolve([]),
       projectIds.length
-        ? db
-            .selectFrom('txns')
-            .select([
-              'id',
-              'public_id',
-              'external_id',
-              'company_id',
-              'project_id',
-              'txn_date',
-              'item',
-              'description',
-              'amount_cents',
-              'txn_type',
-              'parent_public_id',
-              'source_public_id',
-              'transfer_project_id',
-              'budget_impact',
-              'categorisable',
-              'import_batch_id',
-              'import_source_type',
-              'import_source_meta',
-              'category_id',
-              'sub_category_id',
-              'company_default_mapping_rule_id',
-              'coding_source',
-              'coding_pending_approval',
-              'reviewed_at',
-              'reviewed_by_user_id',
-              'locked_at',
-              'locked_by_user_id',
-              'created_at',
-              'updated_at',
-            ])
-            .where('project_id', 'in', projectIds)
-            .orderBy('project_id', 'asc')
-            .orderBy('txn_date', 'asc')
-            .orderBy('id', 'asc')
-            .execute()
+        ? (async () => {
+            let query = db
+              .selectFrom('txns')
+              .select([
+                'id',
+                'public_id',
+                'external_id',
+                'company_id',
+                'project_id',
+                'txn_date',
+                'item',
+                'description',
+                'amount_cents',
+                'txn_type',
+                'parent_public_id',
+                'source_public_id',
+                'transfer_project_id',
+                'budget_impact',
+                'categorisable',
+                'import_batch_id',
+                'import_source_type',
+                'import_source_meta',
+                'category_id',
+                'sub_category_id',
+                'company_default_mapping_rule_id',
+                'coding_source',
+                'coding_pending_approval',
+                'reviewed_at',
+                'reviewed_by_user_id',
+                'locked_at',
+                'locked_by_user_id',
+                'created_at',
+                'updated_at',
+              ])
+              .where('project_id', 'in', projectIds);
+            if (args.options.fromDate) {
+              query = query.where('txn_date', '>=', args.options.fromDate);
+            }
+            if (args.options.toDate) {
+              query = query.where('txn_date', '<=', args.options.toDate);
+            }
+            return query
+              .orderBy('project_id', 'asc')
+              .orderBy('txn_date', 'asc')
+              .orderBy('id', 'asc')
+              .execute();
+          })()
         : Promise.resolve([]),
       db
         .selectFrom('company_default_categories')
@@ -494,6 +540,7 @@ export async function exportCompanyWorkbookServer(args: {
       transactionCount: txns.length,
       budgetCount: budgetLines.length,
       isScopedForSuperadmin: isSuperadmin,
+      options: args.options,
     });
 
     const executiveSummary = workbook.addWorksheet('Executive Summary');
@@ -507,11 +554,21 @@ export async function exportCompanyWorkbookServer(args: {
     );
     const uncodedTxnCount = txns.filter((row) => !row.sub_category_id).length;
     const lockedTxnCount = txns.filter((row) => !!row.locked_at).length;
+    const reviewedTxnCount = txns.filter((row) => !!row.reviewed_at).length;
+    const autoMappedPendingTxnCount = txns.filter(
+      (row) => row.coding_pending_approval
+    ).length;
 
     const metadataRows = [
       ['Company', company.name],
       ['Company status', company.status],
       ['Generated at', generatedAt],
+      ['Project filter', args.options.scope],
+      ['Workbook detail', args.options.detail],
+      [
+        'Transaction date range',
+        `${args.options.fromDate ?? 'beginning'} to ${args.options.toDate ?? 'latest'}`,
+      ],
       ['Projects in scope', projectRows.length],
       ['Programmes in scope', programmes.length],
       ['Operational projects in scope', operationalProjects.length],
@@ -520,7 +577,9 @@ export async function exportCompanyWorkbookServer(args: {
       ['Total planned budget (major units)', centsToMajorUnits(totalBudgetCents)],
       ['Total transaction amount (major units)', centsToMajorUnits(totalTxnCents)],
       ['Uncoded transactions', uncodedTxnCount],
+      ['Reviewed transactions', reviewedTxnCount],
       ['Locked transactions', lockedTxnCount],
+      ['Auto-mapped pending transactions', autoMappedPendingTxnCount],
     ];
     metadataRows.forEach((row) => executiveSummary.addRow(row));
     executiveSummary.addRow([]);
@@ -568,13 +627,16 @@ export async function exportCompanyWorkbookServer(args: {
         centsToMajorUnits(uncodedAmountCents),
       ]);
     });
-    executiveSummary.getRow(13).font = { bold: true };
-    setHeaderStyle(executiveSummary, 14);
+    const executiveSummaryHeaderRow = metadataRows.length + 2;
+    executiveSummary.getRow(executiveSummaryHeaderRow).font = { bold: true };
+    setHeaderStyle(executiveSummary, executiveSummaryHeaderRow);
     executiveSummary.autoFilter = {
-      from: { row: 14, column: 1 },
-      to: { row: 14, column: 13 },
+      from: { row: executiveSummaryHeaderRow, column: 1 },
+      to: { row: executiveSummaryHeaderRow, column: 13 },
     };
-    executiveSummary.views = [{ state: 'frozen', ySplit: 14 }];
+    executiveSummary.views = [
+      { state: 'frozen', ySplit: executiveSummaryHeaderRow },
+    ];
     executiveSummary.columns = [
       { key: 'a', width: 24 },
       { key: 'b', width: 32 },
@@ -683,8 +745,195 @@ export async function exportCompanyWorkbookServer(args: {
 
     createWorksheet(
       workbook,
-      'Budgets',
+      'Monthly Actuals',
       [
+        { header: 'Project ID', key: 'projectId' },
+        { header: 'Project name', key: 'projectName' },
+        { header: 'Project type', key: 'projectType' },
+        { header: 'Parent programme ID', key: 'parentProgrammeId' },
+        { header: 'Parent programme name', key: 'parentProgrammeName' },
+        { header: 'Currency', key: 'currency' },
+        { header: 'Month', key: 'monthKey' },
+        { header: 'Actual coded cents', key: 'actualCodedCents' },
+        { header: 'Actual coded amount', key: 'actualCodedAmount' },
+        { header: 'Uncoded count', key: 'uncodedCount' },
+        { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
+        { header: 'Uncoded amount', key: 'uncodedAmount' },
+      ],
+      flatSummaryProjects.flatMap((project) =>
+        project.months.map((month) => ({
+          projectId: project.id,
+          projectName: project.name,
+          projectType: project.projectType,
+          parentProgrammeId: project.parentProjectId ?? '',
+          parentProgrammeName: project.parentProjectId
+            ? projectById.get(project.parentProjectId)?.name ?? ''
+            : '',
+          currency: project.currency,
+          monthKey: month.monthKey,
+          actualCodedCents: month.actualCodedCents,
+          actualCodedAmount: centsToMajorUnits(month.actualCodedCents),
+          uncodedCount: month.uncodedCount,
+          uncodedAmountCents: month.uncodedAmountCents,
+          uncodedAmount: centsToMajorUnits(month.uncodedAmountCents),
+        }))
+      )
+    );
+
+    createWorksheet(
+      workbook,
+      'Workflow Summary',
+      [
+        { header: 'Project ID', key: 'projectId' },
+        { header: 'Project name', key: 'projectName' },
+        { header: 'Project type', key: 'projectType' },
+        { header: 'Currency', key: 'currency' },
+        { header: 'Parent programme ID', key: 'parentProgrammeId' },
+        { header: 'Parent programme name', key: 'parentProgrammeName' },
+        { header: 'Total transactions', key: 'totalTransactions' },
+        { header: 'Reviewed transactions', key: 'reviewedTransactions' },
+        { header: 'Locked transactions', key: 'lockedTransactions' },
+        { header: 'Uncoded transactions', key: 'uncodedTransactions' },
+        { header: 'Auto-mapped pending', key: 'autoMappedPending' },
+        { header: 'Budget-impact transactions', key: 'budgetImpactTransactions' },
+      ],
+      projectRows.map((row) => {
+        const projectTxns = txns.filter((txn) => txn.project_id === row.id);
+        const parentProgramme = row.parent_project_id
+          ? projectById.get(row.parent_project_id)
+          : null;
+        return {
+          projectId: row.id,
+          projectName: row.name,
+          projectType: row.project_type,
+          currency: row.currency,
+          parentProgrammeId: row.parent_project_id ?? '',
+          parentProgrammeName: parentProgramme?.name ?? '',
+          totalTransactions: projectTxns.length,
+          reviewedTransactions: projectTxns.filter((txn) => !!txn.reviewed_at).length,
+          lockedTransactions: projectTxns.filter((txn) => !!txn.locked_at).length,
+          uncodedTransactions: projectTxns.filter((txn) => !txn.sub_category_id)
+            .length,
+          autoMappedPending: projectTxns.filter(
+            (txn) => txn.coding_pending_approval
+          ).length,
+          budgetImpactTransactions: projectTxns.filter((txn) => txn.budget_impact)
+            .length,
+        };
+      })
+    );
+
+    const transactionExportRows = txns.map((row) => {
+      const project = projectById.get(row.project_id);
+      const parentProgramme = project?.parent_project_id
+        ? projectById.get(project.parent_project_id)
+        : null;
+      const category = row.category_id ? categoryById.get(row.category_id) : null;
+      const subCategory = row.sub_category_id
+        ? subCategoryById.get(row.sub_category_id)
+        : null;
+      const transferProject = row.transfer_project_id
+        ? projectById.get(row.transfer_project_id)
+        : null;
+      const reviewedBy = row.reviewed_by_user_id
+        ? userById.get(row.reviewed_by_user_id)
+        : null;
+      const lockedBy = row.locked_by_user_id
+        ? userById.get(row.locked_by_user_id)
+        : null;
+      return {
+        transactionId: row.public_id,
+        internalId: row.id,
+        projectId: row.project_id,
+        projectName: project?.name ?? '',
+        programmeId: parentProgramme?.id ?? '',
+        programmeName: parentProgramme?.name ?? '',
+        currency: project?.currency ?? '',
+        date: row.txn_date,
+        item: row.item,
+        description: row.description,
+        externalId: row.external_id ?? '',
+        amountCents: Number(row.amount_cents),
+        amount: centsToMajorUnits(Number(row.amount_cents)),
+        txnType: row.txn_type,
+        budgetImpact: row.budget_impact,
+        categorisable: row.categorisable,
+        categoryId: row.category_id ?? '',
+        categoryName: category?.name ?? '',
+        subCategoryId: row.sub_category_id ?? '',
+        subCategoryName: subCategory?.name ?? '',
+        defaultMappingRuleId: row.company_default_mapping_rule_id ?? '',
+        codingSource: row.coding_source ?? '',
+        codingPendingApproval: row.coding_pending_approval,
+        transferProjectId:
+          row.transfer_project_id && projectIdSet.has(row.transfer_project_id)
+            ? row.transfer_project_id
+            : '',
+        transferProjectName:
+          row.transfer_project_id && projectIdSet.has(row.transfer_project_id)
+            ? transferProject?.name ?? ''
+            : '',
+        parentTxnId: row.parent_public_id ?? '',
+        sourceTxnId: row.source_public_id ?? '',
+        importBatchId: row.import_batch_id ?? '',
+        importSourceType: row.import_source_type ?? '',
+        reviewedAt: row.reviewed_at ?? '',
+        reviewedByUserId: row.reviewed_by_user_id ?? '',
+        reviewedByUserName: reviewedBy?.name ?? '',
+        lockedAt: row.locked_at ?? '',
+        lockedByUserId: row.locked_by_user_id ?? '',
+        lockedByUserName: lockedBy?.name ?? '',
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
+
+    const transactionColumns: WorksheetColumn[] = [
+      { header: 'Transaction ID', key: 'transactionId' },
+      { header: 'Internal transaction ID', key: 'internalId' },
+      { header: 'Project ID', key: 'projectId' },
+      { header: 'Project name', key: 'projectName' },
+      { header: 'Programme ID', key: 'programmeId' },
+      { header: 'Programme name', key: 'programmeName' },
+      { header: 'Currency', key: 'currency' },
+      { header: 'Date', key: 'date' },
+      { header: 'Item', key: 'item' },
+      { header: 'Description', key: 'description' },
+      { header: 'External ID', key: 'externalId' },
+      { header: 'Amount cents', key: 'amountCents' },
+      { header: 'Amount', key: 'amount' },
+      { header: 'Transaction type', key: 'txnType' },
+      { header: 'Budget impact', key: 'budgetImpact' },
+      { header: 'Categorisable', key: 'categorisable' },
+      { header: 'Category ID', key: 'categoryId' },
+      { header: 'Category name', key: 'categoryName' },
+      { header: 'Subcategory ID', key: 'subCategoryId' },
+      { header: 'Subcategory name', key: 'subCategoryName' },
+      { header: 'Default mapping rule ID', key: 'defaultMappingRuleId' },
+      { header: 'Coding source', key: 'codingSource' },
+      { header: 'Coding pending approval', key: 'codingPendingApproval' },
+      { header: 'Transfer project ID', key: 'transferProjectId' },
+      { header: 'Transfer project name', key: 'transferProjectName' },
+      { header: 'Parent transaction ID', key: 'parentTxnId' },
+      { header: 'Source transaction ID', key: 'sourceTxnId' },
+      { header: 'Import batch ID', key: 'importBatchId' },
+      { header: 'Import source type', key: 'importSourceType' },
+      { header: 'Reviewed at', key: 'reviewedAt' },
+      { header: 'Reviewed by user ID', key: 'reviewedByUserId' },
+      { header: 'Reviewed by user', key: 'reviewedByUserName' },
+      { header: 'Locked at', key: 'lockedAt' },
+      { header: 'Locked by user ID', key: 'lockedByUserId' },
+      { header: 'Locked by user', key: 'lockedByUserName' },
+      { header: 'Created at', key: 'createdAt' },
+      { header: 'Updated at', key: 'updatedAt' },
+    ];
+
+    if (args.options.detail === 'full') {
+
+      createWorksheet(
+        workbook,
+        'Budgets',
+        [
         { header: 'Budget ID', key: 'budgetId' },
         { header: 'Project ID', key: 'projectId' },
         { header: 'Project name', key: 'projectName' },
@@ -700,7 +949,7 @@ export async function exportCompanyWorkbookServer(args: {
         { header: 'Created at', key: 'createdAt' },
         { header: 'Updated at', key: 'updatedAt' },
       ],
-      budgetLines.map((row) => {
+        budgetLines.map((row) => {
         const project = projectById.get(row.project_id);
         const category = row.category_id ? categoryById.get(row.category_id) : null;
         const subCategory = row.sub_category_id
@@ -725,121 +974,29 @@ export async function exportCompanyWorkbookServer(args: {
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         };
-      })
-    );
+        })
+      );
 
-    createWorksheet(
-      workbook,
-      'Transactions',
-      [
-        { header: 'Transaction ID', key: 'transactionId' },
-        { header: 'Internal transaction ID', key: 'internalId' },
-        { header: 'Project ID', key: 'projectId' },
-        { header: 'Project name', key: 'projectName' },
-        { header: 'Programme ID', key: 'programmeId' },
-        { header: 'Programme name', key: 'programmeName' },
-        { header: 'Currency', key: 'currency' },
-        { header: 'Date', key: 'date' },
-        { header: 'Item', key: 'item' },
-        { header: 'Description', key: 'description' },
-        { header: 'External ID', key: 'externalId' },
-        { header: 'Amount cents', key: 'amountCents' },
-        { header: 'Amount', key: 'amount' },
-        { header: 'Transaction type', key: 'txnType' },
-        { header: 'Budget impact', key: 'budgetImpact' },
-        { header: 'Categorisable', key: 'categorisable' },
-        { header: 'Category ID', key: 'categoryId' },
-        { header: 'Category name', key: 'categoryName' },
-        { header: 'Subcategory ID', key: 'subCategoryId' },
-        { header: 'Subcategory name', key: 'subCategoryName' },
-        { header: 'Default mapping rule ID', key: 'defaultMappingRuleId' },
-        { header: 'Coding source', key: 'codingSource' },
-        { header: 'Coding pending approval', key: 'codingPendingApproval' },
-        { header: 'Transfer project ID', key: 'transferProjectId' },
-        { header: 'Transfer project name', key: 'transferProjectName' },
-        { header: 'Parent transaction ID', key: 'parentTxnId' },
-        { header: 'Source transaction ID', key: 'sourceTxnId' },
-        { header: 'Import batch ID', key: 'importBatchId' },
-        { header: 'Import source type', key: 'importSourceType' },
-        { header: 'Reviewed at', key: 'reviewedAt' },
-        { header: 'Reviewed by user ID', key: 'reviewedByUserId' },
-        { header: 'Reviewed by user', key: 'reviewedByUserName' },
-        { header: 'Locked at', key: 'lockedAt' },
-        { header: 'Locked by user ID', key: 'lockedByUserId' },
-        { header: 'Locked by user', key: 'lockedByUserName' },
-        { header: 'Created at', key: 'createdAt' },
-        { header: 'Updated at', key: 'updatedAt' },
-      ],
-      txns.map((row) => {
-        const project = projectById.get(row.project_id);
-        const parentProgramme = project?.parent_project_id
-          ? projectById.get(project.parent_project_id)
-          : null;
-        const category = row.category_id ? categoryById.get(row.category_id) : null;
-        const subCategory = row.sub_category_id
-          ? subCategoryById.get(row.sub_category_id)
-          : null;
-        const transferProject = row.transfer_project_id
-          ? projectById.get(row.transfer_project_id)
-          : null;
-        const reviewedBy = row.reviewed_by_user_id
-          ? userById.get(row.reviewed_by_user_id)
-          : null;
-        const lockedBy = row.locked_by_user_id
-          ? userById.get(row.locked_by_user_id)
-          : null;
-        return {
-          transactionId: row.public_id,
-          internalId: row.id,
-          projectId: row.project_id,
-          projectName: project?.name ?? '',
-          programmeId: parentProgramme?.id ?? '',
-          programmeName: parentProgramme?.name ?? '',
-          currency: project?.currency ?? '',
-          date: row.txn_date,
-          item: row.item,
-          description: row.description,
-          externalId: row.external_id ?? '',
-          amountCents: Number(row.amount_cents),
-          amount: centsToMajorUnits(Number(row.amount_cents)),
-          txnType: row.txn_type,
-          budgetImpact: row.budget_impact,
-          categorisable: row.categorisable,
-          categoryId: row.category_id ?? '',
-          categoryName: category?.name ?? '',
-          subCategoryId: row.sub_category_id ?? '',
-          subCategoryName: subCategory?.name ?? '',
-          defaultMappingRuleId: row.company_default_mapping_rule_id ?? '',
-          codingSource: row.coding_source ?? '',
-          codingPendingApproval: row.coding_pending_approval,
-          transferProjectId:
-            row.transfer_project_id && projectIdSet.has(row.transfer_project_id)
-              ? row.transfer_project_id
-              : '',
-          transferProjectName:
-            row.transfer_project_id && projectIdSet.has(row.transfer_project_id)
-              ? transferProject?.name ?? ''
-              : '',
-          parentTxnId: row.parent_public_id ?? '',
-          sourceTxnId: row.source_public_id ?? '',
-          importBatchId: row.import_batch_id ?? '',
-          importSourceType: row.import_source_type ?? '',
-          reviewedAt: row.reviewed_at ?? '',
-          reviewedByUserId: row.reviewed_by_user_id ?? '',
-          reviewedByUserName: reviewedBy?.name ?? '',
-          lockedAt: row.locked_at ?? '',
-          lockedByUserId: row.locked_by_user_id ?? '',
-          lockedByUserName: lockedBy?.name ?? '',
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-        };
-      })
-    );
+      createWorksheet(workbook, 'Transactions', transactionColumns, transactionExportRows);
 
-    createWorksheet(
-      workbook,
-      'Categories',
-      [
+      createWorksheet(
+        workbook,
+        'Reviewed Transactions',
+        transactionColumns,
+        transactionExportRows.filter((row) => !!row.reviewedAt)
+      );
+
+      createWorksheet(
+        workbook,
+        'Locked Transactions',
+        transactionColumns,
+        transactionExportRows.filter((row) => !!row.lockedAt)
+      );
+
+      createWorksheet(
+        workbook,
+        'Categories',
+        [
         { header: 'Category ID', key: 'categoryId' },
         { header: 'Project ID', key: 'projectId' },
         { header: 'Project name', key: 'projectName' },
@@ -849,7 +1006,7 @@ export async function exportCompanyWorkbookServer(args: {
         { header: 'Created at', key: 'createdAt' },
         { header: 'Updated at', key: 'updatedAt' },
       ],
-      categories.map((row) => {
+        categories.map((row) => {
         const project = projectById.get(row.project_id);
         const parentProgramme = project?.parent_project_id
           ? projectById.get(project.parent_project_id)
@@ -864,13 +1021,13 @@ export async function exportCompanyWorkbookServer(args: {
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         };
-      })
-    );
+        })
+      );
 
-    createWorksheet(
-      workbook,
-      'Subcategories',
-      [
+      createWorksheet(
+        workbook,
+        'Subcategories',
+        [
         { header: 'Subcategory ID', key: 'subCategoryId' },
         { header: 'Project ID', key: 'projectId' },
         { header: 'Project name', key: 'projectName' },
@@ -880,7 +1037,7 @@ export async function exportCompanyWorkbookServer(args: {
         { header: 'Created at', key: 'createdAt' },
         { header: 'Updated at', key: 'updatedAt' },
       ],
-      subCategories.map((row) => ({
+        subCategories.map((row) => ({
         subCategoryId: row.id,
         projectId: row.project_id,
         projectName: projectById.get(row.project_id)?.name ?? '',
@@ -889,30 +1046,30 @@ export async function exportCompanyWorkbookServer(args: {
         name: row.name,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-      }))
-    );
+        }))
+      );
 
-    createWorksheet(
-      workbook,
-      'Company Default Categories',
-      [
+      createWorksheet(
+        workbook,
+        'Company Default Categories',
+        [
         { header: 'Default category ID', key: 'categoryId' },
         { header: 'Name', key: 'name' },
         { header: 'Created at', key: 'createdAt' },
         { header: 'Updated at', key: 'updatedAt' },
       ],
-      companyDefaultCategories.map((row) => ({
+        companyDefaultCategories.map((row) => ({
         categoryId: row.id,
         name: row.name,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-      }))
-    );
+        }))
+      );
 
-    createWorksheet(
-      workbook,
-      'Company Default Subcategories',
-      [
+      createWorksheet(
+        workbook,
+        'Company Default Subcategories',
+        [
         { header: 'Default subcategory ID', key: 'subCategoryId' },
         { header: 'Default category ID', key: 'categoryId' },
         { header: 'Default category name', key: 'categoryName' },
@@ -920,7 +1077,7 @@ export async function exportCompanyWorkbookServer(args: {
         { header: 'Created at', key: 'createdAt' },
         { header: 'Updated at', key: 'updatedAt' },
       ],
-      companyDefaultSubCategories.map((row) => ({
+        companyDefaultSubCategories.map((row) => ({
         subCategoryId: row.id,
         categoryId: row.company_default_category_id,
         categoryName:
@@ -928,13 +1085,13 @@ export async function exportCompanyWorkbookServer(args: {
         name: row.name,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-      }))
-    );
+        }))
+      );
 
-    createWorksheet(
-      workbook,
-      'Default Mapping Rules',
-      [
+      createWorksheet(
+        workbook,
+        'Default Mapping Rules',
+        [
         { header: 'Rule ID', key: 'ruleId' },
         { header: 'Match text', key: 'matchText' },
         { header: 'Default category ID', key: 'categoryId' },
@@ -945,7 +1102,7 @@ export async function exportCompanyWorkbookServer(args: {
         { header: 'Created at', key: 'createdAt' },
         { header: 'Updated at', key: 'updatedAt' },
       ],
-      companyDefaultMappingRules.map((row) => ({
+        companyDefaultMappingRules.map((row) => ({
         ruleId: row.id,
         matchText: row.match_text,
         categoryId: row.company_default_category_id,
@@ -958,13 +1115,13 @@ export async function exportCompanyWorkbookServer(args: {
         sortOrder: row.sort_order,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-      }))
-    );
+        }))
+      );
 
-    createWorksheet(
-      workbook,
-      'Import Rules',
-      [
+      createWorksheet(
+        workbook,
+        'Import Rules',
+        [
         { header: 'Rule ID', key: 'ruleId' },
         { header: 'Name', key: 'name' },
         { header: 'Action', key: 'action' },
@@ -976,7 +1133,7 @@ export async function exportCompanyWorkbookServer(args: {
         { header: 'Created at', key: 'createdAt' },
         { header: 'Updated at', key: 'updatedAt' },
       ],
-      importRules.map((row) => ({
+        importRules.map((row) => ({
         ruleId: row.id,
         name: row.name,
         action: row.action,
@@ -987,13 +1144,13 @@ export async function exportCompanyWorkbookServer(args: {
         enabled: row.enabled,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-      }))
-    );
+        }))
+      );
 
-    createWorksheet(
-      workbook,
-      'Company Members',
-      [
+      createWorksheet(
+        workbook,
+        'Company Members',
+        [
         { header: 'User ID', key: 'userId' },
         { header: 'Name', key: 'name' },
         { header: 'Email', key: 'email' },
@@ -1001,20 +1158,20 @@ export async function exportCompanyWorkbookServer(args: {
         { header: 'User disabled', key: 'disabled' },
         { header: 'Global superadmin', key: 'isGlobalSuperadmin' },
       ],
-      companyMembers.map((row) => ({
+        companyMembers.map((row) => ({
         userId: row.user_id,
         name: row.user_name,
         email: row.user_email,
         role: row.role,
         disabled: row.user_disabled,
         isGlobalSuperadmin: row.is_global_superadmin,
-      }))
-    );
+        }))
+      );
 
-    createWorksheet(
-      workbook,
-      'Project Memberships',
-      [
+      createWorksheet(
+        workbook,
+        'Project Memberships',
+        [
         { header: 'Project ID', key: 'projectId' },
         { header: 'Project name', key: 'projectName' },
         { header: 'Project type', key: 'projectType' },
@@ -1023,7 +1180,7 @@ export async function exportCompanyWorkbookServer(args: {
         { header: 'User email', key: 'userEmail' },
         { header: 'Project role', key: 'role' },
       ],
-      projectMemberships.map((row) => ({
+        projectMemberships.map((row) => ({
         projectId: row.project_id,
         projectName: projectById.get(row.project_id)?.name ?? '',
         projectType: projectById.get(row.project_id)?.project_type ?? '',
@@ -1031,8 +1188,9 @@ export async function exportCompanyWorkbookServer(args: {
         userName: row.user_name,
         userEmail: row.user_email,
         role: row.role,
-      }))
-    );
+        }))
+      );
+    }
 
     const writeBufferResult = await workbook.xlsx.writeBuffer();
     const bytes =
@@ -1042,7 +1200,10 @@ export async function exportCompanyWorkbookServer(args: {
 
     return {
       bytes,
-      fileName: `${slugifyCompanyName(company.name)}-full-export.xlsx`,
+      fileName: buildExportFileName({
+        companyName: company.name,
+        options: args.options,
+      }),
     };
   });
 }

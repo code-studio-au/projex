@@ -93,6 +93,17 @@ async function ensureKyselyMigrationTables(pool: Queryable) {
   );
 }
 
+async function getCurrentAppMigrationNames(): Promise<Set<string>> {
+  const entries = await fs.readdir(KYSELY_MIGRATIONS_DIR, {
+    withFileTypes: true,
+  });
+  return new Set(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.ts'))
+      .map((entry) => entry.name.replace(/\.ts$/, ''))
+  );
+}
+
 async function syncExistingSchemaToBaseline(pool: Queryable) {
   const hasAppSchema = await doesTableExist(pool, APP_SCHEMA_SENTINEL_TABLE);
   if (!hasAppSchema) return;
@@ -106,6 +117,7 @@ async function syncExistingSchemaToBaseline(pool: Queryable) {
   const existing = await pool.query<KyselyMigrationRow>(
     `select name from ${KYSELY_MIGRATION_TABLE} order by name`
   );
+  const currentAppMigrationNames = await getCurrentAppMigrationNames();
 
   if (
     existing.rows.length === 1 &&
@@ -114,6 +126,14 @@ async function syncExistingSchemaToBaseline(pool: Queryable) {
     if (hasLegacySchemaMigrations) {
       await pool.query('drop table if exists schema_migrations');
     }
+    return;
+  }
+
+  const hasCurrentKyselyHistory =
+    existing.rows.length > 0 &&
+    existing.rows.every((row) => currentAppMigrationNames.has(row.name));
+
+  if (hasCurrentKyselyHistory && !hasLegacySchemaMigrations) {
     return;
   }
 
