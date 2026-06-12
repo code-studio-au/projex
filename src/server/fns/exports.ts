@@ -50,6 +50,72 @@ type ProjectExportRow = {
   allow_txn_transfers: boolean;
 };
 
+type TransactionExportRow = {
+  transactionId: string;
+  internalId: string;
+  projectId: string;
+  projectName: string;
+  programmeId: string;
+  programmeName: string;
+  currency: string;
+  date: string;
+  item: string;
+  description: string;
+  externalId: string;
+  amountCents: number;
+  amount: number;
+  txnType: string;
+  budgetImpact: boolean;
+  categorisable: boolean;
+  categoryId: string;
+  categoryName: string;
+  subCategoryId: string;
+  subCategoryName: string;
+  defaultMappingRuleId: string;
+  codingSource: string;
+  codingPendingApproval: boolean;
+  transferProjectId: string;
+  transferProjectName: string;
+  parentTxnId: string;
+  sourceTxnId: string;
+  importBatchId: string;
+  importSourceType: string;
+  reviewedAt: string;
+  reviewedByUserId: string;
+  reviewedByUserName: string;
+  lockedAt: string;
+  lockedByUserId: string;
+  lockedByUserName: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ProjectFinanceRollup = {
+  budgetCents: number;
+  actualCodedCents: number;
+  uncodedAmountCents: number;
+};
+
+type TaxonomyRollup = {
+  projectId: string;
+  projectName: string;
+  projectType: 'project' | 'programme';
+  programmeId: string;
+  programmeName: string;
+  currency: string;
+  categoryId: string;
+  categoryName: string;
+  subCategoryId: string;
+  subCategoryName: string;
+  budgetCents: number;
+  actualCodedCents: number;
+  uncodedAmountCents: number;
+  transactionCount: number;
+};
+
+const amountStyle: Partial<ExcelJS.Style> = { numFmt: '#,##0.00' };
+const percentStyle: Partial<ExcelJS.Style> = { numFmt: '0.00%' };
+
 function slugifyCompanyName(name: string): string {
   const normalized = name
     .trim()
@@ -176,6 +242,79 @@ function createWorksheet(
   };
   autosizeColumns(worksheet);
   return worksheet;
+}
+
+function sumProjectMonths(
+  project: CompanySummaryProject,
+  selector: (month: CompanySummaryProject['months'][number]) => number
+): number {
+  return project.months.reduce((sum, month) => sum + selector(month), 0);
+}
+
+function addOverviewWorksheet(args: {
+  workbook: ExcelJS.Workbook;
+  companyName: string;
+  generatedAt: string;
+  options: CompanyExportOptions;
+  isScopedForSuperadmin: boolean;
+  projectRows: ProjectExportRow[];
+  programmeCount: number;
+  operationalProjectCount: number;
+  budgetCount: number;
+  transactionCount: number;
+  totalBudgetCents: number;
+  totalActualCodedCents: number;
+  totalUncodedCents: number;
+}) {
+  const worksheet = args.workbook.addWorksheet('Overview');
+  const sections: string[] = [
+    'Projex company export',
+    `Company: ${args.companyName}`,
+    `Generated at: ${args.generatedAt}`,
+    `Security scope: ${
+      args.isScopedForSuperadmin
+        ? 'global superadmin visible projects only'
+        : 'full company access scope'
+    }`,
+    `Project filter: ${
+      args.options.scope === 'active'
+        ? 'active projects and programmes only'
+        : 'all visible projects and programmes'
+    }`,
+    `Workbook detail: ${
+      args.options.detail === 'summary' ? 'summary reporting pack' : 'full audit pack'
+    }`,
+    `Transaction date range: ${args.options.fromDate ?? 'beginning'} to ${
+      args.options.toDate ?? 'latest'
+    }`,
+    '',
+    'Key figures',
+    `- ${args.programmeCount} programmes`,
+    `- ${args.operationalProjectCount} projects`,
+    `- ${args.budgetCount} budget lines`,
+    `- ${args.transactionCount} transaction rows`,
+    `- ${centsToMajorUnits(args.totalBudgetCents).toFixed(2)} planned budget`,
+    `- ${centsToMajorUnits(args.totalActualCodedCents).toFixed(2)} coded actuals`,
+    `- ${centsToMajorUnits(args.totalUncodedCents).toFixed(2)} uncoded amount`,
+    '',
+    'Recommended worksheet order',
+    '- Executive Summary: company-level totals and project-level rollup',
+    '- Budget vs Actual: core variance analysis by programme and project',
+    '- Budget vs Actual Monthly: monthly burn and variance tracking',
+    '- Category Rollup / Subcategory Rollup: taxonomy-level budget and spend analysis',
+    '- Workflow Summary / Uncoded / Auto-Mapped Pending: coding and review operations',
+    '- Detail tabs: audit and reconciliation support',
+    '',
+    'Model notes',
+    '- Programmes are reporting containers and roll up active child projects.',
+    '- Currency is preserved row-by-row; aggregate mixed currencies outside this workbook with care.',
+    '- IDs and parent relationships are intentionally included for reconciliation.',
+    `- ${args.projectRows.filter((row) => row.project_type === 'programme' && row.status === 'active').length} active programmes contribute rolled-up child metrics.`,
+  ];
+  sections.forEach((line) => worksheet.addRow([line]));
+  worksheet.getCell('A1').font = { bold: true, size: 16 };
+  worksheet.getColumn(1).width = 120;
+  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
 }
 
 function addReadmeWorksheet(args: {
@@ -517,6 +656,21 @@ export async function exportCompanyWorkbookServer(args: {
       validSubCategoryIdsByProject: validSubIdsByProject,
     });
     const flatSummaryProjects = flattenSummaryProjects(summaryProjects);
+    const childCountByProgrammeId = new Map<string, number>();
+    for (const row of projectRows.filter((projectRow) => projectRow.project_type === 'project')) {
+      if (!row.parent_project_id) continue;
+      childCountByProgrammeId.set(
+        row.parent_project_id,
+        (childCountByProgrammeId.get(row.parent_project_id) ?? 0) + 1
+      );
+    }
+
+    const transactionsByProjectId = new Map<string, typeof txns>();
+    for (const txn of txns) {
+      const projectTxns = transactionsByProjectId.get(txn.project_id) ?? [];
+      projectTxns.push(txn);
+      transactionsByProjectId.set(txn.project_id, projectTxns);
+    }
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Codex';
@@ -530,6 +684,35 @@ export async function exportCompanyWorkbookServer(args: {
     const operationalProjects = projectRows.filter(
       (row) => row.project_type === 'project'
     );
+    const totalBudgetCents = projectRows.reduce(
+      (sum, row) => sum + Number(row.budget_total_cents),
+      0
+    );
+    const totalTxnCents = txns.reduce((sum, row) => sum + Number(row.amount_cents), 0);
+    const totalActualCodedCents = flatSummaryProjects.reduce(
+      (sum, project) => sum + sumProjectMonths(project, (month) => month.actualCodedCents),
+      0
+    );
+    const totalUncodedCents = flatSummaryProjects.reduce(
+      (sum, project) => sum + sumProjectMonths(project, (month) => month.uncodedAmountCents),
+      0
+    );
+
+    addOverviewWorksheet({
+      workbook,
+      companyName: company.name,
+      generatedAt,
+      options: args.options,
+      isScopedForSuperadmin: isSuperadmin,
+      projectRows,
+      programmeCount: programmes.length,
+      operationalProjectCount: operationalProjects.length,
+      budgetCount: budgetLines.length,
+      transactionCount: txns.length,
+      totalBudgetCents,
+      totalActualCodedCents,
+      totalUncodedCents,
+    });
 
     addReadmeWorksheet({
       workbook,
@@ -544,14 +727,6 @@ export async function exportCompanyWorkbookServer(args: {
     });
 
     const executiveSummary = workbook.addWorksheet('Executive Summary');
-    const totalBudgetCents = projectRows.reduce(
-      (sum, row) => sum + Number(row.budget_total_cents),
-      0
-    );
-    const totalTxnCents = txns.reduce(
-      (sum, row) => sum + Number(row.amount_cents),
-      0
-    );
     const uncodedTxnCount = txns.filter((row) => !row.sub_category_id).length;
     const lockedTxnCount = txns.filter((row) => !!row.locked_at).length;
     const reviewedTxnCount = txns.filter((row) => !!row.reviewed_at).length;
@@ -676,8 +851,7 @@ export async function exportCompanyWorkbookServer(args: {
         visibility: row.visibility,
         budgetCents: Number(row.budget_total_cents),
         budgetAmount: centsToMajorUnits(Number(row.budget_total_cents)),
-        childCount: projectRows.filter((candidate) => candidate.parent_project_id === row.id)
-          .length,
+        childCount: childCountByProgrammeId.get(row.id) ?? 0,
         allowSuperadminAccess: row.allow_superadmin_access,
         deactivatedAt: row.deactivated_at ?? '',
       }))
@@ -798,7 +972,7 @@ export async function exportCompanyWorkbookServer(args: {
         { header: 'Budget-impact transactions', key: 'budgetImpactTransactions' },
       ],
       projectRows.map((row) => {
-        const projectTxns = txns.filter((txn) => txn.project_id === row.id);
+        const projectTxns = transactionsByProjectId.get(row.id) ?? [];
         const parentProgramme = row.parent_project_id
           ? projectById.get(row.parent_project_id)
           : null;
@@ -812,18 +986,16 @@ export async function exportCompanyWorkbookServer(args: {
           totalTransactions: projectTxns.length,
           reviewedTransactions: projectTxns.filter((txn) => !!txn.reviewed_at).length,
           lockedTransactions: projectTxns.filter((txn) => !!txn.locked_at).length,
-          uncodedTransactions: projectTxns.filter((txn) => !txn.sub_category_id)
+          uncodedTransactions: projectTxns.filter((txn) => !txn.sub_category_id).length,
+          autoMappedPending: projectTxns.filter((txn) => txn.coding_pending_approval)
             .length,
-          autoMappedPending: projectTxns.filter(
-            (txn) => txn.coding_pending_approval
-          ).length,
           budgetImpactTransactions: projectTxns.filter((txn) => txn.budget_impact)
             .length,
         };
       })
     );
 
-    const transactionExportRows = txns.map((row) => {
+    const transactionExportRows: TransactionExportRow[] = txns.map((row) => {
       const project = projectById.get(row.project_id);
       const parentProgramme = project?.parent_project_id
         ? projectById.get(project.parent_project_id)
@@ -927,6 +1099,294 @@ export async function exportCompanyWorkbookServer(args: {
       { header: 'Created at', key: 'createdAt' },
       { header: 'Updated at', key: 'updatedAt' },
     ];
+
+    const uncodedTransactionRows = transactionExportRows.filter(
+      (row) => row.budgetImpact && !row.subCategoryId
+    );
+    const autoMappedPendingRows = transactionExportRows.filter(
+      (row) => row.codingPendingApproval
+    );
+
+    const projectFinanceById = new Map<string, ProjectFinanceRollup>();
+    for (const project of flatSummaryProjects) {
+      projectFinanceById.set(project.id, {
+        budgetCents: project.budgetCents,
+        actualCodedCents: sumProjectMonths(project, (month) => month.actualCodedCents),
+        uncodedAmountCents: sumProjectMonths(project, (month) => month.uncodedAmountCents),
+      });
+    }
+
+    const taxonomyRollups = new Map<string, TaxonomyRollup>();
+    const ensureTaxonomyRollup = (args: {
+      projectId: string;
+      categoryId: string;
+      categoryName: string;
+      subCategoryId: string;
+      subCategoryName: string;
+    }) => {
+      const key = [
+        args.projectId,
+        args.categoryId,
+        args.subCategoryId || 'none',
+      ].join(':');
+      const existing = taxonomyRollups.get(key);
+      if (existing) return existing;
+      const project = projectById.get(args.projectId);
+      const parentProgramme = project?.parent_project_id
+        ? projectById.get(project.parent_project_id)
+        : null;
+      const created: TaxonomyRollup = {
+        projectId: args.projectId,
+        projectName: project?.name ?? '',
+        projectType: project?.project_type ?? 'project',
+        programmeId: parentProgramme?.id ?? '',
+        programmeName: parentProgramme?.name ?? '',
+        currency: project?.currency ?? '',
+        categoryId: args.categoryId,
+        categoryName: args.categoryName,
+        subCategoryId: args.subCategoryId,
+        subCategoryName: args.subCategoryName,
+        budgetCents: 0,
+        actualCodedCents: 0,
+        uncodedAmountCents: 0,
+        transactionCount: 0,
+      };
+      taxonomyRollups.set(key, created);
+      return created;
+    };
+
+    for (const line of budgetLines) {
+      const category = line.category_id ? categoryById.get(line.category_id) : null;
+      const subCategory = line.sub_category_id
+        ? subCategoryById.get(line.sub_category_id)
+        : null;
+      const rollup = ensureTaxonomyRollup({
+        projectId: line.project_id,
+        categoryId: line.category_id ?? '',
+        categoryName: category?.name ?? 'Unassigned',
+        subCategoryId: line.sub_category_id ?? '',
+        subCategoryName: subCategory?.name ?? '',
+      });
+      rollup.budgetCents += Number(line.allocated_cents);
+    }
+
+    for (const row of transactionExportRows) {
+      if (!row.budgetImpact) continue;
+      const rollup = ensureTaxonomyRollup({
+        projectId: row.projectId,
+        categoryId: row.categoryId,
+        categoryName: row.categoryName || 'Unassigned',
+        subCategoryId: row.subCategoryId,
+        subCategoryName: row.subCategoryName,
+      });
+      if (row.subCategoryId) {
+        rollup.actualCodedCents += row.amountCents;
+      } else {
+        rollup.uncodedAmountCents += row.amountCents;
+      }
+      rollup.transactionCount += 1;
+    }
+
+    const taxonomyRollupRows = [...taxonomyRollups.values()].sort((a, b) => {
+      const projectCompare = a.projectName.localeCompare(b.projectName);
+      if (projectCompare !== 0) return projectCompare;
+      const categoryCompare = a.categoryName.localeCompare(b.categoryName);
+      if (categoryCompare !== 0) return categoryCompare;
+      return a.subCategoryName.localeCompare(b.subCategoryName);
+    });
+
+    const categoryRollupMap = new Map<string, TaxonomyRollup>();
+    for (const row of taxonomyRollupRows) {
+      const key = [row.projectId, row.categoryId || 'none'].join(':');
+      const existing = categoryRollupMap.get(key);
+      if (existing) {
+        existing.budgetCents += row.budgetCents;
+        existing.actualCodedCents += row.actualCodedCents;
+        existing.uncodedAmountCents += row.uncodedAmountCents;
+        existing.transactionCount += row.transactionCount;
+        continue;
+      }
+      categoryRollupMap.set(key, {
+        ...row,
+        subCategoryId: '',
+        subCategoryName: '',
+      });
+    }
+    const categoryRollupRows = [...categoryRollupMap.values()];
+
+    createWorksheet(
+      workbook,
+      'Budget vs Actual',
+      [
+        { header: 'Project ID', key: 'projectId' },
+        { header: 'Project name', key: 'projectName' },
+        { header: 'Project type', key: 'projectType' },
+        { header: 'Parent programme ID', key: 'parentProgrammeId' },
+        { header: 'Parent programme name', key: 'parentProgrammeName' },
+        { header: 'Currency', key: 'currency' },
+        { header: 'Status', key: 'status' },
+        { header: 'Budget cents', key: 'budgetCents' },
+        { header: 'Budget amount', key: 'budgetAmount', style: amountStyle },
+        { header: 'Actual coded cents', key: 'actualCodedCents' },
+        { header: 'Actual coded amount', key: 'actualCodedAmount', style: amountStyle },
+        { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
+        { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
+        { header: 'Total actual incl uncoded cents', key: 'totalActualCents' },
+        { header: 'Total actual incl uncoded', key: 'totalActualAmount', style: amountStyle },
+        { header: 'Variance cents', key: 'varianceCents' },
+        { header: 'Variance amount', key: 'varianceAmount', style: amountStyle },
+        { header: 'Variance %', key: 'variancePct', style: percentStyle },
+      ],
+      flatSummaryProjects.map((project) => {
+        const finance = projectFinanceById.get(project.id) ?? {
+          budgetCents: project.budgetCents,
+          actualCodedCents: 0,
+          uncodedAmountCents: 0,
+        };
+        const totalActualCentsForProject =
+          finance.actualCodedCents + finance.uncodedAmountCents;
+        const varianceCents = finance.budgetCents - totalActualCentsForProject;
+        return {
+          projectId: project.id,
+          projectName: project.name,
+          projectType: project.projectType,
+          parentProgrammeId: project.parentProjectId ?? '',
+          parentProgrammeName: project.parentProjectId
+            ? projectById.get(project.parentProjectId)?.name ?? ''
+            : '',
+          currency: project.currency,
+          status: project.status,
+          budgetCents: finance.budgetCents,
+          budgetAmount: centsToMajorUnits(finance.budgetCents),
+          actualCodedCents: finance.actualCodedCents,
+          actualCodedAmount: centsToMajorUnits(finance.actualCodedCents),
+          uncodedAmountCents: finance.uncodedAmountCents,
+          uncodedAmount: centsToMajorUnits(finance.uncodedAmountCents),
+          totalActualCents: totalActualCentsForProject,
+          totalActualAmount: centsToMajorUnits(totalActualCentsForProject),
+          varianceCents,
+          varianceAmount: centsToMajorUnits(varianceCents),
+          variancePct:
+            finance.budgetCents === 0 ? undefined : varianceCents / finance.budgetCents,
+        };
+      })
+    );
+
+    createWorksheet(
+      workbook,
+      'Budget vs Actual Monthly',
+      [
+        { header: 'Project ID', key: 'projectId' },
+        { header: 'Project name', key: 'projectName' },
+        { header: 'Project type', key: 'projectType' },
+        { header: 'Parent programme ID', key: 'parentProgrammeId' },
+        { header: 'Parent programme name', key: 'parentProgrammeName' },
+        { header: 'Currency', key: 'currency' },
+        { header: 'Month', key: 'monthKey' },
+        { header: 'Budget cents', key: 'budgetCents' },
+        { header: 'Budget amount', key: 'budgetAmount', style: amountStyle },
+        { header: 'Actual coded cents', key: 'actualCodedCents' },
+        { header: 'Actual coded amount', key: 'actualCodedAmount', style: amountStyle },
+        { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
+        { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
+      ],
+      flatSummaryProjects.flatMap((project) => {
+        const monthCount = project.months.length || 1;
+        const monthlyBudgetCents =
+          project.projectType === 'programme' || monthCount === 0
+            ? 0
+            : Math.round(project.budgetCents / monthCount);
+        return project.months.map((month) => ({
+          projectId: project.id,
+          projectName: project.name,
+          projectType: project.projectType,
+          parentProgrammeId: project.parentProjectId ?? '',
+          parentProgrammeName: project.parentProjectId
+            ? projectById.get(project.parentProjectId)?.name ?? ''
+            : '',
+          currency: project.currency,
+          monthKey: month.monthKey,
+          budgetCents: monthlyBudgetCents,
+          budgetAmount: centsToMajorUnits(monthlyBudgetCents),
+          actualCodedCents: month.actualCodedCents,
+          actualCodedAmount: centsToMajorUnits(month.actualCodedCents),
+          uncodedAmountCents: month.uncodedAmountCents,
+          uncodedAmount: centsToMajorUnits(month.uncodedAmountCents),
+        }));
+      })
+    );
+
+    createWorksheet(
+      workbook,
+      'Category Rollup',
+      [
+        { header: 'Project ID', key: 'projectId' },
+        { header: 'Project name', key: 'projectName' },
+        { header: 'Project type', key: 'projectType' },
+        { header: 'Programme ID', key: 'programmeId' },
+        { header: 'Programme name', key: 'programmeName' },
+        { header: 'Currency', key: 'currency' },
+        { header: 'Category ID', key: 'categoryId' },
+        { header: 'Category name', key: 'categoryName' },
+        { header: 'Budget cents', key: 'budgetCents' },
+        { header: 'Budget amount', key: 'budgetAmount', style: amountStyle },
+        { header: 'Actual coded cents', key: 'actualCodedCents' },
+        { header: 'Actual coded amount', key: 'actualCodedAmount', style: amountStyle },
+        { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
+        { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
+        { header: 'Transaction count', key: 'transactionCount' },
+      ],
+      categoryRollupRows.map((row) => ({
+        ...row,
+        budgetAmount: centsToMajorUnits(row.budgetCents),
+        actualCodedAmount: centsToMajorUnits(row.actualCodedCents),
+        uncodedAmount: centsToMajorUnits(row.uncodedAmountCents),
+      }))
+    );
+
+    createWorksheet(
+      workbook,
+      'Subcategory Rollup',
+      [
+        { header: 'Project ID', key: 'projectId' },
+        { header: 'Project name', key: 'projectName' },
+        { header: 'Project type', key: 'projectType' },
+        { header: 'Programme ID', key: 'programmeId' },
+        { header: 'Programme name', key: 'programmeName' },
+        { header: 'Currency', key: 'currency' },
+        { header: 'Category ID', key: 'categoryId' },
+        { header: 'Category name', key: 'categoryName' },
+        { header: 'Subcategory ID', key: 'subCategoryId' },
+        { header: 'Subcategory name', key: 'subCategoryName' },
+        { header: 'Budget cents', key: 'budgetCents' },
+        { header: 'Budget amount', key: 'budgetAmount', style: amountStyle },
+        { header: 'Actual coded cents', key: 'actualCodedCents' },
+        { header: 'Actual coded amount', key: 'actualCodedAmount', style: amountStyle },
+        { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
+        { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
+        { header: 'Transaction count', key: 'transactionCount' },
+      ],
+      taxonomyRollupRows.map((row) => ({
+        ...row,
+        budgetAmount: centsToMajorUnits(row.budgetCents),
+        actualCodedAmount: centsToMajorUnits(row.actualCodedCents),
+        uncodedAmount: centsToMajorUnits(row.uncodedAmountCents),
+      }))
+    );
+
+    createWorksheet(
+      workbook,
+      'Uncoded Transactions',
+      transactionColumns,
+      uncodedTransactionRows
+    );
+
+    createWorksheet(
+      workbook,
+      'Auto-Mapped Pending',
+      transactionColumns,
+      autoMappedPendingRows
+    );
 
     if (args.options.detail === 'full') {
 
