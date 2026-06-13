@@ -219,12 +219,19 @@ export type CompanyExportJobStatus =
   | 'completed'
   | 'failed'
   | 'expired';
+export type CompanyExportReadyNotificationStatus =
+  | 'not_requested'
+  | 'pending'
+  | 'sent'
+  | 'failed';
+export type CompanyExportReadyNotificationDelivery = 'email' | 'log';
 
 export type CompanyExportOptions = {
   scope: CompanyExportScope;
   detail: CompanyExportDetail;
   fromDate?: string;
   toDate?: string;
+  notifyWhenReady?: boolean;
 };
 
 export type CompanyExportJob = {
@@ -244,6 +251,11 @@ export type CompanyExportJob = {
   completedAt?: string;
   failedAt?: string;
   expiresAt?: string;
+  notifyWhenReady: boolean;
+  readyNotificationStatus: CompanyExportReadyNotificationStatus;
+  readyNotificationDelivery?: CompanyExportReadyNotificationDelivery;
+  readyNotificationSentAt?: string;
+  readyNotificationError?: string;
 };
 
 export const TXN_TYPES = [

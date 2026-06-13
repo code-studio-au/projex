@@ -702,7 +702,10 @@ export default function CompanyDashboardPage() {
         ) : null}
 
         <Tabs.Panel value="settings" pt="md">
-          <CompanySettingsPanel companyId={companyId} />
+          <CompanySettingsPanel
+            companyId={companyId}
+            initialExportJobId={dashboardSearch.exportJob ?? null}
+          />
         </Tabs.Panel>
       </Tabs>
 

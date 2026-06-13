@@ -256,8 +256,8 @@ Why this matters:
 
 Examples:
 
-- shipped: company Excel export with full/detail summary modes, active/all scope, transaction date filters, reporting rollups, and background job generation
-- next: scheduled delivery, export audit history, governance-grade tracking, and BI/export contract hardening
+- shipped: company Excel export with full/detail summary modes, active/all scope, transaction date filters, reporting rollups, background job generation, and optional ready-email notification
+- next: continue hardening the BI/export contract only where downstream consumers prove they need it, plus optional workbook polish such as protected report tabs or branded coversheets
 - future: project-level export variants only if users prove they need a narrower handoff than the current company workbook
 
 Why this matters:

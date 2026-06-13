@@ -225,6 +225,12 @@ export interface CompanyExportJobTable {
   status: 'queued' | 'running' | 'completed' | 'failed';
   from_date: string | null;
   to_date: string | null;
+  notify_when_ready: boolean;
+  notify_email: string | null;
+  ready_notification_status: 'not_requested' | 'pending' | 'sent' | 'failed';
+  ready_notification_delivery: 'email' | 'log' | null;
+  ready_notification_sent_at: string | null;
+  ready_notification_error: string | null;
   file_name: string | null;
   content_type: string | null;
   file_bytes: Uint8Array | null;

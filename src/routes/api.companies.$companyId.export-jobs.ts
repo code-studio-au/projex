@@ -40,6 +40,7 @@ export const Route = createFileRoute('/api/companies/$companyId/export-jobs')({
             detail: body.detail ?? 'full',
             fromDate: body.from,
             toDate: body.to,
+            notifyWhenReady: body.notifyWhenReady ?? false,
           },
         });
         return jsonApi(job, { status: 202 });

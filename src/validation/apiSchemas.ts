@@ -207,6 +207,7 @@ export const companyExportQuerySchema = z
     detail: z.enum(['full', 'summary']).optional(),
     from: dateOnlyStringSchema.optional(),
     to: dateOnlyStringSchema.optional(),
+    notifyWhenReady: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.from && value.to && value.from > value.to) {

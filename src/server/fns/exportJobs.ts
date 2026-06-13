@@ -7,6 +7,8 @@ import type {
   CompanyExportJob,
   CompanyExportJobId,
   CompanyExportJobStatus,
+  CompanyExportReadyNotificationDelivery,
+  CompanyExportReadyNotificationStatus,
   CompanyExportOptions,
   CompanyExportScope,
   CompanyId,
@@ -27,6 +29,10 @@ import {
   withServerBoundary,
 } from './runtime';
 import { exportCompanyWorkbookForUser } from './exports';
+import {
+  buildCompanyExportReadyUrl,
+  sendCompanyExportReadyEmail,
+} from '../notifications/exportNotifications';
 
 const XLSX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -98,7 +104,78 @@ function toCompanyExportJob(row: ExportJobRow): CompanyExportJob {
     completedAt: row.completed_at ?? undefined,
     failedAt: row.failed_at ?? undefined,
     expiresAt: row.expires_at ?? undefined,
+    notifyWhenReady: row.notify_when_ready,
+    readyNotificationStatus:
+      row.ready_notification_status as CompanyExportReadyNotificationStatus,
+    readyNotificationDelivery:
+      (row.ready_notification_delivery as CompanyExportReadyNotificationDelivery | null) ??
+      undefined,
+    readyNotificationSentAt: row.ready_notification_sent_at ?? undefined,
+    readyNotificationError: row.ready_notification_error ?? undefined,
   };
+}
+
+async function sendReadyNotificationIfRequested(args: {
+  db: ReturnType<typeof getDb>;
+  row: ExportJobRow;
+  fileName: string;
+  completedAt: string;
+  expiresAt: string;
+}) {
+  if (!args.row.notify_when_ready || !args.row.notify_email) return;
+
+  const user = await args.db
+    .selectFrom('users')
+    .select(['id', 'name', 'email'])
+    .where('id', '=', args.row.created_by_user_id)
+    .executeTakeFirst();
+
+  try {
+    const delivery = await sendCompanyExportReadyEmail({
+      toEmail: args.row.notify_email,
+      toName: user?.name ?? args.row.notify_email,
+      companyName:
+        (
+          await args.db
+            .selectFrom('companies')
+            .select('name')
+            .where('id', '=', args.row.company_id)
+            .executeTakeFirst()
+        )?.name ?? 'your company',
+      fileName: args.fileName,
+      generatedAt: args.completedAt,
+      expiresAt: args.expiresAt,
+      readyUrl: buildCompanyExportReadyUrl({
+        companyId: asCompanyId(args.row.company_id),
+        jobId: asCompanyExportJobId(args.row.id),
+      }),
+    });
+
+    await args.db
+      .updateTable('company_export_jobs')
+      .set({
+        ready_notification_status: 'sent',
+        ready_notification_delivery: delivery,
+        ready_notification_sent_at: nowIso(),
+        ready_notification_error: null,
+        updated_at: nowIso(),
+      })
+      .where('id', '=', args.row.id)
+      .execute();
+  } catch (error) {
+    await args.db
+      .updateTable('company_export_jobs')
+      .set({
+        ready_notification_status: 'failed',
+        ready_notification_error:
+          error instanceof Error
+            ? error.message
+            : 'Could not send export ready notification.',
+        updated_at: nowIso(),
+      })
+      .where('id', '=', args.row.id)
+      .execute();
+  }
 }
 
 async function loadExportJobOrThrow(args: {
@@ -202,6 +279,7 @@ async function runCompanyExportJob(jobId: CompanyExportJobId) {
     });
     const completedAt = nowIso();
     const fileBytes = Buffer.from(result.bytes);
+    const expiresAt = expiryIso(completedAt);
 
     await db
       .updateTable('company_export_jobs')
@@ -214,12 +292,20 @@ async function runCompanyExportJob(jobId: CompanyExportJobId) {
         completed_at: completedAt,
         failed_at: null,
         error_message: null,
-        expires_at: expiryIso(completedAt),
+        expires_at: expiresAt,
         last_heartbeat_at: completedAt,
         updated_at: completedAt,
       })
       .where('id', '=', jobId)
       .execute();
+
+    await sendReadyNotificationIfRequested({
+      db,
+      row,
+      fileName: result.fileName,
+      completedAt,
+      expiresAt,
+    });
   } catch (error) {
     const failedAt = nowIso();
     const message =
@@ -240,6 +326,7 @@ async function runCompanyExportJob(jobId: CompanyExportJobId) {
         error_message: message,
         failed_at: failedAt,
         expires_at: expiryIso(failedAt),
+        ready_notification_error: null,
         last_heartbeat_at: failedAt,
         updated_at: failedAt,
       })
@@ -279,6 +366,22 @@ export async function createCompanyExportJobServer(args: {
         status: 'queued',
         from_date: args.options.fromDate ?? null,
         to_date: args.options.toDate ?? null,
+        notify_when_ready: args.options.notifyWhenReady ?? false,
+        notify_email:
+          args.options.notifyWhenReady === true
+            ? (
+                await db
+                  .selectFrom('users')
+                  .select('email')
+                  .where('id', '=', userId)
+                  .executeTakeFirst()
+              )?.email ?? null
+            : null,
+        ready_notification_status:
+          args.options.notifyWhenReady === true ? 'pending' : 'not_requested',
+        ready_notification_delivery: null,
+        ready_notification_sent_at: null,
+        ready_notification_error: null,
         requested_at: requestedAt,
         updated_at: requestedAt,
       })

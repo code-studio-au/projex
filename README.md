@@ -121,17 +121,16 @@ Projex now supports a production-ready full company Excel export, with the remai
 - company-scope `.xlsx` export from Company Settings for admins, executives, and eligible global superadmins
 - workbook options for active-only vs all visible projects/programmes, transaction date range filters, and full-detail vs summary workbook shape
 - background export generation with job status polling and a reliable download handoff once the workbook is ready
+- optional ready-email notification from Company Settings that links the user back to the exact export job once generation completes
 - complete workbook coverage across the selected company, including workbook guidance, overview, executive summary, programmes, projects, programme membership, budgets, transactions, reviewed/locked/uncoded workflow tabs, taxonomy rollups, company default taxonomy, import rules, and memberships
 - explicit row-level identifiers and relationship columns so exported data can be filtered, audited, reconciled, and reused outside Projex without losing context
 - programme reporting exported as derived rollups only; operational transactions and budgets remain attached to the underlying projects so the workbook does not double count programme data
-- stable workbook formatting suitable for finance handoff: frozen headers, consistent column naming, currencies preserved per row, and generated-at metadata
+- stable workbook formatting suitable for finance handoff: frozen headers, consistent column naming, currencies preserved per row, generated-at metadata, and a hidden export-metadata contract sheet for downstream BI consumers
 
 ### Remaining Roadmap
 
-- scheduled and automated delivery, including recurring exports for finance, executive, and audit audiences
-- governance-grade history such as export audit logs, who generated which workbook, scope used, and when it was delivered
-- stronger downstream interoperability such as template-safe imports into BI/reporting pipelines and versioned export contracts for external consumers
-- advanced workbook polish including protected formula/report tabs, organization-specific cover sheets, and optional branded board-report style packs
+- incremental downstream interoperability hardening as real BI/reporting consumers appear
+- advanced workbook polish such as protected formula/report tabs, organization-specific cover sheets, and optional branded board-report style packs
 
 ## Architecture Boundaries
 

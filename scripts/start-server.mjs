@@ -8,6 +8,7 @@ import { createApp, eventHandler, fromWebHandler } from 'h3-v2';
 import { toNodeHandler } from 'srvx/node';
 
 const CSP_NONCE_REQUEST_HEADER = 'x-projex-csp-nonce';
+const LOCAL_DEV_ORIGIN_PATTERN = /^https?:\/\/localhost:(4173|5173)(\/|$)/i;
 
 async function loadEnvFile(fileName) {
   if (!existsSync(fileName)) return;
@@ -46,6 +47,30 @@ if (process.env.NODE_ENV !== 'production') {
   await loadEnvFile('.env.local');
 }
 
+const host = process.env.HOST ?? '0.0.0.0';
+const port = Number.parseInt(process.env.PORT ?? '3000', 10);
+
+if (Number.isNaN(port)) {
+  console.error(`Invalid PORT value: ${process.env.PORT}`);
+  process.exit(1);
+}
+
+if (process.env.NODE_ENV !== 'production') {
+  const localAppOrigin = `http://localhost:${port}`;
+  if (
+    !process.env.BETTER_AUTH_URL ||
+    LOCAL_DEV_ORIGIN_PATTERN.test(process.env.BETTER_AUTH_URL)
+  ) {
+    process.env.BETTER_AUTH_URL = localAppOrigin;
+  }
+  if (
+    !process.env.PROJEX_APP_BASE_URL ||
+    LOCAL_DEV_ORIGIN_PATTERN.test(process.env.PROJEX_APP_BASE_URL)
+  ) {
+    process.env.PROJEX_APP_BASE_URL = localAppOrigin;
+  }
+}
+
 const { validateServerStartupEnv } = await import('../src/server/env.ts');
 validateServerStartupEnv();
 
@@ -54,15 +79,8 @@ if (runMigrations) {
   run('npm', ['run', 'db:migrate']);
 }
 
-const host = process.env.HOST ?? '0.0.0.0';
-const port = Number.parseInt(process.env.PORT ?? '3000', 10);
 const clientDistDir = resolve('dist/client');
 const fallbackDistDir = resolve('dist');
-
-if (Number.isNaN(port)) {
-  console.error(`Invalid PORT value: ${process.env.PORT}`);
-  process.exit(1);
-}
 
 const { default: server } = await import('../dist/server/server.js');
 

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   asBudgetLineId,
   asCategoryId,
+  asCompanyExportJobId,
   asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyId,
@@ -65,6 +66,7 @@ const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
 const importRuleIdSchema = idSchema.transform(asImportRuleId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
+const companyExportJobIdSchema = idSchema.transform(asCompanyExportJobId);
 const isoTimestampSchema = z.iso.datetime({ offset: true });
 const optionalIsoTimestampSchema = isoTimestampSchema.optional();
 const companyRoleSchema = z.enum([
@@ -84,6 +86,13 @@ const txnListViewSchema = z.enum([
 ]);
 const txnListSortFieldSchema = z.enum(['date', 'transaction', 'amountCents']);
 const txnListSortDirectionSchema = z.enum(['asc', 'desc']);
+const companyExportReadyNotificationStatusSchema = z.enum([
+  'not_requested',
+  'pending',
+  'sent',
+  'failed',
+]);
+const companyExportReadyNotificationDeliverySchema = z.enum(['email', 'log']);
 
 export const authenticatedSessionResponseSchema = z.object({
   userId: userIdSchema,
@@ -131,6 +140,31 @@ export const companySummaryProjectResponseSchema: z.ZodType<CompanySummaryProjec
 
 export const companySummaryResponseSchema = z.object({
   projects: z.array(companySummaryProjectResponseSchema),
+});
+
+export const companyExportJobResponseSchema = z.object({
+  id: companyExportJobIdSchema,
+  companyId: companyIdSchema,
+  createdByUserId: userIdSchema,
+  scope: z.enum(['all', 'active']),
+  detail: z.enum(['full', 'summary']),
+  status: z.enum(['queued', 'running', 'completed', 'failed', 'expired']),
+  fileName: z.string().optional(),
+  downloadPath: z.string().optional(),
+  errorMessage: z.string().optional(),
+  fromDate: z.string().optional(),
+  toDate: z.string().optional(),
+  requestedAt: isoTimestampSchema,
+  startedAt: optionalIsoTimestampSchema,
+  completedAt: optionalIsoTimestampSchema,
+  failedAt: optionalIsoTimestampSchema,
+  expiresAt: optionalIsoTimestampSchema,
+  notifyWhenReady: z.boolean(),
+  readyNotificationStatus: companyExportReadyNotificationStatusSchema,
+  readyNotificationDelivery:
+    companyExportReadyNotificationDeliverySchema.optional(),
+  readyNotificationSentAt: optionalIsoTimestampSchema,
+  readyNotificationError: z.string().optional(),
 });
 
 export const projectResponseSchema = z.object({

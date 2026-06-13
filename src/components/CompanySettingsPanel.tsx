@@ -54,8 +54,11 @@ type ExportJobState = {
   isStarting: boolean;
 };
 
-export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
-  const { companyId } = props;
+export default function CompanySettingsPanel(props: {
+  companyId: CompanyId;
+  initialExportJobId?: string | null;
+}) {
+  const { companyId, initialExportJobId = null } = props;
   const loaderData = companyLayoutRoute.useLoaderData();
   const isMobile = useMediaQuery('(max-width: 48em)');
   const isHydrated = useSyncExternalStore(
@@ -145,6 +148,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
   const [exportDetail, setExportDetail] = useState<'full' | 'summary'>('full');
   const [exportFromDate, setExportFromDate] = useState('');
   const [exportToDate, setExportToDate] = useState('');
+  const [notifyWhenReady, setNotifyWhenReady] = useState(false);
   const [exportJobState, setExportJobState] = useState<ExportJobState>({
     job: null,
     error: null,
@@ -167,8 +171,9 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
       detail: exportDetail,
       from: exportFromDate || undefined,
       to: exportToDate || undefined,
+      notifyWhenReady,
     }),
-    [exportDetail, exportFromDate, exportScope, exportToDate]
+    [exportDetail, exportFromDate, exportScope, exportToDate, notifyWhenReady]
   );
 
   useEffect(() => {
@@ -176,18 +181,31 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
 
     let cancelled = false;
     void (async () => {
+      const endpoint = initialExportJobId
+        ? `/api/export-jobs/${encodeURIComponent(initialExportJobId)}`
+        : `/api/companies/${encodeURIComponent(companyId)}/export-jobs`;
       try {
-        const response = await fetch(
-          `/api/companies/${encodeURIComponent(companyId)}/export-jobs`,
-          {
-            method: 'GET',
-            headers: { accept: 'application/json' },
-          }
-        );
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+        });
         const payload = (await response.json()) as CompanyExportJob | {
           message?: string;
         } | null;
-        if (cancelled || !response.ok || !payload) return;
+        if (cancelled) return;
+        if (!response.ok) {
+          if (initialExportJobId) {
+            setExportJobState((current) => ({
+              ...current,
+              error:
+                typeof payload === 'object' && payload && 'message' in payload
+                  ? payload.message ?? 'Could not load the requested export.'
+                  : 'Could not load the requested export.',
+            }));
+          }
+          return;
+        }
+        if (!payload) return;
         autoDownloadJobIdRef.current = (payload as CompanyExportJob).id;
         setExportJobState((current) => ({
           ...current,
@@ -201,7 +219,7 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     return () => {
       cancelled = true;
     };
-  }, [canExportCompany, companyId, isHydrated]);
+  }, [canExportCompany, companyId, initialExportJobId, isHydrated]);
 
   useEffect(() => {
     const job = exportJobState.job;
@@ -309,6 +327,24 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
     exportJobState.isStarting ||
     exportJob?.status === 'queued' ||
     exportJob?.status === 'running';
+  const exportNotificationMessage = useMemo(() => {
+    if (!exportJob?.notifyWhenReady) return null;
+    if (exportJob.status === 'failed') {
+      return 'Ready-email delivery is skipped when export generation fails.';
+    }
+    if (exportJob.readyNotificationStatus === 'pending') {
+      return 'We will send a ready email for this export if delivery is configured.';
+    }
+    if (exportJob.readyNotificationStatus === 'sent') {
+      return exportJob.readyNotificationDelivery === 'email'
+        ? 'Ready email sent for this export.'
+        : 'Email delivery is not configured, so the ready email was logged on the server instead.';
+    }
+    if (exportJob.readyNotificationStatus === 'failed') {
+      return exportJob.readyNotificationError ?? 'Could not send the ready email for this export.';
+    }
+    return null;
+  }, [exportJob]);
 
   const toCompanyRole = (v: string | null): CompanyRole | null => {
     if (!v) return null;
@@ -508,6 +544,18 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
               disabled={!canExportCompany || exportInFlight}
             />
           </Group>
+          <Checkbox
+            label="Email me when this export is ready"
+            checked={notifyWhenReady}
+            onChange={(event) =>
+              setNotifyWhenReady(event.currentTarget.checked)
+            }
+            disabled={!canExportCompany || exportInFlight}
+          />
+          <Text size="xs" c="dimmed">
+            The email links back to this export in Company Settings and still
+            respects your current sign-in and company access.
+          </Text>
           {exportJobState.error ? (
             <Alert color="red">{exportJobState.error}</Alert>
           ) : null}
@@ -522,6 +570,13 @@ export default function CompanySettingsPanel(props: { companyId: CompanyId }) {
                     : exportJob.status === 'expired'
                       ? 'That prepared workbook expired. Start a fresh export to regenerate it.'
                       : exportJob.errorMessage ?? 'Export failed.'}
+            </Alert>
+          ) : null}
+          {exportNotificationMessage ? (
+            <Alert
+              color={exportJob?.readyNotificationStatus === 'failed' ? 'yellow' : 'gray'}
+            >
+              {exportNotificationMessage}
             </Alert>
           ) : null}
           <Group gap="sm" wrap="wrap">

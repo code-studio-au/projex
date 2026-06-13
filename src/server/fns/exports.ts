@@ -117,6 +117,7 @@ type TaxonomyRollup = {
 
 const amountStyle: Partial<ExcelJS.Style> = { numFmt: '#,##0.00' };
 const percentStyle: Partial<ExcelJS.Style> = { numFmt: '0.00%' };
+const COMPANY_EXPORT_CONTRACT_VERSION = '2026.06-v2';
 
 function slugifyCompanyName(name: string): string {
   const normalized = name
@@ -273,6 +274,7 @@ function addOverviewWorksheet(args: {
     'Projex company export',
     `Company: ${args.companyName}`,
     `Generated at: ${args.generatedAt}`,
+    `Export contract version: ${COMPANY_EXPORT_CONTRACT_VERSION}`,
     `Security scope: ${
       args.isScopedForSuperadmin
         ? 'global superadmin visible projects only'
@@ -335,6 +337,7 @@ function addReadmeWorksheet(args: {
     ['Projex company export'],
     [`Company: ${args.companyName}`],
     [`Generated at: ${args.generatedAt}`],
+    [`Export contract version: ${COMPANY_EXPORT_CONTRACT_VERSION}`],
     [
       `Scope: ${args.isScopedForSuperadmin ? 'global superadmin visible projects only' : 'full company access scope'}`,
     ],
@@ -360,6 +363,51 @@ function addReadmeWorksheet(args: {
   worksheet.getCell('A1').font = { bold: true, size: 16 };
   worksheet.getColumn(1).width = 120;
   worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+}
+
+function addExportMetadataWorksheet(args: {
+  workbook: ExcelJS.Workbook;
+  companyId: CompanyId;
+  companyName: string;
+  generatedAt: string;
+  options: CompanyExportOptions;
+  fileName: string;
+  isScopedForSuperadmin: boolean;
+  projectCount: number;
+  programmeCount: number;
+  transactionCount: number;
+  budgetCount: number;
+}) {
+  const worksheet = args.workbook.addWorksheet('Export Metadata');
+  worksheet.columns = [
+    { header: 'field', key: 'field', width: 32 },
+    { header: 'value', key: 'value', width: 72 },
+  ];
+  const rows = [
+    { field: 'contract_version', value: COMPANY_EXPORT_CONTRACT_VERSION },
+    { field: 'export_kind', value: 'company_workbook' },
+    { field: 'file_name', value: args.fileName },
+    { field: 'company_id', value: args.companyId },
+    { field: 'company_name', value: args.companyName },
+    { field: 'generated_at', value: args.generatedAt },
+    {
+      field: 'security_scope',
+      value: args.isScopedForSuperadmin
+        ? 'global_superadmin_visible_projects_only'
+        : 'full_company_access_scope',
+    },
+    { field: 'project_scope', value: args.options.scope },
+    { field: 'workbook_detail', value: args.options.detail },
+    { field: 'transactions_from', value: args.options.fromDate ?? '' },
+    { field: 'transactions_to', value: args.options.toDate ?? '' },
+    { field: 'project_count', value: args.projectCount },
+    { field: 'programme_count', value: args.programmeCount },
+    { field: 'budget_row_count', value: args.budgetCount },
+    { field: 'transaction_row_count', value: args.transactionCount },
+  ];
+  rows.forEach((row) => worksheet.addRow(row));
+  setHeaderStyle(worksheet, 1);
+  worksheet.state = 'hidden';
 }
 
 export async function exportCompanyWorkbookForUser(args: {
@@ -698,6 +746,10 @@ export async function exportCompanyWorkbookForUser(args: {
       (sum, project) => sum + sumProjectMonths(project, (month) => month.uncodedAmountCents),
       0
     );
+    const exportFileName = buildExportFileName({
+      companyName: company.name,
+      options: args.options,
+    });
 
     addOverviewWorksheet({
       workbook,
@@ -725,6 +777,19 @@ export async function exportCompanyWorkbookForUser(args: {
       budgetCount: budgetLines.length,
       isScopedForSuperadmin: isSuperadmin,
       options: args.options,
+    });
+    addExportMetadataWorksheet({
+      workbook,
+      companyId: args.companyId,
+      companyName: company.name,
+      generatedAt,
+      options: args.options,
+      fileName: exportFileName,
+      isScopedForSuperadmin: isSuperadmin,
+      projectCount: operationalProjects.length,
+      programmeCount: programmes.length,
+      transactionCount: txns.length,
+      budgetCount: budgetLines.length,
     });
 
     const executiveSummary = workbook.addWorksheet('Executive Summary');
@@ -1661,10 +1726,7 @@ export async function exportCompanyWorkbookForUser(args: {
 
     return {
       bytes,
-      fileName: buildExportFileName({
-        companyName: company.name,
-        options: args.options,
-      }),
+      fileName: exportFileName,
     };
 }
 

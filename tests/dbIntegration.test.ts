@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import ExcelJS from 'exceljs';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { PostgresDialectConfig } from 'kysely';
 
@@ -103,6 +104,11 @@ import {
   updateTxnWorkflowStateServer,
 } from '../src/server/fns/transactions.ts';
 import {
+  createCompanyExportJobServer,
+  downloadCompanyExportJobServer,
+  getCompanyExportJobServer,
+} from '../src/server/fns/exportJobs.ts';
+import {
   applyCompanyDefaultTaxonomyServer,
   createCategoryServer,
   createCompanyDefaultCategoryServer,
@@ -135,6 +141,7 @@ import {
   asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
+  asCompanyExportJobId,
   asCompanyId,
   asImportBatchId,
   asImportCandidateId,
@@ -465,10 +472,216 @@ function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
       projectId: ReturnType<typeof asProjectId>,
       importBatchId: ReturnType<typeof asImportBatchId>
     ) => cancelImportPreviewServer({ context, projectId, importBatchId }),
+    createCompanyExportJob: (
+      companyId: ReturnType<typeof asCompanyId>,
+      options: Parameters<typeof createCompanyExportJobServer>[0]['options']
+    ) => createCompanyExportJobServer({ context, companyId, options }),
+    getCompanyExportJob: (
+      jobId: ReturnType<typeof asCompanyExportJobId>
+    ) => getCompanyExportJobServer({ context, jobId }),
+    downloadCompanyExportJob: (
+      jobId: ReturnType<typeof asCompanyExportJobId>
+    ) => downloadCompanyExportJobServer({ context, jobId }),
   };
 }
 
 type RouteApi = ReturnType<typeof createRouteApi>;
+
+async function waitForExportJobCompletion(args: {
+  api: RouteApi;
+  jobId: ReturnType<typeof asCompanyExportJobId>;
+  timeoutMs?: number;
+}) {
+  const deadline = Date.now() + (args.timeoutMs ?? 10_000);
+  for (;;) {
+    const job = await args.api.getCompanyExportJob(args.jobId);
+    if (job.status === 'completed' || job.status === 'failed') return job;
+    if (Date.now() >= deadline) {
+      throw new Error(`Timed out waiting for export job ${args.jobId}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+test(
+  'company export jobs preserve ready-email state and emit workbook metadata',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_export_co_1');
+    const userId = asUserId('itest_export_usr_1');
+    const projectId = asProjectId('itest_export_prj_1');
+    const previousResendApiKey = process.env.RESEND_API_KEY;
+    const previousResendFrom = process.env.RESEND_FROM;
+    const previousWebhookUrl = process.env.PROJEX_AUTH_EMAIL_WEBHOOK_URL;
+    const previousWebhookBearer =
+      process.env.PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN;
+
+    delete process.env.RESEND_API_KEY;
+    delete process.env.RESEND_FROM;
+    delete process.env.PROJEX_AUTH_EMAIL_WEBHOOK_URL;
+    delete process.env.PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN;
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Export Integration Company',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'export-integration@example.com',
+          name: 'Export Integration User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({
+          company_id: companyId,
+          user_id: userId,
+          role: 'admin',
+        })
+        .execute();
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Export Integration Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 125000,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'company',
+          allow_superadmin_access: true,
+        })
+        .execute();
+      await db
+        .insertInto('budget_lines')
+        .values({
+          id: asBudgetLineId('itest_export_budget_1'),
+          company_id: companyId,
+          project_id: projectId,
+          category_id: null,
+          sub_category_id: null,
+          allocated_cents: 125000,
+        })
+        .execute();
+      await db
+        .insertInto('txns')
+        .values({
+          public_id: asTxnId('itest_export_txn_1'),
+          external_id: 'row-1',
+          company_id: companyId,
+          project_id: projectId,
+          txn_date: '2026-06-01',
+          item: 'Consulting',
+          description: 'Delivery work',
+          amount_cents: 45000,
+          txn_type: 'standard',
+          parent_public_id: null,
+          source_public_id: null,
+          transfer_project_id: null,
+          budget_impact: true,
+          categorisable: true,
+          import_batch_id: null,
+          import_source_type: null,
+          import_source_meta: null,
+          category_id: null,
+          sub_category_id: null,
+          company_default_mapping_rule_id: null,
+          coding_source: null,
+          coding_pending_approval: false,
+          reviewed_at: null,
+          reviewed_by_user_id: null,
+          locked_at: null,
+          locked_by_user_id: null,
+        })
+        .execute();
+
+      const api = createRouteApi(userId);
+      const createdJob = await api.createCompanyExportJob(companyId, {
+        scope: 'all',
+        detail: 'full',
+        notifyWhenReady: true,
+      });
+
+      const completedJob = await waitForExportJobCompletion({
+        api,
+        jobId: createdJob.id,
+      });
+      assert.equal(completedJob.status, 'completed');
+      assert.equal(completedJob.notifyWhenReady, true);
+      assert.equal(completedJob.readyNotificationStatus, 'sent');
+      assert.equal(completedJob.readyNotificationDelivery, 'log');
+
+      const download = await api.downloadCompanyExportJob(createdJob.id);
+      const workbook = new ExcelJS.Workbook();
+      const workbookBytes = Buffer.from(download.bytes);
+      await workbook.xlsx.load(
+        workbookBytes as unknown as Parameters<typeof workbook.xlsx.load>[0]
+      );
+
+      const metadataSheet = workbook.getWorksheet('Export Metadata');
+      assert.ok(metadataSheet, 'expected Export Metadata worksheet');
+      assert.equal(metadataSheet?.state, 'hidden');
+      const metadata = new Map<string, string>();
+      metadataSheet?.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const key = String(row.getCell(1).value ?? '');
+        const value = String(row.getCell(2).value ?? '');
+        metadata.set(key, value);
+      });
+
+      assert.equal(metadata.get('export_kind'), 'company_workbook');
+      assert.equal(metadata.get('company_id'), companyId);
+      assert.equal(metadata.get('project_scope'), 'all');
+      assert.equal(metadata.get('workbook_detail'), 'full');
+      assert.ok(metadata.get('contract_version'));
+      assert.equal(metadata.get('file_name'), download.fileName);
+    } finally {
+      if (previousResendApiKey === undefined) {
+        delete process.env.RESEND_API_KEY;
+      } else {
+        process.env.RESEND_API_KEY = previousResendApiKey;
+      }
+      if (previousResendFrom === undefined) {
+        delete process.env.RESEND_FROM;
+      } else {
+        process.env.RESEND_FROM = previousResendFrom;
+      }
+      if (previousWebhookUrl === undefined) {
+        delete process.env.PROJEX_AUTH_EMAIL_WEBHOOK_URL;
+      } else {
+        process.env.PROJEX_AUTH_EMAIL_WEBHOOK_URL = previousWebhookUrl;
+      }
+      if (previousWebhookBearer === undefined) {
+        delete process.env.PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN;
+      } else {
+        process.env.PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN =
+          previousWebhookBearer;
+      }
+
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
 
 test(
   'resource ownership guards enforce persisted parent scope',

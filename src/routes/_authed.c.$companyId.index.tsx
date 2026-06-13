@@ -5,6 +5,7 @@ import { isServerAuthMode } from './-authMode';
 const companyDashboardSearchSchema = z
   .object({
     tab: z.enum(['summary', 'projects', 'settings']).optional(),
+    exportJob: z.string().trim().min(1).optional(),
   })
   .catch({});
 
