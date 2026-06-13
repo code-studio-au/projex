@@ -19,7 +19,9 @@ import {
 export function allCompanyMembershipsQueryOptions(userId?: UserId) {
   return {
     enabled: !!userId,
-    queryKey: userId ? qk.allCompanyMemberships(userId) : ['memberships', 'anonymous'],
+    queryKey: userId
+      ? qk.allCompanyMemberships(userId)
+      : ['memberships', 'anonymous'],
     queryFn: () => listAllCompanyMembershipsServerFn(),
   } as const;
 }
@@ -49,7 +51,10 @@ export function myProjectMembershipsQueryOptions(
       userId && companyId
         ? qk.myProjectMemberships(userId, companyId)
         : (['myProjectMemberships', 'anonymous'] as const),
-    queryFn: () => listMyProjectMembershipsServerFn({ data: { companyId: companyId as CompanyId } }),
+    queryFn: () =>
+      listMyProjectMembershipsServerFn({
+        data: { companyId: companyId as CompanyId },
+      }),
   } as const;
 }
 
@@ -77,7 +82,10 @@ export function useMyProjectMembershipsQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
   return useQuery(
-    myProjectMembershipsQueryOptions(session.data?.userId ?? scopeUserId, companyId)
+    myProjectMembershipsQueryOptions(
+      session.data?.userId ?? scopeUserId,
+      companyId
+    )
   );
 }
 

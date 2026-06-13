@@ -204,7 +204,8 @@ export default function CompanyImportRulesModal(props: {
               review.
             </Text>
             <Text size="xs" c="dimmed">
-              For any "any of" operator, separate values with commas or new lines.
+              For any "any of" operator, separate values with commas or new
+              lines.
             </Text>
             <Text size="xs" fw={600} c="dimmed">
               Rules are checked from top to bottom. The first enabled match
@@ -317,13 +318,9 @@ export default function CompanyImportRulesModal(props: {
         </Paper>
 
         {importRulesQ.isPending && !importRulesQ.data ? (
-          <Text className={classes.emptyState}>
-            Loading Import Rules…
-          </Text>
+          <Text className={classes.emptyState}>Loading Import Rules…</Text>
         ) : rules.length === 0 ? (
-          <Text className={classes.emptyState}>
-            No Import Rules yet.
-          </Text>
+          <Text className={classes.emptyState}>No Import Rules yet.</Text>
         ) : (
           <Stack gap="sm">
             {rules.map((rule, index) => {

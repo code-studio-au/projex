@@ -29,8 +29,13 @@ function requireHeader(headers, name, predicate, message) {
 }
 
 async function verifyHealthEndpoints() {
-  const health = await fetchWithRedirectControl(new URL('/api/health', baseUrl));
-  assertCondition(health.status === 200, `/api/health returned ${health.status}`);
+  const health = await fetchWithRedirectControl(
+    new URL('/api/health', baseUrl)
+  );
+  assertCondition(
+    health.status === 200,
+    `/api/health returned ${health.status}`
+  );
 
   const ready = await fetchWithRedirectControl(new URL('/api/ready', baseUrl));
   assertCondition(ready.status === 200, `/api/ready returned ${ready.status}`);
@@ -86,10 +91,8 @@ async function verifyHtmlHeaders() {
   );
 
   if (baseUrl.protocol === 'https:') {
-    requireHeader(
-      login.headers,
-      'strict-transport-security',
-      (value) => value.toLowerCase().includes('max-age=')
+    requireHeader(login.headers, 'strict-transport-security', (value) =>
+      value.toLowerCase().includes('max-age=')
     );
   }
 }
@@ -117,7 +120,9 @@ async function verifyNonProductionEndpointsDisabled() {
     }
   );
   assertCondition(
-    adminSmoke.status === 404 || adminSmoke.status === 401 || adminSmoke.status === 403,
+    adminSmoke.status === 404 ||
+      adminSmoke.status === 401 ||
+      adminSmoke.status === 403,
     `/api/admin/smoke should not be openly available, got ${adminSmoke.status}`
   );
 }
@@ -139,8 +144,13 @@ function parseCookieHeaderValue(setCookieHeaders) {
 }
 
 async function verifySessionEndpointCacheControl() {
-  const session = await fetchWithRedirectControl(new URL('/api/session', baseUrl));
-  assertCondition(session.status === 200, `/api/session returned ${session.status}`);
+  const session = await fetchWithRedirectControl(
+    new URL('/api/session', baseUrl)
+  );
+  assertCondition(
+    session.status === 200,
+    `/api/session returned ${session.status}`
+  );
   requireHeader(
     session.headers,
     'cache-control',
@@ -163,36 +173,56 @@ async function verifyAuthSessionCookies() {
       }),
     }
   );
-  assertCondition(signIn.status === 200, `/api/auth/sign-in/email returned ${signIn.status}`);
+  assertCondition(
+    signIn.status === 200,
+    `/api/auth/sign-in/email returned ${signIn.status}`
+  );
 
   const setCookieHeaders = getSetCookieHeaders(signIn);
-  assertCondition(setCookieHeaders.length > 0, 'Sign-in response did not set any cookies');
+  assertCondition(
+    setCookieHeaders.length > 0,
+    'Sign-in response did not set any cookies'
+  );
 
   for (const header of setCookieHeaders) {
     const lower = header.toLowerCase();
-    assertCondition(lower.includes('httponly'), `Auth cookie is missing HttpOnly: ${header}`);
+    assertCondition(
+      lower.includes('httponly'),
+      `Auth cookie is missing HttpOnly: ${header}`
+    );
     assertCondition(
       lower.includes('samesite='),
       `Auth cookie is missing SameSite: ${header}`
     );
     if (baseUrl.protocol === 'https:') {
-      assertCondition(lower.includes('secure'), `HTTPS auth cookie is missing Secure: ${header}`);
+      assertCondition(
+        lower.includes('secure'),
+        `HTTPS auth cookie is missing Secure: ${header}`
+      );
     }
   }
 
   const cookieHeader = parseCookieHeaderValue(setCookieHeaders);
-  assertCondition(cookieHeader, 'Unable to build Cookie header from sign-in response');
+  assertCondition(
+    cookieHeader,
+    'Unable to build Cookie header from sign-in response'
+  );
 
-  const session = await fetchWithRedirectControl(new URL('/api/session', baseUrl), {
-    headers: { cookie: cookieHeader },
-  });
+  const session = await fetchWithRedirectControl(
+    new URL('/api/session', baseUrl),
+    {
+      headers: { cookie: cookieHeader },
+    }
+  );
   assertCondition(
     session.status === 200,
     `Authenticated /api/session returned ${session.status}`
   );
   const sessionBody = await session.json();
   assertCondition(
-    sessionBody && typeof sessionBody.userId === 'string' && sessionBody.userId.length > 0,
+    sessionBody &&
+      typeof sessionBody.userId === 'string' &&
+      sessionBody.userId.length > 0,
     'Authenticated /api/session did not return a userId'
   );
 }

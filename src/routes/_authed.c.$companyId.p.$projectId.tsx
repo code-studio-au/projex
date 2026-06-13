@@ -85,25 +85,29 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
     const companyId = asCompanyId(params.companyId);
     const projectId = asProjectId(params.projectId);
     const search = deps;
-    const session = (
-      context.queryClient.getQueryData(sessionQueryOptions().queryKey) ??
-      (await context.queryClient.ensureQueryData(sessionQueryOptions()))
-    ) as { userId: UserId } | null;
+    const session = (context.queryClient.getQueryData(
+      sessionQueryOptions().queryKey
+    ) ??
+      (await context.queryClient.ensureQueryData(sessionQueryOptions()))) as {
+      userId: UserId;
+    } | null;
     if (!session?.userId) return null;
 
     const [company, companyMemberships, myProjectMemberships, currentUser] =
       await Promise.all([
-      context.queryClient.ensureQueryData(
-        companyQueryOptions(session.userId, companyId)
-      ),
-      context.queryClient.ensureQueryData(
-        allCompanyMembershipsQueryOptions(session.userId)
-      ),
-      context.queryClient.ensureQueryData(
-        myProjectMembershipsQueryOptions(session.userId, companyId)
-      ),
-      context.queryClient.ensureQueryData(currentUserQueryOptions(session.userId)),
-    ]);
+        context.queryClient.ensureQueryData(
+          companyQueryOptions(session.userId, companyId)
+        ),
+        context.queryClient.ensureQueryData(
+          allCompanyMembershipsQueryOptions(session.userId)
+        ),
+        context.queryClient.ensureQueryData(
+          myProjectMembershipsQueryOptions(session.userId, companyId)
+        ),
+        context.queryClient.ensureQueryData(
+          currentUserQueryOptions(session.userId)
+        ),
+      ]);
 
     const project = await context.queryClient.ensureQueryData(
       projectQueryOptions(session.userId, projectId)
@@ -129,7 +133,7 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
     const companySummary =
       project?.projectType === 'programme'
         ? await context.queryClient.ensureQueryData(
-        companySummaryQueryOptions(session.userId, companyId)
+            companySummaryQueryOptions(session.userId, companyId)
           )
         : null;
 
@@ -220,9 +224,9 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
       canViewProgrammeSummary,
       initialProgrammeSummary:
         project?.projectType === 'programme'
-          ? (companySummary?.projects ?? []).find(
+          ? ((companySummary?.projects ?? []).find(
               (candidate) => candidate.id === projectId
-            ) ?? null
+            ) ?? null)
           : null,
       canImport,
       canEditBudgets,

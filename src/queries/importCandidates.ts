@@ -19,7 +19,9 @@ export function useImportCandidatesQuery(
   options: { enabled?: boolean } = {}
 ) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery(importCandidatesQueryOptions(scopeUserId, projectId, options));
+  return useQuery(
+    importCandidatesQueryOptions(scopeUserId, projectId, options)
+  );
 }
 
 export function importCandidatesQueryOptions(

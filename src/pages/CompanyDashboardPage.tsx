@@ -109,10 +109,12 @@ export default function CompanyDashboardPage() {
     for (const project of rows) {
       if (
         project.parentProjectId &&
-        projectsById.get(project.parentProjectId)?.projectType === 'programme' &&
+        projectsById.get(project.parentProjectId)?.projectType ===
+          'programme' &&
         projectsById.get(project.parentProjectId)?.status === 'active'
       ) {
-        const current = childProjectsByParent.get(project.parentProjectId) ?? [];
+        const current =
+          childProjectsByParent.get(project.parentProjectId) ?? [];
         current.push(project);
         childProjectsByParent.set(project.parentProjectId, current);
       } else {
@@ -165,7 +167,9 @@ export default function CompanyDashboardPage() {
         .map((membership) => membership.userId)
     );
     return (usersQ.data ?? [])
-      .filter((user) => companyMemberIds.has(user.id) && !user.isGlobalSuperadmin)
+      .filter(
+        (user) => companyMemberIds.has(user.id) && !user.isGlobalSuperadmin
+      )
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((user) => ({
         value: user.id,
@@ -279,12 +283,13 @@ export default function CompanyDashboardPage() {
     return confirmText.trim() === requiredConfirmText;
   }, [confirmText, confirmTarget, requiredConfirmText]);
 
-  const resolvedActiveTab: 'summary' | 'projects' | 'settings' =
-    (dashboardSearch.tab
+  const resolvedActiveTab: 'summary' | 'projects' | 'settings' = (
+    dashboardSearch.tab
       ? toCompanyDashboardTab(dashboardSearch.tab)
       : loaderData?.canViewCompanySummary
         ? 'summary'
-        : 'projects') as CompanyDashboardTab;
+        : 'projects'
+  ) as CompanyDashboardTab;
   const safeActiveTab: 'summary' | 'projects' | 'settings' =
     canViewCompanySummary
       ? resolvedActiveTab === 'settings'
@@ -350,9 +355,7 @@ export default function CompanyDashboardPage() {
       header: 'Type',
       Cell: ({ row }) =>
         row.original.projectType === 'programme' ? (
-          <Badge variant="light">
-            Programme
-          </Badge>
+          <Badge variant="light">Programme</Badge>
         ) : (
           <Badge variant="light" color="gray">
             Project
@@ -366,9 +369,7 @@ export default function CompanyDashboardPage() {
         row.original.visibility === 'private' ? (
           <Badge variant="light">Private</Badge>
         ) : (
-          <Badge variant="light">
-            Company
-          </Badge>
+          <Badge variant="light">Company</Badge>
         ),
     },
     {
@@ -464,168 +465,174 @@ export default function CompanyDashboardPage() {
             </Text>
           </div>
           <div className={classes.pageHeroActions}>
-          {canAddProjects && (
-            <>
-              <Button variant="filled" onClick={() => setNewProjectOpen(true)}>
-                New project or programme
-              </Button>
-              <Modal
-                opened={newProjectOpen}
-                onClose={() => {
-                  setNewProjectOpen(false);
-                  setNewProjectOwnerId(null);
-                }}
-                title="Create project or programme"
-              >
-                <Stack>
-                  <TextInput
-                    label={
-                      newProjectType === 'programme'
-                        ? 'Programme name'
-                        : 'Project name'
-                    }
-                    placeholder="e.g. Website Refresh"
-                    value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.currentTarget.value)}
-                    autoFocus
-                  />
-                  <Select
-                    label="Type"
-                    value={newProjectType}
-                    data={[
-                      { value: 'project', label: 'Project' },
-                      {
-                        value: 'programme',
-                        label: 'Programme (reporting only)',
-                      },
-                    ]}
-                    onChange={(value) => {
-                      const next =
-                        value === 'programme' ? 'programme' : 'project';
-                      setNewProjectType(next);
-                      if (next === 'programme') setNewProjectParentId(null);
-                    }}
-                  />
-                  <Select
-                    label="Currency"
-                    value={newProjectCurrency}
-                    data={[
-                      { value: 'AUD', label: 'AUD' },
-                      { value: 'USD', label: 'USD' },
-                      { value: 'EUR', label: 'EUR' },
-                      { value: 'GBP', label: 'GBP' },
-                    ]}
-                    onChange={(value) => {
-                      const next =
-                        value === 'USD' || value === 'EUR' || value === 'GBP'
-                          ? value
-                          : 'AUD';
-                      setNewProjectCurrency(next);
-                      setNewProjectParentId(null);
-                    }}
-                  />
-                  {superadminNeedsInitialOwner ? (
-                    <Select
-                      label="Initial project owner"
-                      description={
-                        hasEligibleInitialOwners
-                          ? 'Required when global superadmin creates a project or programme.'
-                          : 'Add a non-superadmin company member before creating a project or programme.'
+            {canAddProjects && (
+              <>
+                <Button
+                  variant="filled"
+                  onClick={() => setNewProjectOpen(true)}
+                >
+                  New project or programme
+                </Button>
+                <Modal
+                  opened={newProjectOpen}
+                  onClose={() => {
+                    setNewProjectOpen(false);
+                    setNewProjectOwnerId(null);
+                  }}
+                  title="Create project or programme"
+                >
+                  <Stack>
+                    <TextInput
+                      label={
+                        newProjectType === 'programme'
+                          ? 'Programme name'
+                          : 'Project name'
                       }
-                      placeholder={
-                        hasEligibleInitialOwners
-                          ? 'Select project owner'
-                          : 'No eligible company members'
-                      }
-                      value={effectiveNewProjectOwnerId}
-                      data={eligibleInitialOwnerOptions}
-                      disabled={!hasEligibleInitialOwners}
-                      searchable
-                      clearable={false}
-                      onChange={(value) => setNewProjectOwnerId(value)}
+                      placeholder="e.g. Website Refresh"
+                      value={newProjectName}
+                      onChange={(e) => setNewProjectName(e.currentTarget.value)}
+                      autoFocus
                     />
-                  ) : null}
-                  <Select
-                    label="Programme"
-                    description="Optional. Assigns this project into a reporting programme."
-                    placeholder="No programme"
-                    value={newProjectParentId}
-                    data={programmeOptions}
-                    clearable
-                    disabled={newProjectType === 'programme'}
-                    onChange={(value) =>
-                      setNewProjectParentId(value ? (value as ProjectId) : null)
-                    }
-                  />
-                  <Text size="sm" c="dimmed">
-                    Programmes are reporting-only. Projects hold budgets,
-                    imports, transactions, and coding. New records start with
-                    superadmin support access enabled.
-                  </Text>
-                  {superadminNeedsInitialOwner && !hasEligibleInitialOwners ? (
-                    <Text size="sm" c="red">
-                      This company has no non-superadmin members yet. Add a
-                      company member before creating a project or programme.
-                    </Text>
-                  ) : null}
-                  <Group justify="flex-end">
-                    <Button
-                      variant="light"
-                      onClick={() => {
-                        setNewProjectOpen(false);
-                        setNewProjectOwnerId(null);
+                    <Select
+                      label="Type"
+                      value={newProjectType}
+                      data={[
+                        { value: 'project', label: 'Project' },
+                        {
+                          value: 'programme',
+                          label: 'Programme (reporting only)',
+                        },
+                      ]}
+                      onChange={(value) => {
+                        const next =
+                          value === 'programme' ? 'programme' : 'project';
+                        setNewProjectType(next);
+                        if (next === 'programme') setNewProjectParentId(null);
                       }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      disabled={
-                        !newProjectName.trim() ||
-                        createProject.isPending ||
-                        (superadminNeedsInitialOwner &&
-                          (!hasEligibleInitialOwners ||
-                            !effectiveNewProjectOwnerId))
-                      }
-                      onClick={async () => {
-                        const name = newProjectName.trim();
-                        if (!name) return;
-                        await createProject.mutateAsync({
-                          name,
-                          projectType: newProjectType,
-                          currency: newProjectCurrency,
-                          initialOwnerUserId:
-                            superadminNeedsInitialOwner &&
-                            effectiveNewProjectOwnerId
-                              ? asUserId(effectiveNewProjectOwnerId)
-                              : undefined,
-                          parentProjectId:
-                            newProjectType === 'project'
-                              ? (newProjectParentId ?? undefined)
-                              : undefined,
-                        });
-                        setNewProjectName('');
-                        setNewProjectType('project');
-                        setNewProjectCurrency('AUD');
+                    />
+                    <Select
+                      label="Currency"
+                      value={newProjectCurrency}
+                      data={[
+                        { value: 'AUD', label: 'AUD' },
+                        { value: 'USD', label: 'USD' },
+                        { value: 'EUR', label: 'EUR' },
+                        { value: 'GBP', label: 'GBP' },
+                      ]}
+                      onChange={(value) => {
+                        const next =
+                          value === 'USD' || value === 'EUR' || value === 'GBP'
+                            ? value
+                            : 'AUD';
+                        setNewProjectCurrency(next);
                         setNewProjectParentId(null);
-                        setNewProjectOwnerId(null);
-                        setNewProjectOpen(false);
                       }}
-                    >
-                      Create
-                    </Button>
-                  </Group>
-                </Stack>
-              </Modal>
-            </>
-          )}
+                    />
+                    {superadminNeedsInitialOwner ? (
+                      <Select
+                        label="Initial project owner"
+                        description={
+                          hasEligibleInitialOwners
+                            ? 'Required when global superadmin creates a project or programme.'
+                            : 'Add a non-superadmin company member before creating a project or programme.'
+                        }
+                        placeholder={
+                          hasEligibleInitialOwners
+                            ? 'Select project owner'
+                            : 'No eligible company members'
+                        }
+                        value={effectiveNewProjectOwnerId}
+                        data={eligibleInitialOwnerOptions}
+                        disabled={!hasEligibleInitialOwners}
+                        searchable
+                        clearable={false}
+                        onChange={(value) => setNewProjectOwnerId(value)}
+                      />
+                    ) : null}
+                    <Select
+                      label="Programme"
+                      description="Optional. Assigns this project into a reporting programme."
+                      placeholder="No programme"
+                      value={newProjectParentId}
+                      data={programmeOptions}
+                      clearable
+                      disabled={newProjectType === 'programme'}
+                      onChange={(value) =>
+                        setNewProjectParentId(
+                          value ? (value as ProjectId) : null
+                        )
+                      }
+                    />
+                    <Text size="sm" c="dimmed">
+                      Programmes are reporting-only. Projects hold budgets,
+                      imports, transactions, and coding. New records start with
+                      superadmin support access enabled.
+                    </Text>
+                    {superadminNeedsInitialOwner &&
+                    !hasEligibleInitialOwners ? (
+                      <Text size="sm" c="red">
+                        This company has no non-superadmin members yet. Add a
+                        company member before creating a project or programme.
+                      </Text>
+                    ) : null}
+                    <Group justify="flex-end">
+                      <Button
+                        variant="light"
+                        onClick={() => {
+                          setNewProjectOpen(false);
+                          setNewProjectOwnerId(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        disabled={
+                          !newProjectName.trim() ||
+                          createProject.isPending ||
+                          (superadminNeedsInitialOwner &&
+                            (!hasEligibleInitialOwners ||
+                              !effectiveNewProjectOwnerId))
+                        }
+                        onClick={async () => {
+                          const name = newProjectName.trim();
+                          if (!name) return;
+                          await createProject.mutateAsync({
+                            name,
+                            projectType: newProjectType,
+                            currency: newProjectCurrency,
+                            initialOwnerUserId:
+                              superadminNeedsInitialOwner &&
+                              effectiveNewProjectOwnerId
+                                ? asUserId(effectiveNewProjectOwnerId)
+                                : undefined,
+                            parentProjectId:
+                              newProjectType === 'project'
+                                ? (newProjectParentId ?? undefined)
+                                : undefined,
+                          });
+                          setNewProjectName('');
+                          setNewProjectType('project');
+                          setNewProjectCurrency('AUD');
+                          setNewProjectParentId(null);
+                          setNewProjectOwnerId(null);
+                          setNewProjectOpen(false);
+                        }}
+                      >
+                        Create
+                      </Button>
+                    </Group>
+                  </Stack>
+                </Modal>
+              </>
+            )}
 
-          {showSwitchCompany && (
-            <Link to={landingRoute.to}>
-              <Button component="span" variant="default">
-                Switch company
-              </Button>
-            </Link>
-          )}
+            {showSwitchCompany && (
+              <Link to={landingRoute.to}>
+                <Button component="span" variant="default">
+                  Switch company
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </Paper>

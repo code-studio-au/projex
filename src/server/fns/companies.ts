@@ -768,7 +768,10 @@ export async function createCompanyServer(args: {
 
       if (trimmedAdminName && trimmedAdminEmail) {
         const emailNorm = trimmedAdminEmail.toLowerCase();
-        let authUser = await findBetterAuthUserByEmail(trx as DbLike, emailNorm);
+        let authUser = await findBetterAuthUserByEmail(
+          trx as DbLike,
+          emailNorm
+        );
         let createdAuthUser = false;
         if (!authUser) {
           authUser = await createBetterAuthUser(

@@ -3,7 +3,13 @@ import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p
 
 import ProjectWorkspace from '../components/ProjectWorkspace';
 import type { CompanyId, ProjectId } from '../types';
-import { asCategoryId, asCompanyId, asProjectId, asSubCategoryId, asTxnId } from '../types';
+import {
+  asCategoryId,
+  asCompanyId,
+  asProjectId,
+  asSubCategoryId,
+  asTxnId,
+} from '../types';
 
 export default function ProjectWorkspacePage() {
   // Route params are required by the route definition (c/$companyId/p/$projectId).

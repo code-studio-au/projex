@@ -33,32 +33,32 @@ export const Route = createFileRoute('/api/projects/$projectId/categories')({
       },
       POST: async ({ request, params, context }) => {
         const { serverContext } = requireApiRouteContext(context);
-          const body = validateOrThrow(
-            createCategoryInputSchema,
-            await readJsonBody(request)
-          );
-          return jsonApi(
-            await createCategoryServer({
-              context: serverContext,
-              projectId: asProjectId(params.projectId),
-              input: body,
-            })
-          );
-        },
+        const body = validateOrThrow(
+          createCategoryInputSchema,
+          await readJsonBody(request)
+        );
+        return jsonApi(
+          await createCategoryServer({
+            context: serverContext,
+            projectId: asProjectId(params.projectId),
+            input: body,
+          })
+        );
+      },
       PATCH: async ({ request, params, context }) => {
         const { serverContext } = requireApiRouteContext(context);
-          const body = validateOrThrow(
-            updateCategoryInputSchema,
-            await readJsonBody(request)
-          );
-          return jsonApi(
-            await updateCategoryServer({
-              context: serverContext,
-              projectId: asProjectId(params.projectId),
-              input: body,
-            })
-          );
-        },
+        const body = validateOrThrow(
+          updateCategoryInputSchema,
+          await readJsonBody(request)
+        );
+        return jsonApi(
+          await updateCategoryServer({
+            context: serverContext,
+            projectId: asProjectId(params.projectId),
+            input: body,
+          })
+        );
+      },
     },
   },
 });

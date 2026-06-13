@@ -11,7 +11,10 @@ export const Route = createFileRoute('/api/export-jobs/$jobId/download')({
     handlers: {
       GET: async ({ context, params }) => {
         const { serverContext } = requireApiRouteContext(context);
-        const jobId = validateOrThrow(companyExportJobIdParamSchema, params.jobId);
+        const jobId = validateOrThrow(
+          companyExportJobIdParamSchema,
+          params.jobId
+        );
         const result = await downloadCompanyExportJobServer({
           context: serverContext,
           jobId,

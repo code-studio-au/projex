@@ -63,15 +63,17 @@ export const upsertCompanyMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    companyId: string;
-    userId: string;
-    role: 'admin' | 'executive' | 'management' | 'member';
-  }) => ({
-    companyId: asCompanyId(input.companyId),
-    userId: asUserId(input.userId),
-    role: input.role,
-  }))
+  .inputValidator(
+    (input: {
+      companyId: string;
+      userId: string;
+      role: 'admin' | 'executive' | 'management' | 'member';
+    }) => ({
+      companyId: asCompanyId(input.companyId),
+      userId: asUserId(input.userId),
+      role: input.role,
+    })
+  )
   .handler(async ({ context, data }) => {
     return upsertCompanyMembershipServer({
       context: context.serverContext,
@@ -101,15 +103,17 @@ export const upsertProjectMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    userId: string;
-    role: 'owner' | 'lead' | 'member' | 'viewer';
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    userId: asUserId(input.userId),
-    role: input.role,
-  }))
+  .inputValidator(
+    (input: {
+      projectId: string;
+      userId: string;
+      role: 'owner' | 'lead' | 'member' | 'viewer';
+    }) => ({
+      projectId: asProjectId(input.projectId),
+      userId: asUserId(input.userId),
+      role: input.role,
+    })
+  )
   .handler(async ({ context, data }) => {
     return upsertProjectMembershipServer({
       context: context.serverContext,
@@ -123,15 +127,17 @@ export const deleteProjectMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    userId: string;
-    role: 'owner' | 'lead' | 'member' | 'viewer';
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    userId: asUserId(input.userId),
-    role: input.role,
-  }))
+  .inputValidator(
+    (input: {
+      projectId: string;
+      userId: string;
+      role: 'owner' | 'lead' | 'member' | 'viewer';
+    }) => ({
+      projectId: asProjectId(input.projectId),
+      userId: asUserId(input.userId),
+      role: input.role,
+    })
+  )
   .handler(async ({ context, data }) => {
     return deleteProjectMembershipServer({
       context: context.serverContext,

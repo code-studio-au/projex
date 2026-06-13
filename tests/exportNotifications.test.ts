@@ -2,10 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { buildCompanyExportReadyUrl } from '../src/server/notifications/exportNotifications.ts';
-import {
-  asCompanyExportJobId,
-  asCompanyId,
-} from '../src/types/index.ts';
+import { asCompanyExportJobId, asCompanyId } from '../src/types/index.ts';
 
 test('company export ready links open company settings for the exact export job', () => {
   const previousAppBaseUrl = process.env.PROJEX_APP_BASE_URL;

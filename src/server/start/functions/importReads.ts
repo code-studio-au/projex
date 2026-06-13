@@ -50,13 +50,12 @@ export const reviewImportCandidateServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    payload: ImportCandidateReviewInput;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: ImportCandidateReviewInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return reviewImportCandidateServer({
       context: context.serverContext,
@@ -68,10 +67,12 @@ export const reviewImportCandidateServerFn = createServerFn({
 
 export const createImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string; payload: ImportRuleCreateInput }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { companyId: string; payload: ImportRuleCreateInput }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createImportRuleServer({
       context: context.serverContext,
@@ -82,10 +83,12 @@ export const createImportRuleServerFn = createServerFn({ method: 'POST' })
 
 export const updateImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string; payload: ImportRuleUpdateInput }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { companyId: string; payload: ImportRuleUpdateInput }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return updateImportRuleServer({
       context: context.serverContext,
@@ -112,13 +115,12 @@ export const previewImportTransactionsServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    payload: TxnImportPreviewInput;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: TxnImportPreviewInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return previewImportTransactionsServer({
       context: context.serverContext,

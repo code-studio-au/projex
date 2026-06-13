@@ -445,7 +445,11 @@ async function selectInitialProjectOwnerUserId(
 
       const usersResult = await client.request('/api/users');
       assertOk(usersResult, 'list users');
-      const users = parseBody(usersResponseSchema, usersResult.body, 'list users');
+      const users = parseBody(
+        usersResponseSchema,
+        usersResult.body,
+        'list users'
+      );
       const usersById = new Map(users.map((user) => [user.id, user]));
 
       const eligibleMembership = memberships.find((membership) => {

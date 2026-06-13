@@ -18,7 +18,8 @@ export type StartApiMiddlewareContext = {
 export const startApiMiddleware = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
     const request = getRequest();
-    const { session, serverContext } = await resolveRequestServerContext(request);
+    const { session, serverContext } =
+      await resolveRequestServerContext(request);
 
     return next({
       context: {

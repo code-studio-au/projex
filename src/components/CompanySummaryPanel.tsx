@@ -330,9 +330,7 @@ export default function CompanySummaryPanel(props: {
                   : row.original.name}
               </SummaryDrilldownLink>
               {row.original.projectType === 'programme' ? (
-                <Badge variant="light">
-                  Programme
-                </Badge>
+                <Badge variant="light">Programme</Badge>
               ) : null}
             </Group>
           </Stack>
@@ -426,7 +424,9 @@ export default function CompanySummaryPanel(props: {
               {row.original.uncodedCount}
             </SummaryDrilldownLink>
           ) : (
-            <Text className="table-body-right">{row.original.uncodedCount}</Text>
+            <Text className="table-body-right">
+              {row.original.uncodedCount}
+            </Text>
           ),
       },
       {
@@ -500,9 +500,7 @@ export default function CompanySummaryPanel(props: {
                 })}
                 className={classes.badgeLink}
               >
-                <Badge variant="light">
-                  Has uncoded
-                </Badge>
+                <Badge variant="light">Has uncoded</Badge>
               </Link>
             ) : null}
             {!row.original.isOverBudget && row.original.uncodedCount === 0 ? (
@@ -531,9 +529,7 @@ export default function CompanySummaryPanel(props: {
         header: 'Status',
         size: 96,
         Cell: ({ row }) => (
-          <Badge
-            variant="light"
-          >
+          <Badge variant="light">
             {row.original.status === 'active' ? 'Active' : 'Archived'}
           </Badge>
         ),
@@ -546,9 +542,7 @@ export default function CompanySummaryPanel(props: {
           row.original.visibility === 'private' ? (
             <Badge variant="light">Private</Badge>
           ) : (
-            <Badge variant="light">
-              Company
-            </Badge>
+            <Badge variant="light">Company</Badge>
           ),
       },
     ],

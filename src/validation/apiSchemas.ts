@@ -52,7 +52,8 @@ const companyDefaultMappingRuleIdSchema = idSchema.transform(
 const importRuleIdSchema = idSchema.transform(asImportRuleId);
 export const importBatchIdParamSchema = idSchema.transform(asImportBatchId);
 const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
-export const companyExportJobIdParamSchema = idSchema.transform(asCompanyExportJobId);
+export const companyExportJobIdParamSchema =
+  idSchema.transform(asCompanyExportJobId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
 const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
@@ -220,7 +221,6 @@ export const companyExportQuerySchema = z
   });
 
 export const createCompanyExportJobBodySchema = companyExportQuerySchema;
-
 
 export const deleteProjectBodySchema = z.object({
   confirmation: destructiveConfirmationSchema,

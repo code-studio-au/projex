@@ -66,7 +66,7 @@ export function usePowerBiImportWorkflow(params: {
     txns: Txn[],
     options?: { autoCreateBudgets?: boolean }
   ) => Promise<void>;
-  }) {
+}) {
   const {
     taxonomy,
     budgets,

@@ -52,7 +52,9 @@ test('import preview planning rejects CSVs with too many rows', () => {
     () =>
       planImportPreview({
         csvText: [header]
-          .concat(Array.from({ length: MAX_IMPORT_PREVIEW_ROW_COUNT + 1 }, () => row))
+          .concat(
+            Array.from({ length: MAX_IMPORT_PREVIEW_ROW_COUNT + 1 }, () => row)
+          )
           .join('\n'),
         existingTransactions: [],
         categories: [],

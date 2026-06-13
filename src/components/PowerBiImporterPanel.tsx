@@ -583,30 +583,30 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Tabs.Panel value="needsReview" pt="md">
               <div className={classes.tableWrap}>
                 <MantineReactTable
-                columns={previewColumns}
-                data={visiblePreviewRows}
-                getRowId={(row) => row.importId}
-                state={{ pagination, sorting }}
-                onPaginationChange={setPagination}
-                onSortingChange={setSorting}
-                enableColumnResizing
-                enableSorting
-                enableSortingRemoval={false}
-                enableGlobalFilter
-                enablePagination
-                autoResetPageIndex={false}
-                initialState={{ density: 'xs' }}
-                mantineTableContainerProps={{
-                  className: 'financeTable txnTable',
-                }}
-                mantineTableProps={{
-                  highlightOnHover: true,
-                  striped: 'odd',
-                  withTableBorder: true,
-                  style: { tableLayout: 'auto' },
-                }}
-                enableDensityToggle={false}
-                enableFullScreenToggle={false}
+                  columns={previewColumns}
+                  data={visiblePreviewRows}
+                  getRowId={(row) => row.importId}
+                  state={{ pagination, sorting }}
+                  onPaginationChange={setPagination}
+                  onSortingChange={setSorting}
+                  enableColumnResizing
+                  enableSorting
+                  enableSortingRemoval={false}
+                  enableGlobalFilter
+                  enablePagination
+                  autoResetPageIndex={false}
+                  initialState={{ density: 'xs' }}
+                  mantineTableContainerProps={{
+                    className: 'financeTable txnTable',
+                  }}
+                  mantineTableProps={{
+                    highlightOnHover: true,
+                    striped: 'odd',
+                    withTableBorder: true,
+                    style: { tableLayout: 'auto' },
+                  }}
+                  enableDensityToggle={false}
+                  enableFullScreenToggle={false}
                 />
               </div>
             </Tabs.Panel>
@@ -614,30 +614,30 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Tabs.Panel value="duplicate" pt="md">
               <div className={classes.tableWrap}>
                 <MantineReactTable
-                columns={previewColumns}
-                data={visiblePreviewRows}
-                getRowId={(row) => row.importId}
-                state={{ pagination, sorting }}
-                onPaginationChange={setPagination}
-                onSortingChange={setSorting}
-                enableColumnResizing
-                enableSorting
-                enableSortingRemoval={false}
-                enableGlobalFilter
-                enablePagination
-                autoResetPageIndex={false}
-                initialState={{ density: 'xs' }}
-                mantineTableContainerProps={{
-                  className: 'financeTable txnTable',
-                }}
-                mantineTableProps={{
-                  highlightOnHover: true,
-                  striped: 'odd',
-                  withTableBorder: true,
-                  style: { tableLayout: 'auto' },
-                }}
-                enableDensityToggle={false}
-                enableFullScreenToggle={false}
+                  columns={previewColumns}
+                  data={visiblePreviewRows}
+                  getRowId={(row) => row.importId}
+                  state={{ pagination, sorting }}
+                  onPaginationChange={setPagination}
+                  onSortingChange={setSorting}
+                  enableColumnResizing
+                  enableSorting
+                  enableSortingRemoval={false}
+                  enableGlobalFilter
+                  enablePagination
+                  autoResetPageIndex={false}
+                  initialState={{ density: 'xs' }}
+                  mantineTableContainerProps={{
+                    className: 'financeTable txnTable',
+                  }}
+                  mantineTableProps={{
+                    highlightOnHover: true,
+                    striped: 'odd',
+                    withTableBorder: true,
+                    style: { tableLayout: 'auto' },
+                  }}
+                  enableDensityToggle={false}
+                  enableFullScreenToggle={false}
                 />
               </div>
             </Tabs.Panel>
@@ -645,33 +645,33 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Tabs.Panel value="invalid" pt="md">
               <div className={classes.tableWrap}>
                 <MantineReactTable
-                columns={previewColumns}
-                data={visiblePreviewRows}
-                getRowId={(row) => row.importId}
-                state={{ pagination, sorting }}
-                onPaginationChange={setPagination}
-                onSortingChange={setSorting}
-                enableColumnResizing
-                enableSorting
-                enableSortingRemoval={false}
-                enableGlobalFilter
-                enablePagination
-                autoResetPageIndex={false}
-                initialState={{ density: 'xs' }}
-                mantineTableContainerProps={{
-                  className: 'financeTable txnTable',
-                }}
-                mantineTableProps={{
-                  highlightOnHover: true,
-                  striped: 'odd',
-                  withTableBorder: true,
-                  style: { tableLayout: 'auto' },
-                }}
-                enableDensityToggle={false}
-                enableFullScreenToggle={false}
-                mantineTableBodyRowProps={() => ({
-                  style: { outline: '1px solid rgba(255,0,0,0.20)' },
-                })}
+                  columns={previewColumns}
+                  data={visiblePreviewRows}
+                  getRowId={(row) => row.importId}
+                  state={{ pagination, sorting }}
+                  onPaginationChange={setPagination}
+                  onSortingChange={setSorting}
+                  enableColumnResizing
+                  enableSorting
+                  enableSortingRemoval={false}
+                  enableGlobalFilter
+                  enablePagination
+                  autoResetPageIndex={false}
+                  initialState={{ density: 'xs' }}
+                  mantineTableContainerProps={{
+                    className: 'financeTable txnTable',
+                  }}
+                  mantineTableProps={{
+                    highlightOnHover: true,
+                    striped: 'odd',
+                    withTableBorder: true,
+                    style: { tableLayout: 'auto' },
+                  }}
+                  enableDensityToggle={false}
+                  enableFullScreenToggle={false}
+                  mantineTableBodyRowProps={() => ({
+                    style: { outline: '1px solid rgba(255,0,0,0.20)' },
+                  })}
                 />
               </div>
             </Tabs.Panel>
@@ -679,35 +679,35 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Tabs.Panel value="excluded" pt="md">
               <div className={classes.tableWrap}>
                 <MantineReactTable
-                columns={excludedPreviewColumns}
-                data={visiblePreviewRows}
-                getRowId={(row) => row.importId}
-                state={{ pagination, sorting }}
-                onPaginationChange={setPagination}
-                onSortingChange={setSorting}
-                enableColumnResizing
-                enableSorting
-                enableSortingRemoval={false}
-                enableGlobalFilter
-                enablePagination
-                autoResetPageIndex={false}
-                initialState={{ density: 'xs' }}
-                mantineTableContainerProps={{
-                  className: 'financeTable txnTable',
-                }}
-                mantineTableProps={{
-                  highlightOnHover: true,
-                  striped: 'odd',
-                  withTableBorder: true,
-                  style: { tableLayout: 'auto' },
-                }}
-                enableDensityToggle={false}
-                enableFullScreenToggle={false}
-                mantineTableBodyRowProps={({ row }) =>
-                  row.original.mappingStatus === 'invalid'
-                    ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-                    : {}
-                }
+                  columns={excludedPreviewColumns}
+                  data={visiblePreviewRows}
+                  getRowId={(row) => row.importId}
+                  state={{ pagination, sorting }}
+                  onPaginationChange={setPagination}
+                  onSortingChange={setSorting}
+                  enableColumnResizing
+                  enableSorting
+                  enableSortingRemoval={false}
+                  enableGlobalFilter
+                  enablePagination
+                  autoResetPageIndex={false}
+                  initialState={{ density: 'xs' }}
+                  mantineTableContainerProps={{
+                    className: 'financeTable txnTable',
+                  }}
+                  mantineTableProps={{
+                    highlightOnHover: true,
+                    striped: 'odd',
+                    withTableBorder: true,
+                    style: { tableLayout: 'auto' },
+                  }}
+                  enableDensityToggle={false}
+                  enableFullScreenToggle={false}
+                  mantineTableBodyRowProps={({ row }) =>
+                    row.original.mappingStatus === 'invalid'
+                      ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
+                      : {}
+                  }
                 />
               </div>
             </Tabs.Panel>

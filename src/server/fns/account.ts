@@ -81,7 +81,9 @@ async function requireCurrentUserRow(userId: string) {
   return row;
 }
 
-function toCurrentUser(row: Awaited<ReturnType<typeof requireCurrentUserRow>>): User {
+function toCurrentUser(
+  row: Awaited<ReturnType<typeof requireCurrentUserRow>>
+): User {
   return {
     id: asUserId(row.id),
     email: row.email,

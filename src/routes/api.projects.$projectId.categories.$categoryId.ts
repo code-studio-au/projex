@@ -15,14 +15,14 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       DELETE: async ({ context, params }) => {
-          const { serverContext } = requireApiRouteContext(context);
-          await deleteCategoryServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            categoryId: asCategoryId(params.categoryId),
-          });
-          return jsonApi({ ok: true as const });
-        },
+        const { serverContext } = requireApiRouteContext(context);
+        await deleteCategoryServer({
+          context: serverContext,
+          projectId: asProjectId(params.projectId),
+          categoryId: asCategoryId(params.categoryId),
+        });
+        return jsonApi({ ok: true as const });
+      },
     },
   },
 });

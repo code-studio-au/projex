@@ -14,7 +14,10 @@ const FORWARDED_ARGS = process.argv.filter(
 );
 const DB_NAME = 'projex_smoke_test';
 const HOST = '127.0.0.1';
-const PORT = Number.parseInt(process.env.PROJEX_SMOKE_SERVER_PORT ?? '3310', 10);
+const PORT = Number.parseInt(
+  process.env.PROJEX_SMOKE_SERVER_PORT ?? '3310',
+  10
+);
 const BETTER_AUTH_SECRET =
   process.env.PROJEX_TEST_BETTER_AUTH_SECRET ||
   'projex-disposable-smoke-secret-0123456789';

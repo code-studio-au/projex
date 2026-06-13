@@ -239,10 +239,10 @@ export default function CompanyDefaultTaxonomyModal(props: {
 
           <Stack gap="lg">
             {categories.length === 0 ? (
-                <Text className={classes.emptyState}>
-                  No company default categories yet.
-                </Text>
-              ) : null}
+              <Text className={classes.emptyState}>
+                No company default categories yet.
+              </Text>
+            ) : null}
 
             {categories.map((category) => {
               const categorySubCategories = subCategories.filter(

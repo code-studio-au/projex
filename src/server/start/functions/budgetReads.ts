@@ -28,10 +28,12 @@ export const listBudgetsServerFn = createServerFn({ method: 'GET' })
 
 export const createBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; payload: BudgetCreateInput }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: BudgetCreateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createBudgetServer({
       context: context.serverContext,
@@ -42,10 +44,12 @@ export const createBudgetServerFn = createServerFn({ method: 'POST' })
 
 export const updateBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; payload: BudgetUpdateInput }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: BudgetUpdateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return updateBudgetServer({
       context: context.serverContext,

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   Alert,
   Badge,
@@ -307,135 +313,140 @@ export default function LandingPage() {
             </Text>
           </div>
           <div className={classes.pageHeroActions}>
-        {isSuperadmin ? (
-          <>
-            <Button variant="filled" onClick={() => setNewCompanyOpen(true)}>
-              New company
-            </Button>
-            <Modal
-              opened={newCompanyOpen}
-              onClose={() => setNewCompanyOpen(false)}
-              title="Create company"
-              fullScreen={isMobile}
-            >
-              <Stack>
-                {newCompanyError ? (
-                  <Alert color="red">{newCompanyError}</Alert>
-                ) : null}
-                {newCompanyStatus ? (
-                  <Alert color="green">{newCompanyStatus}</Alert>
-                ) : null}
-                <TextInput
-                  label="Company name"
-                  placeholder="e.g. Northwind"
-                  value={newCompanyName}
-                  onChange={(e) => setNewCompanyName(e.currentTarget.value)}
-                  autoFocus
-                />
-                <Text size="sm" c="dimmed">
-                  Assign the initial company admin now. A company cannot be
-                  created without one, and the invite can be re-sent later from
-                  company settings if needed.
-                </Text>
-                <TextInput
-                  label="Initial admin name"
-                  placeholder="e.g. Jane Admin"
-                  value={newCompanyAdminName}
-                  onChange={(e) =>
-                    setNewCompanyAdminName(e.currentTarget.value)
-                  }
-                />
-                <TextInput
-                  label="Initial admin email"
-                  placeholder="e.g. jane@example.com"
-                  value={newCompanyAdminEmail}
-                  onChange={(e) =>
-                    setNewCompanyAdminEmail(e.currentTarget.value)
-                  }
-                />
-                <Group justify="flex-end">
-                  <Button
-                    variant="light"
-                    onClick={() => {
-                      setNewCompanyOpen(false);
-                      setNewCompanyError(null);
-                      setNewCompanyStatus(null);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    disabled={
-                      !newCompanyName.trim() ||
-                      !newCompanyAdminName.trim() ||
-                      !newCompanyAdminEmail.trim() ||
-                      createCompany.isPending
-                    }
-                    onClick={async () => {
-                      const name = newCompanyName.trim();
-                      const adminName = newCompanyAdminName.trim();
-                      const adminEmail = newCompanyAdminEmail.trim();
-                      if (!name) return;
-                      if (!adminName || !adminEmail) {
-                        setNewCompanyError(
-                          'Initial admin name and email are required when creating a company.'
-                        );
-                        setNewCompanyStatus(null);
-                        return;
+            {isSuperadmin ? (
+              <>
+                <Button
+                  variant="filled"
+                  onClick={() => setNewCompanyOpen(true)}
+                >
+                  New company
+                </Button>
+                <Modal
+                  opened={newCompanyOpen}
+                  onClose={() => setNewCompanyOpen(false)}
+                  title="Create company"
+                  fullScreen={isMobile}
+                >
+                  <Stack>
+                    {newCompanyError ? (
+                      <Alert color="red">{newCompanyError}</Alert>
+                    ) : null}
+                    {newCompanyStatus ? (
+                      <Alert color="green">{newCompanyStatus}</Alert>
+                    ) : null}
+                    <TextInput
+                      label="Company name"
+                      placeholder="e.g. Northwind"
+                      value={newCompanyName}
+                      onChange={(e) => setNewCompanyName(e.currentTarget.value)}
+                      autoFocus
+                    />
+                    <Text size="sm" c="dimmed">
+                      Assign the initial company admin now. A company cannot be
+                      created without one, and the invite can be re-sent later
+                      from company settings if needed.
+                    </Text>
+                    <TextInput
+                      label="Initial admin name"
+                      placeholder="e.g. Jane Admin"
+                      value={newCompanyAdminName}
+                      onChange={(e) =>
+                        setNewCompanyAdminName(e.currentTarget.value)
                       }
-                      setNewCompanyError(null);
-                      setNewCompanyStatus(null);
-                      try {
-                        const result = await createCompany.mutateAsync({
-                          name,
-                          initialAdminName: adminName || undefined,
-                          initialAdminEmail: adminEmail || undefined,
-                        });
-                        const company = result.company;
-                        if (result.initialAdmin) {
-                          await Promise.all([
-                            queryClient.invalidateQueries({
-                              predicate: (q) =>
-                                Array.isArray(q.queryKey) &&
-                                q.queryKey[0] === 'users',
-                            }),
-                            queryClient.invalidateQueries({
-                              predicate: (q) =>
-                                Array.isArray(q.queryKey) &&
-                                [
-                                  'companyMemberships',
-                                  'allCompanyMemberships',
-                                ].includes(String(q.queryKey[0])),
-                            }),
-                          ]);
-                          setNewCompanyStatus(
-                            result.initialAdmin.onboardingEmailSent
-                              ? `${company.name} was created and ${result.initialAdmin.user.email} was invited as the initial admin. A password setup email is on its way.`
-                              : `${company.name} was created and ${result.initialAdmin.user.email} was added as the initial admin. You can send their password setup email later from company settings if needed.`
-                          );
-                        } else {
-                          setNewCompanyStatus(`${company.name} was created.`);
+                    />
+                    <TextInput
+                      label="Initial admin email"
+                      placeholder="e.g. jane@example.com"
+                      value={newCompanyAdminEmail}
+                      onChange={(e) =>
+                        setNewCompanyAdminEmail(e.currentTarget.value)
+                      }
+                    />
+                    <Group justify="flex-end">
+                      <Button
+                        variant="light"
+                        onClick={() => {
+                          setNewCompanyOpen(false);
+                          setNewCompanyError(null);
+                          setNewCompanyStatus(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        disabled={
+                          !newCompanyName.trim() ||
+                          !newCompanyAdminName.trim() ||
+                          !newCompanyAdminEmail.trim() ||
+                          createCompany.isPending
                         }
-                        setNewCompanyName('');
-                        setNewCompanyAdminName('');
-                        setNewCompanyAdminEmail('');
-                        setNewCompanyOpen(false);
-                      } catch (err) {
-                        setNewCompanyError(
-                          err instanceof Error
-                            ? err.message
-                            : 'Could not create company.'
-                        );
-                      }
-                    }}
-                  >
-                    Create
-                  </Button>
-                </Group>
-              </Stack>
-            </Modal>
-          </>
-        ) : null}
+                        onClick={async () => {
+                          const name = newCompanyName.trim();
+                          const adminName = newCompanyAdminName.trim();
+                          const adminEmail = newCompanyAdminEmail.trim();
+                          if (!name) return;
+                          if (!adminName || !adminEmail) {
+                            setNewCompanyError(
+                              'Initial admin name and email are required when creating a company.'
+                            );
+                            setNewCompanyStatus(null);
+                            return;
+                          }
+                          setNewCompanyError(null);
+                          setNewCompanyStatus(null);
+                          try {
+                            const result = await createCompany.mutateAsync({
+                              name,
+                              initialAdminName: adminName || undefined,
+                              initialAdminEmail: adminEmail || undefined,
+                            });
+                            const company = result.company;
+                            if (result.initialAdmin) {
+                              await Promise.all([
+                                queryClient.invalidateQueries({
+                                  predicate: (q) =>
+                                    Array.isArray(q.queryKey) &&
+                                    q.queryKey[0] === 'users',
+                                }),
+                                queryClient.invalidateQueries({
+                                  predicate: (q) =>
+                                    Array.isArray(q.queryKey) &&
+                                    [
+                                      'companyMemberships',
+                                      'allCompanyMemberships',
+                                    ].includes(String(q.queryKey[0])),
+                                }),
+                              ]);
+                              setNewCompanyStatus(
+                                result.initialAdmin.onboardingEmailSent
+                                  ? `${company.name} was created and ${result.initialAdmin.user.email} was invited as the initial admin. A password setup email is on its way.`
+                                  : `${company.name} was created and ${result.initialAdmin.user.email} was added as the initial admin. You can send their password setup email later from company settings if needed.`
+                              );
+                            } else {
+                              setNewCompanyStatus(
+                                `${company.name} was created.`
+                              );
+                            }
+                            setNewCompanyName('');
+                            setNewCompanyAdminName('');
+                            setNewCompanyAdminEmail('');
+                            setNewCompanyOpen(false);
+                          } catch (err) {
+                            setNewCompanyError(
+                              err instanceof Error
+                                ? err.message
+                                : 'Could not create company.'
+                            );
+                          }
+                        }}
+                      >
+                        Create
+                      </Button>
+                    </Group>
+                  </Stack>
+                </Modal>
+              </>
+            ) : null}
           </div>
         </div>
       </Paper>

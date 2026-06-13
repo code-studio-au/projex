@@ -94,7 +94,9 @@ function TransactionSplitModalContent(props: {
   onSplit: (children: TxnSplitInput['children']) => Promise<void>;
 }) {
   const { txn, taxonomy, currencyCode, onClose, onSplit } = props;
-  const [rows, setRows] = useState<SplitDraftRow[]>(() => createInitialRows(txn));
+  const [rows, setRows] = useState<SplitDraftRow[]>(() =>
+    createInitialRows(txn)
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -110,7 +112,10 @@ function TransactionSplitModalContent(props: {
     return true;
   });
   const canSubmit =
-    rows.length >= 2 && !hasInvalidAmount && remainingCents === 0 && !submitting;
+    rows.length >= 2 &&
+    !hasInvalidAmount &&
+    remainingCents === 0 &&
+    !submitting;
 
   function updateRow(key: string, patch: Partial<SplitDraftRow>) {
     setRows((current) =>
@@ -196,98 +201,96 @@ function TransactionSplitModalContent(props: {
               p="sm"
               className={classes.subtleCard}
             >
-                  <Stack gap="xs">
-                    <Group justify="space-between" align="center">
-                      <Text fw={600} size="sm">
-                        Split line {index + 1}
-                      </Text>
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        aria-label="Remove split line"
-                        disabled={rows.length <= 2 || submitting}
-                        onClick={() => removeRow(row.key)}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Group>
+              <Stack gap="xs">
+                <Group justify="space-between" align="center">
+                  <Text fw={600} size="sm">
+                    Split line {index + 1}
+                  </Text>
+                  <ActionIcon
+                    variant="subtle"
+                    color="red"
+                    aria-label="Remove split line"
+                    disabled={rows.length <= 2 || submitting}
+                    onClick={() => removeRow(row.key)}
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
+                </Group>
 
-                    <Group align="flex-start" gap="sm" grow>
-                      <TextInput
-                        label="Item"
-                        value={row.item}
-                        disabled={submitting}
-                        onChange={(event) =>
-                          updateRow(row.key, {
-                            item: event.currentTarget.value,
-                          })
-                        }
-                      />
-                      <TextInput
-                        label="Description"
-                        value={row.description}
-                        disabled={submitting}
-                        onChange={(event) =>
-                          updateRow(row.key, {
-                            description: event.currentTarget.value,
-                          })
-                        }
-                      />
-                      <NumberInput
-                        label="Amount"
-                        value={fromCents(row.amountCents)}
-                        min={txn.amountCents < 0 ? undefined : 0}
-                        max={txn.amountCents < 0 ? 0 : undefined}
-                        thousandSeparator=","
-                        prefix="$"
-                        decimalScale={2}
-                        fixedDecimalScale
-                        hideControls
-                        disabled={submitting}
-                        onChange={(value) =>
-                          updateRow(row.key, {
-                            amountCents: toCents(Number(value ?? 0)),
-                          })
-                        }
-                      />
-                    </Group>
+                <Group align="flex-start" gap="sm" grow>
+                  <TextInput
+                    label="Item"
+                    value={row.item}
+                    disabled={submitting}
+                    onChange={(event) =>
+                      updateRow(row.key, {
+                        item: event.currentTarget.value,
+                      })
+                    }
+                  />
+                  <TextInput
+                    label="Description"
+                    value={row.description}
+                    disabled={submitting}
+                    onChange={(event) =>
+                      updateRow(row.key, {
+                        description: event.currentTarget.value,
+                      })
+                    }
+                  />
+                  <NumberInput
+                    label="Amount"
+                    value={fromCents(row.amountCents)}
+                    min={txn.amountCents < 0 ? undefined : 0}
+                    max={txn.amountCents < 0 ? 0 : undefined}
+                    thousandSeparator=","
+                    prefix="$"
+                    decimalScale={2}
+                    fixedDecimalScale
+                    hideControls
+                    disabled={submitting}
+                    onChange={(value) =>
+                      updateRow(row.key, {
+                        amountCents: toCents(Number(value ?? 0)),
+                      })
+                    }
+                  />
+                </Group>
 
-                    <Group align="flex-start" gap="sm" grow>
-                      <Select
-                        label="Category"
-                        data={taxonomy.categoryOptions}
-                        value={row.categoryId}
-                        placeholder="Optional"
-                        clearable
-                        searchable
-                        disabled={submitting}
-                        onChange={(value) =>
-                          updateRow(row.key, {
-                            categoryId: value ? asCategoryId(value) : null,
-                            subCategoryId: null,
-                          })
-                        }
-                      />
-                      <Select
-                        label="Subcategory"
-                        data={subCategoryOptions}
-                        value={row.subCategoryId}
-                        placeholder={
-                          row.categoryId ? 'Optional' : 'Pick category first'
-                        }
-                        clearable
-                        searchable
-                        disabled={!row.categoryId || submitting}
-                        onChange={(value) =>
-                          updateRow(row.key, {
-                            subCategoryId: value
-                              ? asSubCategoryId(value)
-                              : null,
-                          })
-                        }
-                      />
-                    </Group>
-                  </Stack>
+                <Group align="flex-start" gap="sm" grow>
+                  <Select
+                    label="Category"
+                    data={taxonomy.categoryOptions}
+                    value={row.categoryId}
+                    placeholder="Optional"
+                    clearable
+                    searchable
+                    disabled={submitting}
+                    onChange={(value) =>
+                      updateRow(row.key, {
+                        categoryId: value ? asCategoryId(value) : null,
+                        subCategoryId: null,
+                      })
+                    }
+                  />
+                  <Select
+                    label="Subcategory"
+                    data={subCategoryOptions}
+                    value={row.subCategoryId}
+                    placeholder={
+                      row.categoryId ? 'Optional' : 'Pick category first'
+                    }
+                    clearable
+                    searchable
+                    disabled={!row.categoryId || submitting}
+                    onChange={(value) =>
+                      updateRow(row.key, {
+                        subCategoryId: value ? asSubCategoryId(value) : null,
+                      })
+                    }
+                  />
+                </Group>
+              </Stack>
             </Paper>
           );
         })}

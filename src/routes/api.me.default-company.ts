@@ -5,9 +5,7 @@ import {
   jsonApi,
   requireApiRouteContext,
 } from './-api-shared';
-import {
-  getDefaultCompanyIdForUserServer,
-} from '../server/fns/companies';
+import { getDefaultCompanyIdForUserServer } from '../server/fns/companies';
 
 export const Route = createFileRoute('/api/me/default-company')({
   server: {

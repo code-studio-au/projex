@@ -20,9 +20,7 @@ import {
   sendCompanyUserInviteEmailServer,
   updateCompanyServer,
 } from '../../fns/companies';
-import {
-  importTransactionsServer,
-} from '../../fns/transactions';
+import { importTransactionsServer } from '../../fns/transactions';
 import {
   createProjectServer,
   deactivateProjectServer,
@@ -49,13 +47,12 @@ export const createCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const createProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    companyId: string;
-    payload: ProjectCreateInput;
-  }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { companyId: string; payload: ProjectCreateInput }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createProjectServer({
       context: context.serverContext,
@@ -86,13 +83,12 @@ export const updateCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const createUserInCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    companyId: string;
-    payload: CreateCompanyUserInput;
-  }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { companyId: string; payload: CreateCompanyUserInput }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createUserInCompanyServer({
       context: context.serverContext,

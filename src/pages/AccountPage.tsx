@@ -61,7 +61,8 @@ export default function AccountPage() {
   const pendingEmailChange =
     pendingEmailChangeQ.data ?? loaderData?.pendingEmailChange ?? null;
   const pendingEmailChangeReady =
-    pendingEmailChangeQ.status !== 'pending' || loaderData?.pendingEmailChange !== undefined;
+    pendingEmailChangeQ.status !== 'pending' ||
+    loaderData?.pendingEmailChange !== undefined;
   const myMemberships = useMemo(() => {
     const companyNameById = new Map(
       (companiesQ.data ?? []).map((company) => [company.id, company.name])
@@ -292,9 +293,7 @@ export default function AccountPage() {
             <Alert color="blue">
               <Stack gap="xs">
                 <Text fw={600}>Pending email change</Text>
-                <Text size="sm">
-                  New email: {pendingEmailChange.newEmail}
-                </Text>
+                <Text size="sm">New email: {pendingEmailChange.newEmail}</Text>
                 <Text size="sm" c="dimmed">
                   Requested: {formatUtcDateTime(pendingEmailChange.requestedAt)}
                 </Text>

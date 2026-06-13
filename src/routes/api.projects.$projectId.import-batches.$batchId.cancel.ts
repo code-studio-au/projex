@@ -18,13 +18,16 @@ export const Route = createFileRoute(
     handlers: {
       POST: async ({ context, params }) => {
         const { serverContext } = requireApiRouteContext(context);
-          await cancelImportPreviewServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            importBatchId: validateOrThrow(importBatchIdParamSchema, params.batchId),
-          });
-          return jsonApi({ ok: true as const });
-        },
+        await cancelImportPreviewServer({
+          context: serverContext,
+          projectId: asProjectId(params.projectId),
+          importBatchId: validateOrThrow(
+            importBatchIdParamSchema,
+            params.batchId
+          ),
+        });
+        return jsonApi({ ok: true as const });
+      },
     },
   },
 });

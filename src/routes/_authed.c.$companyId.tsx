@@ -3,7 +3,10 @@ import { isServerAuthMode } from './-authMode';
 import type { UserId } from '../types';
 import { asCompanyId } from '../types';
 import { getUserCompanyRole } from '../store/access';
-import { allCompanyMembershipsQueryOptions, myProjectMembershipsQueryOptions } from '../queries/memberships';
+import {
+  allCompanyMembershipsQueryOptions,
+  myProjectMembershipsQueryOptions,
+} from '../queries/memberships';
 import { currentUserQueryOptions } from '../queries/account';
 import {
   companiesQueryOptions,
@@ -19,15 +22,29 @@ export const Route = createFileRoute('/_authed/c/$companyId')({
   ssr: isServerAuthMode,
   loader: async ({ context, params }) => {
     const companyId = asCompanyId(params.companyId);
-    const session = (
-      context.queryClient.getQueryData(sessionQueryOptions().queryKey) ??
-      (await context.queryClient.ensureQueryData(sessionQueryOptions()))
-    ) as { userId: UserId } | null;
+    const session = (context.queryClient.getQueryData(
+      sessionQueryOptions().queryKey
+    ) ??
+      (await context.queryClient.ensureQueryData(sessionQueryOptions()))) as {
+      userId: UserId;
+    } | null;
     if (!session?.userId) return null;
 
-    const [currentUser, , companyMemberships, , company, projects, companyDefaults] = await Promise.all([
-      context.queryClient.ensureQueryData(currentUserQueryOptions(session.userId)),
-      context.queryClient.ensureQueryData(companiesQueryOptions(session.userId)),
+    const [
+      currentUser,
+      ,
+      companyMemberships,
+      ,
+      company,
+      projects,
+      companyDefaults,
+    ] = await Promise.all([
+      context.queryClient.ensureQueryData(
+        currentUserQueryOptions(session.userId)
+      ),
+      context.queryClient.ensureQueryData(
+        companiesQueryOptions(session.userId)
+      ),
       context.queryClient.ensureQueryData(
         allCompanyMembershipsQueryOptions(session.userId)
       ),

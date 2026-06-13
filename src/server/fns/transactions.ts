@@ -320,7 +320,10 @@ export async function listTransactionsPageServer(args: {
       'project:view'
     );
     const { db, userId } = context;
-    const sort = args.input.sort ?? { field: 'date' as const, direction: 'desc' as const };
+    const sort = args.input.sort ?? {
+      field: 'date' as const,
+      direction: 'desc' as const,
+    };
     const offset = args.input.pageIndex * args.input.pageSize;
     const filters = buildTransactionsPageFilters({
       projectId: args.projectId,
@@ -329,37 +332,39 @@ export async function listTransactionsPageServer(args: {
     });
 
     let rowsQuery = applyTxnPageFilters(
-      db.selectFrom('txns as t').select([
-        't.id',
-        't.public_id',
-        't.external_id',
-        't.company_id',
-        't.project_id',
-        't.txn_date',
-        't.item',
-        't.description',
-        't.amount_cents',
-        't.txn_type',
-        't.parent_public_id',
-        't.source_public_id',
-        't.transfer_project_id',
-        't.budget_impact',
-        't.categorisable',
-        't.import_batch_id',
-        't.import_source_type',
-        't.import_source_meta',
-        't.category_id',
-        't.sub_category_id',
-        't.company_default_mapping_rule_id',
-        't.coding_source',
-        't.coding_pending_approval',
-        't.reviewed_at',
-        't.reviewed_by_user_id',
-        't.locked_at',
-        't.locked_by_user_id',
-        't.created_at',
-        't.updated_at',
-      ]),
+      db
+        .selectFrom('txns as t')
+        .select([
+          't.id',
+          't.public_id',
+          't.external_id',
+          't.company_id',
+          't.project_id',
+          't.txn_date',
+          't.item',
+          't.description',
+          't.amount_cents',
+          't.txn_type',
+          't.parent_public_id',
+          't.source_public_id',
+          't.transfer_project_id',
+          't.budget_impact',
+          't.categorisable',
+          't.import_batch_id',
+          't.import_source_type',
+          't.import_source_meta',
+          't.category_id',
+          't.sub_category_id',
+          't.company_default_mapping_rule_id',
+          't.coding_source',
+          't.coding_pending_approval',
+          't.reviewed_at',
+          't.reviewed_by_user_id',
+          't.locked_at',
+          't.locked_by_user_id',
+          't.created_at',
+          't.updated_at',
+        ]),
       filters
     );
 
@@ -1291,7 +1296,8 @@ export async function importTransactionsServer(args: {
       bucket: `project-import-commit:${companyId}:${args.projectId}:${userId}`,
       limit: IMPORT_COMMIT_RATE_LIMIT.limit,
       windowMs: IMPORT_COMMIT_RATE_LIMIT.windowMs,
-      message: 'Too many import commits. Please wait a few minutes and try again.',
+      message:
+        'Too many import commits. Please wait a few minutes and try again.',
     });
     if (args.autoCreateBudgets) {
       await requireAuthorized({
@@ -1556,10 +1562,7 @@ export async function previewImportTransactionsServer(args: {
         'Too many import previews. Please wait a few minutes and try again.',
     });
 
-    if (
-      args.sourceType &&
-      args.sourceType !== 'powerbi_expenditure_actuals'
-    ) {
+    if (args.sourceType && args.sourceType !== 'powerbi_expenditure_actuals') {
       throw new AppError(
         'NOT_IMPLEMENTED',
         `Unsupported import source type: ${args.sourceType}`
@@ -1998,7 +2001,11 @@ export async function reviewImportCandidateServer(args: {
         .executeTakeFirstOrThrow();
       updatedCandidate = toImportCandidate(candidateRow);
 
-      await syncImportBatchStatuses(trx, [asImportBatchId(existing.batch_id)], now);
+      await syncImportBatchStatuses(
+        trx,
+        [asImportBatchId(existing.batch_id)],
+        now
+      );
     });
 
     if (!updatedCandidate || !insertedTxn) {

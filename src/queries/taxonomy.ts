@@ -87,7 +87,9 @@ export function useCompanyDefaultCategoriesQuery(companyId: CompanyId) {
 
 export function useCompanyDefaultsQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
-  return useQuery<CompanyDefaults>(companyDefaultsQueryOptions(scopeUserId, companyId));
+  return useQuery<CompanyDefaults>(
+    companyDefaultsQueryOptions(scopeUserId, companyId)
+  );
 }
 
 export function companyDefaultsQueryOptions(
@@ -398,7 +400,9 @@ export function useDeleteCompanyDefaultSubCategoryMutation(
   });
 }
 
-export function useUpdateCompanyDefaultMappingRuleMutation(companyId: CompanyId) {
+export function useUpdateCompanyDefaultMappingRuleMutation(
+  companyId: CompanyId
+) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
@@ -445,10 +449,13 @@ export function useApplyCompanyDefaultTaxonomyMutation(
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: () => applyCompanyDefaultTaxonomyServerFn({ data: { projectId } }),
+    mutationFn: () =>
+      applyCompanyDefaultTaxonomyServerFn({ data: { projectId } }),
     onSuccess: async () => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) }),
+        qc.invalidateQueries({
+          queryKey: qk.categories(scopeUserId, projectId),
+        }),
         qc.invalidateQueries({
           queryKey: qk.subCategories(scopeUserId, projectId),
         }),

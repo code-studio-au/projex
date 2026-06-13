@@ -10,10 +10,12 @@ export const Route = createFileRoute('/_authed/companies')({
   component: lazyRouteComponent(() => import('../pages/LandingPage')),
   ssr: isServerAuthMode,
   loader: async ({ context }) => {
-    const session = (
-      context.queryClient.getQueryData(sessionQueryOptions().queryKey) ??
-      (await context.queryClient.ensureQueryData(sessionQueryOptions()))
-    ) as { userId: UserId } | null;
+    const session = (context.queryClient.getQueryData(
+      sessionQueryOptions().queryKey
+    ) ??
+      (await context.queryClient.ensureQueryData(sessionQueryOptions()))) as {
+      userId: UserId;
+    } | null;
     if (!session?.userId)
       return { isSuperadmin: false, userId: null, userCompanyCount: 0 };
 

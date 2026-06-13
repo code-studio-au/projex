@@ -20,7 +20,9 @@ export const Route = createFileRoute('/_authed')({
       context.queryClient.ensureQueryData(
         currentUserQueryOptions(session.userId)
       ),
-      context.queryClient.ensureQueryData(companiesQueryOptions(session.userId)),
+      context.queryClient.ensureQueryData(
+        companiesQueryOptions(session.userId)
+      ),
     ]);
 
     return null;

@@ -49,7 +49,11 @@ export async function withPublicApi(
 }
 
 export function requireApiRouteContext(context: unknown): ApiRouteContext {
-  if (!context || typeof context !== 'object' || !('serverContext' in context)) {
+  if (
+    !context ||
+    typeof context !== 'object' ||
+    !('serverContext' in context)
+  ) {
     throw new AppError('INTERNAL_ERROR', 'Missing API route context');
   }
   return context as ApiRouteContext;
@@ -69,9 +73,8 @@ export const apiRouteMiddleware = createMiddleware().server(
     return withApiCore(
       request,
       async ({ requestId, origin, requestOrigin, started }) => {
-        const { resolveRequestServerContext } = await import(
-          '../server/http/requestContext'
-        );
+        const { resolveRequestServerContext } =
+          await import('../server/http/requestContext');
         const { session, serverContext } =
           await resolveRequestServerContext(request);
         return next({
@@ -192,11 +195,12 @@ async function withApiCore(
 
   try {
     const data = await run({ requestId, origin, requestOrigin, started });
-    const res = data instanceof Response
-      ? data
-      : isRequestServerResult(data)
-        ? data.response
-        : Response.json(data);
+    const res =
+      data instanceof Response
+        ? data
+        : isRequestServerResult(data)
+          ? data.response
+          : Response.json(data);
     const finalRes = withRequestId(res);
     console.info(
       JSON.stringify({

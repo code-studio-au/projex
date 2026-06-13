@@ -54,7 +54,9 @@ async function acquireMigrationLock(pool: Queryable) {
 }
 
 async function releaseMigrationLock(pool: Queryable) {
-  await pool.query('select pg_advisory_unlock($1)', [MIGRATION_ADVISORY_LOCK_ID]);
+  await pool.query('select pg_advisory_unlock($1)', [
+    MIGRATION_ADVISORY_LOCK_ID,
+  ]);
 }
 
 function createMigrationDb(pool: TypedPgPool) {

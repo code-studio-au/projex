@@ -1,6 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { apiRouteMiddleware, jsonApi, requireApiRouteContext } from './-api-shared';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  requireApiRouteContext,
+} from './-api-shared';
 
 export const Route = createFileRoute('/api/session')({
   server: {
@@ -18,13 +22,16 @@ export const Route = createFileRoute('/api/session')({
       DELETE: async () => {
         const { clearDevSessionSetCookie } =
           await import('../server/dev/devSession');
-        return jsonApi({ ok: true }, {
-          status: 200,
-          headers: {
-            'cache-control': 'no-store',
-            'set-cookie': clearDevSessionSetCookie(),
-          },
-        });
+        return jsonApi(
+          { ok: true },
+          {
+            status: 200,
+            headers: {
+              'cache-control': 'no-store',
+              'set-cookie': clearDevSessionSetCookie(),
+            },
+          }
+        );
       },
     },
   },

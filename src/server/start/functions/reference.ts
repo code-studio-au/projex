@@ -19,7 +19,9 @@ export const listCompaniesServerFn = createServerFn({ method: 'GET' })
     return listCompaniesServer({ context: context.serverContext });
   });
 
-export const getDefaultCompanyIdForUserServerFn = createServerFn({ method: 'GET' })
+export const getDefaultCompanyIdForUserServerFn = createServerFn({
+  method: 'GET',
+})
   .middleware([startApiMiddleware])
   .handler(async ({ context }) => {
     return getDefaultCompanyIdForUserServer({

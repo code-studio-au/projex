@@ -44,7 +44,9 @@ export async function enforceRateLimit(
   const retryAfterSeconds = Math.max(
     1,
     Math.ceil(
-      (new Date(row.window_started_at).getTime() + options.windowMs - now.getTime()) /
+      (new Date(row.window_started_at).getTime() +
+        options.windowMs -
+        now.getTime()) /
         1000
     )
   );

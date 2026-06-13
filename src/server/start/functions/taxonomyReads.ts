@@ -127,13 +127,12 @@ export const listSubCategoriesServerFn = createServerFn({ method: 'GET' })
 
 export const createCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    payload: CategoryCreateInput;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: CategoryCreateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createCategoryServer({
       context: context.serverContext,
@@ -144,13 +143,12 @@ export const createCategoryServerFn = createServerFn({ method: 'POST' })
 
 export const updateCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    payload: CategoryUpdateInput;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: CategoryUpdateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return updateCategoryServer({
       context: context.serverContext,
@@ -175,13 +173,12 @@ export const deleteCategoryServerFn = createServerFn({ method: 'POST' })
 
 export const createSubCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    payload: SubCategoryCreateInput;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: SubCategoryCreateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createSubCategoryServer({
       context: context.serverContext,
@@ -192,13 +189,12 @@ export const createSubCategoryServerFn = createServerFn({ method: 'POST' })
 
 export const updateSubCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    payload: SubCategoryUpdateInput;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: SubCategoryUpdateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return updateSubCategoryServer({
       context: context.serverContext,
@@ -225,13 +221,15 @@ export const createCompanyDefaultCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    companyId: string;
-    payload: CompanyDefaultCategoryCreateInput;
-  }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: {
+      companyId: string;
+      payload: CompanyDefaultCategoryCreateInput;
+    }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createCompanyDefaultCategoryServer({
       context: context.serverContext,
@@ -244,13 +242,15 @@ export const updateCompanyDefaultCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    companyId: string;
-    payload: CompanyDefaultCategoryUpdateInput;
-  }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: {
+      companyId: string;
+      payload: CompanyDefaultCategoryUpdateInput;
+    }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return updateCompanyDefaultCategoryServer({
       context: context.serverContext,
@@ -279,13 +279,15 @@ export const createCompanyDefaultSubCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    companyId: string;
-    payload: CompanyDefaultSubCategoryCreateInput;
-  }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: {
+      companyId: string;
+      payload: CompanyDefaultSubCategoryCreateInput;
+    }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createCompanyDefaultSubCategoryServer({
       context: context.serverContext,
@@ -298,13 +300,15 @@ export const updateCompanyDefaultSubCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    companyId: string;
-    payload: CompanyDefaultSubCategoryUpdateInput;
-  }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: {
+      companyId: string;
+      payload: CompanyDefaultSubCategoryUpdateInput;
+    }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return updateCompanyDefaultSubCategoryServer({
       context: context.serverContext,
@@ -333,13 +337,15 @@ export const createCompanyDefaultMappingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    companyId: string;
-    payload: CompanyDefaultMappingRuleCreateInput;
-  }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: {
+      companyId: string;
+      payload: CompanyDefaultMappingRuleCreateInput;
+    }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createCompanyDefaultMappingRuleServer({
       context: context.serverContext,
@@ -352,13 +358,15 @@ export const updateCompanyDefaultMappingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    companyId: string;
-    payload: CompanyDefaultMappingRuleUpdateInput;
-  }) => ({
-    companyId: asCompanyId(input.companyId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: {
+      companyId: string;
+      payload: CompanyDefaultMappingRuleUpdateInput;
+    }) => ({
+      companyId: asCompanyId(input.companyId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return updateCompanyDefaultMappingRuleServer({
       context: context.serverContext,

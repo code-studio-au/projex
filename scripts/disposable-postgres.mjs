@@ -3,8 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 
 const DEFAULT_IMAGE = process.env.PROJEX_TEST_DB_IMAGE || 'postgres:16-alpine';
 const DEFAULT_USER = process.env.PROJEX_TEST_DB_USER || 'postgres';
-const DEFAULT_PASSWORD =
-  process.env.PROJEX_TEST_DB_PASSWORD || 'postgres';
+const DEFAULT_PASSWORD = process.env.PROJEX_TEST_DB_PASSWORD || 'postgres';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_BETTER_AUTH_SECRET =
   process.env.PROJEX_TEST_BETTER_AUTH_SECRET ||
@@ -100,11 +99,9 @@ export async function startDisposablePostgres(options = {}) {
   const containerId = runResult.stdout.trim();
   if (!containerId) fail('Docker did not return a container id.');
 
-  const portResult = runCommand(
-    'docker',
-    ['port', containerName, '5432/tcp'],
-    { stdio: 'pipe' }
-  );
+  const portResult = runCommand('docker', ['port', containerName, '5432/tcp'], {
+    stdio: 'pipe',
+  });
   const port = parseDockerPort(portResult.stdout);
 
   const state = {

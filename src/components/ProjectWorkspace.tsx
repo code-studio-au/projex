@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   Badge,
   Button,
@@ -215,8 +221,8 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
             : month <= 6
               ? 'Q2'
               : month <= 9
-              ? 'Q3'
-              : 'Q4';
+                ? 'Q3'
+                : 'Q4';
         })()
       : null);
   const resetKey = [
@@ -234,7 +240,7 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
       : '',
     initialTransactionDrilldown?.categoryName ?? '',
     initialTransactionDrilldown?.kind === 'subcategory'
-      ? initialTransactionDrilldown.subCategoryName ?? ''
+      ? (initialTransactionDrilldown.subCategoryName ?? '')
       : '',
     initialEntrySource ?? '',
     initialEntryFocus ?? '',
@@ -320,8 +326,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   const effectiveProjectType =
     (isHydrated ? project.data?.projectType : undefined) ?? initialProjectType;
   const companySummary = useCompanySummaryQuery(companyId, {
-    enabled:
-      effectiveProjectType === 'programme' && canViewProgrammeSummary,
+    enabled: effectiveProjectType === 'programme' && canViewProgrammeSummary,
   });
   const updateProject = useUpdateProjectMutation(companyId);
   const isOperationalProject = effectiveProjectType === 'project';
@@ -366,7 +371,9 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   });
 
   const [activeTab, setActiveTab] = useState<ProjectWorkspaceTab>(initialTab);
-  const [yearFilter, setYearFilter] = useState<string | null>(initialYearFilter);
+  const [yearFilter, setYearFilter] = useState<string | null>(
+    initialYearFilter
+  );
   const [quarterFilter, setQuarterFilter] = useState<QuarterOption | null>(
     initialQuarterFilter
   );
@@ -414,8 +421,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
 
     const subCategoryName =
       taxonomy.subCategories.find(
-        (subCategory) =>
-          subCategory.id === transactionDrilldown.subCategoryId
+        (subCategory) => subCategory.id === transactionDrilldown.subCategoryId
       )?.name ??
       transactionDrilldown.subCategoryName ??
       transactionDrilldown.subCategoryId;
@@ -639,7 +645,11 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     const childProjects = programmeSummary?.children ?? [];
     return (
       <Stack gap="lg" className={classes.pageStack}>
-        <Paper className={classes.pageHero} p={isMobile ? 'md' : 'lg'} radius="xl">
+        <Paper
+          className={classes.pageHero}
+          p={isMobile ? 'md' : 'lg'}
+          radius="xl"
+        >
           <Stack gap="sm">
             <Group justify="space-between" align="center" wrap="wrap">
               {headerReady ? (
@@ -835,7 +845,10 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                                     })
                                   }
                                 >
-                                  <Text component="span" className="table-body-left-bold table-link-text">
+                                  <Text
+                                    component="span"
+                                    className="table-body-left-bold table-link-text"
+                                  >
                                     {child.name}
                                   </Text>
                                 </button>
@@ -896,7 +909,11 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
 
   return (
     <Stack gap="lg" className={classes.pageStack}>
-      <Paper className={classes.pageHero} p={isMobile ? 'md' : 'lg'} radius="xl">
+      <Paper
+        className={classes.pageHero}
+        p={isMobile ? 'md' : 'lg'}
+        radius="xl"
+      >
         <Stack gap="sm">
           <Group justify="space-between" align="center" wrap="wrap">
             {headerReady || (initialCompanyName && initialProjectName) ? (

@@ -19,8 +19,7 @@ export const getPostLoginTargetServerFn = createServerFn({ method: 'GET' })
     const users = await listUsersServer({ context: context.serverContext });
     const isSuperadmin =
       users.find((user) => user.id === context.session?.userId)
-        ?.isGlobalSuperadmin ===
-      true;
+        ?.isGlobalSuperadmin === true;
     if (isSuperadmin) return { to: '/companies' as const };
 
     const companies = await listCompaniesServer({

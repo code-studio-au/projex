@@ -34,32 +34,32 @@ export const Route = createFileRoute('/api/projects/$projectId/sub-categories')(
         },
         POST: async ({ request, params, context }) => {
           const { serverContext } = requireApiRouteContext(context);
-            const body = validateOrThrow(
-              createSubCategoryInputSchema,
-              await readJsonBody(request)
-            );
-            return jsonApi(
-              await createSubCategoryServer({
-                context: serverContext,
-                projectId: asProjectId(params.projectId),
-                input: body,
-              })
-            );
-          },
+          const body = validateOrThrow(
+            createSubCategoryInputSchema,
+            await readJsonBody(request)
+          );
+          return jsonApi(
+            await createSubCategoryServer({
+              context: serverContext,
+              projectId: asProjectId(params.projectId),
+              input: body,
+            })
+          );
+        },
         PATCH: async ({ request, params, context }) => {
           const { serverContext } = requireApiRouteContext(context);
-            const body = validateOrThrow(
-              updateSubCategoryInputSchema,
-              await readJsonBody(request)
-            );
-            return jsonApi(
-              await updateSubCategoryServer({
-                context: serverContext,
-                projectId: asProjectId(params.projectId),
-                input: body,
-              })
-            );
-          },
+          const body = validateOrThrow(
+            updateSubCategoryInputSchema,
+            await readJsonBody(request)
+          );
+          return jsonApi(
+            await updateSubCategoryServer({
+              context: serverContext,
+              projectId: asProjectId(params.projectId),
+              input: body,
+            })
+          );
+        },
       },
     },
   }

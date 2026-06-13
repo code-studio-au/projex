@@ -1,10 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import { asCompanyId, asProjectId } from '../../../types';
-import {
-  getCompanyServer,
-  getCompanySummaryServer,
-} from '../../fns/companies';
+import { getCompanyServer, getCompanySummaryServer } from '../../fns/companies';
 import { getProjectServer, listProjectsServer } from '../../fns/projects';
 import { startApiMiddleware } from '../middleware';
 

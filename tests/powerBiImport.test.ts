@@ -294,7 +294,9 @@ test('PowerBI multi-value operators match against comma and newline separated li
 
 test('PowerBI predefined operators support starts-with and ends-with matching', () => {
   const startsWithRow = toPowerBiExpenditureActualsRow(
-    rawPowerBiRow({ 'Journal Line Description': 'Transfer to payroll clearing' })
+    rawPowerBiRow({
+      'Journal Line Description': 'Transfer to payroll clearing',
+    })
   );
   const endsWithRow = toPowerBiExpenditureActualsRow(
     rawPowerBiRow({ 'Journal Line Description': 'Processed via suspense' })

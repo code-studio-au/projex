@@ -37,11 +37,7 @@ import {
 import classes from '../styles/ui.module.css';
 
 function commentInitials(name: string) {
-  const parts = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
+  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (parts.length === 0) return '?';
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('');
 }
@@ -373,9 +369,7 @@ export default function TransactionCommentsModal(props: {
 
           <Stack gap="sm" className={classes.commentThread}>
             {commentsQ.isLoading ? (
-              <Text className={classes.emptyState}>
-                Loading comments...
-              </Text>
+              <Text className={classes.emptyState}>Loading comments...</Text>
             ) : topLevelComments.length > 0 ? (
               topLevelComments.map((comment) => renderComment(comment))
             ) : (

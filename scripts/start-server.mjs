@@ -130,14 +130,15 @@ function resolveStaticFile(pathname) {
 }
 
 function buildStaticResponse(filePath, method, cacheControl) {
-  return readFile(filePath).then((body) =>
-    new Response(method === 'HEAD' ? null : body, {
-      status: 200,
-      headers: {
-        'content-type': contentTypeFor(filePath),
-        'cache-control': cacheControl,
-      },
-    })
+  return readFile(filePath).then(
+    (body) =>
+      new Response(method === 'HEAD' ? null : body, {
+        status: 200,
+        headers: {
+          'content-type': contentTypeFor(filePath),
+          'cache-control': cacheControl,
+        },
+      })
   );
 }
 
@@ -237,7 +238,11 @@ app.use(
     if (!filePath) {
       return new Response('Not found', { status: 404 });
     }
-    return buildStaticResponse(filePath, event.req.method, 'public, max-age=3600');
+    return buildStaticResponse(
+      filePath,
+      event.req.method,
+      'public, max-age=3600'
+    );
   })
 );
 
@@ -248,7 +253,11 @@ app.use(
     if (!filePath) {
       return new Response('Not found', { status: 404 });
     }
-    return buildStaticResponse(filePath, event.req.method, 'public, max-age=3600');
+    return buildStaticResponse(
+      filePath,
+      event.req.method,
+      'public, max-age=3600'
+    );
   })
 );
 

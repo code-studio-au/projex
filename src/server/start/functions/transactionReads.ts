@@ -73,13 +73,12 @@ export const createTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    payload: TxnCommentCreateInput;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: TxnCommentCreateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return createTransactionCommentServer({
       context: context.serverContext,
@@ -92,15 +91,17 @@ export const updateTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    txnId: string;
-    payload: TxnCommentUpdateInput;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    txnId: asTxnId(input.txnId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: {
+      projectId: string;
+      txnId: string;
+      payload: TxnCommentUpdateInput;
+    }) => ({
+      projectId: asProjectId(input.projectId),
+      txnId: asTxnId(input.txnId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return updateTransactionCommentServer({
       context: context.serverContext,
@@ -114,15 +115,13 @@ export const deleteTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    txnId: string;
-    commentId: string;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    txnId: asTxnId(input.txnId),
-    commentId: asTxnCommentId(input.commentId),
-  }))
+  .inputValidator(
+    (input: { projectId: string; txnId: string; commentId: string }) => ({
+      projectId: asProjectId(input.projectId),
+      txnId: asTxnId(input.txnId),
+      commentId: asTxnCommentId(input.commentId),
+    })
+  )
   .handler(async ({ context, data }) => {
     return deleteTransactionCommentServer({
       context: context.serverContext,
@@ -208,13 +207,12 @@ export const updateTxnWorkflowStateServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: {
-    projectId: string;
-    payload: TxnWorkflowStateInput;
-  }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(
+    (input: { projectId: string; payload: TxnWorkflowStateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
   .handler(async ({ context, data }) => {
     return updateTxnWorkflowStateServer({
       context: context.serverContext,

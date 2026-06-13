@@ -34,11 +34,7 @@ import type {
   TxnComment,
   TxnId,
 } from '../types';
-import {
-  formatCurrencyFromCents,
-  fromCents,
-  toCents,
-} from '../utils/money';
+import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 import {
   buildTxnCommentRepliesByParent,
   formatTxnCommentDateTime,
@@ -88,11 +84,7 @@ function commentExcerpt(value: string | undefined): string {
 }
 
 function commentInitials(name: string) {
-  const parts = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
+  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (parts.length === 0) return '?';
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('');
 }
@@ -170,7 +162,7 @@ export default function TransactionsPanel(props: {
   const [sorting, setSorting] = useState<MRT_SortingState>([
     { id: 'date', desc: true },
   ]);
-  const paginationScopeKey = `${yearFilter ?? 'all'}-${quarterFilter ?? 'all'}-${monthFilterKey ?? 'all'}-${transactionView}-${transactionDrilldown?.kind ?? 'none'}-${transactionDrilldown?.kind === 'subcategory' ? transactionDrilldown.subCategoryId : transactionDrilldown?.categoryId ?? 'all'}`;
+  const paginationScopeKey = `${yearFilter ?? 'all'}-${quarterFilter ?? 'all'}-${monthFilterKey ?? 'all'}-${transactionView}-${transactionDrilldown?.kind ?? 'none'}-${transactionDrilldown?.kind === 'subcategory' ? transactionDrilldown.subCategoryId : (transactionDrilldown?.categoryId ?? 'all')}`;
   const transactionsPageInput = useMemo(() => {
     const sortField =
       sorting[0]?.id === 'transaction' ||
@@ -934,40 +926,40 @@ export default function TransactionsPanel(props: {
       <Paper className={classes.surfaceCard} radius="xl" p="md">
         <Stack gap="md">
           <Group gap="sm" align="center" wrap="wrap">
-              <Badge variant="light">{pageSummary.totalCount} shown</Badge>
-              <Badge
-                variant="light"
-                color={pageSummary.uncodedCount > 0 ? 'red' : 'gray'}
-              >
-                {pageSummary.uncodedCount} uncoded
-                {pageSummary.uncodedCount > 0
-                  ? ` · ${formatCurrencyFromCents(
-                      pageSummary.uncodedCents,
-                      currencyCode
-                    )}`
-                  : ''}
+            <Badge variant="light">{pageSummary.totalCount} shown</Badge>
+            <Badge
+              variant="light"
+              color={pageSummary.uncodedCount > 0 ? 'red' : 'gray'}
+            >
+              {pageSummary.uncodedCount} uncoded
+              {pageSummary.uncodedCount > 0
+                ? ` · ${formatCurrencyFromCents(
+                    pageSummary.uncodedCents,
+                    currencyCode
+                  )}`
+                : ''}
+            </Badge>
+            {pageSummary.assignedToMeCount > 0 ? (
+              <Badge variant="light" color="orange">
+                {pageSummary.assignedToMeCount} assigned to me
               </Badge>
-              {pageSummary.assignedToMeCount > 0 ? (
-                <Badge variant="light" color="orange">
-                  {pageSummary.assignedToMeCount} assigned to me
-                </Badge>
-              ) : null}
-              {pageSummary.reviewedCount > 0 ? (
-                <Badge variant="light" color="green">
-                  {pageSummary.reviewedCount} reviewed
-                </Badge>
-              ) : null}
-              {pageSummary.lockedCount > 0 ? (
-                <Badge variant="light" color="gray">
-                  {pageSummary.lockedCount} locked
-                </Badge>
-              ) : null}
-              <Badge
-                variant="light"
-                color={autoMappedPendingTxns.length > 0 ? 'yellow' : 'gray'}
-              >
-                {autoMappedPendingTxns.length} pending review
+            ) : null}
+            {pageSummary.reviewedCount > 0 ? (
+              <Badge variant="light" color="green">
+                {pageSummary.reviewedCount} reviewed
               </Badge>
+            ) : null}
+            {pageSummary.lockedCount > 0 ? (
+              <Badge variant="light" color="gray">
+                {pageSummary.lockedCount} locked
+              </Badge>
+            ) : null}
+            <Badge
+              variant="light"
+              color={autoMappedPendingTxns.length > 0 ? 'yellow' : 'gray'}
+            >
+              {autoMappedPendingTxns.length} pending review
+            </Badge>
           </Group>
 
           {isHydrated ? (
@@ -1063,68 +1055,72 @@ export default function TransactionsPanel(props: {
       </Paper>
 
       <div className={classes.tableBreakout}>
-        {!isHydrated || transactionsPageQ.isLoading || isTransitioningPageData ? (
+        {!isHydrated ||
+        transactionsPageQ.isLoading ||
+        isTransitioningPageData ? (
           <Paper className={classes.surfaceCard} radius="xl" p="lg">
             <Text c="dimmed">
               {!isHydrated
                 ? 'Loading transactions...'
                 : transactionDrilldown
-                ? 'Loading budget drilldown transactions...'
-                : 'Loading transactions...'}
+                  ? 'Loading budget drilldown transactions...'
+                  : 'Loading transactions...'}
             </Text>
           </Paper>
         ) : (
           <div className={classes.tableWrap}>
             <MantineReactTable
-            key={paginationScopeKey}
-            columns={txnColumns}
-            data={pagedTxns}
-            getRowId={(row) => row.id}
-            enableEditing={!readOnly}
-            editDisplayMode="cell"
-            state={{
-              pagination,
-              sorting,
-              showProgressBars: transactionsPageQ.isFetching,
-            }}
-            onPaginationChange={setPagination}
-            onSortingChange={(updater) => {
-              const nextSorting =
-                typeof updater === 'function' ? updater(sorting) : updater;
-              setSorting(nextSorting);
-              setPagination((current) => ({ ...current, pageIndex: 0 }));
-            }}
-            enableColumnResizing
-            enableColumnActions={false}
-            enableSorting
-            enableSortingRemoval={false}
-            manualPagination
-            manualSorting
-            rowCount={pageSummary.totalCount}
-            enablePagination
-            autoResetPageIndex={false}
-            initialState={{
-              density: 'xs',
-            }}
-            mantineTableContainerProps={{ className: 'financeTable txnTable' }}
-            mantineTableBodyCellProps={{ style: { verticalAlign: 'middle' } }}
-            mantineTableProps={{
-              highlightOnHover: true,
-              striped: 'odd',
-              withTableBorder: true,
-              style: { tableLayout: 'auto' },
-            }}
-            enableTopToolbar={false}
-            enableDensityToggle={false}
-            enableFullScreenToggle={false}
-            mantineTableBodyRowProps={({ row }) => {
-              const ok =
-                !!row.original.subCategoryId &&
-                taxonomy.validSubIds.has(row.original.subCategoryId);
-              return isCategorisableTxn(row.original) && !ok
-                ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-                : {};
-            }}
+              key={paginationScopeKey}
+              columns={txnColumns}
+              data={pagedTxns}
+              getRowId={(row) => row.id}
+              enableEditing={!readOnly}
+              editDisplayMode="cell"
+              state={{
+                pagination,
+                sorting,
+                showProgressBars: transactionsPageQ.isFetching,
+              }}
+              onPaginationChange={setPagination}
+              onSortingChange={(updater) => {
+                const nextSorting =
+                  typeof updater === 'function' ? updater(sorting) : updater;
+                setSorting(nextSorting);
+                setPagination((current) => ({ ...current, pageIndex: 0 }));
+              }}
+              enableColumnResizing
+              enableColumnActions={false}
+              enableSorting
+              enableSortingRemoval={false}
+              manualPagination
+              manualSorting
+              rowCount={pageSummary.totalCount}
+              enablePagination
+              autoResetPageIndex={false}
+              initialState={{
+                density: 'xs',
+              }}
+              mantineTableContainerProps={{
+                className: 'financeTable txnTable',
+              }}
+              mantineTableBodyCellProps={{ style: { verticalAlign: 'middle' } }}
+              mantineTableProps={{
+                highlightOnHover: true,
+                striped: 'odd',
+                withTableBorder: true,
+                style: { tableLayout: 'auto' },
+              }}
+              enableTopToolbar={false}
+              enableDensityToggle={false}
+              enableFullScreenToggle={false}
+              mantineTableBodyRowProps={({ row }) => {
+                const ok =
+                  !!row.original.subCategoryId &&
+                  taxonomy.validSubIds.has(row.original.subCategoryId);
+                return isCategorisableTxn(row.original) && !ok
+                  ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
+                  : {};
+              }}
             />
           </div>
         )}

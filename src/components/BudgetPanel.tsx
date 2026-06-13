@@ -351,7 +351,9 @@ export default function BudgetPanel(props: {
             size: 128,
             minSize: 128,
             enableHiding: true,
-            Header: () => <span className={classes.inlineHeader}>{year} Total</span>,
+            Header: () => (
+              <span className={classes.inlineHeader}>{year} Total</span>
+            ),
             accessorFn: (row) => sumMonths(row, yearMonths),
             Cell: ({ cell }) => (
               <Text className="table-body-emphasis">
@@ -386,7 +388,9 @@ export default function BudgetPanel(props: {
                   minSize: 124,
                   enableHiding: true,
                   Header: () => (
-                  <span className={classes.inlineHeader}>{quarter} Total</span>
+                    <span className={classes.inlineHeader}>
+                      {quarter} Total
+                    </span>
                   ),
                   accessorFn: (row) => sumMonths(row, months),
                   Cell: ({ cell }) => (
@@ -422,7 +426,9 @@ export default function BudgetPanel(props: {
                   minSize: 112,
                   enableHiding: false,
                   Header: () => (
-                  <span className={classes.inlineHeader}>{formatMonthLabel(mk)}</span>
+                    <span className={classes.inlineHeader}>
+                      {formatMonthLabel(mk)}
+                    </span>
                   ),
                   accessorFn: (row) => row.actualByMonthKey[mk] ?? 0,
                   Cell: ({ cell }) => (
@@ -661,9 +667,7 @@ export default function BudgetPanel(props: {
       >
         <Stack gap="xs">
           <Group justify="space-between" align="center" wrap="wrap">
-            <Text className={classes.sectionEyebrow}>
-              Project totals
-            </Text>
+            <Text className={classes.sectionEyebrow}>Project totals</Text>
           </Group>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
             <Paper
@@ -909,86 +913,88 @@ export default function BudgetPanel(props: {
         <div className={classes.tableWrap}>
           {isHydrated ? (
             <MantineReactTable
-            columns={budgetColumns}
-            data={displayRows}
-            getRowId={(row) => row.rowId}
-            state={{ columnVisibility }}
-            onColumnVisibilityChange={handleColumnVisibilityChange}
-            mantineTableContainerProps={{
-              className: 'financeTable budgetTable',
-            }}
-            mantineTableBodyCellProps={{
-              style: { verticalAlign: 'middle' },
-            }}
-            renderToolbarInternalActions={() => (
-              <Menu withinPortal position="bottom-end" shadow="md">
-                <Menu.Target>
-                  <ActionIcon
-                    variant="light"
-                    color="gray"
-                    aria-label="Show or hide budget columns"
-                  >
-                    <IconColumns size={16} />
-                  </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown className="budgetColumnMenu">
-                  {Array.from(timeHierarchy.byYear.entries())
-                    .sort(([a], [b]) => b - a)
-                    .map(([year, entry]) => {
-                      const yearId = `yt_${year}`;
-                      return (
-                        <Stack key={yearId} gap={4} p="xs">
-                          <Switch
-                            checked={userColumnVisibility[yearId] ?? true}
-                            label={`${year} Total`}
-                            onChange={(event) =>
-                              toggleYearVisibility(
-                                year,
-                                event.currentTarget.checked
-                              )
-                            }
-                          />
-                          {entry.quarterIds.map((quarterId) => (
+              columns={budgetColumns}
+              data={displayRows}
+              getRowId={(row) => row.rowId}
+              state={{ columnVisibility }}
+              onColumnVisibilityChange={handleColumnVisibilityChange}
+              mantineTableContainerProps={{
+                className: 'financeTable budgetTable',
+              }}
+              mantineTableBodyCellProps={{
+                style: { verticalAlign: 'middle' },
+              }}
+              renderToolbarInternalActions={() => (
+                <Menu withinPortal position="bottom-end" shadow="md">
+                  <Menu.Target>
+                    <ActionIcon
+                      variant="light"
+                      color="gray"
+                      aria-label="Show or hide budget columns"
+                    >
+                      <IconColumns size={16} />
+                    </ActionIcon>
+                  </Menu.Target>
+                  <Menu.Dropdown className="budgetColumnMenu">
+                    {Array.from(timeHierarchy.byYear.entries())
+                      .sort(([a], [b]) => b - a)
+                      .map(([year, entry]) => {
+                        const yearId = `yt_${year}`;
+                        return (
+                          <Stack key={yearId} gap={4} p="xs">
                             <Switch
-                              key={quarterId}
-                              checked={userColumnVisibility[quarterId] ?? true}
-                              label={
-                                quarterId.replace(/^qt_\d+_/, '') + ' Total'
-                              }
+                              checked={userColumnVisibility[yearId] ?? true}
+                              label={`${year} Total`}
                               onChange={(event) =>
-                                toggleQuarterVisibility(
-                                  quarterId,
+                                toggleYearVisibility(
+                                  year,
                                   event.currentTarget.checked
                                 )
                               }
-                              ml="lg"
                             />
-                          ))}
-                          <Menu.Divider />
-                        </Stack>
-                      );
-                    })}
-                </Menu.Dropdown>
-              </Menu>
-            )}
-            mantineTableBodyRowProps={({ row }) => ({
-              className:
-                row.original.rowKind === 'category'
-                  ? 'budgetTable-row budgetTable-row-category'
-                  : 'budgetTable-row budgetTable-row-subcategory',
-            })}
-            mantineTableProps={{
-              highlightOnHover: false,
-              withTableBorder: true,
-              style: { tableLayout: 'fixed' },
-            }}
-            mantineTopToolbarProps={{ className: 'budgetTable-toolbar' }}
-            enablePagination={false}
-            enableSorting={false}
-            enableTopToolbar
-            enableDensityToggle={false}
-            enableFullScreenToggle={false}
-            enableColumnActions={false}
+                            {entry.quarterIds.map((quarterId) => (
+                              <Switch
+                                key={quarterId}
+                                checked={
+                                  userColumnVisibility[quarterId] ?? true
+                                }
+                                label={
+                                  quarterId.replace(/^qt_\d+_/, '') + ' Total'
+                                }
+                                onChange={(event) =>
+                                  toggleQuarterVisibility(
+                                    quarterId,
+                                    event.currentTarget.checked
+                                  )
+                                }
+                                ml="lg"
+                              />
+                            ))}
+                            <Menu.Divider />
+                          </Stack>
+                        );
+                      })}
+                  </Menu.Dropdown>
+                </Menu>
+              )}
+              mantineTableBodyRowProps={({ row }) => ({
+                className:
+                  row.original.rowKind === 'category'
+                    ? 'budgetTable-row budgetTable-row-category'
+                    : 'budgetTable-row budgetTable-row-subcategory',
+              })}
+              mantineTableProps={{
+                highlightOnHover: false,
+                withTableBorder: true,
+                style: { tableLayout: 'fixed' },
+              }}
+              mantineTopToolbarProps={{ className: 'budgetTable-toolbar' }}
+              enablePagination={false}
+              enableSorting={false}
+              enableTopToolbar
+              enableDensityToggle={false}
+              enableFullScreenToggle={false}
+              enableColumnActions={false}
             />
           ) : (
             <Paper className={classes.surfaceMuted} radius="xl" p="md">

@@ -104,7 +104,8 @@ async function fetchTransactionsPageViaApi(
         : 'INTERNAL_ERROR') ?? 'INTERNAL_ERROR',
       (typeof payload === 'object' && payload && 'message' in payload
         ? payload.message
-        : 'Could not load transactions page') ?? 'Could not load transactions page'
+        : 'Could not load transactions page') ??
+        'Could not load transactions page'
     );
   }
   return payload as TxnListPageResult;

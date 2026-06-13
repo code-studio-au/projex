@@ -914,9 +914,9 @@ export default function SmokeDashboardPage() {
                             : 'Idle'}
                       </Badge>
                     </Group>
-                  <Text size="sm" c="dimmed" className={classes.sectionCopy}>
-                    {section.description}
-                  </Text>
+                    <Text size="sm" c="dimmed" className={classes.sectionCopy}>
+                      {section.description}
+                    </Text>
                     {view?.statusMessage ? (
                       <Text
                         size="sm"

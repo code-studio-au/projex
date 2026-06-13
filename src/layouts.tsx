@@ -48,10 +48,7 @@ export function RootProviders({
   const activeQueryClient = queryClient ?? router.options.context.queryClient;
 
   return (
-    <MantineProvider
-      theme={theme}
-      defaultColorScheme="light"
-    >
+    <MantineProvider theme={theme} defaultColorScheme="light">
       <QueryClientProvider client={activeQueryClient}>
         {children}
       </QueryClientProvider>

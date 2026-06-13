@@ -52,7 +52,9 @@ export async function getDefaultCompanyIdForUser() {
 export function useCompanyQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   const session = useSessionQuery();
-  return useQuery(companyQueryOptions(session.data?.userId ?? scopeUserId, companyId));
+  return useQuery(
+    companyQueryOptions(session.data?.userId ?? scopeUserId, companyId)
+  );
 }
 
 export function companyQueryOptions(userId: string, companyId: CompanyId) {
