@@ -156,6 +156,9 @@ import {
 
 const integrationDatabaseUrl =
   process.env.PROJEX_INTEGRATION_DATABASE_URL?.trim() ?? '';
+const integrationExportStorageConfigured =
+  Boolean(process.env.S3_BUCKET?.trim()) &&
+  Boolean(process.env.S3_REGION?.trim());
 
 function assertTestDatabaseUrl(connectionString: string) {
   const databaseName = new URL(connectionString).pathname.replace(/^\//, '');
@@ -210,12 +213,19 @@ function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
   return {
     listUsers: () => listUsersServer({ context }),
     listCompanies: () => listCompaniesServer({ context }),
-    createCompany: (input: { name: string; id?: string }) =>
+    createCompany: (input: {
+      name: string;
+      id?: string;
+      initialAdminName?: string;
+      initialAdminEmail?: string;
+    }) =>
       createCompanyServer({
         context,
         input: {
           name: input.name,
           id: input.id ? asCompanyId(input.id) : undefined,
+          initialAdminName: input.initialAdminName,
+          initialAdminEmail: input.initialAdminEmail,
         },
       }),
     getCompany: (companyId: ReturnType<typeof asCompanyId>) =>
@@ -240,7 +250,8 @@ function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
     ) => createProjectServer({ context, companyId, input }),
     listCompanyMemberships: (companyId: ReturnType<typeof asCompanyId>) =>
       listCompanyMembershipsServer({ context, companyId }),
-    listAllCompanyMemberships: () => listAllCompanyMembershipsServer({ context }),
+    listAllCompanyMemberships: () =>
+      listAllCompanyMembershipsServer({ context }),
     upsertCompanyMembership: (
       companyId: ReturnType<typeof asCompanyId>,
       userId: ReturnType<typeof asUserId>,
@@ -287,7 +298,9 @@ function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
     ) => createCompanyDefaultSubCategoryServer({ context, companyId, input }),
     updateCompanyDefaultSubCategory: (
       companyId: ReturnType<typeof asCompanyId>,
-      input: Parameters<typeof updateCompanyDefaultSubCategoryServer>[0]['input']
+      input: Parameters<
+        typeof updateCompanyDefaultSubCategoryServer
+      >[0]['input']
     ) =>
       updateCompanyDefaultSubCategoryServer({
         context,
@@ -432,7 +445,8 @@ function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
       projectId: ReturnType<typeof asProjectId>,
       txnId: ReturnType<typeof asTxnId>,
       commentId: ReturnType<typeof asTxnCommentId>
-    ) => deleteTransactionCommentServer({ context, projectId, txnId, commentId }),
+    ) =>
+      deleteTransactionCommentServer({ context, projectId, txnId, commentId }),
     previewImportTransactions: (
       projectId: ReturnType<typeof asProjectId>,
       input: TxnImportPreviewInput
@@ -476,9 +490,8 @@ function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
       companyId: ReturnType<typeof asCompanyId>,
       options: Parameters<typeof createCompanyExportJobServer>[0]['options']
     ) => createCompanyExportJobServer({ context, companyId, options }),
-    getCompanyExportJob: (
-      jobId: ReturnType<typeof asCompanyExportJobId>
-    ) => getCompanyExportJobServer({ context, jobId }),
+    getCompanyExportJob: (jobId: ReturnType<typeof asCompanyExportJobId>) =>
+      getCompanyExportJobServer({ context, jobId }),
     downloadCompanyExportJob: (
       jobId: ReturnType<typeof asCompanyExportJobId>
     ) => downloadCompanyExportJobServer({ context, jobId }),
@@ -505,7 +518,7 @@ async function waitForExportJobCompletion(args: {
 
 test(
   'company export jobs preserve ready-email state and emit workbook metadata',
-  { skip: !integrationDatabaseUrl },
+  { skip: !integrationDatabaseUrl || !integrationExportStorageConfigured },
   async () => {
     const db = createIntegrationDb();
     const companyId = asCompanyId('itest_export_co_1');
@@ -1344,7 +1357,9 @@ test(
     const viewerUserId = asUserId('itest_mutation_usr_viewer');
     const activeProjectId = asProjectId('itest_mutation_prj_active');
     const archivedProjectId = asProjectId('itest_mutation_prj_archived');
-    const deactivatedCompanyProjectId = asProjectId('itest_mutation_prj_hidden');
+    const deactivatedCompanyProjectId = asProjectId(
+      'itest_mutation_prj_hidden'
+    );
     const budgetId = asBudgetLineId('itest_mutation_budget_1');
     const txnId = asTxnId('itest_mutation_txn_1');
     const commentId = asTxnCommentId('itest_mutation_comment_1');
@@ -1463,8 +1478,16 @@ test(
       await db
         .insertInto('project_memberships')
         .values([
-          { project_id: activeProjectId, user_id: memberUserId, role: 'member' },
-          { project_id: activeProjectId, user_id: viewerUserId, role: 'viewer' },
+          {
+            project_id: activeProjectId,
+            user_id: memberUserId,
+            role: 'member',
+          },
+          {
+            project_id: activeProjectId,
+            user_id: viewerUserId,
+            role: 'viewer',
+          },
           {
             project_id: archivedProjectId,
             user_id: memberUserId,
@@ -1805,7 +1828,9 @@ test(
     const txnId = asTxnId('itest_routeauth_txn_1');
     const commentId = asTxnCommentId('itest_routeauth_comment_1');
     const importBatchId = asImportBatchId('itest_routeauth_batch_1');
-    const importCandidateId = asImportCandidateId('itest_routeauth_candidate_1');
+    const importCandidateId = asImportCandidateId(
+      'itest_routeauth_candidate_1'
+    );
     const now = new Date().toISOString();
 
     try {
@@ -1918,7 +1943,11 @@ test(
           },
           { company_id: companyId, user_id: memberUserId, role: 'member' },
           { company_id: companyId, user_id: viewerUserId, role: 'member' },
-          { company_id: otherCompanyId, user_id: outsiderUserId, role: 'admin' },
+          {
+            company_id: otherCompanyId,
+            user_id: outsiderUserId,
+            role: 'admin',
+          },
           { company_id: companyId, user_id: inviteUserId, role: 'member' },
         ])
         .execute();
@@ -1995,9 +2024,21 @@ test(
           { project_id: projectId, user_id: inviteUserId, role: 'member' },
           { project_id: secondProjectId, user_id: adminUserId, role: 'owner' },
           { project_id: secondProjectId, user_id: execUserId, role: 'lead' },
-          { project_id: otherProjectId, user_id: outsiderUserId, role: 'owner' },
-          { project_id: archivedProjectId, user_id: adminUserId, role: 'owner' },
-          { project_id: archivedProjectId, user_id: memberUserId, role: 'member' },
+          {
+            project_id: otherProjectId,
+            user_id: outsiderUserId,
+            role: 'owner',
+          },
+          {
+            project_id: archivedProjectId,
+            user_id: adminUserId,
+            role: 'owner',
+          },
+          {
+            project_id: archivedProjectId,
+            user_id: memberUserId,
+            role: 'member',
+          },
         ])
         .execute();
 
@@ -2173,7 +2214,12 @@ test(
         { route: 'GET /api/companies', run: (x) => x.listCompanies() },
         {
           route: 'POST /api/companies',
-          run: (x) => x.createCompany({ name: 'Unauthed Company' }),
+          run: (x) =>
+            x.createCompany({
+              name: 'Unauthed Company',
+              initialAdminName: 'Unauthed Admin',
+              initialAdminEmail: 'unauthed-admin@example.com',
+            }),
         },
         {
           route: 'GET /api/companies/:companyId',
@@ -2221,7 +2267,8 @@ test(
         },
         {
           route: 'POST /api/companies/:companyId/memberships',
-          run: (x) => x.upsertCompanyMembership(companyId, inviteUserId, 'member'),
+          run: (x) =>
+            x.upsertCompanyMembership(companyId, inviteUserId, 'member'),
         },
         {
           route: 'DELETE /api/companies/:companyId/memberships',
@@ -2257,7 +2304,8 @@ test(
             }),
         },
         {
-          route: 'DELETE /api/companies/:companyId/default-categories/:categoryId',
+          route:
+            'DELETE /api/companies/:companyId/default-categories/:categoryId',
           run: (x) =>
             x.deleteCompanyDefaultCategory(companyId, defaultCategoryId),
         },
@@ -2275,7 +2323,8 @@ test(
             }),
         },
         {
-          route: 'DELETE /api/companies/:companyId/default-sub-categories/:subCategoryId',
+          route:
+            'DELETE /api/companies/:companyId/default-sub-categories/:subCategoryId',
           run: (x) =>
             x.deleteCompanyDefaultSubCategory(companyId, defaultSubCategoryId),
         },
@@ -2295,7 +2344,8 @@ test(
             }),
         },
         {
-          route: 'DELETE /api/companies/:companyId/default-mapping-rules/:ruleId',
+          route:
+            'DELETE /api/companies/:companyId/default-mapping-rules/:ruleId',
           run: (x) =>
             x.deleteCompanyDefaultMappingRule(companyId, defaultMappingRuleId),
         },
@@ -2331,7 +2381,8 @@ test(
         },
         {
           route: 'PATCH /api/projects/:projectId',
-          run: (x) => x.updateProject({ id: projectId, name: 'Changed Project' }),
+          run: (x) =>
+            x.updateProject({ id: projectId, name: 'Changed Project' }),
         },
         {
           route: 'DELETE /api/projects/:projectId',
@@ -2355,11 +2406,13 @@ test(
         },
         {
           route: 'POST /api/projects/:projectId/memberships',
-          run: (x) => x.upsertProjectMembership(projectId, inviteUserId, 'member'),
+          run: (x) =>
+            x.upsertProjectMembership(projectId, inviteUserId, 'member'),
         },
         {
           route: 'DELETE /api/projects/:projectId/memberships',
-          run: (x) => x.deleteProjectMembership(projectId, inviteUserId, 'member'),
+          run: (x) =>
+            x.deleteProjectMembership(projectId, inviteUserId, 'member'),
         },
         {
           route: 'POST /api/projects/:projectId/apply-company-default-taxonomy',
@@ -2397,7 +2450,8 @@ test(
             }),
         },
         {
-          route: 'DELETE /api/projects/:projectId/sub-categories/:subCategoryId',
+          route:
+            'DELETE /api/projects/:projectId/sub-categories/:subCategoryId',
           run: (x) => x.deleteSubCategory(projectId, subCategoryId),
         },
         {
@@ -2499,7 +2553,8 @@ test(
             }),
         },
         {
-          route: 'PATCH /api/projects/:projectId/transactions/:txnId/comments/:commentId',
+          route:
+            'PATCH /api/projects/:projectId/transactions/:txnId/comments/:commentId',
           run: (x) =>
             x.updateTransactionComment(projectId, txnId, {
               id: commentId,
@@ -2507,7 +2562,8 @@ test(
             }),
         },
         {
-          route: 'DELETE /api/projects/:projectId/transactions/:txnId/comments/:commentId',
+          route:
+            'DELETE /api/projects/:projectId/transactions/:txnId/comments/:commentId',
           run: (x) => x.deleteTransactionComment(projectId, txnId, commentId),
         },
         {
@@ -2546,7 +2602,8 @@ test(
           run: (x) => x.listImportCandidates(projectId),
         },
         {
-          route: 'POST /api/projects/:projectId/import-candidates/:candidateId/review',
+          route:
+            'POST /api/projects/:projectId/import-candidates/:candidateId/review',
           run: (x) =>
             x.reviewImportCandidate(projectId, {
               candidateId: importCandidateId,
@@ -2726,7 +2783,11 @@ test(
           },
           { company_id: companyId, user_id: memberUserId, role: 'member' },
           { company_id: companyId, user_id: viewerUserId, role: 'member' },
-          { company_id: otherCompanyId, user_id: outsiderUserId, role: 'admin' },
+          {
+            company_id: otherCompanyId,
+            user_id: outsiderUserId,
+            role: 'admin',
+          },
           { company_id: companyId, user_id: inviteUserId, role: 'member' },
         ])
         .execute();
@@ -2801,8 +2862,16 @@ test(
           { project_id: projectId, user_id: viewerUserId, role: 'viewer' },
           { project_id: projectId, user_id: inviteUserId, role: 'member' },
           { project_id: secondProjectId, user_id: adminUserId, role: 'owner' },
-          { project_id: otherProjectId, user_id: outsiderUserId, role: 'owner' },
-          { project_id: archivedProjectId, user_id: memberUserId, role: 'member' },
+          {
+            project_id: otherProjectId,
+            user_id: outsiderUserId,
+            role: 'owner',
+          },
+          {
+            project_id: archivedProjectId,
+            user_id: memberUserId,
+            role: 'member',
+          },
         ])
         .execute();
 
@@ -3073,7 +3142,8 @@ test(
         'POST /api/projects/:projectId/memberships member'
       );
       await assertAppErrorCode(
-        () => memberApi.deleteProjectMembership(projectId, inviteUserId, 'member'),
+        () =>
+          memberApi.deleteProjectMembership(projectId, inviteUserId, 'member'),
         'FORBIDDEN',
         'DELETE /api/projects/:projectId/memberships member'
       );

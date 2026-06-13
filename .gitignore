@@ -27,5 +27,6 @@ dist-ssr
 .env.local
 .env.smoke.local
 .scaffold/
+.local/
 .env.staging
 .env.production

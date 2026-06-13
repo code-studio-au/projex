@@ -14,11 +14,7 @@ import type {
   CompanyId,
   UserId,
 } from '../../types';
-import {
-  asCompanyExportJobId,
-  asCompanyId,
-  asUserId,
-} from '../../types';
+import { asCompanyExportJobId, asCompanyId, asUserId } from '../../types';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
 import type { DB } from '../db/schema';
@@ -33,6 +29,11 @@ import {
   buildCompanyExportReadyUrl,
   sendCompanyExportReadyEmail,
 } from '../notifications/exportNotifications';
+import {
+  deleteCompanyExportObject,
+  getCompanyExportObject,
+  putCompanyExportObject,
+} from '../storage/exportObjectStore';
 
 const XLSX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -91,7 +92,9 @@ function toCompanyExportJob(row: ExportJobRow): CompanyExportJob {
     scope: row.scope as CompanyExportScope,
     detail: row.detail as CompanyExportDetail,
     status,
-    fileName: status === 'completed' ? row.file_name ?? undefined : undefined,
+    fileName: status === 'completed' ? (row.file_name ?? undefined) : undefined,
+    fileSizeBytes:
+      status === 'completed' ? (row.file_size_bytes ?? undefined) : undefined,
     downloadPath:
       status === 'completed'
         ? `/api/export-jobs/${encodeURIComponent(row.id)}/download`
@@ -205,19 +208,51 @@ async function cleanupExpiredExportJobs(db = getDb()) {
   const retentionCutoff = new Date(
     Date.now() - EXPORT_JOB_RETENTION_MS
   ).toISOString();
-  await db
-    .deleteFrom('company_export_jobs')
+  const rows = await db
+    .selectFrom('company_export_jobs')
+    .selectAll()
     .where((eb) =>
       eb.or([
-        eb.and([
-          eb('expires_at', 'is not', null),
-          eb('expires_at', '<=', now),
-        ]),
+        eb.and([eb('expires_at', 'is not', null), eb('expires_at', '<=', now)]),
         eb.and([
           eb('status', 'in', ['queued', 'running']),
           eb('requested_at', '<=', retentionCutoff),
         ]),
       ])
+    )
+    .execute();
+
+  for (const row of rows) {
+    if (row.storage_bucket && row.storage_key) {
+      try {
+        await deleteCompanyExportObject({
+          bucket: row.storage_bucket,
+          key: row.storage_key,
+        });
+      } catch (error) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            type: 'company_export_cleanup',
+            jobId: row.id,
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Could not delete expired export object',
+          })
+        );
+      }
+    }
+  }
+
+  if (!rows.length) return;
+
+  await db
+    .deleteFrom('company_export_jobs')
+    .where(
+      'id',
+      'in',
+      rows.map((row) => row.id)
     )
     .execute();
 }
@@ -234,7 +269,9 @@ function kickCompanyExportJob(jobId: CompanyExportJobId) {
           type: 'company_export_job',
           jobId,
           message:
-            error instanceof Error ? error.message : 'Export job failed unexpectedly',
+            error instanceof Error
+              ? error.message
+              : 'Export job failed unexpectedly',
         })
       );
     })
@@ -280,15 +317,23 @@ async function runCompanyExportJob(jobId: CompanyExportJobId) {
     const completedAt = nowIso();
     const fileBytes = Buffer.from(result.bytes);
     const expiresAt = expiryIso(completedAt);
+    const storedObject = await putCompanyExportObject({
+      jobId,
+      fileName: result.fileName,
+      bytes: fileBytes,
+      contentType: XLSX_CONTENT_TYPE,
+    });
 
     await db
       .updateTable('company_export_jobs')
       .set({
         status: 'completed',
         file_name: result.fileName,
-        content_type: XLSX_CONTENT_TYPE,
-        file_bytes: fileBytes,
-        file_size_bytes: fileBytes.byteLength,
+        content_type: storedObject.contentType,
+        file_size_bytes: storedObject.sizeBytes,
+        storage_bucket: storedObject.bucket,
+        storage_key: storedObject.key,
+        storage_etag: storedObject.etag ?? null,
         completed_at: completedAt,
         failed_at: null,
         error_message: null,
@@ -315,14 +360,43 @@ async function runCompanyExportJob(jobId: CompanyExportJobId) {
           ? error.message
           : 'Export generation failed';
 
+    const failedRow = await db
+      .selectFrom('company_export_jobs')
+      .select(['storage_bucket', 'storage_key'])
+      .where('id', '=', jobId)
+      .executeTakeFirst();
+
+    if (failedRow?.storage_bucket && failedRow.storage_key) {
+      try {
+        await deleteCompanyExportObject({
+          bucket: failedRow.storage_bucket,
+          key: failedRow.storage_key,
+        });
+      } catch (cleanupError) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            type: 'company_export_job_cleanup',
+            jobId,
+            message:
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : 'Could not remove failed export object',
+          })
+        );
+      }
+    }
+
     await db
       .updateTable('company_export_jobs')
       .set({
         status: 'failed',
         file_name: null,
         content_type: null,
-        file_bytes: null,
         file_size_bytes: null,
+        storage_bucket: null,
+        storage_key: null,
+        storage_etag: null,
         error_message: message,
         failed_at: failedAt,
         expires_at: expiryIso(failedAt),
@@ -369,13 +443,13 @@ export async function createCompanyExportJobServer(args: {
         notify_when_ready: args.options.notifyWhenReady ?? false,
         notify_email:
           args.options.notifyWhenReady === true
-            ? (
+            ? ((
                 await db
                   .selectFrom('users')
                   .select('email')
                   .where('id', '=', userId)
                   .executeTakeFirst()
-              )?.email ?? null
+              )?.email ?? null)
             : null,
         ready_notification_status:
           args.options.notifyWhenReady === true ? 'pending' : 'not_requested',
@@ -461,20 +535,28 @@ export async function downloadCompanyExportJobServer(args: {
     if (isExpired(row)) {
       throw new AppError('NOT_FOUND', 'Export file has expired');
     }
-    if (row.status !== 'completed' || !row.file_bytes || !row.file_name) {
+    if (
+      row.status !== 'completed' ||
+      !row.file_name ||
+      !row.storage_bucket ||
+      !row.storage_key
+    ) {
       if (row.status === 'queued' || isStaleRunningJob(row)) {
         void kickCompanyExportJob(args.jobId);
       }
       throw new AppError('CONFLICT', 'Export is not ready for download');
     }
 
+    const storedObject = await getCompanyExportObject({
+      bucket: row.storage_bucket,
+      key: row.storage_key,
+    });
+
     return {
-      bytes:
-        row.file_bytes instanceof Uint8Array
-          ? row.file_bytes
-          : new Uint8Array(row.file_bytes),
+      bytes: storedObject.bytes,
       fileName: row.file_name,
-      contentType: row.content_type ?? XLSX_CONTENT_TYPE,
+      contentType:
+        row.content_type ?? storedObject.contentType ?? XLSX_CONTENT_TYPE,
     };
   });
 }

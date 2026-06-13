@@ -257,6 +257,7 @@ Why this matters:
 Examples:
 
 - shipped: company Excel export with full/detail summary modes, active/all scope, transaction date filters, reporting rollups, background job generation, and optional ready-email notification
+- shipped: workbook payloads now persist in S3-compatible object storage while job state, authorization, and retention metadata remain in the application database
 - next: continue hardening the BI/export contract only where downstream consumers prove they need it, plus optional workbook polish such as protected report tabs or branded coversheets
 - future: project-level export variants only if users prove they need a narrower handoff than the current company workbook
 

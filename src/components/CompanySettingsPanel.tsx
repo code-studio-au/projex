@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   Alert,
   Badge,
@@ -19,7 +25,12 @@ import {
 } from 'mantine-react-table-open';
 import { useMediaQuery } from '@mantine/hooks';
 
-import type { CompanyExportJob, CompanyId, CompanyRole, UserId } from '../types';
+import type {
+  CompanyExportJob,
+  CompanyId,
+  CompanyRole,
+  UserId,
+} from '../types';
 import { asUserId } from '../types';
 
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
@@ -35,9 +46,7 @@ import {
   useSendCompanyUserInviteEmailMutation,
 } from '../queries/admin';
 import { useCompanyDefaultsQuery } from '../queries/taxonomy';
-import {
-  Route as companyLayoutRoute,
-} from '../routes/_authed.c.$companyId';
+import { Route as companyLayoutRoute } from '../routes/_authed.c.$companyId';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
 import CompanyImportRulesModal from './CompanyImportRulesModal';
@@ -47,6 +56,28 @@ const hydrateSubscription = () => () => {};
 const getClientHydratedSnapshot = () => true;
 const getServerHydratedSnapshot = () => false;
 const EXPORT_JOB_POLL_INTERVAL_MS = 2000;
+
+function formatFileSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes < 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  const display =
+    value >= 100
+      ? value.toFixed(0)
+      : value >= 10
+        ? value.toFixed(1)
+        : value.toFixed(2);
+  return `${display} ${units[unitIndex]}`;
+}
 
 type ExportJobState = {
   job: CompanyExportJob | null;
@@ -160,7 +191,9 @@ export default function CompanySettingsPanel(props: {
   // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
   const effectiveRoleUserId: UserId | null =
     roleUserId ??
-    (isHydrated && userOptions[0]?.value ? asUserId(userOptions[0].value) : null);
+    (isHydrated && userOptions[0]?.value
+      ? asUserId(userOptions[0].value)
+      : null);
 
   const [membershipCompanyRole, setMembershipCompanyRole] =
     useState<CompanyRole | null>('member');
@@ -189,9 +222,12 @@ export default function CompanySettingsPanel(props: {
           method: 'GET',
           headers: { accept: 'application/json' },
         });
-        const payload = (await response.json()) as CompanyExportJob | {
-          message?: string;
-        } | null;
+        const payload = (await response.json()) as
+          | CompanyExportJob
+          | {
+              message?: string;
+            }
+          | null;
         if (cancelled) return;
         if (!response.ok) {
           if (initialExportJobId) {
@@ -199,7 +235,7 @@ export default function CompanySettingsPanel(props: {
               ...current,
               error:
                 typeof payload === 'object' && payload && 'message' in payload
-                  ? payload.message ?? 'Could not load the requested export.'
+                  ? (payload.message ?? 'Could not load the requested export.')
                   : 'Could not load the requested export.',
             }));
           }
@@ -236,16 +272,18 @@ export default function CompanySettingsPanel(props: {
             headers: { accept: 'application/json' },
           }
         );
-        const payload = (await response.json()) as CompanyExportJob | {
-          message?: string;
-        };
+        const payload = (await response.json()) as
+          | CompanyExportJob
+          | {
+              message?: string;
+            };
         if (cancelled) return;
         if (!response.ok) {
           setExportJobState((current) => ({
             ...current,
             error:
               typeof payload === 'object' && payload && 'message' in payload
-                ? payload.message ?? 'Could not refresh export job status.'
+                ? (payload.message ?? 'Could not refresh export job status.')
                 : 'Could not refresh export job status.',
           }));
           return;
@@ -297,13 +335,15 @@ export default function CompanySettingsPanel(props: {
           body: JSON.stringify(currentExportOptions),
         }
       );
-      const payload = (await response.json()) as CompanyExportJob | {
-        message?: string;
-      };
+      const payload = (await response.json()) as
+        | CompanyExportJob
+        | {
+            message?: string;
+          };
       if (!response.ok) {
         throw new Error(
           typeof payload === 'object' && payload && 'message' in payload
-            ? payload.message ?? 'Could not start export.'
+            ? (payload.message ?? 'Could not start export.')
             : 'Could not start export.'
         );
       }
@@ -317,7 +357,8 @@ export default function CompanySettingsPanel(props: {
       setExportJobState((current) => ({
         ...current,
         isStarting: false,
-        error: error instanceof Error ? error.message : 'Could not start export.',
+        error:
+          error instanceof Error ? error.message : 'Could not start export.',
       }));
     }
   }
@@ -341,7 +382,10 @@ export default function CompanySettingsPanel(props: {
         : 'Email delivery is not configured, so the ready email was logged on the server instead.';
     }
     if (exportJob.readyNotificationStatus === 'failed') {
-      return exportJob.readyNotificationError ?? 'Could not send the ready email for this export.';
+      return (
+        exportJob.readyNotificationError ??
+        'Could not send the ready email for this export.'
+      );
     }
     return null;
   }, [exportJob]);
@@ -404,7 +448,9 @@ export default function CompanySettingsPanel(props: {
         header: 'User',
         Cell: ({ row }) => (
           <Stack gap={2}>
-            <Text className="table-body-left-bold">{row.original.userName}</Text>
+            <Text className="table-body-left-bold">
+              {row.original.userName}
+            </Text>
             {row.original.userEmail ? (
               <Text className="table-body-left" c="dimmed">
                 {row.original.userEmail}
@@ -501,8 +547,8 @@ export default function CompanySettingsPanel(props: {
         <Stack gap="sm">
           <Title order={5}>Exports</Title>
           <Text size="sm" c="dimmed">
-            Download a full-company Excel workbook for finance handoff,
-            offline analysis, or executive reporting.
+            Download a full-company Excel workbook for finance handoff, offline
+            analysis, or executive reporting.
           </Text>
           <Select
             label="Project scope"
@@ -566,15 +612,19 @@ export default function CompanySettingsPanel(props: {
                 : exportJob.status === 'running'
                   ? 'Export in progress. The workbook will download automatically when it is ready.'
                   : exportJob.status === 'completed'
-                    ? `Workbook ready${exportJob.fileName ? `: ${exportJob.fileName}` : ''}.`
+                    ? `Workbook ready${exportJob.fileName ? `: ${exportJob.fileName}` : ''}${typeof exportJob.fileSizeBytes === 'number' ? ` (${formatFileSize(exportJob.fileSizeBytes)})` : ''}.`
                     : exportJob.status === 'expired'
                       ? 'That prepared workbook expired. Start a fresh export to regenerate it.'
-                      : exportJob.errorMessage ?? 'Export failed.'}
+                      : (exportJob.errorMessage ?? 'Export failed.')}
             </Alert>
           ) : null}
           {exportNotificationMessage ? (
             <Alert
-              color={exportJob?.readyNotificationStatus === 'failed' ? 'yellow' : 'gray'}
+              color={
+                exportJob?.readyNotificationStatus === 'failed'
+                  ? 'yellow'
+                  : 'gray'
+              }
             >
               {exportNotificationMessage}
             </Alert>
@@ -588,7 +638,8 @@ export default function CompanySettingsPanel(props: {
                 void handleStartExport();
               }}
             >
-              {exportJob?.status === 'completed' || exportJob?.status === 'failed'
+              {exportJob?.status === 'completed' ||
+              exportJob?.status === 'failed'
                 ? 'Generate fresh export'
                 : 'Prepare company export'}
             </Button>
@@ -681,8 +732,8 @@ export default function CompanySettingsPanel(props: {
           ) : (
             <Group gap="sm" wrap="wrap">
               <Badge variant="light">
-                {effectiveDefaults?.mappingRules.length ?? 0}{' '}
-                Auto-Categorise Rules
+                {effectiveDefaults?.mappingRules.length ?? 0} Auto-Categorise
+                Rules
               </Badge>
             </Group>
           )}

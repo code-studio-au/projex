@@ -150,6 +150,7 @@ export const companyExportJobResponseSchema = z.object({
   detail: z.enum(['full', 'summary']),
   status: z.enum(['queued', 'running', 'completed', 'failed', 'expired']),
   fileName: z.string().optional(),
+  fileSizeBytes: z.number().int().nonnegative().optional(),
   downloadPath: z.string().optional(),
   errorMessage: z.string().optional(),
   fromDate: z.string().optional(),

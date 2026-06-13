@@ -1,6 +1,6 @@
 import { getBetterAuthInstance } from './betterAuthInstance.ts';
 import { loadEnvFiles } from '../envFiles.ts';
-import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas';
+import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas.ts';
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();

@@ -242,6 +242,7 @@ export type CompanyExportJob = {
   detail: CompanyExportDetail;
   status: CompanyExportJobStatus;
   fileName?: string;
+  fileSizeBytes?: number;
   downloadPath?: string;
   errorMessage?: string;
   fromDate?: string;

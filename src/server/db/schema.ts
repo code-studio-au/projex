@@ -233,8 +233,10 @@ export interface CompanyExportJobTable {
   ready_notification_error: string | null;
   file_name: string | null;
   content_type: string | null;
-  file_bytes: Uint8Array | null;
   file_size_bytes: number | null;
+  storage_bucket: string | null;
+  storage_key: string | null;
+  storage_etag: string | null;
   error_message: string | null;
   requested_at: Generated<string>;
   started_at: string | null;

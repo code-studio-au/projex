@@ -39,6 +39,8 @@ That pipeline-shaped command runs:
 
 Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`, and `pnpm run smoke:server:disposable`.
 
+For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](/Users/scas0196/Documents/code/projex/docs/local-services.md:1).
+
 ## Verification
 
 The short version:
@@ -122,6 +124,7 @@ Projex now supports a production-ready full company Excel export, with the remai
 - workbook options for active-only vs all visible projects/programmes, transaction date range filters, and full-detail vs summary workbook shape
 - background export generation with job status polling and a reliable download handoff once the workbook is ready
 - optional ready-email notification from Company Settings that links the user back to the exact export job once generation completes
+- workbook payloads stored in S3-compatible object storage so export delivery and retention are decoupled from Postgres blob storage
 - complete workbook coverage across the selected company, including workbook guidance, overview, executive summary, programmes, projects, programme membership, budgets, transactions, reviewed/locked/uncoded workflow tabs, taxonomy rollups, company default taxonomy, import rules, and memberships
 - explicit row-level identifiers and relationship columns so exported data can be filtered, audited, reconciled, and reused outside Projex without losing context
 - programme reporting exported as derived rollups only; operational transactions and budgets remain attached to the underlying projects so the workbook does not double count programme data
