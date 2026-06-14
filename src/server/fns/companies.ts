@@ -1051,13 +1051,26 @@ export async function deleteCompanyServer(args: {
     }
 
     await db.transaction().execute(async (trx) => {
+      const affectedUserIds = (
+        await trx
+          .selectFrom('company_memberships')
+          .select('user_id')
+          .where('company_id', '=', args.companyId)
+          .distinct()
+          .execute()
+      ).map((row) => row.user_id);
+
       await trx
         .deleteFrom('companies')
         .where('id', '=', args.companyId)
         .execute();
 
+      if (!affectedUserIds.length) return;
+
       await trx
         .deleteFrom('users')
+        .where('id', 'in', affectedUserIds)
+        .where('is_global_superadmin', '=', false)
         .where(
           'id',
           'not in',

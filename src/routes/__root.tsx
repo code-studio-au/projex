@@ -44,11 +44,23 @@ function RootDocument() {
 }
 
 function RootErrorDocument(props: { error: unknown }) {
-  return <RootErrorComponent {...props} />;
+  return (
+    <Document>
+      <RootProviders>
+        <RootErrorComponent {...props} />
+      </RootProviders>
+    </Document>
+  );
 }
 
 function RootNotFoundDocument() {
-  return <RootNotFoundComponent />;
+  return (
+    <Document>
+      <RootProviders>
+        <RootNotFoundComponent />
+      </RootProviders>
+    </Document>
+  );
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({

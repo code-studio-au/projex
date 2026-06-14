@@ -931,6 +931,139 @@ test(
 );
 
 test(
+  'deleting a company only removes affected orphan users and preserves superadmins',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_delete_company_co_1');
+    const superadminId = asUserId('itest_delete_company_super_1');
+    const memberId = asUserId('itest_delete_company_member_1');
+    const retainedMemberId = asUserId('itest_delete_company_member_2');
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db
+        .deleteFrom('users')
+        .where('id', 'in', [superadminId, memberId, retainedMemberId])
+        .execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Delete Company Test',
+          status: 'deactivated',
+          deactivated_at: new Date().toISOString(),
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values([
+          {
+            id: superadminId,
+            email: 'delete-company-superadmin@example.com',
+            name: 'Delete Company Superadmin',
+            disabled: false,
+            disabled_reason: null,
+            is_global_superadmin: true,
+          },
+          {
+            id: memberId,
+            email: 'delete-company-member@example.com',
+            name: 'Delete Company Member',
+            disabled: false,
+            disabled_reason: null,
+            is_global_superadmin: false,
+          },
+          {
+            id: retainedMemberId,
+            email: 'delete-company-retained@example.com',
+            name: 'Delete Company Retained',
+            disabled: false,
+            disabled_reason: null,
+            is_global_superadmin: false,
+          },
+        ])
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values([
+          {
+            company_id: companyId,
+            user_id: memberId,
+            role: 'admin',
+          },
+          {
+            company_id: companyId,
+            user_id: retainedMemberId,
+            role: 'member',
+          },
+        ])
+        .execute();
+
+      const secondCompanyId = asCompanyId('itest_delete_company_co_2');
+      await db.deleteFrom('companies').where('id', '=', secondCompanyId).execute();
+      await db
+        .insertInto('companies')
+        .values({
+          id: secondCompanyId,
+          name: 'Delete Company Retained Scope',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({
+          company_id: secondCompanyId,
+          user_id: retainedMemberId,
+          role: 'member',
+        })
+        .execute();
+
+      const api = createRouteApi(superadminId);
+      await api.deleteCompany({
+        companyId,
+        confirmation: 'DELETE Delete Company Test',
+      });
+
+      const deletedCompany = await db
+        .selectFrom('companies')
+        .select('id')
+        .where('id', '=', companyId)
+        .executeTakeFirst();
+      assert.equal(deletedCompany, undefined);
+
+      const remainingUsers = await db
+        .selectFrom('users')
+        .select(['id', 'is_global_superadmin'])
+        .where('id', 'in', [superadminId, memberId, retainedMemberId])
+        .orderBy('id', 'asc')
+        .execute();
+      assert.deepEqual(
+        remainingUsers.map((row) => ({
+          id: row.id,
+          isGlobalSuperadmin: row.is_global_superadmin,
+        })),
+        [
+          { id: retainedMemberId, isGlobalSuperadmin: false },
+          { id: superadminId, isGlobalSuperadmin: true },
+        ]
+      );
+
+      await db.deleteFrom('companies').where('id', '=', secondCompanyId).execute();
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db
+        .deleteFrom('users')
+        .where('id', 'in', [superadminId, memberId, retainedMemberId])
+        .execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
   'resource ownership guards enforce persisted parent scope',
   { skip: !integrationDatabaseUrl },
   async () => {

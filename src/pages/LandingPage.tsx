@@ -128,6 +128,7 @@ export default function LandingPage() {
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<
     | { kind: 'deactivate_company'; companyId: CompanyId; companyName: string }
     | { kind: 'reactivate_company'; companyId: CompanyId; companyName: string }
@@ -139,6 +140,7 @@ export default function LandingPage() {
     (target: NonNullable<typeof confirmTarget>) => {
       setConfirmTarget(target);
       setConfirmText('');
+      setConfirmError(null);
       setConfirmOpen(true);
     },
     []
@@ -148,6 +150,7 @@ export default function LandingPage() {
     setConfirmOpen(false);
     setConfirmTarget(null);
     setConfirmText('');
+    setConfirmError(null);
   };
 
   const confirmLabel = useMemo(() => {
@@ -504,6 +507,7 @@ export default function LandingPage() {
         fullScreen={isMobile}
       >
         <Stack>
+          {confirmError ? <Alert color="red">{confirmError}</Alert> : null}
           <Text size="sm" c="dimmed">
             {confirmDescription}
           </Text>
@@ -544,17 +548,26 @@ export default function LandingPage() {
               }
               onClick={async () => {
                 if (!confirmTarget) return;
-                if (confirmTarget.kind === 'deactivate_company') {
-                  await deactivateCompany.mutateAsync(confirmTarget.companyId);
-                } else if (confirmTarget.kind === 'reactivate_company') {
-                  await reactivateCompany.mutateAsync(confirmTarget.companyId);
-                } else {
-                  await deleteCompany.mutateAsync({
-                    companyId: confirmTarget.companyId,
-                    confirmation: confirmText,
-                  });
+                setConfirmError(null);
+                try {
+                  if (confirmTarget.kind === 'deactivate_company') {
+                    await deactivateCompany.mutateAsync(confirmTarget.companyId);
+                  } else if (confirmTarget.kind === 'reactivate_company') {
+                    await reactivateCompany.mutateAsync(confirmTarget.companyId);
+                  } else {
+                    await deleteCompany.mutateAsync({
+                      companyId: confirmTarget.companyId,
+                      confirmation: confirmText,
+                    });
+                  }
+                  closeConfirm();
+                } catch (error) {
+                  setConfirmError(
+                    error instanceof Error
+                      ? error.message
+                      : 'Could not complete the company action.'
+                  );
                 }
-                closeConfirm();
               }}
             >
               {confirmLabel}
