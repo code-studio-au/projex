@@ -50,6 +50,7 @@ import { Route as companyLayoutRoute } from '../routes/_authed.c.$companyId';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
 import CompanyImportRulesModal from './CompanyImportRulesModal';
+import { formatUtcDateTime } from '../utils/dateTime';
 import classes from '../styles/ui.module.css';
 
 const hydrateSubscription = () => () => {};
@@ -390,6 +391,39 @@ export default function CompanySettingsPanel(props: {
     return null;
   }, [exportJob]);
 
+  const exportJobSummaryRows = useMemo(() => {
+    if (!exportJob) return [];
+
+    const rows: string[] = [
+      `Scope: ${exportJob.scope === 'active' ? 'Active projects and programmes only' : 'All visible projects and programmes'}`,
+      `Workbook: ${exportJob.detail === 'summary' ? 'Summary and reporting only' : 'Full detail workbook'}`,
+    ];
+
+    if (exportJob.fromDate || exportJob.toDate) {
+      rows.push(
+        `Transactions: ${exportJob.fromDate ?? 'Any start'} to ${exportJob.toDate ?? 'Any end'}`
+      );
+    } else {
+      rows.push('Transactions: All available dates');
+    }
+
+    rows.push(`Requested: ${formatUtcDateTime(exportJob.requestedAt)}`);
+
+    if (exportJob.completedAt) {
+      rows.push(`Generated: ${formatUtcDateTime(exportJob.completedAt)}`);
+    } else if (exportJob.failedAt) {
+      rows.push(`Failed: ${formatUtcDateTime(exportJob.failedAt)}`);
+    } else if (exportJob.startedAt) {
+      rows.push(`Started: ${formatUtcDateTime(exportJob.startedAt)}`);
+    }
+
+    if (exportJob.expiresAt && exportJob.status === 'completed') {
+      rows.push(`Available until: ${formatUtcDateTime(exportJob.expiresAt)}`);
+    }
+
+    return rows;
+  }, [exportJob]);
+
   const toCompanyRole = (v: string | null): CompanyRole | null => {
     if (!v) return null;
     if (
@@ -628,6 +662,22 @@ export default function CompanySettingsPanel(props: {
             >
               {exportNotificationMessage}
             </Alert>
+          ) : null}
+          {exportJobSummaryRows.length ? (
+            <Paper
+              withBorder
+              radius="md"
+              p="sm"
+              bg="var(--mantine-color-gray-0)"
+            >
+              <Stack gap={4}>
+                {exportJobSummaryRows.map((row) => (
+                  <Text key={row} size="xs" c="dimmed">
+                    {row}
+                  </Text>
+                ))}
+              </Stack>
+            </Paper>
           ) : null}
           <Group gap="sm" wrap="wrap">
             <Button

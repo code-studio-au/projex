@@ -13,6 +13,7 @@ import {
   applyCompanyDefaultsResultResponseSchema,
   budgetLinesResponseSchema,
   categoriesResponseSchema,
+  companyExportJobResponseSchema,
   companyMembershipsResponseSchema,
   companiesResponseSchema,
   companySummaryResponseSchema,
@@ -26,7 +27,10 @@ import {
   txnsResponseSchema,
   usersResponseSchema,
 } from '../../validation/responseSchemas.ts';
-import { getSmokeBaseUrl, loadSmokeEnvFiles } from './env.ts';
+import {
+  getSmokeRequestBaseUrl,
+  loadSmokeEnvFiles,
+} from './env.ts';
 const smokeSectionMap = new Map(
   smokeSectionDefinitions.map((section) => [section.id, section])
 );
@@ -219,6 +223,20 @@ class SmokeHttpClient {
     this.storeSetCookie(res.headers);
     const body = await res.text();
     return { res, body };
+  }
+
+  async requestBinary(urlPath: string, init: RequestInit = {}) {
+    const headers = new Headers(init.headers ?? {});
+    const cookie = this.cookieHeader();
+    if (cookie) headers.set('cookie', cookie);
+    if (!headers.has('origin')) headers.set('origin', this.baseUrl);
+    if (!headers.has('referer')) headers.set('referer', `${this.baseUrl}/`);
+    const res = await fetch(`${this.baseUrl}${urlPath}`, { ...init, headers });
+    this.storeSetCookie(res.headers);
+    return {
+      res,
+      bytes: new Uint8Array(await res.arrayBuffer()),
+    };
   }
 
   async loginWithEmailPassword(email: string, password: string, label: string) {
@@ -1602,6 +1620,147 @@ async function runInviteFlowSection(
   );
 }
 
+async function runExportFlowSection(
+  recorder: Recorder,
+  client: SmokeHttpClient,
+  baseUrl: string
+) {
+  await authenticatePrimaryUser(recorder, client, baseUrl);
+  const { company } = await loadPrimaryCompanyAndProject(recorder, client);
+
+  const exportJob = await recorder.step(
+    'start-export',
+    `Starting export for company ${companyLabel(company)}`,
+    async () => {
+      const result = await client.request(
+        `/api/companies/${encodeURIComponent(company.id)}/export-jobs`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            scope: 'all',
+            detail: 'full',
+            notifyWhenReady: false,
+          }),
+        }
+      );
+      if (result.res.status !== 202) {
+        throw new Error(
+          `Expected export job creation to return 202, got ${result.res.status}.`
+        );
+      }
+      return parseBody(
+        companyExportJobResponseSchema,
+        result.body,
+        'start export job'
+      );
+    }
+  );
+
+  const completedJob = await recorder.step(
+    'poll-export',
+    `Waiting for export job ${exportJob.id} to complete`,
+    async () => {
+      const maxAttempts = 45;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const result = await client.request(
+          `/api/export-jobs/${encodeURIComponent(exportJob.id)}`
+        );
+        assertOk(result, 'poll export job');
+        const job = parseBody(
+          companyExportJobResponseSchema,
+          result.body,
+          'poll export job'
+        );
+
+        if (job.status === 'completed') {
+          if (!job.downloadPath) {
+            throw new Error('Completed export job did not include a download.');
+          }
+          if (!job.fileName) {
+            throw new Error(
+              'Completed export job did not include a file name.'
+            );
+          }
+          if (typeof job.fileSizeBytes !== 'number' || job.fileSizeBytes <= 0) {
+            throw new Error(
+              'Completed export job did not include a positive file size.'
+            );
+          }
+          return job;
+        }
+
+        if (job.status === 'failed') {
+          throw new Error(job.errorMessage ?? 'Export job failed.');
+        }
+
+        if (job.status === 'expired') {
+          throw new Error('Export job expired before smoke download.');
+        }
+
+        if (attempt === maxAttempts) {
+          throw new Error(
+            `Export job ${exportJob.id} did not complete within ${(maxAttempts * 2).toString()} seconds.`
+          );
+        }
+
+        await sleep(2000);
+      }
+
+      throw new Error(`Export job ${exportJob.id} did not complete.`);
+    }
+  );
+
+  await recorder.step(
+    'download-export',
+    `Downloading workbook ${completedJob.fileName ?? completedJob.id}`,
+    async () => {
+      const result = await client.requestBinary(
+        completedJob.downloadPath ??
+          `/api/export-jobs/${encodeURIComponent(completedJob.id)}/download`
+      );
+      if (!result.res.ok) {
+        throw new Error(`Download failed with ${result.res.status}.`);
+      }
+      const contentType = result.res.headers.get('content-type') ?? '';
+      if (
+        !contentType.includes(
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+      ) {
+        throw new Error(
+          `Unexpected export content type: ${contentType || 'missing'}.`
+        );
+      }
+      const contentDisposition =
+        result.res.headers.get('content-disposition') ?? '';
+      if (!contentDisposition.includes('attachment;')) {
+        throw new Error('Export download was missing attachment headers.');
+      }
+      const bytes = result.bytes;
+      if (bytes.byteLength < 4) {
+        throw new Error('Downloaded workbook was unexpectedly small.');
+      }
+      if (
+        bytes[0] !== 0x50 ||
+        bytes[1] !== 0x4b ||
+        bytes[2] !== 0x03 ||
+        bytes[3] !== 0x04
+      ) {
+        throw new Error('Downloaded workbook did not look like an XLSX zip.');
+      }
+      if (
+        typeof completedJob.fileSizeBytes === 'number' &&
+        completedJob.fileSizeBytes !== bytes.byteLength
+      ) {
+        throw new Error(
+          `Downloaded workbook size ${bytes.byteLength} did not match recorded size ${completedJob.fileSizeBytes}.`
+        );
+      }
+    }
+  );
+}
+
 async function runPrivacyChecksSection(
   recorder: Recorder,
   client: SmokeHttpClient
@@ -1817,7 +1976,7 @@ export async function runSmokeSection(
   requestOrigin: string,
   options?: RunSmokeSectionOptions
 ) {
-  const baseUrl = getSmokeBaseUrl(requestOrigin);
+  const baseUrl = getSmokeRequestBaseUrl(requestOrigin);
   const client = new SmokeHttpClient(baseUrl, options?.onStatus);
 
   return withRecorder(
@@ -1841,6 +2000,9 @@ export async function runSmokeSection(
           return;
         case 'inviteFlow':
           await runInviteFlowSection(recorder, client, baseUrl);
+          return;
+        case 'exportFlow':
+          await runExportFlowSection(recorder, client, baseUrl);
           return;
         case 'privacyChecks':
           await runPrivacyChecksSection(recorder, client);

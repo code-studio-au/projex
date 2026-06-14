@@ -4,6 +4,7 @@ import { getBetterAuthInstance } from '../auth/betterAuthInstance.ts';
 import { createPgPool, type TypedPgPool } from '../db/pgPool.ts';
 import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas.ts';
 import { loadSmokeEnvFiles } from './env.ts';
+import type { SmokeManualInputs } from '../../types/index.ts';
 
 type SmokeFixtureUser = {
   id: string;
@@ -41,6 +42,25 @@ type SmokeFixtureOptions = {
   sweepStale?: boolean;
   onStatus?: (message: string) => void | Promise<void>;
 };
+
+const smokeEnvKeys = [
+  'PROJEX_SMOKE_COMPANY_ID',
+  'PROJEX_SMOKE_PROJECT_ID',
+  'PROJEX_SMOKE_EMAIL',
+  'PROJEX_SMOKE_PASSWORD',
+  'PROJEX_SMOKE_RESET_EMAIL',
+  'PROJEX_SMOKE_EMAIL_CHANGE_TO',
+  'PROJEX_SMOKE_INVITE_EMAIL',
+  'PROJEX_SMOKE_INVITE_NAME',
+  'PROJEX_SMOKE_INVITE_ROLE',
+  'PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL',
+  'PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD',
+  'PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL',
+  'PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD',
+] as const;
+
+type SmokeEnvKey = (typeof smokeEnvKeys)[number];
+type SmokeEnvOverrides = Partial<Record<SmokeEnvKey, string>>;
 
 function requireDatabaseUrl() {
   const value = process.env.DATABASE_URL?.trim();
@@ -174,22 +194,93 @@ async function ensureFixtureMemberships(
 }
 
 export function applySmokeFixtureEnv(fixtures: SmokeFixtures) {
-  process.env.PROJEX_SMOKE_COMPANY_ID = fixtures.companyId;
-  process.env.PROJEX_SMOKE_PROJECT_ID = fixtures.projectId;
-  process.env.PROJEX_SMOKE_EMAIL = fixtures.users.primary.email;
-  process.env.PROJEX_SMOKE_PASSWORD = fixtures.users.primary.password;
-  process.env.PROJEX_SMOKE_RESET_EMAIL = fixtures.users.primary.email;
-  process.env.PROJEX_SMOKE_EMAIL_CHANGE_TO = fixtures.emailChangeTo;
-  process.env.PROJEX_SMOKE_INVITE_EMAIL = fixtures.inviteEmail;
-  process.env.PROJEX_SMOKE_INVITE_NAME = `Smoke Invite ${fixtures.runId}`;
-  process.env.PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL =
-    fixtures.users.privacyAdmin.email;
-  process.env.PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD =
-    fixtures.users.privacyAdmin.password;
-  process.env.PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL =
-    fixtures.users.privacySuperadmin.email;
-  process.env.PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD =
-    fixtures.users.privacySuperadmin.password;
+  applySmokeEnvOverrides(buildSmokeFixtureEnv(fixtures));
+}
+
+function buildSmokeFixtureEnv(fixtures: SmokeFixtures): SmokeEnvOverrides {
+  return {
+    PROJEX_SMOKE_COMPANY_ID: fixtures.companyId,
+    PROJEX_SMOKE_PROJECT_ID: fixtures.projectId,
+    PROJEX_SMOKE_EMAIL: fixtures.users.primary.email,
+    PROJEX_SMOKE_PASSWORD: fixtures.users.primary.password,
+    PROJEX_SMOKE_RESET_EMAIL: fixtures.users.primary.email,
+    PROJEX_SMOKE_EMAIL_CHANGE_TO: fixtures.emailChangeTo,
+    PROJEX_SMOKE_INVITE_EMAIL: fixtures.inviteEmail,
+    PROJEX_SMOKE_INVITE_NAME: `Smoke Invite ${fixtures.runId}`,
+    PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL: fixtures.users.privacyAdmin.email,
+    PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD: fixtures.users.privacyAdmin.password,
+    PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL:
+      fixtures.users.privacySuperadmin.email,
+    PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD:
+      fixtures.users.privacySuperadmin.password,
+  };
+}
+
+function captureSmokeEnvSnapshot(): Record<SmokeEnvKey, string | undefined> {
+  return Object.fromEntries(
+    smokeEnvKeys.map((key) => [key, process.env[key]])
+  ) as Record<SmokeEnvKey, string | undefined>;
+}
+
+function restoreSmokeEnvSnapshot(
+  snapshot: Record<SmokeEnvKey, string | undefined>
+) {
+  for (const key of smokeEnvKeys) {
+    const value = snapshot[key];
+    if (typeof value === 'string') {
+      process.env[key] = value;
+    } else {
+      delete process.env[key];
+    }
+  }
+}
+
+function applySmokeEnvOverrides(overrides: SmokeEnvOverrides) {
+  for (const key of smokeEnvKeys) {
+    const value = overrides[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      process.env[key] = value;
+    } else if (value === '') {
+      delete process.env[key];
+    }
+  }
+}
+
+export function manualInputsToSmokeEnv(
+  inputs: SmokeManualInputs | undefined
+): SmokeEnvOverrides {
+  if (!inputs) return {};
+
+  return {
+    PROJEX_SMOKE_COMPANY_ID: inputs.companyId,
+    PROJEX_SMOKE_PROJECT_ID: inputs.projectId,
+    PROJEX_SMOKE_EMAIL: inputs.email,
+    PROJEX_SMOKE_PASSWORD: inputs.password,
+    PROJEX_SMOKE_RESET_EMAIL: inputs.resetEmail,
+    PROJEX_SMOKE_EMAIL_CHANGE_TO: inputs.emailChangeTo,
+    PROJEX_SMOKE_INVITE_EMAIL: inputs.inviteEmail,
+    PROJEX_SMOKE_INVITE_NAME: inputs.inviteName,
+    PROJEX_SMOKE_INVITE_ROLE: inputs.inviteRole,
+    PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL: inputs.privacyAdminEmail,
+    PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD: inputs.privacyAdminPassword,
+    PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL: inputs.privacySuperadminEmail,
+    PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD: inputs.privacySuperadminPassword,
+  };
+}
+
+export async function withTemporarySmokeEnv<T>(
+  overrides: SmokeEnvOverrides,
+  run: () => Promise<T>
+): Promise<T> {
+  loadSmokeEnvFiles();
+  const snapshot = captureSmokeEnvSnapshot();
+  applySmokeEnvOverrides(overrides);
+
+  try {
+    return await run();
+  } finally {
+    restoreSmokeEnvSnapshot(snapshot);
+  }
 }
 
 export async function createSmokeFixtures(

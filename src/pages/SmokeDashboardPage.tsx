@@ -12,10 +12,13 @@ import {
   Code,
   Divider,
   Group,
+  PasswordInput,
   Paper,
+  Select,
   SimpleGrid,
   Stack,
   Text,
+  TextInput,
   ThemeIcon,
   Title,
 } from '@mantine/core';
@@ -31,6 +34,8 @@ import { apiErrorMessage } from '../api/errorResponses';
 import { useCurrentUserQuery } from '../queries/account';
 import { useSessionQuery } from '../queries/session';
 import type {
+  SmokeManualInputs,
+  SmokeRunMode,
   SmokeSectionId,
   SmokeSectionResult,
   SmokeSectionStatus,
@@ -85,6 +90,22 @@ const SECTION_SCROLL_MARGIN_TOP_PX = 320;
 const hydrateSubscription = () => () => {};
 const getClientHydratedSnapshot = () => true;
 const getServerHydratedSnapshot = () => false;
+const smokeSectionIdValues = [
+  'basics',
+  'appPages',
+  'emailChange',
+  'temporaryData',
+  'companyDefaults',
+  'inviteFlow',
+  'exportFlow',
+  'privacyChecks',
+] as const;
+const manualInviteRoleOptions = [
+  { value: 'member', label: 'Member' },
+  { value: 'management', label: 'Management' },
+  { value: 'executive', label: 'Executive' },
+  { value: 'admin', label: 'Admin' },
+] as const;
 
 const smokeStepResultSchema = z.object({
   id: z.string(),
@@ -98,15 +119,7 @@ const smokeStepResultSchema = z.object({
 const isoTimestampSchema = z.iso.datetime({ offset: true });
 
 const smokeSectionResultSchema = z.object({
-  sectionId: z.enum([
-    'basics',
-    'appPages',
-    'emailChange',
-    'temporaryData',
-    'companyDefaults',
-    'inviteFlow',
-    'privacyChecks',
-  ]),
+  sectionId: z.enum(smokeSectionIdValues),
   label: z.string(),
   status: z.enum(['passed', 'failed', 'skipped']),
   startedAt: isoTimestampSchema,
@@ -118,28 +131,12 @@ const smokeSectionResultSchema = z.object({
 const smokeStepStreamEventSchema = z.union([
   z.object({
     type: z.literal('step'),
-    sectionId: z.enum([
-      'basics',
-      'appPages',
-      'emailChange',
-      'temporaryData',
-      'companyDefaults',
-      'inviteFlow',
-      'privacyChecks',
-    ]),
+    sectionId: z.enum(smokeSectionIdValues),
     step: smokeStepResultSchema,
   }),
   z.object({
     type: z.literal('status'),
-    sectionId: z.enum([
-      'basics',
-      'appPages',
-      'emailChange',
-      'temporaryData',
-      'companyDefaults',
-      'inviteFlow',
-      'privacyChecks',
-    ]),
+    sectionId: z.enum(smokeSectionIdValues),
     message: z.string(),
   }),
   z.object({
@@ -151,6 +148,106 @@ const smokeStepStreamEventSchema = z.union([
     message: z.string(),
   }),
 ]);
+
+type ManualFieldDef = {
+  key: keyof SmokeManualInputs;
+  label: string;
+  placeholder?: string;
+  description?: string;
+  kind: 'text' | 'email' | 'password' | 'select';
+  data?: Array<{ value: string; label: string }>;
+};
+
+const manualBaseFieldDefs: ManualFieldDef[] = [
+  {
+    key: 'email',
+    label: 'Smoke email',
+    placeholder: 'smoke-user@example.com',
+    kind: 'email',
+  },
+  {
+    key: 'password',
+    label: 'Smoke password',
+    placeholder: 'Required for manual auth-backed sections',
+    kind: 'password',
+  },
+  {
+    key: 'resetEmail',
+    label: 'Reset email',
+    placeholder: 'Defaults to the smoke email when left blank',
+    kind: 'email',
+  },
+  {
+    key: 'companyId',
+    label: 'Preferred company id',
+    placeholder: 'Optional. Defaults to the first visible company',
+    kind: 'text',
+  },
+  {
+    key: 'projectId',
+    label: 'Preferred project id',
+    placeholder: 'Optional. Defaults to the first active project',
+    kind: 'text',
+  },
+];
+
+const manualSectionFieldMap: Partial<Record<SmokeSectionId, ManualFieldDef[]>> =
+  {
+    emailChange: [
+      {
+        key: 'emailChangeTo',
+        label: 'New email target',
+        placeholder: 'new-email@example.com',
+        kind: 'email',
+      },
+    ],
+    inviteFlow: [
+      {
+        key: 'inviteEmail',
+        label: 'Invite email',
+        placeholder: 'invitee@example.com',
+        kind: 'email',
+      },
+      {
+        key: 'inviteName',
+        label: 'Invite name',
+        placeholder: 'Smoke Invite',
+        kind: 'text',
+      },
+      {
+        key: 'inviteRole',
+        label: 'Invite role',
+        kind: 'select',
+        data: [...manualInviteRoleOptions],
+      },
+    ],
+    privacyChecks: [
+      {
+        key: 'privacyAdminEmail',
+        label: 'Admin email',
+        placeholder: 'admin@example.com',
+        kind: 'email',
+      },
+      {
+        key: 'privacyAdminPassword',
+        label: 'Admin password',
+        placeholder: 'Password for the admin user',
+        kind: 'password',
+      },
+      {
+        key: 'privacySuperadminEmail',
+        label: 'Superadmin email',
+        placeholder: 'superadmin@example.com',
+        kind: 'email',
+      },
+      {
+        key: 'privacySuperadminPassword',
+        label: 'Superadmin password',
+        placeholder: 'Password for the superadmin user',
+        kind: 'password',
+      },
+    ],
+  };
 
 function formatDuration(durationMs: number) {
   if (durationMs < 1000) return `${durationMs}ms`;
@@ -306,6 +403,51 @@ function SmokeStepRow({ step }: { step: SmokeStepView }) {
   );
 }
 
+function SmokeManualField(props: {
+  field: ManualFieldDef;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const { field, value, onChange } = props;
+
+  if (field.kind === 'password') {
+    return (
+      <PasswordInput
+        label={field.label}
+        description={field.description}
+        placeholder={field.placeholder}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    );
+  }
+
+  if (field.kind === 'select') {
+    return (
+      <Select
+        label={field.label}
+        description={field.description}
+        placeholder={field.placeholder}
+        data={field.data ?? []}
+        value={value || null}
+        onChange={(nextValue) => onChange(nextValue ?? '')}
+        clearable
+      />
+    );
+  }
+
+  return (
+    <TextInput
+      type={field.kind === 'email' ? 'email' : 'text'}
+      label={field.label}
+      description={field.description}
+      placeholder={field.placeholder}
+      value={value}
+      onChange={(event) => onChange(event.currentTarget.value)}
+    />
+  );
+}
+
 function createIdleSection(sectionId: SmokeSectionId): SmokeSectionView {
   const definition = smokeSectionDefinitions.find(
     (section) => section.id === sectionId
@@ -375,6 +517,10 @@ export default function SmokeDashboardPage() {
   const [runningSectionId, setRunningSectionId] =
     useState<SmokeSectionId | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [runMode, setRunMode] = useState<SmokeRunMode>('generated');
+  const [manualInputs, setManualInputs] = useState<SmokeManualInputs>({
+    inviteRole: 'member',
+  });
   const [runAllStatus, setRunAllStatus] = useState<string | null>(null);
   const [runAllActive, setRunAllActive] = useState(false);
   const [runAllSectionIndex, setRunAllSectionIndex] = useState<number | null>(
@@ -383,6 +529,55 @@ export default function SmokeDashboardPage() {
   const sectionRefs = useRef<
     Partial<Record<SmokeSectionId, HTMLDivElement | null>>
   >({});
+
+  function clearRunAllState() {
+    setRunAllActive(false);
+    setRunAllStatus(null);
+    setRunAllSectionIndex(null);
+  }
+
+  function resetAllSectionState() {
+    setResults({});
+    setViews({});
+    setPageError(null);
+    clearRunAllState();
+  }
+
+  function setManualInputValue(
+    key: keyof SmokeManualInputs,
+    value: string | undefined
+  ) {
+    setManualInputs((current) => ({
+      ...current,
+      [key]: value && value.length > 0 ? value : undefined,
+    }));
+  }
+
+  function sectionManualFieldDefs(sectionId: SmokeSectionId) {
+    return manualSectionFieldMap[sectionId] ?? [];
+  }
+
+  function manualInputsForSection(
+    sectionId: SmokeSectionId
+  ): SmokeManualInputs | undefined {
+    if (runMode !== 'manual') return undefined;
+
+    const fieldKeys = new Set<keyof SmokeManualInputs>([
+      ...manualBaseFieldDefs.map((field) => field.key),
+      ...sectionManualFieldDefs(sectionId).map((field) => field.key),
+    ]);
+
+    const nextEntries = Array.from(fieldKeys).flatMap((key) => {
+      const value = manualInputs[key];
+      return typeof value === 'string' && value.length > 0
+        ? ([[key, value]] as const)
+        : [];
+    });
+
+    return nextEntries.length > 0
+      ? (Object.fromEntries(nextEntries) as SmokeManualInputs)
+      : undefined;
+  }
 
   function resetSectionState(sectionId: SmokeSectionId) {
     setResults((current) => {
@@ -412,8 +607,12 @@ export default function SmokeDashboardPage() {
   }
 
   async function runSection(
-    sectionId: SmokeSectionId
+    sectionId: SmokeSectionId,
+    options?: { preserveRunAllContext?: boolean }
   ): Promise<RunSectionOutcome> {
+    if (!options?.preserveRunAllContext) {
+      clearRunAllState();
+    }
     setPageError(null);
     setRunningSectionId(sectionId);
     let sectionSucceeded = true;
@@ -434,7 +633,11 @@ export default function SmokeDashboardPage() {
         headers: {
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ sectionId }),
+        body: JSON.stringify({
+          sectionId,
+          mode: runMode,
+          manualInputs: manualInputsForSection(sectionId),
+        }),
       });
 
       if (!res.ok) {
@@ -587,8 +790,11 @@ export default function SmokeDashboardPage() {
   }
 
   async function runFullSmoke() {
+    resetAllSectionState();
     setPageError(null);
     setRunAllActive(true);
+    setRunAllStatus('Preparing full smoke run...');
+    setRunAllSectionIndex(0);
     let failedSectionLabel: string | null = null;
     for (let index = 0; index < smokeSectionDefinitions.length; index += 1) {
       const section = smokeSectionDefinitions[index];
@@ -597,7 +803,9 @@ export default function SmokeDashboardPage() {
 
       while (attempts <= RUN_ALL_RATE_LIMIT_SECTION_RETRIES) {
         setRunAllStatus(`Running ${section.label}`);
-        const outcome = await runSection(section.id);
+        const outcome = await runSection(section.id, {
+          preserveRunAllContext: true,
+        });
         if (outcome.ok) {
           break;
         }
@@ -656,6 +864,7 @@ export default function SmokeDashboardPage() {
 
   function resetSection(sectionId: SmokeSectionId) {
     resetSectionState(sectionId);
+    clearRunAllState();
   }
 
   function hasSmokeSectionResult(
@@ -682,6 +891,11 @@ export default function SmokeDashboardPage() {
         .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0],
     };
   }, [results]);
+
+  const hasRecordedRuns = useMemo(
+    () => Object.keys(results).length > 0 || Object.keys(views).length > 0,
+    [results, views]
+  );
 
   const focusSections = useMemo(() => {
     if (runAllSectionIndex == null)
@@ -748,33 +962,84 @@ export default function SmokeDashboardPage() {
                 accessible from the app.
               </Text>
             </Stack>
-            <Button
-              leftSection={
-                runningSectionId ? (
-                  <IconLoader2 size={16} />
-                ) : (
-                  <IconPlayerPlay size={16} />
-                )
-              }
-              onClick={runFullSmoke}
-              disabled={!!runningSectionId}
-            >
-              Run all checks
-            </Button>
+            <Group gap="xs">
+              {hasRecordedRuns ? (
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  onClick={resetAllSectionState}
+                  disabled={!!runningSectionId || runAllActive}
+                >
+                  Clear results
+                </Button>
+              ) : null}
+              <Button
+                leftSection={
+                  runningSectionId ? (
+                    <IconLoader2 size={16} />
+                  ) : (
+                    <IconPlayerPlay size={16} />
+                  )
+                }
+                onClick={runFullSmoke}
+                disabled={!!runningSectionId || runMode === 'manual'}
+              >
+                Run all checks
+              </Button>
+            </Group>
           </Group>
+          <Select
+            label="Run mode"
+            value={runMode}
+            onChange={(value) =>
+              setRunMode(value === 'manual' ? 'manual' : 'generated')
+            }
+            data={[
+              {
+                value: 'generated',
+                label: 'Generated fixtures (recommended)',
+              },
+              {
+                value: 'manual',
+                label: 'Manual advanced mode',
+              },
+            ]}
+            disabled={!!runningSectionId || runAllActive}
+          />
           <Text size="sm" c="dimmed" className={classes.sectionCopy}>
-            The dashboard runs the same server checks we use operationally
-            today. It targets `PROJEX_SMOKE_BASE_URL` when that value is set and
-            otherwise uses the current app origin. Base smoke login credentials
-            are required for all sections, while optional invite or privacy
-            sections will mark themselves as skipped when their extra values are
-            not configured in `.env.smoke.local`.
+            {runMode === 'generated'
+              ? 'The dashboard will create disposable smoke users, a temporary company, and a temporary project for each run, then clean them up automatically. This is the default path for fresh databases and repeatable regression checks.'
+              : 'Manual mode is the advanced fallback when you want to target existing users or long-lived data. Enter only the values needed for the section you are about to run; nothing is persisted in the UI.'}
           </Text>
           <Alert color="blue" className={classes.notice}>
-            This UI uses the configured smoke credentials already present on the
-            server. For disposable generated users and automatic cleanup, run
-            `pnpm run smoke:server:generated` from the CLI.
+            {runMode === 'generated'
+              ? 'Generated mode mirrors the disposable smoke CLI flow, but the dashboard always targets the current app origin so browser checks stay aligned with the page you are using.'
+              : 'Manual mode is intended for one-off operator checks. The Run all action stays generated-only so each advanced section can use the right per-run inputs.'}
           </Alert>
+          {runMode === 'manual' ? (
+            <Paper withBorder radius="md" p="md">
+              <Stack gap="sm">
+                <Title order={5}>Manual Base Inputs</Title>
+                <Text size="sm" c="dimmed" className={classes.sectionCopy}>
+                  These values are reused by the auth-backed sections. Section-
+                  specific advanced inputs appear inside the relevant cards
+                  below.
+                </Text>
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                  {manualBaseFieldDefs.map((field) => (
+                    <SmokeManualField
+                      key={field.key}
+                      field={field}
+                      value={manualInputs[field.key] ?? ''}
+                      onChange={(value) =>
+                        setManualInputValue(field.key, value)
+                      }
+                    />
+                  ))}
+                </SimpleGrid>
+              </Stack>
+            </Paper>
+          ) : null}
         </Stack>
       </Paper>
 
@@ -925,6 +1190,28 @@ export default function SmokeDashboardPage() {
                         {view.statusMessage}
                       </Text>
                     ) : null}
+                    {runMode === 'manual' &&
+                    sectionManualFieldDefs(section.id).length > 0 ? (
+                      <Paper withBorder radius="md" p="sm">
+                        <Stack gap="sm">
+                          <Text size="sm" fw={600}>
+                            Advanced inputs for {section.label}
+                          </Text>
+                          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                            {sectionManualFieldDefs(section.id).map((field) => (
+                              <SmokeManualField
+                                key={`${section.id}-${field.key}`}
+                                field={field}
+                                value={manualInputs[field.key] ?? ''}
+                                onChange={(value) =>
+                                  setManualInputValue(field.key, value)
+                                }
+                              />
+                            ))}
+                          </SimpleGrid>
+                        </Stack>
+                      </Paper>
+                    ) : null}
                   </Stack>
 
                   <Group gap="xs">
@@ -939,7 +1226,9 @@ export default function SmokeDashboardPage() {
                         )
                       }
                       disabled={!!runningSectionId}
-                      onClick={() => runSection(section.id)}
+                      onClick={() => {
+                        void runSection(section.id);
+                      }}
                     >
                       {result || view ? 'Run again' : 'Run section'}
                     </Button>

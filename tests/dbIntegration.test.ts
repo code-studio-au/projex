@@ -107,6 +107,7 @@ import {
   createCompanyExportJobServer,
   downloadCompanyExportJobServer,
   getCompanyExportJobServer,
+  getLatestCompanyExportJobServer,
 } from '../src/server/fns/exportJobs.ts';
 import {
   applyCompanyDefaultTaxonomyServer,
@@ -492,6 +493,8 @@ function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
     ) => createCompanyExportJobServer({ context, companyId, options }),
     getCompanyExportJob: (jobId: ReturnType<typeof asCompanyExportJobId>) =>
       getCompanyExportJobServer({ context, jobId }),
+    getLatestCompanyExportJob: (companyId: ReturnType<typeof asCompanyId>) =>
+      getLatestCompanyExportJobServer({ context, companyId }),
     downloadCompanyExportJob: (
       jobId: ReturnType<typeof asCompanyExportJobId>
     ) => downloadCompanyExportJobServer({ context, jobId }),
@@ -514,6 +517,62 @@ async function waitForExportJobCompletion(args: {
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
+}
+
+async function insertExportJobFixture(args: {
+  db: ReturnType<typeof createIntegrationDb>;
+  jobId: ReturnType<typeof asCompanyExportJobId>;
+  companyId: ReturnType<typeof asCompanyId>;
+  userId: ReturnType<typeof asUserId>;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  requestedAt?: string;
+  expiresAt?: string | null;
+  fileName?: string | null;
+  storageBucket?: string | null;
+  storageKey?: string | null;
+}) {
+  const requestedAt = args.requestedAt ?? new Date().toISOString();
+  await args.db
+    .insertInto('company_export_jobs')
+    .values({
+      id: args.jobId,
+      company_id: args.companyId,
+      created_by_user_id: args.userId,
+      scope: 'all',
+      detail: 'full',
+      status: args.status,
+      from_date: null,
+      to_date: null,
+      notify_when_ready: false,
+      notify_email: null,
+      ready_notification_status: 'not_requested',
+      ready_notification_delivery: null,
+      ready_notification_sent_at: null,
+      ready_notification_error: null,
+      file_name: args.fileName ?? null,
+      content_type:
+        args.status === 'completed'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : null,
+      file_size_bytes: args.status === 'completed' ? 128 : null,
+      storage_bucket: args.storageBucket ?? null,
+      storage_key: args.storageKey ?? null,
+      storage_etag: args.status === 'completed' ? 'fixture-etag' : null,
+      error_message: args.status === 'failed' ? 'Fixture failed export' : null,
+      requested_at: requestedAt,
+      started_at: requestedAt,
+      completed_at: args.status === 'completed' ? requestedAt : null,
+      failed_at: args.status === 'failed' ? requestedAt : null,
+      expires_at:
+        args.expiresAt === undefined
+          ? args.status === 'completed'
+            ? new Date(Date.now() + 60_000).toISOString()
+            : null
+          : args.expiresAt,
+      last_heartbeat_at: requestedAt,
+      updated_at: requestedAt,
+    })
+    .execute();
 }
 
 test(
@@ -689,6 +748,181 @@ test(
           previousWebhookBearer;
       }
 
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'company export downloads stay scoped to the exporting user company access',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_export_scope_co_1');
+    const ownerUserId = asUserId('itest_export_scope_owner_1');
+    const otherUserId = asUserId('itest_export_scope_other_1');
+    const jobId = asCompanyExportJobId('expjob_itest_export_scope_1');
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db
+        .deleteFrom('users')
+        .where('id', 'in', [ownerUserId, otherUserId])
+        .execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Scoped Export Company',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values([
+          {
+            id: ownerUserId,
+            email: 'export-scope-owner@example.com',
+            name: 'Export Scope Owner',
+            disabled: false,
+            disabled_reason: null,
+            is_global_superadmin: false,
+          },
+          {
+            id: otherUserId,
+            email: 'export-scope-other@example.com',
+            name: 'Export Scope Other',
+            disabled: false,
+            disabled_reason: null,
+            is_global_superadmin: false,
+          },
+        ])
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({
+          company_id: companyId,
+          user_id: ownerUserId,
+          role: 'admin',
+        })
+        .execute();
+
+      await insertExportJobFixture({
+        db,
+        jobId,
+        companyId,
+        userId: ownerUserId,
+        status: 'completed',
+        fileName: 'scoped-export.xlsx',
+        storageBucket: 'fixture-bucket',
+        storageKey: 'fixture/export.xlsx',
+      });
+
+      const otherApi = createRouteApi(otherUserId);
+      await assertAppErrorCode(
+        () => otherApi.getCompanyExportJob(jobId),
+        'FORBIDDEN',
+        'unauthorized export status lookup'
+      );
+      await assertAppErrorCode(
+        () => otherApi.downloadCompanyExportJob(jobId),
+        'FORBIDDEN',
+        'unauthorized export download'
+      );
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db
+        .deleteFrom('users')
+        .where('id', 'in', [ownerUserId, otherUserId])
+        .execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'company export downloads report queued and expired states cleanly',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_export_state_co_1');
+    const userId = asUserId('itest_export_state_usr_1');
+    const queuedJobId = asCompanyExportJobId('expjob_itest_export_state_queued');
+    const expiredJobId = asCompanyExportJobId(
+      'expjob_itest_export_state_expired'
+    );
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Export State Company',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'export-state@example.com',
+          name: 'Export State User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({
+          company_id: companyId,
+          user_id: userId,
+          role: 'admin',
+        })
+        .execute();
+
+      await insertExportJobFixture({
+        db,
+        jobId: queuedJobId,
+        companyId,
+        userId,
+        status: 'queued',
+      });
+      await insertExportJobFixture({
+        db,
+        jobId: expiredJobId,
+        companyId,
+        userId,
+        status: 'completed',
+        fileName: 'expired-export.xlsx',
+        storageBucket: 'fixture-bucket',
+        storageKey: 'fixture/expired-export.xlsx',
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      });
+
+      const api = createRouteApi(userId);
+      await assertAppError(
+        () => api.downloadCompanyExportJob(queuedJobId),
+        'CONFLICT',
+        'Export is not ready for download'
+      );
+      await assertAppError(
+        () => api.downloadCompanyExportJob(expiredJobId),
+        'NOT_FOUND',
+        'Export file has expired'
+      );
+
+      const latestAfterCleanup = await api.getLatestCompanyExportJob(companyId);
+      assert.equal(latestAfterCleanup?.id, queuedJobId);
+    } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();
       await db.destroy();

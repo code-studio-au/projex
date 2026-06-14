@@ -1,6 +1,6 @@
 import type { SmokeSectionId, SmokeStepResult } from '../../types/index.ts';
 import { smokeSectionDefinitions } from '../../types/index.ts';
-import { getSmokeBaseUrl } from './env.ts';
+import { getSmokeConfiguredBaseUrl } from './env.ts';
 import {
   cleanupSmokeFixtures,
   createSmokeFixtures,
@@ -75,7 +75,7 @@ async function main() {
   const useGeneratedFixtures = hasFlag(argv, '--use-generated-fixtures');
   const sweepStaleFixtures = hasFlag(argv, '--sweep-stale-fixtures');
   const cleanupOnly = hasFlag(argv, '--cleanup-stale-fixtures');
-  const baseUrl = getSmokeBaseUrl();
+  const baseUrl = getSmokeConfiguredBaseUrl();
   let hasFailure = false;
   let fixtures: SmokeFixtures | null = null;
 

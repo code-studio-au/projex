@@ -133,8 +133,10 @@ const smokeSectionIdSchema = z.enum([
   'temporaryData',
   'companyDefaults',
   'inviteFlow',
+  'exportFlow',
   'privacyChecks',
 ]);
+const smokeRunModeSchema = z.enum(['generated', 'manual']);
 const matchTextSchema = z
   .string()
   .trim()
@@ -153,6 +155,25 @@ const importRuleValueSchema = z
 
 export const smokeSectionInputSchema = z.object({
   sectionId: smokeSectionIdSchema,
+  mode: smokeRunModeSchema.default('generated'),
+  manualInputs: z
+    .object({
+      email: emailSchema.optional(),
+      password: z.string().trim().min(1).optional(),
+      resetEmail: emailSchema.optional(),
+      companyId: z.string().trim().min(1).optional(),
+      projectId: z.string().trim().min(1).optional(),
+      emailChangeTo: emailSchema.optional(),
+      inviteEmail: emailSchema.optional(),
+      inviteName: userNameSchema.optional(),
+      inviteRole: companyRoleSchema.optional(),
+      privacyAdminEmail: emailSchema.optional(),
+      privacyAdminPassword: z.string().trim().min(1).optional(),
+      privacySuperadminEmail: emailSchema.optional(),
+      privacySuperadminPassword: z.string().trim().min(1).optional(),
+    })
+    .partial()
+    .optional(),
 });
 
 export const emailChangeRequestBodySchema = z.object({

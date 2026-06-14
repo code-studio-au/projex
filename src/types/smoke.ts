@@ -5,7 +5,26 @@ export type SmokeSectionId =
   | 'temporaryData'
   | 'companyDefaults'
   | 'inviteFlow'
+  | 'exportFlow'
   | 'privacyChecks';
+
+export type SmokeRunMode = 'generated' | 'manual';
+
+export type SmokeManualInputs = {
+  email?: string;
+  password?: string;
+  resetEmail?: string;
+  companyId?: string;
+  projectId?: string;
+  emailChangeTo?: string;
+  inviteEmail?: string;
+  inviteName?: string;
+  inviteRole?: 'admin' | 'executive' | 'management' | 'member';
+  privacyAdminEmail?: string;
+  privacyAdminPassword?: string;
+  privacySuperadminEmail?: string;
+  privacySuperadminPassword?: string;
+};
 
 export type SmokeStepStatus =
   | 'idle'
@@ -270,6 +289,22 @@ export const smokeSectionDefinitions: Array<{
         id: 'invite-flow-skipped',
         label: 'Skipping invite flow when invite smoke vars are absent',
       },
+    ],
+  },
+  {
+    id: 'exportFlow',
+    label: 'Export Flow',
+    description:
+      'Creates a full-company export job, waits for background completion, validates workbook metadata, and downloads the generated Excel file from object storage.',
+    steps: [
+      { id: 'login-page', label: 'Checking login page HTML' },
+      { id: 'auth-login', label: 'Logging in with smoke credentials' },
+      { id: 'session', label: 'Checking current session' },
+      { id: 'companies', label: 'Loading companies' },
+      { id: 'projects', label: 'Loading projects for a company' },
+      { id: 'start-export', label: 'Starting a full-company export job' },
+      { id: 'poll-export', label: 'Waiting for export completion' },
+      { id: 'download-export', label: 'Downloading the generated workbook' },
     ],
   },
   {

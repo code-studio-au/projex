@@ -7,9 +7,18 @@ import {
   requireApiRouteContext,
 } from './-api-shared';
 import { listUsersServer } from '../server/fns/companies';
-import { getSmokeBaseUrl } from '../server/smoke/env';
+import {
+  cleanupSmokeFixtures,
+  createSmokeFixtures,
+  manualInputsToSmokeEnv,
+  withTemporarySmokeEnv,
+} from '../server/smoke/fixtures';
 import { runSmokeSection } from '../server/smoke/runSection';
-import type { SmokeSectionId, SmokeStepStreamEvent } from '../types';
+import type {
+  SmokeManualInputs,
+  SmokeSectionId,
+  SmokeStepStreamEvent,
+} from '../types';
 import { smokeSectionInputSchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
@@ -34,11 +43,16 @@ export const Route = createFileRoute('/api/admin/smoke')({
         }
 
         let sectionId: SmokeSectionId;
+        let mode: 'generated' | 'manual' = 'generated';
+        let manualInputs: SmokeManualInputs | undefined;
         try {
-          sectionId = validateOrThrow(
+          const payload = validateOrThrow(
             smokeSectionInputSchema,
             await readJsonBody(request)
-          ).sectionId;
+          );
+          sectionId = payload.sectionId;
+          mode = payload.mode;
+          manualInputs = payload.manualInputs;
         } catch (error) {
           if (error instanceof AppError && error.code === 'VALIDATION_ERROR') {
             return Response.json(
@@ -72,35 +86,69 @@ export const Route = createFileRoute('/api/admin/smoke')({
         }
 
         const encoder = new TextEncoder();
-        const baseUrl = getSmokeBaseUrl(new URL(request.url).origin);
+        const baseUrl = new URL(request.url).origin;
 
         const stream = new ReadableStream({
           async start(controller) {
             try {
-              const result = await runSmokeSection(sectionId, baseUrl, {
-                onStep: async (step) => {
-                  controller.enqueue(
-                    encoder.encode(
-                      jsonLine({
-                        type: 'step',
-                        sectionId,
-                        step,
-                      })
-                    )
-                  );
-                },
-                onStatus: async (message) => {
-                  controller.enqueue(
-                    encoder.encode(
-                      jsonLine({
-                        type: 'status',
-                        sectionId,
-                        message,
-                      })
-                    )
-                  );
-                },
-              });
+              const emitStep = async (
+                event: Extract<SmokeStepStreamEvent, { type: 'step' }>
+              ) => {
+                controller.enqueue(encoder.encode(jsonLine(event)));
+              };
+              const emitStatus = async (message: string) => {
+                controller.enqueue(
+                  encoder.encode(
+                    jsonLine({
+                      type: 'status',
+                      sectionId,
+                      message,
+                    })
+                  )
+                );
+              };
+
+              const result =
+                mode === 'generated'
+                  ? await withTemporarySmokeEnv({}, async () => {
+                      await emitStatus(
+                        'Creating generated smoke fixtures for this run.'
+                      );
+                      const fixtures = await createSmokeFixtures({
+                        sweepStale: true,
+                        onStatus: emitStatus,
+                      });
+                      try {
+                        return await runSmokeSection(sectionId, baseUrl, {
+                          onStep: async (step) => {
+                            await emitStep({
+                              type: 'step',
+                              sectionId,
+                              step,
+                            });
+                          },
+                          onStatus: emitStatus,
+                        });
+                      } finally {
+                        await cleanupSmokeFixtures(fixtures, {
+                          onStatus: emitStatus,
+                        });
+                      }
+                    })
+                  : await withTemporarySmokeEnv(
+                      manualInputsToSmokeEnv(manualInputs),
+                      async () =>
+                        runSmokeSection(sectionId, baseUrl, {
+                          onStep: async (step) => {
+                            await emitStep({
+                              type: 'step',
+                              sectionId,
+                              step,
+                            });
+                          },
+                          onStatus: emitStatus,
+                        })
+                    );
 
               controller.enqueue(
                 encoder.encode(

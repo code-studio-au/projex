@@ -8,16 +8,26 @@ export const Route = createFileRoute('/api/ready')({
     middleware: [publicApiRouteMiddleware],
     handlers: {
       GET: async () => {
-        const [{ getDb }, { validateServerStartupEnv }] = await Promise.all([
+        const [
+          { getDb },
+          { validateServerStartupEnv },
+          { checkCompanyExportStorageReady },
+        ] = await Promise.all([
           import('../server/db/db'),
           import('../server/env'),
+          import('../server/storage/exportStorageReadiness'),
         ]);
         validateServerStartupEnv();
         const db = getDb();
         await db.selectNoFrom(sql`1`.as('ok')).executeTakeFirst();
+        await checkCompanyExportStorageReady();
         return jsonApi({
           ok: true as const,
           now: new Date().toISOString(),
+          checks: {
+            database: true as const,
+            exportStorage: true as const,
+          },
         });
       },
     },

@@ -138,8 +138,9 @@ pnpm run smoke:cleanup
 Use the smoke commands like this:
 
 - `pnpm run smoke:server:disposable` is for local or CI use when you want full isolation from shared databases.
-- `pnpm run smoke:server:generated` is for running against an already-running app/database and still relies on `smoke_*` fixture rows in normal tables.
-- `pnpm run smoke:server` is for configured-credential or targeted runtime verification against a real deployed environment.
+- `pnpm run smoke:server:generated` is the default repeatable path for an already-running app/database. It creates and cleans disposable `smoke_*` fixture rows in normal tables.
+- `pnpm run smoke:server` is the advanced manual path for targeted runtime verification against a real deployed environment.
+- In the admin Smoke dashboard, generated fixtures are the default run mode. Manual mode is the advanced fallback and accepts per-run inputs in the UI rather than requiring repo-local smoke env values.
 
 ## Required Production Env
 
@@ -223,24 +224,27 @@ sudo systemctl status projex --no-pager -l
    - request a reset email
    - open the link
    - set a new password
-   - for saved smoke credentials, put the `PROJEX_SMOKE_*` values in `.env.smoke.local` at the repo root (`/opt/projex/.env.smoke.local` on EC2, repo root locally)
-   - use `pnpm run smoke:server` for a full pass
-   - use `pnpm run smoke:server -- --section=...` when rerunning only one workflow
-8. Prefer generated fixture smoke when you want a repeatable full pass without long-lived smoke users:
+8. Prefer generated fixture smoke for the default repeatable full pass without long-lived smoke users:
    - run `pnpm run smoke:server:generated`
    - use `pnpm run smoke:server:generated -- --section=...` when rerunning only one generated-fixture workflow
    - run `pnpm run smoke:cleanup` if an interrupted generated run leaves abandoned `smoke_*` fixtures behind
-9. Optional configured-credential invite smoke:
-   - set `PROJEX_SMOKE_INVITE_EMAIL`
-   - run `pnpm run smoke:server -- --section=inviteFlow`
-   - confirm invite + resend-invite requests both succeed
-10. Optional configured-credential email-change smoke:
+9. Use manual smoke only when you explicitly want to target existing users or long-lived data:
+   - for CLI/manual mode, put the `PROJEX_SMOKE_*` values in `.env.smoke.local` at the repo root (`/opt/projex/.env.smoke.local` on EC2, repo root locally)
+   - run `pnpm run smoke:server`
+   - use `pnpm run smoke:server -- --section=...` when rerunning only one manual workflow
+10. Optional configured-credential invite smoke:
+
+- set `PROJEX_SMOKE_INVITE_EMAIL`
+- run `pnpm run smoke:server -- --section=inviteFlow`
+- confirm invite + resend-invite requests both succeed
+
+11. Optional configured-credential email-change smoke:
 
 - set `PROJEX_SMOKE_EMAIL_CHANGE_TO`
 - run `pnpm run smoke:server -- --section=emailChange`
 - confirm the script can request, detect, resend, and cancel a pending email change
 
-11. Optional configured-credential privacy-toggle smoke: set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run `pnpm run smoke:server -- --section=privacyChecks`.
+12. Optional configured-credential privacy-toggle smoke: set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run `pnpm run smoke:server -- --section=privacyChecks`.
 
 ## Create The First Global Superadmin
 

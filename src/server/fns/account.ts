@@ -110,7 +110,7 @@ async function getPendingEmailChangeRow(
     .selectAll()
     .where('user_id', '=', userId)
     .where('consumed_at', 'is', null)
-    .orderBy('requested_at desc')
+    .orderBy('requested_at', 'desc')
     .executeTakeFirst();
 
   if (!row) return null;

@@ -102,6 +102,11 @@ pnpm run smoke:server:disposable
 pnpm run smoke:cleanup
 ```
 
+In the admin Smoke dashboard, generated fixtures are now the default run mode.
+Manual smoke remains available as an advanced mode for targeted checks against
+existing accounts or long-lived data, with per-run inputs supplied in the UI
+instead of relying on repo-local smoke env files.
+
 Command semantics and deploy-time verification details live in [docs/staging-runbook.md](/Users/scas0196/Documents/code/projex/docs/staging-runbook.md:1) and [docs/database-migrations.md](/Users/scas0196/Documents/code/projex/docs/database-migrations.md:1).
 
 ## Product Model
