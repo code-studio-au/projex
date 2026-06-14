@@ -6,6 +6,7 @@ import type {
   CompanyDefaultSubCategory,
   ImportPreviewRow,
   ImportTxnWithTaxonomy,
+  ProjectAutoCodingRule,
   SubCategory,
 } from '../types';
 import { assignStableIds } from './csv';
@@ -13,6 +14,7 @@ import {
   findMatchingCompanyDefaultRule,
   resolveCompanyDefaultRuleToProjectTaxonomy,
 } from './companyDefaultMappings';
+import { findMatchingProjectAutoCodingRule } from './projectAutoCodingRules';
 import { txnInputSchema } from '../validation/schemas';
 
 function sanitizeImportDate(value: string): string {
@@ -36,6 +38,7 @@ export function buildImportPreview(args: {
   defaultCategories: CompanyDefaultCategory[];
   defaultSubCategories: CompanyDefaultSubCategory[];
   mappingRules: CompanyDefaultMappingRule[];
+  projectAutoCodingRules?: ProjectAutoCodingRule[];
   autoCreateTaxonomy: boolean;
   canEditTaxonomy: boolean;
   autoCreateBudgets: boolean;
@@ -104,6 +107,7 @@ export function buildImportPreview(args: {
     let willCreateSubCategory = false;
     let willCreateBudgetLine = false;
     let ruleId: CompanyDefaultMappingRule['id'] | undefined;
+    let codingSource: ImportPreviewRow['codingSource'] = 'manual';
     let codingPendingApproval = false;
     let mappingStatus: ImportPreviewRow['mappingStatus'] = 'uncoded';
 
@@ -164,6 +168,32 @@ export function buildImportPreview(args: {
           ? 'auto_created'
           : 'source_taxonomy';
     } else if (!hasSourceTaxonomyInput || !sourceTaxonomyBlockedRuleFallback) {
+      const matchedProjectRule = findMatchingProjectAutoCodingRule(
+        {
+          item,
+          description,
+        },
+        args.projectAutoCodingRules ?? []
+      );
+      if (matchedProjectRule) {
+        categoryId = matchedProjectRule.categoryId;
+        subCategoryId = matchedProjectRule.subCategoryId;
+        categoryName = categoryNameById.get(matchedProjectRule.categoryId);
+        subCategoryName =
+          args.subCategories.find(
+            (subCategory) => subCategory.id === matchedProjectRule.subCategoryId
+          )?.name ?? subCategoryName;
+        codingSource = 'project_rule';
+        codingPendingApproval = true;
+        mappingStatus = 'matched_rule';
+      }
+    }
+
+    if (
+      !subCategoryId &&
+      !willCreateSubCategory &&
+      (!hasSourceTaxonomyInput || !sourceTaxonomyBlockedRuleFallback)
+    ) {
       const matchedRule = findMatchingCompanyDefaultRule(
         {
           item,
@@ -188,6 +218,7 @@ export function buildImportPreview(args: {
               (subCategory) => subCategory.id === resolved.subCategoryId
             )?.name ?? subCategoryName;
           ruleId = matchedRule.id;
+          codingSource = 'company_default_rule';
           codingPendingApproval = true;
           mappingStatus = 'matched_rule';
         } else {
@@ -196,7 +227,7 @@ export function buildImportPreview(args: {
           );
         }
       }
-    } else {
+    } else if (sourceTaxonomyBlockedRuleFallback) {
       warnings.push(
         'Provided category or subcategory input could not be resolved, so this row was left for manual review instead of falling back to an Auto-Categorise Rule.'
       );
@@ -275,7 +306,7 @@ export function buildImportPreview(args: {
       categoryName,
       subCategoryName,
       ruleId,
-      codingSource: ruleId ? 'company_default_rule' : 'manual',
+      codingSource,
       codingPendingApproval,
       willCreateCategory,
       willCreateSubCategory,

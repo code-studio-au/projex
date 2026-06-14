@@ -11,6 +11,7 @@ import type {
   TxnSplitInput,
   TxnTransferInput,
   TxnUpdateInput,
+  TxnUpdateResult,
 } from '../api/contract';
 import { useImportTransactionsMutation } from '../queries/admin';
 import {
@@ -43,9 +44,10 @@ export function useTransactions(params: {
 
   const transactions = useMemo(() => q.data ?? [], [q.data]);
 
-  const updateTxn = async (id: TxnId, patch: Omit<TxnUpdateInput, 'id'>) => {
-    await update.mutateAsync({ id, ...patch });
-  };
+  const updateTxn = async (
+    id: TxnId,
+    patch: Omit<TxnUpdateInput, 'id'>
+  ): Promise<TxnUpdateResult> => update.mutateAsync({ id, ...patch });
 
   const splitTxn = async (id: TxnId, children: TxnSplitInput['children']) => {
     await split.mutateAsync({ txnId: id, children });

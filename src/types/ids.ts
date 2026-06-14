@@ -22,6 +22,9 @@ export type CompanyDefaultMappingRuleId = Brand<
   string,
   'CompanyDefaultMappingRuleId'
 >;
+export type ProjectAutoCodingRuleId = Brand<string, 'ProjectAutoCodingRuleId'>;
+export type RuleSuggestionSignalId = Brand<string, 'RuleSuggestionSignalId'>;
+export type RuleSuggestionId = Brand<string, 'RuleSuggestionId'>;
 export type ImportRuleId = Brand<string, 'ImportRuleId'>;
 export type ImportBatchId = Brand<string, 'ImportBatchId'>;
 export type ImportCandidateId = Brand<string, 'ImportCandidateId'>;
@@ -40,6 +43,9 @@ export type AnyId =
   | CompanyDefaultCategoryId
   | CompanyDefaultSubCategoryId
   | CompanyDefaultMappingRuleId
+  | ProjectAutoCodingRuleId
+  | RuleSuggestionSignalId
+  | RuleSuggestionId
   | ImportRuleId
   | ImportBatchId
   | ImportCandidateId
@@ -60,6 +66,12 @@ export const asCompanyDefaultSubCategoryId = (v: string) =>
   brand<string, 'CompanyDefaultSubCategoryId'>(v);
 export const asCompanyDefaultMappingRuleId = (v: string) =>
   brand<string, 'CompanyDefaultMappingRuleId'>(v);
+export const asProjectAutoCodingRuleId = (v: string) =>
+  brand<string, 'ProjectAutoCodingRuleId'>(v);
+export const asRuleSuggestionSignalId = (v: string) =>
+  brand<string, 'RuleSuggestionSignalId'>(v);
+export const asRuleSuggestionId = (v: string) =>
+  brand<string, 'RuleSuggestionId'>(v);
 export const asImportRuleId = (v: string) => brand<string, 'ImportRuleId'>(v);
 export const asImportBatchId = (v: string) => brand<string, 'ImportBatchId'>(v);
 export const asImportCandidateId = (v: string) =>

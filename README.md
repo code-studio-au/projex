@@ -180,5 +180,6 @@ Keep this list short. If a new note overlaps an existing item, update the existi
 - `docs/email-ops-runbook.md`: email provider configuration, Resend checks, and email troubleshooting.
 - `docs/permissions-matrix.md`: current company/project/comment permission model and superadmin rules.
 - `docs/product-backlog.md`: product/admin backlog and non-priority ideas.
+- `docs/rule-suggestions-design.md`: design for deriving company rule suggestions from repeated manual coding.
 - `docs/verified-email-change-design.md`: design record for verified email-change behavior.
 - `deploy/cdk/README.md`: AWS CDK stack notes.

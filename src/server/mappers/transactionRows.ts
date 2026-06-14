@@ -36,7 +36,7 @@ export type TxnRow = {
   category_id: string | null;
   sub_category_id: string | null;
   company_default_mapping_rule_id: string | null;
-  coding_source: 'manual' | 'company_default_rule' | null;
+  coding_source: 'manual' | 'company_default_rule' | 'project_rule' | null;
   coding_pending_approval: boolean;
   reviewed_at: string | null;
   reviewed_by_user_id: string | null;

@@ -23,6 +23,8 @@ export const qk = {
     ['companyDefaultSubCategories', userId, companyId] as const,
   companyDefaultMappingRules: (userId: string, companyId: string) =>
     ['companyDefaultMappingRules', userId, companyId] as const,
+  ruleSuggestions: (userId: string, companyId: string) =>
+    ['ruleSuggestions', userId, companyId] as const,
   importRules: (userId: string, companyId: string) =>
     ['importRules', userId, companyId] as const,
 

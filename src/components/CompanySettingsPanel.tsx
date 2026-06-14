@@ -46,10 +46,12 @@ import {
   useSendCompanyUserInviteEmailMutation,
 } from '../queries/admin';
 import { useCompanyDefaultsQuery } from '../queries/taxonomy';
+import { useRuleSuggestionsQuery } from '../queries/ruleSuggestions';
 import { Route as companyLayoutRoute } from '../routes/_authed.c.$companyId';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
 import CompanyImportRulesModal from './CompanyImportRulesModal';
+import RuleSuggestionsModal from './RuleSuggestionsModal';
 import { formatUtcDateTime } from '../utils/dateTime';
 import classes from '../styles/ui.module.css';
 
@@ -130,6 +132,7 @@ export default function CompanySettingsPanel(props: {
     loaderData?.canExportCompany ??
     false;
   const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
+  const ruleSuggestionsQ = useRuleSuggestionsQuery(companyId);
   const effectiveDefaults = isHydrated
     ? companyDefaultsQ.data
     : {
@@ -176,6 +179,8 @@ export default function CompanySettingsPanel(props: {
   const [defaultsModalOpen, setDefaultsModalOpen] = useState(false);
   const [mappingsModalOpen, setMappingsModalOpen] = useState(false);
   const [importRulesModalOpen, setImportRulesModalOpen] = useState(false);
+  const [ruleSuggestionsModalOpen, setRuleSuggestionsModalOpen] =
+    useState(false);
   const [exportScope, setExportScope] = useState<'all' | 'active'>('all');
   const [exportDetail, setExportDetail] = useState<'full' | 'summary'>('full');
   const [exportFromDate, setExportFromDate] = useState('');
@@ -804,6 +809,38 @@ export default function CompanySettingsPanel(props: {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
+          <Title order={5}>Rule Suggestions</Title>
+          <Text size="sm" c="dimmed">
+            Review repeated manual coding patterns and turn them into reusable
+            Auto-Categorise Rules for the company.
+          </Text>
+          {ruleSuggestionsQ.isPending && !ruleSuggestionsQ.data ? (
+            <Text size="sm" c="dimmed">
+              Loading rule suggestions…
+            </Text>
+          ) : (
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">
+                {ruleSuggestionsQ.data?.length ?? 0} ready for review
+              </Badge>
+            </Group>
+          )}
+          <Button
+            variant="light"
+            disabled={!canEditCompanyDefaults}
+            onClick={() => setRuleSuggestionsModalOpen(true)}
+          >
+            Review Rule Suggestions
+          </Button>
+          <Text size="xs" c="dimmed">
+            Suggestions appear after repeated manual coding on similar
+            transactions and can be accepted into normal Auto-Categorise Rules.
+          </Text>
+        </Stack>
+      </Paper>
+
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
+        <Stack gap="sm">
           <Title order={5}>Add member</Title>
           {inviteError ? <Alert color="red">{inviteError}</Alert> : null}
           {inviteStatus ? <Alert color="green">{inviteStatus}</Alert> : null}
@@ -1018,6 +1055,12 @@ export default function CompanySettingsPanel(props: {
       <CompanyImportRulesModal
         opened={importRulesModalOpen}
         onClose={() => setImportRulesModalOpen(false)}
+        companyId={companyId}
+        readOnly={!canEditCompanyDefaults}
+      />
+      <RuleSuggestionsModal
+        opened={ruleSuggestionsModalOpen}
+        onClose={() => setRuleSuggestionsModalOpen(false)}
         companyId={companyId}
         readOnly={!canEditCompanyDefaults}
       />

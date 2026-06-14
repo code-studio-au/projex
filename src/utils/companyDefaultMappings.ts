@@ -9,48 +9,24 @@ import type {
   SubCategoryId,
   Txn,
 } from '../types';
-
-function normalize(value: string | undefined | null): string {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ');
-}
-
-function canonicalize(value: string | undefined | null): string {
-  return normalize(value)
-    .split(' ')
-    .map((word) => {
-      if (word.endsWith('ies') && word.length > 4)
-        return `${word.slice(0, -3)}y`;
-      if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3)
-        return word.slice(0, -1);
-      return word;
-    })
-    .join(' ');
-}
-
-function transactionMatchText(txn: Pick<Txn, 'item' | 'description'>): string {
-  return `${normalize(txn.item)} ${normalize(txn.description)}`.trim();
-}
+import {
+  canonicalizeRuleText,
+  normalizeRuleText,
+  textRuleMatches,
+  transactionRuleHaystack,
+} from './textRuleMatching';
 
 export function findMatchingCompanyDefaultRule(
   txn: Pick<Txn, 'item' | 'description'>,
   rules: CompanyDefaultMappingRule[]
 ): CompanyDefaultMappingRule | null {
-  const haystack = transactionMatchText(txn);
-  const canonicalHaystack = canonicalize(haystack);
+  const haystack = transactionRuleHaystack(txn);
   if (!haystack) return null;
   const sorted = [...rules].sort((a, b) => a.sortOrder - b.sortOrder);
   for (const rule of sorted) {
-    const needle = normalize(rule.matchText);
-    const canonicalNeedle = canonicalize(rule.matchText);
-    if (!needle) continue;
-    if (
-      haystack.includes(needle) ||
-      canonicalHaystack.includes(canonicalNeedle)
-    )
+    if (textRuleMatches({ haystack, needle: rule.matchText })) {
       return rule;
+    }
   }
   return null;
 }
@@ -74,17 +50,20 @@ export function resolveCompanyDefaultRuleToProjectTaxonomy(args: {
 
   const projectCategory = args.projectCategories.find(
     (category) =>
-      normalize(category.name) === normalize(defaultCategory.name) ||
-      canonicalize(category.name) === canonicalize(defaultCategory.name)
+      normalizeRuleText(category.name) ===
+        normalizeRuleText(defaultCategory.name) ||
+      canonicalizeRuleText(category.name) ===
+        canonicalizeRuleText(defaultCategory.name)
   );
   if (!projectCategory) return null;
 
   const projectSubCategory = args.projectSubCategories.find(
     (subCategory) =>
       subCategory.categoryId === projectCategory.id &&
-      (normalize(subCategory.name) === normalize(defaultSubCategory.name) ||
-        canonicalize(subCategory.name) ===
-          canonicalize(defaultSubCategory.name))
+      (normalizeRuleText(subCategory.name) ===
+        normalizeRuleText(defaultSubCategory.name) ||
+        canonicalizeRuleText(subCategory.name) ===
+          canonicalizeRuleText(defaultSubCategory.name))
   );
   if (!projectSubCategory) return null;
 

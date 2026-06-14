@@ -221,7 +221,7 @@ create table if not exists txns (
   category_id text null references categories(id) on delete set null,
   sub_category_id text null references sub_categories(id) on delete set null,
   company_default_mapping_rule_id text null references company_default_mapping_rules(id) on delete set null,
-  coding_source text null check (coding_source in ('manual', 'company_default_rule')),
+  coding_source text null check (coding_source in ('manual', 'company_default_rule', 'project_rule')),
   coding_pending_approval boolean not null default false,
   reviewed_at timestamptz null,
   reviewed_by_user_id text null references users(id) on delete set null,

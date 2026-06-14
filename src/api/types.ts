@@ -11,7 +11,10 @@ import type {
   ImportRule,
   ImportCandidateId,
   Project,
+  ProjectAutoCodingRule,
   ProjectId,
+  RuleSuggestion,
+  RuleSuggestionReviewItem,
   SubCategory,
   Txn,
   TxnCommentId,
@@ -213,6 +216,11 @@ export type TxnUpdateInput = Partial<
   companyDefaultMappingRuleId?: Txn['companyDefaultMappingRuleId'] | null;
 };
 
+export type TxnUpdateResult = {
+  txn: Txn;
+  projectRulePrompt: ProjectRuleSuggestionPrompt | null;
+};
+
 export type BudgetCreateInput = Omit<
   BudgetLine,
   'id' | 'createdAt' | 'updatedAt'
@@ -284,6 +292,43 @@ export type CompanyDefaultMappingRuleUpdateInput = Partial<
   >
 > & {
   id: CompanyDefaultMappingRule['id'];
+};
+
+export type RuleSuggestionAcceptInput = {
+  id: RuleSuggestion['id'];
+  proposedMatchText: string;
+  companyDefaultCategoryId: CompanyDefaultMappingRule['companyDefaultCategoryId'];
+  companyDefaultSubCategoryId: CompanyDefaultMappingRule['companyDefaultSubCategoryId'];
+};
+
+export type RuleSuggestionDismissInput = {
+  id: RuleSuggestion['id'];
+};
+
+export type RuleSuggestionsListResult = RuleSuggestionReviewItem[];
+
+export type ProjectRuleSuggestionPrompt = {
+  txnId: Txn['id'];
+  suggestedMatchText: string;
+  categoryId: ProjectAutoCodingRule['categoryId'];
+  subCategoryId: ProjectAutoCodingRule['subCategoryId'];
+  supportingCount: number;
+};
+
+export type CreateProjectAutoCodingRuleInput = Omit<
+  ProjectAutoCodingRule,
+  | 'id'
+  | 'companyId'
+  | 'projectId'
+  | 'sortOrder'
+  | 'createdByUserId'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
+export type CreateProjectAutoCodingRuleResult = {
+  rule: ProjectAutoCodingRule;
+  matchedTxnCount: number;
 };
 
 export type ImportRuleCreateInput = Omit<

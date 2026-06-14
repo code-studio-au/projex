@@ -7,6 +7,7 @@ import type {
   CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
   CompanyId,
+  ProjectAutoCodingRule,
   ProjectId,
   SubCategory,
   Txn,
@@ -14,6 +15,7 @@ import type {
 import { txnInputSchema } from '../validation/schemas';
 import { validateOrThrow } from '../validation/validate';
 import { mapImportedTransactionWithCompanyDefaults } from './companyDefaultMappings';
+import { applyProjectAutoCodingRule } from './projectAutoCodingRules';
 import {
   assertUniqueTransactionKeysInProject,
   normalizeExternalId,
@@ -29,6 +31,7 @@ export function planTransactionImportCommit(args: {
   defaultCategories: CompanyDefaultCategory[];
   defaultSubCategories: CompanyDefaultSubCategory[];
   mappingRules: CompanyDefaultMappingRule[];
+  projectAutoCodingRules?: ProjectAutoCodingRule[];
   projectCategories: Category[];
   projectSubCategories: SubCategory[];
   mode: 'append' | 'replaceAll';
@@ -63,7 +66,10 @@ export function planTransactionImportCommit(args: {
 
   const importedTransactions = normalizedIncoming.map((txn) =>
     mapImportedTransactionWithCompanyDefaults({
-      txn,
+      txn: applyProjectAutoCodingRule({
+        txn,
+        rules: args.projectAutoCodingRules ?? [],
+      }),
       rules: args.mappingRules,
       defaultCategories: args.defaultCategories,
       defaultSubCategories: args.defaultSubCategories,

@@ -1,8 +1,21 @@
 import type { Kysely } from 'kysely';
 
 import type { DB } from '../db/schema';
-import type { CompanyId, ImportRule, ProjectId, Txn } from '../../types';
-import { asCompanyId, asImportRuleId, asTxnId } from '../../types';
+import type {
+  CompanyId,
+  ImportRule,
+  ProjectAutoCodingRule,
+  ProjectId,
+  Txn,
+} from '../../types';
+import {
+  asCompanyId,
+  asImportRuleId,
+  asProjectAutoCodingRuleId,
+  asSubCategoryId,
+  asTxnId,
+  asUserId,
+} from '../../types';
 import { normalizeExternalId } from '../../utils/transactions';
 import { defaultPowerBiImportRules } from '../../utils/powerBiImport';
 import { toBudgetLines, toTxn } from '../mappers/transactionRows';
@@ -22,6 +35,7 @@ export async function loadTransactionImportCommitContext(
     defaultCategoriesRows,
     defaultSubCategoriesRows,
     mappingRuleRows,
+    projectRuleRows,
     projectCategoryRows,
     projectSubCategoryRows,
     existingTxnRows,
@@ -30,6 +44,7 @@ export async function loadTransactionImportCommitContext(
     selectCompanyDefaultCategories(db, args.companyId),
     selectCompanyDefaultSubCategories(db, args.companyId),
     selectCompanyDefaultMappingRules(db, args.companyId),
+    selectProjectAutoCodingRules(db, args.projectId),
     selectProjectCategories(db, args.projectId),
     selectProjectSubCategories(db, args.projectId),
     selectProjectTransactions(db, args.projectId),
@@ -42,6 +57,7 @@ export async function loadTransactionImportCommitContext(
       toCompanyDefaultSubCategory
     ),
     mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
+    projectAutoCodingRules: projectRuleRows.map(toProjectAutoCodingRule),
     projectCategories: projectCategoryRows.map(toCategory),
     projectSubCategories: projectSubCategoryRows.map(toSubCategory),
     existingTransactions: existingTxnRows.map(toTxn),
@@ -58,6 +74,7 @@ export async function loadTransactionImportPreviewContext(
     defaultCategoriesRows,
     defaultSubCategoriesRows,
     mappingRuleRows,
+    projectRuleRows,
     importRuleRows,
     projectCategoryRows,
     projectSubCategoryRows,
@@ -67,6 +84,7 @@ export async function loadTransactionImportPreviewContext(
     selectCompanyDefaultCategories(db, args.companyId),
     selectCompanyDefaultSubCategories(db, args.companyId),
     selectCompanyDefaultMappingRules(db, args.companyId),
+    selectProjectAutoCodingRules(db, args.projectId),
     selectImportRules(db, args.companyId),
     selectProjectCategories(db, args.projectId),
     selectProjectSubCategories(db, args.projectId),
@@ -83,6 +101,7 @@ export async function loadTransactionImportPreviewContext(
       toCompanyDefaultSubCategory
     ),
     mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
+    projectAutoCodingRules: projectRuleRows.map(toProjectAutoCodingRule),
     importRules: importRuleRows.length
       ? importRuleRows.map(toImportRule)
       : defaultImportRules(args.companyId),
@@ -162,6 +181,27 @@ function selectImportRules(db: Kysely<DB>, companyId: CompanyId) {
     .execute();
 }
 
+function selectProjectAutoCodingRules(db: Kysely<DB>, projectId: ProjectId) {
+  return db
+    .selectFrom('project_auto_coding_rules')
+    .select([
+      'id',
+      'company_id',
+      'project_id',
+      'match_text',
+      'category_id',
+      'sub_category_id',
+      'sort_order',
+      'created_by_user_id',
+      'created_at',
+      'updated_at',
+    ])
+    .where('project_id', '=', projectId)
+    .orderBy('sort_order', 'asc')
+    .orderBy('created_at', 'asc')
+    .execute();
+}
+
 function toImportRule(
   row: Awaited<ReturnType<typeof selectImportRules>>[number]
 ): ImportRule {
@@ -185,6 +225,23 @@ function defaultImportRules(companyId: CompanyId): ImportRule[] {
     ...rule,
     id: asImportRuleId(`default_import_rule_${index + 1}`),
   }));
+}
+
+function toProjectAutoCodingRule(
+  row: Awaited<ReturnType<typeof selectProjectAutoCodingRules>>[number]
+): ProjectAutoCodingRule {
+  return {
+    id: asProjectAutoCodingRuleId(row.id),
+    companyId: asCompanyId(row.company_id),
+    projectId: row.project_id as ProjectId,
+    matchText: row.match_text,
+    categoryId: row.category_id as ProjectAutoCodingRule['categoryId'],
+    subCategoryId: asSubCategoryId(row.sub_category_id),
+    sortOrder: row.sort_order,
+    createdByUserId: asUserId(row.created_by_user_id),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 function selectProjectCategories(db: Kysely<DB>, projectId: ProjectId) {

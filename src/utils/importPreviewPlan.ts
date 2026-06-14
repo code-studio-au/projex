@@ -8,6 +8,7 @@ import type {
   ImportPreviewRow,
   ImportRule,
   ImportTxnWithTaxonomy,
+  ProjectAutoCodingRule,
   SubCategory,
   Txn,
 } from '../types';
@@ -42,6 +43,7 @@ export function planImportPreview(args: {
   defaultCategories: CompanyDefaultCategory[];
   defaultSubCategories: CompanyDefaultSubCategory[];
   mappingRules: CompanyDefaultMappingRule[];
+  projectAutoCodingRules?: ProjectAutoCodingRule[];
   autoCreateStructures: boolean;
   canEditTaxonomy: boolean;
   canEditBudgets: boolean;
@@ -68,6 +70,7 @@ export function planImportPreview(args: {
       defaultCategories: args.defaultCategories,
       defaultSubCategories: args.defaultSubCategories,
       mappingRules: args.mappingRules,
+      projectAutoCodingRules: args.projectAutoCodingRules,
       autoCreateTaxonomy: args.autoCreateStructures,
       canEditTaxonomy: args.canEditTaxonomy,
       autoCreateBudgets: args.autoCreateStructures,

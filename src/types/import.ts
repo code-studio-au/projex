@@ -69,7 +69,7 @@ export type ImportPreviewRow = {
   categoryName?: string;
   subCategoryName?: string;
   ruleId?: CompanyDefaultMappingRuleId;
-  codingSource?: 'manual' | 'company_default_rule';
+  codingSource?: 'manual' | 'company_default_rule' | 'project_rule';
   codingPendingApproval: boolean;
   willCreateCategory: boolean;
   willCreateSubCategory: boolean;

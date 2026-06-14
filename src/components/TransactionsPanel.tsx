@@ -1,16 +1,19 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
+  Alert,
   ActionIcon,
   Badge,
   Button,
   Collapse,
   Group,
   Menu,
+  Modal,
   NumberInput,
   Paper,
   Select,
   Stack,
   Text,
+  TextInput,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
@@ -34,6 +37,7 @@ import type {
   TxnComment,
   TxnId,
 } from '../types';
+import type { ProjectRuleSuggestionPrompt } from '../api/contract';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 import {
   buildTxnCommentRepliesByParent,
@@ -54,6 +58,7 @@ import {
   useTransactionCommentSummariesQuery,
 } from '../queries/transactionComments';
 import { useTransactionsPageQuery } from '../queries/transactions';
+import { useCreateProjectAutoCodingRuleMutation } from '../queries/projectAutoCodingRules';
 import classes from '../styles/ui.module.css';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
@@ -149,6 +154,10 @@ export default function TransactionsPanel(props: {
   const [expandedCommentsTxn, setExpandedCommentsTxn] = useState<Txn | null>(
     null
   );
+  const [projectRulePrompt, setProjectRulePrompt] =
+    useState<ProjectRuleSuggestionPrompt | null>(null);
+  const [projectRuleMatchText, setProjectRuleMatchText] = useState('');
+  const [projectRuleError, setProjectRuleError] = useState<string | null>(null);
   const isMobile = useMediaQuery('(max-width: 48em)');
   const isHydrated = useSyncExternalStore(
     hydrateSubscription,
@@ -210,6 +219,7 @@ export default function TransactionsPanel(props: {
     { enabled: isHydrated }
   );
   const commentSummariesQ = useTransactionCommentSummariesQuery(projectId);
+  const createProjectRule = useCreateProjectAutoCodingRuleMutation(projectId);
   const expandedCommentsTxnId =
     expandedCommentsTxn?.id ?? asTxnId('__no_expanded_txn__');
   const expandedCommentsQ = useTransactionCommentsQuery(
@@ -296,6 +306,13 @@ export default function TransactionsPanel(props: {
       txn.txnType !== 'transfer_source' &&
       txn.txnType !== 'transfer_child'
     );
+  }
+
+  function applyProjectRulePrompt(prompt: ProjectRuleSuggestionPrompt | null) {
+    if (!prompt) return;
+    setProjectRuleError(null);
+    setProjectRulePrompt(prompt);
+    setProjectRuleMatchText(prompt.suggestedMatchText);
   }
 
   function moveToSubcategoryCell(args: {
@@ -726,6 +743,7 @@ export default function TransactionsPanel(props: {
             clearable
             disabled={!catId || !canCode}
             onChange={(v) => {
+              setProjectRuleError(null);
               void txns
                 .updateTxn(row.original.id, {
                   categoryId: catId ?? null,
@@ -734,7 +752,17 @@ export default function TransactionsPanel(props: {
                   codingSource: 'manual',
                   codingPendingApproval: false,
                 })
-                .then(() => table.setEditingCell(null));
+                .then((result) => {
+                  table.setEditingCell(null);
+                  applyProjectRulePrompt(result.projectRulePrompt);
+                })
+                .catch((error) => {
+                  setProjectRuleError(
+                    error instanceof Error
+                      ? error.message
+                      : 'Could not update transaction coding.'
+                  );
+                });
             }}
           />
         );
@@ -1051,6 +1079,10 @@ export default function TransactionsPanel(props: {
               and may be excluded from month filters or rollups.
             </Text>
           )}
+
+          {projectRuleError && !projectRulePrompt ? (
+            <Alert color="red">{projectRuleError}</Alert>
+          ) : null}
         </Stack>
       </Paper>
 
@@ -1167,6 +1199,74 @@ export default function TransactionsPanel(props: {
           }
         }}
       />
+
+      <Modal
+        opened={Boolean(projectRulePrompt)}
+        onClose={() => {
+          setProjectRulePrompt(null);
+          setProjectRuleError(null);
+        }}
+        title="Create project auto-coding rule?"
+        centered
+      >
+        <Stack gap="md">
+          {projectRuleError ? (
+            <Alert color="red">{projectRuleError}</Alert>
+          ) : null}
+          <Text size="sm" c="dimmed">
+            This pattern has now been manually coded{' '}
+            {projectRulePrompt?.supportingCount ?? 0} times. Create a project
+            rule now to auto-code future imports and mark matching uncoded
+            transactions for approval.
+          </Text>
+          <TextInput
+            label="Match text"
+            value={projectRuleMatchText}
+            onChange={(event) => {
+              setProjectRuleError(null);
+              setProjectRuleMatchText(event.currentTarget.value);
+            }}
+          />
+          <Group justify="flex-end">
+            <Button
+              variant="subtle"
+              onClick={() => {
+                setProjectRulePrompt(null);
+                setProjectRuleError(null);
+              }}
+            >
+              Not now
+            </Button>
+            <Button
+              disabled={
+                createProjectRule.isPending ||
+                !projectRulePrompt ||
+                !projectRuleMatchText.trim()
+              }
+              onClick={async () => {
+                if (!projectRulePrompt) return;
+                try {
+                  setProjectRuleError(null);
+                  await createProjectRule.mutateAsync({
+                    matchText: projectRuleMatchText.trim(),
+                    categoryId: projectRulePrompt.categoryId,
+                    subCategoryId: projectRulePrompt.subCategoryId,
+                  });
+                  setProjectRulePrompt(null);
+                } catch (error) {
+                  setProjectRuleError(
+                    error instanceof Error
+                      ? error.message
+                      : 'Could not create project auto-coding rule.'
+                  );
+                }
+              }}
+            >
+              Create rule
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }

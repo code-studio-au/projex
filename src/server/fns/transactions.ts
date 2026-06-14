@@ -30,6 +30,7 @@ import type {
   TxnTransferInput,
   TxnTransferResult,
   TxnUpdateInput,
+  TxnUpdateResult,
   TxnWorkflowStateInput,
 } from '../../api/types';
 import { uid } from '../../utils/id';
@@ -75,6 +76,8 @@ import {
 } from '../loaders/importContext';
 import { enforceRateLimit } from '../rateLimit';
 import type { DB, TxnTable } from '../db/schema';
+import { recordManualRuleSuggestionSignal } from './ruleSuggestions';
+import { getProjectRuleSuggestionPromptServer } from './projectAutoCodingRules';
 
 const IMPORT_PREVIEW_RATE_LIMIT = {
   limit: 12,
@@ -566,7 +569,7 @@ export async function updateTxnServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
   input: TxnUpdateInput;
-}): Promise<Txn> {
+}): Promise<TxnUpdateResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
     const context = await requireOperationalProjectForAction(
@@ -731,7 +734,33 @@ export async function updateTxnServer(args: {
       ])
       .executeTakeFirstOrThrow();
 
-    return toTxn(updated);
+    const updatedTxn = toTxn(updated);
+    await recordManualRuleSuggestionSignal({
+      db,
+      userId: context.userId,
+      prev,
+      next: updatedTxn,
+    });
+
+    const shouldCheckProjectRulePrompt =
+      updatedTxn.codingSource === 'manual' &&
+      Boolean(updatedTxn.categoryId) &&
+      Boolean(updatedTxn.subCategoryId) &&
+      (prev.categoryId !== updatedTxn.categoryId ||
+        prev.subCategoryId !== updatedTxn.subCategoryId);
+
+    const projectRulePrompt = shouldCheckProjectRulePrompt
+      ? await getProjectRuleSuggestionPromptServer({
+          context: args.context,
+          projectId: args.projectId,
+          txnId: updatedTxn.id,
+        })
+      : null;
+
+    return {
+      txn: updatedTxn,
+      projectRulePrompt,
+    };
   });
 }
 
@@ -1322,6 +1351,7 @@ export async function importTransactionsServer(args: {
       defaultCategories: importContext.defaultCategories,
       defaultSubCategories: importContext.defaultSubCategories,
       mappingRules: importContext.mappingRules,
+      projectAutoCodingRules: importContext.projectAutoCodingRules,
       projectCategories: importContext.projectCategories,
       projectSubCategories: importContext.projectSubCategories,
       mode: args.mode,
@@ -1600,6 +1630,7 @@ export async function previewImportTransactionsServer(args: {
       defaultCategories: importContext.defaultCategories,
       defaultSubCategories: importContext.defaultSubCategories,
       mappingRules: importContext.mappingRules,
+      projectAutoCodingRules: importContext.projectAutoCodingRules,
       autoCreateStructures: Boolean(args.autoCreateStructures),
       canEditTaxonomy,
       canEditBudgets,
@@ -1912,6 +1943,7 @@ export async function reviewImportCandidateServer(args: {
       defaultCategories: importContext.defaultCategories,
       defaultSubCategories: importContext.defaultSubCategories,
       mappingRules: importContext.mappingRules,
+      projectAutoCodingRules: importContext.projectAutoCodingRules,
       projectCategories: importContext.projectCategories,
       projectSubCategories: importContext.projectSubCategories,
       mode: 'append',

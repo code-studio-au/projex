@@ -36,11 +36,20 @@ import { isAuthorized } from '../src/server/auth/authorize.ts';
 import { createPgPool } from '../src/server/db/pgPool.ts';
 import type { DB } from '../src/server/db/schema.ts';
 import {
+  acceptRuleSuggestionServer,
+  dismissRuleSuggestionServer,
+  listRuleSuggestionsServer,
+} from '../src/server/fns/ruleSuggestions.ts';
+import {
   createBudgetServer,
   listBudgetsServer,
   deleteBudgetServer,
   updateBudgetServer,
 } from '../src/server/fns/budgets.ts';
+import {
+  createProjectAutoCodingRuleServer,
+  getProjectRuleSuggestionPromptServer,
+} from '../src/server/fns/projectAutoCodingRules.ts';
 import {
   deleteCompanyMembershipServer,
   listAllCompanyMembershipsServer,
@@ -148,6 +157,7 @@ import {
   asImportCandidateId,
   asImportRuleId,
   asProjectId,
+  asRuleSuggestionId,
   type ProjectRole,
   asSubCategoryId,
   asTxnCommentId,
@@ -851,7 +861,9 @@ test(
     const db = createIntegrationDb();
     const companyId = asCompanyId('itest_export_state_co_1');
     const userId = asUserId('itest_export_state_usr_1');
-    const queuedJobId = asCompanyExportJobId('expjob_itest_export_state_queued');
+    const queuedJobId = asCompanyExportJobId(
+      'expjob_itest_export_state_queued'
+    );
     const expiredJobId = asCompanyExportJobId(
       'expjob_itest_export_state_expired'
     );
@@ -1002,7 +1014,10 @@ test(
         .execute();
 
       const secondCompanyId = asCompanyId('itest_delete_company_co_2');
-      await db.deleteFrom('companies').where('id', '=', secondCompanyId).execute();
+      await db
+        .deleteFrom('companies')
+        .where('id', '=', secondCompanyId)
+        .execute();
       await db
         .insertInto('companies')
         .values({
@@ -1051,7 +1066,10 @@ test(
         ]
       );
 
-      await db.deleteFrom('companies').where('id', '=', secondCompanyId).execute();
+      await db
+        .deleteFrom('companies')
+        .where('id', '=', secondCompanyId)
+        .execute();
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db
@@ -1240,6 +1258,1010 @@ test(
         .deleteFrom('companies')
         .where('id', 'in', [companyId, otherCompanyId])
         .execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'manual coding records company rule suggestion signals and aggregates repeated patterns',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_rulesuggest_co_1');
+    const userId = asUserId('itest_rulesuggest_usr_1');
+    const projectId = asProjectId('itest_rulesuggest_prj_1');
+    const categoryId = asCategoryId('itest_rulesuggest_cat_1');
+    const subCategoryId = asSubCategoryId('itest_rulesuggest_sub_1');
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_rulesuggest_defcat_1'
+    );
+    const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_rulesuggest_defsub_1'
+    );
+    const txnIds = [
+      asTxnId('itest_rulesuggest_txn_1'),
+      asTxnId('itest_rulesuggest_txn_2'),
+      asTxnId('itest_rulesuggest_txn_3'),
+    ];
+    const now = new Date().toISOString();
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Rule Suggestion Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'rulesuggest@example.com',
+          name: 'Rule Suggestion User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Rule Suggestion Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'member' })
+        .execute();
+
+      await db
+        .insertInto('categories')
+        .values({
+          id: categoryId,
+          company_id: companyId,
+          project_id: projectId,
+          name: 'Travel',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('sub_categories')
+        .values({
+          id: subCategoryId,
+          company_id: companyId,
+          project_id: projectId,
+          category_id: categoryId,
+          name: 'Flights',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_default_categories')
+        .values({
+          id: defaultCategoryId,
+          company_id: companyId,
+          name: 'Travel',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_default_sub_categories')
+        .values({
+          id: defaultSubCategoryId,
+          company_id: companyId,
+          company_default_category_id: defaultCategoryId,
+          name: 'Flights',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('txns')
+        .values(
+          txnIds.map((txnId, index) => ({
+            public_id: txnId,
+            external_id: `rule-suggest-ext-${index + 1}`,
+            company_id: companyId,
+            project_id: projectId,
+            txn_date: '2026-06-01',
+            item: 'Qantas Airways',
+            description: `Flight charge ${index + 1}`,
+            amount_cents: 1000 + index * 100,
+            txn_type: 'standard' as const,
+            parent_public_id: null,
+            source_public_id: null,
+            transfer_project_id: null,
+            budget_impact: true,
+            categorisable: true,
+            import_batch_id: null,
+            import_source_type: null,
+            import_source_meta: null,
+            category_id: null,
+            sub_category_id: null,
+            company_default_mapping_rule_id: null,
+            coding_source: null,
+            coding_pending_approval: false,
+            reviewed_at: null,
+            reviewed_by_user_id: null,
+            locked_at: null,
+            locked_by_user_id: null,
+            created_at: now,
+            updated_at: now,
+          }))
+        )
+        .execute();
+
+      for (const txnId of txnIds) {
+        await updateTxnServer({
+          context: { session: { userId } },
+          projectId,
+          input: {
+            id: txnId,
+            categoryId,
+            subCategoryId,
+            companyDefaultMappingRuleId: null,
+            codingSource: 'manual',
+            codingPendingApproval: false,
+          },
+        });
+      }
+
+      const signals = await db
+        .selectFrom('rule_suggestion_signals')
+        .select([
+          'txn_public_id',
+          'pattern_text_normalized',
+          'company_default_sub_category_id',
+        ])
+        .where('company_id', '=', companyId)
+        .execute();
+      assert.equal(signals.length, 3);
+      assert.ok(
+        signals.every(
+          (row) =>
+            row.pattern_text_normalized === 'qantas airways' &&
+            row.company_default_sub_category_id === defaultSubCategoryId
+        )
+      );
+
+      const suggestions = await db
+        .selectFrom('rule_suggestions')
+        .select([
+          'status',
+          'proposed_match_text',
+          'sample_count',
+          'company_default_sub_category_id',
+        ])
+        .where('company_id', '=', companyId)
+        .execute();
+      assert.equal(suggestions.length, 1);
+      assert.equal(suggestions[0]?.status, 'open');
+      assert.equal(suggestions[0]?.proposed_match_text, 'Qantas Airways');
+      assert.equal(suggestions[0]?.sample_count, 3);
+      assert.equal(
+        suggestions[0]?.company_default_sub_category_id,
+        defaultSubCategoryId
+      );
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'manual rule suggestion signals dedupe per transaction and move when recoded to a new target',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_rulesuggest_co_2');
+    const userId = asUserId('itest_rulesuggest_usr_2');
+    const projectId = asProjectId('itest_rulesuggest_prj_2');
+    const travelCategoryId = asCategoryId('itest_rulesuggest_cat_2a');
+    const flightsSubCategoryId = asSubCategoryId('itest_rulesuggest_sub_2a');
+    const hotelsSubCategoryId = asSubCategoryId('itest_rulesuggest_sub_2b');
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_rulesuggest_defcat_2'
+    );
+    const defaultFlightsSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_rulesuggest_defsub_2a'
+    );
+    const defaultHotelsSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_rulesuggest_defsub_2b'
+    );
+    const txnId = asTxnId('itest_rulesuggest_txn_4');
+    const now = new Date().toISOString();
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Rule Suggestion Co 2',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'rulesuggest2@example.com',
+          name: 'Rule Suggestion User 2',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Rule Suggestion Project 2',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'member' })
+        .execute();
+
+      await db
+        .insertInto('categories')
+        .values({
+          id: travelCategoryId,
+          company_id: companyId,
+          project_id: projectId,
+          name: 'Travel',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('sub_categories')
+        .values([
+          {
+            id: flightsSubCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: travelCategoryId,
+            name: 'Flights',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: hotelsSubCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: travelCategoryId,
+            name: 'Hotels',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+
+      await db
+        .insertInto('company_default_categories')
+        .values({
+          id: defaultCategoryId,
+          company_id: companyId,
+          name: 'Travel',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_default_sub_categories')
+        .values([
+          {
+            id: defaultFlightsSubCategoryId,
+            company_id: companyId,
+            company_default_category_id: defaultCategoryId,
+            name: 'Flights',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: defaultHotelsSubCategoryId,
+            company_id: companyId,
+            company_default_category_id: defaultCategoryId,
+            name: 'Hotels',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+
+      await db
+        .insertInto('txns')
+        .values({
+          public_id: txnId,
+          external_id: 'rule-suggest-ext-4',
+          company_id: companyId,
+          project_id: projectId,
+          txn_date: '2026-06-02',
+          item: 'Jetstar',
+          description: 'Domestic travel charge',
+          amount_cents: 1450,
+          txn_type: 'standard',
+          parent_public_id: null,
+          source_public_id: null,
+          transfer_project_id: null,
+          budget_impact: true,
+          categorisable: true,
+          import_batch_id: null,
+          import_source_type: null,
+          import_source_meta: null,
+          category_id: null,
+          sub_category_id: null,
+          company_default_mapping_rule_id: null,
+          coding_source: null,
+          coding_pending_approval: false,
+          reviewed_at: null,
+          reviewed_by_user_id: null,
+          locked_at: null,
+          locked_by_user_id: null,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await updateTxnServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          id: txnId,
+          categoryId: travelCategoryId,
+          subCategoryId: flightsSubCategoryId,
+          companyDefaultMappingRuleId: null,
+          codingSource: 'manual',
+          codingPendingApproval: false,
+        },
+      });
+
+      await updateTxnServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          id: txnId,
+          categoryId: travelCategoryId,
+          subCategoryId: hotelsSubCategoryId,
+          companyDefaultMappingRuleId: null,
+          codingSource: 'manual',
+          codingPendingApproval: false,
+        },
+      });
+
+      const signals = await db
+        .selectFrom('rule_suggestion_signals')
+        .select([
+          'txn_public_id',
+          'project_sub_category_id',
+          'company_default_sub_category_id',
+        ])
+        .where('company_id', '=', companyId)
+        .execute();
+      assert.equal(signals.length, 1);
+      assert.equal(signals[0]?.txn_public_id, txnId);
+      assert.equal(signals[0]?.project_sub_category_id, hotelsSubCategoryId);
+      assert.equal(
+        signals[0]?.company_default_sub_category_id,
+        defaultHotelsSubCategoryId
+      );
+
+      const suggestions = await db
+        .selectFrom('rule_suggestions')
+        .select(['company_default_sub_category_id', 'sample_count', 'status'])
+        .where('company_id', '=', companyId)
+        .orderBy('company_default_sub_category_id', 'asc')
+        .execute();
+      assert.equal(suggestions.length, 1);
+      assert.equal(
+        suggestions[0]?.company_default_sub_category_id,
+        defaultHotelsSubCategoryId
+      );
+      assert.equal(suggestions[0]?.sample_count, 1);
+      assert.equal(suggestions[0]?.status, 'open');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'rule suggestion review queue lists thresholded items and can accept or dismiss them',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_rulesuggest_co_3');
+    const userId = asUserId('itest_rulesuggest_usr_3');
+    const projectId = asProjectId('itest_rulesuggest_prj_3');
+    const categoryId = asCategoryId('itest_rulesuggest_cat_3');
+    const flightsSubCategoryId = asSubCategoryId('itest_rulesuggest_sub_3a');
+    const hotelsSubCategoryId = asSubCategoryId('itest_rulesuggest_sub_3b');
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_rulesuggest_defcat_3'
+    );
+    const defaultFlightsSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_rulesuggest_defsub_3a'
+    );
+    const defaultHotelsSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_rulesuggest_defsub_3b'
+    );
+    const now = new Date().toISOString();
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Rule Suggestion Co 3',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'rulesuggest3@example.com',
+          name: 'Rule Suggestion User 3',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Rule Suggestion Project 3',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'member' })
+        .execute();
+
+      await db
+        .insertInto('categories')
+        .values({
+          id: categoryId,
+          company_id: companyId,
+          project_id: projectId,
+          name: 'Travel',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('sub_categories')
+        .values([
+          {
+            id: flightsSubCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: categoryId,
+            name: 'Flights',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: hotelsSubCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: categoryId,
+            name: 'Hotels',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+
+      await db
+        .insertInto('company_default_categories')
+        .values({
+          id: defaultCategoryId,
+          company_id: companyId,
+          name: 'Travel',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_default_sub_categories')
+        .values([
+          {
+            id: defaultFlightsSubCategoryId,
+            company_id: companyId,
+            company_default_category_id: defaultCategoryId,
+            name: 'Flights',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: defaultHotelsSubCategoryId,
+            company_id: companyId,
+            company_default_category_id: defaultCategoryId,
+            name: 'Hotels',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+
+      const readyTxnIds = [
+        asTxnId('itest_rulesuggest_txn_5'),
+        asTxnId('itest_rulesuggest_txn_6'),
+        asTxnId('itest_rulesuggest_txn_7'),
+      ];
+      const hiddenTxnIds = [
+        asTxnId('itest_rulesuggest_txn_8'),
+        asTxnId('itest_rulesuggest_txn_9'),
+      ];
+
+      await db
+        .insertInto('txns')
+        .values(
+          [...readyTxnIds, ...hiddenTxnIds].map((txnId, index) => ({
+            public_id: txnId,
+            external_id: `rule-suggest-ext-queue-${index + 1}`,
+            company_id: companyId,
+            project_id: projectId,
+            txn_date: '2026-06-03',
+            item: index < 3 ? 'Virgin Australia' : 'Accor Hotels',
+            description: `Travel queue sample ${index + 1}`,
+            amount_cents: 1500 + index * 100,
+            txn_type: 'standard' as const,
+            parent_public_id: null,
+            source_public_id: null,
+            transfer_project_id: null,
+            budget_impact: true,
+            categorisable: true,
+            import_batch_id: null,
+            import_source_type: null,
+            import_source_meta: null,
+            category_id: null,
+            sub_category_id: null,
+            company_default_mapping_rule_id: null,
+            coding_source: null,
+            coding_pending_approval: false,
+            reviewed_at: null,
+            reviewed_by_user_id: null,
+            locked_at: null,
+            locked_by_user_id: null,
+            created_at: now,
+            updated_at: now,
+          }))
+        )
+        .execute();
+
+      for (const txnId of readyTxnIds) {
+        await updateTxnServer({
+          context: { session: { userId } },
+          projectId,
+          input: {
+            id: txnId,
+            categoryId,
+            subCategoryId: flightsSubCategoryId,
+            companyDefaultMappingRuleId: null,
+            codingSource: 'manual',
+            codingPendingApproval: false,
+          },
+        });
+      }
+
+      for (const txnId of hiddenTxnIds) {
+        await updateTxnServer({
+          context: { session: { userId } },
+          projectId,
+          input: {
+            id: txnId,
+            categoryId,
+            subCategoryId: hotelsSubCategoryId,
+            companyDefaultMappingRuleId: null,
+            codingSource: 'manual',
+            codingPendingApproval: false,
+          },
+        });
+      }
+
+      const listedBefore = await listRuleSuggestionsServer({
+        context: { session: { userId } },
+        companyId,
+      });
+      assert.equal(listedBefore.length, 1);
+      assert.equal(listedBefore[0]?.sampleCount, 3);
+      assert.equal(listedBefore[0]?.proposedMatchText, 'Virgin Australia');
+      assert.ok((listedBefore[0]?.evidence.length ?? 0) >= 1);
+
+      const accepted = await acceptRuleSuggestionServer({
+        context: { session: { userId } },
+        companyId,
+        input: {
+          id: listedBefore[0]!.id,
+          proposedMatchText: 'virgin',
+          companyDefaultCategoryId: defaultCategoryId,
+          companyDefaultSubCategoryId: defaultFlightsSubCategoryId,
+        },
+      });
+      assert.ok(accepted.ruleId);
+
+      const acceptedRule = await db
+        .selectFrom('company_default_mapping_rules')
+        .select(['id', 'match_text', 'company_default_sub_category_id'])
+        .where('company_id', '=', companyId)
+        .where('id', '=', accepted.ruleId)
+        .executeTakeFirst();
+      assert.equal(acceptedRule?.match_text, 'virgin');
+      assert.equal(
+        acceptedRule?.company_default_sub_category_id,
+        defaultFlightsSubCategoryId
+      );
+
+      const listedAfterAccept = await listRuleSuggestionsServer({
+        context: { session: { userId } },
+        companyId,
+      });
+      assert.equal(listedAfterAccept.length, 0);
+
+      const hotelSuggestion = await db
+        .selectFrom('rule_suggestions')
+        .select(['id'])
+        .where('company_id', '=', companyId)
+        .where(
+          'company_default_sub_category_id',
+          '=',
+          defaultHotelsSubCategoryId
+        )
+        .executeTakeFirst();
+      assert.ok(hotelSuggestion?.id);
+
+      await db
+        .updateTable('rule_suggestions')
+        .set({
+          sample_count: 3,
+          updated_at: new Date().toISOString(),
+        })
+        .where('id', '=', hotelSuggestion!.id)
+        .execute();
+
+      const listedForDismiss = await listRuleSuggestionsServer({
+        context: { session: { userId } },
+        companyId,
+      });
+      assert.equal(listedForDismiss.length, 1);
+
+      await dismissRuleSuggestionServer({
+        context: { session: { userId } },
+        companyId,
+        input: {
+          id: hotelSuggestion!.id as ReturnType<typeof asRuleSuggestionId>,
+        },
+      });
+
+      const listedAfterDismiss = await listRuleSuggestionsServer({
+        context: { session: { userId } },
+        companyId,
+      });
+      assert.equal(listedAfterDismiss.length, 0);
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'project auto-coding rules prompt after repeated manual coding and bulk-apply to uncoded matches',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_prule_co_1');
+    const userId = asUserId('itest_prule_usr_1');
+    const projectId = asProjectId('itest_prule_prj_1');
+    const categoryId = asCategoryId('itest_prule_cat_1');
+    const subCategoryId = asSubCategoryId('itest_prule_sub_1');
+    const manualTxnIds = [
+      asTxnId('itest_prule_txn_1'),
+      asTxnId('itest_prule_txn_2'),
+      asTxnId('itest_prule_txn_3'),
+      asTxnId('itest_prule_txn_4'),
+    ];
+    const uncodedTxnId = asTxnId('itest_prule_txn_5');
+    const now = new Date().toISOString();
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Project Rule Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'prule@example.com',
+          name: 'Project Rule User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'management' })
+        .execute();
+
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Project Rule Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'member' })
+        .execute();
+
+      await db
+        .insertInto('categories')
+        .values({
+          id: categoryId,
+          company_id: companyId,
+          project_id: projectId,
+          name: 'Travel',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('sub_categories')
+        .values({
+          id: subCategoryId,
+          company_id: companyId,
+          project_id: projectId,
+          category_id: categoryId,
+          name: 'Flights',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('txns')
+        .values(
+          [...manualTxnIds, uncodedTxnId].map((txnId, index) => ({
+            public_id: txnId,
+            external_id: `prule-ext-${index + 1}`,
+            company_id: companyId,
+            project_id: projectId,
+            txn_date: '2026-06-04',
+            item: 'Qantas Airways',
+            description:
+              index < manualTxnIds.length
+                ? `Repeated manual coding ${index + 1}`
+                : 'Pending uncoded match',
+            amount_cents: 2200 + index * 100,
+            txn_type: 'standard' as const,
+            parent_public_id: null,
+            source_public_id: null,
+            transfer_project_id: null,
+            budget_impact: true,
+            categorisable: true,
+            import_batch_id: null,
+            import_source_type: null,
+            import_source_meta: null,
+            category_id: null,
+            sub_category_id: null,
+            company_default_mapping_rule_id: null,
+            coding_source: null,
+            coding_pending_approval: false,
+            reviewed_at: null,
+            reviewed_by_user_id: null,
+            locked_at: null,
+            locked_by_user_id: null,
+            created_at: now,
+            updated_at: now,
+          }))
+        )
+        .execute();
+
+      for (const txnId of manualTxnIds.slice(0, 3)) {
+        const updateResult = await updateTxnServer({
+          context: { session: { userId } },
+          projectId,
+          input: {
+            id: txnId,
+            categoryId,
+            subCategoryId,
+            companyDefaultMappingRuleId: null,
+            codingSource: 'manual',
+            codingPendingApproval: false,
+          },
+        });
+        if (txnId === manualTxnIds[2]) {
+          assert.ok(updateResult.projectRulePrompt);
+          assert.equal(updateResult.projectRulePrompt?.supportingCount, 3);
+          assert.equal(
+            updateResult.projectRulePrompt?.suggestedMatchText,
+            'Qantas Airways'
+          );
+        }
+      }
+
+      const prompt = await getProjectRuleSuggestionPromptServer({
+        context: { session: { userId } },
+        projectId,
+        txnId: manualTxnIds[2]!,
+      });
+      assert.ok(prompt);
+      assert.equal(prompt?.supportingCount, 3);
+      assert.equal(prompt?.suggestedMatchText, 'Qantas Airways');
+
+      const fourthUpdate = await updateTxnServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          id: manualTxnIds[3]!,
+          categoryId,
+          subCategoryId,
+          companyDefaultMappingRuleId: null,
+          codingSource: 'manual',
+          codingPendingApproval: false,
+        },
+      });
+      assert.ok(fourthUpdate.projectRulePrompt);
+      assert.equal(fourthUpdate.projectRulePrompt?.supportingCount, 4);
+      assert.equal(
+        fourthUpdate.projectRulePrompt?.suggestedMatchText,
+        'Qantas Airways'
+      );
+
+      const promptAfterThreshold = await getProjectRuleSuggestionPromptServer({
+        context: { session: { userId } },
+        projectId,
+        txnId: manualTxnIds[3]!,
+      });
+      assert.ok(promptAfterThreshold);
+      assert.equal(promptAfterThreshold?.supportingCount, 4);
+      assert.equal(promptAfterThreshold?.suggestedMatchText, 'Qantas Airways');
+
+      const created = await createProjectAutoCodingRuleServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          matchText: 'qantas',
+          categoryId,
+          subCategoryId,
+        },
+      });
+      assert.equal(created.rule.matchText, 'qantas');
+      assert.equal(created.matchedTxnCount, 1);
+
+      const uncodedTxn = await db
+        .selectFrom('txns')
+        .select([
+          'category_id',
+          'sub_category_id',
+          'coding_source',
+          'coding_pending_approval',
+        ])
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', uncodedTxnId)
+        .executeTakeFirst();
+      assert.equal(uncodedTxn?.category_id, categoryId);
+      assert.equal(uncodedTxn?.sub_category_id, subCategoryId);
+      assert.equal(uncodedTxn?.coding_source, 'project_rule');
+      assert.equal(uncodedTxn?.coding_pending_approval, true);
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();
       await db.destroy();
     }

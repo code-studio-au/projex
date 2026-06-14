@@ -87,7 +87,11 @@ const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const projectVisibilitySchema = z.enum(['company', 'private']);
 const projectTypeSchema = z.enum(['project', 'programme']);
 const currencySchema = z.enum(['AUD', 'USD', 'EUR', 'GBP']);
-const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
+const codingSourceSchema = z.enum([
+  'manual',
+  'company_default_rule',
+  'project_rule',
+]);
 const importSourceTypeSchema = z.enum(['powerbi_expenditure_actuals']);
 const importRuleActionSchema = z.enum(['import', 'exclude', 'review']);
 const importRuleFieldSchema = z.enum([

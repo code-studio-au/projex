@@ -89,7 +89,7 @@ export interface TxnTable {
   category_id: string | null;
   sub_category_id: string | null;
   company_default_mapping_rule_id: string | null;
-  coding_source: 'manual' | 'company_default_rule' | null;
+  coding_source: 'manual' | 'company_default_rule' | 'project_rule' | null;
   coding_pending_approval: boolean;
   reviewed_at: string | null;
   reviewed_by_user_id: string | null;
@@ -168,6 +168,60 @@ export interface CompanyDefaultMappingRuleTable {
   company_default_category_id: string;
   company_default_sub_category_id: string;
   sort_order: number;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface ProjectAutoCodingRuleTable {
+  id: string;
+  company_id: string;
+  project_id: string;
+  match_text: string;
+  category_id: string;
+  sub_category_id: string;
+  sort_order: number;
+  created_by_user_id: string;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface RuleSuggestionSignalTable {
+  id: string;
+  company_id: string;
+  project_id: string;
+  txn_public_id: string;
+  suggestion_type: 'create_rule';
+  pattern_basis: 'item' | 'description' | 'item_description';
+  pattern_text_raw: string;
+  pattern_text_normalized: string;
+  project_category_id: string;
+  project_sub_category_id: string;
+  company_default_category_id: string;
+  company_default_sub_category_id: string;
+  acted_by_user_id: string;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface RuleSuggestionTable {
+  id: string;
+  company_id: string;
+  status: 'open' | 'accepted' | 'dismissed';
+  suggestion_type: 'create_rule';
+  pattern_text_normalized: string;
+  proposed_match_text: string;
+  project_category_id: string;
+  project_sub_category_id: string;
+  company_default_category_id: string;
+  company_default_sub_category_id: string;
+  sample_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  accepted_rule_id: string | null;
+  accepted_at: string | null;
+  accepted_by_user_id: string | null;
+  dismissed_at: string | null;
+  dismissed_by_user_id: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -269,6 +323,9 @@ export interface DB {
   company_default_categories: CompanyDefaultCategoryTable;
   company_default_sub_categories: CompanyDefaultSubCategoryTable;
   company_default_mapping_rules: CompanyDefaultMappingRuleTable;
+  project_auto_coding_rules: ProjectAutoCodingRuleTable;
+  rule_suggestion_signals: RuleSuggestionSignalTable;
+  rule_suggestions: RuleSuggestionTable;
   import_rules: ImportRuleTable;
   import_batches: ImportBatchTable;
   import_candidates: ImportCandidateTable;
@@ -291,6 +348,9 @@ export const APP_DB_TABLES = [
   'company_default_categories',
   'company_default_sub_categories',
   'company_default_mapping_rules',
+  'project_auto_coding_rules',
+  'rule_suggestion_signals',
+  'rule_suggestions',
   'import_rules',
   'import_batches',
   'import_candidates',

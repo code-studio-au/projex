@@ -8,6 +8,7 @@ import type {
   CompanyDefaultCategory,
   CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
+  ProjectAutoCodingRule,
   SubCategory,
   Txn,
 } from '../src/types/index.ts';
@@ -19,8 +20,10 @@ import {
   asCompanyDefaultSubCategoryId,
   asCompanyId,
   asProjectId,
+  asProjectAutoCodingRuleId,
   asSubCategoryId,
   asTxnId,
+  asUserId,
 } from '../src/types/index.ts';
 import { planImportPreview } from '../src/utils/importPreviewPlan.ts';
 import { planTransactionImportCommit } from '../src/utils/transactionImportCommitPlan.ts';
@@ -54,6 +57,14 @@ const subCategory: SubCategory = {
   name: 'Flights',
 };
 
+const hotelSubCategory: SubCategory = {
+  id: asSubCategoryId('sub_hotels'),
+  companyId,
+  projectId,
+  categoryId: category.id,
+  name: 'Hotels',
+};
+
 const defaultCategory: CompanyDefaultCategory = {
   id: asCompanyDefaultCategoryId('ccat_travel'),
   companyId,
@@ -76,6 +87,17 @@ const mappingRule: CompanyDefaultMappingRule = {
   sortOrder: 0,
 };
 
+const projectAutoCodingRule: ProjectAutoCodingRule = {
+  id: asProjectAutoCodingRuleId('prule_flight'),
+  projectId,
+  companyId,
+  matchText: 'flight',
+  categoryId: category.id,
+  subCategoryId: hotelSubCategory.id,
+  sortOrder: 0,
+  createdByUserId: asUserId('usr_rule_author'),
+};
+
 function txn(overrides: Partial<Txn> = {}): Txn {
   return withStandardTxnAccountingMetadata({
     id: asTxnId('txn_1'),
@@ -95,6 +117,7 @@ function planImport(
     incomingTransactions?: Txn[];
     existingTransactions?: Txn[];
     existingBudgets?: BudgetLine[];
+    projectAutoCodingRules?: ProjectAutoCodingRule[];
     mode?: 'append' | 'replaceAll';
     autoCreateBudgets?: boolean;
   } = {}
@@ -108,8 +131,9 @@ function planImport(
     defaultCategories: [defaultCategory],
     defaultSubCategories: [defaultSubCategory],
     mappingRules: [mappingRule],
+    projectAutoCodingRules: overrides.projectAutoCodingRules,
     projectCategories: [category],
-    projectSubCategories: [subCategory],
+    projectSubCategories: [subCategory, hotelSubCategory],
     mode: overrides.mode ?? 'append',
     autoCreateBudgets: overrides.autoCreateBudgets ?? false,
   });
@@ -180,6 +204,25 @@ test('transaction import commit applies company defaults and creates missing bud
   ]);
 });
 
+test('transaction import commit prioritizes project auto-coding rules over company defaults', () => {
+  const result = planImport({
+    projectAutoCodingRules: [projectAutoCodingRule],
+  });
+
+  assert.equal(result.importedTransactions.length, 1);
+  assert.equal(result.importedTransactions[0].categoryId, category.id);
+  assert.equal(
+    result.importedTransactions[0].subCategoryId,
+    hotelSubCategory.id
+  );
+  assert.equal(
+    result.importedTransactions[0].companyDefaultMappingRuleId,
+    undefined
+  );
+  assert.equal(result.importedTransactions[0].codingSource, 'project_rule');
+  assert.equal(result.importedTransactions[0].codingPendingApproval, true);
+});
+
 test('transaction import commit skips budget targets that already exist', () => {
   const existingBudget: BudgetLine = {
     id: asBudgetLineId('bud_1'),
@@ -228,6 +271,33 @@ test('import preview marks existing duplicates and invalid rows', () => {
     result.rows[1].warnings.join('\n'),
     /Transaction date must be YYYY-MM-DD/
   );
+});
+
+test('import preview labels project auto-coding matches correctly', () => {
+  const result = planImportPreview({
+    csvText: [
+      'Ledger,Fiscal Year,Period,CC and Description,RC and Description,PC and Description,AC,Expenditure Actuals,Journal Line Description,Journal ID,Reference Num,Journal Date,Journal Line,Journal Line Ref,Posted Date,Unpost Seq,Source,Operator ID,PO ID,Vendor ID,Vendor Name',
+      'ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,125.00,Flight Sydney to Melbourne,JRNL-100,REF-1,46137,12,A,46138,0,EXP,OP-1,PO-44,VEN-10,Flight Vendor',
+    ].join('\n'),
+    existingTransactions: [],
+    categories: [category],
+    subCategories: [subCategory, hotelSubCategory],
+    budgets: [],
+    defaultCategories: [defaultCategory],
+    defaultSubCategories: [defaultSubCategory],
+    mappingRules: [mappingRule],
+    projectAutoCodingRules: [projectAutoCodingRule],
+    autoCreateStructures: false,
+    canEditTaxonomy: false,
+    canEditBudgets: false,
+  });
+
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].mappingStatus, 'matched_rule');
+  assert.equal(result.rows[0].subCategoryId, hotelSubCategory.id);
+  assert.equal(result.rows[0].ruleId, undefined);
+  assert.equal(result.rows[0].codingSource, 'project_rule');
+  assert.equal(result.rows[0].codingPendingApproval, true);
 });
 
 test('import preview excludes PowerBI footer rows without transaction fields', () => {

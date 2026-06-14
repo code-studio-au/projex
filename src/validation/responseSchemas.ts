@@ -77,7 +77,11 @@ const companyRoleSchema = z.enum([
 ]);
 const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const projectTypeSchema = z.enum(['project', 'programme']);
-const codingSourceSchema = z.enum(['manual', 'company_default_rule']);
+const codingSourceSchema = z.enum([
+  'manual',
+  'company_default_rule',
+  'project_rule',
+]);
 const txnListViewSchema = z.enum([
   'all',
   'uncoded',
@@ -519,7 +523,9 @@ export const importPreviewRowResponseSchema = z.object({
   categoryName: z.string().optional(),
   subCategoryName: z.string().optional(),
   ruleId: mappingRuleIdSchema.optional(),
-  codingSource: z.enum(['manual', 'company_default_rule']).optional(),
+  codingSource: z
+    .enum(['manual', 'company_default_rule', 'project_rule'])
+    .optional(),
   codingPendingApproval: z.boolean(),
   willCreateCategory: z.boolean(),
   willCreateSubCategory: z.boolean(),

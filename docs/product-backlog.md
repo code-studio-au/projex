@@ -64,6 +64,10 @@ Why this matters:
 
 ### 4. Add rule suggestions from repeated manual coding
 
+Design note:
+
+- see `docs/rule-suggestions-design.md` for the recommended V1 to V3 shape, trigger points, schema direction, and admin-review workflow
+
 Examples:
 
 - suggest a new auto-map rule after the same vendor or description pattern is manually coded several times

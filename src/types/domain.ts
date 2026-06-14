@@ -10,6 +10,9 @@ import type {
   ImportRuleId,
   CompanyExportJobId,
   ProjectId,
+  ProjectAutoCodingRuleId,
+  RuleSuggestionId,
+  RuleSuggestionSignalId,
   SubCategoryId,
   TxnCommentId,
   TxnId,
@@ -131,6 +134,19 @@ export type CompanyDefaultMappingRule = {
   updatedAt?: string;
 };
 
+export type ProjectAutoCodingRule = {
+  id: ProjectAutoCodingRuleId;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  matchText: string;
+  categoryId: CategoryId;
+  subCategoryId: SubCategoryId;
+  sortOrder: number;
+  createdByUserId: UserId;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type ImportRuleAction = 'import' | 'exclude' | 'review';
 export type ImportRuleField =
   | 'ledger'
@@ -209,6 +225,68 @@ export type ImportCandidate = {
   reviewedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type RuleSuggestionType = 'create_rule';
+export type RuleSuggestionStatus = 'open' | 'accepted' | 'dismissed';
+export type RuleSuggestionPatternBasis =
+  | 'item'
+  | 'description'
+  | 'item_description';
+
+export type RuleSuggestionSignal = {
+  id: RuleSuggestionSignalId;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  txnId: TxnId;
+  suggestionType: RuleSuggestionType;
+  patternBasis: RuleSuggestionPatternBasis;
+  patternTextRaw: string;
+  patternTextNormalized: string;
+  projectCategoryId: CategoryId;
+  projectSubCategoryId: SubCategoryId;
+  companyDefaultCategoryId: CompanyDefaultCategoryId;
+  companyDefaultSubCategoryId: CompanyDefaultSubCategoryId;
+  actedByUserId: UserId;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RuleSuggestion = {
+  id: RuleSuggestionId;
+  companyId: CompanyId;
+  status: RuleSuggestionStatus;
+  suggestionType: RuleSuggestionType;
+  patternTextNormalized: string;
+  proposedMatchText: string;
+  projectCategoryId: CategoryId;
+  projectSubCategoryId: SubCategoryId;
+  companyDefaultCategoryId: CompanyDefaultCategoryId;
+  companyDefaultSubCategoryId: CompanyDefaultSubCategoryId;
+  sampleCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  acceptedRuleId?: CompanyDefaultMappingRuleId;
+  acceptedAt?: string;
+  acceptedByUserId?: UserId;
+  dismissedAt?: string;
+  dismissedByUserId?: UserId;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RuleSuggestionEvidence = {
+  txnId: TxnId;
+  projectId: ProjectId;
+  item: string;
+  description: string;
+  amountCents: number;
+  txnDate: string;
+  createdAt: string;
+};
+
+export type RuleSuggestionReviewItem = RuleSuggestion & {
+  evidence: RuleSuggestionEvidence[];
 };
 
 export type CompanyExportScope = 'all' | 'active';
@@ -303,7 +381,7 @@ export type Txn = {
   categoryId?: CategoryId;
   subCategoryId?: SubCategoryId;
   companyDefaultMappingRuleId?: CompanyDefaultMappingRuleId;
-  codingSource?: 'manual' | 'company_default_rule';
+  codingSource?: 'manual' | 'company_default_rule' | 'project_rule';
   codingPendingApproval?: boolean;
   reviewedAt?: string;
   reviewedByUserId?: UserId;
