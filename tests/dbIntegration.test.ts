@@ -2490,6 +2490,12 @@ test(
     const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
       'itest_project_defaults_dsub_1'
     );
+    const laterDefaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_project_defaults_dcat_2'
+    );
+    const laterDefaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_project_defaults_dsub_2'
+    );
     const now = new Date().toISOString();
 
     try {
@@ -2558,6 +2564,18 @@ test(
         applyCompanyDefaultTaxonomy: false,
       });
 
+      await api.createCompanyDefaultCategory(companyId, {
+        id: laterDefaultCategoryId,
+        companyId,
+        name: 'IT',
+      });
+      await api.createCompanyDefaultSubCategory(companyId, {
+        id: laterDefaultSubCategoryId,
+        companyId,
+        companyDefaultCategoryId: laterDefaultCategoryId,
+        name: 'Software and Services',
+      });
+
       const withDefaultsCategories = await db
         .selectFrom('categories')
         .select(['name'])
@@ -2579,13 +2597,13 @@ test(
         .where('project_id', '=', projectWithoutDefaultsId)
         .execute();
 
+      assert.deepEqual(withDefaultsCategories.map((row) => row.name).sort(), [
+        'IT',
+        'Travel',
+      ]);
       assert.deepEqual(
-        withDefaultsCategories.map((row) => row.name),
-        ['Travel']
-      );
-      assert.deepEqual(
-        withDefaultsSubCategories.map((row) => row.name),
-        ['Flights']
+        withDefaultsSubCategories.map((row) => row.name).sort(),
+        ['Flights', 'Software and Services']
       );
       assert.equal(withoutDefaultsCategories.length, 0);
       assert.equal(withoutDefaultsSubCategories.length, 0);

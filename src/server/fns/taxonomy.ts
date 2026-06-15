@@ -28,6 +28,7 @@ import {
   asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
+  asProjectId,
   asSubCategoryId,
 } from '../../types';
 import { uid } from '../../utils/id';
@@ -94,6 +95,20 @@ async function requireCompanyContext(
     .executeTakeFirst();
   if (!company) throw new AppError('NOT_FOUND', 'Unknown company');
   await requireAuthorized({ db, userId, action, companyId });
+}
+
+async function listSyncedProjectIdsForCompany(args: {
+  db: Transaction<DB> | ReturnType<typeof getDb>;
+  companyId: CompanyId;
+}) {
+  const rows = await args.db
+    .selectFrom('projects')
+    .select('id')
+    .where('company_id', '=', args.companyId)
+    .where('project_type', '=', 'project')
+    .where('sync_company_defaults', '=', true)
+    .execute();
+  return rows.map((row) => asProjectId(row.id));
 }
 
 export async function listCategoriesServer(args: {
@@ -681,17 +696,33 @@ export async function createCompanyDefaultCategoryServer(args: {
 
     const id = args.input.id ?? asCompanyDefaultCategoryId(uid('ccat'));
     const now = new Date().toISOString();
-    const row = await db
-      .insertInto('company_default_categories')
-      .values({
-        id,
-        company_id: args.companyId,
-        name,
-        created_at: now,
-        updated_at: now,
-      })
-      .returning(['id', 'company_id', 'name', 'created_at', 'updated_at'])
-      .executeTakeFirstOrThrow();
+    const row = await db.transaction().execute(async (trx) => {
+      const created = await trx
+        .insertInto('company_default_categories')
+        .values({
+          id,
+          company_id: args.companyId,
+          name,
+          created_at: now,
+          updated_at: now,
+        })
+        .returning(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+        .executeTakeFirstOrThrow();
+
+      const syncedProjectIds = await listSyncedProjectIdsForCompany({
+        db: trx,
+        companyId: args.companyId,
+      });
+      for (const projectId of syncedProjectIds) {
+        await applyCompanyDefaultTaxonomyToProject({
+          db: trx,
+          companyId: args.companyId,
+          projectId,
+        });
+      }
+
+      return created;
+    });
     return toCompanyDefaultCategory(row);
   });
 }
@@ -819,25 +850,41 @@ export async function createCompanyDefaultSubCategoryServer(args: {
 
     const id = args.input.id ?? asCompanyDefaultSubCategoryId(uid('csub'));
     const now = new Date().toISOString();
-    const row = await db
-      .insertInto('company_default_sub_categories')
-      .values({
-        id,
-        company_id: args.companyId,
-        company_default_category_id: args.input.companyDefaultCategoryId,
-        name,
-        created_at: now,
-        updated_at: now,
-      })
-      .returning([
-        'id',
-        'company_id',
-        'company_default_category_id',
-        'name',
-        'created_at',
-        'updated_at',
-      ])
-      .executeTakeFirstOrThrow();
+    const row = await db.transaction().execute(async (trx) => {
+      const created = await trx
+        .insertInto('company_default_sub_categories')
+        .values({
+          id,
+          company_id: args.companyId,
+          company_default_category_id: args.input.companyDefaultCategoryId,
+          name,
+          created_at: now,
+          updated_at: now,
+        })
+        .returning([
+          'id',
+          'company_id',
+          'company_default_category_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .executeTakeFirstOrThrow();
+
+      const syncedProjectIds = await listSyncedProjectIdsForCompany({
+        db: trx,
+        companyId: args.companyId,
+      });
+      for (const projectId of syncedProjectIds) {
+        await applyCompanyDefaultTaxonomyToProject({
+          db: trx,
+          companyId: args.companyId,
+          projectId,
+        });
+      }
+
+      return created;
+    });
     return toCompanyDefaultSubCategory(row);
   });
 }

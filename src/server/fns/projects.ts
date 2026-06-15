@@ -402,6 +402,8 @@ export async function createProjectServer(args: {
           deactivated_at: null,
           visibility: 'private',
           allow_superadmin_access: true,
+          sync_company_defaults:
+            projectType === 'project' ? applyCompanyDefaultTaxonomy : false,
           allow_txn_transfers: false,
         })
         .returning(projectSelectFields)

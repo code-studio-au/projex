@@ -29,6 +29,7 @@ export interface ProjectTable {
   deactivated_at: string | null;
   visibility: 'company' | 'private';
   allow_superadmin_access: boolean;
+  sync_company_defaults: Generated<boolean>;
   allow_txn_transfers: Generated<boolean>;
 }
 
