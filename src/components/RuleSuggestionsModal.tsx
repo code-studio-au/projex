@@ -29,6 +29,7 @@ import {
   useDismissRuleSuggestionMutation,
   useRuleSuggestionsQuery,
 } from '../queries/ruleSuggestions';
+import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import { formatUtcDateTime } from '../utils/dateTime';
 import classes from '../styles/ui.module.css';
 
@@ -186,6 +187,7 @@ export default function RuleSuggestionsModal(props: {
                         data={categoryOptions}
                         value={selectedCategoryId}
                         disabled={readOnly}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           setError(null);
                           setSuccess(null);
@@ -207,6 +209,7 @@ export default function RuleSuggestionsModal(props: {
                         data={subCategoryOptions}
                         value={selectedSubCategoryId}
                         disabled={readOnly || !selectedCategoryId}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           setError(null);
                           setSuccess(null);

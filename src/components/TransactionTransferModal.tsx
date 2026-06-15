@@ -14,6 +14,7 @@ import {
 
 import type { ProjectId, Txn } from '../types';
 import { asProjectId } from '../types';
+import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import { formatCurrencyFromCents } from '../utils/money';
 import classes from '../styles/ui.module.css';
 
@@ -129,6 +130,7 @@ function TransactionTransferModalContent(props: {
         value={destinationProjectId}
         searchable
         disabled={submitting}
+        {...firefoxSafeModalSelectProps}
         onChange={(value) =>
           setDestinationProjectId(value ? asProjectId(value) : null)
         }

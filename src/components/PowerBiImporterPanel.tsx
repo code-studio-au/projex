@@ -67,6 +67,16 @@ const operatorOptions: Array<{ value: ImportRuleOperator; label: string }> = [
   { value: 'ends_with_any', label: 'Ends with any of' },
 ];
 
+const importRuleSelectProps = {
+  withScrollArea: false,
+  styles: {
+    dropdown: {
+      maxHeight: 180,
+      overflowY: 'auto',
+    },
+  },
+} as const;
+
 function toImportRuleField(value: string | null): ImportRuleField | null {
   return fieldOptions.some((option) => option.value === value)
     ? (value as ImportRuleField)
@@ -997,7 +1007,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               label="Field"
               data={fieldOptions}
               value={excludeRuleField}
-              comboboxProps={{ withinPortal: false }}
+              {...importRuleSelectProps}
               onChange={(value) => {
                 const next = toImportRuleField(value);
                 if (!next) return;
@@ -1009,7 +1019,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               label="Match"
               data={operatorOptions}
               value={excludeRuleOperator}
-              comboboxProps={{ withinPortal: false }}
+              {...importRuleSelectProps}
               onChange={(value) => {
                 const next = toImportRuleOperator(value);
                 if (!next) return;

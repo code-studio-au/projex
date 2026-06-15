@@ -244,6 +244,30 @@ Why this matters:
 
 - access control is much stronger now, but role changes are sensitive enough that more clarity will reduce admin mistakes
 
+### Review modal/select scroll behavior in Zen/Firefox
+
+Examples:
+
+- revisit taxonomy and import-rule modal interactions where opening or wheel-scrolling Mantine `Select` dropdowns can interfere with page or modal scrolling in Zen/Firefox
+- confirm whether the current targeted fixes should stay as-is, be narrowed further, or be replaced with a more durable cross-browser pattern
+- verify whether specific high-risk flows should use Mantine `Select`, `NativeSelect`, or a different editor shape entirely
+
+Why this matters:
+
+- the current implementation is stable, but part of that stability comes from a pragmatic workaround rather than an ideal UX outcome
+- in Zen/Firefox, Mantine modal scroll locking and combobox dropdown scrolling can interact badly enough to freeze scrolling after dropdown use
+
+Current solution and reasoning:
+
+- taxonomy modals currently use `lockScroll={false}` because Mantine scroll locking appeared to be the real source of the stuck-scroll state in Zen/Firefox
+- some modal-based rule editors also use a Firefox-safe dropdown configuration that avoids Mantine's internal dropdown `ScrollArea`
+- this leaves a small UX compromise where background/window scrolling can still occur while some modal interactions are open, but it avoids the more serious broken-scroll failure mode
+
+Design direction:
+
+- keep the current targeted workaround for now because it is stable and low-risk
+- later, re-evaluate whether the better long-term answer is a Mantine upgrade, a more surgical modal configuration, or moving the most complex taxonomy editors out of modal context altogether
+
 ### Search and filtering maturity
 
 Examples:

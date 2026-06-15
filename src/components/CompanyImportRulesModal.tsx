@@ -65,6 +65,16 @@ const operatorOptions: Array<{ value: ImportRuleOperator; label: string }> = [
   { value: 'ends_with_any', label: 'Ends with any of' },
 ];
 
+const importRuleSelectProps = {
+  withScrollArea: false,
+  styles: {
+    dropdown: {
+      maxHeight: 180,
+      overflowY: 'auto',
+    },
+  },
+} as const;
+
 function toImportRuleAction(value: string | null): ImportRuleAction | null {
   return actionOptions.some((option) => option.value === value)
     ? (value as ImportRuleAction)
@@ -244,7 +254,7 @@ export default function CompanyImportRulesModal(props: {
                 data={actionOptions}
                 value={newAction}
                 disabled={readOnly}
-                comboboxProps={{ withinPortal: false }}
+                {...importRuleSelectProps}
                 onChange={(value) => {
                   const next = toImportRuleAction(value);
                   if (next) setNewAction(next);
@@ -255,7 +265,7 @@ export default function CompanyImportRulesModal(props: {
                 data={fieldOptions}
                 value={newField}
                 disabled={readOnly}
-                comboboxProps={{ withinPortal: false }}
+                {...importRuleSelectProps}
                 onChange={(value) => {
                   const next = toImportRuleField(value);
                   if (next) setNewField(next);
@@ -266,7 +276,7 @@ export default function CompanyImportRulesModal(props: {
                 data={operatorOptions}
                 value={newOperator}
                 disabled={readOnly}
-                comboboxProps={{ withinPortal: false }}
+                {...importRuleSelectProps}
                 onChange={(value) => {
                   const next = toImportRuleOperator(value);
                   if (next) setNewOperator(next);
@@ -422,7 +432,7 @@ export default function CompanyImportRulesModal(props: {
                         data={actionOptions}
                         value={draft.action}
                         disabled={readOnly}
-                        comboboxProps={{ withinPortal: false }}
+                        {...importRuleSelectProps}
                         onChange={(value) => {
                           const next = toImportRuleAction(value);
                           if (next) patchDraft(rule, { action: next });
@@ -433,7 +443,7 @@ export default function CompanyImportRulesModal(props: {
                         data={fieldOptions}
                         value={draft.field}
                         disabled={readOnly}
-                        comboboxProps={{ withinPortal: false }}
+                        {...importRuleSelectProps}
                         onChange={(value) => {
                           const next = toImportRuleField(value);
                           if (next) patchDraft(rule, { field: next });
@@ -444,7 +454,7 @@ export default function CompanyImportRulesModal(props: {
                         data={operatorOptions}
                         value={draft.operator}
                         disabled={readOnly}
-                        comboboxProps={{ withinPortal: false }}
+                        {...importRuleSelectProps}
                         onChange={(value) => {
                           const next = toImportRuleOperator(value);
                           if (next) patchDraft(rule, { operator: next });

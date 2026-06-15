@@ -166,6 +166,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
         fullScreen={isMobile}
         centered={!isMobile}
         size="lg"
+        lockScroll={false}
         styles={{
           body: {
             maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
@@ -517,6 +518,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
             : 'Delete company default subcategory?'
         }
         centered
+        lockScroll={false}
       >
         <Stack gap="md">
           <Text>

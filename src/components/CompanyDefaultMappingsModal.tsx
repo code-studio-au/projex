@@ -35,6 +35,7 @@ import {
   useDeleteCompanyDefaultMappingRuleMutation,
   useUpdateCompanyDefaultMappingRuleMutation,
 } from '../queries/taxonomy';
+import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import classes from '../styles/ui.module.css';
 
 export default function CompanyDefaultMappingsModal(props: {
@@ -227,6 +228,7 @@ export default function CompanyDefaultMappingsModal(props: {
                 data={categoryOptions}
                 value={newCategoryId}
                 disabled={readOnly}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   setError(null);
                   setSuccess(null);
@@ -241,6 +243,7 @@ export default function CompanyDefaultMappingsModal(props: {
                 data={newSubCategoryOptions}
                 value={newSubCategoryId}
                 disabled={readOnly || !newCategoryId}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   setError(null);
                   setSuccess(null);
@@ -444,6 +447,7 @@ export default function CompanyDefaultMappingsModal(props: {
                         data={categoryOptions}
                         value={selectedCategoryId}
                         disabled={readOnly}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           setError(null);
                           setSuccess(null);
@@ -471,6 +475,7 @@ export default function CompanyDefaultMappingsModal(props: {
                           rule.companyDefaultSubCategoryId
                         }
                         disabled={readOnly || !selectedCategoryId}
+                        {...firefoxSafeModalSelectProps}
                         onChange={async (value) => {
                           if (!value || !selectedCategoryId) return;
                           try {

@@ -32,6 +32,7 @@ import {
   useUpdateProjectAutoCodingRuleMutation,
 } from '../queries/projectAutoCodingRules';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import classes from '../styles/ui.module.css';
 
 export default function ProjectAutoCodingRulesModal(props: {
@@ -234,6 +235,7 @@ export default function ProjectAutoCodingRulesModal(props: {
                 data={categoryOptions}
                 value={newCategoryId}
                 disabled={readOnly}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   setError(null);
                   setSuccess(null);
@@ -246,6 +248,7 @@ export default function ProjectAutoCodingRulesModal(props: {
                 data={newSubCategoryOptions}
                 value={newSubCategoryId}
                 disabled={readOnly || !newCategoryId}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   setError(null);
                   setSuccess(null);
@@ -462,6 +465,7 @@ export default function ProjectAutoCodingRulesModal(props: {
                         data={categoryOptions}
                         value={selectedCategoryId}
                         disabled={readOnly}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           setError(null);
                           setSuccess(null);
@@ -483,6 +487,7 @@ export default function ProjectAutoCodingRulesModal(props: {
                         data={subCategoryOptions}
                         value={subCategoryDrafts[rule.id] ?? rule.subCategoryId}
                         disabled={readOnly || !selectedCategoryId}
+                        {...firefoxSafeModalSelectProps}
                         onChange={async (value) => {
                           if (!value || !selectedCategoryId) return;
                           try {

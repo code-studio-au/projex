@@ -19,6 +19,7 @@ import type { TxnSplitInput } from '../api/contract';
 import type { CategoryId, SubCategoryId, Txn } from '../types';
 import { asCategoryId, asSubCategoryId } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
+import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 import classes from '../styles/ui.module.css';
 
@@ -266,6 +267,7 @@ function TransactionSplitModalContent(props: {
                     clearable
                     searchable
                     disabled={submitting}
+                    {...firefoxSafeModalSelectProps}
                     onChange={(value) =>
                       updateRow(row.key, {
                         categoryId: value ? asCategoryId(value) : null,
@@ -283,6 +285,7 @@ function TransactionSplitModalContent(props: {
                     clearable
                     searchable
                     disabled={!row.categoryId || submitting}
+                    {...firefoxSafeModalSelectProps}
                     onChange={(value) =>
                       updateRow(row.key, {
                         subCategoryId: value ? asSubCategoryId(value) : null,

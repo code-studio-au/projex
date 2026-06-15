@@ -21,6 +21,7 @@ import {
   usePromoteProjectSubCategoryToCompanyDefaultMutation,
 } from '../queries/taxonomy';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import classes from '../styles/ui.module.css';
 
 export default function TaxonomyManagerModal(props: {
@@ -157,6 +158,7 @@ export default function TaxonomyManagerModal(props: {
       fullScreen={isMobile}
       centered={!isMobile}
       size="lg"
+      lockScroll={false}
       styles={{
         body: {
           maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
@@ -563,6 +565,14 @@ export default function TaxonomyManagerModal(props: {
         }}
         title="Bulk recode transactions"
         fullScreen={isMobile}
+        centered={!isMobile}
+        lockScroll={false}
+        styles={{
+          body: {
+            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+            overflowY: 'auto',
+          },
+        }}
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed" className={classes.modalIntro}>
@@ -574,6 +584,7 @@ export default function TaxonomyManagerModal(props: {
             label="Target category"
             data={categoryOptions}
             value={bulkRecodeCategoryId}
+            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               setBulkRecodeCategoryId(value);
               setBulkRecodeSubCategoryId(null);
@@ -584,6 +595,7 @@ export default function TaxonomyManagerModal(props: {
             data={bulkRecodeSubCategoryOptions}
             value={bulkRecodeSubCategoryId}
             disabled={!bulkRecodeCategoryId}
+            {...firefoxSafeModalSelectProps}
             onChange={(value) => setBulkRecodeSubCategoryId(value)}
           />
           <Group className={classes.footerRow}>
@@ -647,6 +659,14 @@ export default function TaxonomyManagerModal(props: {
             : 'Delete subcategory?'
         }
         fullScreen={isMobile}
+        centered={!isMobile}
+        lockScroll={false}
+        styles={{
+          body: {
+            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+            overflowY: 'auto',
+          },
+        }}
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed" className={classes.modalIntro}>
