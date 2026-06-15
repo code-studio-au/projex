@@ -10,6 +10,7 @@ import {
   asSubCategoryId,
 } from '../../../types';
 import type {
+  BulkRecodeProjectTransactionsInput,
   CategoryCreateInput,
   CategoryUpdateInput,
   CompanyDefaultCategoryCreateInput,
@@ -18,11 +19,13 @@ import type {
   CompanyDefaultMappingRuleUpdateInput,
   CompanyDefaultSubCategoryCreateInput,
   CompanyDefaultSubCategoryUpdateInput,
+  PromoteProjectSubCategoryToCompanyDefaultInput,
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
 } from '../../../api/contract';
 import {
   applyCompanyDefaultTaxonomyServer,
+  bulkRecodeProjectTransactionsServer,
   createCategoryServer,
   createCompanyDefaultCategoryServer,
   createCompanyDefaultMappingRuleServer,
@@ -39,6 +42,7 @@ import {
   listCompanyDefaultMappingRulesServer,
   listCompanyDefaultSubCategoriesServer,
   listSubCategoriesServer,
+  promoteProjectSubCategoryToCompanyDefaultServer,
   updateCategoryServer,
   updateCompanyDefaultCategoryServer,
   updateCompanyDefaultMappingRuleServer,
@@ -402,5 +406,55 @@ export const applyCompanyDefaultTaxonomyServerFn = createServerFn({
     return applyCompanyDefaultTaxonomyServer({
       context: context.serverContext,
       projectId: data.projectId,
+    });
+  });
+
+export const bulkRecodeProjectTransactionsServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    (input: {
+      projectId: string;
+      payload: BulkRecodeProjectTransactionsInput;
+    }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: {
+        fromSubCategoryId: asSubCategoryId(input.payload.fromSubCategoryId),
+        toCategoryId: asCategoryId(input.payload.toCategoryId),
+        toSubCategoryId: asSubCategoryId(input.payload.toSubCategoryId),
+      },
+    })
+  )
+  .handler(async ({ context, data }) => {
+    return bulkRecodeProjectTransactionsServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+      input: data.payload,
+    });
+  });
+
+export const promoteProjectSubCategoryToCompanyDefaultServerFn = createServerFn(
+  {
+    method: 'POST',
+  }
+)
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    (input: {
+      projectId: string;
+      payload: PromoteProjectSubCategoryToCompanyDefaultInput;
+    }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: {
+        subCategoryId: asSubCategoryId(String(input.payload.subCategoryId)),
+      },
+    })
+  )
+  .handler(async ({ context, data }) => {
+    return promoteProjectSubCategoryToCompanyDefaultServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+      input: data.payload,
     });
   });

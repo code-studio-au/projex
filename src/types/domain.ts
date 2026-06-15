@@ -50,6 +50,8 @@ export type Project = {
   visibility: ProjectVisibility;
   /** Whether global superadmin support access is permitted for this project. */
   allowSuperadminAccess: boolean;
+  /** Whether missing company defaults should be kept in sync into this project. */
+  syncCompanyDefaults: boolean;
   /** Whether transactions can be transferred out of this project. */
   allowTxnTransfers: boolean;
 };

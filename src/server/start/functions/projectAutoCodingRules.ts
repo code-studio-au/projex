@@ -8,14 +8,18 @@ import {
   asTxnId,
 } from '../../../types';
 import type {
+  BackfillProjectCodingInput,
   CreateProjectAutoCodingRuleInput,
   ProjectAutoCodingRuleUpdateInput,
+  PromoteProjectRuleToCompanyDefaultInput,
 } from '../../../api/contract';
 import {
+  backfillProjectCodingServer,
   createProjectAutoCodingRuleServer,
   deleteProjectAutoCodingRuleServer,
   getProjectRuleSuggestionPromptServer,
   listProjectAutoCodingRulesServer,
+  promoteProjectRuleToCompanyDefaultServer,
   updateProjectAutoCodingRuleServer,
 } from '../../fns/projectAutoCodingRules';
 import { startApiMiddleware } from '../middleware';
@@ -121,5 +125,48 @@ export const deleteProjectAutoCodingRuleServerFn = createServerFn({
       context: context.serverContext,
       projectId: data.projectId,
       ruleId: data.ruleId,
+    });
+  });
+
+export const backfillProjectCodingServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    (input: { projectId: string; payload: BackfillProjectCodingInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: {
+        mode: input.payload.mode,
+      },
+    })
+  )
+  .handler(async ({ context, data }) => {
+    return backfillProjectCodingServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+      input: data.payload,
+    });
+  });
+
+export const promoteProjectRuleToCompanyDefaultServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    (input: {
+      projectId: string;
+      payload: PromoteProjectRuleToCompanyDefaultInput;
+    }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: {
+        ruleId: asProjectAutoCodingRuleId(String(input.payload.ruleId)),
+      },
+    })
+  )
+  .handler(async ({ context, data }) => {
+    return promoteProjectRuleToCompanyDefaultServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+      input: data.payload,
     });
   });

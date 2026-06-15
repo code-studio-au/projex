@@ -16,6 +16,7 @@ import type {
   SubCategory,
 } from '../types';
 import type {
+  BulkRecodeProjectTransactionsInput,
   CompanyDefaultCategoryCreateInput,
   CompanyDefaultCategoryUpdateInput,
   CompanyDefaultMappingRuleCreateInput,
@@ -23,6 +24,7 @@ import type {
   CompanyDefaultSubCategoryCreateInput,
   CompanyDefaultSubCategoryUpdateInput,
   CategoryCreateInput,
+  PromoteProjectSubCategoryToCompanyDefaultInput,
   CategoryUpdateInput,
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
@@ -31,6 +33,7 @@ import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import {
   applyCompanyDefaultTaxonomyServerFn,
+  bulkRecodeProjectTransactionsServerFn,
   createCategoryServerFn,
   createCompanyDefaultCategoryServerFn,
   createCompanyDefaultMappingRuleServerFn,
@@ -47,6 +50,7 @@ import {
   listCompanyDefaultMappingRulesServerFn,
   listCompanyDefaultSubCategoriesServerFn,
   listSubCategoriesServerFn,
+  promoteProjectSubCategoryToCompanyDefaultServerFn,
   updateCategoryServerFn,
   updateCompanyDefaultCategoryServerFn,
   updateCompanyDefaultMappingRuleServerFn,
@@ -464,6 +468,66 @@ export function useApplyCompanyDefaultTaxonomyMutation(
           queryKey: qk.transactions(scopeUserId, projectId),
         }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useBulkRecodeProjectTransactionsMutation(projectId: ProjectId) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: BulkRecodeProjectTransactionsInput) =>
+      bulkRecodeProjectTransactionsServerFn({
+        data: { projectId, payload: input },
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.transactions(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] === 'transactions' &&
+            query.queryKey[1] === scopeUserId &&
+            query.queryKey[2] === projectId &&
+            query.queryKey[3] === 'page',
+        }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
+    },
+  });
+}
+
+export function usePromoteProjectSubCategoryToCompanyDefaultMutation(
+  projectId: ProjectId,
+  companyId: CompanyId
+) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: PromoteProjectSubCategoryToCompanyDefaultInput) =>
+      promoteProjectSubCategoryToCompanyDefaultServerFn({
+        data: { projectId, payload: input },
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.categories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.subCategories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaults(scopeUserId, companyId),
+        }),
         qc.invalidateQueries({
           queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
         }),

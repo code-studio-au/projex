@@ -38,6 +38,7 @@ type ProjectRow = {
   deactivated_at: string | null;
   visibility: 'company' | 'private';
   allow_superadmin_access: boolean;
+  sync_company_defaults: boolean;
   allow_txn_transfers: boolean;
 };
 
@@ -53,6 +54,7 @@ const projectSelectFields = [
   'deactivated_at',
   'visibility',
   'allow_superadmin_access',
+  'sync_company_defaults',
   'allow_txn_transfers',
 ] as const;
 
@@ -71,6 +73,7 @@ function toProject(row: ProjectRow): Project {
     deactivatedAt: row.deactivated_at ?? undefined,
     visibility: row.visibility,
     allowSuperadminAccess: row.allow_superadmin_access,
+    syncCompanyDefaults: row.sync_company_defaults,
     allowTxnTransfers: row.allow_txn_transfers,
   };
 }
@@ -478,7 +481,8 @@ export async function updateProjectServer(args: {
       Object.prototype.hasOwnProperty.call(args.input, 'budgetTotalCents') ||
       Object.prototype.hasOwnProperty.call(args.input, 'currency') ||
       Object.prototype.hasOwnProperty.call(args.input, 'visibility') ||
-      Object.prototype.hasOwnProperty.call(args.input, 'allowSuperadminAccess');
+      Object.prototype.hasOwnProperty.call(args.input, 'allowSuperadminAccess') ||
+      Object.prototype.hasOwnProperty.call(args.input, 'syncCompanyDefaults');
     const companyId = asCompanyId(existing.company_id);
     const projectId = asProjectId(existing.id);
 
@@ -570,6 +574,10 @@ export async function updateProjectServer(args: {
     if (typeof args.input.allowSuperadminAccess !== 'undefined') {
       patch.allow_superadmin_access = args.input.allowSuperadminAccess;
     }
+    if (typeof args.input.syncCompanyDefaults !== 'undefined') {
+      patch.sync_company_defaults =
+        nextProjectType === 'project' ? args.input.syncCompanyDefaults : false;
+    }
     if (typeof args.input.allowTxnTransfers !== 'undefined') {
       patch.allow_txn_transfers = args.input.allowTxnTransfers;
     }
@@ -582,6 +590,18 @@ export async function updateProjectServer(args: {
       .where('id', '=', args.input.id)
       .returning(projectSelectFields)
       .executeTakeFirstOrThrow();
+
+    if (
+      nextProjectType === 'project' &&
+      args.input.syncCompanyDefaults === true
+    ) {
+      await applyCompanyDefaultTaxonomyToProject({
+        db,
+        companyId,
+        projectId,
+      });
+    }
+
     return toProject(updated);
   });
 }

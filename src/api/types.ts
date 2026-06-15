@@ -390,10 +390,55 @@ export type ProjectUpdateInput = Pick<
   | 'currency'
   | 'visibility'
   | 'allowSuperadminAccess'
+  | 'syncCompanyDefaults'
   | 'allowTxnTransfers'
 > & {
   id: ProjectId;
   parentProjectId?: ProjectId | null;
+};
+
+export type BulkRecodeProjectTransactionsInput = {
+  fromSubCategoryId: SubCategory['id'];
+  toCategoryId: Category['id'];
+  toSubCategoryId: SubCategory['id'];
+};
+
+export type BulkRecodeProjectTransactionsResult = {
+  updatedCount: number;
+};
+
+export type BackfillProjectCodingInput = {
+  mode: 'project_rules' | 'company_rules' | 'all';
+};
+
+export type BackfillProjectCodingResult = {
+  projectRuleMatches: number;
+  companyRuleMatches: number;
+  updatedCount: number;
+};
+
+export type PromoteProjectSubCategoryToCompanyDefaultInput = {
+  subCategoryId: SubCategory['id'];
+};
+
+export type PromoteProjectSubCategoryToCompanyDefaultResult = {
+  companyDefaultCategoryId: CompanyDefaultCategory['id'];
+  companyDefaultSubCategoryId: CompanyDefaultSubCategory['id'];
+  categoryCreated: boolean;
+  subCategoryCreated: boolean;
+};
+
+export type PromoteProjectRuleToCompanyDefaultInput = {
+  ruleId: ProjectAutoCodingRule['id'];
+};
+
+export type PromoteProjectRuleToCompanyDefaultResult = {
+  companyDefaultCategoryId: CompanyDefaultCategory['id'];
+  companyDefaultSubCategoryId: CompanyDefaultSubCategory['id'];
+  companyDefaultRuleId: CompanyDefaultMappingRule['id'];
+  categoryCreated: boolean;
+  subCategoryCreated: boolean;
+  ruleCreated: boolean;
 };
 
 export type CompanyUpdateInput = Pick<Partial<Company>, 'name'> & {

@@ -16,6 +16,11 @@ import { useMediaQuery } from '@mantine/hooks';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
+import {
+  useBulkRecodeProjectTransactionsMutation,
+  usePromoteProjectSubCategoryToCompanyDefaultMutation,
+} from '../queries/taxonomy';
+import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import classes from '../styles/ui.module.css';
 
 export default function TaxonomyManagerModal(props: {
@@ -44,8 +49,35 @@ export default function TaxonomyManagerModal(props: {
     | { kind: 'subcategory'; id: string; name: string }
     | null
   >(null);
+  const [pendingBulkRecode, setPendingBulkRecode] = useState<{
+    subCategoryId: string;
+    subCategoryName: string;
+    currentCategoryId: string;
+  } | null>(null);
+  const [bulkRecodeCategoryId, setBulkRecodeCategoryId] = useState<
+    string | null
+  >(null);
+  const [bulkRecodeSubCategoryId, setBulkRecodeSubCategoryId] = useState<
+    string | null
+  >(null);
+  const access = useCompanyAccess(taxonomy.companyId);
+  const canPromoteToCompanyDefaults = access.can('company:manage_defaults');
+  const bulkRecode = useBulkRecodeProjectTransactionsMutation(
+    taxonomy.projectId
+  );
+  const promoteProjectSubCategory =
+    usePromoteProjectSubCategoryToCompanyDefaultMutation(
+      taxonomy.projectId,
+      taxonomy.companyId
+    );
 
   const categoryOptions = taxonomy.categoryOptions;
+  const bulkRecodeSubCategoryOptions = taxonomy.subCategories
+    .filter((subCategory) => subCategory.categoryId === bulkRecodeCategoryId)
+    .map((subCategory) => ({
+      value: subCategory.id,
+      label: subCategory.name,
+    }));
 
   async function commitCategoryName(categoryId: string, fallbackName: string) {
     const nextName = (categoryDrafts[categoryId] ?? fallbackName).trim();
@@ -413,6 +445,62 @@ export default function TaxonomyManagerModal(props: {
                             className={classes.fieldGrow}
                             disabled={readOnly}
                           />
+                          <Group gap="xs" wrap="wrap">
+                            <Button
+                              variant="subtle"
+                              size="xs"
+                              disabled={readOnly}
+                              onClick={() => {
+                                setError(null);
+                                setStatus(null);
+                                setPendingBulkRecode({
+                                  subCategoryId: sc.id,
+                                  subCategoryName: sc.name,
+                                  currentCategoryId: sc.categoryId,
+                                });
+                                setBulkRecodeCategoryId(sc.categoryId);
+                                setBulkRecodeSubCategoryId(null);
+                              }}
+                            >
+                              Bulk recode
+                            </Button>
+                            {canPromoteToCompanyDefaults ? (
+                              <Button
+                                variant="subtle"
+                                size="xs"
+                                disabled={
+                                  readOnly ||
+                                  promoteProjectSubCategory.isPending
+                                }
+                                onClick={async () => {
+                                  try {
+                                    setError(null);
+                                    setStatus(null);
+                                    const result =
+                                      await promoteProjectSubCategory.mutateAsync(
+                                        {
+                                          subCategoryId: sc.id,
+                                        }
+                                      );
+                                    setStatus(
+                                      result.categoryCreated ||
+                                        result.subCategoryCreated
+                                        ? 'Promoted project taxonomy into company defaults and synced linked projects.'
+                                        : 'Matching company default already existed; linked projects are now aligned.'
+                                    );
+                                  } catch (err) {
+                                    setError(
+                                      err instanceof Error
+                                        ? err.message
+                                        : 'Could not promote subcategory.'
+                                    );
+                                  }
+                                }}
+                              >
+                                Promote default
+                              </Button>
+                            ) : null}
+                          </Group>
                           {isMobile ? (
                             <Button
                               color="red"
@@ -457,6 +545,90 @@ export default function TaxonomyManagerModal(props: {
           })}
         </Stack>
       </Stack>
+
+      <Modal
+        opened={!!pendingBulkRecode}
+        onClose={() => {
+          setPendingBulkRecode(null);
+          setBulkRecodeCategoryId(null);
+          setBulkRecodeSubCategoryId(null);
+        }}
+        title="Bulk recode transactions"
+        fullScreen={isMobile}
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed" className={classes.modalIntro}>
+            Recode all unlocked transactions currently using "
+            {pendingBulkRecode?.subCategoryName ?? ''}" into a new taxonomy
+            target.
+          </Text>
+          <Select
+            label="Target category"
+            data={categoryOptions}
+            value={bulkRecodeCategoryId}
+            onChange={(value) => {
+              setBulkRecodeCategoryId(value);
+              setBulkRecodeSubCategoryId(null);
+            }}
+          />
+          <Select
+            label="Target subcategory"
+            data={bulkRecodeSubCategoryOptions}
+            value={bulkRecodeSubCategoryId}
+            disabled={!bulkRecodeCategoryId}
+            onChange={(value) => setBulkRecodeSubCategoryId(value)}
+          />
+          <Group className={classes.footerRow}>
+            <Button
+              variant="light"
+              fullWidth={isMobile}
+              onClick={() => {
+                setPendingBulkRecode(null);
+                setBulkRecodeCategoryId(null);
+                setBulkRecodeSubCategoryId(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              fullWidth={isMobile}
+              loading={bulkRecode.isPending}
+              disabled={!pendingBulkRecode || !bulkRecodeSubCategoryId}
+              onClick={async () => {
+                if (!pendingBulkRecode || !bulkRecodeCategoryId) return;
+                if (!bulkRecodeSubCategoryId) return;
+                try {
+                  setError(null);
+                  setStatus(null);
+                  const result = await bulkRecode.mutateAsync({
+                    fromSubCategoryId: asSubCategoryId(
+                      pendingBulkRecode.subCategoryId
+                    ),
+                    toCategoryId: asCategoryId(bulkRecodeCategoryId),
+                    toSubCategoryId: asSubCategoryId(bulkRecodeSubCategoryId),
+                  });
+                  setPendingBulkRecode(null);
+                  setBulkRecodeCategoryId(null);
+                  setBulkRecodeSubCategoryId(null);
+                  setStatus(
+                    result.updatedCount === 0
+                      ? 'No unlocked transactions needed recoding for that subcategory.'
+                      : `Bulk recoded ${result.updatedCount} transactions.`
+                  );
+                } catch (err) {
+                  setError(
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not bulk recode transactions.'
+                  );
+                }
+              }}
+            >
+              Recode transactions
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         opened={!!pendingDelete}

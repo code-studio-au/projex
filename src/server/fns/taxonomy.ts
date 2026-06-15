@@ -1,6 +1,8 @@
 import { AppError } from '../../api/errors';
 import type {
   ApplyCompanyDefaultsResult,
+  BulkRecodeProjectTransactionsInput,
+  BulkRecodeProjectTransactionsResult,
   CompanyDefaultCategoryCreateInput,
   CompanyDefaultMappingRuleCreateInput,
   CompanyDefaultMappingRuleUpdateInput,
@@ -9,6 +11,8 @@ import type {
   CompanyDefaultSubCategoryUpdateInput,
   CategoryCreateInput,
   CategoryUpdateInput,
+  PromoteProjectSubCategoryToCompanyDefaultInput,
+  PromoteProjectSubCategoryToCompanyDefaultResult,
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
 } from '../../api/types';
@@ -1364,4 +1368,219 @@ export async function applyCompanyDefaultTaxonomyToProject(args: {
   }
 
   return plan.result;
+}
+
+export async function bulkRecodeProjectTransactionsServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: BulkRecodeProjectTransactionsInput;
+}): Promise<BulkRecodeProjectTransactionsResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { companyId } = await requireProjectContext(
+      args.context,
+      args.projectId,
+      'taxonomy:edit'
+    );
+    const db = getDb();
+
+    const [fromSubCategory, targetCategory, targetSubCategory] =
+      await Promise.all([
+        db
+          .selectFrom('sub_categories')
+          .select(['id', 'category_id'])
+          .where('project_id', '=', args.projectId)
+          .where('id', '=', args.input.fromSubCategoryId)
+          .executeTakeFirst(),
+        db
+          .selectFrom('categories')
+          .select('id')
+          .where('project_id', '=', args.projectId)
+          .where('id', '=', args.input.toCategoryId)
+          .executeTakeFirst(),
+        db
+          .selectFrom('sub_categories')
+          .select(['id', 'category_id'])
+          .where('project_id', '=', args.projectId)
+          .where('id', '=', args.input.toSubCategoryId)
+          .executeTakeFirst(),
+      ]);
+
+    if (!fromSubCategory) {
+      throw new AppError('NOT_FOUND', 'Unknown source project subcategory');
+    }
+    if (!targetCategory) {
+      throw new AppError('NOT_FOUND', 'Unknown target project category');
+    }
+    if (!targetSubCategory) {
+      throw new AppError('NOT_FOUND', 'Unknown target project subcategory');
+    }
+    if (targetSubCategory.category_id !== args.input.toCategoryId) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Target subcategory does not belong to the target category'
+      );
+    }
+
+    const now = new Date().toISOString();
+    const updatedRows = await db
+      .updateTable('txns')
+      .set({
+        category_id: args.input.toCategoryId,
+        sub_category_id: args.input.toSubCategoryId,
+        company_default_mapping_rule_id: null,
+        coding_source: 'manual',
+        coding_pending_approval: false,
+        updated_at: now,
+      })
+      .where('company_id', '=', companyId)
+      .where('project_id', '=', args.projectId)
+      .where('categorisable', '=', true)
+      .where('sub_category_id', '=', args.input.fromSubCategoryId)
+      .where('locked_at', 'is', null)
+      .returning('public_id')
+      .execute();
+
+    return { updatedCount: updatedRows.length };
+  });
+}
+
+export async function promoteProjectSubCategoryToCompanyDefaultServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: PromoteProjectSubCategoryToCompanyDefaultInput;
+}): Promise<PromoteProjectSubCategoryToCompanyDefaultResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { companyId } = await requireProjectContext(
+      args.context,
+      args.projectId,
+      'project:view'
+    );
+    await requireCompanyContext(
+      args.context,
+      companyId,
+      'company:manage_defaults'
+    );
+    const db = getDb();
+
+    const subCategory = await db
+      .selectFrom('sub_categories')
+      .innerJoin('categories', 'categories.id', 'sub_categories.category_id')
+      .select([
+        'sub_categories.id as sub_id',
+        'sub_categories.name as sub_name',
+        'categories.id as cat_id',
+        'categories.name as cat_name',
+      ])
+      .where('sub_categories.project_id', '=', args.projectId)
+      .where('sub_categories.id', '=', args.input.subCategoryId)
+      .executeTakeFirst();
+    if (!subCategory) {
+      throw new AppError('NOT_FOUND', 'Unknown project subcategory');
+    }
+
+    const normalizedCategoryName = subCategory.cat_name.trim();
+    const normalizedSubCategoryName = subCategory.sub_name.trim();
+    const now = new Date().toISOString();
+
+    return db.transaction().execute(async (trx) => {
+      let categoryCreated = false;
+      let subCategoryCreated = false;
+
+      let companyDefaultCategory = await trx
+        .selectFrom('company_default_categories')
+        .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+        .where('company_id', '=', companyId)
+        .where(({ fn, eb }) =>
+          eb(fn('lower', ['name']), '=', normalizedCategoryName.toLowerCase())
+        )
+        .executeTakeFirst();
+      if (!companyDefaultCategory) {
+        categoryCreated = true;
+        companyDefaultCategory = await trx
+          .insertInto('company_default_categories')
+          .values({
+            id: asCompanyDefaultCategoryId(uid('ccat')),
+            company_id: companyId,
+            name: normalizedCategoryName,
+            created_at: now,
+            updated_at: now,
+          })
+          .returning(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+          .executeTakeFirstOrThrow();
+      }
+
+      let companyDefaultSubCategory = await trx
+        .selectFrom('company_default_sub_categories')
+        .select([
+          'id',
+          'company_id',
+          'company_default_category_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .where('company_id', '=', companyId)
+        .where(
+          'company_default_category_id',
+          '=',
+          companyDefaultCategory.id as CompanyDefaultCategory['id']
+        )
+        .where(({ fn, eb }) =>
+          eb(
+            fn('lower', ['name']),
+            '=',
+            normalizedSubCategoryName.toLowerCase()
+          )
+        )
+        .executeTakeFirst();
+      if (!companyDefaultSubCategory) {
+        subCategoryCreated = true;
+        companyDefaultSubCategory = await trx
+          .insertInto('company_default_sub_categories')
+          .values({
+            id: asCompanyDefaultSubCategoryId(uid('csub')),
+            company_id: companyId,
+            company_default_category_id:
+              companyDefaultCategory.id as CompanyDefaultCategory['id'],
+            name: normalizedSubCategoryName,
+            created_at: now,
+            updated_at: now,
+          })
+          .returning([
+            'id',
+            'company_id',
+            'company_default_category_id',
+            'name',
+            'created_at',
+            'updated_at',
+          ])
+          .executeTakeFirstOrThrow();
+      }
+
+      const syncedProjectIds = await listSyncedProjectIdsForCompany({
+        db: trx,
+        companyId,
+      });
+      for (const projectId of syncedProjectIds) {
+        await applyCompanyDefaultTaxonomyToProject({
+          db: trx,
+          companyId,
+          projectId,
+        });
+      }
+
+      return {
+        companyDefaultCategoryId: asCompanyDefaultCategoryId(
+          companyDefaultCategory.id
+        ),
+        companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
+          companyDefaultSubCategory.id
+        ),
+        categoryCreated,
+        subCategoryCreated,
+      };
+    });
+  });
 }

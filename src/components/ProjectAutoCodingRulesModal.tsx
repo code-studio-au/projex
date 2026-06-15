@@ -20,25 +20,31 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 
-import type { CategoryId, ProjectId, SubCategoryId } from '../types';
+import type { CategoryId, CompanyId, ProjectId, SubCategoryId } from '../types';
 import { asCategoryId, asSubCategoryId } from '../types';
 import { useCategoriesQuery, useSubCategoriesQuery } from '../queries/taxonomy';
 import {
+  useBackfillProjectCodingMutation,
   useCreateProjectAutoCodingRuleMutation,
   useDeleteProjectAutoCodingRuleMutation,
   useProjectAutoCodingRulesQuery,
+  usePromoteProjectRuleToCompanyDefaultMutation,
   useUpdateProjectAutoCodingRuleMutation,
 } from '../queries/projectAutoCodingRules';
+import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import classes from '../styles/ui.module.css';
 
 export default function ProjectAutoCodingRulesModal(props: {
   opened: boolean;
   onClose: () => void;
+  companyId: CompanyId;
   projectId: ProjectId;
   readOnly?: boolean;
 }) {
-  const { opened, onClose, projectId, readOnly = false } = props;
+  const { opened, onClose, companyId, projectId, readOnly = false } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const access = useCompanyAccess(companyId);
+  const canPromoteToCompanyDefaults = access.can('company:manage_defaults');
 
   const categoriesQ = useCategoriesQuery(projectId);
   const subCategoriesQ = useSubCategoriesQuery(projectId);
@@ -46,6 +52,8 @@ export default function ProjectAutoCodingRulesModal(props: {
   const createRule = useCreateProjectAutoCodingRuleMutation(projectId);
   const updateRule = useUpdateProjectAutoCodingRuleMutation(projectId);
   const deleteRule = useDeleteProjectAutoCodingRuleMutation(projectId);
+  const backfill = useBackfillProjectCodingMutation(projectId);
+  const promoteRule = usePromoteProjectRuleToCompanyDefaultMutation(projectId);
 
   const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data]);
   const subCategories = useMemo(
@@ -163,6 +171,34 @@ export default function ProjectAutoCodingRulesModal(props: {
               <Text size="xs" c="dimmed">
                 {rules.length} project rules
               </Text>
+            </Group>
+            <Group gap="sm" wrap="wrap">
+              <Button
+                variant="light"
+                size="xs"
+                loading={backfill.isPending}
+                disabled={readOnly}
+                onClick={async () => {
+                  try {
+                    setError(null);
+                    setSuccess(null);
+                    const result = await backfill.mutateAsync({ mode: 'all' });
+                    setSuccess(
+                      result.updatedCount === 0
+                        ? 'No uncoded transactions matched current company or project rules.'
+                        : `Backfilled ${result.updatedCount} uncoded transactions (${result.projectRuleMatches} project-rule, ${result.companyRuleMatches} company-rule matches).`
+                    );
+                  } catch (err) {
+                    setError(
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not backfill uncoded transactions.'
+                    );
+                  }
+                }}
+              >
+                Backfill uncoded transactions
+              </Button>
             </Group>
           </Stack>
         )}
@@ -341,6 +377,37 @@ export default function ProjectAutoCodingRulesModal(props: {
                         )}
                       </Group>
                     </Group>
+                    {canPromoteToCompanyDefaults ? (
+                      <Group justify="flex-end">
+                        <Button
+                          variant="subtle"
+                          size="xs"
+                          disabled={readOnly || promoteRule.isPending}
+                          onClick={async () => {
+                            try {
+                              setError(null);
+                              setSuccess(null);
+                              const result = await promoteRule.mutateAsync({
+                                ruleId: rule.id,
+                              });
+                              setSuccess(
+                                result.ruleCreated
+                                  ? 'Promoted project rule to company defaults.'
+                                  : 'Matching company default rule already existed; project rule is now aligned.'
+                              );
+                            } catch (err) {
+                              setError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Could not promote project rule.'
+                              );
+                            }
+                          }}
+                        >
+                          Promote to company default rule
+                        </Button>
+                      </Group>
+                    ) : null}
 
                     <TextInput
                       label="Match text"

@@ -49,6 +49,7 @@ type ProjectExportRow = {
   deactivated_at: string | null;
   visibility: 'company' | 'private';
   allow_superadmin_access: boolean;
+  sync_company_defaults: boolean;
   allow_txn_transfers: boolean;
 };
 
@@ -166,6 +167,7 @@ function toProject(row: ProjectExportRow): Project {
     deactivatedAt: row.deactivated_at ?? undefined,
     visibility: row.visibility,
     allowSuperadminAccess: row.allow_superadmin_access,
+    syncCompanyDefaults: row.sync_company_defaults,
     allowTxnTransfers: row.allow_txn_transfers,
   };
 }
@@ -465,6 +467,7 @@ export async function exportCompanyWorkbookForUser(args: {
       'deactivated_at',
       'visibility',
       'allow_superadmin_access',
+      'sync_company_defaults',
       'allow_txn_transfers',
     ])
     .where('company_id', '=', args.companyId)
@@ -971,6 +974,10 @@ export async function exportCompanyWorkbookForUser(args: {
       { header: 'Parent programme name', key: 'parentProgrammeName' },
       { header: 'Budget cents', key: 'budgetCents' },
       { header: 'Budget amount', key: 'budgetAmount' },
+      {
+        header: 'Sync future company defaults',
+        key: 'syncCompanyDefaults',
+      },
       { header: 'Allow transaction transfers', key: 'allowTxnTransfers' },
       { header: 'Allow superadmin access', key: 'allowSuperadminAccess' },
       { header: 'Deactivated at', key: 'deactivatedAt' },
@@ -987,6 +994,7 @@ export async function exportCompanyWorkbookForUser(args: {
         : '',
       budgetCents: Number(row.budget_total_cents),
       budgetAmount: centsToMajorUnits(Number(row.budget_total_cents)),
+      syncCompanyDefaults: row.sync_company_defaults,
       allowTxnTransfers: row.allow_txn_transfers,
       allowSuperadminAccess: row.allow_superadmin_access,
       deactivatedAt: row.deactivated_at ?? '',

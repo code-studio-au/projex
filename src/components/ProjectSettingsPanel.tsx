@@ -122,6 +122,8 @@ export default function ProjectSettingsPanel(props: {
         (isHydrated ? project.data?.allowSuperadminAccess : undefined) ??
         loaderData?.allowSuperadminAccess ??
         false,
+      syncCompanyDefaults:
+        (isHydrated ? project.data?.syncCompanyDefaults : undefined) ?? false,
       allowTxnTransfers:
         (isHydrated ? project.data?.allowTxnTransfers : undefined) ??
         loaderData?.allowTxnTransfers ??
@@ -140,6 +142,7 @@ export default function ProjectSettingsPanel(props: {
       project.data?.currency,
       project.data?.parentProjectId,
       project.data?.projectType,
+      project.data?.syncCompanyDefaults,
       project.data?.visibility,
       projectId,
     ]
@@ -374,6 +377,22 @@ export default function ProjectSettingsPanel(props: {
               disabled={!canEditProject || updateProject.isPending}
             />
             <Switch
+              label="Sync future company defaults"
+              description="When enabled, any new company default categories and subcategories are copied into this project automatically."
+              checked={effectiveProject.syncCompanyDefaults}
+              onChange={(event) =>
+                updateProject.mutate({
+                  id: projectId,
+                  syncCompanyDefaults: event.currentTarget.checked,
+                })
+              }
+              disabled={
+                !canEditCompanyStructure ||
+                effectiveProject.projectType === 'programme' ||
+                updateProject.isPending
+              }
+            />
+            <Switch
               label="Allow transaction transfers out"
               description="Company admins, executives, and management can enable whether this project may move transactions to another project. Programmes cannot transfer transactions."
               checked={effectiveProject.allowTxnTransfers}
@@ -456,6 +475,16 @@ export default function ProjectSettingsPanel(props: {
               <Badge variant="light">
                 {projectAutoCodingRulesQ.data?.length ?? 0} project rules
               </Badge>
+              {effectiveProject.projectType === 'project' ? (
+                <Badge
+                  variant="light"
+                  color={effectiveProject.syncCompanyDefaults ? 'teal' : 'gray'}
+                >
+                  {effectiveProject.syncCompanyDefaults
+                    ? 'Company defaults auto-sync on'
+                    : 'Company defaults auto-sync off'}
+                </Badge>
+              ) : null}
             </Group>
           )}
           <Button
@@ -563,6 +592,7 @@ export default function ProjectSettingsPanel(props: {
       <ProjectAutoCodingRulesModal
         opened={projectRulesModalOpen}
         onClose={() => setProjectRulesModalOpen(false)}
+        companyId={companyId}
         projectId={projectId}
         readOnly={!canEditProject}
       />

@@ -47,7 +47,9 @@ import {
   updateBudgetServer,
 } from '../src/server/fns/budgets.ts';
 import {
+  backfillProjectCodingServer,
   createProjectAutoCodingRuleServer,
+  promoteProjectRuleToCompanyDefaultServer,
   getProjectRuleSuggestionPromptServer,
   listProjectAutoCodingRulesServer,
   updateProjectAutoCodingRuleServer,
@@ -123,6 +125,7 @@ import {
 } from '../src/server/fns/exportJobs.ts';
 import {
   applyCompanyDefaultTaxonomyServer,
+  bulkRecodeProjectTransactionsServer,
   createCategoryServer,
   createCompanyDefaultCategoryServer,
   createCompanyDefaultMappingRuleServer,
@@ -139,6 +142,7 @@ import {
   listCompanyDefaultMappingRulesServer,
   listCompanyDefaultSubCategoriesServer,
   listSubCategoriesServer,
+  promoteProjectSubCategoryToCompanyDefaultServer,
   updateCompanyDefaultSubCategoryServer,
 } from '../src/server/fns/taxonomy.ts';
 import {
@@ -2607,6 +2611,551 @@ test(
       );
       assert.equal(withoutDefaultsCategories.length, 0);
       assert.equal(withoutDefaultsSubCategories.length, 0);
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'project rule backfill can auto-code uncoded rows and promote a project rule to company defaults',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_prule_backfill_co_1');
+    const userId = asUserId('itest_prule_backfill_usr_1');
+    const projectId = asProjectId('itest_prule_backfill_prj_1');
+    const categoryId = asCategoryId('itest_prule_backfill_cat_1');
+    const subCategoryId = asSubCategoryId('itest_prule_backfill_sub_1');
+    const uncodedTxnId = asTxnId('itest_prule_backfill_txn_1');
+    const now = new Date().toISOString();
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Project Rule Backfill Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'prule-backfill@example.com',
+          name: 'Project Rule Backfill User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Project Rule Backfill Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          sync_company_defaults: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'lead' })
+        .execute();
+      await db
+        .insertInto('categories')
+        .values({
+          id: categoryId,
+          company_id: companyId,
+          project_id: projectId,
+          name: 'IT',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+      await db
+        .insertInto('sub_categories')
+        .values({
+          id: subCategoryId,
+          company_id: companyId,
+          project_id: projectId,
+          category_id: categoryId,
+          name: 'Software and Services',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+      await db
+        .insertInto('txns')
+        .values({
+          public_id: uncodedTxnId,
+          external_id: 'itest-prule-backfill-ext-1',
+          company_id: companyId,
+          project_id: projectId,
+          txn_date: '2026-06-15',
+          item: 'Microsoft 365 Subscription',
+          description: 'Monthly M365 charge',
+          amount_cents: 2499,
+          txn_type: 'standard',
+          parent_public_id: null,
+          source_public_id: null,
+          transfer_project_id: null,
+          budget_impact: true,
+          categorisable: true,
+          import_batch_id: null,
+          import_source_type: null,
+          import_source_meta: null,
+          category_id: null,
+          sub_category_id: null,
+          company_default_mapping_rule_id: null,
+          coding_source: null,
+          coding_pending_approval: false,
+          reviewed_at: null,
+          reviewed_by_user_id: null,
+          locked_at: null,
+          locked_by_user_id: null,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      const createdRule = await createProjectAutoCodingRuleServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          matchText: 'microsoft 365',
+          categoryId,
+          subCategoryId,
+        },
+      });
+
+      await db
+        .updateTable('txns')
+        .set({
+          category_id: null,
+          sub_category_id: null,
+          company_default_mapping_rule_id: null,
+          coding_source: null,
+          coding_pending_approval: false,
+          updated_at: new Date().toISOString(),
+        })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', uncodedTxnId)
+        .execute();
+
+      const backfillResult = await backfillProjectCodingServer({
+        context: { session: { userId } },
+        projectId,
+        input: { mode: 'project_rules' },
+      });
+      assert.equal(backfillResult.updatedCount, 1);
+      assert.equal(backfillResult.projectRuleMatches, 1);
+      assert.equal(backfillResult.companyRuleMatches, 0);
+
+      const backfilledTxn = await db
+        .selectFrom('txns')
+        .select([
+          'category_id',
+          'sub_category_id',
+          'company_default_mapping_rule_id',
+          'coding_source',
+          'coding_pending_approval',
+        ])
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', uncodedTxnId)
+        .executeTakeFirstOrThrow();
+      assert.equal(backfilledTxn.category_id, categoryId);
+      assert.equal(backfilledTxn.sub_category_id, subCategoryId);
+      assert.equal(backfilledTxn.company_default_mapping_rule_id, null);
+      assert.equal(backfilledTxn.coding_source, 'project_rule');
+      assert.equal(backfilledTxn.coding_pending_approval, true);
+
+      const promoted = await promoteProjectRuleToCompanyDefaultServer({
+        context: { session: { userId } },
+        projectId,
+        input: { ruleId: createdRule.rule.id },
+      });
+      assert.equal(promoted.ruleCreated, true);
+
+      const companyRule = await db
+        .selectFrom('company_default_mapping_rules')
+        .select([
+          'match_text',
+          'company_default_category_id',
+          'company_default_sub_category_id',
+        ])
+        .where('id', '=', promoted.companyDefaultRuleId)
+        .executeTakeFirstOrThrow();
+      assert.equal(companyRule.match_text, 'microsoft 365');
+      assert.equal(
+        companyRule.company_default_category_id,
+        promoted.companyDefaultCategoryId
+      );
+      assert.equal(
+        companyRule.company_default_sub_category_id,
+        promoted.companyDefaultSubCategoryId
+      );
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'bulk recode can align project transactions and project taxonomy can be promoted to company defaults',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_taxonomy_promote_co_1');
+    const userId = asUserId('itest_taxonomy_promote_usr_1');
+    const projectId = asProjectId('itest_taxonomy_promote_prj_1');
+    const sourceCategoryId = asCategoryId('itest_taxonomy_promote_cat_1');
+    const sourceSubCategoryId = asSubCategoryId('itest_taxonomy_promote_sub_1');
+    const targetCategoryId = asCategoryId('itest_taxonomy_promote_cat_2');
+    const targetSubCategoryId = asSubCategoryId('itest_taxonomy_promote_sub_2');
+    const txnAId = asTxnId('itest_taxonomy_promote_txn_1');
+    const txnBId = asTxnId('itest_taxonomy_promote_txn_2');
+    const syncedProjectId = asProjectId('itest_taxonomy_promote_prj_2');
+    const now = new Date().toISOString();
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Taxonomy Promote Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'taxonomy-promote@example.com',
+          name: 'Taxonomy Promote User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+      await db
+        .insertInto('projects')
+        .values([
+          {
+            id: projectId,
+            company_id: companyId,
+            name: 'Primary Project',
+            project_type: 'project',
+            parent_project_id: null,
+            budget_total_cents: 0,
+            currency: 'AUD',
+            status: 'active',
+            deactivated_at: null,
+            visibility: 'private',
+            allow_superadmin_access: true,
+            sync_company_defaults: true,
+            allow_txn_transfers: false,
+          },
+          {
+            id: syncedProjectId,
+            company_id: companyId,
+            name: 'Synced Project',
+            project_type: 'project',
+            parent_project_id: null,
+            budget_total_cents: 0,
+            currency: 'AUD',
+            status: 'active',
+            deactivated_at: null,
+            visibility: 'private',
+            allow_superadmin_access: true,
+            sync_company_defaults: true,
+            allow_txn_transfers: false,
+          },
+        ])
+        .execute();
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'lead' })
+        .execute();
+      await db
+        .insertInto('categories')
+        .values([
+          {
+            id: sourceCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            name: 'Telephone',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: targetCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            name: 'IT',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+      await db
+        .insertInto('sub_categories')
+        .values([
+          {
+            id: sourceSubCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: sourceCategoryId,
+            name: 'Skype',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: targetSubCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: targetCategoryId,
+            name: 'VoIP',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+      await db
+        .insertInto('txns')
+        .values(
+          [txnAId, txnBId].map((txnId, index) => ({
+            public_id: txnId,
+            external_id: `itest-taxonomy-promote-ext-${index + 1}`,
+            company_id: companyId,
+            project_id: projectId,
+            txn_date: '2026-06-15',
+            item: 'Comms Platform',
+            description: `Legacy coding row ${index + 1}`,
+            amount_cents: 1500 + index * 100,
+            txn_type: 'standard' as const,
+            parent_public_id: null,
+            source_public_id: null,
+            transfer_project_id: null,
+            budget_impact: true,
+            categorisable: true,
+            import_batch_id: null,
+            import_source_type: null,
+            import_source_meta: null,
+            category_id: sourceCategoryId,
+            sub_category_id: sourceSubCategoryId,
+            company_default_mapping_rule_id: null,
+            coding_source: 'manual' as const,
+            coding_pending_approval: false,
+            reviewed_at: null,
+            reviewed_by_user_id: null,
+            locked_at: null,
+            locked_by_user_id: null,
+            created_at: now,
+            updated_at: now,
+          }))
+        )
+        .execute();
+
+      const recodeResult = await bulkRecodeProjectTransactionsServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          fromSubCategoryId: sourceSubCategoryId,
+          toCategoryId: targetCategoryId,
+          toSubCategoryId: targetSubCategoryId,
+        },
+      });
+      assert.equal(recodeResult.updatedCount, 2);
+
+      const recodedRows = await db
+        .selectFrom('txns')
+        .select([
+          'category_id',
+          'sub_category_id',
+          'coding_source',
+          'coding_pending_approval',
+        ])
+        .where('project_id', '=', projectId)
+        .where('public_id', 'in', [txnAId, txnBId])
+        .execute();
+      assert.ok(
+        recodedRows.every(
+          (row) =>
+            row.category_id === targetCategoryId &&
+            row.sub_category_id === targetSubCategoryId &&
+            row.coding_source === 'manual' &&
+            row.coding_pending_approval === false
+        )
+      );
+
+      const promoted = await promoteProjectSubCategoryToCompanyDefaultServer({
+        context: { session: { userId } },
+        projectId,
+        input: { subCategoryId: targetSubCategoryId },
+      });
+      assert.equal(promoted.categoryCreated, true);
+      assert.equal(promoted.subCategoryCreated, true);
+
+      const syncedProjectCategory = await db
+        .selectFrom('categories')
+        .select('name')
+        .where('project_id', '=', syncedProjectId)
+        .where('name', '=', 'IT')
+        .executeTakeFirst();
+      const syncedProjectSubCategory = await db
+        .selectFrom('sub_categories')
+        .select('name')
+        .where('project_id', '=', syncedProjectId)
+        .where('name', '=', 'VoIP')
+        .executeTakeFirst();
+      assert.equal(syncedProjectCategory?.name, 'IT');
+      assert.equal(syncedProjectSubCategory?.name, 'VoIP');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'enabling sync_company_defaults on an existing project backfills current company defaults and stores the flag',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_sync_toggle_co_1');
+    const userId = asUserId('itest_sync_toggle_usr_1');
+    const projectId = asProjectId('itest_sync_toggle_prj_1');
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_sync_toggle_dcat_1'
+    );
+    const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_sync_toggle_dsub_1'
+    );
+    const now = new Date().toISOString();
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Sync Toggle Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'sync-toggle@example.com',
+          name: 'Sync Toggle User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Sync Toggle Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          sync_company_defaults: false,
+          allow_txn_transfers: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_default_categories')
+        .values({
+          id: defaultCategoryId,
+          company_id: companyId,
+          name: 'Travel',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+      await db
+        .insertInto('company_default_sub_categories')
+        .values({
+          id: defaultSubCategoryId,
+          company_id: companyId,
+          company_default_category_id: defaultCategoryId,
+          name: 'Flights',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      const updated = await updateProjectServer({
+        context: { session: { userId } },
+        input: {
+          id: projectId,
+          syncCompanyDefaults: true,
+        },
+      });
+      assert.equal(updated.syncCompanyDefaults, true);
+
+      const projectCategory = await db
+        .selectFrom('categories')
+        .select('name')
+        .where('project_id', '=', projectId)
+        .where('name', '=', 'Travel')
+        .executeTakeFirst();
+      const projectSubCategory = await db
+        .selectFrom('sub_categories')
+        .select('name')
+        .where('project_id', '=', projectId)
+        .where('name', '=', 'Flights')
+        .executeTakeFirst();
+      assert.equal(projectCategory?.name, 'Travel');
+      assert.equal(projectSubCategory?.name, 'Flights');
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

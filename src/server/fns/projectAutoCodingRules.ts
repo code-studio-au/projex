@@ -1,19 +1,31 @@
 import type { Kysely } from 'kysely';
 import { AppError } from '../../api/errors';
 import type {
+  BackfillProjectCodingInput,
+  BackfillProjectCodingResult,
   CreateProjectAutoCodingRuleInput,
   CreateProjectAutoCodingRuleResult,
   ProjectAutoCodingRuleUpdateInput,
   ProjectRuleSuggestionPrompt,
+  PromoteProjectRuleToCompanyDefaultInput,
+  PromoteProjectRuleToCompanyDefaultResult,
 } from '../../api/types';
 import type { ProjectAutoCodingRule, ProjectId } from '../../types';
 import {
   asCategoryId,
+  asCompanyDefaultCategoryId,
+  asCompanyDefaultMappingRuleId,
+  asCompanyDefaultSubCategoryId,
   asProjectAutoCodingRuleId,
   asSubCategoryId,
   type Txn,
 } from '../../types';
+import {
+  findMatchingCompanyDefaultRule,
+  resolveCompanyDefaultRuleToProjectTaxonomy,
+} from '../../utils/companyDefaultMappings';
 import { uid } from '../../utils/id';
+import { applyProjectAutoCodingRule } from '../../utils/projectAutoCodingRules';
 import { deriveRuleSuggestionPattern } from '../../utils/ruleSuggestions';
 import { findMatchingProjectAutoCodingRule } from '../../utils/projectAutoCodingRules';
 import {
@@ -24,12 +36,21 @@ import { validateOrThrow } from '../../validation/validate';
 import { subCategoryNameSchema } from '../../validation/schemas';
 import { getDb } from '../db/db';
 import type { DB } from '../db/schema';
+import { requireAuthorized } from '../auth/authorize';
+import {
+  toCategory,
+  toCompanyDefaultCategory,
+  toCompanyDefaultMappingRule,
+  toCompanyDefaultSubCategory,
+  toSubCategory,
+} from '../mappers/taxonomyRows';
 import { toTxn } from '../mappers/transactionRows';
 import {
   requireOperationalProjectForAction,
   assertCategoryInProject,
   assertSubCategoryInProject,
 } from './resourceGuards';
+import { applyCompanyDefaultTaxonomyToProject } from './taxonomy';
 import {
   assertContextProvided,
   type ServerFnContextInput,
@@ -142,6 +163,97 @@ async function listProjectTransactions(db: Kysely<DB>, projectId: ProjectId) {
     .where('project_id', '=', projectId)
     .execute();
   return rows.map(toTxn);
+}
+
+async function listCompanyDefaultCategories(
+  db: Kysely<DB>,
+  companyId: ProjectAutoCodingRule['companyId']
+) {
+  const rows = await db
+    .selectFrom('company_default_categories')
+    .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+    .where('company_id', '=', companyId)
+    .orderBy('name', 'asc')
+    .execute();
+  return rows.map(toCompanyDefaultCategory);
+}
+
+async function listCompanyDefaultSubCategories(
+  db: Kysely<DB>,
+  companyId: ProjectAutoCodingRule['companyId']
+) {
+  const rows = await db
+    .selectFrom('company_default_sub_categories')
+    .select([
+      'id',
+      'company_id',
+      'company_default_category_id',
+      'name',
+      'created_at',
+      'updated_at',
+    ])
+    .where('company_id', '=', companyId)
+    .orderBy('name', 'asc')
+    .execute();
+  return rows.map(toCompanyDefaultSubCategory);
+}
+
+async function listCompanyDefaultMappingRules(
+  db: Kysely<DB>,
+  companyId: ProjectAutoCodingRule['companyId']
+) {
+  const rows = await db
+    .selectFrom('company_default_mapping_rules')
+    .select([
+      'id',
+      'company_id',
+      'match_text',
+      'company_default_category_id',
+      'company_default_sub_category_id',
+      'sort_order',
+      'created_at',
+      'updated_at',
+    ])
+    .where('company_id', '=', companyId)
+    .orderBy('sort_order', 'asc')
+    .orderBy('created_at', 'asc')
+    .execute();
+  return rows.map(toCompanyDefaultMappingRule);
+}
+
+async function listProjectCategories(db: Kysely<DB>, projectId: ProjectId) {
+  const rows = await db
+    .selectFrom('categories')
+    .select([
+      'id',
+      'company_id',
+      'project_id',
+      'name',
+      'created_at',
+      'updated_at',
+    ])
+    .where('project_id', '=', projectId)
+    .orderBy('name', 'asc')
+    .execute();
+  return rows.map(toCategory);
+}
+
+async function listProjectSubCategories(db: Kysely<DB>, projectId: ProjectId) {
+  const rows = await db
+    .selectFrom('sub_categories')
+    .select([
+      'id',
+      'company_id',
+      'project_id',
+      'category_id',
+      'name',
+      'created_at',
+      'updated_at',
+    ])
+    .where('project_id', '=', projectId)
+    .orderBy('name', 'asc')
+    .execute();
+  return rows.map(toSubCategory);
 }
 
 export async function getProjectRuleSuggestionPromptServer(args: {
@@ -462,5 +574,340 @@ export async function deleteProjectAutoCodingRuleServer(args: {
     if (!deleted) {
       throw new AppError('NOT_FOUND', 'Unknown project auto-coding rule');
     }
+  });
+}
+
+export async function backfillProjectCodingServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: BackfillProjectCodingInput;
+}): Promise<BackfillProjectCodingResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db, companyId } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+
+    const [
+      projectRules,
+      txns,
+      projectCategories,
+      projectSubCategories,
+      defaultCategories,
+      defaultSubCategories,
+      defaultRules,
+    ] = await Promise.all([
+      listProjectRules(db, args.projectId),
+      listProjectTransactions(db, args.projectId),
+      listProjectCategories(db, args.projectId),
+      listProjectSubCategories(db, args.projectId),
+      listCompanyDefaultCategories(db, companyId),
+      listCompanyDefaultSubCategories(db, companyId),
+      listCompanyDefaultMappingRules(db, companyId),
+    ]);
+
+    const eligibleTxns = txns.filter(
+      (txn) => txn.categorisable && !txn.lockedAt && !txn.subCategoryId
+    );
+    const now = new Date().toISOString();
+    let projectRuleMatches = 0;
+    let companyRuleMatches = 0;
+    let updatedCount = 0;
+
+    await db.transaction().execute(async (trx) => {
+      for (const txn of eligibleTxns) {
+        let nextTxn = txn;
+        let matchedCompanyRuleId: string | null = null;
+
+        if (args.input.mode === 'project_rules' || args.input.mode === 'all') {
+          const matchedProjectRule = findMatchingProjectAutoCodingRule(
+            nextTxn,
+            projectRules
+          );
+          if (matchedProjectRule) {
+            nextTxn = applyProjectAutoCodingRule({
+              txn: nextTxn,
+              rules: projectRules,
+            });
+            projectRuleMatches += 1;
+          }
+        }
+
+        if (
+          !nextTxn.subCategoryId &&
+          (args.input.mode === 'company_rules' || args.input.mode === 'all')
+        ) {
+          const matchedCompanyRule = findMatchingCompanyDefaultRule(
+            nextTxn,
+            defaultRules
+          );
+          if (matchedCompanyRule) {
+            const resolved = resolveCompanyDefaultRuleToProjectTaxonomy({
+              rule: matchedCompanyRule,
+              defaultCategories,
+              defaultSubCategories,
+              projectCategories,
+              projectSubCategories,
+            });
+            if (resolved) {
+              nextTxn = {
+                ...nextTxn,
+                categoryId: resolved.categoryId,
+                subCategoryId: resolved.subCategoryId,
+                companyDefaultMappingRuleId: matchedCompanyRule.id,
+                codingSource: 'company_default_rule',
+                codingPendingApproval: true,
+              };
+              matchedCompanyRuleId = matchedCompanyRule.id;
+              companyRuleMatches += 1;
+            }
+          }
+        }
+
+        if (!nextTxn.subCategoryId) continue;
+
+        await trx
+          .updateTable('txns')
+          .set({
+            category_id: nextTxn.categoryId ?? null,
+            sub_category_id: nextTxn.subCategoryId ?? null,
+            company_default_mapping_rule_id: matchedCompanyRuleId,
+            coding_source: nextTxn.codingSource ?? null,
+            coding_pending_approval: nextTxn.codingPendingApproval ?? false,
+            updated_at: now,
+          })
+          .where('project_id', '=', args.projectId)
+          .where('public_id', '=', txn.id)
+          .where('locked_at', 'is', null)
+          .execute();
+
+        updatedCount += 1;
+      }
+    });
+
+    return {
+      projectRuleMatches,
+      companyRuleMatches,
+      updatedCount,
+    };
+  });
+}
+
+export async function promoteProjectRuleToCompanyDefaultServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: PromoteProjectRuleToCompanyDefaultInput;
+}): Promise<PromoteProjectRuleToCompanyDefaultResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db, userId, companyId } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+    await requireAuthorized({
+      db,
+      userId,
+      action: 'company:manage_defaults',
+      companyId,
+      projectId: args.projectId,
+    });
+
+    const rule = await db
+      .selectFrom('project_auto_coding_rules')
+      .select([
+        'id',
+        'company_id',
+        'project_id',
+        'match_text',
+        'category_id',
+        'sub_category_id',
+        'sort_order',
+        'created_by_user_id',
+        'created_at',
+        'updated_at',
+      ])
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', args.input.ruleId)
+      .executeTakeFirst();
+    if (!rule) {
+      throw new AppError('NOT_FOUND', 'Unknown project auto-coding rule');
+    }
+
+    const [category, subCategory] = await Promise.all([
+      db
+        .selectFrom('categories')
+        .select(['id', 'name'])
+        .where('project_id', '=', args.projectId)
+        .where('id', '=', rule.category_id)
+        .executeTakeFirst(),
+      db
+        .selectFrom('sub_categories')
+        .select(['id', 'name'])
+        .where('project_id', '=', args.projectId)
+        .where('id', '=', rule.sub_category_id)
+        .executeTakeFirst(),
+    ]);
+    if (!category || !subCategory) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Project rule target taxonomy no longer exists in this project'
+      );
+    }
+
+    const now = new Date().toISOString();
+
+    return db.transaction().execute(async (trx) => {
+      let categoryCreated = false;
+      let subCategoryCreated = false;
+      let ruleCreated = false;
+
+      const existingCategory = await trx
+        .selectFrom('company_default_categories')
+        .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+        .where('company_id', '=', companyId)
+        .where(({ fn, eb }) =>
+          eb(fn('lower', ['name']), '=', category.name.toLowerCase())
+        )
+        .executeTakeFirst();
+
+      const companyCategory = existingCategory
+        ? toCompanyDefaultCategory(existingCategory)
+        : toCompanyDefaultCategory(
+            await trx
+              .insertInto('company_default_categories')
+              .values({
+                id: asCompanyDefaultCategoryId(uid('cdcat')),
+                company_id: companyId,
+                name: category.name,
+                created_at: now,
+                updated_at: now,
+              })
+              .returning([
+                'id',
+                'company_id',
+                'name',
+                'created_at',
+                'updated_at',
+              ])
+              .executeTakeFirstOrThrow()
+          );
+      categoryCreated = !existingCategory;
+
+      const existingSubCategory = await trx
+        .selectFrom('company_default_sub_categories')
+        .select([
+          'id',
+          'company_id',
+          'company_default_category_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .where('company_id', '=', companyId)
+        .where('company_default_category_id', '=', companyCategory.id)
+        .where(({ fn, eb }) =>
+          eb(fn('lower', ['name']), '=', subCategory.name.toLowerCase())
+        )
+        .executeTakeFirst();
+
+      const companySubCategory = existingSubCategory
+        ? toCompanyDefaultSubCategory(existingSubCategory)
+        : toCompanyDefaultSubCategory(
+            await trx
+              .insertInto('company_default_sub_categories')
+              .values({
+                id: asCompanyDefaultSubCategoryId(uid('cdsub')),
+                company_id: companyId,
+                company_default_category_id: companyCategory.id,
+                name: subCategory.name,
+                created_at: now,
+                updated_at: now,
+              })
+              .returning([
+                'id',
+                'company_id',
+                'company_default_category_id',
+                'name',
+                'created_at',
+                'updated_at',
+              ])
+              .executeTakeFirstOrThrow()
+          );
+      subCategoryCreated = !existingSubCategory;
+
+      const existingRule = await trx
+        .selectFrom('company_default_mapping_rules')
+        .select([
+          'id',
+          'company_id',
+          'match_text',
+          'company_default_category_id',
+          'company_default_sub_category_id',
+          'sort_order',
+          'created_at',
+          'updated_at',
+        ])
+        .where('company_id', '=', companyId)
+        .where(({ fn, eb }) =>
+          eb(fn('lower', ['match_text']), '=', rule.match_text.toLowerCase())
+        )
+        .where('company_default_sub_category_id', '=', companySubCategory.id)
+        .executeTakeFirst();
+
+      let companyRuleId: ReturnType<typeof asCompanyDefaultMappingRuleId>;
+      if (existingRule) {
+        companyRuleId = asCompanyDefaultMappingRuleId(existingRule.id);
+      } else {
+        const maxSort = await trx
+          .selectFrom('company_default_mapping_rules')
+          .select(({ fn }) => fn.max<number>('sort_order').as('max_sort_order'))
+          .where('company_id', '=', companyId)
+          .executeTakeFirst();
+        const insertedRule = await trx
+          .insertInto('company_default_mapping_rules')
+          .values({
+            id: asCompanyDefaultMappingRuleId(uid('cdrule')),
+            company_id: companyId,
+            match_text: rule.match_text,
+            company_default_category_id: companyCategory.id,
+            company_default_sub_category_id: companySubCategory.id,
+            sort_order: Number(maxSort?.max_sort_order ?? -1) + 1,
+            created_at: now,
+            updated_at: now,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+        companyRuleId = asCompanyDefaultMappingRuleId(insertedRule.id);
+        ruleCreated = true;
+      }
+
+      const syncedProjectRows = await trx
+        .selectFrom('projects')
+        .select('id')
+        .where('company_id', '=', companyId)
+        .where('project_type', '=', 'project')
+        .where('sync_company_defaults', '=', true)
+        .execute();
+
+      for (const syncedProject of syncedProjectRows) {
+        await applyCompanyDefaultTaxonomyToProject({
+          db: trx,
+          companyId,
+          projectId: syncedProject.id as ProjectId,
+        });
+      }
+
+      return {
+        companyDefaultCategoryId: companyCategory.id,
+        companyDefaultSubCategoryId: companySubCategory.id,
+        companyDefaultRuleId: companyRuleId,
+        categoryCreated,
+        subCategoryCreated,
+        ruleCreated,
+      };
+    });
   });
 }

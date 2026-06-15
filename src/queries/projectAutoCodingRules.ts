@@ -7,15 +7,19 @@ import {
 
 import type { ProjectAutoCodingRule, ProjectId } from '../types';
 import type {
+  BackfillProjectCodingInput,
   CreateProjectAutoCodingRuleInput,
   ProjectAutoCodingRuleUpdateInput,
+  PromoteProjectRuleToCompanyDefaultInput,
 } from '../api/contract';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import {
+  backfillProjectCodingServerFn,
   createProjectAutoCodingRuleServerFn,
   deleteProjectAutoCodingRuleServerFn,
   listProjectAutoCodingRulesServerFn,
+  promoteProjectRuleToCompanyDefaultServerFn,
   updateProjectAutoCodingRuleServerFn,
 } from '../server/start/functions/projectAutoCodingRules';
 
@@ -89,5 +93,40 @@ export function useDeleteProjectAutoCodingRuleMutation(projectId: ProjectId) {
       deleteProjectAutoCodingRuleServerFn({ data: { projectId, ruleId } }),
     onSuccess: async () =>
       invalidateProjectRuleQueries({ qc, scopeUserId, projectId }),
+  });
+}
+
+export function useBackfillProjectCodingMutation(projectId: ProjectId) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: BackfillProjectCodingInput) =>
+      backfillProjectCodingServerFn({
+        data: { projectId, payload: input },
+      }),
+    onSuccess: async () =>
+      invalidateProjectRuleQueries({ qc, scopeUserId, projectId }),
+  });
+}
+
+export function usePromoteProjectRuleToCompanyDefaultMutation(
+  projectId: ProjectId
+) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: PromoteProjectRuleToCompanyDefaultInput) =>
+      promoteProjectRuleToCompanyDefaultServerFn({
+        data: { projectId, payload: input },
+      }),
+    onSuccess: async () => {
+      await invalidateProjectRuleQueries({ qc, scopeUserId, projectId });
+      await qc.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          typeof query.queryKey[0] === 'string' &&
+          query.queryKey[0].startsWith('companyDefault'),
+      });
+    },
   });
 }

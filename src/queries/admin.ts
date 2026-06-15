@@ -69,6 +69,10 @@ export function useUpdateProjectMutation(companyId: CompanyId) {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.project(scopeUserId, vars.id) }),
         qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, vars.id) }),
+        qc.invalidateQueries({
+          queryKey: qk.subCategories(scopeUserId, vars.id),
+        }),
         qc.invalidateQueries({
           queryKey: qk.myProjectMemberships(scopeUserId, companyId),
         }),
