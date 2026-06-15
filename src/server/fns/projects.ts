@@ -18,6 +18,7 @@ import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
 import { requireCompanyMember } from './resourceGuards';
+import { applyCompanyDefaultTaxonomyToProject } from './taxonomy';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -375,6 +376,8 @@ export async function createProjectServer(args: {
     const projectType = args.input.projectType ?? 'project';
     const parentProjectId = args.input.parentProjectId ?? null;
     const currency = args.input.currency ?? 'AUD';
+    const applyCompanyDefaultTaxonomy =
+      args.input.applyCompanyDefaultTaxonomy ?? true;
     await assertValidProjectHierarchy({
       db,
       companyId: args.companyId,
@@ -418,6 +421,14 @@ export async function createProjectServer(args: {
             })
           )
           .execute();
+      }
+
+      if (projectType === 'project' && applyCompanyDefaultTaxonomy) {
+        await applyCompanyDefaultTaxonomyToProject({
+          db: trx,
+          companyId: args.companyId,
+          projectId: id,
+        });
       }
 
       return created;

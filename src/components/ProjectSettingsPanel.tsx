@@ -32,6 +32,7 @@ import {
   useProjectsQuery,
   useUsersQuery,
 } from '../queries/reference';
+import { useProjectAutoCodingRulesQuery } from '../queries/projectAutoCodingRules';
 import { useUpdateProjectMutation } from '../queries/admin';
 import {
   useCompanyMembershipsQuery,
@@ -43,6 +44,7 @@ import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { getCompanyUsers } from '../store/access';
 import { companyRoute } from '../router';
 import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
+import ProjectAutoCodingRulesModal from './ProjectAutoCodingRulesModal';
 import classes from '../styles/ui.module.css';
 
 const hydrateSubscription = () => () => {};
@@ -93,6 +95,7 @@ export default function ProjectSettingsPanel(props: {
   const usersQ = useUsersQuery();
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
   const projectMembershipsQ = useProjectMembershipsQuery(projectId);
+  const projectAutoCodingRulesQ = useProjectAutoCodingRulesQuery(projectId);
 
   const access = useCompanyAccess(companyId);
   const updateProject = useUpdateProjectMutation(companyId);
@@ -194,6 +197,7 @@ export default function ProjectSettingsPanel(props: {
   const [pendingSuperadminAccess, setPendingSuperadminAccess] = useState<
     boolean | null
   >(null);
+  const [projectRulesModalOpen, setProjectRulesModalOpen] = useState(false);
 
   const upsert = useUpsertProjectMembershipMutation(projectId);
   const del = useDeleteProjectMembershipMutation(projectId);
@@ -436,6 +440,41 @@ export default function ProjectSettingsPanel(props: {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
+          <Title order={5}>Project Auto-Coding Rules</Title>
+          <Text size="sm" c="dimmed">
+            Manage saved project-specific auto-coding rules created from
+            repeated manual coding. These rules apply within this project and
+            can bulk-mark matching uncoded rows for approval.
+          </Text>
+          {projectAutoCodingRulesQ.isPending &&
+          !projectAutoCodingRulesQ.data ? (
+            <Text size="sm" c="dimmed">
+              Loading project auto-coding rules…
+            </Text>
+          ) : (
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">
+                {projectAutoCodingRulesQ.data?.length ?? 0} project rules
+              </Badge>
+            </Group>
+          )}
+          <Button
+            variant="light"
+            disabled={!canEditProject}
+            onClick={() => setProjectRulesModalOpen(true)}
+          >
+            Manage Project Auto-Coding Rules
+          </Button>
+          <Text size="xs" c="dimmed">
+            The first matching rule wins. Changing or deleting a rule affects
+            future matching and uncoded transactions, but does not retroactively
+            recode existing transactions that were already processed.
+          </Text>
+        </Stack>
+      </Paper>
+
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
+        <Stack gap="sm">
           <Title order={5}>Current members</Title>
           <div className={classes.tableWrap}>
             {isHydrated ? (
@@ -520,6 +559,13 @@ export default function ProjectSettingsPanel(props: {
           </Group>
         </Stack>
       </Modal>
+
+      <ProjectAutoCodingRulesModal
+        opened={projectRulesModalOpen}
+        onClose={() => setProjectRulesModalOpen(false)}
+        projectId={projectId}
+        readOnly={!canEditProject}
+      />
     </Stack>
   );
 }

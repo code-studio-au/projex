@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Badge,
   Button,
+  Checkbox,
   Group,
   Modal,
   Paper,
@@ -96,6 +97,8 @@ export default function CompanyDashboardPage() {
     useState<Project['currency']>('AUD');
   const [newProjectParentId, setNewProjectParentId] =
     useState<ProjectId | null>(null);
+  const [newProjectApplyCompanyDefaults, setNewProjectApplyCompanyDefaults] =
+    useState(true);
   const [newProjectOwnerId, setNewProjectOwnerId] = useState<string | null>(
     null
   );
@@ -477,6 +480,7 @@ export default function CompanyDashboardPage() {
                   opened={newProjectOpen}
                   onClose={() => {
                     setNewProjectOpen(false);
+                    setNewProjectApplyCompanyDefaults(true);
                     setNewProjectOwnerId(null);
                   }}
                   title="Create project or programme"
@@ -563,6 +567,17 @@ export default function CompanyDashboardPage() {
                         )
                       }
                     />
+                    <Checkbox
+                      label="Add company default categories and subcategories"
+                      description="Recommended. New operational projects start with the company default taxonomy already copied in."
+                      checked={newProjectApplyCompanyDefaults}
+                      disabled={newProjectType === 'programme'}
+                      onChange={(event) =>
+                        setNewProjectApplyCompanyDefaults(
+                          event.currentTarget.checked
+                        )
+                      }
+                    />
                     <Text size="sm" c="dimmed">
                       Programmes are reporting-only. Projects hold budgets,
                       imports, transactions, and coding. New records start with
@@ -600,6 +615,10 @@ export default function CompanyDashboardPage() {
                             name,
                             projectType: newProjectType,
                             currency: newProjectCurrency,
+                            applyCompanyDefaultTaxonomy:
+                              newProjectType === 'project'
+                                ? newProjectApplyCompanyDefaults
+                                : false,
                             initialOwnerUserId:
                               superadminNeedsInitialOwner &&
                               effectiveNewProjectOwnerId
@@ -614,6 +633,7 @@ export default function CompanyDashboardPage() {
                           setNewProjectType('project');
                           setNewProjectCurrency('AUD');
                           setNewProjectParentId(null);
+                          setNewProjectApplyCompanyDefaults(true);
                           setNewProjectOwnerId(null);
                           setNewProjectOpen(false);
                         }}

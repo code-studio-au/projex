@@ -49,6 +49,9 @@ import {
 import {
   createProjectAutoCodingRuleServer,
   getProjectRuleSuggestionPromptServer,
+  listProjectAutoCodingRulesServer,
+  updateProjectAutoCodingRuleServer,
+  deleteProjectAutoCodingRuleServer,
 } from '../src/server/fns/projectAutoCodingRules.ts';
 import {
   deleteCompanyMembershipServer,
@@ -2260,6 +2263,332 @@ test(
       assert.equal(uncodedTxn?.sub_category_id, subCategoryId);
       assert.equal(uncodedTxn?.coding_source, 'project_rule');
       assert.equal(uncodedTxn?.coding_pending_approval, true);
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'project auto-coding rules can be listed, updated, reordered, and deleted',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_prule_admin_co_1');
+    const userId = asUserId('itest_prule_admin_usr_1');
+    const projectId = asProjectId('itest_prule_admin_prj_1');
+    const categoryAId = asCategoryId('itest_prule_admin_cat_a');
+    const categoryBId = asCategoryId('itest_prule_admin_cat_b');
+    const subCategoryAId = asSubCategoryId('itest_prule_admin_sub_a');
+    const subCategoryBId = asSubCategoryId('itest_prule_admin_sub_b');
+    const now = new Date().toISOString();
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Project Rule Admin Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'prule-admin@example.com',
+          name: 'Project Rule Admin User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'management' })
+        .execute();
+
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Project Rule Admin Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'member' })
+        .execute();
+
+      await db
+        .insertInto('categories')
+        .values([
+          {
+            id: categoryAId,
+            company_id: companyId,
+            project_id: projectId,
+            name: 'Travel',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: categoryBId,
+            company_id: companyId,
+            project_id: projectId,
+            name: 'IT',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+
+      await db
+        .insertInto('sub_categories')
+        .values([
+          {
+            id: subCategoryAId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: categoryAId,
+            name: 'Flights',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: subCategoryBId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: categoryBId,
+            name: 'Software and Services',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+
+      const first = await createProjectAutoCodingRuleServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          matchText: 'qantas',
+          categoryId: categoryAId,
+          subCategoryId: subCategoryAId,
+        },
+      });
+      const second = await createProjectAutoCodingRuleServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          matchText: 'microsoft',
+          categoryId: categoryBId,
+          subCategoryId: subCategoryBId,
+        },
+      });
+
+      const listed = await listProjectAutoCodingRulesServer({
+        context: { session: { userId } },
+        projectId,
+      });
+      assert.equal(listed.length, 2);
+      assert.deepEqual(
+        listed.map((rule) => rule.matchText),
+        ['qantas', 'microsoft']
+      );
+
+      const updated = await updateProjectAutoCodingRuleServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          id: second.rule.id,
+          matchText: 'm365',
+          categoryId: categoryBId,
+          subCategoryId: subCategoryBId,
+        },
+      });
+      assert.equal(updated.matchText, 'm365');
+
+      await updateProjectAutoCodingRuleServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          id: first.rule.id,
+          sortOrder: 1,
+        },
+      });
+      await updateProjectAutoCodingRuleServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          id: second.rule.id,
+          sortOrder: 0,
+        },
+      });
+
+      const reordered = await listProjectAutoCodingRulesServer({
+        context: { session: { userId } },
+        projectId,
+      });
+      assert.deepEqual(
+        reordered.map((rule) => rule.matchText),
+        ['m365', 'qantas']
+      );
+
+      await deleteProjectAutoCodingRuleServer({
+        context: { session: { userId } },
+        projectId,
+        ruleId: first.rule.id,
+      });
+
+      const afterDelete = await listProjectAutoCodingRulesServer({
+        context: { session: { userId } },
+        projectId,
+      });
+      assert.equal(afterDelete.length, 1);
+      assert.equal(afterDelete[0]?.id, second.rule.id);
+      assert.equal(afterDelete[0]?.matchText, 'm365');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'project creation applies company default taxonomy by default and supports opting out',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_project_defaults_co_1');
+    const userId = asUserId('itest_project_defaults_usr_1');
+    const projectWithDefaultsId = asProjectId('itest_project_defaults_prj_1');
+    const projectWithoutDefaultsId = asProjectId(
+      'itest_project_defaults_prj_2'
+    );
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_project_defaults_dcat_1'
+    );
+    const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_project_defaults_dsub_1'
+    );
+    const now = new Date().toISOString();
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Project Defaults Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'project-defaults@example.com',
+          name: 'Project Defaults User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await db
+        .insertInto('company_default_categories')
+        .values({
+          id: defaultCategoryId,
+          company_id: companyId,
+          name: 'Travel',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await db
+        .insertInto('company_default_sub_categories')
+        .values({
+          id: defaultSubCategoryId,
+          company_id: companyId,
+          company_default_category_id: defaultCategoryId,
+          name: 'Flights',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      const api = createRouteApi(userId);
+
+      await api.createProject(companyId, {
+        id: projectWithDefaultsId,
+        name: 'Defaulted Project',
+      });
+      await api.createProject(companyId, {
+        id: projectWithoutDefaultsId,
+        name: 'Custom Project',
+        applyCompanyDefaultTaxonomy: false,
+      });
+
+      const withDefaultsCategories = await db
+        .selectFrom('categories')
+        .select(['name'])
+        .where('project_id', '=', projectWithDefaultsId)
+        .execute();
+      const withDefaultsSubCategories = await db
+        .selectFrom('sub_categories')
+        .select(['name'])
+        .where('project_id', '=', projectWithDefaultsId)
+        .execute();
+      const withoutDefaultsCategories = await db
+        .selectFrom('categories')
+        .select(['name'])
+        .where('project_id', '=', projectWithoutDefaultsId)
+        .execute();
+      const withoutDefaultsSubCategories = await db
+        .selectFrom('sub_categories')
+        .select(['name'])
+        .where('project_id', '=', projectWithoutDefaultsId)
+        .execute();
+
+      assert.deepEqual(
+        withDefaultsCategories.map((row) => row.name),
+        ['Travel']
+      );
+      assert.deepEqual(
+        withDefaultsSubCategories.map((row) => row.name),
+        ['Flights']
+      );
+      assert.equal(withoutDefaultsCategories.length, 0);
+      assert.equal(withoutDefaultsSubCategories.length, 0);
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

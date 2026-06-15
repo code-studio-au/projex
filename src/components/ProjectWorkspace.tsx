@@ -354,6 +354,9 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     (isHydrated
       ? initialCanEditTaxonomy || access.can('taxonomy:edit', projectId)
       : initialCanEditTaxonomy);
+  const canManageImportRules = isHydrated
+    ? access.can('company:manage_defaults')
+    : false;
 
   const budgets = useBudgets({
     companyId,
@@ -1098,6 +1101,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                 currencyCode={currencyCode}
                 canEditTaxonomy={canEditTaxonomy}
                 canEditBudgets={canEditBudgets}
+                canManageImportRules={canManageImportRules}
                 onReplaceAll={(next, options) => txns.replaceAll(next, options)}
                 onAppend={(next, options) => txns.appendMany(next, options)}
               />

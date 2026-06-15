@@ -53,6 +53,8 @@ import {
   toCompanyDefaultSubCategory,
   toSubCategory,
 } from '../mappers/taxonomyRows';
+import type { Transaction } from 'kysely';
+import type { DB } from '../db/schema';
 
 async function requireProjectContext(
   context: ServerFnContextInput,
@@ -1218,94 +1220,101 @@ export async function applyCompanyDefaultTaxonomyServer(args: {
       args.projectId,
       'taxonomy:edit'
     );
-    const db = getDb();
-
-    const defaultCategories = await db
-      .selectFrom('company_default_categories')
-      .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
-      .where('company_id', '=', companyId)
-      .orderBy('name', 'asc')
-      .execute();
-    const defaultSubCategories = await db
-      .selectFrom('company_default_sub_categories')
-      .select([
-        'id',
-        'company_id',
-        'company_default_category_id',
-        'name',
-        'created_at',
-        'updated_at',
-      ])
-      .where('company_id', '=', companyId)
-      .orderBy('name', 'asc')
-      .execute();
-    const projectCategories = await db
-      .selectFrom('categories')
-      .select(['id', 'name'])
-      .where('project_id', '=', args.projectId)
-      .execute();
-    const projectSubCategories = await db
-      .selectFrom('sub_categories')
-      .select(['id', 'category_id', 'name'])
-      .where('project_id', '=', args.projectId)
-      .execute();
-
-    const now = new Date().toISOString();
-    const plan = planApplyCompanyDefaultTaxonomy({
+    return applyCompanyDefaultTaxonomyToProject({
+      db: getDb(),
       companyId,
       projectId: args.projectId,
-      defaultCategories: defaultCategories.map(toCompanyDefaultCategory),
-      defaultSubCategories: defaultSubCategories.map(
-        toCompanyDefaultSubCategory
-      ),
-      projectCategories: projectCategories.map((row) => ({
-        id: asCategoryId(row.id),
-        name: row.name,
-      })),
-      projectSubCategories: projectSubCategories.map((row) => ({
-        categoryId: asCategoryId(row.category_id),
-        name: row.name,
-      })),
-      createCategoryId: () => asCategoryId(uid('cat')),
-      createSubCategoryId: () => asSubCategoryId(uid('sub')),
-      nowIso: now,
     });
-
-    await db.transaction().execute(async (trx) => {
-      if (plan.categoriesToCreate.length) {
-        await trx
-          .insertInto('categories')
-          .values(
-            plan.categoriesToCreate.map((category) => ({
-              id: category.id,
-              company_id: category.companyId,
-              project_id: category.projectId,
-              name: category.name,
-              created_at: category.createdAt ?? now,
-              updated_at: category.updatedAt ?? now,
-            }))
-          )
-          .execute();
-      }
-
-      if (plan.subCategoriesToCreate.length) {
-        await trx
-          .insertInto('sub_categories')
-          .values(
-            plan.subCategoriesToCreate.map((subCategory) => ({
-              id: subCategory.id,
-              company_id: subCategory.companyId,
-              project_id: subCategory.projectId,
-              category_id: subCategory.categoryId,
-              name: subCategory.name,
-              created_at: subCategory.createdAt ?? now,
-              updated_at: subCategory.updatedAt ?? now,
-            }))
-          )
-          .execute();
-      }
-    });
-
-    return plan.result;
   });
+}
+
+export async function applyCompanyDefaultTaxonomyToProject(args: {
+  db: Transaction<DB> | ReturnType<typeof getDb>;
+  companyId: CompanyId;
+  projectId: ProjectId;
+}): Promise<ApplyCompanyDefaultsResult> {
+  const { db, companyId, projectId } = args;
+  const defaultCategories = await db
+    .selectFrom('company_default_categories')
+    .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+    .where('company_id', '=', companyId)
+    .orderBy('name', 'asc')
+    .execute();
+  const defaultSubCategories = await db
+    .selectFrom('company_default_sub_categories')
+    .select([
+      'id',
+      'company_id',
+      'company_default_category_id',
+      'name',
+      'created_at',
+      'updated_at',
+    ])
+    .where('company_id', '=', companyId)
+    .orderBy('name', 'asc')
+    .execute();
+  const projectCategories = await db
+    .selectFrom('categories')
+    .select(['id', 'name'])
+    .where('project_id', '=', projectId)
+    .execute();
+  const projectSubCategories = await db
+    .selectFrom('sub_categories')
+    .select(['id', 'category_id', 'name'])
+    .where('project_id', '=', projectId)
+    .execute();
+
+  const now = new Date().toISOString();
+  const plan = planApplyCompanyDefaultTaxonomy({
+    companyId,
+    projectId,
+    defaultCategories: defaultCategories.map(toCompanyDefaultCategory),
+    defaultSubCategories: defaultSubCategories.map(toCompanyDefaultSubCategory),
+    projectCategories: projectCategories.map((row) => ({
+      id: asCategoryId(row.id),
+      name: row.name,
+    })),
+    projectSubCategories: projectSubCategories.map((row) => ({
+      categoryId: asCategoryId(row.category_id),
+      name: row.name,
+    })),
+    createCategoryId: () => asCategoryId(uid('cat')),
+    createSubCategoryId: () => asSubCategoryId(uid('sub')),
+    nowIso: now,
+  });
+
+  if (plan.categoriesToCreate.length) {
+    await db
+      .insertInto('categories')
+      .values(
+        plan.categoriesToCreate.map((category) => ({
+          id: category.id,
+          company_id: category.companyId,
+          project_id: category.projectId,
+          name: category.name,
+          created_at: category.createdAt ?? now,
+          updated_at: category.updatedAt ?? now,
+        }))
+      )
+      .execute();
+  }
+
+  if (plan.subCategoriesToCreate.length) {
+    await db
+      .insertInto('sub_categories')
+      .values(
+        plan.subCategoriesToCreate.map((subCategory) => ({
+          id: subCategory.id,
+          company_id: subCategory.companyId,
+          project_id: subCategory.projectId,
+          category_id: subCategory.categoryId,
+          name: subCategory.name,
+          created_at: subCategory.createdAt ?? now,
+          updated_at: subCategory.updatedAt ?? now,
+        }))
+      )
+      .execute();
+  }
+
+  return plan.result;
 }

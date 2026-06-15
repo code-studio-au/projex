@@ -32,6 +32,8 @@ export const qk = {
     ['projects', userId, companyId] as const,
   project: (userId: string, projectId: string) =>
     ['project', userId, projectId] as const,
+  projectAutoCodingRules: (userId: string, projectId: string) =>
+    ['projectAutoCodingRules', userId, projectId] as const,
 
   projectMemberships: (userId: string, projectId: string) =>
     ['projectMemberships', userId, projectId] as const,

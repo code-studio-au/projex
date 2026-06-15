@@ -50,7 +50,10 @@ export const createProjectServerFn = createServerFn({ method: 'POST' })
   .inputValidator(
     (input: { companyId: string; payload: ProjectCreateInput }) => ({
       companyId: asCompanyId(input.companyId),
-      payload: input.payload,
+      payload: {
+        ...input.payload,
+        applyCompanyDefaultTaxonomy: input.payload.applyCompanyDefaultTaxonomy,
+      },
     })
   )
   .handler(async ({ context, data }) => {

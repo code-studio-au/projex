@@ -1,11 +1,14 @@
 import type { Kysely } from 'kysely';
+import { AppError } from '../../api/errors';
 import type {
   CreateProjectAutoCodingRuleInput,
   CreateProjectAutoCodingRuleResult,
+  ProjectAutoCodingRuleUpdateInput,
   ProjectRuleSuggestionPrompt,
 } from '../../api/types';
 import type { ProjectAutoCodingRule, ProjectId } from '../../types';
 import {
+  asCategoryId,
   asProjectAutoCodingRuleId,
   asSubCategoryId,
   type Txn,
@@ -85,6 +88,21 @@ async function listProjectRules(
     .orderBy('created_at', 'asc')
     .execute();
   return rows.map(toProjectAutoCodingRule);
+}
+
+export async function listProjectAutoCodingRulesServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+}): Promise<ProjectAutoCodingRule[]> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+    return listProjectRules(db, args.projectId);
+  });
 }
 
 async function listProjectTransactions(db: Kysely<DB>, projectId: ProjectId) {
@@ -310,5 +328,139 @@ export async function createProjectAutoCodingRuleServer(args: {
     });
 
     return result;
+  });
+}
+
+export async function updateProjectAutoCodingRuleServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: ProjectAutoCodingRuleUpdateInput;
+}): Promise<ProjectAutoCodingRule> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+
+    const existing = await db
+      .selectFrom('project_auto_coding_rules')
+      .select([
+        'id',
+        'company_id',
+        'project_id',
+        'match_text',
+        'category_id',
+        'sub_category_id',
+        'sort_order',
+        'created_by_user_id',
+        'created_at',
+        'updated_at',
+      ])
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', args.input.id)
+      .executeTakeFirst();
+    if (!existing) {
+      throw new AppError('NOT_FOUND', 'Unknown project auto-coding rule');
+    }
+
+    if (args.input.matchText != null) {
+      validateOrThrow(subCategoryNameSchema, args.input.matchText);
+    }
+
+    const nextCategoryId =
+      args.input.categoryId ?? asCategoryId(existing.category_id);
+    const nextSubCategoryId =
+      args.input.subCategoryId ?? asSubCategoryId(existing.sub_category_id);
+
+    if (args.input.categoryId != null || args.input.subCategoryId != null) {
+      await assertCategoryInProject({
+        db,
+        projectId: args.projectId,
+        categoryId: nextCategoryId,
+      });
+      await assertSubCategoryInProject({
+        db,
+        projectId: args.projectId,
+        categoryId: nextCategoryId,
+        subCategoryId: nextSubCategoryId,
+      });
+    }
+
+    const nextMatchText = args.input.matchText?.trim() ?? existing.match_text;
+    const duplicate = await db
+      .selectFrom('project_auto_coding_rules')
+      .select('id')
+      .where('project_id', '=', args.projectId)
+      .where('id', '!=', args.input.id)
+      .where(({ fn, eb }) =>
+        eb(fn('lower', ['match_text']), '=', nextMatchText.toLowerCase())
+      )
+      .where('sub_category_id', '=', nextSubCategoryId)
+      .executeTakeFirst();
+    if (duplicate) {
+      throw new AppError(
+        'CONFLICT',
+        'A project auto-coding rule already exists for that match text and subcategory'
+      );
+    }
+
+    const patch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (args.input.matchText != null) patch.match_text = nextMatchText;
+    if (args.input.categoryId != null)
+      patch.category_id = args.input.categoryId;
+    if (args.input.subCategoryId != null) {
+      patch.sub_category_id = args.input.subCategoryId;
+    }
+    if (args.input.sortOrder != null) patch.sort_order = args.input.sortOrder;
+
+    const updated = await db
+      .updateTable('project_auto_coding_rules')
+      .set(patch)
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', args.input.id)
+      .returning([
+        'id',
+        'company_id',
+        'project_id',
+        'match_text',
+        'category_id',
+        'sub_category_id',
+        'sort_order',
+        'created_by_user_id',
+        'created_at',
+        'updated_at',
+      ])
+      .executeTakeFirstOrThrow();
+
+    return toProjectAutoCodingRule(updated);
+  });
+}
+
+export async function deleteProjectAutoCodingRuleServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  ruleId: ProjectAutoCodingRule['id'];
+}): Promise<void> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+
+    const deleted = await db
+      .deleteFrom('project_auto_coding_rules')
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', args.ruleId)
+      .returning('id')
+      .executeTakeFirst();
+    if (!deleted) {
+      throw new AppError('NOT_FOUND', 'Unknown project auto-coding rule');
+    }
   });
 }

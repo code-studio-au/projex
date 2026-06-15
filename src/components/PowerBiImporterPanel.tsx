@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -7,10 +7,12 @@ import {
   Group,
   Modal,
   Paper,
+  Select,
   Stack,
   Switch,
   Tabs,
   Text,
+  TextInput,
   Textarea,
   Title,
 } from '@mantine/core';
@@ -20,7 +22,14 @@ import {
   type MRT_ColumnDef,
 } from 'mantine-react-table-open';
 
-import type { CompanyId, ImportPreviewRow, ProjectId, Txn } from '../types';
+import type {
+  CompanyId,
+  ImportPreviewRow,
+  ImportRuleField,
+  ImportRuleOperator,
+  ProjectId,
+  Txn,
+} from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { BudgetsHook } from '../hooks/useBudgets';
 import { formatCurrencyFromCents } from '../utils/money';
@@ -28,7 +37,47 @@ import {
   type ImportPreviewTab,
   usePowerBiImportWorkflow,
 } from '../hooks/usePowerBiImportWorkflow';
+import {
+  useCreateImportRuleMutation,
+  useImportRulesQuery,
+} from '../queries/importRules';
+import { suggestImportExclusionRuleFromPreviewRow } from '../utils/importRuleSuggestions';
 import classes from '../styles/ui.module.css';
+
+const fieldOptions: Array<{ value: ImportRuleField; label: string }> = [
+  { value: 'ledger', label: 'Ledger' },
+  { value: 'source', label: 'Source' },
+  { value: 'journalId', label: 'Journal ID' },
+  { value: 'journalLineDescription', label: 'Journal Line Description' },
+  { value: 'ccAndDescription', label: 'CC and Description' },
+  { value: 'vendorName', label: 'Vendor Name' },
+  { value: 'poId', label: 'PO ID' },
+  { value: 'referenceNum', label: 'Reference Num' },
+  { value: 'anyText', label: 'Any source text' },
+];
+
+const operatorOptions: Array<{ value: ImportRuleOperator; label: string }> = [
+  { value: 'equals', label: 'Equals' },
+  { value: 'equals_any', label: 'Equals any of' },
+  { value: 'contains', label: 'Contains' },
+  { value: 'contains_any', label: 'Contains any of' },
+  { value: 'starts_with', label: 'Starts with' },
+  { value: 'starts_with_any', label: 'Starts with any of' },
+  { value: 'ends_with', label: 'Ends with' },
+  { value: 'ends_with_any', label: 'Ends with any of' },
+];
+
+function toImportRuleField(value: string | null): ImportRuleField | null {
+  return fieldOptions.some((option) => option.value === value)
+    ? (value as ImportRuleField)
+    : null;
+}
+
+function toImportRuleOperator(value: string | null): ImportRuleOperator | null {
+  return operatorOptions.some((option) => option.value === value)
+    ? (value as ImportRuleOperator)
+    : null;
+}
 
 function displayWarningsForRow(row: ImportPreviewRow): string[] {
   return row.warnings.filter(
@@ -48,6 +97,7 @@ export default function PowerBiImporterPanel(props: {
   currencyCode: 'AUD' | 'USD' | 'EUR' | 'GBP';
   canEditTaxonomy: boolean;
   canEditBudgets: boolean;
+  canManageImportRules: boolean;
   onAppend: (
     txns: Txn[],
     options?: { autoCreateBudgets?: boolean }
@@ -65,11 +115,14 @@ export default function PowerBiImporterPanel(props: {
     currencyCode,
     canEditTaxonomy,
     canEditBudgets,
+    canManageImportRules,
     onAppend,
     onReplaceAll,
   } = props;
 
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const importRulesQ = useImportRulesQuery(companyId);
+  const createImportRule = useCreateImportRuleMutation(companyId);
   const importer = usePowerBiImportWorkflow({
     taxonomy,
     budgets,
@@ -125,6 +178,110 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     commitAppend,
     commitReplaceAll,
   } = importer;
+  const [excludeRuleRow, setExcludeRuleRow] = useState<ImportPreviewRow | null>(
+    null
+  );
+  const [excludeRuleName, setExcludeRuleName] = useState('');
+  const [excludeRuleField, setExcludeRuleField] =
+    useState<ImportRuleField>('source');
+  const [excludeRuleOperator, setExcludeRuleOperator] =
+    useState<ImportRuleOperator>('equals');
+  const [excludeRuleValue, setExcludeRuleValue] = useState('');
+  const [excludeRuleError, setExcludeRuleError] = useState<string | null>(null);
+  const [excludeRuleNotice, setExcludeRuleNotice] = useState<string | null>(
+    null
+  );
+
+  const openExcludeRuleModal = useCallback((row: ImportPreviewRow) => {
+    const suggestion = suggestImportExclusionRuleFromPreviewRow(row);
+    if (!suggestion) {
+      setExcludeRuleRow(row);
+      setExcludeRuleName('Exclude imported row');
+      setExcludeRuleField('journalLineDescription');
+      setExcludeRuleOperator('contains');
+      setExcludeRuleValue(row.description ?? row.item ?? '');
+      return;
+    }
+    setExcludeRuleRow(row);
+    setExcludeRuleName(suggestion.name);
+    setExcludeRuleField(suggestion.field);
+    setExcludeRuleOperator(suggestion.operator);
+    setExcludeRuleValue(suggestion.value);
+  }, []);
+
+  function closeExcludeRuleModal() {
+    setExcludeRuleRow(null);
+    setExcludeRuleError(null);
+  }
+
+  const handleTogglePreviewRow = useCallback(
+    (row: ImportPreviewRow) => {
+      const currentlyExcluded = excludedImportIds.has(row.importId);
+      togglePreviewRow(row.importId);
+
+      if (
+        currentlyExcluded ||
+        !canManageImportRules ||
+        row.importAction === 'exclude'
+      ) {
+        return;
+      }
+
+      setExcludeRuleError(null);
+      setExcludeRuleNotice(null);
+      openExcludeRuleModal(row);
+    },
+    [
+      canManageImportRules,
+      excludedImportIds,
+      openExcludeRuleModal,
+      togglePreviewRow,
+    ]
+  );
+
+  async function handleCreateExcludeRule() {
+    if (!excludeRuleRow) return;
+
+    const name = excludeRuleName.trim();
+    const value = excludeRuleValue.trim();
+    if (!name) {
+      setExcludeRuleError('Rule name is required.');
+      return;
+    }
+    if (!value) {
+      setExcludeRuleError('Match value is required.');
+      return;
+    }
+
+    try {
+      setExcludeRuleError(null);
+      const maxSortOrder = (importRulesQ.data ?? []).reduce(
+        (max, rule) => Math.max(max, rule.sortOrder),
+        0
+      );
+      await createImportRule.mutateAsync({
+        companyId,
+        name,
+        action: 'exclude',
+        field: excludeRuleField,
+        operator: excludeRuleOperator,
+        value,
+        sortOrder: maxSortOrder + 10,
+        enabled: true,
+      });
+      closeExcludeRuleModal();
+      await previewImport();
+      setExcludeRuleNotice(
+        'Created import exclusion rule and refreshed the preview.'
+      );
+    } catch (error) {
+      setExcludeRuleError(
+        error instanceof Error
+          ? error.message
+          : 'Could not create the import exclusion rule.'
+      );
+    }
+  }
 
   const previewColumns = useMemo<MRT_ColumnDef<ImportPreviewRow>[]>(
     () => [
@@ -332,7 +489,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             color={
               excludedImportIds.has(row.original.importId) ? 'blue' : 'gray'
             }
-            onClick={() => togglePreviewRow(row.original.importId)}
+            onClick={() => handleTogglePreviewRow(row.original)}
           >
             {excludedImportIds.has(row.original.importId)
               ? 'Include'
@@ -345,7 +502,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
     ],
-    [currencyCode, excludedImportIds, togglePreviewRow]
+    [currencyCode, excludedImportIds, handleTogglePreviewRow]
   );
 
   const excludedPreviewColumns = useMemo(
@@ -387,6 +544,11 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           {importNotice ? (
             <Alert color="green" className={classes.notice}>
               {importNotice}
+            </Alert>
+          ) : null}
+          {excludeRuleNotice ? (
+            <Alert color="green" className={classes.notice}>
+              {excludeRuleNotice}
             </Alert>
           ) : null}
 
@@ -788,6 +950,80 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               onClick={() => void commitReplaceAll()}
             >
               Replace all
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={excludeRuleRow !== null}
+        onClose={closeExcludeRuleModal}
+        title="Create import exclusion rule"
+        fullScreen={isMobile}
+      >
+        <Stack gap="md">
+          {excludeRuleError ? (
+            <Alert color="red">{excludeRuleError}</Alert>
+          ) : null}
+          <Text size="sm" c="dimmed" className={classes.modalIntro}>
+            This row is already excluded from the current preview. Save a
+            company import rule if you want matching rows to auto-exclude on
+            future imports and after preview refreshes.
+          </Text>
+          <TextInput
+            label="Rule name"
+            value={excludeRuleName}
+            onChange={(event) => {
+              setExcludeRuleError(null);
+              setExcludeRuleName(event.currentTarget.value);
+            }}
+          />
+          <Group grow align="flex-end">
+            <Select
+              label="Field"
+              data={fieldOptions}
+              value={excludeRuleField}
+              onChange={(value) => {
+                const next = toImportRuleField(value);
+                if (!next) return;
+                setExcludeRuleError(null);
+                setExcludeRuleField(next);
+              }}
+            />
+            <Select
+              label="Match"
+              data={operatorOptions}
+              value={excludeRuleOperator}
+              onChange={(value) => {
+                const next = toImportRuleOperator(value);
+                if (!next) return;
+                setExcludeRuleError(null);
+                setExcludeRuleOperator(next);
+              }}
+            />
+          </Group>
+          <TextInput
+            label="Value"
+            value={excludeRuleValue}
+            onChange={(event) => {
+              setExcludeRuleError(null);
+              setExcludeRuleValue(event.currentTarget.value);
+            }}
+          />
+          <Group className={classes.footerRow}>
+            <Button
+              variant="light"
+              fullWidth={isMobile}
+              onClick={closeExcludeRuleModal}
+            >
+              Not now
+            </Button>
+            <Button
+              fullWidth={isMobile}
+              onClick={() => void handleCreateExcludeRule()}
+              loading={createImportRule.isPending}
+            >
+              Create rule
             </Button>
           </Group>
         </Stack>

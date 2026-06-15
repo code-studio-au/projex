@@ -331,6 +331,20 @@ export type CreateProjectAutoCodingRuleResult = {
   matchedTxnCount: number;
 };
 
+export type ProjectAutoCodingRuleUpdateInput = Partial<
+  Omit<
+    ProjectAutoCodingRule,
+    | 'id'
+    | 'companyId'
+    | 'projectId'
+    | 'createdByUserId'
+    | 'createdAt'
+    | 'updatedAt'
+  >
+> & {
+  id: ProjectAutoCodingRule['id'];
+};
+
 export type ImportRuleCreateInput = Omit<
   ImportRule,
   'id' | 'createdAt' | 'updatedAt'
@@ -366,6 +380,7 @@ export type ProjectCreateInput = Pick<Project, 'name'> & {
   parentProjectId?: ProjectId | null;
   currency?: Project['currency'];
   initialOwnerUserId?: UserId;
+  applyCompanyDefaultTaxonomy?: boolean;
 };
 export type ProjectUpdateInput = Pick<
   Partial<Project>,
