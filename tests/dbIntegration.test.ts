@@ -124,6 +124,10 @@ import {
   getLatestCompanyExportJobServer,
 } from '../src/server/fns/exportJobs.ts';
 import {
+  getCompanyExportObject,
+  putCompanyExportObject,
+} from '../src/server/storage/exportObjectStore.ts';
+import {
   applyCompanyDefaultTaxonomyServer,
   bulkRecodeProjectTransactionsServer,
   createCategoryServer,
@@ -1082,6 +1086,116 @@ test(
       await db
         .deleteFrom('users')
         .where('id', 'in', [superadminId, memberId, retainedMemberId])
+        .execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'deleting a company removes persisted export objects from S3-compatible storage',
+  { skip: !integrationDatabaseUrl || !integrationExportStorageConfigured },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_delete_company_exports_co_1');
+    const superadminId = asUserId('itest_delete_company_exports_super_1');
+    const memberId = asUserId('itest_delete_company_exports_member_1');
+    const exportJobId = asCompanyExportJobId(
+      'expjob_itest_delete_company_exports_1'
+    );
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db
+        .deleteFrom('users')
+        .where('id', 'in', [superadminId, memberId])
+        .execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Delete Company Export Cleanup',
+          status: 'deactivated',
+          deactivated_at: new Date().toISOString(),
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values([
+          {
+            id: superadminId,
+            email: 'delete-company-export-superadmin@example.com',
+            name: 'Delete Company Export Superadmin',
+            disabled: false,
+            disabled_reason: null,
+            is_global_superadmin: true,
+          },
+          {
+            id: memberId,
+            email: 'delete-company-export-member@example.com',
+            name: 'Delete Company Export Member',
+            disabled: false,
+            disabled_reason: null,
+            is_global_superadmin: false,
+          },
+        ])
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({
+          company_id: companyId,
+          user_id: memberId,
+          role: 'admin',
+        })
+        .execute();
+
+      const storedObject = await putCompanyExportObject({
+        jobId: exportJobId,
+        fileName: 'delete-company-export-cleanup.xlsx',
+        bytes: Buffer.from('export-fixture'),
+        contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      await insertExportJobFixture({
+        db,
+        jobId: exportJobId,
+        companyId,
+        userId: memberId,
+        status: 'completed',
+        fileName: 'delete-company-export-cleanup.xlsx',
+        storageBucket: storedObject.bucket,
+        storageKey: storedObject.key,
+      });
+
+      const api = createRouteApi(superadminId);
+      await api.deleteCompany({
+        companyId,
+        confirmation: 'DELETE Delete Company Export Cleanup',
+      });
+
+      const deletedCompany = await db
+        .selectFrom('companies')
+        .select('id')
+        .where('id', '=', companyId)
+        .executeTakeFirst();
+      assert.equal(deletedCompany, undefined);
+
+      await assertAppError(
+        () =>
+          getCompanyExportObject({
+            bucket: storedObject.bucket,
+            key: storedObject.key,
+          }),
+        'NOT_FOUND',
+        'Export file is unavailable'
+      );
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db
+        .deleteFrom('users')
+        .where('id', 'in', [superadminId, memberId])
         .execute();
       await db.destroy();
     }

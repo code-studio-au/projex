@@ -31,6 +31,7 @@ import { getBetterAuthInstance } from '../auth/betterAuthInstance';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getAuthEmailDeliveryMode } from '../auth/email.ts';
 import { getDb } from '../db/db';
+import { deleteCompanyExportObject } from '../storage/exportObjectStore.ts';
 import { listProjectsServer } from './projects';
 import {
   assertContextProvided,
@@ -1048,6 +1049,21 @@ export async function deleteCompanyServer(args: {
         'VALIDATION_ERROR',
         'Company must be deactivated before deletion'
       );
+    }
+
+    const exportObjects = await db
+      .selectFrom('company_export_jobs')
+      .select(['storage_bucket', 'storage_key'])
+      .where('company_id', '=', args.companyId)
+      .where('storage_bucket', 'is not', null)
+      .where('storage_key', 'is not', null)
+      .execute();
+
+    for (const row of exportObjects) {
+      await deleteCompanyExportObject({
+        bucket: row.storage_bucket!,
+        key: row.storage_key!,
+      });
     }
 
     await db.transaction().execute(async (trx) => {
