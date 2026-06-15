@@ -930,6 +930,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         onClose={() => setConfirmReplaceOpen(false)}
         title="Replace all transactions?"
         fullScreen={isMobile}
+        centered={!isMobile}
+        styles={{
+          body: {
+            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+            overflowY: 'auto',
+          },
+        }}
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed" className={classes.modalIntro}>
@@ -960,6 +967,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         onClose={closeExcludeRuleModal}
         title="Create import exclusion rule"
         fullScreen={isMobile}
+        centered={!isMobile}
+        styles={{
+          body: {
+            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+            overflowY: 'auto',
+          },
+        }}
       >
         <Stack gap="md">
           {excludeRuleError ? (
@@ -983,6 +997,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               label="Field"
               data={fieldOptions}
               value={excludeRuleField}
+              comboboxProps={{ withinPortal: false }}
               onChange={(value) => {
                 const next = toImportRuleField(value);
                 if (!next) return;
@@ -994,6 +1009,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               label="Match"
               data={operatorOptions}
               value={excludeRuleOperator}
+              comboboxProps={{ withinPortal: false }}
               onChange={(value) => {
                 const next = toImportRuleOperator(value);
                 if (!next) return;
