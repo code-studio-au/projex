@@ -45,6 +45,7 @@ import {
   toSubCategory,
 } from '../mappers/taxonomyRows';
 import { toTxn } from '../mappers/transactionRows';
+import { ensureBudgetLinesForProjectSubCategories } from './budgets';
 import {
   requireOperationalProjectForAction,
   assertCategoryInProject,
@@ -417,6 +418,17 @@ export async function createProjectAutoCodingRuleServer(args: {
         .map((txn: Txn) => txn.id);
 
       if (matchedTxnIds.length > 0) {
+        await ensureBudgetLinesForProjectSubCategories({
+          db: trx,
+          companyId,
+          projectId: args.projectId,
+          targets: [
+            {
+              categoryId: args.input.categoryId,
+              subCategoryId: args.input.subCategoryId,
+            },
+          ],
+        });
         await trx
           .updateTable('txns')
           .set({
@@ -617,6 +629,10 @@ export async function backfillProjectCodingServer(args: {
     let updatedCount = 0;
 
     await db.transaction().execute(async (trx) => {
+      const budgetTargets = new Map<
+        string,
+        { categoryId: string; subCategoryId: string }
+      >();
       for (const txn of eligibleTxns) {
         let nextTxn = txn;
         let matchedCompanyRuleId: string | null = null;
@@ -668,6 +684,11 @@ export async function backfillProjectCodingServer(args: {
 
         if (!nextTxn.subCategoryId) continue;
 
+        budgetTargets.set(String(nextTxn.subCategoryId), {
+          categoryId: String(nextTxn.categoryId),
+          subCategoryId: String(nextTxn.subCategoryId),
+        });
+
         await trx
           .updateTable('txns')
           .set({
@@ -685,6 +706,16 @@ export async function backfillProjectCodingServer(args: {
 
         updatedCount += 1;
       }
+
+      await ensureBudgetLinesForProjectSubCategories({
+        db: trx,
+        companyId,
+        projectId: args.projectId,
+        targets: [...budgetTargets.values()].map((target) => ({
+          categoryId: asCategoryId(target.categoryId),
+          subCategoryId: asSubCategoryId(target.subCategoryId),
+        })),
+      });
     });
 
     return {

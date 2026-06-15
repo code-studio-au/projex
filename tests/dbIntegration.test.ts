@@ -2267,6 +2267,16 @@ test(
       assert.equal(uncodedTxn?.sub_category_id, subCategoryId);
       assert.equal(uncodedTxn?.coding_source, 'project_rule');
       assert.equal(uncodedTxn?.coding_pending_approval, true);
+
+      const seededBudgetLine = await db
+        .selectFrom('budget_lines')
+        .select(['category_id', 'sub_category_id', 'allocated_cents'])
+        .where('project_id', '=', projectId)
+        .where('sub_category_id', '=', subCategoryId)
+        .executeTakeFirst();
+      assert.equal(seededBudgetLine?.category_id, categoryId);
+      assert.equal(seededBudgetLine?.sub_category_id, subCategoryId);
+      assert.equal(Number(seededBudgetLine?.allocated_cents ?? -1), 0);
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();
@@ -2609,6 +2619,12 @@ test(
         withDefaultsSubCategories.map((row) => row.name).sort(),
         ['Flights', 'Software and Services']
       );
+      const withDefaultsBudgetLines = await db
+        .selectFrom('budget_lines')
+        .select(['category_id', 'sub_category_id'])
+        .where('project_id', '=', projectWithDefaultsId)
+        .execute();
+      assert.equal(withDefaultsBudgetLines.length, 2);
       assert.equal(withoutDefaultsCategories.length, 0);
       assert.equal(withoutDefaultsSubCategories.length, 0);
     } finally {

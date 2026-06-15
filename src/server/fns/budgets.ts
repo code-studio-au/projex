@@ -1,4 +1,4 @@
-import type { Selectable } from 'kysely';
+import type { Selectable, Transaction, Kysely } from 'kysely';
 
 import { AppError } from '../../api/errors';
 import type { BudgetCreateInput, BudgetUpdateInput } from '../../api/types';
@@ -14,6 +14,7 @@ import { uid } from '../../utils/id';
 import { budgetAllocatedCentsSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import type { BudgetLineTable } from '../db/schema';
+import type { DB } from '../db/schema';
 import {
   assertContextProvided,
   type ServerFnContextInput,
@@ -26,6 +27,82 @@ import {
 } from './resourceGuards';
 
 type BudgetRow = Selectable<BudgetLineTable>;
+
+export async function ensureBudgetLinesForProjectSubCategories(args: {
+  db: Kysely<DB> | Transaction<DB>;
+  companyId: BudgetLine['companyId'];
+  projectId: ProjectId;
+  targets: Array<{
+    categoryId: NonNullable<BudgetLine['categoryId']>;
+    subCategoryId: NonNullable<BudgetLine['subCategoryId']>;
+  }>;
+}) {
+  const dedupedTargets = [
+    ...new Map(
+      args.targets.map((target) => [target.subCategoryId, target] as const)
+    ).values(),
+  ];
+  if (!dedupedTargets.length) return;
+
+  const existingRows = await args.db
+    .selectFrom('budget_lines')
+    .select(['id', 'category_id', 'sub_category_id'])
+    .where('project_id', '=', args.projectId)
+    .where(
+      'sub_category_id',
+      'in',
+      dedupedTargets.map((target) => target.subCategoryId)
+    )
+    .execute();
+
+  const existingBySubCategoryId = new Map(
+    existingRows
+      .filter(
+        (row): row is typeof row & { sub_category_id: string } =>
+          row.sub_category_id !== null
+      )
+      .map((row) => [asSubCategoryId(row.sub_category_id), row] as const)
+  );
+
+  const now = new Date().toISOString();
+
+  for (const target of dedupedTargets) {
+    const existing = existingBySubCategoryId.get(target.subCategoryId);
+    if (!existing) continue;
+    if (existing.category_id === target.categoryId) continue;
+
+    await args.db
+      .updateTable('budget_lines')
+      .set({
+        category_id: target.categoryId,
+        updated_at: now,
+      })
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', existing.id)
+      .execute();
+  }
+
+  const missingTargets = dedupedTargets.filter(
+    (target) => !existingBySubCategoryId.has(target.subCategoryId)
+  );
+  if (!missingTargets.length) return;
+
+  await args.db
+    .insertInto('budget_lines')
+    .values(
+      missingTargets.map((target) => ({
+        id: asBudgetLineId(uid('bud')),
+        company_id: args.companyId,
+        project_id: args.projectId,
+        category_id: target.categoryId,
+        sub_category_id: target.subCategoryId,
+        allocated_cents: 0,
+        created_at: now,
+        updated_at: now,
+      }))
+    )
+    .execute();
+}
 
 function toBudget(row: BudgetRow): BudgetLine {
   return {

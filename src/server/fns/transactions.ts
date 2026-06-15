@@ -78,6 +78,7 @@ import { enforceRateLimit } from '../rateLimit';
 import type { DB, TxnTable } from '../db/schema';
 import { recordManualRuleSuggestionSignal } from './ruleSuggestions';
 import { getProjectRuleSuggestionPromptServer } from './projectAutoCodingRules';
+import { ensureBudgetLinesForProjectSubCategories } from './budgets';
 
 const IMPORT_PREVIEW_RATE_LIMIT = {
   limit: 12,
@@ -561,6 +562,20 @@ export async function createTxnServer(args: {
       ])
       .executeTakeFirstOrThrow();
 
+    if (next.categoryId && next.subCategoryId) {
+      await ensureBudgetLinesForProjectSubCategories({
+        db,
+        companyId: context.companyId,
+        projectId: args.projectId,
+        targets: [
+          {
+            categoryId: next.categoryId,
+            subCategoryId: next.subCategoryId,
+          },
+        ],
+      });
+    }
+
     return toTxn(row);
   });
 }
@@ -735,6 +750,19 @@ export async function updateTxnServer(args: {
       .executeTakeFirstOrThrow();
 
     const updatedTxn = toTxn(updated);
+    if (updatedTxn.categoryId && updatedTxn.subCategoryId) {
+      await ensureBudgetLinesForProjectSubCategories({
+        db,
+        companyId: context.companyId,
+        projectId: args.projectId,
+        targets: [
+          {
+            categoryId: updatedTxn.categoryId,
+            subCategoryId: updatedTxn.subCategoryId,
+          },
+        ],
+      });
+    }
     await recordManualRuleSuggestionSignal({
       db,
       userId: context.userId,
@@ -990,6 +1018,25 @@ export async function splitTxnServer(args: {
           'updated_at',
         ])
         .execute();
+
+      await ensureBudgetLinesForProjectSubCategories({
+        db: trx,
+        companyId: context.companyId,
+        projectId: args.projectId,
+        targets: split.children
+          .filter(
+            (
+              child
+            ): child is typeof child & {
+              categoryId: NonNullable<typeof child.categoryId>;
+              subCategoryId: NonNullable<typeof child.subCategoryId>;
+            } => Boolean(child.categoryId && child.subCategoryId)
+          )
+          .map((child) => ({
+            categoryId: child.categoryId,
+            subCategoryId: child.subCategoryId,
+          })),
+      });
 
       return { parent: toTxn(parent), children: children.map(toTxn) };
     });
@@ -1361,6 +1408,20 @@ export async function importTransactionsServer(args: {
     if (args.mode === 'replaceAll') {
       const now = new Date().toISOString();
       await db.transaction().execute(async (trx) => {
+        const codedBudgetTargets = [
+          ...new Map(
+            plan.importedTransactions
+              .filter(
+                (
+                  txn
+                ): txn is Txn & {
+                  categoryId: NonNullable<Txn['categoryId']>;
+                  subCategoryId: NonNullable<Txn['subCategoryId']>;
+                } => Boolean(txn.categoryId && txn.subCategoryId)
+              )
+              .map((txn) => [txn.subCategoryId, txn] as const)
+          ).values(),
+        ];
         await trx
           .deleteFrom('txns')
           .where('project_id', '=', args.projectId)
@@ -1382,6 +1443,15 @@ export async function importTransactionsServer(args: {
             )
             .execute();
         }
+        await ensureBudgetLinesForProjectSubCategories({
+          db: trx,
+          companyId,
+          projectId: args.projectId,
+          targets: codedBudgetTargets.map((txn) => ({
+            categoryId: txn.categoryId,
+            subCategoryId: txn.subCategoryId,
+          })),
+        });
         if (!plan.importedTransactions.length) return;
         await trx
           .insertInto('txns')
@@ -1423,6 +1493,20 @@ export async function importTransactionsServer(args: {
     if (plan.importedTransactions.length) {
       const now = new Date().toISOString();
       await db.transaction().execute(async (trx) => {
+        const codedBudgetTargets = [
+          ...new Map(
+            plan.importedTransactions
+              .filter(
+                (
+                  txn
+                ): txn is Txn & {
+                  categoryId: NonNullable<Txn['categoryId']>;
+                  subCategoryId: NonNullable<Txn['subCategoryId']>;
+                } => Boolean(txn.categoryId && txn.subCategoryId)
+              )
+              .map((txn) => [txn.subCategoryId, txn] as const)
+          ).values(),
+        ];
         if (plan.budgetTargetsToCreate.length) {
           await trx
             .insertInto('budget_lines')
@@ -1440,6 +1524,15 @@ export async function importTransactionsServer(args: {
             )
             .execute();
         }
+        await ensureBudgetLinesForProjectSubCategories({
+          db: trx,
+          companyId,
+          projectId: args.projectId,
+          targets: codedBudgetTargets.map((txn) => ({
+            categoryId: txn.categoryId,
+            subCategoryId: txn.subCategoryId,
+          })),
+        });
         await trx
           .insertInto('txns')
           .values(
@@ -1955,6 +2048,19 @@ export async function reviewImportCandidateServer(args: {
     let insertedTxn: Txn | undefined;
     let updatedCandidate: ImportCandidate | undefined;
     await db.transaction().execute(async (trx) => {
+      if (txn.categoryId && txn.subCategoryId) {
+        await ensureBudgetLinesForProjectSubCategories({
+          db: trx,
+          companyId,
+          projectId: args.projectId,
+          targets: [
+            {
+              categoryId: txn.categoryId,
+              subCategoryId: txn.subCategoryId,
+            },
+          ],
+        });
+      }
       const txnRow = await trx
         .insertInto('txns')
         .values({

@@ -45,6 +45,7 @@ import { defaultCategoryIdForRule } from '../../utils/companyDefaultMappings';
 import { planApplyCompanyDefaultTaxonomy } from '../../utils/companyDefaultTaxonomy';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
+import { ensureBudgetLinesForProjectSubCategories } from './budgets';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -431,6 +432,19 @@ export async function createSubCategoryServer(args: {
         'updated_at',
       ])
       .executeTakeFirstOrThrow();
+
+    await ensureBudgetLinesForProjectSubCategories({
+      db,
+      companyId,
+      projectId: args.projectId,
+      targets: [
+        {
+          categoryId: args.input.categoryId,
+          subCategoryId: id,
+        },
+      ],
+    });
+
     return toSubCategory(row);
   });
 }
@@ -1365,6 +1379,16 @@ export async function applyCompanyDefaultTaxonomyToProject(args: {
         }))
       )
       .execute();
+
+    await ensureBudgetLinesForProjectSubCategories({
+      db,
+      companyId,
+      projectId,
+      targets: plan.subCategoriesToCreate.map((subCategory) => ({
+        categoryId: subCategory.categoryId,
+        subCategoryId: subCategory.id,
+      })),
+    });
   }
 
   return plan.result;
@@ -1423,6 +1447,17 @@ export async function bulkRecodeProjectTransactionsServer(args: {
     }
 
     const now = new Date().toISOString();
+    await ensureBudgetLinesForProjectSubCategories({
+      db,
+      companyId,
+      projectId: args.projectId,
+      targets: [
+        {
+          categoryId: args.input.toCategoryId,
+          subCategoryId: args.input.toSubCategoryId,
+        },
+      ],
+    });
     const updatedRows = await db
       .updateTable('txns')
       .set({
