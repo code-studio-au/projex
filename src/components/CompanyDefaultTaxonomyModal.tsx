@@ -163,7 +163,15 @@ export default function CompanyDefaultTaxonomyModal(props: {
         opened={opened}
         onClose={onClose}
         title="Manage company default categories"
-        size={isMobile ? '100%' : 'lg'}
+        fullScreen={isMobile}
+        centered={!isMobile}
+        size="lg"
+        styles={{
+          body: {
+            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+            overflowY: 'auto',
+          },
+        }}
       >
         <Stack gap="md" className={classes.modalStack}>
           {error ? <Alert color="red">{error}</Alert> : null}

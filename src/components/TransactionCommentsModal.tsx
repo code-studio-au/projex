@@ -12,6 +12,7 @@ import {
   Text,
   Textarea,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconCornerDownRight } from '@tabler/icons-react';
 
 import type { Txn, TxnComment, TxnCommentId, UserId } from '../types';
@@ -56,6 +57,7 @@ export default function TransactionCommentsModal(props: {
   onClose: () => void;
 }) {
   const { opened, txn, onClose } = props;
+  const isMobile = useMediaQuery('(max-width: 48em)');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [body, setBody] = useState('');
   const [assignedToUserId, setAssignedToUserId] = useState<UserId | null>(null);
@@ -346,6 +348,12 @@ export default function TransactionCommentsModal(props: {
       title="Transaction comments"
       size="xl"
       centered
+      styles={{
+        body: {
+          maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+          overflowY: 'auto',
+        },
+      }}
     >
       {!txn ? null : (
         <Stack className={classes.modalStack}>

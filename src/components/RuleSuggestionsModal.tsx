@@ -96,7 +96,15 @@ export default function RuleSuggestionsModal(props: {
       opened={opened}
       onClose={onClose}
       title="Rule Suggestions"
-      size={isMobile ? '100%' : 'xl'}
+      fullScreen={isMobile}
+      centered={!isMobile}
+      size="xl"
+      styles={{
+        body: {
+          maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+          overflowY: 'auto',
+        },
+      }}
     >
       <Stack className={classes.modalStack}>
         {error ? <Alert color="red">{error}</Alert> : null}
