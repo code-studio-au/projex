@@ -34,6 +34,10 @@ import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { BudgetsHook } from '../hooks/useBudgets';
 import { formatCurrencyFromCents } from '../utils/money';
 import {
+  matchesPowerBiImportRule,
+  toPowerBiExpenditureActualsRow,
+} from '../utils/powerBiImport';
+import {
   type ImportPreviewTab,
   usePowerBiImportWorkflow,
 } from '../hooks/usePowerBiImportWorkflow';
@@ -42,6 +46,7 @@ import {
   useImportRulesQuery,
 } from '../queries/importRules';
 import { suggestImportExclusionRuleFromPreviewRow } from '../utils/importRuleSuggestions';
+import { showAppToast } from '../utils/toast';
 import classes from '../styles/ui.module.css';
 
 const fieldOptions: Array<{ value: ImportRuleField; label: string }> = [
@@ -198,9 +203,6 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     useState<ImportRuleOperator>('equals');
   const [excludeRuleValue, setExcludeRuleValue] = useState('');
   const [excludeRuleError, setExcludeRuleError] = useState<string | null>(null);
-  const [excludeRuleNotice, setExcludeRuleNotice] = useState<string | null>(
-    null
-  );
 
   const openExcludeRuleModal = useCallback((row: ImportPreviewRow) => {
     const suggestion = suggestImportExclusionRuleFromPreviewRow(row);
@@ -238,7 +240,6 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
       }
 
       setExcludeRuleError(null);
-      setExcludeRuleNotice(null);
       openExcludeRuleModal(row);
     },
     [
@@ -265,11 +266,14 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
 
     try {
       setExcludeRuleError(null);
+      const previousExcludedCount = excludedPreviewRows.filter(
+        (row) => row.importAction === 'exclude'
+      ).length;
       const maxSortOrder = (importRulesQ.data ?? []).reduce(
         (max, rule) => Math.max(max, rule.sortOrder),
         0
       );
-      await createImportRule.mutateAsync({
+      const createdRule = await createImportRule.mutateAsync({
         companyId,
         name,
         action: 'exclude',
@@ -279,11 +283,45 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         sortOrder: maxSortOrder + 10,
         enabled: true,
       });
-      closeExcludeRuleModal();
-      await previewImport();
-      setExcludeRuleNotice(
-        'Created import exclusion rule and refreshed the preview.'
+      const refreshedPreview = await previewImport();
+      const matchedPreviewRowCount =
+        refreshedPreview?.rows.filter((row) => {
+          if (!row.rawSourceRow) return false;
+          return matchesPowerBiImportRule(
+            toPowerBiExpenditureActualsRow(row.rawSourceRow),
+            createdRule
+          );
+        }).length ?? 0;
+      const nextExcludedCount =
+        refreshedPreview?.rows.filter((row) => row.importAction === 'exclude')
+          .length ?? 0;
+      const newlyExcludedCount = Math.max(
+        0,
+        nextExcludedCount - previousExcludedCount
       );
+
+      if (matchedPreviewRowCount === 0) {
+        setExcludeRuleError(
+          'The exclusion rule was saved, but it did not match any preview rows. Adjust the field, operator, or value and try again.'
+        );
+        showAppToast({
+          tone: 'warning',
+          title: 'Import exclusion saved',
+          message:
+            'The rule was saved, but it excluded 0 preview rows. Adjust the field, operator, or value and try again.',
+        });
+        return;
+      }
+
+      closeExcludeRuleModal();
+      showAppToast({
+        tone: 'success',
+        title: 'Import exclusion created',
+        message:
+          matchedPreviewRowCount === newlyExcludedCount
+            ? `Created import exclusion rule and excluded ${matchedPreviewRowCount} preview row${matchedPreviewRowCount === 1 ? '' : 's'}.`
+            : `Created import exclusion rule. It matched ${matchedPreviewRowCount} preview row${matchedPreviewRowCount === 1 ? '' : 's'} and excluded ${newlyExcludedCount} new row${newlyExcludedCount === 1 ? '' : 's'}.`,
+      });
     } catch (error) {
       setExcludeRuleError(
         error instanceof Error
@@ -554,11 +592,6 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           {importNotice ? (
             <Alert color="green" className={classes.notice}>
               {importNotice}
-            </Alert>
-          ) : null}
-          {excludeRuleNotice ? (
-            <Alert color="green" className={classes.notice}>
-              {excludeRuleNotice}
             </Alert>
           ) : null}
 

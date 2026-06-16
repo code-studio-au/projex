@@ -340,6 +340,7 @@ export function usePowerBiImportWorkflow(params: {
         )
       );
       setPagination((current) => ({ ...current, pageIndex: 0 }));
+      return preview;
     } catch (error) {
       setPreviewRows(null);
       setPreviewBatchId(null);
@@ -349,6 +350,7 @@ export function usePowerBiImportWorkflow(params: {
       setImportError(
         error instanceof Error ? error.message : 'Could not preview the import.'
       );
+      return null;
     }
   }
 

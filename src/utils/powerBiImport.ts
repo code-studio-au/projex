@@ -278,7 +278,10 @@ function valueForRuleField(
   }
 }
 
-function ruleMatches(row: PowerBiExpenditureActualsRow, rule: ImportRule) {
+export function matchesPowerBiImportRule(
+  row: PowerBiExpenditureActualsRow,
+  rule: Pick<ImportRule, 'field' | 'operator' | 'value'>
+) {
   const haystack = normalizeForMatch(valueForRuleField(row, rule.field));
   const needle = normalizeForMatch(rule.value);
   const needles = splitRuleValues(rule.value);
@@ -313,7 +316,7 @@ export function decidePowerBiImportRule(args: {
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
   for (const rule of sortedRules) {
-    if (!ruleMatches(args.row, rule)) continue;
+    if (!matchesPowerBiImportRule(args.row, rule)) continue;
     return {
       action: rule.action,
       matchedRule: rule,

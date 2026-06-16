@@ -11,6 +11,7 @@ import {
   MantineProvider,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
+import { Notifications } from '@mantine/notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import {
@@ -49,6 +50,7 @@ export function RootProviders({
 
   return (
     <MantineProvider theme={theme} defaultColorScheme="light">
+      <Notifications />
       <QueryClientProvider client={activeQueryClient}>
         {children}
       </QueryClientProvider>
