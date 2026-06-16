@@ -357,6 +357,35 @@ export default function ProjectImportRulesModal(props: {
             {rules.map((rule, index) => {
               const draft = draftFor(rule);
               const dirty = JSON.stringify(draft) !== JSON.stringify(rule);
+              const sourceBadge =
+                rule.syncStatus === 'inherited'
+                  ? {
+                      label: 'Inherited from company',
+                      color: 'teal',
+                    }
+                  : rule.syncStatus === 'overridden'
+                    ? {
+                        label: 'Project override',
+                        color: 'orange',
+                      }
+                    : rule.syncStatus === 'detached'
+                      ? {
+                          label: 'Detached from company',
+                          color: 'gray',
+                        }
+                      : {
+                          label: 'Project local',
+                          color: 'indigo',
+                        };
+              const canDeleteRule = !(
+                rule.originScope === 'company' &&
+                rule.syncStatus === 'inherited'
+              );
+              const canMoveUp =
+                index > 0 && rules[index - 1]?.syncStatus === rule.syncStatus;
+              const canMoveDown =
+                index < rules.length - 1 &&
+                rules[index + 1]?.syncStatus === rule.syncStatus;
 
               return (
                 <Paper key={rule.id} withBorder radius="md" p="md">
@@ -364,8 +393,8 @@ export default function ProjectImportRulesModal(props: {
                     <Group justify="space-between" align="center">
                       <Group gap="xs" wrap="wrap">
                         <Badge variant="light">Rule {index + 1}</Badge>
-                        <Badge variant="light" color="indigo">
-                          Project scoped
+                        <Badge variant="light" color={sourceBadge.color}>
+                          {sourceBadge.label}
                         </Badge>
                         <Badge
                           variant="light"
@@ -418,7 +447,7 @@ export default function ProjectImportRulesModal(props: {
                         <ActionIcon
                           variant="subtle"
                           title="Move rule up"
-                          disabled={readOnly || index === 0}
+                          disabled={readOnly || !canMoveUp}
                           onClick={() => {
                             void moveRule(rule.id, -1);
                           }}
@@ -428,7 +457,7 @@ export default function ProjectImportRulesModal(props: {
                         <ActionIcon
                           variant="subtle"
                           title="Move rule down"
-                          disabled={readOnly || index === rules.length - 1}
+                          disabled={readOnly || !canMoveDown}
                           onClick={() => {
                             void moveRule(rule.id, 1);
                           }}
@@ -439,7 +468,7 @@ export default function ProjectImportRulesModal(props: {
                           color="red"
                           variant="subtle"
                           title="Delete project import rule"
-                          disabled={readOnly}
+                          disabled={readOnly || !canDeleteRule}
                           onClick={async () => {
                             try {
                               clearFeedback();

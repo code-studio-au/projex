@@ -53,15 +53,37 @@ export function projectImportRulesQueryOptions(
   } as const;
 }
 
+async function invalidateCompanyImportRuleQueries(args: {
+  qc: ReturnType<typeof useQueryClient>;
+  scopeUserId: string;
+  companyId: CompanyId;
+}) {
+  const { qc, scopeUserId, companyId } = args;
+  await Promise.all([
+    qc.invalidateQueries({
+      queryKey: qk.importRules(scopeUserId, companyId),
+    }),
+    qc.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === 'importRules' &&
+        query.queryKey[1] === 'project' &&
+        query.queryKey[2] === scopeUserId,
+    }),
+  ]);
+}
+
 export function useCreateImportRuleMutation(companyId: CompanyId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: ImportRuleCreateInput) =>
       createImportRuleServerFn({ data: { companyId, payload: input } }),
-    onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: qk.importRules(scopeUserId, companyId),
+    onSuccess: async () =>
+      invalidateCompanyImportRuleQueries({
+        qc,
+        scopeUserId,
+        companyId,
       }),
   });
 }
@@ -72,9 +94,11 @@ export function useUpdateImportRuleMutation(companyId: CompanyId) {
   return useMutation({
     mutationFn: (input: ImportRuleUpdateInput) =>
       updateImportRuleServerFn({ data: { companyId, payload: input } }),
-    onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: qk.importRules(scopeUserId, companyId),
+    onSuccess: async () =>
+      invalidateCompanyImportRuleQueries({
+        qc,
+        scopeUserId,
+        companyId,
       }),
   });
 }
@@ -85,9 +109,11 @@ export function useDeleteImportRuleMutation(companyId: CompanyId) {
   return useMutation({
     mutationFn: (ruleId: ImportRule['id']) =>
       deleteImportRuleServerFn({ data: { companyId, ruleId } }),
-    onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: qk.importRules(scopeUserId, companyId),
+    onSuccess: async () =>
+      invalidateCompanyImportRuleQueries({
+        qc,
+        scopeUserId,
+        companyId,
       }),
   });
 }

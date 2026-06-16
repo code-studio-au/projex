@@ -42,9 +42,14 @@ import {
 } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { defaultCategoryIdForRule } from '../../utils/companyDefaultMappings';
-import { planApplyCompanyDefaultTaxonomy } from '../../utils/companyDefaultTaxonomy';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
+import {
+  buildDetachedProjectStandardMetadata,
+  buildInheritedProjectStandardMetadata,
+  buildLocalProjectStandardMetadata,
+  shouldApplyInheritedUpdate,
+} from '../sync/projectStandards';
 import { ensureBudgetLinesForProjectSubCategories } from './budgets';
 import {
   assertContextProvided,
@@ -116,6 +121,29 @@ async function listSyncedProjectIdsForCompany(args: {
   return rows.map((row) => asProjectId(row.id));
 }
 
+function taxonomyNameKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+type ProjectCategorySyncRow = {
+  id: string;
+  name: string;
+  origin_scope: 'company' | 'project' | null;
+  origin_company_item_id: string | null;
+  sync_status: 'local' | 'inherited' | 'overridden' | 'detached' | null;
+  source_updated_at_snapshot: string | null;
+};
+
+type ProjectSubCategorySyncRow = {
+  id: string;
+  category_id: string;
+  name: string;
+  origin_scope: 'company' | 'project' | null;
+  origin_company_item_id: string | null;
+  sync_status: 'local' | 'inherited' | 'overridden' | 'detached' | null;
+  source_updated_at_snapshot: string | null;
+};
+
 export async function listCategoriesServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
@@ -131,6 +159,11 @@ export async function listCategoriesServer(args: {
         'company_id',
         'project_id',
         'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'last_synced_at',
+        'source_updated_at_snapshot',
         'created_at',
         'updated_at',
       ])
@@ -181,6 +214,7 @@ export async function createCategoryServer(args: {
         company_id: companyId,
         project_id: args.projectId,
         name,
+        ...buildLocalProjectStandardMetadata(now),
         created_at: now,
         updated_at: now,
       })
@@ -189,6 +223,11 @@ export async function createCategoryServer(args: {
         'company_id',
         'project_id',
         'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'last_synced_at',
+        'source_updated_at_snapshot',
         'created_at',
         'updated_at',
       ])
@@ -214,6 +253,8 @@ export async function updateCategoryServer(args: {
         'company_id',
         'project_id',
         'name',
+        'origin_scope',
+        'sync_status',
         'created_at',
         'updated_at',
       ])
@@ -229,6 +270,13 @@ export async function updateCategoryServer(args: {
     const patch: Record<string, unknown> = {};
     if (typeof args.input.name === 'string')
       patch.name = args.input.name.trim();
+    if (
+      existing.origin_scope === 'company' &&
+      existing.sync_status === 'inherited'
+    ) {
+      patch.sync_status = 'overridden';
+      patch.last_synced_at = new Date().toISOString();
+    }
     patch.updated_at = new Date().toISOString();
 
     const updated = await db
@@ -241,6 +289,11 @@ export async function updateCategoryServer(args: {
         'company_id',
         'project_id',
         'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'last_synced_at',
+        'source_updated_at_snapshot',
         'created_at',
         'updated_at',
       ])
@@ -262,11 +315,20 @@ export async function deleteCategoryServer(args: {
 
     const existing = await db
       .selectFrom('categories')
-      .select('id')
+      .select(['id', 'origin_scope', 'sync_status'])
       .where('project_id', '=', args.projectId)
       .where('id', '=', args.categoryId)
       .executeTakeFirst();
     if (!existing) return;
+    if (
+      existing.origin_scope === 'company' &&
+      existing.sync_status === 'inherited'
+    ) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Inherited company categories cannot be deleted from a synced project.'
+      );
+    }
 
     await db.transaction().execute(async (trx) => {
       const subs = await trx
@@ -358,6 +420,11 @@ export async function listSubCategoriesServer(args: {
         'project_id',
         'category_id',
         'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'last_synced_at',
+        'source_updated_at_snapshot',
         'created_at',
         'updated_at',
       ])
@@ -419,6 +486,7 @@ export async function createSubCategoryServer(args: {
         project_id: args.projectId,
         category_id: args.input.categoryId,
         name,
+        ...buildLocalProjectStandardMetadata(now),
         created_at: now,
         updated_at: now,
       })
@@ -428,6 +496,11 @@ export async function createSubCategoryServer(args: {
         'project_id',
         'category_id',
         'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'last_synced_at',
+        'source_updated_at_snapshot',
         'created_at',
         'updated_at',
       ])
@@ -466,6 +539,8 @@ export async function updateSubCategoryServer(args: {
         'project_id',
         'category_id',
         'name',
+        'origin_scope',
+        'sync_status',
         'created_at',
         'updated_at',
       ])
@@ -493,6 +568,13 @@ export async function updateSubCategoryServer(args: {
       patch.name = args.input.name.trim();
     if (typeof args.input.categoryId !== 'undefined')
       patch.category_id = args.input.categoryId;
+    if (
+      existing.origin_scope === 'company' &&
+      existing.sync_status === 'inherited'
+    ) {
+      patch.sync_status = 'overridden';
+      patch.last_synced_at = new Date().toISOString();
+    }
     patch.updated_at = new Date().toISOString();
 
     const updated = await db
@@ -506,6 +588,11 @@ export async function updateSubCategoryServer(args: {
         'project_id',
         'category_id',
         'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'last_synced_at',
+        'source_updated_at_snapshot',
         'created_at',
         'updated_at',
       ])
@@ -525,11 +612,20 @@ export async function deleteSubCategoryServer(args: {
     const db = getDb();
     const existing = await db
       .selectFrom('sub_categories')
-      .select('id')
+      .select(['id', 'origin_scope', 'sync_status'])
       .where('project_id', '=', args.projectId)
       .where('id', '=', args.subCategoryId)
       .executeTakeFirst();
     if (!existing) return;
+    if (
+      existing.origin_scope === 'company' &&
+      existing.sync_status === 'inherited'
+    ) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Inherited company subcategories cannot be deleted from a synced project.'
+      );
+    }
 
     const now = new Date().toISOString();
     await db.transaction().execute(async (trx) => {
@@ -789,13 +885,29 @@ export async function updateCompanyDefaultCategoryServer(args: {
     if (typeof args.input.name === 'string')
       patch.name = args.input.name.trim();
     patch.updated_at = new Date().toISOString();
-    const updated = await db
-      .updateTable('company_default_categories')
-      .set(patch)
-      .where('company_id', '=', args.companyId)
-      .where('id', '=', args.input.id)
-      .returning(['id', 'company_id', 'name', 'created_at', 'updated_at'])
-      .executeTakeFirstOrThrow();
+    const updated = await db.transaction().execute(async (trx) => {
+      const row = await trx
+        .updateTable('company_default_categories')
+        .set(patch)
+        .where('company_id', '=', args.companyId)
+        .where('id', '=', args.input.id)
+        .returning(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+        .executeTakeFirstOrThrow();
+
+      const syncedProjectIds = await listSyncedProjectIdsForCompany({
+        db: trx,
+        companyId: args.companyId,
+      });
+      for (const projectId of syncedProjectIds) {
+        await applyCompanyDefaultTaxonomyToProject({
+          db: trx,
+          companyId: args.companyId,
+          projectId,
+        });
+      }
+
+      return row;
+    });
     return toCompanyDefaultCategory(updated);
   });
 }
@@ -813,11 +925,25 @@ export async function deleteCompanyDefaultCategoryServer(args: {
       'company:manage_defaults'
     );
     const db = getDb();
-    await db
-      .deleteFrom('company_default_categories')
-      .where('company_id', '=', args.companyId)
-      .where('id', '=', args.categoryId)
-      .execute();
+    await db.transaction().execute(async (trx) => {
+      await trx
+        .deleteFrom('company_default_categories')
+        .where('company_id', '=', args.companyId)
+        .where('id', '=', args.categoryId)
+        .execute();
+
+      const syncedProjectIds = await listSyncedProjectIdsForCompany({
+        db: trx,
+        companyId: args.companyId,
+      });
+      for (const projectId of syncedProjectIds) {
+        await applyCompanyDefaultTaxonomyToProject({
+          db: trx,
+          companyId: args.companyId,
+          projectId,
+        });
+      }
+    });
   });
 }
 
@@ -976,20 +1102,36 @@ export async function updateCompanyDefaultSubCategoryServer(args: {
       patch.company_default_category_id = args.input.companyDefaultCategoryId;
     }
     patch.updated_at = new Date().toISOString();
-    const updated = await db
-      .updateTable('company_default_sub_categories')
-      .set(patch)
-      .where('company_id', '=', args.companyId)
-      .where('id', '=', args.input.id)
-      .returning([
-        'id',
-        'company_id',
-        'company_default_category_id',
-        'name',
-        'created_at',
-        'updated_at',
-      ])
-      .executeTakeFirstOrThrow();
+    const updated = await db.transaction().execute(async (trx) => {
+      const row = await trx
+        .updateTable('company_default_sub_categories')
+        .set(patch)
+        .where('company_id', '=', args.companyId)
+        .where('id', '=', args.input.id)
+        .returning([
+          'id',
+          'company_id',
+          'company_default_category_id',
+          'name',
+          'created_at',
+          'updated_at',
+        ])
+        .executeTakeFirstOrThrow();
+
+      const syncedProjectIds = await listSyncedProjectIdsForCompany({
+        db: trx,
+        companyId: args.companyId,
+      });
+      for (const projectId of syncedProjectIds) {
+        await applyCompanyDefaultTaxonomyToProject({
+          db: trx,
+          companyId: args.companyId,
+          projectId,
+        });
+      }
+
+      return row;
+    });
     return toCompanyDefaultSubCategory(updated);
   });
 }
@@ -1007,11 +1149,25 @@ export async function deleteCompanyDefaultSubCategoryServer(args: {
       'company:manage_defaults'
     );
     const db = getDb();
-    await db
-      .deleteFrom('company_default_sub_categories')
-      .where('company_id', '=', args.companyId)
-      .where('id', '=', args.subCategoryId)
-      .execute();
+    await db.transaction().execute(async (trx) => {
+      await trx
+        .deleteFrom('company_default_sub_categories')
+        .where('company_id', '=', args.companyId)
+        .where('id', '=', args.subCategoryId)
+        .execute();
+
+      const syncedProjectIds = await listSyncedProjectIdsForCompany({
+        db: trx,
+        companyId: args.companyId,
+      });
+      for (const projectId of syncedProjectIds) {
+        await applyCompanyDefaultTaxonomyToProject({
+          db: trx,
+          companyId: args.companyId,
+          projectId,
+        });
+      }
+    });
   });
 }
 
@@ -1320,78 +1476,267 @@ export async function applyCompanyDefaultTaxonomyToProject(args: {
     .execute();
   const projectCategories = await db
     .selectFrom('categories')
-    .select(['id', 'name'])
+    .select([
+      'id',
+      'name',
+      'origin_scope',
+      'origin_company_item_id',
+      'sync_status',
+      'source_updated_at_snapshot',
+    ])
     .where('project_id', '=', projectId)
     .execute();
   const projectSubCategories = await db
     .selectFrom('sub_categories')
-    .select(['id', 'category_id', 'name'])
+    .select([
+      'id',
+      'category_id',
+      'name',
+      'origin_scope',
+      'origin_company_item_id',
+      'sync_status',
+      'source_updated_at_snapshot',
+    ])
     .where('project_id', '=', projectId)
     .execute();
 
   const now = new Date().toISOString();
-  const plan = planApplyCompanyDefaultTaxonomy({
-    companyId,
-    projectId,
-    defaultCategories: defaultCategories.map(toCompanyDefaultCategory),
-    defaultSubCategories: defaultSubCategories.map(toCompanyDefaultSubCategory),
-    projectCategories: projectCategories.map((row) => ({
-      id: asCategoryId(row.id),
-      name: row.name,
-    })),
-    projectSubCategories: projectSubCategories.map((row) => ({
-      categoryId: asCategoryId(row.category_id),
-      name: row.name,
-    })),
-    createCategoryId: () => asCategoryId(uid('cat')),
-    createSubCategoryId: () => asSubCategoryId(uid('sub')),
-    nowIso: now,
-  });
+  let categoriesAdded = 0;
+  let subCategoriesAdded = 0;
 
-  if (plan.categoriesToCreate.length) {
+  const projectCategoryRows = projectCategories as ProjectCategorySyncRow[];
+  const projectSubCategoryRows =
+    projectSubCategories as ProjectSubCategorySyncRow[];
+  const defaultCategoryIdToProjectCategoryId = new Map<string, string>();
+
+  for (const defaultCategory of defaultCategories) {
+    const inheritedCategory = projectCategoryRows.find(
+      (category) => category.origin_company_item_id === defaultCategory.id
+    );
+    const localNameMatch = projectCategoryRows.find(
+      (category) =>
+        !category.origin_company_item_id &&
+        taxonomyNameKey(category.name) === taxonomyNameKey(defaultCategory.name)
+    );
+
+    if (inheritedCategory) {
+      defaultCategoryIdToProjectCategoryId.set(
+        defaultCategory.id,
+        inheritedCategory.id
+      );
+      if (!shouldApplyInheritedUpdate(inheritedCategory.sync_status)) continue;
+      await db
+        .updateTable('categories')
+        .set({
+          name: defaultCategory.name,
+          ...buildInheritedProjectStandardMetadata({
+            companyItemId: defaultCategory.id,
+            sourceUpdatedAt: defaultCategory.updated_at,
+            nowIso: now,
+          }),
+          updated_at: now,
+        })
+        .where('project_id', '=', projectId)
+        .where('id', '=', inheritedCategory.id)
+        .execute();
+      continue;
+    }
+
+    if (localNameMatch) {
+      if (!localNameMatch.origin_scope) {
+        await db
+          .updateTable('categories')
+          .set({
+            ...buildInheritedProjectStandardMetadata({
+              companyItemId: defaultCategory.id,
+              sourceUpdatedAt: defaultCategory.updated_at,
+              nowIso: now,
+            }),
+            updated_at: now,
+          })
+          .where('project_id', '=', projectId)
+          .where('id', '=', localNameMatch.id)
+          .execute();
+      }
+      defaultCategoryIdToProjectCategoryId.set(
+        defaultCategory.id,
+        localNameMatch.id
+      );
+      continue;
+    }
+
+    const createdId = asCategoryId(uid('cat'));
     await db
       .insertInto('categories')
-      .values(
-        plan.categoriesToCreate.map((category) => ({
-          id: category.id,
-          company_id: category.companyId,
-          project_id: category.projectId,
-          name: category.name,
-          created_at: category.createdAt ?? now,
-          updated_at: category.updatedAt ?? now,
-        }))
-      )
+      .values({
+        id: createdId,
+        company_id: companyId,
+        project_id: projectId,
+        name: defaultCategory.name,
+        ...buildInheritedProjectStandardMetadata({
+          companyItemId: defaultCategory.id,
+          sourceUpdatedAt: defaultCategory.updated_at,
+          nowIso: now,
+        }),
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+    defaultCategoryIdToProjectCategoryId.set(defaultCategory.id, createdId);
+    categoriesAdded += 1;
+  }
+
+  const liveDefaultCategoryIds = new Set(
+    defaultCategories.map((category) => category.id)
+  );
+  for (const staleCategory of projectCategoryRows.filter(
+    (category) =>
+      category.origin_company_item_id &&
+      !liveDefaultCategoryIds.has(category.origin_company_item_id) &&
+      category.sync_status !== 'detached'
+  )) {
+    await db
+      .updateTable('categories')
+      .set({
+        ...buildDetachedProjectStandardMetadata({
+          companyItemId: staleCategory.origin_company_item_id!,
+          previousSourceUpdatedAt: staleCategory.source_updated_at_snapshot,
+          nowIso: now,
+        }),
+        updated_at: now,
+      })
+      .where('project_id', '=', projectId)
+      .where('id', '=', staleCategory.id)
       .execute();
   }
 
-  if (plan.subCategoriesToCreate.length) {
+  const createdBudgetTargets: Array<{
+    categoryId: Category['id'];
+    subCategoryId: SubCategory['id'];
+  }> = [];
+
+  for (const defaultSubCategory of defaultSubCategories) {
+    const projectCategoryId = defaultCategoryIdToProjectCategoryId.get(
+      defaultSubCategory.company_default_category_id
+    );
+    if (!projectCategoryId) continue;
+
+    const inheritedSubCategory = projectSubCategoryRows.find(
+      (subCategory) =>
+        subCategory.origin_company_item_id === defaultSubCategory.id
+    );
+    const localNameMatch = projectSubCategoryRows.find(
+      (subCategory) =>
+        !subCategory.origin_company_item_id &&
+        subCategory.category_id === projectCategoryId &&
+        taxonomyNameKey(subCategory.name) ===
+          taxonomyNameKey(defaultSubCategory.name)
+    );
+
+    if (inheritedSubCategory) {
+      if (!shouldApplyInheritedUpdate(inheritedSubCategory.sync_status))
+        continue;
+      await db
+        .updateTable('sub_categories')
+        .set({
+          category_id: projectCategoryId,
+          name: defaultSubCategory.name,
+          ...buildInheritedProjectStandardMetadata({
+            companyItemId: defaultSubCategory.id,
+            sourceUpdatedAt: defaultSubCategory.updated_at,
+            nowIso: now,
+          }),
+          updated_at: now,
+        })
+        .where('project_id', '=', projectId)
+        .where('id', '=', inheritedSubCategory.id)
+        .execute();
+      continue;
+    }
+
+    if (localNameMatch) {
+      if (!localNameMatch.origin_scope) {
+        await db
+          .updateTable('sub_categories')
+          .set({
+            category_id: projectCategoryId,
+            ...buildInheritedProjectStandardMetadata({
+              companyItemId: defaultSubCategory.id,
+              sourceUpdatedAt: defaultSubCategory.updated_at,
+              nowIso: now,
+            }),
+            updated_at: now,
+          })
+          .where('project_id', '=', projectId)
+          .where('id', '=', localNameMatch.id)
+          .execute();
+      }
+      continue;
+    }
+
+    const createdId = asSubCategoryId(uid('sub'));
     await db
       .insertInto('sub_categories')
-      .values(
-        plan.subCategoriesToCreate.map((subCategory) => ({
-          id: subCategory.id,
-          company_id: subCategory.companyId,
-          project_id: subCategory.projectId,
-          category_id: subCategory.categoryId,
-          name: subCategory.name,
-          created_at: subCategory.createdAt ?? now,
-          updated_at: subCategory.updatedAt ?? now,
-        }))
-      )
+      .values({
+        id: createdId,
+        company_id: companyId,
+        project_id: projectId,
+        category_id: projectCategoryId,
+        name: defaultSubCategory.name,
+        ...buildInheritedProjectStandardMetadata({
+          companyItemId: defaultSubCategory.id,
+          sourceUpdatedAt: defaultSubCategory.updated_at,
+          nowIso: now,
+        }),
+        created_at: now,
+        updated_at: now,
+      })
       .execute();
+    createdBudgetTargets.push({
+      categoryId: asCategoryId(projectCategoryId),
+      subCategoryId: createdId,
+    });
+    subCategoriesAdded += 1;
+  }
 
+  const liveDefaultSubCategoryIds = new Set(
+    defaultSubCategories.map((subCategory) => subCategory.id)
+  );
+  for (const staleSubCategory of projectSubCategoryRows.filter(
+    (subCategory) =>
+      subCategory.origin_company_item_id &&
+      !liveDefaultSubCategoryIds.has(subCategory.origin_company_item_id) &&
+      subCategory.sync_status !== 'detached'
+  )) {
+    await db
+      .updateTable('sub_categories')
+      .set({
+        ...buildDetachedProjectStandardMetadata({
+          companyItemId: staleSubCategory.origin_company_item_id!,
+          previousSourceUpdatedAt: staleSubCategory.source_updated_at_snapshot,
+          nowIso: now,
+        }),
+        updated_at: now,
+      })
+      .where('project_id', '=', projectId)
+      .where('id', '=', staleSubCategory.id)
+      .execute();
+  }
+
+  if (createdBudgetTargets.length) {
     await ensureBudgetLinesForProjectSubCategories({
       db,
       companyId,
       projectId,
-      targets: plan.subCategoriesToCreate.map((subCategory) => ({
-        categoryId: subCategory.categoryId,
-        subCategoryId: subCategory.id,
-      })),
+      targets: createdBudgetTargets,
     });
   }
 
-  return plan.result;
+  return {
+    companyDefaultsConfigured: defaultCategories.length > 0,
+    categoriesAdded,
+    subCategoriesAdded,
+  };
 }
 
 export async function bulkRecodeProjectTransactionsServer(args: {

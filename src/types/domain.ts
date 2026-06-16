@@ -21,6 +21,12 @@ import type {
 import type { CompanyRole, ProjectRole } from './roles.ts';
 
 export type CompanyStatus = 'active' | 'deactivated';
+export type ProjectStandardOriginScope = 'company' | 'project';
+export type ProjectStandardSyncStatus =
+  | 'local'
+  | 'inherited'
+  | 'overridden'
+  | 'detached';
 
 export type Company = {
   id: CompanyId;
@@ -95,6 +101,11 @@ export type Category = {
   companyId: CompanyId;
   projectId: ProjectId;
   name: string;
+  originScope?: ProjectStandardOriginScope;
+  originCompanyItemId?: string;
+  syncStatus?: ProjectStandardSyncStatus;
+  lastSyncedAt?: string;
+  sourceUpdatedAtSnapshot?: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -104,6 +115,11 @@ export type SubCategory = {
   projectId: ProjectId;
   categoryId: CategoryId;
   name: string;
+  originScope?: ProjectStandardOriginScope;
+  originCompanyItemId?: string;
+  syncStatus?: ProjectStandardSyncStatus;
+  lastSyncedAt?: string;
+  sourceUpdatedAtSnapshot?: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -177,6 +193,11 @@ export type ImportRule = {
   scope: ImportRuleScope;
   projectId?: ProjectId;
   name: string;
+  originScope?: ProjectStandardOriginScope;
+  originCompanyItemId?: string;
+  syncStatus?: ProjectStandardSyncStatus;
+  lastSyncedAt?: string;
+  sourceUpdatedAtSnapshot?: string;
   action: ImportRuleAction;
   field: ImportRuleField;
   operator: ImportRuleOperator;

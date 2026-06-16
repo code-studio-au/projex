@@ -18,6 +18,7 @@ import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
 import { requireCompanyMember } from './resourceGuards';
+import { syncCompanyImportRulesToProject } from './importRules';
 import { applyCompanyDefaultTaxonomyToProject } from './taxonomy';
 import {
   assertContextProvided,
@@ -434,6 +435,11 @@ export async function createProjectServer(args: {
           companyId: args.companyId,
           projectId: id,
         });
+        await syncCompanyImportRulesToProject({
+          db: trx as unknown as ReturnType<typeof getDb>,
+          companyId: args.companyId,
+          projectId: id,
+        });
       }
 
       return created;
@@ -481,7 +487,10 @@ export async function updateProjectServer(args: {
       Object.prototype.hasOwnProperty.call(args.input, 'budgetTotalCents') ||
       Object.prototype.hasOwnProperty.call(args.input, 'currency') ||
       Object.prototype.hasOwnProperty.call(args.input, 'visibility') ||
-      Object.prototype.hasOwnProperty.call(args.input, 'allowSuperadminAccess') ||
+      Object.prototype.hasOwnProperty.call(
+        args.input,
+        'allowSuperadminAccess'
+      ) ||
       Object.prototype.hasOwnProperty.call(args.input, 'syncCompanyDefaults');
     const companyId = asCompanyId(existing.company_id);
     const projectId = asProjectId(existing.id);
@@ -596,6 +605,11 @@ export async function updateProjectServer(args: {
       args.input.syncCompanyDefaults === true
     ) {
       await applyCompanyDefaultTaxonomyToProject({
+        db,
+        companyId,
+        projectId,
+      });
+      await syncCompanyImportRulesToProject({
         db,
         companyId,
         projectId,

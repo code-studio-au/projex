@@ -147,6 +147,8 @@ import {
   listCompanyDefaultSubCategoriesServer,
   listSubCategoriesServer,
   promoteProjectSubCategoryToCompanyDefaultServer,
+  updateCategoryServer,
+  updateCompanyDefaultCategoryServer,
   updateCompanyDefaultSubCategoryServer,
 } from '../src/server/fns/taxonomy.ts';
 import {
@@ -156,6 +158,8 @@ import {
   listImportRulesServer,
   listProjectImportRulesServer,
   promoteProjectImportRuleServer,
+  updateImportRuleServer,
+  updateProjectImportRuleServer,
 } from '../src/server/fns/importRules.ts';
 import type { ServerFnContextInput } from '../src/server/fns/runtime.ts';
 import {
@@ -3456,6 +3460,345 @@ test(
         .executeTakeFirst();
       assert.equal(projectCategory?.name, 'Travel');
       assert.equal(projectSubCategory?.name, 'Flights');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'synced project taxonomy inherits provenance, allows project overrides, and detaches when company defaults are removed',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_taxonomy_sync_co_1');
+    const userId = asUserId('itest_taxonomy_sync_usr_1');
+    const projectId = asProjectId('itest_taxonomy_sync_prj_1');
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_taxonomy_sync_dcat_1'
+    );
+    const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_taxonomy_sync_dsub_1'
+    );
+    const context = { session: { userId } } satisfies ServerFnContextInput;
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Taxonomy Sync Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'taxonomy-sync@example.com',
+          name: 'Taxonomy Sync User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await createCompanyDefaultCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultCategoryId,
+          companyId,
+          name: 'Travel',
+        },
+      });
+      await createCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultSubCategoryId,
+          companyId,
+          companyDefaultCategoryId: defaultCategoryId,
+          name: 'Flights',
+        },
+      });
+
+      await createProjectServer({
+        context,
+        companyId,
+        input: {
+          id: projectId,
+          name: 'Taxonomy Sync Project',
+        },
+      });
+
+      const inheritedCategories = await listCategoriesServer({
+        context,
+        projectId,
+      });
+      const inheritedSubCategories = await listSubCategoriesServer({
+        context,
+        projectId,
+      });
+
+      assert.equal(inheritedCategories.length, 1);
+      assert.equal(inheritedCategories[0]?.name, 'Travel');
+      assert.equal(inheritedCategories[0]?.originScope, 'company');
+      assert.equal(
+        inheritedCategories[0]?.originCompanyItemId,
+        defaultCategoryId
+      );
+      assert.equal(inheritedCategories[0]?.syncStatus, 'inherited');
+
+      assert.equal(inheritedSubCategories.length, 1);
+      assert.equal(inheritedSubCategories[0]?.name, 'Flights');
+      assert.equal(inheritedSubCategories[0]?.originScope, 'company');
+      assert.equal(
+        inheritedSubCategories[0]?.originCompanyItemId,
+        defaultSubCategoryId
+      );
+      assert.equal(inheritedSubCategories[0]?.syncStatus, 'inherited');
+
+      await updateCompanyDefaultCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultCategoryId,
+          name: 'Travel and Transport',
+        },
+      });
+
+      const renamedCategories = await listCategoriesServer({
+        context,
+        projectId,
+      });
+      assert.equal(renamedCategories[0]?.name, 'Travel and Transport');
+      assert.equal(renamedCategories[0]?.syncStatus, 'inherited');
+
+      await updateCategoryServer({
+        context,
+        projectId,
+        input: {
+          id: inheritedCategories[0]!.id,
+          name: 'Travel Local Override',
+        },
+      });
+
+      const overriddenCategories = await listCategoriesServer({
+        context,
+        projectId,
+      });
+      assert.equal(overriddenCategories[0]?.name, 'Travel Local Override');
+      assert.equal(overriddenCategories[0]?.syncStatus, 'overridden');
+
+      await updateCompanyDefaultCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultCategoryId,
+          name: 'Travel Final Canonical',
+        },
+      });
+
+      const preservedOverrideCategories = await listCategoriesServer({
+        context,
+        projectId,
+      });
+      assert.equal(
+        preservedOverrideCategories[0]?.name,
+        'Travel Local Override'
+      );
+      assert.equal(preservedOverrideCategories[0]?.syncStatus, 'overridden');
+
+      await deleteCompanyDefaultCategoryServer({
+        context,
+        companyId,
+        categoryId: defaultCategoryId,
+      });
+
+      const detachedCategories = await listCategoriesServer({
+        context,
+        projectId,
+      });
+      assert.equal(detachedCategories.length, 1);
+      assert.equal(detachedCategories[0]?.name, 'Travel Local Override');
+      assert.equal(detachedCategories[0]?.originScope, 'company');
+      assert.equal(
+        detachedCategories[0]?.originCompanyItemId,
+        defaultCategoryId
+      );
+      assert.equal(detachedCategories[0]?.syncStatus, 'detached');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'synced project import rules inherit provenance, support project overrides, and detach when company rules are removed',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_impr_sync_co_1');
+    const userId = asUserId('itest_impr_sync_usr_1');
+    const projectId = asProjectId('itest_impr_sync_prj_1');
+    const context = { session: { userId } } satisfies ServerFnContextInput;
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Import Rule Sync Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'impr-sync@example.com',
+          name: 'Import Rule Sync User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await createProjectServer({
+        context,
+        companyId,
+        input: {
+          id: projectId,
+          name: 'Import Rule Sync Project',
+        },
+      });
+
+      const createdCompanyRule = await createImportRuleServer({
+        context,
+        companyId,
+        input: {
+          companyId,
+          scope: 'company',
+          name: 'Exclude Internal Recharge',
+          action: 'exclude',
+          field: 'journalLineDescription',
+          operator: 'contains',
+          value: 'internal recharge',
+          sortOrder: 90,
+          enabled: true,
+        },
+      });
+
+      const inheritedProjectRules = await listProjectImportRulesServer({
+        context,
+        projectId,
+      });
+      const inheritedProjectRule = inheritedProjectRules.find(
+        (rule) => rule.originCompanyItemId === createdCompanyRule.id
+      );
+      assert.ok(inheritedProjectRule);
+      assert.equal(inheritedProjectRule?.originScope, 'company');
+      assert.equal(inheritedProjectRule?.syncStatus, 'inherited');
+      assert.equal(inheritedProjectRule?.value, 'internal recharge');
+
+      await updateImportRuleServer({
+        context,
+        companyId,
+        input: {
+          id: createdCompanyRule.id,
+          value: 'internal recharge updated',
+        },
+      });
+
+      const updatedProjectRules = await listProjectImportRulesServer({
+        context,
+        projectId,
+      });
+      const updatedInheritedRule = updatedProjectRules.find(
+        (rule) => rule.originCompanyItemId === createdCompanyRule.id
+      );
+      assert.equal(updatedInheritedRule?.value, 'internal recharge updated');
+      assert.equal(updatedInheritedRule?.syncStatus, 'inherited');
+
+      await updateProjectImportRuleServer({
+        context,
+        projectId,
+        input: {
+          id: updatedInheritedRule!.id,
+          value: 'project-local recharge override',
+        },
+      });
+
+      const overriddenProjectRules = await listProjectImportRulesServer({
+        context,
+        projectId,
+      });
+      const overriddenRule = overriddenProjectRules.find(
+        (rule) => rule.id === updatedInheritedRule!.id
+      );
+      assert.equal(overriddenRule?.value, 'project-local recharge override');
+      assert.equal(overriddenRule?.syncStatus, 'overridden');
+
+      await updateImportRuleServer({
+        context,
+        companyId,
+        input: {
+          id: createdCompanyRule.id,
+          value: 'canonical recharge final',
+        },
+      });
+
+      const preservedOverrideRules = await listProjectImportRulesServer({
+        context,
+        projectId,
+      });
+      const preservedOverrideRule = preservedOverrideRules.find(
+        (rule) => rule.id === updatedInheritedRule!.id
+      );
+      assert.equal(
+        preservedOverrideRule?.value,
+        'project-local recharge override'
+      );
+      assert.equal(preservedOverrideRule?.syncStatus, 'overridden');
+
+      await deleteImportRuleServer({
+        context,
+        companyId,
+        ruleId: createdCompanyRule.id,
+      });
+
+      const detachedProjectRules = await listProjectImportRulesServer({
+        context,
+        projectId,
+      });
+      const detachedRule = detachedProjectRules.find(
+        (rule) => rule.id === updatedInheritedRule!.id
+      );
+      assert.equal(detachedRule?.originScope, 'company');
+      assert.equal(detachedRule?.originCompanyItemId, createdCompanyRule.id);
+      assert.equal(detachedRule?.syncStatus, 'detached');
+      assert.equal(detachedRule?.value, 'project-local recharge override');
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

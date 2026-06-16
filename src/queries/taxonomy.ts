@@ -148,6 +148,39 @@ export function subCategoriesQueryOptions(
   } as const;
 }
 
+async function invalidateSyncedProjectTaxonomyQueries(args: {
+  qc: ReturnType<typeof useQueryClient>;
+  scopeUserId: string;
+}) {
+  const { qc, scopeUserId } = args;
+  await Promise.all([
+    qc.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === 'categories' &&
+        query.queryKey[1] === scopeUserId,
+    }),
+    qc.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === 'subCategories' &&
+        query.queryKey[1] === scopeUserId,
+    }),
+    qc.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === 'budgets' &&
+        query.queryKey[1] === scopeUserId,
+    }),
+    qc.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === 'transactions' &&
+        query.queryKey[1] === scopeUserId,
+    }),
+  ]);
+}
+
 export function useCreateCategoryMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
@@ -167,8 +200,8 @@ export function useCreateCompanyDefaultCategoryMutation(companyId: CompanyId) {
       createCompanyDefaultCategoryServerFn({
         data: { companyId, payload: input },
       }),
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: async () => {
+      await Promise.all([
         qc.invalidateQueries({
           queryKey: qk.companyDefaults(scopeUserId, companyId),
         }),
@@ -178,7 +211,9 @@ export function useCreateCompanyDefaultCategoryMutation(companyId: CompanyId) {
         qc.invalidateQueries({
           queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
         }),
-      ]),
+      ]);
+      await invalidateSyncedProjectTaxonomyQueries({ qc, scopeUserId });
+    },
   });
 }
 
@@ -190,15 +225,17 @@ export function useUpdateCompanyDefaultCategoryMutation(companyId: CompanyId) {
       updateCompanyDefaultCategoryServerFn({
         data: { companyId, payload: input },
       }),
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: async () => {
+      await Promise.all([
         qc.invalidateQueries({
           queryKey: qk.companyDefaults(scopeUserId, companyId),
         }),
         qc.invalidateQueries({
           queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
         }),
-      ]),
+      ]);
+      await invalidateSyncedProjectTaxonomyQueries({ qc, scopeUserId });
+    },
   });
 }
 
@@ -208,19 +245,22 @@ export function useDeleteCompanyDefaultCategoryMutation(companyId: CompanyId) {
   return useMutation({
     mutationFn: (categoryId: CompanyDefaultCategory['id']) =>
       deleteCompanyDefaultCategoryServerFn({ data: { companyId, categoryId } }),
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: qk.companyDefaults(scopeUserId, companyId),
-      });
-      qc.invalidateQueries({
-        queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
-      });
-      qc.invalidateQueries({
-        queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId),
-      });
-      qc.invalidateQueries({
-        queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
-      });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaults(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
+        }),
+      ]);
+      await invalidateSyncedProjectTaxonomyQueries({ qc, scopeUserId });
     },
   });
 }
@@ -279,8 +319,8 @@ export function useCreateCompanyDefaultSubCategoryMutation(
       createCompanyDefaultSubCategoryServerFn({
         data: { companyId, payload: input },
       }),
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: async () => {
+      await Promise.all([
         qc.invalidateQueries({
           queryKey: qk.companyDefaults(scopeUserId, companyId),
         }),
@@ -290,7 +330,9 @@ export function useCreateCompanyDefaultSubCategoryMutation(
         qc.invalidateQueries({
           queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
         }),
-      ]),
+      ]);
+      await invalidateSyncedProjectTaxonomyQueries({ qc, scopeUserId });
+    },
   });
 }
 
@@ -345,8 +387,8 @@ export function useUpdateCompanyDefaultSubCategoryMutation(
       updateCompanyDefaultSubCategoryServerFn({
         data: { companyId, payload: input },
       }),
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: async () => {
+      await Promise.all([
         qc.invalidateQueries({
           queryKey: qk.companyDefaults(scopeUserId, companyId),
         }),
@@ -356,7 +398,9 @@ export function useUpdateCompanyDefaultSubCategoryMutation(
         qc.invalidateQueries({
           queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
         }),
-      ]),
+      ]);
+      await invalidateSyncedProjectTaxonomyQueries({ qc, scopeUserId });
+    },
   });
 }
 
@@ -389,8 +433,8 @@ export function useDeleteCompanyDefaultSubCategoryMutation(
       deleteCompanyDefaultSubCategoryServerFn({
         data: { companyId, subCategoryId },
       }),
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: async () => {
+      await Promise.all([
         qc.invalidateQueries({
           queryKey: qk.companyDefaults(scopeUserId, companyId),
         }),
@@ -400,7 +444,9 @@ export function useDeleteCompanyDefaultSubCategoryMutation(
         qc.invalidateQueries({
           queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
         }),
-      ]),
+      ]);
+      await invalidateSyncedProjectTaxonomyQueries({ qc, scopeUserId });
+    },
   });
 }
 
