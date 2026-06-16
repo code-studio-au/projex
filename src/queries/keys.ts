@@ -26,7 +26,9 @@ export const qk = {
   ruleSuggestions: (userId: string, companyId: string) =>
     ['ruleSuggestions', userId, companyId] as const,
   importRules: (userId: string, companyId: string) =>
-    ['importRules', userId, companyId] as const,
+    ['importRules', 'company', userId, companyId] as const,
+  projectImportRules: (userId: string, projectId: string) =>
+    ['importRules', 'project', userId, projectId] as const,
 
   projects: (userId: string, companyId: string) =>
     ['projects', userId, companyId] as const,

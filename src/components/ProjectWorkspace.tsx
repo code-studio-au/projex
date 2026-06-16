@@ -355,7 +355,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
       ? initialCanEditTaxonomy || access.can('taxonomy:edit', projectId)
       : initialCanEditTaxonomy);
   const canManageImportRules = isHydrated
-    ? access.can('company:manage_defaults')
+    ? access.can('project:import', projectId)
     : false;
 
   const budgets = useBudgets({

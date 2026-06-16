@@ -268,6 +268,8 @@ export const companyDefaultsResponseSchema = z.object({
 export const importRuleResponseSchema = z.object({
   id: importRuleIdSchema,
   companyId: companyIdSchema,
+  scope: z.enum(['company', 'project']),
+  projectId: projectIdSchema.optional(),
   name: z.string(),
   action: z.enum(['import', 'exclude', 'review']),
   field: z.enum([

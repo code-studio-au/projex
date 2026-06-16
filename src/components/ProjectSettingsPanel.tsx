@@ -33,6 +33,7 @@ import {
   useUsersQuery,
 } from '../queries/reference';
 import { useProjectAutoCodingRulesQuery } from '../queries/projectAutoCodingRules';
+import { useProjectImportRulesQuery } from '../queries/importRules';
 import { useUpdateProjectMutation } from '../queries/admin';
 import {
   useCompanyMembershipsQuery,
@@ -45,6 +46,7 @@ import { getCompanyUsers } from '../store/access';
 import { companyRoute } from '../router';
 import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
 import ProjectAutoCodingRulesModal from './ProjectAutoCodingRulesModal';
+import ProjectImportRulesModal from './ProjectImportRulesModal';
 import classes from '../styles/ui.module.css';
 
 const hydrateSubscription = () => () => {};
@@ -96,6 +98,7 @@ export default function ProjectSettingsPanel(props: {
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
   const projectMembershipsQ = useProjectMembershipsQuery(projectId);
   const projectAutoCodingRulesQ = useProjectAutoCodingRulesQuery(projectId);
+  const projectImportRulesQ = useProjectImportRulesQuery(projectId);
 
   const access = useCompanyAccess(companyId);
   const updateProject = useUpdateProjectMutation(companyId);
@@ -201,6 +204,8 @@ export default function ProjectSettingsPanel(props: {
     boolean | null
   >(null);
   const [projectRulesModalOpen, setProjectRulesModalOpen] = useState(false);
+  const [projectImportRulesModalOpen, setProjectImportRulesModalOpen] =
+    useState(false);
 
   const upsert = useUpsertProjectMembershipMutation(projectId);
   const del = useDeleteProjectMembershipMutation(projectId);
@@ -504,6 +509,43 @@ export default function ProjectSettingsPanel(props: {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
+          <Title order={5}>Project Import Rules</Title>
+          <Text size="sm" c="dimmed">
+            Manage saved project-specific import exclusions and review rules.
+            These rules apply only within this project and run before company
+            import rules.
+          </Text>
+          {projectImportRulesQ.isPending && !projectImportRulesQ.data ? (
+            <Text size="sm" c="dimmed">
+              Loading project import rules…
+            </Text>
+          ) : (
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">
+                {projectImportRulesQ.data?.length ?? 0} project rules
+              </Badge>
+              <Badge variant="light" color="gray">
+                Company rules still apply after project rules
+              </Badge>
+            </Group>
+          )}
+          <Button
+            variant="light"
+            disabled={!canEditProject}
+            onClick={() => setProjectImportRulesModalOpen(true)}
+          >
+            Manage Project Import Rules
+          </Button>
+          <Text size="xs" c="dimmed">
+            Use project rules for local exceptions. Company admins and
+            executives can promote stable project rules to company defaults when
+            they should apply across projects.
+          </Text>
+        </Stack>
+      </Paper>
+
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
+        <Stack gap="sm">
           <Title order={5}>Current members</Title>
           <div className={classes.tableWrap}>
             {isHydrated ? (
@@ -592,6 +634,13 @@ export default function ProjectSettingsPanel(props: {
       <ProjectAutoCodingRulesModal
         opened={projectRulesModalOpen}
         onClose={() => setProjectRulesModalOpen(false)}
+        companyId={companyId}
+        projectId={projectId}
+        readOnly={!canEditProject}
+      />
+      <ProjectImportRulesModal
+        opened={projectImportRulesModalOpen}
+        onClose={() => setProjectImportRulesModalOpen(false)}
         companyId={companyId}
         projectId={projectId}
         readOnly={!canEditProject}

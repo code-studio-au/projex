@@ -75,7 +75,8 @@ export async function loadTransactionImportPreviewContext(
     defaultSubCategoriesRows,
     mappingRuleRows,
     projectRuleRows,
-    importRuleRows,
+    companyImportRuleRows,
+    projectImportRuleRows,
     projectCategoryRows,
     projectSubCategoryRows,
     budgetRows,
@@ -85,7 +86,8 @@ export async function loadTransactionImportPreviewContext(
     selectCompanyDefaultSubCategories(db, args.companyId),
     selectCompanyDefaultMappingRules(db, args.companyId),
     selectProjectAutoCodingRules(db, args.projectId),
-    selectImportRules(db, args.companyId),
+    selectCompanyImportRules(db, args.companyId),
+    selectProjectImportRules(db, args.projectId),
     selectProjectCategories(db, args.projectId),
     selectProjectSubCategories(db, args.projectId),
     selectProjectBudgetLines(db, args.projectId),
@@ -102,9 +104,12 @@ export async function loadTransactionImportPreviewContext(
     ),
     mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
     projectAutoCodingRules: projectRuleRows.map(toProjectAutoCodingRule),
-    importRules: importRuleRows.length
-      ? importRuleRows.map(toImportRule)
-      : defaultImportRules(args.companyId),
+    importRules: [
+      ...projectImportRuleRows.map(toImportRule),
+      ...(companyImportRuleRows.length
+        ? companyImportRuleRows.map(toImportRule)
+        : defaultImportRules(args.companyId)),
+    ],
     projectCategories: projectCategoryRows.map(toCategory),
     projectSubCategories: projectSubCategoryRows.map(toSubCategory),
     budgets: toBudgetLines(budgetRows),
@@ -159,12 +164,13 @@ function selectCompanyDefaultMappingRules(
     .execute();
 }
 
-function selectImportRules(db: Kysely<DB>, companyId: CompanyId) {
+function selectCompanyImportRules(db: Kysely<DB>, companyId: CompanyId) {
   return db
     .selectFrom('import_rules')
     .select([
       'id',
       'company_id',
+      'project_id',
       'name',
       'action',
       'field',
@@ -176,6 +182,30 @@ function selectImportRules(db: Kysely<DB>, companyId: CompanyId) {
       'updated_at',
     ])
     .where('company_id', '=', companyId)
+    .where('project_id', 'is', null)
+    .orderBy('sort_order', 'asc')
+    .orderBy('created_at', 'asc')
+    .execute();
+}
+
+function selectProjectImportRules(db: Kysely<DB>, projectId: ProjectId) {
+  return db
+    .selectFrom('import_rules')
+    .select([
+      'id',
+      'company_id',
+      'project_id',
+      'name',
+      'action',
+      'field',
+      'operator',
+      'value',
+      'sort_order',
+      'enabled',
+      'created_at',
+      'updated_at',
+    ])
+    .where('project_id', '=', projectId)
     .orderBy('sort_order', 'asc')
     .orderBy('created_at', 'asc')
     .execute();
@@ -203,11 +233,15 @@ function selectProjectAutoCodingRules(db: Kysely<DB>, projectId: ProjectId) {
 }
 
 function toImportRule(
-  row: Awaited<ReturnType<typeof selectImportRules>>[number]
+  row:
+    | Awaited<ReturnType<typeof selectCompanyImportRules>>[number]
+    | Awaited<ReturnType<typeof selectProjectImportRules>>[number]
 ): ImportRule {
   return {
     id: asImportRuleId(row.id),
     companyId: asCompanyId(row.company_id),
+    scope: row.project_id ? 'project' : 'company',
+    projectId: row.project_id ? (row.project_id as ProjectId) : undefined,
     name: row.name,
     action: row.action,
     field: row.field,

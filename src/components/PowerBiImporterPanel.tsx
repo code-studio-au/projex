@@ -42,8 +42,8 @@ import {
   usePowerBiImportWorkflow,
 } from '../hooks/usePowerBiImportWorkflow';
 import {
-  useCreateImportRuleMutation,
-  useImportRulesQuery,
+  useCreateProjectImportRuleMutation,
+  useProjectImportRulesQuery,
 } from '../queries/importRules';
 import { suggestImportExclusionRuleFromPreviewRow } from '../utils/importRuleSuggestions';
 import { showAppToast } from '../utils/toast';
@@ -136,8 +136,11 @@ export default function PowerBiImporterPanel(props: {
   } = props;
 
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const importRulesQ = useImportRulesQuery(companyId);
-  const createImportRule = useCreateImportRuleMutation(companyId);
+  const importRulesQ = useProjectImportRulesQuery(projectId);
+  const createImportRule = useCreateProjectImportRuleMutation(
+    companyId,
+    projectId
+  );
   const importer = usePowerBiImportWorkflow({
     taxonomy,
     budgets,
@@ -275,6 +278,8 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
       );
       const createdRule = await createImportRule.mutateAsync({
         companyId,
+        projectId,
+        scope: 'project',
         name,
         action: 'exclude',
         field: excludeRuleField,
@@ -306,7 +311,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         );
         showAppToast({
           tone: 'warning',
-          title: 'Import exclusion saved',
+          title: 'Project import rule saved',
           message:
             'The rule was saved, but it excluded 0 preview rows. Adjust the field, operator, or value and try again.',
         });
@@ -316,11 +321,11 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
       closeExcludeRuleModal();
       showAppToast({
         tone: 'success',
-        title: 'Import exclusion created',
+        title: 'Project import rule created',
         message:
           matchedPreviewRowCount === newlyExcludedCount
-            ? `Created import exclusion rule and excluded ${matchedPreviewRowCount} preview row${matchedPreviewRowCount === 1 ? '' : 's'}.`
-            : `Created import exclusion rule. It matched ${matchedPreviewRowCount} preview row${matchedPreviewRowCount === 1 ? '' : 's'} and excluded ${newlyExcludedCount} new row${newlyExcludedCount === 1 ? '' : 's'}.`,
+            ? `Created project import rule and excluded ${matchedPreviewRowCount} preview row${matchedPreviewRowCount === 1 ? '' : 's'}.`
+            : `Created project import rule. It matched ${matchedPreviewRowCount} preview row${matchedPreviewRowCount === 1 ? '' : 's'} and excluded ${newlyExcludedCount} new row${newlyExcludedCount === 1 ? '' : 's'}.`,
       });
     } catch (error) {
       setExcludeRuleError(
@@ -1024,8 +1029,8 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           ) : null}
           <Text size="sm" c="dimmed" className={classes.modalIntro}>
             This row is already excluded from the current preview. Save a
-            company import rule if you want matching rows to auto-exclude on
-            future imports and after preview refreshes.
+            project import rule if you want matching rows to auto-exclude on
+            future imports for this project and after preview refreshes.
           </Text>
           <TextInput
             label="Rule name"
@@ -1082,7 +1087,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               onClick={() => void handleCreateExcludeRule()}
               loading={createImportRule.isPending}
             >
-              Create rule
+              Create project rule
             </Button>
           </Group>
         </Stack>

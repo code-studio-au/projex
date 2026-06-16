@@ -343,6 +343,7 @@ export function defaultPowerBiImportRules(
   return [
     {
       companyId,
+      scope: 'company',
       name: 'Exclude SAL payroll source',
       action: 'exclude',
       field: 'source',
@@ -353,6 +354,7 @@ export function defaultPowerBiImportRules(
     },
     {
       companyId,
+      scope: 'company',
       name: 'Exclude EXA unacquitted Concur source',
       action: 'exclude',
       field: 'source',
@@ -363,6 +365,7 @@ export function defaultPowerBiImportRules(
     },
     {
       companyId,
+      scope: 'company',
       name: 'Review internal salary transfer cost codes',
       action: 'review',
       field: 'ccAndDescription',
@@ -373,6 +376,7 @@ export function defaultPowerBiImportRules(
     },
     {
       companyId,
+      scope: 'company',
       name: 'Review suspected salary transfer descriptions',
       action: 'review',
       field: 'journalLineDescription',

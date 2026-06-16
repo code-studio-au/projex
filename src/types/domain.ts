@@ -150,6 +150,7 @@ export type ProjectAutoCodingRule = {
 };
 
 export type ImportRuleAction = 'import' | 'exclude' | 'review';
+export type ImportRuleScope = 'company' | 'project';
 export type ImportRuleField =
   | 'ledger'
   | 'source'
@@ -173,6 +174,8 @@ export type ImportRuleOperator =
 export type ImportRule = {
   id: ImportRuleId;
   companyId: CompanyId;
+  scope: ImportRuleScope;
+  projectId?: ProjectId;
   name: string;
   action: ImportRuleAction;
   field: ImportRuleField;

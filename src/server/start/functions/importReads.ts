@@ -10,9 +10,14 @@ import type {
 import { asImportBatchId, asImportRuleId } from '../../../types';
 import {
   createImportRuleServer,
+  createProjectImportRuleServer,
   deleteImportRuleServer,
+  deleteProjectImportRuleServer,
   listImportRulesServer,
+  listProjectImportRulesServer,
+  promoteProjectImportRuleServer,
   updateImportRuleServer,
+  updateProjectImportRuleServer,
 } from '../../fns/importRules';
 import {
   cancelImportPreviewServer,
@@ -81,6 +86,36 @@ export const createImportRuleServerFn = createServerFn({ method: 'POST' })
     });
   });
 
+export const listProjectImportRulesServerFn = createServerFn({ method: 'GET' })
+  .middleware([startApiMiddleware])
+  .inputValidator((input: { projectId: string }) => ({
+    projectId: asProjectId(input.projectId),
+  }))
+  .handler(async ({ context, data }) => {
+    return listProjectImportRulesServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+    });
+  });
+
+export const createProjectImportRuleServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    (input: { projectId: string; payload: ImportRuleCreateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
+  .handler(async ({ context, data }) => {
+    return createProjectImportRuleServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+      input: data.payload,
+    });
+  });
+
 export const updateImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
@@ -107,6 +142,56 @@ export const deleteImportRuleServerFn = createServerFn({ method: 'POST' })
     return deleteImportRuleServer({
       context: context.serverContext,
       companyId: data.companyId,
+      ruleId: data.ruleId,
+    });
+  });
+
+export const updateProjectImportRuleServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    (input: { projectId: string; payload: ImportRuleUpdateInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: input.payload,
+    })
+  )
+  .handler(async ({ context, data }) => {
+    return updateProjectImportRuleServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+      input: data.payload,
+    });
+  });
+
+export const deleteProjectImportRuleServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator((input: { projectId: string; ruleId: string }) => ({
+    projectId: asProjectId(input.projectId),
+    ruleId: asImportRuleId(input.ruleId),
+  }))
+  .handler(async ({ context, data }) => {
+    return deleteProjectImportRuleServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+      ruleId: data.ruleId,
+    });
+  });
+
+export const promoteProjectImportRuleServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator((input: { projectId: string; ruleId: string }) => ({
+    projectId: asProjectId(input.projectId),
+    ruleId: asImportRuleId(input.ruleId),
+  }))
+  .handler(async ({ context, data }) => {
+    return promoteProjectImportRuleServer({
+      context: context.serverContext,
+      projectId: data.projectId,
       ruleId: data.ruleId,
     });
   });

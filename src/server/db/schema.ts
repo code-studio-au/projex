@@ -230,6 +230,7 @@ export interface RuleSuggestionTable {
 export interface ImportRuleTable {
   id: string;
   company_id: string;
+  project_id: string | null;
   name: string;
   action: ImportRuleAction;
   field: ImportRuleField;

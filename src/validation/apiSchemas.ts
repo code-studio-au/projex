@@ -350,17 +350,36 @@ export const updateCompanyDefaultMappingRuleInputSchema = z.object({
   sortOrder: z.number().int().min(0).optional(),
 });
 
-export const createImportRuleInputSchema = z.object({
-  id: importRuleIdSchema.optional(),
-  companyId: companyIdSchema,
-  name: importRuleNameSchema,
-  action: importRuleActionSchema,
-  field: importRuleFieldSchema,
-  operator: importRuleOperatorSchema,
-  value: importRuleValueSchema,
-  sortOrder: z.number().int().min(0),
-  enabled: z.boolean(),
-});
+export const createImportRuleInputSchema = z
+  .object({
+    id: importRuleIdSchema.optional(),
+    companyId: companyIdSchema,
+    projectId: projectIdSchema.optional(),
+    scope: z.enum(['company', 'project']),
+    name: importRuleNameSchema,
+    action: importRuleActionSchema,
+    field: importRuleFieldSchema,
+    operator: importRuleOperatorSchema,
+    value: importRuleValueSchema,
+    sortOrder: z.number().int().min(0),
+    enabled: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.scope === 'company' && value.projectId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Company import rules cannot include a projectId.',
+        path: ['projectId'],
+      });
+    }
+    if (value.scope === 'project' && !value.projectId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Project import rules require a projectId.',
+        path: ['projectId'],
+      });
+    }
+  });
 
 export const updateImportRuleInputSchema = z.object({
   id: importRuleIdSchema,

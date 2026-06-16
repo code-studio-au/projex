@@ -17,6 +17,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import {
   IconArrowDown,
   IconArrowUp,
+  IconBuildingBank,
   IconPlus,
   IconTrash,
 } from '@tabler/icons-react';
@@ -27,13 +28,17 @@ import type {
   ImportRuleAction,
   ImportRuleField,
   ImportRuleOperator,
+  ProjectId,
 } from '../types';
 import {
-  useCreateImportRuleMutation,
-  useDeleteImportRuleMutation,
-  useImportRulesQuery,
-  useUpdateImportRuleMutation,
+  useCreateProjectImportRuleMutation,
+  useDeleteProjectImportRuleMutation,
+  useProjectImportRulesQuery,
+  usePromoteProjectImportRuleMutation,
+  useUpdateProjectImportRuleMutation,
 } from '../queries/importRules';
+import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import classes from '../styles/ui.module.css';
 
 const actionOptions: Array<{ value: ImportRuleAction; label: string }> = [
@@ -65,16 +70,6 @@ const operatorOptions: Array<{ value: ImportRuleOperator; label: string }> = [
   { value: 'ends_with_any', label: 'Ends with any of' },
 ];
 
-const importRuleSelectProps = {
-  withScrollArea: false,
-  styles: {
-    dropdown: {
-      maxHeight: 180,
-      overflowY: 'auto',
-    },
-  },
-} as const;
-
 function toImportRuleAction(value: string | null): ImportRuleAction | null {
   return actionOptions.some((option) => option.value === value)
     ? (value as ImportRuleAction)
@@ -93,19 +88,23 @@ function toImportRuleOperator(value: string | null): ImportRuleOperator | null {
     : null;
 }
 
-export default function CompanyImportRulesModal(props: {
+export default function ProjectImportRulesModal(props: {
   opened: boolean;
   onClose: () => void;
   companyId: CompanyId;
+  projectId: ProjectId;
   readOnly?: boolean;
 }) {
-  const { opened, onClose, companyId, readOnly = false } = props;
+  const { opened, onClose, companyId, projectId, readOnly = false } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
+  const access = useCompanyAccess(companyId);
+  const canPromoteToCompanyRules = access.can('company:manage_defaults');
 
-  const importRulesQ = useImportRulesQuery(companyId);
-  const createRule = useCreateImportRuleMutation(companyId);
-  const updateRule = useUpdateImportRuleMutation(companyId);
-  const deleteRule = useDeleteImportRuleMutation(companyId);
+  const importRulesQ = useProjectImportRulesQuery(projectId);
+  const createRule = useCreateProjectImportRuleMutation(companyId, projectId);
+  const updateRule = useUpdateProjectImportRuleMutation(companyId, projectId);
+  const deleteRule = useDeleteProjectImportRuleMutation(companyId, projectId);
+  const promoteRule = usePromoteProjectImportRuleMutation(companyId, projectId);
 
   const rules = useMemo(() => importRulesQ.data ?? [], [importRulesQ.data]);
 
@@ -157,7 +156,7 @@ export default function CompanyImportRulesModal(props: {
       setSuccess(`Updated ${updated.name}.`);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Could not update Import Rule.'
+        err instanceof Error ? err.message : 'Could not update import rule.'
       );
     }
   }
@@ -170,6 +169,7 @@ export default function CompanyImportRulesModal(props: {
 
     const currentRule = rules[currentIndex];
     const targetRule = rules[targetIndex];
+    if (!currentRule || !targetRule) return;
 
     try {
       clearFeedback();
@@ -182,11 +182,15 @@ export default function CompanyImportRulesModal(props: {
         sortOrder: currentRule.sortOrder,
       });
       setSuccess(
-        direction < 0 ? 'Moved Import Rule up.' : 'Moved Import Rule down.'
+        direction < 0
+          ? 'Moved project import rule up.'
+          : 'Moved project import rule down.'
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Could not reorder Import Rule.'
+        err instanceof Error
+          ? err.message
+          : 'Could not reorder project import rule.'
       );
     }
   }
@@ -195,7 +199,7 @@ export default function CompanyImportRulesModal(props: {
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Manage Company Import Rules"
+      title="Manage Project Import Rules"
       fullScreen={isMobile}
       centered={!isMobile}
       size="xl"
@@ -212,22 +216,22 @@ export default function CompanyImportRulesModal(props: {
 
         {readOnly ? (
           <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            You don’t have permission to edit Import Rules.
+            You don’t have permission to edit project import rules.
           </Text>
         ) : (
           <Stack gap={4}>
             <Text size="sm" c="dimmed" className={classes.modalIntro}>
-              Import Rules run before Auto-Categorise Rules. Use them to exclude
-              known non-project spend, or to hold uncertain rows for project
-              review.
+              Project import rules apply only within this project. They run
+              before company import rules so project-specific exclusions and
+              review rules can override broader company defaults when needed.
             </Text>
             <Text size="xs" c="dimmed">
               For any "any of" operator, separate values with commas or new
               lines.
             </Text>
             <Text size="xs" fw={600} c="dimmed">
-              Rules are checked from top to bottom. The first enabled match
-              wins.
+              Rules are checked from top to bottom. The first enabled project
+              match wins before company rules are evaluated.
             </Text>
           </Stack>
         )}
@@ -235,12 +239,12 @@ export default function CompanyImportRulesModal(props: {
         <Paper withBorder radius="md" p="md" className={classes.modalCard}>
           <Stack gap="sm">
             <Group justify="space-between">
-              <Text fw={600}>Add Import Rule</Text>
+              <Text fw={600}>Add Project Import Rule</Text>
               <Badge variant="light">{rules.length} rules</Badge>
             </Group>
             <TextInput
               label="Rule name"
-              placeholder="e.g. Exclude SAL payroll source"
+              placeholder="e.g. Exclude shared service recharge rows"
               value={newName}
               disabled={readOnly}
               onChange={(event) => {
@@ -254,7 +258,7 @@ export default function CompanyImportRulesModal(props: {
                 data={actionOptions}
                 value={newAction}
                 disabled={readOnly}
-                {...importRuleSelectProps}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   const next = toImportRuleAction(value);
                   if (next) setNewAction(next);
@@ -265,7 +269,7 @@ export default function CompanyImportRulesModal(props: {
                 data={fieldOptions}
                 value={newField}
                 disabled={readOnly}
-                {...importRuleSelectProps}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   const next = toImportRuleField(value);
                   if (next) setNewField(next);
@@ -276,7 +280,7 @@ export default function CompanyImportRulesModal(props: {
                 data={operatorOptions}
                 value={newOperator}
                 disabled={readOnly}
-                {...importRuleSelectProps}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   const next = toImportRuleOperator(value);
                   if (next) setNewOperator(next);
@@ -285,7 +289,7 @@ export default function CompanyImportRulesModal(props: {
             </Group>
             <TextInput
               label="Value"
-              placeholder="e.g. SAL, EXA, payroll, ^(4041|4141)\\b"
+              placeholder="e.g. payroll, SAL, recharge"
               value={newValue}
               disabled={readOnly}
               onChange={(event) => {
@@ -307,7 +311,8 @@ export default function CompanyImportRulesModal(props: {
                     clearFeedback();
                     await createRule.mutateAsync({
                       companyId,
-                      scope: 'company',
+                      projectId,
+                      scope: 'project',
                       name: newName.trim(),
                       action: newAction,
                       field: newField,
@@ -323,12 +328,12 @@ export default function CompanyImportRulesModal(props: {
                     setNewField('source');
                     setNewOperator('equals');
                     setNewValue('');
-                    setSuccess('Added Import Rule.');
+                    setSuccess('Added project import rule.');
                   } catch (err) {
                     setError(
                       err instanceof Error
                         ? err.message
-                        : 'Could not add Import Rule.'
+                        : 'Could not add project import rule.'
                     );
                   }
                 }}
@@ -340,9 +345,13 @@ export default function CompanyImportRulesModal(props: {
         </Paper>
 
         {importRulesQ.isPending && !importRulesQ.data ? (
-          <Text className={classes.emptyState}>Loading Import Rules…</Text>
+          <Text className={classes.emptyState}>
+            Loading project import rules…
+          </Text>
         ) : rules.length === 0 ? (
-          <Text className={classes.emptyState}>No Import Rules yet.</Text>
+          <Text className={classes.emptyState}>
+            No project import rules yet.
+          </Text>
         ) : (
           <Stack gap="sm">
             {rules.map((rule, index) => {
@@ -355,6 +364,9 @@ export default function CompanyImportRulesModal(props: {
                     <Group justify="space-between" align="center">
                       <Group gap="xs" wrap="wrap">
                         <Badge variant="light">Rule {index + 1}</Badge>
+                        <Badge variant="light" color="indigo">
+                          Project scoped
+                        </Badge>
                         <Badge
                           variant="light"
                           color={draft.enabled ? 'green' : 'gray'}
@@ -375,6 +387,34 @@ export default function CompanyImportRulesModal(props: {
                         </Badge>
                       </Group>
                       <Group gap="xs">
+                        {canPromoteToCompanyRules ? (
+                          <Button
+                            variant="subtle"
+                            size="compact-sm"
+                            leftSection={<IconBuildingBank size={14} />}
+                            disabled={readOnly}
+                            loading={promoteRule.isPending}
+                            onClick={async () => {
+                              try {
+                                clearFeedback();
+                                const promoted = await promoteRule.mutateAsync(
+                                  rule.id
+                                );
+                                setSuccess(
+                                  `Promoted "${rule.name}" to company import rules as "${promoted.name}".`
+                                );
+                              } catch (err) {
+                                setError(
+                                  err instanceof Error
+                                    ? err.message
+                                    : 'Could not promote project import rule.'
+                                );
+                              }
+                            }}
+                          >
+                            Promote
+                          </Button>
+                        ) : null}
                         <ActionIcon
                           variant="subtle"
                           title="Move rule up"
@@ -398,18 +438,18 @@ export default function CompanyImportRulesModal(props: {
                         <ActionIcon
                           color="red"
                           variant="subtle"
-                          title="Delete Import Rule"
+                          title="Delete project import rule"
                           disabled={readOnly}
                           onClick={async () => {
                             try {
                               clearFeedback();
                               await deleteRule.mutateAsync(rule.id);
-                              setSuccess('Deleted Import Rule.');
+                              setSuccess('Deleted project import rule.');
                             } catch (err) {
                               setError(
                                 err instanceof Error
                                   ? err.message
-                                  : 'Could not delete Import Rule.'
+                                  : 'Could not delete project import rule.'
                               );
                             }
                           }}
@@ -433,7 +473,7 @@ export default function CompanyImportRulesModal(props: {
                         data={actionOptions}
                         value={draft.action}
                         disabled={readOnly}
-                        {...importRuleSelectProps}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           const next = toImportRuleAction(value);
                           if (next) patchDraft(rule, { action: next });
@@ -444,7 +484,7 @@ export default function CompanyImportRulesModal(props: {
                         data={fieldOptions}
                         value={draft.field}
                         disabled={readOnly}
-                        {...importRuleSelectProps}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           const next = toImportRuleField(value);
                           if (next) patchDraft(rule, { field: next });
@@ -455,7 +495,7 @@ export default function CompanyImportRulesModal(props: {
                         data={operatorOptions}
                         value={draft.operator}
                         disabled={readOnly}
-                        {...importRuleSelectProps}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           const next = toImportRuleOperator(value);
                           if (next) patchDraft(rule, { operator: next });

@@ -151,8 +151,11 @@ import {
 } from '../src/server/fns/taxonomy.ts';
 import {
   createImportRuleServer,
+  createProjectImportRuleServer,
   deleteImportRuleServer,
   listImportRulesServer,
+  listProjectImportRulesServer,
+  promoteProjectImportRuleServer,
 } from '../src/server/fns/importRules.ts';
 import type { ServerFnContextInput } from '../src/server/fns/runtime.ts';
 import {
@@ -2400,6 +2403,173 @@ test(
 );
 
 test(
+  'project import rules stay project-scoped until an admin promotes them',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_pimport_scope_co_1');
+    const adminUserId = asUserId('itest_pimport_scope_admin_1');
+    const leadUserId = asUserId('itest_pimport_scope_lead_1');
+    const projectId = asProjectId('itest_pimport_scope_prj_1');
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db
+        .deleteFrom('users')
+        .where('id', 'in', [adminUserId, leadUserId])
+        .execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Project Import Scope Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+
+      await db
+        .insertInto('users')
+        .values([
+          {
+            id: adminUserId,
+            email: 'project-import-admin@example.com',
+            name: 'Project Import Admin',
+            disabled: false,
+            disabled_reason: null,
+            is_global_superadmin: false,
+          },
+          {
+            id: leadUserId,
+            email: 'project-import-lead@example.com',
+            name: 'Project Import Lead',
+            disabled: false,
+            disabled_reason: null,
+            is_global_superadmin: false,
+          },
+        ])
+        .execute();
+
+      await db
+        .insertInto('company_memberships')
+        .values([
+          { company_id: companyId, user_id: adminUserId, role: 'admin' },
+          { company_id: companyId, user_id: leadUserId, role: 'member' },
+        ])
+        .execute();
+
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Project Import Scope Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          sync_company_defaults: false,
+          allow_txn_transfers: false,
+        })
+        .execute();
+
+      await db
+        .insertInto('project_memberships')
+        .values([
+          { project_id: projectId, user_id: adminUserId, role: 'owner' },
+          { project_id: projectId, user_id: leadUserId, role: 'lead' },
+        ])
+        .execute();
+
+      const createdProjectRule = await createProjectImportRuleServer({
+        context: { session: { userId: leadUserId } },
+        projectId,
+        input: {
+          companyId,
+          projectId,
+          scope: 'project',
+          name: 'Exclude internal recharge rows',
+          action: 'exclude',
+          field: 'journalLineDescription',
+          operator: 'contains',
+          value: 'internal recharge',
+          sortOrder: 10,
+          enabled: true,
+        },
+      });
+      assert.equal(createdProjectRule.scope, 'project');
+      assert.equal(createdProjectRule.projectId, projectId);
+
+      const projectRules = await listProjectImportRulesServer({
+        context: { session: { userId: leadUserId } },
+        projectId,
+      });
+      assert.equal(projectRules.length, 1);
+      assert.equal(projectRules[0]?.id, createdProjectRule.id);
+      assert.equal(projectRules[0]?.scope, 'project');
+
+      const companyRulesBeforePromotion = await listImportRulesServer({
+        context: { session: { userId: leadUserId } },
+        companyId,
+      });
+      assert.equal(
+        companyRulesBeforePromotion.some(
+          (rule) => rule.id === createdProjectRule.id
+        ),
+        false
+      );
+      assert.ok(
+        companyRulesBeforePromotion.every((rule) => rule.scope === 'company')
+      );
+
+      await assertAppErrorCode(
+        () =>
+          promoteProjectImportRuleServer({
+            context: { session: { userId: leadUserId } },
+            projectId,
+            ruleId: createdProjectRule.id,
+          }),
+        'FORBIDDEN',
+        'project import rule promotion requires company defaults permission'
+      );
+
+      const promotedCompanyRule = await promoteProjectImportRuleServer({
+        context: { session: { userId: adminUserId } },
+        projectId,
+        ruleId: createdProjectRule.id,
+      });
+      assert.equal(promotedCompanyRule.scope, 'company');
+      assert.equal(promotedCompanyRule.projectId, undefined);
+      assert.equal(promotedCompanyRule.name, createdProjectRule.name);
+
+      const companyRulesAfterPromotion = await listImportRulesServer({
+        context: { session: { userId: adminUserId } },
+        companyId,
+      });
+      assert.equal(
+        companyRulesAfterPromotion.some(
+          (rule) =>
+            rule.id === promotedCompanyRule.id && rule.scope === 'company'
+        ),
+        true
+      );
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db
+        .deleteFrom('users')
+        .where('id', 'in', [adminUserId, leadUserId])
+        .execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
   'project auto-coding rules can be listed, updated, reordered, and deleted',
   { skip: !integrationDatabaseUrl },
   async () => {
@@ -4511,6 +4681,7 @@ test(
         .values({
           id: importRuleId,
           company_id: companyId,
+          project_id: null,
           name: 'Route Import Rule',
           action: 'exclude',
           field: 'journalLineDescription',
@@ -4773,6 +4944,7 @@ test(
           run: (x) =>
             x.createImportRule(companyId, {
               companyId,
+              scope: 'company',
               name: 'Block Payroll',
               action: 'exclude',
               field: 'journalLineDescription',
@@ -5344,6 +5516,7 @@ test(
         .values({
           id: importRuleId,
           company_id: companyId,
+          project_id: null,
           name: 'Route AuthZ Import Rule',
           action: 'exclude',
           field: 'journalLineDescription',
@@ -5512,6 +5685,7 @@ test(
         () =>
           managementApi.createImportRule(companyId, {
             companyId,
+            scope: 'company',
             name: 'Blocked',
             action: 'exclude',
             field: 'journalLineDescription',

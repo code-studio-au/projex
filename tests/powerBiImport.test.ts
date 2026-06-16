@@ -47,6 +47,7 @@ function importRule(overrides: Partial<ImportRule>): ImportRule {
   return {
     id: asImportRuleId('rule_1'),
     companyId,
+    scope: 'company',
     name: 'Review training rows',
     action: 'review',
     field: 'journalLineDescription',

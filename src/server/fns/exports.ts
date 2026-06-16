@@ -668,6 +668,7 @@ export async function exportCompanyWorkbookForUser(args: {
       .select([
         'id',
         'company_id',
+        'project_id',
         'name',
         'action',
         'field',
@@ -679,6 +680,7 @@ export async function exportCompanyWorkbookForUser(args: {
         'updated_at',
       ])
       .where('company_id', '=', args.companyId)
+      .orderBy('project_id', 'asc')
       .orderBy('sort_order', 'asc')
       .orderBy('created_at', 'asc')
       .execute(),
@@ -1734,6 +1736,8 @@ export async function exportCompanyWorkbookForUser(args: {
       'Import Rules',
       [
         { header: 'Rule ID', key: 'ruleId' },
+        { header: 'Scope', key: 'scope' },
+        { header: 'Project ID', key: 'projectId' },
         { header: 'Name', key: 'name' },
         { header: 'Action', key: 'action' },
         { header: 'Field', key: 'field' },
@@ -1746,6 +1750,8 @@ export async function exportCompanyWorkbookForUser(args: {
       ],
       importRules.map((row) => ({
         ruleId: row.id,
+        scope: row.project_id ? 'project' : 'company',
+        projectId: row.project_id ?? '',
         name: row.name,
         action: row.action,
         field: row.field,

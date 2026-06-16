@@ -352,7 +352,10 @@ export type ImportRuleCreateInput = Omit<
   id?: ImportRule['id'];
 };
 export type ImportRuleUpdateInput = Partial<
-  Omit<ImportRule, 'id' | 'companyId' | 'createdAt' | 'updatedAt'>
+  Omit<
+    ImportRule,
+    'id' | 'companyId' | 'projectId' | 'scope' | 'createdAt' | 'updatedAt'
+  >
 > & {
   id: ImportRule['id'];
 };
