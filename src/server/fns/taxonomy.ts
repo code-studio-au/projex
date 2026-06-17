@@ -254,6 +254,7 @@ export async function updateCategoryServer(args: {
         'project_id',
         'name',
         'origin_scope',
+        'origin_company_item_id',
         'sync_status',
         'created_at',
         'updated_at',
@@ -267,15 +268,40 @@ export async function updateCategoryServer(args: {
       validateOrThrow(categoryNameSchema, args.input.name);
     }
 
+    const nextName =
+      typeof args.input.name === 'string'
+        ? args.input.name.trim()
+        : existing.name.trim();
     const patch: Record<string, unknown> = {};
-    if (typeof args.input.name === 'string')
-      patch.name = args.input.name.trim();
+    if (typeof args.input.name === 'string') patch.name = nextName;
     if (
       existing.origin_scope === 'company' &&
-      existing.sync_status === 'inherited'
+      existing.origin_company_item_id
     ) {
-      patch.sync_status = 'overridden';
-      patch.last_synced_at = new Date().toISOString();
+      const companyDefaultCategory = await db
+        .selectFrom('company_default_categories')
+        .select(['id', 'name', 'updated_at'])
+        .where('company_id', '=', asCompanyId(existing.company_id))
+        .where('id', '=', existing.origin_company_item_id)
+        .executeTakeFirst();
+
+      if (
+        companyDefaultCategory &&
+        taxonomyNameKey(nextName) ===
+          taxonomyNameKey(companyDefaultCategory.name)
+      ) {
+        Object.assign(
+          patch,
+          buildInheritedProjectStandardMetadata({
+            companyItemId: companyDefaultCategory.id,
+            sourceUpdatedAt: companyDefaultCategory.updated_at,
+            nowIso: new Date().toISOString(),
+          })
+        );
+      } else if (existing.sync_status === 'inherited') {
+        patch.sync_status = 'overridden';
+        patch.last_synced_at = new Date().toISOString();
+      }
     }
     patch.updated_at = new Date().toISOString();
 
@@ -540,6 +566,7 @@ export async function updateSubCategoryServer(args: {
         'category_id',
         'name',
         'origin_scope',
+        'origin_company_item_id',
         'sync_status',
         'created_at',
         'updated_at',
@@ -563,17 +590,60 @@ export async function updateSubCategoryServer(args: {
       if (!cat) throw new AppError('NOT_FOUND', 'Unknown category');
     }
 
+    const nextName =
+      typeof args.input.name === 'string'
+        ? args.input.name.trim()
+        : existing.name.trim();
+    const nextCategoryId =
+      typeof args.input.categoryId !== 'undefined'
+        ? args.input.categoryId
+        : asCategoryId(existing.category_id);
     const patch: Record<string, unknown> = {};
-    if (typeof args.input.name === 'string')
-      patch.name = args.input.name.trim();
+    if (typeof args.input.name === 'string') patch.name = nextName;
     if (typeof args.input.categoryId !== 'undefined')
-      patch.category_id = args.input.categoryId;
+      patch.category_id = nextCategoryId;
     if (
       existing.origin_scope === 'company' &&
-      existing.sync_status === 'inherited'
+      existing.origin_company_item_id
     ) {
-      patch.sync_status = 'overridden';
-      patch.last_synced_at = new Date().toISOString();
+      const companyDefaultSubCategory = await db
+        .selectFrom('company_default_sub_categories')
+        .select(['id', 'name', 'updated_at', 'company_default_category_id'])
+        .where('company_id', '=', asCompanyId(existing.company_id))
+        .where('id', '=', existing.origin_company_item_id)
+        .executeTakeFirst();
+      const mappedProjectCategory = companyDefaultSubCategory
+        ? await db
+            .selectFrom('categories')
+            .select('id')
+            .where('project_id', '=', args.projectId)
+            .where(
+              'origin_company_item_id',
+              '=',
+              companyDefaultSubCategory.company_default_category_id
+            )
+            .executeTakeFirst()
+        : null;
+
+      if (
+        companyDefaultSubCategory &&
+        mappedProjectCategory &&
+        taxonomyNameKey(nextName) ===
+          taxonomyNameKey(companyDefaultSubCategory.name) &&
+        nextCategoryId === asCategoryId(mappedProjectCategory.id)
+      ) {
+        Object.assign(
+          patch,
+          buildInheritedProjectStandardMetadata({
+            companyItemId: companyDefaultSubCategory.id,
+            sourceUpdatedAt: companyDefaultSubCategory.updated_at,
+            nowIso: new Date().toISOString(),
+          })
+        );
+      } else if (existing.sync_status === 'inherited') {
+        patch.sync_status = 'overridden';
+        patch.last_synced_at = new Date().toISOString();
+      }
     }
     patch.updated_at = new Date().toISOString();
 

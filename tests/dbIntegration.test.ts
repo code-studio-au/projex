@@ -149,6 +149,7 @@ import {
   promoteProjectSubCategoryToCompanyDefaultServer,
   updateCategoryServer,
   updateCompanyDefaultCategoryServer,
+  updateSubCategoryServer,
   updateCompanyDefaultSubCategoryServer,
 } from '../src/server/fns/taxonomy.ts';
 import {
@@ -3638,6 +3639,153 @@ test(
         defaultCategoryId
       );
       assert.equal(detachedCategories[0]?.syncStatus, 'detached');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'reverting an overridden inherited taxonomy item back to the company shape restores inherited status and avoids duplicate promotion',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_taxonomy_revert_co_1');
+    const userId = asUserId('itest_taxonomy_revert_usr_1');
+    const projectId = asProjectId('itest_taxonomy_revert_prj_1');
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_taxonomy_revert_dcat_1'
+    );
+    const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_taxonomy_revert_dsub_1'
+    );
+    const context = { session: { userId } } satisfies ServerFnContextInput;
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Taxonomy Revert Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'taxonomy-revert@example.com',
+          name: 'Taxonomy Revert User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await createCompanyDefaultCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultCategoryId,
+          companyId,
+          name: 'IT',
+        },
+      });
+      await createCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultSubCategoryId,
+          companyId,
+          companyDefaultCategoryId: defaultCategoryId,
+          name: 'Software and Services',
+        },
+      });
+
+      await createProjectServer({
+        context,
+        companyId,
+        input: {
+          id: projectId,
+          name: 'Taxonomy Revert Project',
+        },
+      });
+
+      const inheritedCategories = await listCategoriesServer({
+        context,
+        projectId,
+      });
+      const inheritedSubCategories = await listSubCategoriesServer({
+        context,
+        projectId,
+      });
+      const categoryId = inheritedCategories[0]!.id;
+      const subCategoryId = inheritedSubCategories[0]!.id;
+
+      await updateCategoryServer({
+        context,
+        projectId,
+        input: { id: categoryId, name: 'IT Local' },
+      });
+      await updateSubCategoryServer({
+        context,
+        projectId,
+        input: { id: subCategoryId, name: 'Software Local' },
+      });
+
+      await updateCategoryServer({
+        context,
+        projectId,
+        input: { id: categoryId, name: 'IT' },
+      });
+      await updateSubCategoryServer({
+        context,
+        projectId,
+        input: { id: subCategoryId, name: 'Software and Services' },
+      });
+
+      const revertedCategories = await listCategoriesServer({
+        context,
+        projectId,
+      });
+      const revertedSubCategories = await listSubCategoriesServer({
+        context,
+        projectId,
+      });
+      assert.equal(revertedCategories[0]?.syncStatus, 'inherited');
+      assert.equal(revertedSubCategories[0]?.syncStatus, 'inherited');
+
+      const promotionResult =
+        await promoteProjectSubCategoryToCompanyDefaultServer({
+          context,
+          projectId,
+          input: { subCategoryId },
+        });
+      assert.equal(promotionResult.categoryCreated, false);
+      assert.equal(promotionResult.subCategoryCreated, false);
+
+      const companyDefaultCategoryCount = await db
+        .selectFrom('company_default_categories')
+        .select(({ fn }) => fn.countAll<number>().as('count'))
+        .where('company_id', '=', companyId)
+        .executeTakeFirstOrThrow();
+      const companyDefaultSubCategoryCount = await db
+        .selectFrom('company_default_sub_categories')
+        .select(({ fn }) => fn.countAll<number>().as('count'))
+        .where('company_id', '=', companyId)
+        .executeTakeFirstOrThrow();
+      assert.equal(Number(companyDefaultCategoryCount.count), 1);
+      assert.equal(Number(companyDefaultSubCategoryCount.count), 1);
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

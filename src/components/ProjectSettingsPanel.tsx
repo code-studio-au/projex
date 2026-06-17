@@ -35,6 +35,8 @@ import {
 import { useProjectAutoCodingRulesQuery } from '../queries/projectAutoCodingRules';
 import { useProjectImportRulesQuery } from '../queries/importRules';
 import { useUpdateProjectMutation } from '../queries/admin';
+import { useCategoriesQuery, useSubCategoriesQuery } from '../queries/taxonomy';
+import { useBudgets } from '../hooks/useBudgets';
 import {
   useCompanyMembershipsQuery,
   useProjectMembershipsQuery,
@@ -42,11 +44,15 @@ import {
   useDeleteProjectMembershipMutation,
 } from '../queries/memberships';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import { useTaxonomy } from '../hooks/useTaxonomy';
+import { useTransactions } from '../hooks/useTransactions';
+import { summarizeProjectStandardStates } from '../utils/projectStandards';
 import { getCompanyUsers } from '../store/access';
 import { companyRoute } from '../router';
 import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
 import ProjectAutoCodingRulesModal from './ProjectAutoCodingRulesModal';
 import ProjectImportRulesModal from './ProjectImportRulesModal';
+import TaxonomyManagerModal from './TaxonomyManagerModal';
 import classes from '../styles/ui.module.css';
 
 const hydrateSubscription = () => () => {};
@@ -99,6 +105,8 @@ export default function ProjectSettingsPanel(props: {
   const projectMembershipsQ = useProjectMembershipsQuery(projectId);
   const projectAutoCodingRulesQ = useProjectAutoCodingRulesQuery(projectId);
   const projectImportRulesQ = useProjectImportRulesQuery(projectId);
+  const projectCategoriesQ = useCategoriesQuery(projectId);
+  const projectSubCategoriesQ = useSubCategoriesQuery(projectId);
 
   const access = useCompanyAccess(companyId);
   const updateProject = useUpdateProjectMutation(companyId);
@@ -164,6 +172,29 @@ export default function ProjectSettingsPanel(props: {
   const canManageTransferCapability =
     canEditCompanyStructure &&
     (!effectiveIsSuperadmin || effectiveProject.allowSuperadminAccess);
+  const canEditBudgets =
+    effectiveProject.projectType === 'project' &&
+    (isHydrated ? access.can('budget:edit', projectId) : false);
+  const canEditTaxonomy =
+    effectiveProject.projectType === 'project' &&
+    (isHydrated ? access.can('taxonomy:edit', projectId) : false);
+  const settingsBudgets = useBudgets({
+    companyId,
+    projectId,
+    enabled: effectiveProject.projectType === 'project',
+  });
+  const settingsTxns = useTransactions({
+    projectId,
+    enabled: effectiveProject.projectType === 'project',
+  });
+  const settingsTaxonomy = useTaxonomy({
+    companyId,
+    projectId,
+    budgets: settingsBudgets,
+    txns: settingsTxns,
+    canEditBudgets,
+    enabled: effectiveProject.projectType === 'project',
+  });
   const programmeOptions = useMemo(
     () =>
       (projects.data ?? [])
@@ -203,12 +234,25 @@ export default function ProjectSettingsPanel(props: {
   const [pendingSuperadminAccess, setPendingSuperadminAccess] = useState<
     boolean | null
   >(null);
+  const [taxonomyModalOpen, setTaxonomyModalOpen] = useState(false);
   const [projectRulesModalOpen, setProjectRulesModalOpen] = useState(false);
   const [projectImportRulesModalOpen, setProjectImportRulesModalOpen] =
     useState(false);
 
   const upsert = useUpsertProjectMembershipMutation(projectId);
   const del = useDeleteProjectMembershipMutation(projectId);
+  const taxonomyStateSummary = useMemo(
+    () =>
+      summarizeProjectStandardStates([
+        ...(projectCategoriesQ.data ?? []),
+        ...(projectSubCategoriesQ.data ?? []),
+      ]),
+    [projectCategoriesQ.data, projectSubCategoriesQ.data]
+  );
+  const importRuleStateSummary = useMemo(
+    () => summarizeProjectStandardStates(projectImportRulesQ.data ?? []),
+    [projectImportRulesQ.data]
+  );
 
   const members = useMemo(
     () => projectMembershipsQ.data ?? [],
@@ -382,8 +426,8 @@ export default function ProjectSettingsPanel(props: {
               disabled={!canEditProject || updateProject.isPending}
             />
             <Switch
-              label="Sync future company defaults"
-              description="When enabled, any new company default categories and subcategories are copied into this project automatically."
+              label="Sync company standards"
+              description="When enabled, this project inherits new company taxonomy defaults and company import rules automatically."
               checked={effectiveProject.syncCompanyDefaults}
               onChange={(event) =>
                 updateProject.mutate({
@@ -414,6 +458,67 @@ export default function ProjectSettingsPanel(props: {
               }
             />
           </Stack>
+        </Stack>
+      </Paper>
+
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
+        <Stack gap="sm">
+          <Title order={5}>Project Standards Alignment</Title>
+          <Text size="sm" c="dimmed">
+            Synced projects can inherit company taxonomy and import rules while
+            still keeping justified project-only exceptions.
+          </Text>
+          <Group gap="sm" wrap="wrap">
+            <Badge
+              variant="light"
+              color={effectiveProject.syncCompanyDefaults ? 'teal' : 'gray'}
+            >
+              {effectiveProject.syncCompanyDefaults
+                ? 'Company standards sync on'
+                : 'Company standards sync off'}
+            </Badge>
+            <Badge variant="light">
+              {(projectCategoriesQ.data?.length ?? 0) +
+                (projectSubCategoriesQ.data?.length ?? 0)}{' '}
+              taxonomy items
+            </Badge>
+            {taxonomyStateSummary.inherited > 0 ? (
+              <Badge variant="light" color="teal">
+                {taxonomyStateSummary.inherited} inherited taxonomy
+              </Badge>
+            ) : null}
+            {taxonomyStateSummary.overridden > 0 ? (
+              <Badge variant="light" color="orange">
+                {taxonomyStateSummary.overridden} taxonomy overrides
+              </Badge>
+            ) : null}
+            {taxonomyStateSummary.detached > 0 ? (
+              <Badge variant="light" color="gray">
+                {taxonomyStateSummary.detached} detached taxonomy
+              </Badge>
+            ) : null}
+            {importRuleStateSummary.companyBacked > 0 ? (
+              <Badge variant="light" color="teal">
+                {importRuleStateSummary.companyBacked} company-backed import
+                rules
+              </Badge>
+            ) : null}
+          </Group>
+          <Text size="xs" c="dimmed">
+            Use Manage categories in the transactions view to review inherited,
+            overridden, and detached taxonomy. Use project import rules for
+            local import exceptions, then promote stable patterns up to the
+            company standard set.
+          </Text>
+          <Button
+            variant="light"
+            disabled={
+              effectiveProject.projectType !== 'project' || !canEditTaxonomy
+            }
+            onClick={() => setTaxonomyModalOpen(true)}
+          >
+            Manage Project Categories
+          </Button>
         </Stack>
       </Paper>
 
@@ -486,8 +591,8 @@ export default function ProjectSettingsPanel(props: {
                   color={effectiveProject.syncCompanyDefaults ? 'teal' : 'gray'}
                 >
                   {effectiveProject.syncCompanyDefaults
-                    ? 'Company defaults auto-sync on'
-                    : 'Company defaults auto-sync off'}
+                    ? 'Company standards auto-sync on'
+                    : 'Company standards auto-sync off'}
                 </Badge>
               ) : null}
             </Group>
@@ -524,9 +629,21 @@ export default function ProjectSettingsPanel(props: {
               <Badge variant="light">
                 {projectImportRulesQ.data?.length ?? 0} project rules
               </Badge>
-              <Badge variant="light" color="gray">
-                Company rules still apply after project rules
-              </Badge>
+              {importRuleStateSummary.inherited > 0 ? (
+                <Badge variant="light" color="teal">
+                  {importRuleStateSummary.inherited} inherited
+                </Badge>
+              ) : null}
+              {importRuleStateSummary.overridden > 0 ? (
+                <Badge variant="light" color="orange">
+                  {importRuleStateSummary.overridden} overrides
+                </Badge>
+              ) : null}
+              {importRuleStateSummary.detached > 0 ? (
+                <Badge variant="light" color="gray">
+                  {importRuleStateSummary.detached} detached
+                </Badge>
+              ) : null}
             </Group>
           )}
           <Button
@@ -538,8 +655,8 @@ export default function ProjectSettingsPanel(props: {
           </Button>
           <Text size="xs" c="dimmed">
             Use project rules for local exceptions. Company admins and
-            executives can promote stable project rules to company defaults when
-            they should apply across projects.
+            executives can promote stable project rules into the company
+            standards set so synced projects inherit them automatically.
           </Text>
         </Stack>
       </Paper>
@@ -644,6 +761,13 @@ export default function ProjectSettingsPanel(props: {
         companyId={companyId}
         projectId={projectId}
         readOnly={!canEditProject}
+      />
+
+      <TaxonomyManagerModal
+        opened={taxonomyModalOpen}
+        onClose={() => setTaxonomyModalOpen(false)}
+        taxonomy={settingsTaxonomy}
+        readOnly={!canEditTaxonomy}
       />
     </Stack>
   );
