@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { authClient } from '../auth/client';
 import { qk } from './keys';
 import { getSessionServerFn } from '../server/start/functions/auth';
 
@@ -15,7 +16,21 @@ export function sessionQueryOptions() {
 }
 
 export function useSessionQuery() {
-  return useQuery(sessionQueryOptions());
+  const session = authClient.useSession();
+  return {
+    ...session,
+    data: session.data?.user?.id
+      ? { userId: session.data.user.id }
+      : null,
+    fetchStatus: session.isPending || session.isRefetching
+      ? ('fetching' as const)
+      : ('idle' as const),
+    status: session.isPending
+      ? ('pending' as const)
+      : session.error
+        ? ('error' as const)
+        : ('success' as const),
+  };
 }
 
 /**
@@ -49,8 +64,10 @@ export function useLogoutMutation() {
 
   return useMutation({
     mutationFn: async (options?: { deferCacheReset?: boolean }) => {
-      const { signOutAuth } = await import('../auth/client');
-      await signOutAuth();
+      const result = await authClient.signOut();
+      if (result.error) {
+        throw new Error(result.error.message ?? 'Sign out failed');
+      }
       return options;
     },
     onSuccess: async (options) => {

@@ -19,9 +19,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { forgotPasswordRoute, homeRoute } from '../router';
 import {
   getPostLoginTargetServerFn,
-  getSessionServerFn,
 } from '../server/start/functions/auth';
-import { refreshAfterAuthChange } from '../queries/session';
+import { refreshAfterAuthChange, sessionQueryOptions } from '../queries/session';
 import classes from '../styles/ui.module.css';
 
 export default function LoginPage() {
@@ -36,18 +35,6 @@ function ServerLoginPanel() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-
-  async function waitForServerSession() {
-    const attempts = 12;
-
-    for (let i = 0; i < attempts; i += 1) {
-      const session = await getSessionServerFn();
-      if (session?.userId) return session.userId;
-      await new Promise((resolve) => window.setTimeout(resolve, 250));
-    }
-
-    return null;
-  }
 
   async function handleServerLogin() {
     if (!email.trim() || !password) return;
@@ -64,8 +51,13 @@ function ServerLoginPanel() {
         setError(result.error.message ?? 'Sign in failed');
         return;
       }
-      const userId = await waitForServerSession();
-      if (!userId) {
+
+      await refreshAfterAuthChange(queryClient);
+      const session = await queryClient.fetchQuery({
+        ...sessionQueryOptions(),
+        staleTime: 0,
+      });
+      if (!session?.userId) {
         setError(
           'Sign in succeeded but the browser session was not ready yet. Please try again.'
         );
@@ -73,7 +65,6 @@ function ServerLoginPanel() {
       }
 
       const target = await getPostLoginTargetServerFn();
-      await refreshAfterAuthChange(queryClient);
       await router.invalidate();
       await router.navigate(target);
     } catch (err) {
