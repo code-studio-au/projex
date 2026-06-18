@@ -20,6 +20,11 @@ export type CategoryRow = {
   company_id: string;
   project_id: string;
   name: string;
+  origin_scope?: 'company' | 'project' | null;
+  origin_company_item_id?: string | null;
+  sync_status?: 'local' | 'inherited' | 'overridden' | 'detached' | null;
+  last_synced_at?: string | null;
+  source_updated_at_snapshot?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -30,6 +35,11 @@ export type SubCategoryRow = {
   project_id: string;
   category_id: string;
   name: string;
+  origin_scope?: 'company' | 'project' | null;
+  origin_company_item_id?: string | null;
+  sync_status?: 'local' | 'inherited' | 'overridden' | 'detached' | null;
+  last_synced_at?: string | null;
+  source_updated_at_snapshot?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -68,6 +78,11 @@ export function toCategory(row: CategoryRow): Category {
     companyId: asCompanyId(row.company_id),
     projectId: asProjectId(row.project_id),
     name: row.name,
+    originScope: row.origin_scope ?? undefined,
+    originCompanyItemId: row.origin_company_item_id ?? undefined,
+    syncStatus: row.sync_status ?? undefined,
+    lastSyncedAt: row.last_synced_at ?? undefined,
+    sourceUpdatedAtSnapshot: row.source_updated_at_snapshot ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -80,6 +95,11 @@ export function toSubCategory(row: SubCategoryRow): SubCategory {
     projectId: asProjectId(row.project_id),
     categoryId: asCategoryId(row.category_id),
     name: row.name,
+    originScope: row.origin_scope ?? undefined,
+    originCompanyItemId: row.origin_company_item_id ?? undefined,
+    syncStatus: row.sync_status ?? undefined,
+    lastSyncedAt: row.last_synced_at ?? undefined,
+    sourceUpdatedAtSnapshot: row.source_updated_at_snapshot ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -34,6 +34,7 @@ import {
   useImportRulesQuery,
   useUpdateImportRuleMutation,
 } from '../queries/importRules';
+import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import classes from '../styles/ui.module.css';
 
 const actionOptions: Array<{ value: ImportRuleAction; label: string }> = [
@@ -64,16 +65,6 @@ const operatorOptions: Array<{ value: ImportRuleOperator; label: string }> = [
   { value: 'ends_with', label: 'Ends with' },
   { value: 'ends_with_any', label: 'Ends with any of' },
 ];
-
-const importRuleSelectProps = {
-  withScrollArea: false,
-  styles: {
-    dropdown: {
-      maxHeight: 180,
-      overflowY: 'auto',
-    },
-  },
-} as const;
 
 function toImportRuleAction(value: string | null): ImportRuleAction | null {
   return actionOptions.some((option) => option.value === value)
@@ -199,6 +190,7 @@ export default function CompanyImportRulesModal(props: {
       fullScreen={isMobile}
       centered={!isMobile}
       size="xl"
+      lockScroll={false}
       styles={{
         body: {
           maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
@@ -254,7 +246,7 @@ export default function CompanyImportRulesModal(props: {
                 data={actionOptions}
                 value={newAction}
                 disabled={readOnly}
-                {...importRuleSelectProps}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   const next = toImportRuleAction(value);
                   if (next) setNewAction(next);
@@ -265,7 +257,7 @@ export default function CompanyImportRulesModal(props: {
                 data={fieldOptions}
                 value={newField}
                 disabled={readOnly}
-                {...importRuleSelectProps}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   const next = toImportRuleField(value);
                   if (next) setNewField(next);
@@ -276,7 +268,7 @@ export default function CompanyImportRulesModal(props: {
                 data={operatorOptions}
                 value={newOperator}
                 disabled={readOnly}
-                {...importRuleSelectProps}
+                {...firefoxSafeModalSelectProps}
                 onChange={(value) => {
                   const next = toImportRuleOperator(value);
                   if (next) setNewOperator(next);
@@ -433,7 +425,7 @@ export default function CompanyImportRulesModal(props: {
                         data={actionOptions}
                         value={draft.action}
                         disabled={readOnly}
-                        {...importRuleSelectProps}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           const next = toImportRuleAction(value);
                           if (next) patchDraft(rule, { action: next });
@@ -444,7 +436,7 @@ export default function CompanyImportRulesModal(props: {
                         data={fieldOptions}
                         value={draft.field}
                         disabled={readOnly}
-                        {...importRuleSelectProps}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           const next = toImportRuleField(value);
                           if (next) patchDraft(rule, { field: next });
@@ -455,7 +447,7 @@ export default function CompanyImportRulesModal(props: {
                         data={operatorOptions}
                         value={draft.operator}
                         disabled={readOnly}
-                        {...importRuleSelectProps}
+                        {...firefoxSafeModalSelectProps}
                         onChange={(value) => {
                           const next = toImportRuleOperator(value);
                           if (next) patchDraft(rule, { operator: next });

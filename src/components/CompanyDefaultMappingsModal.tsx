@@ -143,6 +143,7 @@ export default function CompanyDefaultMappingsModal(props: {
       fullScreen={isMobile}
       centered={!isMobile}
       size="xl"
+      lockScroll={false}
       styles={{
         body: {
           maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',

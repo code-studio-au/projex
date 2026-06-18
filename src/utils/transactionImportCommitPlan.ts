@@ -3,9 +3,6 @@ import type { TxnImportTxnInput } from '../api/types';
 import type {
   BudgetLine,
   Category,
-  CompanyDefaultCategory,
-  CompanyDefaultMappingRule,
-  CompanyDefaultSubCategory,
   CompanyId,
   ProjectAutoCodingRule,
   ProjectId,
@@ -14,7 +11,6 @@ import type {
 } from '../types';
 import { txnInputSchema } from '../validation/schemas';
 import { validateOrThrow } from '../validation/validate';
-import { mapImportedTransactionWithCompanyDefaults } from './companyDefaultMappings';
 import { applyProjectAutoCodingRule } from './projectAutoCodingRules';
 import {
   assertUniqueTransactionKeysInProject,
@@ -28,12 +24,7 @@ export function planTransactionImportCommit(args: {
   incomingTransactions: TxnImportTxnInput[];
   existingTransactions: Txn[];
   existingBudgets: BudgetLine[];
-  defaultCategories: CompanyDefaultCategory[];
-  defaultSubCategories: CompanyDefaultSubCategory[];
-  mappingRules: CompanyDefaultMappingRule[];
   projectAutoCodingRules?: ProjectAutoCodingRule[];
-  projectCategories: Category[];
-  projectSubCategories: SubCategory[];
   mode: 'append' | 'replaceAll';
   autoCreateBudgets: boolean;
 }): {
@@ -65,16 +56,9 @@ export function planTransactionImportCommit(args: {
   });
 
   const importedTransactions = normalizedIncoming.map((txn) =>
-    mapImportedTransactionWithCompanyDefaults({
-      txn: applyProjectAutoCodingRule({
-        txn,
-        rules: args.projectAutoCodingRules ?? [],
-      }),
-      rules: args.mappingRules,
-      defaultCategories: args.defaultCategories,
-      defaultSubCategories: args.defaultSubCategories,
-      projectCategories: args.projectCategories,
-      projectSubCategories: args.projectSubCategories,
+    applyProjectAutoCodingRule({
+      txn,
+      rules: args.projectAutoCodingRules ?? [],
     })
   );
 

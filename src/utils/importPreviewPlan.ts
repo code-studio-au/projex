@@ -2,9 +2,6 @@ import { AppError } from '../api/errors';
 import type {
   BudgetLine,
   Category,
-  CompanyDefaultCategory,
-  CompanyDefaultMappingRule,
-  CompanyDefaultSubCategory,
   ImportPreviewRow,
   ImportRule,
   ImportTxnWithTaxonomy,
@@ -40,9 +37,6 @@ export function planImportPreview(args: {
   categories: Category[];
   subCategories: SubCategory[];
   budgets: BudgetLine[];
-  defaultCategories: CompanyDefaultCategory[];
-  defaultSubCategories: CompanyDefaultSubCategory[];
-  mappingRules: CompanyDefaultMappingRule[];
   projectAutoCodingRules?: ProjectAutoCodingRule[];
   autoCreateStructures: boolean;
   canEditTaxonomy: boolean;
@@ -67,9 +61,6 @@ export function planImportPreview(args: {
       categories: args.categories,
       subCategories: args.subCategories,
       budgets: args.budgets,
-      defaultCategories: args.defaultCategories,
-      defaultSubCategories: args.defaultSubCategories,
-      mappingRules: args.mappingRules,
       projectAutoCodingRules: args.projectAutoCodingRules,
       autoCreateTaxonomy: args.autoCreateStructures,
       canEditTaxonomy: args.canEditTaxonomy,

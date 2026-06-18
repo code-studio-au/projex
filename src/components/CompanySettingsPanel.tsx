@@ -47,6 +47,7 @@ import {
 } from '../queries/admin';
 import { useCompanyDefaultsQuery } from '../queries/taxonomy';
 import { useRuleSuggestionsQuery } from '../queries/ruleSuggestions';
+import { useImportRulesQuery } from '../queries/importRules';
 import { Route as companyLayoutRoute } from '../routes/_authed.c.$companyId';
 import CompanyDefaultTaxonomyModal from './CompanyDefaultTaxonomyModal';
 import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
@@ -132,6 +133,7 @@ export default function CompanySettingsPanel(props: {
     loaderData?.canExportCompany ??
     false;
   const companyDefaultsQ = useCompanyDefaultsQuery(companyId);
+  const companyImportRulesQ = useImportRulesQuery(companyId);
   const ruleSuggestionsQ = useRuleSuggestionsQuery(companyId);
   const effectiveDefaults = isHydrated
     ? companyDefaultsQ.data
@@ -720,8 +722,9 @@ export default function CompanySettingsPanel(props: {
         <Stack gap="sm">
           <Title order={5}>Company default categories</Title>
           <Text size="sm" c="dimmed">
-            Define company-wide default categories and subcategories that can be
-            safely added into projects later.
+            Define the shared taxonomy standard for the company. Synced projects
+            inherit new defaults automatically, while older projects can pull
+            them in without losing local project structure.
           </Text>
           {companyDefaultsLoading ? (
             <Text size="sm" c="dimmed">
@@ -745,8 +748,8 @@ export default function CompanySettingsPanel(props: {
             Manage company defaults
           </Button>
           <Text size="xs" c="dimmed">
-            Applying company defaults to a project only adds missing categories
-            and subcategories. Existing project taxonomy is left unchanged.
+            Syncing from company adds missing defaults and refreshes inherited
+            items. Project-specific overrides remain local to the project.
           </Text>
         </Stack>
       </Paper>
@@ -756,8 +759,23 @@ export default function CompanySettingsPanel(props: {
           <Title order={5}>Import Rules</Title>
           <Text size="sm" c="dimmed">
             Decide which PowerBI rows import, which are excluded, and which are
-            staged for project review before Auto-Categorise Rules run.
+            staged for project review before Auto-Categorise Rules run. These
+            are the company-level rules that synced projects inherit by default.
           </Text>
+          {companyImportRulesQ.isPending && !companyImportRulesQ.data ? (
+            <Text size="sm" c="dimmed">
+              Loading import rules…
+            </Text>
+          ) : (
+            <Group gap="sm" wrap="wrap">
+              <Badge variant="light">
+                {companyImportRulesQ.data?.length ?? 0} company rules
+              </Badge>
+              <Badge variant="light" color="teal">
+                Synced projects inherit these
+              </Badge>
+            </Group>
+          )}
           <Button
             variant="light"
             disabled={!canEditCompanyDefaults}
@@ -767,7 +785,7 @@ export default function CompanySettingsPanel(props: {
           </Button>
           <Text size="xs" c="dimmed">
             Defaults are seeded for SAL, EXA, and suspected salary transfers,
-            then can be adjusted for the company without code changes.
+            then can be adjusted centrally for the company without code changes.
           </Text>
         </Stack>
       </Paper>

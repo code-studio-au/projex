@@ -320,6 +320,11 @@ export type CreateProjectAutoCodingRuleInput = Omit<
   | 'id'
   | 'companyId'
   | 'projectId'
+  | 'originScope'
+  | 'originCompanyItemId'
+  | 'syncStatus'
+  | 'lastSyncedAt'
+  | 'sourceUpdatedAtSnapshot'
   | 'sortOrder'
   | 'createdByUserId'
   | 'createdAt'
@@ -337,6 +342,11 @@ export type ProjectAutoCodingRuleUpdateInput = Partial<
     | 'id'
     | 'companyId'
     | 'projectId'
+    | 'originScope'
+    | 'originCompanyItemId'
+    | 'syncStatus'
+    | 'lastSyncedAt'
+    | 'sourceUpdatedAtSnapshot'
     | 'createdByUserId'
     | 'createdAt'
     | 'updatedAt'
@@ -364,6 +374,11 @@ export type ApplyCompanyDefaultsResult = {
   companyDefaultsConfigured: boolean;
   categoriesAdded: number;
   subCategoriesAdded: number;
+};
+
+export type ApplyCompanyStandardsResult = ApplyCompanyDefaultsResult & {
+  importRulesSynced: boolean;
+  autoCodingRulesSynced: boolean;
 };
 
 export type CompanyCreateInput = Pick<Company, 'name'> & {

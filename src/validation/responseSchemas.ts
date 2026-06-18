@@ -97,6 +97,13 @@ const companyExportReadyNotificationStatusSchema = z.enum([
   'failed',
 ]);
 const companyExportReadyNotificationDeliverySchema = z.enum(['email', 'log']);
+const projectStandardOriginScopeSchema = z.enum(['company', 'project']);
+const projectStandardSyncStatusSchema = z.enum([
+  'local',
+  'inherited',
+  'overridden',
+  'detached',
+]);
 
 export const authenticatedSessionResponseSchema = z.object({
   userId: userIdSchema,
@@ -271,6 +278,11 @@ export const importRuleResponseSchema = z.object({
   scope: z.enum(['company', 'project']),
   projectId: projectIdSchema.optional(),
   name: z.string(),
+  originScope: projectStandardOriginScopeSchema.optional(),
+  originCompanyItemId: z.string().optional(),
+  syncStatus: projectStandardSyncStatusSchema.optional(),
+  lastSyncedAt: optionalIsoTimestampSchema,
+  sourceUpdatedAtSnapshot: optionalIsoTimestampSchema,
   action: z.enum(['import', 'exclude', 'review']),
   field: z.enum([
     'ledger',
@@ -307,6 +319,11 @@ export const categoryResponseSchema = z.object({
   companyId: companyIdSchema,
   projectId: projectIdSchema,
   name: z.string(),
+  originScope: projectStandardOriginScopeSchema.optional(),
+  originCompanyItemId: z.string().optional(),
+  syncStatus: projectStandardSyncStatusSchema.optional(),
+  lastSyncedAt: optionalIsoTimestampSchema,
+  sourceUpdatedAtSnapshot: optionalIsoTimestampSchema,
   createdAt: optionalIsoTimestampSchema,
   updatedAt: optionalIsoTimestampSchema,
 });
@@ -319,6 +336,11 @@ export const subCategoryResponseSchema = z.object({
   projectId: projectIdSchema,
   categoryId: categoryIdSchema,
   name: z.string(),
+  originScope: projectStandardOriginScopeSchema.optional(),
+  originCompanyItemId: z.string().optional(),
+  syncStatus: projectStandardSyncStatusSchema.optional(),
+  lastSyncedAt: optionalIsoTimestampSchema,
+  sourceUpdatedAtSnapshot: optionalIsoTimestampSchema,
   createdAt: optionalIsoTimestampSchema,
   updatedAt: optionalIsoTimestampSchema,
 });
@@ -582,6 +604,12 @@ export const applyCompanyDefaultsResultResponseSchema = z.object({
   categoriesAdded: z.number().int().nonnegative(),
   subCategoriesAdded: z.number().int().nonnegative(),
 });
+
+export const applyCompanyStandardsResultResponseSchema =
+  applyCompanyDefaultsResultResponseSchema.extend({
+    importRulesSynced: z.boolean(),
+    autoCodingRulesSynced: z.boolean(),
+  });
 
 export const betterAuthLikePayloadSchema = z
   .object({

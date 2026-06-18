@@ -24,6 +24,7 @@ import type {
   SubCategoryUpdateInput,
 } from '../../../api/contract';
 import {
+  applyCompanyStandardsServer,
   applyCompanyDefaultTaxonomyServer,
   bulkRecodeProjectTransactionsServer,
   createCategoryServer,
@@ -404,6 +405,20 @@ export const applyCompanyDefaultTaxonomyServerFn = createServerFn({
   }))
   .handler(async ({ context, data }) => {
     return applyCompanyDefaultTaxonomyServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+    });
+  });
+
+export const applyCompanyStandardsServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator((input: { projectId: string }) => ({
+    projectId: asProjectId(input.projectId),
+  }))
+  .handler(async ({ context, data }) => {
+    return applyCompanyStandardsServer({
       context: context.serverContext,
       projectId: data.projectId,
     });

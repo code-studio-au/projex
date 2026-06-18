@@ -131,6 +131,11 @@ export interface CategoryTable {
   company_id: string;
   project_id: string;
   name: string;
+  origin_scope: 'company' | 'project' | null;
+  origin_company_item_id: string | null;
+  sync_status: 'local' | 'inherited' | 'overridden' | 'detached' | null;
+  last_synced_at: string | null;
+  source_updated_at_snapshot: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -141,6 +146,11 @@ export interface SubCategoryTable {
   project_id: string;
   category_id: string;
   name: string;
+  origin_scope: 'company' | 'project' | null;
+  origin_company_item_id: string | null;
+  sync_status: 'local' | 'inherited' | 'overridden' | 'detached' | null;
+  last_synced_at: string | null;
+  source_updated_at_snapshot: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -180,6 +190,11 @@ export interface ProjectAutoCodingRuleTable {
   match_text: string;
   category_id: string;
   sub_category_id: string;
+  origin_scope: 'company' | 'project' | null;
+  origin_company_item_id: string | null;
+  sync_status: 'local' | 'inherited' | 'overridden' | 'detached' | null;
+  last_synced_at: string | null;
+  source_updated_at_snapshot: string | null;
   sort_order: number;
   created_by_user_id: string;
   created_at: Generated<string>;
@@ -232,6 +247,11 @@ export interface ImportRuleTable {
   company_id: string;
   project_id: string | null;
   name: string;
+  origin_scope: 'company' | 'project' | null;
+  origin_company_item_id: string | null;
+  sync_status: 'local' | 'inherited' | 'overridden' | 'detached' | null;
+  last_synced_at: string | null;
+  source_updated_at_snapshot: string | null;
   action: ImportRuleAction;
   field: ImportRuleField;
   operator: ImportRuleOperator;

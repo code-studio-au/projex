@@ -32,9 +32,9 @@ import {
   useProjectsQuery,
   useUsersQuery,
 } from '../queries/reference';
-import { useProjectAutoCodingRulesQuery } from '../queries/projectAutoCodingRules';
-import { useProjectImportRulesQuery } from '../queries/importRules';
 import { useUpdateProjectMutation } from '../queries/admin';
+import { useApplyCompanyStandardsMutation } from '../queries/taxonomy';
+import { useBudgets } from '../hooks/useBudgets';
 import {
   useCompanyMembershipsQuery,
   useProjectMembershipsQuery,
@@ -42,12 +42,16 @@ import {
   useDeleteProjectMembershipMutation,
 } from '../queries/memberships';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import { useTaxonomy } from '../hooks/useTaxonomy';
+import { useTransactions } from '../hooks/useTransactions';
 import { getCompanyUsers } from '../store/access';
 import { companyRoute } from '../router';
 import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
 import ProjectAutoCodingRulesModal from './ProjectAutoCodingRulesModal';
 import ProjectImportRulesModal from './ProjectImportRulesModal';
+import TaxonomyManagerModal from './TaxonomyManagerModal';
 import classes from '../styles/ui.module.css';
+import { showAppToast } from '../utils/toast';
 
 const hydrateSubscription = () => () => {};
 const getClientHydratedSnapshot = () => true;
@@ -97,8 +101,10 @@ export default function ProjectSettingsPanel(props: {
   const usersQ = useUsersQuery();
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
   const projectMembershipsQ = useProjectMembershipsQuery(projectId);
-  const projectAutoCodingRulesQ = useProjectAutoCodingRulesQuery(projectId);
-  const projectImportRulesQ = useProjectImportRulesQuery(projectId);
+  const reapplyCompanyStandards = useApplyCompanyStandardsMutation(
+    projectId,
+    companyId
+  );
 
   const access = useCompanyAccess(companyId);
   const updateProject = useUpdateProjectMutation(companyId);
@@ -164,6 +170,29 @@ export default function ProjectSettingsPanel(props: {
   const canManageTransferCapability =
     canEditCompanyStructure &&
     (!effectiveIsSuperadmin || effectiveProject.allowSuperadminAccess);
+  const canEditBudgets =
+    effectiveProject.projectType === 'project' &&
+    (isHydrated ? access.can('budget:edit', projectId) : false);
+  const canEditTaxonomy =
+    effectiveProject.projectType === 'project' &&
+    (isHydrated ? access.can('taxonomy:edit', projectId) : false);
+  const settingsBudgets = useBudgets({
+    companyId,
+    projectId,
+    enabled: effectiveProject.projectType === 'project',
+  });
+  const settingsTxns = useTransactions({
+    projectId,
+    enabled: effectiveProject.projectType === 'project',
+  });
+  const settingsTaxonomy = useTaxonomy({
+    companyId,
+    projectId,
+    budgets: settingsBudgets,
+    txns: settingsTxns,
+    canEditBudgets,
+    enabled: effectiveProject.projectType === 'project',
+  });
   const programmeOptions = useMemo(
     () =>
       (projects.data ?? [])
@@ -203,13 +232,13 @@ export default function ProjectSettingsPanel(props: {
   const [pendingSuperadminAccess, setPendingSuperadminAccess] = useState<
     boolean | null
   >(null);
+  const [taxonomyModalOpen, setTaxonomyModalOpen] = useState(false);
   const [projectRulesModalOpen, setProjectRulesModalOpen] = useState(false);
   const [projectImportRulesModalOpen, setProjectImportRulesModalOpen] =
     useState(false);
 
   const upsert = useUpsertProjectMembershipMutation(projectId);
   const del = useDeleteProjectMembershipMutation(projectId);
-
   const members = useMemo(
     () => projectMembershipsQ.data ?? [],
     [projectMembershipsQ.data]
@@ -382,8 +411,8 @@ export default function ProjectSettingsPanel(props: {
               disabled={!canEditProject || updateProject.isPending}
             />
             <Switch
-              label="Sync future company defaults"
-              description="When enabled, any new company default categories and subcategories are copied into this project automatically."
+              label="Sync company standards"
+              description="When enabled, this project inherits new company taxonomy defaults and company import rules automatically."
               checked={effectiveProject.syncCompanyDefaults}
               onChange={(event) =>
                 updateProject.mutate({
@@ -414,6 +443,98 @@ export default function ProjectSettingsPanel(props: {
               }
             />
           </Stack>
+        </Stack>
+      </Paper>
+
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
+        <Stack gap="sm">
+          <Title order={5}>Project Standards Alignment</Title>
+          <Text size="sm" c="dimmed">
+            Synced projects can inherit company taxonomy, import rules, and
+            auto-coding while still keeping justified project-only exceptions.
+          </Text>
+          <Group gap="sm" wrap="wrap">
+            <Badge
+              variant="light"
+              color={effectiveProject.syncCompanyDefaults ? 'teal' : 'gray'}
+            >
+              {effectiveProject.syncCompanyDefaults
+                ? 'Company standards sync on'
+                : 'Company standards sync off'}
+            </Badge>
+          </Group>
+          <Text size="xs" c="dimmed">
+            Use the category, auto-coding, and import-rule managers here to
+            review inherited, overridden, and detached standards. Stable project
+            patterns can be promoted up to the company standards set.
+          </Text>
+          <Group gap="sm" wrap="wrap">
+            <Button
+              variant="light"
+              disabled={
+                effectiveProject.projectType !== 'project' || !canEditTaxonomy
+              }
+              loading={reapplyCompanyStandards.isPending}
+              onClick={async () => {
+                try {
+                  const result = await reapplyCompanyStandards.mutateAsync();
+                  if (!result.companyDefaultsConfigured) {
+                    showAppToast({
+                      tone: 'success',
+                      title: 'Company standards reapplied',
+                      message:
+                        'Company import and auto-coding rules were resynced. No company taxonomy defaults are configured yet, so no categories or subcategories were added.',
+                    });
+                    return;
+                  }
+                  showAppToast({
+                    tone: 'success',
+                    title: 'Company standards reapplied',
+                    message:
+                      result.categoriesAdded === 0 &&
+                      result.subCategoriesAdded === 0
+                        ? 'Project taxonomy was refreshed and company import and auto-coding rules were resynced.'
+                        : `Added ${result.categoriesAdded} categories and ${result.subCategoriesAdded} subcategories, then resynced company import and auto-coding rules.`,
+                    autoClose: 9000,
+                  });
+                } catch (error) {
+                  showAppToast({
+                    tone: 'error',
+                    title: 'Could not reapply company standards',
+                    message:
+                      error instanceof Error
+                        ? error.message
+                        : 'Please try again.',
+                  });
+                }
+              }}
+            >
+              Reapply Company Standards
+            </Button>
+            <Button
+              variant="light"
+              disabled={
+                effectiveProject.projectType !== 'project' || !canEditTaxonomy
+              }
+              onClick={() => setTaxonomyModalOpen(true)}
+            >
+              Manage Project Categories
+            </Button>
+            <Button
+              variant="light"
+              disabled={!canEditProject}
+              onClick={() => setProjectRulesModalOpen(true)}
+            >
+              Manage Auto-Coding Rules
+            </Button>
+            <Button
+              variant="light"
+              disabled={!canEditProject}
+              onClick={() => setProjectImportRulesModalOpen(true)}
+            >
+              Manage Import Rules
+            </Button>
+          </Group>
         </Stack>
       </Paper>
 
@@ -458,88 +579,6 @@ export default function ProjectSettingsPanel(props: {
           <Text size="sm" c="dimmed">
             Manage membership per project. Company settings manages
             company-level roles only.
-          </Text>
-        </Stack>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Project Auto-Coding Rules</Title>
-          <Text size="sm" c="dimmed">
-            Manage saved project-specific auto-coding rules created from
-            repeated manual coding. These rules apply within this project and
-            can bulk-mark matching uncoded rows for approval.
-          </Text>
-          {projectAutoCodingRulesQ.isPending &&
-          !projectAutoCodingRulesQ.data ? (
-            <Text size="sm" c="dimmed">
-              Loading project auto-coding rules…
-            </Text>
-          ) : (
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">
-                {projectAutoCodingRulesQ.data?.length ?? 0} project rules
-              </Badge>
-              {effectiveProject.projectType === 'project' ? (
-                <Badge
-                  variant="light"
-                  color={effectiveProject.syncCompanyDefaults ? 'teal' : 'gray'}
-                >
-                  {effectiveProject.syncCompanyDefaults
-                    ? 'Company defaults auto-sync on'
-                    : 'Company defaults auto-sync off'}
-                </Badge>
-              ) : null}
-            </Group>
-          )}
-          <Button
-            variant="light"
-            disabled={!canEditProject}
-            onClick={() => setProjectRulesModalOpen(true)}
-          >
-            Manage Project Auto-Coding Rules
-          </Button>
-          <Text size="xs" c="dimmed">
-            The first matching rule wins. Changing or deleting a rule affects
-            future matching and uncoded transactions, but does not retroactively
-            recode existing transactions that were already processed.
-          </Text>
-        </Stack>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Project Import Rules</Title>
-          <Text size="sm" c="dimmed">
-            Manage saved project-specific import exclusions and review rules.
-            These rules apply only within this project and run before company
-            import rules.
-          </Text>
-          {projectImportRulesQ.isPending && !projectImportRulesQ.data ? (
-            <Text size="sm" c="dimmed">
-              Loading project import rules…
-            </Text>
-          ) : (
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">
-                {projectImportRulesQ.data?.length ?? 0} project rules
-              </Badge>
-              <Badge variant="light" color="gray">
-                Company rules still apply after project rules
-              </Badge>
-            </Group>
-          )}
-          <Button
-            variant="light"
-            disabled={!canEditProject}
-            onClick={() => setProjectImportRulesModalOpen(true)}
-          >
-            Manage Project Import Rules
-          </Button>
-          <Text size="xs" c="dimmed">
-            Use project rules for local exceptions. Company admins and
-            executives can promote stable project rules to company defaults when
-            they should apply across projects.
           </Text>
         </Stack>
       </Paper>
@@ -644,6 +683,13 @@ export default function ProjectSettingsPanel(props: {
         companyId={companyId}
         projectId={projectId}
         readOnly={!canEditProject}
+      />
+
+      <TaxonomyManagerModal
+        opened={taxonomyModalOpen}
+        onClose={() => setTaxonomyModalOpen(false)}
+        taxonomy={settingsTaxonomy}
+        readOnly={!canEditTaxonomy}
       />
     </Stack>
   );

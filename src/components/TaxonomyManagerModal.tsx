@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActionIcon,
   Alert,
+  Badge,
   Button,
   Divider,
   Group,
@@ -21,6 +22,12 @@ import {
   usePromoteProjectSubCategoryToCompanyDefaultMutation,
 } from '../queries/taxonomy';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import {
+  describeProjectStandard,
+  getProjectStandardBadge,
+  isInheritedCompanyStandard,
+  summarizeProjectStandardStates,
+} from '../utils/projectStandards';
 import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import classes from '../styles/ui.module.css';
 
@@ -73,6 +80,12 @@ export default function TaxonomyManagerModal(props: {
     );
 
   const categoryOptions = taxonomy.categoryOptions;
+  const categoryStateSummary = summarizeProjectStandardStates(
+    taxonomy.categories
+  );
+  const subCategoryStateSummary = summarizeProjectStandardStates(
+    taxonomy.subCategories
+  );
   const bulkRecodeSubCategoryOptions = taxonomy.subCategories
     .filter((subCategory) => subCategory.categoryId === bulkRecodeCategoryId)
     .map((subCategory) => ({
@@ -175,54 +188,65 @@ export default function TaxonomyManagerModal(props: {
           </Text>
         )}
         {!readOnly ? (
-          <Group justify="space-between" align="center" wrap="wrap">
-            <Text
-              size="sm"
-              c="dimmed"
-              className="panelHelperText"
-              style={{ flex: 1 }}
-            >
-              Company defaults can be safely added here. Existing project
-              categories and subcategories are left unchanged.
-            </Text>
-            <Button
-              variant="light"
-              disabled={taxonomy.isApplyingCompanyDefaults}
-              onClick={async () => {
-                try {
-                  setError(null);
-                  setStatus(null);
-                  const result = await taxonomy.applyCompanyDefaults();
-                  if (!result.companyDefaultsConfigured) {
-                    setStatus(
-                      'No company defaults are configured for this company yet.'
-                    );
-                    return;
-                  }
-                  if (
-                    result.categoriesAdded === 0 &&
-                    result.subCategoriesAdded === 0
-                  ) {
-                    setStatus(
-                      'No company defaults were added because this project already includes them.'
-                    );
-                    return;
-                  }
-                  setStatus(
-                    `Applied company defaults: ${result.categoriesAdded} categories and ${result.subCategoriesAdded} subcategories added.`
-                  );
-                } catch (err) {
-                  setError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not apply company defaults.'
-                  );
-                }
-              }}
-            >
-              Apply company defaults
-            </Button>
-          </Group>
+          <Paper withBorder radius="md" p="md" className={classes.modalCard}>
+            <Stack gap="sm">
+              <Group justify="space-between" align="flex-start" wrap="wrap">
+                <Stack gap={4} style={{ flex: 1 }}>
+                  <Text fw={600}>Project taxonomy standards</Text>
+                  <Text size="sm" c="dimmed" className={classes.modalIntro}>
+                    Company standards can be synced into the project, then
+                    adjusted locally when a project genuinely needs an
+                    exception. Use the project settings reapply action when you
+                    need to pull the latest company standards back in. Editing
+                    inherited items creates a project override. Inherited items
+                    cannot be deleted directly.
+                  </Text>
+                </Stack>
+              </Group>
+              <Group gap="xs" wrap="wrap">
+                <Badge variant="light">
+                  {taxonomy.categories.length} categories
+                </Badge>
+                <Badge variant="light">
+                  {taxonomy.subCategories.length} subcategories
+                </Badge>
+                {categoryStateSummary.inherited +
+                  subCategoryStateSummary.inherited >
+                0 ? (
+                  <Badge variant="light" color="teal">
+                    {categoryStateSummary.inherited +
+                      subCategoryStateSummary.inherited}{' '}
+                    inherited
+                  </Badge>
+                ) : null}
+                {categoryStateSummary.overridden +
+                  subCategoryStateSummary.overridden >
+                0 ? (
+                  <Badge variant="light" color="orange">
+                    {categoryStateSummary.overridden +
+                      subCategoryStateSummary.overridden}{' '}
+                    overrides
+                  </Badge>
+                ) : null}
+                {categoryStateSummary.detached +
+                  subCategoryStateSummary.detached >
+                0 ? (
+                  <Badge variant="light" color="gray">
+                    {categoryStateSummary.detached +
+                      subCategoryStateSummary.detached}{' '}
+                    detached
+                  </Badge>
+                ) : null}
+                {categoryStateSummary.local + subCategoryStateSummary.local >
+                0 ? (
+                  <Badge variant="light" color="indigo">
+                    {categoryStateSummary.local + subCategoryStateSummary.local}{' '}
+                    local
+                  </Badge>
+                ) : null}
+              </Group>
+            </Stack>
+          </Paper>
         ) : null}
         <Group align="flex-end" wrap="wrap">
           <TextInput
@@ -267,6 +291,8 @@ export default function TaxonomyManagerModal(props: {
             const subcats = taxonomy.subCategories.filter(
               (s) => s.categoryId === cat.id
             );
+            const categoryBadge = getProjectStandardBadge(cat);
+            const canDeleteCategory = !isInheritedCompanyStandard(cat);
             return (
               <Paper
                 key={cat.id}
@@ -276,6 +302,14 @@ export default function TaxonomyManagerModal(props: {
                 className="taxonomyCategoryCard"
               >
                 <Stack gap="sm">
+                  <Group gap="xs" wrap="wrap">
+                    <Badge variant="light" color={categoryBadge.color}>
+                      {categoryBadge.label}
+                    </Badge>
+                    <Badge variant="light">
+                      {subcats.length} subcategories
+                    </Badge>
+                  </Group>
                   <Group justify="space-between" align="flex-end">
                     <TextInput
                       label="Category"
@@ -314,7 +348,7 @@ export default function TaxonomyManagerModal(props: {
                         variant="light"
                         fullWidth
                         leftSection={<IconTrash size={16} />}
-                        disabled={readOnly}
+                        disabled={readOnly || !canDeleteCategory}
                         onClick={() =>
                           setPendingDelete({
                             kind: 'category',
@@ -330,7 +364,7 @@ export default function TaxonomyManagerModal(props: {
                         color="red"
                         variant="subtle"
                         title="Delete category"
-                        disabled={readOnly}
+                        disabled={readOnly || !canDeleteCategory}
                         onClick={() =>
                           setPendingDelete({
                             kind: 'category',
@@ -343,6 +377,10 @@ export default function TaxonomyManagerModal(props: {
                       </ActionIcon>
                     )}
                   </Group>
+
+                  <Text size="xs" c="dimmed">
+                    {describeProjectStandard(cat)}
+                  </Text>
 
                   <Group align="flex-end" wrap="wrap">
                     <TextInput
@@ -400,41 +438,54 @@ export default function TaxonomyManagerModal(props: {
                     <Stack gap={6}>
                       {subcats.map((sc) => (
                         <Group key={sc.id} align="flex-end" wrap="wrap">
-                          <TextInput
-                            label="Subcategory"
-                            value={subCategoryDrafts[sc.id] ?? sc.name}
-                            onChange={(e) => {
-                              setError(null);
-                              setStatus(null);
-                              setSubCategoryDrafts((prev) => ({
-                                ...prev,
-                                [sc.id]: e?.currentTarget?.value ?? '',
-                              }));
-                            }}
-                            onBlur={() => {
-                              void commitSubCategoryName(sc.id, sc.name);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                void commitSubCategoryName(sc.id, sc.name);
-                              }
-                              if (e.key === 'Escape') {
-                                setSubCategoryDrafts((prev) => {
-                                  const next = { ...prev };
-                                  delete next[sc.id];
-                                  return next;
-                                });
+                          <Stack gap={4} className={classes.fieldGrow}>
+                            <Group gap="xs" wrap="wrap">
+                              <Badge
+                                variant="light"
+                                color={getProjectStandardBadge(sc).color}
+                              >
+                                {getProjectStandardBadge(sc).label}
+                              </Badge>
+                            </Group>
+                            <TextInput
+                              label="Subcategory"
+                              value={subCategoryDrafts[sc.id] ?? sc.name}
+                              onChange={(e) => {
                                 setError(null);
-                              }
-                            }}
-                            className={classes.fieldGrow}
-                            disabled={readOnly}
-                          />
+                                setStatus(null);
+                                setSubCategoryDrafts((prev) => ({
+                                  ...prev,
+                                  [sc.id]: e?.currentTarget?.value ?? '',
+                                }));
+                              }}
+                              onBlur={() => {
+                                void commitSubCategoryName(sc.id, sc.name);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  void commitSubCategoryName(sc.id, sc.name);
+                                }
+                                if (e.key === 'Escape') {
+                                  setSubCategoryDrafts((prev) => {
+                                    const next = { ...prev };
+                                    delete next[sc.id];
+                                    return next;
+                                  });
+                                  setError(null);
+                                }
+                              }}
+                              disabled={readOnly}
+                            />
+                            <Text size="xs" c="dimmed">
+                              {describeProjectStandard(sc)}
+                            </Text>
+                          </Stack>
                           <Select
                             label="Move to"
                             data={categoryOptions}
                             value={sc.categoryId}
+                            {...firefoxSafeModalSelectProps}
                             onChange={async (v) => {
                               if (!v || v === sc.categoryId) return;
                               try {
@@ -480,6 +531,7 @@ export default function TaxonomyManagerModal(props: {
                                 size="xs"
                                 disabled={
                                   readOnly ||
+                                  isInheritedCompanyStandard(sc) ||
                                   promoteProjectSubCategory.isPending
                                 }
                                 onClick={async () => {
@@ -517,7 +569,9 @@ export default function TaxonomyManagerModal(props: {
                               variant="light"
                               fullWidth
                               leftSection={<IconTrash size={16} />}
-                              disabled={readOnly}
+                              disabled={
+                                readOnly || isInheritedCompanyStandard(sc)
+                              }
                               onClick={() =>
                                 setPendingDelete({
                                   kind: 'subcategory',
@@ -533,7 +587,9 @@ export default function TaxonomyManagerModal(props: {
                               color="red"
                               variant="subtle"
                               title="Delete subcategory"
-                              disabled={readOnly}
+                              disabled={
+                                readOnly || isInheritedCompanyStandard(sc)
+                              }
                               onClick={() =>
                                 setPendingDelete({
                                   kind: 'subcategory',

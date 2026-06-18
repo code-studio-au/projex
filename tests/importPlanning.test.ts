@@ -128,12 +128,16 @@ function planImport(
     incomingTransactions: overrides.incomingTransactions ?? [txn()],
     existingTransactions: overrides.existingTransactions ?? [],
     existingBudgets: overrides.existingBudgets ?? [],
-    defaultCategories: [defaultCategory],
-    defaultSubCategories: [defaultSubCategory],
-    mappingRules: [mappingRule],
-    projectAutoCodingRules: overrides.projectAutoCodingRules,
-    projectCategories: [category],
-    projectSubCategories: [subCategory, hotelSubCategory],
+    projectAutoCodingRules: overrides.projectAutoCodingRules ?? [
+      {
+        ...projectAutoCodingRule,
+        categoryId: category.id,
+        subCategoryId: subCategory.id,
+        originScope: 'company',
+        originCompanyItemId: mappingRule.id,
+        syncStatus: 'inherited',
+      },
+    ],
     mode: overrides.mode ?? 'append',
     autoCreateBudgets: overrides.autoCreateBudgets ?? false,
   });
@@ -223,6 +227,58 @@ test('transaction import commit prioritizes project auto-coding rules over compa
   assert.equal(result.importedTransactions[0].codingPendingApproval, true);
 });
 
+test('transaction import commit resolves company defaults via inherited taxonomy provenance', () => {
+  const renamedInheritedCategory: Category = {
+    ...category,
+    name: 'Travel and Events',
+    originScope: 'company',
+    originCompanyItemId: defaultCategory.id,
+    syncStatus: 'overridden',
+  };
+  const renamedInheritedSubCategory: SubCategory = {
+    ...subCategory,
+    categoryId: renamedInheritedCategory.id,
+    name: 'Air Travel',
+    originScope: 'company',
+    originCompanyItemId: defaultSubCategory.id,
+    syncStatus: 'overridden',
+  };
+
+  const result = planTransactionImportCommit({
+    projectId,
+    companyId,
+    incomingTransactions: [txn()],
+    existingTransactions: [],
+    existingBudgets: [],
+    projectAutoCodingRules: [
+      {
+        ...projectAutoCodingRule,
+        categoryId: renamedInheritedCategory.id,
+        subCategoryId: renamedInheritedSubCategory.id,
+        originScope: 'company',
+        originCompanyItemId: mappingRule.id,
+        syncStatus: 'inherited',
+      },
+    ],
+    mode: 'append',
+    autoCreateBudgets: false,
+  });
+
+  assert.equal(result.importedTransactions.length, 1);
+  assert.equal(
+    result.importedTransactions[0].categoryId,
+    renamedInheritedCategory.id
+  );
+  assert.equal(
+    result.importedTransactions[0].subCategoryId,
+    renamedInheritedSubCategory.id
+  );
+  assert.equal(
+    result.importedTransactions[0].companyDefaultMappingRuleId,
+    mappingRule.id
+  );
+});
+
 test('transaction import commit skips budget targets that already exist', () => {
   const existingBudget: BudgetLine = {
     id: asBudgetLineId('bud_1'),
@@ -254,9 +310,16 @@ test('import preview marks existing duplicates and invalid rows', () => {
     categories: [category],
     subCategories: [subCategory],
     budgets: [],
-    defaultCategories: [defaultCategory],
-    defaultSubCategories: [defaultSubCategory],
-    mappingRules: [mappingRule],
+    projectAutoCodingRules: [
+      {
+        ...projectAutoCodingRule,
+        categoryId: category.id,
+        subCategoryId: subCategory.id,
+        originScope: 'company',
+        originCompanyItemId: mappingRule.id,
+        syncStatus: 'inherited',
+      },
+    ],
     autoCreateStructures: false,
     canEditTaxonomy: false,
     canEditBudgets: false,
@@ -283,9 +346,6 @@ test('import preview labels project auto-coding matches correctly', () => {
     categories: [category],
     subCategories: [subCategory, hotelSubCategory],
     budgets: [],
-    defaultCategories: [defaultCategory],
-    defaultSubCategories: [defaultSubCategory],
-    mappingRules: [mappingRule],
     projectAutoCodingRules: [projectAutoCodingRule],
     autoCreateStructures: false,
     canEditTaxonomy: false,
@@ -311,9 +371,6 @@ test('import preview excludes PowerBI footer rows without transaction fields', (
     categories: [],
     subCategories: [],
     budgets: [],
-    defaultCategories: [],
-    defaultSubCategories: [],
-    mappingRules: [],
     autoCreateStructures: false,
     canEditTaxonomy: false,
     canEditBudgets: false,

@@ -38,6 +38,11 @@ import {
   useUpdateProjectImportRuleMutation,
 } from '../queries/importRules';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import {
+  getProjectStandardBadge,
+  isInheritedCompanyStandard,
+  summarizeProjectStandardStates,
+} from '../utils/projectStandards';
 import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import classes from '../styles/ui.module.css';
 
@@ -107,6 +112,10 @@ export default function ProjectImportRulesModal(props: {
   const promoteRule = usePromoteProjectImportRuleMutation(companyId, projectId);
 
   const rules = useMemo(() => importRulesQ.data ?? [], [importRulesQ.data]);
+  const ruleStateSummary = useMemo(
+    () => summarizeProjectStandardStates(rules),
+    [rules]
+  );
 
   const [newName, setNewName] = useState('');
   const [newAction, setNewAction] = useState<ImportRuleAction>('exclude');
@@ -240,7 +249,14 @@ export default function ProjectImportRulesModal(props: {
           <Stack gap="sm">
             <Group justify="space-between">
               <Text fw={600}>Add Project Import Rule</Text>
-              <Badge variant="light">{rules.length} rules</Badge>
+              <Group gap="xs">
+                <Badge variant="light">{rules.length} rules</Badge>
+                {ruleStateSummary.companyBacked > 0 ? (
+                  <Badge variant="light" color="teal">
+                    {ruleStateSummary.companyBacked} company-backed
+                  </Badge>
+                ) : null}
+              </Group>
             </Group>
             <TextInput
               label="Rule name"
@@ -357,6 +373,13 @@ export default function ProjectImportRulesModal(props: {
             {rules.map((rule, index) => {
               const draft = draftFor(rule);
               const dirty = JSON.stringify(draft) !== JSON.stringify(rule);
+              const sourceBadge = getProjectStandardBadge(rule);
+              const canDeleteRule = !isInheritedCompanyStandard(rule);
+              const canMoveUp =
+                index > 0 && rules[index - 1]?.syncStatus === rule.syncStatus;
+              const canMoveDown =
+                index < rules.length - 1 &&
+                rules[index + 1]?.syncStatus === rule.syncStatus;
 
               return (
                 <Paper key={rule.id} withBorder radius="md" p="md">
@@ -364,8 +387,8 @@ export default function ProjectImportRulesModal(props: {
                     <Group justify="space-between" align="center">
                       <Group gap="xs" wrap="wrap">
                         <Badge variant="light">Rule {index + 1}</Badge>
-                        <Badge variant="light" color="indigo">
-                          Project scoped
+                        <Badge variant="light" color={sourceBadge.color}>
+                          {sourceBadge.label}
                         </Badge>
                         <Badge
                           variant="light"
@@ -392,7 +415,9 @@ export default function ProjectImportRulesModal(props: {
                             variant="subtle"
                             size="compact-sm"
                             leftSection={<IconBuildingBank size={14} />}
-                            disabled={readOnly}
+                            disabled={
+                              readOnly || isInheritedCompanyStandard(rule)
+                            }
                             loading={promoteRule.isPending}
                             onClick={async () => {
                               try {
@@ -418,7 +443,7 @@ export default function ProjectImportRulesModal(props: {
                         <ActionIcon
                           variant="subtle"
                           title="Move rule up"
-                          disabled={readOnly || index === 0}
+                          disabled={readOnly || !canMoveUp}
                           onClick={() => {
                             void moveRule(rule.id, -1);
                           }}
@@ -428,7 +453,7 @@ export default function ProjectImportRulesModal(props: {
                         <ActionIcon
                           variant="subtle"
                           title="Move rule down"
-                          disabled={readOnly || index === rules.length - 1}
+                          disabled={readOnly || !canMoveDown}
                           onClick={() => {
                             void moveRule(rule.id, 1);
                           }}
@@ -439,7 +464,7 @@ export default function ProjectImportRulesModal(props: {
                           color="red"
                           variant="subtle"
                           title="Delete project import rule"
-                          disabled={readOnly}
+                          disabled={readOnly || !canDeleteRule}
                           onClick={async () => {
                             try {
                               clearFeedback();
@@ -458,6 +483,21 @@ export default function ProjectImportRulesModal(props: {
                         </ActionIcon>
                       </Group>
                     </Group>
+
+                    {rule.originScope === 'company' ? (
+                      <Text size="xs" c="dimmed">
+                        {rule.syncStatus === 'inherited'
+                          ? 'Synced from company. Edit here only when this project needs a local exception.'
+                          : rule.syncStatus === 'overridden'
+                            ? 'This started from a company rule and now behaves as a project-only override.'
+                            : 'This was originally synced from company, but the company source no longer exists.'}
+                      </Text>
+                    ) : (
+                      <Text size="xs" c="dimmed">
+                        Project-only rule. Promote it when the same import
+                        handling should apply across the company.
+                      </Text>
+                    )}
 
                     <TextInput
                       label="Rule name"

@@ -551,9 +551,13 @@ export default function LandingPage() {
                 setConfirmError(null);
                 try {
                   if (confirmTarget.kind === 'deactivate_company') {
-                    await deactivateCompany.mutateAsync(confirmTarget.companyId);
+                    await deactivateCompany.mutateAsync(
+                      confirmTarget.companyId
+                    );
                   } else if (confirmTarget.kind === 'reactivate_company') {
-                    await reactivateCompany.mutateAsync(confirmTarget.companyId);
+                    await reactivateCompany.mutateAsync(
+                      confirmTarget.companyId
+                    );
                   } else {
                     await deleteCompany.mutateAsync({
                       companyId: confirmTarget.companyId,

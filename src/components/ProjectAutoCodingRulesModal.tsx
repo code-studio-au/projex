@@ -32,6 +32,12 @@ import {
   useUpdateProjectAutoCodingRuleMutation,
 } from '../queries/projectAutoCodingRules';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
+import {
+  describeProjectStandard,
+  getProjectStandardBadge,
+  isInheritedCompanyStandard,
+  summarizeProjectStandardStates,
+} from '../utils/projectStandards';
 import { firefoxSafeModalSelectProps } from './modalSelectProps';
 import classes from '../styles/ui.module.css';
 
@@ -62,6 +68,10 @@ export default function ProjectAutoCodingRulesModal(props: {
     [subCategoriesQ.data]
   );
   const rules = useMemo(() => rulesQ.data ?? [], [rulesQ.data]);
+  const ruleStateSummary = useMemo(
+    () => summarizeProjectStandardStates(rules),
+    [rules]
+  );
 
   const categoryOptions = useMemo(
     () =>
@@ -140,6 +150,7 @@ export default function ProjectAutoCodingRulesModal(props: {
       fullScreen={isMobile}
       centered={!isMobile}
       size="xl"
+      lockScroll={false}
       styles={{
         body: {
           maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
@@ -162,9 +173,9 @@ export default function ProjectAutoCodingRulesModal(props: {
         ) : (
           <Stack gap={4}>
             <Text size="sm" c="dimmed" className={classes.modalIntro}>
-              Project auto-coding rules search transaction item and description
-              text. The first matching rule wins and marks matching rows for
-              approval during imports and other uncoded project flows.
+              Project rules search transaction item and description text.
+              Project-specific rules run first, then inherited company rules
+              apply when their target taxonomy exists in this project.
             </Text>
             <Text size="xs" fw={600} c="dimmed" className="panelHelperText">
               Rules are checked from top to bottom. Keep broad matches lower so
@@ -178,8 +189,21 @@ export default function ProjectAutoCodingRulesModal(props: {
                 {subCategories.length} subcategories
               </Text>
               <Text size="xs" c="dimmed">
-                {rules.length} project rules
+                {ruleStateSummary.local} project rules
               </Text>
+              <Text size="xs" c="dimmed">
+                {ruleStateSummary.inherited} inherited company rules
+              </Text>
+              {ruleStateSummary.overridden > 0 ? (
+                <Text size="xs" c="dimmed">
+                  {ruleStateSummary.overridden} overrides
+                </Text>
+              ) : null}
+              {ruleStateSummary.detached > 0 ? (
+                <Text size="xs" c="dimmed">
+                  {ruleStateSummary.detached} detached
+                </Text>
+              ) : null}
             </Group>
             <Group gap="sm" wrap="wrap">
               <Button
@@ -216,7 +240,7 @@ export default function ProjectAutoCodingRulesModal(props: {
           <Stack gap="sm">
             <Group justify="space-between">
               <Text fw={600}>Add Project Auto-Coding Rule</Text>
-              <Badge variant="light">{rules.length} rules</Badge>
+              <Badge variant="light">{ruleStateSummary.local} rules</Badge>
             </Group>
             <TextInput
               label="Match text"
@@ -297,11 +321,13 @@ export default function ProjectAutoCodingRulesModal(props: {
 
         {rules.length === 0 ? (
           <Text className={classes.emptyState}>
-            No project auto-coding rules yet.
+            No effective auto-coding rules yet.
           </Text>
         ) : (
           <Stack gap="sm">
             {rules.map((rule, index) => {
+              const isInherited = isInheritedCompanyStandard(rule);
+              const sourceBadge = getProjectStandardBadge(rule);
               const selectedCategoryId =
                 categoryDrafts[rule.id] ?? rule.categoryId;
               const subCategoryOptions = subCategories
@@ -312,17 +338,27 @@ export default function ProjectAutoCodingRulesModal(props: {
                   value: subCategory.id,
                   label: subCategory.name,
                 }));
+              const canMoveUp =
+                index > 0 && rules[index - 1]?.syncStatus === rule.syncStatus;
+              const canMoveDown =
+                index < rules.length - 1 &&
+                rules[index + 1]?.syncStatus === rule.syncStatus;
 
               return (
                 <Paper key={rule.id} withBorder radius="md" p="md">
                   <Stack gap="sm">
                     <Group justify="space-between" align="center">
-                      <Badge variant="light">Rule {index + 1}</Badge>
+                      <Group gap="xs" wrap="wrap">
+                        <Badge variant="light">Rule {index + 1}</Badge>
+                        <Badge variant="light" color={sourceBadge.color}>
+                          {sourceBadge.label}
+                        </Badge>
+                      </Group>
                       <Group gap="xs">
                         <ActionIcon
                           variant="subtle"
                           title="Move rule up"
-                          disabled={readOnly || index === 0}
+                          disabled={readOnly || !canMoveUp}
                           onClick={() => {
                             void moveRule(rule.id, -1);
                           }}
@@ -332,7 +368,7 @@ export default function ProjectAutoCodingRulesModal(props: {
                         <ActionIcon
                           variant="subtle"
                           title="Move rule down"
-                          disabled={readOnly || index === rules.length - 1}
+                          disabled={readOnly || !canMoveDown}
                           onClick={() => {
                             void moveRule(rule.id, 1);
                           }}
@@ -344,7 +380,7 @@ export default function ProjectAutoCodingRulesModal(props: {
                             color="red"
                             variant="light"
                             leftSection={<IconTrash size={16} />}
-                            disabled={readOnly}
+                            disabled={readOnly || isInherited}
                             onClick={async () => {
                               try {
                                 setError(null);
@@ -367,7 +403,7 @@ export default function ProjectAutoCodingRulesModal(props: {
                             color="red"
                             variant="subtle"
                             title="Delete rule"
-                            disabled={readOnly}
+                            disabled={readOnly || isInherited}
                             onClick={async () => {
                               try {
                                 setError(null);
@@ -388,7 +424,7 @@ export default function ProjectAutoCodingRulesModal(props: {
                         )}
                       </Group>
                     </Group>
-                    {canPromoteToCompanyDefaults ? (
+                    {canPromoteToCompanyDefaults && !isInherited ? (
                       <Group justify="flex-end">
                         <Button
                           variant="subtle"
@@ -419,6 +455,10 @@ export default function ProjectAutoCodingRulesModal(props: {
                         </Button>
                       </Group>
                     ) : null}
+
+                    <Text size="xs" c="dimmed">
+                      {describeProjectStandard(rule)}
+                    </Text>
 
                     <TextInput
                       label="Match text"
