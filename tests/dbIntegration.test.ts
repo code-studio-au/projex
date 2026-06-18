@@ -2777,6 +2777,218 @@ test(
 );
 
 test(
+  'existing synced projects expose inherited company auto-coding rules and company imports still resolve after company rules are added later',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_inherited_prule_co_1');
+    const userId = asUserId('itest_inherited_prule_usr_1');
+    const projectId = asProjectId('itest_inherited_prule_prj_1');
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_inherited_prule_dcat_1'
+    );
+    const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_inherited_prule_dsub_1'
+    );
+    const defaultRuleId = asCompanyDefaultMappingRuleId(
+      'itest_inherited_prule_rule_1'
+    );
+    const overrideSubCategoryId = asSubCategoryId(
+      'itest_inherited_prule_override_sub_1'
+    );
+    const context = { session: { userId } } satisfies ServerFnContextInput;
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Inherited Project Rule Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'inherited-prule@example.com',
+          name: 'Inherited Project Rule User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await createCompanyDefaultCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultCategoryId,
+          companyId,
+          name: 'IT',
+        },
+      });
+      await createCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultSubCategoryId,
+          companyId,
+          companyDefaultCategoryId: defaultCategoryId,
+          name: 'Software and Services',
+        },
+      });
+
+      await createProjectServer({
+        context,
+        companyId,
+        input: {
+          id: projectId,
+          name: 'Inherited Rule Project',
+        },
+      });
+
+      await createCompanyDefaultMappingRuleServer({
+        context,
+        companyId,
+        input: {
+          id: defaultRuleId,
+          companyId,
+          matchText: 'microsoft 365',
+          companyDefaultCategoryId: defaultCategoryId,
+          companyDefaultSubCategoryId: defaultSubCategoryId,
+          sortOrder: 0,
+        },
+      });
+
+      const effectiveRules = await listProjectAutoCodingRulesServer({
+        context,
+        projectId,
+      });
+      assert.equal(effectiveRules.length, 1);
+      assert.equal(effectiveRules[0]?.matchText, 'microsoft 365');
+      assert.equal(effectiveRules[0]?.originScope, 'company');
+      assert.equal(effectiveRules[0]?.originCompanyItemId, defaultRuleId);
+      assert.equal(effectiveRules[0]?.syncStatus, 'inherited');
+
+      const inheritedImport = await importTransactionsServer({
+        context,
+        projectId,
+        mode: 'append',
+        autoCreateBudgets: true,
+        txns: [
+          {
+            id: asTxnId('itest_inherited_prule_txn_1'),
+            externalId: 'itest-inherited-prule-ext-1',
+            companyId,
+            projectId,
+            date: '2026-06-18',
+            item: 'Microsoft 365',
+            description: 'Monthly Microsoft 365 subscription',
+            amountCents: 2499,
+          },
+        ],
+      });
+      assert.equal(inheritedImport.count, 1);
+
+      const inheritedTxn = (
+        await listTransactionsServer({ context, projectId })
+      ).find((txn) => txn.externalId === 'itest-inherited-prule-ext-1');
+      assert.equal(inheritedTxn?.companyDefaultMappingRuleId, defaultRuleId);
+      assert.equal(inheritedTxn?.codingSource, 'company_default_rule');
+      assert.equal(inheritedTxn?.codingPendingApproval, true);
+
+      const projectCategory = await db
+        .selectFrom('categories')
+        .select(['id'])
+        .where('project_id', '=', projectId)
+        .where('origin_company_item_id', '=', defaultCategoryId)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto('sub_categories')
+        .values({
+          id: overrideSubCategoryId,
+          company_id: companyId,
+          project_id: projectId,
+          category_id: projectCategory.id,
+          name: 'VoIP',
+          origin_scope: 'project',
+          origin_company_item_id: null,
+          sync_status: 'local',
+          last_synced_at: null,
+          source_updated_at_snapshot: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
+
+      const overriddenRule = await updateProjectAutoCodingRuleServer({
+        context,
+        projectId,
+        input: {
+          id: effectiveRules[0]!.id,
+          categoryId: projectCategory.id as ReturnType<typeof asCategoryId>,
+          subCategoryId: overrideSubCategoryId,
+        },
+      });
+      assert.equal(overriddenRule.originScope, 'company');
+      assert.equal(overriddenRule.syncStatus, 'overridden');
+      assert.equal(overriddenRule.originCompanyItemId, defaultRuleId);
+
+      const imported = await importTransactionsServer({
+        context,
+        projectId,
+        mode: 'append',
+        autoCreateBudgets: true,
+        txns: [
+          {
+            id: asTxnId('itest_inherited_prule_txn_2'),
+            externalId: 'itest-inherited-prule-ext-2',
+            companyId,
+            projectId,
+            date: '2026-06-18',
+            item: 'Microsoft 365',
+            description: 'Monthly Microsoft 365 subscription',
+            amountCents: 2499,
+          },
+        ],
+      });
+      assert.equal(imported.count, 1);
+
+      const importedTxn = (
+        await listTransactionsServer({ context, projectId })
+      ).find((txn) => txn.externalId === 'itest-inherited-prule-ext-2');
+      assert.equal(importedTxn?.companyDefaultMappingRuleId, undefined);
+      assert.equal(importedTxn?.codingSource, 'project_rule');
+      assert.equal(importedTxn?.codingPendingApproval, true);
+
+      await deleteCompanyDefaultMappingRuleServer({
+        context,
+        companyId,
+        ruleId: defaultRuleId,
+      });
+      const afterDelete = await listProjectAutoCodingRulesServer({
+        context,
+        projectId,
+      });
+      assert.equal(afterDelete[0]?.syncStatus, 'detached');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
   'project creation applies company default taxonomy by default and supports opting out',
   { skip: !integrationDatabaseUrl },
   async () => {
@@ -3331,6 +3543,43 @@ test(
       });
       assert.equal(promoted.categoryCreated, true);
       assert.equal(promoted.subCategoryCreated, true);
+
+      const sourceProjectCategory = await db
+        .selectFrom('categories')
+        .select([
+          'name',
+          'origin_scope',
+          'origin_company_item_id',
+          'sync_status',
+        ])
+        .where('project_id', '=', projectId)
+        .where('id', '=', targetCategoryId)
+        .executeTakeFirstOrThrow();
+      const sourceProjectSubCategory = await db
+        .selectFrom('sub_categories')
+        .select([
+          'name',
+          'origin_scope',
+          'origin_company_item_id',
+          'sync_status',
+        ])
+        .where('project_id', '=', projectId)
+        .where('id', '=', targetSubCategoryId)
+        .executeTakeFirstOrThrow();
+      assert.equal(sourceProjectCategory.name, 'IT');
+      assert.equal(sourceProjectCategory.origin_scope, 'company');
+      assert.equal(sourceProjectCategory.sync_status, 'inherited');
+      assert.equal(
+        sourceProjectCategory.origin_company_item_id,
+        promoted.companyDefaultCategoryId
+      );
+      assert.equal(sourceProjectSubCategory.name, 'VoIP');
+      assert.equal(sourceProjectSubCategory.origin_scope, 'company');
+      assert.equal(sourceProjectSubCategory.sync_status, 'inherited');
+      assert.equal(
+        sourceProjectSubCategory.origin_company_item_id,
+        promoted.companyDefaultSubCategoryId
+      );
 
       const syncedProjectCategory = await db
         .selectFrom('categories')
@@ -3947,6 +4196,110 @@ test(
       assert.equal(detachedRule?.originCompanyItemId, createdCompanyRule.id);
       assert.equal(detachedRule?.syncStatus, 'detached');
       assert.equal(detachedRule?.value, 'project-local recharge override');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'project import preview gives project-local exclude rules precedence over inherited company review rules',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_import_preview_precedence_co_1');
+    const userId = asUserId('itest_import_preview_precedence_usr_1');
+    const projectId = asProjectId('itest_import_preview_precedence_prj_1');
+    const context = { session: { userId } } satisfies ServerFnContextInput;
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Import Preview Precedence Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'import-preview-precedence@example.com',
+          name: 'Import Preview Precedence User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await createProjectServer({
+        context,
+        companyId,
+        input: {
+          id: projectId,
+          name: 'Import Preview Precedence Project',
+        },
+      });
+
+      await createImportRuleServer({
+        context,
+        companyId,
+        input: {
+          companyId,
+          scope: 'company',
+          name: 'Review suspected salary transfer descriptions',
+          action: 'review',
+          field: 'journalLineDescription',
+          operator: 'contains_any',
+          value: 'sal,salary,salaries,payroll,wage,wages,suspense,trf',
+          sortOrder: 60,
+          enabled: true,
+        },
+      });
+
+      await createProjectImportRuleServer({
+        context,
+        projectId,
+        input: {
+          companyId,
+          projectId,
+          scope: 'project',
+          name: 'Exclude T02 source rows',
+          action: 'exclude',
+          field: 'source',
+          operator: 'equals',
+          value: 'T02',
+          sortOrder: 10,
+          enabled: true,
+        },
+      });
+
+      const preview = await previewImportTransactionsServer({
+        context,
+        projectId,
+        csvText: [
+          'Ledger,Expenditure Actuals,Journal Line Description,Journal ID,Journal Date,Journal Line,Journal Line Ref,Source,Vendor Name,CC and Description',
+          'Actuals,9338.26,15/12 Casuals General Sal,0000400200,2023-03-02,81,1156827,T02,15/12 Casuals General Sal,4103 (Casuals General Salary)',
+        ].join('\n'),
+        sourceType: 'powerbi_expenditure_actuals',
+        fileName: 'precedence.csv',
+        autoCreateStructures: true,
+      });
+
+      assert.equal(preview.rows.length, 1);
+      assert.equal(preview.rows[0]?.importAction, 'exclude');
+      assert.equal(preview.rows[0]?.importRuleName, 'Exclude T02 source rows');
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

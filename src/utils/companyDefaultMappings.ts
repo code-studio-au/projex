@@ -48,23 +48,33 @@ export function resolveCompanyDefaultRuleToProjectTaxonomy(args: {
   );
   if (!defaultCategory) return null;
 
-  const projectCategory = args.projectCategories.find(
-    (category) =>
-      normalizeRuleText(category.name) ===
-        normalizeRuleText(defaultCategory.name) ||
-      canonicalizeRuleText(category.name) ===
-        canonicalizeRuleText(defaultCategory.name)
-  );
+  const projectCategory =
+    args.projectCategories.find(
+      (category) => category.originCompanyItemId === defaultCategory.id
+    ) ??
+    args.projectCategories.find(
+      (category) =>
+        normalizeRuleText(category.name) ===
+          normalizeRuleText(defaultCategory.name) ||
+        canonicalizeRuleText(category.name) ===
+          canonicalizeRuleText(defaultCategory.name)
+    );
   if (!projectCategory) return null;
 
-  const projectSubCategory = args.projectSubCategories.find(
-    (subCategory) =>
-      subCategory.categoryId === projectCategory.id &&
-      (normalizeRuleText(subCategory.name) ===
-        normalizeRuleText(defaultSubCategory.name) ||
-        canonicalizeRuleText(subCategory.name) ===
-          canonicalizeRuleText(defaultSubCategory.name))
-  );
+  const projectSubCategory =
+    args.projectSubCategories.find(
+      (subCategory) =>
+        subCategory.categoryId === projectCategory.id &&
+        subCategory.originCompanyItemId === defaultSubCategory.id
+    ) ??
+    args.projectSubCategories.find(
+      (subCategory) =>
+        subCategory.categoryId === projectCategory.id &&
+        (normalizeRuleText(subCategory.name) ===
+          normalizeRuleText(defaultSubCategory.name) ||
+          canonicalizeRuleText(subCategory.name) ===
+            canonicalizeRuleText(defaultSubCategory.name))
+    );
   if (!projectSubCategory) return null;
 
   return {

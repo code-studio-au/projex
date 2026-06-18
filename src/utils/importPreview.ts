@@ -1,19 +1,13 @@
 import type {
   BudgetLine,
   Category,
-  CompanyDefaultCategory,
-  CompanyDefaultMappingRule,
-  CompanyDefaultSubCategory,
   ImportPreviewRow,
   ImportTxnWithTaxonomy,
   ProjectAutoCodingRule,
   SubCategory,
 } from '../types';
+import { asCompanyDefaultMappingRuleId } from '../types';
 import { assignStableIds } from './csv';
-import {
-  findMatchingCompanyDefaultRule,
-  resolveCompanyDefaultRuleToProjectTaxonomy,
-} from './companyDefaultMappings';
 import { findMatchingProjectAutoCodingRule } from './projectAutoCodingRules';
 import { txnInputSchema } from '../validation/schemas';
 
@@ -35,9 +29,6 @@ export function buildImportPreview(args: {
   categories: Category[];
   subCategories: SubCategory[];
   budgets: BudgetLine[];
-  defaultCategories: CompanyDefaultCategory[];
-  defaultSubCategories: CompanyDefaultSubCategory[];
-  mappingRules: CompanyDefaultMappingRule[];
   projectAutoCodingRules?: ProjectAutoCodingRule[];
   autoCreateTaxonomy: boolean;
   canEditTaxonomy: boolean;
@@ -106,7 +97,7 @@ export function buildImportPreview(args: {
     let willCreateCategory = false;
     let willCreateSubCategory = false;
     let willCreateBudgetLine = false;
-    let ruleId: CompanyDefaultMappingRule['id'] | undefined;
+    let ruleId: ImportPreviewRow['ruleId'];
     let codingSource: ImportPreviewRow['codingSource'] = 'manual';
     let codingPendingApproval = false;
     let mappingStatus: ImportPreviewRow['mappingStatus'] = 'uncoded';
@@ -183,51 +174,24 @@ export function buildImportPreview(args: {
           args.subCategories.find(
             (subCategory) => subCategory.id === matchedProjectRule.subCategoryId
           )?.name ?? subCategoryName;
-        codingSource = 'project_rule';
+        ruleId =
+          matchedProjectRule.originScope === 'company'
+            ? matchedProjectRule.originCompanyItemId
+              ? asCompanyDefaultMappingRuleId(
+                  matchedProjectRule.originCompanyItemId
+                )
+              : undefined
+            : undefined;
+        codingSource =
+          matchedProjectRule.originScope === 'company' &&
+          matchedProjectRule.syncStatus === 'inherited'
+            ? 'company_default_rule'
+            : 'project_rule';
         codingPendingApproval = true;
         mappingStatus = 'matched_rule';
       }
     }
-
-    if (
-      !subCategoryId &&
-      !willCreateSubCategory &&
-      (!hasSourceTaxonomyInput || !sourceTaxonomyBlockedRuleFallback)
-    ) {
-      const matchedRule = findMatchingCompanyDefaultRule(
-        {
-          item,
-          description,
-        },
-        args.mappingRules
-      );
-      if (matchedRule) {
-        const resolved = resolveCompanyDefaultRuleToProjectTaxonomy({
-          rule: matchedRule,
-          defaultCategories: args.defaultCategories,
-          defaultSubCategories: args.defaultSubCategories,
-          projectCategories: args.categories,
-          projectSubCategories: args.subCategories,
-        });
-        if (resolved) {
-          categoryId = resolved.categoryId;
-          subCategoryId = resolved.subCategoryId;
-          categoryName = categoryNameById.get(resolved.categoryId);
-          subCategoryName =
-            args.subCategories.find(
-              (subCategory) => subCategory.id === resolved.subCategoryId
-            )?.name ?? subCategoryName;
-          ruleId = matchedRule.id;
-          codingSource = 'company_default_rule';
-          codingPendingApproval = true;
-          mappingStatus = 'matched_rule';
-        } else {
-          warnings.push(
-            'A company default rule matched, but its target taxonomy is missing in this project.'
-          );
-        }
-      }
-    } else if (sourceTaxonomyBlockedRuleFallback) {
+    if (sourceTaxonomyBlockedRuleFallback) {
       warnings.push(
         'Provided category or subcategory input could not be resolved, so this row was left for manual review instead of falling back to an Auto-Categorise Rule.'
       );

@@ -159,8 +159,13 @@ export type ProjectAutoCodingRule = {
   matchText: string;
   categoryId: CategoryId;
   subCategoryId: SubCategoryId;
+  originScope?: ProjectStandardOriginScope;
+  originCompanyItemId?: string;
+  syncStatus?: ProjectStandardSyncStatus;
+  lastSyncedAt?: string;
+  sourceUpdatedAtSnapshot?: string;
   sortOrder: number;
-  createdByUserId: UserId;
+  createdByUserId?: UserId;
   createdAt?: string;
   updatedAt?: string;
 };

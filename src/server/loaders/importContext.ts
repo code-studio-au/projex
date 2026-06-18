@@ -38,6 +38,17 @@ function compareProjectImportRules(
   return a.created_at.localeCompare(b.created_at);
 }
 
+function compareProjectAutoCodingRules(
+  a: Awaited<ReturnType<typeof selectProjectAutoCodingRules>>[number],
+  b: Awaited<ReturnType<typeof selectProjectAutoCodingRules>>[number]
+) {
+  const aGroup = a.sync_status === 'inherited' ? 1 : 0;
+  const bGroup = b.sync_status === 'inherited' ? 1 : 0;
+  if (aGroup !== bGroup) return aGroup - bGroup;
+  if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+  return a.created_at.localeCompare(b.created_at);
+}
+
 export async function loadTransactionImportCommitContext(
   db: Kysely<DB>,
   args: { companyId: CompanyId; projectId: ProjectId }
@@ -68,7 +79,9 @@ export async function loadTransactionImportCommitContext(
       toCompanyDefaultSubCategory
     ),
     mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
-    projectAutoCodingRules: projectRuleRows.map(toProjectAutoCodingRule),
+    projectAutoCodingRules: projectRuleRows
+      .sort(compareProjectAutoCodingRules)
+      .map(toProjectAutoCodingRule),
     projectCategories: projectCategoryRows.map(toCategory),
     projectSubCategories: projectSubCategoryRows.map(toSubCategory),
     existingTransactions: existingTxnRows.map(toTxn),
@@ -112,7 +125,9 @@ export async function loadTransactionImportPreviewContext(
       toCompanyDefaultSubCategory
     ),
     mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
-    projectAutoCodingRules: projectRuleRows.map(toProjectAutoCodingRule),
+    projectAutoCodingRules: projectRuleRows
+      .sort(compareProjectAutoCodingRules)
+      .map(toProjectAutoCodingRule),
     importRules: projectImportRuleRows.length
       ? projectImportRuleRows.sort(compareProjectImportRules).map(toImportRule)
       : defaultImportRules(args.companyId),
@@ -208,14 +223,17 @@ function selectProjectAutoCodingRules(db: Kysely<DB>, projectId: ProjectId) {
       'match_text',
       'category_id',
       'sub_category_id',
+      'origin_scope',
+      'origin_company_item_id',
+      'sync_status',
+      'last_synced_at',
+      'source_updated_at_snapshot',
       'sort_order',
       'created_by_user_id',
       'created_at',
       'updated_at',
     ])
     .where('project_id', '=', projectId)
-    .orderBy('sort_order', 'asc')
-    .orderBy('created_at', 'asc')
     .execute();
 }
 
@@ -261,6 +279,11 @@ function toProjectAutoCodingRule(
     matchText: row.match_text,
     categoryId: row.category_id as ProjectAutoCodingRule['categoryId'],
     subCategoryId: asSubCategoryId(row.sub_category_id),
+    originScope: row.origin_scope ?? undefined,
+    originCompanyItemId: row.origin_company_item_id ?? undefined,
+    syncStatus: row.sync_status ?? undefined,
+    lastSyncedAt: row.last_synced_at ?? undefined,
+    sourceUpdatedAtSnapshot: row.source_updated_at_snapshot ?? undefined,
     sortOrder: row.sort_order,
     createdByUserId: asUserId(row.created_by_user_id),
     createdAt: row.created_at,
@@ -276,6 +299,11 @@ function selectProjectCategories(db: Kysely<DB>, projectId: ProjectId) {
       'company_id',
       'project_id',
       'name',
+      'origin_scope',
+      'origin_company_item_id',
+      'sync_status',
+      'last_synced_at',
+      'source_updated_at_snapshot',
       'created_at',
       'updated_at',
     ])
@@ -292,6 +320,11 @@ function selectProjectSubCategories(db: Kysely<DB>, projectId: ProjectId) {
       'project_id',
       'category_id',
       'name',
+      'origin_scope',
+      'origin_company_item_id',
+      'sync_status',
+      'last_synced_at',
+      'source_updated_at_snapshot',
       'created_at',
       'updated_at',
     ])

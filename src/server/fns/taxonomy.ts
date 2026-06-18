@@ -58,6 +58,10 @@ import {
   withServerBoundary,
 } from './runtime';
 import {
+  syncCompanyAutoCodingRulesToProject,
+  syncCompanyAutoCodingRulesToSyncedProjects,
+} from './projectAutoCodingRules';
+import {
   toCategory,
   toCompanyDefaultCategory,
   toCompanyDefaultMappingRule,
@@ -105,6 +109,7 @@ async function requireCompanyContext(
     .executeTakeFirst();
   if (!company) throw new AppError('NOT_FOUND', 'Unknown company');
   await requireAuthorized({ db, userId, action, companyId });
+  return userId;
 }
 
 async function listSyncedProjectIdsForCompany(args: {
@@ -861,7 +866,7 @@ export async function createCompanyDefaultCategoryServer(args: {
 }): Promise<CompanyDefaultCategory> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(
+    const userId = await requireCompanyContext(
       args.context,
       args.companyId,
       'company:manage_defaults'
@@ -904,6 +909,11 @@ export async function createCompanyDefaultCategoryServer(args: {
           projectId,
         });
       }
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
 
       return created;
     });
@@ -918,7 +928,7 @@ export async function updateCompanyDefaultCategoryServer(args: {
 }): Promise<CompanyDefaultCategory> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(
+    const userId = await requireCompanyContext(
       args.context,
       args.companyId,
       'company:manage_defaults'
@@ -975,6 +985,11 @@ export async function updateCompanyDefaultCategoryServer(args: {
           projectId,
         });
       }
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
 
       return row;
     });
@@ -989,7 +1004,7 @@ export async function deleteCompanyDefaultCategoryServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(
+    const userId = await requireCompanyContext(
       args.context,
       args.companyId,
       'company:manage_defaults'
@@ -1013,6 +1028,11 @@ export async function deleteCompanyDefaultCategoryServer(args: {
           projectId,
         });
       }
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
     });
   });
 }
@@ -1024,7 +1044,7 @@ export async function createCompanyDefaultSubCategoryServer(args: {
 }): Promise<CompanyDefaultSubCategory> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(
+    const userId = await requireCompanyContext(
       args.context,
       args.companyId,
       'company:manage_defaults'
@@ -1096,6 +1116,11 @@ export async function createCompanyDefaultSubCategoryServer(args: {
           projectId,
         });
       }
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
 
       return created;
     });
@@ -1110,7 +1135,7 @@ export async function updateCompanyDefaultSubCategoryServer(args: {
 }): Promise<CompanyDefaultSubCategory> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(
+    const userId = await requireCompanyContext(
       args.context,
       args.companyId,
       'company:manage_defaults'
@@ -1199,6 +1224,11 @@ export async function updateCompanyDefaultSubCategoryServer(args: {
           projectId,
         });
       }
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
 
       return row;
     });
@@ -1213,7 +1243,7 @@ export async function deleteCompanyDefaultSubCategoryServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(
+    const userId = await requireCompanyContext(
       args.context,
       args.companyId,
       'company:manage_defaults'
@@ -1237,6 +1267,11 @@ export async function deleteCompanyDefaultSubCategoryServer(args: {
           projectId,
         });
       }
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
     });
   });
 }
@@ -1248,7 +1283,7 @@ export async function createCompanyDefaultMappingRuleServer(args: {
 }): Promise<CompanyDefaultMappingRule> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(
+    const userId = await requireCompanyContext(
       args.context,
       args.companyId,
       'company:manage_defaults'
@@ -1318,29 +1353,40 @@ export async function createCompanyDefaultMappingRuleServer(args: {
         ? args.input.sortOrder
         : Number(maxSort?.max_sort_order ?? -1) + 1;
     const now = new Date().toISOString();
-    const row = await db
-      .insertInto('company_default_mapping_rules')
-      .values({
-        id: args.input.id ?? asCompanyDefaultMappingRuleId(uid('cmap')),
-        company_id: args.companyId,
-        match_text: matchText,
-        company_default_category_id: args.input.companyDefaultCategoryId,
-        company_default_sub_category_id: args.input.companyDefaultSubCategoryId,
-        sort_order: nextSortOrder,
-        created_at: now,
-        updated_at: now,
-      })
-      .returning([
-        'id',
-        'company_id',
-        'match_text',
-        'company_default_category_id',
-        'company_default_sub_category_id',
-        'sort_order',
-        'created_at',
-        'updated_at',
-      ])
-      .executeTakeFirstOrThrow();
+    const row = await db.transaction().execute(async (trx) => {
+      const created = await trx
+        .insertInto('company_default_mapping_rules')
+        .values({
+          id: args.input.id ?? asCompanyDefaultMappingRuleId(uid('cmap')),
+          company_id: args.companyId,
+          match_text: matchText,
+          company_default_category_id: args.input.companyDefaultCategoryId,
+          company_default_sub_category_id:
+            args.input.companyDefaultSubCategoryId,
+          sort_order: nextSortOrder,
+          created_at: now,
+          updated_at: now,
+        })
+        .returning([
+          'id',
+          'company_id',
+          'match_text',
+          'company_default_category_id',
+          'company_default_sub_category_id',
+          'sort_order',
+          'created_at',
+          'updated_at',
+        ])
+        .executeTakeFirstOrThrow();
+
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
+
+      return created;
+    });
     return toCompanyDefaultMappingRule(row);
   });
 }
@@ -1352,7 +1398,7 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
 }): Promise<CompanyDefaultMappingRule> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(
+    const userId = await requireCompanyContext(
       args.context,
       args.companyId,
       'company:manage_defaults'
@@ -1459,22 +1505,32 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
     if (typeof args.input.sortOrder === 'number')
       patch.sort_order = args.input.sortOrder;
 
-    const updated = await db
-      .updateTable('company_default_mapping_rules')
-      .set(patch)
-      .where('company_id', '=', args.companyId)
-      .where('id', '=', args.input.id)
-      .returning([
-        'id',
-        'company_id',
-        'match_text',
-        'company_default_category_id',
-        'company_default_sub_category_id',
-        'sort_order',
-        'created_at',
-        'updated_at',
-      ])
-      .executeTakeFirstOrThrow();
+    const updated = await db.transaction().execute(async (trx) => {
+      const row = await trx
+        .updateTable('company_default_mapping_rules')
+        .set(patch)
+        .where('company_id', '=', args.companyId)
+        .where('id', '=', args.input.id)
+        .returning([
+          'id',
+          'company_id',
+          'match_text',
+          'company_default_category_id',
+          'company_default_sub_category_id',
+          'sort_order',
+          'created_at',
+          'updated_at',
+        ])
+        .executeTakeFirstOrThrow();
+
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
+
+      return row;
+    });
     return toCompanyDefaultMappingRule(updated);
   });
 }
@@ -1486,17 +1542,25 @@ export async function deleteCompanyDefaultMappingRuleServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    await requireCompanyContext(
+    const userId = await requireCompanyContext(
       args.context,
       args.companyId,
       'company:manage_defaults'
     );
     const db = getDb();
-    await db
-      .deleteFrom('company_default_mapping_rules')
-      .where('company_id', '=', args.companyId)
-      .where('id', '=', args.ruleId)
-      .execute();
+    await db.transaction().execute(async (trx) => {
+      await trx
+        .deleteFrom('company_default_mapping_rules')
+        .where('company_id', '=', args.companyId)
+        .where('id', '=', args.ruleId)
+        .execute();
+
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
+    });
   });
 }
 
@@ -1506,16 +1570,24 @@ export async function applyCompanyDefaultTaxonomyServer(args: {
 }): Promise<ApplyCompanyDefaultsResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
+    const userId = await requireServerUserId(args.context);
     const { companyId } = await requireProjectContext(
       args.context,
       args.projectId,
       'taxonomy:edit'
     );
-    return applyCompanyDefaultTaxonomyToProject({
+    const result = await applyCompanyDefaultTaxonomyToProject({
       db: getDb(),
       companyId,
       projectId: args.projectId,
     });
+    await syncCompanyAutoCodingRulesToProject({
+      db: getDb(),
+      companyId,
+      projectId: args.projectId,
+      actorUserId: userId,
+    });
+    return result;
   });
 }
 
@@ -1902,6 +1974,7 @@ export async function promoteProjectSubCategoryToCompanyDefaultServer(args: {
 }): Promise<PromoteProjectSubCategoryToCompanyDefaultResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
+    const userId = await requireServerUserId(args.context);
     const { companyId } = await requireProjectContext(
       args.context,
       args.projectId,
@@ -2009,17 +2082,54 @@ export async function promoteProjectSubCategoryToCompanyDefaultServer(args: {
           .executeTakeFirstOrThrow();
       }
 
+      await trx
+        .updateTable('categories')
+        .set({
+          name: normalizedCategoryName,
+          ...buildInheritedProjectStandardMetadata({
+            companyItemId: companyDefaultCategory.id,
+            sourceUpdatedAt: companyDefaultCategory.updated_at,
+            nowIso: now,
+          }),
+          updated_at: now,
+        })
+        .where('project_id', '=', args.projectId)
+        .where('id', '=', subCategory.cat_id)
+        .execute();
+
+      await trx
+        .updateTable('sub_categories')
+        .set({
+          category_id: subCategory.cat_id,
+          name: normalizedSubCategoryName,
+          ...buildInheritedProjectStandardMetadata({
+            companyItemId: companyDefaultSubCategory.id,
+            sourceUpdatedAt: companyDefaultSubCategory.updated_at,
+            nowIso: now,
+          }),
+          updated_at: now,
+        })
+        .where('project_id', '=', args.projectId)
+        .where('id', '=', subCategory.sub_id)
+        .execute();
+
       const syncedProjectIds = await listSyncedProjectIdsForCompany({
         db: trx,
         companyId,
       });
       for (const projectId of syncedProjectIds) {
+        if (projectId === args.projectId) continue;
         await applyCompanyDefaultTaxonomyToProject({
           db: trx,
           companyId,
           projectId,
         });
       }
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyId,
+        actorUserId: userId,
+      });
 
       return {
         companyDefaultCategoryId: asCompanyDefaultCategoryId(

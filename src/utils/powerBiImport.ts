@@ -311,11 +311,10 @@ export function decidePowerBiImportRule(args: {
   row: PowerBiExpenditureActualsRow;
   rules: ImportRule[];
 }): ImportRuleDecision {
-  const sortedRules = args.rules
-    .filter((rule) => rule.enabled)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-
-  for (const rule of sortedRules) {
+  // Preserve the caller-provided rule order. Preview loaders already prepare
+  // project-local rules ahead of inherited company rules, and re-sorting here
+  // by sort order alone would lose that precedence.
+  for (const rule of args.rules.filter((rule) => rule.enabled)) {
     if (!matchesPowerBiImportRule(args.row, rule)) continue;
     return {
       action: rule.action,

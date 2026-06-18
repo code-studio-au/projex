@@ -178,7 +178,26 @@ async function invalidateSyncedProjectTaxonomyQueries(args: {
         query.queryKey[0] === 'transactions' &&
         query.queryKey[1] === scopeUserId,
     }),
+    qc.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === 'projectAutoCodingRules' &&
+        query.queryKey[1] === scopeUserId,
+    }),
   ]);
+}
+
+async function invalidateProjectAutoCodingRuleQueries(args: {
+  qc: ReturnType<typeof useQueryClient>;
+  scopeUserId: string;
+}) {
+  const { qc, scopeUserId } = args;
+  await qc.invalidateQueries({
+    predicate: (query) =>
+      Array.isArray(query.queryKey) &&
+      query.queryKey[0] === 'projectAutoCodingRules' &&
+      query.queryKey[1] === scopeUserId,
+  });
 }
 
 export function useCreateCategoryMutation(projectId: ProjectId) {
@@ -187,8 +206,16 @@ export function useCreateCategoryMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (input: CategoryCreateInput) =>
       createCategoryServerFn({ data: { projectId, payload: input } }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.categories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
+        }),
+      ]);
+    },
   });
 }
 
@@ -271,8 +298,16 @@ export function useUpdateCategoryMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (input: CategoryUpdateInput) =>
       updateCategoryServerFn({ data: { projectId, payload: input } }),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.categories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
+        }),
+      ]);
+    },
   });
 }
 
@@ -284,6 +319,9 @@ export function useDeleteCategoryMutation(projectId: ProjectId) {
       deleteCategoryServerFn({ data: { projectId, categoryId } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) });
+      qc.invalidateQueries({
+        queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
+      });
       qc.invalidateQueries({
         queryKey: qk.subCategories(scopeUserId, projectId),
       });
@@ -302,10 +340,16 @@ export function useCreateSubCategoryMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (input: SubCategoryCreateInput) =>
       createSubCategoryServerFn({ data: { projectId, payload: input } }),
-    onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: qk.subCategories(scopeUserId, projectId),
-      }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.subCategories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
+        }),
+      ]);
+    },
   });
 }
 
@@ -354,7 +398,9 @@ export function useCreateCompanyDefaultMappingRuleMutation(
         qc.invalidateQueries({
           queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
         }),
-      ]),
+      ]).then(() =>
+        invalidateProjectAutoCodingRuleQueries({ qc, scopeUserId })
+      ),
   });
 }
 
@@ -367,6 +413,9 @@ export function useUpdateSubCategoryMutation(projectId: ProjectId) {
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: qk.subCategories(scopeUserId, projectId),
+      });
+      qc.invalidateQueries({
+        queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
       });
       qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
       qc.invalidateQueries({
@@ -413,6 +462,9 @@ export function useDeleteSubCategoryMutation(projectId: ProjectId) {
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: qk.subCategories(scopeUserId, projectId),
+      });
+      qc.invalidateQueries({
+        queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
       });
       qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
       qc.invalidateQueries({
@@ -468,7 +520,9 @@ export function useUpdateCompanyDefaultMappingRuleMutation(
         qc.invalidateQueries({
           queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
         }),
-      ]),
+      ]).then(() =>
+        invalidateProjectAutoCodingRuleQueries({ qc, scopeUserId })
+      ),
   });
 }
 
@@ -488,7 +542,9 @@ export function useDeleteCompanyDefaultMappingRuleMutation(
         qc.invalidateQueries({
           queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
         }),
-      ]),
+      ]).then(() =>
+        invalidateProjectAutoCodingRuleQueries({ qc, scopeUserId })
+      ),
   });
 }
 
@@ -505,6 +561,9 @@ export function useApplyCompanyDefaultTaxonomyMutation(
       await Promise.all([
         qc.invalidateQueries({
           queryKey: qk.categories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
         }),
         qc.invalidateQueries({
           queryKey: qk.subCategories(scopeUserId, projectId),

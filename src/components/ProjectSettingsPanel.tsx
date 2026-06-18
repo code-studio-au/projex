@@ -253,6 +253,10 @@ export default function ProjectSettingsPanel(props: {
     () => summarizeProjectStandardStates(projectImportRulesQ.data ?? []),
     [projectImportRulesQ.data]
   );
+  const autoCodingRuleStateSummary = useMemo(
+    () => summarizeProjectStandardStates(projectAutoCodingRulesQ.data ?? []),
+    [projectAutoCodingRulesQ.data]
+  );
 
   const members = useMemo(
     () => projectMembershipsQ.data ?? [],
@@ -583,8 +587,23 @@ export default function ProjectSettingsPanel(props: {
           ) : (
             <Group gap="sm" wrap="wrap">
               <Badge variant="light">
-                {projectAutoCodingRulesQ.data?.length ?? 0} project rules
+                {autoCodingRuleStateSummary.local} project rules
               </Badge>
+              {autoCodingRuleStateSummary.inherited > 0 ? (
+                <Badge variant="light" color="teal">
+                  {autoCodingRuleStateSummary.inherited} inherited company rules
+                </Badge>
+              ) : null}
+              {autoCodingRuleStateSummary.overridden > 0 ? (
+                <Badge variant="light" color="orange">
+                  {autoCodingRuleStateSummary.overridden} project overrides
+                </Badge>
+              ) : null}
+              {autoCodingRuleStateSummary.detached > 0 ? (
+                <Badge variant="light" color="gray">
+                  {autoCodingRuleStateSummary.detached} detached
+                </Badge>
+              ) : null}
               {effectiveProject.projectType === 'project' ? (
                 <Badge
                   variant="light"
@@ -605,9 +624,8 @@ export default function ProjectSettingsPanel(props: {
             Manage Project Auto-Coding Rules
           </Button>
           <Text size="xs" c="dimmed">
-            The first matching rule wins. Changing or deleting a rule affects
-            future matching and uncoded transactions, but does not retroactively
-            recode existing transactions that were already processed.
+            Project-specific rules run before inherited company rules. Editing
+            an inherited rule creates a project override for this project.
           </Text>
         </Stack>
       </Paper>
