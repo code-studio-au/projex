@@ -548,13 +548,6 @@ export function useDeleteCompanyDefaultMappingRuleMutation(
   });
 }
 
-export function useApplyCompanyDefaultTaxonomyMutation(
-  projectId: ProjectId,
-  companyId: CompanyId
-) {
-  return useApplyCompanyStandardsMutation(projectId, companyId);
-}
-
 export function useApplyCompanyStandardsMutation(
   projectId: ProjectId,
   companyId: CompanyId

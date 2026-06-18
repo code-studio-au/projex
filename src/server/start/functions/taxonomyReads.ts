@@ -25,7 +25,6 @@ import type {
 } from '../../../api/contract';
 import {
   applyCompanyStandardsServer,
-  applyCompanyDefaultTaxonomyServer,
   bulkRecodeProjectTransactionsServer,
   createCategoryServer,
   createCompanyDefaultCategoryServer,
@@ -393,20 +392,6 @@ export const deleteCompanyDefaultMappingRuleServerFn = createServerFn({
       context: context.serverContext,
       companyId: data.companyId,
       ruleId: data.ruleId,
-    });
-  });
-
-export const applyCompanyDefaultTaxonomyServerFn = createServerFn({
-  method: 'POST',
-})
-  .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
-  .handler(async ({ context, data }) => {
-    return applyCompanyDefaultTaxonomyServer({
-      context: context.serverContext,
-      projectId: data.projectId,
     });
   });
 

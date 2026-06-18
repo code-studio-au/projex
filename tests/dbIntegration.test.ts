@@ -129,7 +129,6 @@ import {
 } from '../src/server/storage/exportObjectStore.ts';
 import {
   applyCompanyStandardsServer,
-  applyCompanyDefaultTaxonomyServer,
   bulkRecodeProjectTransactionsServer,
   createCategoryServer,
   createCompanyDefaultCategoryServer,
@@ -390,8 +389,8 @@ function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
       userId: ReturnType<typeof asUserId>,
       role: ProjectRole
     ) => deleteProjectMembershipServer({ context, projectId, userId, role }),
-    applyCompanyDefaultTaxonomy: (projectId: ReturnType<typeof asProjectId>) =>
-      applyCompanyDefaultTaxonomyServer({ context, projectId }),
+    applyCompanyStandards: (projectId: ReturnType<typeof asProjectId>) =>
+      applyCompanyStandardsServer({ context, projectId }),
     listCategories: (projectId: ReturnType<typeof asProjectId>) =>
       listCategoriesServer({ context, projectId }),
     createCategory: (
@@ -3150,7 +3149,7 @@ test(
 );
 
 test(
-  'project creation applies company default taxonomy by default and supports opting out',
+  'project creation applies company standards by default and supports opting out',
   { skip: !integrationDatabaseUrl },
   async () => {
     const db = createIntegrationDb();
@@ -3237,7 +3236,7 @@ test(
       await api.createProject(companyId, {
         id: projectWithoutDefaultsId,
         name: 'Custom Project',
-        applyCompanyDefaultTaxonomy: false,
+        applyCompanyStandards: false,
       });
 
       await api.createCompanyDefaultCategory(companyId, {
@@ -3818,7 +3817,7 @@ test(
         input: {
           id: projectId,
           name: 'Reapply Standards Project',
-          applyCompanyDefaultTaxonomy: false,
+          applyCompanyStandards: false,
         },
       });
 
@@ -6173,8 +6172,8 @@ test(
             x.deleteProjectMembership(projectId, inviteUserId, 'member'),
         },
         {
-          route: 'POST /api/projects/:projectId/apply-company-default-taxonomy',
-          run: (x) => x.applyCompanyDefaultTaxonomy(projectId),
+          route: 'POST /api/projects/:projectId/apply-company-standards',
+          run: (x) => x.applyCompanyStandards(projectId),
         },
         {
           route: 'GET /api/projects/:projectId/categories',
@@ -6908,9 +6907,9 @@ test(
         'DELETE /api/projects/:projectId/memberships member'
       );
       await assertAppErrorCode(
-        () => memberApi.applyCompanyDefaultTaxonomy(projectId),
+        () => memberApi.applyCompanyStandards(projectId),
         'FORBIDDEN',
-        'POST /api/projects/:projectId/apply-company-default-taxonomy member'
+        'POST /api/projects/:projectId/apply-company-standards member'
       );
       await assertAppErrorCode(
         () =>

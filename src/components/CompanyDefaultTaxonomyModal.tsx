@@ -162,7 +162,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
       <Modal
         opened={opened}
         onClose={onClose}
-        title="Manage company default categories"
+        title="Manage company categories"
         fullScreen={isMobile}
         centered={!isMobile}
         size="lg"
@@ -183,13 +183,13 @@ export default function CompanyDefaultTaxonomyModal(props: {
             </Text>
           ) : companyDefaultsQ.isPending && !companyDefaultsQ.data ? (
             <Text className={classes.emptyState}>
-              Loading company default taxonomy…
+              Loading company categories…
             </Text>
           ) : (
             <Stack gap={4}>
               <Text size="sm" c="dimmed" className={classes.modalIntro}>
-                Company defaults can be applied into projects later. Existing
-                project taxonomy is never overwritten.
+                Company categories can be applied into projects later. Existing
+                project categories are never overwritten.
               </Text>
               <Group gap="sm" wrap="wrap">
                 <Text size="xs" fw={600} c="dimmed">
@@ -523,8 +523,8 @@ export default function CompanyDefaultTaxonomyModal(props: {
         <Stack gap="md">
           <Text>
             {pendingDelete?.kind === 'category'
-              ? `Delete “${pendingDelete.name}” and all of its default subcategories? This does not change existing project taxonomy.`
-              : `Delete “${pendingDelete?.name}” from the company defaults? This does not change existing project taxonomy.`}
+              ? `Delete “${pendingDelete.name}” and all of its default subcategories? This does not change existing project categories.`
+              : `Delete “${pendingDelete?.name}” from the company categories? This does not change existing project categories.`}
           </Text>
           <Group justify="flex-end">
             <Button variant="subtle" onClick={() => setPendingDelete(null)}>
@@ -553,7 +553,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
                   setError(
                     err instanceof Error
                       ? err.message
-                      : 'Could not delete company default taxonomy item.'
+                      : 'Could not delete company category item.'
                   );
                 }
               }}

@@ -49,11 +49,14 @@ import {
   assertCategoryInProject,
   assertSubCategoryInProject,
 } from './resourceGuards';
-import { applyCompanyDefaultTaxonomyToProject } from './taxonomy';
+import { applyCompanyTaxonomyToProject } from './taxonomy';
 import {
   buildDetachedProjectStandardMetadata,
   buildInheritedProjectStandardMetadata,
   buildLocalProjectStandardMetadata,
+  compareProjectStandards,
+  listSyncedProjectIdsForCompany,
+  type ProjectStandardsDb,
   shouldApplyInheritedUpdate,
 } from '../sync/projectStandards';
 import {
@@ -127,17 +130,6 @@ function toProjectAutoCodingRule(
   };
 }
 
-function compareProjectAutoCodingRules(
-  a: ProjectAutoCodingRuleRow,
-  b: ProjectAutoCodingRuleRow
-) {
-  const aGroup = a.sync_status === 'inherited' ? 1 : 0;
-  const bGroup = b.sync_status === 'inherited' ? 1 : 0;
-  if (aGroup !== bGroup) return aGroup - bGroup;
-  if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-  return a.created_at.localeCompare(b.created_at);
-}
-
 function projectAutoCodingRuleFingerprint(
   row: Pick<ProjectAutoCodingRuleRow, 'match_text' | 'sub_category_id'>
 ) {
@@ -206,7 +198,7 @@ async function listProjectRules(
     .select(projectAutoCodingRuleSelectColumns())
     .where('project_id', '=', projectId)
     .execute();
-  return rows.sort(compareProjectAutoCodingRules).map(toProjectAutoCodingRule);
+  return rows.sort(compareProjectStandards).map(toProjectAutoCodingRule);
 }
 
 export async function listProjectAutoCodingRulesServer(args: {
@@ -296,22 +288,8 @@ async function listCompanyDefaultSubCategories(
   return rows.map(toCompanyDefaultSubCategory);
 }
 
-async function listSyncedProjectIdsForCompany(args: {
-  db: ReturnType<typeof getDb>;
-  companyId: ProjectAutoCodingRule['companyId'];
-}) {
-  const rows = await args.db
-    .selectFrom('projects')
-    .select('id')
-    .where('company_id', '=', args.companyId)
-    .where('project_type', '=', 'project')
-    .where('sync_company_defaults', '=', true)
-    .execute();
-  return rows.map((row) => row.id as ProjectId);
-}
-
 export async function syncCompanyAutoCodingRulesToProject(args: {
-  db: ReturnType<typeof getDb>;
+  db: ProjectStandardsDb;
   companyId: ProjectAutoCodingRule['companyId'];
   projectId: ProjectId;
   actorUserId: NonNullable<ProjectAutoCodingRule['createdByUserId']>;
@@ -470,7 +448,7 @@ export async function syncCompanyAutoCodingRulesToProject(args: {
 }
 
 export async function syncCompanyAutoCodingRulesToSyncedProjects(args: {
-  db: ReturnType<typeof getDb>;
+  db: ProjectStandardsDb;
   companyId: ProjectAutoCodingRule['companyId'];
   actorUserId: NonNullable<ProjectAutoCodingRule['createdByUserId']>;
 }) {
@@ -1175,7 +1153,7 @@ export async function promoteProjectRuleToCompanyDefaultServer(args: {
         .execute();
 
       for (const syncedProject of syncedProjectRows) {
-        await applyCompanyDefaultTaxonomyToProject({
+        await applyCompanyTaxonomyToProject({
           db: trx,
           companyId,
           projectId: syncedProject.id as ProjectId,

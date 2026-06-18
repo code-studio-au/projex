@@ -52,7 +52,7 @@ export const createProjectServerFn = createServerFn({ method: 'POST' })
       companyId: asCompanyId(input.companyId),
       payload: {
         ...input.payload,
-        applyCompanyDefaultTaxonomy: input.payload.applyCompanyDefaultTaxonomy,
+        applyCompanyStandards: input.payload.applyCompanyStandards,
       },
     })
   )

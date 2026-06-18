@@ -412,7 +412,7 @@ export default function ProjectSettingsPanel(props: {
             />
             <Switch
               label="Sync company standards"
-              description="When enabled, this project inherits new company taxonomy defaults and company import rules automatically."
+              description="When enabled, this project inherits new company categories, import rules, and auto-coding automatically."
               checked={effectiveProject.syncCompanyDefaults}
               onChange={(event) =>
                 updateProject.mutate({
@@ -450,7 +450,7 @@ export default function ProjectSettingsPanel(props: {
         <Stack gap="sm">
           <Title order={5}>Project Standards Alignment</Title>
           <Text size="sm" c="dimmed">
-            Synced projects can inherit company taxonomy, import rules, and
+            Synced projects can inherit company categories, import rules, and
             auto-coding while still keeping justified project-only exceptions.
           </Text>
           <Group gap="sm" wrap="wrap">
@@ -483,7 +483,7 @@ export default function ProjectSettingsPanel(props: {
                       tone: 'success',
                       title: 'Company standards reapplied',
                       message:
-                        'Company import and auto-coding rules were resynced. No company taxonomy defaults are configured yet, so no categories or subcategories were added.',
+                        'Company import and auto-coding rules were resynced. No company categories are configured yet, so no categories or subcategories were added.',
                     });
                     return;
                   }
@@ -493,7 +493,7 @@ export default function ProjectSettingsPanel(props: {
                     message:
                       result.categoriesAdded === 0 &&
                       result.subCategoriesAdded === 0
-                        ? 'Project taxonomy was refreshed and company import and auto-coding rules were resynced.'
+                        ? 'Project categories were refreshed and company import and auto-coding rules were resynced.'
                         : `Added ${result.categoriesAdded} categories and ${result.subCategoriesAdded} subcategories, then resynced company import and auto-coding rules.`,
                     autoClose: 9000,
                   });

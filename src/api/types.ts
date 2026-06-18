@@ -370,13 +370,13 @@ export type ImportRuleUpdateInput = Partial<
   id: ImportRule['id'];
 };
 
-export type ApplyCompanyDefaultsResult = {
+export type ApplyCompanyTaxonomyResult = {
   companyDefaultsConfigured: boolean;
   categoriesAdded: number;
   subCategoriesAdded: number;
 };
 
-export type ApplyCompanyStandardsResult = ApplyCompanyDefaultsResult & {
+export type ApplyCompanyStandardsResult = ApplyCompanyTaxonomyResult & {
   importRulesSynced: boolean;
   autoCodingRulesSynced: boolean;
 };
@@ -398,7 +398,7 @@ export type ProjectCreateInput = Pick<Project, 'name'> & {
   parentProjectId?: ProjectId | null;
   currency?: Project['currency'];
   initialOwnerUserId?: UserId;
-  applyCompanyDefaultTaxonomy?: boolean;
+  applyCompanyStandards?: boolean;
 };
 export type ProjectUpdateInput = Pick<
   Partial<Project>,

@@ -18,9 +18,7 @@ import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
 import { requireCompanyMember } from './resourceGuards';
-import { syncCompanyImportRulesToProject } from './importRules';
-import { syncCompanyAutoCodingRulesToProject } from './projectAutoCodingRules';
-import { applyCompanyDefaultTaxonomyToProject } from './taxonomy';
+import { applyCompanyStandardsToProject } from './taxonomy';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -381,8 +379,7 @@ export async function createProjectServer(args: {
     const projectType = args.input.projectType ?? 'project';
     const parentProjectId = args.input.parentProjectId ?? null;
     const currency = args.input.currency ?? 'AUD';
-    const applyCompanyDefaultTaxonomy =
-      args.input.applyCompanyDefaultTaxonomy ?? true;
+    const applyCompanyStandards = args.input.applyCompanyStandards ?? true;
     await assertValidProjectHierarchy({
       db,
       companyId: args.companyId,
@@ -408,7 +405,7 @@ export async function createProjectServer(args: {
           visibility: 'private',
           allow_superadmin_access: true,
           sync_company_defaults:
-            projectType === 'project' ? applyCompanyDefaultTaxonomy : false,
+            projectType === 'project' ? applyCompanyStandards : false,
           allow_txn_transfers: false,
         })
         .returning(projectSelectFields)
@@ -430,19 +427,9 @@ export async function createProjectServer(args: {
           .execute();
       }
 
-      if (projectType === 'project' && applyCompanyDefaultTaxonomy) {
-        await applyCompanyDefaultTaxonomyToProject({
+      if (projectType === 'project' && applyCompanyStandards) {
+        await applyCompanyStandardsToProject({
           db: trx,
-          companyId: args.companyId,
-          projectId: id,
-        });
-        await syncCompanyImportRulesToProject({
-          db: trx as unknown as ReturnType<typeof getDb>,
-          companyId: args.companyId,
-          projectId: id,
-        });
-        await syncCompanyAutoCodingRulesToProject({
-          db: trx as unknown as ReturnType<typeof getDb>,
           companyId: args.companyId,
           projectId: id,
           actorUserId: isSuperadmin
@@ -602,34 +589,28 @@ export async function updateProjectServer(args: {
 
     if (!Object.keys(patch).length) return toProject(existing);
 
-    const updated = await db
-      .updateTable('projects')
-      .set(patch)
-      .where('id', '=', args.input.id)
-      .returning(projectSelectFields)
-      .executeTakeFirstOrThrow();
+    const updated = await db.transaction().execute(async (trx) => {
+      const nextProject = await trx
+        .updateTable('projects')
+        .set(patch)
+        .where('id', '=', args.input.id)
+        .returning(projectSelectFields)
+        .executeTakeFirstOrThrow();
 
-    if (
-      nextProjectType === 'project' &&
-      args.input.syncCompanyDefaults === true
-    ) {
-      await applyCompanyDefaultTaxonomyToProject({
-        db,
-        companyId,
-        projectId,
-      });
-      await syncCompanyImportRulesToProject({
-        db,
-        companyId,
-        projectId,
-      });
-      await syncCompanyAutoCodingRulesToProject({
-        db,
-        companyId,
-        projectId,
-        actorUserId: userId,
-      });
-    }
+      if (
+        nextProjectType === 'project' &&
+        args.input.syncCompanyDefaults === true
+      ) {
+        await applyCompanyStandardsToProject({
+          db: trx,
+          companyId,
+          projectId,
+          actorUserId: userId,
+        });
+      }
+
+      return nextProject;
+    });
 
     return toProject(updated);
   });

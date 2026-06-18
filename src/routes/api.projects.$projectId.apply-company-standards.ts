@@ -6,10 +6,10 @@ import {
   requireApiRouteContext,
 } from './-api-shared';
 import { asProjectId } from '../types';
-import { applyCompanyDefaultTaxonomyServer } from '../server/fns/taxonomy';
+import { applyCompanyStandardsServer } from '../server/fns/taxonomy';
 
 export const Route = createFileRoute(
-  '/api/projects/$projectId/apply-company-default-taxonomy'
+  '/api/projects/$projectId/apply-company-standards'
 )({
   server: {
     middleware: [apiRouteMiddleware],
@@ -17,7 +17,7 @@ export const Route = createFileRoute(
       POST: async ({ context, params }) => {
         const { serverContext } = requireApiRouteContext(context);
         return jsonApi(
-          await applyCompanyDefaultTaxonomyServer({
+          await applyCompanyStandardsServer({
             context: serverContext,
             projectId: asProjectId(params.projectId),
           })

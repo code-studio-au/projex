@@ -219,8 +219,8 @@ export const smokeSectionDefinitions: Array<{
         label: 'Creating temporary company default mapping rules',
       },
       {
-        id: 'apply-company-defaults',
-        label: 'Applying company defaults to the project',
+        id: 'apply-company-standards',
+        label: 'Applying company standards to the project',
       },
       {
         id: 'import-mapped-transaction',

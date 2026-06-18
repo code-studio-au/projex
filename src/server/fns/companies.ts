@@ -33,6 +33,7 @@ import { getAuthEmailDeliveryMode } from '../auth/email.ts';
 import { getDb } from '../db/db';
 import { deleteCompanyExportObject } from '../storage/exportObjectStore.ts';
 import { listProjectsServer } from './projects';
+import { seedCompanyImportRuleBaseline } from './importRules';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -766,6 +767,10 @@ export async function createCompanyServer(args: {
           deactivated_at: null,
         })
         .execute();
+      await seedCompanyImportRuleBaseline({
+        db: trx as DbLike,
+        companyId,
+      });
 
       if (trimmedAdminName && trimmedAdminEmail) {
         const emailNorm = trimmedAdminEmail.toLowerCase();

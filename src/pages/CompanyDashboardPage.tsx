@@ -97,7 +97,7 @@ export default function CompanyDashboardPage() {
     useState<Project['currency']>('AUD');
   const [newProjectParentId, setNewProjectParentId] =
     useState<ProjectId | null>(null);
-  const [newProjectApplyCompanyDefaults, setNewProjectApplyCompanyDefaults] =
+  const [newProjectApplyCompanyStandards, setNewProjectApplyCompanyStandards] =
     useState(true);
   const [newProjectOwnerId, setNewProjectOwnerId] = useState<string | null>(
     null
@@ -568,12 +568,12 @@ export default function CompanyDashboardPage() {
                       }
                     />
                     <Checkbox
-                      label="Add company default categories and subcategories"
-                      description="Recommended. New operational projects start with the company default taxonomy already copied in."
-                      checked={newProjectApplyCompanyDefaults}
+                      label="Apply company standards"
+                      description="Recommended. New operational projects start with the current company categories, import rules, and auto-coding already synced in."
+                      checked={newProjectApplyCompanyStandards}
                       disabled={newProjectType === 'programme'}
                       onChange={(event) =>
-                        setNewProjectApplyCompanyDefaults(
+                        setNewProjectApplyCompanyStandards(
                           event.currentTarget.checked
                         )
                       }
@@ -615,9 +615,9 @@ export default function CompanyDashboardPage() {
                             name,
                             projectType: newProjectType,
                             currency: newProjectCurrency,
-                            applyCompanyDefaultTaxonomy:
+                            applyCompanyStandards:
                               newProjectType === 'project'
-                                ? newProjectApplyCompanyDefaults
+                                ? newProjectApplyCompanyStandards
                                 : false,
                             initialOwnerUserId:
                               superadminNeedsInitialOwner &&

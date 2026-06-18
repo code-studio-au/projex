@@ -201,8 +201,8 @@ export default function CompanyDefaultMappingsModal(props: {
 
         {!readOnly && !hasDefaultTaxonomy ? (
           <Alert color="blue" className={classes.notice}>
-            Add company default categories and subcategories first. Mapping
-            rules need default taxonomy to point at.
+            Add company categories and subcategories first. Auto-coding rules
+            need company categories to point at.
           </Alert>
         ) : null}
 

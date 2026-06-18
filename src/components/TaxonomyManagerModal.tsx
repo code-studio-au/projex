@@ -192,7 +192,7 @@ export default function TaxonomyManagerModal(props: {
             <Stack gap="sm">
               <Group justify="space-between" align="flex-start" wrap="wrap">
                 <Stack gap={4} style={{ flex: 1 }}>
-                  <Text fw={600}>Project taxonomy standards</Text>
+                  <Text fw={600}>Project categories</Text>
                   <Text size="sm" c="dimmed" className={classes.modalIntro}>
                     Company standards can be synced into the project, then
                     adjusted locally when a project genuinely needs an
@@ -547,8 +547,8 @@ export default function TaxonomyManagerModal(props: {
                                     setStatus(
                                       result.categoryCreated ||
                                         result.subCategoryCreated
-                                        ? 'Promoted project taxonomy into company defaults and synced linked projects.'
-                                        : 'Matching company default already existed; linked projects are now aligned.'
+                                        ? 'Promoted project categories into company categories and synced linked projects.'
+                                        : 'Matching company category already existed; linked projects are now aligned.'
                                     );
                                   } catch (err) {
                                     setError(

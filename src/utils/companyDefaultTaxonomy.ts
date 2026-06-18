@@ -8,7 +8,7 @@ import type {
   SubCategory,
   SubCategoryId,
 } from '../types';
-import type { ApplyCompanyDefaultsResult } from '../api/types';
+import type { ApplyCompanyTaxonomyResult } from '../api/types';
 
 type ProjectCategoryInput = Pick<Category, 'id' | 'name'>;
 type ProjectSubCategoryInput = Pick<SubCategory, 'categoryId' | 'name'>;
@@ -28,7 +28,7 @@ export function planApplyCompanyDefaultTaxonomy(args: {
   createSubCategoryId: () => SubCategoryId;
   nowIso: string;
 }): {
-  result: ApplyCompanyDefaultsResult;
+  result: ApplyCompanyTaxonomyResult;
   categoriesToCreate: Category[];
   subCategoriesToCreate: SubCategory[];
 } {

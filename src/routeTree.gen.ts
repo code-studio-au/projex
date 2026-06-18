@@ -43,7 +43,7 @@ import { Route as ApiProjectsProjectIdImportCandidatesRouteImport } from './rout
 import { Route as ApiProjectsProjectIdDeactivateRouteImport } from './routes/api.projects.$projectId.deactivate'
 import { Route as ApiProjectsProjectIdCategoriesRouteImport } from './routes/api.projects.$projectId.categories'
 import { Route as ApiProjectsProjectIdBudgetsRouteImport } from './routes/api.projects.$projectId.budgets'
-import { Route as ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRouteImport } from './routes/api.projects.$projectId.apply-company-default-taxonomy'
+import { Route as ApiProjectsProjectIdApplyCompanyStandardsRouteImport } from './routes/api.projects.$projectId.apply-company-standards'
 import { Route as ApiMeEmailChangeResendRouteImport } from './routes/api.me.email-change.resend'
 import { Route as ApiMeEmailChangeConfirmRouteImport } from './routes/api.me.email-change.confirm'
 import { Route as ApiExportJobsJobIdDownloadRouteImport } from './routes/api.export-jobs.$jobId.download'
@@ -259,10 +259,10 @@ const ApiProjectsProjectIdBudgetsRoute =
     path: '/budgets',
     getParentRoute: () => ApiProjectsProjectIdRoute,
   } as any)
-const ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute =
-  ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRouteImport.update({
-    id: '/apply-company-default-taxonomy',
-    path: '/apply-company-default-taxonomy',
+const ApiProjectsProjectIdApplyCompanyStandardsRoute =
+  ApiProjectsProjectIdApplyCompanyStandardsRouteImport.update({
+    id: '/apply-company-standards',
+    path: '/apply-company-standards',
     getParentRoute: () => ApiProjectsProjectIdRoute,
   } as any)
 const ApiMeEmailChangeResendRoute = ApiMeEmailChangeResendRouteImport.update({
@@ -528,7 +528,7 @@ export interface FileRoutesByFullPath {
   '/api/export-jobs/$jobId/download': typeof ApiExportJobsJobIdDownloadRoute
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
-  '/api/projects/$projectId/apply-company-default-taxonomy': typeof ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute
+  '/api/projects/$projectId/apply-company-standards': typeof ApiProjectsProjectIdApplyCompanyStandardsRoute
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -600,7 +600,7 @@ export interface FileRoutesByTo {
   '/api/export-jobs/$jobId/download': typeof ApiExportJobsJobIdDownloadRoute
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
-  '/api/projects/$projectId/apply-company-default-taxonomy': typeof ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute
+  '/api/projects/$projectId/apply-company-standards': typeof ApiProjectsProjectIdApplyCompanyStandardsRoute
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -675,7 +675,7 @@ export interface FileRoutesById {
   '/api/export-jobs/$jobId/download': typeof ApiExportJobsJobIdDownloadRoute
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
-  '/api/projects/$projectId/apply-company-default-taxonomy': typeof ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute
+  '/api/projects/$projectId/apply-company-standards': typeof ApiProjectsProjectIdApplyCompanyStandardsRoute
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
@@ -750,7 +750,7 @@ export interface FileRouteTypes {
     | '/api/export-jobs/$jobId/download'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
-    | '/api/projects/$projectId/apply-company-default-taxonomy'
+    | '/api/projects/$projectId/apply-company-standards'
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
@@ -822,7 +822,7 @@ export interface FileRouteTypes {
     | '/api/export-jobs/$jobId/download'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
-    | '/api/projects/$projectId/apply-company-default-taxonomy'
+    | '/api/projects/$projectId/apply-company-standards'
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
@@ -896,7 +896,7 @@ export interface FileRouteTypes {
     | '/api/export-jobs/$jobId/download'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
-    | '/api/projects/$projectId/apply-company-default-taxonomy'
+    | '/api/projects/$projectId/apply-company-standards'
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
@@ -1191,11 +1191,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdBudgetsRouteImport
       parentRoute: typeof ApiProjectsProjectIdRoute
     }
-    '/api/projects/$projectId/apply-company-default-taxonomy': {
-      id: '/api/projects/$projectId/apply-company-default-taxonomy'
-      path: '/apply-company-default-taxonomy'
-      fullPath: '/api/projects/$projectId/apply-company-default-taxonomy'
-      preLoaderRoute: typeof ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRouteImport
+    '/api/projects/$projectId/apply-company-standards': {
+      id: '/api/projects/$projectId/apply-company-standards'
+      path: '/apply-company-standards'
+      fullPath: '/api/projects/$projectId/apply-company-standards'
+      preLoaderRoute: typeof ApiProjectsProjectIdApplyCompanyStandardsRouteImport
       parentRoute: typeof ApiProjectsProjectIdRoute
     }
     '/api/me/email-change/resend': {
@@ -1769,7 +1769,7 @@ const ApiProjectsProjectIdTransactionsRouteWithChildren =
   )
 
 interface ApiProjectsProjectIdRouteChildren {
-  ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute: typeof ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute
+  ApiProjectsProjectIdApplyCompanyStandardsRoute: typeof ApiProjectsProjectIdApplyCompanyStandardsRoute
   ApiProjectsProjectIdBudgetsRoute: typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   ApiProjectsProjectIdCategoriesRoute: typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   ApiProjectsProjectIdDeactivateRoute: typeof ApiProjectsProjectIdDeactivateRoute
@@ -1782,8 +1782,8 @@ interface ApiProjectsProjectIdRouteChildren {
 }
 
 const ApiProjectsProjectIdRouteChildren: ApiProjectsProjectIdRouteChildren = {
-  ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute:
-    ApiProjectsProjectIdApplyCompanyDefaultTaxonomyRoute,
+  ApiProjectsProjectIdApplyCompanyStandardsRoute:
+    ApiProjectsProjectIdApplyCompanyStandardsRoute,
   ApiProjectsProjectIdBudgetsRoute:
     ApiProjectsProjectIdBudgetsRouteWithChildren,
   ApiProjectsProjectIdCategoriesRoute:

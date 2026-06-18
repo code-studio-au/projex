@@ -1,9 +1,23 @@
+import type { Kysely, Transaction } from 'kysely';
+
+import type { DB } from '../db/schema';
+import type { CompanyId } from '../../types';
+import { asProjectId } from '../../types';
+
 export type ProjectStandardOriginScope = 'company' | 'project';
 export type ProjectStandardSyncStatus =
   | 'local'
   | 'inherited'
   | 'overridden'
   | 'detached';
+
+export type ProjectStandardsDb = Kysely<DB> | Transaction<DB>;
+
+type SortableProjectStandardRow = {
+  sync_status?: ProjectStandardSyncStatus | null;
+  sort_order: number;
+  created_at: string;
+};
 
 export function buildLocalProjectStandardMetadata(nowIso: string) {
   return {
@@ -45,4 +59,28 @@ export function buildDetachedProjectStandardMetadata(args: {
 
 export function shouldApplyInheritedUpdate(syncStatus?: string | null) {
   return !syncStatus || syncStatus === 'inherited';
+}
+
+export function compareProjectStandards<
+  T extends SortableProjectStandardRow,
+>(a: T, b: T) {
+  const aGroup = a.sync_status === 'inherited' ? 1 : 0;
+  const bGroup = b.sync_status === 'inherited' ? 1 : 0;
+  if (aGroup !== bGroup) return aGroup - bGroup;
+  if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+  return a.created_at.localeCompare(b.created_at);
+}
+
+export async function listSyncedProjectIdsForCompany(args: {
+  db: ProjectStandardsDb;
+  companyId: CompanyId;
+}) {
+  const rows = await args.db
+    .selectFrom('projects')
+    .select('id')
+    .where('company_id', '=', args.companyId)
+    .where('project_type', '=', 'project')
+    .where('sync_company_defaults', '=', true)
+    .execute();
+  return rows.map((row) => asProjectId(row.id));
 }

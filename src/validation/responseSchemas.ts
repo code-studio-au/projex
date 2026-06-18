@@ -599,14 +599,14 @@ export const importCandidateReviewResultResponseSchema = z.object({
   txn: txnResponseSchema.optional(),
 });
 
-export const applyCompanyDefaultsResultResponseSchema = z.object({
+export const applyCompanyTaxonomyResultResponseSchema = z.object({
   companyDefaultsConfigured: z.boolean(),
   categoriesAdded: z.number().int().nonnegative(),
   subCategoriesAdded: z.number().int().nonnegative(),
 });
 
 export const applyCompanyStandardsResultResponseSchema =
-  applyCompanyDefaultsResultResponseSchema.extend({
+  applyCompanyTaxonomyResultResponseSchema.extend({
     importRulesSynced: z.boolean(),
     autoCodingRulesSynced: z.boolean(),
   });

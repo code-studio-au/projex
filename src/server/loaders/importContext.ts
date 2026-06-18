@@ -17,8 +17,8 @@ import {
   asUserId,
 } from '../../types';
 import { normalizeExternalId } from '../../utils/transactions';
-import { defaultPowerBiImportRules } from '../../utils/powerBiImport';
 import { toBudgetLines, toTxn } from '../mappers/transactionRows';
+import { compareProjectStandards } from '../sync/projectStandards';
 import {
   toCategory,
   toCompanyDefaultCategory,
@@ -26,28 +26,6 @@ import {
   toCompanyDefaultSubCategory,
   toSubCategory,
 } from '../mappers/taxonomyRows';
-
-function compareProjectImportRules(
-  a: Awaited<ReturnType<typeof selectProjectImportRules>>[number],
-  b: Awaited<ReturnType<typeof selectProjectImportRules>>[number]
-) {
-  const aGroup = a.sync_status === 'inherited' ? 1 : 0;
-  const bGroup = b.sync_status === 'inherited' ? 1 : 0;
-  if (aGroup !== bGroup) return aGroup - bGroup;
-  if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-  return a.created_at.localeCompare(b.created_at);
-}
-
-function compareProjectAutoCodingRules(
-  a: Awaited<ReturnType<typeof selectProjectAutoCodingRules>>[number],
-  b: Awaited<ReturnType<typeof selectProjectAutoCodingRules>>[number]
-) {
-  const aGroup = a.sync_status === 'inherited' ? 1 : 0;
-  const bGroup = b.sync_status === 'inherited' ? 1 : 0;
-  if (aGroup !== bGroup) return aGroup - bGroup;
-  if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-  return a.created_at.localeCompare(b.created_at);
-}
 
 export async function loadTransactionImportCommitContext(
   db: Kysely<DB>,
@@ -80,7 +58,7 @@ export async function loadTransactionImportCommitContext(
     ),
     mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
     projectAutoCodingRules: projectRuleRows
-      .sort(compareProjectAutoCodingRules)
+      .sort(compareProjectStandards)
       .map(toProjectAutoCodingRule),
     projectCategories: projectCategoryRows.map(toCategory),
     projectSubCategories: projectSubCategoryRows.map(toSubCategory),
@@ -126,11 +104,11 @@ export async function loadTransactionImportPreviewContext(
     ),
     mappingRules: mappingRuleRows.map(toCompanyDefaultMappingRule),
     projectAutoCodingRules: projectRuleRows
-      .sort(compareProjectAutoCodingRules)
+      .sort(compareProjectStandards)
       .map(toProjectAutoCodingRule),
-    importRules: projectImportRuleRows.length
-      ? projectImportRuleRows.sort(compareProjectImportRules).map(toImportRule)
-      : defaultImportRules(args.companyId),
+    importRules: projectImportRuleRows
+      .sort(compareProjectStandards)
+      .map(toImportRule),
     projectCategories: projectCategoryRows.map(toCategory),
     projectSubCategories: projectSubCategoryRows.map(toSubCategory),
     budgets: toBudgetLines(budgetRows),
@@ -260,13 +238,6 @@ function toImportRule(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-function defaultImportRules(companyId: CompanyId): ImportRule[] {
-  return defaultPowerBiImportRules(companyId).map((rule, index) => ({
-    ...rule,
-    id: asImportRuleId(`default_import_rule_${index + 1}`),
-  }));
 }
 
 function toProjectAutoCodingRule(

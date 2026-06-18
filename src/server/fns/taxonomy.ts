@@ -1,7 +1,7 @@
 import { AppError } from '../../api/errors';
 import type {
   ApplyCompanyStandardsResult,
-  ApplyCompanyDefaultsResult,
+  ApplyCompanyTaxonomyResult,
   BulkRecodeProjectTransactionsInput,
   BulkRecodeProjectTransactionsResult,
   CompanyDefaultCategoryCreateInput,
@@ -26,6 +26,7 @@ import type {
   CompanyId,
   ProjectId,
   SubCategory,
+  UserId,
 } from '../../types';
 import {
   asCategoryId,
@@ -33,7 +34,6 @@ import {
   asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
-  asProjectId,
   asSubCategoryId,
 } from '../../types';
 import { uid } from '../../utils/id';
@@ -49,6 +49,7 @@ import {
   buildDetachedProjectStandardMetadata,
   buildInheritedProjectStandardMetadata,
   buildLocalProjectStandardMetadata,
+  listSyncedProjectIdsForCompany,
   shouldApplyInheritedUpdate,
 } from '../sync/projectStandards';
 import { ensureBudgetLinesForProjectSubCategories } from './budgets';
@@ -62,7 +63,9 @@ import {
   syncCompanyAutoCodingRulesToProject,
   syncCompanyAutoCodingRulesToSyncedProjects,
 } from './projectAutoCodingRules';
-import { syncCompanyImportRulesToProject } from './importRules';
+import {
+  syncCompanyImportRulesToProject,
+} from './importRules';
 import {
   toCategory,
   toCompanyDefaultCategory,
@@ -112,20 +115,6 @@ async function requireCompanyContext(
   if (!company) throw new AppError('NOT_FOUND', 'Unknown company');
   await requireAuthorized({ db, userId, action, companyId });
   return userId;
-}
-
-async function listSyncedProjectIdsForCompany(args: {
-  db: Transaction<DB> | ReturnType<typeof getDb>;
-  companyId: CompanyId;
-}) {
-  const rows = await args.db
-    .selectFrom('projects')
-    .select('id')
-    .where('company_id', '=', args.companyId)
-    .where('project_type', '=', 'project')
-    .where('sync_company_defaults', '=', true)
-    .execute();
-  return rows.map((row) => asProjectId(row.id));
 }
 
 function taxonomyNameKey(value: string): string {
@@ -905,7 +894,7 @@ export async function createCompanyDefaultCategoryServer(args: {
         companyId: args.companyId,
       });
       for (const projectId of syncedProjectIds) {
-        await applyCompanyDefaultTaxonomyToProject({
+        await applyCompanyTaxonomyToProject({
           db: trx,
           companyId: args.companyId,
           projectId,
@@ -981,7 +970,7 @@ export async function updateCompanyDefaultCategoryServer(args: {
         companyId: args.companyId,
       });
       for (const projectId of syncedProjectIds) {
-        await applyCompanyDefaultTaxonomyToProject({
+        await applyCompanyTaxonomyToProject({
           db: trx,
           companyId: args.companyId,
           projectId,
@@ -1024,7 +1013,7 @@ export async function deleteCompanyDefaultCategoryServer(args: {
         companyId: args.companyId,
       });
       for (const projectId of syncedProjectIds) {
-        await applyCompanyDefaultTaxonomyToProject({
+        await applyCompanyTaxonomyToProject({
           db: trx,
           companyId: args.companyId,
           projectId,
@@ -1112,7 +1101,7 @@ export async function createCompanyDefaultSubCategoryServer(args: {
         companyId: args.companyId,
       });
       for (const projectId of syncedProjectIds) {
-        await applyCompanyDefaultTaxonomyToProject({
+        await applyCompanyTaxonomyToProject({
           db: trx,
           companyId: args.companyId,
           projectId,
@@ -1220,7 +1209,7 @@ export async function updateCompanyDefaultSubCategoryServer(args: {
         companyId: args.companyId,
       });
       for (const projectId of syncedProjectIds) {
-        await applyCompanyDefaultTaxonomyToProject({
+        await applyCompanyTaxonomyToProject({
           db: trx,
           companyId: args.companyId,
           projectId,
@@ -1263,7 +1252,7 @@ export async function deleteCompanyDefaultSubCategoryServer(args: {
         companyId: args.companyId,
       });
       for (const projectId of syncedProjectIds) {
-        await applyCompanyDefaultTaxonomyToProject({
+        await applyCompanyTaxonomyToProject({
           db: trx,
           companyId: args.companyId,
           projectId,
@@ -1566,11 +1555,33 @@ export async function deleteCompanyDefaultMappingRuleServer(args: {
   });
 }
 
-export async function applyCompanyDefaultTaxonomyServer(args: {
-  context: ServerFnContextInput;
+export async function applyCompanyStandardsToProject(args: {
+  db: Transaction<DB> | ReturnType<typeof getDb>;
+  companyId: CompanyId;
   projectId: ProjectId;
-}): Promise<ApplyCompanyDefaultsResult> {
-  return applyCompanyStandardsServer(args);
+  actorUserId: UserId;
+}): Promise<ApplyCompanyStandardsResult> {
+  const result = await applyCompanyTaxonomyToProject({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+  });
+  await syncCompanyImportRulesToProject({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+  });
+  await syncCompanyAutoCodingRulesToProject({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+    actorUserId: args.actorUserId,
+  });
+  return {
+    ...result,
+    importRulesSynced: true,
+    autoCodingRulesSynced: true,
+  };
 }
 
 export async function applyCompanyStandardsServer(args: {
@@ -1585,35 +1596,22 @@ export async function applyCompanyStandardsServer(args: {
       args.projectId,
       'taxonomy:edit'
     );
-    const result = await applyCompanyDefaultTaxonomyToProject({
-      db: getDb(),
-      companyId,
-      projectId: args.projectId,
-    });
-    await syncCompanyImportRulesToProject({
-      db: getDb(),
-      companyId,
-      projectId: args.projectId,
-    });
-    await syncCompanyAutoCodingRulesToProject({
-      db: getDb(),
-      companyId,
-      projectId: args.projectId,
-      actorUserId: userId,
-    });
-    return {
-      ...result,
-      importRulesSynced: true,
-      autoCodingRulesSynced: true,
-    };
+    return getDb().transaction().execute((trx) =>
+      applyCompanyStandardsToProject({
+        db: trx,
+        companyId,
+        projectId: args.projectId,
+        actorUserId: userId,
+      })
+    );
   });
 }
 
-export async function applyCompanyDefaultTaxonomyToProject(args: {
+export async function applyCompanyTaxonomyToProject(args: {
   db: Transaction<DB> | ReturnType<typeof getDb>;
   companyId: CompanyId;
   projectId: ProjectId;
-}): Promise<ApplyCompanyDefaultsResult> {
+}): Promise<ApplyCompanyTaxonomyResult> {
   const { db, companyId, projectId } = args;
   const defaultCategories = await db
     .selectFrom('company_default_categories')
@@ -2137,7 +2135,7 @@ export async function promoteProjectSubCategoryToCompanyDefaultServer(args: {
       });
       for (const projectId of syncedProjectIds) {
         if (projectId === args.projectId) continue;
-        await applyCompanyDefaultTaxonomyToProject({
+        await applyCompanyTaxonomyToProject({
           db: trx,
           companyId,
           projectId,

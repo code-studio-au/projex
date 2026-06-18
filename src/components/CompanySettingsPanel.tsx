@@ -720,15 +720,15 @@ export default function CompanySettingsPanel(props: {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
-          <Title order={5}>Company default categories</Title>
+          <Title order={5}>Categories</Title>
           <Text size="sm" c="dimmed">
-            Define the shared taxonomy standard for the company. Synced projects
-            inherit new defaults automatically, while older projects can pull
-            them in without losing local project structure.
+            Define the shared category structure for the company. Synced
+            projects inherit new categories automatically, while older projects
+            can pull them in without losing local project structure.
           </Text>
           {companyDefaultsLoading ? (
             <Text size="sm" c="dimmed">
-              Loading current company defaults…
+              Loading categories…
             </Text>
           ) : (
             <Group gap="sm" wrap="wrap">
@@ -745,11 +745,12 @@ export default function CompanySettingsPanel(props: {
             disabled={!canEditCompanyDefaults}
             onClick={() => setDefaultsModalOpen(true)}
           >
-            Manage company defaults
+            Manage Categories
           </Button>
           <Text size="xs" c="dimmed">
-            Syncing from company adds missing defaults and refreshes inherited
-            items. Project-specific overrides remain local to the project.
+            Syncing from company adds missing categories and refreshes
+            inherited items. Project-specific overrides remain local to the
+            project.
           </Text>
         </Stack>
       </Paper>
@@ -794,9 +795,9 @@ export default function CompanySettingsPanel(props: {
         <Stack gap="sm">
           <Title order={5}>Auto-Categorise Rules</Title>
           <Text size="sm" c="dimmed">
-            Match imported transaction text to company default taxonomy so
-            uncoded imports can be auto-categorised in projects that already
-            contain those defaults.
+            Match imported transaction text to company categories so uncoded
+            imports can be auto-categorised in projects that already contain
+            the required categories.
           </Text>
           {companyDefaultsLoading ? (
             <Text size="sm" c="dimmed">

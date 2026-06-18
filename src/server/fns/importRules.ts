@@ -11,6 +11,9 @@ import {
   buildDetachedProjectStandardMetadata,
   buildInheritedProjectStandardMetadata,
   buildLocalProjectStandardMetadata,
+  compareProjectStandards,
+  listSyncedProjectIdsForCompany,
+  type ProjectStandardsDb,
   shouldApplyInheritedUpdate,
 } from '../sync/projectStandards';
 import { requireOperationalProjectForAction } from './resourceGuards';
@@ -115,45 +118,25 @@ function importRuleFingerprint(
   ].join('|');
 }
 
-function compareProjectImportRules(a: ImportRuleRow, b: ImportRuleRow) {
-  const aGroup = a.sync_status === 'inherited' ? 1 : 0;
-  const bGroup = b.sync_status === 'inherited' ? 1 : 0;
-  if (aGroup !== bGroup) return aGroup - bGroup;
-  if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-  return a.created_at.localeCompare(b.created_at);
-}
-
-async function listSyncedProjectIdsForCompany(args: {
-  db: ReturnType<typeof getDb>;
+export async function seedCompanyImportRuleBaseline(args: {
+  db: ProjectStandardsDb;
   companyId: CompanyId;
 }) {
-  const rows = await args.db
-    .selectFrom('projects')
-    .select('id')
-    .where('company_id', '=', args.companyId)
-    .where('project_type', '=', 'project')
-    .where('sync_company_defaults', '=', true)
-    .execute();
-  return rows.map((row) => asProjectId(row.id));
-}
-
-async function ensureDefaultImportRules(companyId: CompanyId): Promise<void> {
-  const db = getDb();
-  const existing = await db
+  const existing = await args.db
     .selectFrom('import_rules')
     .select('id')
-    .where('company_id', '=', companyId)
+    .where('company_id', '=', args.companyId)
     .where('project_id', 'is', null)
     .executeTakeFirst();
   if (existing) return;
 
   const now = new Date().toISOString();
-  await db
+  await args.db
     .insertInto('import_rules')
     .values(
-      defaultPowerBiImportRules(companyId).map((rule) => ({
+      defaultPowerBiImportRules(args.companyId).map((rule) => ({
         id: asImportRuleId(uid('impr')),
-        company_id: companyId,
+        company_id: args.companyId,
         project_id: null,
         name: rule.name,
         origin_scope: null,
@@ -225,12 +208,10 @@ function assertProjectScopeInput(args: {
 }
 
 export async function syncCompanyImportRulesToProject(args: {
-  db: ReturnType<typeof getDb>;
+  db: ProjectStandardsDb;
   companyId: CompanyId;
   projectId: ProjectId;
 }) {
-  await ensureDefaultImportRules(args.companyId);
-
   const [companyRules, projectRules] = await Promise.all([
     args.db
       .selectFrom('import_rules')
@@ -336,7 +317,7 @@ export async function syncCompanyImportRulesToProject(args: {
 }
 
 export async function syncCompanyImportRulesToSyncedProjects(args: {
-  db: ReturnType<typeof getDb>;
+  db: ProjectStandardsDb;
   companyId: CompanyId;
 }) {
   const syncedProjectIds = await listSyncedProjectIdsForCompany({
@@ -368,8 +349,6 @@ export async function listImportRulesServer(args: {
       action: 'company:view',
       companyId: args.companyId,
     });
-    await ensureDefaultImportRules(args.companyId);
-
     const rows = await db
       .selectFrom('import_rules')
       .select(importRuleSelectColumns())
@@ -399,7 +378,7 @@ export async function listProjectImportRulesServer(args: {
       .select(importRuleSelectColumns())
       .where('project_id', '=', args.projectId)
       .execute();
-    return rows.sort(compareProjectImportRules).map(toImportRule);
+    return rows.sort(compareProjectStandards).map(toImportRule);
   });
 }
 
@@ -731,8 +710,6 @@ export async function promoteProjectImportRuleServer(args: {
       companyId,
       projectId: args.projectId,
     });
-    await ensureDefaultImportRules(companyId);
-
     const projectRule = await db
       .selectFrom('import_rules')
       .select(importRuleSelectColumns())

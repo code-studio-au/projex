@@ -10,7 +10,7 @@ import { parseJsonOrText } from '../../utils/json.ts';
 import {
   apiMessageResponseSchema,
   authenticatedSessionResponseSchema,
-  applyCompanyDefaultsResultResponseSchema,
+  applyCompanyStandardsResultResponseSchema,
   budgetLinesResponseSchema,
   categoriesResponseSchema,
   companyExportJobResponseSchema,
@@ -1145,18 +1145,18 @@ async function runCompanyDefaultsSection(
     );
 
     await recorder.step(
-      'apply-company-defaults',
-      'Applying company defaults to the project',
+      'apply-company-standards',
+      'Applying company standards to the project',
       async () => {
         const result = await client.request(
-          `/api/projects/${encodeURIComponent(project.id)}/apply-company-default-taxonomy`,
+          `/api/projects/${encodeURIComponent(project.id)}/apply-company-standards`,
           { method: 'POST' }
         );
-        assertOk(result, 'apply company defaults');
+        assertOk(result, 'apply company standards');
         const body = parseBody(
-          applyCompanyDefaultsResultResponseSchema,
+          applyCompanyStandardsResultResponseSchema,
           result.body,
-          'apply company defaults'
+          'apply company standards'
         );
         if (!body.companyDefaultsConfigured) {
           throw new Error(
