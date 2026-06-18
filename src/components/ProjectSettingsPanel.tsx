@@ -32,14 +32,8 @@ import {
   useProjectsQuery,
   useUsersQuery,
 } from '../queries/reference';
-import { useProjectAutoCodingRulesQuery } from '../queries/projectAutoCodingRules';
-import { useProjectImportRulesQuery } from '../queries/importRules';
 import { useUpdateProjectMutation } from '../queries/admin';
-import {
-  useApplyCompanyStandardsMutation,
-  useCategoriesQuery,
-  useSubCategoriesQuery,
-} from '../queries/taxonomy';
+import { useApplyCompanyStandardsMutation } from '../queries/taxonomy';
 import { useBudgets } from '../hooks/useBudgets';
 import {
   useCompanyMembershipsQuery,
@@ -50,7 +44,6 @@ import {
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useTransactions } from '../hooks/useTransactions';
-import { summarizeProjectStandardStates } from '../utils/projectStandards';
 import { getCompanyUsers } from '../store/access';
 import { companyRoute } from '../router';
 import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
@@ -108,10 +101,6 @@ export default function ProjectSettingsPanel(props: {
   const usersQ = useUsersQuery();
   const companyMembershipsQ = useCompanyMembershipsQuery(companyId);
   const projectMembershipsQ = useProjectMembershipsQuery(projectId);
-  const projectAutoCodingRulesQ = useProjectAutoCodingRulesQuery(projectId);
-  const projectImportRulesQ = useProjectImportRulesQuery(projectId);
-  const projectCategoriesQ = useCategoriesQuery(projectId);
-  const projectSubCategoriesQ = useSubCategoriesQuery(projectId);
   const reapplyCompanyStandards = useApplyCompanyStandardsMutation(
     projectId,
     companyId
@@ -250,23 +239,6 @@ export default function ProjectSettingsPanel(props: {
 
   const upsert = useUpsertProjectMembershipMutation(projectId);
   const del = useDeleteProjectMembershipMutation(projectId);
-  const taxonomyStateSummary = useMemo(
-    () =>
-      summarizeProjectStandardStates([
-        ...(projectCategoriesQ.data ?? []),
-        ...(projectSubCategoriesQ.data ?? []),
-      ]),
-    [projectCategoriesQ.data, projectSubCategoriesQ.data]
-  );
-  const importRuleStateSummary = useMemo(
-    () => summarizeProjectStandardStates(projectImportRulesQ.data ?? []),
-    [projectImportRulesQ.data]
-  );
-  const autoCodingRuleStateSummary = useMemo(
-    () => summarizeProjectStandardStates(projectAutoCodingRulesQ.data ?? []),
-    [projectAutoCodingRulesQ.data]
-  );
-
   const members = useMemo(
     () => projectMembershipsQ.data ?? [],
     [projectMembershipsQ.data]
@@ -490,62 +462,6 @@ export default function ProjectSettingsPanel(props: {
                 ? 'Company standards sync on'
                 : 'Company standards sync off'}
             </Badge>
-            <Badge variant="light">
-              {(projectCategoriesQ.data?.length ?? 0) +
-                (projectSubCategoriesQ.data?.length ?? 0)}{' '}
-              taxonomy items
-            </Badge>
-            {taxonomyStateSummary.inherited > 0 ? (
-              <Badge variant="light" color="teal">
-                {taxonomyStateSummary.inherited} inherited taxonomy
-              </Badge>
-            ) : null}
-            {taxonomyStateSummary.overridden > 0 ? (
-              <Badge variant="light" color="orange">
-                {taxonomyStateSummary.overridden} taxonomy overrides
-              </Badge>
-            ) : null}
-            {taxonomyStateSummary.detached > 0 ? (
-              <Badge variant="light" color="gray">
-                {taxonomyStateSummary.detached} detached taxonomy
-              </Badge>
-            ) : null}
-            <Badge variant="light">
-              {autoCodingRuleStateSummary.local} project auto-coding rules
-            </Badge>
-            {autoCodingRuleStateSummary.inherited > 0 ? (
-              <Badge variant="light" color="teal">
-                {autoCodingRuleStateSummary.inherited} inherited auto-coding
-              </Badge>
-            ) : null}
-            {autoCodingRuleStateSummary.overridden > 0 ? (
-              <Badge variant="light" color="orange">
-                {autoCodingRuleStateSummary.overridden} auto-coding overrides
-              </Badge>
-            ) : null}
-            {autoCodingRuleStateSummary.detached > 0 ? (
-              <Badge variant="light" color="gray">
-                {autoCodingRuleStateSummary.detached} detached auto-coding
-              </Badge>
-            ) : null}
-            <Badge variant="light">
-              {projectImportRulesQ.data?.length ?? 0} project import rules
-            </Badge>
-            {importRuleStateSummary.inherited > 0 ? (
-              <Badge variant="light" color="teal">
-                {importRuleStateSummary.inherited} inherited import rules
-              </Badge>
-            ) : null}
-            {importRuleStateSummary.overridden > 0 ? (
-              <Badge variant="light" color="orange">
-                {importRuleStateSummary.overridden} import rule overrides
-              </Badge>
-            ) : null}
-            {importRuleStateSummary.detached > 0 ? (
-              <Badge variant="light" color="gray">
-                {importRuleStateSummary.detached} detached import rules
-              </Badge>
-            ) : null}
           </Group>
           <Text size="xs" c="dimmed">
             Use the category, auto-coding, and import-rule managers here to
