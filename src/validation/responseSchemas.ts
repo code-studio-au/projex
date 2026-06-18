@@ -605,6 +605,12 @@ export const applyCompanyDefaultsResultResponseSchema = z.object({
   subCategoriesAdded: z.number().int().nonnegative(),
 });
 
+export const applyCompanyStandardsResultResponseSchema =
+  applyCompanyDefaultsResultResponseSchema.extend({
+    importRulesSynced: z.boolean(),
+    autoCodingRulesSynced: z.boolean(),
+  });
+
 export const betterAuthLikePayloadSchema = z
   .object({
     error: z

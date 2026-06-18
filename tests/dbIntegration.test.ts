@@ -128,6 +128,7 @@ import {
   putCompanyExportObject,
 } from '../src/server/storage/exportObjectStore.ts';
 import {
+  applyCompanyStandardsServer,
   applyCompanyDefaultTaxonomyServer,
   bulkRecodeProjectTransactionsServer,
   createCategoryServer,
@@ -3755,6 +3756,172 @@ test(
         .executeTakeFirst();
       assert.equal(syncedProjectCategory?.name, 'IT');
       assert.equal(syncedProjectSubCategory?.name, 'VoIP');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'reapplying company standards manually syncs taxonomy, import rules, and auto-coding into an existing project',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_reapply_standards_co_1');
+    const userId = asUserId('itest_reapply_standards_usr_1');
+    const projectId = asProjectId('itest_reapply_standards_prj_1');
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_reapply_standards_dcat_1'
+    );
+    const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_reapply_standards_dsub_1'
+    );
+    const defaultRuleId = asCompanyDefaultMappingRuleId(
+      'itest_reapply_standards_rule_1'
+    );
+    const context = { session: { userId } } satisfies ServerFnContextInput;
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Reapply Standards Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'reapply-standards@example.com',
+          name: 'Reapply Standards User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await createProjectServer({
+        context,
+        companyId,
+        input: {
+          id: projectId,
+          name: 'Reapply Standards Project',
+          applyCompanyDefaultTaxonomy: false,
+        },
+      });
+
+      await createCompanyDefaultCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultCategoryId,
+          companyId,
+          name: 'IT',
+        },
+      });
+      await createCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultSubCategoryId,
+          companyId,
+          companyDefaultCategoryId: defaultCategoryId,
+          name: 'Software and Services',
+        },
+      });
+      await createCompanyDefaultMappingRuleServer({
+        context,
+        companyId,
+        input: {
+          id: defaultRuleId,
+          companyId,
+          matchText: 'microsoft 365',
+          companyDefaultCategoryId: defaultCategoryId,
+          companyDefaultSubCategoryId: defaultSubCategoryId,
+          sortOrder: 10,
+        },
+      });
+      await createImportRuleServer({
+        context,
+        companyId,
+        input: {
+          companyId,
+          scope: 'company',
+          name: 'Exclude test source',
+          action: 'exclude',
+          field: 'source',
+          operator: 'equals',
+          value: 'T99',
+          sortOrder: 10,
+          enabled: true,
+        },
+      });
+
+      const beforeCategories = await listCategoriesServer({
+        context,
+        projectId,
+      });
+      const beforeProjectImportRules = await listProjectImportRulesServer({
+        context,
+        projectId,
+      });
+      const beforeProjectAutoCodingRules =
+        await listProjectAutoCodingRulesServer({
+          context,
+          projectId,
+        });
+      assert.equal(beforeCategories.length, 0);
+      assert.equal(beforeProjectImportRules.length, 0);
+      assert.equal(beforeProjectAutoCodingRules.length, 0);
+
+      const result = await applyCompanyStandardsServer({
+        context,
+        projectId,
+      });
+      assert.equal(result.companyDefaultsConfigured, true);
+      assert.equal(result.categoriesAdded, 1);
+      assert.equal(result.subCategoriesAdded, 1);
+      assert.equal(result.importRulesSynced, true);
+      assert.equal(result.autoCodingRulesSynced, true);
+
+      const categories = await listCategoriesServer({ context, projectId });
+      const subCategories = await listSubCategoriesServer({
+        context,
+        projectId,
+      });
+      const projectImportRules = await listProjectImportRulesServer({
+        context,
+        projectId,
+      });
+      const projectAutoCodingRules = await listProjectAutoCodingRulesServer({
+        context,
+        projectId,
+      });
+
+      assert.equal(categories.length, 1);
+      assert.equal(categories[0]?.originScope, 'company');
+      assert.equal(categories[0]?.syncStatus, 'inherited');
+      assert.equal(subCategories.length, 1);
+      assert.equal(subCategories[0]?.originScope, 'company');
+      assert.equal(subCategories[0]?.syncStatus, 'inherited');
+      assert.equal(projectImportRules.length, 1);
+      assert.equal(projectImportRules[0]?.originScope, 'company');
+      assert.equal(projectImportRules[0]?.syncStatus, 'inherited');
+      assert.equal(projectAutoCodingRules.length, 1);
+      assert.equal(projectAutoCodingRules[0]?.originScope, 'company');
+      assert.equal(projectAutoCodingRules[0]?.syncStatus, 'inherited');
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

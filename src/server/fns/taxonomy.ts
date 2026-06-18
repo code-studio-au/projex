@@ -1,5 +1,6 @@
 import { AppError } from '../../api/errors';
 import type {
+  ApplyCompanyStandardsResult,
   ApplyCompanyDefaultsResult,
   BulkRecodeProjectTransactionsInput,
   BulkRecodeProjectTransactionsResult,
@@ -61,6 +62,7 @@ import {
   syncCompanyAutoCodingRulesToProject,
   syncCompanyAutoCodingRulesToSyncedProjects,
 } from './projectAutoCodingRules';
+import { syncCompanyImportRulesToProject } from './importRules';
 import {
   toCategory,
   toCompanyDefaultCategory,
@@ -1568,6 +1570,13 @@ export async function applyCompanyDefaultTaxonomyServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
 }): Promise<ApplyCompanyDefaultsResult> {
+  return applyCompanyStandardsServer(args);
+}
+
+export async function applyCompanyStandardsServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+}): Promise<ApplyCompanyStandardsResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
     const userId = await requireServerUserId(args.context);
@@ -1581,13 +1590,22 @@ export async function applyCompanyDefaultTaxonomyServer(args: {
       companyId,
       projectId: args.projectId,
     });
+    await syncCompanyImportRulesToProject({
+      db: getDb(),
+      companyId,
+      projectId: args.projectId,
+    });
     await syncCompanyAutoCodingRulesToProject({
       db: getDb(),
       companyId,
       projectId: args.projectId,
       actorUserId: userId,
     });
-    return result;
+    return {
+      ...result,
+      importRulesSynced: true,
+      autoCodingRulesSynced: true,
+    };
   });
 }
 

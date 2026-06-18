@@ -376,6 +376,11 @@ export type ApplyCompanyDefaultsResult = {
   subCategoriesAdded: number;
 };
 
+export type ApplyCompanyStandardsResult = ApplyCompanyDefaultsResult & {
+  importRulesSynced: boolean;
+  autoCodingRulesSynced: boolean;
+};
+
 export type CompanyCreateInput = Pick<Company, 'name'> & {
   id?: CompanyId;
   initialAdminName?: string;

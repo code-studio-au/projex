@@ -32,7 +32,7 @@ import type {
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import {
-  applyCompanyDefaultTaxonomyServerFn,
+  applyCompanyStandardsServerFn,
   bulkRecodeProjectTransactionsServerFn,
   createCategoryServerFn,
   createCompanyDefaultCategoryServerFn,
@@ -552,11 +552,17 @@ export function useApplyCompanyDefaultTaxonomyMutation(
   projectId: ProjectId,
   companyId: CompanyId
 ) {
+  return useApplyCompanyStandardsMutation(projectId, companyId);
+}
+
+export function useApplyCompanyStandardsMutation(
+  projectId: ProjectId,
+  companyId: CompanyId
+) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: () =>
-      applyCompanyDefaultTaxonomyServerFn({ data: { projectId } }),
+    mutationFn: () => applyCompanyStandardsServerFn({ data: { projectId } }),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({
@@ -578,6 +584,9 @@ export function useApplyCompanyDefaultTaxonomyMutation(
         }),
         qc.invalidateQueries({
           queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projectImportRules(scopeUserId, projectId),
         }),
       ]);
     },

@@ -196,47 +196,12 @@ export default function TaxonomyManagerModal(props: {
                   <Text size="sm" c="dimmed" className={classes.modalIntro}>
                     Company standards can be synced into the project, then
                     adjusted locally when a project genuinely needs an
-                    exception. Editing inherited items creates a project
-                    override. Inherited items cannot be deleted directly.
+                    exception. Use the project settings reapply action when you
+                    need to pull the latest company standards back in. Editing
+                    inherited items creates a project override. Inherited items
+                    cannot be deleted directly.
                   </Text>
                 </Stack>
-                <Button
-                  variant="light"
-                  disabled={taxonomy.isApplyingCompanyDefaults}
-                  onClick={async () => {
-                    try {
-                      setError(null);
-                      setStatus(null);
-                      const result = await taxonomy.applyCompanyDefaults();
-                      if (!result.companyDefaultsConfigured) {
-                        setStatus(
-                          'No company defaults are configured for this company yet.'
-                        );
-                        return;
-                      }
-                      if (
-                        result.categoriesAdded === 0 &&
-                        result.subCategoriesAdded === 0
-                      ) {
-                        setStatus(
-                          'No new company defaults were added. Existing inherited items were refreshed where possible.'
-                        );
-                        return;
-                      }
-                      setStatus(
-                        `Synced company defaults: ${result.categoriesAdded} categories and ${result.subCategoriesAdded} subcategories added.`
-                      );
-                    } catch (err) {
-                      setError(
-                        err instanceof Error
-                          ? err.message
-                          : 'Could not apply company defaults.'
-                      );
-                    }
-                  }}
-                >
-                  Sync from company now
-                </Button>
               </Group>
               <Group gap="xs" wrap="wrap">
                 <Badge variant="light">

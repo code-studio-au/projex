@@ -35,7 +35,11 @@ import {
 import { useProjectAutoCodingRulesQuery } from '../queries/projectAutoCodingRules';
 import { useProjectImportRulesQuery } from '../queries/importRules';
 import { useUpdateProjectMutation } from '../queries/admin';
-import { useCategoriesQuery, useSubCategoriesQuery } from '../queries/taxonomy';
+import {
+  useApplyCompanyStandardsMutation,
+  useCategoriesQuery,
+  useSubCategoriesQuery,
+} from '../queries/taxonomy';
 import { useBudgets } from '../hooks/useBudgets';
 import {
   useCompanyMembershipsQuery,
@@ -54,6 +58,7 @@ import ProjectAutoCodingRulesModal from './ProjectAutoCodingRulesModal';
 import ProjectImportRulesModal from './ProjectImportRulesModal';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import classes from '../styles/ui.module.css';
+import { showAppToast } from '../utils/toast';
 
 const hydrateSubscription = () => () => {};
 const getClientHydratedSnapshot = () => true;
@@ -107,6 +112,10 @@ export default function ProjectSettingsPanel(props: {
   const projectImportRulesQ = useProjectImportRulesQuery(projectId);
   const projectCategoriesQ = useCategoriesQuery(projectId);
   const projectSubCategoriesQ = useSubCategoriesQuery(projectId);
+  const reapplyCompanyStandards = useApplyCompanyStandardsMutation(
+    projectId,
+    companyId
+  );
 
   const access = useCompanyAccess(companyId);
   const updateProject = useUpdateProjectMutation(companyId);
@@ -469,8 +478,8 @@ export default function ProjectSettingsPanel(props: {
         <Stack gap="sm">
           <Title order={5}>Project Standards Alignment</Title>
           <Text size="sm" c="dimmed">
-            Synced projects can inherit company taxonomy and import rules while
-            still keeping justified project-only exceptions.
+            Synced projects can inherit company taxonomy, import rules, and
+            auto-coding while still keeping justified project-only exceptions.
           </Text>
           <Group gap="sm" wrap="wrap">
             <Badge
@@ -501,28 +510,115 @@ export default function ProjectSettingsPanel(props: {
                 {taxonomyStateSummary.detached} detached taxonomy
               </Badge>
             ) : null}
-            {importRuleStateSummary.companyBacked > 0 ? (
+            <Badge variant="light">
+              {autoCodingRuleStateSummary.local} project auto-coding rules
+            </Badge>
+            {autoCodingRuleStateSummary.inherited > 0 ? (
               <Badge variant="light" color="teal">
-                {importRuleStateSummary.companyBacked} company-backed import
-                rules
+                {autoCodingRuleStateSummary.inherited} inherited auto-coding
+              </Badge>
+            ) : null}
+            {autoCodingRuleStateSummary.overridden > 0 ? (
+              <Badge variant="light" color="orange">
+                {autoCodingRuleStateSummary.overridden} auto-coding overrides
+              </Badge>
+            ) : null}
+            {autoCodingRuleStateSummary.detached > 0 ? (
+              <Badge variant="light" color="gray">
+                {autoCodingRuleStateSummary.detached} detached auto-coding
+              </Badge>
+            ) : null}
+            <Badge variant="light">
+              {projectImportRulesQ.data?.length ?? 0} project import rules
+            </Badge>
+            {importRuleStateSummary.inherited > 0 ? (
+              <Badge variant="light" color="teal">
+                {importRuleStateSummary.inherited} inherited import rules
+              </Badge>
+            ) : null}
+            {importRuleStateSummary.overridden > 0 ? (
+              <Badge variant="light" color="orange">
+                {importRuleStateSummary.overridden} import rule overrides
+              </Badge>
+            ) : null}
+            {importRuleStateSummary.detached > 0 ? (
+              <Badge variant="light" color="gray">
+                {importRuleStateSummary.detached} detached import rules
               </Badge>
             ) : null}
           </Group>
           <Text size="xs" c="dimmed">
-            Use Manage categories in the transactions view to review inherited,
-            overridden, and detached taxonomy. Use project import rules for
-            local import exceptions, then promote stable patterns up to the
-            company standard set.
+            Use the category, auto-coding, and import-rule managers here to
+            review inherited, overridden, and detached standards. Stable project
+            patterns can be promoted up to the company standards set.
           </Text>
-          <Button
-            variant="light"
-            disabled={
-              effectiveProject.projectType !== 'project' || !canEditTaxonomy
-            }
-            onClick={() => setTaxonomyModalOpen(true)}
-          >
-            Manage Project Categories
-          </Button>
+          <Group gap="sm" wrap="wrap">
+            <Button
+              variant="light"
+              disabled={
+                effectiveProject.projectType !== 'project' || !canEditTaxonomy
+              }
+              loading={reapplyCompanyStandards.isPending}
+              onClick={async () => {
+                try {
+                  const result = await reapplyCompanyStandards.mutateAsync();
+                  if (!result.companyDefaultsConfigured) {
+                    showAppToast({
+                      tone: 'success',
+                      title: 'Company standards reapplied',
+                      message:
+                        'Company import and auto-coding rules were resynced. No company taxonomy defaults are configured yet, so no categories or subcategories were added.',
+                    });
+                    return;
+                  }
+                  showAppToast({
+                    tone: 'success',
+                    title: 'Company standards reapplied',
+                    message:
+                      result.categoriesAdded === 0 &&
+                      result.subCategoriesAdded === 0
+                        ? 'Project taxonomy was refreshed and company import and auto-coding rules were resynced.'
+                        : `Added ${result.categoriesAdded} categories and ${result.subCategoriesAdded} subcategories, then resynced company import and auto-coding rules.`,
+                    autoClose: 9000,
+                  });
+                } catch (error) {
+                  showAppToast({
+                    tone: 'error',
+                    title: 'Could not reapply company standards',
+                    message:
+                      error instanceof Error
+                        ? error.message
+                        : 'Please try again.',
+                  });
+                }
+              }}
+            >
+              Reapply Company Standards
+            </Button>
+            <Button
+              variant="light"
+              disabled={
+                effectiveProject.projectType !== 'project' || !canEditTaxonomy
+              }
+              onClick={() => setTaxonomyModalOpen(true)}
+            >
+              Manage Project Categories
+            </Button>
+            <Button
+              variant="light"
+              disabled={!canEditProject}
+              onClick={() => setProjectRulesModalOpen(true)}
+            >
+              Manage Auto-Coding Rules
+            </Button>
+            <Button
+              variant="light"
+              disabled={!canEditProject}
+              onClick={() => setProjectImportRulesModalOpen(true)}
+            >
+              Manage Import Rules
+            </Button>
+          </Group>
         </Stack>
       </Paper>
 
@@ -567,114 +663,6 @@ export default function ProjectSettingsPanel(props: {
           <Text size="sm" c="dimmed">
             Manage membership per project. Company settings manages
             company-level roles only.
-          </Text>
-        </Stack>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Project Auto-Coding Rules</Title>
-          <Text size="sm" c="dimmed">
-            Manage saved project-specific auto-coding rules created from
-            repeated manual coding. These rules apply within this project and
-            can bulk-mark matching uncoded rows for approval.
-          </Text>
-          {projectAutoCodingRulesQ.isPending &&
-          !projectAutoCodingRulesQ.data ? (
-            <Text size="sm" c="dimmed">
-              Loading project auto-coding rules…
-            </Text>
-          ) : (
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">
-                {autoCodingRuleStateSummary.local} project rules
-              </Badge>
-              {autoCodingRuleStateSummary.inherited > 0 ? (
-                <Badge variant="light" color="teal">
-                  {autoCodingRuleStateSummary.inherited} inherited company rules
-                </Badge>
-              ) : null}
-              {autoCodingRuleStateSummary.overridden > 0 ? (
-                <Badge variant="light" color="orange">
-                  {autoCodingRuleStateSummary.overridden} project overrides
-                </Badge>
-              ) : null}
-              {autoCodingRuleStateSummary.detached > 0 ? (
-                <Badge variant="light" color="gray">
-                  {autoCodingRuleStateSummary.detached} detached
-                </Badge>
-              ) : null}
-              {effectiveProject.projectType === 'project' ? (
-                <Badge
-                  variant="light"
-                  color={effectiveProject.syncCompanyDefaults ? 'teal' : 'gray'}
-                >
-                  {effectiveProject.syncCompanyDefaults
-                    ? 'Company standards auto-sync on'
-                    : 'Company standards auto-sync off'}
-                </Badge>
-              ) : null}
-            </Group>
-          )}
-          <Button
-            variant="light"
-            disabled={!canEditProject}
-            onClick={() => setProjectRulesModalOpen(true)}
-          >
-            Manage Project Auto-Coding Rules
-          </Button>
-          <Text size="xs" c="dimmed">
-            Project-specific rules run before inherited company rules. Editing
-            an inherited rule creates a project override for this project.
-          </Text>
-        </Stack>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Project Import Rules</Title>
-          <Text size="sm" c="dimmed">
-            Manage saved project-specific import exclusions and review rules.
-            These rules apply only within this project and run before company
-            import rules.
-          </Text>
-          {projectImportRulesQ.isPending && !projectImportRulesQ.data ? (
-            <Text size="sm" c="dimmed">
-              Loading project import rules…
-            </Text>
-          ) : (
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">
-                {projectImportRulesQ.data?.length ?? 0} project rules
-              </Badge>
-              {importRuleStateSummary.inherited > 0 ? (
-                <Badge variant="light" color="teal">
-                  {importRuleStateSummary.inherited} inherited
-                </Badge>
-              ) : null}
-              {importRuleStateSummary.overridden > 0 ? (
-                <Badge variant="light" color="orange">
-                  {importRuleStateSummary.overridden} overrides
-                </Badge>
-              ) : null}
-              {importRuleStateSummary.detached > 0 ? (
-                <Badge variant="light" color="gray">
-                  {importRuleStateSummary.detached} detached
-                </Badge>
-              ) : null}
-            </Group>
-          )}
-          <Button
-            variant="light"
-            disabled={!canEditProject}
-            onClick={() => setProjectImportRulesModalOpen(true)}
-          >
-            Manage Project Import Rules
-          </Button>
-          <Text size="xs" c="dimmed">
-            Use project rules for local exceptions. Company admins and
-            executives can promote stable project rules into the company
-            standards set so synced projects inherit them automatically.
           </Text>
         </Stack>
       </Paper>
