@@ -147,6 +147,56 @@ function projectAutoCodingRuleFingerprint(
   ].join('|');
 }
 
+async function resolveInheritedCompanyAutoCodingRule(args: {
+  db: Kysely<DB>;
+  companyId: ProjectAutoCodingRule['companyId'];
+  projectId: ProjectId;
+  companyRuleId: string;
+}) {
+  const companyRule = await args.db
+    .selectFrom('company_default_mapping_rules')
+    .select([
+      'id',
+      'company_id',
+      'match_text',
+      'company_default_category_id',
+      'company_default_sub_category_id',
+      'sort_order',
+      'created_at',
+      'updated_at',
+    ])
+    .where('company_id', '=', args.companyId)
+    .where('id', '=', args.companyRuleId)
+    .executeTakeFirst();
+  if (!companyRule) return null;
+
+  const [
+    defaultCategories,
+    defaultSubCategories,
+    projectCategories,
+    projectSubCategories,
+  ] = await Promise.all([
+    listCompanyDefaultCategories(args.db, args.companyId),
+    listCompanyDefaultSubCategories(args.db, args.companyId),
+    listProjectCategories(args.db, args.projectId),
+    listProjectSubCategories(args.db, args.projectId),
+  ]);
+
+  const resolved = resolveCompanyDefaultRuleToProjectTaxonomy({
+    rule: toCompanyDefaultMappingRule(companyRule),
+    defaultCategories,
+    defaultSubCategories,
+    projectCategories,
+    projectSubCategories,
+  });
+  if (!resolved) return null;
+
+  return {
+    companyRule,
+    resolved,
+  };
+}
+
 async function listProjectRules(
   db: ReturnType<typeof getDb>,
   projectId: ProjectId
@@ -736,10 +786,36 @@ export async function updateProjectAutoCodingRuleServer(args: {
     if (args.input.sortOrder != null) patch.sort_order = args.input.sortOrder;
     if (
       existing.origin_scope === 'company' &&
-      existing.sync_status === 'inherited'
+      existing.origin_company_item_id != null
     ) {
-      patch.sync_status = 'overridden';
-      patch.last_synced_at = new Date().toISOString();
+      const inheritedRule = await resolveInheritedCompanyAutoCodingRule({
+        db,
+        companyId: existing.company_id as ProjectAutoCodingRule['companyId'],
+        projectId: args.projectId,
+        companyRuleId: existing.origin_company_item_id,
+      });
+      const nextSortOrder = args.input.sortOrder ?? existing.sort_order;
+
+      if (
+        inheritedRule &&
+        canonicalizeRuleText(nextMatchText) ===
+          canonicalizeRuleText(inheritedRule.companyRule.match_text) &&
+        nextCategoryId === inheritedRule.resolved.categoryId &&
+        nextSubCategoryId === inheritedRule.resolved.subCategoryId &&
+        nextSortOrder === inheritedRule.companyRule.sort_order
+      ) {
+        Object.assign(
+          patch,
+          buildInheritedProjectStandardMetadata({
+            companyItemId: inheritedRule.companyRule.id,
+            sourceUpdatedAt: inheritedRule.companyRule.updated_at,
+            nowIso: new Date().toISOString(),
+          })
+        );
+      } else if (existing.sync_status === 'inherited') {
+        patch.sync_status = 'overridden';
+        patch.last_synced_at = new Date().toISOString();
+      }
     }
 
     const updated = await db

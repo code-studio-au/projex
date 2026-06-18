@@ -16,9 +16,10 @@ export function getSmokeConfiguredBaseUrl(
   fallbackOrigin = 'http://localhost:3000'
 ) {
   loadSmokeEnvFiles();
-  return (
-    process.env.PROJEX_SMOKE_BASE_URL?.trim() || fallbackOrigin
-  ).replace(/\/+$/, '');
+  return (process.env.PROJEX_SMOKE_BASE_URL?.trim() || fallbackOrigin).replace(
+    /\/+$/,
+    ''
+  );
 }
 
 export function getSmokeRequestBaseUrl(requestOrigin: string) {

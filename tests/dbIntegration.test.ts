@@ -2989,6 +2989,166 @@ test(
 );
 
 test(
+  'reverting an overridden inherited project auto-coding rule back to the company shape restores inherited status',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_prule_revert_co_1');
+    const userId = asUserId('itest_prule_revert_usr_1');
+    const projectId = asProjectId('itest_prule_revert_prj_1');
+    const defaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_prule_revert_dcat_1'
+    );
+    const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_prule_revert_dsub_1'
+    );
+    const defaultRuleId = asCompanyDefaultMappingRuleId(
+      'itest_prule_revert_rule_1'
+    );
+    const overrideSubCategoryId = asSubCategoryId(
+      'itest_prule_revert_override_sub_1'
+    );
+    const context = { session: { userId } } satisfies ServerFnContextInput;
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Project Rule Revert Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'project-rule-revert@example.com',
+          name: 'Project Rule Revert User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+
+      await createCompanyDefaultCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultCategoryId,
+          companyId,
+          name: 'IT',
+        },
+      });
+      await createCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultSubCategoryId,
+          companyId,
+          companyDefaultCategoryId: defaultCategoryId,
+          name: 'Software and Services',
+        },
+      });
+
+      await createProjectServer({
+        context,
+        companyId,
+        input: {
+          id: projectId,
+          name: 'Project Rule Revert Project',
+        },
+      });
+
+      await createCompanyDefaultMappingRuleServer({
+        context,
+        companyId,
+        input: {
+          id: defaultRuleId,
+          companyId,
+          matchText: 'microsoft 365',
+          companyDefaultCategoryId: defaultCategoryId,
+          companyDefaultSubCategoryId: defaultSubCategoryId,
+          sortOrder: 10,
+        },
+      });
+
+      const inheritedRules = await listProjectAutoCodingRulesServer({
+        context,
+        projectId,
+      });
+      const inheritedRule = inheritedRules[0];
+      assert.ok(inheritedRule);
+      assert.equal(inheritedRule?.syncStatus, 'inherited');
+
+      const projectCategory = await db
+        .selectFrom('categories')
+        .select(['id'])
+        .where('project_id', '=', projectId)
+        .where('origin_company_item_id', '=', defaultCategoryId)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto('sub_categories')
+        .values({
+          id: overrideSubCategoryId,
+          company_id: companyId,
+          project_id: projectId,
+          category_id: projectCategory.id,
+          name: 'VoIP',
+          origin_scope: 'project',
+          origin_company_item_id: null,
+          sync_status: 'local',
+          last_synced_at: null,
+          source_updated_at_snapshot: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
+
+      const overriddenRule = await updateProjectAutoCodingRuleServer({
+        context,
+        projectId,
+        input: {
+          id: inheritedRule!.id,
+          categoryId: projectCategory.id as ReturnType<typeof asCategoryId>,
+          subCategoryId: overrideSubCategoryId,
+          sortOrder: 20,
+        },
+      });
+      assert.equal(overriddenRule.syncStatus, 'overridden');
+
+      const restoredRule = await updateProjectAutoCodingRuleServer({
+        context,
+        projectId,
+        input: {
+          id: inheritedRule!.id,
+          matchText: 'microsoft 365',
+          categoryId: projectCategory.id as ReturnType<typeof asCategoryId>,
+          subCategoryId: inheritedRule!.subCategoryId,
+          sortOrder: 10,
+        },
+      });
+      assert.equal(restoredRule.matchText, 'microsoft 365');
+      assert.equal(restoredRule.originScope, 'company');
+      assert.equal(restoredRule.originCompanyItemId, defaultRuleId);
+      assert.equal(restoredRule.syncStatus, 'inherited');
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
   'project creation applies company default taxonomy by default and supports opting out',
   { skip: !integrationDatabaseUrl },
   async () => {

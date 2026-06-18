@@ -1,7 +1,4 @@
-import {
-  HeadBucketCommand,
-  S3ServiceException,
-} from '@aws-sdk/client-s3';
+import { HeadBucketCommand, S3ServiceException } from '@aws-sdk/client-s3';
 
 import { AppError } from '../../api/errors.ts';
 import {

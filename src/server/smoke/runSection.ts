@@ -27,10 +27,7 @@ import {
   txnsResponseSchema,
   usersResponseSchema,
 } from '../../validation/responseSchemas.ts';
-import {
-  getSmokeRequestBaseUrl,
-  loadSmokeEnvFiles,
-} from './env.ts';
+import { getSmokeRequestBaseUrl, loadSmokeEnvFiles } from './env.ts';
 const smokeSectionMap = new Map(
   smokeSectionDefinitions.map((section) => [section.id, section])
 );
