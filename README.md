@@ -1,5 +1,7 @@
 # Projex
 
+[![CI](https://github.com/code-studio-au/projex/actions/workflows/ci.yml/badge.svg)](https://github.com/code-studio-au/projex/actions/workflows/ci.yml)
+
 Project and grant budget tracking app.
 
 Projex is a TanStack Start, React, TypeScript, Mantine 9, BetterAuth, and Postgres app. The UI uses TanStack Start server functions for app internals, while route-backed HTTP endpoints stay thin over `src/server/fns/*`.
