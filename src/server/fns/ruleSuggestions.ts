@@ -35,6 +35,7 @@ import {
   type ServerFnContextInput,
   withServerBoundary,
 } from './runtime';
+import { syncCompanyAutoCodingRulesToSyncedProjects } from './projectAutoCodingRules';
 
 const MIN_RULE_SUGGESTION_SAMPLE_COUNT = 3;
 
@@ -693,6 +694,12 @@ export async function acceptRuleSuggestionServer(args: {
       if (!result.numUpdatedRows || Number(result.numUpdatedRows) === 0) {
         throw new AppError('NOT_FOUND', 'Unknown open rule suggestion');
       }
+
+      await syncCompanyAutoCodingRulesToSyncedProjects({
+        db: trx,
+        companyId: args.companyId,
+        actorUserId: userId,
+      });
 
       return finalRuleId;
     });

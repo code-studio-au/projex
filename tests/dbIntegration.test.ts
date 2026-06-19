@@ -1462,6 +1462,7 @@ test(
           visibility: 'private',
           allow_superadmin_access: true,
           allow_txn_transfers: false,
+          sync_company_defaults: true,
         })
         .execute();
 
@@ -1865,9 +1866,6 @@ test(
     const companyId = asCompanyId('itest_rulesuggest_co_3');
     const userId = asUserId('itest_rulesuggest_usr_3');
     const projectId = asProjectId('itest_rulesuggest_prj_3');
-    const categoryId = asCategoryId('itest_rulesuggest_cat_3');
-    const flightsSubCategoryId = asSubCategoryId('itest_rulesuggest_sub_3a');
-    const hotelsSubCategoryId = asSubCategoryId('itest_rulesuggest_sub_3b');
     const defaultCategoryId = asCompanyDefaultCategoryId(
       'itest_rulesuggest_defcat_3'
     );
@@ -1911,65 +1909,6 @@ test(
         .execute();
 
       await db
-        .insertInto('projects')
-        .values({
-          id: projectId,
-          company_id: companyId,
-          name: 'Rule Suggestion Project 3',
-          project_type: 'project',
-          parent_project_id: null,
-          budget_total_cents: 0,
-          currency: 'AUD',
-          status: 'active',
-          deactivated_at: null,
-          visibility: 'private',
-          allow_superadmin_access: true,
-          allow_txn_transfers: false,
-        })
-        .execute();
-
-      await db
-        .insertInto('project_memberships')
-        .values({ project_id: projectId, user_id: userId, role: 'member' })
-        .execute();
-
-      await db
-        .insertInto('categories')
-        .values({
-          id: categoryId,
-          company_id: companyId,
-          project_id: projectId,
-          name: 'Travel',
-          created_at: now,
-          updated_at: now,
-        })
-        .execute();
-
-      await db
-        .insertInto('sub_categories')
-        .values([
-          {
-            id: flightsSubCategoryId,
-            company_id: companyId,
-            project_id: projectId,
-            category_id: categoryId,
-            name: 'Flights',
-            created_at: now,
-            updated_at: now,
-          },
-          {
-            id: hotelsSubCategoryId,
-            company_id: companyId,
-            project_id: projectId,
-            category_id: categoryId,
-            name: 'Hotels',
-            created_at: now,
-            updated_at: now,
-          },
-        ])
-        .execute();
-
-      await db
         .insertInto('company_default_categories')
         .values({
           id: defaultCategoryId,
@@ -2001,6 +1940,37 @@ test(
           },
         ])
         .execute();
+
+      const context = { session: { userId } };
+      await createProjectServer({
+        context,
+        companyId,
+        input: {
+          id: projectId,
+          name: 'Rule Suggestion Project 3',
+        },
+      });
+
+      const inheritedCategories = await listCategoriesServer({
+        context,
+        projectId,
+      });
+      const inheritedSubCategories = await listSubCategoriesServer({
+        context,
+        projectId,
+      });
+      const categoryId = inheritedCategories.find(
+        (category) => category.name === 'Travel'
+      )?.id;
+      const flightsSubCategoryId = inheritedSubCategories.find(
+        (subCategory) => subCategory.name === 'Flights'
+      )?.id;
+      const hotelsSubCategoryId = inheritedSubCategories.find(
+        (subCategory) => subCategory.name === 'Hotels'
+      )?.id;
+      assert.ok(categoryId);
+      assert.ok(flightsSubCategoryId);
+      assert.ok(hotelsSubCategoryId);
 
       const readyTxnIds = [
         asTxnId('itest_rulesuggest_txn_5'),
@@ -2050,7 +2020,7 @@ test(
 
       for (const txnId of readyTxnIds) {
         await updateTxnServer({
-          context: { session: { userId } },
+          context,
           projectId,
           input: {
             id: txnId,
@@ -2065,7 +2035,7 @@ test(
 
       for (const txnId of hiddenTxnIds) {
         await updateTxnServer({
-          context: { session: { userId } },
+          context,
           projectId,
           input: {
             id: txnId,
@@ -2079,7 +2049,7 @@ test(
       }
 
       const listedBefore = await listRuleSuggestionsServer({
-        context: { session: { userId } },
+        context,
         companyId,
       });
       assert.equal(listedBefore.length, 1);
@@ -2088,7 +2058,7 @@ test(
       assert.ok((listedBefore[0]?.evidence.length ?? 0) >= 1);
 
       const accepted = await acceptRuleSuggestionServer({
-        context: { session: { userId } },
+        context,
         companyId,
         input: {
           id: listedBefore[0]!.id,
@@ -2111,8 +2081,18 @@ test(
         defaultFlightsSubCategoryId
       );
 
+      const syncedProjectRules = await listProjectAutoCodingRulesServer({
+        context,
+        projectId,
+      });
+      assert.equal(syncedProjectRules.length, 1);
+      assert.equal(syncedProjectRules[0]?.matchText, 'virgin');
+      assert.equal(syncedProjectRules[0]?.originScope, 'company');
+      assert.equal(syncedProjectRules[0]?.originCompanyItemId, accepted.ruleId);
+      assert.equal(syncedProjectRules[0]?.syncStatus, 'inherited');
+
       const listedAfterAccept = await listRuleSuggestionsServer({
-        context: { session: { userId } },
+        context,
         companyId,
       });
       assert.equal(listedAfterAccept.length, 0);
