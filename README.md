@@ -22,6 +22,13 @@ pnpm run format:check
 pnpm run build
 ```
 
+The repo now also includes a deployment-free GitHub Actions CI workflow at
+`.github/workflows/ci.yml`. It currently runs three lanes:
+
+- a fast static lane for `format:check`, `lint`, `typecheck`, `test`, and `build`
+- a Postgres-backed lane for `db:migrate`, `db:verify-types`, and `test:integration:db`
+- a disposable end-to-end lane for `smoke:server:disposable -- --section=basics`
+
 For the most complete local or future-CI verification pass, use:
 
 ```bash
@@ -39,6 +46,10 @@ That pipeline-shaped command runs:
 - disposable Postgres-backed end-to-end smoke for the `basics` section
 
 Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`, and `pnpm run smoke:server:disposable`.
+
+The GitHub Actions workflow currently limits smoke coverage to the generated
+fixture `basics` section so CI keeps a good signal-to-runtime ratio without
+turning every push into a full long-running application sweep.
 
 For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](/Users/scas0196/Documents/code/projex/docs/local-services.md:1).
 

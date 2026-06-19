@@ -24,6 +24,7 @@ Before handing this repo to another developer or team, make sure:
   - only nginx/public ports should be browser-facing
 - the eventual pipeline shape is clear:
   - local/CI gate: `pnpm run verify:ci`
+  - GitHub Actions CI: static checks, DB verification, and disposable smoke basics
   - deployed-environment checks: `pnpm run smoke:server` and `pnpm run verify:deploy-security`
 - the first-admin bootstrap path is understood for fresh databases:
   - `pnpm run auth:create-user`
