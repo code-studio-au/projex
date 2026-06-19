@@ -30,3 +30,4 @@ dist-ssr
 .local/
 .env.staging
 .env.production
+deploy/cdk/cdk.out/
