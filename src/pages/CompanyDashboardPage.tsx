@@ -480,7 +480,7 @@ export default function CompanyDashboardPage() {
                   opened={newProjectOpen}
                   onClose={() => {
                     setNewProjectOpen(false);
-                    setNewProjectApplyCompanyDefaults(true);
+                    setNewProjectApplyCompanyStandards(true);
                     setNewProjectOwnerId(null);
                   }}
                   title="Create project or programme"
@@ -633,7 +633,7 @@ export default function CompanyDashboardPage() {
                           setNewProjectType('project');
                           setNewProjectCurrency('AUD');
                           setNewProjectParentId(null);
-                          setNewProjectApplyCompanyDefaults(true);
+                          setNewProjectApplyCompanyStandards(true);
                           setNewProjectOwnerId(null);
                           setNewProjectOpen(false);
                         }}

@@ -21,7 +21,14 @@
   "ProjexVpcpublicSubnet1Subnet362C5EFC": {
    "Type": "AWS::EC2::Subnet",
    "Properties": {
-    "AvailabilityZone": "ap-southeast-2a",
+    "AvailabilityZone": {
+     "Fn::Select": [
+      0,
+      {
+       "Fn::GetAZs": ""
+      }
+     ]
+    },
     "CidrBlock": "10.0.0.0/24",
     "MapPublicIpOnLaunch": true,
     "Tags": [
@@ -95,52 +102,17 @@
     "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet1/DefaultRoute"
    }
   },
-  "ProjexVpcpublicSubnet1EIP789A9E33": {
-   "Type": "AWS::EC2::EIP",
-   "Properties": {
-    "Domain": "vpc",
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "ProjexInfra-staging/ProjexVpc/publicSubnet1"
-     }
-    ]
-   },
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet1/EIP"
-   }
-  },
-  "ProjexVpcpublicSubnet1NATGateway7B780076": {
-   "Type": "AWS::EC2::NatGateway",
-   "Properties": {
-    "AllocationId": {
-     "Fn::GetAtt": [
-      "ProjexVpcpublicSubnet1EIP789A9E33",
-      "AllocationId"
-     ]
-    },
-    "SubnetId": {
-     "Ref": "ProjexVpcpublicSubnet1Subnet362C5EFC"
-    },
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "ProjexInfra-staging/ProjexVpc/publicSubnet1"
-     }
-    ]
-   },
-   "DependsOn": [
-    "ProjexVpcpublicSubnet1DefaultRoute1B63A41F",
-    "ProjexVpcpublicSubnet1RouteTableAssociationA6F35343"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet1/NATGateway"
-   }
-  },
   "ProjexVpcpublicSubnet2Subnet82EDECCD": {
    "Type": "AWS::EC2::Subnet",
    "Properties": {
-    "AvailabilityZone": "ap-southeast-2b",
+    "AvailabilityZone": {
+     "Fn::Select": [
+      1,
+      {
+       "Fn::GetAZs": ""
+      }
+     ]
+    },
     "CidrBlock": "10.0.1.0/24",
     "MapPublicIpOnLaunch": true,
     "Tags": [
@@ -214,159 +186,18 @@
     "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/publicSubnet2/DefaultRoute"
    }
   },
-  "ProjexVpcappprivateSubnet1Subnet5A1FA1B7": {
-   "Type": "AWS::EC2::Subnet",
-   "Properties": {
-    "AvailabilityZone": "ap-southeast-2a",
-    "CidrBlock": "10.0.2.0/24",
-    "MapPublicIpOnLaunch": false,
-    "Tags": [
-     {
-      "Key": "aws-cdk:subnet-name",
-      "Value": "app-private"
-     },
-     {
-      "Key": "aws-cdk:subnet-type",
-      "Value": "Private"
-     },
-     {
-      "Key": "Name",
-      "Value": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "ProjexVpcCB3A565C"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1/Subnet"
-   }
-  },
-  "ProjexVpcappprivateSubnet1RouteTable3A9E7FCF": {
-   "Type": "AWS::EC2::RouteTable",
-   "Properties": {
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "ProjexVpcCB3A565C"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1/RouteTable"
-   }
-  },
-  "ProjexVpcappprivateSubnet1RouteTableAssociation68AFCF56": {
-   "Type": "AWS::EC2::SubnetRouteTableAssociation",
-   "Properties": {
-    "RouteTableId": {
-     "Ref": "ProjexVpcappprivateSubnet1RouteTable3A9E7FCF"
-    },
-    "SubnetId": {
-     "Ref": "ProjexVpcappprivateSubnet1Subnet5A1FA1B7"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1/RouteTableAssociation"
-   }
-  },
-  "ProjexVpcappprivateSubnet1DefaultRoute26FBE0B5": {
-   "Type": "AWS::EC2::Route",
-   "Properties": {
-    "DestinationCidrBlock": "0.0.0.0/0",
-    "NatGatewayId": {
-     "Ref": "ProjexVpcpublicSubnet1NATGateway7B780076"
-    },
-    "RouteTableId": {
-     "Ref": "ProjexVpcappprivateSubnet1RouteTable3A9E7FCF"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet1/DefaultRoute"
-   }
-  },
-  "ProjexVpcappprivateSubnet2SubnetB087AED0": {
-   "Type": "AWS::EC2::Subnet",
-   "Properties": {
-    "AvailabilityZone": "ap-southeast-2b",
-    "CidrBlock": "10.0.3.0/24",
-    "MapPublicIpOnLaunch": false,
-    "Tags": [
-     {
-      "Key": "aws-cdk:subnet-name",
-      "Value": "app-private"
-     },
-     {
-      "Key": "aws-cdk:subnet-type",
-      "Value": "Private"
-     },
-     {
-      "Key": "Name",
-      "Value": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2"
-     }
-    ],
-    "VpcId": {
-     "Ref": "ProjexVpcCB3A565C"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2/Subnet"
-   }
-  },
-  "ProjexVpcappprivateSubnet2RouteTable810EA159": {
-   "Type": "AWS::EC2::RouteTable",
-   "Properties": {
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2"
-     }
-    ],
-    "VpcId": {
-     "Ref": "ProjexVpcCB3A565C"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2/RouteTable"
-   }
-  },
-  "ProjexVpcappprivateSubnet2RouteTableAssociation20B83C6C": {
-   "Type": "AWS::EC2::SubnetRouteTableAssociation",
-   "Properties": {
-    "RouteTableId": {
-     "Ref": "ProjexVpcappprivateSubnet2RouteTable810EA159"
-    },
-    "SubnetId": {
-     "Ref": "ProjexVpcappprivateSubnet2SubnetB087AED0"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2/RouteTableAssociation"
-   }
-  },
-  "ProjexVpcappprivateSubnet2DefaultRouteAA446C35": {
-   "Type": "AWS::EC2::Route",
-   "Properties": {
-    "DestinationCidrBlock": "0.0.0.0/0",
-    "NatGatewayId": {
-     "Ref": "ProjexVpcpublicSubnet1NATGateway7B780076"
-    },
-    "RouteTableId": {
-     "Ref": "ProjexVpcappprivateSubnet2RouteTable810EA159"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "ProjexInfra-staging/ProjexVpc/app-privateSubnet2/DefaultRoute"
-   }
-  },
   "ProjexVpcdbisolatedSubnet1Subnet227E91A6": {
    "Type": "AWS::EC2::Subnet",
    "Properties": {
-    "AvailabilityZone": "ap-southeast-2a",
-    "CidrBlock": "10.0.4.0/24",
+    "AvailabilityZone": {
+     "Fn::Select": [
+      0,
+      {
+       "Fn::GetAZs": ""
+      }
+     ]
+    },
+    "CidrBlock": "10.0.2.0/24",
     "MapPublicIpOnLaunch": false,
     "Tags": [
      {
@@ -424,8 +255,15 @@
   "ProjexVpcdbisolatedSubnet2Subnet3700F906": {
    "Type": "AWS::EC2::Subnet",
    "Properties": {
-    "AvailabilityZone": "ap-southeast-2b",
-    "CidrBlock": "10.0.5.0/24",
+    "AvailabilityZone": {
+     "Fn::Select": [
+      1,
+      {
+       "Fn::GetAZs": ""
+      }
+     ]
+    },
+    "CidrBlock": "10.0.3.0/24",
     "MapPublicIpOnLaunch": false,
     "Tags": [
      {
@@ -634,6 +472,43 @@
        "Resource": {
         "Ref": "ProjexPostgresSecretAttachmentF6621C78"
        }
+      },
+      {
+       "Action": [
+        "s3:GetObject*",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:DeleteObject*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging",
+        "s3:Abort*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "ProjexExportBucket231BB74F",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "ProjexExportBucket231BB74F",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
       }
      ],
      "Version": "2012-10-17"
@@ -665,13 +540,20 @@
   "ProjexEc278808BF5": {
    "Type": "AWS::EC2::Instance",
    "Properties": {
-    "AvailabilityZone": "ap-southeast-2a",
+    "AvailabilityZone": {
+     "Fn::Select": [
+      0,
+      {
+       "Fn::GetAZs": ""
+      }
+     ]
+    },
     "BlockDeviceMappings": [
      {
       "DeviceName": "/dev/xvda",
       "Ebs": {
        "Encrypted": true,
-       "VolumeSize": 40,
+       "VolumeSize": 20,
        "VolumeType": "gp3"
       }
      }
@@ -680,9 +562,9 @@
      "Ref": "ProjexEc2InstanceProfile0AD1F7C3"
     },
     "ImageId": {
-     "Ref": "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter"
+     "Ref": "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61arm64C96584B6F00A464EAD1953AFF4B05118Parameter"
     },
-    "InstanceType": "t3.small",
+    "InstanceType": "t4g.small",
     "SecurityGroupIds": [
      {
       "Fn::GetAtt": [
@@ -804,7 +686,7 @@
     "AllocatedStorage": "20",
     "BackupRetentionPeriod": 1,
     "CopyTagsToSnapshot": true,
-    "DBInstanceClass": "db.t3.micro",
+    "DBInstanceClass": "db.t4g.micro",
     "DBName": "projex",
     "DBSubnetGroupName": {
      "Ref": "ProjexPostgresSubnetGroupA91668E2"
@@ -826,11 +708,10 @@
      ]
     },
     "MasterUsername": "projex_app",
-    "MaxAllocatedStorage": 100,
     "MultiAZ": false,
     "PubliclyAccessible": false,
     "StorageEncrypted": true,
-    "StorageType": "gp2",
+    "StorageType": "gp3",
     "VPCSecurityGroups": [
      {
       "Fn::GetAtt": [
@@ -846,10 +727,230 @@
     "aws:cdk:path": "ProjexInfra-staging/ProjexPostgres/Resource"
    }
   },
+  "ProjexExportBucket231BB74F": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+       },
+       "ExpirationInDays": 3,
+       "Id": "ExpireStaleExports",
+       "Status": "Enabled"
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "aws-cdk:auto-delete-objects",
+      "Value": "true"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexExportBucket/Resource"
+   }
+  },
+  "ProjexExportBucketPolicyC5B2135B": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "ProjexExportBucket231BB74F"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "s3:*",
+       "Condition": {
+        "Bool": {
+         "aws:SecureTransport": "false"
+        }
+       },
+       "Effect": "Deny",
+       "Principal": {
+        "AWS": "*"
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "ProjexExportBucket231BB74F",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "ProjexExportBucket231BB74F",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "s3:PutBucketPolicy",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:DeleteObject*"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::GetAtt": [
+          "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+          "Arn"
+         ]
+        }
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "ProjexExportBucket231BB74F",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "ProjexExportBucket231BB74F",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexExportBucket/Policy/Resource"
+   }
+  },
+  "ProjexExportBucketAutoDeleteObjectsCustomResource6B4C1FBA": {
+   "Type": "Custom::S3AutoDeleteObjects",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+      "Arn"
+     ]
+    },
+    "BucketName": {
+     "Ref": "ProjexExportBucket231BB74F"
+    }
+   },
+   "DependsOn": [
+    "ProjexExportBucketPolicyC5B2135B"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/ProjexExportBucket/AutoDeleteObjectsCustomResource/Default"
+   }
+  },
+  "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role"
+   }
+  },
+  "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-ap-southeast-2"
+     },
+     "S3Key": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip"
+    },
+    "Timeout": 900,
+    "MemorySize": 128,
+    "Handler": "index.handler",
+    "Role": {
+     "Fn::GetAtt": [
+      "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Description": {
+     "Fn::Join": [
+      "",
+      [
+       "Lambda function for auto-deleting objects in ",
+       {
+        "Ref": "ProjexExportBucket231BB74F"
+       },
+       " S3 bucket."
+      ]
+     ]
+    }
+   },
+   "DependsOn": [
+    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ProjexInfra-staging/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler",
+    "aws:asset:path": "asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6",
+    "aws:asset:property": "Code"
+   }
+  },
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/31Qy27CMBD8Fu7GLVH7AbyEcmmtBHGtNmahhsRG6zURivLvVeImQT30NOPxeD2ziUzeFvJ1BrWf6+N1XppCNjmDvgqo/VeDOpHN4abF+mQPai1UKEqj81BY5E6bWOYC4x6KEid90pbeO22AjbOjuSPbVHXwAbwDxhoeQpG5A+M0OLWMZHE0xCS/pyUz6O8KLYscdSDDjx25cOsz/Cuk9kzovUitZ7Aa41cT36bqKXQrDFSyyVys16NypdF9nokNExS5kymxFXT0stkAQwEex/mx3Rhss3oWBneOmuIKNqvhZSt8r/oKLJyRZBN7dcYIe6Az8tNeRsPfm7YVGXoXKBZWQFAhI3WHz8C3wK2w7ojy4l/uybtM5GJ28cbMKVg2Fcos4g8MgCyNRAIAAA=="
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/5VSy27CMBD8Fjgbtw1ClXrjUSFORARxqapqY5bUkNjIu4aiKP9eJQaS9lCppx3P7HsdyWj0LB97cKaB2h4GuU5lmTCog4AzfZSoIllujkpMd2YTT0Xs01yrxKcGueZatLKecQ1pji3fcmMiqzSwtubuLGKnT8DY5lgYRmeQ58B4hsu16PU1Zgb1WaBhkaDyTvNl7qw/NuX+JBYmc0gkFoYYjMJQqsWvi/hqOm1WQkMhy5UNAzU2trlWTVstuiWKnd3pHCvhtiTLGTCkQHgvE4a89zebdImbd4LKhU3MJrfISlDDUgEGMnSyDOPVjsGswWXInfXcHX4rlaChLCdeHUKVgN7KfqG/tOm/9LvfoL4/DWUjkQyuY892hjkyLtM9KqZ+9S6C1G6k+/5H7hCQMDDWvdapq0qskKx34U4xOCiQ0YmpJ7ZFV2vxDyl29qS36CZAKMZEyAlDpk1Wxyw9Hz1Xwtgtyj09nKKRjORTb09aD5w3rAuUq2C/AUXRiTQpAwAA"
    },
    "Metadata": {
     "aws:cdk:path": "ProjexInfra-staging/CDKMetadata/Default"
@@ -857,9 +958,9 @@
   }
  },
  "Parameters": {
-  "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter": {
+  "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61arm64C96584B6F00A464EAD1953AFF4B05118Parameter": {
    "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
-   "Default": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64"
+   "Default": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-arm64"
   },
   "BootstrapVersion": {
    "Type": "AWS::SSM::Parameter::Value<String>",
@@ -903,6 +1004,12 @@
    "Description": "Secrets Manager ARN containing db username/password",
    "Value": {
     "Ref": "ProjexPostgresSecretAttachmentF6621C78"
+   }
+  },
+  "ExportBucketName": {
+   "Description": "S3 bucket for company export workbook objects",
+   "Value": {
+    "Ref": "ProjexExportBucket231BB74F"
    }
   }
  },

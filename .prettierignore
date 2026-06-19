@@ -6,4 +6,5 @@ dist-ssr
 cdk.out
 deploy/cdk/cdk.out
 src/routeTree.gen.ts
+src/server/db/generated/db.d.ts
 src/server/db/migrations/*.sql

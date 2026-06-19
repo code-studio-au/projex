@@ -62,7 +62,7 @@ Why this matters:
 - sharper financial semantics will make the app feel more trustworthy to finance-oriented users
 - users need interpretation and risk cues, not just raw spend totals
 
-### 4. Add rule suggestions from repeated manual coding
+### 4. Extend repeated-coding suggestions beyond the shipped first pass
 
 Design note:
 
@@ -70,9 +70,9 @@ Design note:
 
 Examples:
 
-- suggest a new auto-map rule after the same vendor or description pattern is manually coded several times
-- suggest updating an existing rule when users consistently override it the same way
-- give admins a rule-suggestions queue rather than requiring them to spot patterns manually
+- detect repeated overrides of existing rules and suggest narrowing or retargeting them
+- improve confidence scoring and pattern/operator refinement beyond the current first-pass text matching
+- keep strengthening the admin review queue without making it noisy or brittle
 
 Why this matters:
 
@@ -84,6 +84,12 @@ Design direction:
 - track patterns in a small indexed table rather than scanning raw transaction history on every edit
 - distinguish clearly between create-rule suggestions and update-rule suggestions
 - keep suggestions reviewable and dismissible so noisy patterns do not become brittle rules
+
+Implemented already:
+
+- repeated manual coding can now trigger immediate project auto-coding suggestions
+- admins can review accepted-threshold repeated-pattern suggestions in the company queue and accept them into company auto-coding defaults
+- inherited company auto-coding rules now sync into standards-enabled projects and can be reapplied alongside other company standards
 
 ### 5. Expand audit logging into a first-class product feature
 
@@ -286,6 +292,7 @@ Examples:
 
 - shipped: company Excel export with full/detail summary modes, active/all scope, transaction date filters, reporting rollups, background job generation, and optional ready-email notification
 - shipped: workbook payloads now persist in S3-compatible object storage while job state, authorization, and retention metadata remain in the application database
+- shipped: export payload retention is now 24 hours with stale/failed cleanup that also removes stored objects
 - next: continue hardening the BI/export contract only where downstream consumers prove they need it, plus optional workbook polish such as protected report tabs or branded coversheets
 - future: project-level export variants only if users prove they need a narrower handoff than the current company workbook
 

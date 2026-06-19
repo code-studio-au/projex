@@ -61,9 +61,10 @@ export function shouldApplyInheritedUpdate(syncStatus?: string | null) {
   return !syncStatus || syncStatus === 'inherited';
 }
 
-export function compareProjectStandards<
-  T extends SortableProjectStandardRow,
->(a: T, b: T) {
+export function compareProjectStandards<T extends SortableProjectStandardRow>(
+  a: T,
+  b: T
+) {
   const aGroup = a.sync_status === 'inherited' ? 1 : 0;
   const bGroup = b.sync_status === 'inherited' ? 1 : 0;
   if (aGroup !== bGroup) return aGroup - bGroup;

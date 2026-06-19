@@ -15,6 +15,7 @@ Before handing this repo to another developer or team, make sure:
   - `BETTER_AUTH_URL`
   - `BETTER_AUTH_TRUSTED_ORIGINS`
   - `CORS_ALLOWED_ORIGINS`
+  - export-storage envs when company export is enabled: `S3_BUCKET`, `S3_REGION`, and any endpoint/credential overrides
 - production-only expectations are understood:
   - `PROJEX_ENABLE_DEV_ENDPOINTS=false`
   - `PROJEX_ENABLE_SMOKE_TOOLS=false`
@@ -57,6 +58,7 @@ Before cutting over or handing a deployed environment to another developer, conf
 - `PROJEX_ENABLE_SMOKE_TOOLS` is `false` or unset outside controlled local workflows.
 - `CORS_ALLOWED_ORIGINS` only includes explicit trusted browser origins.
 - `pnpm run db:migrate` has run successfully against the target database.
+- `pnpm run db:verify-types` passes locally after any schema change before handoff or deploy.
 - The first app-side global superadmin has been created with `pnpm run auth:bootstrap-user` on fresh databases.
 - Unauthorized requests return `401` and scoped resources are not visible across companies/projects.
 - The public proxy uses `deploy/nginx/projex.conf` or equivalent HTTPS redirect, forwarded headers, hardening headers, and maintenance fallback behavior.
@@ -169,6 +171,15 @@ PROJEX_APP_BASE_URL=https://projectexpensetracker.com
 
 PROJEX_ENABLE_DEV_ENDPOINTS=false
 PROJEX_ENABLE_SMOKE_TOOLS=false
+
+# Company export object storage
+S3_BUCKET=projex-exports
+S3_REGION=ap-southeast-2
+# Optional for S3-compatible providers such as MinIO:
+# S3_ENDPOINT=
+# S3_ACCESS_KEY_ID=
+# S3_SECRET_ACCESS_KEY=
+# S3_FORCE_PATH_STYLE=
 ```
 
 Notes:
@@ -178,6 +189,7 @@ Notes:
   - `BETTER_AUTH_TRUSTED_ORIGINS`
   - `CORS_ALLOWED_ORIGINS`
 - For normal production use, prefer the canonical public origin only.
+- Company export readiness depends on the configured object-storage bucket existing and being reachable from the app runtime.
 - Use the nginx template at `deploy/nginx/projex.conf` as the baseline reverse-proxy config for:
   - HTTP -> HTTPS redirect
   - `server_tokens off`
@@ -245,6 +257,10 @@ sudo systemctl status projex --no-pager -l
 - confirm the script can request, detect, resend, and cancel a pending email change
 
 12. Optional configured-credential privacy-toggle smoke: set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run `pnpm run smoke:server -- --section=privacyChecks`.
+13. Optional company export smoke:
+
+- run `pnpm run smoke:server -- --section=exportFlow`
+- confirm the export completes, reports positive file metadata, and downloads from object storage successfully
 
 ## Create The First Global Superadmin
 

@@ -6,7 +6,11 @@
   },
   "context": {
     "envName": "staging",
-    "instanceType": "t3.small",
+    "instanceType": "t4g.small",
+    "dbInstanceType": "t4g.micro",
+    "dbAllocatedStorage": 20,
+    "dbBackupRetentionDays": 1,
+    "dbMultiAz": false,
     "dbName": "projex",
     "dbUsername": "projex_app",
     "sshCidr": ""

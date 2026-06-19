@@ -1,0 +1,16 @@
+{
+  "dialect": "postgres",
+  "defaultSchemas": ["public"],
+  "logLevel": "error",
+  "outFile": "./src/server/db/generated/db.d.ts",
+  "customImports": {
+    "NullableStringRecordJsonColumn": "./custom-types",
+    "StringRecordJsonColumn": "./custom-types"
+  },
+  "overrides": {
+    "columns": {
+      "txns.import_source_meta": "NullableStringRecordJsonColumn",
+      "import_candidates.raw_row": "StringRecordJsonColumn"
+    }
+  }
+}

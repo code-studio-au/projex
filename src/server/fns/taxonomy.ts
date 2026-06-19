@@ -63,9 +63,7 @@ import {
   syncCompanyAutoCodingRulesToProject,
   syncCompanyAutoCodingRulesToSyncedProjects,
 } from './projectAutoCodingRules';
-import {
-  syncCompanyImportRulesToProject,
-} from './importRules';
+import { syncCompanyImportRulesToProject } from './importRules';
 import {
   toCategory,
   toCompanyDefaultCategory,
@@ -1596,14 +1594,16 @@ export async function applyCompanyStandardsServer(args: {
       args.projectId,
       'taxonomy:edit'
     );
-    return getDb().transaction().execute((trx) =>
-      applyCompanyStandardsToProject({
-        db: trx,
-        companyId,
-        projectId: args.projectId,
-        actorUserId: userId,
-      })
-    );
+    return getDb()
+      .transaction()
+      .execute((trx) =>
+        applyCompanyStandardsToProject({
+          db: trx,
+          companyId,
+          projectId: args.projectId,
+          actorUserId: userId,
+        })
+      );
   });
 }
 

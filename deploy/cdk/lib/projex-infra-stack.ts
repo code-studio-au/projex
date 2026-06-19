@@ -8,14 +8,21 @@ import {
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as rds from 'aws-cdk-lib/aws-rds';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
 
 type ProjexInfraStackProps = StackProps & {
   envName: string;
   instanceType: string;
+  dbInstanceType: string;
   dbName: string;
   dbUsername: string;
+  dbAllocatedStorage: number;
+  dbMaxAllocatedStorage?: number;
+  dbBackupRetentionDays: number;
+  dbMultiAz: boolean;
   sshCidr: string;
+  exportBucketName?: string;
 };
 
 export class ProjexInfraStack extends Stack {
@@ -24,16 +31,11 @@ export class ProjexInfraStack extends Stack {
 
     const vpc = new ec2.Vpc(this, 'ProjexVpc', {
       maxAzs: 2,
-      natGateways: 1,
+      natGateways: 0,
       subnetConfiguration: [
         {
           name: 'public',
           subnetType: ec2.SubnetType.PUBLIC,
-          cidrMask: 24,
-        },
-        {
-          name: 'app-private',
-          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
           cidrMask: 24,
         },
         {
@@ -93,12 +95,14 @@ export class ProjexInfraStack extends Stack {
       securityGroup: appSg,
       role,
       instanceType: new ec2.InstanceType(props.instanceType),
-      machineImage: ec2.MachineImage.latestAmazonLinux2023(),
+      machineImage: ec2.MachineImage.latestAmazonLinux2023({
+        cpuType: ec2.AmazonLinuxCpuType.ARM_64,
+      }),
       userData,
       blockDevices: [
         {
           deviceName: '/dev/xvda',
-          volume: ec2.BlockDeviceVolume.ebs(40, {
+          volume: ec2.BlockDeviceVolume.ebs(20, {
             encrypted: true,
             volumeType: ec2.EbsDeviceVolumeType.GP3,
           }),
@@ -123,32 +127,54 @@ export class ProjexInfraStack extends Stack {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_16,
       }),
-      instanceType: ec2.InstanceType.of(
-        ec2.InstanceClass.T3,
-        ec2.InstanceSize.MICRO
-      ),
+      instanceType: new ec2.InstanceType(props.dbInstanceType),
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [dbSg],
       credentials: dbCredentials,
-      allocatedStorage: 20,
-      maxAllocatedStorage: 100,
+      allocatedStorage: props.dbAllocatedStorage,
+      ...(props.dbMaxAllocatedStorage != null
+        ? { maxAllocatedStorage: props.dbMaxAllocatedStorage }
+        : {}),
       storageEncrypted: true,
+      storageType: rds.StorageType.GP3,
       databaseName: props.dbName,
-      backupRetention: Duration.days(props.envName === 'production' ? 7 : 1),
+      backupRetention: Duration.days(props.dbBackupRetentionDays),
       deletionProtection: props.envName === 'production',
       removalPolicy:
         props.envName === 'production'
           ? RemovalPolicy.RETAIN
           : RemovalPolicy.DESTROY,
       deleteAutomatedBackups: props.envName !== 'production',
-      multiAz: props.envName === 'production',
+      multiAz: props.dbMultiAz,
       publiclyAccessible: false,
+    });
+
+    const exportBucket = new s3.Bucket(this, 'ProjexExportBucket', {
+      bucketName: props.exportBucketName,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      versioned: false,
+      removalPolicy:
+        props.envName === 'production'
+          ? RemovalPolicy.RETAIN
+          : RemovalPolicy.DESTROY,
+      autoDeleteObjects: props.envName !== 'production',
+      lifecycleRules: [
+        {
+          id: 'ExpireStaleExports',
+          enabled: true,
+          expiration: Duration.days(3),
+          abortIncompleteMultipartUploadAfter: Duration.days(1),
+        },
+      ],
     });
 
     if (db.secret) {
       db.secret.grantRead(role);
     }
+    exportBucket.grantReadWrite(role);
 
     new CfnOutput(this, 'VpcId', { value: vpc.vpcId });
     new CfnOutput(this, 'Ec2InstanceId', { value: instance.instanceId });
@@ -160,6 +186,10 @@ export class ProjexInfraStack extends Stack {
     new CfnOutput(this, 'DbSecretArn', {
       value: db.secret?.secretArn ?? '',
       description: 'Secrets Manager ARN containing db username/password',
+    });
+    new CfnOutput(this, 'ExportBucketName', {
+      value: exportBucket.bucketName,
+      description: 'S3 bucket for company export workbook objects',
     });
   }
 }

@@ -15,6 +15,7 @@ Useful checks before handing work over or opening a PR:
 
 ```bash
 pnpm run test
+pnpm run db:verify-types
 pnpm run typecheck
 pnpm run lint
 pnpm run format:check
@@ -75,6 +76,12 @@ The current table layer is `mantine-react-table-open` on the Mantine 9 line.
 # Apply BetterAuth + app SQL migrations to DATABASE_URL
 pnpm run db:migrate
 
+# Generate the Kysely DB type surface from the current database schema
+pnpm run db:generate-types
+
+# Verify committed generated DB types still match the current database schema
+pnpm run db:verify-types
+
 # Create a BetterAuth user
 PROJEX_AUTH_EMAIL=... PROJEX_AUTH_PASSWORD=... PROJEX_AUTH_NAME=... pnpm run auth:create-user
 
@@ -112,16 +119,20 @@ Command semantics and deploy-time verification details live in [docs/staging-run
 ## Product Model
 
 - Companies own users, company defaults, projects, and programmes.
+- Company standards currently include default taxonomy, import rules, and company auto-coding rules.
 - Programmes are reporting-only containers. They can group one or more operational projects and show rollups for company admins, executives, and global superadmins.
 - Projects are the operational workspace for budgets, imports, transactions, taxonomy, coding, splits, and transfers. Transaction transfer-out is disabled by default and can be enabled per project by company admins, executives, management, or an enabled global superadmin.
+- New operational projects can start with company standards applied immediately, and synced projects can later reapply company standards to backfill missing categories plus resync inherited import and auto-coding rules.
+- Synced projects may keep project-local exceptions, and company admins can promote stable project taxonomy, import rules, and auto-coding patterns back up into the company standard set.
 - Programme rollups are derived from active sub-project data; transactions and budgets are never duplicated onto the programme.
 - Sub-projects must belong to the same company and use the same currency as their programme.
 - PowerBI expenditure actuals are the primary import shape. Import Rules run before Auto-Categorise Rules so rows can be imported, excluded, or staged for project review before any category/subcategory coding is applied.
+- Repeated manual coding can trigger immediate project auto-coding suggestions, while company admins can also review repeated-pattern rule suggestions and accept them into company auto-coding defaults.
 - Transaction actuals support signed amounts for credits, reversals, and recoveries. Budget allocations remain non-negative.
 
-## Company Export Roadmap
+## Company Export
 
-Projex now supports a production-ready full company Excel export, with the remaining roadmap focused on automation, governance, and downstream interoperability rather than basic workbook coverage.
+Projex now supports a production-ready full company Excel export. Remaining work is focused on BI/export contract hardening and workbook polish rather than basic workbook coverage.
 
 ### Current Functionality
 
@@ -130,6 +141,7 @@ Projex now supports a production-ready full company Excel export, with the remai
 - background export generation with job status polling and a reliable download handoff once the workbook is ready
 - optional ready-email notification from Company Settings that links the user back to the exact export job once generation completes
 - workbook payloads stored in S3-compatible object storage so export delivery and retention are decoupled from Postgres blob storage
+- completed and failed export jobs are retained for 24 hours, and failed/background-stale cleanup also removes any stored object payloads
 - complete workbook coverage across the selected company, including workbook guidance, overview, executive summary, programmes, projects, programme membership, budgets, transactions, reviewed/locked/uncoded workflow tabs, taxonomy rollups, company default taxonomy, import rules, and memberships
 - explicit row-level identifiers and relationship columns so exported data can be filtered, audited, reconciled, and reused outside Projex without losing context
 - programme reporting exported as derived rollups only; operational transactions and budgets remain attached to the underlying projects so the workbook does not double count programme data
@@ -163,6 +175,7 @@ Production/staging server mode requires:
 Operational defaults:
 
 - `pnpm run db:migrate` runs BetterAuth schema migration plus the squashed app baseline/future app migrations through Kysely's standard migrator.
+- `pnpm run db:generate-types` regenerates `src/server/db/generated/db.d.ts` from the current database schema, while `pnpm run db:verify-types` is the drift check used in local verification.
 - `pnpm run start:server` does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
 - The enforced CSP intentionally retains `style-src-attr 'unsafe-inline'` for now because Mantine and current app UI still emit runtime `style=""` attributes; the rest of the policy stays nonce-based and strict.
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
@@ -175,7 +188,7 @@ Operational defaults:
 Keep this list short. If a new note overlaps an existing item, update the existing source of truth instead of adding another markdown file.
 
 - `docs/staging-runbook.md`: operational runbook, readiness checklist, deploy verification, first-admin bootstrap, and troubleshooting.
-- `docs/database-migrations.md`: migration strategy, baseline rules, and runner expectations.
+- `docs/database-migrations.md`: migration strategy, baseline rules, runner expectations, and generated Kysely DB typing workflow.
 - `docs/deployment-ec2.md`: first-time EC2/RDS host provisioning only. Ongoing deploy operations belong in the runbook.
 - `docs/email-ops-runbook.md`: email provider configuration, Resend checks, and email troubleshooting.
 - `docs/permissions-matrix.md`: current company/project/comment permission model and superadmin rules.

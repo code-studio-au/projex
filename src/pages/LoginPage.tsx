@@ -17,10 +17,11 @@ import { useMediaQuery } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { forgotPasswordRoute, homeRoute } from '../router';
+import { getPostLoginTargetServerFn } from '../server/start/functions/auth';
 import {
-  getPostLoginTargetServerFn,
-} from '../server/start/functions/auth';
-import { refreshAfterAuthChange, sessionQueryOptions } from '../queries/session';
+  refreshAfterAuthChange,
+  sessionQueryOptions,
+} from '../queries/session';
 import classes from '../styles/ui.module.css';
 
 export default function LoginPage() {

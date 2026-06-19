@@ -22,6 +22,26 @@ Projex now uses a squashed app migration baseline:
 
 `pnpm run db:migrate` applies Better Auth migrations first when auth env vars are available, then applies app migrations through Kysely using the modules in `src/server/db/kysely-migrations`.
 
+## Generated DB types
+
+Projex now treats the live database schema as the source of truth for Kysely table typing:
+
+- `src/server/db/generated/db.d.ts` is generated from the current database schema using `kysely-codegen`
+- `src/server/db/schema.ts` is the thin app-owned wrapper that preserves intentional domain refinements and runtime-friendly JSON column typing
+- JSONB columns that the app writes as plain objects stay object-shaped in the wrapper rather than switching to Kysely's default stringified `JSONColumnType` insert/update contract
+
+Workflow:
+
+- run `pnpm run db:migrate` before regenerating types against a changed local schema
+- run `pnpm run db:generate-types` after schema changes
+- run `pnpm run db:verify-types` in verification flows to catch drift between the committed generated file and the actual database schema
+
+Expectations:
+
+- do not hand-edit `src/server/db/generated/db.d.ts`
+- keep generated output raw so `db:verify-types` compares against the exact codegen output
+- put app-specific overrides in `src/server/db/schema.ts` or `src/server/db/generated/custom-types.ts`, not in the generated file
+
 Current structure:
 
 - `src/server/db/migrations/0001_init.sql` is the canonical app baseline SQL.

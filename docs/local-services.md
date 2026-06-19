@@ -4,8 +4,8 @@ Projex can run its local infrastructure dependencies through a single Docker Com
 
 ## Services
 
-- Postgres: `localhost:5432`
-- MinIO S3 API: `http://127.0.0.1:9010`
+- Postgres: `localhost:5432` via container `projex-postgres`
+- MinIO S3 API: `http://127.0.0.1:9010` via container `projex_miniO`
 - MinIO console: `http://127.0.0.1:9011`
 
 ## Start everything
@@ -38,6 +38,8 @@ DATABASE_URL=postgres://projex:projex@localhost:5432/projex
 - password: `minioadmin`
 - bucket: `projex-exports`
 
+After first startup, create the `projex-exports` bucket in the MinIO console if it does not already exist. Export readiness checks expect the configured bucket to be present.
+
 Current local export-storage env shape:
 
 ```env
@@ -59,3 +61,9 @@ Both directories are ignored by git so local resets stay local.
 ## Export behavior
 
 Company export jobs now persist workbook files in MinIO/S3-compatible object storage rather than Postgres blobs. The database keeps job state, metadata, authorization context, and retention timestamps.
+
+Current export retention behavior:
+
+- completed and failed jobs expire after 24 hours
+- cleanup removes the database job row and the corresponding object-storage payload
+- stale queued/running jobs are also cleaned up using the same path

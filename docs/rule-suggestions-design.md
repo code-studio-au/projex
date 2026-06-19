@@ -6,6 +6,16 @@ default mapping rules from repeated manual transaction coding.
 It is intentionally a design and delivery guide, not a quick implementation
 patch.
 
+## Status
+
+The repo has now shipped the first operational pass of this area:
+
+- repeated manual coding can prompt immediate project auto-coding suggestions in project workflow
+- admins can review repeated-pattern suggestion items and accept them into company auto-coding defaults
+- project/company auto-coding now participates in the same synced company-standards model as taxonomy and import rules
+
+Treat the remaining V2 and V3 sections below as the forward-looking design work, not as a description of what is still entirely absent.
+
 ## Goal
 
 Help company admins turn repeated manual coding into reusable default mapping
@@ -51,6 +61,8 @@ accepted output should still be a normal company default mapping rule.
 
 ### V1: New-rule suggestions only
 
+Status: largely shipped
+
 Detect repeated manual coding patterns where uncoded or manually coded
 transactions with a similar merchant or description are repeatedly assigned to
 the same category and subcategory.
@@ -64,6 +76,8 @@ Admins can then:
 
 ### V2: Update existing-rule suggestions
 
+Status: not shipped
+
 Detect cases where users repeatedly override the same existing company default
 mapping rule toward a different target subcategory.
 
@@ -74,6 +88,8 @@ Admins can then:
 - dismiss the suggestion if the override pattern is intentional edge-case work
 
 ### V3: Confidence and operator refinement
+
+Status: not shipped
 
 Expand beyond simple suggested match text by offering:
 

@@ -30,6 +30,10 @@ BETTER_AUTH_TRUSTED_ORIGINS=https://app.example.com
 # Browser/API origin allowlist
 CORS_ALLOWED_ORIGINS=https://app.example.com
 
+# Company export object storage
+S3_BUCKET=projex-exports
+S3_REGION=ap-southeast-2
+
 # Preferred: direct Resend delivery.
 RESEND_API_KEY=
 RESEND_BASE_URL=https://api.resend.com
@@ -55,8 +59,15 @@ Notes:
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.
 - `PROJEX_APP_BASE_URL` should point at the public app origin used for transaction-comment notification links; it falls back to `BETTER_AUTH_URL` when unset.
+- `S3_BUCKET` and `S3_REGION` are required for the export feature when using AWS S3. On AWS itself you normally do not need to set `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, or `S3_FORCE_PATH_STYLE`.
 - `RESEND_FROM` should be a verified sender, for example `Projex <noreply@projectexpensetracker.com>`.
 - Run `pnpm run db:migrate` as an explicit deploy step before restarting the service; `pnpm run start:server` no longer auto-migrates by default.
+
+Sizing guidance:
+
+- cheapest sensible default for the current repo shape: `t4g.small` app host plus separate `db.t4g.micro` RDS
+- why the app host stays at `t4g.small`: the current deploy flow installs dependencies and builds on the instance, which is the main reason a micro can become unstable or frustrating
+- if you switch to prebuilt artifact deploys and keep the instance mostly as a runtime host, `t4g.micro` may become acceptable as a lowest-cost option
 
 ## 4) Build + run
 

@@ -748,9 +748,8 @@ export default function CompanySettingsPanel(props: {
             Manage Categories
           </Button>
           <Text size="xs" c="dimmed">
-            Syncing from company adds missing categories and refreshes
-            inherited items. Project-specific overrides remain local to the
-            project.
+            Syncing from company adds missing categories and refreshes inherited
+            items. Project-specific overrides remain local to the project.
           </Text>
         </Stack>
       </Paper>
@@ -796,8 +795,8 @@ export default function CompanySettingsPanel(props: {
           <Title order={5}>Auto-Categorise Rules</Title>
           <Text size="sm" c="dimmed">
             Match imported transaction text to company categories so uncoded
-            imports can be auto-categorised in projects that already contain
-            the required categories.
+            imports can be auto-categorised in projects that already contain the
+            required categories.
           </Text>
           {companyDefaultsLoading ? (
             <Text size="sm" c="dimmed">

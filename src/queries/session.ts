@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { authClient } from '../auth/client';
+import { asUserId } from '../types/ids';
 import { qk } from './keys';
 import { getSessionServerFn } from '../server/start/functions/auth';
 
@@ -20,11 +21,12 @@ export function useSessionQuery() {
   return {
     ...session,
     data: session.data?.user?.id
-      ? { userId: session.data.user.id }
+      ? { userId: asUserId(session.data.user.id) }
       : null,
-    fetchStatus: session.isPending || session.isRefetching
-      ? ('fetching' as const)
-      : ('idle' as const),
+    fetchStatus:
+      session.isPending || session.isRefetching
+        ? ('fetching' as const)
+        : ('idle' as const),
     status: session.isPending
       ? ('pending' as const)
       : session.error
