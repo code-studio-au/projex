@@ -1,10 +1,21 @@
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
+import {
+  CreateBucketCommand,
+  HeadBucketCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 const DEFAULT_IMAGE = process.env.PROJEX_TEST_DB_IMAGE || 'postgres:16-alpine';
 const DEFAULT_USER = process.env.PROJEX_TEST_DB_USER || 'postgres';
 const DEFAULT_PASSWORD = process.env.PROJEX_TEST_DB_PASSWORD || 'postgres';
 const DEFAULT_HOST = '127.0.0.1';
+const DEFAULT_MINIO_IMAGE =
+  process.env.PROJEX_TEST_S3_IMAGE || 'minio/minio:latest';
+const DEFAULT_MINIO_ACCESS_KEY =
+  process.env.PROJEX_TEST_S3_ACCESS_KEY || 'minioadmin';
+const DEFAULT_MINIO_SECRET_KEY =
+  process.env.PROJEX_TEST_S3_SECRET_KEY || 'minioadmin';
 const DEFAULT_BETTER_AUTH_SECRET =
   process.env.PROJEX_TEST_BETTER_AUTH_SECRET ||
   'projex-disposable-test-secret-0123456789';
@@ -131,6 +142,94 @@ export async function startDisposablePostgres(options = {}) {
         database,
       ]);
     },
+    async stop() {
+      try {
+        runCommand('docker', ['rm', '-f', containerName], { stdio: 'ignore' });
+      } catch {
+        // Best effort cleanup.
+      }
+    },
+  };
+}
+
+export async function startDisposableMinio(options = {}) {
+  ensureDockerAvailable();
+
+  const image = options.image ?? DEFAULT_MINIO_IMAGE;
+  const accessKey = options.accessKey ?? DEFAULT_MINIO_ACCESS_KEY;
+  const secretKey = options.secretKey ?? DEFAULT_MINIO_SECRET_KEY;
+  const bucket = options.bucket ?? 'projex-exports';
+  const region = options.region ?? 'us-east-1';
+  const containerName =
+    options.containerName ??
+    createContainerName(options.containerPrefix ?? 'projex-test-s3');
+
+  const runResult = runCommand(
+    'docker',
+    [
+      'run',
+      '-d',
+      '--rm',
+      '--name',
+      containerName,
+      '-e',
+      `MINIO_ROOT_USER=${accessKey}`,
+      '-e',
+      `MINIO_ROOT_PASSWORD=${secretKey}`,
+      '-p',
+      `${DEFAULT_HOST}::9000`,
+      image,
+      'server',
+      '/data',
+    ],
+    { stdio: 'pipe' }
+  );
+
+  const containerId = runResult.stdout.trim();
+  if (!containerId) fail('Docker did not return a MinIO container id.');
+
+  const portResult = runCommand('docker', ['port', containerName, '9000/tcp'], {
+    stdio: 'pipe',
+  });
+  const port = parseDockerPort(portResult.stdout);
+  const endpoint = `http://${DEFAULT_HOST}:${port}`;
+
+  await waitForHttpOk(`${endpoint}/minio/health/ready`);
+
+  const client = new S3Client({
+    region,
+    endpoint,
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: accessKey,
+      secretAccessKey: secretKey,
+    },
+  });
+
+  try {
+    await client.send(
+      new HeadBucketCommand({
+        Bucket: bucket,
+      })
+    );
+  } catch {
+    await client.send(
+      new CreateBucketCommand({
+        Bucket: bucket,
+      })
+    );
+  }
+
+  return {
+    containerId,
+    containerName,
+    host: DEFAULT_HOST,
+    port,
+    endpoint,
+    region,
+    bucket,
+    accessKey,
+    secretKey,
     async stop() {
       try {
         runCommand('docker', ['rm', '-f', containerName], { stdio: 'ignore' });

@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/projex
+WorkingDirectory=/opt/projex/current
 EnvironmentFile=/etc/projex/projex.env
 ExecStart=/usr/bin/env pnpm run start:server
 Restart=always

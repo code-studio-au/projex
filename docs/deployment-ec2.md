@@ -12,7 +12,13 @@ Use this guide for first-time EC2/RDS host provisioning. Once the host, systemd 
 
 - Install Node.js 22
 - Enable Corepack and install pnpm
-- Clone repo to `/opt/projex`
+- Create app directories:
+  - `/opt/projex/releases`
+  - `/opt/projex/shared/nginx-maintenance`
+  - `/opt/projex/current` as the active symlink target created by deploys
+- Keep a repo checkout available for first-time bootstrap and reference, or copy the needed deployment files from the repo:
+  - `deploy/systemd/projex.service`
+  - `deploy/nginx/projex.conf`
 
 ## 3) Configure environment
 
@@ -66,16 +72,15 @@ Notes:
 Sizing guidance:
 
 - cheapest sensible default for the current repo shape: `t4g.small` app host plus separate `db.t4g.micro` RDS
-- why the app host stays at `t4g.small`: the current deploy flow installs dependencies and builds on the instance, which is the main reason a micro can become unstable or frustrating
-- if you switch to prebuilt artifact deploys and keep the instance mostly as a runtime host, `t4g.micro` may become acceptable as a lowest-cost option
+- artifact-based deploys remove the heaviest on-box build pressure because the instance no longer runs `pnpm run build` during each release
+- once deploys are artifact-based and the instance is mostly a runtime host, `t4g.micro` becomes much more realistic as a lowest-cost option, subject to your real traffic and memory profile
 
-## 4) Build + run
+## 4) Bootstrap + run
 
 ```bash
-cd /opt/projex
+sudo mkdir -p /opt/projex/releases /opt/projex/shared/nginx-maintenance
+sudo chown -R ec2-user:ec2-user /opt/projex
 corepack enable
-pnpm install --frozen-lockfile
-pnpm run build
 ```
 
 Install systemd unit:
@@ -95,6 +100,8 @@ sudo journalctl -u projex -f
 
 `start:server` validates the runtime env, serves built client assets, and starts the SSR app server (host/port via `HOST` and `PORT`, default `0.0.0.0:3000`). It does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
 
+The systemd unit now points at `/opt/projex/current`, so each deploy activates a fully extracted release directory by switching that symlink after migrations succeed.
+
 If you front the app with nginx, proxy to `http://127.0.0.1:3000` and preserve `Host` plus standard forwarded headers.
 
 Recommended:
@@ -113,26 +120,60 @@ The maintenance fallback relies on the static file:
 - `deploy/nginx/maintenance.html`
 - `deploy/nginx/maintenance.js`
 
-In the repo template, nginx serves that file directly from:
+In the recommended artifact-based layout, nginx serves those files from:
 
-- `/opt/projex/deploy/nginx/maintenance.html`
-- `/opt/projex/deploy/nginx/maintenance.js`
+- `/opt/projex/shared/nginx-maintenance/maintenance.html`
+- `/opt/projex/shared/nginx-maintenance/maintenance.js`
 
-So as long as the repo is deployed at `/opt/projex`, no extra copy step is required.
+Each deploy refreshes those shared maintenance assets from the release bundle before the service restart.
 
 ## 4.1) Repeatable deploy commands
 
-Once the service is installed and `/etc/projex/projex.env` is configured, use one of these from `/opt/projex`:
+Preferred path: build the release artifact in CI and deploy that artifact onto the host.
+
+Local packaging command:
 
 ```bash
-# Full deploy: pull, install deps, migrate, build, restart, health checks
-pnpm run deploy:ec2
+pnpm run build
+pnpm run deploy:artifact:create
+```
 
-# Faster deploy when dependencies did not change
+GitHub Actions manual workflow:
+
+- `.github/workflows/deploy.yml`
+- default mode: `artifact-only`
+- optional mode when secrets are ready: `ec2`
+
+When enabling the `ec2` mode, set repository or environment secrets for:
+
+- `EC2_HOST`
+- `EC2_USER`
+- `EC2_SSH_PRIVATE_KEY`
+- optional overrides such as `EC2_PORT`, `EC2_APP_ROOT`, `EC2_ENV_FILE`, `EC2_SERVICE_NAME`, `EC2_HEALTH_URL`, `EC2_READY_URL`, `EC2_KEEP_RELEASES`, and `EC2_SSH_KNOWN_HOST`
+
+The artifact-based release flow performs:
+
+- build once in GitHub Actions
+- package a deploy tarball containing `dist`, runtime source, migrations, scripts, and nginx maintenance assets
+- upload the artifact to the target host
+- extract into `/opt/projex/releases/<release-id>`
+- `pnpm install --frozen-lockfile --prod`
+- env load from `/etc/projex/projex.env`
+- `pnpm run db:migrate`
+- refresh shared maintenance assets
+- switch `/opt/projex/current`
+- restart `projex`
+- `/api/health` and `/api/ready` checks
+- rollback to the previous release symlink if restart or health checks fail
+
+Legacy build-on-host fallback remains available from a full repo checkout:
+
+```bash
+pnpm run deploy:ec2
 pnpm run deploy:ec2:quick
 ```
 
-The full deploy command performs:
+The legacy build-on-host command performs:
 
 - `git pull --ff-only`
 - `pnpm install --frozen-lockfile`
