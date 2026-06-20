@@ -12,3 +12,5 @@ minimumReleaseAgeExclude:
 # dependency specs unless we opt into them deliberately.
 trustPolicy: no-downgrade
 blockExoticSubdeps: true
+allowBuilds:
+  esbuild: true

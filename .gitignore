@@ -31,3 +31,4 @@ dist-ssr
 .env.staging
 .env.production
 deploy/cdk/cdk.out/
+artifacts/

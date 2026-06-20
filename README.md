@@ -31,6 +31,9 @@ The repo now also includes a deployment-free GitHub Actions CI workflow at
 - a Postgres-backed lane for `db:migrate`, `db:verify-types`, and `test:integration:db`
 - a disposable end-to-end lane for `smoke:server:disposable -- --section=basics`
 
+Normal repo flow is now branch -> pull request -> green required checks -> merge.
+Direct pushes to protected `main` should be treated as an exception-only path.
+
 For the most complete local or future-CI verification pass, use:
 
 ```bash
@@ -106,6 +109,9 @@ PROJEX_AUTH_EMAIL=... PROJEX_APP_TEMPLATE_USER_ID=u_superadmin pnpm run auth:lin
 
 # Start the built server
 pnpm run start:server
+
+# Package a prebuilt deploy artifact
+pnpm run deploy:artifact:create
 
 # Smoke test a running server
 pnpm run smoke:server
@@ -190,6 +196,7 @@ Operational defaults:
 - `pnpm run db:migrate` runs BetterAuth schema migration plus the squashed app baseline/future app migrations through Kysely's standard migrator.
 - `pnpm run db:generate-types` regenerates `src/server/db/generated/db.d.ts` from the current database schema, while `pnpm run db:verify-types` is the drift check used in local verification.
 - `pnpm run start:server` does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
+- `.github/workflows/deploy.yml` is the manual build-once deploy scaffold. It packages a prebuilt release artifact and can later push that artifact to EC2 without rebuilding on the instance.
 - The enforced CSP intentionally retains `style-src-attr 'unsafe-inline'` for now because Mantine and current app UI still emit runtime `style=""` attributes; the rest of the policy stays nonce-based and strict.
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.

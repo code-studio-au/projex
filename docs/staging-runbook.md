@@ -26,6 +26,7 @@ Before handing this repo to another developer or team, make sure:
   - local/CI gate: `pnpm run verify:ci`
   - GitHub Actions CI: static checks, DB verification, and disposable smoke basics
   - deployed-environment checks: `pnpm run smoke:server` and `pnpm run verify:deploy-security`
+- normal code flow is branch -> PR -> green checks -> merge; protected `main` is not the routine delivery path
 - the first-admin bootstrap path is understood for fresh databases:
   - `pnpm run auth:create-user`
   - `pnpm run auth:bootstrap-user`
@@ -203,10 +204,23 @@ Notes:
 From `/opt/projex`:
 
 ```bash
-# Full deploy
-pnpm run deploy:ec2
+# Preferred: trigger the manual GitHub Actions deploy workflow
+# .github/workflows/deploy.yml
+```
 
-# Faster deploy if dependencies definitely did not change
+Preferred deploy model:
+
+- build once in GitHub Actions
+- upload the prebuilt release artifact
+- install runtime dependencies only on the host
+- run migrations
+- switch the `/opt/projex/current` symlink
+- restart the service
+
+Legacy fallback from a full repo checkout:
+
+```bash
+pnpm run deploy:ec2
 pnpm run deploy:ec2:quick
 ```
 
