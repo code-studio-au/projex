@@ -2,6 +2,22 @@ import { AppError } from '../api/errors.ts';
 
 const GENERIC_STARTUP_ENV_ERROR = 'Invalid server configuration';
 
+function throwStartupEnvError(
+  reason: string,
+  detail?: Record<string, unknown>
+) {
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      type: 'startup_env_validation',
+      reason,
+      nodeEnv: process.env.NODE_ENV ?? null,
+      detail: detail ?? null,
+    })
+  );
+  throw new AppError('INTERNAL_ERROR', GENERIC_STARTUP_ENV_ERROR);
+}
+
 function nonEmpty(value: string | undefined): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -12,12 +28,14 @@ function listMissing(required: Array<{ key: string; ok: boolean }>): string[] {
 
 function parseHttpsUrl(
   value: string | undefined,
-  options?: { required?: boolean }
+  options?: { required?: boolean; label?: string }
 ): URL | null {
   const trimmed = value?.trim() ?? '';
   if (!trimmed) {
     if (options?.required) {
-      throw new AppError('INTERNAL_ERROR', GENERIC_STARTUP_ENV_ERROR);
+      throwStartupEnvError('missing_required_https_url', {
+        key: options.label ?? 'unknown',
+      });
     }
     return null;
   }
@@ -26,11 +44,16 @@ function parseHttpsUrl(
   try {
     parsed = new URL(trimmed);
   } catch {
-    throw new AppError('INTERNAL_ERROR', GENERIC_STARTUP_ENV_ERROR);
+    throwStartupEnvError('invalid_url_format', {
+      key: options?.label ?? 'unknown',
+    });
   }
 
   if (parsed.protocol !== 'https:') {
-    throw new AppError('INTERNAL_ERROR', GENERIC_STARTUP_ENV_ERROR);
+    throwStartupEnvError('non_https_url', {
+      key: options?.label ?? 'unknown',
+      protocol: parsed.protocol,
+    });
   }
 
   return parsed;
@@ -59,26 +82,36 @@ export function validateServerStartupEnv(): void {
   }
 
   if (process.env.PROJEX_ENABLE_DEV_ENDPOINTS === 'true') {
-    throw new AppError('INTERNAL_ERROR', GENERIC_STARTUP_ENV_ERROR);
+    throwStartupEnvError('dev_endpoints_enabled');
   }
 
   if (process.env.PROJEX_ENABLE_SMOKE_TOOLS === 'true') {
-    throw new AppError('INTERNAL_ERROR', GENERIC_STARTUP_ENV_ERROR);
+    throwStartupEnvError('smoke_tools_enabled');
   }
 
   if (missing.length) {
-    throw new AppError('INTERNAL_ERROR', GENERIC_STARTUP_ENV_ERROR);
+    throwStartupEnvError('missing_required_env', { missing });
   }
 
-  parseHttpsUrl(process.env.BETTER_AUTH_URL, { required: true });
-  parseHttpsUrl(process.env.PROJEX_AUTH_RESET_REDIRECT_URL);
-  parseHttpsUrl(process.env.PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL);
+  parseHttpsUrl(process.env.BETTER_AUTH_URL, {
+    required: true,
+    label: 'BETTER_AUTH_URL',
+  });
+  parseHttpsUrl(process.env.PROJEX_AUTH_RESET_REDIRECT_URL, {
+    label: 'PROJEX_AUTH_RESET_REDIRECT_URL',
+  });
+  parseHttpsUrl(process.env.PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL, {
+    label: 'PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL',
+  });
 
   for (const origin of (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? '')
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean)) {
-    parseHttpsUrl(origin, { required: true });
+    parseHttpsUrl(origin, {
+      required: true,
+      label: 'BETTER_AUTH_TRUSTED_ORIGINS',
+    });
   }
 
   startupValidated = true;
