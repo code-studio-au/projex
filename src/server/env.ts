@@ -40,7 +40,7 @@ function parseHttpsUrl(
     return null;
   }
 
-  let parsed: URL;
+  let parsed: URL | null = null;
   try {
     parsed = new URL(trimmed);
   } catch {
@@ -49,10 +49,10 @@ function parseHttpsUrl(
     });
   }
 
-  if (parsed.protocol !== 'https:') {
+  if (!parsed || parsed.protocol !== 'https:') {
     throwStartupEnvError('non_https_url', {
       key: options?.label ?? 'unknown',
-      protocol: parsed.protocol,
+      protocol: parsed?.protocol ?? null,
     });
   }
 
