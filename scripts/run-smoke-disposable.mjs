@@ -2,6 +2,7 @@ import {
   runProjexCommand,
   runProjexMigrations,
   spawnProjexCommand,
+  startDisposableMinio,
   startDisposablePostgres,
   stopChildProcess,
   waitForHttpOk,
@@ -30,6 +31,10 @@ async function main() {
   const baseUrl = `http://${HOST}:${PORT}`;
   const pg = await startDisposablePostgres({
     containerPrefix: 'projex-smoke-db',
+  });
+  const minio = await startDisposableMinio({
+    containerPrefix: 'projex-smoke-s3',
+    bucket: 'projex-exports',
   });
   const connectionString = pg.connectionString(DB_NAME);
   let serverProcess = null;
@@ -61,6 +66,12 @@ async function main() {
       PROJEX_ENABLE_SMOKE_TOOLS: 'false',
       PROJEX_RUN_MIGRATIONS: 'false',
       PROJEX_SMOKE_BASE_URL: baseUrl,
+      S3_BUCKET: minio.bucket,
+      S3_REGION: minio.region,
+      S3_ENDPOINT: minio.endpoint,
+      S3_ACCESS_KEY_ID: minio.accessKey,
+      S3_SECRET_ACCESS_KEY: minio.secretKey,
+      S3_FORCE_PATH_STYLE: 'true',
       HOST,
       PORT: String(PORT),
     };
@@ -94,6 +105,7 @@ async function main() {
     } else {
       await pg.stop();
     }
+    await minio.stop();
   }
 }
 
