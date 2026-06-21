@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 
 import { asProjectId, asTxnId } from '../../../types';
 import type {
+  TxnBulkActionInput,
   TxnCreateInput,
   TxnCommentCreateInput,
   TxnCommentUpdateInput,
@@ -17,6 +18,7 @@ import {
   listTransactionsServer,
   splitTxnServer,
   transferTxnServer,
+  bulkTxnActionServer,
   updateTxnServer,
   updateTxnWorkflowStateServer,
 } from '../../fns/transactions';
@@ -28,6 +30,8 @@ import {
   updateTransactionCommentServer,
 } from '../../fns/transactionComments';
 import { startApiMiddleware } from '../middleware';
+import { txnBulkActionInputSchema } from '../../../validation/apiSchemas';
+import { validateOrThrow } from '../../../validation/validate';
 
 export const listTransactionsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
@@ -215,6 +219,24 @@ export const updateTxnWorkflowStateServerFn = createServerFn({
   )
   .handler(async ({ context, data }) => {
     return updateTxnWorkflowStateServer({
+      context: context.serverContext,
+      projectId: data.projectId,
+      input: data.payload,
+    });
+  });
+
+export const bulkTxnActionServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    (input: { projectId: string; payload: TxnBulkActionInput }) => ({
+      projectId: asProjectId(input.projectId),
+      payload: validateOrThrow(txnBulkActionInputSchema, input.payload),
+    })
+  )
+  .handler(async ({ context, data }) => {
+    return bulkTxnActionServer({
       context: context.serverContext,
       projectId: data.projectId,
       input: data.payload,

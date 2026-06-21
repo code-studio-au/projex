@@ -9,6 +9,8 @@ import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import type { ProjectId, Txn, TxnId } from '../types';
 import type {
+  TxnBulkActionInput,
+  TxnBulkActionResult,
   TxnListPageInput,
   TxnListSortDirection,
   TxnListSortField,
@@ -25,6 +27,7 @@ import {
   listTransactionsServerFn,
   splitTxnServerFn,
   transferTxnServerFn,
+  bulkTxnActionServerFn,
   updateTxnServerFn,
   updateTxnWorkflowStateServerFn,
 } from '../server/start/functions/transactionReads';
@@ -157,20 +160,29 @@ export function transactionsPageQueryOptions(
   } as const;
 }
 
+export async function invalidateProjectTransactionQueries(args: {
+  qc: ReturnType<typeof useQueryClient>;
+  scopeUserId: string;
+  projectId: ProjectId;
+}) {
+  await Promise.all([
+    args.qc.invalidateQueries({
+      queryKey: qk.transactions(args.scopeUserId, args.projectId),
+    }),
+    args.qc.invalidateQueries({
+      queryKey: qk.companySummaries(args.scopeUserId),
+    }),
+  ]);
+}
+
 export function useCreateTxnMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: TxnCreateInput) =>
       createTxnServerFn({ data: { projectId, payload: input } }),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({
-          queryKey: qk.transactions(scopeUserId, projectId),
-        }),
-        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
-      ]);
-    },
+    onSuccess: async () =>
+      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
   });
 }
 
@@ -198,12 +210,8 @@ export function useUpdateTxnMutation(projectId: ProjectId) {
     onError: (_error, _vars, context) => {
       if (context?.previous) qc.setQueryData(queryKey, context.previous);
     },
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey }),
-        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
-      ]);
-    },
+    onSuccess: async () =>
+      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
   });
 }
 
@@ -213,47 +221,36 @@ export function useDeleteTxnMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (txnId: TxnId) =>
       deleteTxnServerFn({ data: { projectId, txnId } }),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({
-          queryKey: qk.transactions(scopeUserId, projectId),
-        }),
-        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
-      ]);
-    },
+    onSuccess: async () =>
+      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
   });
 }
 
 export function useSplitTxnMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
-  const queryKey = qk.transactions(scopeUserId, projectId);
   return useMutation({
     mutationFn: (input: TxnSplitInput) =>
       splitTxnServerFn({ data: { projectId, payload: input } }),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey }),
-        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
-      ]);
-    },
+    onSuccess: async () =>
+      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
   });
 }
 
 export function useTransferTxnMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
-  const sourceQueryKey = qk.transactions(scopeUserId, projectId);
   return useMutation({
     mutationFn: (input: TxnTransferInput) =>
       transferTxnServerFn({ data: { projectId, payload: input } }),
     onSuccess: async (_result, input) => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: sourceQueryKey }),
-        qc.invalidateQueries({
-          queryKey: qk.transactions(scopeUserId, input.destinationProjectId),
+        invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
+        invalidateProjectTransactionQueries({
+          qc,
+          scopeUserId,
+          projectId: input.destinationProjectId,
         }),
-        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
       ]);
     },
   });
@@ -262,15 +259,21 @@ export function useTransferTxnMutation(projectId: ProjectId) {
 export function useUpdateTxnWorkflowStateMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
-  const queryKey = qk.transactions(scopeUserId, projectId);
   return useMutation({
     mutationFn: (input: TxnWorkflowStateInput) =>
       updateTxnWorkflowStateServerFn({ data: { projectId, payload: input } }),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey }),
-        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
-      ]);
-    },
+    onSuccess: async () =>
+      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
+  });
+}
+
+export function useBulkTxnActionMutation(projectId: ProjectId) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: TxnBulkActionInput): Promise<TxnBulkActionResult> =>
+      bulkTxnActionServerFn({ data: { projectId, payload: input } }),
+    onSuccess: async () =>
+      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
   });
 }

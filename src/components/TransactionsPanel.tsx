@@ -37,7 +37,10 @@ import type {
   TxnComment,
   TxnId,
 } from '../types';
-import type { ProjectRuleSuggestionPrompt } from '../api/contract';
+import type {
+  ProjectRuleSuggestionPrompt,
+  TxnBulkActionResult,
+} from '../api/contract';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 import {
   buildTxnCommentRepliesByParent,
@@ -59,6 +62,7 @@ import {
 } from '../queries/transactionComments';
 import { useTransactionsPageQuery } from '../queries/transactions';
 import { useCreateProjectAutoCodingRuleMutation } from '../queries/projectAutoCodingRules';
+import { showAppToast } from '../utils/toast';
 import classes from '../styles/ui.module.css';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
@@ -67,6 +71,7 @@ type TransactionView =
   | 'uncoded'
   | 'auto-mapped-pending'
   | 'assigned-to-me';
+const EMPTY_TXNS: Txn[] = [];
 
 const hydrateSubscription = () => () => {};
 const getClientHydratedSnapshot = () => true;
@@ -92,6 +97,53 @@ function commentInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (parts.length === 0) return '?';
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('');
+}
+
+function formatTxnCountLabel(count: number) {
+  return `${count} transaction${count === 1 ? '' : 's'}`;
+}
+
+function showBulkActionResultToast(args: {
+  result: TxnBulkActionResult;
+  successLabel: string;
+}) {
+  const { result, successLabel } = args;
+  const missingCount = result.requestedCount - result.foundCount;
+  const details = [
+    result.unchangedCount > 0
+      ? `${formatTxnCountLabel(result.unchangedCount)} already matched`
+      : null,
+    result.lockedCount > 0
+      ? `${formatTxnCountLabel(result.lockedCount)} locked`
+      : null,
+    result.ineligibleCount > 0
+      ? `${formatTxnCountLabel(result.ineligibleCount)} not eligible`
+      : null,
+    missingCount > 0
+      ? `${formatTxnCountLabel(missingCount)} no longer found`
+      : null,
+  ].filter(Boolean);
+
+  showAppToast({
+    title:
+      result.updatedCount > 0
+        ? `Bulk ${successLabel} complete`
+        : 'No changes applied',
+    tone:
+      result.updatedCount > 0 &&
+      result.lockedCount === 0 &&
+      result.ineligibleCount === 0 &&
+      missingCount === 0
+        ? 'success'
+        : 'warning',
+    message:
+      result.updatedCount > 0
+        ? `${successLabel} ${formatTxnCountLabel(result.updatedCount)}.${details.length > 0 ? ` ${details.join('. ')}.` : ''}`
+        : details.length > 0
+          ? details.join('. ')
+          : 'The selected transactions already matched the requested state.',
+    autoClose: 9000,
+  });
 }
 
 export default function TransactionsPanel(props: {
@@ -158,6 +210,14 @@ export default function TransactionsPanel(props: {
     useState<ProjectRuleSuggestionPrompt | null>(null);
   const [projectRuleMatchText, setProjectRuleMatchText] = useState('');
   const [projectRuleError, setProjectRuleError] = useState<string | null>(null);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [bulkRecodeOpen, setBulkRecodeOpen] = useState(false);
+  const [bulkRecodeCategoryId, setBulkRecodeCategoryId] = useState<
+    string | null
+  >(null);
+  const [bulkRecodeSubCategoryId, setBulkRecodeSubCategoryId] = useState<
+    string | null
+  >(null);
   const isMobile = useMediaQuery('(max-width: 48em)');
   const isHydrated = useSyncExternalStore(
     hydrateSubscription,
@@ -245,7 +305,15 @@ export default function TransactionsPanel(props: {
   const activeCommentsTxn = commentsTxn ?? linkedCommentsTxn;
   const isTransitioningPageData =
     transactionsPageQ.isFetching && transactionsPageQ.isPlaceholderData;
-  const pagedTxns = transactionsPageQ.data?.rows ?? [];
+  const pagedTxns = transactionsPageQ.data?.rows ?? EMPTY_TXNS;
+  const selectedTxns = useMemo(
+    () => pagedTxns.filter((txn) => rowSelection[txn.id]),
+    [pagedTxns, rowSelection]
+  );
+  const selectedTxnIds = useMemo(
+    () => selectedTxns.map((txn) => txn.id),
+    [selectedTxns]
+  );
   const pageSummary = transactionsPageQ.data?.summary ?? {
     totalCount: 0,
     budgetImpactCents: 0,
@@ -257,6 +325,33 @@ export default function TransactionsPanel(props: {
     lockedCount: 0,
     invalidDateCount: 0,
   };
+  const selectedAutoMappedPendingCount = useMemo(
+    () =>
+      selectedTxns.filter(
+        (txn) =>
+          !txn.lockedAt &&
+          isCategorisableTxn(txn) &&
+          !!txn.codingPendingApproval &&
+          !!txn.subCategoryId &&
+          taxonomy.validSubIds.has(txn.subCategoryId)
+      ).length,
+    [selectedTxns, taxonomy.validSubIds]
+  );
+  const selectedUnlockedCategorisableCount = useMemo(
+    () =>
+      selectedTxns.filter((txn) => !txn.lockedAt && isCategorisableTxn(txn))
+        .length,
+    [selectedTxns]
+  );
+  const bulkRecodeSubCategoryOptions = useMemo(
+    () =>
+      bulkRecodeCategoryId
+        ? taxonomy.subCategoryOptionsForCategory(
+            asCategoryId(bulkRecodeCategoryId)
+          )
+        : [],
+    [bulkRecodeCategoryId, taxonomy]
+  );
 
   const drilldownLabel = transactionDrilldown
     ? transactionDrilldown.kind === 'subcategory'
@@ -893,6 +988,58 @@ export default function TransactionsPanel(props: {
     },
   ];
 
+  async function runBulkAction(args: {
+    input:
+      | {
+          action: 'approveAutoMappings';
+          txnIds: TxnId[];
+        }
+      | {
+          action: 'clearCoding';
+          txnIds: TxnId[];
+        }
+      | {
+          action: 'setReviewed';
+          txnIds: TxnId[];
+          reviewed: boolean;
+        }
+      | {
+          action: 'setLocked';
+          txnIds: TxnId[];
+          locked: boolean;
+        }
+      | {
+          action: 'recode';
+          txnIds: TxnId[];
+          categoryId: ReturnType<typeof asCategoryId>;
+          subCategoryId: ReturnType<typeof asSubCategoryId>;
+        };
+    successLabel: string;
+    clearSelection?: boolean;
+  }) {
+    try {
+      const result = await txns.runBulkAction(args.input);
+      showBulkActionResultToast({
+        result,
+        successLabel: args.successLabel,
+      });
+      if (args.clearSelection ?? true) {
+        setRowSelection({});
+      }
+      return result;
+    } catch (error) {
+      showAppToast({
+        title: 'Bulk action failed',
+        tone: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not update the selected transactions.',
+      });
+      return null;
+    }
+  }
+
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <Paper className={classes.filterCard} radius="xl">
@@ -904,6 +1051,7 @@ export default function TransactionsPanel(props: {
             value={yearFilter}
             clearable
             onChange={(value) => {
+              setRowSelection({});
               setPagination((current) => ({ ...current, pageIndex: 0 }));
               setYearFilter(value);
               setQuarterFilter(null);
@@ -919,6 +1067,7 @@ export default function TransactionsPanel(props: {
             clearable
             disabled={!yearFilter}
             onChange={(value) => {
+              setRowSelection({});
               setPagination((current) => ({ ...current, pageIndex: 0 }));
               setQuarterFilter(toQuarterOption(value));
               setMonthFilterKey(null);
@@ -932,6 +1081,7 @@ export default function TransactionsPanel(props: {
             value={monthFilterKey}
             clearable
             onChange={(value) => {
+              setRowSelection({});
               setPagination((current) => ({ ...current, pageIndex: 0 }));
               setMonthFilterKey(value);
             }}
@@ -942,6 +1092,7 @@ export default function TransactionsPanel(props: {
             variant="subtle"
             disabled={!yearFilter && !quarterFilter && !monthFilterKey}
             onClick={() => {
+              setRowSelection({});
               setPagination((current) => ({ ...current, pageIndex: 0 }));
               onClearFilters();
             }}
@@ -1005,6 +1156,7 @@ export default function TransactionsPanel(props: {
                 ]}
                 value={transactionView}
                 onChange={(v) => {
+                  setRowSelection({});
                   setPagination((current) => ({ ...current, pageIndex: 0 }));
                   setTransactionView(
                     v === 'uncoded' ||
@@ -1023,13 +1175,14 @@ export default function TransactionsPanel(props: {
                 fullWidth={isMobile}
                 disabled={readOnly || autoMappedPendingTxns.length === 0}
                 onClick={() => {
-                  void Promise.all(
-                    autoMappedPendingTxns.map((txn) =>
-                      txns.updateTxn(txn.id, {
-                        codingPendingApproval: false,
-                      })
-                    )
-                  );
+                  void runBulkAction({
+                    input: {
+                      action: 'approveAutoMappings',
+                      txnIds: autoMappedPendingTxns.map((txn) => txn.id),
+                    },
+                    successLabel: 'Approved',
+                    clearSelection: false,
+                  });
                 }}
               >
                 Accept all auto-mappings ({autoMappedPendingTxns.length})
@@ -1052,6 +1205,141 @@ export default function TransactionsPanel(props: {
             </Paper>
           )}
 
+          {isHydrated && !readOnly && selectedTxnIds.length > 0 ? (
+            <Paper className={classes.surfaceMuted} radius="xl" p="md">
+              <Stack gap="sm">
+                <Group gap="sm" align="center" wrap="wrap">
+                  <Text size="sm" fw={600}>
+                    {formatTxnCountLabel(selectedTxnIds.length)} selected on
+                    this page
+                  </Text>
+                  <Button
+                    size="compact-sm"
+                    variant="subtle"
+                    onClick={() => setRowSelection({})}
+                  >
+                    Clear selection
+                  </Button>
+                </Group>
+                <Group gap="sm" wrap="wrap">
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() => {
+                      void runBulkAction({
+                        input: {
+                          action: 'setReviewed',
+                          txnIds: selectedTxnIds,
+                          reviewed: true,
+                        },
+                        successLabel: 'Reviewed',
+                      });
+                    }}
+                  >
+                    Mark reviewed
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="gray"
+                    onClick={() => {
+                      void runBulkAction({
+                        input: {
+                          action: 'setReviewed',
+                          txnIds: selectedTxnIds,
+                          reviewed: false,
+                        },
+                        successLabel: 'Marked unreviewed for',
+                      });
+                    }}
+                  >
+                    Mark unreviewed
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="dark"
+                    onClick={() => {
+                      void runBulkAction({
+                        input: {
+                          action: 'setLocked',
+                          txnIds: selectedTxnIds,
+                          locked: true,
+                        },
+                        successLabel: 'Locked',
+                      });
+                    }}
+                  >
+                    Lock
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="gray"
+                    onClick={() => {
+                      void runBulkAction({
+                        input: {
+                          action: 'setLocked',
+                          txnIds: selectedTxnIds,
+                          locked: false,
+                        },
+                        successLabel: 'Unlocked',
+                      });
+                    }}
+                  >
+                    Unlock
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="teal"
+                    disabled={selectedAutoMappedPendingCount === 0}
+                    onClick={() => {
+                      void runBulkAction({
+                        input: {
+                          action: 'approveAutoMappings',
+                          txnIds: selectedTxnIds,
+                        },
+                        successLabel: 'Approved',
+                      });
+                    }}
+                  >
+                    Approve auto-mappings ({selectedAutoMappedPendingCount})
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    disabled={selectedUnlockedCategorisableCount === 0}
+                    onClick={() => {
+                      setBulkRecodeCategoryId(null);
+                      setBulkRecodeSubCategoryId(null);
+                      setBulkRecodeOpen(true);
+                    }}
+                  >
+                    Recode selected
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="red"
+                    disabled={selectedUnlockedCategorisableCount === 0}
+                    onClick={() => {
+                      void runBulkAction({
+                        input: {
+                          action: 'clearCoding',
+                          txnIds: selectedTxnIds,
+                        },
+                        successLabel: 'Cleared coding for',
+                      });
+                    }}
+                  >
+                    Clear coding
+                  </Button>
+                </Group>
+              </Stack>
+            </Paper>
+          ) : null}
+
           {drilldownLabel ? (
             <Group gap="sm" align="center" wrap="wrap">
               <Badge variant="light" color="blue">
@@ -1064,6 +1352,7 @@ export default function TransactionsPanel(props: {
                 size="xs"
                 variant="subtle"
                 onClick={() => {
+                  setRowSelection({});
                   setPagination((current) => ({ ...current, pageIndex: 0 }));
                   onClearTransactionDrilldown?.();
                 }}
@@ -1106,17 +1395,24 @@ export default function TransactionsPanel(props: {
               columns={txnColumns}
               data={pagedTxns}
               getRowId={(row) => row.id}
+              enableRowSelection={!readOnly}
               enableEditing={!readOnly}
               editDisplayMode="cell"
               state={{
                 pagination,
+                rowSelection,
                 sorting,
                 showProgressBars: transactionsPageQ.isFetching,
               }}
-              onPaginationChange={setPagination}
+              onPaginationChange={(updater) => {
+                setRowSelection({});
+                setPagination(updater);
+              }}
+              onRowSelectionChange={setRowSelection}
               onSortingChange={(updater) => {
                 const nextSorting =
                   typeof updater === 'function' ? updater(sorting) : updater;
+                setRowSelection({});
                 setSorting(nextSorting);
                 setPagination((current) => ({ ...current, pageIndex: 0 }));
               }}
@@ -1199,6 +1495,73 @@ export default function TransactionsPanel(props: {
           }
         }}
       />
+
+      <Modal
+        opened={bulkRecodeOpen}
+        onClose={() => setBulkRecodeOpen(false)}
+        title="Bulk recode selected transactions"
+        centered
+        lockScroll={false}
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Recode the selected unlocked, categorisable transactions to a single
+            category and subcategory. Locked or ineligible rows will be skipped
+            and reported in the result.
+          </Text>
+          <Select
+            label="Category"
+            data={taxonomy.categoryOptions}
+            value={bulkRecodeCategoryId}
+            placeholder="Select category"
+            searchable
+            clearable
+            onChange={(value) => {
+              setBulkRecodeCategoryId(value);
+              setBulkRecodeSubCategoryId(null);
+            }}
+          />
+          <Select
+            label="Subcategory"
+            data={bulkRecodeSubCategoryOptions}
+            value={bulkRecodeSubCategoryId}
+            placeholder={
+              bulkRecodeCategoryId
+                ? 'Select subcategory'
+                : 'Select a category first'
+            }
+            searchable
+            clearable
+            disabled={!bulkRecodeCategoryId}
+            onChange={setBulkRecodeSubCategoryId}
+          />
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setBulkRecodeOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!bulkRecodeCategoryId || !bulkRecodeSubCategoryId}
+              onClick={async () => {
+                if (!bulkRecodeCategoryId || !bulkRecodeSubCategoryId) return;
+                const result = await runBulkAction({
+                  input: {
+                    action: 'recode',
+                    txnIds: selectedTxnIds,
+                    categoryId: asCategoryId(bulkRecodeCategoryId),
+                    subCategoryId: asSubCategoryId(bulkRecodeSubCategoryId),
+                  },
+                  successLabel: 'Recoded',
+                });
+                if (result) {
+                  setBulkRecodeOpen(false);
+                }
+              }}
+            >
+              Recode selected
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         opened={Boolean(projectRulePrompt)}

@@ -162,6 +162,42 @@ export type TxnWorkflowStateInput = {
   locked?: boolean;
 };
 
+export type TxnBulkActionInput =
+  | {
+      action: 'approveAutoMappings';
+      txnIds: TxnId[];
+    }
+  | {
+      action: 'clearCoding';
+      txnIds: TxnId[];
+    }
+  | {
+      action: 'setReviewed';
+      txnIds: TxnId[];
+      reviewed: boolean;
+    }
+  | {
+      action: 'setLocked';
+      txnIds: TxnId[];
+      locked: boolean;
+    }
+  | {
+      action: 'recode';
+      txnIds: TxnId[];
+      categoryId: Category['id'];
+      subCategoryId: SubCategory['id'];
+    };
+
+export type TxnBulkActionResult = {
+  action: TxnBulkActionInput['action'];
+  requestedCount: number;
+  foundCount: number;
+  updatedCount: number;
+  unchangedCount: number;
+  lockedCount: number;
+  ineligibleCount: number;
+};
+
 export type TxnCommentCreateInput = {
   txnId: TxnId;
   body: string;

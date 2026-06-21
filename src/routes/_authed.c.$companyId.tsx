@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute } from '@tanstack/react-router';
 import { isServerAuthMode } from './-authMode';
-import type { UserId } from '../types';
+import type { CompanyMembership, UserId } from '../types';
 import { asCompanyId } from '../types';
 import { getUserCompanyRole } from '../store/access';
 import {
@@ -66,7 +66,7 @@ export const Route = createFileRoute('/_authed/c/$companyId')({
     ]);
 
     const userCompanyCount = new Set(
-      (companyMemberships ?? [])
+      ((companyMemberships ?? []) as CompanyMembership[])
         .filter((membership) => membership.userId === session.userId)
         .map((membership) => membership.companyId)
     ).size;

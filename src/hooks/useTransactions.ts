@@ -8,6 +8,8 @@ import type {
   TxnId,
 } from '../types';
 import type {
+  TxnBulkActionInput,
+  TxnBulkActionResult,
   TxnSplitInput,
   TxnTransferInput,
   TxnUpdateInput,
@@ -15,6 +17,7 @@ import type {
 } from '../api/contract';
 import { useImportTransactionsMutation } from '../queries/admin';
 import {
+  useBulkTxnActionMutation,
   useSplitTxnMutation,
   useTransferTxnMutation,
   useTransactionsQuery,
@@ -40,6 +43,7 @@ export function useTransactions(params: {
   const split = useSplitTxnMutation(projectId);
   const transfer = useTransferTxnMutation(projectId);
   const workflowState = useUpdateTxnWorkflowStateMutation(projectId);
+  const bulkTxnAction = useBulkTxnActionMutation(projectId);
   const importMut = useImportTransactionsMutation(projectId);
 
   const transactions = useMemo(() => q.data ?? [], [q.data]);
@@ -66,6 +70,10 @@ export function useTransactions(params: {
   ) => {
     await workflowState.mutateAsync({ txnId: id, ...patch });
   };
+
+  const runBulkAction = async (
+    input: TxnBulkActionInput
+  ): Promise<TxnBulkActionResult> => bulkTxnAction.mutateAsync(input);
 
   const replaceAll = async (
     next: Txn[],
@@ -146,6 +154,7 @@ export function useTransactions(params: {
     splitTxn,
     transferTxn,
     updateWorkflowState,
+    runBulkAction,
     stripCodingForSubCategoryIds,
     stripCodingForCategoryIds,
     replaceAll,

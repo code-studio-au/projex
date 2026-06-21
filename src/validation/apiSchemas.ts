@@ -495,6 +495,41 @@ export const txnWorkflowStateInputSchema = z.object({
   locked: z.boolean().optional(),
 });
 
+const txnBulkActionTxnIdsSchema = z
+  .array(txnIdSchema)
+  .min(1, 'Select at least one transaction')
+  .max(200, 'Select no more than 200 transactions at once')
+  .refine((value) => new Set(value).size === value.length, {
+    message: 'Duplicate transactions are not allowed',
+  });
+
+export const txnBulkActionInputSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('approveAutoMappings'),
+    txnIds: txnBulkActionTxnIdsSchema,
+  }),
+  z.object({
+    action: z.literal('clearCoding'),
+    txnIds: txnBulkActionTxnIdsSchema,
+  }),
+  z.object({
+    action: z.literal('setReviewed'),
+    txnIds: txnBulkActionTxnIdsSchema,
+    reviewed: z.boolean(),
+  }),
+  z.object({
+    action: z.literal('setLocked'),
+    txnIds: txnBulkActionTxnIdsSchema,
+    locked: z.boolean(),
+  }),
+  z.object({
+    action: z.literal('recode'),
+    txnIds: txnBulkActionTxnIdsSchema,
+    categoryId: categoryIdSchema,
+    subCategoryId: subCategoryIdSchema,
+  }),
+]);
+
 export const txnWorkflowStateMutationBodySchema = z.object({
   workflow: txnWorkflowStateInputSchema.refine(
     (value) =>
@@ -502,6 +537,10 @@ export const txnWorkflowStateMutationBodySchema = z.object({
       typeof value.locked !== 'undefined',
     'At least one workflow state field is required'
   ),
+});
+
+export const txnBulkActionMutationBodySchema = z.object({
+  bulk: txnBulkActionInputSchema,
 });
 
 export const createTxnCommentInputSchema = z.object({

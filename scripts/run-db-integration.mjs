@@ -53,7 +53,7 @@ async function main() {
 
     runProjexCommand(
       'node',
-      ['--import', 'tsx', '--test', 'tests/dbIntegration.test.ts'],
+      ['--import', 'tsx', '--test', 'tests/dbIntegration*.test.ts'],
       {
         env: {
           DATABASE_URL: connectionString,

@@ -21,6 +21,8 @@ import {
 } from '../../types';
 import { AppError } from '../../api/errors';
 import type {
+  TxnBulkActionInput,
+  TxnBulkActionResult,
   TxnCreateInput,
   TxnImportTxnInput,
   TxnListPageInput,
@@ -218,6 +220,32 @@ function assertTxnUnlocked(txn: Txn): void {
       'Transaction is locked and cannot be changed'
     );
   }
+}
+
+type BulkTxnActionRow = {
+  public_id: string;
+  categorisable: boolean;
+  category_id: string | null;
+  sub_category_id: string | null;
+  company_default_mapping_rule_id: string | null;
+  coding_source: string | null;
+  coding_pending_approval: boolean;
+  reviewed_at: string | null;
+  reviewed_by_user_id: string | null;
+  locked_at: string | null;
+  locked_by_user_id: string | null;
+};
+
+function workflowPatchIsNoop(args: {
+  row: BulkTxnActionRow;
+  patch: ReturnType<typeof planTxnWorkflowState>;
+}) {
+  return (
+    args.row.reviewed_at === args.patch.reviewed_at &&
+    args.row.reviewed_by_user_id === args.patch.reviewed_by_user_id &&
+    args.row.locked_at === args.patch.locked_at &&
+    args.row.locked_by_user_id === args.patch.locked_by_user_id
+  );
 }
 
 async function assertTransactionResourceOwnership(
@@ -1349,6 +1377,249 @@ export async function updateTxnWorkflowStateServer(args: {
       .executeTakeFirstOrThrow();
 
     return toTxn(updated);
+  });
+}
+
+export async function bulkTxnActionServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: TxnBulkActionInput;
+}): Promise<TxnBulkActionResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const context = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:edit'
+    );
+    const now = new Date().toISOString();
+
+    if (args.input.action === 'recode') {
+      await assertCategoryInProject({
+        db: context.db,
+        projectId: args.projectId,
+        categoryId: args.input.categoryId,
+      });
+      await assertSubCategoryInProject({
+        db: context.db,
+        projectId: args.projectId,
+        subCategoryId: args.input.subCategoryId,
+        categoryId: args.input.categoryId,
+      });
+    }
+
+    const rows = await context.db
+      .selectFrom('txns')
+      .select([
+        'public_id',
+        'categorisable',
+        'category_id',
+        'sub_category_id',
+        'company_default_mapping_rule_id',
+        'coding_source',
+        'coding_pending_approval',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'locked_at',
+        'locked_by_user_id',
+      ])
+      .where('project_id', '=', args.projectId)
+      .where('public_id', 'in', args.input.txnIds)
+      .execute();
+
+    let updatedCount = 0;
+    let unchangedCount = 0;
+    let lockedCount = 0;
+    let ineligibleCount = 0;
+
+    await context.db.transaction().execute(async (trx) => {
+      for (const row of rows) {
+        if (args.input.action === 'approveAutoMappings') {
+          if (row.locked_at) {
+            lockedCount += 1;
+            continue;
+          }
+          if (!row.categorisable) {
+            ineligibleCount += 1;
+            continue;
+          }
+          if (!row.coding_pending_approval) {
+            unchangedCount += 1;
+            continue;
+          }
+          await trx
+            .updateTable('txns')
+            .set({
+              coding_pending_approval: false,
+              updated_at: now,
+            })
+            .where('project_id', '=', args.projectId)
+            .where('public_id', '=', row.public_id)
+            .executeTakeFirst();
+          updatedCount += 1;
+          continue;
+        }
+
+        if (args.input.action === 'clearCoding') {
+          if (row.locked_at) {
+            lockedCount += 1;
+            continue;
+          }
+          if (!row.categorisable) {
+            ineligibleCount += 1;
+            continue;
+          }
+          const alreadyClear =
+            !row.category_id &&
+            !row.sub_category_id &&
+            !row.company_default_mapping_rule_id &&
+            row.coding_source === 'manual' &&
+            row.coding_pending_approval === false;
+          if (alreadyClear) {
+            unchangedCount += 1;
+            continue;
+          }
+          await trx
+            .updateTable('txns')
+            .set({
+              category_id: null,
+              sub_category_id: null,
+              company_default_mapping_rule_id: null,
+              coding_source: 'manual',
+              coding_pending_approval: false,
+              updated_at: now,
+            })
+            .where('project_id', '=', args.projectId)
+            .where('public_id', '=', row.public_id)
+            .executeTakeFirst();
+          updatedCount += 1;
+          continue;
+        }
+
+        if (args.input.action === 'recode') {
+          if (row.locked_at) {
+            lockedCount += 1;
+            continue;
+          }
+          if (!row.categorisable) {
+            ineligibleCount += 1;
+            continue;
+          }
+          const alreadyRecoded =
+            row.category_id === args.input.categoryId &&
+            row.sub_category_id === args.input.subCategoryId &&
+            row.company_default_mapping_rule_id === null &&
+            row.coding_source === 'manual' &&
+            row.coding_pending_approval === false;
+          if (alreadyRecoded) {
+            unchangedCount += 1;
+            continue;
+          }
+          await trx
+            .updateTable('txns')
+            .set({
+              category_id: args.input.categoryId,
+              sub_category_id: args.input.subCategoryId,
+              company_default_mapping_rule_id: null,
+              coding_source: 'manual',
+              coding_pending_approval: false,
+              updated_at: now,
+            })
+            .where('project_id', '=', args.projectId)
+            .where('public_id', '=', row.public_id)
+            .executeTakeFirst();
+          updatedCount += 1;
+          continue;
+        }
+
+        if (args.input.action === 'setReviewed') {
+          const patch = planTxnWorkflowState({
+            current: {
+              reviewedAt: row.reviewed_at ?? undefined,
+              reviewedByUserId: row.reviewed_by_user_id
+                ? asUserId(row.reviewed_by_user_id)
+                : undefined,
+              lockedAt: row.locked_at ?? undefined,
+              lockedByUserId: row.locked_by_user_id
+                ? asUserId(row.locked_by_user_id)
+                : undefined,
+            },
+            reviewed: args.input.reviewed,
+            actorUserId: context.userId,
+            now,
+          });
+          if (workflowPatchIsNoop({ row, patch })) {
+            unchangedCount += 1;
+            continue;
+          }
+          await trx
+            .updateTable('txns')
+            .set({
+              ...patch,
+              updated_at: now,
+            })
+            .where('project_id', '=', args.projectId)
+            .where('public_id', '=', row.public_id)
+            .executeTakeFirst();
+          updatedCount += 1;
+          continue;
+        }
+
+        const patch = planTxnWorkflowState({
+          current: {
+            reviewedAt: row.reviewed_at ?? undefined,
+            reviewedByUserId: row.reviewed_by_user_id
+              ? asUserId(row.reviewed_by_user_id)
+              : undefined,
+            lockedAt: row.locked_at ?? undefined,
+            lockedByUserId: row.locked_by_user_id
+              ? asUserId(row.locked_by_user_id)
+              : undefined,
+          },
+          locked: args.input.locked,
+          actorUserId: context.userId,
+          now,
+        });
+        if (workflowPatchIsNoop({ row, patch })) {
+          unchangedCount += 1;
+          continue;
+        }
+        await trx
+          .updateTable('txns')
+          .set({
+            ...patch,
+            updated_at: now,
+          })
+          .where('project_id', '=', args.projectId)
+          .where('public_id', '=', row.public_id)
+          .executeTakeFirst();
+        updatedCount += 1;
+      }
+
+      if (args.input.action === 'recode' && updatedCount > 0) {
+        await ensureBudgetLinesForProjectSubCategories({
+          db: trx,
+          companyId: context.companyId,
+          projectId: args.projectId,
+          targets: [
+            {
+              categoryId: args.input.categoryId,
+              subCategoryId: args.input.subCategoryId,
+            },
+          ],
+        });
+      }
+    });
+
+    return {
+      action: args.input.action,
+      requestedCount: args.input.txnIds.length,
+      foundCount: rows.length,
+      updatedCount,
+      unchangedCount,
+      lockedCount,
+      ineligibleCount,
+    };
   });
 }
 

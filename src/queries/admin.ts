@@ -12,6 +12,7 @@ import type {
 } from '../api/contract';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
+import { invalidateProjectTransactionQueries } from './transactions';
 import { withStandardTxnAccountingMetadata } from '../utils/transactions';
 import {
   createCompanyServerFn,
@@ -168,12 +169,11 @@ export function useImportTransactionsMutation(projectId: ProjectId) {
     },
     onSuccess: async () => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: transactionQueryKey }),
+        invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
         qc.invalidateQueries({ queryKey: budgetQueryKey }),
         qc.invalidateQueries({
           queryKey: qk.importCandidates(scopeUserId, projectId),
         }),
-        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
       ]);
     },
   });

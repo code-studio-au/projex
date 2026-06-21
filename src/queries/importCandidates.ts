@@ -9,6 +9,7 @@ import type { ImportCandidateReviewInput } from '../api/contract';
 import type { ProjectId } from '../types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
+import { invalidateProjectTransactionQueries } from './transactions';
 import {
   listImportCandidatesServerFn,
   reviewImportCandidateServerFn,
@@ -48,10 +49,7 @@ export function useReviewImportCandidateMutation(projectId: ProjectId) {
         qc.invalidateQueries({
           queryKey: qk.importCandidates(scopeUserId, projectId),
         }),
-        qc.invalidateQueries({
-          queryKey: qk.transactions(scopeUserId, projectId),
-        }),
-        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+        invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
       ]),
   });
 }

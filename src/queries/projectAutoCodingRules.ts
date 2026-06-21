@@ -14,6 +14,7 @@ import type {
 } from '../api/contract';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
+import { invalidateProjectTransactionQueries } from './transactions';
 import {
   backfillProjectCodingServerFn,
   createProjectAutoCodingRuleServerFn,
@@ -49,13 +50,7 @@ async function invalidateProjectRuleQueries(args: {
     qc.invalidateQueries({
       queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
     }),
-    qc.invalidateQueries({
-      queryKey: qk.transactions(scopeUserId, projectId),
-    }),
-    qc.invalidateQueries({
-      queryKey: ['transactions', scopeUserId, projectId, 'page'],
-    }),
-    qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+    invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
   ]);
 }
 

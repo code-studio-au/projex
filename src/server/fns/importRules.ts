@@ -4,17 +4,11 @@ import type {
   ImportRuleUpdateInput,
 } from '../../api/types';
 import type { CompanyId, ImportRule, ProjectId } from '../../types';
-import { asCompanyId, asImportRuleId, asProjectId } from '../../types';
-import { defaultPowerBiImportRules } from '../../utils/powerBiImport';
+import { asImportRuleId } from '../../types';
 import { uid } from '../../utils/id';
 import {
-  buildDetachedProjectStandardMetadata,
-  buildInheritedProjectStandardMetadata,
   buildLocalProjectStandardMetadata,
   compareProjectStandards,
-  listSyncedProjectIdsForCompany,
-  type ProjectStandardsDb,
-  shouldApplyInheritedUpdate,
 } from '../sync/projectStandards';
 import { requireOperationalProjectForAction } from './resourceGuards';
 import { getDb } from '../db/db';
@@ -25,26 +19,23 @@ import {
   withServerBoundary,
 } from './runtime';
 import { requireAuthorized } from '../auth/authorize';
+import {
+  assertCompanyScopeInput,
+  assertProjectScopeInput,
+  buildImportRulePatch,
+  importRuleSelectColumns,
+  toImportRule,
+} from './importRules/shared';
+import {
+  detachProjectImportRulesForDeletedCompanyRule,
+  syncCompanyImportRulesToSyncedProjects as syncCompanyImportRulesToSyncedProjectsInternal,
+} from './importRules/sync';
 
-type ImportRuleRow = {
-  id: string;
-  company_id: string;
-  project_id: string | null;
-  name: ImportRule['name'];
-  origin_scope: 'company' | 'project' | null;
-  origin_company_item_id: string | null;
-  sync_status: 'local' | 'inherited' | 'overridden' | 'detached' | null;
-  last_synced_at: string | null;
-  source_updated_at_snapshot: string | null;
-  action: ImportRule['action'];
-  field: ImportRule['field'];
-  operator: ImportRule['operator'];
-  value: ImportRule['value'];
-  sort_order: number;
-  enabled: boolean;
-  created_at: string;
-  updated_at: string;
-};
+export {
+  seedCompanyImportRuleBaseline,
+  syncCompanyImportRulesToProject,
+} from './importRules/sync';
+export { syncCompanyImportRulesToSyncedProjectsInternal as syncCompanyImportRulesToSyncedProjects };
 
 async function requireCompanyContext(
   context: ServerFnContextInput,
@@ -59,278 +50,6 @@ async function requireCompanyContext(
     .executeTakeFirst();
   if (!company) throw new AppError('NOT_FOUND', 'Unknown company');
   return { db, userId };
-}
-
-function toImportRule(row: ImportRuleRow): ImportRule {
-  return {
-    id: asImportRuleId(row.id),
-    companyId: asCompanyId(row.company_id),
-    scope: row.project_id ? 'project' : 'company',
-    projectId: row.project_id ? asProjectId(row.project_id) : undefined,
-    name: row.name,
-    originScope: row.origin_scope ?? undefined,
-    originCompanyItemId: row.origin_company_item_id ?? undefined,
-    syncStatus: row.sync_status ?? undefined,
-    lastSyncedAt: row.last_synced_at ?? undefined,
-    sourceUpdatedAtSnapshot: row.source_updated_at_snapshot ?? undefined,
-    action: row.action,
-    field: row.field,
-    operator: row.operator,
-    value: row.value,
-    sortOrder: row.sort_order,
-    enabled: row.enabled,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function importRuleSelectColumns() {
-  return [
-    'id',
-    'company_id',
-    'project_id',
-    'name',
-    'origin_scope',
-    'origin_company_item_id',
-    'sync_status',
-    'last_synced_at',
-    'source_updated_at_snapshot',
-    'action',
-    'field',
-    'operator',
-    'value',
-    'sort_order',
-    'enabled',
-    'created_at',
-    'updated_at',
-  ] as const;
-}
-
-function importRuleFingerprint(
-  row: Pick<ImportRuleRow, 'name' | 'action' | 'field' | 'operator' | 'value'>
-) {
-  return [
-    row.name.trim().toLowerCase(),
-    row.action,
-    row.field,
-    row.operator,
-    row.value.trim(),
-  ].join('|');
-}
-
-export async function seedCompanyImportRuleBaseline(args: {
-  db: ProjectStandardsDb;
-  companyId: CompanyId;
-}) {
-  const existing = await args.db
-    .selectFrom('import_rules')
-    .select('id')
-    .where('company_id', '=', args.companyId)
-    .where('project_id', 'is', null)
-    .executeTakeFirst();
-  if (existing) return;
-
-  const now = new Date().toISOString();
-  await args.db
-    .insertInto('import_rules')
-    .values(
-      defaultPowerBiImportRules(args.companyId).map((rule) => ({
-        id: asImportRuleId(uid('impr')),
-        company_id: args.companyId,
-        project_id: null,
-        name: rule.name,
-        origin_scope: null,
-        origin_company_item_id: null,
-        sync_status: null,
-        last_synced_at: null,
-        source_updated_at_snapshot: null,
-        action: rule.action,
-        field: rule.field,
-        operator: rule.operator,
-        value: rule.value,
-        sort_order: rule.sortOrder,
-        enabled: rule.enabled,
-        created_at: now,
-        updated_at: now,
-      }))
-    )
-    .execute();
-}
-
-function assertCompanyScopeInput(
-  input: ImportRuleCreateInput,
-  companyId: CompanyId
-) {
-  if (input.companyId !== companyId) {
-    throw new AppError(
-      'VALIDATION_ERROR',
-      'Import Rule companyId does not match target company'
-    );
-  }
-  if (input.scope !== 'company') {
-    throw new AppError(
-      'VALIDATION_ERROR',
-      'Company import rules must use company scope'
-    );
-  }
-  if (input.projectId) {
-    throw new AppError(
-      'VALIDATION_ERROR',
-      'Company import rules cannot include a projectId'
-    );
-  }
-}
-
-function assertProjectScopeInput(args: {
-  input: ImportRuleCreateInput;
-  companyId: CompanyId;
-  projectId: ProjectId;
-}) {
-  const { input, companyId, projectId } = args;
-  if (input.companyId !== companyId) {
-    throw new AppError(
-      'VALIDATION_ERROR',
-      'Import Rule companyId does not match project company'
-    );
-  }
-  if (input.scope !== 'project') {
-    throw new AppError(
-      'VALIDATION_ERROR',
-      'Project import rules must use project scope'
-    );
-  }
-  if (input.projectId !== projectId) {
-    throw new AppError(
-      'VALIDATION_ERROR',
-      'Import Rule projectId does not match target project'
-    );
-  }
-}
-
-export async function syncCompanyImportRulesToProject(args: {
-  db: ProjectStandardsDb;
-  companyId: CompanyId;
-  projectId: ProjectId;
-}) {
-  const [companyRules, projectRules] = await Promise.all([
-    args.db
-      .selectFrom('import_rules')
-      .select(importRuleSelectColumns())
-      .where('company_id', '=', args.companyId)
-      .where('project_id', 'is', null)
-      .orderBy('sort_order', 'asc')
-      .orderBy('created_at', 'asc')
-      .execute(),
-    args.db
-      .selectFrom('import_rules')
-      .select(importRuleSelectColumns())
-      .where('project_id', '=', args.projectId)
-      .execute(),
-  ]);
-
-  const now = new Date().toISOString();
-  const companyRuleIds = new Set(companyRules.map((rule) => rule.id));
-
-  for (const companyRule of companyRules) {
-    const inherited = projectRules.find(
-      (rule) => rule.origin_company_item_id === companyRule.id
-    );
-    const exactLocalDuplicate = projectRules.find(
-      (rule) =>
-        rule.origin_company_item_id == null &&
-        importRuleFingerprint(rule) === importRuleFingerprint(companyRule)
-    );
-
-    if (inherited) {
-      if (!shouldApplyInheritedUpdate(inherited.sync_status)) continue;
-      await args.db
-        .updateTable('import_rules')
-        .set({
-          name: companyRule.name,
-          action: companyRule.action,
-          field: companyRule.field,
-          operator: companyRule.operator,
-          value: companyRule.value,
-          sort_order: companyRule.sort_order,
-          enabled: companyRule.enabled,
-          ...buildInheritedProjectStandardMetadata({
-            companyItemId: companyRule.id,
-            sourceUpdatedAt: companyRule.updated_at,
-            nowIso: now,
-          }),
-          updated_at: now,
-        })
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', inherited.id)
-        .execute();
-      continue;
-    }
-
-    if (exactLocalDuplicate) continue;
-
-    await args.db
-      .insertInto('import_rules')
-      .values({
-        id: asImportRuleId(uid('impr')),
-        company_id: args.companyId,
-        project_id: args.projectId,
-        name: companyRule.name,
-        ...buildInheritedProjectStandardMetadata({
-          companyItemId: companyRule.id,
-          sourceUpdatedAt: companyRule.updated_at,
-          nowIso: now,
-        }),
-        action: companyRule.action,
-        field: companyRule.field,
-        operator: companyRule.operator,
-        value: companyRule.value,
-        sort_order: companyRule.sort_order,
-        enabled: companyRule.enabled,
-        created_at: now,
-        updated_at: now,
-      })
-      .execute();
-  }
-
-  const staleProjectRules = projectRules.filter(
-    (rule) =>
-      rule.origin_company_item_id &&
-      !companyRuleIds.has(rule.origin_company_item_id) &&
-      rule.sync_status !== 'detached'
-  );
-
-  for (const staleRule of staleProjectRules) {
-    await args.db
-      .updateTable('import_rules')
-      .set({
-        ...buildDetachedProjectStandardMetadata({
-          companyItemId: staleRule.origin_company_item_id!,
-          previousSourceUpdatedAt: staleRule.source_updated_at_snapshot,
-          nowIso: now,
-        }),
-        updated_at: now,
-      })
-      .where('project_id', '=', args.projectId)
-      .where('id', '=', staleRule.id)
-      .execute();
-  }
-}
-
-export async function syncCompanyImportRulesToSyncedProjects(args: {
-  db: ProjectStandardsDb;
-  companyId: CompanyId;
-}) {
-  const syncedProjectIds = await listSyncedProjectIdsForCompany({
-    db: args.db,
-    companyId: args.companyId,
-  });
-  for (const projectId of syncedProjectIds) {
-    await syncCompanyImportRulesToProject({
-      db: args.db,
-      companyId: args.companyId,
-      projectId,
-    });
-  }
 }
 
 export async function listImportRulesServer(args: {
@@ -427,7 +146,7 @@ export async function createImportRuleServer(args: {
         .returning(importRuleSelectColumns())
         .executeTakeFirstOrThrow();
 
-      await syncCompanyImportRulesToSyncedProjects({
+      await syncCompanyImportRulesToSyncedProjectsInternal({
         db: trx as unknown as ReturnType<typeof getDb>,
         companyId: args.companyId,
       });
@@ -507,22 +226,7 @@ export async function updateImportRuleServer(args: {
       .executeTakeFirst();
     if (!existing) throw new AppError('NOT_FOUND', 'Unknown Import Rule');
 
-    const patch: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
-    };
-    if (typeof args.input.name === 'string')
-      patch.name = args.input.name.trim();
-    if (typeof args.input.action !== 'undefined')
-      patch.action = args.input.action;
-    if (typeof args.input.field !== 'undefined') patch.field = args.input.field;
-    if (typeof args.input.operator !== 'undefined')
-      patch.operator = args.input.operator;
-    if (typeof args.input.value === 'string')
-      patch.value = args.input.value.trim();
-    if (typeof args.input.sortOrder === 'number')
-      patch.sort_order = args.input.sortOrder;
-    if (typeof args.input.enabled === 'boolean')
-      patch.enabled = args.input.enabled;
+    const patch = buildImportRulePatch(args.input);
 
     const row = await db.transaction().execute(async (trx) => {
       const updated = await trx
@@ -534,7 +238,7 @@ export async function updateImportRuleServer(args: {
         .returning(importRuleSelectColumns())
         .executeTakeFirstOrThrow();
 
-      await syncCompanyImportRulesToSyncedProjects({
+      await syncCompanyImportRulesToSyncedProjectsInternal({
         db: trx as unknown as ReturnType<typeof getDb>,
         companyId: args.companyId,
       });
@@ -566,22 +270,7 @@ export async function updateProjectImportRuleServer(args: {
       .executeTakeFirst();
     if (!existing) throw new AppError('NOT_FOUND', 'Unknown Import Rule');
 
-    const patch: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
-    };
-    if (typeof args.input.name === 'string')
-      patch.name = args.input.name.trim();
-    if (typeof args.input.action !== 'undefined')
-      patch.action = args.input.action;
-    if (typeof args.input.field !== 'undefined') patch.field = args.input.field;
-    if (typeof args.input.operator !== 'undefined')
-      patch.operator = args.input.operator;
-    if (typeof args.input.value === 'string')
-      patch.value = args.input.value.trim();
-    if (typeof args.input.sortOrder === 'number')
-      patch.sort_order = args.input.sortOrder;
-    if (typeof args.input.enabled === 'boolean')
-      patch.enabled = args.input.enabled;
+    const patch = buildImportRulePatch(args.input);
     if (
       existing.origin_scope === 'company' &&
       existing.sync_status === 'inherited'
@@ -637,18 +326,12 @@ export async function deleteImportRuleServer(args: {
         .where('id', '=', args.ruleId)
         .execute();
 
-      await trx
-        .updateTable('import_rules')
-        .set({
-          ...buildDetachedProjectStandardMetadata({
-            companyItemId: existing.id,
-            previousSourceUpdatedAt: existing.updated_at,
-            nowIso: now,
-          }),
-          updated_at: now,
-        })
-        .where('origin_company_item_id', '=', existing.id)
-        .execute();
+      await detachProjectImportRulesForDeletedCompanyRule({
+        db: trx as unknown as ReturnType<typeof getDb>,
+        companyRuleId: existing.id,
+        previousSourceUpdatedAt: existing.updated_at,
+        nowIso: now,
+      });
     });
   });
 }
@@ -737,7 +420,7 @@ export async function promoteProjectImportRuleServer(args: {
         )
         .executeTakeFirst();
       if (existingCompanyRule) {
-        await syncCompanyImportRulesToSyncedProjects({
+        await syncCompanyImportRulesToSyncedProjectsInternal({
           db: trx as unknown as ReturnType<typeof getDb>,
           companyId,
         });
@@ -776,7 +459,7 @@ export async function promoteProjectImportRuleServer(args: {
         .returning(importRuleSelectColumns())
         .executeTakeFirstOrThrow();
 
-      await syncCompanyImportRulesToSyncedProjects({
+      await syncCompanyImportRulesToSyncedProjectsInternal({
         db: trx as unknown as ReturnType<typeof getDb>,
         companyId,
       });
