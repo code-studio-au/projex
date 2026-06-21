@@ -1,0 +1,352 @@
+import { sql, type RawBuilder, type SelectQueryBuilder } from 'kysely';
+
+import { AppError } from '../../../api/errors';
+import type {
+  ImportCandidate,
+  ImportCandidateStatus,
+  ImportPreviewRow,
+  ProjectId,
+  Txn,
+} from '../../../types';
+import {
+  asCompanyId,
+  asImportBatchId,
+  asImportCandidateId,
+  asImportRuleId,
+  asProjectId,
+  asTxnId,
+  asUserId,
+} from '../../../types';
+import type { TxnListPageInput } from '../../../api/types';
+import type { DB, TxnTable } from '../../db/schema';
+import type { ProjectActionContext } from '../resourceGuards';
+import {
+  assertCategoryInProject,
+  assertCompanyDefaultMappingRuleInCompany,
+  assertSubCategoryInProject,
+} from '../resourceGuards';
+import { assertTxnCodingAllowed } from '../../../utils/transactions';
+
+export const IMPORT_PREVIEW_RATE_LIMIT = {
+  limit: 12,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
+export const IMPORT_COMMIT_RATE_LIMIT = {
+  limit: 8,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
+export const IMPORT_REVIEW_RATE_LIMIT = {
+  limit: 30,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
+export type TxnAliasDb = DB & { t: TxnTable };
+
+export type TxnPageSummaryRow = {
+  total_count: number | string;
+  budget_impact_cents: number | string;
+  uncoded_count: number | string;
+  uncoded_cents: number | string;
+  source_only_count: number | string;
+  assigned_to_me_count: number | string;
+  reviewed_count: number | string;
+  locked_count: number | string;
+};
+
+export function txnSelectColumns() {
+  return [
+    'id',
+    'public_id',
+    'external_id',
+    'company_id',
+    'project_id',
+    'txn_date',
+    'item',
+    'description',
+    'amount_cents',
+    'txn_type',
+    'parent_public_id',
+    'source_public_id',
+    'transfer_project_id',
+    'budget_impact',
+    'categorisable',
+    'import_batch_id',
+    'import_source_type',
+    'import_source_meta',
+    'category_id',
+    'sub_category_id',
+    'company_default_mapping_rule_id',
+    'coding_source',
+    'coding_pending_approval',
+    'reviewed_at',
+    'reviewed_by_user_id',
+    'locked_at',
+    'locked_by_user_id',
+    'created_at',
+    'updated_at',
+  ] as const;
+}
+
+export function prefixedTxnSelectColumns(prefix: 't') {
+  return txnSelectColumns().map((column) => `${prefix}.${column}` as const);
+}
+
+export function txnValidSubCategorySql() {
+  return sql<boolean>`exists (
+    select 1
+    from sub_categories sc
+    where sc.id = t.sub_category_id
+      and sc.project_id = t.project_id
+  )`;
+}
+
+export function txnAssignedToUserSql(userId: string) {
+  return sql<boolean>`exists (
+    select 1
+    from txn_comments tc
+    where tc.project_id = t.project_id
+      and tc.txn_public_id = t.public_id
+      and tc.assigned_to_user_id = ${userId}
+      and tc.resolved_at is null
+  )`;
+}
+
+export function quarterFilterNumber(value: TxnListPageInput['quarterFilter']) {
+  if (value === 'Q1') return 1;
+  if (value === 'Q2') return 2;
+  if (value === 'Q3') return 3;
+  if (value === 'Q4') return 4;
+  return null;
+}
+
+export function buildTransactionsPageFilters(args: {
+  projectId: ProjectId;
+  userId: string;
+  input: TxnListPageInput;
+}): RawBuilder<boolean>[] {
+  const filters: RawBuilder<boolean>[] = [
+    sql<boolean>`t.project_id = ${args.projectId}`,
+  ];
+  const validSubCategory = txnValidSubCategorySql();
+  const assignedToUser = txnAssignedToUserSql(args.userId);
+
+  if (args.input.monthFilterKey) {
+    filters.push(
+      sql<boolean>`to_char(t.txn_date, 'YYYY-MM') = ${args.input.monthFilterKey}`
+    );
+  } else {
+    if (args.input.yearFilter) {
+      filters.push(
+        sql<boolean>`extract(year from t.txn_date) = ${Number(args.input.yearFilter)}`
+      );
+    }
+    const quarterNumber = quarterFilterNumber(args.input.quarterFilter);
+    if (quarterNumber) {
+      filters.push(
+        sql<boolean>`extract(quarter from t.txn_date) = ${quarterNumber}`
+      );
+    }
+  }
+
+  if (args.input.transactionView === 'uncoded') {
+    filters.push(
+      sql<boolean>`t.categorisable and (t.sub_category_id is null or not (${validSubCategory}))`
+    );
+  }
+
+  if (args.input.transactionView === 'auto-mapped-pending') {
+    filters.push(
+      sql<boolean>`t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory}`
+    );
+  }
+
+  if (args.input.transactionView === 'assigned-to-me') {
+    filters.push(assignedToUser);
+  }
+
+  if (args.input.drilldown?.kind === 'category') {
+    filters.push(
+      sql<boolean>`t.budget_impact and t.categorisable and ${validSubCategory} and t.category_id = ${args.input.drilldown.categoryId}`
+    );
+  }
+
+  if (args.input.drilldown?.kind === 'subcategory') {
+    filters.push(
+      sql<boolean>`t.budget_impact and t.categorisable and ${validSubCategory} and t.category_id = ${args.input.drilldown.categoryId} and t.sub_category_id = ${args.input.drilldown.subCategoryId}`
+    );
+  }
+
+  return filters;
+}
+
+export function applyTxnPageFilters<O>(
+  query: SelectQueryBuilder<TxnAliasDb, 't', O>,
+  filters: RawBuilder<boolean>[]
+): SelectQueryBuilder<TxnAliasDb, 't', O> {
+  let next = query;
+  for (const filter of filters) {
+    next = next.where(filter);
+  }
+  return next;
+}
+
+export function toCount(value: number | string | null | undefined): number {
+  return Number(value ?? 0);
+}
+
+export function assertTxnUnlocked(txn: Txn): void {
+  if (txn.lockedAt) {
+    throw new AppError(
+      'CONFLICT',
+      'Transaction is locked and cannot be changed'
+    );
+  }
+}
+
+export type BulkTxnActionRow = {
+  public_id: string;
+  categorisable: boolean;
+  category_id: string | null;
+  sub_category_id: string | null;
+  company_default_mapping_rule_id: string | null;
+  coding_source: string | null;
+  coding_pending_approval: boolean;
+  reviewed_at: string | null;
+  reviewed_by_user_id: string | null;
+  locked_at: string | null;
+  locked_by_user_id: string | null;
+};
+
+export function workflowPatchIsNoop(args: {
+  row: BulkTxnActionRow;
+  patch: {
+    reviewed_at: string | null | undefined;
+    reviewed_by_user_id: string | null | undefined;
+    locked_at: string | null | undefined;
+    locked_by_user_id: string | null | undefined;
+  };
+}) {
+  return (
+    args.row.reviewed_at === args.patch.reviewed_at &&
+    args.row.reviewed_by_user_id === args.patch.reviewed_by_user_id &&
+    args.row.locked_at === args.patch.locked_at &&
+    args.row.locked_by_user_id === args.patch.locked_by_user_id
+  );
+}
+
+export async function assertTransactionResourceOwnership(
+  context: ProjectActionContext,
+  txn: Txn
+): Promise<void> {
+  assertTxnCodingAllowed(txn);
+
+  if (txn.subCategoryId && !txn.categoryId) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Category is required when subcategory is set'
+    );
+  }
+
+  if (txn.categoryId) {
+    await assertCategoryInProject({
+      db: context.db,
+      projectId: context.projectId,
+      categoryId: txn.categoryId,
+    });
+  }
+
+  if (txn.subCategoryId) {
+    await assertSubCategoryInProject({
+      db: context.db,
+      projectId: context.projectId,
+      subCategoryId: txn.subCategoryId,
+      categoryId: txn.categoryId,
+    });
+  }
+
+  if (txn.companyDefaultMappingRuleId) {
+    await assertCompanyDefaultMappingRuleInCompany({
+      db: context.db,
+      companyId: context.companyId,
+      ruleId: txn.companyDefaultMappingRuleId,
+    });
+  }
+}
+
+export function importCandidateStatusForPreviewRow(
+  row: ImportPreviewRow
+): ImportCandidateStatus {
+  if (row.importAction === 'exclude') return 'excluded';
+  if (row.importAction === 'review') return 'needs_project_review';
+  if (row.mappingStatus === 'invalid') return 'invalid';
+  if (row.duplicate) return 'duplicate';
+  return 'ready';
+}
+
+export function persistedImportRuleId(row: ImportPreviewRow) {
+  if (!row.importRuleId) return null;
+  return String(row.importRuleId).startsWith('default_import_rule_')
+    ? null
+    : row.importRuleId;
+}
+
+export type ImportCandidateRow = {
+  id: string;
+  company_id: string;
+  project_id: string;
+  batch_id: string;
+  source_row_index: number;
+  raw_row: Record<string, string>;
+  status: ImportCandidateStatus;
+  matched_import_rule_id: string | null;
+  status_reason: string | null;
+  txn_public_id: string | null;
+  reviewed_by_user_id: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export function importCandidateSelectColumns() {
+  return [
+    'id',
+    'company_id',
+    'project_id',
+    'batch_id',
+    'source_row_index',
+    'raw_row',
+    'status',
+    'matched_import_rule_id',
+    'status_reason',
+    'txn_public_id',
+    'reviewed_by_user_id',
+    'reviewed_at',
+    'created_at',
+    'updated_at',
+  ] as const;
+}
+
+export function toImportCandidate(row: ImportCandidateRow): ImportCandidate {
+  return {
+    id: asImportCandidateId(row.id),
+    companyId: asCompanyId(row.company_id),
+    projectId: asProjectId(row.project_id),
+    batchId: asImportBatchId(row.batch_id),
+    sourceRowIndex: row.source_row_index,
+    rawRow: row.raw_row,
+    status: row.status,
+    matchedImportRuleId: row.matched_import_rule_id
+      ? asImportRuleId(row.matched_import_rule_id)
+      : undefined,
+    statusReason: row.status_reason ?? undefined,
+    txnId: row.txn_public_id ? asTxnId(row.txn_public_id) : undefined,
+    reviewedByUserId: row.reviewed_by_user_id
+      ? asUserId(row.reviewed_by_user_id)
+      : undefined,
+    reviewedAt: row.reviewed_at ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}

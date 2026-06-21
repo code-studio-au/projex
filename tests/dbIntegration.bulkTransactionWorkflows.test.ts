@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createProjectAutoCodingRuleServer, backfillProjectCodingServer, promoteProjectRuleToCompanyDefaultServer } from '../src/server/fns/projectAutoCodingRules.ts';
+import {
+  createProjectAutoCodingRuleServer,
+  backfillProjectCodingServer,
+  promoteProjectRuleToCompanyDefaultServer,
+} from '../src/server/fns/projectAutoCodingRules.ts';
 import { bulkTxnActionServer } from '../src/server/fns/transactions.ts';
 import {
   asCategoryId,

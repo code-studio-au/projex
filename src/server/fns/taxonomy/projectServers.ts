@@ -9,7 +9,12 @@ import type {
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
 } from '../../../api/types';
-import type { Category, CompanyId, ProjectId, SubCategory } from '../../../types';
+import type {
+  Category,
+  CompanyId,
+  ProjectId,
+  SubCategory,
+} from '../../../types';
 import { getDb } from '../../db/db';
 import {
   assertContextProvided,

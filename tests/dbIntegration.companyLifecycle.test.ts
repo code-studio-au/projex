@@ -157,6 +157,7 @@ test(
       const completedJob = await waitForExportJobCompletion({
         api,
         jobId: createdJob.id,
+        waitForReadyNotification: true,
       });
       assert.equal(completedJob.status, 'completed');
       assert.equal(completedJob.notifyWhenReady, true);

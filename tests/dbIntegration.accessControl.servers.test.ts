@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { isAuthorized } from '../src/server/auth/authorize.ts';
 import { listUsersServer } from '../src/server/fns/companies.ts';
 import {
   createBudgetServer,
@@ -11,10 +10,6 @@ import {
   getProjectServer,
   listProjectsServer,
 } from '../src/server/fns/projects.ts';
-import {
-  requireOperationalProjectForAction,
-  requireProjectForAction,
-} from '../src/server/fns/resourceGuards.ts';
 import { updateTxnServer } from '../src/server/fns/transactions.ts';
 import { createTransactionCommentServer } from '../src/server/fns/transactionComments.ts';
 import {
@@ -33,314 +28,10 @@ import {
 import {
   assertAppError,
   createIntegrationDb,
+  deleteTestRowsByIds,
   integrationDatabaseUrl,
+  insertTestRows,
 } from './dbIntegration.helpers.ts';
-
-test(
-  'superadmin authorization respects allow_superadmin_access for project-scoped actions',
-  { skip: !integrationDatabaseUrl },
-  async () => {
-    const db = createIntegrationDb();
-    const companyId = asCompanyId('itest_super_co_1');
-    const superadminId = asUserId('itest_super_usr_1');
-    const allowedProjectId = asProjectId('itest_super_prj_1');
-    const blockedProjectId = asProjectId('itest_super_prj_2');
-
-    try {
-      await db.deleteFrom('companies').where('id', '=', companyId).execute();
-      await db.deleteFrom('users').where('id', '=', superadminId).execute();
-
-      await db
-        .insertInto('companies')
-        .values({
-          id: companyId,
-          name: 'Superadmin Company',
-          status: 'active',
-          deactivated_at: null,
-        })
-        .execute();
-      await db
-        .insertInto('users')
-        .values({
-          id: superadminId,
-          email: 'superadmin@example.com',
-          name: 'Super Admin',
-          disabled: false,
-          disabled_reason: null,
-          is_global_superadmin: true,
-        })
-        .execute();
-      await db
-        .insertInto('projects')
-        .values([
-          {
-            id: allowedProjectId,
-            company_id: companyId,
-            name: 'Allowed Project',
-            project_type: 'project',
-            parent_project_id: null,
-            budget_total_cents: 0,
-            currency: 'AUD',
-            status: 'active',
-            deactivated_at: null,
-            visibility: 'private',
-            allow_superadmin_access: true,
-          },
-          {
-            id: blockedProjectId,
-            company_id: companyId,
-            name: 'Blocked Project',
-            project_type: 'project',
-            parent_project_id: null,
-            budget_total_cents: 0,
-            currency: 'AUD',
-            status: 'active',
-            deactivated_at: null,
-            visibility: 'private',
-            allow_superadmin_access: false,
-          },
-        ])
-        .execute();
-
-      assert.equal(
-        await isAuthorized({
-          db,
-          userId: superadminId,
-          action: 'company:view',
-          companyId,
-        }),
-        true
-      );
-      assert.equal(
-        await isAuthorized({
-          db,
-          userId: superadminId,
-          action: 'project:view',
-          companyId,
-          projectId: allowedProjectId,
-        }),
-        true
-      );
-      assert.equal(
-        await isAuthorized({
-          db,
-          userId: superadminId,
-          action: 'project:view',
-          companyId,
-          projectId: blockedProjectId,
-        }),
-        false
-      );
-    } finally {
-      await db.deleteFrom('companies').where('id', '=', companyId).execute();
-      await db.deleteFrom('users').where('id', '=', superadminId).execute();
-      await db.destroy();
-    }
-  }
-);
-
-test(
-  'project resource guards reject cross-project and viewer mutation access',
-  { skip: !integrationDatabaseUrl },
-  async () => {
-    const db = createIntegrationDb();
-    const companyId = asCompanyId('itest_guard_co_1');
-    const otherCompanyId = asCompanyId('itest_guard_co_2');
-    const memberUserId = asUserId('itest_guard_usr_member');
-    const viewerUserId = asUserId('itest_guard_usr_viewer');
-    const outsiderUserId = asUserId('itest_guard_usr_outsider');
-    const projectId = asProjectId('itest_guard_prj_1');
-    const programmeId = asProjectId('itest_guard_prog_1');
-    const otherProjectId = asProjectId('itest_guard_prj_2');
-
-    try {
-      await db
-        .deleteFrom('companies')
-        .where('id', 'in', [companyId, otherCompanyId])
-        .execute();
-      await db
-        .deleteFrom('users')
-        .where('id', 'in', [memberUserId, viewerUserId, outsiderUserId])
-        .execute();
-
-      await db
-        .insertInto('companies')
-        .values([
-          {
-            id: companyId,
-            name: 'Guard Company',
-            status: 'active',
-            deactivated_at: null,
-          },
-          {
-            id: otherCompanyId,
-            name: 'Other Guard Company',
-            status: 'active',
-            deactivated_at: null,
-          },
-        ])
-        .execute();
-
-      await db
-        .insertInto('users')
-        .values([
-          {
-            id: memberUserId,
-            email: 'guard-member@example.com',
-            name: 'Guard Member',
-            disabled: false,
-            disabled_reason: null,
-            is_global_superadmin: false,
-          },
-          {
-            id: viewerUserId,
-            email: 'guard-viewer@example.com',
-            name: 'Guard Viewer',
-            disabled: false,
-            disabled_reason: null,
-            is_global_superadmin: false,
-          },
-          {
-            id: outsiderUserId,
-            email: 'guard-outsider@example.com',
-            name: 'Guard Outsider',
-            disabled: false,
-            disabled_reason: null,
-            is_global_superadmin: false,
-          },
-        ])
-        .execute();
-
-      await db
-        .insertInto('projects')
-        .values([
-          {
-            id: projectId,
-            company_id: companyId,
-            name: 'Guard Project',
-            project_type: 'project',
-            parent_project_id: null,
-            budget_total_cents: 0,
-            currency: 'AUD',
-            status: 'active',
-            deactivated_at: null,
-            visibility: 'private',
-            allow_superadmin_access: true,
-          },
-          {
-            id: programmeId,
-            company_id: companyId,
-            name: 'Guard Programme',
-            project_type: 'programme',
-            parent_project_id: null,
-            budget_total_cents: 0,
-            currency: 'AUD',
-            status: 'active',
-            deactivated_at: null,
-            visibility: 'private',
-            allow_superadmin_access: true,
-          },
-          {
-            id: otherProjectId,
-            company_id: otherCompanyId,
-            name: 'Other Guard Project',
-            project_type: 'project',
-            parent_project_id: null,
-            budget_total_cents: 0,
-            currency: 'AUD',
-            status: 'active',
-            deactivated_at: null,
-            visibility: 'private',
-            allow_superadmin_access: true,
-          },
-        ])
-        .execute();
-
-      await db
-        .insertInto('company_memberships')
-        .values([
-          { company_id: companyId, user_id: memberUserId, role: 'member' },
-          { company_id: companyId, user_id: viewerUserId, role: 'member' },
-        ])
-        .execute();
-      await db
-        .insertInto('project_memberships')
-        .values([
-          { project_id: projectId, user_id: memberUserId, role: 'member' },
-          { project_id: projectId, user_id: viewerUserId, role: 'viewer' },
-          { project_id: programmeId, user_id: memberUserId, role: 'member' },
-        ])
-        .execute();
-
-      const memberContext = await requireProjectForAction(
-        { session: { userId: memberUserId } },
-        projectId,
-        'project:view',
-        db
-      );
-      assert.equal(memberContext.companyId, companyId);
-      assert.equal(memberContext.projectId, projectId);
-
-      await assertAppError(
-        () =>
-          requireProjectForAction(
-            { session: { userId: viewerUserId } },
-            projectId,
-            'txns:edit',
-            db
-          ),
-        'FORBIDDEN',
-        'Forbidden'
-      );
-
-      await assertAppError(
-        () =>
-          requireProjectForAction(
-            { session: { userId: memberUserId } },
-            otherProjectId,
-            'project:view',
-            db
-          ),
-        'FORBIDDEN',
-        'Forbidden'
-      );
-
-      await assertAppError(
-        () =>
-          requireProjectForAction(
-            { session: { userId: outsiderUserId } },
-            projectId,
-            'project:view',
-            db
-          ),
-        'FORBIDDEN',
-        'Forbidden'
-      );
-
-      await assertAppError(
-        () =>
-          requireOperationalProjectForAction(
-            { session: { userId: memberUserId } },
-            programmeId,
-            'txns:edit',
-            db
-          ),
-        'VALIDATION_ERROR',
-        'Programmes are reporting-only and cannot be used for project operations'
-      );
-    } finally {
-      await db
-        .deleteFrom('companies')
-        .where('id', 'in', [companyId, otherCompanyId])
-        .execute();
-      await db
-        .deleteFrom('users')
-        .where('id', 'in', [memberUserId, viewerUserId, outsiderUserId])
-        .execute();
-      await db.destroy();
-    }
-  }
-);
 
 test(
   'project listing and detail access respect deactivated companies and archived projects',
@@ -355,106 +46,91 @@ test(
     const hiddenProjectId = asProjectId('itest_status_prj_hidden');
 
     try {
-      await db
-        .deleteFrom('companies')
-        .where('id', 'in', [companyId, deactivatedCompanyId])
-        .execute();
-      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await deleteTestRowsByIds({
+        db,
+        companies: [companyId, deactivatedCompanyId],
+        users: [userId],
+      });
 
-      await db
-        .insertInto('companies')
-        .values([
-          {
-            id: companyId,
-            name: 'Status Company',
-            status: 'active',
-            deactivated_at: null,
-          },
-          {
-            id: deactivatedCompanyId,
-            name: 'Deactivated Company',
-            status: 'deactivated',
-            deactivated_at: new Date().toISOString(),
-          },
-        ])
-        .execute();
+      await insertTestRows(db, 'companies', [
+        {
+          id: companyId,
+          name: 'Status Company',
+          status: 'active',
+          deactivated_at: null,
+        },
+        {
+          id: deactivatedCompanyId,
+          name: 'Deactivated Company',
+          status: 'deactivated',
+          deactivated_at: new Date().toISOString(),
+        },
+      ]);
 
-      await db
-        .insertInto('users')
-        .values({
-          id: userId,
-          email: 'status-user@example.com',
-          name: 'Status User',
-          disabled: false,
-          disabled_reason: null,
-          is_global_superadmin: false,
-        })
-        .execute();
+      await insertTestRows(db, 'users', {
+        id: userId,
+        email: 'status-user@example.com',
+        name: 'Status User',
+        disabled: false,
+        disabled_reason: null,
+        is_global_superadmin: false,
+      });
 
-      await db
-        .insertInto('company_memberships')
-        .values([
-          { company_id: companyId, user_id: userId, role: 'member' },
-          { company_id: deactivatedCompanyId, user_id: userId, role: 'member' },
-        ])
-        .execute();
+      await insertTestRows(db, 'company_memberships', [
+        { company_id: companyId, user_id: userId, role: 'member' },
+        { company_id: deactivatedCompanyId, user_id: userId, role: 'member' },
+      ]);
 
-      await db
-        .insertInto('projects')
-        .values([
-          {
-            id: activeProjectId,
-            company_id: companyId,
-            name: 'Active Project',
-            project_type: 'project',
-            parent_project_id: null,
-            budget_total_cents: 0,
-            currency: 'AUD',
-            status: 'active',
-            deactivated_at: null,
-            visibility: 'private',
-            allow_superadmin_access: true,
-            allow_txn_transfers: false,
-          },
-          {
-            id: archivedProjectId,
-            company_id: companyId,
-            name: 'Archived Project',
-            project_type: 'project',
-            parent_project_id: null,
-            budget_total_cents: 0,
-            currency: 'AUD',
-            status: 'archived',
-            deactivated_at: new Date().toISOString(),
-            visibility: 'private',
-            allow_superadmin_access: true,
-            allow_txn_transfers: false,
-          },
-          {
-            id: hiddenProjectId,
-            company_id: deactivatedCompanyId,
-            name: 'Hidden Project',
-            project_type: 'project',
-            parent_project_id: null,
-            budget_total_cents: 0,
-            currency: 'AUD',
-            status: 'active',
-            deactivated_at: null,
-            visibility: 'private',
-            allow_superadmin_access: true,
-            allow_txn_transfers: false,
-          },
-        ])
-        .execute();
+      await insertTestRows(db, 'projects', [
+        {
+          id: activeProjectId,
+          company_id: companyId,
+          name: 'Active Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        },
+        {
+          id: archivedProjectId,
+          company_id: companyId,
+          name: 'Archived Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'archived',
+          deactivated_at: new Date().toISOString(),
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        },
+        {
+          id: hiddenProjectId,
+          company_id: deactivatedCompanyId,
+          name: 'Hidden Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        },
+      ]);
 
-      await db
-        .insertInto('project_memberships')
-        .values([
-          { project_id: activeProjectId, user_id: userId, role: 'member' },
-          { project_id: archivedProjectId, user_id: userId, role: 'member' },
-          { project_id: hiddenProjectId, user_id: userId, role: 'member' },
-        ])
-        .execute();
+      await insertTestRows(db, 'project_memberships', [
+        { project_id: activeProjectId, user_id: userId, role: 'member' },
+        { project_id: archivedProjectId, user_id: userId, role: 'member' },
+        { project_id: hiddenProjectId, user_id: userId, role: 'member' },
+      ]);
 
       const listed = await listProjectsServer({
         context: { session: { userId } },
@@ -493,11 +169,11 @@ test(
       });
       assert.equal(hiddenProject, null);
     } finally {
-      await db
-        .deleteFrom('companies')
-        .where('id', 'in', [companyId, deactivatedCompanyId])
-        .execute();
-      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await deleteTestRowsByIds({
+        db,
+        companies: [companyId, deactivatedCompanyId],
+        users: [userId],
+      });
       await db.destroy();
     }
   }

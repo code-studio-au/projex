@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import { Kysely, PostgresDialect } from 'kysely';
+import { Kysely, PostgresDialect, type Insertable } from 'kysely';
 import type { PostgresDialectConfig } from 'kysely';
 
 import type {
@@ -176,6 +176,37 @@ export function createIntegrationDb() {
       ) as unknown as PostgresDialectConfig['pool'],
     }),
   });
+}
+
+type IntegrationDb = Kysely<DB>;
+
+export async function insertTestRows<T extends keyof DB>(
+  db: IntegrationDb,
+  table: T,
+  values: Insertable<DB[T]> | ReadonlyArray<Insertable<DB[T]>>
+) {
+  const rows = Array.isArray(values) ? values : [values];
+  if (!rows.length) return;
+  await db.insertInto(table).values(rows).execute();
+}
+
+export async function deleteTestRowsByIds(args: {
+  db: IntegrationDb;
+  companies?: readonly string[];
+  users?: readonly string[];
+}) {
+  if (args.companies?.length) {
+    await args.db
+      .deleteFrom('companies')
+      .where('id', 'in', [...args.companies])
+      .execute();
+  }
+  if (args.users?.length) {
+    await args.db
+      .deleteFrom('users')
+      .where('id', 'in', [...args.users])
+      .execute();
+  }
 }
 
 export async function assertAppError(
@@ -526,11 +557,19 @@ export async function waitForExportJobCompletion(args: {
   api: RouteApi;
   jobId: ReturnType<typeof asCompanyExportJobId>;
   timeoutMs?: number;
+  waitForReadyNotification?: boolean;
 }) {
   const deadline = Date.now() + (args.timeoutMs ?? 10_000);
   for (;;) {
     const job = await args.api.getCompanyExportJob(args.jobId);
-    if (job.status === 'completed' || job.status === 'failed') return job;
+    if (job.status === 'failed') return job;
+    if (job.status === 'completed') {
+      const waitingForReadyNotification =
+        args.waitForReadyNotification === true &&
+        job.notifyWhenReady &&
+        job.readyNotificationStatus === 'pending';
+      if (!waitingForReadyNotification) return job;
+    }
     if (Date.now() >= deadline) {
       throw new Error(`Timed out waiting for export job ${args.jobId}`);
     }
