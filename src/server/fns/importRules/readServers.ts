@@ -1,31 +1,17 @@
-import { AppError } from '../../../api/errors';
 import type { CompanyId, ImportRule, ProjectId } from '../../../types';
-import { getDb } from '../../db/db';
 import { requireAuthorized } from '../../auth/authorize';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
   assertContextProvided,
-  requireServerUserId,
   type ServerFnContextInput,
   withServerBoundary,
 } from '../runtime';
-import { importRuleSelectColumns, toImportRule } from './shared';
+import {
+  importRuleSelectColumns,
+  requireCompanyRuleContext,
+  toImportRule,
+} from './shared';
 import { compareProjectStandards } from '../../sync/projectStandards';
-
-export async function requireCompanyContext(
-  context: ServerFnContextInput,
-  companyId: CompanyId
-) {
-  const db = getDb();
-  const userId = await requireServerUserId(context);
-  const company = await db
-    .selectFrom('companies')
-    .select('id')
-    .where('id', '=', companyId)
-    .executeTakeFirst();
-  if (!company) throw new AppError('NOT_FOUND', 'Unknown company');
-  return { db, userId };
-}
 
 export async function listImportRulesServer(args: {
   context: ServerFnContextInput;
@@ -33,7 +19,7 @@ export async function listImportRulesServer(args: {
 }): Promise<ImportRule[]> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db, userId } = await requireCompanyContext(
+    const { db, userId } = await requireCompanyRuleContext(
       args.context,
       args.companyId
     );

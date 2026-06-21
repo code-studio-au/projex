@@ -1,6 +1,5 @@
 import { sql } from 'kysely';
 
-import { AppError } from '../../../api/errors';
 import type { ProjectId, Txn } from '../../../types';
 import type { TxnListPageInput, TxnListPageResult } from '../../../api/types';
 import { toTxn } from '../../mappers/transactionRows';
@@ -149,13 +148,4 @@ export async function listTransactionsPageServer(args: {
       },
     };
   });
-}
-
-export function assertImportCandidateBatchStatus(status?: string | null) {
-  if (!status || !['partially_imported', 'imported'].includes(status)) {
-    throw new AppError(
-      'CONFLICT',
-      'Import preview must be committed before review candidates can be actioned'
-    );
-  }
 }

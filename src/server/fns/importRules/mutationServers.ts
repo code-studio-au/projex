@@ -20,6 +20,7 @@ import {
   assertProjectScopeInput,
   buildImportRulePatch,
   importRuleSelectColumns,
+  requireCompanyRuleContext,
   toImportRule,
   type ImportRuleRow,
 } from './shared';
@@ -27,7 +28,6 @@ import {
   detachProjectImportRulesForDeletedCompanyRule,
   syncCompanyImportRulesToSyncedProjects as syncCompanyImportRulesToSyncedProjectsInternal,
 } from './sync';
-import { requireCompanyContext } from './readServers';
 
 export async function createImportRuleServer(args: {
   context: ServerFnContextInput;
@@ -36,7 +36,7 @@ export async function createImportRuleServer(args: {
 }): Promise<ImportRule> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db, userId } = await requireCompanyContext(
+    const { db, userId } = await requireCompanyRuleContext(
       args.context,
       args.companyId
     );
@@ -134,7 +134,7 @@ export async function updateImportRuleServer(args: {
 }): Promise<ImportRule> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db, userId } = await requireCompanyContext(
+    const { db, userId } = await requireCompanyRuleContext(
       args.context,
       args.companyId
     );
@@ -225,7 +225,7 @@ export async function deleteImportRuleServer(args: {
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const { db, userId } = await requireCompanyContext(
+    const { db, userId } = await requireCompanyRuleContext(
       args.context,
       args.companyId
     );

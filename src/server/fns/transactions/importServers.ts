@@ -35,11 +35,11 @@ import {
   type ServerFnContextInput,
   withServerBoundary,
 } from '../runtime';
-import { assertImportCandidateBatchStatus } from './readServers';
 import {
   IMPORT_COMMIT_RATE_LIMIT,
   IMPORT_PREVIEW_RATE_LIMIT,
   IMPORT_REVIEW_RATE_LIMIT,
+  assertCommittedImportBatchStatus,
   importCandidateSelectColumns,
   importCandidateStatusForPreviewRow,
   persistedImportRuleId,
@@ -443,7 +443,7 @@ export async function reviewImportCandidateServer(args: {
       .where('project_id', '=', args.projectId)
       .where('id', '=', existing.batch_id)
       .executeTakeFirst();
-    assertImportCandidateBatchStatus(batch?.status);
+    assertCommittedImportBatchStatus(batch?.status);
 
     const now = new Date().toISOString();
     if (args.decision === 'reject') {

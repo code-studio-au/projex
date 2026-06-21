@@ -5,6 +5,8 @@ import type {
 import type { CompanyId, ImportRule, ProjectId } from '../../../types';
 import { asCompanyId, asImportRuleId, asProjectId } from '../../../types';
 import { AppError } from '../../../api/errors';
+import { getDb } from '../../db/db';
+import { requireServerUserId, type ServerFnContextInput } from '../runtime';
 
 export type ImportRuleRow = {
   id: string;
@@ -145,4 +147,19 @@ export function buildImportRulePatch(input: ImportRuleUpdateInput) {
   if (typeof input.sortOrder === 'number') patch.sort_order = input.sortOrder;
   if (typeof input.enabled === 'boolean') patch.enabled = input.enabled;
   return patch;
+}
+
+export async function requireCompanyRuleContext(
+  context: ServerFnContextInput,
+  companyId: CompanyId
+) {
+  const db = getDb();
+  const userId = await requireServerUserId(context);
+  const company = await db
+    .selectFrom('companies')
+    .select('id')
+    .where('id', '=', companyId)
+    .executeTakeFirst();
+  if (!company) throw new AppError('NOT_FOUND', 'Unknown company');
+  return { db, userId };
 }

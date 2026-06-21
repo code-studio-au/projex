@@ -193,6 +193,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     clearPreview,
     previewImport,
     togglePreviewRow,
+    setPreviewRowsExcluded,
     commitAppend,
     commitReplaceAll,
   } = importer;
@@ -206,6 +207,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     useState<ImportRuleOperator>('equals');
   const [excludeRuleValue, setExcludeRuleValue] = useState('');
   const [excludeRuleError, setExcludeRuleError] = useState<string | null>(null);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
   const openExcludeRuleModal = useCallback((row: ImportPreviewRow) => {
     const suggestion = suggestImportExclusionRuleFromPreviewRow(row);
@@ -229,6 +231,20 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     setExcludeRuleError(null);
   }
 
+  const selectedPreviewRows = useMemo(
+    () => visiblePreviewRows.filter((row) => rowSelection[row.importId]),
+    [rowSelection, visiblePreviewRows]
+  );
+
+  const selectedNeedsReviewRows = useMemo(
+    () =>
+      selectedPreviewRows.filter(
+        (row) =>
+          row.importAction === 'review' && !excludedImportIds.has(row.importId)
+      ),
+    [excludedImportIds, selectedPreviewRows]
+  );
+
   const handleTogglePreviewRow = useCallback(
     (row: ImportPreviewRow) => {
       const currentlyExcluded = excludedImportIds.has(row.importId);
@@ -251,6 +267,38 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
       openExcludeRuleModal,
       togglePreviewRow,
     ]
+  );
+
+  const handleExcludeNeedsReviewRows = useCallback(
+    (rows: ImportPreviewRow[], mode: 'selected' | 'all') => {
+      const importIds = rows
+        .filter((row) => !excludedImportIds.has(row.importId))
+        .map((row) => row.importId);
+
+      if (!importIds.length) {
+        showAppToast({
+          tone: 'warning',
+          title: 'Nothing to exclude',
+          message:
+            mode === 'selected'
+              ? 'Select one or more review rows first.'
+              : 'There are no review rows left to exclude.',
+        });
+        return;
+      }
+
+      setPreviewRowsExcluded(importIds, true);
+      setRowSelection({});
+      showAppToast({
+        tone: 'success',
+        title:
+          mode === 'selected'
+            ? 'Review rows excluded'
+            : 'All review rows excluded',
+        message: `Excluded ${importIds.length} review row${importIds.length === 1 ? '' : 's'} from the current preview.`,
+      });
+    },
+    [excludedImportIds, setPreviewRowsExcluded]
   );
 
   async function handleCreateExcludeRule() {
@@ -490,39 +538,21 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 Import rule: {row.original.importRuleName}
               </Text>
             ) : null}
+            {displayWarningsForRow(row.original).length ? (
+              <Stack gap={2}>
+                {displayWarningsForRow(row.original).map((warning, index) => (
+                  <Text
+                    key={`${row.original.importId}-warning-${index}`}
+                    size="xs"
+                    c="dimmed"
+                  >
+                    {warning}
+                  </Text>
+                ))}
+              </Stack>
+            ) : null}
           </Stack>
         ),
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-left txnTable-head',
-        },
-        mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      },
-      {
-        id: 'warnings',
-        header: 'Warnings',
-        size: 320,
-        accessorFn: (row) => displayWarningsForRow(row).join(' '),
-        enableSorting: false,
-        Cell: ({ row }) => {
-          const warnings = displayWarningsForRow(row.original);
-          return warnings.length ? (
-            <Stack gap={2}>
-              {warnings.map((warning, index) => (
-                <Text
-                  key={`${row.original.importId}-warning-${index}`}
-                  size="xs"
-                  c="dimmed"
-                >
-                  {warning}
-                </Text>
-              ))}
-            </Stack>
-          ) : (
-            <Text size="xs" c="dimmed">
-              No warnings
-            </Text>
-          );
-        },
         mantineTableHeadCellProps: {
           className: 'table-head-cell table-head-left txnTable-head',
         },
@@ -732,6 +762,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 value === 'invalid' ||
                 value === 'excluded'
               ) {
+                setRowSelection({});
                 setPreviewTab(value as ImportPreviewTab);
               }
             }}
@@ -791,14 +822,65 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             </Tabs.Panel>
 
             <Tabs.Panel value="needsReview" pt="md">
+              <Group justify="space-between" align="center" mb="sm" wrap="wrap">
+                <Text size="sm" c="dimmed">
+                  Excluding review rows removes them from this preview only. Use
+                  the row action if you also want to create a persistent project
+                  import rule.
+                </Text>
+                <Group gap="xs" wrap="wrap">
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="gray"
+                    disabled={!needsReviewPreviewRows.length}
+                    onClick={() =>
+                      handleExcludeNeedsReviewRows(
+                        needsReviewPreviewRows,
+                        'all'
+                      )
+                    }
+                  >
+                    Exclude all review rows
+                  </Button>
+                  <Button
+                    size="xs"
+                    disabled={!selectedNeedsReviewRows.length}
+                    onClick={() =>
+                      handleExcludeNeedsReviewRows(
+                        selectedNeedsReviewRows,
+                        'selected'
+                      )
+                    }
+                  >
+                    Exclude selected ({selectedNeedsReviewRows.length})
+                  </Button>
+                </Group>
+              </Group>
               <div className={classes.tableWrap}>
                 <MantineReactTable
                   columns={previewColumns}
                   data={visiblePreviewRows}
                   getRowId={(row) => row.importId}
-                  state={{ pagination, sorting }}
-                  onPaginationChange={setPagination}
-                  onSortingChange={setSorting}
+                  enableRowSelection
+                  state={{ pagination, rowSelection, sorting }}
+                  onPaginationChange={(updater) => {
+                    setRowSelection({});
+                    setPagination(updater);
+                  }}
+                  onRowSelectionChange={setRowSelection}
+                  onSortingChange={(updater) => {
+                    const nextSorting =
+                      typeof updater === 'function'
+                        ? updater(sorting)
+                        : updater;
+                    setRowSelection({});
+                    setSorting(nextSorting);
+                    setPagination((current) => ({
+                      ...current,
+                      pageIndex: 0,
+                    }));
+                  }}
                   enableColumnResizing
                   enableSorting
                   enableSortingRemoval={false}

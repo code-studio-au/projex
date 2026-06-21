@@ -845,6 +845,12 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                                         companyId,
                                         projectId: child.id,
                                       },
+                                      search: {
+                                        year: yearFilter ?? undefined,
+                                        quarter: quarterFilter ?? undefined,
+                                        month: monthFilterKey ?? undefined,
+                                        source: 'company-summary',
+                                      },
                                     })
                                   }
                                 >

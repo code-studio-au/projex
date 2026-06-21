@@ -363,6 +363,18 @@ export function usePowerBiImportWorkflow(params: {
     });
   }
 
+  function setPreviewRowsExcluded(importIds: string[], excluded: boolean) {
+    if (!importIds.length) return;
+    setExcludedImportIds((current) => {
+      const next = new Set(current);
+      for (const importId of importIds) {
+        if (excluded) next.add(importId);
+        else next.delete(importId);
+      }
+      return next;
+    });
+  }
+
   const ensureBudgetLinesForImportedSubCategories = async (
     next: Array<{ categoryId?: CategoryId; subCategoryId?: SubCategoryId }>
   ) => {
@@ -582,6 +594,7 @@ export function usePowerBiImportWorkflow(params: {
     resetImporter,
     previewImport,
     togglePreviewRow,
+    setPreviewRowsExcluded,
     commitAppend,
     commitReplaceAll,
   };

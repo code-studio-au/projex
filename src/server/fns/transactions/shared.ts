@@ -196,6 +196,15 @@ export function toCount(value: number | string | null | undefined): number {
   return Number(value ?? 0);
 }
 
+export function assertCommittedImportBatchStatus(status?: string | null) {
+  if (!status || !['partially_imported', 'imported'].includes(status)) {
+    throw new AppError(
+      'CONFLICT',
+      'Import preview must be committed before review candidates can be actioned'
+    );
+  }
+}
+
 export function assertTxnUnlocked(txn: Txn): void {
   if (txn.lockedAt) {
     throw new AppError(
