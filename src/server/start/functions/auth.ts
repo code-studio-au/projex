@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 
-import { getDb } from '../../db/db';
+import { resolveCurrentSession } from '../../auth/currentSession';
 import {
   getDefaultCompanyIdForUserServer,
   listCompaniesServer,
@@ -11,16 +11,7 @@ import { startApiMiddleware } from '../middleware';
 export const getSessionServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .handler(async ({ context }) => {
-    if (!context.session?.userId) return null;
-
-    const user = await getDb()
-      .selectFrom('users')
-      .select(['id', 'disabled'])
-      .where('id', '=', context.session.userId)
-      .executeTakeFirst();
-    if (!user || user.disabled) return null;
-
-    return { userId: context.session.userId };
+    return resolveCurrentSession(context.request);
   });
 
 export const getPostLoginTargetServerFn = createServerFn({ method: 'GET' })

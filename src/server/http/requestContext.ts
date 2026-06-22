@@ -1,5 +1,5 @@
 import type { ServerSession } from '../auth/session';
-import { getAuthSessionFromRequest } from '../auth/betterAuth';
+import { resolveCurrentSession } from '../auth/currentSession';
 import type { ServerFnContextInput } from '../fns/runtime';
 
 export type ResolvedRequestServerContext = {
@@ -19,7 +19,7 @@ export async function resolveRequestServerContext(
   if (cached) return cached;
 
   const pending = (async () => {
-    const session = await getAuthSessionFromRequest(request);
+    const session = await resolveCurrentSession(request);
     return {
       session,
       serverContext: { request, session },

@@ -1,10 +1,11 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { authClient } from '../auth/client';
 import { asUserId } from '../types/ids';
 import { qk } from './keys';
 import { getSessionServerFn } from '../server/start/functions/auth';
+import { readJsonResponseOrNull } from '../utils/json';
+import { apiErrorMessage } from '../api/errorResponses';
 
 export function sessionQueryOptions() {
   return {
@@ -17,21 +18,12 @@ export function sessionQueryOptions() {
 }
 
 export function useSessionQuery() {
-  const session = authClient.useSession();
+  const session = useQuery(sessionQueryOptions());
   return {
     ...session,
-    data: session.data?.user?.id
-      ? { userId: asUserId(session.data.user.id) }
+    data: session.data?.userId
+      ? { userId: asUserId(session.data.userId) }
       : null,
-    fetchStatus:
-      session.isPending || session.isRefetching
-        ? ('fetching' as const)
-        : ('idle' as const),
-    status: session.isPending
-      ? ('pending' as const)
-      : session.error
-        ? ('error' as const)
-        : ('success' as const),
   };
 }
 
@@ -66,9 +58,13 @@ export function useLogoutMutation() {
 
   return useMutation({
     mutationFn: async (options?: { deferCacheReset?: boolean }) => {
-      const result = await authClient.signOut();
-      if (result.error) {
-        throw new Error(result.error.message ?? 'Sign out failed');
+      const response = await fetch('/api/session', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const body = await readJsonResponseOrNull(response);
+        throw new Error(apiErrorMessage(body, 'Sign out failed'));
       }
       return options;
     },

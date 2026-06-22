@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 
 import { AuthedLayout } from '../layouts';
-import { getSessionServerFn } from '../server/start/functions/auth';
 import { isServerAuthMode } from './-authMode';
 import { currentUserQueryOptions } from '../queries/account';
 import { companiesQueryOptions } from '../queries/reference';
@@ -28,9 +27,9 @@ export const Route = createFileRoute('/_authed')({
     return null;
   },
   beforeLoad: async ({ context }) => {
-    const session =
-      context.queryClient.getQueryData(sessionQueryOptions().queryKey) ??
-      (await getSessionServerFn());
+    const session = await context.queryClient.ensureQueryData(
+      sessionQueryOptions()
+    );
     if (!session) {
       throw redirect({ to: '/login' });
     }

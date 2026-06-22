@@ -1,9 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 
-import {
-  getPostLoginTargetServerFn,
-  getSessionServerFn,
-} from '../server/start/functions/auth';
+import { getPostLoginTargetServerFn } from '../server/start/functions/auth';
 import { sessionQueryOptions } from '../queries/session';
 
 function HomeRedirect() {
@@ -16,9 +13,9 @@ export const Route = createFileRoute('/')({
     await context.queryClient.ensureQueryData(sessionQueryOptions());
   },
   beforeLoad: async ({ context }) => {
-    const session =
-      context.queryClient.getQueryData(sessionQueryOptions().queryKey) ??
-      (await getSessionServerFn());
+    const session = await context.queryClient.ensureQueryData(
+      sessionQueryOptions()
+    );
     if (!session) {
       throw redirect({ to: '/login' });
     }

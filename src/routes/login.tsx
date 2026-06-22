@@ -3,10 +3,7 @@ import {
   lazyRouteComponent,
   redirect,
 } from '@tanstack/react-router';
-import {
-  getPostLoginTargetServerFn,
-  getSessionServerFn,
-} from '../server/start/functions/auth';
+import { getPostLoginTargetServerFn } from '../server/start/functions/auth';
 import { sessionQueryOptions } from '../queries/session';
 
 export const Route = createFileRoute('/login')({
@@ -15,9 +12,9 @@ export const Route = createFileRoute('/login')({
     await context.queryClient.ensureQueryData(sessionQueryOptions());
   },
   beforeLoad: async ({ context }) => {
-    const session =
-      context.queryClient.getQueryData(sessionQueryOptions().queryKey) ??
-      (await getSessionServerFn());
+    const session = await context.queryClient.ensureQueryData(
+      sessionQueryOptions()
+    );
     if (!session) return;
     const target = await getPostLoginTargetServerFn();
     throw redirect(target);
