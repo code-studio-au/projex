@@ -1,17 +1,19 @@
 import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 
-import { asProjectId, asTxnId } from '../../../types';
-import type {
-  TxnBulkActionInput,
-  TxnCreateInput,
-  TxnCommentCreateInput,
-  TxnCommentUpdateInput,
-  TxnSplitInput,
-  TxnTransferInput,
-  TxnUpdateInput,
-  TxnWorkflowStateInput,
-} from '../../../api/contract';
-import { asTxnCommentId } from '../../../types';
+import {
+  createTxnCommentInputSchema,
+  createTxnInputSchema,
+  projectIdSchema,
+  splitTxnInputSchema,
+  transferTxnInputSchema,
+  txnBulkActionInputSchema,
+  txnCommentIdSchema,
+  txnIdSchema,
+  txnWorkflowStateInputSchema,
+  updateTxnCommentInputSchema,
+  updateTxnInputSchema,
+} from '../../../validation/apiSchemas';
 import {
   createTxnServer,
   deleteTxnServer,
@@ -30,14 +32,67 @@ import {
   updateTransactionCommentServer,
 } from '../../fns/transactionComments';
 import { startApiMiddleware } from '../middleware';
-import { txnBulkActionInputSchema } from '../../../validation/apiSchemas';
-import { validateOrThrow } from '../../../validation/validate';
+import { serverFnInputValidator } from './validation';
+
+const projectIdInputSchema = z.object({
+  projectId: projectIdSchema,
+});
+
+const projectIdTxnIdInputSchema = z.object({
+  projectId: projectIdSchema,
+  txnId: txnIdSchema,
+});
+
+const transactionCommentServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: createTxnCommentInputSchema,
+});
+
+const updateTransactionCommentServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  txnId: txnIdSchema,
+  payload: updateTxnCommentInputSchema,
+});
+
+const deleteTransactionCommentServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  txnId: txnIdSchema,
+  commentId: txnCommentIdSchema,
+});
+
+const createTxnServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: createTxnInputSchema,
+});
+
+const updateTxnServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: updateTxnInputSchema,
+});
+
+const splitTxnServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: splitTxnInputSchema,
+});
+
+const transferTxnServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: transferTxnInputSchema,
+});
+
+const updateTxnWorkflowStateServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: txnWorkflowStateInputSchema,
+});
+
+const bulkTxnActionServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: txnBulkActionInputSchema,
+});
 
 export const listTransactionsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return listTransactionsServer({
       context: context.serverContext,
@@ -47,10 +102,7 @@ export const listTransactionsServerFn = createServerFn({ method: 'GET' })
 
 export const listTransactionCommentsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; txnId: string }) => ({
-    projectId: asProjectId(input.projectId),
-    txnId: asTxnId(input.txnId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdTxnIdInputSchema))
   .handler(async ({ context, data }) => {
     return listTransactionCommentsServer({
       context: context.serverContext,
@@ -63,9 +115,7 @@ export const listTransactionCommentSummariesServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return listTransactionCommentSummariesServer({
       context: context.serverContext,
@@ -77,12 +127,7 @@ export const createTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
-    (input: { projectId: string; payload: TxnCommentCreateInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: input.payload,
-    })
-  )
+  .inputValidator(serverFnInputValidator(transactionCommentServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return createTransactionCommentServer({
       context: context.serverContext,
@@ -96,15 +141,7 @@ export const updateTransactionCommentServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: {
-      projectId: string;
-      txnId: string;
-      payload: TxnCommentUpdateInput;
-    }) => ({
-      projectId: asProjectId(input.projectId),
-      txnId: asTxnId(input.txnId),
-      payload: input.payload,
-    })
+    serverFnInputValidator(updateTransactionCommentServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return updateTransactionCommentServer({
@@ -120,11 +157,7 @@ export const deleteTransactionCommentServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: { projectId: string; txnId: string; commentId: string }) => ({
-      projectId: asProjectId(input.projectId),
-      txnId: asTxnId(input.txnId),
-      commentId: asTxnCommentId(input.commentId),
-    })
+    serverFnInputValidator(deleteTransactionCommentServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return deleteTransactionCommentServer({
@@ -137,10 +170,7 @@ export const deleteTransactionCommentServerFn = createServerFn({
 
 export const createTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; payload: TxnCreateInput }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(serverFnInputValidator(createTxnServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return createTxnServer({
       context: context.serverContext,
@@ -151,10 +181,7 @@ export const createTxnServerFn = createServerFn({ method: 'POST' })
 
 export const updateTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; payload: TxnUpdateInput }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(serverFnInputValidator(updateTxnServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return updateTxnServer({
       context: context.serverContext,
@@ -165,10 +192,7 @@ export const updateTxnServerFn = createServerFn({ method: 'POST' })
 
 export const deleteTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; txnId: string }) => ({
-    projectId: asProjectId(input.projectId),
-    txnId: asTxnId(input.txnId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdTxnIdInputSchema))
   .handler(async ({ context, data }) => {
     return deleteTxnServer({
       context: context.serverContext,
@@ -179,10 +203,7 @@ export const deleteTxnServerFn = createServerFn({ method: 'POST' })
 
 export const splitTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; payload: TxnSplitInput }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(serverFnInputValidator(splitTxnServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return splitTxnServer({
       context: context.serverContext,
@@ -193,12 +214,7 @@ export const splitTxnServerFn = createServerFn({ method: 'POST' })
 
 export const transferTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
-    (input: { projectId: string; payload: TxnTransferInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: input.payload,
-    })
-  )
+  .inputValidator(serverFnInputValidator(transferTxnServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return transferTxnServer({
       context: context.serverContext,
@@ -212,10 +228,7 @@ export const updateTxnWorkflowStateServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: { projectId: string; payload: TxnWorkflowStateInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: input.payload,
-    })
+    serverFnInputValidator(updateTxnWorkflowStateServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return updateTxnWorkflowStateServer({
@@ -229,12 +242,7 @@ export const bulkTxnActionServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
-    (input: { projectId: string; payload: TxnBulkActionInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: validateOrThrow(txnBulkActionInputSchema, input.payload),
-    })
-  )
+  .inputValidator(serverFnInputValidator(bulkTxnActionServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return bulkTxnActionServer({
       context: context.serverContext,

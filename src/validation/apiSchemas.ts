@@ -10,7 +10,9 @@ import {
   asImportCandidateId,
   asImportRuleId,
   asCompanyExportJobId,
+  asProjectAutoCodingRuleId,
   asProjectId,
+  asRuleSuggestionId,
   asSubCategoryId,
   asTxnCommentId,
   asTxnId,
@@ -35,28 +37,32 @@ import {
 } from '../utils/importLimits.ts';
 
 const idSchema = z.string().trim().min(1, 'Id is required');
-const companyIdSchema = idSchema.transform(asCompanyId);
-const projectIdSchema = idSchema.transform(asProjectId);
-const userIdSchema = idSchema.transform(asUserId);
-const categoryIdSchema = idSchema.transform(asCategoryId);
-const subCategoryIdSchema = idSchema.transform(asSubCategoryId);
-const companyDefaultCategoryIdSchema = idSchema.transform(
+export const companyIdSchema = idSchema.transform(asCompanyId);
+export const projectIdSchema = idSchema.transform(asProjectId);
+export const userIdSchema = idSchema.transform(asUserId);
+export const categoryIdSchema = idSchema.transform(asCategoryId);
+export const subCategoryIdSchema = idSchema.transform(asSubCategoryId);
+export const companyDefaultCategoryIdSchema = idSchema.transform(
   asCompanyDefaultCategoryId
 );
-const companyDefaultSubCategoryIdSchema = idSchema.transform(
+export const companyDefaultSubCategoryIdSchema = idSchema.transform(
   asCompanyDefaultSubCategoryId
 );
-const companyDefaultMappingRuleIdSchema = idSchema.transform(
+export const companyDefaultMappingRuleIdSchema = idSchema.transform(
   asCompanyDefaultMappingRuleId
 );
-const importRuleIdSchema = idSchema.transform(asImportRuleId);
+export const importRuleIdSchema = idSchema.transform(asImportRuleId);
 export const importBatchIdParamSchema = idSchema.transform(asImportBatchId);
-const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
+export const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
 export const companyExportJobIdParamSchema =
   idSchema.transform(asCompanyExportJobId);
-const txnIdSchema = idSchema.transform(asTxnId);
-const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
-const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
+export const projectAutoCodingRuleIdSchema = idSchema.transform(
+  asProjectAutoCodingRuleId
+);
+export const ruleSuggestionIdSchema = idSchema.transform(asRuleSuggestionId);
+export const txnIdSchema = idSchema.transform(asTxnId);
+export const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
+export const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
 const optionalCategoryIdSchema = categoryIdSchema
   .nullable()
   .optional()
@@ -77,13 +83,13 @@ const nullableOptionalMappingRuleIdSchema = companyDefaultMappingRuleIdSchema
   .nullable()
   .optional();
 
-const companyRoleSchema = z.enum([
+export const companyRoleSchema = z.enum([
   'admin',
   'executive',
   'management',
   'member',
 ]);
-const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
+export const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const projectVisibilitySchema = z.enum(['company', 'private']);
 const projectTypeSchema = z.enum(['project', 'programme']);
 const currencySchema = z.enum(['AUD', 'USD', 'EUR', 'GBP']);
@@ -210,6 +216,7 @@ export const createProjectInputSchema = z.object({
   parentProjectId: projectIdSchema.nullable().optional(),
   currency: currencySchema.optional(),
   initialOwnerUserId: userIdSchema.optional(),
+  applyCompanyStandards: z.boolean().optional(),
 });
 
 export const updateProjectBodySchema = z.object({
@@ -220,6 +227,7 @@ export const updateProjectBodySchema = z.object({
   currency: currencySchema.optional(),
   visibility: projectVisibilitySchema.optional(),
   allowSuperadminAccess: z.boolean().optional(),
+  syncCompanyDefaults: z.boolean().optional(),
   allowTxnTransfers: z.boolean().optional(),
 });
 
@@ -348,6 +356,49 @@ export const updateCompanyDefaultMappingRuleInputSchema = z.object({
   companyDefaultCategoryId: companyDefaultCategoryIdSchema.optional(),
   companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema.optional(),
   sortOrder: z.number().int().min(0).optional(),
+});
+
+export const createProjectAutoCodingRuleInputSchema = z.object({
+  matchText: matchTextSchema,
+  categoryId: categoryIdSchema,
+  subCategoryId: subCategoryIdSchema,
+});
+
+export const updateProjectAutoCodingRuleInputSchema = z.object({
+  id: projectAutoCodingRuleIdSchema,
+  matchText: matchTextSchema.optional(),
+  categoryId: categoryIdSchema.optional(),
+  subCategoryId: subCategoryIdSchema.optional(),
+  sortOrder: z.number().int().min(0).optional(),
+});
+
+export const backfillProjectCodingInputSchema = z.object({
+  mode: z.enum(['project_rules', 'company_rules', 'all']),
+});
+
+export const promoteProjectRuleToCompanyDefaultInputSchema = z.object({
+  ruleId: projectAutoCodingRuleIdSchema,
+});
+
+export const bulkRecodeProjectTransactionsInputSchema = z.object({
+  fromSubCategoryId: subCategoryIdSchema,
+  toCategoryId: categoryIdSchema,
+  toSubCategoryId: subCategoryIdSchema,
+});
+
+export const promoteProjectSubCategoryToCompanyDefaultInputSchema = z.object({
+  subCategoryId: subCategoryIdSchema,
+});
+
+export const ruleSuggestionAcceptInputSchema = z.object({
+  id: ruleSuggestionIdSchema,
+  proposedMatchText: matchTextSchema,
+  companyDefaultCategoryId: companyDefaultCategoryIdSchema,
+  companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema,
+});
+
+export const ruleSuggestionDismissInputSchema = z.object({
+  id: ruleSuggestionIdSchema,
 });
 
 export const createImportRuleInputSchema = z

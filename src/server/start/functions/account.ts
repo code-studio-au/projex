@@ -1,9 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
 
-import type {
-  EmailChangeRequestInput,
-  ProfileUpdateInput,
-} from '../../../api/contract';
+import {
+  emailChangeRequestBodySchema,
+  profileUpdateBodySchema,
+} from '../../../validation/apiSchemas';
 import {
   cancelEmailChangeServer,
   getCurrentUserServer,
@@ -13,6 +13,7 @@ import {
 } from '../../fns/account';
 import { updateCurrentUserProfileServer } from '../../fns/companies';
 import { startApiMiddleware } from '../middleware';
+import { serverFnInputValidator } from './validation';
 
 export const getPendingEmailChangeServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
@@ -30,7 +31,7 @@ export const updateCurrentUserProfileServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: ProfileUpdateInput) => input)
+  .inputValidator(serverFnInputValidator(profileUpdateBodySchema))
   .handler(async ({ context, data }) => {
     return updateCurrentUserProfileServer({
       context: context.serverContext,
@@ -40,7 +41,7 @@ export const updateCurrentUserProfileServerFn = createServerFn({
 
 export const requestEmailChangeServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: EmailChangeRequestInput) => input)
+  .inputValidator(serverFnInputValidator(emailChangeRequestBodySchema))
   .handler(async ({ context, data }) => {
     return requestEmailChangeServer({
       context: context.serverContext,

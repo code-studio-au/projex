@@ -18,7 +18,7 @@ import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
 import { requireCompanyMember } from './resourceGuards';
-import { applyCompanyStandardsToProject } from './taxonomy';
+import { applyCompanyStandardsToProject } from './taxonomy/standards';
 import {
   assertContextProvided,
   requireServerUserId,

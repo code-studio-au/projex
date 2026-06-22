@@ -1,11 +1,12 @@
 import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 
-import { asProjectId } from '../../../types';
-import type {
-  BudgetCreateInput,
-  BudgetUpdateInput,
-} from '../../../api/contract';
-import { asBudgetLineId } from '../../../types';
+import {
+  budgetLineIdSchema,
+  createBudgetInputSchema,
+  projectIdSchema,
+  updateBudgetInputSchema,
+} from '../../../validation/apiSchemas';
 import {
   createBudgetServer,
   deleteBudgetServer,
@@ -13,12 +14,30 @@ import {
   updateBudgetServer,
 } from '../../fns/budgets';
 import { startApiMiddleware } from '../middleware';
+import { serverFnInputValidator } from './validation';
+
+const projectIdInputSchema = z.object({
+  projectId: projectIdSchema,
+});
+
+const createBudgetServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: createBudgetInputSchema,
+});
+
+const updateBudgetServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: updateBudgetInputSchema,
+});
+
+const deleteBudgetServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  budgetId: budgetLineIdSchema,
+});
 
 export const listBudgetsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return listBudgetsServer({
       context: context.serverContext,
@@ -28,12 +47,7 @@ export const listBudgetsServerFn = createServerFn({ method: 'GET' })
 
 export const createBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
-    (input: { projectId: string; payload: BudgetCreateInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: input.payload,
-    })
-  )
+  .inputValidator(serverFnInputValidator(createBudgetServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return createBudgetServer({
       context: context.serverContext,
@@ -44,12 +58,7 @@ export const createBudgetServerFn = createServerFn({ method: 'POST' })
 
 export const updateBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
-    (input: { projectId: string; payload: BudgetUpdateInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: input.payload,
-    })
-  )
+  .inputValidator(serverFnInputValidator(updateBudgetServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return updateBudgetServer({
       context: context.serverContext,
@@ -60,10 +69,7 @@ export const updateBudgetServerFn = createServerFn({ method: 'POST' })
 
 export const deleteBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; budgetId: string }) => ({
-    projectId: asProjectId(input.projectId),
-    budgetId: asBudgetLineId(input.budgetId),
-  }))
+  .inputValidator(serverFnInputValidator(deleteBudgetServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return deleteBudgetServer({
       context: context.serverContext,

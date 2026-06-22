@@ -1,16 +1,19 @@
 import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 
-import { asCompanyId, asProjectId, asUserId } from '../../../types';
-import type {
-  CompanyCreateInput,
-  CompanyUpdateInput,
-  CreateCompanyUserInput,
-  DeleteCompanyInput,
-  DeleteProjectInput,
-  ProjectCreateInput,
-  ProjectUpdateInput,
-  TxnImportInput,
-} from '../../../api/contract';
+import {
+  companyIdSchema,
+  createCompanyInputSchema,
+  createCompanyUserBodySchema,
+  createProjectInputSchema,
+  deleteCompanyBodySchema,
+  deleteProjectBodySchema,
+  projectIdSchema,
+  txnImportInputSchema,
+  updateCompanyBodySchema,
+  updateProjectBodySchema,
+  userIdSchema,
+} from '../../../validation/apiSchemas';
 import {
   createCompanyServer,
   createUserInCompanyServer,
@@ -29,15 +32,55 @@ import {
   updateProjectServer,
 } from '../../fns/projects';
 import { startApiMiddleware } from '../middleware';
+import { serverFnInputValidator } from './validation';
+
+const companyIdInputSchema = z.object({
+  companyId: companyIdSchema,
+});
+
+const projectIdInputSchema = z.object({
+  projectId: projectIdSchema,
+});
+
+const createProjectServerFnInputSchema = z.object({
+  companyId: companyIdSchema,
+  payload: createProjectInputSchema,
+});
+
+const updateProjectServerFnInputSchema = updateProjectBodySchema.extend({
+  id: projectIdSchema,
+});
+
+const updateCompanyServerFnInputSchema = updateCompanyBodySchema.extend({
+  id: companyIdSchema,
+});
+
+const createCompanyUserServerFnInputSchema = z.object({
+  companyId: companyIdSchema,
+  payload: createCompanyUserBodySchema,
+});
+
+const companyUserInviteServerFnInputSchema = z.object({
+  companyId: companyIdSchema,
+  userId: userIdSchema,
+});
+
+const importTransactionsServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: txnImportInputSchema,
+});
+
+const deleteCompanyServerFnInputSchema = deleteCompanyBodySchema.extend({
+  companyId: companyIdSchema,
+});
+
+const deleteProjectServerFnInputSchema = deleteProjectBodySchema.extend({
+  projectId: projectIdSchema,
+});
 
 export const createCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: CompanyCreateInput) => ({
-    name: input.name,
-    id: input.id ? asCompanyId(input.id) : undefined,
-    initialAdminName: input.initialAdminName,
-    initialAdminEmail: input.initialAdminEmail,
-  }))
+  .inputValidator(serverFnInputValidator(createCompanyInputSchema))
   .handler(async ({ context, data }) => {
     return createCompanyServer({
       context: context.serverContext,
@@ -47,15 +90,7 @@ export const createCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const createProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
-    (input: { companyId: string; payload: ProjectCreateInput }) => ({
-      companyId: asCompanyId(input.companyId),
-      payload: {
-        ...input.payload,
-        applyCompanyStandards: input.payload.applyCompanyStandards,
-      },
-    })
-  )
+  .inputValidator(serverFnInputValidator(createProjectServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return createProjectServer({
       context: context.serverContext,
@@ -66,7 +101,7 @@ export const createProjectServerFn = createServerFn({ method: 'POST' })
 
 export const updateProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: ProjectUpdateInput) => input)
+  .inputValidator(serverFnInputValidator(updateProjectServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return updateProjectServer({
       context: context.serverContext,
@@ -76,7 +111,7 @@ export const updateProjectServerFn = createServerFn({ method: 'POST' })
 
 export const updateCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: CompanyUpdateInput) => input)
+  .inputValidator(serverFnInputValidator(updateCompanyServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return updateCompanyServer({
       context: context.serverContext,
@@ -86,12 +121,7 @@ export const updateCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const createUserInCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
-    (input: { companyId: string; payload: CreateCompanyUserInput }) => ({
-      companyId: asCompanyId(input.companyId),
-      payload: input.payload,
-    })
-  )
+  .inputValidator(serverFnInputValidator(createCompanyUserServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return createUserInCompanyServer({
       context: context.serverContext,
@@ -107,10 +137,7 @@ export const sendCompanyUserInviteEmailServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string; userId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-    userId: asUserId(input.userId),
-  }))
+  .inputValidator(serverFnInputValidator(companyUserInviteServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return sendCompanyUserInviteEmailServer({
       context: context.serverContext,
@@ -121,10 +148,7 @@ export const sendCompanyUserInviteEmailServerFn = createServerFn({
 
 export const importTransactionsServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; payload: TxnImportInput }) => ({
-    projectId: asProjectId(input.projectId),
-    payload: input.payload,
-  }))
+  .inputValidator(serverFnInputValidator(importTransactionsServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return importTransactionsServer({
       context: context.serverContext,
@@ -137,9 +161,7 @@ export const importTransactionsServerFn = createServerFn({ method: 'POST' })
 
 export const deactivateCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-  }))
+  .inputValidator(serverFnInputValidator(companyIdInputSchema))
   .handler(async ({ context, data }) => {
     return deactivateCompanyServer({
       context: context.serverContext,
@@ -149,9 +171,7 @@ export const deactivateCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const reactivateCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-  }))
+  .inputValidator(serverFnInputValidator(companyIdInputSchema))
   .handler(async ({ context, data }) => {
     return reactivateCompanyServer({
       context: context.serverContext,
@@ -161,7 +181,7 @@ export const reactivateCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const deleteCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: DeleteCompanyInput) => input)
+  .inputValidator(serverFnInputValidator(deleteCompanyServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return deleteCompanyServer({
       context: context.serverContext,
@@ -172,9 +192,7 @@ export const deleteCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const deactivateProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return deactivateProjectServer({
       context: context.serverContext,
@@ -184,9 +202,7 @@ export const deactivateProjectServerFn = createServerFn({ method: 'POST' })
 
 export const reactivateProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return reactivateProjectServer({
       context: context.serverContext,
@@ -196,7 +212,7 @@ export const reactivateProjectServerFn = createServerFn({ method: 'POST' })
 
 export const deleteProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: DeleteProjectInput) => input)
+  .inputValidator(serverFnInputValidator(deleteProjectServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return deleteProjectServer({
       context: context.serverContext,

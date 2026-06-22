@@ -1,13 +1,16 @@
 import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 
-import { asCompanyId, asProjectId } from '../../../types';
-import type {
-  ImportCandidateReviewInput,
-  ImportRuleCreateInput,
-  ImportRuleUpdateInput,
-  TxnImportPreviewInput,
-} from '../../../api/contract';
-import { asImportBatchId, asImportRuleId } from '../../../types';
+import {
+  companyIdSchema,
+  createImportRuleInputSchema,
+  importBatchIdParamSchema,
+  importCandidateReviewInputSchema,
+  importRuleIdSchema,
+  projectIdSchema,
+  txnImportPreviewInputSchema,
+  updateImportRuleInputSchema,
+} from '../../../validation/apiSchemas';
 import {
   createImportRuleServer,
   createProjectImportRuleServer,
@@ -26,12 +29,64 @@ import {
   reviewImportCandidateServer,
 } from '../../fns/transactions';
 import { startApiMiddleware } from '../middleware';
+import { serverFnInputValidator } from './validation';
+
+const companyIdInputSchema = z.object({
+  companyId: companyIdSchema,
+});
+
+const projectIdInputSchema = z.object({
+  projectId: projectIdSchema,
+});
+
+const reviewImportCandidateServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: importCandidateReviewInputSchema,
+});
+
+const companyImportRuleServerFnInputSchema = z.object({
+  companyId: companyIdSchema,
+  payload: createImportRuleInputSchema,
+});
+
+const projectImportRuleServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: createImportRuleInputSchema,
+});
+
+const updateCompanyImportRuleServerFnInputSchema = z.object({
+  companyId: companyIdSchema,
+  payload: updateImportRuleInputSchema,
+});
+
+const updateProjectImportRuleServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: updateImportRuleInputSchema,
+});
+
+const deleteCompanyImportRuleServerFnInputSchema = z.object({
+  companyId: companyIdSchema,
+  ruleId: importRuleIdSchema,
+});
+
+const deleteProjectImportRuleServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  ruleId: importRuleIdSchema,
+});
+
+const previewImportTransactionsServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: txnImportPreviewInputSchema,
+});
+
+const cancelImportPreviewServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  importBatchId: importBatchIdParamSchema,
+});
 
 export const listImportCandidatesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return listImportCandidatesServer({
       context: context.serverContext,
@@ -41,9 +96,7 @@ export const listImportCandidatesServerFn = createServerFn({ method: 'GET' })
 
 export const listImportRulesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-  }))
+  .inputValidator(serverFnInputValidator(companyIdInputSchema))
   .handler(async ({ context, data }) => {
     return listImportRulesServer({
       context: context.serverContext,
@@ -56,10 +109,7 @@ export const reviewImportCandidateServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: { projectId: string; payload: ImportCandidateReviewInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: input.payload,
-    })
+    serverFnInputValidator(reviewImportCandidateServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return reviewImportCandidateServer({
@@ -72,12 +122,7 @@ export const reviewImportCandidateServerFn = createServerFn({
 
 export const createImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
-    (input: { companyId: string; payload: ImportRuleCreateInput }) => ({
-      companyId: asCompanyId(input.companyId),
-      payload: input.payload,
-    })
-  )
+  .inputValidator(serverFnInputValidator(companyImportRuleServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return createImportRuleServer({
       context: context.serverContext,
@@ -88,9 +133,7 @@ export const createImportRuleServerFn = createServerFn({ method: 'POST' })
 
 export const listProjectImportRulesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return listProjectImportRulesServer({
       context: context.serverContext,
@@ -102,12 +145,7 @@ export const createProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
-    (input: { projectId: string; payload: ImportRuleCreateInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: input.payload,
-    })
-  )
+  .inputValidator(serverFnInputValidator(projectImportRuleServerFnInputSchema))
   .handler(async ({ context, data }) => {
     return createProjectImportRuleServer({
       context: context.serverContext,
@@ -119,10 +157,7 @@ export const createProjectImportRuleServerFn = createServerFn({
 export const updateImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: { companyId: string; payload: ImportRuleUpdateInput }) => ({
-      companyId: asCompanyId(input.companyId),
-      payload: input.payload,
-    })
+    serverFnInputValidator(updateCompanyImportRuleServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return updateImportRuleServer({
@@ -134,10 +169,9 @@ export const updateImportRuleServerFn = createServerFn({ method: 'POST' })
 
 export const deleteImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string; ruleId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-    ruleId: asImportRuleId(input.ruleId),
-  }))
+  .inputValidator(
+    serverFnInputValidator(deleteCompanyImportRuleServerFnInputSchema)
+  )
   .handler(async ({ context, data }) => {
     return deleteImportRuleServer({
       context: context.serverContext,
@@ -151,10 +185,7 @@ export const updateProjectImportRuleServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: { projectId: string; payload: ImportRuleUpdateInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: input.payload,
-    })
+    serverFnInputValidator(updateProjectImportRuleServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return updateProjectImportRuleServer({
@@ -168,10 +199,9 @@ export const deleteProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; ruleId: string }) => ({
-    projectId: asProjectId(input.projectId),
-    ruleId: asImportRuleId(input.ruleId),
-  }))
+  .inputValidator(
+    serverFnInputValidator(deleteProjectImportRuleServerFnInputSchema)
+  )
   .handler(async ({ context, data }) => {
     return deleteProjectImportRuleServer({
       context: context.serverContext,
@@ -184,10 +214,9 @@ export const promoteProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; ruleId: string }) => ({
-    projectId: asProjectId(input.projectId),
-    ruleId: asImportRuleId(input.ruleId),
-  }))
+  .inputValidator(
+    serverFnInputValidator(deleteProjectImportRuleServerFnInputSchema)
+  )
   .handler(async ({ context, data }) => {
     return promoteProjectImportRuleServer({
       context: context.serverContext,
@@ -201,10 +230,7 @@ export const previewImportTransactionsServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: { projectId: string; payload: TxnImportPreviewInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: input.payload,
-    })
+    serverFnInputValidator(previewImportTransactionsServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return previewImportTransactionsServer({
@@ -219,10 +245,9 @@ export const previewImportTransactionsServerFn = createServerFn({
 
 export const cancelImportPreviewServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; importBatchId: string }) => ({
-    projectId: asProjectId(input.projectId),
-    importBatchId: asImportBatchId(input.importBatchId),
-  }))
+  .inputValidator(
+    serverFnInputValidator(cancelImportPreviewServerFnInputSchema)
+  )
   .handler(async ({ context, data }) => {
     return cancelImportPreviewServer({
       context: context.serverContext,

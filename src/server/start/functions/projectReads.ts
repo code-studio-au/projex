@@ -1,15 +1,26 @@
 import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 
-import { asCompanyId, asProjectId } from '../../../types';
+import {
+  companyIdSchema,
+  projectIdSchema,
+} from '../../../validation/apiSchemas';
 import { getCompanyServer, getCompanySummaryServer } from '../../fns/companies';
 import { getProjectServer, listProjectsServer } from '../../fns/projects';
 import { startApiMiddleware } from '../middleware';
+import { serverFnInputValidator } from './validation';
+
+const companyIdInputSchema = z.object({
+  companyId: companyIdSchema,
+});
+
+const projectIdInputSchema = z.object({
+  projectId: projectIdSchema,
+});
 
 export const getCompanyServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-  }))
+  .inputValidator(serverFnInputValidator(companyIdInputSchema))
   .handler(async ({ context, data }) => {
     return getCompanyServer({
       context: context.serverContext,
@@ -19,9 +30,7 @@ export const getCompanyServerFn = createServerFn({ method: 'GET' })
 
 export const getCompanySummaryServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-  }))
+  .inputValidator(serverFnInputValidator(companyIdInputSchema))
   .handler(async ({ context, data }) => {
     return getCompanySummaryServer({
       context: context.serverContext,
@@ -31,9 +40,7 @@ export const getCompanySummaryServerFn = createServerFn({ method: 'GET' })
 
 export const listProjectsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-  }))
+  .inputValidator(serverFnInputValidator(companyIdInputSchema))
   .handler(async ({ context, data }) => {
     return listProjectsServer({
       context: context.serverContext,
@@ -43,9 +50,7 @@ export const listProjectsServerFn = createServerFn({ method: 'GET' })
 
 export const getProjectServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return getProjectServer({
       context: context.serverContext,

@@ -1,18 +1,15 @@
 import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 
 import {
-  asCategoryId,
-  asProjectId,
-  asProjectAutoCodingRuleId,
-  asSubCategoryId,
-  asTxnId,
-} from '../../../types';
-import type {
-  BackfillProjectCodingInput,
-  CreateProjectAutoCodingRuleInput,
-  ProjectAutoCodingRuleUpdateInput,
-  PromoteProjectRuleToCompanyDefaultInput,
-} from '../../../api/contract';
+  backfillProjectCodingInputSchema,
+  createProjectAutoCodingRuleInputSchema,
+  projectAutoCodingRuleIdSchema,
+  projectIdSchema,
+  promoteProjectRuleToCompanyDefaultInputSchema,
+  txnIdSchema,
+  updateProjectAutoCodingRuleInputSchema,
+} from '../../../validation/apiSchemas';
 import {
   backfillProjectCodingServer,
   createProjectAutoCodingRuleServer,
@@ -23,15 +20,47 @@ import {
   updateProjectAutoCodingRuleServer,
 } from '../../fns/projectAutoCodingRules';
 import { startApiMiddleware } from '../middleware';
+import { serverFnInputValidator } from './validation';
+
+const projectIdInputSchema = z.object({
+  projectId: projectIdSchema,
+});
+
+const projectIdTxnIdInputSchema = z.object({
+  projectId: projectIdSchema,
+  txnId: txnIdSchema,
+});
+
+const createProjectAutoCodingRuleServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: createProjectAutoCodingRuleInputSchema,
+});
+
+const updateProjectAutoCodingRuleServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: updateProjectAutoCodingRuleInputSchema,
+});
+
+const deleteProjectAutoCodingRuleServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  ruleId: projectAutoCodingRuleIdSchema,
+});
+
+const backfillProjectCodingServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: backfillProjectCodingInputSchema,
+});
+
+const promoteProjectRuleToCompanyDefaultServerFnInputSchema = z.object({
+  projectId: projectIdSchema,
+  payload: promoteProjectRuleToCompanyDefaultInputSchema,
+});
 
 export const getProjectRuleSuggestionPromptServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; txnId: string }) => ({
-    projectId: asProjectId(input.projectId),
-    txnId: asTxnId(input.txnId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdTxnIdInputSchema))
   .handler(async ({ context, data }) => {
     return getProjectRuleSuggestionPromptServer({
       context: context.serverContext,
@@ -45,17 +74,7 @@ export const createProjectAutoCodingRuleServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: {
-      projectId: string;
-      payload: CreateProjectAutoCodingRuleInput;
-    }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: {
-        matchText: input.payload.matchText,
-        categoryId: asCategoryId(String(input.payload.categoryId)),
-        subCategoryId: asSubCategoryId(String(input.payload.subCategoryId)),
-      },
-    })
+    serverFnInputValidator(createProjectAutoCodingRuleServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return createProjectAutoCodingRuleServer({
@@ -69,9 +88,7 @@ export const listProjectAutoCodingRulesServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return listProjectAutoCodingRulesServer({
       context: context.serverContext,
@@ -84,25 +101,7 @@ export const updateProjectAutoCodingRuleServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: {
-      projectId: string;
-      payload: ProjectAutoCodingRuleUpdateInput;
-    }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: {
-        id: asProjectAutoCodingRuleId(String(input.payload.id)),
-        matchText: input.payload.matchText,
-        categoryId:
-          input.payload.categoryId == null
-            ? undefined
-            : asCategoryId(String(input.payload.categoryId)),
-        subCategoryId:
-          input.payload.subCategoryId == null
-            ? undefined
-            : asSubCategoryId(String(input.payload.subCategoryId)),
-        sortOrder: input.payload.sortOrder,
-      },
-    })
+    serverFnInputValidator(updateProjectAutoCodingRuleServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return updateProjectAutoCodingRuleServer({
@@ -116,10 +115,9 @@ export const deleteProjectAutoCodingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string; ruleId: string }) => ({
-    projectId: asProjectId(input.projectId),
-    ruleId: asProjectAutoCodingRuleId(input.ruleId),
-  }))
+  .inputValidator(
+    serverFnInputValidator(deleteProjectAutoCodingRuleServerFnInputSchema)
+  )
   .handler(async ({ context, data }) => {
     return deleteProjectAutoCodingRuleServer({
       context: context.serverContext,
@@ -133,12 +131,7 @@ export const backfillProjectCodingServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: { projectId: string; payload: BackfillProjectCodingInput }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: {
-        mode: input.payload.mode,
-      },
-    })
+    serverFnInputValidator(backfillProjectCodingServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return backfillProjectCodingServer({
@@ -153,15 +146,9 @@ export const promoteProjectRuleToCompanyDefaultServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: {
-      projectId: string;
-      payload: PromoteProjectRuleToCompanyDefaultInput;
-    }) => ({
-      projectId: asProjectId(input.projectId),
-      payload: {
-        ruleId: asProjectAutoCodingRuleId(String(input.payload.ruleId)),
-      },
-    })
+    serverFnInputValidator(
+      promoteProjectRuleToCompanyDefaultServerFnInputSchema
+    )
   )
   .handler(async ({ context, data }) => {
     return promoteProjectRuleToCompanyDefaultServer({

@@ -39,7 +39,7 @@ import {
   buildInheritedProjectStandardMetadata,
   buildLocalProjectStandardMetadata,
 } from '../../sync/projectStandards';
-import { applyCompanyTaxonomyToProject } from '../taxonomy';
+import { applyCompanyTaxonomyToProject } from '../taxonomy/standards';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import {
   assertCategoryInProject,

@@ -1,27 +1,36 @@
 import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 
 import {
-  asCompanyDefaultCategoryId,
-  asCompanyDefaultSubCategoryId,
-  asCompanyId,
-  asRuleSuggestionId,
-} from '../../../types';
-import type {
-  RuleSuggestionAcceptInput,
-  RuleSuggestionDismissInput,
-} from '../../../api/contract';
+  companyIdSchema,
+  ruleSuggestionAcceptInputSchema,
+  ruleSuggestionDismissInputSchema,
+} from '../../../validation/apiSchemas';
 import {
   acceptRuleSuggestionServer,
   dismissRuleSuggestionServer,
   listRuleSuggestionsServer,
 } from '../../fns/ruleSuggestions';
 import { startApiMiddleware } from '../middleware';
+import { serverFnInputValidator } from './validation';
+
+const companyIdInputSchema = z.object({
+  companyId: companyIdSchema,
+});
+
+const acceptRuleSuggestionServerFnInputSchema = z.object({
+  companyId: companyIdSchema,
+  payload: ruleSuggestionAcceptInputSchema,
+});
+
+const dismissRuleSuggestionServerFnInputSchema = z.object({
+  companyId: companyIdSchema,
+  payload: ruleSuggestionDismissInputSchema,
+});
 
 export const listRuleSuggestionsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-  }))
+  .inputValidator(serverFnInputValidator(companyIdInputSchema))
   .handler(async ({ context, data }) => {
     return listRuleSuggestionsServer({
       context: context.serverContext,
@@ -32,19 +41,7 @@ export const listRuleSuggestionsServerFn = createServerFn({ method: 'GET' })
 export const acceptRuleSuggestionServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: { companyId: string; payload: RuleSuggestionAcceptInput }) => ({
-      companyId: asCompanyId(input.companyId),
-      payload: {
-        id: asRuleSuggestionId(String(input.payload.id)),
-        proposedMatchText: input.payload.proposedMatchText,
-        companyDefaultCategoryId: asCompanyDefaultCategoryId(
-          String(input.payload.companyDefaultCategoryId)
-        ),
-        companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
-          String(input.payload.companyDefaultSubCategoryId)
-        ),
-      },
-    })
+    serverFnInputValidator(acceptRuleSuggestionServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return acceptRuleSuggestionServer({
@@ -57,12 +54,7 @@ export const acceptRuleSuggestionServerFn = createServerFn({ method: 'POST' })
 export const dismissRuleSuggestionServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: { companyId: string; payload: RuleSuggestionDismissInput }) => ({
-      companyId: asCompanyId(input.companyId),
-      payload: {
-        id: asRuleSuggestionId(String(input.payload.id)),
-      },
-    })
+    serverFnInputValidator(dismissRuleSuggestionServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return dismissRuleSuggestionServer({

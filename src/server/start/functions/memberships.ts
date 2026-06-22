@@ -1,6 +1,14 @@
 import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 
-import { asCompanyId, asProjectId, asUserId } from '../../../types';
+import {
+  companyIdSchema,
+  deleteCompanyMembershipQuerySchema,
+  deleteProjectMembershipQuerySchema,
+  projectIdSchema,
+  upsertCompanyMembershipBodySchema,
+  upsertProjectMembershipBodySchema,
+} from '../../../validation/apiSchemas';
 import {
   deleteCompanyMembershipServer,
   deleteProjectMembershipServer,
@@ -12,12 +20,43 @@ import {
   upsertProjectMembershipServer,
 } from '../../fns/memberships';
 import { startApiMiddleware } from '../middleware';
+import { serverFnInputValidator } from './validation';
+
+const companyIdInputSchema = z.object({
+  companyId: companyIdSchema,
+});
+
+const projectIdInputSchema = z.object({
+  projectId: projectIdSchema,
+});
+
+const upsertCompanyMembershipServerFnInputSchema = z
+  .object({
+    companyId: companyIdSchema,
+  })
+  .extend(upsertCompanyMembershipBodySchema.shape);
+
+const deleteCompanyMembershipServerFnInputSchema = z
+  .object({
+    companyId: companyIdSchema,
+  })
+  .extend(deleteCompanyMembershipQuerySchema.shape);
+
+const upsertProjectMembershipServerFnInputSchema = z
+  .object({
+    projectId: projectIdSchema,
+  })
+  .extend(upsertProjectMembershipBodySchema.shape);
+
+const deleteProjectMembershipServerFnInputSchema = z
+  .object({
+    projectId: projectIdSchema,
+  })
+  .extend(deleteProjectMembershipQuerySchema.shape);
 
 export const listCompanyMembershipsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-  }))
+  .inputValidator(serverFnInputValidator(companyIdInputSchema))
   .handler(async ({ context, data }) => {
     return listCompanyMembershipsServer({
       context: context.serverContext,
@@ -35,9 +74,7 @@ export const listAllCompanyMembershipsServerFn = createServerFn({
 
 export const listProjectMembershipsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { projectId: string }) => ({
-    projectId: asProjectId(input.projectId),
-  }))
+  .inputValidator(serverFnInputValidator(projectIdInputSchema))
   .handler(async ({ context, data }) => {
     return listProjectMembershipsServer({
       context: context.serverContext,
@@ -49,9 +86,7 @@ export const listMyProjectMembershipsServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-  }))
+  .inputValidator(serverFnInputValidator(companyIdInputSchema))
   .handler(async ({ context, data }) => {
     return listMyProjectMembershipsServer({
       context: context.serverContext,
@@ -64,15 +99,7 @@ export const upsertCompanyMembershipServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: {
-      companyId: string;
-      userId: string;
-      role: 'admin' | 'executive' | 'management' | 'member';
-    }) => ({
-      companyId: asCompanyId(input.companyId),
-      userId: asUserId(input.userId),
-      role: input.role,
-    })
+    serverFnInputValidator(upsertCompanyMembershipServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return upsertCompanyMembershipServer({
@@ -87,10 +114,9 @@ export const deleteCompanyMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator((input: { companyId: string; userId: string }) => ({
-    companyId: asCompanyId(input.companyId),
-    userId: asUserId(input.userId),
-  }))
+  .inputValidator(
+    serverFnInputValidator(deleteCompanyMembershipServerFnInputSchema)
+  )
   .handler(async ({ context, data }) => {
     return deleteCompanyMembershipServer({
       context: context.serverContext,
@@ -104,15 +130,7 @@ export const upsertProjectMembershipServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: {
-      projectId: string;
-      userId: string;
-      role: 'owner' | 'lead' | 'member' | 'viewer';
-    }) => ({
-      projectId: asProjectId(input.projectId),
-      userId: asUserId(input.userId),
-      role: input.role,
-    })
+    serverFnInputValidator(upsertProjectMembershipServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return upsertProjectMembershipServer({
@@ -128,15 +146,7 @@ export const deleteProjectMembershipServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    (input: {
-      projectId: string;
-      userId: string;
-      role: 'owner' | 'lead' | 'member' | 'viewer';
-    }) => ({
-      projectId: asProjectId(input.projectId),
-      userId: asUserId(input.userId),
-      role: input.role,
-    })
+    serverFnInputValidator(deleteProjectMembershipServerFnInputSchema)
   )
   .handler(async ({ context, data }) => {
     return deleteProjectMembershipServer({
