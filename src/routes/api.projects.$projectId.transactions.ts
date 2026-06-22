@@ -2,17 +2,18 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
   requireApiRouteContext,
 } from './-api-shared';
 import { asProjectId } from '../types';
+import { listTransactionsPageServer } from '../server/fns/transactions';
 import {
-  createTxnServer,
-  listTransactionsPageServer,
-  listTransactionsServer,
-  updateTxnServer,
-} from '../server/fns/transactions';
+  createTxnEndpoint,
+  listTransactionsEndpoint,
+  updateTxnEndpoint,
+} from '../server/app/transactionEndpoints';
 import {
   txnListPageQuerySchema,
   txnMutationBodySchema,
@@ -71,37 +72,42 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
         }
 
         return jsonApi(
-          await listTransactionsServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
+          await executeApiEndpoint({
+            endpoint: listTransactionsEndpoint,
+            context,
+            input: { projectId: params.projectId },
           })
         );
       },
       POST: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
         const body = validateOrThrow(
           txnMutationBodySchema,
           await readJsonBody(request)
         );
         return jsonApi(
-          await createTxnServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            input: body.txn,
+          await executeApiEndpoint({
+            endpoint: createTxnEndpoint,
+            context,
+            input: {
+              projectId: params.projectId,
+              payload: body.txn,
+            },
           })
         );
       },
       PATCH: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
         const body = validateOrThrow(
           txnUpdateMutationBodySchema,
           await readJsonBody(request)
         );
         return jsonApi(
-          await updateTxnServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            input: body.txn,
+          await executeApiEndpoint({
+            endpoint: updateTxnEndpoint,
+            context,
+            input: {
+              projectId: params.projectId,
+              payload: body.txn,
+            },
           })
         );
       },

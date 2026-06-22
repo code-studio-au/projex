@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import {
-  apiRouteMiddleware,
-  jsonApi,
-  requireApiRouteContext,
-} from './-api-shared';
-import { asProjectId } from '../types';
-import { listTransactionCommentSummariesServer } from '../server/fns/transactionComments';
+import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
+import { listTransactionCommentSummariesEndpoint } from '../server/app/transactionEndpoints';
 
 export const Route = createFileRoute(
   '/api/projects/$projectId/transactions/comment-summaries'
@@ -14,15 +9,14 @@ export const Route = createFileRoute(
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
-      GET: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        return jsonApi(
-          await listTransactionCommentSummariesServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
+      GET: async ({ context, params }) =>
+        jsonApi(
+          await executeApiEndpoint({
+            endpoint: listTransactionCommentSummariesEndpoint,
+            context,
+            input: { projectId: params.projectId },
           })
-        );
-      },
+        ),
     },
   },
 });

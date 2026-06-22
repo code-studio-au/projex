@@ -3,15 +3,15 @@ import { createFileRoute } from '@tanstack/react-router';
 import { AppError } from '../api/errors';
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
-import { asProjectId, asTxnId } from '../types';
 import {
-  createTransactionCommentServer,
-  listTransactionCommentsServer,
-} from '../server/fns/transactionComments';
+  createTransactionCommentEndpoint,
+  listTransactionCommentsEndpoint,
+} from '../server/app/transactionEndpoints';
+import { asTxnId } from '../types';
 import { txnCommentMutationBodySchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
@@ -21,18 +21,18 @@ export const Route = createFileRoute(
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
-      GET: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        return jsonApi(
-          await listTransactionCommentsServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            txnId: asTxnId(params.txnId),
+      GET: async ({ context, params }) =>
+        jsonApi(
+          await executeApiEndpoint({
+            endpoint: listTransactionCommentsEndpoint,
+            context,
+            input: {
+              projectId: params.projectId,
+              txnId: params.txnId,
+            },
           })
-        );
-      },
+        ),
       POST: async ({ context, request, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
         const body = validateOrThrow(
           txnCommentMutationBodySchema,
           await readJsonBody(request)
@@ -45,10 +45,13 @@ export const Route = createFileRoute(
           );
         }
         return jsonApi(
-          await createTransactionCommentServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            input: body.comment,
+          await executeApiEndpoint({
+            endpoint: createTransactionCommentEndpoint,
+            context,
+            input: {
+              projectId: params.projectId,
+              payload: body.comment,
+            },
           })
         );
       },

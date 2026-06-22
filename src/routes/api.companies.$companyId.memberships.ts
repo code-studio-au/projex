@@ -2,61 +2,50 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
 import {
-  deleteCompanyMembershipServer,
-  listCompanyMembershipsServer,
-  upsertCompanyMembershipServer,
-} from '../server/fns/memberships';
-import { asCompanyId, asUserId } from '../types';
-import {
-  deleteCompanyMembershipQuerySchema,
-  upsertCompanyMembershipBodySchema,
-} from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+  deleteCompanyMembershipEndpoint,
+  listCompanyMembershipsEndpoint,
+  upsertCompanyMembershipEndpoint,
+} from '../server/app/membershipEndpoints';
 
 export const Route = createFileRoute('/api/companies/$companyId/memberships')({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
-      GET: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        return jsonApi(
-          await listCompanyMembershipsServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
+      GET: async ({ context, params }) =>
+        jsonApi(
+          await executeApiEndpoint({
+            endpoint: listCompanyMembershipsEndpoint,
+            context,
+            input: { companyId: params.companyId },
           })
-        );
-      },
+        ),
       POST: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          upsertCompanyMembershipBodySchema,
-          await readJsonBody(request)
-        );
+        const body = (await readJsonBody(request)) as Record<string, unknown>;
         return jsonApi(
-          await upsertCompanyMembershipServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
-            userId: asUserId(body.userId),
-            role: body.role,
+          await executeApiEndpoint({
+            endpoint: upsertCompanyMembershipEndpoint,
+            context,
+            input: {
+              companyId: params.companyId,
+              ...body,
+            },
           })
         );
       },
       DELETE: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
         const url = new URL(request.url);
-        const query = validateOrThrow(
-          deleteCompanyMembershipQuerySchema,
-          Object.fromEntries(url.searchParams)
-        );
-        await deleteCompanyMembershipServer({
-          context: serverContext,
-          companyId: asCompanyId(params.companyId),
-          userId: query.userId,
+        await executeApiEndpoint({
+          endpoint: deleteCompanyMembershipEndpoint,
+          context,
+          input: {
+            companyId: params.companyId,
+            ...Object.fromEntries(url.searchParams),
+          },
         });
         return jsonApi({ ok: true as const });
       },

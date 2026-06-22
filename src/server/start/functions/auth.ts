@@ -1,42 +1,21 @@
 import { createServerFn } from '@tanstack/react-start';
 
-import { resolveCurrentSession } from '../../auth/currentSession';
 import {
-  getDefaultCompanyIdForUserServer,
-  listCompaniesServer,
-  listUsersServer,
-} from '../../fns/companies';
+  getPostLoginTargetEndpoint,
+  getSessionEndpoint,
+} from '../../app/authEndpoints';
 import { startApiMiddleware } from '../middleware';
+import { createServerFnEndpointHandler } from './shared';
+import { serverFnInputValidator } from './validation';
 
 export const getSessionServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .handler(async ({ context }) => {
-    return resolveCurrentSession(context.request);
-  });
+  .inputValidator(serverFnInputValidator(getSessionEndpoint.inputSchema))
+  .handler(createServerFnEndpointHandler(getSessionEndpoint));
 
 export const getPostLoginTargetServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .handler(async ({ context }) => {
-    const users = await listUsersServer({ context: context.serverContext });
-    const isSuperadmin =
-      users.find((user) => user.id === context.session?.userId)
-        ?.isGlobalSuperadmin === true;
-    if (isSuperadmin) return { to: '/companies' as const };
-
-    const companies = await listCompaniesServer({
-      context: context.serverContext,
-    });
-    if (companies.length > 1) return { to: '/companies' as const };
-
-    const companyId = await getDefaultCompanyIdForUserServer({
-      context: context.serverContext,
-    });
-    if (companyId) {
-      return {
-        to: '/c/$companyId' as const,
-        params: { companyId },
-      };
-    }
-
-    return { to: '/companies' as const };
-  });
+  .inputValidator(
+    serverFnInputValidator(getPostLoginTargetEndpoint.inputSchema)
+  )
+  .handler(createServerFnEndpointHandler(getPostLoginTargetEndpoint));

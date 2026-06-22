@@ -2,42 +2,36 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
 import {
-  createProjectServer,
-  listProjectsServer,
-} from '../server/fns/projects';
-import { asCompanyId } from '../types';
-import { createProjectInputSchema } from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+  createProjectEndpoint,
+  listProjectsEndpoint,
+} from '../server/app/companyEndpoints';
 
 export const Route = createFileRoute('/api/companies/$companyId/projects')({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
-      GET: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        return jsonApi(
-          await listProjectsServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
+      GET: async ({ context, params }) =>
+        jsonApi(
+          await executeApiEndpoint({
+            endpoint: listProjectsEndpoint,
+            context,
+            input: { companyId: params.companyId },
           })
-        );
-      },
+        ),
       POST: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          createProjectInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await createProjectServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
-            input: body,
+          await executeApiEndpoint({
+            endpoint: createProjectEndpoint,
+            context,
+            input: {
+              companyId: params.companyId,
+              payload: await readJsonBody(request),
+            },
           })
         );
       },

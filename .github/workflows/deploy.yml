@@ -79,32 +79,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check formatting
-        run: pnpm run format:check
+      - name: Run application verification gate
+        run: pnpm run verify:app
 
-      - name: Lint
-        run: pnpm run lint
+      - name: Run database verification gate
+        run: pnpm run verify:db:gate
 
-      - name: Typecheck
-        run: pnpm run typecheck
-
-      - name: Run tests
-        run: pnpm test
-
-      - name: Build production bundle
-        run: pnpm run build
-
-      - name: Apply migrations to deploy-gate database
-        run: pnpm run db:migrate
-
-      - name: Verify generated DB types
-        run: pnpm run db:verify-types
-
-      - name: Run disposable DB integration tests
-        run: pnpm run test:integration:db
-
-      - name: Run disposable smoke basics
-        run: pnpm run smoke:server:disposable -- --skip-build --section=basics
+      - name: Run smoke verification gate
+        run: pnpm run verify:smoke:basics:skip-build
 
       - name: Create deploy artifact
         id: package

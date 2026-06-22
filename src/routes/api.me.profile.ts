@@ -2,30 +2,22 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
-import { updateCurrentUserProfileServer } from '../server/fns/companies';
-import { profileUpdateBodySchema } from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+import { updateCurrentUserProfileEndpoint } from '../server/app/companyEndpoints';
 
 export const Route = createFileRoute('/api/me/profile')({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
       PATCH: async ({ request, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          profileUpdateBodySchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await updateCurrentUserProfileServer({
-            context: serverContext,
-            input: {
-              name: body.name,
-            },
+          await executeApiEndpoint({
+            endpoint: updateCurrentUserProfileEndpoint,
+            context,
+            input: await readJsonBody(request),
           })
         );
       },

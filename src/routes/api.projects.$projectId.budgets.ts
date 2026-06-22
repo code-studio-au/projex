@@ -2,60 +2,49 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
-import { asProjectId } from '../types';
 import {
-  createBudgetServer,
-  listBudgetsServer,
-  updateBudgetServer,
-} from '../server/fns/budgets';
-import {
-  createBudgetInputSchema,
-  updateBudgetInputSchema,
-} from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+  createBudgetEndpoint,
+  listBudgetsEndpoint,
+  updateBudgetEndpoint,
+} from '../server/app/budgetEndpoints';
 
 export const Route = createFileRoute('/api/projects/$projectId/budgets')({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
-      GET: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        return jsonApi(
-          await listBudgetsServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
+      GET: async ({ context, params }) =>
+        jsonApi(
+          await executeApiEndpoint({
+            endpoint: listBudgetsEndpoint,
+            context,
+            input: { projectId: params.projectId },
           })
-        );
-      },
+        ),
       POST: async ({ context, request, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          createBudgetInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await createBudgetServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            input: body,
+          await executeApiEndpoint({
+            endpoint: createBudgetEndpoint,
+            context,
+            input: {
+              projectId: params.projectId,
+              payload: await readJsonBody(request),
+            },
           })
         );
       },
       PATCH: async ({ context, request, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          updateBudgetInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await updateBudgetServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            input: body,
+          await executeApiEndpoint({
+            endpoint: updateBudgetEndpoint,
+            context,
+            input: {
+              projectId: params.projectId,
+              payload: await readJsonBody(request),
+            },
           })
         );
       },

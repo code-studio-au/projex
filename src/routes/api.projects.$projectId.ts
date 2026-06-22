@@ -2,61 +2,50 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
-import { asProjectId } from '../types';
 import {
-  deleteProjectServer,
-  getProjectServer,
-  updateProjectServer,
-} from '../server/fns/projects';
-import {
-  deleteProjectBodySchema,
-  updateProjectBodySchema,
-} from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+  deleteProjectEndpoint,
+  getProjectEndpoint,
+  updateProjectEndpoint,
+} from '../server/app/companyEndpoints';
 
 export const Route = createFileRoute('/api/projects/$projectId')({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
-      GET: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        return jsonApi(
-          await getProjectServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
+      GET: async ({ context, params }) =>
+        jsonApi(
+          await executeApiEndpoint({
+            endpoint: getProjectEndpoint,
+            context,
+            input: { projectId: params.projectId },
           })
-        );
-      },
+        ),
       PATCH: async ({ context, request, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          updateProjectBodySchema,
-          await readJsonBody(request)
-        );
+        const body = (await readJsonBody(request)) as Record<string, unknown>;
         return jsonApi(
-          await updateProjectServer({
-            context: serverContext,
+          await executeApiEndpoint({
+            endpoint: updateProjectEndpoint,
+            context,
             input: {
-              id: asProjectId(params.projectId),
+              id: params.projectId,
               ...body,
             },
           })
         );
       },
       DELETE: async ({ context, request, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          deleteProjectBodySchema,
-          await readJsonBody(request)
-        );
-        await deleteProjectServer({
-          context: serverContext,
-          projectId: asProjectId(params.projectId),
-          confirmation: body.confirmation,
+        const body = (await readJsonBody(request)) as Record<string, unknown>;
+        await executeApiEndpoint({
+          endpoint: deleteProjectEndpoint,
+          context,
+          input: {
+            projectId: params.projectId,
+            ...body,
+          },
         });
         return jsonApi({ ok: true as const });
       },

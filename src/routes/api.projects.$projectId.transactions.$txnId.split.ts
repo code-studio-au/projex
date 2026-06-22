@@ -3,12 +3,12 @@ import { createFileRoute } from '@tanstack/react-router';
 import { AppError } from '../api/errors';
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
-import { asProjectId, asTxnId } from '../types';
-import { splitTxnServer } from '../server/fns/transactions';
+import { asTxnId } from '../types';
+import { splitTxnEndpoint } from '../server/app/transactionEndpoints';
 import { splitTxnMutationBodySchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
@@ -19,7 +19,6 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       POST: async ({ context, request, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
         const body = validateOrThrow(
           splitTxnMutationBodySchema,
           await readJsonBody(request)
@@ -32,10 +31,13 @@ export const Route = createFileRoute(
           );
         }
         return jsonApi(
-          await splitTxnServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            input: body.split,
+          await executeApiEndpoint({
+            endpoint: splitTxnEndpoint,
+            context,
+            input: {
+              projectId: params.projectId,
+              payload: body.split,
+            },
           })
         );
       },

@@ -1,30 +1,29 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  getDefaultCompanyIdForUserServer,
-  listCompaniesServer,
-  listUsersServer,
-} from '../../fns/companies';
+  getDefaultCompanyIdForUserEndpoint,
+  listCompaniesEndpoint,
+  listUsersEndpoint,
+} from '../../app/companyEndpoints';
 import { startApiMiddleware } from '../middleware';
+import { createServerFnEndpointHandler } from './shared';
+import { serverFnInputValidator } from './validation';
 
 export const listUsersServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .handler(async ({ context }) => {
-    return listUsersServer({ context: context.serverContext });
-  });
+  .inputValidator(serverFnInputValidator(listUsersEndpoint.inputSchema))
+  .handler(createServerFnEndpointHandler(listUsersEndpoint));
 
 export const listCompaniesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .handler(async ({ context }) => {
-    return listCompaniesServer({ context: context.serverContext });
-  });
+  .inputValidator(serverFnInputValidator(listCompaniesEndpoint.inputSchema))
+  .handler(createServerFnEndpointHandler(listCompaniesEndpoint));
 
 export const getDefaultCompanyIdForUserServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .handler(async ({ context }) => {
-    return getDefaultCompanyIdForUserServer({
-      context: context.serverContext,
-    });
-  });
+  .inputValidator(
+    serverFnInputValidator(getDefaultCompanyIdForUserEndpoint.inputSchema)
+  )
+  .handler(createServerFnEndpointHandler(getDefaultCompanyIdForUserEndpoint));

@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import {
-  apiRouteMiddleware,
-  jsonApi,
-  requireApiRouteContext,
-} from './-api-shared';
-import { asCompanyId, asUserId } from '../types';
-import { sendCompanyUserInviteEmailServer } from '../server/fns/companies';
+import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
+import { sendCompanyUserInviteEmailEndpoint } from '../server/app/companyEndpoints';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/users/$userId/invite'
@@ -14,16 +9,17 @@ export const Route = createFileRoute(
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
-      POST: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        return jsonApi(
-          await sendCompanyUserInviteEmailServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
-            userId: asUserId(params.userId),
+      POST: async ({ context, params }) =>
+        jsonApi(
+          await executeApiEndpoint({
+            endpoint: sendCompanyUserInviteEmailEndpoint,
+            context,
+            input: {
+              companyId: params.companyId,
+              userId: params.userId,
+            },
           })
-        );
-      },
+        ),
     },
   },
 });

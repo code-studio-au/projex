@@ -1,5 +1,5 @@
-import type { StartApiMiddlewareContext } from '../middleware';
 import type { AppEndpoint } from '../../app/shared';
+import type { StartApiMiddlewareContext } from '../middleware';
 
 export function createServerFnEndpointHandler<TInput, TOutput>(
   endpoint: AppEndpoint<TInput, TOutput>

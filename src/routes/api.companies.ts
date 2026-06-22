@@ -2,35 +2,33 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
 import {
-  createCompanyServer,
-  listCompaniesServer,
-} from '../server/fns/companies';
-import { createCompanyInputSchema } from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+  createCompanyEndpoint,
+  listCompaniesEndpoint,
+} from '../server/app/companyEndpoints';
 
 export const Route = createFileRoute('/api/companies')({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
-      GET: async ({ context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        return jsonApi(await listCompaniesServer({ context: serverContext }));
-      },
+      GET: async ({ context }) =>
+        jsonApi(
+          await executeApiEndpoint({
+            endpoint: listCompaniesEndpoint,
+            context,
+            input: undefined,
+          })
+        ),
       POST: async ({ request, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          createCompanyInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await createCompanyServer({
-            context: serverContext,
-            input: body,
+          await executeApiEndpoint({
+            endpoint: createCompanyEndpoint,
+            context,
+            input: await readJsonBody(request),
           })
         );
       },
