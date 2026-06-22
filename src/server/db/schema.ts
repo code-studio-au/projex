@@ -43,6 +43,10 @@ import type {
   ProjectVisibility,
   TxnType,
 } from '../../types';
+import type {
+  NullableStringRecordJsonColumn,
+  StringRecordJsonColumn,
+} from './generated/custom-types';
 
 type Override<Base, Changes> = Omit<Base, keyof Changes> & Changes;
 
@@ -106,7 +110,7 @@ export type TxnTable = Override<
     amount_cents: number;
     txn_type: TxnType;
     import_source_type: 'powerbi_expenditure_actuals' | null;
-    import_source_meta: Record<string, string> | null;
+    import_source_meta: NullableStringRecordJsonColumn;
     coding_source: 'manual' | 'company_default_rule' | 'project_rule' | null;
     reviewed_at: string | null;
     locked_at: string | null;
@@ -245,7 +249,7 @@ export type ImportBatchTable = Override<
 export type ImportCandidateTable = Override<
   ImportCandidates,
   {
-    raw_row: Record<string, string>;
+    raw_row: StringRecordJsonColumn;
     status: ImportCandidateStatus;
     reviewed_at: string | null;
     created_at: Generated<string>;
