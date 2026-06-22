@@ -32,7 +32,29 @@ permissions:
 jobs:
   build-artifact:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: projex_deploy_gate
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d projex_deploy_gate"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/projex_deploy_gate
+      BETTER_AUTH_SECRET: projex-deploy-better-auth-secret-0123456789
+      BETTER_AUTH_URL: https://projex.test.invalid
+      BETTER_AUTH_TRUSTED_ORIGINS: https://projex.test.invalid
+      NODE_ENV: test
+      PROJEX_ENABLE_DEV_ENDPOINTS: 'false'
+      PROJEX_ENABLE_SMOKE_TOOLS: 'false'
     outputs:
       artifact-name: ${{ steps.package.outputs.artifact_name }}
       release-id: ${{ steps.package.outputs.release_id }}
@@ -57,11 +79,32 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Test
+      - name: Check formatting
+        run: pnpm run format:check
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Run tests
         run: pnpm test
 
-      - name: Build
+      - name: Build production bundle
         run: pnpm run build
+
+      - name: Apply migrations to deploy-gate database
+        run: pnpm run db:migrate
+
+      - name: Verify generated DB types
+        run: pnpm run db:verify-types
+
+      - name: Run disposable DB integration tests
+        run: pnpm run test:integration:db
+
+      - name: Run disposable smoke basics
+        run: pnpm run smoke:server:disposable -- --skip-build --section=basics
 
       - name: Create deploy artifact
         id: package
@@ -89,6 +132,16 @@ jobs:
     environment: ${{ inputs.environment_name }}
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
       - name: Download deploy artifact
         uses: actions/download-artifact@v8
         with:
@@ -159,3 +212,12 @@ jobs:
             KEEP_RELEASES='${KEEP_RELEASES}' \
             '${RELEASE_DIR}/scripts/deploy-artifact-ec2.sh'
           "
+
+      - name: Verify deployed public surface
+        env:
+          PROJEX_VERIFY_BASE_URL: ${{ secrets.EC2_PUBLIC_BASE_URL }}
+          PROJEX_VERIFY_AUTH_EMAIL: ${{ secrets.EC2_VERIFY_AUTH_EMAIL }}
+          PROJEX_VERIFY_AUTH_PASSWORD: ${{ secrets.EC2_VERIFY_AUTH_PASSWORD }}
+        run: |
+          test -n "$PROJEX_VERIFY_BASE_URL"
+          node scripts/verify-deploy-security.mjs

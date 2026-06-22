@@ -25,6 +25,7 @@ Before handing this repo to another developer or team, make sure:
 - the eventual pipeline shape is clear:
   - local/CI gate: `pnpm run verify:ci`
   - GitHub Actions CI: static checks, DB verification, and disposable smoke basics
+  - GitHub Actions deploy artifact build: reruns formatting, lint, typecheck, tests, build, DB verification, DB integration, and disposable smoke before packaging
   - deployed-environment checks: `pnpm run smoke:server` and `pnpm run verify:deploy-security`
 - normal code flow is branch -> PR -> green checks -> merge; protected `main` is not the routine delivery path
 - the first-admin bootstrap path is understood for fresh databases:
@@ -104,6 +105,16 @@ pnpm run verify:deploy-security
 ```
 
 When auth credentials are provided, the verifier also checks that sign-in sets `HttpOnly` cookies, requires `Secure` on HTTPS deployments, and that authenticated `/api/session` returns a `userId`.
+
+GitHub Actions deploys expect these additional environment secrets when `deploy_target=ec2` is used:
+
+- `EC2_PUBLIC_BASE_URL`
+  - The public HTTPS origin that users visit, for example `https://projectexpensetracker.com`
+  - Used by the post-deploy `verify-deploy-security` step from the runner
+- `EC2_VERIFY_AUTH_EMAIL`
+  - Optional smoke/test user email for authenticated cookie/session verification
+- `EC2_VERIFY_AUTH_PASSWORD`
+  - Optional password paired with `EC2_VERIFY_AUTH_EMAIL`
 
 For the most repeatable run, use generated smoke fixtures. This creates
 disposable `smoke_*` users/company/project data, creates temporary
