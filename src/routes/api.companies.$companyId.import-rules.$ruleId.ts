@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import {
-  apiRouteMiddleware,
-  jsonApi,
-  requireApiRouteContext,
-} from './-api-shared';
-import { asCompanyId, asImportRuleId } from '../types';
-import { deleteImportRuleServer } from '../server/fns/importRules';
+import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
+import { deleteImportRuleEndpoint } from '../server/app/importEndpoints';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/import-rules/$ruleId'
@@ -15,11 +10,10 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       DELETE: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        await deleteImportRuleServer({
-          context: serverContext,
-          companyId: asCompanyId(params.companyId),
-          ruleId: asImportRuleId(params.ruleId),
+        await executeApiEndpoint({
+          endpoint: deleteImportRuleEndpoint,
+          context,
+          input: params,
         });
         return jsonApi({ ok: true as const });
       },

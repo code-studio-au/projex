@@ -1,6 +1,7 @@
 import { createMiddleware } from '@tanstack/react-start';
 import { AppError } from '../api/errors';
 import type { ServerSession } from '../server/auth/session';
+import { parseAppEndpointInput, type AppEndpoint } from '../server/app/shared';
 import type { ServerFnContextInput } from '../server/fns/runtime';
 
 function appErrorStatus(code: AppError['code']): number {
@@ -123,6 +124,18 @@ export async function readJsonBody(request: Request): Promise<unknown> {
   } catch {
     throw new AppError('VALIDATION_ERROR', 'Request body must be valid JSON');
   }
+}
+
+export async function executeApiEndpoint<TInput, TOutput>(args: {
+  endpoint: AppEndpoint<TInput, TOutput>;
+  context: unknown;
+  input: unknown;
+}): Promise<TOutput> {
+  const { serverContext } = requireApiRouteContext(args.context);
+  return args.endpoint.execute({
+    context: serverContext,
+    input: parseAppEndpointInput(args.endpoint, args.input),
+  });
 }
 
 async function withApiCore(

@@ -2,21 +2,15 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
-import { asCompanyId } from '../types';
 import {
-  createCompanyDefaultMappingRuleServer,
-  listCompanyDefaultMappingRulesServer,
-  updateCompanyDefaultMappingRuleServer,
-} from '../server/fns/taxonomy';
-import {
-  createCompanyDefaultMappingRuleInputSchema,
-  updateCompanyDefaultMappingRuleInputSchema,
-} from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+  createCompanyDefaultMappingRuleEndpoint,
+  listCompanyDefaultMappingRulesEndpoint,
+  updateCompanyDefaultMappingRuleEndpoint,
+} from '../server/app/taxonomyEndpoints';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/default-mapping-rules'
@@ -25,39 +19,35 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       GET: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
         return jsonApi(
-          await listCompanyDefaultMappingRulesServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
+          await executeApiEndpoint({
+            endpoint: listCompanyDefaultMappingRulesEndpoint,
+            context,
+            input: params,
           })
         );
       },
       POST: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          createCompanyDefaultMappingRuleInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await createCompanyDefaultMappingRuleServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
-            input: body,
+          await executeApiEndpoint({
+            endpoint: createCompanyDefaultMappingRuleEndpoint,
+            context,
+            input: {
+              ...params,
+              payload: await readJsonBody(request),
+            },
           })
         );
       },
       PATCH: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          updateCompanyDefaultMappingRuleInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await updateCompanyDefaultMappingRuleServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
-            input: body,
+          await executeApiEndpoint({
+            endpoint: updateCompanyDefaultMappingRuleEndpoint,
+            context,
+            input: {
+              ...params,
+              payload: await readJsonBody(request),
+            },
           })
         );
       },

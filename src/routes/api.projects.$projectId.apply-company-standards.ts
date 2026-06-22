@@ -1,12 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import {
-  apiRouteMiddleware,
-  jsonApi,
-  requireApiRouteContext,
-} from './-api-shared';
-import { asProjectId } from '../types';
-import { applyCompanyStandardsServer } from '../server/fns/taxonomy';
+import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
+import { applyCompanyStandardsEndpoint } from '../server/app/taxonomyEndpoints';
 
 export const Route = createFileRoute(
   '/api/projects/$projectId/apply-company-standards'
@@ -15,11 +10,11 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       POST: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
         return jsonApi(
-          await applyCompanyStandardsServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
+          await executeApiEndpoint({
+            endpoint: applyCompanyStandardsEndpoint,
+            context,
+            input: params,
           })
         );
       },

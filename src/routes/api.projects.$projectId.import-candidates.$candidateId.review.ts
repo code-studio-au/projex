@@ -2,12 +2,11 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
-import { reviewImportCandidateServer } from '../server/fns/transactions';
-import { asImportCandidateId, asProjectId } from '../types';
+import { reviewImportCandidateEndpoint } from '../server/app/importEndpoints';
 import { importCandidateReviewMutationBodySchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
@@ -18,17 +17,21 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       POST: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
         const body = validateOrThrow(
           importCandidateReviewMutationBodySchema,
           await readJsonBody(request)
         );
         return jsonApi(
-          await reviewImportCandidateServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            candidateId: asImportCandidateId(params.candidateId),
-            decision: body.review.decision,
+          await executeApiEndpoint({
+            endpoint: reviewImportCandidateEndpoint,
+            context,
+            input: {
+              projectId: params.projectId,
+              payload: {
+                candidateId: params.candidateId,
+                decision: body.review.decision,
+              },
+            },
           })
         );
       },

@@ -1,14 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import {
-  apiRouteMiddleware,
-  jsonApi,
-  requireApiRouteContext,
-} from './-api-shared';
-import { asProjectId } from '../types';
-import { cancelImportPreviewServer } from '../server/fns/transactions';
-import { importBatchIdParamSchema } from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
+import { cancelImportPreviewEndpoint } from '../server/app/importEndpoints';
 
 export const Route = createFileRoute(
   '/api/projects/$projectId/import-batches/$batchId/cancel'
@@ -17,14 +10,13 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       POST: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        await cancelImportPreviewServer({
-          context: serverContext,
-          projectId: asProjectId(params.projectId),
-          importBatchId: validateOrThrow(
-            importBatchIdParamSchema,
-            params.batchId
-          ),
+        await executeApiEndpoint({
+          endpoint: cancelImportPreviewEndpoint,
+          context,
+          input: {
+            projectId: params.projectId,
+            importBatchId: params.batchId,
+          },
         });
         return jsonApi({ ok: true as const });
       },

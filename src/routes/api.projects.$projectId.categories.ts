@@ -2,60 +2,50 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
-import { asProjectId } from '../types';
 import {
-  createCategoryServer,
-  listCategoriesServer,
-  updateCategoryServer,
-} from '../server/fns/taxonomy';
-import {
-  createCategoryInputSchema,
-  updateCategoryInputSchema,
-} from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+  createCategoryEndpoint,
+  listCategoriesEndpoint,
+  updateCategoryEndpoint,
+} from '../server/app/taxonomyEndpoints';
 
 export const Route = createFileRoute('/api/projects/$projectId/categories')({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
       GET: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
         return jsonApi(
-          await listCategoriesServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
+          await executeApiEndpoint({
+            endpoint: listCategoriesEndpoint,
+            context,
+            input: params,
           })
         );
       },
       POST: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          createCategoryInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await createCategoryServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            input: body,
+          await executeApiEndpoint({
+            endpoint: createCategoryEndpoint,
+            context,
+            input: {
+              ...params,
+              payload: await readJsonBody(request),
+            },
           })
         );
       },
       PATCH: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          updateCategoryInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await updateCategoryServer({
-            context: serverContext,
-            projectId: asProjectId(params.projectId),
-            input: body,
+          await executeApiEndpoint({
+            endpoint: updateCategoryEndpoint,
+            context,
+            input: {
+              ...params,
+              payload: await readJsonBody(request),
+            },
           })
         );
       },

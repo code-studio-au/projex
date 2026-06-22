@@ -2,21 +2,15 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
+  executeApiEndpoint,
   jsonApi,
   readJsonBody,
-  requireApiRouteContext,
 } from './-api-shared';
-import { asCompanyId } from '../types';
 import {
-  createCompanyDefaultSubCategoryServer,
-  listCompanyDefaultSubCategoriesServer,
-  updateCompanyDefaultSubCategoryServer,
-} from '../server/fns/taxonomy';
-import {
-  createCompanyDefaultSubCategoryInputSchema,
-  updateCompanyDefaultSubCategoryInputSchema,
-} from '../validation/apiSchemas';
-import { validateOrThrow } from '../validation/validate';
+  createCompanyDefaultSubCategoryEndpoint,
+  listCompanyDefaultSubCategoriesEndpoint,
+  updateCompanyDefaultSubCategoryEndpoint,
+} from '../server/app/taxonomyEndpoints';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/default-sub-categories'
@@ -25,39 +19,35 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       GET: async ({ context, params }) => {
-        const { serverContext } = requireApiRouteContext(context);
         return jsonApi(
-          await listCompanyDefaultSubCategoriesServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
+          await executeApiEndpoint({
+            endpoint: listCompanyDefaultSubCategoriesEndpoint,
+            context,
+            input: params,
           })
         );
       },
       POST: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          createCompanyDefaultSubCategoryInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await createCompanyDefaultSubCategoryServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
-            input: body,
+          await executeApiEndpoint({
+            endpoint: createCompanyDefaultSubCategoryEndpoint,
+            context,
+            input: {
+              ...params,
+              payload: await readJsonBody(request),
+            },
           })
         );
       },
       PATCH: async ({ request, params, context }) => {
-        const { serverContext } = requireApiRouteContext(context);
-        const body = validateOrThrow(
-          updateCompanyDefaultSubCategoryInputSchema,
-          await readJsonBody(request)
-        );
         return jsonApi(
-          await updateCompanyDefaultSubCategoryServer({
-            context: serverContext,
-            companyId: asCompanyId(params.companyId),
-            input: body,
+          await executeApiEndpoint({
+            endpoint: updateCompanyDefaultSubCategoryEndpoint,
+            context,
+            input: {
+              ...params,
+              payload: await readJsonBody(request),
+            },
           })
         );
       },
