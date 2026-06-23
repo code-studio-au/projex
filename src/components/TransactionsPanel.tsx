@@ -1,13 +1,10 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
-  ActionIcon,
   Badge,
   Button,
   Group,
-  Menu,
   Modal,
-  NumberInput,
   Paper,
   Select,
   Stack,
@@ -17,16 +14,9 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import {
   MantineReactTable,
-  type MRT_ColumnDef,
   type MRT_PaginationState,
   type MRT_SortingState,
 } from 'mantine-react-table-open';
-import {
-  IconDotsVertical,
-  IconLock,
-  IconMessageCircle,
-  IconSettings,
-} from '@tabler/icons-react';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type {
@@ -39,17 +29,14 @@ import type {
   ProjectRuleSuggestionPrompt,
   TxnBulkActionResult,
 } from '../api/contract';
-import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
-import {
-  isBudgetImpactTxn,
-  isCategorisableTxn,
-  txnTypeLabel,
-} from '../utils/transactions';
+import { formatCurrencyFromCents } from '../utils/money';
+import { isCategorisableTxn } from '../utils/transactions';
 import TransactionSplitModal from './TransactionSplitModal';
 import TransactionTransferModal from './TransactionTransferModal';
 import TransactionCommentsModal from './TransactionCommentsModal';
 import TransactionBulkRecodeModal from './transactions/TransactionBulkRecodeModal';
-import TransactionCommentsCell from './transactions/TransactionCommentsCell';
+import TransactionBulkActionsBar from './transactions/TransactionBulkActionsBar';
+import { createTransactionColumns } from './transactions/transactionTableColumns';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import { asCategoryId, asSubCategoryId, asTxnId } from '../types/ids';
 import {
@@ -354,37 +341,6 @@ export default function TransactionsPanel(props: {
     [txns.transactions, taxonomy.validSubIds]
   );
 
-  function canSplitTransaction(txn: Txn): boolean {
-    return (
-      !readOnly &&
-      !txn.lockedAt &&
-      isBudgetImpactTxn(txn) &&
-      isCategorisableTxn(txn) &&
-      (txn.txnType === 'standard' || txn.txnType === 'transfer_child')
-    );
-  }
-
-  function canTransferTransaction(txn: Txn): boolean {
-    return (
-      !readOnly &&
-      transferOutEnabled &&
-      !txn.lockedAt &&
-      transferProjectOptions.length > 0 &&
-      isBudgetImpactTxn(txn) &&
-      isCategorisableTxn(txn) &&
-      (txn.txnType === 'standard' || txn.txnType === 'split_child')
-    );
-  }
-
-  function canEditTxnAmount(txn: Txn): boolean {
-    return (
-      !readOnly &&
-      txn.txnType !== 'split_parent' &&
-      txn.txnType !== 'transfer_source' &&
-      txn.txnType !== 'transfer_child'
-    );
-  }
-
   function applyProjectRulePrompt(prompt: ProjectRuleSuggestionPrompt | null) {
     if (!prompt) return;
     setProjectRuleError(null);
@@ -392,428 +348,27 @@ export default function TransactionsPanel(props: {
     setProjectRuleMatchText(prompt.suggestedMatchText);
   }
 
-  function moveToSubcategoryCell(args: {
-    row: Parameters<
-      NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>
-    >[0]['row'];
-    table: Parameters<
-      NonNullable<MRT_ColumnDef<(typeof txns.transactions)[number]>['Edit']>
-    >[0]['table'];
-  }) {
-    const nextCell = args.row
-      .getAllCells()
-      .find((cell) => cell.column.id === 'subCategory');
-    args.table.setEditingCell(nextCell ?? null);
-  }
-
   // Note: keep columns as a plain value (no manual memoization).
   // This avoids conflicts with the React Compiler's memoization preservation rule.
-  const txnColumns: MRT_ColumnDef<(typeof txns.transactions)[number]>[] = [
-    {
-      accessorKey: 'date',
-      header: 'Date',
-      size: 92,
-      mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-left txnTable-head',
-      },
-      mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      Cell: ({ cell }) => (
-        <Text className="table-body-left">{cell.getValue<string>()}</Text>
-      ),
-    },
-    {
-      id: 'transaction',
-      header: 'Transaction',
-      accessorFn: (row) => `${row.item} ${row.description}`.trim(),
-      size: 330,
-      mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-left txnTable-head',
-      },
-      mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      Cell: ({ row }) => {
-        const provenanceLabel =
-          row.original.txnType === 'standard'
-            ? null
-            : txnTypeLabel(row.original);
-        const description = row.original.description.trim();
-        const hasValidSubCategory =
-          !!row.original.subCategoryId &&
-          taxonomy.validSubIds.has(row.original.subCategoryId);
-        const showStateBadges =
-          !!provenanceLabel ||
-          !!row.original.lockedAt ||
-          !!row.original.reviewedAt ||
-          (!!row.original.codingPendingApproval && hasValidSubCategory);
-        return (
-          <Stack gap={2} style={{ minWidth: 0 }}>
-            <Text className="table-body-left-bold" lineClamp={1}>
-              {row.original.item}
-            </Text>
-            <Text c="dimmed" className="table-body-left" lineClamp={2}>
-              {description || 'No description provided'}
-            </Text>
-            {showStateBadges ? (
-              <Group gap={6} wrap="wrap">
-                {row.original.lockedAt ? (
-                  <Badge
-                    size="xs"
-                    color="gray"
-                    variant="light"
-                    leftSection={<IconLock size={11} />}
-                  >
-                    Locked
-                  </Badge>
-                ) : row.original.reviewedAt ? (
-                  <Badge size="xs" color="green" variant="light">
-                    Reviewed
-                  </Badge>
-                ) : null}
-                {provenanceLabel ? (
-                  <Badge size="xs" color="blue" variant="light">
-                    {provenanceLabel}
-                  </Badge>
-                ) : null}
-                {row.original.codingPendingApproval && hasValidSubCategory ? (
-                  <Badge size="xs" color="yellow" variant="light">
-                    Auto-mapped
-                  </Badge>
-                ) : null}
-              </Group>
-            ) : null}
-          </Stack>
-        );
-      },
-    },
-    {
-      id: 'comments',
-      header: 'Comments',
-      size: 292,
-      enableEditing: false,
-      enableSorting: false,
-      Cell: ({ row }) => {
-        const summary = commentSummaryByTxnId.get(row.original.id);
-        const isExpanded = expandedCommentsTxn?.id === row.original.id;
-
-        return (
-          <TransactionCommentsCell
-            summary={summary}
-            expanded={isExpanded}
-            comments={
-              isExpanded && expandedCommentsTxn?.id === row.original.id
-                ? (expandedCommentsQ.data ?? [])
-                : []
-            }
-            commentsLoading={
-              isExpanded && expandedCommentsTxn?.id === row.original.id
-                ? expandedCommentsQ.isLoading
-                : false
-            }
-            onOpenComments={() => setCommentsTxn(row.original)}
-            onToggleExpanded={() =>
-              setExpandedCommentsTxn(isExpanded ? null : row.original)
-            }
-          />
-        );
-      },
-      mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-left txnTable-head',
-      },
-      mantineTableBodyCellProps: { className: 'txnTable-cell' },
-    },
-    {
-      accessorKey: 'amountCents',
-      header: 'Amount',
-      size: 118,
-      enableEditing: (row) => canEditTxnAmount(row.original),
-      Edit: ({ row, table }) => (
-        <NumberInput
-          value={fromCents(row.original.amountCents)}
-          size="xs"
-          thousandSeparator=","
-          prefix="$"
-          decimalScale={2}
-          fixedDecimalScale
-          hideControls
-          styles={{ input: { textAlign: 'right' } }}
-          onChange={(value) => {
-            void txns
-              .updateTxn(row.original.id, {
-                amountCents: toCents(Number(value ?? 0)),
-              })
-              .then(() => table.setEditingCell(null));
-          }}
-        />
-      ),
-      Cell: ({ cell, row }) => {
-        const excluded = !isBudgetImpactTxn(row.original);
-        return (
-          <Stack gap={2} align="flex-end">
-            <Text className="table-body-emphasis">
-              {formatCurrencyFromCents(cell.getValue<number>(), currencyCode)}
-            </Text>
-            {excluded ? (
-              <Text size="xs" c="dimmed">
-                Excluded
-              </Text>
-            ) : null}
-          </Stack>
-        );
-      },
-      mantineTableBodyCellProps: {
-        className: 'table-body-right txnTable-cell',
-      },
-      mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-right txnTable-head',
-      },
-    },
-    {
-      id: 'category',
-      header: 'Category',
-      size: 156,
-      enableEditing: !readOnly,
-      enableSorting: false,
-      Edit: ({ row, table }) => {
-        const canCode =
-          !readOnly &&
-          !row.original.lockedAt &&
-          isCategorisableTxn(row.original);
-        const current = row.original.categoryId ?? null;
-        const shouldAutoAdvance =
-          !row.original.subCategoryId ||
-          !taxonomy.validSubIds.has(row.original.subCategoryId);
-        return (
-          <Select
-            data={taxonomy.categoryOptions}
-            value={current}
-            placeholder="Select category"
-            searchable
-            clearable
-            disabled={!canCode}
-            onChange={(v) => {
-              void txns
-                .updateTxn(row.original.id, {
-                  categoryId: v ? asCategoryId(v) : null,
-                  subCategoryId: null,
-                  companyDefaultMappingRuleId: null,
-                  codingSource: 'manual',
-                  codingPendingApproval: false,
-                })
-                .then(() => {
-                  if (!v || !shouldAutoAdvance) {
-                    table.setEditingCell(null);
-                    return;
-                  }
-                  moveToSubcategoryCell({ row, table });
-                });
-            }}
-          />
-        );
-      },
-      Cell: ({ row }) => {
-        if (!isCategorisableTxn(row.original)) {
-          return (
-            <Badge color="gray" variant="light">
-              Source only
-            </Badge>
-          );
-        }
-        const cat = taxonomy.getCategoryName(row.original.categoryId);
-        const isCategoryCoded = !!row.original.categoryId;
-        return (
-          <Group gap="xs" wrap="wrap">
-            <Text
-              className="table-body-left"
-              c={row.original.categoryId ? undefined : 'dimmed'}
-            >
-              {cat}
-            </Text>
-            {!isCategoryCoded && (
-              <Badge color="red" variant="light">
-                Uncoded
-              </Badge>
-            )}
-          </Group>
-        );
-      },
-      mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-left txnTable-head',
-      },
-      mantineTableBodyCellProps: { className: 'txnTable-cell' },
-    },
-    {
-      id: 'subCategory',
-      header: 'Subcategory',
-      size: 188,
-      enableEditing: !readOnly,
-      enableSorting: false,
-      Edit: ({ row, table }) => {
-        const canCode =
-          !readOnly &&
-          !row.original.lockedAt &&
-          isCategorisableTxn(row.original);
-        const catId = row.original.categoryId;
-        const options = catId
-          ? taxonomy.subCategoryOptionsForCategory(catId)
-          : [];
-        const current = row.original.subCategoryId ?? null;
-        return (
-          <Select
-            data={options}
-            value={current}
-            placeholder={catId ? 'Select subcategory' : 'Pick category first'}
-            searchable
-            clearable
-            disabled={!catId || !canCode}
-            onChange={(v) => {
-              setProjectRuleError(null);
-              void txns
-                .updateTxn(row.original.id, {
-                  categoryId: catId ?? null,
-                  subCategoryId: v ? asSubCategoryId(v) : null,
-                  companyDefaultMappingRuleId: null,
-                  codingSource: 'manual',
-                  codingPendingApproval: false,
-                })
-                .then((result) => {
-                  table.setEditingCell(null);
-                  applyProjectRulePrompt(result.projectRulePrompt);
-                })
-                .catch((error) => {
-                  setProjectRuleError(
-                    error instanceof Error
-                      ? error.message
-                      : 'Could not update transaction coding.'
-                  );
-                });
-            }}
-          />
-        );
-      },
-      Cell: ({ row }) => {
-        if (!isCategorisableTxn(row.original)) {
-          return (
-            <Badge color="gray" variant="light">
-              Source only
-            </Badge>
-          );
-        }
-        const sub = taxonomy.getSubCategoryName(row.original.subCategoryId);
-        const isFullyCoded =
-          !!row.original.subCategoryId &&
-          taxonomy.validSubIds.has(row.original.subCategoryId);
-        return (
-          <Group gap="xs" wrap="wrap">
-            <Text className="table-body-left">{sub}</Text>
-            {!isFullyCoded && (
-              <Badge color="red" variant="light">
-                Uncoded
-              </Badge>
-            )}
-          </Group>
-        );
-      },
-      mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-left txnTable-head',
-      },
-      mantineTableBodyCellProps: { className: 'txnTable-cell' },
-    },
-    {
-      id: 'actions',
-      header: '',
-      Header: () => <IconSettings size={16} aria-label="Actions" />,
-      size: 58,
-      enableEditing: false,
-      enableSorting: false,
-      Cell: ({ row }) => {
-        const canSplit = canSplitTransaction(row.original);
-        const canTransfer = canTransferTransaction(row.original);
-        const hasValidSubCategory =
-          !!row.original.subCategoryId &&
-          taxonomy.validSubIds.has(row.original.subCategoryId);
-        const canApproveAutoMapping =
-          !readOnly &&
-          !row.original.lockedAt &&
-          row.original.codingPendingApproval &&
-          hasValidSubCategory;
-        return (
-          <Menu withinPortal position="bottom-end" shadow="md">
-            <Menu.Target>
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                aria-label={`Actions for ${row.original.item}`}
-              >
-                <IconDotsVertical size={16} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item
-                leftSection={<IconMessageCircle size={14} />}
-                onClick={() => setCommentsTxn(row.original)}
-              >
-                Comments
-              </Menu.Item>
-              {!readOnly ? (
-                <>
-                  <Menu.Divider />
-                  <Menu.Item
-                    onClick={() =>
-                      void txns.updateWorkflowState(row.original.id, {
-                        reviewed: !row.original.reviewedAt,
-                      })
-                    }
-                  >
-                    {row.original.reviewedAt
-                      ? 'Mark unreviewed'
-                      : 'Mark reviewed'}
-                  </Menu.Item>
-                  {canApproveAutoMapping ? (
-                    <Menu.Item
-                      onClick={() => {
-                        void txns.updateTxn(row.original.id, {
-                          codingPendingApproval: false,
-                        });
-                      }}
-                    >
-                      Approve auto-mapping
-                    </Menu.Item>
-                  ) : null}
-                  <Menu.Item
-                    onClick={() =>
-                      void txns.updateWorkflowState(row.original.id, {
-                        locked: !row.original.lockedAt,
-                      })
-                    }
-                  >
-                    {row.original.lockedAt
-                      ? 'Unlock transaction'
-                      : 'Lock transaction'}
-                  </Menu.Item>
-                  <Menu.Divider />
-                </>
-              ) : null}
-              <Menu.Item
-                disabled={!canSplit}
-                onClick={() => setSplitTxn(row.original)}
-              >
-                Split transaction
-              </Menu.Item>
-              <Menu.Item
-                disabled={!canTransfer}
-                onClick={() => setTransferTxn(row.original)}
-              >
-                Move to project
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
-        );
-      },
-      mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-left txnTable-head',
-      },
-      mantineTableBodyCellProps: { className: 'txnTable-cell' },
-    },
-  ];
+  const txnColumns = createTransactionColumns({
+    txns,
+    taxonomy,
+    currencyCode,
+    readOnly,
+    commentSummaryByTxnId,
+    expandedCommentsTxn,
+    expandedComments: expandedCommentsQ.data ?? [],
+    expandedCommentsLoading: expandedCommentsQ.isLoading,
+    transferOutEnabled,
+    transferProjectOptions,
+    onApplyProjectRulePrompt: applyProjectRulePrompt,
+    onProjectRuleError: setProjectRuleError,
+    onOpenComments: setCommentsTxn,
+    onToggleExpandedComments: (txn) =>
+      setExpandedCommentsTxn((current) => (current?.id === txn.id ? null : txn)),
+    onOpenSplit: setSplitTxn,
+    onOpenTransfer: setTransferTxn,
+  });
 
   async function runBulkAction(args: {
     input:
@@ -1033,138 +588,77 @@ export default function TransactionsPanel(props: {
           )}
 
           {isHydrated && !readOnly && selectedTxnIds.length > 0 ? (
-            <Paper className={classes.surfaceMuted} radius="xl" p="md">
-              <Stack gap="sm">
-                <Group gap="sm" align="center" wrap="wrap">
-                  <Text size="sm" fw={600}>
-                    {formatTxnCountLabel(selectedTxnIds.length)} selected on
-                    this page
-                  </Text>
-                  <Button
-                    size="compact-sm"
-                    variant="subtle"
-                    onClick={() => setRowSelection({})}
-                  >
-                    Clear selection
-                  </Button>
-                </Group>
-                <Group gap="sm" wrap="wrap">
-                  <Button
-                    size="xs"
-                    variant="light"
-                    onClick={() => {
-                      void runBulkAction({
-                        input: {
-                          action: 'setReviewed',
-                          txnIds: selectedTxnIds,
-                          reviewed: true,
-                        },
-                        successLabel: 'Reviewed',
-                      });
-                    }}
-                  >
-                    Mark reviewed
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="gray"
-                    onClick={() => {
-                      void runBulkAction({
-                        input: {
-                          action: 'setReviewed',
-                          txnIds: selectedTxnIds,
-                          reviewed: false,
-                        },
-                        successLabel: 'Marked unreviewed for',
-                      });
-                    }}
-                  >
-                    Mark unreviewed
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="dark"
-                    onClick={() => {
-                      void runBulkAction({
-                        input: {
-                          action: 'setLocked',
-                          txnIds: selectedTxnIds,
-                          locked: true,
-                        },
-                        successLabel: 'Locked',
-                      });
-                    }}
-                  >
-                    Lock
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="gray"
-                    onClick={() => {
-                      void runBulkAction({
-                        input: {
-                          action: 'setLocked',
-                          txnIds: selectedTxnIds,
-                          locked: false,
-                        },
-                        successLabel: 'Unlocked',
-                      });
-                    }}
-                  >
-                    Unlock
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="teal"
-                    disabled={selectedAutoMappedPendingCount === 0}
-                    onClick={() => {
-                      void runBulkAction({
-                        input: {
-                          action: 'approveAutoMappings',
-                          txnIds: selectedTxnIds,
-                        },
-                        successLabel: 'Approved',
-                      });
-                    }}
-                  >
-                    Approve auto-mappings ({selectedAutoMappedPendingCount})
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    disabled={selectedUnlockedCategorisableCount === 0}
-                    onClick={() => {
-                      setBulkRecodeCategoryId(null);
-                      setBulkRecodeSubCategoryId(null);
-                      setBulkRecodeOpen(true);
-                    }}
-                  >
-                    Recode selected
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="red"
-                    disabled={selectedUnlockedCategorisableCount === 0}
-                    onClick={() => {
-                      void runBulkAction({
-                        input: {
-                          action: 'clearCoding',
-                          txnIds: selectedTxnIds,
-                        },
-                        successLabel: 'Cleared coding for',
-                      });
-                    }}
-                  >
-                    Clear coding
-                  </Button>
-                </Group>
-              </Stack>
-            </Paper>
+            <TransactionBulkActionsBar
+              selectedCountLabel={formatTxnCountLabel(selectedTxnIds.length)}
+              selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
+              selectedUnlockedCategorisableCount={
+                selectedUnlockedCategorisableCount
+              }
+              onClearSelection={() => setRowSelection({})}
+              onMarkReviewed={() => {
+                void runBulkAction({
+                  input: {
+                    action: 'setReviewed',
+                    txnIds: selectedTxnIds,
+                    reviewed: true,
+                  },
+                  successLabel: 'Reviewed',
+                });
+              }}
+              onMarkUnreviewed={() => {
+                void runBulkAction({
+                  input: {
+                    action: 'setReviewed',
+                    txnIds: selectedTxnIds,
+                    reviewed: false,
+                  },
+                  successLabel: 'Marked unreviewed for',
+                });
+              }}
+              onLock={() => {
+                void runBulkAction({
+                  input: {
+                    action: 'setLocked',
+                    txnIds: selectedTxnIds,
+                    locked: true,
+                  },
+                  successLabel: 'Locked',
+                });
+              }}
+              onUnlock={() => {
+                void runBulkAction({
+                  input: {
+                    action: 'setLocked',
+                    txnIds: selectedTxnIds,
+                    locked: false,
+                  },
+                  successLabel: 'Unlocked',
+                });
+              }}
+              onApproveAutoMappings={() => {
+                void runBulkAction({
+                  input: {
+                    action: 'approveAutoMappings',
+                    txnIds: selectedTxnIds,
+                  },
+                  successLabel: 'Approved',
+                });
+              }}
+              onOpenRecode={() => {
+                setBulkRecodeCategoryId(null);
+                setBulkRecodeSubCategoryId(null);
+                setBulkRecodeOpen(true);
+              }}
+              onClearCoding={() => {
+                void runBulkAction({
+                  input: {
+                    action: 'clearCoding',
+                    txnIds: selectedTxnIds,
+                  },
+                  successLabel: 'Cleared coding for',
+                });
+              }}
+            />
           ) : null}
 
           {drilldownLabel ? (
