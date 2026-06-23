@@ -4,7 +4,6 @@ import {
   ActionIcon,
   Badge,
   Button,
-  Collapse,
   Group,
   Menu,
   Modal,
@@ -34,7 +33,6 @@ import type {
   ProjectId,
   TransactionDrilldownFilter,
   Txn,
-  TxnComment,
   TxnId,
 } from '../types';
 import type {
@@ -43,10 +41,6 @@ import type {
 } from '../api/contract';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 import {
-  buildTxnCommentRepliesByParent,
-  formatTxnCommentDateTime,
-} from '../utils/transactionComments';
-import {
   isBudgetImpactTxn,
   isCategorisableTxn,
   txnTypeLabel,
@@ -54,6 +48,8 @@ import {
 import TransactionSplitModal from './TransactionSplitModal';
 import TransactionTransferModal from './TransactionTransferModal';
 import TransactionCommentsModal from './TransactionCommentsModal';
+import TransactionBulkRecodeModal from './transactions/TransactionBulkRecodeModal';
+import TransactionCommentsCell from './transactions/TransactionCommentsCell';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import { asCategoryId, asSubCategoryId, asTxnId } from '../types/ids';
 import {
@@ -83,20 +79,6 @@ function toQuarterOption(value: string | null): QuarterOption | null {
     return value;
   }
   return null;
-}
-
-function commentExcerpt(value: string | undefined): string {
-  const normalized = (value ?? '').replace(/\s+/g, ' ').trim();
-  if (!normalized) return 'No comment text';
-  return normalized.length > 96
-    ? `${normalized.slice(0, 96).trim()}...`
-    : normalized;
-}
-
-function commentInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  if (parts.length === 0) return '?';
-  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('');
 }
 
 function formatTxnCountLabel(count: number) {
@@ -424,95 +406,6 @@ export default function TransactionsPanel(props: {
     args.table.setEditingCell(nextCell ?? null);
   }
 
-  function renderCompactComment(
-    comment: TxnComment,
-    nested = false,
-    onActivate?: () => void
-  ) {
-    return (
-      <Paper
-        key={comment.id}
-        className={`${classes.commentCard}${comment.resolvedAt ? ` ${classes.commentCardResolved}` : ''}${nested ? ` ${classes.commentCardReply}` : ''}`}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onActivate?.();
-        }}
-        onDoubleClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onActivate?.();
-        }}
-      >
-        <Stack gap={4}>
-          <div className={classes.commentHeader}>
-            <div className={classes.commentAuthorBlock}>
-              <span className={classes.commentAvatar}>
-                {commentInitials(comment.createdByName)}
-              </span>
-              <div className={classes.commentMeta}>
-                <Group gap={6} wrap="wrap">
-                  <Text fw={650} size="xs">
-                    {comment.createdByName}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {formatTxnCommentDateTime(comment.createdAt)}
-                  </Text>
-                  {comment.resolvedAt ? (
-                    <Badge size="xs" color="green" variant="light">
-                      Resolved
-                    </Badge>
-                  ) : null}
-                </Group>
-              </div>
-            </div>
-          </div>
-          <Text size="xs" lineClamp={3} style={{ whiteSpace: 'pre-wrap' }}>
-            {comment.body}
-          </Text>
-        </Stack>
-      </Paper>
-    );
-  }
-
-  function renderExpandedCommentThread(txn: Txn) {
-    const isExpanded = expandedCommentsTxn?.id === txn.id;
-    if (!isExpanded) return null;
-
-    const comments = expandedCommentsQ.data ?? [];
-    const repliesByParent = buildTxnCommentRepliesByParent(comments);
-    const topLevelComments = comments.filter(
-      (comment) => !comment.parentCommentId
-    );
-
-    return (
-      <Collapse expanded={isExpanded}>
-        <Stack gap="xs" mt={4} className={classes.commentInlineThread}>
-          {expandedCommentsQ.isLoading ? (
-            <Text size="xs" c="dimmed">
-              Loading thread...
-            </Text>
-          ) : topLevelComments.length > 0 ? (
-            topLevelComments.map((comment) => (
-              <Stack key={comment.id} gap={4}>
-                {renderCompactComment(comment, false, () =>
-                  setCommentsTxn(txn)
-                )}
-                {(repliesByParent.get(comment.id) ?? []).map((reply) =>
-                  renderCompactComment(reply, true, () => setCommentsTxn(txn))
-                )}
-              </Stack>
-            ))
-          ) : (
-            <Text size="xs" c="dimmed">
-              No thread comments found.
-            </Text>
-          )}
-        </Stack>
-      </Collapse>
-    );
-  }
-
   // Note: keep columns as a plain value (no manual memoization).
   // This avoids conflicts with the React Compiler's memoization preservation rule.
   const txnColumns: MRT_ColumnDef<(typeof txns.transactions)[number]>[] = [
@@ -601,91 +494,25 @@ export default function TransactionsPanel(props: {
         const summary = commentSummaryByTxnId.get(row.original.id);
         const isExpanded = expandedCommentsTxn?.id === row.original.id;
 
-        if (!summary) {
-          return (
-            <Button
-              size="xs"
-              variant="subtle"
-              color="gray"
-              leftSection={<IconMessageCircle size={14} />}
-              onClick={() => setCommentsTxn(row.original)}
-            >
-              Add comment
-            </Button>
-          );
-        }
-
-        const threadResolved = summary.resolvedCount > 0;
-
         return (
-          <Stack gap={6} style={{ minWidth: 0 }}>
-            {isExpanded ? (
-              renderExpandedCommentThread(row.original)
-            ) : (
-              <Paper
-                className={classes.commentSummaryCard}
-                onClick={() => setCommentsTxn(row.original)}
-              >
-                <Stack gap={4} style={{ minWidth: 0 }}>
-                  <Group gap={5} wrap="wrap">
-                    {threadResolved ? (
-                      <Badge size="xs" variant="light" color="green">
-                        Resolved
-                      </Badge>
-                    ) : summary.unresolvedCount > 0 ? (
-                      <Badge size="xs" variant="light" color="yellow">
-                        Unresolved
-                      </Badge>
-                    ) : null}
-                    {!threadResolved &&
-                    summary.assignedToMeUnresolvedCount > 0 ? (
-                      <Badge size="xs" variant="light" color="orange">
-                        Assigned to me
-                      </Badge>
-                    ) : null}
-                  </Group>
-                  <Group gap={8} align="flex-start" wrap="nowrap">
-                    <span className={classes.commentAvatar}>
-                      {commentInitials(
-                        summary.latestCommentAuthorName ?? 'Someone'
-                      )}
-                    </span>
-                    <Stack gap={3} style={{ minWidth: 0, flex: 1 }}>
-                      <Text fw={650} size="xs">
-                        {summary.latestCommentAuthorName ?? 'Someone'}
-                      </Text>
-                      {summary.latestCommentCreatedAt ? (
-                        <Text size="xs" c="dimmed">
-                          {formatTxnCommentDateTime(
-                            summary.latestCommentCreatedAt
-                          )}
-                        </Text>
-                      ) : null}
-                      <Text
-                        size="xs"
-                        lineClamp={2}
-                        style={{ whiteSpace: 'pre-wrap' }}
-                      >
-                        {commentExcerpt(summary.latestCommentBody)}
-                      </Text>
-                    </Stack>
-                  </Group>
-                </Stack>
-              </Paper>
-            )}
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              color="gray"
-              onClick={() =>
-                setExpandedCommentsTxn(isExpanded ? null : row.original)
-              }
-            >
-              {isExpanded
-                ? 'Hide thread'
-                : `View thread (${summary.totalCount} comment${summary.totalCount === 1 ? '' : 's'})`}
-            </Button>
-          </Stack>
+          <TransactionCommentsCell
+            summary={summary}
+            expanded={isExpanded}
+            comments={
+              isExpanded && expandedCommentsTxn?.id === row.original.id
+                ? (expandedCommentsQ.data ?? [])
+                : []
+            }
+            commentsLoading={
+              isExpanded && expandedCommentsTxn?.id === row.original.id
+                ? expandedCommentsQ.isLoading
+                : false
+            }
+            onOpenComments={() => setCommentsTxn(row.original)}
+            onToggleExpanded={() =>
+              setExpandedCommentsTxn(isExpanded ? null : row.original)
+            }
+          />
         );
       },
       mantineTableHeadCellProps: {
@@ -1496,72 +1323,31 @@ export default function TransactionsPanel(props: {
         }}
       />
 
-      <Modal
+      <TransactionBulkRecodeModal
         opened={bulkRecodeOpen}
+        categoryId={bulkRecodeCategoryId}
+        subCategoryId={bulkRecodeSubCategoryId}
+        categoryOptions={taxonomy.categoryOptions}
+        subCategoryOptions={bulkRecodeSubCategoryOptions}
         onClose={() => setBulkRecodeOpen(false)}
-        title="Bulk recode selected transactions"
-        centered
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          <Text size="sm" c="dimmed">
-            Recode the selected unlocked, categorisable transactions to a single
-            category and subcategory. Locked or ineligible rows will be skipped
-            and reported in the result.
-          </Text>
-          <Select
-            label="Category"
-            data={taxonomy.categoryOptions}
-            value={bulkRecodeCategoryId}
-            placeholder="Select category"
-            searchable
-            clearable
-            onChange={(value) => {
-              setBulkRecodeCategoryId(value);
-              setBulkRecodeSubCategoryId(null);
-            }}
-          />
-          <Select
-            label="Subcategory"
-            data={bulkRecodeSubCategoryOptions}
-            value={bulkRecodeSubCategoryId}
-            placeholder={
-              bulkRecodeCategoryId
-                ? 'Select subcategory'
-                : 'Select a category first'
-            }
-            searchable
-            clearable
-            disabled={!bulkRecodeCategoryId}
-            onChange={setBulkRecodeSubCategoryId}
-          />
-          <Group justify="flex-end">
-            <Button variant="subtle" onClick={() => setBulkRecodeOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!bulkRecodeCategoryId || !bulkRecodeSubCategoryId}
-              onClick={async () => {
-                if (!bulkRecodeCategoryId || !bulkRecodeSubCategoryId) return;
-                const result = await runBulkAction({
-                  input: {
-                    action: 'recode',
-                    txnIds: selectedTxnIds,
-                    categoryId: asCategoryId(bulkRecodeCategoryId),
-                    subCategoryId: asSubCategoryId(bulkRecodeSubCategoryId),
-                  },
-                  successLabel: 'Recoded',
-                });
-                if (result) {
-                  setBulkRecodeOpen(false);
-                }
-              }}
-            >
-              Recode selected
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        onCategoryChange={setBulkRecodeCategoryId}
+        onSubCategoryChange={setBulkRecodeSubCategoryId}
+        onSubmit={async () => {
+          if (!bulkRecodeCategoryId || !bulkRecodeSubCategoryId) return;
+          const result = await runBulkAction({
+            input: {
+              action: 'recode',
+              txnIds: selectedTxnIds,
+              categoryId: asCategoryId(bulkRecodeCategoryId),
+              subCategoryId: asSubCategoryId(bulkRecodeSubCategoryId),
+            },
+            successLabel: 'Recoded',
+          });
+          if (result) {
+            setBulkRecodeOpen(false);
+          }
+        }}
+      />
 
       <Modal
         opened={Boolean(projectRulePrompt)}

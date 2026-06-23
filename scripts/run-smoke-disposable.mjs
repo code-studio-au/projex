@@ -10,8 +10,10 @@ import {
 
 const KEEP_DB = process.argv.includes('--keep-db');
 const SKIP_BUILD = process.argv.includes('--skip-build');
+const RUN_BROWSER = process.argv.includes('--browser');
 const FORWARDED_ARGS = process.argv.filter(
-  (arg) => arg !== '--keep-db' && arg !== '--skip-build'
+  (arg) =>
+    arg !== '--keep-db' && arg !== '--skip-build' && arg !== '--browser'
 );
 const DB_NAME = 'projex_smoke_test';
 const HOST = '127.0.0.1';
@@ -95,6 +97,19 @@ async function main() {
       ],
       { env: sharedEnv }
     );
+
+    if (RUN_BROWSER) {
+      runProjexCommand(
+        'node',
+        [
+          'scripts/smoke-browser.mjs',
+          '--use-generated-fixtures',
+          '--sweep-stale-fixtures',
+          ...FORWARDED_ARGS,
+        ],
+        { env: sharedEnv }
+      );
+    }
   } finally {
     await stopChildProcess(serverProcess);
 

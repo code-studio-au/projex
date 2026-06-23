@@ -6,30 +6,10 @@ import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { createApp, eventHandler, fromWebHandler } from 'h3-v2';
 import { toNodeHandler } from 'srvx/node';
+import { loadEnvFile } from './env-file.mjs';
 
 const CSP_NONCE_REQUEST_HEADER = 'x-projex-csp-nonce';
 const LOCAL_DEV_ORIGIN_PATTERN = /^https?:\/\/localhost:(4173|5173)(\/|$)/i;
-
-async function loadEnvFile(fileName) {
-  if (!existsSync(fileName)) return;
-  const content = await readFile(fileName, 'utf8');
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
-    if (!match) continue;
-    const [, key, rawValue] = match;
-    if (process.env[key] != null) continue;
-    let value = rawValue.trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
-  }
-}
 
 function run(cmd, args) {
   const result = spawnSync(cmd, args, { stdio: 'inherit' });
@@ -44,7 +24,7 @@ if (!existsSync('dist/server/server.js')) {
 }
 
 if (process.env.NODE_ENV !== 'production') {
-  await loadEnvFile('.env.local');
+  loadEnvFile('.env.local');
 }
 
 const host = process.env.HOST ?? '0.0.0.0';

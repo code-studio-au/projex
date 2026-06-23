@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   ActionIcon,
   Alert,
@@ -35,6 +35,11 @@ import {
   type Quarter,
 } from '../utils/finance';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
+import { useSessionQuery } from '../queries/session';
+import {
+  loadBudgetCollapseState,
+  saveBudgetCollapseState,
+} from '../store/uiPrefs';
 import { LoadingLine } from './LoadingValue';
 import classes from '../styles/ui.module.css';
 
@@ -118,20 +123,63 @@ export default function BudgetPanel(props: {
   } = props;
 
   const { updateAllocated } = budgets;
+  const session = useSessionQuery();
   const isHydrated = useSyncExternalStore(
     hydrateSubscription,
     getClientHydratedSnapshot,
     getServerHydratedSnapshot
-  );
-  const [collapsedYears, setCollapsedYears] = useState<Set<number>>(new Set());
-  const [collapsedQuarters, setCollapsedQuarters] = useState<Set<string>>(
-    new Set()
   );
   const [userColumnVisibility, setUserColumnVisibility] = useState<
     Record<string, boolean>
   >({});
   const [projectBudgetDraft, setProjectBudgetDraft] = useState<number | ''>('');
   const [isEditingProjectBudget, setIsEditingProjectBudget] = useState(false);
+  const [collapseStateVersion, setCollapseStateVersion] = useState(0);
+  const currentUserId = session.data?.userId ?? null;
+  const persistedCollapseState = useMemo(() => {
+    void collapseStateVersion;
+    if (!isHydrated) {
+      return { collapsedYears: {}, collapsedQuarters: {} };
+    }
+    return (
+      loadBudgetCollapseState(props.projectId, {
+        userId: currentUserId,
+      }) ?? { collapsedYears: {}, collapsedQuarters: {} }
+    );
+  }, [collapseStateVersion, currentUserId, isHydrated, props.projectId]);
+  const collapsedYears = useMemo(
+    () =>
+      new Set(
+        Object.keys(persistedCollapseState.collapsedYears)
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value))
+      ),
+    [persistedCollapseState.collapsedYears]
+  );
+  const collapsedQuarters = useMemo(
+    () => new Set(Object.keys(persistedCollapseState.collapsedQuarters)),
+    [persistedCollapseState.collapsedQuarters]
+  );
+
+  const updateCollapseState = useCallback(
+    function updateCollapseState(
+      updater: (current: {
+        collapsedYears: Record<string, true>;
+        collapsedQuarters: Record<string, true>;
+      }) => {
+        collapsedYears: Record<string, true>;
+        collapsedQuarters: Record<string, true>;
+      }
+    ) {
+      if (!isHydrated) return;
+      const nextState = updater(persistedCollapseState);
+      saveBudgetCollapseState(props.projectId, nextState, {
+        userId: currentUserId,
+      });
+      setCollapseStateVersion((current) => current + 1);
+    },
+    [currentUserId, isHydrated, persistedCollapseState, props.projectId]
+  );
 
   const projectAllocatedCents = rollups.totals.allocatedCents;
   const projectActualCents = rollups.totals.actualCents;
@@ -364,11 +412,15 @@ export default function BudgetPanel(props: {
               className: 'table-head-cell table-head-right budgetTable-head',
               title: 'Click to collapse or expand this year',
               onClick: () =>
-                setCollapsedYears((current) => {
-                  const next = new Set(current);
-                  if (next.has(year)) next.delete(year);
-                  else next.add(year);
-                  return next;
+                updateCollapseState((current) => {
+                  const nextYears = { ...current.collapsedYears };
+                  const yearKey = String(year);
+                  if (nextYears[yearKey]) delete nextYears[yearKey];
+                  else nextYears[yearKey] = true;
+                  return {
+                    collapsedYears: nextYears,
+                    collapsedQuarters: current.collapsedQuarters,
+                  };
                 }),
               style: { cursor: 'pointer' },
             },
@@ -406,12 +458,15 @@ export default function BudgetPanel(props: {
                       'table-head-cell table-head-right budgetTable-head',
                     title: 'Click to collapse or expand this quarter',
                     onClick: () =>
-                      setCollapsedQuarters((current) => {
-                        const next = new Set(current);
+                      updateCollapseState((current) => {
+                        const nextQuarters = { ...current.collapsedQuarters };
                         const key = `${year}_${quarter}`;
-                        if (next.has(key)) next.delete(key);
-                        else next.add(key);
-                        return next;
+                        if (nextQuarters[key]) delete nextQuarters[key];
+                        else nextQuarters[key] = true;
+                        return {
+                          collapsedYears: current.collapsedYears,
+                          collapsedQuarters: nextQuarters,
+                        };
                       }),
                     style: { cursor: 'pointer' },
                   },
@@ -451,7 +506,7 @@ export default function BudgetPanel(props: {
             }),
         ];
       });
-  }, [currencyCode, rollups.visibleMonthKeys]);
+  }, [currencyCode, rollups.visibleMonthKeys, updateCollapseState]);
 
   const budgetColumns = useMemo<MRT_ColumnDef<BudgetDisplayRow>[]>(() => {
     return [

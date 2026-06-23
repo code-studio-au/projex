@@ -79,6 +79,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Run application verification gate
         run: pnpm run verify:app
 
@@ -87,6 +90,9 @@ jobs:
 
       - name: Run smoke verification gate
         run: pnpm run verify:smoke:basics:skip-build
+
+      - name: Run browser smoke verification gate
+        run: pnpm run verify:smoke:browser:basics:skip-build
 
       - name: Create deploy artifact
         id: package

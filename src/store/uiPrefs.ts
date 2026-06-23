@@ -15,15 +15,19 @@ import { parseJsonWithSchema } from '../utils/json';
 
 const BUDGET_COLLAPSE_KEY_VERSION = 'projex_budget_collapse_v1';
 
-/**
- * Returns the storage key for budget collapse state.
- *
- * TODO(auth): Upgrade this key to include userId:
- *   `projex_budget_collapse_v2:${userId}:${projectId}`
- * so collapse preferences become per-user per-project.
- */
-function budgetCollapseKey(projectId: ProjectId) {
-  return `${BUDGET_COLLAPSE_KEY_VERSION}:${projectId}`;
+type BudgetCollapseStorageScope = {
+  userId?: string | null;
+};
+
+function budgetCollapseKey(
+  projectId: ProjectId,
+  scope?: BudgetCollapseStorageScope
+) {
+  const normalizedUserId = scope?.userId?.trim();
+  if (!normalizedUserId) {
+    return `${BUDGET_COLLAPSE_KEY_VERSION}:anonymous:${projectId}`;
+  }
+  return `${BUDGET_COLLAPSE_KEY_VERSION}:${normalizedUserId}:${projectId}`;
 }
 
 export type BudgetCollapseState = {
@@ -40,10 +44,11 @@ const budgetCollapseStateSchema = z.object({
 });
 
 export function loadBudgetCollapseState(
-  projectId: ProjectId
+  projectId: ProjectId,
+  scope?: BudgetCollapseStorageScope
 ): BudgetCollapseState | null {
   try {
-    const raw = localStorage.getItem(budgetCollapseKey(projectId));
+    const raw = localStorage.getItem(budgetCollapseKey(projectId, scope));
     if (!raw) return null;
     const parsed = parseJsonWithSchema(raw, budgetCollapseStateSchema);
     if (!parsed.success) return null;
@@ -55,18 +60,25 @@ export function loadBudgetCollapseState(
 
 export function saveBudgetCollapseState(
   projectId: ProjectId,
-  state: BudgetCollapseState
+  state: BudgetCollapseState,
+  scope?: BudgetCollapseStorageScope
 ) {
   try {
-    localStorage.setItem(budgetCollapseKey(projectId), JSON.stringify(state));
+    localStorage.setItem(
+      budgetCollapseKey(projectId, scope),
+      JSON.stringify(state)
+    );
   } catch {
     // ignore (storage blocked/quota/etc.)
   }
 }
 
-export function clearBudgetCollapseState(projectId: ProjectId) {
+export function clearBudgetCollapseState(
+  projectId: ProjectId,
+  scope?: BudgetCollapseStorageScope
+) {
   try {
-    localStorage.removeItem(budgetCollapseKey(projectId));
+    localStorage.removeItem(budgetCollapseKey(projectId, scope));
   } catch {
     // ignore
   }
