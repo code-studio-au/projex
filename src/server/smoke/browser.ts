@@ -44,7 +44,9 @@ function verifyCsp(html: string, csp: string | undefined) {
     'Login page CSP is missing a nonce-based script-src directive'
   );
 
-  const metaNonce = /<meta property="csp-nonce" content="([^"]+)"/i.exec(html)?.[1];
+  const metaNonce = /<meta property="csp-nonce" content="([^"]+)"/i.exec(
+    html
+  )?.[1];
   assert(metaNonce, 'Login page is missing the csp-nonce meta tag');
   assert(
     csp.includes(`nonce-${metaNonce}`),
@@ -95,7 +97,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      message.includes('Executable doesn\'t exist')
+      message.includes("Executable doesn't exist")
         ? 'Playwright Chromium is not installed. Run `pnpm exec playwright install chromium` first.'
         : message
     );
@@ -159,7 +161,10 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     );
 
     await emit(options, 'Opening the generated project workspace');
-    await page.locator(`a[href="/c/${companyId}/p/${projectId}"]`).first().click();
+    await page
+      .locator(`a[href="/c/${companyId}/p/${projectId}"]`)
+      .first()
+      .click();
     await waitForLocation(
       page,
       ({ pathname }) => pathname === `/c/${companyId}/p/${projectId}`,

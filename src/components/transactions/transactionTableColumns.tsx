@@ -40,7 +40,9 @@ type CreateTransactionColumnsArgs = {
   expandedCommentsLoading: boolean;
   transferOutEnabled: boolean;
   transferProjectOptions: Array<{ value: string; label: string }>;
-  onApplyProjectRulePrompt: (prompt: ProjectRuleSuggestionPrompt | null) => void;
+  onApplyProjectRulePrompt: (
+    prompt: ProjectRuleSuggestionPrompt | null
+  ) => void;
   onProjectRuleError: (message: string | null) => void;
   onOpenComments: (txn: Txn) => void;
   onToggleExpandedComments: (txn: Txn) => void;
@@ -237,7 +239,10 @@ export function createTransactionColumns(
         return (
           <Stack gap={2} align="flex-end">
             <Text className="table-body-emphasis">
-              {formatCurrencyFromCents(cell.getValue<number>(), args.currencyCode)}
+              {formatCurrencyFromCents(
+                cell.getValue<number>(),
+                args.currencyCode
+              )}
             </Text>
             {excluded ? (
               <Text size="xs" c="dimmed">
@@ -305,7 +310,9 @@ export function createTransactionColumns(
             </Badge>
           );
         }
-        const categoryName = args.taxonomy.getCategoryName(row.original.categoryId);
+        const categoryName = args.taxonomy.getCategoryName(
+          row.original.categoryId
+        );
         const isCategoryCoded = !!row.original.categoryId;
         return (
           <Group gap="xs" wrap="wrap">

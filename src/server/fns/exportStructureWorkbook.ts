@@ -107,7 +107,8 @@ export function addStructureWorksheets(args: {
     args.operationalProjects
       .filter(
         (row) =>
-          !!row.parent_project_id && args.projectIdSet.has(row.parent_project_id)
+          !!row.parent_project_id &&
+          args.projectIdSet.has(row.parent_project_id)
       )
       .map((row) => ({
         programmeId: row.parent_project_id ?? '',

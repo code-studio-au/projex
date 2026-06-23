@@ -25,16 +25,17 @@ export default defineConfig([
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/server/**'],
-    extends: [
-      reactHooks.configs.flat.recommended,
-      reactRefresh.configs.vite,
-    ],
+    extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: {
       globals: globals.browser,
     },
   },
   {
-    files: ['src/server/**/*.{ts,tsx}', 'scripts/**/*.{ts,mjs}', 'tests/**/*.ts'],
+    files: [
+      'src/server/**/*.{ts,tsx}',
+      'scripts/**/*.{ts,mjs}',
+      'tests/**/*.ts',
+    ],
     languageOptions: {
       globals: {
         ...globals.node,

@@ -1,8 +1,11 @@
 import { readFile } from 'node:fs/promises';
 
+const optionalDeploymentEnvPaths = ['.env.production', '.env.staging'];
+
 const checks = [
   {
     path: '.env.production',
+    optional: true,
     requiredIncludes: [
       'PROJEX_ENABLE_DEV_ENDPOINTS=false',
       'PROJEX_ENABLE_SMOKE_TOOLS=false',
@@ -17,6 +20,7 @@ const checks = [
   },
   {
     path: '.env.staging',
+    optional: true,
     requiredIncludes: [
       'PROJEX_ENABLE_DEV_ENDPOINTS=false',
       'PROJEX_ENABLE_SMOKE_TOOLS=false',
@@ -48,7 +52,23 @@ function assertCondition(condition, message) {
 }
 
 async function verifyFile(check) {
-  const content = await readFile(check.path, 'utf8');
+  let content;
+  try {
+    content = await readFile(check.path, 'utf8');
+  } catch (error) {
+    if (
+      check.optional &&
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    ) {
+      return {
+        skipped: true,
+        reason: `${check.path} not present in this checkout`,
+      };
+    }
+    throw error;
+  }
 
   for (const required of check.requiredIncludes) {
     assertCondition(
@@ -63,11 +83,32 @@ async function verifyFile(check) {
       `${check.path} contains a value that should not be committed: ${pattern}`
     );
   }
+
+  return { skipped: false };
+}
+
+async function verifyGitignoreCoverage() {
+  const gitignore = await readFile('.gitignore', 'utf8');
+  for (const envPath of optionalDeploymentEnvPaths) {
+    assertCondition(
+      gitignore.split(/\r?\n/).includes(envPath),
+      `.gitignore must ignore ${envPath}`
+    );
+  }
 }
 
 async function main() {
+  await verifyGitignoreCoverage();
+
+  const skipped = [];
   for (const check of checks) {
-    await verifyFile(check);
+    const result = await verifyFile(check);
+    if (result?.skipped) skipped.push(result.reason);
+  }
+  if (skipped.length > 0) {
+    for (const reason of skipped) {
+      console.log(`Skipping optional env file check: ${reason}`);
+    }
   }
   console.log('Repo security config checks passed.');
 }

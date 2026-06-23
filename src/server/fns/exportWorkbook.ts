@@ -867,7 +867,10 @@ export function addExecutiveSummaryWorksheet(args: {
     ['Operational projects in scope', args.operationalProjectCount],
     ['Budget rows', args.budgetCount],
     ['Transaction rows', args.transactionCount],
-    ['Total planned budget (major units)', centsToMajorUnits(args.totalBudgetCents)],
+    [
+      'Total planned budget (major units)',
+      centsToMajorUnits(args.totalBudgetCents),
+    ],
     [
       'Total transaction amount (major units)',
       centsToMajorUnits(args.totalTxnCents),

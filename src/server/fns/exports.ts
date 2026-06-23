@@ -690,7 +690,9 @@ export async function exportCompanyWorkbookForUser(args: {
       transactionColumns,
       budgetRows: budgetLines.map((row) => {
         const project = projectById.get(row.project_id);
-        const category = row.category_id ? categoryById.get(row.category_id) : null;
+        const category = row.category_id
+          ? categoryById.get(row.category_id)
+          : null;
         const subCategory = row.sub_category_id
           ? subCategoryById.get(row.sub_category_id)
           : null;

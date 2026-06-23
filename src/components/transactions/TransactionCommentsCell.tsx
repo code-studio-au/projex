@@ -1,4 +1,12 @@
-import { Badge, Button, Collapse, Group, Paper, Stack, Text } from '@mantine/core';
+import {
+  Badge,
+  Button,
+  Collapse,
+  Group,
+  Paper,
+  Stack,
+  Text,
+} from '@mantine/core';
 
 import type { TxnComment, TxnCommentSummary } from '../../types';
 import {
@@ -92,12 +100,7 @@ export default function TransactionCommentsCell(props: {
 
   if (!summary) {
     return (
-      <Button
-        size="xs"
-        variant="subtle"
-        color="gray"
-        onClick={onOpenComments}
-      >
+      <Button size="xs" variant="subtle" color="gray" onClick={onOpenComments}>
         Add comment
       </Button>
     );
@@ -105,7 +108,9 @@ export default function TransactionCommentsCell(props: {
 
   const threadResolved = summary.resolvedCount > 0;
   const repliesByParent = buildTxnCommentRepliesByParent(comments);
-  const topLevelComments = comments.filter((comment) => !comment.parentCommentId);
+  const topLevelComments = comments.filter(
+    (comment) => !comment.parentCommentId
+  );
 
   return (
     <Stack gap={6} style={{ minWidth: 0 }}>
@@ -141,10 +146,7 @@ export default function TransactionCommentsCell(props: {
           </Stack>
         </Collapse>
       ) : (
-        <Paper
-          className={classes.commentSummaryCard}
-          onClick={onOpenComments}
-        >
+        <Paper className={classes.commentSummaryCard} onClick={onOpenComments}>
           <Stack gap={4} style={{ minWidth: 0 }}>
             <Group gap={5} wrap="wrap">
               {threadResolved ? (

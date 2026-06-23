@@ -365,7 +365,9 @@ export default function TransactionsPanel(props: {
     onProjectRuleError: setProjectRuleError,
     onOpenComments: setCommentsTxn,
     onToggleExpandedComments: (txn) =>
-      setExpandedCommentsTxn((current) => (current?.id === txn.id ? null : txn)),
+      setExpandedCommentsTxn((current) =>
+        current?.id === txn.id ? null : txn
+      ),
     onOpenSplit: setSplitTxn,
     onOpenTransfer: setTransferTxn,
   });

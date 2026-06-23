@@ -42,7 +42,12 @@ export default function TransactionBulkActionsBar(props: {
           <Button size="xs" variant="light" onClick={onMarkReviewed}>
             Mark reviewed
           </Button>
-          <Button size="xs" variant="light" color="gray" onClick={onMarkUnreviewed}>
+          <Button
+            size="xs"
+            variant="light"
+            color="gray"
+            onClick={onMarkUnreviewed}
+          >
             Mark unreviewed
           </Button>
           <Button size="xs" variant="light" color="dark" onClick={onLock}>
