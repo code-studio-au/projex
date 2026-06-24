@@ -115,7 +115,9 @@ export async function assembleCompanyWorkbook(
 
   const generatedAt = new Date().toISOString();
   const projectIdSet = new Set(args.projectRows.map((row) => row.id));
-  const projectNameById = new Map(args.projectRows.map((row) => [row.id, row.name]));
+  const projectNameById = new Map(
+    args.projectRows.map((row) => [row.id, row.name])
+  );
   const programmes = args.projectRows.filter(
     (row) => row.project_type === 'programme'
   );
@@ -186,7 +188,9 @@ export async function assembleCompanyWorkbook(
     budgetCount: args.budgetLines.length,
   });
 
-  const uncodedTxnCount = args.txns.filter((row) => !row.sub_category_id).length;
+  const uncodedTxnCount = args.txns.filter(
+    (row) => !row.sub_category_id
+  ).length;
   const lockedTxnCount = args.txns.filter((row) => !!row.locked_at).length;
   const reviewedTxnCount = args.txns.filter((row) => !!row.reviewed_at).length;
   const autoMappedPendingTxnCount = args.txns.filter(
@@ -349,7 +353,8 @@ export async function assembleCompanyWorkbook(
           subCategoryId: row.id,
           categoryId: row.company_default_category_id,
           categoryName:
-            defaultCategoryById.get(row.company_default_category_id)?.name ?? '',
+            defaultCategoryById.get(row.company_default_category_id)?.name ??
+            '',
           name: row.name,
           createdAt: row.created_at,
           updatedAt: row.updated_at,

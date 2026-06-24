@@ -1,15 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { apiRouteMiddleware, jsonApi } from './-api-shared';
-import { resolveCurrentSession } from '../server/auth/currentSession';
-import { getBetterAuthInstance } from '../server/auth/betterAuthInstance';
-import { clearDevSessionSetCookie } from '../server/dev/devSession';
+import {
+  apiRouteMiddleware,
+  jsonApi,
+  loadRouteServerExport,
+} from './-api-shared';
 
 export const Route = createFileRoute('/api/session')({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
       GET: async ({ request }) => {
+        const resolveCurrentSession = await loadRouteServerExport<
+          (request: Request) => Promise<unknown>
+        >('../server/auth/currentSession', 'resolveCurrentSession');
         const session = await resolveCurrentSession(request);
         return jsonApi(session, {
           status: 200,
@@ -19,6 +23,19 @@ export const Route = createFileRoute('/api/session')({
         });
       },
       DELETE: async ({ request }) => {
+        const getBetterAuthInstance = await loadRouteServerExport<
+          () => {
+            api: {
+              signOut(args: {
+                headers: Headers;
+                asResponse: true;
+              }): Promise<Response>;
+            };
+          }
+        >('../server/auth/betterAuthInstance', 'getBetterAuthInstance');
+        const clearDevSessionSetCookie = await loadRouteServerExport<
+          () => string
+        >('../server/dev/devSession', 'clearDevSessionSetCookie');
         const auth = getBetterAuthInstance();
         const signOutResponse = await auth.api.signOut({
           headers: request.headers,

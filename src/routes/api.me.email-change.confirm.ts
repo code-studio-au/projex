@@ -3,10 +3,10 @@ import { createFileRoute } from '@tanstack/react-router';
 import {
   apiRouteMiddleware,
   jsonApi,
+  loadRouteServerExport,
   readJsonBody,
   requireApiRouteContext,
 } from './-api-shared';
-import { confirmEmailChangeServer } from '../server/fns/account';
 import { emailChangeConfirmBodySchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
@@ -20,6 +20,12 @@ export const Route = createFileRoute('/api/me/email-change/confirm')({
           emailChangeConfirmBodySchema,
           await readJsonBody(request)
         );
+        const confirmEmailChangeServer = await loadRouteServerExport<
+          (args: {
+            context: typeof serverContext;
+            token: string;
+          }) => Promise<unknown>
+        >('../server/fns/account', 'confirmEmailChangeServer');
         return jsonApi(
           await confirmEmailChangeServer({
             context: serverContext,

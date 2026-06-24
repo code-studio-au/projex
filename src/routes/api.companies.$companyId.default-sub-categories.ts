@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  createCompanyDefaultSubCategoryEndpoint,
-  listCompanyDefaultSubCategoriesEndpoint,
-  updateCompanyDefaultSubCategoryEndpoint,
-} from '../server/app/taxonomyEndpoints';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/default-sub-categories'
@@ -20,8 +15,9 @@ export const Route = createFileRoute(
     handlers: {
       GET: async ({ context, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: listCompanyDefaultSubCategoriesEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'listCompanyDefaultSubCategoriesEndpoint',
             context,
             input: params,
           })
@@ -29,8 +25,9 @@ export const Route = createFileRoute(
       },
       POST: async ({ request, params, context }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: createCompanyDefaultSubCategoryEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'createCompanyDefaultSubCategoryEndpoint',
             context,
             input: {
               ...params,
@@ -41,8 +38,9 @@ export const Route = createFileRoute(
       },
       PATCH: async ({ request, params, context }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateCompanyDefaultSubCategoryEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'updateCompanyDefaultSubCategoryEndpoint',
             context,
             input: {
               ...params,

@@ -2,11 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import { createUserInCompanyEndpoint } from '../server/app/companyEndpoints';
 
 export const Route = createFileRoute('/api/companies/$companyId/users')({
   server: {
@@ -14,8 +13,9 @@ export const Route = createFileRoute('/api/companies/$companyId/users')({
     handlers: {
       POST: async ({ context, request, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: createUserInCompanyEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/companyEndpoints',
+            exportName: 'createUserInCompanyEndpoint',
             context,
             input: {
               companyId: params.companyId,

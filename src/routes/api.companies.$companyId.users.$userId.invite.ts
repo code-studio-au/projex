@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
-import { sendCompanyUserInviteEmailEndpoint } from '../server/app/companyEndpoints';
+import {
+  apiRouteMiddleware,
+  executeLazyApiEndpoint,
+  jsonApi,
+} from './-api-shared';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/users/$userId/invite'
@@ -11,8 +14,9 @@ export const Route = createFileRoute(
     handlers: {
       POST: async ({ context, params }) =>
         jsonApi(
-          await executeApiEndpoint({
-            endpoint: sendCompanyUserInviteEmailEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/companyEndpoints',
+            exportName: 'sendCompanyUserInviteEmailEndpoint',
             context,
             input: {
               companyId: params.companyId,

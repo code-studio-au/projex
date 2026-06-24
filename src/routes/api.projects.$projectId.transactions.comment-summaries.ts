@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
-import { listTransactionCommentSummariesEndpoint } from '../server/app/transactionEndpoints';
+import {
+  apiRouteMiddleware,
+  executeLazyApiEndpoint,
+  jsonApi,
+} from './-api-shared';
 
 export const Route = createFileRoute(
   '/api/projects/$projectId/transactions/comment-summaries'
@@ -11,8 +14,9 @@ export const Route = createFileRoute(
     handlers: {
       GET: async ({ context, params }) =>
         jsonApi(
-          await executeApiEndpoint({
-            endpoint: listTransactionCommentSummariesEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/transactionEndpoints',
+            exportName: 'listTransactionCommentSummariesEndpoint',
             context,
             input: { projectId: params.projectId },
           })

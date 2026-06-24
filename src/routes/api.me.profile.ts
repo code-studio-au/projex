@@ -2,11 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import { updateCurrentUserProfileEndpoint } from '../server/app/companyEndpoints';
 
 export const Route = createFileRoute('/api/me/profile')({
   server: {
@@ -14,8 +13,9 @@ export const Route = createFileRoute('/api/me/profile')({
     handlers: {
       PATCH: async ({ request, context }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateCurrentUserProfileEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/companyEndpoints',
+            exportName: 'updateCurrentUserProfileEndpoint',
             context,
             input: await readJsonBody(request),
           })

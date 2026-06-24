@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  deleteCompanyEndpoint,
-  getCompanyEndpoint,
-  updateCompanyEndpoint,
-} from '../server/app/companyEndpoints';
 
 export const Route = createFileRoute('/api/companies/$companyId')({
   server: {
@@ -18,8 +13,9 @@ export const Route = createFileRoute('/api/companies/$companyId')({
     handlers: {
       GET: async ({ context, params }) =>
         jsonApi(
-          await executeApiEndpoint({
-            endpoint: getCompanyEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/companyEndpoints',
+            exportName: 'getCompanyEndpoint',
             context,
             input: { companyId: params.companyId },
           })
@@ -27,8 +23,9 @@ export const Route = createFileRoute('/api/companies/$companyId')({
       PATCH: async ({ context, request, params }) => {
         const body = (await readJsonBody(request)) as Record<string, unknown>;
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateCompanyEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/companyEndpoints',
+            exportName: 'updateCompanyEndpoint',
             context,
             input: {
               id: params.companyId,
@@ -39,8 +36,9 @@ export const Route = createFileRoute('/api/companies/$companyId')({
       },
       DELETE: async ({ context, request, params }) => {
         const body = (await readJsonBody(request)) as Record<string, unknown>;
-        await executeApiEndpoint({
-          endpoint: deleteCompanyEndpoint,
+        await executeLazyApiEndpoint({
+          specifier: '../server/app/companyEndpoints',
+          exportName: 'deleteCompanyEndpoint',
           context,
           input: {
             companyId: params.companyId,

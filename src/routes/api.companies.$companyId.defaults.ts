@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
-import { getCompanyDefaultsEndpoint } from '../server/app/taxonomyEndpoints';
+import {
+  apiRouteMiddleware,
+  executeLazyApiEndpoint,
+  jsonApi,
+} from './-api-shared';
 
 export const Route = createFileRoute('/api/companies/$companyId/defaults')({
   server: {
@@ -9,8 +12,9 @@ export const Route = createFileRoute('/api/companies/$companyId/defaults')({
     handlers: {
       GET: async ({ context, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: getCompanyDefaultsEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'getCompanyDefaultsEndpoint',
             context,
             input: params,
           })

@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  deleteProjectEndpoint,
-  getProjectEndpoint,
-  updateProjectEndpoint,
-} from '../server/app/companyEndpoints';
 
 export const Route = createFileRoute('/api/projects/$projectId')({
   server: {
@@ -18,8 +13,9 @@ export const Route = createFileRoute('/api/projects/$projectId')({
     handlers: {
       GET: async ({ context, params }) =>
         jsonApi(
-          await executeApiEndpoint({
-            endpoint: getProjectEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/companyEndpoints',
+            exportName: 'getProjectEndpoint',
             context,
             input: { projectId: params.projectId },
           })
@@ -27,8 +23,9 @@ export const Route = createFileRoute('/api/projects/$projectId')({
       PATCH: async ({ context, request, params }) => {
         const body = (await readJsonBody(request)) as Record<string, unknown>;
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateProjectEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/companyEndpoints',
+            exportName: 'updateProjectEndpoint',
             context,
             input: {
               id: params.projectId,
@@ -39,8 +36,9 @@ export const Route = createFileRoute('/api/projects/$projectId')({
       },
       DELETE: async ({ context, request, params }) => {
         const body = (await readJsonBody(request)) as Record<string, unknown>;
-        await executeApiEndpoint({
-          endpoint: deleteProjectEndpoint,
+        await executeLazyApiEndpoint({
+          specifier: '../server/app/companyEndpoints',
+          exportName: 'deleteProjectEndpoint',
           context,
           input: {
             projectId: params.projectId,

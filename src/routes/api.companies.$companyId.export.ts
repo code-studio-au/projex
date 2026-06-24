@@ -1,8 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { asCompanyId } from '../types';
-import { apiRouteMiddleware, requireApiRouteContext } from './-api-shared';
-import { exportCompanyWorkbookServer } from '../server/fns/exports';
+import {
+  apiRouteMiddleware,
+  loadRouteServerExport,
+  requireApiRouteContext,
+} from './-api-shared';
 import { companyExportQuerySchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
@@ -20,6 +23,18 @@ export const Route = createFileRoute('/api/companies/$companyId/export')({
           companyExportQuerySchema,
           Object.fromEntries(requestUrl.searchParams.entries())
         );
+        const exportCompanyWorkbookServer = await loadRouteServerExport<
+          (args: {
+            context: typeof serverContext;
+            companyId: ReturnType<typeof asCompanyId>;
+            options: {
+              scope: string;
+              detail: string;
+              fromDate: string | undefined;
+              toDate: string | undefined;
+            };
+          }) => Promise<{ bytes: ArrayBuffer | Uint8Array; fileName: string }>
+        >('../server/fns/exports', 'exportCompanyWorkbookServer');
         const result = await exportCompanyWorkbookServer({
           context: serverContext,
           companyId: asCompanyId(params.companyId),
@@ -30,8 +45,12 @@ export const Route = createFileRoute('/api/companies/$companyId/export')({
             toDate: query.to,
           },
         });
+        const bodyBytes =
+          result.bytes instanceof Uint8Array
+            ? new Uint8Array(result.bytes).slice().buffer
+            : result.bytes;
 
-        return new Response(Buffer.from(result.bytes), {
+        return new Response(bodyBytes, {
           status: 200,
           headers: {
             'content-type': XLSX_CONTENT_TYPE,

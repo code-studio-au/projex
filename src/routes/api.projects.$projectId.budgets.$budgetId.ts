@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
-import { deleteBudgetEndpoint } from '../server/app/budgetEndpoints';
+import {
+  apiRouteMiddleware,
+  executeLazyApiEndpoint,
+  jsonApi,
+} from './-api-shared';
 
 export const Route = createFileRoute(
   '/api/projects/$projectId/budgets/$budgetId'
@@ -10,8 +13,9 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       DELETE: async ({ context, params }) => {
-        await executeApiEndpoint({
-          endpoint: deleteBudgetEndpoint,
+        await executeLazyApiEndpoint({
+          specifier: '../server/app/budgetEndpoints',
+          exportName: 'deleteBudgetEndpoint',
           context,
           input: {
             projectId: params.projectId,

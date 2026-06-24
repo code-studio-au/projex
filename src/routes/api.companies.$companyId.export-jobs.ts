@@ -4,13 +4,10 @@ import { asCompanyId } from '../types';
 import {
   apiRouteMiddleware,
   jsonApi,
+  loadRouteServerExport,
   readJsonBody,
   requireApiRouteContext,
 } from './-api-shared';
-import {
-  createCompanyExportJobServer,
-  getLatestCompanyExportJobServer,
-} from '../server/fns/exportJobs';
 import { createCompanyExportJobBodySchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
@@ -20,6 +17,12 @@ export const Route = createFileRoute('/api/companies/$companyId/export-jobs')({
     handlers: {
       GET: async ({ context, params }) => {
         const { serverContext } = requireApiRouteContext(context);
+        const getLatestCompanyExportJobServer = await loadRouteServerExport<
+          (args: {
+            context: typeof serverContext;
+            companyId: ReturnType<typeof asCompanyId>;
+          }) => Promise<unknown>
+        >('../server/fns/exportJobs', 'getLatestCompanyExportJobServer');
         const job = await getLatestCompanyExportJobServer({
           context: serverContext,
           companyId: asCompanyId(params.companyId),
@@ -32,6 +35,19 @@ export const Route = createFileRoute('/api/companies/$companyId/export-jobs')({
           createCompanyExportJobBodySchema,
           await readJsonBody(request)
         );
+        const createCompanyExportJobServer = await loadRouteServerExport<
+          (args: {
+            context: typeof serverContext;
+            companyId: ReturnType<typeof asCompanyId>;
+            options: {
+              scope: string;
+              detail: string;
+              fromDate: string | undefined;
+              toDate: string | undefined;
+              notifyWhenReady: boolean;
+            };
+          }) => Promise<unknown>
+        >('../server/fns/exportJobs', 'createCompanyExportJobServer');
         const job = await createCompanyExportJobServer({
           context: serverContext,
           companyId: asCompanyId(params.companyId),

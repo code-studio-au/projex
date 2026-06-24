@@ -1,6 +1,10 @@
 import ExcelJS from 'exceljs';
 
-import type { CompanyExportOptions, CompanyId, CompanySummaryProject } from '../../types';
+import type {
+  CompanyExportOptions,
+  CompanyId,
+  CompanySummaryProject,
+} from '../../types';
 import {
   amountStyle,
   centsToMajorUnits,

@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
-import { deleteCompanyDefaultMappingRuleEndpoint } from '../server/app/taxonomyEndpoints';
+import {
+  apiRouteMiddleware,
+  executeLazyApiEndpoint,
+  jsonApi,
+} from './-api-shared';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/default-mapping-rules/$ruleId'
@@ -10,8 +13,9 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       DELETE: async ({ context, params }) => {
-        await executeApiEndpoint({
-          endpoint: deleteCompanyDefaultMappingRuleEndpoint,
+        await executeLazyApiEndpoint({
+          specifier: '../server/app/taxonomyEndpoints',
+          exportName: 'deleteCompanyDefaultMappingRuleEndpoint',
           context,
           input: params,
         });

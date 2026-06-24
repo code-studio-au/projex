@@ -2,23 +2,21 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
+  loadRouteServerExport,
   readJsonBody,
   requireApiRouteContext,
 } from './-api-shared';
+
 import { asProjectId } from '../types';
-import { listTransactionsPageServer } from '../server/fns/transactions';
-import {
-  createTxnEndpoint,
-  listTransactionsEndpoint,
-  updateTxnEndpoint,
-} from '../server/app/transactionEndpoints';
+
 import {
   txnListPageQuerySchema,
   txnMutationBodySchema,
   txnUpdateMutationBodySchema,
 } from '../validation/apiSchemas';
+
 import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/projects/$projectId/transactions')({
@@ -30,6 +28,13 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
         const url = new URL(request.url);
         const search = Object.fromEntries(url.searchParams.entries());
         if (search.mode === 'page') {
+          const listTransactionsPageServer = await loadRouteServerExport<
+            (args: {
+              context: typeof serverContext;
+              projectId: ReturnType<typeof asProjectId>;
+              input: unknown;
+            }) => Promise<unknown>
+          >('../server/fns/transactions', 'listTransactionsPageServer');
           const query = validateOrThrow(txnListPageQuerySchema, search);
           const drilldown =
             query.drilldownKind === 'subcategory' &&
@@ -72,8 +77,9 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
         }
 
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: listTransactionsEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/transactionEndpoints',
+            exportName: 'listTransactionsEndpoint',
             context,
             input: { projectId: params.projectId },
           })
@@ -85,8 +91,9 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
           await readJsonBody(request)
         );
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: createTxnEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/transactionEndpoints',
+            exportName: 'createTxnEndpoint',
             context,
             input: {
               projectId: params.projectId,
@@ -101,8 +108,9 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
           await readJsonBody(request)
         );
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateTxnEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/transactionEndpoints',
+            exportName: 'updateTxnEndpoint',
             context,
             input: {
               projectId: params.projectId,

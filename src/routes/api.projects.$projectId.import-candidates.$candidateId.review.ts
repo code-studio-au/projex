@@ -2,12 +2,13 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import { reviewImportCandidateEndpoint } from '../server/app/importEndpoints';
+
 import { importCandidateReviewMutationBodySchema } from '../validation/apiSchemas';
+
 import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute(
@@ -22,8 +23,9 @@ export const Route = createFileRoute(
           await readJsonBody(request)
         );
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: reviewImportCandidateEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/importEndpoints',
+            exportName: 'reviewImportCandidateEndpoint',
             context,
             input: {
               projectId: params.projectId,

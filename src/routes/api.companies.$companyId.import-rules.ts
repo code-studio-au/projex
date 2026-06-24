@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  createImportRuleEndpoint,
-  listImportRulesEndpoint,
-  updateImportRuleEndpoint,
-} from '../server/app/importEndpoints';
 
 export const Route = createFileRoute('/api/companies/$companyId/import-rules')({
   server: {
@@ -18,8 +13,9 @@ export const Route = createFileRoute('/api/companies/$companyId/import-rules')({
     handlers: {
       GET: async ({ context, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: listImportRulesEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/importEndpoints',
+            exportName: 'listImportRulesEndpoint',
             context,
             input: params,
           })
@@ -27,8 +23,9 @@ export const Route = createFileRoute('/api/companies/$companyId/import-rules')({
       },
       POST: async ({ context, request, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: createImportRuleEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/importEndpoints',
+            exportName: 'createImportRuleEndpoint',
             context,
             input: {
               ...params,
@@ -39,8 +36,9 @@ export const Route = createFileRoute('/api/companies/$companyId/import-rules')({
       },
       PATCH: async ({ context, request, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateImportRuleEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/importEndpoints',
+            exportName: 'updateImportRuleEndpoint',
             context,
             input: {
               ...params,

@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  createCategoryEndpoint,
-  listCategoriesEndpoint,
-  updateCategoryEndpoint,
-} from '../server/app/taxonomyEndpoints';
 
 export const Route = createFileRoute('/api/projects/$projectId/categories')({
   server: {
@@ -18,8 +13,9 @@ export const Route = createFileRoute('/api/projects/$projectId/categories')({
     handlers: {
       GET: async ({ context, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: listCategoriesEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'listCategoriesEndpoint',
             context,
             input: params,
           })
@@ -27,8 +23,9 @@ export const Route = createFileRoute('/api/projects/$projectId/categories')({
       },
       POST: async ({ request, params, context }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: createCategoryEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'createCategoryEndpoint',
             context,
             input: {
               ...params,
@@ -39,8 +36,9 @@ export const Route = createFileRoute('/api/projects/$projectId/categories')({
       },
       PATCH: async ({ request, params, context }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateCategoryEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'updateCategoryEndpoint',
             context,
             input: {
               ...params,

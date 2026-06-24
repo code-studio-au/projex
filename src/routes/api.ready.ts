@@ -1,7 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { sql } from 'kysely';
 
-import { jsonApi, publicApiRouteMiddleware } from './-api-shared';
+import {
+  jsonApi,
+  loadRouteServerExport,
+  publicApiRouteMiddleware,
+} from './-api-shared';
 
 export const Route = createFileRoute('/api/ready')({
   server: {
@@ -9,13 +13,25 @@ export const Route = createFileRoute('/api/ready')({
     handlers: {
       GET: async () => {
         const [
-          { getDb },
-          { validateServerStartupEnv },
-          { checkCompanyExportStorageReady },
+          getDb,
+          validateServerStartupEnv,
+          checkCompanyExportStorageReady,
         ] = await Promise.all([
-          import('../server/db/db'),
-          import('../server/env'),
-          import('../server/storage/exportStorageReadiness'),
+          loadRouteServerExport<
+            () => {
+              selectNoFrom(value: unknown): {
+                executeTakeFirst(): Promise<unknown>;
+              };
+            }
+          >('../server/db/db', 'getDb'),
+          loadRouteServerExport<() => void>(
+            '../server/env',
+            'validateServerStartupEnv'
+          ),
+          loadRouteServerExport<() => Promise<void>>(
+            '../server/storage/exportStorageReadiness',
+            'checkCompanyExportStorageReady'
+          ),
         ]);
         validateServerStartupEnv();
         const db = getDb();

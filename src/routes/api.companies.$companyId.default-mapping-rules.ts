@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  createCompanyDefaultMappingRuleEndpoint,
-  listCompanyDefaultMappingRulesEndpoint,
-  updateCompanyDefaultMappingRuleEndpoint,
-} from '../server/app/taxonomyEndpoints';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/default-mapping-rules'
@@ -20,8 +15,9 @@ export const Route = createFileRoute(
     handlers: {
       GET: async ({ context, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: listCompanyDefaultMappingRulesEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'listCompanyDefaultMappingRulesEndpoint',
             context,
             input: params,
           })
@@ -29,8 +25,9 @@ export const Route = createFileRoute(
       },
       POST: async ({ request, params, context }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: createCompanyDefaultMappingRuleEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'createCompanyDefaultMappingRuleEndpoint',
             context,
             input: {
               ...params,
@@ -41,8 +38,9 @@ export const Route = createFileRoute(
       },
       PATCH: async ({ request, params, context }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateCompanyDefaultMappingRuleEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/taxonomyEndpoints',
+            exportName: 'updateCompanyDefaultMappingRuleEndpoint',
             context,
             input: {
               ...params,

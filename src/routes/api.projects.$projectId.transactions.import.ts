@@ -2,11 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import { importTransactionsEndpoint } from '../server/app/transactionEndpoints';
 
 export const Route = createFileRoute(
   '/api/projects/$projectId/transactions/import'
@@ -16,8 +15,9 @@ export const Route = createFileRoute(
     handlers: {
       POST: async ({ context, request, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: importTransactionsEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/transactionEndpoints',
+            exportName: 'importTransactionsEndpoint',
             context,
             input: {
               projectId: params.projectId,

@@ -3,9 +3,9 @@ import { createFileRoute } from '@tanstack/react-router';
 import {
   apiRouteMiddleware,
   jsonApi,
+  loadRouteServerExport,
   requireApiRouteContext,
 } from './-api-shared';
-import { getCompanyExportJobServer } from '../server/fns/exportJobs';
 import { companyExportJobIdParamSchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
@@ -19,6 +19,12 @@ export const Route = createFileRoute('/api/export-jobs/$jobId')({
           companyExportJobIdParamSchema,
           params.jobId
         );
+        const getCompanyExportJobServer = await loadRouteServerExport<
+          (args: {
+            context: typeof serverContext;
+            jobId: typeof jobId;
+          }) => Promise<unknown>
+        >('../server/fns/exportJobs', 'getCompanyExportJobServer');
         const job = await getCompanyExportJobServer({
           context: serverContext,
           jobId,

@@ -3,19 +3,14 @@ import { createFileRoute } from '@tanstack/react-router';
 import { AppError } from '../api/errors';
 import {
   apiRouteMiddleware,
+  loadRouteServerExport,
+  loadRouteServerModule,
   readJsonBody,
   requireApiRouteContext,
 } from './-api-shared';
-import { listUsersServer } from '../server/fns/companies';
-import {
-  cleanupSmokeFixtures,
-  createSmokeFixtures,
-  manualInputsToSmokeEnv,
-  withTemporarySmokeEnv,
-} from '../server/smoke/fixtures';
-import { runSmokeSection } from '../server/smoke/runSection';
 import type {
   SmokeManualInputs,
+  SmokeSectionResult,
   SmokeSectionId,
   SmokeStepStreamEvent,
 } from '../types';
@@ -26,8 +21,16 @@ function jsonLine(event: SmokeStepStreamEvent) {
   return `${JSON.stringify(event)}\n`;
 }
 
+type SmokeStepEvent = Extract<SmokeStepStreamEvent, { type: 'step' }>['step'];
+
 function smokeToolsApiEnabled() {
-  return process.env.PROJEX_ENABLE_SMOKE_TOOLS === 'true';
+  return (
+    (
+      globalThis as {
+        process?: { env?: Record<string, string | undefined> };
+      }
+    ).process?.env?.PROJEX_ENABLE_SMOKE_TOOLS === 'true'
+  );
 }
 
 export const Route = createFileRoute('/api/admin/smoke')({
@@ -67,6 +70,11 @@ export const Route = createFileRoute('/api/admin/smoke')({
         }
 
         const { session, serverContext } = requireApiRouteContext(context);
+        const listUsersServer = await loadRouteServerExport<
+          (args: {
+            context: typeof serverContext;
+          }) => Promise<Array<{ id: string; isGlobalSuperadmin: boolean }>>
+        >('../server/fns/companies', 'listUsersServer');
         if (!session?.userId) {
           return Response.json(
             { code: 'UNAUTHENTICATED', message: 'Not authenticated' },
@@ -87,6 +95,36 @@ export const Route = createFileRoute('/api/admin/smoke')({
 
         const encoder = new TextEncoder();
         const baseUrl = new URL(request.url).origin;
+        const {
+          cleanupSmokeFixtures,
+          createSmokeFixtures,
+          manualInputsToSmokeEnv,
+          withTemporarySmokeEnv,
+        } = await loadRouteServerModule<{
+          cleanupSmokeFixtures: (
+            fixtures: unknown,
+            options: { onStatus(message: string): Promise<void> }
+          ) => Promise<void>;
+          createSmokeFixtures: (options: {
+            sweepStale: boolean;
+            onStatus(message: string): Promise<void>;
+          }) => Promise<unknown>;
+          manualInputsToSmokeEnv: (inputs: unknown) => Record<string, string>;
+          withTemporarySmokeEnv: <T>(
+            env: Record<string, string>,
+            run: () => Promise<T>
+          ) => Promise<T>;
+        }>('../server/smoke/fixtures');
+        const runSmokeSection = await loadRouteServerExport<
+          (
+            sectionId: SmokeSectionId,
+            baseUrl: string,
+            options: {
+              onStep(step: SmokeStepEvent): Promise<void>;
+              onStatus(message: string): Promise<void>;
+            }
+          ) => Promise<SmokeSectionResult>
+        >('../server/smoke/runSection', 'runSmokeSection');
 
         const stream = new ReadableStream({
           async start(controller) {
@@ -120,7 +158,7 @@ export const Route = createFileRoute('/api/admin/smoke')({
                       });
                       try {
                         return await runSmokeSection(sectionId, baseUrl, {
-                          onStep: async (step) => {
+                          onStep: async (step: SmokeStepEvent) => {
                             await emitStep({
                               type: 'step',
                               sectionId,
@@ -139,7 +177,7 @@ export const Route = createFileRoute('/api/admin/smoke')({
                       manualInputsToSmokeEnv(manualInputs),
                       async () =>
                         runSmokeSection(sectionId, baseUrl, {
-                          onStep: async (step) => {
+                          onStep: async (step: SmokeStepEvent) => {
                             await emitStep({
                               type: 'step',
                               sectionId,

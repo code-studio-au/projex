@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
-import { deleteCompanyDefaultCategoryEndpoint } from '../server/app/taxonomyEndpoints';
+import {
+  apiRouteMiddleware,
+  executeLazyApiEndpoint,
+  jsonApi,
+} from './-api-shared';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/default-categories/$categoryId'
@@ -10,8 +13,9 @@ export const Route = createFileRoute(
     middleware: [apiRouteMiddleware],
     handlers: {
       DELETE: async ({ context, params }) => {
-        await executeApiEndpoint({
-          endpoint: deleteCompanyDefaultCategoryEndpoint,
+        await executeLazyApiEndpoint({
+          specifier: '../server/app/taxonomyEndpoints',
+          exportName: 'deleteCompanyDefaultCategoryEndpoint',
           context,
           input: params,
         });

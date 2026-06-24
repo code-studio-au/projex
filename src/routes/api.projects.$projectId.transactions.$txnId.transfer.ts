@@ -1,15 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { AppError } from '../api/errors';
+
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
+
 import { asTxnId } from '../types';
-import { transferTxnEndpoint } from '../server/app/transactionEndpoints';
+
 import { transferTxnMutationBodySchema } from '../validation/apiSchemas';
+
 import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute(
@@ -31,8 +34,9 @@ export const Route = createFileRoute(
           );
         }
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: transferTxnEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/transactionEndpoints',
+            exportName: 'transferTxnEndpoint',
             context,
             input: {
               projectId: params.projectId,

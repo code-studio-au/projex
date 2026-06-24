@@ -1,15 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { apiRouteMiddleware, executeApiEndpoint, jsonApi } from './-api-shared';
-import { deactivateCompanyEndpoint } from '../server/app/companyEndpoints';
+import {
+  apiRouteMiddleware,
+  executeLazyApiEndpoint,
+  jsonApi,
+} from './-api-shared';
 
 export const Route = createFileRoute('/api/companies/$companyId/deactivate')({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
       POST: async ({ context, params }) => {
-        await executeApiEndpoint({
-          endpoint: deactivateCompanyEndpoint,
+        await executeLazyApiEndpoint({
+          specifier: '../server/app/companyEndpoints',
+          exportName: 'deactivateCompanyEndpoint',
           context,
           input: { companyId: params.companyId },
         });

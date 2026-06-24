@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  createBudgetEndpoint,
-  listBudgetsEndpoint,
-  updateBudgetEndpoint,
-} from '../server/app/budgetEndpoints';
 
 export const Route = createFileRoute('/api/projects/$projectId/budgets')({
   server: {
@@ -18,16 +13,18 @@ export const Route = createFileRoute('/api/projects/$projectId/budgets')({
     handlers: {
       GET: async ({ context, params }) =>
         jsonApi(
-          await executeApiEndpoint({
-            endpoint: listBudgetsEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/budgetEndpoints',
+            exportName: 'listBudgetsEndpoint',
             context,
             input: { projectId: params.projectId },
           })
         ),
       POST: async ({ context, request, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: createBudgetEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/budgetEndpoints',
+            exportName: 'createBudgetEndpoint',
             context,
             input: {
               projectId: params.projectId,
@@ -38,8 +35,9 @@ export const Route = createFileRoute('/api/projects/$projectId/budgets')({
       },
       PATCH: async ({ context, request, params }) => {
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateBudgetEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/budgetEndpoints',
+            exportName: 'updateBudgetEndpoint',
             context,
             input: {
               projectId: params.projectId,

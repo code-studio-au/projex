@@ -56,7 +56,7 @@ validateServerStartupEnv();
 
 const runMigrations = process.env.PROJEX_RUN_MIGRATIONS === 'true';
 if (runMigrations) {
-  run('npm', ['run', 'db:migrate']);
+  run('pnpm', ['run', 'db:migrate']);
 }
 
 const clientDistDir = resolve('dist/client');
@@ -213,21 +213,6 @@ app.use(
 
 app.use(
   '/favicon.svg',
-  eventHandler(async (event) => {
-    const filePath = resolveStaticFile(event.url.pathname);
-    if (!filePath) {
-      return new Response('Not found', { status: 404 });
-    }
-    return buildStaticResponse(
-      filePath,
-      event.req.method,
-      'public, max-age=3600'
-    );
-  })
-);
-
-app.use(
-  '/vite.svg',
   eventHandler(async (event) => {
     const filePath = resolveStaticFile(event.url.pathname);
     if (!filePath) {

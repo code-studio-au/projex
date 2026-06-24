@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  deleteProjectMembershipEndpoint,
-  listProjectMembershipsEndpoint,
-  upsertProjectMembershipEndpoint,
-} from '../server/app/membershipEndpoints';
 
 export const Route = createFileRoute('/api/projects/$projectId/memberships')({
   server: {
@@ -18,8 +13,9 @@ export const Route = createFileRoute('/api/projects/$projectId/memberships')({
     handlers: {
       GET: async ({ context, params }) =>
         jsonApi(
-          await executeApiEndpoint({
-            endpoint: listProjectMembershipsEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/membershipEndpoints',
+            exportName: 'listProjectMembershipsEndpoint',
             context,
             input: { projectId: params.projectId },
           })
@@ -27,8 +23,9 @@ export const Route = createFileRoute('/api/projects/$projectId/memberships')({
       POST: async ({ request, params, context }) => {
         const body = (await readJsonBody(request)) as Record<string, unknown>;
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: upsertProjectMembershipEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/membershipEndpoints',
+            exportName: 'upsertProjectMembershipEndpoint',
             context,
             input: {
               projectId: params.projectId,
@@ -39,8 +36,9 @@ export const Route = createFileRoute('/api/projects/$projectId/memberships')({
       },
       DELETE: async ({ request, params, context }) => {
         const url = new URL(request.url);
-        await executeApiEndpoint({
-          endpoint: deleteProjectMembershipEndpoint,
+        await executeLazyApiEndpoint({
+          specifier: '../server/app/membershipEndpoints',
+          exportName: 'deleteProjectMembershipEndpoint',
           context,
           input: {
             projectId: params.projectId,

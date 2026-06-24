@@ -1,6 +1,11 @@
 import ExcelJS from 'exceljs';
 
-import { createWorksheet, type TransactionExportRow, type WorksheetColumn, type WorksheetRowValue } from './exportWorkbookShared';
+import {
+  createWorksheet,
+  type TransactionExportRow,
+  type WorksheetColumn,
+  type WorksheetRowValue,
+} from './exportWorkbookShared';
 
 export function addFullDetailWorksheets(args: {
   workbook: ExcelJS.Workbook;

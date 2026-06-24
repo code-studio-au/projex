@@ -1,18 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { AppError } from '../api/errors';
+
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  deleteTransactionCommentEndpoint,
-  updateTransactionCommentEndpoint,
-} from '../server/app/transactionEndpoints';
+
 import { asTxnCommentId } from '../types';
+
 import { txnCommentUpdateMutationBodySchema } from '../validation/apiSchemas';
+
 import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute(
@@ -34,8 +34,9 @@ export const Route = createFileRoute(
           );
         }
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: updateTransactionCommentEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/transactionEndpoints',
+            exportName: 'updateTransactionCommentEndpoint',
             context,
             input: {
               projectId: params.projectId,
@@ -46,8 +47,9 @@ export const Route = createFileRoute(
         );
       },
       DELETE: async ({ context, params }) => {
-        await executeApiEndpoint({
-          endpoint: deleteTransactionCommentEndpoint,
+        await executeLazyApiEndpoint({
+          specifier: '../server/app/transactionEndpoints',
+          exportName: 'deleteTransactionCommentEndpoint',
           context,
           input: {
             projectId: params.projectId,

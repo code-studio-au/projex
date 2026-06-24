@@ -1,8 +1,11 @@
 import { createMiddleware } from '@tanstack/react-start';
 import { AppError } from '../api/errors';
-import type { ServerSession } from '../server/auth/session';
-import { parseAppEndpointInput, type AppEndpoint } from '../server/app/shared';
-import type { ServerFnContextInput } from '../server/fns/runtime';
+import {
+  parseAppEndpointInput,
+  type AppEndpoint,
+  type ServerFnContextInput,
+  type ServerSession,
+} from '../api/appEndpoints';
 
 function appErrorStatus(code: AppError['code']): number {
   if (code === 'UNAUTHENTICATED') return 401;
@@ -136,6 +139,43 @@ export async function executeApiEndpoint<TInput, TOutput>(args: {
     context: serverContext,
     input: parseAppEndpointInput(args.endpoint, args.input),
   });
+}
+
+export async function executeLazyApiEndpoint<TOutput>(args: {
+  specifier: string;
+  exportName: string;
+  context: unknown;
+  input: unknown;
+}): Promise<TOutput> {
+  const endpoint = await loadRouteServerExport<AppEndpoint<unknown, TOutput>>(
+    args.specifier,
+    args.exportName
+  );
+  return executeApiEndpoint({
+    endpoint,
+    context: args.context,
+    input: args.input,
+  });
+}
+
+export async function loadRouteServerExport<TValue>(
+  specifier: string,
+  exportName: string
+): Promise<TValue> {
+  const mod = await loadRouteServerModule<Record<string, unknown>>(specifier);
+  if (!(exportName in mod)) {
+    throw new AppError(
+      'INTERNAL_ERROR',
+      `Missing server export "${exportName}" from "${specifier}"`
+    );
+  }
+  return mod[exportName] as TValue;
+}
+
+export async function loadRouteServerModule<TModule>(
+  specifier: string
+): Promise<TModule> {
+  return (await import(/* @vite-ignore */ specifier)) as TModule;
 }
 
 async function withApiCore(

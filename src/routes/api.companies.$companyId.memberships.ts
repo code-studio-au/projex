@@ -2,15 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import {
   apiRouteMiddleware,
-  executeApiEndpoint,
+  executeLazyApiEndpoint,
   jsonApi,
   readJsonBody,
 } from './-api-shared';
-import {
-  deleteCompanyMembershipEndpoint,
-  listCompanyMembershipsEndpoint,
-  upsertCompanyMembershipEndpoint,
-} from '../server/app/membershipEndpoints';
 
 export const Route = createFileRoute('/api/companies/$companyId/memberships')({
   server: {
@@ -18,8 +13,9 @@ export const Route = createFileRoute('/api/companies/$companyId/memberships')({
     handlers: {
       GET: async ({ context, params }) =>
         jsonApi(
-          await executeApiEndpoint({
-            endpoint: listCompanyMembershipsEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/membershipEndpoints',
+            exportName: 'listCompanyMembershipsEndpoint',
             context,
             input: { companyId: params.companyId },
           })
@@ -27,8 +23,9 @@ export const Route = createFileRoute('/api/companies/$companyId/memberships')({
       POST: async ({ request, params, context }) => {
         const body = (await readJsonBody(request)) as Record<string, unknown>;
         return jsonApi(
-          await executeApiEndpoint({
-            endpoint: upsertCompanyMembershipEndpoint,
+          await executeLazyApiEndpoint({
+            specifier: '../server/app/membershipEndpoints',
+            exportName: 'upsertCompanyMembershipEndpoint',
             context,
             input: {
               companyId: params.companyId,
@@ -39,8 +36,9 @@ export const Route = createFileRoute('/api/companies/$companyId/memberships')({
       },
       DELETE: async ({ request, params, context }) => {
         const url = new URL(request.url);
-        await executeApiEndpoint({
-          endpoint: deleteCompanyMembershipEndpoint,
+        await executeLazyApiEndpoint({
+          specifier: '../server/app/membershipEndpoints',
+          exportName: 'deleteCompanyMembershipEndpoint',
           context,
           input: {
             companyId: params.companyId,
