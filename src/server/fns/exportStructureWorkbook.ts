@@ -1,8 +1,8 @@
 import ExcelJS from 'exceljs';
 
 import type { CompanySummaryProject } from '../../types';
-import type { ProjectExportRow } from './exportWorkbook';
-import { centsToMajorUnits, createWorksheet } from './exportWorkbook';
+import type { ProjectExportRow } from './exportWorkbookShared';
+import { centsToMajorUnits, createWorksheet } from './exportWorkbookShared';
 
 export function addStructureWorksheets(args: {
   workbook: ExcelJS.Workbook;
