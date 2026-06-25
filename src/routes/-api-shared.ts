@@ -57,8 +57,13 @@ type SecurityModule = {
   isOriginAllowed(origin: string | null, requestOrigin: string): boolean;
 };
 
-function serverModuleSpecifier(...segments: string[]): string {
-  return segments.join('/');
+const routeServerModuleLoaders = import.meta.glob('../server/**/*.ts');
+
+function resolveRouteServerModuleLoader(specifier: string) {
+  const normalizedSpecifier = specifier.endsWith('.ts')
+    ? specifier
+    : `${specifier}.ts`;
+  return routeServerModuleLoaders[normalizedSpecifier];
 }
 
 export async function withPublicApi(
@@ -93,9 +98,10 @@ export const apiRouteMiddleware = createMiddleware().server(
     return withApiCore(
       request,
       async ({ requestId, origin, requestOrigin, started }) => {
-        const { resolveRequestServerContext } = (await import(
-          serverModuleSpecifier('..', 'server', 'http', 'requestContext')
-        )) as RequestContextModule;
+        const { resolveRequestServerContext } =
+          await loadRouteServerModule<RequestContextModule>(
+            '../server/http/requestContext'
+          );
         const { session, serverContext } =
           await resolveRequestServerContext(request);
         return next({
@@ -192,7 +198,14 @@ export async function loadRouteServerExport<TValue>(
 export async function loadRouteServerModule<TModule>(
   specifier: string
 ): Promise<TModule> {
-  return (await import(/* @vite-ignore */ specifier)) as TModule;
+  const loader = resolveRouteServerModuleLoader(specifier);
+  if (!loader) {
+    throw new AppError(
+      'INTERNAL_ERROR',
+      `Missing route server module "${specifier}"`
+    );
+  }
+  return (await loader()) as TModule;
 }
 
 async function withApiCore(
@@ -204,9 +217,8 @@ async function withApiCore(
     started: number;
   }) => Promise<unknown>
 ): Promise<Response> {
-  const { buildCorsHeaders, isOriginAllowed } = (await import(
-    serverModuleSpecifier('..', 'server', 'http', 'security')
-  )) as SecurityModule;
+  const { buildCorsHeaders, isOriginAllowed } =
+    await loadRouteServerModule<SecurityModule>('../server/http/security');
   const requestId =
     request.headers.get('x-request-id') ??
     (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'

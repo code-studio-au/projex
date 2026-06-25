@@ -90,6 +90,8 @@ import type {
 
 type NoInput = void | undefined;
 
+const appEndpointModuleLoaders = import.meta.glob('../server/app/*.ts');
+
 export type PostLoginTarget =
   | { to: '/companies' }
   | {
@@ -460,9 +462,9 @@ export function appEndpointModuleSpecifier(fileStem: string): string {
 export function loadAppEndpointModule<TModule>(
   fileStem: string
 ): Promise<TModule> {
-  const specifier = appEndpointModuleSpecifier(fileStem);
-  return import(
-    /* @vite-ignore */
-    specifier
-  ) as Promise<TModule>;
+  const loader = appEndpointModuleLoaders[`../server/app/${fileStem}.ts`];
+  if (!loader) {
+    throw new Error(`Missing app endpoint module "${fileStem}"`);
+  }
+  return loader() as Promise<TModule>;
 }
