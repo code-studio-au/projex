@@ -1,47 +1,65 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  bulkTxnActionEndpoint,
-  createTransactionCommentEndpoint,
-  createTxnEndpoint,
-  deleteTransactionCommentEndpoint,
-  deleteTxnEndpoint,
-  listTransactionCommentSummariesEndpoint,
-  listTransactionCommentsEndpoint,
-  listTransactionsEndpoint,
-  splitTxnEndpoint,
-  transferTxnEndpoint,
-  updateTransactionCommentEndpoint,
-  updateTxnEndpoint,
-  updateTxnWorkflowStateEndpoint,
-} from '../../app/transactionEndpoints';
+  loadAppEndpointModule,
+  type TransactionEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadTransactionEndpoints = () =>
+  loadAppEndpointModule<TransactionEndpointsModule>('transactionEndpoints');
 
 export const listTransactionsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(listTransactionsEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(listTransactionsEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'listTransactionsEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'listTransactionsEndpoint'
+    )
+  );
 
 export const listTransactionCommentsServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listTransactionCommentsEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'listTransactionCommentsEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(listTransactionCommentsEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'listTransactionCommentsEndpoint'
+    )
+  );
 
 export const listTransactionCommentSummariesServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listTransactionCommentSummariesEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'listTransactionCommentSummariesEndpoint'
+    )
   )
   .handler(
-    createServerFnEndpointHandler(listTransactionCommentSummariesEndpoint)
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'listTransactionCommentSummariesEndpoint'
+    )
   );
 
 export const createTransactionCommentServerFn = createServerFn({
@@ -49,63 +67,140 @@ export const createTransactionCommentServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(createTransactionCommentEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'createTransactionCommentEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(createTransactionCommentEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'createTransactionCommentEndpoint'
+    )
+  );
 
 export const updateTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(updateTransactionCommentEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'updateTransactionCommentEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(updateTransactionCommentEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'updateTransactionCommentEndpoint'
+    )
+  );
 
 export const deleteTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(deleteTransactionCommentEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'deleteTransactionCommentEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(deleteTransactionCommentEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'deleteTransactionCommentEndpoint'
+    )
+  );
 
 export const createTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(createTxnEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(createTxnEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadTransactionEndpoints, 'createTxnEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'createTxnEndpoint'
+    )
+  );
 
 export const updateTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(updateTxnEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(updateTxnEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadTransactionEndpoints, 'updateTxnEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'updateTxnEndpoint'
+    )
+  );
 
 export const deleteTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(deleteTxnEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(deleteTxnEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadTransactionEndpoints, 'deleteTxnEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'deleteTxnEndpoint'
+    )
+  );
 
 export const splitTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(splitTxnEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(splitTxnEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadTransactionEndpoints, 'splitTxnEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'splitTxnEndpoint'
+    )
+  );
 
 export const transferTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(transferTxnEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(transferTxnEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadTransactionEndpoints, 'transferTxnEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'transferTxnEndpoint'
+    )
+  );
 
 export const updateTxnWorkflowStateServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(updateTxnWorkflowStateEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'updateTxnWorkflowStateEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(updateTxnWorkflowStateEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'updateTxnWorkflowStateEndpoint'
+    )
+  );
 
 export const bulkTxnActionServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(bulkTxnActionEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(bulkTxnActionEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'bulkTxnActionEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'bulkTxnActionEndpoint'
+    )
+  );

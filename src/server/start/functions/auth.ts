@@ -1,21 +1,35 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  getPostLoginTargetEndpoint,
-  getSessionEndpoint,
-} from '../../app/authEndpoints';
+  loadAppEndpointModule,
+  type AuthEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadAuthEndpoints = () =>
+  loadAppEndpointModule<AuthEndpointsModule>('authEndpoints');
 
 export const getSessionServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(getSessionEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(getSessionEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadAuthEndpoints, 'getSessionEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(loadAuthEndpoints, 'getSessionEndpoint')
+  );
 
 export const getPostLoginTargetServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(getPostLoginTargetEndpoint.inputSchema)
+    lazyServerFnInputValidator(loadAuthEndpoints, 'getPostLoginTargetEndpoint')
   )
-  .handler(createServerFnEndpointHandler(getPostLoginTargetEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadAuthEndpoints,
+      'getPostLoginTargetEndpoint'
+    )
+  );

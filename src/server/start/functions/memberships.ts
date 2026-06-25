@@ -1,83 +1,146 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  deleteCompanyMembershipEndpoint,
-  deleteProjectMembershipEndpoint,
-  listAllCompanyMembershipsEndpoint,
-  listCompanyMembershipsEndpoint,
-  listMyProjectMembershipsEndpoint,
-  listProjectMembershipsEndpoint,
-  upsertCompanyMembershipEndpoint,
-  upsertProjectMembershipEndpoint,
-} from '../../app/membershipEndpoints';
+  loadAppEndpointModule,
+  type MembershipEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadMembershipEndpoints = () =>
+  loadAppEndpointModule<MembershipEndpointsModule>('membershipEndpoints');
 
 export const listCompanyMembershipsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listCompanyMembershipsEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadMembershipEndpoints,
+      'listCompanyMembershipsEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(listCompanyMembershipsEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadMembershipEndpoints,
+      'listCompanyMembershipsEndpoint'
+    )
+  );
 
 export const listAllCompanyMembershipsServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listAllCompanyMembershipsEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadMembershipEndpoints,
+      'listAllCompanyMembershipsEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(listAllCompanyMembershipsEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadMembershipEndpoints,
+      'listAllCompanyMembershipsEndpoint'
+    )
+  );
 
 export const listProjectMembershipsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listProjectMembershipsEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadMembershipEndpoints,
+      'listProjectMembershipsEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(listProjectMembershipsEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadMembershipEndpoints,
+      'listProjectMembershipsEndpoint'
+    )
+  );
 
 export const listMyProjectMembershipsServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listMyProjectMembershipsEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadMembershipEndpoints,
+      'listMyProjectMembershipsEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(listMyProjectMembershipsEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadMembershipEndpoints,
+      'listMyProjectMembershipsEndpoint'
+    )
+  );
 
 export const upsertCompanyMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(upsertCompanyMembershipEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadMembershipEndpoints,
+      'upsertCompanyMembershipEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(upsertCompanyMembershipEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadMembershipEndpoints,
+      'upsertCompanyMembershipEndpoint'
+    )
+  );
 
 export const deleteCompanyMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(deleteCompanyMembershipEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadMembershipEndpoints,
+      'deleteCompanyMembershipEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(deleteCompanyMembershipEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadMembershipEndpoints,
+      'deleteCompanyMembershipEndpoint'
+    )
+  );
 
 export const upsertProjectMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(upsertProjectMembershipEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadMembershipEndpoints,
+      'upsertProjectMembershipEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(upsertProjectMembershipEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadMembershipEndpoints,
+      'upsertProjectMembershipEndpoint'
+    )
+  );
 
 export const deleteProjectMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(deleteProjectMembershipEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadMembershipEndpoints,
+      'deleteProjectMembershipEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(deleteProjectMembershipEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadMembershipEndpoints,
+      'deleteProjectMembershipEndpoint'
+    )
+  );

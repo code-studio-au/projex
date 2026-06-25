@@ -1,115 +1,209 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  cancelImportPreviewEndpoint,
-  createImportRuleEndpoint,
-  createProjectImportRuleEndpoint,
-  deleteImportRuleEndpoint,
-  deleteProjectImportRuleEndpoint,
-  listImportCandidatesEndpoint,
-  listImportRulesEndpoint,
-  listProjectImportRulesEndpoint,
-  previewImportTransactionsEndpoint,
-  promoteProjectImportRuleEndpoint,
-  reviewImportCandidateEndpoint,
-  updateImportRuleEndpoint,
-  updateProjectImportRuleEndpoint,
-} from '../../app/importEndpoints';
+  loadAppEndpointModule,
+  type ImportEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadImportEndpoints = () =>
+  loadAppEndpointModule<ImportEndpointsModule>('importEndpoints');
 
 export const listImportCandidatesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listImportCandidatesEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadImportEndpoints,
+      'listImportCandidatesEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(listImportCandidatesEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'listImportCandidatesEndpoint'
+    )
+  );
 
 export const listImportRulesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(listImportRulesEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(listImportRulesEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadImportEndpoints, 'listImportRulesEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'listImportRulesEndpoint'
+    )
+  );
 
 export const reviewImportCandidateServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(reviewImportCandidateEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadImportEndpoints,
+      'reviewImportCandidateEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(reviewImportCandidateEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'reviewImportCandidateEndpoint'
+    )
+  );
 
 export const createImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(createImportRuleEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(createImportRuleEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadImportEndpoints, 'createImportRuleEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'createImportRuleEndpoint'
+    )
+  );
 
 export const listProjectImportRulesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listProjectImportRulesEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadImportEndpoints,
+      'listProjectImportRulesEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(listProjectImportRulesEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'listProjectImportRulesEndpoint'
+    )
+  );
 
 export const createProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(createProjectImportRuleEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadImportEndpoints,
+      'createProjectImportRuleEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(createProjectImportRuleEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'createProjectImportRuleEndpoint'
+    )
+  );
 
 export const updateImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(updateImportRuleEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(updateImportRuleEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadImportEndpoints, 'updateImportRuleEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'updateImportRuleEndpoint'
+    )
+  );
 
 export const deleteImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(deleteImportRuleEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(deleteImportRuleEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadImportEndpoints, 'deleteImportRuleEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'deleteImportRuleEndpoint'
+    )
+  );
 
 export const updateProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(updateProjectImportRuleEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadImportEndpoints,
+      'updateProjectImportRuleEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(updateProjectImportRuleEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'updateProjectImportRuleEndpoint'
+    )
+  );
 
 export const deleteProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(deleteProjectImportRuleEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadImportEndpoints,
+      'deleteProjectImportRuleEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(deleteProjectImportRuleEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'deleteProjectImportRuleEndpoint'
+    )
+  );
 
 export const promoteProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(promoteProjectImportRuleEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadImportEndpoints,
+      'promoteProjectImportRuleEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(promoteProjectImportRuleEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'promoteProjectImportRuleEndpoint'
+    )
+  );
 
 export const previewImportTransactionsServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(previewImportTransactionsEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadImportEndpoints,
+      'previewImportTransactionsEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(previewImportTransactionsEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'previewImportTransactionsEndpoint'
+    )
+  );
 
 export const cancelImportPreviewServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(cancelImportPreviewEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadImportEndpoints,
+      'cancelImportPreviewEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(cancelImportPreviewEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadImportEndpoints,
+      'cancelImportPreviewEndpoint'
+    )
+  );

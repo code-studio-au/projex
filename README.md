@@ -4,7 +4,12 @@
 
 Project and grant budget tracking app.
 
-Projex is a TanStack Start, React, TypeScript, Mantine 9, BetterAuth, and Postgres app. The UI uses TanStack Start server functions for app internals, while route-backed HTTP endpoints stay thin over `src/server/fns/*`.
+Projex is a TanStack Start, React, TypeScript, Mantine 9, BetterAuth, and
+Postgres app. The app uses explicit bridge layers so client-compilable code
+reaches server behavior through shared endpoint contracts in `src/api/**` and
+TanStack Start server functions in `src/server/start/functions/**`, while raw
+HTTP routes stay transport-only and dynamically load server-only adapters from
+`src/server/routes/**`.
 
 ## Quick Start
 
@@ -25,11 +30,13 @@ pnpm run build
 ```
 
 The repo now also includes a deployment-free GitHub Actions CI workflow at
-`.github/workflows/ci.yml`. It currently runs three lanes:
+`.github/workflows/ci.yml`. It currently runs four lanes:
 
-- a fast static lane for `format:check`, `lint`, `typecheck`, `test`, and `build`
+- a fast static lane for repo security verification, `pnpm audit --json`,
+  `format:check`, `lint`, `typecheck`, `test`, and `build`
 - a Postgres-backed lane for `db:migrate`, `db:verify-types`, and `test:integration:db`
 - a disposable end-to-end lane for `smoke:server:disposable -- --section=basics`
+- a disposable browser smoke lane for `smoke:browser:disposable -- --section=basics`
 
 Normal repo flow is now branch -> pull request -> green required checks -> merge.
 Direct pushes to protected `main` should be treated as an exception-only path.
@@ -49,12 +56,16 @@ That pipeline-shaped command runs:
 - production build
 - disposable Postgres-backed DB integration tests
 - disposable Postgres-backed end-to-end smoke for the `basics` section
+- disposable browser-driven smoke for the `basics` section
 
-Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`, and `pnpm run smoke:server:disposable`.
+Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`,
+`pnpm run smoke:server:disposable`, and
+`pnpm run smoke:browser:disposable`.
 
-The GitHub Actions workflow currently limits smoke coverage to the generated
-fixture `basics` section so CI keeps a good signal-to-runtime ratio without
-turning every push into a full long-running application sweep.
+The GitHub Actions workflow currently limits both server and browser smoke
+coverage to the generated-fixture `basics` section so CI keeps a good
+signal-to-runtime ratio without turning every push into a full long-running
+application sweep.
 
 For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](/Users/scas0196/Documents/code/projex/docs/local-services.md:1).
 
@@ -66,6 +77,7 @@ The short version:
 - `pnpm run verify:ci` for the fuller local or future-CI gate
 - `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
 - `pnpm run smoke:server:disposable` for isolated local end-to-end smoke
+- `pnpm run smoke:browser:disposable` for isolated browser-driven smoke
 - `pnpm run smoke:server` and `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security` for deployed-environment verification
 
 For the full operational verification workflow, use [docs/staging-runbook.md](/Users/scas0196/Documents/code/projex/docs/staging-runbook.md:1).
@@ -82,7 +94,9 @@ If you need to point the suite at an explicit integration database yourself, use
 PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test
 ```
 
-`pnpm run build` should not emit client chunk-size warnings. Current known build noise is limited to SSR dynamic/static import warnings from TanStack Start server route wiring.
+`pnpm run build` should not emit client chunk-size warnings. Current known
+build noise is limited to SSR dynamic/static import warnings from TanStack
+Start server route wiring around dynamic server-only adapters.
 
 The current table layer is `mantine-react-table-open` on the Mantine 9 line.
 
@@ -123,6 +137,9 @@ pnpm run smoke:server:generated
 # Start a disposable Postgres instance, migrate it, build the app, run a local
 # server against that isolated DB, then execute generated smoke end to end
 pnpm run smoke:server:disposable
+
+# The same disposable harness, but with a browser-driven smoke lane
+pnpm run smoke:browser:disposable
 
 # Best-effort cleanup sweep for abandoned smoke_* fixtures
 pnpm run smoke:cleanup
@@ -173,13 +190,22 @@ Projex now supports a production-ready full company Excel export. Remaining work
 
 ## Architecture Boundaries
 
-- UI routes and components should depend on queries and TanStack Start server functions, not directly on storage.
+- Client-compilable code may cross into server behavior only through
+  `src/api/**` contracts and `src/server/start/functions/**`.
 - Shared business logic belongs in `src/server/fns/*`.
-- TanStack Start request middleware lives in `src/server/start/*` and should own request-scoped session/context setup.
-- File routes under `src/routes/api.*.ts` should stay thin: parse input, call server functions, and return validated JSON.
+- TanStack Start request middleware lives in `src/server/start/*` and owns
+  request-scoped session/context setup for server functions.
+- File routes under `src/routes/api*.ts` stay transport-only: parse input, use
+  `src/routes/-api-shared.ts`, and dynamically load `src/server/routes/**`
+  adapters when raw HTTP endpoints need auth/env/db orchestration.
 - Request body validation belongs at the route boundary with Zod.
-- Runtime ownership and authorization checks should be centralized through server guard helpers, not duplicated ad hoc inside route files.
-- Do not import `src/server/*` from client modules.
+- Runtime ownership and authorization checks should be centralized through
+  server guard helpers, not duplicated ad hoc inside route files.
+- `tsconfig.app.json` intentionally stays on `types: ["vite/client"]` so app
+  code cannot rely on Node globals leaking through mixed imports.
+
+The detailed source of truth for these rules is
+[docs/architecture-boundaries.md](/Users/scas0196/Documents/code/projex/docs/architecture-boundaries.md:1).
 
 ## Server Runtime Notes
 
@@ -209,6 +235,7 @@ Keep this list short. If a new note overlaps an existing item, update the existi
 
 - `docs/staging-runbook.md`: operational runbook, readiness checklist, deploy verification, first-admin bootstrap, and troubleshooting.
 - `docs/database-migrations.md`: migration strategy, baseline rules, runner expectations, and generated Kysely DB typing workflow.
+- `docs/architecture-boundaries.md`: allowed bridge modules, route adapter rules, and client/server import boundaries.
 - `docs/deployment-ec2.md`: first-time EC2/RDS host provisioning only. Ongoing deploy operations belong in the runbook.
 - `docs/email-ops-runbook.md`: email provider configuration, Resend checks, and email troubleshooting.
 - `docs/permissions-matrix.md`: current company/project/comment permission model and superadmin rules.

@@ -1,51 +1,106 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  cancelEmailChangeEndpoint,
-  getCurrentUserEndpoint,
-  getPendingEmailChangeEndpoint,
-  requestEmailChangeEndpoint,
-  resendEmailChangeEndpoint,
-} from '../../app/accountEndpoints';
-import { updateCurrentUserProfileEndpoint } from '../../app/companyEndpoints';
+  loadAppEndpointModule,
+  type AccountEndpointsModule,
+  type CompanyEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadAccountEndpoints = () =>
+  loadAppEndpointModule<AccountEndpointsModule>('accountEndpoints');
+const loadCompanyEndpoints = () =>
+  loadAppEndpointModule<CompanyEndpointsModule>('companyEndpoints');
 
 export const getPendingEmailChangeServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(getPendingEmailChangeEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadAccountEndpoints,
+      'getPendingEmailChangeEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(getPendingEmailChangeEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadAccountEndpoints,
+      'getPendingEmailChangeEndpoint'
+    )
+  );
 
 export const getCurrentUserServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(getCurrentUserEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(getCurrentUserEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadAccountEndpoints, 'getCurrentUserEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadAccountEndpoints,
+      'getCurrentUserEndpoint'
+    )
+  );
 
 export const updateCurrentUserProfileServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(updateCurrentUserProfileEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'updateCurrentUserProfileEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(updateCurrentUserProfileEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'updateCurrentUserProfileEndpoint'
+    )
+  );
 
 export const requestEmailChangeServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(requestEmailChangeEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadAccountEndpoints,
+      'requestEmailChangeEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(requestEmailChangeEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadAccountEndpoints,
+      'requestEmailChangeEndpoint'
+    )
+  );
 
 export const resendEmailChangeServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(resendEmailChangeEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(resendEmailChangeEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadAccountEndpoints,
+      'resendEmailChangeEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadAccountEndpoints,
+      'resendEmailChangeEndpoint'
+    )
+  );
 
 export const cancelEmailChangeServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(cancelEmailChangeEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(cancelEmailChangeEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadAccountEndpoints,
+      'cancelEmailChangeEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadAccountEndpoints,
+      'cancelEmailChangeEndpoint'
+    )
+  );

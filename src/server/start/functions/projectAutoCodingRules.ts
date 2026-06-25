@@ -1,27 +1,35 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  backfillProjectCodingEndpoint,
-  createProjectAutoCodingRuleEndpoint,
-  deleteProjectAutoCodingRuleEndpoint,
-  getProjectRuleSuggestionPromptEndpoint,
-  listProjectAutoCodingRulesEndpoint,
-  promoteProjectRuleToCompanyDefaultEndpoint,
-  updateProjectAutoCodingRuleEndpoint,
-} from '../../app/projectAutoCodingEndpoints';
+  loadAppEndpointModule,
+  type ProjectAutoCodingEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadProjectAutoCodingEndpoints = () =>
+  loadAppEndpointModule<ProjectAutoCodingEndpointsModule>(
+    'projectAutoCodingEndpoints'
+  );
 
 export const getProjectRuleSuggestionPromptServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(getProjectRuleSuggestionPromptEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadProjectAutoCodingEndpoints,
+      'getProjectRuleSuggestionPromptEndpoint'
+    )
   )
   .handler(
-    createServerFnEndpointHandler(getProjectRuleSuggestionPromptEndpoint)
+    createLazyServerFnEndpointHandler(
+      loadProjectAutoCodingEndpoints,
+      'getProjectRuleSuggestionPromptEndpoint'
+    )
   );
 
 export const createProjectAutoCodingRuleServerFn = createServerFn({
@@ -29,55 +37,99 @@ export const createProjectAutoCodingRuleServerFn = createServerFn({
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(createProjectAutoCodingRuleEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadProjectAutoCodingEndpoints,
+      'createProjectAutoCodingRuleEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(createProjectAutoCodingRuleEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadProjectAutoCodingEndpoints,
+      'createProjectAutoCodingRuleEndpoint'
+    )
+  );
 
 export const listProjectAutoCodingRulesServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listProjectAutoCodingRulesEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadProjectAutoCodingEndpoints,
+      'listProjectAutoCodingRulesEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(listProjectAutoCodingRulesEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadProjectAutoCodingEndpoints,
+      'listProjectAutoCodingRulesEndpoint'
+    )
+  );
 
 export const updateProjectAutoCodingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(updateProjectAutoCodingRuleEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadProjectAutoCodingEndpoints,
+      'updateProjectAutoCodingRuleEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(updateProjectAutoCodingRuleEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadProjectAutoCodingEndpoints,
+      'updateProjectAutoCodingRuleEndpoint'
+    )
+  );
 
 export const deleteProjectAutoCodingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(deleteProjectAutoCodingRuleEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadProjectAutoCodingEndpoints,
+      'deleteProjectAutoCodingRuleEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(deleteProjectAutoCodingRuleEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadProjectAutoCodingEndpoints,
+      'deleteProjectAutoCodingRuleEndpoint'
+    )
+  );
 
 export const backfillProjectCodingServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(backfillProjectCodingEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadProjectAutoCodingEndpoints,
+      'backfillProjectCodingEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(backfillProjectCodingEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadProjectAutoCodingEndpoints,
+      'backfillProjectCodingEndpoint'
+    )
+  );
 
 export const promoteProjectRuleToCompanyDefaultServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(
-      promoteProjectRuleToCompanyDefaultEndpoint.inputSchema
+    lazyServerFnInputValidator(
+      loadProjectAutoCodingEndpoints,
+      'promoteProjectRuleToCompanyDefaultEndpoint'
     )
   )
   .handler(
-    createServerFnEndpointHandler(promoteProjectRuleToCompanyDefaultEndpoint)
+    createLazyServerFnEndpointHandler(
+      loadProjectAutoCodingEndpoints,
+      'promoteProjectRuleToCompanyDefaultEndpoint'
+    )
   );

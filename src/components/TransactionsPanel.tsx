@@ -1,19 +1,7 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  Paper,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Stack } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
-  MantineReactTable,
   type MRT_PaginationState,
   type MRT_SortingState,
 } from 'mantine-react-table-open';
@@ -29,15 +17,14 @@ import type {
   ProjectRuleSuggestionPrompt,
   TxnBulkActionResult,
 } from '../api/contract';
-import { formatCurrencyFromCents } from '../utils/money';
 import { isCategorisableTxn } from '../utils/transactions';
-import TransactionSplitModal from './TransactionSplitModal';
-import TransactionTransferModal from './TransactionTransferModal';
-import TransactionCommentsModal from './TransactionCommentsModal';
-import TransactionBulkRecodeModal from './transactions/TransactionBulkRecodeModal';
-import TransactionBulkActionsBar from './transactions/TransactionBulkActionsBar';
+import TransactionFiltersCard from './transactions/TransactionFiltersCard';
+import TransactionsModalStack from './transactions/TransactionsModalStack';
+import TransactionsDataTable from './transactions/TransactionsDataTable';
+import TransactionsOverviewCard, {
+  type TransactionView,
+} from './transactions/TransactionsOverviewCard';
 import { createTransactionColumns } from './transactions/transactionTableColumns';
-import TaxonomyManagerModal from './TaxonomyManagerModal';
 import { asCategoryId, asSubCategoryId, asTxnId } from '../types/ids';
 import {
   useTransactionCommentsQuery,
@@ -48,12 +35,7 @@ import { useCreateProjectAutoCodingRuleMutation } from '../queries/projectAutoCo
 import { showAppToast } from '../utils/toast';
 import classes from '../styles/ui.module.css';
 
-type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
-type TransactionView =
-  | 'all'
-  | 'uncoded'
-  | 'auto-mapped-pending'
-  | 'assigned-to-me';
+export type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 const EMPTY_TXNS: Txn[] = [];
 
 const hydrateSubscription = () => () => {};
@@ -426,492 +408,235 @@ export default function TransactionsPanel(props: {
 
   return (
     <Stack gap="lg" className={classes.pageStack}>
-      <Paper className={classes.filterCard} radius="xl">
-        <Group align="flex-end" gap="sm" wrap="wrap">
-          <Select
-            label="Year"
-            placeholder="All years"
-            data={yearFilterOptions}
-            value={yearFilter}
-            clearable
-            onChange={(value) => {
-              setRowSelection({});
-              setPagination((current) => ({ ...current, pageIndex: 0 }));
-              setYearFilter(value);
-              setQuarterFilter(null);
-              setMonthFilterKey(null);
-            }}
-            style={{ width: isMobile ? '100%' : 140 }}
-          />
-          <Select
-            label="Quarter"
-            placeholder="All quarters"
-            data={quarterFilterOptions}
-            value={quarterFilter}
-            clearable
-            disabled={!yearFilter}
-            onChange={(value) => {
-              setRowSelection({});
-              setPagination((current) => ({ ...current, pageIndex: 0 }));
-              setQuarterFilter(toQuarterOption(value));
-              setMonthFilterKey(null);
-            }}
-            style={{ width: isMobile ? '100%' : 150 }}
-          />
-          <Select
-            label="Month"
-            placeholder="All months"
-            data={monthFilterOptions}
-            value={monthFilterKey}
-            clearable
-            onChange={(value) => {
-              setRowSelection({});
-              setPagination((current) => ({ ...current, pageIndex: 0 }));
-              setMonthFilterKey(value);
-            }}
-            style={{ width: isMobile ? '100%' : 180 }}
-          />
-          <Button
-            size="sm"
-            variant="subtle"
-            disabled={!yearFilter && !quarterFilter && !monthFilterKey}
-            onClick={() => {
-              setRowSelection({});
-              setPagination((current) => ({ ...current, pageIndex: 0 }));
-              onClearFilters();
-            }}
-          >
-            Remove filter(s)
-          </Button>
-        </Group>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="md">
-        <Stack gap="md">
-          <Group gap="sm" align="center" wrap="wrap">
-            <Badge variant="light">{pageSummary.totalCount} shown</Badge>
-            <Badge
-              variant="light"
-              color={pageSummary.uncodedCount > 0 ? 'red' : 'gray'}
-            >
-              {pageSummary.uncodedCount} uncoded
-              {pageSummary.uncodedCount > 0
-                ? ` · ${formatCurrencyFromCents(
-                    pageSummary.uncodedCents,
-                    currencyCode
-                  )}`
-                : ''}
-            </Badge>
-            {pageSummary.assignedToMeCount > 0 ? (
-              <Badge variant="light" color="orange">
-                {pageSummary.assignedToMeCount} assigned to me
-              </Badge>
-            ) : null}
-            {pageSummary.reviewedCount > 0 ? (
-              <Badge variant="light" color="green">
-                {pageSummary.reviewedCount} reviewed
-              </Badge>
-            ) : null}
-            {pageSummary.lockedCount > 0 ? (
-              <Badge variant="light" color="gray">
-                {pageSummary.lockedCount} locked
-              </Badge>
-            ) : null}
-            <Badge
-              variant="light"
-              color={autoMappedPendingTxns.length > 0 ? 'yellow' : 'gray'}
-            >
-              {autoMappedPendingTxns.length} pending review
-            </Badge>
-          </Group>
-
-          {isHydrated ? (
-            <Group gap="sm" align="flex-end" wrap="wrap">
-              <Select
-                label="View"
-                data={[
-                  { value: 'all', label: 'All' },
-                  { value: 'uncoded', label: 'Uncoded only' },
-                  {
-                    value: 'auto-mapped-pending',
-                    label: 'Auto-mapped pending approval',
-                  },
-                  { value: 'assigned-to-me', label: 'Assigned to me' },
-                ]}
-                value={transactionView}
-                onChange={(v) => {
-                  setRowSelection({});
-                  setPagination((current) => ({ ...current, pageIndex: 0 }));
-                  setTransactionView(
-                    v === 'uncoded' ||
-                      v === 'auto-mapped-pending' ||
-                      v === 'assigned-to-me'
-                      ? v
-                      : 'all'
-                  );
-                }}
-                style={{ width: isMobile ? '100%' : 250 }}
-              />
-              <Button
-                variant="light"
-                color="teal"
-                size="sm"
-                fullWidth={isMobile}
-                disabled={readOnly || autoMappedPendingTxns.length === 0}
-                onClick={() => {
-                  void runBulkAction({
-                    input: {
-                      action: 'approveAutoMappings',
-                      txnIds: autoMappedPendingTxns.map((txn) => txn.id),
-                    },
-                    successLabel: 'Approved',
-                    clearSelection: false,
-                  });
-                }}
-              >
-                Accept all auto-mappings ({autoMappedPendingTxns.length})
-              </Button>
-              <Button
-                variant="light"
-                size="sm"
-                fullWidth={isMobile}
-                disabled={readOnly || !canEditTaxonomy}
-                onClick={() => setManageOpen(true)}
-              >
-                Manage categories
-              </Button>
-            </Group>
-          ) : (
-            <Paper className={classes.surfaceMuted} radius="xl" p="md">
-              <Text size="sm" c="dimmed">
-                Loading transaction controls...
-              </Text>
-            </Paper>
-          )}
-
-          {isHydrated && !readOnly && selectedTxnIds.length > 0 ? (
-            <TransactionBulkActionsBar
-              selectedCountLabel={formatTxnCountLabel(selectedTxnIds.length)}
-              selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
-              selectedUnlockedCategorisableCount={
-                selectedUnlockedCategorisableCount
-              }
-              onClearSelection={() => setRowSelection({})}
-              onMarkReviewed={() => {
-                void runBulkAction({
-                  input: {
-                    action: 'setReviewed',
-                    txnIds: selectedTxnIds,
-                    reviewed: true,
-                  },
-                  successLabel: 'Reviewed',
-                });
-              }}
-              onMarkUnreviewed={() => {
-                void runBulkAction({
-                  input: {
-                    action: 'setReviewed',
-                    txnIds: selectedTxnIds,
-                    reviewed: false,
-                  },
-                  successLabel: 'Marked unreviewed for',
-                });
-              }}
-              onLock={() => {
-                void runBulkAction({
-                  input: {
-                    action: 'setLocked',
-                    txnIds: selectedTxnIds,
-                    locked: true,
-                  },
-                  successLabel: 'Locked',
-                });
-              }}
-              onUnlock={() => {
-                void runBulkAction({
-                  input: {
-                    action: 'setLocked',
-                    txnIds: selectedTxnIds,
-                    locked: false,
-                  },
-                  successLabel: 'Unlocked',
-                });
-              }}
-              onApproveAutoMappings={() => {
-                void runBulkAction({
-                  input: {
-                    action: 'approveAutoMappings',
-                    txnIds: selectedTxnIds,
-                  },
-                  successLabel: 'Approved',
-                });
-              }}
-              onOpenRecode={() => {
-                setBulkRecodeCategoryId(null);
-                setBulkRecodeSubCategoryId(null);
-                setBulkRecodeOpen(true);
-              }}
-              onClearCoding={() => {
-                void runBulkAction({
-                  input: {
-                    action: 'clearCoding',
-                    txnIds: selectedTxnIds,
-                  },
-                  successLabel: 'Cleared coding for',
-                });
-              }}
-            />
-          ) : null}
-
-          {drilldownLabel ? (
-            <Group gap="sm" align="center" wrap="wrap">
-              <Badge variant="light" color="blue">
-                Budget drilldown
-              </Badge>
-              <Text size="sm" c="dimmed">
-                Showing budget-impact transactions for {drilldownLabel}.
-              </Text>
-              <Button
-                size="xs"
-                variant="subtle"
-                onClick={() => {
-                  setRowSelection({});
-                  setPagination((current) => ({ ...current, pageIndex: 0 }));
-                  onClearTransactionDrilldown?.();
-                }}
-              >
-                Clear drilldown
-              </Button>
-            </Group>
-          ) : null}
-
-          {pageSummary.invalidDateCount > 0 && (
-            <Text size="sm" c="dimmed">
-              {pageSummary.invalidDateCount} transaction(s) have invalid dates
-              and may be excluded from month filters or rollups.
-            </Text>
-          )}
-
-          {projectRuleError && !projectRulePrompt ? (
-            <Alert color="red">{projectRuleError}</Alert>
-          ) : null}
-        </Stack>
-      </Paper>
-
-      <div className={classes.tableBreakout}>
-        {!isHydrated ||
-        transactionsPageQ.isLoading ||
-        isTransitioningPageData ? (
-          <Paper className={classes.surfaceCard} radius="xl" p="lg">
-            <Text c="dimmed">
-              {!isHydrated
-                ? 'Loading transactions...'
-                : transactionDrilldown
-                  ? 'Loading budget drilldown transactions...'
-                  : 'Loading transactions...'}
-            </Text>
-          </Paper>
-        ) : (
-          <div className={classes.tableWrap}>
-            <MantineReactTable
-              key={paginationScopeKey}
-              columns={txnColumns}
-              data={pagedTxns}
-              getRowId={(row) => row.id}
-              enableRowSelection={!readOnly}
-              enableEditing={!readOnly}
-              editDisplayMode="cell"
-              state={{
-                pagination,
-                rowSelection,
-                sorting,
-                showProgressBars: transactionsPageQ.isFetching,
-              }}
-              onPaginationChange={(updater) => {
-                setRowSelection({});
-                setPagination(updater);
-              }}
-              onRowSelectionChange={setRowSelection}
-              onSortingChange={(updater) => {
-                const nextSorting =
-                  typeof updater === 'function' ? updater(sorting) : updater;
-                setRowSelection({});
-                setSorting(nextSorting);
-                setPagination((current) => ({ ...current, pageIndex: 0 }));
-              }}
-              enableColumnResizing
-              enableColumnActions={false}
-              enableSorting
-              enableSortingRemoval={false}
-              manualPagination
-              manualSorting
-              rowCount={pageSummary.totalCount}
-              enablePagination
-              autoResetPageIndex={false}
-              initialState={{
-                density: 'xs',
-              }}
-              mantineTableContainerProps={{
-                className: 'financeTable txnTable',
-              }}
-              mantineTableBodyCellProps={{ style: { verticalAlign: 'middle' } }}
-              mantineTableProps={{
-                highlightOnHover: true,
-                striped: 'odd',
-                withTableBorder: true,
-                style: { tableLayout: 'auto' },
-              }}
-              enableTopToolbar={false}
-              enableDensityToggle={false}
-              enableFullScreenToggle={false}
-              mantineTableBodyRowProps={({ row }) => {
-                const ok =
-                  !!row.original.subCategoryId &&
-                  taxonomy.validSubIds.has(row.original.subCategoryId);
-                return isCategorisableTxn(row.original) && !ok
-                  ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-                  : {};
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      <TaxonomyManagerModal
-        opened={manageOpen}
-        onClose={() => setManageOpen(false)}
-        taxonomy={taxonomy}
-        readOnly={!canEditTaxonomy}
+      <TransactionFiltersCard
+        isMobile={isMobile}
+        yearFilterOptions={yearFilterOptions}
+        yearFilter={yearFilter}
+        setYearFilter={setYearFilter}
+        quarterFilterOptions={quarterFilterOptions}
+        quarterFilter={quarterFilter}
+        setQuarterFilter={setQuarterFilter}
+        monthFilterOptions={monthFilterOptions}
+        monthFilterKey={monthFilterKey}
+        setMonthFilterKey={setMonthFilterKey}
+        onClearFilters={onClearFilters}
+        onResetPage={() =>
+          setPagination((current) => ({ ...current, pageIndex: 0 }))
+        }
+        onClearSelection={() => setRowSelection({})}
+        toQuarterOption={toQuarterOption}
       />
 
-      <TransactionSplitModal
-        opened={Boolean(splitTxn)}
-        txn={splitTxn}
-        taxonomy={taxonomy}
+      <TransactionsOverviewCard
+        pageSummary={pageSummary}
         currencyCode={currencyCode}
-        onClose={() => setSplitTxn(null)}
-        onSplit={(children) =>
-          splitTxn ? txns.splitTxn(splitTxn.id, children) : Promise.resolve()
+        autoMappedPendingCount={autoMappedPendingTxns.length}
+        isHydrated={isHydrated}
+        isMobile={isMobile}
+        transactionView={transactionView}
+        setTransactionView={setTransactionView}
+        readOnly={readOnly}
+        canEditTaxonomy={canEditTaxonomy}
+        onApproveAllAutoMappings={() => {
+          void runBulkAction({
+            input: {
+              action: 'approveAutoMappings',
+              txnIds: autoMappedPendingTxns.map((txn) => txn.id),
+            },
+            successLabel: 'Approved',
+            clearSelection: false,
+          });
+        }}
+        onOpenTaxonomyManager={() => setManageOpen(true)}
+        selectedTxnCount={selectedTxnIds.length}
+        selectedCountLabel={formatTxnCountLabel(selectedTxnIds.length)}
+        selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
+        selectedUnlockedCategorisableCount={selectedUnlockedCategorisableCount}
+        onClearSelection={() => setRowSelection({})}
+        onMarkReviewed={() => {
+          void runBulkAction({
+            input: {
+              action: 'setReviewed',
+              txnIds: selectedTxnIds,
+              reviewed: true,
+            },
+            successLabel: 'Reviewed',
+          });
+        }}
+        onMarkUnreviewed={() => {
+          void runBulkAction({
+            input: {
+              action: 'setReviewed',
+              txnIds: selectedTxnIds,
+              reviewed: false,
+            },
+            successLabel: 'Marked unreviewed for',
+          });
+        }}
+        onLock={() => {
+          void runBulkAction({
+            input: {
+              action: 'setLocked',
+              txnIds: selectedTxnIds,
+              locked: true,
+            },
+            successLabel: 'Locked',
+          });
+        }}
+        onUnlock={() => {
+          void runBulkAction({
+            input: {
+              action: 'setLocked',
+              txnIds: selectedTxnIds,
+              locked: false,
+            },
+            successLabel: 'Unlocked',
+          });
+        }}
+        onApproveAutoMappings={() => {
+          void runBulkAction({
+            input: {
+              action: 'approveAutoMappings',
+              txnIds: selectedTxnIds,
+            },
+            successLabel: 'Approved',
+          });
+        }}
+        onOpenRecode={() => {
+          setBulkRecodeCategoryId(null);
+          setBulkRecodeSubCategoryId(null);
+          setBulkRecodeOpen(true);
+        }}
+        onClearCoding={() => {
+          void runBulkAction({
+            input: {
+              action: 'clearCoding',
+              txnIds: selectedTxnIds,
+            },
+            successLabel: 'Cleared coding for',
+          });
+        }}
+        drilldownLabel={drilldownLabel}
+        onClearDrilldown={() => {
+          setRowSelection({});
+          setPagination((current) => ({ ...current, pageIndex: 0 }));
+          onClearTransactionDrilldown?.();
+        }}
+        invalidDateCount={pageSummary.invalidDateCount}
+        projectRuleError={projectRuleError}
+        projectRulePromptOpen={Boolean(projectRulePrompt)}
+        onResetPage={() =>
+          setPagination((current) => ({ ...current, pageIndex: 0 }))
         }
       />
 
-      <TransactionTransferModal
-        opened={Boolean(transferTxn)}
-        txn={transferTxn}
+      <TransactionsDataTable
+        isHydrated={isHydrated}
+        isLoading={transactionsPageQ.isLoading}
+        isTransitioningPageData={isTransitioningPageData}
+        transactionDrilldownActive={Boolean(transactionDrilldown)}
+        paginationScopeKey={paginationScopeKey}
+        txnColumns={txnColumns}
+        pagedTxns={pagedTxns}
+        readOnly={readOnly}
+        pagination={pagination}
+        rowSelection={rowSelection}
+        sorting={sorting}
+        totalCount={pageSummary.totalCount}
+        validSubIds={taxonomy.validSubIds}
+        showProgressBars={transactionsPageQ.isFetching}
+        onPaginationChange={(updater) => {
+          setRowSelection({});
+          setPagination(updater);
+        }}
+        onRowSelectionChange={setRowSelection}
+        onSortingChange={(updater) => {
+          const nextSorting =
+            typeof updater === 'function' ? updater(sorting) : updater;
+          setRowSelection({});
+          setSorting(nextSorting);
+          setPagination((current) => ({ ...current, pageIndex: 0 }));
+        }}
+      />
+
+      <TransactionsModalStack
+        manageOpen={manageOpen}
+        onCloseManage={() => setManageOpen(false)}
+        taxonomy={taxonomy}
+        canEditTaxonomy={canEditTaxonomy}
+        splitTxn={splitTxn}
         currencyCode={currencyCode}
-        projectOptions={transferProjectOptions}
-        onClose={() => setTransferTxn(null)}
+        onCloseSplit={() => setSplitTxn(null)}
+        onSplit={(children) =>
+          splitTxn ? txns.splitTxn(splitTxn.id, children) : Promise.resolve()
+        }
+        transferTxn={transferTxn}
+        transferProjectOptions={transferProjectOptions}
+        onCloseTransfer={() => setTransferTxn(null)}
         onTransfer={(input) =>
           transferTxn
             ? txns.transferTxn(transferTxn.id, input)
             : Promise.resolve()
         }
-      />
-
-      <TransactionCommentsModal
-        opened={Boolean(activeCommentsTxn)}
-        txn={activeCommentsTxn}
-        onClose={() => {
+        activeCommentsTxn={activeCommentsTxn}
+        onCloseComments={() => {
           setCommentsTxn(null);
           if (initialCommentTxnId) {
             setDismissedLinkedCommentTxnId(initialCommentTxnId);
           }
         }}
-      />
-
-      <TransactionBulkRecodeModal
-        opened={bulkRecodeOpen}
-        categoryId={bulkRecodeCategoryId}
-        subCategoryId={bulkRecodeSubCategoryId}
-        categoryOptions={taxonomy.categoryOptions}
-        subCategoryOptions={bulkRecodeSubCategoryOptions}
-        onClose={() => setBulkRecodeOpen(false)}
+        bulkRecodeOpen={bulkRecodeOpen}
+        bulkRecodeCategoryId={bulkRecodeCategoryId}
+        bulkRecodeSubCategoryId={bulkRecodeSubCategoryId}
+        bulkRecodeSubCategoryOptions={bulkRecodeSubCategoryOptions}
+        onCloseBulkRecode={() => setBulkRecodeOpen(false)}
         onCategoryChange={setBulkRecodeCategoryId}
         onSubCategoryChange={setBulkRecodeSubCategoryId}
-        onSubmit={async () => {
-          if (!bulkRecodeCategoryId || !bulkRecodeSubCategoryId) return;
-          const result = await runBulkAction({
-            input: {
-              action: 'recode',
-              txnIds: selectedTxnIds,
-              categoryId: asCategoryId(bulkRecodeCategoryId),
-              subCategoryId: asSubCategoryId(bulkRecodeSubCategoryId),
-            },
-            successLabel: 'Recoded',
-          });
-          if (result) {
-            setBulkRecodeOpen(false);
-          }
-        }}
-      />
-
-      <Modal
-        opened={Boolean(projectRulePrompt)}
-        onClose={() => {
+        selectedTxnIds={selectedTxnIds}
+        onSubmitBulkRecode={async ({ txnIds, categoryId, subCategoryId }) =>
+          Boolean(
+            await runBulkAction({
+              input: {
+                action: 'recode',
+                txnIds,
+                categoryId,
+                subCategoryId,
+              },
+              successLabel: 'Recoded',
+            })
+          )
+        }
+        projectRulePrompt={projectRulePrompt}
+        projectRuleMatchText={projectRuleMatchText}
+        projectRuleError={projectRuleError}
+        createProjectRulePending={createProjectRule.isPending}
+        onCloseProjectRule={() => {
           setProjectRulePrompt(null);
           setProjectRuleError(null);
         }}
-        title="Create project auto-coding rule?"
-        centered
-      >
-        <Stack gap="md">
-          {projectRuleError ? (
-            <Alert color="red">{projectRuleError}</Alert>
-          ) : null}
-          <Text size="sm" c="dimmed">
-            This pattern has now been manually coded{' '}
-            {projectRulePrompt?.supportingCount ?? 0} times. Create a project
-            rule now to auto-code future imports and mark matching uncoded
-            transactions for approval.
-          </Text>
-          <TextInput
-            label="Match text"
-            value={projectRuleMatchText}
-            onChange={(event) => {
-              setProjectRuleError(null);
-              setProjectRuleMatchText(event.currentTarget.value);
-            }}
-          />
-          <Group justify="flex-end">
-            <Button
-              variant="subtle"
-              onClick={() => {
-                setProjectRulePrompt(null);
-                setProjectRuleError(null);
-              }}
-            >
-              Not now
-            </Button>
-            <Button
-              disabled={
-                createProjectRule.isPending ||
-                !projectRulePrompt ||
-                !projectRuleMatchText.trim()
-              }
-              onClick={async () => {
-                if (!projectRulePrompt) return;
-                try {
-                  setProjectRuleError(null);
-                  await createProjectRule.mutateAsync({
-                    matchText: projectRuleMatchText.trim(),
-                    categoryId: projectRulePrompt.categoryId,
-                    subCategoryId: projectRulePrompt.subCategoryId,
-                  });
-                  setProjectRulePrompt(null);
-                } catch (error) {
-                  setProjectRuleError(
-                    error instanceof Error
-                      ? error.message
-                      : 'Could not create project auto-coding rule.'
-                  );
-                }
-              }}
-            >
-              Create rule
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        onProjectRuleMatchTextChange={(value) => {
+          setProjectRuleError(null);
+          setProjectRuleMatchText(value);
+        }}
+        onSubmitProjectRule={async () => {
+          if (!projectRulePrompt) return;
+          try {
+            setProjectRuleError(null);
+            await createProjectRule.mutateAsync({
+              matchText: projectRuleMatchText.trim(),
+              categoryId: projectRulePrompt.categoryId,
+              subCategoryId: projectRulePrompt.subCategoryId,
+            });
+            setProjectRulePrompt(null);
+          } catch (error) {
+            setProjectRuleError(
+              error instanceof Error
+                ? error.message
+                : 'Could not create project auto-coding rule.'
+            );
+          }
+        }}
+      />
     </Stack>
   );
 }

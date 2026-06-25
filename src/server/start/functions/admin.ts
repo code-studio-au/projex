@@ -1,93 +1,196 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  createCompanyEndpoint,
-  createProjectEndpoint,
-  createUserInCompanyEndpoint,
-  deactivateCompanyEndpoint,
-  deactivateProjectEndpoint,
-  deleteCompanyEndpoint,
-  deleteProjectEndpoint,
-  reactivateCompanyEndpoint,
-  reactivateProjectEndpoint,
-  sendCompanyUserInviteEmailEndpoint,
-  updateCompanyEndpoint,
-  updateProjectEndpoint,
-} from '../../app/companyEndpoints';
-import { importTransactionsEndpoint } from '../../app/transactionEndpoints';
+  loadAppEndpointModule,
+  type CompanyEndpointsModule,
+  type TransactionEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadCompanyEndpoints = () =>
+  loadAppEndpointModule<CompanyEndpointsModule>('companyEndpoints');
+const loadTransactionEndpoints = () =>
+  loadAppEndpointModule<TransactionEndpointsModule>('transactionEndpoints');
 
 export const createCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(createCompanyEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(createCompanyEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'createCompanyEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'createCompanyEndpoint'
+    )
+  );
 
 export const createProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(createProjectEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(createProjectEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'createProjectEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'createProjectEndpoint'
+    )
+  );
 
 export const updateProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(updateProjectEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(updateProjectEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'updateProjectEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'updateProjectEndpoint'
+    )
+  );
 
 export const updateCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(updateCompanyEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(updateCompanyEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'updateCompanyEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'updateCompanyEndpoint'
+    )
+  );
 
 export const createUserInCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(createUserInCompanyEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'createUserInCompanyEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(createUserInCompanyEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'createUserInCompanyEndpoint'
+    )
+  );
 
 export const sendCompanyUserInviteEmailServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(sendCompanyUserInviteEmailEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'sendCompanyUserInviteEmailEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(sendCompanyUserInviteEmailEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'sendCompanyUserInviteEmailEndpoint'
+    )
+  );
 
 export const importTransactionsServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(importTransactionsEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'importTransactionsEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(importTransactionsEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'importTransactionsEndpoint'
+    )
+  );
 
 export const deactivateCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(deactivateCompanyEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(deactivateCompanyEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'deactivateCompanyEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'deactivateCompanyEndpoint'
+    )
+  );
 
 export const reactivateCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(reactivateCompanyEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(reactivateCompanyEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'reactivateCompanyEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'reactivateCompanyEndpoint'
+    )
+  );
 
 export const deleteCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(deleteCompanyEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(deleteCompanyEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'deleteCompanyEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'deleteCompanyEndpoint'
+    )
+  );
 
 export const deactivateProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(deactivateProjectEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(deactivateProjectEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'deactivateProjectEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'deactivateProjectEndpoint'
+    )
+  );
 
 export const reactivateProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(reactivateProjectEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(reactivateProjectEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'reactivateProjectEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'reactivateProjectEndpoint'
+    )
+  );
 
 export const deleteProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(deleteProjectEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(deleteProjectEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'deleteProjectEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'deleteProjectEndpoint'
+    )
+  );

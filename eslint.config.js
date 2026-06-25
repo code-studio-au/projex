@@ -5,6 +5,18 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
+const appServerImportRestriction = {
+  regex: String.raw`^(\.\./)+server/(?!start/functions(?:/|$)).+`,
+  message:
+    'App-compilable code must cross into server code only through src/api/** contracts or src/server/start/functions/**.',
+};
+
+const apiRouteServerImportRestriction = {
+  regex: String.raw`^(\.\./)+server/`,
+  message:
+    'API route files must stay transport-only. Use src/routes/-api-shared.ts and dynamically load src/server/routes/** adapters instead of importing server infrastructure directly.',
+};
+
 export default defineConfig([
   globalIgnores(['dist', '.scaffold/**', 'deploy/cdk/**', 'auth.ts']),
   {
@@ -28,6 +40,25 @@ export default defineConfig([
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: {
       globals: globals.browser,
+    },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [appServerImportRestriction],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/routes/api*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [apiRouteServerImportRestriction],
+        },
+      ],
     },
   },
   {

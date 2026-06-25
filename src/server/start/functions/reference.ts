@@ -1,29 +1,52 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  getDefaultCompanyIdForUserEndpoint,
-  listCompaniesEndpoint,
-  listUsersEndpoint,
-} from '../../app/companyEndpoints';
+  loadAppEndpointModule,
+  type CompanyEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadCompanyEndpoints = () =>
+  loadAppEndpointModule<CompanyEndpointsModule>('companyEndpoints');
 
 export const listUsersServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(listUsersEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(listUsersEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'listUsersEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(loadCompanyEndpoints, 'listUsersEndpoint')
+  );
 
 export const listCompaniesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(listCompaniesEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(listCompaniesEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'listCompaniesEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'listCompaniesEndpoint'
+    )
+  );
 
 export const getDefaultCompanyIdForUserServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(getDefaultCompanyIdForUserEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'getDefaultCompanyIdForUserEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(getDefaultCompanyIdForUserEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'getDefaultCompanyIdForUserEndpoint'
+    )
+  );

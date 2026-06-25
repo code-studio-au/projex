@@ -261,4 +261,5 @@ That adds:
 
 - production build
 - disposable Postgres-backed DB integration tests
-- disposable Postgres-backed isolated smoke basics
+- disposable Postgres-backed isolated server smoke basics
+- disposable Postgres-backed isolated browser smoke basics

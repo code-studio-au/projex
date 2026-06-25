@@ -1,31 +1,61 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  acceptRuleSuggestionEndpoint,
-  dismissRuleSuggestionEndpoint,
-  listRuleSuggestionsEndpoint,
-} from '../../app/ruleSuggestionEndpoints';
+  loadAppEndpointModule,
+  type RuleSuggestionEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadRuleSuggestionEndpoints = () =>
+  loadAppEndpointModule<RuleSuggestionEndpointsModule>(
+    'ruleSuggestionEndpoints'
+  );
 
 export const listRuleSuggestionsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(listRuleSuggestionsEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadRuleSuggestionEndpoints,
+      'listRuleSuggestionsEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(listRuleSuggestionsEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadRuleSuggestionEndpoints,
+      'listRuleSuggestionsEndpoint'
+    )
+  );
 
 export const acceptRuleSuggestionServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(acceptRuleSuggestionEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadRuleSuggestionEndpoints,
+      'acceptRuleSuggestionEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(acceptRuleSuggestionEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadRuleSuggestionEndpoints,
+      'acceptRuleSuggestionEndpoint'
+    )
+  );
 
 export const dismissRuleSuggestionServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(
-    serverFnInputValidator(dismissRuleSuggestionEndpoint.inputSchema)
+    lazyServerFnInputValidator(
+      loadRuleSuggestionEndpoints,
+      'dismissRuleSuggestionEndpoint'
+    )
   )
-  .handler(createServerFnEndpointHandler(dismissRuleSuggestionEndpoint));
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadRuleSuggestionEndpoints,
+      'dismissRuleSuggestionEndpoint'
+    )
+  );

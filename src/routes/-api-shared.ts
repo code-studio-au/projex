@@ -45,6 +45,22 @@ export type PublicApiRouteContext = {
   started: number;
 };
 
+type RequestContextModule = {
+  resolveRequestServerContext(request: Request): Promise<{
+    session: ServerSession | null;
+    serverContext: ServerFnContextInput;
+  }>;
+};
+
+type SecurityModule = {
+  buildCorsHeaders(origin: string | null, requestOrigin: string): Headers;
+  isOriginAllowed(origin: string | null, requestOrigin: string): boolean;
+};
+
+function serverModuleSpecifier(...segments: string[]): string {
+  return segments.join('/');
+}
+
 export async function withPublicApi(
   request: Request,
   run: () => Promise<unknown>
@@ -77,8 +93,9 @@ export const apiRouteMiddleware = createMiddleware().server(
     return withApiCore(
       request,
       async ({ requestId, origin, requestOrigin, started }) => {
-        const { resolveRequestServerContext } =
-          await import('../server/http/requestContext');
+        const { resolveRequestServerContext } = (await import(
+          serverModuleSpecifier('..', 'server', 'http', 'requestContext')
+        )) as RequestContextModule;
         const { session, serverContext } =
           await resolveRequestServerContext(request);
         return next({
@@ -187,8 +204,9 @@ async function withApiCore(
     started: number;
   }) => Promise<unknown>
 ): Promise<Response> {
-  const { buildCorsHeaders, isOriginAllowed } =
-    await import('../server/http/security');
+  const { buildCorsHeaders, isOriginAllowed } = (await import(
+    serverModuleSpecifier('..', 'server', 'http', 'security')
+  )) as SecurityModule;
   const requestId =
     request.headers.get('x-request-id') ??
     (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'

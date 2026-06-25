@@ -1,31 +1,65 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  getCompanyEndpoint,
-  getCompanySummaryEndpoint,
-  getProjectEndpoint,
-  listProjectsEndpoint,
-} from '../../app/companyEndpoints';
+  loadAppEndpointModule,
+  type CompanyEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadCompanyEndpoints = () =>
+  loadAppEndpointModule<CompanyEndpointsModule>('companyEndpoints');
 
 export const getCompanyServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(getCompanyEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(getCompanyEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'getCompanyEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'getCompanyEndpoint'
+    )
+  );
 
 export const getCompanySummaryServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(getCompanySummaryEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(getCompanySummaryEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'getCompanySummaryEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'getCompanySummaryEndpoint'
+    )
+  );
 
 export const listProjectsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(listProjectsEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(listProjectsEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'listProjectsEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'listProjectsEndpoint'
+    )
+  );
 
 export const getProjectServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(getProjectEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(getProjectEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadCompanyEndpoints, 'getProjectEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'getProjectEndpoint'
+    )
+  );

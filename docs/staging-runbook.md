@@ -24,8 +24,8 @@ Before handing this repo to another developer or team, make sure:
   - only nginx/public ports should be browser-facing
 - the eventual pipeline shape is clear:
   - local/CI gate: `pnpm run verify:ci`
-  - GitHub Actions CI: static checks, DB verification, and disposable smoke basics
-  - GitHub Actions deploy artifact build: reruns formatting, lint, typecheck, tests, build, DB verification, DB integration, and disposable smoke before packaging
+  - GitHub Actions CI: static checks, DB verification, disposable server smoke basics, and disposable browser smoke basics
+  - GitHub Actions deploy artifact build: reruns formatting, lint, typecheck, tests, build, DB verification, DB integration, disposable server smoke, and disposable browser smoke before packaging
   - deployed-environment checks: `pnpm run smoke:server` and `pnpm run verify:deploy-security`
 - normal code flow is branch -> PR -> green checks -> merge; protected `main` is not the routine delivery path
 - the first-admin bootstrap path is understood for fresh databases:
@@ -79,7 +79,9 @@ pnpm run verify:ci
 How to think about those commands:
 
 - `pnpm run verify:security` is the fast non-Docker pass for repo config, audit, tests, typecheck, and lint.
-- `pnpm run verify:ci` is the fuller local/CI-shaped pass. It adds build, disposable DB integration tests, and isolated disposable smoke basics.
+- `pnpm run verify:ci` is the fuller local/CI-shaped pass. It adds build,
+  disposable DB integration tests, isolated disposable server smoke basics, and
+  isolated disposable browser smoke basics.
 - Both disposable DB steps require local Docker access.
 - `pnpm run db:migrate` remains an explicit deployment step; the runtime server should be restarted only after migrations succeed.
 

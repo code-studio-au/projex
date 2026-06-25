@@ -1,31 +1,62 @@
 import { createServerFn } from '@tanstack/react-start';
 
 import {
-  createBudgetEndpoint,
-  deleteBudgetEndpoint,
-  listBudgetsEndpoint,
-  updateBudgetEndpoint,
-} from '../../app/budgetEndpoints';
+  loadAppEndpointModule,
+  type BudgetEndpointsModule,
+} from '../../../api/appEndpointModules';
 import { startApiMiddleware } from '../middleware';
-import { createServerFnEndpointHandler } from './shared';
-import { serverFnInputValidator } from './validation';
+import {
+  createLazyServerFnEndpointHandler,
+  lazyServerFnInputValidator,
+} from './shared';
+
+const loadBudgetEndpoints = () =>
+  loadAppEndpointModule<BudgetEndpointsModule>('budgetEndpoints');
 
 export const listBudgetsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(listBudgetsEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(listBudgetsEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadBudgetEndpoints, 'listBudgetsEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadBudgetEndpoints,
+      'listBudgetsEndpoint'
+    )
+  );
 
 export const createBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(createBudgetEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(createBudgetEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadBudgetEndpoints, 'createBudgetEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadBudgetEndpoints,
+      'createBudgetEndpoint'
+    )
+  );
 
 export const updateBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(updateBudgetEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(updateBudgetEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadBudgetEndpoints, 'updateBudgetEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadBudgetEndpoints,
+      'updateBudgetEndpoint'
+    )
+  );
 
 export const deleteBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(serverFnInputValidator(deleteBudgetEndpoint.inputSchema))
-  .handler(createServerFnEndpointHandler(deleteBudgetEndpoint));
+  .inputValidator(
+    lazyServerFnInputValidator(loadBudgetEndpoints, 'deleteBudgetEndpoint')
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadBudgetEndpoints,
+      'deleteBudgetEndpoint'
+    )
+  );
