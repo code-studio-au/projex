@@ -22,7 +22,11 @@ export async function resolveRequestServerContext(
     const session = await resolveCurrentSession(request);
     return {
       session,
-      serverContext: { request, session },
+      serverContext: {
+        request,
+        session,
+        sessionVerified: session !== null,
+      },
     };
   })();
 

@@ -5,7 +5,7 @@ Projex can run its local infrastructure dependencies through a single Docker Com
 ## Services
 
 - Postgres: `localhost:5432` via container `projex-postgres`
-- MinIO S3 API: `http://127.0.0.1:9010` via container `projex_miniO`
+- MinIO S3 API: `http://127.0.0.1:9010` via container `projex-minio`
 - MinIO console: `http://127.0.0.1:9011`
 
 ## Start everything
@@ -26,7 +26,7 @@ docker compose -f compose.local.yaml down
 - user: `projex`
 - password: `projex`
 
-These match the default local `DATABASE_URL` in `.env.local`:
+These match the default local `DATABASE_URL` in `.env.local.example`:
 
 ```env
 DATABASE_URL=postgres://projex:projex@localhost:5432/projex
@@ -50,6 +50,10 @@ S3_ACCESS_KEY_ID=minioadmin
 S3_SECRET_ACCESS_KEY=minioadmin
 S3_FORCE_PATH_STYLE=true
 ```
+
+The compose file pins MinIO to `RELEASE.2025-10-15T17-29-55Z` rather than
+`latest` so local object-storage behavior stays reproducible across machines and
+CI-style reruns.
 
 ## Data retention
 

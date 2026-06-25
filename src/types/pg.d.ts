@@ -35,3 +35,16 @@ declare module 'pg' {
     end(): Promise<void>;
   }
 }
+
+declare module 'pg/esm/index.mjs' {
+  export {
+    Pool,
+    type PoolClient,
+    type PoolConfig,
+    type QueryResult,
+    type QueryResultRow,
+  } from 'pg';
+
+  import pgDefault from 'pg';
+  export default pgDefault;
+}

@@ -15,6 +15,7 @@ HTTP routes stay transport-only and dynamically load server-only adapters from
 
 ```bash
 pnpm install
+cp .env.local.example .env.local
 pnpm run dev
 ```
 
@@ -68,6 +69,12 @@ signal-to-runtime ratio without turning every push into a full long-running
 application sweep.
 
 For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](/Users/scas0196/Documents/code/projex/docs/local-services.md:1).
+
+Env example files are now split by purpose:
+
+- `.env.example` for deploy-facing baseline values
+- `.env.local.example` for normal local development
+- `.env.smoke.example` for optional manual smoke credentials
 
 ## Verification
 
@@ -242,4 +249,6 @@ Keep this list short. If a new note overlaps an existing item, update the existi
 - `docs/product-backlog.md`: product/admin backlog and non-priority ideas.
 - `docs/rule-suggestions-design.md`: design for deriving company rule suggestions from repeated manual coding.
 - `docs/verified-email-change-design.md`: design record for verified email-change behavior.
+- `CONTRIBUTING.md`: local setup, verification expectations, and contribution workflow.
+- `SECURITY.md`: vulnerability reporting path and deployment security expectations.
 - `deploy/cdk/README.md`: AWS CDK stack notes.

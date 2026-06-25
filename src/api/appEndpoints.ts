@@ -17,6 +17,11 @@ export type ServerSession = {
 
 export type ServerFnContextInput = {
   session?: ServerSession | null;
+  /**
+   * True when the session has already been checked against the app users table
+   * for existence and disabled state at the request boundary.
+   */
+  sessionVerified?: boolean;
   auth?: {
     userId?: string | null;
     user?: { id?: string | null } | null;

@@ -1,4 +1,5 @@
 import { AppError, toAppError } from '../../api/errors';
+import type { ServerFnContextInput } from '../../api/appEndpoints';
 import type { UserId } from '../../types';
 import { getAuthSessionFromRequest } from '../auth/betterAuth';
 import { getDb } from '../db/db';
@@ -8,24 +9,7 @@ import {
   type ServerSession,
 } from '../auth/session';
 
-export type ServerFnContextInput = {
-  /**
-   * Preferred path for Start server functions:
-   * pass the normalized server session from framework context.
-   */
-  session?: ServerSession | null;
-  /**
-   * Optional auth payload shape from adapters that already have Better Auth-like data.
-   */
-  auth?: {
-    userId?: string | null;
-    user?: { id?: string | null } | null;
-  } | null;
-  /**
-   * Optional raw request if session must be resolved at the boundary.
-   */
-  request?: Request;
-};
+export type { ServerFnContextInput } from '../../api/appEndpoints';
 
 async function resolveSession(
   context: ServerFnContextInput
@@ -41,6 +25,9 @@ export async function requireServerUserId(
 ): Promise<UserId> {
   const session = await resolveSession(context);
   const userId = requireUserId(session);
+  if (context.sessionVerified === true) {
+    return userId;
+  }
   const user = await getDb()
     .selectFrom('users')
     .select(['id', 'disabled'])

@@ -57,7 +57,42 @@ type SecurityModule = {
   isOriginAllowed(origin: string | null, requestOrigin: string): boolean;
 };
 
-const routeServerModuleLoaders = import.meta.glob('../server/**/*.ts');
+type RouteServerModuleLoader = () => Promise<unknown>;
+
+function dynamicRouteServerImport(specifier: string): Promise<unknown> {
+  return import(
+    /* @vite-ignore */
+    specifier
+  );
+}
+
+const viteRouteGlob: ImportMeta['glob'] | undefined =
+  'glob' in import.meta && typeof import.meta.glob === 'function'
+    ? import.meta.glob.bind(import.meta)
+    : undefined;
+
+const routeServerModuleLoaders = viteRouteGlob
+  ? viteRouteGlob('../server/**/*.ts')
+  : ({
+      '../server/fns/companies.ts': () =>
+        dynamicRouteServerImport('../server/fns/companies.ts'),
+      '../server/http/requestContext.ts': () =>
+        dynamicRouteServerImport('../server/http/requestContext.ts'),
+      '../server/http/security.ts': () =>
+        dynamicRouteServerImport('../server/http/security.ts'),
+      '../server/routes/auth.ts': () =>
+        dynamicRouteServerImport('../server/routes/auth.ts'),
+      '../server/routes/devSession.ts': () =>
+        dynamicRouteServerImport('../server/routes/devSession.ts'),
+      '../server/routes/ready.ts': () =>
+        dynamicRouteServerImport('../server/routes/ready.ts'),
+      '../server/routes/session.ts': () =>
+        dynamicRouteServerImport('../server/routes/session.ts'),
+      '../server/smoke/fixtures.ts': () =>
+        dynamicRouteServerImport('../server/smoke/fixtures.ts'),
+      '../server/smoke/runSection.ts': () =>
+        dynamicRouteServerImport('../server/smoke/runSection.ts'),
+    } satisfies Record<string, RouteServerModuleLoader>);
 
 function resolveRouteServerModuleLoader(specifier: string) {
   const normalizedSpecifier = specifier.endsWith('.ts')

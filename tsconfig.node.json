@@ -23,6 +23,7 @@
     "noUncheckedSideEffectImports": true
   },
   "include": [
+    "auth.ts",
     "vite.config.ts",
     "scripts/**/*.ts",
     "src/server/**/*.ts",

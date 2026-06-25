@@ -90,7 +90,44 @@ import type {
 
 type NoInput = void | undefined;
 
-const appEndpointModuleLoaders = import.meta.glob('../server/app/*.ts');
+type AppEndpointModuleLoader = () => Promise<unknown>;
+
+function dynamicAppEndpointImport(specifier: string): Promise<unknown> {
+  return import(
+    /* @vite-ignore */
+    specifier
+  );
+}
+
+const viteAppGlob: ImportMeta['glob'] | undefined =
+  'glob' in import.meta && typeof import.meta.glob === 'function'
+    ? import.meta.glob.bind(import.meta)
+    : undefined;
+
+const appEndpointModuleLoaders = viteAppGlob
+  ? viteAppGlob('../server/app/*.ts')
+  : ({
+      '../server/app/accountEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/accountEndpoints.ts'),
+      '../server/app/authEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/authEndpoints.ts'),
+      '../server/app/budgetEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/budgetEndpoints.ts'),
+      '../server/app/companyEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/companyEndpoints.ts'),
+      '../server/app/importEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/importEndpoints.ts'),
+      '../server/app/membershipEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/membershipEndpoints.ts'),
+      '../server/app/projectAutoCodingEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/projectAutoCodingEndpoints.ts'),
+      '../server/app/ruleSuggestionEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/ruleSuggestionEndpoints.ts'),
+      '../server/app/taxonomyEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/taxonomyEndpoints.ts'),
+      '../server/app/transactionEndpoints.ts': () =>
+        dynamicAppEndpointImport('../server/app/transactionEndpoints.ts'),
+    } satisfies Record<string, AppEndpointModuleLoader>);
 
 export type PostLoginTarget =
   | { to: '/companies' }

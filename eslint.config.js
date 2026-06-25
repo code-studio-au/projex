@@ -18,7 +18,7 @@ const apiRouteServerImportRestriction = {
 };
 
 export default defineConfig([
-  globalIgnores(['dist', '.scaffold/**', 'deploy/cdk/**', 'auth.ts']),
+  globalIgnores(['dist', '.scaffold/**', 'deploy/cdk/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
@@ -63,6 +63,7 @@ export default defineConfig([
   },
   {
     files: [
+      'auth.ts',
       'src/server/**/*.{ts,tsx}',
       'scripts/**/*.{ts,mjs}',
       'tests/**/*.ts',

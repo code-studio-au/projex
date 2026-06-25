@@ -18,8 +18,8 @@ services:
       - ./.local/postgres/data:/var/lib/postgresql/data
 
   minio:
-    image: minio/minio:latest
-    container_name: projex_miniO
+    image: minio/minio:RELEASE.2025-10-15T17-29-55Z
+    container_name: projex-minio
     restart: unless-stopped
     ports:
       - '9010:9000'
