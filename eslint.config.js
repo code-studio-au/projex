@@ -18,7 +18,7 @@ const apiRouteServerImportRestriction = {
 };
 
 export default defineConfig([
-  globalIgnores(['dist', '.scaffold/**', 'deploy/cdk/**']),
+  globalIgnores(['dist', 'coverage', '.scaffold/**', 'deploy/cdk/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
@@ -36,7 +36,11 @@ export default defineConfig([
   },
   {
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/server/**'],
+    ignores: [
+      'src/server/**',
+      'src/routes/api*.ts',
+      'src/routes/-api-shared.ts',
+    ],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: {
       globals: globals.browser,
@@ -52,6 +56,11 @@ export default defineConfig([
   },
   {
     files: ['src/routes/api*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
     rules: {
       'no-restricted-imports': [
         'error',
@@ -59,6 +68,14 @@ export default defineConfig([
           patterns: [apiRouteServerImportRestriction],
         },
       ],
+    },
+  },
+  {
+    files: ['src/routes/-api-shared.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
     },
   },
   {

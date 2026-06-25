@@ -4,6 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "packageManager": "pnpm@11.0.8",
+  "engines": {
+    "node": ">=24 <26",
+    "pnpm": "11.x"
+  },
   "pnpm": {
     "overrides": {
       "flatted": "^3.4.2",
@@ -17,12 +21,14 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "test:integration:node": "node --import tsx --test tests/dbIntegration*.test.ts",
     "db:generate-types": "node --experimental-strip-types scripts/generate-db-types.ts",
     "db:verify-types": "node --experimental-strip-types scripts/generate-db-types.ts --verify",
     "verify:security:repo": "node scripts/verify-repo-security.mjs",
     "verify:security": "pnpm run verify:security:repo && pnpm audit --json && pnpm test && pnpm run typecheck && pnpm run lint",
-    "verify:app": "pnpm run verify:security:repo && pnpm audit --json && pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm test && pnpm run build",
+    "verify:coverage": "pnpm run coverage",
+    "verify:app": "pnpm run verify:security:repo && pnpm audit --json && pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run verify:coverage && pnpm run build",
     "verify:db:gate": "pnpm run db:migrate && pnpm run db:verify-types && pnpm run test:integration:db",
     "verify:smoke:basics": "pnpm run smoke:server:disposable -- --section=basics",
     "verify:smoke:basics:skip-build": "pnpm run smoke:server:disposable -- --skip-build --section=basics",
@@ -88,6 +94,7 @@
     "@types/node": "^24.11.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitest/coverage-v8": "^4.1.9",
     "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",

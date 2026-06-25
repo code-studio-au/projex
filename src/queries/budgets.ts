@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { ProjectId } from '../types';
 import type { BudgetLine } from '../types';
-import type { BudgetCreateInput, BudgetUpdateInput } from '../api/contract';
+import type { BudgetCreateInput, BudgetUpdateInput } from '../api/types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import {

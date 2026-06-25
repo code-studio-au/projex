@@ -1,5 +1,11 @@
 import { AppError } from '../../api/errors';
-import type { CompanyId, Project, ProjectId, ProjectType, UserId } from '../../types';
+import type {
+  CompanyId,
+  Project,
+  ProjectId,
+  ProjectType,
+  UserId,
+} from '../../types';
 import { asCompanyId, asProjectId } from '../../types';
 import { getDb } from '../db/db';
 

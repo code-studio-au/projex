@@ -29,7 +29,7 @@ import type {
   TxnTransferInput,
   TxnUpdateInput,
   TxnWorkflowStateInput,
-} from '../src/api/contract.ts';
+} from '../src/api/types.ts';
 import { AppError } from '../src/api/errors.ts';
 import { createPgPool } from '../src/server/db/pgPool.ts';
 import type { DB } from '../src/server/db/schema.ts';

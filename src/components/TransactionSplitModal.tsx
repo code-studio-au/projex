@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 
-import type { TxnSplitInput } from '../api/contract';
+import type { TxnSplitInput } from '../api/types';
 import type { CategoryId, SubCategoryId, Txn } from '../types';
 import { asCategoryId, asSubCategoryId } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';

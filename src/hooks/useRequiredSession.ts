@@ -1,4 +1,4 @@
-import type { Session } from '../api/contract';
+import type { Session } from '../api/types';
 import { AppError } from '../api/errors';
 import { useSessionQuery } from '../queries/session';
 

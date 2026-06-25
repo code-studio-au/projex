@@ -10,10 +10,13 @@
 ## Setup
 
 ```bash
+corepack enable
 pnpm install
 cp .env.local.example .env.local
 pnpm run dev
 ```
+
+Use Node `24` as pinned in `.nvmrc` and `.node-version`.
 
 Optional manual smoke setup:
 

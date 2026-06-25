@@ -2,7 +2,7 @@ import type {
   ProjectRuleSuggestionPrompt,
   TxnSplitInput,
   TxnTransferInput,
-} from '../../api/contract';
+} from '../../api/types';
 import type { TaxonomyHook } from '../../hooks/useTaxonomy';
 import type { ProjectId, Txn, TxnId } from '../../types';
 import { asCategoryId, asSubCategoryId } from '../../types/ids';

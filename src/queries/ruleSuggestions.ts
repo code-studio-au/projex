@@ -4,7 +4,7 @@ import type { CompanyId } from '../types';
 import type {
   RuleSuggestionAcceptInput,
   RuleSuggestionDismissInput,
-} from '../api/contract';
+} from '../api/types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import {

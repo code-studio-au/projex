@@ -8,7 +8,7 @@ import {
 import type {
   ImportRuleCreateInput,
   ImportRuleUpdateInput,
-} from '../api/contract';
+} from '../api/types';
 import type { CompanyId, ImportRule, ProjectId } from '../types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';

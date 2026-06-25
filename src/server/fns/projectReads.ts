@@ -10,11 +10,7 @@ import {
   type ServerFnContextInput,
   withServerBoundary,
 } from './runtime';
-import {
-  getCompanyRole,
-  projectSelectFields,
-  toProject,
-} from './projectCore';
+import { getCompanyRole, projectSelectFields, toProject } from './projectCore';
 
 export async function listProjectsServer(args: {
   context: ServerFnContextInput;

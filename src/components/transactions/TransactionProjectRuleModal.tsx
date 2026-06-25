@@ -8,7 +8,7 @@ import {
   TextInput,
 } from '@mantine/core';
 
-import type { ProjectRuleSuggestionPrompt } from '../../api/contract';
+import type { ProjectRuleSuggestionPrompt } from '../../api/types';
 
 export default function TransactionProjectRuleModal(props: {
   opened: boolean;

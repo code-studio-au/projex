@@ -14,7 +14,7 @@ import type {
   TxnTransferInput,
   TxnUpdateInput,
   TxnUpdateResult,
-} from '../api/contract';
+} from '../api/types';
 import { useImportTransactionsMutation } from '../queries/admin';
 import {
   useBulkTxnActionMutation,

@@ -110,6 +110,7 @@ async function main() {
       console.log(`Skipping optional env file check: ${reason}`);
     }
   }
+  console.log('Override rationale: docs/dependency-overrides.md');
   console.log('Repo security config checks passed.');
 }
 

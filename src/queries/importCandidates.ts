@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 
-import type { ImportCandidateReviewInput } from '../api/contract';
+import type { ImportCandidateReviewInput } from '../api/types';
 import type { ProjectId } from '../types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';

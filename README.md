@@ -14,15 +14,19 @@ HTTP routes stay transport-only and dynamically load server-only adapters from
 ## Quick Start
 
 ```bash
+corepack enable
 pnpm install
 cp .env.local.example .env.local
 pnpm run dev
 ```
 
+Use Node `24` as pinned in `.nvmrc` and `.node-version`.
+
 Useful checks before handing work over or opening a PR:
 
 ```bash
 pnpm run test
+pnpm run coverage
 pnpm run db:verify-types
 pnpm run typecheck
 pnpm run lint
@@ -76,6 +80,9 @@ Env example files are now split by purpose:
 - `.env.local.example` for normal local development
 - `.env.smoke.example` for optional manual smoke credentials
 
+Local-only UI toggles such as `VITE_ENABLE_DEVTOOLS` live in
+`.env.local.example`.
+
 ## Verification
 
 The short version:
@@ -83,6 +90,7 @@ The short version:
 - `pnpm run verify:security` for the fast non-Docker safety pass
 - `pnpm run verify:ci` for the fuller local or future-CI gate
 - `pnpm test` for the fast Vitest app/runtime lane
+- `pnpm run coverage` for the Vitest-owned unit coverage gate and LCOV output
 - `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
 - `pnpm run smoke:server:disposable` for isolated local end-to-end smoke
 - `pnpm run smoke:browser:disposable` for isolated browser-driven smoke
@@ -186,6 +194,8 @@ Projex now supports a production-ready full company Excel export. Remaining work
 - optional ready-email notification from Company Settings that links the user back to the exact export job once generation completes
 - workbook payloads stored in S3-compatible object storage so export delivery and retention are decoupled from Postgres blob storage
 - completed and failed export jobs are retained for 24 hours, and failed/background-stale cleanup also removes any stored object payloads
+- server startup also recovers stale queued/running export jobs left behind by
+  interrupted prior processes
 - complete workbook coverage across the selected company, including workbook guidance, overview, executive summary, programmes, projects, programme membership, budgets, transactions, reviewed/locked/uncoded workflow tabs, taxonomy rollups, company default taxonomy, import rules, and memberships
 - explicit row-level identifiers and relationship columns so exported data can be filtered, audited, reconciled, and reused outside Projex without losing context
 - programme reporting exported as derived rollups only; operational transactions and budgets remain attached to the underlying projects so the workbook does not double count programme data
@@ -237,9 +247,12 @@ Operational defaults:
 - `.github/workflows/deploy.yml` is the manual build-once deploy scaffold. It packages a prebuilt release artifact and can later push that artifact to EC2 without rebuilding on the instance.
 - The enforced CSP intentionally retains `style-src-attr 'unsafe-inline'` for now because Mantine and current app UI still emit runtime `style=""` attributes; the rest of the policy stays nonce-based and strict.
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
+- `package.json` override rationale lives in [docs/dependency-overrides.md](/Users/scas0196/Documents/code/projex/docs/dependency-overrides.md:1).
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
 - API responses include `x-request-id`; structured request logs are emitted server-side.
 - Public deployments should use the nginx template at `deploy/nginx/projex.conf` for HTTPS redirects, security headers, forwarded headers, and the restart maintenance page.
+- The runtime keeps `h3` on an exact `h3-v2` RC alias because upstream stable
+  v2 is not published yet; revisit that pin when the stable release exists.
 
 ## Documentation Map
 

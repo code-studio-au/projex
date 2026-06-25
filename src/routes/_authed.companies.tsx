@@ -1,5 +1,4 @@
 import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
-import { isServerAuthMode } from './-authMode';
 import { allCompanyMembershipsQueryOptions } from '../queries/memberships';
 import { currentUserQueryOptions } from '../queries/account';
 import { companiesQueryOptions } from '../queries/reference';
@@ -8,7 +7,7 @@ import type { UserId } from '../types';
 
 export const Route = createFileRoute('/_authed/companies')({
   component: lazyRouteComponent(() => import('../pages/LandingPage')),
-  ssr: isServerAuthMode,
+  ssr: true,
   loader: async ({ context }) => {
     const session = (context.queryClient.getQueryData(
       sessionQueryOptions().queryKey

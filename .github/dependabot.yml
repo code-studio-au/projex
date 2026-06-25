@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      tanstack:
+        patterns:
+          - '@tanstack/*'
+      mantine:
+        patterns:
+          - '@mantine/*'
+      aws-sdk:
+        patterns:
+          - '@aws-sdk/*'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

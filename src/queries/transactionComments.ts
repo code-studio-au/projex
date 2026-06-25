@@ -11,7 +11,7 @@ import type { ProjectId, TxnCommentId, TxnId } from '../types';
 import type {
   TxnCommentCreateInput,
   TxnCommentUpdateInput,
-} from '../api/contract';
+} from '../api/types';
 import {
   createTransactionCommentServerFn,
   deleteTransactionCommentServerFn,

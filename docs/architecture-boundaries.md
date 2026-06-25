@@ -27,6 +27,17 @@ App code may cross into server behavior only through:
 This keeps `tsconfig.app.json` viable without Node globals and prevents auth/env
 implementation details from leaking into the app compilation graph.
 
+## Transport policy
+
+- Use HTTP route handlers for browser-visible transport concerns such as query
+  params, cache-friendly paginated reads, file download/upload flows, and any
+  endpoint that benefits from explicit method/status/header behavior.
+- Use `createServerFn` for command-style mutations and lightweight reads that
+  are naturally RPC-shaped inside the app graph.
+- If a feature uses both, document why. The transactions page is the reference
+  pattern: paginated listing stays on the HTTP route transport, while mutations
+  and focused server actions use `createServerFn`.
+
 ## Test runtime rule
 
 Vite-owned tests should run under Vitest, not raw `node:test`. That includes

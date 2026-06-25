@@ -9,7 +9,7 @@ import type {
   ProjectCreateInput,
   ProjectUpdateInput,
   TxnImportInput,
-} from '../api/contract';
+} from '../api/types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import { invalidateProjectTransactionQueries } from './transactions';

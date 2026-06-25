@@ -63,6 +63,10 @@ AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:synth -- \
   -c dbUsername=projex_app
 ```
 
+`cdk.out/` is a generated synth artifact directory and should stay uncommitted.
+This repo ignores `deploy/cdk/cdk.out/`; regenerate it locally when you need to
+inspect templates.
+
 ## Deploy Staging
 
 ```bash

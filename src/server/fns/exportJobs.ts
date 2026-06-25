@@ -18,6 +18,7 @@ import { asCompanyExportJobId, asCompanyId, asUserId } from '../../types';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
 import type { DB } from '../db/schema';
+import { enforceRateLimit } from '../rateLimit';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -39,9 +40,18 @@ const XLSX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const EXPORT_JOB_RETENTION_MS = 24 * 60 * 60 * 1000;
 const EXPORT_JOB_STALE_MS = 15 * 60 * 1000;
+const EXPORT_JOB_RATE_LIMIT = {
+  limit: 5,
+  windowMs: 10 * 60 * 1000,
+} as const;
+const EXPORT_JOB_STALE_MESSAGE =
+  'Export job was interrupted before completion. Please retry the export.';
 
 type ExportJobRow = Selectable<DB['company_export_jobs']>;
 
+// This in-memory guard is intentionally single-process. It prevents duplicate
+// concurrent execution inside the EC2/systemd runtime; persisted job rows still
+// remain the source of truth across restarts.
 const activeExportJobs = new Map<string, Promise<void>>();
 
 function nowIso() {
@@ -69,6 +79,13 @@ function isStaleRunningJob(
   const referenceIso = row.last_heartbeat_at ?? row.started_at;
   if (!referenceIso) return true;
   return Date.now() - new Date(referenceIso).getTime() > EXPORT_JOB_STALE_MS;
+}
+
+function isStaleQueuedJob(row: Pick<ExportJobRow, 'status' | 'requested_at'>) {
+  if (row.status !== 'queued') return false;
+  return (
+    Date.now() - new Date(row.requested_at).getTime() > EXPORT_JOB_STALE_MS
+  );
 }
 
 function toCompanyExportOptions(row: ExportJobRow): CompanyExportOptions {
@@ -203,6 +220,30 @@ async function loadExportJobOrThrow(args: {
   return { db, row };
 }
 
+async function deleteStoredExportObjectIfPresent(args: {
+  row: Pick<ExportJobRow, 'id' | 'storage_bucket' | 'storage_key'>;
+  logType: 'company_export_cleanup' | 'company_export_job_cleanup';
+  fallbackMessage: string;
+}) {
+  if (!args.row.storage_bucket || !args.row.storage_key) return;
+
+  try {
+    await deleteCompanyExportObject({
+      bucket: args.row.storage_bucket,
+      key: args.row.storage_key,
+    });
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        type: args.logType,
+        jobId: args.row.id,
+        message: error instanceof Error ? error.message : args.fallbackMessage,
+      })
+    );
+  }
+}
+
 async function cleanupExpiredExportJobs(db = getDb()) {
   const now = nowIso();
   const retentionCutoff = new Date(
@@ -223,26 +264,11 @@ async function cleanupExpiredExportJobs(db = getDb()) {
     .execute();
 
   for (const row of rows) {
-    if (row.storage_bucket && row.storage_key) {
-      try {
-        await deleteCompanyExportObject({
-          bucket: row.storage_bucket,
-          key: row.storage_key,
-        });
-      } catch (error) {
-        console.error(
-          JSON.stringify({
-            level: 'error',
-            type: 'company_export_cleanup',
-            jobId: row.id,
-            message:
-              error instanceof Error
-                ? error.message
-                : 'Could not delete expired export object',
-          })
-        );
-      }
-    }
+    await deleteStoredExportObjectIfPresent({
+      row,
+      logType: 'company_export_cleanup',
+      fallbackMessage: 'Could not delete expired export object',
+    });
   }
 
   if (!rows.length) return;
@@ -255,6 +281,63 @@ async function cleanupExpiredExportJobs(db = getDb()) {
       rows.map((row) => row.id)
     )
     .execute();
+}
+
+export async function recoverStaleCompanyExportJobsOnStartup(db = getDb()) {
+  const rows = await db
+    .selectFrom('company_export_jobs')
+    .selectAll()
+    .where('status', 'in', ['queued', 'running'])
+    .execute();
+
+  const staleRows = rows.filter(
+    (row) => isStaleQueuedJob(row) || isStaleRunningJob(row)
+  );
+  if (!staleRows.length) return;
+
+  for (const row of staleRows) {
+    await deleteStoredExportObjectIfPresent({
+      row,
+      logType: 'company_export_cleanup',
+      fallbackMessage: 'Could not delete stale export object during startup',
+    });
+
+    const failedAt = nowIso();
+    await db
+      .updateTable('company_export_jobs')
+      .set({
+        status: 'failed',
+        file_name: null,
+        content_type: null,
+        file_size_bytes: null,
+        storage_bucket: null,
+        storage_key: null,
+        storage_etag: null,
+        error_message: EXPORT_JOB_STALE_MESSAGE,
+        failed_at: failedAt,
+        expires_at: expiryIso(failedAt),
+        ready_notification_status: row.notify_when_ready
+          ? 'failed'
+          : 'not_requested',
+        ready_notification_error: row.notify_when_ready
+          ? EXPORT_JOB_STALE_MESSAGE
+          : null,
+        last_heartbeat_at: failedAt,
+        updated_at: failedAt,
+      })
+      .where('id', '=', row.id)
+      .execute();
+  }
+
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      type: 'company_export_job_recovery',
+      recoveredCount: staleRows.length,
+      message:
+        'Recovered stale queued/running export jobs during server startup.',
+    })
+  );
 }
 
 function kickCompanyExportJob(jobId: CompanyExportJobId) {
@@ -366,26 +449,15 @@ async function runCompanyExportJob(jobId: CompanyExportJobId) {
       .where('id', '=', jobId)
       .executeTakeFirst();
 
-    if (failedRow?.storage_bucket && failedRow.storage_key) {
-      try {
-        await deleteCompanyExportObject({
-          bucket: failedRow.storage_bucket,
-          key: failedRow.storage_key,
-        });
-      } catch (cleanupError) {
-        console.error(
-          JSON.stringify({
-            level: 'error',
-            type: 'company_export_job_cleanup',
-            jobId,
-            message:
-              cleanupError instanceof Error
-                ? cleanupError.message
-                : 'Could not remove failed export object',
-          })
-        );
-      }
-    }
+    await deleteStoredExportObjectIfPresent({
+      row: {
+        id: jobId,
+        storage_bucket: failedRow?.storage_bucket ?? null,
+        storage_key: failedRow?.storage_key ?? null,
+      },
+      logType: 'company_export_job_cleanup',
+      fallbackMessage: 'Could not remove failed export object',
+    });
 
     await db
       .updateTable('company_export_jobs')
@@ -400,7 +472,10 @@ async function runCompanyExportJob(jobId: CompanyExportJobId) {
         error_message: message,
         failed_at: failedAt,
         expires_at: expiryIso(failedAt),
-        ready_notification_error: null,
+        ready_notification_status: row.notify_when_ready
+          ? 'failed'
+          : 'not_requested',
+        ready_notification_error: row.notify_when_ready ? message : null,
         last_heartbeat_at: failedAt,
         updated_at: failedAt,
       })
@@ -424,6 +499,14 @@ export async function createCompanyExportJobServer(args: {
       userId,
       action: 'company:export',
       companyId: args.companyId,
+    });
+    await enforceRateLimit({
+      db,
+      bucket: `company-export-job:${args.companyId}:${userId}`,
+      limit: EXPORT_JOB_RATE_LIMIT.limit,
+      windowMs: EXPORT_JOB_RATE_LIMIT.windowMs,
+      message:
+        'Too many export requests. Please wait a few minutes before creating another export.',
     });
     await cleanupExpiredExportJobs(db);
 

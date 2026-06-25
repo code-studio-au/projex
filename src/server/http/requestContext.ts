@@ -1,5 +1,5 @@
 import type { ServerSession } from '../auth/session';
-import { resolveCurrentSession } from '../auth/currentSession';
+import { resolveVerifiedCurrentSession } from '../auth/currentSession';
 import type { ServerFnContextInput } from '../fns/runtime';
 
 export type ResolvedRequestServerContext = {
@@ -19,13 +19,14 @@ export async function resolveRequestServerContext(
   if (cached) return cached;
 
   const pending = (async () => {
-    const session = await resolveCurrentSession(request);
+    const { session, sessionVerified } =
+      await resolveVerifiedCurrentSession(request);
     return {
       session,
       serverContext: {
         request,
         session,
-        sessionVerified: session !== null,
+        sessionVerified,
       },
     };
   })();

@@ -1,5 +1,4 @@
 import { Outlet, createFileRoute } from '@tanstack/react-router';
-import { isServerAuthMode } from './-authMode';
 import type { CompanyMembership, UserId } from '../types';
 import { asCompanyId } from '../types';
 import { getUserCompanyRole } from '../store/access';
@@ -19,7 +18,7 @@ import { sessionQueryOptions } from '../queries/session';
 
 export const Route = createFileRoute('/_authed/c/$companyId')({
   component: Outlet,
-  ssr: isServerAuthMode,
+  ssr: true,
   loader: async ({ context, params }) => {
     const companyId = asCompanyId(params.companyId);
     const session = (context.queryClient.getQueryData(

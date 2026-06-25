@@ -59,6 +59,10 @@ if (runMigrations) {
   run('pnpm', ['run', 'db:migrate']);
 }
 
+const { recoverStaleCompanyExportJobsOnStartup } =
+  await import('../src/server/fns/exportJobs.ts');
+await recoverStaleCompanyExportJobsOnStartup();
+
 const clientDistDir = resolve('dist/client');
 const fallbackDistDir = resolve('dist');
 

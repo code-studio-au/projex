@@ -197,7 +197,7 @@ export const projectsResponseSchema = z.array(projectResponseSchema);
 
 export const userResponseSchema = z.object({
   id: userIdSchema,
-  email: z.string().email(),
+  email: z.email(),
   name: z.string(),
   disabled: z.boolean().optional(),
   isGlobalSuperadmin: z.boolean().optional(),
@@ -483,21 +483,21 @@ export const txnCommentSummariesResponseSchema = z.array(
 
 export const pendingEmailChangeResponseSchema = z
   .object({
-    newEmail: z.string().email(),
+    newEmail: z.email(),
     requestedAt: isoTimestampSchema,
     expiresAt: isoTimestampSchema,
   })
   .nullable();
 
 export const emailChangeRequestResponseSchema = z.object({
-  newEmail: z.string().email(),
+  newEmail: z.email(),
   expiresAt: isoTimestampSchema,
   delivery: z.enum(['email', 'log']),
 });
 
 export const emailChangeConfirmResponseSchema = z.object({
-  email: z.string().email(),
-  previousEmail: z.string().email(),
+  email: z.email(),
+  previousEmail: z.email(),
 });
 
 export const countResponseSchema = z.object({
@@ -632,7 +632,7 @@ export const betterAuthLikePayloadSchema = z
 export const betterAuthSignUpResponseSchema = z.object({
   user: z.object({
     id: z.string().trim().min(1),
-    email: z.string().email().optional(),
+    email: z.email().optional(),
     name: z.string().optional(),
   }),
 });

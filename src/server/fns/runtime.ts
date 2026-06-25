@@ -1,7 +1,7 @@
 import { AppError, toAppError } from '../../api/errors';
 import type { ServerFnContextInput } from '../../api/appEndpoints';
 import type { UserId } from '../../types';
-import { getAuthSessionFromRequest } from '../auth/betterAuth';
+import { resolveVerifiedCurrentSession } from '../auth/currentSession';
 import { getDb } from '../db/db';
 import {
   requireUserId,
@@ -11,21 +11,37 @@ import {
 
 export type { ServerFnContextInput } from '../../api/appEndpoints';
 
-async function resolveSession(
-  context: ServerFnContextInput
-): Promise<ServerSession | null> {
-  if (typeof context.session !== 'undefined') return context.session;
-  if (typeof context.auth !== 'undefined') return toServerSession(context.auth);
-  if (context.request) return getAuthSessionFromRequest(context.request);
-  return null;
+async function resolveSession(context: ServerFnContextInput): Promise<{
+  session: ServerSession | null;
+  sessionVerified: boolean;
+}> {
+  if (typeof context.session !== 'undefined') {
+    return {
+      session: context.session,
+      sessionVerified: context.sessionVerified === true,
+    };
+  }
+  if (typeof context.auth !== 'undefined') {
+    return {
+      session: toServerSession(context.auth),
+      sessionVerified: false,
+    };
+  }
+  if (context.request) {
+    return resolveVerifiedCurrentSession(context.request);
+  }
+  return {
+    session: null,
+    sessionVerified: false,
+  };
 }
 
 export async function requireServerUserId(
   context: ServerFnContextInput
 ): Promise<UserId> {
-  const session = await resolveSession(context);
+  const { session, sessionVerified } = await resolveSession(context);
   const userId = requireUserId(session);
-  if (context.sessionVerified === true) {
+  if (sessionVerified) {
     return userId;
   }
   const user = await getDb()

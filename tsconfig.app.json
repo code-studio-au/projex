@@ -25,5 +25,9 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
+  // TanStack Start keeps client-callable server functions under `src/server/**`.
+  // We still exclude the whole server tree here so the app-only probe catches
+  // accidental Node/global leakage, while full cross-boundary safety stays in
+  // the root/node typecheck and lint import-boundary rules.
   "exclude": ["src/server/**"]
 }

@@ -1,11 +1,5 @@
-export {
-  listProjectsServer,
-  getProjectServer,
-} from './projectReads';
-export {
-  createProjectServer,
-  updateProjectServer,
-} from './projectWrites';
+export { listProjectsServer, getProjectServer } from './projectReads';
+export { createProjectServer, updateProjectServer } from './projectWrites';
 export {
   deactivateProjectServer,
   reactivateProjectServer,

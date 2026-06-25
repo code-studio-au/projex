@@ -1,14 +1,13 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 
 import { AuthedLayout } from '../layouts';
-import { isServerAuthMode } from './-authMode';
 import { currentUserQueryOptions } from '../queries/account';
 import { companiesQueryOptions } from '../queries/reference';
 import { sessionQueryOptions } from '../queries/session';
 
 export const Route = createFileRoute('/_authed')({
   component: AuthedLayout,
-  ssr: isServerAuthMode,
+  ssr: true,
   loader: async ({ context }) => {
     const session = await context.queryClient.ensureQueryData(
       sessionQueryOptions()

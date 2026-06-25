@@ -5,7 +5,7 @@ import type {
   MRT_SortingState,
 } from 'mantine-react-table-open';
 import type { TransactionDrilldownFilter, Txn } from '../../types';
-import type { ProjectRuleSuggestionPrompt } from '../../api/contract';
+import type { ProjectRuleSuggestionPrompt } from '../../api/types';
 import type { TxnId } from '../../types/ids';
 import type { TransactionView } from './TransactionsOverviewCard';
 import {

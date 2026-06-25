@@ -19,15 +19,13 @@ import type {
   TxnTransferInput,
   TxnUpdateInput,
   TxnWorkflowStateInput,
-} from '../api/contract';
+} from '../api/types';
 import { normalizeTxnPatch } from '../utils/transactions';
 import {
   readJsonResponseOrNull,
   readJsonResponseWithSchema,
 } from '../utils/json';
-import {
-  txnListPageResultResponseSchema,
-} from '../validation/responseSchemas';
+import { txnListPageResultResponseSchema } from '../validation/responseSchemas';
 import { apiErrorFromBody } from '../api/errorResponses';
 import {
   createTxnServerFn,
@@ -39,7 +37,7 @@ import {
   updateTxnServerFn,
   updateTxnWorkflowStateServerFn,
 } from '../server/start/functions/transactionReads';
-import type { TxnListPageResult } from '../api/contract';
+import type { TxnListPageResult } from '../api/types';
 
 type TransactionsPageQueryParams = {
   mode: 'page';

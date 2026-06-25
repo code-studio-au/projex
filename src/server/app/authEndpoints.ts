@@ -1,5 +1,4 @@
 import { AppError } from '../../api/errors';
-import { resolveCurrentSession } from '../auth/currentSession';
 import { defineAppEndpoint, noInputSchema } from './shared';
 import {
   getDefaultCompanyIdForUserEndpoint,
@@ -10,10 +9,10 @@ import {
 export const getSessionEndpoint = defineAppEndpoint({
   inputSchema: noInputSchema,
   execute: async ({ context }) => {
-    if (!context.request) {
-      throw new AppError('INTERNAL_ERROR', 'Missing request context');
+    if (typeof context.session === 'undefined') {
+      throw new AppError('INTERNAL_ERROR', 'Missing request session context');
     }
-    return resolveCurrentSession(context.request);
+    return context.session;
   },
 });
 

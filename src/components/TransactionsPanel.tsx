@@ -1,12 +1,8 @@
 import { Stack } from '@mantine/core';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
-import type {
-  ProjectId,
-  TransactionDrilldownFilter,
-  TxnId,
-} from '../types';
-import type { ProjectRuleSuggestionPrompt } from '../api/contract';
+import type { ProjectId, TransactionDrilldownFilter, TxnId } from '../types';
+import type { ProjectRuleSuggestionPrompt } from '../api/types';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
 import TransactionFiltersCard from './transactions/TransactionFiltersCard';
 import TransactionsModalStack from './transactions/TransactionsModalStack';

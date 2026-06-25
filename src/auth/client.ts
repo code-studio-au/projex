@@ -5,12 +5,11 @@ const fallbackBaseURL =
     ? window.location.origin
     : 'http://localhost:3000';
 
-const configuredBaseURL = String(
-  import.meta.env.VITE_BETTER_AUTH_URL ?? fallbackBaseURL
-);
-
 export const authClient = createAuthClient({
-  baseURL: configuredBaseURL,
+  // Projex deploys frontend and auth endpoints on the same origin, so the
+  // browser client should follow the current app origin instead of a separate
+  // Vite-scoped base URL.
+  baseURL: fallbackBaseURL,
   fetchOptions: {
     credentials: 'include',
   },

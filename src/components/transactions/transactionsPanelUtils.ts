@@ -1,6 +1,4 @@
-import type {
-  TxnBulkActionResult,
-} from '../../api/contract';
+import type { TxnBulkActionResult } from '../../api/types';
 import type { TransactionDrilldownFilter } from '../../types';
 import { showAppToast } from '../../utils/toast';
 import type { TransactionView } from './TransactionsOverviewCard';

@@ -28,7 +28,7 @@ import type {
   CategoryUpdateInput,
   SubCategoryCreateInput,
   SubCategoryUpdateInput,
-} from '../api/contract';
+} from '../api/types';
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import {

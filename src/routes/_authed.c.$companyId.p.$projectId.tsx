@@ -1,6 +1,5 @@
 import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
 import { z } from 'zod';
-import { isServerAuthMode } from './-authMode';
 import type { UserId } from '../types';
 import { asCompanyId, asProjectId } from '../types';
 import { getUserCompanyRole } from '../store/access';
@@ -80,7 +79,7 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
   validateSearch: (search) => projectWorkspaceSearchSchema.parse(search),
   loaderDeps: ({ search }) => projectWorkspaceLoaderDeps(search),
   component: lazyRouteComponent(() => import('../pages/ProjectWorkspacePage')),
-  ssr: isServerAuthMode,
+  ssr: true,
   loader: async ({ context, params, deps }) => {
     const companyId = asCompanyId(params.companyId);
     const projectId = asProjectId(params.projectId);

@@ -16,7 +16,7 @@ import {
   IconSettings,
 } from '@tabler/icons-react';
 
-import type { ProjectRuleSuggestionPrompt } from '../../api/contract';
+import type { ProjectRuleSuggestionPrompt } from '../../api/types';
 import type { TaxonomyHook } from '../../hooks/useTaxonomy';
 import type { TransactionsHook } from '../../hooks/useTransactions';
 import type { Txn, TxnComment, TxnCommentSummary } from '../../types';
