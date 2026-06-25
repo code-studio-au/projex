@@ -73,7 +73,10 @@ function hasViteModuleGraph(): boolean {
   );
 }
 
-function createRouteServerModuleLoaders(): Record<string, RouteServerModuleLoader> {
+function createRouteServerModuleLoaders(): Record<
+  string,
+  RouteServerModuleLoader
+> {
   if (hasViteModuleGraph()) {
     return import.meta.glob('../server/**/*.ts');
   }

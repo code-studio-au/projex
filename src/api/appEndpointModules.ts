@@ -106,7 +106,10 @@ function hasViteModuleGraph(): boolean {
   );
 }
 
-function createAppEndpointModuleLoaders(): Record<string, AppEndpointModuleLoader> {
+function createAppEndpointModuleLoaders(): Record<
+  string,
+  AppEndpointModuleLoader
+> {
   if (hasViteModuleGraph()) {
     return import.meta.glob('../server/app/*.ts');
   }
