@@ -1,0 +1,198 @@
+import { useMemo } from 'react';
+import type {
+  MRT_PaginationState,
+  MRT_SortingState,
+} from 'mantine-react-table-open';
+import type { TransactionsHook } from '../../hooks/useTransactions';
+import type { TaxonomyHook } from '../../hooks/useTaxonomy';
+import type {
+  ProjectId,
+  TransactionDrilldownFilter,
+  Txn,
+  TxnId,
+} from '../../types';
+import { asCategoryId, asTxnId } from '../../types/ids';
+import { isCategorisableTxn } from '../../utils/transactions';
+import {
+  useTransactionCommentsQuery,
+  useTransactionCommentSummariesQuery,
+} from '../../queries/transactionComments';
+import { useTransactionsPageQuery } from '../../queries/transactions';
+import type { TransactionView } from './TransactionsOverviewCard';
+import type { QuarterOption } from './transactionsPanelUtils';
+
+const EMPTY_TXNS: Txn[] = [];
+
+export function useTransactionsPanelData(args: {
+  projectId: ProjectId;
+  txns: TransactionsHook;
+  taxonomy: TaxonomyHook;
+  yearFilter: string | null;
+  quarterFilter: QuarterOption | null;
+  monthFilterKey: string | null;
+  transactionView: TransactionView;
+  transactionDrilldown?: TransactionDrilldownFilter | null;
+  initialCommentTxnId?: TxnId | null;
+  dismissedLinkedCommentTxnId: TxnId | null;
+  expandedCommentsTxn: Txn | null;
+  bulkRecodeCategoryId: string | null;
+  isHydrated: boolean;
+  pagination: MRT_PaginationState;
+  sorting: MRT_SortingState;
+  rowSelection: Record<string, boolean>;
+}) {
+  const transactionsPageInput = useMemo(() => {
+    const sortField =
+      args.sorting[0]?.id === 'transaction' ||
+      args.sorting[0]?.id === 'amountCents' ||
+      args.sorting[0]?.id === 'date'
+        ? args.sorting[0].id
+        : 'date';
+    return {
+      pageIndex: args.pagination.pageIndex,
+      pageSize: args.pagination.pageSize,
+      sort: {
+        field: sortField,
+        direction: args.sorting[0]?.desc ? 'desc' : 'asc',
+      } as const,
+      yearFilter: args.yearFilter,
+      quarterFilter: args.quarterFilter,
+      monthFilterKey: args.monthFilterKey,
+      transactionView: args.transactionView,
+      drilldown: args.transactionDrilldown
+        ? args.transactionDrilldown.kind === 'subcategory'
+          ? {
+              kind: 'subcategory' as const,
+              categoryId: args.transactionDrilldown.categoryId,
+              subCategoryId: args.transactionDrilldown.subCategoryId,
+            }
+          : {
+              kind: 'category' as const,
+              categoryId: args.transactionDrilldown.categoryId,
+            }
+        : undefined,
+    };
+  }, [
+    args.monthFilterKey,
+    args.pagination.pageIndex,
+    args.pagination.pageSize,
+    args.quarterFilter,
+    args.sorting,
+    args.transactionDrilldown,
+    args.transactionView,
+    args.yearFilter,
+  ]);
+  const transactionsPageQ = useTransactionsPageQuery(
+    args.projectId,
+    transactionsPageInput,
+    { enabled: args.isHydrated }
+  );
+  const commentSummariesQ = useTransactionCommentSummariesQuery(args.projectId);
+  const expandedCommentsTxnId =
+    args.expandedCommentsTxn?.id ?? asTxnId('__no_expanded_txn__');
+  const expandedCommentsQ = useTransactionCommentsQuery(
+    args.projectId,
+    expandedCommentsTxnId,
+    { enabled: Boolean(args.expandedCommentsTxn) }
+  );
+  const commentSummaryByTxnId = useMemo(
+    () =>
+      new Map(
+        (commentSummariesQ.data ?? []).map((summary) => [
+          summary.txnId,
+          summary,
+        ])
+      ),
+    [commentSummariesQ.data]
+  );
+  const linkedCommentsTxn =
+    args.initialCommentTxnId &&
+    args.dismissedLinkedCommentTxnId !== args.initialCommentTxnId
+      ? (args.txns.transactions.find(
+          (txn) => txn.id === args.initialCommentTxnId
+        ) ?? null)
+      : null;
+  const isTransitioningPageData =
+    transactionsPageQ.isFetching && transactionsPageQ.isPlaceholderData;
+  const pagedTxns = transactionsPageQ.data?.rows ?? EMPTY_TXNS;
+  const selectedTxns = useMemo(
+    () => pagedTxns.filter((txn) => args.rowSelection[txn.id]),
+    [pagedTxns, args.rowSelection]
+  );
+  const selectedTxnIds = useMemo(
+    () => selectedTxns.map((txn) => txn.id),
+    [selectedTxns]
+  );
+  const pageSummary = transactionsPageQ.data?.summary ?? {
+    totalCount: 0,
+    budgetImpactCents: 0,
+    uncodedCount: 0,
+    uncodedCents: 0,
+    sourceOnlyCount: 0,
+    assignedToMeCount: 0,
+    reviewedCount: 0,
+    lockedCount: 0,
+    invalidDateCount: 0,
+  };
+  const selectedAutoMappedPendingCount = useMemo(
+    () =>
+      selectedTxns.filter(
+        (txn) =>
+          !txn.lockedAt &&
+          isCategorisableTxn(txn) &&
+          !!txn.codingPendingApproval &&
+          !!txn.subCategoryId &&
+          args.taxonomy.validSubIds.has(txn.subCategoryId)
+      ).length,
+    [selectedTxns, args.taxonomy.validSubIds]
+  );
+  const selectedUnlockedCategorisableCount = useMemo(
+    () =>
+      selectedTxns.filter((txn) => !txn.lockedAt && isCategorisableTxn(txn))
+        .length,
+    [selectedTxns]
+  );
+  const bulkRecodeSubCategoryOptions = useMemo(
+    () =>
+      args.bulkRecodeCategoryId
+        ? args.taxonomy.subCategoryOptionsForCategory(
+            asCategoryId(args.bulkRecodeCategoryId)
+          )
+        : [],
+    [args.bulkRecodeCategoryId, args.taxonomy]
+  );
+  const drilldownLabel = args.transactionDrilldown
+    ? args.transactionDrilldown.kind === 'subcategory'
+      ? `${args.transactionDrilldown.categoryName} > ${args.transactionDrilldown.subCategoryName}`
+      : args.transactionDrilldown.categoryName
+    : null;
+  const autoMappedPendingTxns = useMemo(
+    () =>
+      args.txns.transactions.filter(
+        (txn) =>
+          !txn.lockedAt &&
+          isCategorisableTxn(txn) &&
+          !!txn.codingPendingApproval &&
+          !!txn.subCategoryId &&
+          args.taxonomy.validSubIds.has(txn.subCategoryId)
+      ),
+    [args.taxonomy.validSubIds, args.txns.transactions]
+  );
+
+  return {
+    autoMappedPendingTxns,
+    bulkRecodeSubCategoryOptions,
+    commentSummaryByTxnId,
+    drilldownLabel,
+    expandedCommentsQ,
+    isTransitioningPageData,
+    linkedCommentsTxn,
+    pageSummary,
+    pagedTxns,
+    selectedAutoMappedPendingCount,
+    selectedTxnIds,
+    selectedTxns,
+    selectedUnlockedCategorisableCount,
+    transactionsPageQ,
+  };
+}

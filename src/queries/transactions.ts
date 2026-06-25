@@ -22,6 +22,14 @@ import type {
 } from '../api/contract';
 import { normalizeTxnPatch } from '../utils/transactions';
 import {
+  readJsonResponseOrNull,
+  readJsonResponseWithSchema,
+} from '../utils/json';
+import {
+  txnListPageResultResponseSchema,
+} from '../validation/responseSchemas';
+import { apiErrorFromBody } from '../api/errorResponses';
+import {
   createTxnServerFn,
   deleteTxnServerFn,
   listTransactionsServerFn,
@@ -32,7 +40,6 @@ import {
   updateTxnWorkflowStateServerFn,
 } from '../server/start/functions/transactionReads';
 import type { TxnListPageResult } from '../api/contract';
-import { AppError } from '../api/errors';
 
 type TransactionsPageQueryParams = {
   mode: 'page';
@@ -89,29 +96,23 @@ async function fetchTransactionsPageViaApi(
       headers: { accept: 'application/json' },
     }
   );
-  const payload = (await res.json()) as
-    | TxnListPageResult
-    | { code?: string; message?: string };
+
   if (!res.ok) {
-    throw new AppError(
-      (typeof payload === 'object' && payload && 'code' in payload
-        ? (payload.code as
-            | 'UNAUTHENTICATED'
-            | 'FORBIDDEN'
-            | 'NOT_FOUND'
-            | 'RATE_LIMITED'
-            | 'VALIDATION_ERROR'
-            | 'CONFLICT'
-            | 'NOT_IMPLEMENTED'
-            | 'INTERNAL_ERROR')
-        : 'INTERNAL_ERROR') ?? 'INTERNAL_ERROR',
-      (typeof payload === 'object' && payload && 'message' in payload
-        ? payload.message
-        : 'Could not load transactions page') ??
-        'Could not load transactions page'
+    const body = await readJsonResponseOrNull(res);
+    throw apiErrorFromBody(body, 'Could not load transactions page');
+  }
+
+  const payload = await readJsonResponseWithSchema(
+    res,
+    txnListPageResultResponseSchema
+  );
+  if (!payload.success) {
+    throw apiErrorFromBody(
+      null,
+      'Transactions page response was not valid JSON'
     );
   }
-  return payload as TxnListPageResult;
+  return payload.data satisfies TxnListPageResult;
 }
 
 export function useTransactionsQuery(

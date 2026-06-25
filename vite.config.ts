@@ -1,10 +1,15 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
   plugins: [tanstackStart(), react()],
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.ts'],
+    exclude: ['tests/dbIntegration*.test.ts'],
+  },
   resolve: {
     tsconfigPaths: true,
   },

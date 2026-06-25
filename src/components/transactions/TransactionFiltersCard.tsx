@@ -1,7 +1,7 @@
 import { Button, Group, Paper, Select } from '@mantine/core';
 
-import type { QuarterOption } from '../TransactionsPanel';
 import classes from '../../styles/ui.module.css';
+import type { QuarterOption } from './transactionsPanelUtils';
 
 export default function TransactionFiltersCard(props: {
   isMobile: boolean;

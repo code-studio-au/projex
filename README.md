@@ -34,7 +34,7 @@ The repo now also includes a deployment-free GitHub Actions CI workflow at
 `.github/workflows/ci.yml`. It currently runs four lanes:
 
 - a fast static lane for repo security verification, `pnpm audit --json`,
-  `format:check`, `lint`, `typecheck`, `test`, and `build`
+  `format:check`, `lint`, `typecheck`, Vitest app/runtime tests, and `build`
 - a Postgres-backed lane for `db:migrate`, `db:verify-types`, and `test:integration:db`
 - a disposable end-to-end lane for `smoke:server:disposable -- --section=basics`
 - a disposable browser smoke lane for `smoke:browser:disposable -- --section=basics`
@@ -52,7 +52,7 @@ That pipeline-shaped command runs:
 
 - repo security/config verification
 - dependency audit
-- unit and route-level tests
+- Vite-aware unit and route-level tests
 - typecheck and lint
 - production build
 - disposable Postgres-backed DB integration tests
@@ -82,6 +82,7 @@ The short version:
 
 - `pnpm run verify:security` for the fast non-Docker safety pass
 - `pnpm run verify:ci` for the fuller local or future-CI gate
+- `pnpm test` for the fast Vitest app/runtime lane
 - `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
 - `pnpm run smoke:server:disposable` for isolated local end-to-end smoke
 - `pnpm run smoke:browser:disposable` for isolated browser-driven smoke
@@ -89,7 +90,7 @@ The short version:
 
 For the full operational verification workflow, use [docs/staging-runbook.md](/Users/scas0196/Documents/code/projex/docs/staging-runbook.md:1).
 
-`pnpm run test` still includes optional DB-backed integration coverage, but those tests are skipped unless `PROJEX_INTEGRATION_DATABASE_URL` is set. For the normal local workflow, prefer the automated disposable runner:
+`pnpm test` now runs the Vite-owned app/runtime suite under Vitest. DB-backed integration remains a separate Node/disposable lane so route loading and `import.meta` behavior stay aligned with the actual app runtime. For the normal local workflow, prefer the automated disposable runner:
 
 ```bash
 pnpm run test:integration:db
@@ -98,7 +99,7 @@ pnpm run test:integration:db
 If you need to point the suite at an explicit integration database yourself, use a migrated disposable database whose name contains `test`:
 
 ```bash
-PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test
+PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test:integration:node
 ```
 
 `pnpm run build` should not emit client chunk-size warnings. Current known
@@ -205,6 +206,8 @@ Projex now supports a production-ready full company Excel export. Remaining work
 - File routes under `src/routes/api*.ts` stay transport-only: parse input, use
   `src/routes/-api-shared.ts`, and dynamically load `src/server/routes/**`
   adapters when raw HTTP endpoints need auth/env/db orchestration.
+- Vite-owned tests run under Vitest so route/app module loading can rely on the
+  Vite module graph instead of maintaining raw-Node loader fallbacks.
 - Request body validation belongs at the route boundary with Zod.
 - Runtime ownership and authorization checks should be centralized through
   server guard helpers, not duplicated ad hoc inside route files.
@@ -219,6 +222,8 @@ The detailed source of truth for these rules is
 Production/staging server mode requires:
 
 - `DATABASE_URL`
+- optional Postgres runtime tuning via `PG_POOL_MAX`,
+  `PG_IDLE_TIMEOUT_MS`, `PG_CONNECTION_TIMEOUT_MS`, and `PG_SSL_MODE`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
 - `BETTER_AUTH_TRUSTED_ORIGINS`

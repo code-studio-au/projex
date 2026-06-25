@@ -167,6 +167,10 @@ Use the smoke commands like this:
 NODE_ENV=production
 
 DATABASE_URL=postgres://...
+PG_POOL_MAX=10
+PG_IDLE_TIMEOUT_MS=30000
+PG_CONNECTION_TIMEOUT_MS=5000
+PG_SSL_MODE=require
 
 BETTER_AUTH_SECRET=replace-with-long-random-secret
 BETTER_AUTH_URL=https://projectexpensetracker.com
@@ -205,6 +209,7 @@ Notes:
   - `CORS_ALLOWED_ORIGINS`
 - For normal production use, prefer the canonical public origin only.
 - Company export readiness depends on the configured object-storage bucket existing and being reachable from the app runtime.
+- Leave `PG_SSL_MODE=require` in normal production/staging unless you have a deliberate private-network exception.
 - Use the nginx template at `deploy/nginx/projex.conf` as the baseline reverse-proxy config for:
   - HTTP -> HTTPS redirect
   - `server_tokens off`

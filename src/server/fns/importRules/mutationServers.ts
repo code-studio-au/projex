@@ -8,7 +8,6 @@ import { asImportRuleId } from '../../../types';
 import { uid } from '../../../utils/id';
 import { buildLocalProjectStandardMetadata } from '../../sync/projectStandards';
 import { requireAuthorized } from '../../auth/authorize';
-import { getDb } from '../../db/db';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
   assertContextProvided,
@@ -75,7 +74,7 @@ export async function createImportRuleServer(args: {
         .executeTakeFirstOrThrow();
 
       await syncCompanyImportRulesToSyncedProjectsInternal({
-        db: trx as unknown as ReturnType<typeof getDb>,
+        db: trx,
         companyId: args.companyId,
       });
 
@@ -167,7 +166,7 @@ export async function updateImportRuleServer(args: {
         .executeTakeFirstOrThrow();
 
       await syncCompanyImportRulesToSyncedProjectsInternal({
-        db: trx as unknown as ReturnType<typeof getDb>,
+        db: trx,
         companyId: args.companyId,
       });
 
@@ -255,7 +254,7 @@ export async function deleteImportRuleServer(args: {
         .execute();
 
       await detachProjectImportRulesForDeletedCompanyRule({
-        db: trx as unknown as ReturnType<typeof getDb>,
+        db: trx,
         companyRuleId: existing.id,
         previousSourceUpdatedAt: existing.updated_at,
         nowIso: now,
@@ -349,7 +348,7 @@ export async function promoteProjectImportRuleServer(args: {
         .executeTakeFirst();
       if (existingCompanyRule) {
         await syncCompanyImportRulesToSyncedProjectsInternal({
-          db: trx as unknown as ReturnType<typeof getDb>,
+          db: trx,
           companyId,
         });
         return existingCompanyRule;
@@ -388,7 +387,7 @@ export async function promoteProjectImportRuleServer(args: {
         .executeTakeFirstOrThrow();
 
       await syncCompanyImportRulesToSyncedProjectsInternal({
-        db: trx as unknown as ReturnType<typeof getDb>,
+        db: trx,
         companyId,
       });
 

@@ -1,6 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import {
+  deleteCompanyMembershipQuerySchema,
+  upsertCompanyMembershipBodySchema,
+} from '../validation/apiSchemas';
+import { validateOrThrow } from '../validation/validate';
+import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
   jsonApi,
@@ -21,7 +26,10 @@ export const Route = createFileRoute('/api/companies/$companyId/memberships')({
           })
         ),
       POST: async ({ request, params, context }) => {
-        const body = (await readJsonBody(request)) as Record<string, unknown>;
+        const body = validateOrThrow(
+          upsertCompanyMembershipBodySchema,
+          await readJsonBody(request)
+        );
         return jsonApi(
           await executeLazyApiEndpoint({
             specifier: '../server/app/membershipEndpoints',
@@ -36,13 +44,17 @@ export const Route = createFileRoute('/api/companies/$companyId/memberships')({
       },
       DELETE: async ({ request, params, context }) => {
         const url = new URL(request.url);
+        const query = validateOrThrow(
+          deleteCompanyMembershipQuerySchema,
+          Object.fromEntries(url.searchParams)
+        );
         await executeLazyApiEndpoint({
           specifier: '../server/app/membershipEndpoints',
           exportName: 'deleteCompanyMembershipEndpoint',
           context,
           input: {
             companyId: params.companyId,
-            ...Object.fromEntries(url.searchParams),
+            ...query,
           },
         });
         return jsonApi({ ok: true as const });

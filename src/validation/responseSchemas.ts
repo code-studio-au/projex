@@ -20,6 +20,7 @@ import {
 import type { CompanySummaryProject } from '../types/index.ts';
 import {
   budgetAllocatedCentsSchema,
+  idSchema,
   projectBudgetTotalCentsSchema,
   transactionAmountCentsSchema,
 } from './schemas.ts';
@@ -46,8 +47,6 @@ export const apiErrorResponseSchema = z
     meta: z.record(z.string(), z.unknown()).nullable().optional(),
   })
   .passthrough();
-
-const idSchema = z.string().trim().min(1, 'Id is required');
 const companyIdSchema = idSchema.transform(asCompanyId);
 const projectIdSchema = idSchema.transform(asProjectId);
 const userIdSchema = idSchema.transform(asUserId);

@@ -24,6 +24,7 @@ import {
   categoryNameSchema,
   companyNameSchema,
   emailSchema,
+  idSchema,
   projectBudgetTotalCentsSchema,
   projectNameSchema,
   subCategoryNameSchema,
@@ -35,8 +36,6 @@ import {
   MAX_IMPORT_PREVIEW_CSV_TEXT_LENGTH,
   MAX_IMPORT_TXN_COUNT,
 } from '../utils/importLimits.ts';
-
-const idSchema = z.string().trim().min(1, 'Id is required');
 export const companyIdSchema = idSchema.transform(asCompanyId);
 export const projectIdSchema = idSchema.transform(asProjectId);
 export const userIdSchema = idSchema.transform(asUserId);

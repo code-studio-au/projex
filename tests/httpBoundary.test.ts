@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { afterEach, test } from 'vitest';
 
 import { AppError } from '../src/api/errors.ts';
 import { withPublicApi } from '../src/routes/-api-shared.ts';
@@ -96,7 +96,7 @@ function captureConsole(method: 'info' | 'warn' | 'error') {
   };
 }
 
-test.afterEach(() => {
+afterEach(() => {
   for (const key of Object.keys(process.env)) {
     if (!(key in ORIGINAL_ENV)) delete process.env[key];
   }

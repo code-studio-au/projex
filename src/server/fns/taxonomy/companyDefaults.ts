@@ -199,7 +199,7 @@ export async function syncCompanyDefaultTaxonomyChange(args: {
     });
   }
   await syncCompanyAutoCodingRulesToSyncedProjects({
-    db: args.trx as unknown as ReturnType<typeof getDb>,
+    db: args.trx,
     companyId: args.companyId,
     actorUserId: args.actorUserId,
   });

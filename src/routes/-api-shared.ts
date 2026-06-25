@@ -58,52 +58,9 @@ type SecurityModule = {
 };
 
 type RouteServerModuleLoader = () => Promise<unknown>;
-
-function dynamicRouteServerImport(specifier: string): Promise<unknown> {
-  return import(
-    /* @vite-ignore */
-    specifier
-  );
-}
-
-function hasViteModuleGraph(): boolean {
-  return (
-    typeof import.meta.env?.BASE_URL === 'string' &&
-    typeof import.meta.env?.MODE === 'string'
-  );
-}
-
-function createRouteServerModuleLoaders(): Record<
-  string,
-  RouteServerModuleLoader
-> {
-  if (hasViteModuleGraph()) {
-    return import.meta.glob('../server/**/*.ts');
-  }
-
-  return {
-    '../server/fns/companies.ts': () =>
-      dynamicRouteServerImport('../server/fns/companies.ts'),
-    '../server/http/requestContext.ts': () =>
-      dynamicRouteServerImport('../server/http/requestContext.ts'),
-    '../server/http/security.ts': () =>
-      dynamicRouteServerImport('../server/http/security.ts'),
-    '../server/routes/auth.ts': () =>
-      dynamicRouteServerImport('../server/routes/auth.ts'),
-    '../server/routes/devSession.ts': () =>
-      dynamicRouteServerImport('../server/routes/devSession.ts'),
-    '../server/routes/ready.ts': () =>
-      dynamicRouteServerImport('../server/routes/ready.ts'),
-    '../server/routes/session.ts': () =>
-      dynamicRouteServerImport('../server/routes/session.ts'),
-    '../server/smoke/fixtures.ts': () =>
-      dynamicRouteServerImport('../server/smoke/fixtures.ts'),
-    '../server/smoke/runSection.ts': () =>
-      dynamicRouteServerImport('../server/smoke/runSection.ts'),
-  } satisfies Record<string, RouteServerModuleLoader>;
-}
-
-const routeServerModuleLoaders = createRouteServerModuleLoaders();
+const routeServerModuleLoaders = import.meta.glob(
+  '../server/**/*.ts'
+) as Record<string, RouteServerModuleLoader>;
 
 function resolveRouteServerModuleLoader(specifier: string) {
   const normalizedSpecifier = specifier.endsWith('.ts')
@@ -265,11 +222,7 @@ async function withApiCore(
 ): Promise<Response> {
   const { buildCorsHeaders, isOriginAllowed } =
     await loadRouteServerModule<SecurityModule>('../server/http/security');
-  const requestId =
-    request.headers.get('x-request-id') ??
-    (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
   const started = Date.now();
   const url = new URL(request.url);
   const origin = request.headers.get('origin');

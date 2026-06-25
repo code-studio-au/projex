@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 import type { ImportRule } from '../src/types/index.ts';
 import { asCompanyId, asImportRuleId } from '../src/types/index.ts';

@@ -16,7 +16,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --import tsx --test tests/**/*.test.ts",
+    "test": "vitest run",
+    "test:integration:node": "node --import tsx --test tests/dbIntegration*.test.ts",
     "db:generate-types": "node --experimental-strip-types scripts/generate-db-types.ts",
     "db:verify-types": "node --experimental-strip-types scripts/generate-db-types.ts --verify",
     "verify:security:repo": "node scripts/verify-repo-security.mjs",
@@ -98,6 +99,7 @@
     "tsx": "^4.22.4",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9"
   }
 }

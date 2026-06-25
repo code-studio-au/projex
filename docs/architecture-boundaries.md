@@ -27,6 +27,16 @@ App code may cross into server behavior only through:
 This keeps `tsconfig.app.json` viable without Node globals and prevents auth/env
 implementation details from leaking into the app compilation graph.
 
+## Test runtime rule
+
+Vite-owned tests should run under Vitest, not raw `node:test`. That includes
+modules that depend on `import.meta.env`, `import.meta.glob`, TanStack Start
+route wiring, or Vite-transformed lazy loading.
+
+Keep plain Node runners for operational or integration checks that intentionally
+exercise script entrypoints, real database orchestration, or disposable-runtime
+behavior outside the Vite module graph.
+
 ## API route rule
 
 `src/routes/api*.ts` files should stay transport-only. They may:

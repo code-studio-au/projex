@@ -27,6 +27,10 @@ Create `/etc/projex/projex.env`:
 ```bash
 NODE_ENV=production
 DATABASE_URL=postgres://user:password@host:5432/projex
+PG_POOL_MAX=10
+PG_IDLE_TIMEOUT_MS=30000
+PG_CONNECTION_TIMEOUT_MS=5000
+PG_SSL_MODE=require
 
 # BetterAuth
 BETTER_AUTH_SECRET=replace-with-long-random-secret
@@ -61,6 +65,7 @@ Notes:
 - Keep `NODE_ENV=production` in deployed runtime env such as `/etc/projex/projex.env` or the systemd unit, not in repo `.env.production` / `.env.staging` files consumed by Vite.
 - Do not deploy staging or production with development-only auth helpers enabled.
 - Keep both `PROJEX_ENABLE_DEV_ENDPOINTS` and `PROJEX_ENABLE_SMOKE_TOOLS` disabled outside controlled local workflows.
+- `PG_SSL_MODE=require` is the safest default for managed Postgres. Use `no-verify` only when you intentionally rely on a trusted private CA or self-signed cert chain you cannot validate in the container image.
 - Set `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to the canonical public origin users will actually visit.
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.

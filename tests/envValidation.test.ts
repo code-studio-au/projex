@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { afterEach, test } from 'vitest';
 
 import {
   __resetServerStartupEnvValidationForTests,
@@ -11,7 +11,7 @@ const GENERIC_STARTUP_ENV_ERROR = 'Invalid server configuration';
 
 const ORIGINAL_ENV = { ...process.env };
 
-test.afterEach(() => {
+afterEach(() => {
   for (const key of Object.keys(process.env)) {
     if (!(key in ORIGINAL_ENV)) delete process.env[key];
   }
@@ -27,6 +27,8 @@ test('production env validation does not cache a failed validation attempt', () 
   process.env.BETTER_AUTH_SECRET = 'secret';
   process.env.BETTER_AUTH_URL = 'https://app.example.com';
   process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://app.example.com';
+  process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
+  process.env.PROJEX_ENABLE_SMOKE_TOOLS = 'false';
 
   assert.throws(
     () => validateServerStartupEnv(),
@@ -48,6 +50,7 @@ test('production env validation rejects dev and smoke tooling flags', () => {
   process.env.BETTER_AUTH_SECRET = 'secret';
   process.env.BETTER_AUTH_URL = 'https://app.example.com';
   process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://app.example.com';
+  process.env.PROJEX_ENABLE_SMOKE_TOOLS = 'false';
 
   process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'true';
   assert.throws(
@@ -79,6 +82,8 @@ test('production env validation requires trusted auth origins', () => {
   process.env.DATABASE_URL = 'postgres://localhost/projex_test';
   process.env.BETTER_AUTH_SECRET = 'secret';
   process.env.BETTER_AUTH_URL = 'https://app.example.com';
+  process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
+  process.env.PROJEX_ENABLE_SMOKE_TOOLS = 'false';
   delete process.env.BETTER_AUTH_TRUSTED_ORIGINS;
 
   assert.throws(
@@ -96,6 +101,8 @@ test('production env validation rejects insecure auth urls and origins', () => {
   process.env.NODE_ENV = 'production';
   process.env.DATABASE_URL = 'postgres://localhost/projex_test';
   process.env.BETTER_AUTH_SECRET = 'secret';
+  process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
+  process.env.PROJEX_ENABLE_SMOKE_TOOLS = 'false';
 
   process.env.BETTER_AUTH_URL = 'http://app.example.com';
   process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://app.example.com';

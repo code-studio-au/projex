@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 import { can } from '../src/utils/auth.ts';
 import { asCompanyId, asProjectId, asUserId } from '../src/types/index.ts';

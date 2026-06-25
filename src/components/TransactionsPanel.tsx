@@ -1,23 +1,13 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
 import { Stack } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
-import {
-  type MRT_PaginationState,
-  type MRT_SortingState,
-} from 'mantine-react-table-open';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type {
   ProjectId,
   TransactionDrilldownFilter,
-  Txn,
   TxnId,
 } from '../types';
-import type {
-  ProjectRuleSuggestionPrompt,
-  TxnBulkActionResult,
-} from '../api/contract';
-import { isCategorisableTxn } from '../utils/transactions';
+import type { ProjectRuleSuggestionPrompt } from '../api/contract';
+import { asCategoryId, asSubCategoryId } from '../types/ids';
 import TransactionFiltersCard from './transactions/TransactionFiltersCard';
 import TransactionsModalStack from './transactions/TransactionsModalStack';
 import TransactionsDataTable from './transactions/TransactionsDataTable';
@@ -25,77 +15,17 @@ import TransactionsOverviewCard, {
   type TransactionView,
 } from './transactions/TransactionsOverviewCard';
 import { createTransactionColumns } from './transactions/transactionTableColumns';
-import { asCategoryId, asSubCategoryId, asTxnId } from '../types/ids';
-import {
-  useTransactionCommentsQuery,
-  useTransactionCommentSummariesQuery,
-} from '../queries/transactionComments';
-import { useTransactionsPageQuery } from '../queries/transactions';
+import { useTransactionsPanelData } from './transactions/useTransactionsPanelData';
+import { useTransactionsPanelState } from './transactions/useTransactionsPanelState';
 import { useCreateProjectAutoCodingRuleMutation } from '../queries/projectAutoCodingRules';
 import { showAppToast } from '../utils/toast';
+import {
+  formatTxnCountLabel,
+  showBulkActionResultToast,
+  toQuarterOption,
+  type QuarterOption,
+} from './transactions/transactionsPanelUtils';
 import classes from '../styles/ui.module.css';
-
-export type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
-const EMPTY_TXNS: Txn[] = [];
-
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
-
-function toQuarterOption(value: string | null): QuarterOption | null {
-  if (!value) return null;
-  if (value === 'Q1' || value === 'Q2' || value === 'Q3' || value === 'Q4') {
-    return value;
-  }
-  return null;
-}
-
-function formatTxnCountLabel(count: number) {
-  return `${count} transaction${count === 1 ? '' : 's'}`;
-}
-
-function showBulkActionResultToast(args: {
-  result: TxnBulkActionResult;
-  successLabel: string;
-}) {
-  const { result, successLabel } = args;
-  const missingCount = result.requestedCount - result.foundCount;
-  const details = [
-    result.unchangedCount > 0
-      ? `${formatTxnCountLabel(result.unchangedCount)} already matched`
-      : null,
-    result.lockedCount > 0
-      ? `${formatTxnCountLabel(result.lockedCount)} locked`
-      : null,
-    result.ineligibleCount > 0
-      ? `${formatTxnCountLabel(result.ineligibleCount)} not eligible`
-      : null,
-    missingCount > 0
-      ? `${formatTxnCountLabel(missingCount)} no longer found`
-      : null,
-  ].filter(Boolean);
-
-  showAppToast({
-    title:
-      result.updatedCount > 0
-        ? `Bulk ${successLabel} complete`
-        : 'No changes applied',
-    tone:
-      result.updatedCount > 0 &&
-      result.lockedCount === 0 &&
-      result.ineligibleCount === 0 &&
-      missingCount === 0
-        ? 'success'
-        : 'warning',
-    message:
-      result.updatedCount > 0
-        ? `${successLabel} ${formatTxnCountLabel(result.updatedCount)}.${details.length > 0 ? ` ${details.join('. ')}.` : ''}`
-        : details.length > 0
-          ? details.join('. ')
-          : 'The selected transactions already matched the requested state.',
-    autoClose: 9000,
-  });
-}
 
 export default function TransactionsPanel(props: {
   projectId: ProjectId;
@@ -147,181 +77,84 @@ export default function TransactionsPanel(props: {
     canEditTaxonomy,
     readOnly = false,
   } = props;
-
-  const [manageOpen, setManageOpen] = useState(false);
-  const [splitTxn, setSplitTxn] = useState<Txn | null>(null);
-  const [transferTxn, setTransferTxn] = useState<Txn | null>(null);
-  const [commentsTxn, setCommentsTxn] = useState<Txn | null>(null);
-  const [dismissedLinkedCommentTxnId, setDismissedLinkedCommentTxnId] =
-    useState<TxnId | null>(null);
-  const [expandedCommentsTxn, setExpandedCommentsTxn] = useState<Txn | null>(
-    null
-  );
-  const [projectRulePrompt, setProjectRulePrompt] =
-    useState<ProjectRuleSuggestionPrompt | null>(null);
-  const [projectRuleMatchText, setProjectRuleMatchText] = useState('');
-  const [projectRuleError, setProjectRuleError] = useState<string | null>(null);
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-  const [bulkRecodeOpen, setBulkRecodeOpen] = useState(false);
-  const [bulkRecodeCategoryId, setBulkRecodeCategoryId] = useState<
-    string | null
-  >(null);
-  const [bulkRecodeSubCategoryId, setBulkRecodeSubCategoryId] = useState<
-    string | null
-  >(null);
-  const isMobile = useMediaQuery('(max-width: 48em)');
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
-  const [pagination, setPagination] = useState<MRT_PaginationState>({
-    pageIndex: 0,
-    pageSize: isMobile ? 10 : 20,
-  });
-  const [sorting, setSorting] = useState<MRT_SortingState>([
-    { id: 'date', desc: true },
-  ]);
-  const paginationScopeKey = `${yearFilter ?? 'all'}-${quarterFilter ?? 'all'}-${monthFilterKey ?? 'all'}-${transactionView}-${transactionDrilldown?.kind ?? 'none'}-${transactionDrilldown?.kind === 'subcategory' ? transactionDrilldown.subCategoryId : (transactionDrilldown?.categoryId ?? 'all')}`;
-  const transactionsPageInput = useMemo(() => {
-    const sortField =
-      sorting[0]?.id === 'transaction' ||
-      sorting[0]?.id === 'amountCents' ||
-      sorting[0]?.id === 'date'
-        ? sorting[0].id
-        : 'date';
-    return {
-      pageIndex: pagination.pageIndex,
-      pageSize: pagination.pageSize,
-      sort: {
-        field: sortField,
-        direction: sorting[0]?.desc ? 'desc' : 'asc',
-      } as const,
-      yearFilter,
-      quarterFilter,
-      monthFilterKey,
-      transactionView,
-      drilldown: transactionDrilldown
-        ? transactionDrilldown.kind === 'subcategory'
-          ? {
-              kind: 'subcategory' as const,
-              categoryId: transactionDrilldown.categoryId,
-              subCategoryId: transactionDrilldown.subCategoryId,
-            }
-          : {
-              kind: 'category' as const,
-              categoryId: transactionDrilldown.categoryId,
-            }
-        : undefined,
-    };
-  }, [
-    monthFilterKey,
-    pagination.pageIndex,
-    pagination.pageSize,
-    quarterFilter,
+  const {
+    bulkRecodeCategoryId,
+    bulkRecodeOpen,
+    bulkRecodeSubCategoryId,
+    commentsTxn,
+    dismissedLinkedCommentTxnId,
+    expandedCommentsTxn,
+    isHydrated,
+    isMobile,
+    manageOpen,
+    pagination,
+    paginationScopeKey,
+    projectRuleError,
+    projectRuleMatchText,
+    projectRulePrompt,
+    rowSelection,
     sorting,
+    splitTxn,
+    transferTxn,
+    setBulkRecodeCategoryId,
+    setBulkRecodeOpen,
+    setBulkRecodeSubCategoryId,
+    setCommentsTxn,
+    setDismissedLinkedCommentTxnId,
+    setExpandedCommentsTxn,
+    setManageOpen,
+    setPagination,
+    setProjectRuleError,
+    setProjectRuleMatchText,
+    setProjectRulePrompt,
+    setRowSelection,
+    setSorting,
+    setSplitTxn,
+    setTransferTxn,
+  } = useTransactionsPanelState({
+    monthFilterKey,
+    quarterFilter,
     transactionDrilldown,
     transactionView,
     yearFilter,
-  ]);
-  const transactionsPageQ = useTransactionsPageQuery(
-    projectId,
-    transactionsPageInput,
-    { enabled: isHydrated }
-  );
-  const commentSummariesQ = useTransactionCommentSummariesQuery(projectId);
+  });
   const createProjectRule = useCreateProjectAutoCodingRuleMutation(projectId);
-  const expandedCommentsTxnId =
-    expandedCommentsTxn?.id ?? asTxnId('__no_expanded_txn__');
-  const expandedCommentsQ = useTransactionCommentsQuery(
+  const {
+    autoMappedPendingTxns,
+    bulkRecodeSubCategoryOptions,
+    commentSummaryByTxnId,
+    drilldownLabel,
+    expandedCommentsQ,
+    isTransitioningPageData,
+    linkedCommentsTxn,
+    pageSummary,
+    pagedTxns,
+    selectedAutoMappedPendingCount,
+    selectedTxnIds,
+    selectedUnlockedCategorisableCount,
+    transactionsPageQ,
+  } = useTransactionsPanelData({
+    bulkRecodeCategoryId,
+    dismissedLinkedCommentTxnId,
+    expandedCommentsTxn,
+    initialCommentTxnId,
+    isHydrated,
+    monthFilterKey,
+    pagination,
     projectId,
-    expandedCommentsTxnId,
-    { enabled: Boolean(expandedCommentsTxn) }
-  );
-  const commentSummaryByTxnId = useMemo(
-    () =>
-      new Map(
-        (commentSummariesQ.data ?? []).map((summary) => [
-          summary.txnId,
-          summary,
-        ])
-      ),
-    [commentSummariesQ.data]
-  );
-  const linkedCommentsTxn =
-    initialCommentTxnId && dismissedLinkedCommentTxnId !== initialCommentTxnId
-      ? (txns.transactions.find((txn) => txn.id === initialCommentTxnId) ??
-        null)
-      : null;
+    quarterFilter,
+    rowSelection,
+    sorting,
+    taxonomy,
+    transactionDrilldown,
+    transactionView,
+    txns,
+    yearFilter,
+  });
   const activeCommentsTxn = commentsTxn ?? linkedCommentsTxn;
-  const isTransitioningPageData =
-    transactionsPageQ.isFetching && transactionsPageQ.isPlaceholderData;
-  const pagedTxns = transactionsPageQ.data?.rows ?? EMPTY_TXNS;
-  const selectedTxns = useMemo(
-    () => pagedTxns.filter((txn) => rowSelection[txn.id]),
-    [pagedTxns, rowSelection]
-  );
-  const selectedTxnIds = useMemo(
-    () => selectedTxns.map((txn) => txn.id),
-    [selectedTxns]
-  );
-  const pageSummary = transactionsPageQ.data?.summary ?? {
-    totalCount: 0,
-    budgetImpactCents: 0,
-    uncodedCount: 0,
-    uncodedCents: 0,
-    sourceOnlyCount: 0,
-    assignedToMeCount: 0,
-    reviewedCount: 0,
-    lockedCount: 0,
-    invalidDateCount: 0,
-  };
-  const selectedAutoMappedPendingCount = useMemo(
-    () =>
-      selectedTxns.filter(
-        (txn) =>
-          !txn.lockedAt &&
-          isCategorisableTxn(txn) &&
-          !!txn.codingPendingApproval &&
-          !!txn.subCategoryId &&
-          taxonomy.validSubIds.has(txn.subCategoryId)
-      ).length,
-    [selectedTxns, taxonomy.validSubIds]
-  );
-  const selectedUnlockedCategorisableCount = useMemo(
-    () =>
-      selectedTxns.filter((txn) => !txn.lockedAt && isCategorisableTxn(txn))
-        .length,
-    [selectedTxns]
-  );
-  const bulkRecodeSubCategoryOptions = useMemo(
-    () =>
-      bulkRecodeCategoryId
-        ? taxonomy.subCategoryOptionsForCategory(
-            asCategoryId(bulkRecodeCategoryId)
-          )
-        : [],
-    [bulkRecodeCategoryId, taxonomy]
-  );
-
-  const drilldownLabel = transactionDrilldown
-    ? transactionDrilldown.kind === 'subcategory'
-      ? `${transactionDrilldown.categoryName} > ${transactionDrilldown.subCategoryName}`
-      : transactionDrilldown.categoryName
-    : null;
-
-  const autoMappedPendingTxns = useMemo(
-    () =>
-      txns.transactions.filter(
-        (t) =>
-          !t.lockedAt &&
-          isCategorisableTxn(t) &&
-          !!t.codingPendingApproval &&
-          !!t.subCategoryId &&
-          taxonomy.validSubIds.has(t.subCategoryId)
-      ),
-    [txns.transactions, taxonomy.validSubIds]
-  );
+  const resetPage = () =>
+    setPagination((current) => ({ ...current, pageIndex: 0 }));
+  const clearSelection = () => setRowSelection({});
 
   function applyProjectRulePrompt(prompt: ProjectRuleSuggestionPrompt | null) {
     if (!prompt) return;
@@ -420,10 +253,8 @@ export default function TransactionsPanel(props: {
         monthFilterKey={monthFilterKey}
         setMonthFilterKey={setMonthFilterKey}
         onClearFilters={onClearFilters}
-        onResetPage={() =>
-          setPagination((current) => ({ ...current, pageIndex: 0 }))
-        }
-        onClearSelection={() => setRowSelection({})}
+        onResetPage={resetPage}
+        onClearSelection={clearSelection}
         toQuarterOption={toQuarterOption}
       />
 
@@ -452,7 +283,7 @@ export default function TransactionsPanel(props: {
         selectedCountLabel={formatTxnCountLabel(selectedTxnIds.length)}
         selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
         selectedUnlockedCategorisableCount={selectedUnlockedCategorisableCount}
-        onClearSelection={() => setRowSelection({})}
+        onClearSelection={clearSelection}
         onMarkReviewed={() => {
           void runBulkAction({
             input: {
@@ -518,16 +349,14 @@ export default function TransactionsPanel(props: {
         }}
         drilldownLabel={drilldownLabel}
         onClearDrilldown={() => {
-          setRowSelection({});
-          setPagination((current) => ({ ...current, pageIndex: 0 }));
+          clearSelection();
+          resetPage();
           onClearTransactionDrilldown?.();
         }}
         invalidDateCount={pageSummary.invalidDateCount}
         projectRuleError={projectRuleError}
         projectRulePromptOpen={Boolean(projectRulePrompt)}
-        onResetPage={() =>
-          setPagination((current) => ({ ...current, pageIndex: 0 }))
-        }
+        onResetPage={resetPage}
       />
 
       <TransactionsDataTable
@@ -546,16 +375,16 @@ export default function TransactionsPanel(props: {
         validSubIds={taxonomy.validSubIds}
         showProgressBars={transactionsPageQ.isFetching}
         onPaginationChange={(updater) => {
-          setRowSelection({});
+          clearSelection();
           setPagination(updater);
         }}
         onRowSelectionChange={setRowSelection}
         onSortingChange={(updater) => {
           const nextSorting =
             typeof updater === 'function' ? updater(sorting) : updater;
-          setRowSelection({});
+          clearSelection();
           setSorting(nextSorting);
-          setPagination((current) => ({ ...current, pageIndex: 0 }));
+          resetPage();
         }}
       />
 

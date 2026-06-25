@@ -30,7 +30,6 @@ import {
 import { subCategoryNameSchema } from '../../../validation/schemas';
 import { validateOrThrow } from '../../../validation/validate';
 import { requireAuthorized } from '../../auth/authorize';
-import { getDb } from '../../db/db';
 import {
   toCompanyDefaultCategory,
   toCompanyDefaultSubCategory,
@@ -649,7 +648,7 @@ export async function promoteProjectRuleToCompanyDefaultServer(args: {
         });
       }
       await syncCompanyAutoCodingRulesToSyncedProjects({
-        db: trx as unknown as ReturnType<typeof getDb>,
+        db: trx,
         companyId,
         actorUserId: userId,
       });

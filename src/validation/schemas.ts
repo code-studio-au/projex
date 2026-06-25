@@ -87,3 +87,5 @@ export const emailSchema = z.string().superRefine((value, ctx) => {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Email is invalid' });
   }
 });
+
+export const idSchema = z.string().trim().min(1, 'Id is required');
