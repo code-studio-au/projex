@@ -794,118 +794,130 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
             <Stack gap="sm">
               <Title order={5}>Sub-projects</Title>
               {childProjects.length ? (
-                <Table.ScrollContainer minWidth={720}>
-                  <Table striped highlightOnHover withTableBorder>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Project</Table.Th>
-                        <Table.Th>Budget</Table.Th>
-                        <Table.Th>Actual</Table.Th>
-                        <Table.Th>Uncoded</Table.Th>
-                        <Table.Th>Status</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {childProjects.map((child) => {
-                        const visibleMonths = child.months.filter((month) =>
-                          monthKeyMatchesFilters({
-                            monthKey: month.monthKey,
-                            yearFilter,
-                            quarterFilter,
-                            monthFilterKey,
-                          })
-                        );
-                        const actualCents = visibleMonths.reduce(
-                          (total, month) => total + month.actualCodedCents,
-                          0
-                        );
-                        const uncodedCount = visibleMonths.reduce(
-                          (total, month) => total + month.uncodedCount,
-                          0
-                        );
-                        const budgetCents = filteredBudgetCents(
-                          child.budgetCents,
-                          {
-                            quarterFilter,
-                            monthFilterKey,
-                          }
-                        );
-                        const canOpenChild = child.status === 'active';
-                        return (
-                          <Table.Tr key={child.id}>
-                            <Table.Td>
-                              {canOpenChild ? (
-                                <button
-                                  type="button"
-                                  className={classes.drilldownButton}
-                                  onClick={() =>
-                                    router.navigate({
-                                      to: '/c/$companyId/p/$projectId',
-                                      params: {
-                                        companyId,
-                                        projectId: child.id,
-                                      },
-                                      search: {
-                                        year: yearFilter ?? undefined,
-                                        quarter: quarterFilter ?? undefined,
-                                        month: monthFilterKey ?? undefined,
-                                        source: 'company-summary',
-                                      },
-                                    })
-                                  }
-                                >
-                                  <Text
-                                    component="span"
-                                    className="table-body-left-bold table-link-text"
+                <div className="financeTable">
+                  <Table.ScrollContainer minWidth={720}>
+                    <Table striped highlightOnHover withTableBorder>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th className="table-head-cell table-head-left">
+                            Project
+                          </Table.Th>
+                          <Table.Th className="table-head-cell table-head-right">
+                            Budget
+                          </Table.Th>
+                          <Table.Th className="table-head-cell table-head-right">
+                            Actual
+                          </Table.Th>
+                          <Table.Th className="table-head-cell table-head-right">
+                            Uncoded
+                          </Table.Th>
+                          <Table.Th className="table-head-cell table-head-left">
+                            Status
+                          </Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {childProjects.map((child) => {
+                          const visibleMonths = child.months.filter((month) =>
+                            monthKeyMatchesFilters({
+                              monthKey: month.monthKey,
+                              yearFilter,
+                              quarterFilter,
+                              monthFilterKey,
+                            })
+                          );
+                          const actualCents = visibleMonths.reduce(
+                            (total, month) => total + month.actualCodedCents,
+                            0
+                          );
+                          const uncodedCount = visibleMonths.reduce(
+                            (total, month) => total + month.uncodedCount,
+                            0
+                          );
+                          const budgetCents = filteredBudgetCents(
+                            child.budgetCents,
+                            {
+                              quarterFilter,
+                              monthFilterKey,
+                            }
+                          );
+                          const canOpenChild = child.status === 'active';
+                          return (
+                            <Table.Tr key={child.id}>
+                              <Table.Td>
+                                {canOpenChild ? (
+                                  <button
+                                    type="button"
+                                    className={classes.drilldownButton}
+                                    onClick={() =>
+                                      router.navigate({
+                                        to: '/c/$companyId/p/$projectId',
+                                        params: {
+                                          companyId,
+                                          projectId: child.id,
+                                        },
+                                        search: {
+                                          year: yearFilter ?? undefined,
+                                          quarter: quarterFilter ?? undefined,
+                                          month: monthFilterKey ?? undefined,
+                                          source: 'company-summary',
+                                        },
+                                      })
+                                    }
                                   >
+                                    <Text
+                                      component="span"
+                                      className="table-body-left-bold table-link-text"
+                                    >
+                                      {child.name}
+                                    </Text>
+                                  </button>
+                                ) : (
+                                  <Text className="table-body-left-bold">
                                     {child.name}
                                   </Text>
-                                </button>
-                              ) : (
-                                <Text className="table-body-left-bold">
-                                  {child.name}
+                                )}
+                              </Table.Td>
+                              <Table.Td>
+                                <Text className="table-body-right">
+                                  {formatCurrencyFromCents(
+                                    budgetCents,
+                                    child.currency
+                                  )}
                                 </Text>
-                              )}
-                            </Table.Td>
-                            <Table.Td>
-                              <Text className="table-body-right">
-                                {formatCurrencyFromCents(
-                                  budgetCents,
-                                  child.currency
-                                )}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text className="table-body-right">
-                                {formatCurrencyFromCents(
-                                  actualCents,
-                                  child.currency
-                                )}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text className="table-body-right">
-                                {uncodedCount}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Badge
-                                variant="light"
-                                color={
-                                  child.status === 'active' ? 'green' : 'gray'
-                                }
-                              >
-                                {child.status === 'active'
-                                  ? 'Active'
-                                  : 'Archived'}
-                              </Badge>
-                            </Table.Td>
-                          </Table.Tr>
-                        );
-                      })}
-                    </Table.Tbody>
-                  </Table>
-                </Table.ScrollContainer>
+                              </Table.Td>
+                              <Table.Td>
+                                <Text className="table-body-right">
+                                  {formatCurrencyFromCents(
+                                    actualCents,
+                                    child.currency
+                                  )}
+                                </Text>
+                              </Table.Td>
+                              <Table.Td>
+                                <Text className="table-body-right">
+                                  {uncodedCount}
+                                </Text>
+                              </Table.Td>
+                              <Table.Td>
+                                <Badge
+                                  variant="light"
+                                  color={
+                                    child.status === 'active' ? 'green' : 'gray'
+                                  }
+                                >
+                                  {child.status === 'active'
+                                    ? 'Active'
+                                    : 'Archived'}
+                                </Badge>
+                              </Table.Td>
+                            </Table.Tr>
+                          );
+                        })}
+                      </Table.Tbody>
+                    </Table>
+                  </Table.ScrollContainer>
+                </div>
               ) : (
                 <Text c="dimmed">No sub-projects are assigned yet.</Text>
               )}

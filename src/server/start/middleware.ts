@@ -29,7 +29,7 @@ export const startApiMiddleware = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
     const request = getRequest();
     const { resolveRequestServerContext } = (await import(
-      requestContextModuleSpecifier
+      /* @vite-ignore */ requestContextModuleSpecifier
     )) as RequestContextModule;
     const { session, serverContext } =
       await resolveRequestServerContext(request);
