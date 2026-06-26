@@ -81,11 +81,16 @@ export const projectNameSchema = nonEmptyTrimmed('Project name', 120);
 export const companyNameSchema = nonEmptyTrimmed('Company name', 120);
 export const userNameSchema = nonEmptyTrimmed('User name', 120);
 
-export const emailSchema = z.string().superRefine((value, ctx) => {
-  const email = value.trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Email is invalid' });
-  }
-});
+export const emailSchema = z
+  .string()
+  .transform((value) => value.trim().toLowerCase())
+  .superRefine((email, ctx) => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Email is invalid',
+      });
+    }
+  });
 
 export const idSchema = z.string().trim().min(1, 'Id is required');

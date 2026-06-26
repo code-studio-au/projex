@@ -1,5 +1,10 @@
 import type { Kysely } from 'kysely';
-import type { ProjectAutoCodingRule, ProjectId } from '../../../types';
+import type {
+  Category,
+  ProjectAutoCodingRule,
+  ProjectId,
+  SubCategory,
+} from '../../../types';
 import { asProjectAutoCodingRuleId, asSubCategoryId } from '../../../types';
 import { resolveCompanyDefaultRuleToProjectTaxonomy } from '../../../utils/companyDefaultMappings';
 import { canonicalizeRuleText } from '../../../utils/textRuleMatching';
@@ -199,6 +204,45 @@ export async function listProjectCategories(
   return rows.map(toCategory);
 }
 
+export async function listProjectCategoriesForProjects(
+  db: Kysely<DB>,
+  projectIds: ProjectId[]
+) {
+  if (!projectIds.length) return new Map<ProjectId, Category[]>();
+
+  const rows = await db
+    .selectFrom('categories')
+    .select([
+      'id',
+      'company_id',
+      'project_id',
+      'name',
+      'origin_scope',
+      'origin_company_item_id',
+      'sync_status',
+      'last_synced_at',
+      'source_updated_at_snapshot',
+      'created_at',
+      'updated_at',
+    ])
+    .where('project_id', 'in', projectIds)
+    .orderBy('project_id', 'asc')
+    .orderBy('name', 'asc')
+    .execute();
+
+  const grouped = new Map<ProjectId, Category[]>();
+  for (const row of rows) {
+    const projectId = row.project_id as ProjectId;
+    const categories = grouped.get(projectId);
+    if (categories) {
+      categories.push(toCategory(row));
+      continue;
+    }
+    grouped.set(projectId, [toCategory(row)]);
+  }
+  return grouped;
+}
+
 export async function listProjectSubCategories(
   db: Kysely<DB>,
   projectId: ProjectId
@@ -223,6 +267,46 @@ export async function listProjectSubCategories(
     .orderBy('name', 'asc')
     .execute();
   return rows.map(toSubCategory);
+}
+
+export async function listProjectSubCategoriesForProjects(
+  db: Kysely<DB>,
+  projectIds: ProjectId[]
+) {
+  if (!projectIds.length) return new Map<ProjectId, SubCategory[]>();
+
+  const rows = await db
+    .selectFrom('sub_categories')
+    .select([
+      'id',
+      'company_id',
+      'project_id',
+      'category_id',
+      'name',
+      'origin_scope',
+      'origin_company_item_id',
+      'sync_status',
+      'last_synced_at',
+      'source_updated_at_snapshot',
+      'created_at',
+      'updated_at',
+    ])
+    .where('project_id', 'in', projectIds)
+    .orderBy('project_id', 'asc')
+    .orderBy('name', 'asc')
+    .execute();
+
+  const grouped = new Map<ProjectId, SubCategory[]>();
+  for (const row of rows) {
+    const projectId = row.project_id as ProjectId;
+    const subCategories = grouped.get(projectId);
+    if (subCategories) {
+      subCategories.push(toSubCategory(row));
+      continue;
+    }
+    grouped.set(projectId, [toSubCategory(row)]);
+  }
+  return grouped;
 }
 
 export async function resolveInheritedCompanyAutoCodingRule(args: {

@@ -9,6 +9,7 @@ import {
   type ProjectStandardsDb,
   shouldApplyInheritedUpdate,
 } from '../../sync/projectStandards';
+import type { ImportRuleRow } from './shared';
 import { importRuleFingerprint, importRuleSelectColumns } from './shared';
 
 export async function seedCompanyImportRuleBaseline(args: {
@@ -70,6 +71,24 @@ export async function syncCompanyImportRulesToProject(args: {
       .where('project_id', '=', args.projectId)
       .execute(),
   ]);
+
+  await syncCompanyImportRulesWithPreloadedState({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+    companyRules,
+    projectRules,
+  });
+}
+
+async function syncCompanyImportRulesWithPreloadedState(args: {
+  db: ProjectStandardsDb;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  companyRules: ImportRuleRow[];
+  projectRules: ImportRuleRow[];
+}) {
+  const { companyRules, projectRules } = args;
 
   const now = new Date().toISOString();
   const companyRuleIds = new Set(companyRules.map((rule) => rule.id));
@@ -159,6 +178,21 @@ export async function syncCompanyImportRulesToProject(args: {
   }
 }
 
+function groupProjectImportRules(rows: ImportRuleRow[]) {
+  const grouped = new Map<ProjectId, ImportRuleRow[]>();
+  for (const row of rows) {
+    if (!row.project_id) continue;
+    const projectId = row.project_id as ProjectId;
+    const existing = grouped.get(projectId);
+    if (existing) {
+      existing.push(row);
+      continue;
+    }
+    grouped.set(projectId, [row]);
+  }
+  return grouped;
+}
+
 export async function syncCompanyImportRulesToSyncedProjects(args: {
   db: ProjectStandardsDb;
   companyId: CompanyId;
@@ -167,11 +201,32 @@ export async function syncCompanyImportRulesToSyncedProjects(args: {
     db: args.db,
     companyId: args.companyId,
   });
+  if (!syncedProjectIds.length) return;
+
+  const [companyRules, projectRules] = await Promise.all([
+    args.db
+      .selectFrom('import_rules')
+      .select(importRuleSelectColumns())
+      .where('company_id', '=', args.companyId)
+      .where('project_id', 'is', null)
+      .orderBy('sort_order', 'asc')
+      .orderBy('created_at', 'asc')
+      .execute(),
+    args.db
+      .selectFrom('import_rules')
+      .select(importRuleSelectColumns())
+      .where('project_id', 'in', syncedProjectIds)
+      .execute(),
+  ]);
+
+  const projectRulesByProjectId = groupProjectImportRules(projectRules);
   for (const projectId of syncedProjectIds) {
-    await syncCompanyImportRulesToProject({
+    await syncCompanyImportRulesWithPreloadedState({
       db: args.db,
       companyId: args.companyId,
       projectId,
+      companyRules,
+      projectRules: projectRulesByProjectId.get(projectId) ?? [],
     });
   }
 }

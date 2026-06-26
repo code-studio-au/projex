@@ -283,7 +283,7 @@ test(
             'txns:edit',
             db
           ),
-        'VALIDATION_ERROR',
+        'FORBIDDEN',
         'Programmes are reporting-only and cannot be used for project operations'
       );
     } finally {

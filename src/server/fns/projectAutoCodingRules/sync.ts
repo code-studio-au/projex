@@ -1,6 +1,13 @@
 import { uid } from '../../../utils/id';
 import { resolveCompanyDefaultRuleToProjectTaxonomy } from '../../../utils/companyDefaultMappings';
-import type { ProjectAutoCodingRule, ProjectId } from '../../../types';
+import type {
+  Category,
+  CompanyDefaultCategory,
+  CompanyDefaultSubCategory,
+  ProjectAutoCodingRule,
+  ProjectId,
+  SubCategory,
+} from '../../../types';
 import { asProjectAutoCodingRuleId } from '../../../types';
 import {
   buildDetachedProjectStandardMetadata,
@@ -14,7 +21,10 @@ import {
   listCompanyDefaultCategories,
   listCompanyDefaultSubCategories,
   listProjectCategories,
+  listProjectCategoriesForProjects,
   listProjectSubCategories,
+  listProjectSubCategoriesForProjects,
+  type ProjectAutoCodingRuleRow,
   projectAutoCodingRuleFingerprint,
   projectAutoCodingRuleSelectColumns,
 } from './shared';
@@ -59,6 +69,50 @@ export async function syncCompanyAutoCodingRulesToProject(args: {
     listProjectCategories(args.db, args.projectId),
     listProjectSubCategories(args.db, args.projectId),
   ]);
+
+  await syncCompanyAutoCodingRulesWithPreloadedState({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+    actorUserId: args.actorUserId,
+    companyRules,
+    projectRuleRows,
+    defaultCategories,
+    defaultSubCategories,
+    projectCategories,
+    projectSubCategories,
+  });
+}
+
+async function syncCompanyAutoCodingRulesWithPreloadedState(args: {
+  db: ProjectStandardsDb;
+  companyId: ProjectAutoCodingRule['companyId'];
+  projectId: ProjectId;
+  actorUserId: NonNullable<ProjectAutoCodingRule['createdByUserId']>;
+  companyRules: Array<{
+    id: string;
+    company_id: string;
+    match_text: string;
+    company_default_category_id: string;
+    company_default_sub_category_id: string;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+  }>;
+  projectRuleRows: ProjectAutoCodingRuleRow[];
+  defaultCategories: CompanyDefaultCategory[];
+  defaultSubCategories: CompanyDefaultSubCategory[];
+  projectCategories: Category[];
+  projectSubCategories: SubCategory[];
+}) {
+  const {
+    companyRules,
+    projectRuleRows,
+    defaultCategories,
+    defaultSubCategories,
+    projectCategories,
+    projectSubCategories,
+  } = args;
 
   const now = new Date().toISOString();
   const companyRuleIds = new Set(companyRules.map((rule) => rule.id));
@@ -178,6 +232,20 @@ export async function syncCompanyAutoCodingRulesToProject(args: {
   }
 }
 
+function groupProjectAutoCodingRuleRows(rows: ProjectAutoCodingRuleRow[]) {
+  const grouped = new Map<ProjectId, ProjectAutoCodingRuleRow[]>();
+  for (const row of rows) {
+    const projectId = row.project_id as ProjectId;
+    const rules = grouped.get(projectId);
+    if (rules) {
+      rules.push(row);
+      continue;
+    }
+    grouped.set(projectId, [row]);
+  }
+  return grouped;
+}
+
 export async function syncCompanyAutoCodingRulesToSyncedProjects(args: {
   db: ProjectStandardsDb;
   companyId: ProjectAutoCodingRule['companyId'];
@@ -187,12 +255,59 @@ export async function syncCompanyAutoCodingRulesToSyncedProjects(args: {
     db: args.db,
     companyId: args.companyId,
   });
+  if (!syncedProjectIds.length) return;
+
+  const [
+    companyRules,
+    projectRuleRows,
+    defaultCategories,
+    defaultSubCategories,
+    projectCategoriesByProjectId,
+    projectSubCategoriesByProjectId,
+  ] = await Promise.all([
+    args.db
+      .selectFrom('company_default_mapping_rules')
+      .select([
+        'id',
+        'company_id',
+        'match_text',
+        'company_default_category_id',
+        'company_default_sub_category_id',
+        'sort_order',
+        'created_at',
+        'updated_at',
+      ])
+      .where('company_id', '=', args.companyId)
+      .orderBy('sort_order', 'asc')
+      .orderBy('created_at', 'asc')
+      .execute(),
+    args.db
+      .selectFrom('project_auto_coding_rules')
+      .select(projectAutoCodingRuleSelectColumns())
+      .where('project_id', 'in', syncedProjectIds)
+      .execute(),
+    listCompanyDefaultCategories(args.db, args.companyId),
+    listCompanyDefaultSubCategories(args.db, args.companyId),
+    listProjectCategoriesForProjects(args.db, syncedProjectIds),
+    listProjectSubCategoriesForProjects(args.db, syncedProjectIds),
+  ]);
+
+  const projectRuleRowsByProjectId =
+    groupProjectAutoCodingRuleRows(projectRuleRows);
+
   for (const projectId of syncedProjectIds) {
-    await syncCompanyAutoCodingRulesToProject({
+    await syncCompanyAutoCodingRulesWithPreloadedState({
       db: args.db,
       companyId: args.companyId,
       projectId,
       actorUserId: args.actorUserId,
+      companyRules,
+      projectRuleRows: projectRuleRowsByProjectId.get(projectId) ?? [],
+      defaultCategories,
+      defaultSubCategories,
+      projectCategories: projectCategoriesByProjectId.get(projectId) ?? [],
+      projectSubCategories:
+        projectSubCategoriesByProjectId.get(projectId) ?? [],
     });
   }
 }

@@ -435,79 +435,78 @@ test('requireOperationalProjectForAction enforces active company, active project
     projectStatus: 'active' | 'archived',
     companyStatus: 'active' | 'deactivated',
     projectType: 'project' | 'programme'
-  ) => ({
-    selectFrom(tableName: string) {
-      if (tableName === 'projects') {
-        return {
-          innerJoin() {
-            return this;
-          },
-          select() {
-            return this;
-          },
-          where() {
-            return this;
-          },
-          async executeTakeFirst() {
-            return {
-              id: 'prj_1',
-              company_id: 'co_1',
-              project_type: projectType,
-              allow_txn_transfers: false,
-              project_status: projectStatus,
-              company_status: companyStatus,
-            };
-          },
-          async executeTakeFirstOrThrow() {
-            return {
-              project_status: projectStatus,
-              company_status: companyStatus,
-            };
-          },
-        };
-      }
-      if (tableName === 'company_memberships') {
-        return {
-          select() {
-            return this;
-          },
-          where() {
-            return this;
-          },
-          async execute() {
-            return [{ company_id: 'co_1', user_id: 'usr_1', role: 'admin' }];
-          },
-        };
-      }
-      if (tableName === 'project_memberships') {
-        return {
-          select() {
-            return this;
-          },
-          where() {
-            return this;
-          },
-          async execute() {
-            return [{ project_id: 'prj_1', user_id: 'usr_1', role: 'owner' }];
-          },
-        };
-      }
-      if (tableName === 'users') {
-        return {
-          select() {
-            return this;
-          },
-          where() {
-            return this;
-          },
-          async executeTakeFirst() {
-            return { is_global_superadmin: false };
-          },
-        };
-      }
-      throw new Error(`Unexpected table: ${tableName}`);
-    },
-  });
+  ) => {
+    let projectSelectCount = 0;
+    const db = {
+      selectFrom(tableName: string) {
+        if (tableName === 'projects') {
+          projectSelectCount += 1;
+          return {
+            innerJoin() {
+              return this;
+            },
+            select() {
+              return this;
+            },
+            where() {
+              return this;
+            },
+            async executeTakeFirst() {
+              return {
+                id: 'prj_1',
+                company_id: 'co_1',
+                project_type: projectType,
+                allow_txn_transfers: false,
+                project_status: projectStatus,
+                company_status: companyStatus,
+              };
+            },
+          };
+        }
+        if (tableName === 'company_memberships') {
+          return {
+            select() {
+              return this;
+            },
+            where() {
+              return this;
+            },
+            async execute() {
+              return [{ company_id: 'co_1', user_id: 'usr_1', role: 'admin' }];
+            },
+          };
+        }
+        if (tableName === 'project_memberships') {
+          return {
+            select() {
+              return this;
+            },
+            where() {
+              return this;
+            },
+            async execute() {
+              return [{ project_id: 'prj_1', user_id: 'usr_1', role: 'owner' }];
+            },
+          };
+        }
+        if (tableName === 'users') {
+          return {
+            select() {
+              return this;
+            },
+            where() {
+              return this;
+            },
+            async executeTakeFirst() {
+              return { is_global_superadmin: false };
+            },
+          };
+        }
+        throw new Error(`Unexpected table: ${tableName}`);
+      },
+    };
+    return { db, projectSelectCount: () => projectSelectCount };
+  };
 
   await assertAppError(
     () =>
@@ -518,7 +517,7 @@ test('requireOperationalProjectForAction enforces active company, active project
         },
         asProjectId('prj_1'),
         'project:view',
-        baseDb('active', 'deactivated', 'project') as never
+        baseDb('active', 'deactivated', 'project').db as never
       ),
     'FORBIDDEN',
     'Company is deactivated'
@@ -533,7 +532,7 @@ test('requireOperationalProjectForAction enforces active company, active project
         },
         asProjectId('prj_1'),
         'project:view',
-        baseDb('archived', 'active', 'project') as never
+        baseDb('archived', 'active', 'project').db as never
       ),
     'FORBIDDEN',
     'Project is deactivated'
@@ -548,12 +547,13 @@ test('requireOperationalProjectForAction enforces active company, active project
         },
         asProjectId('prj_1'),
         'project:view',
-        baseDb('active', 'active', 'programme') as never
+        baseDb('active', 'active', 'programme').db as never
       ),
-    'VALIDATION_ERROR',
+    'FORBIDDEN',
     'Programmes are reporting-only and cannot be used for project operations'
   );
 
+  const operationalDb = baseDb('active', 'active', 'project');
   const operational = await requireOperationalProjectForAction(
     {
       session: { userId: asUserId('usr_1') },
@@ -561,9 +561,12 @@ test('requireOperationalProjectForAction enforces active company, active project
     },
     asProjectId('prj_1'),
     'project:view',
-    baseDb('active', 'active', 'project') as never
+    operationalDb.db as never
   );
   assert.equal(operational.projectType, 'project');
+  assert.equal(operational.projectStatus, 'active');
+  assert.equal(operational.companyStatus, 'active');
+  assert.equal(operationalDb.projectSelectCount(), 1);
 });
 
 test('money inputs reject values outside JavaScript safe integer bounds', () => {

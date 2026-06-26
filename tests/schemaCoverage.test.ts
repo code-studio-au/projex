@@ -13,4 +13,5 @@ test('schema helpers reject blank, overlong, and invalid email values', () => {
   assert.equal(txnCommentBodySchema.safeParse('x'.repeat(2001)).success, false);
   assert.equal(emailSchema.safeParse('not-an-email').success, false);
   assert.equal(emailSchema.safeParse(' user@example.com ').success, true);
+  assert.equal(emailSchema.parse(' User@Example.COM '), 'user@example.com');
 });

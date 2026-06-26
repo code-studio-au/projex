@@ -5,6 +5,8 @@ import type {
   CategoryId,
   CompanyDefaultMappingRuleId,
   CompanyId,
+  CompanyStatus,
+  Project,
   ProjectId,
   ProjectType,
   SubCategoryId,
@@ -23,6 +25,8 @@ export type ProjectActionContext = {
   companyId: CompanyId;
   projectId: ProjectId;
   projectType: ProjectType;
+  projectStatus: Project['status'];
+  companyStatus: CompanyStatus;
   allowTxnTransfers: boolean;
 };
 
@@ -57,6 +61,8 @@ export async function requireProjectForAction(
     companyId,
     projectId,
     projectType: project.project_type,
+    projectStatus: project.project_status,
+    companyStatus: project.company_status,
     allowTxnTransfers: project.allow_txn_transfers,
   };
 }
@@ -73,24 +79,15 @@ export async function requireOperationalProjectForAction(
     action,
     db
   );
-  const project = await db
-    .selectFrom('projects')
-    .innerJoin('companies', 'companies.id', 'projects.company_id')
-    .select([
-      'projects.status as project_status',
-      'companies.status as company_status',
-    ])
-    .where('projects.id', '=', projectId)
-    .executeTakeFirstOrThrow();
-  if (project.company_status !== 'active') {
+  if (projectContext.companyStatus !== 'active') {
     throw new AppError('FORBIDDEN', 'Company is deactivated');
   }
-  if (project.project_status !== 'active') {
+  if (projectContext.projectStatus !== 'active') {
     throw new AppError('FORBIDDEN', 'Project is deactivated');
   }
   if (projectContext.projectType !== 'project') {
     throw new AppError(
-      'VALIDATION_ERROR',
+      'FORBIDDEN',
       'Programmes are reporting-only and cannot be used for project operations'
     );
   }
