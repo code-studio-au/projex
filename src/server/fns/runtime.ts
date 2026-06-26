@@ -1,8 +1,10 @@
 import { AppError, toAppError } from '../../api/errors';
 import type { ServerFnContextInput } from '../../api/appEndpoints';
 import type { UserId } from '../../types';
-import { resolveVerifiedCurrentSession } from '../auth/currentSession';
-import { getDb } from '../db/db';
+import {
+  resolveVerifiedCurrentSession,
+  verifySessionUser,
+} from '../auth/currentSession';
 import {
   requireUserId,
   toServerSession,
@@ -44,15 +46,11 @@ export async function requireServerUserId(
   if (sessionVerified) {
     return userId;
   }
-  const user = await getDb()
-    .selectFrom('users')
-    .select(['id', 'disabled'])
-    .where('id', '=', userId)
-    .executeTakeFirst();
-  if (!user) {
+  const verification = await verifySessionUser(userId);
+  if (verification === 'missing') {
     throw new AppError('UNAUTHENTICATED', 'Not authenticated');
   }
-  if (user.disabled) {
+  if (verification === 'disabled') {
     throw new AppError('FORBIDDEN', 'User is disabled');
   }
   return userId;

@@ -1,11 +1,28 @@
 import { getDb } from '../db/db';
 import { getAuthSessionFromRequest } from './betterAuth';
 import type { ServerSession } from './session';
+import type { UserId } from '../../types';
+
+export type SessionUserVerification = 'active' | 'missing' | 'disabled';
 
 export type VerifiedCurrentSession = {
   session: ServerSession | null;
   sessionVerified: boolean;
 };
+
+export async function verifySessionUser(
+  userId: UserId
+): Promise<SessionUserVerification> {
+  const user = await getDb()
+    .selectFrom('users')
+    .select(['id', 'disabled'])
+    .where('id', '=', userId)
+    .executeTakeFirst();
+
+  if (!user) return 'missing';
+  if (user.disabled) return 'disabled';
+  return 'active';
+}
 
 export async function resolveVerifiedCurrentSession(
   request: Request
@@ -18,13 +35,7 @@ export async function resolveVerifiedCurrentSession(
     };
   }
 
-  const user = await getDb()
-    .selectFrom('users')
-    .select(['id', 'disabled'])
-    .where('id', '=', session.userId)
-    .executeTakeFirst();
-
-  if (!user || user.disabled) {
+  if ((await verifySessionUser(session.userId)) !== 'active') {
     return {
       session: null,
       sessionVerified: false,

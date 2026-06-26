@@ -5,18 +5,11 @@ import { AppError } from '../src/api/errors.ts';
 import { asUserId } from '../src/types/index.ts';
 
 const resolveVerifiedCurrentSessionMock = vi.fn();
-const executeTakeFirstMock = vi.fn();
-const whereMock = vi.fn(() => ({ executeTakeFirst: executeTakeFirstMock }));
-const selectMock = vi.fn(() => ({ where: whereMock }));
-const selectFromMock = vi.fn(() => ({ select: selectMock }));
-const getDbMock = vi.fn(() => ({ selectFrom: selectFromMock }));
+const verifySessionUserMock = vi.fn();
 
 vi.mock('../src/server/auth/currentSession.ts', () => ({
   resolveVerifiedCurrentSession: resolveVerifiedCurrentSessionMock,
-}));
-
-vi.mock('../src/server/db/db.ts', () => ({
-  getDb: getDbMock,
+  verifySessionUser: verifySessionUserMock,
 }));
 
 afterEach(() => {
@@ -24,10 +17,7 @@ afterEach(() => {
 });
 
 test('requireServerUserId validates auth-derived sessions against the users table', async () => {
-  executeTakeFirstMock.mockResolvedValue({
-    id: asUserId('usr_auth'),
-    disabled: false,
-  });
+  verifySessionUserMock.mockResolvedValue('active');
 
   const { requireServerUserId } = await import('../src/server/fns/runtime.ts');
   const userId = await requireServerUserId({
@@ -35,11 +25,11 @@ test('requireServerUserId validates auth-derived sessions against the users tabl
   });
 
   assert.equal(userId, 'usr_auth');
-  assert.equal(selectFromMock.mock.calls.length, 1);
+  assert.deepEqual(verifySessionUserMock.mock.calls[0], [asUserId('usr_auth')]);
 });
 
 test('requireServerUserId rejects auth-derived sessions when the user record is missing', async () => {
-  executeTakeFirstMock.mockResolvedValue(undefined);
+  verifySessionUserMock.mockResolvedValue('missing');
 
   const { requireServerUserId } = await import('../src/server/fns/runtime.ts');
 
@@ -58,10 +48,7 @@ test('requireServerUserId rejects auth-derived sessions when the user record is 
 });
 
 test('requireServerUserId rejects disabled auth-derived users', async () => {
-  executeTakeFirstMock.mockResolvedValue({
-    id: asUserId('usr_disabled'),
-    disabled: true,
-  });
+  verifySessionUserMock.mockResolvedValue('disabled');
 
   const { requireServerUserId } = await import('../src/server/fns/runtime.ts');
 
@@ -91,7 +78,7 @@ test('requireServerUserId trusts verified request sessions without a second user
   });
 
   assert.equal(userId, 'usr_verified');
-  assert.equal(getDbMock.mock.calls.length, 0);
+  assert.equal(verifySessionUserMock.mock.calls.length, 0);
 });
 
 test('withServerBoundary preserves app errors and normalizes unknown errors', async () => {

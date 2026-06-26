@@ -80,7 +80,6 @@ export default defineConfig([
   },
   {
     files: [
-      'auth.ts',
       'src/server/**/*.{ts,tsx}',
       'scripts/**/*.{ts,mjs}',
       'tests/**/*.ts',
