@@ -16,6 +16,20 @@ server-only auth, env, db, mail, storage, or runtime internals.
 - `src/server/routes/**`
   Server-only route adapters that API route files may load dynamically.
 
+## Request context rule
+
+Session verification should happen once per request and then flow through the
+normalized server context:
+
+- `src/server/auth/currentSession.ts` owns BetterAuth session lookup plus app
+  user verification.
+- `src/server/http/requestContext.ts` caches that verified result per request.
+- `src/server/fns/runtime.ts` trusts `sessionVerified` when request context has
+  already normalized the session.
+
+Do not re-implement session-user lookups inside feature modules when normalized
+context is already available.
+
 ## Client-app rule
 
 Files outside `src/server/**` must not import server infrastructure directly.
@@ -63,3 +77,14 @@ They should not compose auth/env/db/storage modules inline.
 `src/server/routes/**` is the place for route-specific orchestration that needs
 server infrastructure, especially auth/session, env checks, db probes, and
 server-only cookies.
+
+## Batched sync rule
+
+When company standards must sync across many projects, prefer a shared
+preloaded-state helper plus grouped reads over per-project N+1 queries.
+
+Current reference patterns:
+
+- `src/server/fns/importRules/sync.ts`
+- `src/server/fns/projectAutoCodingRules/sync.ts`
+- `src/server/fns/taxonomy/standards.ts`

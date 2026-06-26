@@ -10,7 +10,7 @@ Use this guide for first-time EC2/RDS host provisioning. Once the host, systemd 
 
 ## 2) Install runtime
 
-- Install Node.js 22
+- Install Node.js 24
 - Enable Corepack and install pnpm
 - Create app directories:
   - `/opt/projex/releases`
@@ -240,7 +240,7 @@ Why this matters:
 
 ## 6) Ongoing Operations
 
-For post-deploy verification, first-admin bootstrap, smoke usage, and troubleshooting, use [docs/staging-runbook.md](/Users/scas0196/Documents/code/projex/docs/staging-runbook.md:1).
+For post-deploy verification, first-admin bootstrap, smoke usage, and troubleshooting, use [docs/staging-runbook.md](staging-runbook.md).
 
 For local pre-deploy security hygiene before you even have staging up, run:
 
@@ -268,3 +268,9 @@ That adds:
 - disposable Postgres-backed DB integration tests
 - disposable Postgres-backed isolated server smoke basics
 - disposable Postgres-backed isolated browser smoke basics
+
+If you run the browser smoke lane locally outside CI, install Chromium first:
+
+```bash
+pnpm exec playwright install --with-deps chromium
+```

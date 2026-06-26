@@ -25,7 +25,7 @@ Before handing this repo to another developer or team, make sure:
 - the eventual pipeline shape is clear:
   - local/CI gate: `pnpm run verify:ci`
   - GitHub Actions CI: static checks, DB verification, disposable server smoke basics, and disposable browser smoke basics
-  - GitHub Actions deploy artifact build: reruns formatting, lint, typecheck, tests, build, DB verification, DB integration, disposable server smoke, and disposable browser smoke before packaging
+  - GitHub Actions deploy artifact build: reruns `verify:app`, `verify:db:gate`, disposable server smoke basics, and disposable browser smoke basics before packaging
   - deployed-environment checks: `pnpm run smoke:server` and `pnpm run verify:deploy-security`
 - normal code flow is branch -> PR -> green checks -> merge; protected `main` is not the routine delivery path
 - the first-admin bootstrap path is understood for fresh databases:
@@ -83,6 +83,8 @@ How to think about those commands:
   disposable DB integration tests, isolated disposable server smoke basics, and
   isolated disposable browser smoke basics.
 - Both disposable DB steps require local Docker access.
+- Local browser smoke also needs `pnpm exec playwright install --with-deps chromium`
+  the first time you run it on a machine.
 - `pnpm run db:migrate` remains an explicit deployment step; the runtime server should be restarted only after migrations succeed.
 
 Post-deploy verification on the target runtime:

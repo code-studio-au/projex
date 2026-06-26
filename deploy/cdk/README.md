@@ -13,7 +13,8 @@ This CDK app provisions a staging/prod baseline:
 
 - AWS account + IAM permissions for VPC/EC2/RDS/S3/SecretsManager/CloudFormation
 - AWS CLI configured (`aws configure`)
-- Node.js 20+ on your machine
+- Node.js 24 on your machine, matching the root repo `.nvmrc`, `.node-version`,
+  and CI/deploy workflows
 
 ## Install
 
@@ -108,7 +109,7 @@ When running on AWS S3 itself, the app normally does not need:
 
 - This stack now removes the unused NAT gateway and private app subnet tier to keep recurring baseline cost down.
 - Defaults now target Graviton burstable instances (`t4g.small` for EC2 and `t4g.micro` for RDS) because they are the lowest-cost sensible Linux baseline in many regions, including Sydney, assuming your app dependencies are Arm-compatible.
-- The EC2 default intentionally stays at `t4g.small` because the current deploy flow runs `pnpm install` and `pnpm run build` on the instance. That is usually the first place a `t4g.micro` becomes uncomfortable. If you move to prebuilt artifact deploys and restart-only runtime updates, `t4g.micro` becomes a more realistic lowest-cost app-host option.
+- The EC2 default intentionally stays at `t4g.small` as the safest baseline for current runtime shape, package install pressure, nginx, Node SSR, and operational headroom. The default GitHub Actions deploy flow is now artifact-based, so the instance no longer builds the app on-box during normal releases. That makes `t4g.micro` more plausible for very low-traffic environments, but it is still a conscious capacity tradeoff rather than the repo default.
 - RDS now defaults to the cheapest predictable posture this repo can reasonably support: `db.t4g.micro`, `20` GiB, `gp3`, `1` day backup retention, no storage autoscaling, and no Multi-AZ.
 - If RDS cost is still too high, the next step is architectural rather than just tuning: move Postgres onto the EC2 host for a dev/very-low-budget environment, or choose a non-RDS managed Postgres provider. That is cheaper, but it is a meaningful tradeoff in durability and operations.
 - The EC2 host remains public with a stable Elastic IP because the current app shape assumes a single-host nginx/node deployment without a load balancer.
@@ -116,4 +117,4 @@ When running on AWS S3 itself, the app normally does not need:
 - The export bucket includes a lifecycle rule as a safety net for stale objects, but the application still performs primary 24-hour job/object cleanup itself.
 - Non-production stack uses destructive defaults on destroy (`RemovalPolicy.DESTROY` for DB).
 - Production stack still retains DB (`RemovalPolicy.RETAIN`) and enables deletion protection, but it no longer forces Multi-AZ. If you need higher resilience, opt back into `-c dbMultiAz=true`.
-- Instance bootstraps Node + nginx only; app deployment remains your existing SSH/CI flow.
+- Instance bootstraps Node + nginx only; application deploy remains the repo's artifact-based EC2 flow described in `docs/deployment-ec2.md` and `docs/staging-runbook.md`.

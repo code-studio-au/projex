@@ -44,6 +44,12 @@ Full local/CI-shaped pass:
 pnpm run verify:ci
 ```
 
+Before running the browser smoke lane locally for the first time on a machine:
+
+```bash
+pnpm exec playwright install --with-deps chromium
+```
+
 Targeted useful commands:
 
 ```bash
@@ -64,5 +70,7 @@ pnpm run smoke:browser:disposable -- --section=basics
 - API route files should stay transport-only and use `src/server/routes/**`
   adapters for server-only orchestration.
 - Shared business logic belongs in `src/server/fns/**`.
+- Request/session verification should flow through normalized request context
+  rather than duplicate user/session checks inside feature modules.
 
-See [docs/architecture-boundaries.md](/Users/scas0196/Documents/code/projex/docs/architecture-boundaries.md:1).
+See [docs/architecture-boundaries.md](docs/architecture-boundaries.md).

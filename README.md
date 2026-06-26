@@ -34,11 +34,12 @@ pnpm run format:check
 pnpm run build
 ```
 
-The repo now also includes a deployment-free GitHub Actions CI workflow at
-`.github/workflows/ci.yml`. It currently runs four lanes:
+The repo now includes a GitHub Actions CI workflow at
+`.github/workflows/ci.yml`. It currently runs four required lanes:
 
-- a fast static lane for repo security verification, `pnpm audit --json`,
-  `format:check`, `lint`, `typecheck`, Vitest app/runtime tests, and `build`
+- an application verification lane for repo security verification,
+  `pnpm audit --json`, `format:check`, `lint`, `typecheck`, Vitest
+  app/runtime tests, and `build`
 - a Postgres-backed lane for `db:migrate`, `db:verify-types`, and `test:integration:db`
 - a disposable end-to-end lane for `smoke:server:disposable -- --section=basics`
 - a disposable browser smoke lane for `smoke:browser:disposable -- --section=basics`
@@ -46,7 +47,8 @@ The repo now also includes a deployment-free GitHub Actions CI workflow at
 Normal repo flow is now branch -> pull request -> green required checks -> merge.
 Direct pushes to protected `main` should be treated as an exception-only path.
 
-For the most complete local or future-CI verification pass, use:
+For the most complete local reproduction of CI and deploy-artifact verification,
+use:
 
 ```bash
 pnpm run verify:ci
@@ -65,14 +67,16 @@ That pipeline-shaped command runs:
 
 Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`,
 `pnpm run smoke:server:disposable`, and
-`pnpm run smoke:browser:disposable`.
+`pnpm run smoke:browser:disposable`. Playwright browser smoke also requires a
+local Chromium install via `pnpm exec playwright install --with-deps chromium`
+the first time you run it on a machine.
 
 The GitHub Actions workflow currently limits both server and browser smoke
 coverage to the generated-fixture `basics` section so CI keeps a good
 signal-to-runtime ratio without turning every push into a full long-running
 application sweep.
 
-For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](/Users/scas0196/Documents/code/projex/docs/local-services.md:1).
+For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](docs/local-services.md).
 
 Env example files are now split by purpose:
 
@@ -88,7 +92,7 @@ Local-only UI toggles such as `VITE_ENABLE_DEVTOOLS` live in
 The short version:
 
 - `pnpm run verify:security` for the fast non-Docker safety pass
-- `pnpm run verify:ci` for the fuller local or future-CI gate
+- `pnpm run verify:ci` for the fuller local reproduction of CI plus deploy-artifact checks
 - `pnpm test` for the fast Vitest app/runtime lane
 - `pnpm run coverage` for the Vitest-owned unit coverage gate and LCOV output
 - `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
@@ -96,7 +100,7 @@ The short version:
 - `pnpm run smoke:browser:disposable` for isolated browser-driven smoke
 - `pnpm run smoke:server` and `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security` for deployed-environment verification
 
-For the full operational verification workflow, use [docs/staging-runbook.md](/Users/scas0196/Documents/code/projex/docs/staging-runbook.md:1).
+For the full operational verification workflow, use [docs/staging-runbook.md](docs/staging-runbook.md).
 
 `pnpm test` now runs the Vite-owned app/runtime suite under Vitest. DB-backed integration remains a separate Node/disposable lane so route loading and `import.meta` behavior stay aligned with the actual app runtime. For the normal local workflow, prefer the automated disposable runner:
 
@@ -113,6 +117,11 @@ PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test:integra
 `pnpm run build` should not emit client chunk-size warnings. Current known
 build noise is limited to SSR dynamic/static import warnings from TanStack
 Start server route wiring around dynamic server-only adapters.
+
+The request-scoped auth path now verifies the app user once at the request
+boundary, caches that result in `src/server/http/requestContext.ts`, and passes
+`sessionVerified` through server-function and route context so downstream code
+does not need to duplicate session-user checks.
 
 The current table layer is `mantine-react-table-open` on the Mantine 9 line.
 
@@ -166,7 +175,7 @@ Manual smoke remains available as an advanced mode for targeted checks against
 existing accounts or long-lived data, with per-run inputs supplied in the UI
 instead of relying on repo-local smoke env files.
 
-Command semantics and deploy-time verification details live in [docs/staging-runbook.md](/Users/scas0196/Documents/code/projex/docs/staging-runbook.md:1) and [docs/database-migrations.md](/Users/scas0196/Documents/code/projex/docs/database-migrations.md:1).
+Command semantics and deploy-time verification details live in [docs/staging-runbook.md](docs/staging-runbook.md) and [docs/database-migrations.md](docs/database-migrations.md).
 
 ## Product Model
 
@@ -213,6 +222,10 @@ Projex now supports a production-ready full company Excel export. Remaining work
 - Shared business logic belongs in `src/server/fns/*`.
 - TanStack Start request middleware lives in `src/server/start/*` and owns
   request-scoped session/context setup for server functions.
+- Request-boundary session verification is centralized through
+  `src/server/auth/currentSession.ts` and `src/server/http/requestContext.ts`.
+  Server functions should trust `sessionVerified` from normalized context
+  instead of re-implementing session-user validation ad hoc.
 - File routes under `src/routes/api*.ts` stay transport-only: parse input, use
   `src/routes/-api-shared.ts`, and dynamically load `src/server/routes/**`
   adapters when raw HTTP endpoints need auth/env/db orchestration.
@@ -221,11 +234,14 @@ Projex now supports a production-ready full company Excel export. Remaining work
 - Request body validation belongs at the route boundary with Zod.
 - Runtime ownership and authorization checks should be centralized through
   server guard helpers, not duplicated ad hoc inside route files.
+- Multi-project company-standards sync should prefer batched preloaded state
+  helpers rather than per-project N+1 reads, following the taxonomy,
+  import-rule, and auto-coding sync patterns now in `src/server/fns/**/sync.ts`.
 - `tsconfig.app.json` intentionally stays on `types: ["vite/client"]` so app
   code cannot rely on Node globals leaking through mixed imports.
 
 The detailed source of truth for these rules is
-[docs/architecture-boundaries.md](/Users/scas0196/Documents/code/projex/docs/architecture-boundaries.md:1).
+[docs/architecture-boundaries.md](docs/architecture-boundaries.md).
 
 ## Server Runtime Notes
 
@@ -247,7 +263,7 @@ Operational defaults:
 - `.github/workflows/deploy.yml` is the manual build-once deploy scaffold. It packages a prebuilt release artifact and can later push that artifact to EC2 without rebuilding on the instance.
 - The enforced CSP intentionally retains `style-src-attr 'unsafe-inline'` for now because Mantine and current app UI still emit runtime `style=""` attributes; the rest of the policy stays nonce-based and strict.
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
-- `package.json` override rationale lives in [docs/dependency-overrides.md](/Users/scas0196/Documents/code/projex/docs/dependency-overrides.md:1).
+- `package.json` override rationale lives in [docs/dependency-overrides.md](docs/dependency-overrides.md).
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
 - API responses include `x-request-id`; structured request logs are emitted server-side.
 - Public deployments should use the nginx template at `deploy/nginx/projex.conf` for HTTPS redirects, security headers, forwarded headers, and the restart maintenance page.

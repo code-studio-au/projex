@@ -1,6 +1,6 @@
 # Dependency Overrides
 
-Projex keeps a small `pnpm.overrides` block in the root [package.json](/Users/scas0196/Documents/code/projex/package.json:7)
+Projex keeps a small `pnpm.overrides` block in the root [package.json](../package.json)
 to pin transitive dependencies when upstream trees lag behind known-good or
 security-fixed releases.
 
