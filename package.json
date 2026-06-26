@@ -42,7 +42,7 @@
     "auth:create-user": "node --experimental-strip-types src/server/auth/createAuthUser.ts",
     "auth:bootstrap-user": "node scripts/bootstrap-app-user.mjs",
     "auth:link-user": "node scripts/link-auth-user.mjs",
-    "start:server": "node --experimental-strip-types scripts/start-server.mjs",
+    "start:server": "node --import tsx scripts/start-server.mjs",
     "deploy:ec2": "bash scripts/deploy-ec2.sh",
     "deploy:ec2:quick": "SKIP_INSTALL=true bash scripts/deploy-ec2.sh",
     "deploy:artifact:create": "bash scripts/create-deploy-artifact.sh",
@@ -87,6 +87,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "srvx": "^0.11.16",
+    "tsx": "^4.22.4",
     "zod": "^4.1.12"
   },
   "devDependencies": {
@@ -103,7 +104,6 @@
     "kysely-codegen": "^0.20.0",
     "playwright": "^1.61.0",
     "prettier": "^3.8.1",
-    "tsx": "^4.22.4",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^8.0.16",

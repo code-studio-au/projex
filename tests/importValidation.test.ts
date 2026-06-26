@@ -3,6 +3,9 @@ import { test } from 'vitest';
 
 import { AppError } from '../src/api/errors.ts';
 import {
+  createImportRuleInputSchema,
+  splitTxnInputSchema,
+  txnBulkActionInputSchema,
   txnListPageQuerySchema,
   txnImportInputSchema,
   txnImportPreviewInputSchema,
@@ -97,4 +100,77 @@ test('transaction list page query schema coerces pagination and validates suppor
   if (!result.success) return;
   assert.equal(result.data.pageIndex, 2);
   assert.equal(result.data.pageSize, 25);
+});
+
+test('import rule schema enforces company/project scope consistency', () => {
+  assert.equal(
+    createImportRuleInputSchema.safeParse({
+      companyId: 'co_1',
+      projectId: 'prj_1',
+      scope: 'company',
+      name: 'Rule',
+      action: 'exclude',
+      field: 'source',
+      operator: 'equals',
+      value: 'SAL',
+      sortOrder: 0,
+      enabled: true,
+    }).success,
+    false
+  );
+
+  assert.equal(
+    createImportRuleInputSchema.safeParse({
+      companyId: 'co_1',
+      scope: 'project',
+      name: 'Rule',
+      action: 'exclude',
+      field: 'source',
+      operator: 'equals',
+      value: 'SAL',
+      sortOrder: 0,
+      enabled: true,
+    }).success,
+    false
+  );
+});
+
+test('split transaction schema rejects zero-value children and bulk actions reject duplicate transaction ids', () => {
+  assert.equal(
+    splitTxnInputSchema.safeParse({
+      txnId: 'txn_1',
+      children: [{ amountCents: 0 }, { amountCents: 100 }],
+    }).success,
+    false
+  );
+
+  assert.equal(
+    txnBulkActionInputSchema.safeParse({
+      action: 'approveAutoMappings',
+      txnIds: ['txn_1', 'txn_1'],
+    }).success,
+    false
+  );
+
+  assert.equal(
+    txnBulkActionInputSchema.safeParse({
+      action: 'recode',
+      txnIds: ['txn_1'],
+      categoryId: 'cat_1',
+      subCategoryId: 'sub_1',
+    }).success,
+    true
+  );
+});
+
+test('company export query schema rejects inverted date ranges', async () => {
+  const { companyExportQuerySchema } =
+    await import('../src/validation/apiSchemas.ts');
+  assert.equal(
+    companyExportQuerySchema.safeParse({
+      from: '2026-07-01',
+      to: '2026-06-01',
+    }).success,
+    false
+  );
 });

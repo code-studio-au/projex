@@ -6,9 +6,12 @@ import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { createApp, eventHandler, fromWebHandler } from 'h3-v2';
 import { toNodeHandler } from 'srvx/node';
+import {
+  buildAppCsp,
+  CSP_NONCE_REQUEST_HEADER,
+  injectNonceIntoHtml,
+} from '../src/server/http/csp.ts';
 import { loadEnvFile } from './env-file.mjs';
-
-const CSP_NONCE_REQUEST_HEADER = 'x-projex-csp-nonce';
 const LOCAL_DEV_ORIGIN_PATTERN = /^https?:\/\/localhost:(4173|5173)(\/|$)/i;
 
 function run(cmd, args) {
@@ -128,57 +131,6 @@ function buildStaticResponse(filePath, method, cacheControl) {
 
 function createCspNonce() {
   return randomBytes(16).toString('base64url');
-}
-
-function buildAppCsp(nonce) {
-  return [
-    "default-src 'self'",
-    `script-src 'nonce-${nonce}' 'strict-dynamic'`,
-    "script-src-attr 'none'",
-    // Keep script CSP strict, but allow inline styles because Mantine runtime
-    // style tags and browser nonce redaction cause SSR hydration mismatches.
-    "style-src 'self' 'unsafe-inline'",
-    "style-src-elem 'self' 'unsafe-inline'",
-    "style-src-attr 'unsafe-inline'",
-    "img-src 'self' data:",
-    "font-src 'self' data:",
-    "connect-src 'self'",
-    "worker-src 'self'",
-    "manifest-src 'self'",
-    "frame-src 'none'",
-    "object-src 'none'",
-    "base-uri 'none'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    'upgrade-insecure-requests',
-  ].join('; ');
-}
-
-function injectNonceIntoHtml(html, nonce) {
-  let output = html;
-
-  if (!output.includes('property="csp-nonce"')) {
-    output = output.replace(
-      '</head>',
-      `  <meta property="csp-nonce" content="${nonce}" />\n      </head>`
-    );
-  }
-
-  if (!output.includes('__zod_globalConfig')) {
-    output = output.replace(
-      '</head>',
-      `  <script>globalThis.__zod_globalConfig = { ...(globalThis.__zod_globalConfig ?? {}), jitless: true };</script>\n      </head>`
-    );
-  }
-
-  output = output.replace(/\bnonce=(['"])\1/g, `nonce="${nonce}"`);
-
-  output = output.replace(
-    /<script\b(?![^>]*\bnonce=)/g,
-    `<script nonce="${nonce}"`
-  );
-
-  return output;
 }
 
 function cloneRequestWithHeaders(request, headers) {

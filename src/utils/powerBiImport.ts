@@ -76,6 +76,9 @@ function splitRuleValues(value: string): string[] {
 function excelSerialDateToIso(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
+  // Excel serial exports are short integer strings. If an 8-digit compact date
+  // failed structured parsing, do not reinterpret it as a serial number.
+  if (!/^\d{1,6}$/.test(trimmed)) return null;
   const serial = Number(trimmed);
   if (!Number.isFinite(serial)) return null;
   const date = new Date(Date.UTC(1899, 11, 30));

@@ -4,8 +4,9 @@ import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
   jsonApi,
-  readJsonBody,
+  readValidatedJsonBody,
 } from './-api-shared';
+import { txnImportPreviewInputSchema } from '../validation/apiSchemas';
 
 export const Route = createFileRoute(
   '/api/projects/$projectId/transactions/import-preview'
@@ -21,7 +22,10 @@ export const Route = createFileRoute(
             context,
             input: {
               ...params,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                txnImportPreviewInputSchema
+              ),
             },
           })
         );

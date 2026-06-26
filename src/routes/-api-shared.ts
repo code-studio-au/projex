@@ -1,4 +1,5 @@
 import { createMiddleware } from '@tanstack/react-start';
+import type { z } from 'zod';
 import { AppError } from '../api/errors';
 import {
   parseAppEndpointInput,
@@ -153,6 +154,16 @@ export async function readJsonBody(request: Request): Promise<unknown> {
   } catch {
     throw new AppError('VALIDATION_ERROR', 'Request body must be valid JSON');
   }
+}
+
+export async function readValidatedJsonBody<T>(
+  request: Request,
+  schema: z.ZodType<T>
+): Promise<T> {
+  return parseAppEndpointInput(
+    { inputSchema: schema },
+    await readJsonBody(request)
+  );
 }
 
 export async function executeApiEndpoint<TInput, TOutput>(args: {

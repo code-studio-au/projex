@@ -110,3 +110,45 @@ test('budget collapse state keeps anonymous storage isolated from signed-in user
     collapsedQuarters: {},
   });
 });
+
+test('budget collapse helpers fail closed when localStorage throws', () => {
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem() {
+        throw new Error('blocked');
+      },
+      setItem() {
+        throw new Error('blocked');
+      },
+      removeItem() {
+        throw new Error('blocked');
+      },
+    },
+  });
+
+  const projectId = asProjectId('prj_test');
+  const userId = asUserId('u_throw');
+  assert.equal(loadBudgetCollapseState(projectId, { userId }), null);
+  assert.doesNotThrow(() =>
+    saveBudgetCollapseState(
+      projectId,
+      { collapsedYears: {}, collapsedQuarters: {} },
+      { userId }
+    )
+  );
+  assert.doesNotThrow(() => clearBudgetCollapseState(projectId, { userId }));
+});
+
+test('budget collapse state ignores invalid stored payloads', () => {
+  installLocalStorageStub();
+  const projectId = asProjectId('prj_test');
+  const userId = asUserId('u_invalid');
+
+  globalThis.localStorage.setItem(
+    'projex_budget_collapse_v1:u_invalid:prj_test',
+    '{"collapsedYears":42}'
+  );
+
+  assert.equal(loadBudgetCollapseState(projectId, { userId }), null);
+});

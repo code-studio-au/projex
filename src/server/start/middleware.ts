@@ -17,9 +17,19 @@ type RequestContextModule = {
   }>;
 };
 
-const requestContextModuleSpecifier = ['..', 'http', 'requestContext'].join(
-  '/'
-);
+type RequestContextModuleLoader = () => Promise<RequestContextModule>;
+
+const requestContextModuleLoaders = import.meta.glob(
+  '../http/requestContext.ts'
+) as Record<string, RequestContextModuleLoader>;
+
+function loadRequestContextModule() {
+  const loader = requestContextModuleLoaders['../http/requestContext.ts'];
+  if (!loader) {
+    throw new Error('Missing server request context module loader');
+  }
+  return loader();
+}
 
 /**
  * Request-scoped TanStack Start middleware that exposes normalized raw server
@@ -28,9 +38,7 @@ const requestContextModuleSpecifier = ['..', 'http', 'requestContext'].join(
 export const startApiMiddleware = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
     const request = getRequest();
-    const { resolveRequestServerContext } = (await import(
-      /* @vite-ignore */ requestContextModuleSpecifier
-    )) as RequestContextModule;
+    const { resolveRequestServerContext } = await loadRequestContextModule();
     const { session, serverContext } =
       await resolveRequestServerContext(request);
 

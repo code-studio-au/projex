@@ -4,8 +4,9 @@ import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
   jsonApi,
-  readJsonBody,
+  readValidatedJsonBody,
 } from './-api-shared';
+import { createCompanyInputSchema } from '../validation/apiSchemas';
 
 export const Route = createFileRoute('/api/companies')({
   server: {
@@ -26,7 +27,10 @@ export const Route = createFileRoute('/api/companies')({
             specifier: '../server/app/companyEndpoints',
             exportName: 'createCompanyEndpoint',
             context,
-            input: await readJsonBody(request),
+            input: await readValidatedJsonBody(
+              request,
+              createCompanyInputSchema
+            ),
           })
         );
       },

@@ -151,6 +151,54 @@ test('PowerBI date parsing prefers journal date and accepts exported date string
     ),
     '2026-04-26'
   );
+
+  assert.equal(
+    powerBiTransactionDate(
+      toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          'Journal Date': '20260426',
+          'Posted Date': '',
+        })
+      )
+    ),
+    '2026-04-26'
+  );
+
+  assert.equal(
+    powerBiTransactionDate(
+      toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          'Journal Date': '2026-13-01',
+          'Posted Date': '2026-04-27',
+        })
+      )
+    ),
+    '2026-04-27'
+  );
+
+  assert.equal(
+    powerBiTransactionDate(
+      toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          'Journal Date': '2026-02-30',
+          'Posted Date': '',
+        })
+      )
+    ),
+    ''
+  );
+
+  assert.equal(
+    powerBiTransactionDate(
+      toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          'Journal Date': '01011899',
+          'Posted Date': '',
+        })
+      )
+    ),
+    ''
+  );
 });
 
 test('PowerBI date parsing does not turn blank dates into Excel epoch dates', () => {
@@ -175,6 +223,36 @@ test('PowerBI column mapping tolerates harmless header differences', () => {
 
   assert.equal(powerBiTransactionDate(row), '2026-04-26');
   assert.equal(powerBiItem(row), 'Case-insensitive Vendor');
+});
+
+test('PowerBI helpers fall back cleanly when optional columns are missing or blank', () => {
+  const row = toPowerBiExpenditureActualsRow({
+    Ledger: 'ACTUALS',
+    'Fiscal Year': '2026',
+    Period: '4',
+    'CC and Description': '',
+    'RC and Description': '',
+    'PC and Description': '',
+    AC: '',
+    'Expenditure Actuals': '10.00',
+    'Journal Line Description': '',
+    'Journal ID': 'JRNL-404',
+    'Reference Num': '',
+    'Journal Date': '',
+    'Journal Line': '',
+    'Journal Line Ref': '',
+    'Posted Date': '',
+    'Unpost Seq': '',
+    Source: '',
+    'Operator ID': '',
+    'PO ID': '',
+    'Vendor ID': '',
+    'Vendor Name': '',
+  });
+
+  assert.equal(powerBiItem(row), 'JRNL-404');
+  assert.equal(powerBiDescription(row), '');
+  assert.equal(powerBiExternalId(row), 'JRNL-404');
 });
 
 test('PowerBI default import rules exclude SAL and EXA while reviewing salary transfers', () => {
@@ -326,4 +404,146 @@ test('PowerBI predefined operators support starts-with and ends-with matching', 
     ],
   });
   assert.equal(endsWithDecision.action, 'review');
+});
+
+test('PowerBI import rules support starts_with, ends_with_any, anyText, and no-match fallthrough', () => {
+  const row = toPowerBiExpenditureActualsRow(
+    rawPowerBiRow({
+      Source: 'OPS',
+      'Journal Line Description': 'Payroll clearing suspense',
+      'Reference Num': 'REF-42',
+    })
+  );
+
+  const startsWithDecision = decidePowerBiImportRule({
+    row,
+    rules: [
+      importRule({
+        id: asImportRuleId('rule_starts_with'),
+        field: 'journalLineDescription',
+        operator: 'starts_with',
+        value: 'payroll',
+      }),
+    ],
+  });
+  assert.equal(startsWithDecision.action, 'review');
+
+  const endsWithAnyDecision = decidePowerBiImportRule({
+    row,
+    rules: [
+      importRule({
+        id: asImportRuleId('rule_ends_with_any'),
+        field: 'journalLineDescription',
+        operator: 'ends_with_any',
+        value: 'clearing,\nsuspense',
+      }),
+    ],
+  });
+  assert.equal(endsWithAnyDecision.action, 'review');
+
+  const anyTextDecision = decidePowerBiImportRule({
+    row,
+    rules: [
+      importRule({
+        id: asImportRuleId('rule_any_text'),
+        field: 'anyText',
+        operator: 'contains',
+        value: 'ref-42',
+      }),
+    ],
+  });
+  assert.equal(anyTextDecision.action, 'review');
+
+  const importDecision = decidePowerBiImportRule({
+    row,
+    rules: [
+      importRule({
+        id: asImportRuleId('rule_no_match'),
+        field: 'journalLineDescription',
+        operator: 'contains',
+        value: 'travel',
+      }),
+    ],
+  });
+  assert.equal(importDecision.action, 'import');
+  assert.equal(importDecision.reason, 'No import rule matched');
+});
+
+test('PowerBI import rules can target vendor, PO, reference, and journal id fields directly', () => {
+  const row = toPowerBiExpenditureActualsRow(rawPowerBiRow());
+
+  assert.equal(
+    decidePowerBiImportRule({
+      row,
+      rules: [
+        importRule({
+          id: asImportRuleId('rule_ledger'),
+          field: 'ledger',
+          operator: 'equals',
+          value: 'ACTUALS',
+        }),
+      ],
+    }).action,
+    'review'
+  );
+
+  assert.equal(
+    decidePowerBiImportRule({
+      row,
+      rules: [
+        importRule({
+          id: asImportRuleId('rule_vendor'),
+          field: 'vendorName',
+          operator: 'equals',
+          value: 'Learning Vendor',
+        }),
+      ],
+    }).action,
+    'review'
+  );
+
+  assert.equal(
+    decidePowerBiImportRule({
+      row,
+      rules: [
+        importRule({
+          id: asImportRuleId('rule_po'),
+          field: 'poId',
+          operator: 'equals',
+          value: 'PO-44',
+        }),
+      ],
+    }).action,
+    'review'
+  );
+
+  assert.equal(
+    decidePowerBiImportRule({
+      row,
+      rules: [
+        importRule({
+          id: asImportRuleId('rule_reference'),
+          field: 'referenceNum',
+          operator: 'equals',
+          value: 'REF-9',
+        }),
+      ],
+    }).action,
+    'review'
+  );
+
+  assert.equal(
+    decidePowerBiImportRule({
+      row,
+      rules: [
+        importRule({
+          id: asImportRuleId('rule_journal'),
+          field: 'journalId',
+          operator: 'equals',
+          value: 'JRNL-100',
+        }),
+      ],
+    }).action,
+    'review'
+  );
 });

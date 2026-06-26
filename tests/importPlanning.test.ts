@@ -522,6 +522,125 @@ test('company summary keeps active sub-projects visible when programme is archiv
   assert.equal(result[1].months[0].actualCodedCents, 15000);
 });
 
+test('company summary sorts project months and programme children predictably', () => {
+  const alphaProjectId = asProjectId('prj_alpha');
+  const zetaProjectId = asProjectId('prj_zeta');
+
+  const result = buildCompanySummaryProjects({
+    projects: [
+      {
+        id: programmeId,
+        name: 'Programme One',
+        projectType: 'programme' as const,
+        parentProjectId: undefined,
+        status: 'active' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 0,
+      },
+      {
+        id: zetaProjectId,
+        name: 'Zeta Project',
+        projectType: 'project' as const,
+        parentProjectId: programmeId,
+        status: 'archived' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 30000,
+      },
+      {
+        id: alphaProjectId,
+        name: 'Alpha Project',
+        projectType: 'project' as const,
+        parentProjectId: programmeId,
+        status: 'active' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 20000,
+      },
+      {
+        id: projectId,
+        name: 'Standalone Project',
+        projectType: 'project' as const,
+        parentProjectId: undefined,
+        status: 'active' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 50000,
+      },
+    ],
+    validSubCategoryIdsByProject: new Map([
+      [alphaProjectId, new Set<string>([subCategory.id])],
+      [zetaProjectId, new Set<string>([subCategory.id])],
+      [projectId, new Set<string>([subCategory.id])],
+    ]),
+    transactions: [
+      {
+        projectId,
+        date: '2026-03-15',
+        amountCents: 8000,
+        budgetImpact: true,
+        subCategoryId: subCategory.id,
+      },
+      {
+        projectId,
+        date: '2026-05-01',
+        amountCents: 12000,
+        budgetImpact: true,
+        subCategoryId: null,
+      },
+      {
+        projectId,
+        date: 'not-a-date',
+        amountCents: 9999,
+        budgetImpact: true,
+        subCategoryId: subCategory.id,
+      },
+      {
+        projectId,
+        date: '2026-05-02',
+        amountCents: 0,
+        budgetImpact: true,
+      },
+      {
+        projectId: alphaProjectId,
+        date: '2026-04-28',
+        amountCents: 15000,
+        budgetImpact: true,
+        subCategoryId: subCategory.id,
+      },
+      {
+        projectId: zetaProjectId,
+        date: '2026-06-01',
+        amountCents: 7000,
+        budgetImpact: true,
+        subCategoryId: subCategory.id,
+      },
+    ],
+  });
+
+  const standalone = result.find((project) => project.id === projectId);
+  assert.ok(standalone);
+  assert.deepEqual(
+    standalone.months.map((month) => month.monthKey),
+    ['2026-05', '2026-03']
+  );
+  assert.equal(standalone.months[0].uncodedCount, 2);
+  assert.equal(standalone.months[0].uncodedAmountCents, 12000);
+
+  const programme = result.find((project) => project.id === programmeId);
+  assert.ok(programme);
+  assert.deepEqual(
+    programme.children?.map((child) => child.name),
+    ['Alpha Project', 'Zeta Project']
+  );
+  assert.equal(programme.budgetCents, 20000);
+  assert.deepEqual(
+    programme.months.map((month) => month.monthKey),
+    ['2026-04']
+  );
+});
+
 test('transaction coding guard rejects source markers with coding metadata', () => {
   assertAppError(
     () =>
@@ -589,6 +708,68 @@ test('transaction split plan rejects remainder amounts', () => {
   );
 });
 
+test('transaction split plan rejects invalid parent states and child amount shapes', () => {
+  assertAppError(
+    () =>
+      planTransactionSplit({
+        parent: txn({ budgetImpact: false }),
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_generated_child'),
+        children: [{ amountCents: 6250 }, { amountCents: 6250 }],
+      }),
+    'VALIDATION_ERROR',
+    'Only budget-impact categorisable transactions can be split'
+  );
+
+  assertAppError(
+    () =>
+      planTransactionSplit({
+        parent: txn({ txnType: 'transfer_source' }),
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_generated_child'),
+        children: [{ amountCents: 6250 }, { amountCents: 6250 }],
+      }),
+    'VALIDATION_ERROR',
+    'Transaction type cannot be split'
+  );
+
+  assertAppError(
+    () =>
+      planTransactionSplit({
+        parent: txn(),
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_generated_child'),
+        children: [{ amountCents: 12500 }],
+      }),
+    'VALIDATION_ERROR',
+    'At least two split children are required'
+  );
+
+  assertAppError(
+    () =>
+      planTransactionSplit({
+        parent: txn(),
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_generated_child'),
+        children: [{ amountCents: 5000.5 }, { amountCents: 7499.5 }],
+      }),
+    'VALIDATION_ERROR',
+    'Split child amount must be a non-zero safe integer'
+  );
+
+  assertAppError(
+    () =>
+      planTransactionSplit({
+        parent: txn({ amountCents: -12500 }),
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_generated_child'),
+        children: [{ amountCents: -5000 }, { amountCents: 7500 }],
+      }),
+    'VALIDATION_ERROR',
+    'Split child amounts must use the same sign as the parent transaction'
+  );
+});
+
 test('transaction transfer plan creates a source marker and uncoded destination transaction', () => {
   const result = planTransactionTransfer({
     source: txn({
@@ -638,5 +819,71 @@ test('transaction transfer plan rejects cross-company destinations', () => {
       }),
     'VALIDATION_ERROR',
     'Transactions can only be moved within the same company'
+  );
+});
+
+test('transaction transfer plan rejects same-project moves and invalid source shapes', () => {
+  assertAppError(
+    () =>
+      planTransactionTransfer({
+        source: txn(),
+        destinationCompanyId: companyId,
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_transfer_child'),
+        input: {
+          txnId: asTxnId('txn_1'),
+          destinationProjectId: projectId,
+        },
+      }),
+    'VALIDATION_ERROR',
+    'Destination project must be different from source project'
+  );
+
+  assertAppError(
+    () =>
+      planTransactionTransfer({
+        source: txn({ categorisable: false }),
+        destinationCompanyId: companyId,
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_transfer_child'),
+        input: {
+          txnId: asTxnId('txn_1'),
+          destinationProjectId,
+        },
+      }),
+    'VALIDATION_ERROR',
+    'Only budget-impact categorisable transactions can be moved'
+  );
+
+  assertAppError(
+    () =>
+      planTransactionTransfer({
+        source: txn({ txnType: 'split_parent', budgetImpact: false }),
+        destinationCompanyId: companyId,
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_transfer_child'),
+        input: {
+          txnId: asTxnId('txn_1'),
+          destinationProjectId,
+        },
+      }),
+    'VALIDATION_ERROR',
+    'Only budget-impact categorisable transactions can be moved'
+  );
+
+  assertAppError(
+    () =>
+      planTransactionTransfer({
+        source: txn({ txnType: 'transfer_source' }),
+        destinationCompanyId: companyId,
+        now: '2026-05-05T00:00:00.000Z',
+        createTxnId: () => asTxnId('txn_transfer_child'),
+        input: {
+          txnId: asTxnId('txn_1'),
+          destinationProjectId,
+        },
+      }),
+    'VALIDATION_ERROR',
+    'Only standard transactions or split children can be moved'
   );
 });

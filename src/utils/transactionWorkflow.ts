@@ -41,8 +41,8 @@ export function planTxnWorkflowState(args: {
 
   if (locked === true) {
     return {
-      reviewed_at: reviewedAt ?? now,
-      reviewed_by_user_id: reviewedByUserId ?? actorUserId,
+      reviewed_at: reviewedAt,
+      reviewed_by_user_id: reviewedByUserId,
       locked_at: now,
       locked_by_user_id: actorUserId,
     };

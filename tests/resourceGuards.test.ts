@@ -7,6 +7,8 @@ import {
   assertCategoryInProject,
   assertCompanyDefaultMappingRuleInCompany,
   assertSubCategoryInProject,
+  requireOperationalProjectForAction,
+  requireProjectForAction,
   requireCompanyMember,
 } from '../src/server/fns/resourceGuards.ts';
 import {
@@ -281,6 +283,16 @@ test('resource guards reject child resources outside the requested parent', asyn
     () =>
       assertSubCategoryInProject({
         db: db as never,
+        projectId: asProjectId('prj_9'),
+        subCategoryId: asSubCategoryId('sub_missing'),
+      }),
+    'NOT_FOUND',
+    'Unknown subcategory'
+  );
+  await assertAppError(
+    () =>
+      assertSubCategoryInProject({
+        db: db as never,
         projectId: asProjectId('prj_1'),
         subCategoryId: asSubCategoryId('sub_1'),
         categoryId: asCategoryId('cat_2'),
@@ -298,6 +310,260 @@ test('resource guards reject child resources outside the requested parent', asyn
     'NOT_FOUND',
     'Unknown company default mapping rule'
   );
+});
+
+test('requireProjectForAction loads project context and rejects unknown projects', async () => {
+  const projectDb = {
+    selectFrom(tableName: string) {
+      if (tableName === 'projects') {
+        return {
+          innerJoin() {
+            return this;
+          },
+          select() {
+            return this;
+          },
+          where() {
+            return this;
+          },
+          async executeTakeFirst() {
+            return {
+              id: 'prj_1',
+              company_id: 'co_1',
+              project_type: 'project',
+              allow_txn_transfers: true,
+              project_status: 'active',
+              company_status: 'active',
+            };
+          },
+        };
+      }
+      if (tableName === 'company_memberships') {
+        return {
+          select() {
+            return this;
+          },
+          where() {
+            return this;
+          },
+          async execute() {
+            return [{ company_id: 'co_1', user_id: 'usr_1', role: 'admin' }];
+          },
+        };
+      }
+      if (tableName === 'project_memberships') {
+        return {
+          select() {
+            return this;
+          },
+          where() {
+            return this;
+          },
+          async execute() {
+            return [{ project_id: 'prj_1', user_id: 'usr_1', role: 'owner' }];
+          },
+        };
+      }
+      if (tableName === 'users') {
+        return {
+          select() {
+            return this;
+          },
+          where() {
+            return this;
+          },
+          async executeTakeFirst() {
+            return { is_global_superadmin: false };
+          },
+        };
+      }
+      throw new Error(`Unexpected table: ${tableName}`);
+    },
+  };
+
+  const result = await requireProjectForAction(
+    {
+      session: { userId: asUserId('usr_1') },
+      sessionVerified: true,
+    },
+    asProjectId('prj_1'),
+    'project:view',
+    projectDb as never
+  );
+
+  assert.equal(result.userId, 'usr_1');
+  assert.equal(result.companyId, 'co_1');
+  assert.equal(result.projectType, 'project');
+  assert.equal(result.allowTxnTransfers, true);
+
+  const missingProjectDb = {
+    selectFrom() {
+      return {
+        innerJoin() {
+          return this;
+        },
+        select() {
+          return this;
+        },
+        where() {
+          return this;
+        },
+        async executeTakeFirst() {
+          return undefined;
+        },
+      };
+    },
+  };
+  await assertAppError(
+    () =>
+      requireProjectForAction(
+        {
+          session: { userId: asUserId('usr_1') },
+          sessionVerified: true,
+        },
+        asProjectId('prj_missing'),
+        'project:view',
+        missingProjectDb as never
+      ),
+    'NOT_FOUND',
+    'Unknown project'
+  );
+});
+
+test('requireOperationalProjectForAction enforces active company, active project, and project type', async () => {
+  const baseDb = (
+    projectStatus: 'active' | 'archived',
+    companyStatus: 'active' | 'deactivated',
+    projectType: 'project' | 'programme'
+  ) => ({
+    selectFrom(tableName: string) {
+      if (tableName === 'projects') {
+        return {
+          innerJoin() {
+            return this;
+          },
+          select() {
+            return this;
+          },
+          where() {
+            return this;
+          },
+          async executeTakeFirst() {
+            return {
+              id: 'prj_1',
+              company_id: 'co_1',
+              project_type: projectType,
+              allow_txn_transfers: false,
+              project_status: projectStatus,
+              company_status: companyStatus,
+            };
+          },
+          async executeTakeFirstOrThrow() {
+            return {
+              project_status: projectStatus,
+              company_status: companyStatus,
+            };
+          },
+        };
+      }
+      if (tableName === 'company_memberships') {
+        return {
+          select() {
+            return this;
+          },
+          where() {
+            return this;
+          },
+          async execute() {
+            return [{ company_id: 'co_1', user_id: 'usr_1', role: 'admin' }];
+          },
+        };
+      }
+      if (tableName === 'project_memberships') {
+        return {
+          select() {
+            return this;
+          },
+          where() {
+            return this;
+          },
+          async execute() {
+            return [{ project_id: 'prj_1', user_id: 'usr_1', role: 'owner' }];
+          },
+        };
+      }
+      if (tableName === 'users') {
+        return {
+          select() {
+            return this;
+          },
+          where() {
+            return this;
+          },
+          async executeTakeFirst() {
+            return { is_global_superadmin: false };
+          },
+        };
+      }
+      throw new Error(`Unexpected table: ${tableName}`);
+    },
+  });
+
+  await assertAppError(
+    () =>
+      requireOperationalProjectForAction(
+        {
+          session: { userId: asUserId('usr_1') },
+          sessionVerified: true,
+        },
+        asProjectId('prj_1'),
+        'project:view',
+        baseDb('active', 'deactivated', 'project') as never
+      ),
+    'FORBIDDEN',
+    'Company is deactivated'
+  );
+
+  await assertAppError(
+    () =>
+      requireOperationalProjectForAction(
+        {
+          session: { userId: asUserId('usr_1') },
+          sessionVerified: true,
+        },
+        asProjectId('prj_1'),
+        'project:view',
+        baseDb('archived', 'active', 'project') as never
+      ),
+    'FORBIDDEN',
+    'Project is deactivated'
+  );
+
+  await assertAppError(
+    () =>
+      requireOperationalProjectForAction(
+        {
+          session: { userId: asUserId('usr_1') },
+          sessionVerified: true,
+        },
+        asProjectId('prj_1'),
+        'project:view',
+        baseDb('active', 'active', 'programme') as never
+      ),
+    'VALIDATION_ERROR',
+    'Programmes are reporting-only and cannot be used for project operations'
+  );
+
+  const operational = await requireOperationalProjectForAction(
+    {
+      session: { userId: asUserId('usr_1') },
+      sessionVerified: true,
+    },
+    asProjectId('prj_1'),
+    'project:view',
+    baseDb('active', 'active', 'project') as never
+  );
+  assert.equal(operational.projectType, 'project');
 });
 
 test('money inputs reject values outside JavaScript safe integer bounds', () => {

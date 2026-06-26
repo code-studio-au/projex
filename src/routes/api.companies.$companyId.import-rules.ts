@@ -4,8 +4,12 @@ import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
   jsonApi,
-  readJsonBody,
+  readValidatedJsonBody,
 } from './-api-shared';
+import {
+  createImportRuleInputSchema,
+  updateImportRuleInputSchema,
+} from '../validation/apiSchemas';
 
 export const Route = createFileRoute('/api/companies/$companyId/import-rules')({
   server: {
@@ -29,7 +33,10 @@ export const Route = createFileRoute('/api/companies/$companyId/import-rules')({
             context,
             input: {
               ...params,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                createImportRuleInputSchema
+              ),
             },
           })
         );
@@ -42,7 +49,10 @@ export const Route = createFileRoute('/api/companies/$companyId/import-rules')({
             context,
             input: {
               ...params,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                updateImportRuleInputSchema
+              ),
             },
           })
         );

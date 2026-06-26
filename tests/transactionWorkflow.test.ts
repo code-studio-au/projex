@@ -26,6 +26,22 @@ test('transaction workflow marks transactions as reviewed', () => {
   );
 });
 
+test('transaction workflow leaves review fields empty when no review or lock state is requested', () => {
+  assert.deepEqual(
+    planTxnWorkflowState({
+      current: {},
+      actorUserId: actor,
+      now,
+    }),
+    {
+      reviewed_at: null,
+      reviewed_by_user_id: null,
+      locked_at: null,
+      locked_by_user_id: null,
+    }
+  );
+});
+
 test('transaction workflow locking implies reviewed state', () => {
   assert.deepEqual(
     planTxnWorkflowState({
@@ -65,6 +81,27 @@ test('transaction workflow unlock preserves review metadata', () => {
   );
 });
 
+test('transaction workflow preserves existing lock metadata when no explicit lock change is requested', () => {
+  assert.deepEqual(
+    planTxnWorkflowState({
+      current: {
+        reviewedAt: '2026-05-05T09:00:00.000Z',
+        reviewedByUserId: previousReviewer,
+        lockedAt: '2026-05-05T10:00:00.000Z',
+        lockedByUserId: previousLocker,
+      },
+      actorUserId: actor,
+      now,
+    }),
+    {
+      reviewed_at: '2026-05-05T09:00:00.000Z',
+      reviewed_by_user_id: previousReviewer,
+      locked_at: '2026-05-05T10:00:00.000Z',
+      locked_by_user_id: previousLocker,
+    }
+  );
+});
+
 test('transaction workflow unreview clears lock metadata', () => {
   assert.deepEqual(
     planTxnWorkflowState({
@@ -83,6 +120,26 @@ test('transaction workflow unreview clears lock metadata', () => {
       reviewed_by_user_id: null,
       locked_at: null,
       locked_by_user_id: null,
+    }
+  );
+});
+
+test('transaction workflow locking preserves existing review metadata when already reviewed', () => {
+  assert.deepEqual(
+    planTxnWorkflowState({
+      current: {
+        reviewedAt: '2026-05-05T09:00:00.000Z',
+        reviewedByUserId: previousReviewer,
+      },
+      locked: true,
+      actorUserId: actor,
+      now,
+    }),
+    {
+      reviewed_at: '2026-05-05T09:00:00.000Z',
+      reviewed_by_user_id: previousReviewer,
+      locked_at: now,
+      locked_by_user_id: actor,
     }
   );
 });

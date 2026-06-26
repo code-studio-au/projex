@@ -4,8 +4,9 @@ import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
   jsonApi,
-  readJsonBody,
+  readValidatedJsonBody,
 } from './-api-shared';
+import { createProjectInputSchema } from '../validation/apiSchemas';
 
 export const Route = createFileRoute('/api/companies/$companyId/projects')({
   server: {
@@ -28,7 +29,10 @@ export const Route = createFileRoute('/api/companies/$companyId/projects')({
             context,
             input: {
               companyId: params.companyId,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                createProjectInputSchema
+              ),
             },
           })
         );

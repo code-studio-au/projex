@@ -6,23 +6,6 @@ function parseAllowedOrigins(): string[] {
     .filter(Boolean);
 }
 
-function appendHeaderValue(headers: Headers, name: string, value: string) {
-  const existing = headers.get(name);
-  if (!existing) {
-    headers.set(name, value);
-    return;
-  }
-
-  const values = existing
-    .split(',')
-    .map((part) => part.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (!values.includes(value.toLowerCase())) {
-    headers.set(name, `${existing}, ${value}`);
-  }
-}
-
 export function isOriginAllowed(
   origin: string | null,
   requestOrigin?: string
@@ -43,7 +26,7 @@ export function buildCorsHeaders(
   if (!isOriginAllowed(origin, requestOrigin)) return headers;
 
   headers.set('access-control-allow-origin', origin);
-  appendHeaderValue(headers, 'vary', 'Origin');
+  headers.set('vary', 'Origin');
   headers.set('access-control-allow-credentials', 'true');
   headers.set(
     'access-control-allow-headers',

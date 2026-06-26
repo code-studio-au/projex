@@ -274,3 +274,143 @@ test('mutation permissions stay narrow for viewer, member, lead, and company rol
     false
   );
 });
+
+test('unsupported actions fall closed and project import allows leads', () => {
+  const companyMemberships = [
+    { companyId, userId: leadId, role: 'member' as const },
+  ];
+  const projectMemberships = [
+    { projectId, userId: leadId, role: 'lead' as const },
+  ];
+
+  assert.equal(
+    can({
+      userId: leadId,
+      companyId,
+      action: 'company:unknown' as never,
+      companyMemberships,
+      projectMemberships,
+    }),
+    false
+  );
+  assert.equal(
+    can({
+      userId: leadId,
+      companyId,
+      projectId,
+      action: 'project:import',
+      companyMemberships,
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: leadId,
+      companyId,
+      projectId,
+      action: 'project:unknown' as never,
+      companyMemberships,
+      projectMemberships,
+    }),
+    false
+  );
+});
+
+test('permission checks choose the strongest membership and keep project-only actions scoped', () => {
+  const ownerId = asUserId('usr_owner');
+  const companyMemberships = [
+    { companyId, userId: ownerId, role: 'member' as const },
+    { companyId, userId: ownerId, role: 'executive' as const },
+  ];
+  const projectMemberships = [
+    { projectId, userId: ownerId, role: 'viewer' as const },
+    { projectId, userId: ownerId, role: 'owner' as const },
+  ];
+
+  assert.equal(
+    can({
+      userId: ownerId,
+      companyId,
+      action: 'company:view',
+      companyMemberships,
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: ownerId,
+      companyId,
+      action: 'company:export',
+      companyMemberships,
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: ownerId,
+      companyId,
+      projectId,
+      action: 'project:view',
+      companyMemberships: [{ companyId, userId: ownerId, role: 'member' }],
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: ownerId,
+      companyId,
+      projectId,
+      action: 'taxonomy:edit',
+      companyMemberships: [{ companyId, userId: ownerId, role: 'member' }],
+      projectMemberships: [{ projectId, userId: ownerId, role: 'member' }],
+    }),
+    false
+  );
+  assert.equal(
+    can({
+      userId: ownerId,
+      companyId,
+      projectId,
+      action: 'project:list',
+      companyMemberships,
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: ownerId,
+      companyId,
+      projectId,
+      action: 'taxonomy:edit',
+      companyMemberships: [{ companyId, userId: ownerId, role: 'member' }],
+      projectMemberships,
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: ownerId,
+      companyId,
+      projectId,
+      action: 'taxonomy:edit',
+      companyMemberships: [{ companyId, userId: ownerId, role: 'executive' }],
+      projectMemberships: [],
+    }),
+    true
+  );
+  assert.equal(
+    can({
+      userId: ownerId,
+      companyId,
+      action: 'project:view',
+      companyMemberships: [],
+      projectMemberships: [],
+    }),
+    false
+  );
+});

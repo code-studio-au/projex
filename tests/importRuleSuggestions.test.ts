@@ -106,3 +106,157 @@ test('suggestImportExclusionRuleFromPreviewRow falls back to journal description
     value: 'Temporary contractor recharge',
   });
 });
+
+test('suggestImportExclusionRuleFromPreviewRow falls back through po, reference, journal id, item, then null', () => {
+  const baseRow = previewRow({
+    rawSourceRow: {
+      ...previewRow().rawSourceRow!,
+      Source: 'EXP',
+      'Vendor Name': '',
+    },
+  });
+
+  assert.deepEqual(
+    suggestImportExclusionRuleFromPreviewRow(
+      previewRow({
+        ...baseRow,
+        rawSourceRow: {
+          ...baseRow.rawSourceRow!,
+          'PO ID': 'PO-44',
+          'Reference Num': '',
+          'Journal ID': '',
+          'Journal Line Description': '',
+        },
+      })
+    ),
+    {
+      name: 'Exclude PO PO-44',
+      action: 'exclude',
+      field: 'poId',
+      operator: 'equals',
+      value: 'PO-44',
+    }
+  );
+
+  assert.deepEqual(
+    suggestImportExclusionRuleFromPreviewRow(
+      previewRow({
+        ...baseRow,
+        rawSourceRow: {
+          ...baseRow.rawSourceRow!,
+          'PO ID': '',
+          'Reference Num': 'REF-9',
+          'Journal ID': '',
+          'Journal Line Description': '',
+        },
+      })
+    ),
+    {
+      name: 'Exclude reference REF-9',
+      action: 'exclude',
+      field: 'referenceNum',
+      operator: 'equals',
+      value: 'REF-9',
+    }
+  );
+
+  assert.deepEqual(
+    suggestImportExclusionRuleFromPreviewRow(
+      previewRow({
+        ...baseRow,
+        rawSourceRow: {
+          ...baseRow.rawSourceRow!,
+          'PO ID': '',
+          'Reference Num': '',
+          'Journal ID': 'JRNL-100',
+          'Journal Line Description': '',
+        },
+      })
+    ),
+    {
+      name: 'Exclude journal JRNL-100',
+      action: 'exclude',
+      field: 'journalId',
+      operator: 'equals',
+      value: 'JRNL-100',
+    }
+  );
+
+  assert.deepEqual(
+    suggestImportExclusionRuleFromPreviewRow(
+      previewRow({
+        item: 'Helpful item',
+        rawSourceRow: {
+          ...baseRow.rawSourceRow!,
+          'PO ID': '',
+          'Reference Num': '',
+          'Journal ID': '',
+          'Journal Line Description': '',
+        },
+      })
+    ),
+    {
+      name: 'Exclude Helpful item rows',
+      action: 'exclude',
+      field: 'journalLineDescription',
+      operator: 'contains',
+      value: 'Helpful item',
+    }
+  );
+
+  assert.equal(
+    suggestImportExclusionRuleFromPreviewRow(
+      previewRow({
+        item: '',
+        rawSourceRow: {
+          ...baseRow.rawSourceRow!,
+          'PO ID': '',
+          'Reference Num': '',
+          'Journal ID': '',
+          'Journal Line Description': '',
+        },
+      })
+    ),
+    null
+  );
+});
+
+test('suggestImportExclusionRuleFromPreviewRow compacts long vendor labels', () => {
+  const longVendorName =
+    'Very Long Vendor Name For Temporary Contractor Services Across Multiple Teams';
+
+  const suggestion = suggestImportExclusionRuleFromPreviewRow(
+    previewRow({
+      rawSourceRow: {
+        ...previewRow().rawSourceRow!,
+        Source: 'EXP',
+        'Vendor Name': longVendorName,
+      },
+    })
+  );
+
+  assert.deepEqual(suggestion, {
+    name: 'Exclude Very Long Vendor Name For Temporary Contracto... vendor rows',
+    action: 'exclude',
+    field: 'vendorName',
+    operator: 'equals',
+    value: longVendorName,
+  });
+});
+
+test('suggestImportExclusionRuleFromPreviewRow can fall back without a raw source row', () => {
+  const suggestion = suggestImportExclusionRuleFromPreviewRow(
+    previewRow({
+      item: '  Travel recharge  ',
+      rawSourceRow: undefined,
+    })
+  );
+
+  assert.deepEqual(suggestion, {
+    name: 'Exclude Travel recharge rows',
+    action: 'exclude',
+    field: 'journalLineDescription',
+    operator: 'contains',
+    value: 'Travel recharge',
+  });
+});

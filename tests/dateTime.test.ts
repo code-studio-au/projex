@@ -29,6 +29,11 @@ test('UTC formatters keep ISO-style ordering and explicit UTC for timestamps', (
   assert.equal(formatUtcDateTime(value), '2026-06-02 04:30 UTC');
 });
 
+test('UTC formatters return invalid values unchanged', () => {
+  assert.equal(formatUtcDate('not-a-date'), 'not-a-date');
+  assert.equal(formatUtcDateTime('not-a-date'), 'not-a-date');
+});
+
 test('response schemas enforce ISO timestamps with offsets where expected', () => {
   assert.equal(
     pendingEmailChangeResponseSchema.safeParse({
@@ -62,4 +67,35 @@ test('response schemas enforce ISO timestamps with offsets where expected', () =
     }).success,
     false
   );
+});
+
+test('company summary response schema supports nested child projects', async () => {
+  const { companySummaryProjectResponseSchema } =
+    await import('../src/validation/responseSchemas.ts');
+
+  const parsed = companySummaryProjectResponseSchema.parse({
+    id: asProjectId('prg_1'),
+    name: 'Programme',
+    projectType: 'programme',
+    status: 'active',
+    visibility: 'company',
+    currency: 'AUD',
+    budgetCents: 0,
+    months: [],
+    children: [
+      {
+        id: asProjectId('prj_1'),
+        name: 'Child',
+        projectType: 'project',
+        parentProjectId: asProjectId('prg_1'),
+        status: 'active',
+        visibility: 'private',
+        currency: 'AUD',
+        budgetCents: 100,
+        months: [],
+      },
+    ],
+  });
+
+  assert.equal(parsed.children?.[0].id, 'prj_1');
 });

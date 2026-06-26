@@ -251,8 +251,9 @@ Operational defaults:
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
 - API responses include `x-request-id`; structured request logs are emitted server-side.
 - Public deployments should use the nginx template at `deploy/nginx/projex.conf` for HTTPS redirects, security headers, forwarded headers, and the restart maintenance page.
-- The runtime keeps `h3` on an exact `h3-v2` RC alias because upstream stable
-  v2 is not published yet; revisit that pin when the stable release exists.
+- The Node SSR wrapper stays on the known-good `h3-v2` RC alias for now.
+  `h3@2.0.0` is deprecated upstream, and swapping to the newer direct `h3`
+  package line currently regresses the SSR login route in smoke verification.
 
 ## Documentation Map
 

@@ -4,8 +4,12 @@ import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
   jsonApi,
-  readJsonBody,
+  readValidatedJsonBody,
 } from './-api-shared';
+import {
+  createBudgetInputSchema,
+  updateBudgetInputSchema,
+} from '../validation/apiSchemas';
 
 export const Route = createFileRoute('/api/projects/$projectId/budgets')({
   server: {
@@ -28,7 +32,10 @@ export const Route = createFileRoute('/api/projects/$projectId/budgets')({
             context,
             input: {
               projectId: params.projectId,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                createBudgetInputSchema
+              ),
             },
           })
         );
@@ -41,7 +48,10 @@ export const Route = createFileRoute('/api/projects/$projectId/budgets')({
             context,
             input: {
               projectId: params.projectId,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                updateBudgetInputSchema
+              ),
             },
           })
         );

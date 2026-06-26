@@ -11,7 +11,8 @@ function throwStartupEnvError(
       level: 'error',
       type: 'startup_env_validation',
       reason,
-      nodeEnv: process.env.NODE_ENV ?? null,
+      // This helper only runs from production validation paths.
+      nodeEnv: process.env.NODE_ENV,
       detail: detail ?? null,
     })
   );
@@ -26,15 +27,22 @@ function listMissing(required: Array<{ key: string; ok: boolean }>): string[] {
   return required.filter((r) => !r.ok).map((r) => r.key);
 }
 
+function parseTrustedOrigins(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function parseHttpsUrl(
   value: string | undefined,
-  options?: { required?: boolean; label?: string }
+  options: { required?: boolean; label: string }
 ): URL | null {
   const trimmed = value?.trim() ?? '';
   if (!trimmed) {
     if (options?.required) {
       throwStartupEnvError('missing_required_https_url', {
-        key: options.label ?? 'unknown',
+        key: options.label,
       });
     }
     return null;
@@ -45,14 +53,14 @@ function parseHttpsUrl(
     parsed = new URL(trimmed);
   } catch {
     throwStartupEnvError('invalid_url_format', {
-      key: options?.label ?? 'unknown',
+      key: options.label,
     });
   }
 
   if (!parsed || parsed.protocol !== 'https:') {
     throwStartupEnvError('non_https_url', {
-      key: options?.label ?? 'unknown',
-      protocol: parsed?.protocol ?? null,
+      key: options.label,
+      protocol: parsed.protocol,
     });
   }
 
@@ -75,9 +83,11 @@ export function validateServerStartupEnv(): void {
   const missing = listMissing([
     { key: 'DATABASE_URL', ok: nonEmpty(process.env.DATABASE_URL) },
     { key: 'BETTER_AUTH_SECRET', ok: nonEmpty(process.env.BETTER_AUTH_SECRET) },
-    { key: 'BETTER_AUTH_URL', ok: nonEmpty(process.env.BETTER_AUTH_URL) },
   ]);
-  if (!nonEmpty(process.env.BETTER_AUTH_TRUSTED_ORIGINS)) {
+  const trustedOrigins = parseTrustedOrigins(
+    process.env.BETTER_AUTH_TRUSTED_ORIGINS
+  );
+  if (!trustedOrigins.length) {
     missing.push('BETTER_AUTH_TRUSTED_ORIGINS');
   }
 
@@ -104,10 +114,7 @@ export function validateServerStartupEnv(): void {
     label: 'PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL',
   });
 
-  for (const origin of (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)) {
+  for (const origin of trustedOrigins) {
     parseHttpsUrl(origin, {
       required: true,
       label: 'BETTER_AUTH_TRUSTED_ORIGINS',

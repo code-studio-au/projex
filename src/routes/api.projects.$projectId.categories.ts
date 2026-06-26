@@ -4,8 +4,12 @@ import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
   jsonApi,
-  readJsonBody,
+  readValidatedJsonBody,
 } from './-api-shared';
+import {
+  createCategoryInputSchema,
+  updateCategoryInputSchema,
+} from '../validation/apiSchemas';
 
 export const Route = createFileRoute('/api/projects/$projectId/categories')({
   server: {
@@ -29,7 +33,10 @@ export const Route = createFileRoute('/api/projects/$projectId/categories')({
             context,
             input: {
               ...params,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                createCategoryInputSchema
+              ),
             },
           })
         );
@@ -42,7 +49,10 @@ export const Route = createFileRoute('/api/projects/$projectId/categories')({
             context,
             input: {
               ...params,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                updateCategoryInputSchema
+              ),
             },
           })
         );

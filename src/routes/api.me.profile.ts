@@ -4,8 +4,9 @@ import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
   jsonApi,
-  readJsonBody,
+  readValidatedJsonBody,
 } from './-api-shared';
+import { profileUpdateBodySchema } from '../validation/apiSchemas';
 
 export const Route = createFileRoute('/api/me/profile')({
   server: {
@@ -17,7 +18,10 @@ export const Route = createFileRoute('/api/me/profile')({
             specifier: '../server/app/companyEndpoints',
             exportName: 'updateCurrentUserProfileEndpoint',
             context,
-            input: await readJsonBody(request),
+            input: await readValidatedJsonBody(
+              request,
+              profileUpdateBodySchema
+            ),
           })
         );
       },

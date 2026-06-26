@@ -79,7 +79,7 @@ async function main() {
 
     serverProcess = spawnProjexCommand(
       'node',
-      ['--experimental-strip-types', 'scripts/start-server.mjs'],
+      ['--import', 'tsx', 'scripts/start-server.mjs'],
       {
         env: sharedEnv,
       }

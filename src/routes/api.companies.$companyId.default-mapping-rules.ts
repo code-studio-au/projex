@@ -4,8 +4,12 @@ import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
   jsonApi,
-  readJsonBody,
+  readValidatedJsonBody,
 } from './-api-shared';
+import {
+  createCompanyDefaultMappingRuleInputSchema,
+  updateCompanyDefaultMappingRuleInputSchema,
+} from '../validation/apiSchemas';
 
 export const Route = createFileRoute(
   '/api/companies/$companyId/default-mapping-rules'
@@ -31,7 +35,10 @@ export const Route = createFileRoute(
             context,
             input: {
               ...params,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                createCompanyDefaultMappingRuleInputSchema
+              ),
             },
           })
         );
@@ -44,7 +51,10 @@ export const Route = createFileRoute(
             context,
             input: {
               ...params,
-              payload: await readJsonBody(request),
+              payload: await readValidatedJsonBody(
+                request,
+                updateCompanyDefaultMappingRuleInputSchema
+              ),
             },
           })
         );

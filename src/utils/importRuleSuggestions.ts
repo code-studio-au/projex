@@ -33,7 +33,6 @@ function titleCaseToken(value: string): string {
 
 function compactRuleLabel(value: string): string {
   const normalized = normalizeRuleValue(value);
-  if (!normalized) return 'matching rows';
   if (normalized.length <= 48) return normalized;
   return `${normalized.slice(0, 45).trimEnd()}...`;
 }

@@ -24,6 +24,23 @@ test('safeParseJson returns parsed JSON or a syntax failure', () => {
   }
 });
 
+test('safeParseJson normalizes non-syntax parse failures into SyntaxError', () => {
+  const originalParse = JSON.parse;
+  JSON.parse = (() => {
+    throw new Error('unexpected');
+  }) as typeof JSON.parse;
+
+  try {
+    const invalid = safeParseJson('{"ok":true}');
+    assert.equal(invalid.success, false);
+    if (!invalid.success) {
+      assert.ok(invalid.error instanceof SyntaxError);
+    }
+  } finally {
+    JSON.parse = originalParse;
+  }
+});
+
 test('parseJsonOrNull and parseJsonOrText preserve caller fallback behavior', () => {
   assert.equal(parseJsonOrNull(''), null);
   assert.equal(parseJsonOrNull('not json'), null);
