@@ -29,6 +29,7 @@ import { syncCompanyImportRulesToProject } from '../importRules';
 
 type ProjectCategorySyncRow = {
   id: string;
+  project_id?: string;
   name: string;
   origin_scope: 'company' | 'project' | null;
   origin_company_item_id: string | null;
@@ -38,6 +39,7 @@ type ProjectCategorySyncRow = {
 
 type ProjectSubCategorySyncRow = {
   id: string;
+  project_id?: string;
   category_id: string;
   name: string;
   origin_scope: 'company' | 'project' | null;
@@ -50,110 +52,75 @@ function taxonomyNameKey(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export async function syncCompanyTaxonomyToSyncedProjects(args: {
-  db: Transaction<DB> | ReturnType<typeof getDb>;
-  companyId: CompanyId;
-}) {
-  const syncedProjectIds = await listSyncedProjectIdsForCompany({
-    db: args.db,
-    companyId: args.companyId,
-  });
-  for (const projectId of syncedProjectIds) {
-    await applyCompanyTaxonomyToProject({
-      db: args.db,
-      companyId: args.companyId,
-      projectId,
-    });
+type CompanyDefaultCategoryRow = {
+  id: string;
+  company_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type CompanyDefaultSubCategoryRow = {
+  id: string;
+  company_id: string;
+  company_default_category_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+function groupProjectCategoryRows(rows: ProjectCategorySyncRow[]) {
+  const grouped = new Map<ProjectId, ProjectCategorySyncRow[]>();
+  for (const row of rows) {
+    const projectId = row.project_id as ProjectId;
+    const existing = grouped.get(projectId);
+    if (existing) {
+      existing.push(row);
+      continue;
+    }
+    grouped.set(projectId, [row]);
   }
+  return grouped;
 }
 
-export async function applyCompanyStandardsToProject(args: {
+function groupProjectSubCategoryRows(rows: ProjectSubCategorySyncRow[]) {
+  const grouped = new Map<ProjectId, ProjectSubCategorySyncRow[]>();
+  for (const row of rows) {
+    const projectId = row.project_id as ProjectId;
+    const existing = grouped.get(projectId);
+    if (existing) {
+      existing.push(row);
+      continue;
+    }
+    grouped.set(projectId, [row]);
+  }
+  return grouped;
+}
+
+async function applyCompanyTaxonomyWithPreloadedState(args: {
   db: Transaction<DB> | ReturnType<typeof getDb>;
   companyId: CompanyId;
   projectId: ProjectId;
-  actorUserId: UserId;
-}): Promise<ApplyCompanyStandardsResult> {
-  const result = await applyCompanyTaxonomyToProject({
-    db: args.db,
-    companyId: args.companyId,
-    projectId: args.projectId,
-  });
-  await syncCompanyImportRulesToProject({
-    db: args.db,
-    companyId: args.companyId,
-    projectId: args.projectId,
-  });
-  await syncCompanyAutoCodingRulesToProject({
-    db: args.db,
-    companyId: args.companyId,
-    projectId: args.projectId,
-    actorUserId: args.actorUserId,
-  });
-  return {
-    ...result,
-    importRulesSynced: true,
-    autoCodingRulesSynced: true,
-  };
-}
-
-export async function applyCompanyTaxonomyToProject(args: {
-  db: Transaction<DB> | ReturnType<typeof getDb>;
-  companyId: CompanyId;
-  projectId: ProjectId;
+  defaultCategories: CompanyDefaultCategoryRow[];
+  defaultSubCategories: CompanyDefaultSubCategoryRow[];
+  projectCategories: ProjectCategorySyncRow[];
+  projectSubCategories: ProjectSubCategorySyncRow[];
 }): Promise<ApplyCompanyTaxonomyResult> {
-  const { db, companyId, projectId } = args;
-  const defaultCategories = await db
-    .selectFrom('company_default_categories')
-    .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
-    .where('company_id', '=', companyId)
-    .orderBy('name', 'asc')
-    .execute();
-  const defaultSubCategories = await db
-    .selectFrom('company_default_sub_categories')
-    .select([
-      'id',
-      'company_id',
-      'company_default_category_id',
-      'name',
-      'created_at',
-      'updated_at',
-    ])
-    .where('company_id', '=', companyId)
-    .orderBy('name', 'asc')
-    .execute();
-  const projectCategories = await db
-    .selectFrom('categories')
-    .select([
-      'id',
-      'name',
-      'origin_scope',
-      'origin_company_item_id',
-      'sync_status',
-      'source_updated_at_snapshot',
-    ])
-    .where('project_id', '=', projectId)
-    .execute();
-  const projectSubCategories = await db
-    .selectFrom('sub_categories')
-    .select([
-      'id',
-      'category_id',
-      'name',
-      'origin_scope',
-      'origin_company_item_id',
-      'sync_status',
-      'source_updated_at_snapshot',
-    ])
-    .where('project_id', '=', projectId)
-    .execute();
-
+  const {
+    db,
+    companyId,
+    projectId,
+    defaultCategories,
+    defaultSubCategories,
+    projectCategories,
+    projectSubCategories,
+  } = args;
   const now = new Date().toISOString();
   let categoriesAdded = 0;
   let subCategoriesAdded = 0;
 
-  const projectCategoryRows = projectCategories as ProjectCategorySyncRow[];
-  const projectSubCategoryRows =
-    projectSubCategories as ProjectSubCategorySyncRow[];
+  const projectCategoryRows = projectCategories;
+  const projectSubCategoryRows = projectSubCategories;
   const defaultCategoryIdToProjectCategoryId = new Map<string, string>();
 
   for (const defaultCategory of defaultCategories) {
@@ -385,6 +352,199 @@ export async function applyCompanyTaxonomyToProject(args: {
     categoriesAdded,
     subCategoriesAdded,
   };
+}
+
+export async function syncCompanyTaxonomyToProjects(args: {
+  db: Transaction<DB> | ReturnType<typeof getDb>;
+  companyId: CompanyId;
+  projectIds: ProjectId[];
+}) {
+  if (!args.projectIds.length) return;
+
+  const [
+    defaultCategories,
+    defaultSubCategories,
+    projectCategories,
+    projectSubCategories,
+  ] = await Promise.all([
+    args.db
+      .selectFrom('company_default_categories')
+      .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+      .where('company_id', '=', args.companyId)
+      .orderBy('name', 'asc')
+      .execute(),
+    args.db
+      .selectFrom('company_default_sub_categories')
+      .select([
+        'id',
+        'company_id',
+        'company_default_category_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
+      .where('company_id', '=', args.companyId)
+      .orderBy('name', 'asc')
+      .execute(),
+    args.db
+      .selectFrom('categories')
+      .select([
+        'id',
+        'project_id',
+        'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'source_updated_at_snapshot',
+      ])
+      .where('project_id', 'in', args.projectIds)
+      .execute() as Promise<ProjectCategorySyncRow[]>,
+    args.db
+      .selectFrom('sub_categories')
+      .select([
+        'id',
+        'project_id',
+        'category_id',
+        'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'source_updated_at_snapshot',
+      ])
+      .where('project_id', 'in', args.projectIds)
+      .execute() as Promise<ProjectSubCategorySyncRow[]>,
+  ]);
+
+  const projectCategoriesByProjectId =
+    groupProjectCategoryRows(projectCategories);
+  const projectSubCategoriesByProjectId =
+    groupProjectSubCategoryRows(projectSubCategories);
+
+  for (const projectId of args.projectIds) {
+    await applyCompanyTaxonomyWithPreloadedState({
+      db: args.db,
+      companyId: args.companyId,
+      projectId,
+      defaultCategories,
+      defaultSubCategories,
+      projectCategories: projectCategoriesByProjectId.get(projectId) ?? [],
+      projectSubCategories:
+        projectSubCategoriesByProjectId.get(projectId) ?? [],
+    });
+  }
+}
+
+export async function syncCompanyTaxonomyToSyncedProjects(args: {
+  db: Transaction<DB> | ReturnType<typeof getDb>;
+  companyId: CompanyId;
+}) {
+  const syncedProjectIds = await listSyncedProjectIdsForCompany({
+    db: args.db,
+    companyId: args.companyId,
+  });
+  await syncCompanyTaxonomyToProjects({
+    db: args.db,
+    companyId: args.companyId,
+    projectIds: syncedProjectIds,
+  });
+}
+
+export async function applyCompanyStandardsToProject(args: {
+  db: Transaction<DB> | ReturnType<typeof getDb>;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  actorUserId: UserId;
+}): Promise<ApplyCompanyStandardsResult> {
+  const result = await applyCompanyTaxonomyToProject({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+  });
+  await syncCompanyImportRulesToProject({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+  });
+  await syncCompanyAutoCodingRulesToProject({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+    actorUserId: args.actorUserId,
+  });
+  return {
+    ...result,
+    importRulesSynced: true,
+    autoCodingRulesSynced: true,
+  };
+}
+
+export async function applyCompanyTaxonomyToProject(args: {
+  db: Transaction<DB> | ReturnType<typeof getDb>;
+  companyId: CompanyId;
+  projectId: ProjectId;
+}): Promise<ApplyCompanyTaxonomyResult> {
+  const { db, companyId, projectId } = args;
+  const [
+    defaultCategories,
+    defaultSubCategories,
+    projectCategories,
+    projectSubCategories,
+  ] = await Promise.all([
+    db
+      .selectFrom('company_default_categories')
+      .select(['id', 'company_id', 'name', 'created_at', 'updated_at'])
+      .where('company_id', '=', companyId)
+      .orderBy('name', 'asc')
+      .execute(),
+    db
+      .selectFrom('company_default_sub_categories')
+      .select([
+        'id',
+        'company_id',
+        'company_default_category_id',
+        'name',
+        'created_at',
+        'updated_at',
+      ])
+      .where('company_id', '=', companyId)
+      .orderBy('name', 'asc')
+      .execute(),
+    db
+      .selectFrom('categories')
+      .select([
+        'id',
+        'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'source_updated_at_snapshot',
+      ])
+      .where('project_id', '=', projectId)
+      .execute() as Promise<ProjectCategorySyncRow[]>,
+    db
+      .selectFrom('sub_categories')
+      .select([
+        'id',
+        'category_id',
+        'name',
+        'origin_scope',
+        'origin_company_item_id',
+        'sync_status',
+        'source_updated_at_snapshot',
+      ])
+      .where('project_id', '=', projectId)
+      .execute() as Promise<ProjectSubCategorySyncRow[]>,
+  ]);
+
+  return applyCompanyTaxonomyWithPreloadedState({
+    db,
+    companyId,
+    projectId,
+    defaultCategories,
+    defaultSubCategories,
+    projectCategories,
+    projectSubCategories,
+  });
 }
 
 export async function bulkRecodeProjectTransactions(args: {

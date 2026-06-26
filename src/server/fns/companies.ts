@@ -1,5 +1,6 @@
 export {
   getCompanyServer,
+  getPostLoginTargetServer,
   getCompanySummaryServer,
   getDefaultCompanyIdForUserServer,
   listCompaniesServer,

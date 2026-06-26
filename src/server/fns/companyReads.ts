@@ -15,7 +15,7 @@ import { userNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
-import { listProjectsServer } from './projects';
+import { listVisibleProjectsForCompany } from './projectReads';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -95,6 +95,11 @@ export async function getCompanySummaryServer(args: {
     const db = getDb();
     const userId = await requireServerUserId(args.context);
     const isSuperadmin = await isGlobalSuperadminUser(userId, db);
+    const company = await db
+      .selectFrom('companies')
+      .select(['id', 'status'])
+      .where('id', '=', args.companyId)
+      .executeTakeFirst();
     const companyRole =
       (
         await db
@@ -116,31 +121,38 @@ export async function getCompanySummaryServer(args: {
       );
     }
 
-    const projects = await listProjectsServer({
-      context: args.context,
+    if (!company) return { projects: [] };
+
+    const projects = await listVisibleProjectsForCompany({
+      db,
+      userId,
       companyId: args.companyId,
+      companyStatus: company.status,
+      isSuperadmin,
+      companyRole,
     });
     if (!projects.length) return { projects: [] };
 
     const projectIds = projects.map((project) => project.id);
 
-    const subCategoryRows = await db
-      .selectFrom('sub_categories')
-      .select(['project_id', 'id'])
-      .where('project_id', 'in', projectIds)
-      .execute();
-
-    const txnRows = await db
-      .selectFrom('txns')
-      .select([
-        'project_id',
-        'txn_date',
-        'amount_cents',
-        'budget_impact',
-        'sub_category_id',
-      ])
-      .where('project_id', 'in', projectIds)
-      .execute();
+    const [subCategoryRows, txnRows] = await Promise.all([
+      db
+        .selectFrom('sub_categories')
+        .select(['project_id', 'id'])
+        .where('project_id', 'in', projectIds)
+        .execute(),
+      db
+        .selectFrom('txns')
+        .select([
+          'project_id',
+          'txn_date',
+          'amount_cents',
+          'budget_impact',
+          'sub_category_id',
+        ])
+        .where('project_id', 'in', projectIds)
+        .execute(),
+    ]);
 
     const validSubIdsByProject = new Map<ProjectId, Set<string>>();
     for (const row of subCategoryRows) {
@@ -273,6 +285,50 @@ export async function getDefaultCompanyIdForUserServer(args: {
     if (activePrimary) return asCompanyId(activePrimary.company_id);
 
     return asCompanyId(ranked[0].company_id);
+  });
+}
+
+export async function getPostLoginTargetServer(args: {
+  context: ServerFnContextInput;
+}): Promise<
+  | { to: '/companies' }
+  | { to: '/c/$companyId'; params: { companyId: CompanyId } }
+> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const db = getDb();
+    const userId = await requireServerUserId(args.context);
+    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
+
+    if (isSuperadmin) return { to: '/companies' };
+
+    const memberships = await db
+      .selectFrom('company_memberships as m')
+      .innerJoin('companies as c', 'c.id', 'm.company_id')
+      .select(['m.company_id', 'm.role', 'c.status'])
+      .where('m.user_id', '=', userId)
+      .execute();
+    if (!memberships.length) return { to: '/companies' };
+
+    const activeMemberships = memberships.filter(
+      (membership) => membership.status === 'active'
+    );
+    if (activeMemberships.length > 1) return { to: '/companies' };
+
+    const ranked = memberships
+      .slice()
+      .sort(
+        (a, b) =>
+          (COMPANY_ROLE_RANK[b.role] ?? 0) - (COMPANY_ROLE_RANK[a.role] ?? 0)
+      );
+    const preferred =
+      ranked.find((membership) => membership.status === 'active') ?? ranked[0];
+
+    if (!preferred) return { to: '/companies' };
+    return {
+      to: '/c/$companyId',
+      params: { companyId: asCompanyId(preferred.company_id) },
+    };
   });
 }
 

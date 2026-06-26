@@ -255,6 +255,21 @@ export async function syncCompanyAutoCodingRulesToSyncedProjects(args: {
     db: args.db,
     companyId: args.companyId,
   });
+  await syncCompanyAutoCodingRulesToProjects({
+    db: args.db,
+    companyId: args.companyId,
+    actorUserId: args.actorUserId,
+    projectIds: syncedProjectIds,
+  });
+}
+
+export async function syncCompanyAutoCodingRulesToProjects(args: {
+  db: ProjectStandardsDb;
+  companyId: ProjectAutoCodingRule['companyId'];
+  actorUserId: NonNullable<ProjectAutoCodingRule['createdByUserId']>;
+  projectIds: ProjectId[];
+}) {
+  const syncedProjectIds = args.projectIds;
   if (!syncedProjectIds.length) return;
 
   const [

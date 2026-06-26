@@ -38,7 +38,7 @@ import {
   buildInheritedProjectStandardMetadata,
   buildLocalProjectStandardMetadata,
 } from '../../sync/projectStandards';
-import { applyCompanyTaxonomyToProject } from '../taxonomy/standards';
+import { syncCompanyTaxonomyToProjects } from '../taxonomy/standards';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import {
   assertCategoryInProject,
@@ -57,7 +57,7 @@ import {
   resolveInheritedCompanyAutoCodingRule,
   toProjectAutoCodingRule,
 } from './shared';
-import { syncCompanyAutoCodingRulesToSyncedProjects } from './sync';
+import { syncCompanyAutoCodingRulesToProjects } from './sync';
 
 export async function createProjectAutoCodingRuleServer(args: {
   context: ServerFnContextInput;
@@ -640,17 +640,20 @@ export async function promoteProjectRuleToCompanyDefaultServer(args: {
         .where('sync_company_defaults', '=', true)
         .execute();
 
-      for (const syncedProject of syncedProjectRows) {
-        await applyCompanyTaxonomyToProject({
-          db: trx,
-          companyId,
-          projectId: syncedProject.id as ProjectId,
-        });
-      }
-      await syncCompanyAutoCodingRulesToSyncedProjects({
+      const syncedProjectIds = syncedProjectRows.map(
+        (syncedProject) => syncedProject.id as ProjectId
+      );
+
+      await syncCompanyTaxonomyToProjects({
+        db: trx,
+        companyId,
+        projectIds: syncedProjectIds,
+      });
+      await syncCompanyAutoCodingRulesToProjects({
         db: trx,
         companyId,
         actorUserId: userId,
+        projectIds: syncedProjectIds,
       });
 
       await trx

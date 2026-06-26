@@ -12,6 +12,51 @@ import {
 } from './runtime';
 import { getCompanyRole, projectSelectFields, toProject } from './projectCore';
 
+export async function listVisibleProjectsForCompany(args: {
+  db: ReturnType<typeof getDb>;
+  userId: string;
+  companyId: CompanyId;
+  companyStatus: 'active' | 'deactivated';
+  isSuperadmin: boolean;
+  companyRole: string | null;
+}): Promise<Project[]> {
+  const allRows = await args.db
+    .selectFrom('projects')
+    .select(projectSelectFields)
+    .where('company_id', '=', args.companyId)
+    .orderBy('name', 'asc')
+    .execute();
+
+  if (args.isSuperadmin) {
+    return allRows
+      .filter((project) => project.allow_superadmin_access)
+      .map(toProject);
+  }
+  if (args.companyStatus === 'deactivated') return [];
+  if (args.companyRole === 'admin' || args.companyRole === 'executive') {
+    return allRows.map(toProject);
+  }
+
+  const isCompanyMember = !!args.companyRole;
+  const membershipRows = await args.db
+    .selectFrom('project_memberships')
+    .select('project_id')
+    .where('user_id', '=', args.userId)
+    .execute();
+  const mine = new Set(
+    membershipRows.map((membership) => membership.project_id)
+  );
+
+  return allRows
+    .filter((project) => {
+      if (project.status === 'archived') return false;
+      if (mine.has(project.id)) return true;
+      if (!isCompanyMember) return false;
+      return project.visibility === 'company';
+    })
+    .map(toProject);
+}
+
 export async function listProjectsServer(args: {
   context: ServerFnContextInput;
   companyId: CompanyId;
@@ -26,41 +71,19 @@ export async function listProjectsServer(args: {
       .where('id', '=', args.companyId)
       .executeTakeFirst();
     if (!company) return [];
-
-    const allRows = await db
-      .selectFrom('projects')
-      .select(projectSelectFields)
-      .where('company_id', '=', args.companyId)
-      .orderBy('name', 'asc')
-      .execute();
-
     const isSuperadmin = await isGlobalSuperadminUser(userId, db);
-    if (isSuperadmin) {
-      return allRows.filter((p) => p.allow_superadmin_access).map(toProject);
-    }
-    if (company.status === 'deactivated') return [];
+    const companyRole = isSuperadmin
+      ? null
+      : await getCompanyRole(userId, args.companyId);
 
-    const companyRole = await getCompanyRole(userId, args.companyId);
-    if (companyRole === 'admin' || companyRole === 'executive') {
-      return allRows.map(toProject);
-    }
-
-    const isCompanyMember = !!companyRole;
-    const membershipRows = await db
-      .selectFrom('project_memberships')
-      .select('project_id')
-      .where('user_id', '=', userId)
-      .execute();
-    const mine = new Set(membershipRows.map((m) => m.project_id));
-
-    return allRows
-      .filter((p) => {
-        if (p.status === 'archived') return false;
-        if (mine.has(p.id)) return true;
-        if (!isCompanyMember) return false;
-        return p.visibility === 'company';
-      })
-      .map(toProject);
+    return listVisibleProjectsForCompany({
+      db,
+      userId,
+      companyId: args.companyId,
+      companyStatus: company.status,
+      isSuperadmin,
+      companyRole,
+    });
   });
 }
 
