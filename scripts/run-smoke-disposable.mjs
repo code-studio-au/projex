@@ -1,3 +1,4 @@
+import { createServer } from 'node:net';
 import {
   runProjexCommand,
   runProjexMigrations,
@@ -7,6 +8,7 @@ import {
   stopChildProcess,
   waitForHttpOk,
 } from './disposable-postgres.mjs';
+import { logNodeRuntime, resolveNodeExecutable } from './node-runtime.mjs';
 
 const KEEP_DB = process.argv.includes('--keep-db');
 const SKIP_BUILD = process.argv.includes('--skip-build');
@@ -16,20 +18,47 @@ const FORWARDED_ARGS = process.argv.filter(
 );
 const DB_NAME = 'projex_smoke_test';
 const HOST = '127.0.0.1';
-const PORT = Number.parseInt(
-  process.env.PROJEX_SMOKE_SERVER_PORT ?? '3310',
-  10
-);
 const BETTER_AUTH_SECRET =
   process.env.PROJEX_TEST_BETTER_AUTH_SECRET ||
   'projex-disposable-smoke-secret-0123456789';
+const NODE_EXECUTABLE = resolveNodeExecutable();
 
-async function main() {
-  if (Number.isNaN(PORT)) {
-    throw new Error('PROJEX_SMOKE_SERVER_PORT must be a valid integer');
+async function reserveSmokeServerPort() {
+  const explicitPort = process.env.PROJEX_SMOKE_SERVER_PORT;
+  if (explicitPort) {
+    const parsed = Number.parseInt(explicitPort, 10);
+    if (Number.isNaN(parsed)) {
+      throw new Error('PROJEX_SMOKE_SERVER_PORT must be a valid integer');
+    }
+    return parsed;
   }
 
-  const baseUrl = `http://${HOST}:${PORT}`;
+  return await new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(0, HOST, () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        server.close(() => reject(new Error('Failed to reserve smoke port')));
+        return;
+      }
+      const { port } = address;
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(port);
+      });
+    });
+  });
+}
+
+async function main() {
+  logNodeRuntime('disposable smoke runner');
+  const port = await reserveSmokeServerPort();
+
+  const baseUrl = `http://${HOST}:${port}`;
   const pg = await startDisposablePostgres({
     containerPrefix: 'projex-smoke-db',
   });
@@ -74,11 +103,12 @@ async function main() {
       S3_SECRET_ACCESS_KEY: minio.secretKey,
       S3_FORCE_PATH_STYLE: 'true',
       HOST,
-      PORT: String(PORT),
+      PORT: String(port),
+      PROJEX_NODE_EXECUTABLE: NODE_EXECUTABLE,
     };
 
     serverProcess = spawnProjexCommand(
-      'node',
+      NODE_EXECUTABLE,
       ['--import', 'tsx', 'scripts/start-server.mjs'],
       {
         env: sharedEnv,
@@ -87,7 +117,7 @@ async function main() {
     await waitForHttpOk(`${baseUrl}/api/health`);
 
     runProjexCommand(
-      'node',
+      NODE_EXECUTABLE,
       [
         'scripts/smoke-server.mjs',
         '--use-generated-fixtures',
@@ -99,7 +129,7 @@ async function main() {
 
     if (RUN_BROWSER) {
       runProjexCommand(
-        'node',
+        NODE_EXECUTABLE,
         [
           'scripts/smoke-browser.mjs',
           '--use-generated-fixtures',

@@ -59,6 +59,7 @@ pnpm run format:check
 pnpm test
 pnpm run build
 pnpm run test:integration:db
+pnpm run verify:smoke:full
 pnpm run smoke:server:disposable -- --section=basics
 pnpm run smoke:browser:disposable -- --section=basics
 ```

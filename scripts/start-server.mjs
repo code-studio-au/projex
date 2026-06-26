@@ -12,6 +12,7 @@ import {
   injectNonceIntoHtml,
 } from '../src/server/http/csp.ts';
 import { loadEnvFile } from './env-file.mjs';
+import { logNodeRuntime } from './node-runtime.mjs';
 const LOCAL_DEV_ORIGIN_PATTERN = /^https?:\/\/localhost:(4173|5173)(\/|$)/i;
 
 function run(cmd, args) {
@@ -37,6 +38,8 @@ if (Number.isNaN(port)) {
   console.error(`Invalid PORT value: ${process.env.PORT}`);
   process.exit(1);
 }
+
+logNodeRuntime('start-server');
 
 if (process.env.NODE_ENV !== 'production') {
   const localAppOrigin = `http://localhost:${port}`;

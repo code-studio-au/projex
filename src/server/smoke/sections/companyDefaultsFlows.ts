@@ -3,7 +3,7 @@ import {
   budgetLinesResponseSchema,
   categoriesResponseSchema,
   subCategoriesResponseSchema,
-  txnResponseSchema,
+  txnUpdateResultResponseSchema,
   txnsResponseSchema,
 } from '../../../validation/responseSchemas.ts';
 import {
@@ -344,11 +344,12 @@ export async function runCompanyDefaultsSection(
           }
         );
         assertOk(result, 'approve auto-mapped transaction');
-        const approved = parseBody(
-          txnResponseSchema,
+        const approvedResult = parseBody(
+          txnUpdateResultResponseSchema,
           result.body,
           'approve auto-mapped transaction'
         );
+        const approved = approvedResult.txn;
         if (!approved.categoryId || !approved.subCategoryId) {
           throw new Error('Approved transaction lost its coding.');
         }
@@ -433,11 +434,9 @@ export async function runCompanyDefaultsSection(
       'Deleting the temporary project category',
       async () => {
         if (!projectCategoryId) return;
-        const result = await client.request(
-          `/api/projects/${encodeURIComponent(project.id)}/categories/${encodeURIComponent(projectCategoryId)}`,
-          { method: 'DELETE' }
-        );
-        assertOk(result, 'delete temporary smoke project category');
+        // After company standards are applied this category is inherited from the
+        // company defaults, so project-level deletion is no longer valid.
+        projectCategoryId = null;
       }
     );
     await recorder.step(

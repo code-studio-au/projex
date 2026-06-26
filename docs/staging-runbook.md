@@ -147,6 +147,18 @@ pnpm run smoke:server -- --section=inviteFlow
 pnpm run smoke:server -- --section=privacyChecks
 ```
 
+For the complete disposable server sweep across every smoke section, use:
+
+```bash
+pnpm run verify:smoke:full
+```
+
+If you already have a fresh build and only want to rerun the sweep itself:
+
+```bash
+pnpm run verify:smoke:full:skip-build
+```
+
 Keep smoke credentials in `.env.smoke.local` at the repo root. On EC2 that is `/opt/projex/.env.smoke.local`.
 Generated fixture runs still require the normal deployed runtime env, including `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL`. If interrupted smoke runs leave data behind, run:
 

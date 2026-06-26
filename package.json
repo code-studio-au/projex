@@ -32,6 +32,8 @@
     "verify:db:gate": "pnpm run db:migrate && pnpm run db:verify-types && pnpm run test:integration:db",
     "verify:smoke:basics": "pnpm run smoke:server:disposable -- --section=basics",
     "verify:smoke:basics:skip-build": "pnpm run smoke:server:disposable -- --skip-build --section=basics",
+    "verify:smoke:full": "pnpm run smoke:server:disposable",
+    "verify:smoke:full:skip-build": "pnpm run smoke:server:disposable -- --skip-build",
     "verify:smoke:browser:basics": "pnpm run smoke:browser:disposable -- --section=basics",
     "verify:smoke:browser:basics:skip-build": "pnpm run smoke:browser:disposable -- --skip-build --section=basics",
     "verify:ci": "pnpm run verify:security:repo && pnpm audit --json && pnpm run verify:app && pnpm run verify:db:gate && pnpm run verify:smoke:basics:skip-build && pnpm run verify:smoke:browser:basics:skip-build",

@@ -93,6 +93,7 @@ The short version:
 
 - `pnpm run verify:security` for the fast non-Docker safety pass
 - `pnpm run verify:ci` for the fuller local reproduction of CI plus deploy-artifact checks
+- `pnpm run verify:smoke:full` for the full disposable server smoke sweep across every section
 - `pnpm test` for the fast Vitest app/runtime lane
 - `pnpm run coverage` for the Vitest-owned unit coverage gate and LCOV output
 - `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
@@ -162,6 +163,12 @@ pnpm run smoke:server:generated
 # Start a disposable Postgres instance, migrate it, build the app, run a local
 # server against that isolated DB, then execute generated smoke end to end
 pnpm run smoke:server:disposable
+
+# The same full disposable server sweep, but through the verify namespace
+pnpm run verify:smoke:full
+
+# Re-run the full disposable server sweep without rebuilding first
+pnpm run verify:smoke:full:skip-build
 
 # The same disposable harness, but with a browser-driven smoke lane
 pnpm run smoke:browser:disposable

@@ -1,7 +1,10 @@
 import { spawn } from 'node:child_process';
+import { logNodeRuntime, resolveNodeExecutable } from './node-runtime.mjs';
+
+logNodeRuntime('smoke-browser launcher');
 
 const child = spawn(
-  process.execPath,
+  resolveNodeExecutable(),
   ['--import', 'tsx', 'src/server/smoke/browser.ts', ...process.argv.slice(2)],
   {
     cwd: process.cwd(),

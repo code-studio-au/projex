@@ -393,6 +393,11 @@ export const txnResponseSchema = z.object({
 
 export const txnsResponseSchema = z.array(txnResponseSchema);
 
+export const txnUpdateResultResponseSchema = z.object({
+  txn: txnResponseSchema,
+  projectRulePrompt: z.unknown().nullable(),
+});
+
 export const txnListPageSummaryResponseSchema = z.object({
   totalCount: z.number().int().nonnegative(),
   budgetImpactCents: z.number().int(),

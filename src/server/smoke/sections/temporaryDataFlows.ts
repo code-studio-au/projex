@@ -206,9 +206,9 @@ async function runProgrammesTemporaryDataSteps(
         const result = await client.request(
           `/api/projects/${encodeURIComponent(programmeId)}/budgets`
         );
-        if (result.res.status !== 422) {
+        if (result.res.status !== 403) {
           throw new Error(
-            `Expected programme budget endpoint to reject with 422, got ${result.res.status}.`
+            `Expected programme budget endpoint to reject with 403, got ${result.res.status}.`
           );
         }
       }
