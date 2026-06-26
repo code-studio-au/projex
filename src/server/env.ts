@@ -48,16 +48,17 @@ function parseHttpsUrl(
     return null;
   }
 
-  let parsed: URL | null = null;
+  let parsed: URL;
   try {
     parsed = new URL(trimmed);
   } catch {
     throwStartupEnvError('invalid_url_format', {
       key: options.label,
     });
+    throw new Error('unreachable');
   }
 
-  if (!parsed || parsed.protocol !== 'https:') {
+  if (parsed.protocol !== 'https:') {
     throwStartupEnvError('non_https_url', {
       key: options.label,
       protocol: parsed.protocol,
