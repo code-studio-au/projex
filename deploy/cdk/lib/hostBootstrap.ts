@@ -34,7 +34,9 @@ chmod ${mode} ${targetPath}`;
 export function buildHostBootstrapCommands() {
   const systemdService = readRepoFile('deploy/systemd/projex.service');
   const bootstrapNginx = readRepoFile('deploy/nginx/projex.bootstrap.conf');
-  const httpsNginxTemplate = readRepoFile('deploy/nginx/projex.https.conf.template');
+  const httpsNginxTemplate = readRepoFile(
+    'deploy/nginx/projex.https.conf.template'
+  );
   const envExample = readRepoFile('.env.example');
   const provisionLetsEncryptScript = readRepoFile(
     'scripts/provision-letsencrypt-cert.sh'
@@ -50,22 +52,14 @@ export function buildHostBootstrapCommands() {
     `corepack prepare pnpm@${packageManagerVersion} --activate`,
     'install -d -m 0755 /opt/projex/releases /opt/projex/shared/nginx-maintenance /etc/projex /var/www/certbot/.well-known/acme-challenge',
     'chown -R ec2-user:ec2-user /opt/projex',
-    installFileCommand(
-      '/etc/projex/projex.env.example',
-      envExample,
-      '0600'
-    ),
-    "if [ ! -f /etc/projex/projex.env ]; then cp /etc/projex/projex.env.example /etc/projex/projex.env; chmod 0600 /etc/projex/projex.env; fi",
+    installFileCommand('/etc/projex/projex.env.example', envExample, '0600'),
+    'if [ ! -f /etc/projex/projex.env ]; then cp /etc/projex/projex.env.example /etc/projex/projex.env; chmod 0600 /etc/projex/projex.env; fi',
     installFileCommand(
       '/etc/systemd/system/projex.service',
       systemdService,
       '0644'
     ),
-    installFileCommand(
-      '/etc/nginx/conf.d/projex.conf',
-      bootstrapNginx,
-      '0644'
-    ),
+    installFileCommand('/etc/nginx/conf.d/projex.conf', bootstrapNginx, '0644'),
     installFileCommand(
       '/etc/projex/projex.nginx.https.conf.template',
       httpsNginxTemplate,

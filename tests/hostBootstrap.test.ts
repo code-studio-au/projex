@@ -13,7 +13,9 @@ describe('buildHostBootstrapCommands', () => {
     const joined = commands.join('\n');
     expect(joined).toContain('/etc/nginx/conf.d/projex.conf');
     expect(joined).toContain('/etc/projex/projex.nginx.https.conf.template');
-    expect(joined).toContain('/usr/local/bin/projex-provision-letsencrypt-cert');
+    expect(joined).toContain(
+      '/usr/local/bin/projex-provision-letsencrypt-cert'
+    );
     expect(joined).toContain('/var/www/certbot/.well-known/acme-challenge');
     expect(joined).toContain('/etc/projex/projex.env.example');
   });
