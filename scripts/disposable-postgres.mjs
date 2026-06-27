@@ -66,6 +66,32 @@ function makeConnectionString({ user, password, host, port, database }) {
   return `postgres://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
 }
 
+function quotePostgresIdentifier(identifier) {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+export function buildCreateDatabaseExecArgs({ user, password, database }) {
+  return [
+    'exec',
+    '-e',
+    `PGPASSWORD=${password}`,
+    'PLACEHOLDER_CONTAINER',
+    'psql',
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-h',
+    '127.0.0.1',
+    '-p',
+    '5432',
+    '-U',
+    user,
+    '-d',
+    'postgres',
+    '-c',
+    `CREATE DATABASE ${quotePostgresIdentifier(database)}`,
+  ];
+}
+
 export function ensureDockerAvailable() {
   try {
     runCommand('docker', ['version'], { stdio: 'ignore' });
@@ -133,14 +159,13 @@ export async function startDisposablePostgres(options = {}) {
       return makeConnectionString({ ...state, database });
     },
     async createDatabase(database) {
-      runCommand('docker', [
-        'exec',
-        containerName,
-        'createdb',
-        '-U',
+      const args = buildCreateDatabaseExecArgs({
         user,
+        password,
         database,
-      ]);
+      });
+      args[3] = containerName;
+      runCommand('docker', args);
     },
     async stop() {
       try {
@@ -250,6 +275,10 @@ async function waitForPostgres(state, timeoutMs = 30_000) {
         'exec',
         state.containerName,
         'pg_isready',
+        '-h',
+        '127.0.0.1',
+        '-p',
+        '5432',
         '-U',
         state.user,
         '-d',
