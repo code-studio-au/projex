@@ -20,6 +20,13 @@ const DEFAULT_BETTER_AUTH_SECRET =
   process.env.PROJEX_TEST_BETTER_AUTH_SECRET ||
   'projex-disposable-test-secret-0123456789';
 
+/**
+ * @typedef {object} CreateDatabaseExecArgsOptions
+ * @property {string} user
+ * @property {string} password
+ * @property {string} database
+ */
+
 function fail(message) {
   throw new Error(message);
 }
@@ -70,6 +77,13 @@ function quotePostgresIdentifier(identifier) {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
 
+/**
+ * Builds the docker exec argv for creating a database inside the disposable
+ * Postgres container over explicit TCP rather than relying on socket defaults.
+ *
+ * @param {CreateDatabaseExecArgsOptions} options
+ * @returns {string[]}
+ */
 export function buildCreateDatabaseExecArgs({ user, password, database }) {
   return [
     'exec',

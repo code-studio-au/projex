@@ -8,7 +8,7 @@ describe('buildCreateDatabaseExecArgs', () => {
       user: 'postgres',
       password: 'postgres',
       database: 'projex_integration_test',
-    });
+    }) as string[];
 
     expect(args).toEqual([
       'exec',
@@ -36,8 +36,8 @@ describe('buildCreateDatabaseExecArgs', () => {
       user: 'postgres',
       password: 'secret',
       database: 'projex"test',
-    });
+    }) as string[];
 
-    expect(args.at(-1)).toBe('CREATE DATABASE "projex""test"');
+    expect(args[args.length - 1]).toBe('CREATE DATABASE "projex""test"');
   });
 });
