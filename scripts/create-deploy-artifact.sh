@@ -24,10 +24,14 @@ require_path "dist/server/server.js"
 require_path "dist/client"
 require_path "src"
 require_path "scripts/start-server.mjs"
+require_path "scripts/env-file.mjs"
+require_path "scripts/node-runtime.mjs"
 require_path "deploy/nginx/maintenance.html"
 require_path "deploy/nginx/maintenance.js"
 require_path "package.json"
 require_path "pnpm-lock.yaml"
+require_path "pnpm-workspace.yaml"
+require_path ".pnpmfile.cjs"
 
 rm -f "$ARTIFACT_PATH"
 
@@ -36,10 +40,14 @@ tar -czf "$ARTIFACT_PATH" \
   dist \
   src \
   scripts/start-server.mjs \
+  scripts/env-file.mjs \
+  scripts/node-runtime.mjs \
   scripts/deploy-artifact-ec2.sh \
   deploy/nginx \
   package.json \
-  pnpm-lock.yaml
+  pnpm-lock.yaml \
+  pnpm-workspace.yaml \
+  .pnpmfile.cjs
 
 log "Artifact ready"
 printf '%s\n' "$ARTIFACT_PATH"

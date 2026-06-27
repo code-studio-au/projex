@@ -12,6 +12,27 @@ type BrowserSmokeOptions = {
   onStatus?: (message: string) => void | Promise<void>;
 };
 
+function parseRequestedSections(argv: string[]) {
+  const sections = new Set<string>();
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--section') {
+      const value = argv[index + 1];
+      if (!value) throw new Error('Missing value after --section');
+      sections.add(value);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith('--section=')) {
+      sections.add(arg.slice('--section='.length));
+    }
+  }
+
+  return sections;
+}
+
 function hasFlag(argv: string[], flag: string) {
   return argv.includes(flag);
 }
@@ -205,11 +226,23 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
 
 async function main() {
   const argv = process.argv.slice(2);
+  const requestedSections = parseRequestedSections(argv);
   const useGeneratedFixtures = hasFlag(argv, '--use-generated-fixtures');
   const sweepStaleFixtures = hasFlag(argv, '--sweep-stale-fixtures');
   const cleanupOnly = hasFlag(argv, '--cleanup-stale-fixtures');
   const baseUrl = getSmokeConfiguredBaseUrl();
   let fixtures: SmokeFixtures | null = null;
+
+  if (requestedSections.size > 0) {
+    const unsupportedSections = Array.from(requestedSections).filter(
+      (section) => section !== 'basics'
+    );
+    if (unsupportedSections.length > 0) {
+      throw new Error(
+        `Browser smoke currently supports only the basics flow. Unsupported section(s): ${unsupportedSections.join(', ')}`
+      );
+    }
+  }
 
   try {
     if (cleanupOnly) {

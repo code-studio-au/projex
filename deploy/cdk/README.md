@@ -105,6 +105,21 @@ When running on AWS S3 itself, the app normally does not need:
 - `S3_SECRET_ACCESS_KEY`
 - `S3_FORCE_PATH_STYLE`
 
+## First Boot Result
+
+The EC2 host created by this stack now self-prepares into a deploy-ready baseline on first boot. User data installs:
+
+- Node.js 24
+- Corepack with pinned pnpm
+- nginx
+- `/opt/projex/releases` and `/opt/projex/shared/nginx-maintenance`
+- `/etc/projex/projex.env.example` and a placeholder `/etc/projex/projex.env` on first boot only
+- the `projex` systemd unit
+- a safe HTTP bootstrap nginx config
+- `/usr/local/bin/projex-provision-letsencrypt-cert` for the later HTTPS step
+
+That means a fresh CDK-created instance should be ready to receive the GitHub Actions artifact deploy flow without manual package installation or service-file setup.
+
 ## Notes
 
 - This stack now removes the unused NAT gateway and private app subnet tier to keep recurring baseline cost down.
@@ -117,4 +132,4 @@ When running on AWS S3 itself, the app normally does not need:
 - The export bucket includes a lifecycle rule as a safety net for stale objects, but the application still performs primary 24-hour job/object cleanup itself.
 - Non-production stack uses destructive defaults on destroy (`RemovalPolicy.DESTROY` for DB).
 - Production stack still retains DB (`RemovalPolicy.RETAIN`) and enables deletion protection, but it no longer forces Multi-AZ. If you need higher resilience, opt back into `-c dbMultiAz=true`.
-- Instance bootstraps Node + nginx only; application deploy remains the repo's artifact-based EC2 flow described in `docs/deployment-ec2.md` and `docs/staging-runbook.md`.
+- Instance bootstraps Node 24, pnpm, systemd, bootstrap nginx, and the Let's Encrypt helper; application deploy remains the repo's artifact-based EC2 flow described in `docs/deployment-ec2.md` and `docs/staging-runbook.md`.

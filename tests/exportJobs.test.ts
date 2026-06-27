@@ -113,7 +113,7 @@ function buildRow(overrides: Partial<ExportJobRow> = {}): ExportJobRow {
     started_at: '2026-06-26T00:00:01.000Z',
     completed_at: '2026-06-26T00:00:05.000Z',
     failed_at: null,
-    expires_at: '2026-06-27T00:00:05.000Z',
+    expires_at: '2099-06-27T00:00:05.000Z',
     notify_when_ready: false,
     notify_email: null,
     ready_notification_status: 'not_requested',

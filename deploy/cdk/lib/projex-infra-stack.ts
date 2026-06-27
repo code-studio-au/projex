@@ -10,6 +10,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
+import { buildHostBootstrapCommands } from './hostBootstrap.js';
 
 type ProjexInfraStackProps = StackProps & {
   envName: string;
@@ -78,16 +79,7 @@ export class ProjexInfraStack extends Stack {
     });
 
     const userData = ec2.UserData.forLinux();
-    userData.addCommands(
-      'set -euxo pipefail',
-      'dnf update -y || yum update -y',
-      'dnf install -y git nginx || yum install -y git nginx',
-      'curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -',
-      'dnf install -y nodejs || yum install -y nodejs',
-      'systemctl enable nginx',
-      'systemctl start nginx',
-      'echo "Projex instance bootstrap complete" > /var/log/projex-bootstrap.log'
-    );
+    userData.addCommands(...buildHostBootstrapCommands());
 
     const instance = new ec2.Instance(this, 'ProjexEc2', {
       vpc,

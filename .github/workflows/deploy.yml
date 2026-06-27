@@ -85,14 +85,17 @@ jobs:
       - name: Run application verification gate
         run: pnpm run verify:app
 
+      - name: Run CDK verification gate
+        run: pnpm run verify:cdk
+
       - name: Run database verification gate
         run: pnpm run verify:db:gate
 
-      - name: Run smoke verification gate
-        run: pnpm run verify:smoke:basics:skip-build
+      - name: Run full smoke verification gate
+        run: pnpm run verify:smoke:full:skip-build
 
       - name: Run browser smoke verification gate
-        run: pnpm run verify:smoke:browser:basics:skip-build
+        run: pnpm run verify:smoke:browser:full:skip-build
 
       - name: Create deploy artifact
         id: package

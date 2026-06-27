@@ -1,6 +1,9 @@
 [Unit]
 Description=Projex TanStack Start Server
 After=network.target
+ConditionPathExists=/etc/projex/projex.env
+ConditionPathExists=/opt/projex/current/package.json
+ConditionPathExists=/opt/projex/current/dist/server/server.js
 
 [Service]
 Type=simple

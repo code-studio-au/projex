@@ -1,6 +1,6 @@
 # EC2 Deployment Guide
 
-Use this guide for first-time EC2/RDS host provisioning. Once the host, systemd unit, nginx, and environment file exist, use `docs/staging-runbook.md` as the ongoing operational source of truth.
+Use this guide for first-time EC2/RDS host provisioning. Once the host, nginx, systemd service, environment file, and HTTPS certificate are ready, use `docs/staging-runbook.md` as the ongoing operational source of truth.
 
 ## 1) Provision
 
@@ -8,17 +8,24 @@ Use this guide for first-time EC2/RDS host provisioning. Once the host, systemd 
 - Security group allows inbound app traffic (or ALB only)
 - RDS Postgres reachable from EC2 subnet/security group
 
-## 2) Install runtime
+## 2) Host bootstrap
 
-- Install Node.js 24
-- Enable Corepack and install pnpm
-- Create app directories:
+If you provision the EC2 host through this repo's CDK stack, first boot now prepares the machine automatically. The bootstrap installs:
+
+- Node.js 24
+- Corepack + pinned pnpm
+- nginx
+- deploy directories:
   - `/opt/projex/releases`
   - `/opt/projex/shared/nginx-maintenance`
-  - `/opt/projex/current` as the active symlink target created by deploys
-- Keep a repo checkout available for first-time bootstrap and reference, or copy the needed deployment files from the repo:
-  - `deploy/systemd/projex.service`
-  - `deploy/nginx/projex.conf`
+  - `/etc/projex`
+  - `/var/www/certbot`
+- the `projex` systemd unit
+- a safe HTTP-only bootstrap nginx config with maintenance fallback and ACME challenge support
+- `/etc/projex/projex.env.example`
+- `/usr/local/bin/projex-provision-letsencrypt-cert`
+
+If you are preparing a host manually without CDK, mirror that same baseline before using the deploy workflow.
 
 ## 3) Configure environment
 
@@ -80,21 +87,27 @@ Sizing guidance:
 - artifact-based deploys remove the heaviest on-box build pressure because the instance no longer runs `pnpm run build` during each release
 - once deploys are artifact-based and the instance is mostly a runtime host, `t4g.micro` becomes much more realistic as a lowest-cost option, subject to your real traffic and memory profile
 
-## 4) Bootstrap + run
+## 4) Configure the real environment file
+
+CDK bootstrap installs `/etc/projex/projex.env.example` and, on first boot, copies it to `/etc/projex/projex.env` only if the real file does not already exist.
+
+Replace the placeholder values before your first application deploy:
 
 ```bash
-sudo mkdir -p /opt/projex/releases /opt/projex/shared/nginx-maintenance
-sudo chown -R ec2-user:ec2-user /opt/projex
-corepack enable
+sudoedit /etc/projex/projex.env
 ```
 
-Install systemd unit:
+The `projex` systemd unit will not start the app until both `/etc/projex/projex.env` and a deployed release under `/opt/projex/current` exist.
+
+## 5) Bootstrap + run
+
+For CDK-created hosts, no extra runtime bootstrap should be needed here beyond checking the files that user-data installed:
 
 ```bash
-sudo cp deploy/systemd/projex.service /etc/systemd/system/projex.service
-sudo systemctl daemon-reload
-sudo systemctl enable projex
-sudo systemctl start projex
+sudo systemctl status nginx --no-pager
+sudo systemctl status projex --no-pager
+ls -la /etc/projex
+ls -la /usr/local/bin/projex-provision-letsencrypt-cert
 ```
 
 Check logs:
@@ -107,11 +120,12 @@ sudo journalctl -u projex -f
 
 The systemd unit now points at `/opt/projex/current`, so each deploy activates a fully extracted release directory by switching that symlink after migrations succeed.
 
-If you front the app with nginx, proxy to `http://127.0.0.1:3000` and preserve `Host` plus standard forwarded headers.
+The bootstrap nginx config serves plain HTTP only and is intentionally safe to apply before DNS and certificates are ready. It proxies to `http://127.0.0.1:3000`, preserves standard forwarded headers, exposes `/.well-known/acme-challenge/` for Let's Encrypt, and keeps the maintenance-page fallback.
 
 Recommended:
 
-- use the nginx template at `deploy/nginx/projex.conf`
+- use the bootstrap nginx template at `deploy/nginx/projex.bootstrap.conf` for first boot
+- promote the host to the HTTPS nginx template rendered from `deploy/nginx/projex.https.conf.template` after certificate issuance
 - it includes:
   - HTTP -> HTTPS redirect
   - `server_tokens off`
@@ -132,7 +146,28 @@ In the recommended artifact-based layout, nginx serves those files from:
 
 Each deploy refreshes those shared maintenance assets from the release bundle before the service restart.
 
-## 4.1) Repeatable deploy commands
+## 5.1) Enable HTTPS with Let's Encrypt
+
+After your DNS points at the EC2 host and port `80` is reachable publicly, request the certificate:
+
+```bash
+sudo LETSENCRYPT_EMAIL=ops@example.com \
+  /usr/local/bin/projex-provision-letsencrypt-cert \
+  app.example.com \
+  www.app.example.com
+```
+
+That script:
+
+- installs `certbot` if needed
+- requests/renews the certificate with HTTP-01 validation through `/var/www/certbot`
+- renders the HTTPS nginx config from `/etc/projex/projex.nginx.https.conf.template`
+- reloads nginx
+- installs a renewal deploy hook that revalidates nginx and reloads it after renewals
+
+If you are working from a repo checkout on the host instead of the installed helper, the same logic also exists in `scripts/provision-letsencrypt-cert.sh`.
+
+## 5.2) Repeatable deploy commands
 
 Preferred path: build the release artifact in CI and deploy that artifact onto the host.
 
@@ -191,7 +226,7 @@ The legacy build-on-host command performs:
 
 Use `deploy:ec2:quick` only when `pnpm-lock.yaml` and runtime dependencies have not changed.
 
-## 5) Health checks
+## 6) Health checks
 
 - Liveness: `GET /api/health`
 - Readiness: `GET /api/ready`
@@ -199,12 +234,12 @@ Use `deploy:ec2:quick` only when `pnpm-lock.yaml` and runtime dependencies have 
 Use `/api/ready` for ALB target group health checks only if DB connectivity is required for serving.
 The readiness response body is intentionally minimal; rely on the HTTP status code rather than detailed JSON fields.
 
-## 5.1) CORS
+## 6.1) CORS
 
 - Same-origin requests are always allowed.
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` includes the exact origin.
 
-## 5.2) Security headers
+## 6.2) Security headers
 
 - For full browser hardening, terminate TLS at nginx and apply headers there for all HTML and API responses.
 - The repo template `deploy/nginx/projex.conf` includes:
@@ -265,9 +300,10 @@ pnpm run verify:ci
 That adds:
 
 - production build
+- CDK synth verification
 - disposable Postgres-backed DB integration tests
-- disposable Postgres-backed isolated server smoke basics
-- disposable Postgres-backed isolated browser smoke basics
+- disposable Postgres-backed isolated full server smoke
+- disposable Postgres-backed isolated full browser smoke
 
 If you run the browser smoke lane locally outside CI, install Chromium first:
 

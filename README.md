@@ -41,8 +41,8 @@ The repo now includes a GitHub Actions CI workflow at
   `pnpm audit --json`, `format:check`, `lint`, `typecheck`, Vitest
   app/runtime tests, and `build`
 - a Postgres-backed lane for `db:migrate`, `db:verify-types`, and `test:integration:db`
-- a disposable end-to-end lane for `smoke:server:disposable -- --section=basics`
-- a disposable browser smoke lane for `smoke:browser:disposable -- --section=basics`
+- a disposable end-to-end lane for the full generated-fixture server smoke sweep
+- a disposable browser smoke lane for the full browser-driven smoke flow
 
 Normal repo flow is now branch -> pull request -> green required checks -> merge.
 Direct pushes to protected `main` should be treated as an exception-only path.
@@ -62,8 +62,8 @@ That pipeline-shaped command runs:
 - typecheck and lint
 - production build
 - disposable Postgres-backed DB integration tests
-- disposable Postgres-backed end-to-end smoke for the `basics` section
-- disposable browser-driven smoke for the `basics` section
+- disposable Postgres-backed end-to-end smoke across every server smoke section
+- disposable browser-driven smoke across the full supported browser smoke flow
 
 Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`,
 `pnpm run smoke:server:disposable`, and
@@ -71,10 +71,10 @@ Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`,
 local Chromium install via `pnpm exec playwright install --with-deps chromium`
 the first time you run it on a machine.
 
-The GitHub Actions workflow currently limits both server and browser smoke
-coverage to the generated-fixture `basics` section so CI keeps a good
-signal-to-runtime ratio without turning every push into a full long-running
-application sweep.
+GitHub Actions CI and the deploy-artifact workflow now enforce the full
+generated-fixture server smoke sweep plus the full supported browser smoke
+flow, so local `verify:ci` and hosted gates stay aligned on what can merge and
+ship.
 
 For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](docs/local-services.md).
 
@@ -92,8 +92,9 @@ Local-only UI toggles such as `VITE_ENABLE_DEVTOOLS` live in
 The short version:
 
 - `pnpm run verify:security` for the fast non-Docker safety pass
-- `pnpm run verify:ci` for the fuller local reproduction of CI plus deploy-artifact checks
+- `pnpm run verify:ci` for the fuller local reproduction of CI plus deploy-artifact and CDK checks
 - `pnpm run verify:smoke:full` for the full disposable server smoke sweep across every section
+- `pnpm run verify:smoke:browser:full` for the full disposable browser smoke sweep
 - `pnpm test` for the fast Vitest app/runtime lane
 - `pnpm run coverage` for the Vitest-owned unit coverage gate and LCOV output
 - `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
@@ -102,6 +103,8 @@ The short version:
 - `pnpm run smoke:server` and `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security` for deployed-environment verification
 
 For the full operational verification workflow, use [docs/staging-runbook.md](docs/staging-runbook.md).
+
+For EC2 provisioning and bootstrap specifics, including the self-preparing CDK host baseline and the Let's Encrypt promotion step, use [docs/deployment-ec2.md](docs/deployment-ec2.md).
 
 `pnpm test` now runs the Vite-owned app/runtime suite under Vitest. DB-backed integration remains a separate Node/disposable lane so route loading and `import.meta` behavior stay aligned with the actual app runtime. For the normal local workflow, prefer the automated disposable runner:
 

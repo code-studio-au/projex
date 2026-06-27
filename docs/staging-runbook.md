@@ -24,8 +24,8 @@ Before handing this repo to another developer or team, make sure:
   - only nginx/public ports should be browser-facing
 - the eventual pipeline shape is clear:
   - local/CI gate: `pnpm run verify:ci`
-  - GitHub Actions CI: static checks, DB verification, disposable server smoke basics, and disposable browser smoke basics
-  - GitHub Actions deploy artifact build: reruns `verify:app`, `verify:db:gate`, disposable server smoke basics, and disposable browser smoke basics before packaging
+  - GitHub Actions CI: static checks, CDK verification, DB verification, full disposable server smoke, and full disposable browser smoke
+  - GitHub Actions deploy artifact build: reruns `verify:app`, `verify:cdk`, `verify:db:gate`, full disposable server smoke, and full disposable browser smoke before packaging
   - deployed-environment checks: `pnpm run smoke:server` and `pnpm run verify:deploy-security`
 - normal code flow is branch -> PR -> green checks -> merge; protected `main` is not the routine delivery path
 - the first-admin bootstrap path is understood for fresh databases:
@@ -54,6 +54,7 @@ Before cutting over or handing a deployed environment to another developer, conf
 
 - `DATABASE_URL` points at the target Postgres instance.
 - `NODE_ENV=production` is supplied by runtime env or systemd, not committed repo env files consumed by Vite.
+- `/etc/projex/projex.env` contains real values rather than the bootstrap example placeholders.
 - `BETTER_AUTH_SECRET` is present and generated from a strong random value.
 - `BETTER_AUTH_URL` is the canonical public origin users will visit.
 - `BETTER_AUTH_TRUSTED_ORIGINS` contains only the canonical public origin(s) that should be allowed to complete auth flows.
@@ -65,6 +66,7 @@ Before cutting over or handing a deployed environment to another developer, conf
 - The first app-side global superadmin has been created with `pnpm run auth:bootstrap-user` on fresh databases.
 - Unauthorized requests return `401` and scoped resources are not visible across companies/projects.
 - The public proxy uses `deploy/nginx/projex.conf` or equivalent HTTPS redirect, forwarded headers, hardening headers, and maintenance fallback behavior.
+- If the host was created through CDK, the HTTP bootstrap nginx config has been promoted to HTTPS with `/usr/local/bin/projex-provision-letsencrypt-cert`.
 - `/api/health` returns `200` when the process is running.
 - `/api/ready` returns `200` only when environment and database checks pass.
 - `/api/ready` exposes minimal public detail; use the status code for probes.
@@ -80,8 +82,8 @@ How to think about those commands:
 
 - `pnpm run verify:security` is the fast non-Docker pass for repo config, audit, tests, typecheck, and lint.
 - `pnpm run verify:ci` is the fuller local/CI-shaped pass. It adds build,
-  disposable DB integration tests, isolated disposable server smoke basics, and
-  isolated disposable browser smoke basics.
+  CDK synth verification, disposable DB integration tests, isolated full
+  disposable server smoke, and isolated full disposable browser smoke.
 - Both disposable DB steps require local Docker access.
 - Local browser smoke also needs `pnpm exec playwright install --with-deps chromium`
   the first time you run it on a machine.
