@@ -102,6 +102,24 @@ async function waitForLocation(
   throw new Error(`${message}. Current URL: ${page.url()}`);
 }
 
+async function waitForTabSelection(
+  page: import('playwright').Page,
+  name: string,
+  message: string
+) {
+  const tab = page.getByRole('tab', { name });
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < 15_000) {
+    if ((await tab.getAttribute('aria-selected')) === 'true') {
+      return;
+    }
+    await page.waitForTimeout(250);
+  }
+
+  throw new Error(`${message}. Current URL: ${page.url()}`);
+}
+
 async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
   const companyId = requireEnv('PROJEX_SMOKE_COMPANY_ID');
   const projectId = requireEnv('PROJEX_SMOKE_PROJECT_ID');
@@ -173,11 +191,14 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     );
 
     await page.getByRole('tab', { name: 'Projects & programmes' }).click();
+    await waitForTabSelection(
+      page,
+      'Projects & programmes',
+      'Company dashboard did not select the projects tab'
+    );
     await waitForLocation(
       page,
-      ({ pathname, search }) =>
-        pathname === `/c/${companyId}` &&
-        new URLSearchParams(search).get('tab') === 'projects',
+      ({ pathname }) => pathname === `/c/${companyId}`,
       'Company dashboard did not switch to the projects tab'
     );
 
