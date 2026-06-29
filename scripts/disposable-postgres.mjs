@@ -20,6 +20,13 @@ const DEFAULT_BETTER_AUTH_SECRET =
   process.env.PROJEX_TEST_BETTER_AUTH_SECRET ||
   'projex-disposable-test-secret-0123456789';
 
+/**
+ * @typedef {object} CreateDatabaseExecArgsOptions
+ * @property {string} user
+ * @property {string} password
+ * @property {string} database
+ */
+
 function fail(message) {
   throw new Error(message);
 }
@@ -64,6 +71,39 @@ function parseDockerPort(output) {
 
 function makeConnectionString({ user, password, host, port, database }) {
   return `postgres://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
+}
+
+function quotePostgresIdentifier(identifier) {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+/**
+ * Builds the docker exec argv for creating a database inside the disposable
+ * Postgres container over explicit TCP rather than relying on socket defaults.
+ *
+ * @param {CreateDatabaseExecArgsOptions} options
+ * @returns {string[]}
+ */
+export function buildCreateDatabaseExecArgs({ user, password, database }) {
+  return [
+    'exec',
+    '-e',
+    `PGPASSWORD=${password}`,
+    'PLACEHOLDER_CONTAINER',
+    'psql',
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-h',
+    '127.0.0.1',
+    '-p',
+    '5432',
+    '-U',
+    user,
+    '-d',
+    'postgres',
+    '-c',
+    `CREATE DATABASE ${quotePostgresIdentifier(database)}`,
+  ];
 }
 
 export function ensureDockerAvailable() {
@@ -133,14 +173,13 @@ export async function startDisposablePostgres(options = {}) {
       return makeConnectionString({ ...state, database });
     },
     async createDatabase(database) {
-      runCommand('docker', [
-        'exec',
-        containerName,
-        'createdb',
-        '-U',
+      const args = buildCreateDatabaseExecArgs({
         user,
+        password,
         database,
-      ]);
+      });
+      args[3] = containerName;
+      runCommand('docker', args);
     },
     async stop() {
       try {
@@ -250,6 +289,10 @@ async function waitForPostgres(state, timeoutMs = 30_000) {
         'exec',
         state.containerName,
         'pg_isready',
+        '-h',
+        '127.0.0.1',
+        '-p',
+        '5432',
         '-U',
         state.user,
         '-d',
