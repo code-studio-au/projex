@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { buildCreateDatabaseExecArgs } from '../scripts/disposable-postgres.mjs';
+import { buildCreateDatabaseExecArgs } from './helpers/disposablePostgres.ts';
 
 describe('buildCreateDatabaseExecArgs', () => {
   test('uses explicit tcp transport and password auth for container-local create database', () => {
