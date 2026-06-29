@@ -1,6 +1,6 @@
 # Projex
 
-[![CI](https://github.com/code-studio-au/projex/actions/workflows/ci.yml/badge.svg)](https://github.com/code-studio-au/projex/actions/workflows/ci.yml)
+[![CI](https://github.com/InsideOutInstitute/project-expense-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/InsideOutInstitute/project-expense-tracker/actions/workflows/ci.yml)
 
 Project and grant budget tracking app.
 
