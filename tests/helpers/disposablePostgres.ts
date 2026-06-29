@@ -14,8 +14,7 @@ type DisposablePostgresModule = {
   ) => string[];
 };
 
-const { buildCreateDatabaseExecArgs } = require(
-  '../../scripts/disposable-postgres.mjs'
-) as DisposablePostgresModule;
+const { buildCreateDatabaseExecArgs } =
+  require('../../scripts/disposable-postgres.mjs') as DisposablePostgresModule;
 
 export { buildCreateDatabaseExecArgs };
