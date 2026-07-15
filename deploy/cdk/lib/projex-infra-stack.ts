@@ -163,25 +163,29 @@ export class ProjexInfraStack extends Stack {
       ],
     });
 
-    const deployArtifactBucket = new s3.Bucket(this, 'ProjexDeployArtifactBucket', {
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      enforceSSL: true,
-      versioned: false,
-      removalPolicy:
-        props.envName === 'production'
-          ? RemovalPolicy.RETAIN
-          : RemovalPolicy.DESTROY,
-      autoDeleteObjects: props.envName !== 'production',
-      lifecycleRules: [
-        {
-          id: 'ExpireDeployArtifacts',
-          enabled: true,
-          expiration: Duration.days(7),
-          abortIncompleteMultipartUploadAfter: Duration.days(1),
-        },
-      ],
-    });
+    const deployArtifactBucket = new s3.Bucket(
+      this,
+      'ProjexDeployArtifactBucket',
+      {
+        encryption: s3.BucketEncryption.S3_MANAGED,
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        enforceSSL: true,
+        versioned: false,
+        removalPolicy:
+          props.envName === 'production'
+            ? RemovalPolicy.RETAIN
+            : RemovalPolicy.DESTROY,
+        autoDeleteObjects: props.envName !== 'production',
+        lifecycleRules: [
+          {
+            id: 'ExpireDeployArtifacts',
+            enabled: true,
+            expiration: Duration.days(7),
+            abortIncompleteMultipartUploadAfter: Duration.days(1),
+          },
+        ],
+      }
+    );
 
     if (db.secret) {
       db.secret.grantRead(role);
