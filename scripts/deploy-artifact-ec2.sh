@@ -10,6 +10,9 @@ HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/api/health}"
 READY_URL="${READY_URL:-http://127.0.0.1:3000/api/ready}"
 SHARED_DIR="${SHARED_DIR:-${APP_ROOT}/shared}"
 KEEP_RELEASES="${KEEP_RELEASES:-5}"
+HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-60}"
+READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-60}"
+HTTP_CHECK_INTERVAL_SECONDS="${HTTP_CHECK_INTERVAL_SECONDS:-2}"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -39,6 +42,24 @@ require_file() {
   if [[ ! -f "$path" ]]; then
     fail "Missing required file: $path"
   fi
+}
+
+wait_for_http_ok() {
+  local url="$1"
+  local timeout_seconds="$2"
+  local label="$3"
+  local deadline=$((SECONDS + timeout_seconds))
+
+  while (( SECONDS < deadline )); do
+    if curl --fail --show-error --silent "$url"; then
+      printf '\n'
+      return 0
+    fi
+    sleep "$HTTP_CHECK_INTERVAL_SECONDS"
+  done
+
+  printf '\n'
+  return 1
 }
 
 rollback_release() {
@@ -126,18 +147,16 @@ log "Waiting for service to settle"
 sleep 3
 
 log "Health check"
-if ! curl --fail --show-error --silent "$HEALTH_URL"; then
+if ! wait_for_http_ok "$HEALTH_URL" "$HEALTH_TIMEOUT_SECONDS" "health"; then
   rollback_release
   fail "Health check failed"
 fi
-printf '\n'
 
 log "Readiness check"
-if ! curl --fail --show-error --silent "$READY_URL"; then
+if ! wait_for_http_ok "$READY_URL" "$READY_TIMEOUT_SECONDS" "readiness"; then
   rollback_release
   fail "Readiness check failed"
 fi
-printf '\n'
 
 log "Service status"
 sudo systemctl status "$SERVICE_NAME" --no-pager -l
