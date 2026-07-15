@@ -186,16 +186,18 @@ GitHub Actions manual workflow:
 
 When enabling the `ec2` mode, set repository or environment secrets for:
 
-- `EC2_HOST`
-- `EC2_USER`
-- `EC2_SSH_PRIVATE_KEY`
-- optional overrides such as `EC2_PORT`, `EC2_APP_ROOT`, `EC2_ENV_FILE`, `EC2_SERVICE_NAME`, `EC2_HEALTH_URL`, `EC2_READY_URL`, `EC2_KEEP_RELEASES`, and `EC2_SSH_KNOWN_HOST`
+- preferred AWS auth: `AWS_DEPLOY_ROLE_ARN`
+- fallback AWS auth: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`
+- `EC2_INSTANCE_ID`
+- `EC2_DEPLOY_ARTIFACT_BUCKET`
+- optional overrides such as `EC2_APP_ROOT`, `EC2_ENV_FILE`, `EC2_SERVICE_NAME`, `EC2_HEALTH_URL`, `EC2_READY_URL`, and `EC2_KEEP_RELEASES`
 
 The artifact-based release flow performs:
 
 - build once in GitHub Actions
 - package a deploy tarball containing `dist`, runtime source, migrations, scripts, and nginx maintenance assets
-- upload the artifact to the target host
+- upload the artifact to an S3 handoff bucket
+- dispatch an SSM shell command to the target EC2 instance
 - extract into `/opt/projex/releases/<release-id>`
 - `pnpm install --frozen-lockfile --prod`
 - env load from `/etc/projex/projex.env`

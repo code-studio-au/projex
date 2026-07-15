@@ -6,6 +6,7 @@ This CDK app provisions a staging/prod baseline:
 - EC2 app host (public subnet, EIP, SSM enabled)
 - RDS Postgres (private isolated subnet)
 - S3 bucket for company export workbook objects
+- S3 bucket for temporary deploy artifact handoff
 - Security groups (DB only accessible from app SG)
 - Secrets Manager DB credentials
 
@@ -87,16 +88,22 @@ AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:deploy -- \
 After deploy, collect:
 
 - `Ec2PublicIp`
+- `Ec2InstanceId`
 - `DbEndpointAddress`
 - `DbEndpointPort`
 - `DbSecretArn`
 - `ExportBucketName`
+- `DeployArtifactBucketName`
 
 Use `DbSecretArn` to fetch DB credentials and build `DATABASE_URL` for your app env.
 Use `ExportBucketName` with:
 
 - `S3_BUCKET=<ExportBucketName>`
 - `S3_REGION=<aws region, for example ap-southeast-2>`
+
+Use `DeployArtifactBucketName` with:
+
+- `EC2_DEPLOY_ARTIFACT_BUCKET=<DeployArtifactBucketName>`
 
 When running on AWS S3 itself, the app normally does not need:
 

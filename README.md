@@ -74,7 +74,8 @@ the first time you run it on a machine.
 GitHub Actions CI and the deploy-artifact workflow now enforce the full
 generated-fixture server smoke sweep plus the full supported browser smoke
 flow, so local `verify:ci` and hosted gates stay aligned on what can merge and
-ship.
+ship. The supported EC2 deploy handoff is artifact-based and now uses SSM
+instead of SSH for remote activation.
 
 For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](docs/local-services.md).
 

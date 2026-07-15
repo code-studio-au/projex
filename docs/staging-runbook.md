@@ -114,6 +114,14 @@ When auth credentials are provided, the verifier also checks that sign-in sets `
 
 GitHub Actions deploys expect these additional environment secrets when `deploy_target=ec2` is used:
 
+- preferred AWS auth:
+  - `AWS_DEPLOY_ROLE_ARN`
+- fallback AWS auth:
+  - `AWS_ACCESS_KEY_ID`
+  - `AWS_SECRET_ACCESS_KEY`
+  - optional `AWS_SESSION_TOKEN`
+- `EC2_INSTANCE_ID`
+- `EC2_DEPLOY_ARTIFACT_BUCKET`
 - `EC2_PUBLIC_BASE_URL`
   - The public HTTPS origin that users visit, for example `https://projectexpensetracker.com`
   - Used by the post-deploy `verify-deploy-security` step from the runner
@@ -245,7 +253,8 @@ From `/opt/projex`:
 Preferred deploy model:
 
 - build once in GitHub Actions
-- upload the prebuilt release artifact
+- upload the prebuilt release artifact to S3
+- dispatch an SSM command to the EC2 host
 - install runtime dependencies only on the host
 - run migrations
 - switch the `/opt/projex/current` symlink

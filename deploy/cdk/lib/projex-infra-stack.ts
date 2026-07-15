@@ -163,10 +163,31 @@ export class ProjexInfraStack extends Stack {
       ],
     });
 
+    const deployArtifactBucket = new s3.Bucket(this, 'ProjexDeployArtifactBucket', {
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      versioned: false,
+      removalPolicy:
+        props.envName === 'production'
+          ? RemovalPolicy.RETAIN
+          : RemovalPolicy.DESTROY,
+      autoDeleteObjects: props.envName !== 'production',
+      lifecycleRules: [
+        {
+          id: 'ExpireDeployArtifacts',
+          enabled: true,
+          expiration: Duration.days(7),
+          abortIncompleteMultipartUploadAfter: Duration.days(1),
+        },
+      ],
+    });
+
     if (db.secret) {
       db.secret.grantRead(role);
     }
     exportBucket.grantReadWrite(role);
+    deployArtifactBucket.grantRead(role);
 
     new CfnOutput(this, 'VpcId', { value: vpc.vpcId });
     new CfnOutput(this, 'Ec2InstanceId', { value: instance.instanceId });
@@ -182,6 +203,10 @@ export class ProjexInfraStack extends Stack {
     new CfnOutput(this, 'ExportBucketName', {
       value: exportBucket.bucketName,
       description: 'S3 bucket for company export workbook objects',
+    });
+    new CfnOutput(this, 'DeployArtifactBucketName', {
+      value: deployArtifactBucket.bucketName,
+      description: 'S3 bucket for temporary deploy artifact handoff to EC2',
     });
   }
 }

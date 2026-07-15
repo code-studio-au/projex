@@ -21,6 +21,11 @@ on:
         required: true
         default: staging
         type: string
+      aws_region:
+        description: AWS region for artifact handoff and SSM deploy
+        required: true
+        default: ap-southeast-2
+        type: string
 
 concurrency:
   group: deploy-${{ inputs.environment_name }}
@@ -28,6 +33,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   build-artifact:
@@ -133,76 +139,158 @@ jobs:
         with:
           node-version: 24
 
+      - name: Configure AWS credentials from OIDC
+        if: ${{ secrets.AWS_DEPLOY_ROLE_ARN != '' }}
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Configure AWS credentials from static secrets
+        if: ${{ secrets.AWS_DEPLOY_ROLE_ARN == '' }}
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+
       - name: Download deploy artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ${{ needs.build-artifact.outputs.artifact-name }}
           path: artifacts
 
-      - name: Configure SSH
+      - name: Upload artifact to deploy bucket
+        id: upload-artifact-s3
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOST: ${{ secrets.EC2_SSH_KNOWN_HOST }}
+          AWS_REGION_DEPLOY: ${{ inputs.aws_region }}
+          DEPLOY_ARTIFACT_BUCKET: ${{ secrets.EC2_DEPLOY_ARTIFACT_BUCKET }}
         run: |
-          test -n "$SSH_PRIVATE_KEY"
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
-          chmod 600 "$HOME/.ssh/id_ed25519"
-          if [ -n "$SSH_KNOWN_HOST" ]; then
-            printf '%s\n' "$SSH_KNOWN_HOST" > "$HOME/.ssh/known_hosts"
-          else
-            ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> "$HOME/.ssh/known_hosts"
-          fi
-          chmod 600 "$HOME/.ssh/known_hosts"
+          test -n "$DEPLOY_ARTIFACT_BUCKET"
+          ARTIFACT_NAME="${{ needs.build-artifact.outputs.artifact-name }}"
+          S3_KEY="deploy-artifacts/${{ needs.build-artifact.outputs.release-id }}/${ARTIFACT_NAME}"
+          aws s3 cp \
+            --region "$AWS_REGION_DEPLOY" \
+            "artifacts/${ARTIFACT_NAME}" \
+            "s3://${DEPLOY_ARTIFACT_BUCKET}/${S3_KEY}"
+          echo "artifact_s3_uri=s3://${DEPLOY_ARTIFACT_BUCKET}/${S3_KEY}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload artifact to EC2
+      - name: Dispatch deploy command over SSM
+        id: dispatch-ssm
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_PORT: ${{ secrets.EC2_PORT }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-        run: |
-          PORT="${EC2_PORT:-22}"
-          scp -P "$PORT" "artifacts/${{ needs.build-artifact.outputs.artifact-name }}" \
-            "${EC2_USER}@${EC2_HOST}:/tmp/${{ needs.build-artifact.outputs.artifact-name }}"
-
-      - name: Deploy artifact on EC2
-        env:
+          ARTIFACT_AWS_REGION: ${{ inputs.aws_region }}
+          ARTIFACT_S3_URI: ${{ steps.upload-artifact-s3.outputs.artifact_s3_uri }}
           EC2_APP_ROOT: ${{ secrets.EC2_APP_ROOT }}
           EC2_ENV_FILE: ${{ secrets.EC2_ENV_FILE }}
           EC2_HEALTH_URL: ${{ secrets.EC2_HEALTH_URL }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_PORT: ${{ secrets.EC2_PORT }}
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
           EC2_READY_URL: ${{ secrets.EC2_READY_URL }}
           EC2_SERVICE_NAME: ${{ secrets.EC2_SERVICE_NAME }}
-          EC2_USER: ${{ secrets.EC2_USER }}
           EC2_KEEP_RELEASES: ${{ secrets.EC2_KEEP_RELEASES }}
+          RELEASE_ID: ${{ needs.build-artifact.outputs.release-id }}
         run: |
-          PORT="${EC2_PORT:-22}"
+          test -n "$EC2_INSTANCE_ID"
+          test -n "$ARTIFACT_S3_URI"
           APP_ROOT="${EC2_APP_ROOT:-/opt/projex}"
           ENV_FILE="${EC2_ENV_FILE:-/etc/projex/projex.env}"
           SERVICE_NAME="${EC2_SERVICE_NAME:-projex}"
           HEALTH_URL="${EC2_HEALTH_URL:-http://127.0.0.1:3000/api/health}"
           READY_URL="${EC2_READY_URL:-http://127.0.0.1:3000/api/ready}"
           KEEP_RELEASES="${EC2_KEEP_RELEASES:-5}"
-          RELEASE_DIR="${APP_ROOT}/releases/${{ needs.build-artifact.outputs.release-id }}"
-          ARTIFACT_PATH="/tmp/${{ needs.build-artifact.outputs.artifact-name }}"
-          ssh -p "$PORT" "${EC2_USER}@${EC2_HOST}" "
-            set -euo pipefail
-            mkdir -p '${APP_ROOT}/releases' '${APP_ROOT}/shared'
-            rm -rf '${RELEASE_DIR}'
-            mkdir -p '${RELEASE_DIR}'
-            tar -xzf '${ARTIFACT_PATH}' -C '${RELEASE_DIR}'
-            rm -f '${ARTIFACT_PATH}'
-            APP_ROOT='${APP_ROOT}' \
-            RELEASE_DIR='${RELEASE_DIR}' \
-            ENV_FILE='${ENV_FILE}' \
-            SERVICE_NAME='${SERVICE_NAME}' \
-            HEALTH_URL='${HEALTH_URL}' \
-            READY_URL='${READY_URL}' \
-            KEEP_RELEASES='${KEEP_RELEASES}' \
-            '${RELEASE_DIR}/scripts/deploy-artifact-ec2.sh'
-          "
+          RELEASE_DIR="${APP_ROOT}/releases/${RELEASE_ID}"
+          SCRIPT_B64="$(base64 -w 0 scripts/deploy-artifact-ssm.sh)"
+          export APP_ROOT ENV_FILE SERVICE_NAME HEALTH_URL READY_URL KEEP_RELEASES RELEASE_DIR SCRIPT_B64
+          python3 - <<'PY' > /tmp/projex-ssm-commands.json
+          import json
+          import os
+          import shlex
+
+          env_values = {
+              "APP_ROOT": os.environ["APP_ROOT"],
+              "RELEASE_DIR": os.environ["RELEASE_DIR"],
+              "ENV_FILE": os.environ["ENV_FILE"],
+              "SERVICE_NAME": os.environ["SERVICE_NAME"],
+              "HEALTH_URL": os.environ["HEALTH_URL"],
+              "READY_URL": os.environ["READY_URL"],
+              "KEEP_RELEASES": os.environ["KEEP_RELEASES"],
+              "ARTIFACT_S3_URI": os.environ["ARTIFACT_S3_URI"],
+              "ARTIFACT_AWS_REGION": os.environ["ARTIFACT_AWS_REGION"],
+          }
+          env_prefix = " ".join(
+              f"{key}={shlex.quote(value)}" for key, value in env_values.items()
+          )
+          commands = [
+              "set -euo pipefail",
+              "cat <<'PROJEX_SSM_SCRIPT_B64' >/tmp/projex-deploy-artifact-ssm.sh.b64",
+              os.environ["SCRIPT_B64"],
+              "PROJEX_SSM_SCRIPT_B64",
+              "base64 -d /tmp/projex-deploy-artifact-ssm.sh.b64 >/tmp/projex-deploy-artifact-ssm.sh",
+              "chmod 0755 /tmp/projex-deploy-artifact-ssm.sh",
+              f"{env_prefix} bash /tmp/projex-deploy-artifact-ssm.sh",
+          ]
+          print(json.dumps({"commands": commands}))
+          PY
+          COMMAND_ID="$(
+            aws ssm send-command \
+              --region "${{ inputs.aws_region }}" \
+              --instance-ids "$EC2_INSTANCE_ID" \
+              --document-name AWS-RunShellScript \
+              --comment "Projex deploy ${RELEASE_ID}" \
+              --parameters file:///tmp/projex-ssm-commands.json \
+              --query 'Command.CommandId' \
+              --output text
+          )"
+          echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for SSM deploy completion
+        env:
+          AWS_REGION_DEPLOY: ${{ inputs.aws_region }}
+          COMMAND_ID: ${{ steps.dispatch-ssm.outputs.command_id }}
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+        run: |
+          test -n "$COMMAND_ID"
+          test -n "$EC2_INSTANCE_ID"
+          while true; do
+            STATUS="$(
+              aws ssm get-command-invocation \
+                --region "$AWS_REGION_DEPLOY" \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$EC2_INSTANCE_ID" \
+                --query 'Status' \
+                --output text 2>/dev/null || true
+            )"
+            case "$STATUS" in
+              ""|Pending|InProgress|Delayed)
+                sleep 10
+                ;;
+              Success)
+                aws ssm get-command-invocation \
+                  --region "$AWS_REGION_DEPLOY" \
+                  --command-id "$COMMAND_ID" \
+                  --instance-id "$EC2_INSTANCE_ID" \
+                  --query 'StandardOutputContent' \
+                  --output text
+                break
+                ;;
+              *)
+                aws ssm get-command-invocation \
+                  --region "$AWS_REGION_DEPLOY" \
+                  --command-id "$COMMAND_ID" \
+                  --instance-id "$EC2_INSTANCE_ID" \
+                  --query 'StandardOutputContent' \
+                  --output text || true
+                aws ssm get-command-invocation \
+                  --region "$AWS_REGION_DEPLOY" \
+                  --command-id "$COMMAND_ID" \
+                  --instance-id "$EC2_INSTANCE_ID" \
+                  --query 'StandardErrorContent' \
+                  --output text || true
+                echo "SSM deploy failed with status: $STATUS" >&2
+                exit 1
+                ;;
+            esac
+          done
 
       - name: Verify deployed public surface
         env:
