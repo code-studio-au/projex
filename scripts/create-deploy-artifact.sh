@@ -28,6 +28,7 @@ require_path "scripts/env-file.mjs"
 require_path "scripts/node-runtime.mjs"
 require_path "scripts/bootstrap-app-user.mjs"
 require_path "scripts/link-auth-user.mjs"
+require_path "scripts/smoke-server.mjs"
 require_path "deploy/nginx/maintenance.html"
 require_path "deploy/nginx/maintenance.js"
 require_path "package.json"
@@ -46,6 +47,7 @@ tar -czf "$ARTIFACT_PATH" \
   scripts/node-runtime.mjs \
   scripts/bootstrap-app-user.mjs \
   scripts/link-auth-user.mjs \
+  scripts/smoke-server.mjs \
   scripts/deploy-artifact-ec2.sh \
   deploy/nginx \
   package.json \
