@@ -103,6 +103,30 @@ jobs:
       - name: Run browser smoke verification gate
         run: pnpm run verify:smoke:browser:full:skip-build
 
+      - name: Rebuild production deploy artifact payload
+        env:
+          NODE_ENV: production
+          BETTER_AUTH_URL: https://projex.test.invalid
+          BETTER_AUTH_TRUSTED_ORIGINS: https://projex.test.invalid
+          PROJEX_APP_BASE_URL: https://projex.test.invalid
+          PROJEX_AUTH_RESET_REDIRECT_URL: https://projex.test.invalid/reset-password
+          PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL: https://projex.test.invalid/verify-email-change
+          PROJEX_ENABLE_DEV_ENDPOINTS: 'false'
+          PROJEX_ENABLE_SMOKE_TOOLS: 'false'
+        run: pnpm run build
+
+      - name: Rebuild production deploy artifact payload
+        env:
+          NODE_ENV: production
+          BETTER_AUTH_URL: https://projex.test.invalid
+          BETTER_AUTH_TRUSTED_ORIGINS: https://projex.test.invalid
+          PROJEX_APP_BASE_URL: https://projex.test.invalid
+          PROJEX_AUTH_RESET_REDIRECT_URL: https://projex.test.invalid/reset-password
+          PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL: https://projex.test.invalid/verify-email-change
+          PROJEX_ENABLE_DEV_ENDPOINTS: 'false'
+          PROJEX_ENABLE_SMOKE_TOOLS: 'false'
+        run: pnpm run build
+
       - name: Create deploy artifact
         id: package
         run: |

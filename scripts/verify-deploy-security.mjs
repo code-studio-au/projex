@@ -49,9 +49,11 @@ async function verifyHtmlHeaders() {
     login.headers,
     'content-security-policy',
     (value) =>
-      value.includes("script-src 'self' 'nonce-") &&
+      value.includes("script-src 'nonce-") &&
+      value.includes("'strict-dynamic'") &&
       value.includes("script-src-attr 'none'") &&
       value.includes("style-src 'self' 'unsafe-inline'") &&
+      value.includes("style-src-elem 'self' 'unsafe-inline'") &&
       value.includes("style-src-attr 'unsafe-inline'"),
     'CSP header is missing the expected nonce-based directives'
   );
