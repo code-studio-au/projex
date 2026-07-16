@@ -142,8 +142,9 @@ For the GitHub environment that will run `.github/workflows/deploy.yml`, set:
 - optional overrides: `EC2_APP_ROOT`, `EC2_ENV_FILE`, `EC2_SERVICE_NAME`,
   `EC2_HEALTH_URL`, `EC2_READY_URL`, `EC2_KEEP_RELEASES`
 
-Keep `sshCidr` empty unless you explicitly want break-glass SSH ingress. The
-intended day-to-day deploy path is SSM, not SSH.
+Keep `sshCidr` empty unless you have a separate operational need for SSH
+outside the repo's supported deployment flow. The supported deployment path is
+SSM, not SSH.
 
 ## Notes
 

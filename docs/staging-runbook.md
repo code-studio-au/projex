@@ -95,6 +95,17 @@ Post-deploy verification on the target runtime:
 pnpm run smoke:server
 ```
 
+For the default repeatable path on a deployed EC2 host, prefer generated
+fixtures from the activated release:
+
+```bash
+cd /opt/projex/current
+sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; pnpm run smoke:server:generated'
+```
+
+The deploy artifact now includes the server smoke CLI entrypoint, so these
+commands are expected to work directly on-host after a successful deploy.
+
 Public deployment-surface verification:
 
 ```bash
@@ -194,7 +205,9 @@ If you already have a fresh build and only want to rerun the sweep itself:
 pnpm run verify:smoke:full:skip-build
 ```
 
-Keep smoke credentials in `.env.smoke.local` at the repo root. On EC2 that is `/opt/projex/.env.smoke.local`.
+Keep smoke credentials in `.env.smoke.local` at the active repo root. On EC2
+that is `/opt/projex/current/.env.smoke.local`, because the packaged smoke CLI
+loads overrides from the activated release working directory.
 Generated fixture runs still require the normal deployed runtime env, including `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL`. If interrupted smoke runs leave data behind, run:
 
 ```bash
@@ -268,12 +281,8 @@ Notes:
 
 ## Deploy
 
-From `/opt/projex`:
-
-```bash
-# Preferred: trigger the manual GitHub Actions deploy workflow
-# .github/workflows/deploy.yml
-```
+Preferred: trigger the manual GitHub Actions deploy workflow
+`.github/workflows/deploy.yml`.
 
 Preferred deploy model:
 
@@ -285,32 +294,18 @@ Preferred deploy model:
 - switch the `/opt/projex/current` symlink
 - restart the service
 
+The activated release under `/opt/projex/current` also includes the server
+smoke CLI entrypoint, so post-deploy smoke can run against the real deployed
+runtime without requiring a separate repo checkout on the host.
+
 The deploy runner does not SSH into the box. The only moving parts are:
 
 - GitHub Actions runner with AWS credentials
 - S3 deploy handoff bucket
 - SSM-enabled EC2 instance profile with access to read that bucket
 
-Legacy fallback from a full repo checkout:
-
-```bash
-pnpm run deploy:ec2
-pnpm run deploy:ec2:quick
-```
-
-## Manual Deploy Fallback
-
-```bash
-cd /opt/projex
-git pull --ff-only
-sudo sh -c 'cd /opt/projex && set -a && . /etc/projex/projex.env && set +a && pnpm run build'
-sudo systemctl restart projex
-sudo systemctl status projex --no-pager -l
-```
-
-Use the manual fallback only for break-glass recovery or when the GitHub
-workflow itself is unavailable. The normal supported production path is the
-artifact + S3 + SSM workflow.
+This is the single supported deployment path. The repo no longer supports a
+build-on-host fallback for routine or emergency releases.
 
 ## Post-Deploy Smoke Test
 
@@ -334,7 +329,7 @@ artifact + S3 + SSM workflow.
    - use `pnpm run smoke:server:generated -- --section=...` when rerunning only one generated-fixture workflow
    - run `pnpm run smoke:cleanup` if an interrupted generated run leaves abandoned `smoke_*` fixtures behind
 9. Use manual smoke only when you explicitly want to target existing users or long-lived data:
-   - for CLI/manual mode, put the `PROJEX_SMOKE_*` values in `.env.smoke.local` at the repo root (`/opt/projex/.env.smoke.local` on EC2, repo root locally)
+   - for CLI/manual mode, put the `PROJEX_SMOKE_*` values in `.env.smoke.local` at the repo root (`/opt/projex/current/.env.smoke.local` on EC2, repo root locally)
    - run `pnpm run smoke:server`
    - use `pnpm run smoke:server -- --section=...` when rerunning only one manual workflow
 10. Optional configured-credential invite smoke:
@@ -360,7 +355,7 @@ artifact + S3 + SSM workflow.
 Create a BetterAuth user:
 
 ```bash
-cd /opt/projex
+cd /opt/projex/current
 sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_AUTH_PASSWORD="replace-me" PROJEX_AUTH_NAME="Staging User" pnpm run auth:create-user'
 ```
 
@@ -368,7 +363,7 @@ Bootstrap that BetterAuth user into the app as a global superadmin.
 On a fresh database, this is the required step that makes the account usable in the app and able to see `/companies`.
 
 ```bash
-cd /opt/projex
+cd /opt/projex/current
 sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" pnpm run auth:bootstrap-user'
 ```
 
@@ -409,11 +404,9 @@ Update:
 - `/etc/projex/projex.env`
 - any local non-committed env files you use for development
 
-Then rebuild and restart:
+Then restart the live service so it reloads the runtime env:
 
 ```bash
-cd /opt/projex
-sudo sh -c 'cd /opt/projex && set -a && . /etc/projex/projex.env && set +a && pnpm run build'
 sudo systemctl restart projex
 ```
 

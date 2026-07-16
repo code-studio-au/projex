@@ -203,7 +203,9 @@ Recommended target: create a GitHub environment such as `staging` or
 The artifact-based release flow performs:
 
 - build once in GitHub Actions
-- package a deploy tarball containing `dist`, runtime source, migrations, scripts, and nginx maintenance assets
+- package a deploy tarball containing `dist`, runtime source, migrations,
+  runtime scripts including the server smoke CLI entrypoint, and nginx
+  maintenance assets
 - upload the artifact to an S3 handoff bucket
 - dispatch an SSM shell command to the target EC2 instance
 - extract into `/opt/projex/releases/<release-id>`
@@ -221,25 +223,25 @@ uploads the release tarball to `EC2_DEPLOY_ARTIFACT_BUCKET`, then invokes SSM,
 and the EC2 instance downloads the artifact directly from S3 using its IAM
 role.
 
-Legacy build-on-host fallback remains available from a full repo checkout:
+That deploy bundle now also supports operator-run server smoke directly on the
+host from `/opt/projex/current`, for example:
 
 ```bash
-pnpm run deploy:ec2
-pnpm run deploy:ec2:quick
+cd /opt/projex/current
+sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; pnpm run smoke:server:generated -- --section=basics'
 ```
 
-The legacy build-on-host command performs:
+Use this for post-deploy runtime verification or staged incident triage. It is
+an operator CLI capability only; it does not require enabling
+`PROJEX_ENABLE_SMOKE_TOOLS` in production.
 
-- `git pull --ff-only`
-- `pnpm install --frozen-lockfile`
-- env load from `/etc/projex/projex.env`
-- `pnpm run db:migrate`
-- `pnpm run build`
-- `sudo systemctl restart projex`
-- `/api/health` and `/api/ready` checks
-- recent `journalctl` output
+There is now a single supported deploy method for EC2 environments:
 
-Use `deploy:ec2:quick` only when `pnpm-lock.yaml` and runtime dependencies have not changed.
+- GitHub Actions builds the release artifact
+- the runner uploads it to the deploy handoff bucket
+- the runner dispatches the SSM activation command
+- the EC2 host installs runtime dependencies, runs migrations, switches
+  `/opt/projex/current`, and restarts the service
 
 ## 6) Health checks
 
