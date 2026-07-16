@@ -74,8 +74,9 @@ the first time you run it on a machine.
 GitHub Actions CI and the deploy-artifact workflow now enforce the full
 generated-fixture server smoke sweep plus the full supported browser smoke
 flow, so local `verify:ci` and hosted gates stay aligned on what can merge and
-ship. The supported EC2 deploy handoff is artifact-based and now uses SSM
-instead of SSH for remote activation.
+ship. The single supported EC2 deployment method is artifact-based and uses
+GitHub Actions build -> S3 handoff -> SSM activation instead of on-host builds
+or SSH-based release steps.
 
 The manual deploy workflow expects GitHub Actions environment secrets for the
 target environment. At minimum this means:
@@ -117,6 +118,11 @@ The short version:
 - `pnpm run smoke:server:disposable` for isolated local end-to-end smoke
 - `pnpm run smoke:browser:disposable` for isolated browser-driven smoke
 - `pnpm run smoke:server` and `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security` for deployed-environment verification
+
+The deploy artifact now includes the server smoke CLI entrypoint as well, so a
+deployed EC2 host can run `pnpm run smoke:server` or
+`pnpm run smoke:server:generated` directly from `/opt/projex/current` after a
+release activates.
 
 For the full operational verification workflow, use [docs/staging-runbook.md](docs/staging-runbook.md).
 

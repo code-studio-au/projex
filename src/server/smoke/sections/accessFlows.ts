@@ -90,8 +90,6 @@ export async function runInviteFlowSection(
     );
   }
 
-  await authenticatePrimaryUser(recorder, client, baseUrl);
-
   await recorder.step(
     'update-existing-member',
     `Updating existing member ${inviteEmail} to role ${followUpRole} without sending email`,
