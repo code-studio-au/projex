@@ -31,6 +31,8 @@ type Retry429Options = {
   backoffsMs?: number[];
 };
 
+const defaultRateLimitBackoffsMs = [1500, 3000, 5000, 10000, 15000];
+
 export type Recorder = {
   step<T>(id: string, label: string, fn: () => Promise<T>): Promise<T>;
   skip(id: string, label: string, detail: string): void;
@@ -72,6 +74,24 @@ export function userLabel(email: string | undefined, fallbackRole: string) {
 
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function getRetryDelayMs(
+  response: Response,
+  fallbackMs: number
+): number {
+  const retryAfter = response.headers.get('retry-after')?.trim();
+  if (!retryAfter) return fallbackMs;
+
+  const retryAfterSeconds = Number(retryAfter);
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0) {
+    return Math.max(fallbackMs, Math.ceil(retryAfterSeconds * 1000));
+  }
+
+  const retryAtMs = Date.parse(retryAfter);
+  if (!Number.isFinite(retryAtMs)) return fallbackMs;
+
+  return Math.max(fallbackMs, retryAtMs - Date.now());
 }
 
 export function assertOk(result: HttpResult | null, label: string) {
@@ -188,16 +208,17 @@ export class SmokeHttpClient {
     init: RequestInit = {},
     options: Retry429Options
   ): Promise<HttpResult> {
-    const backoffsMs = options.backoffsMs ?? [1500, 3000, 5000];
+    const backoffsMs = options.backoffsMs ?? defaultRateLimitBackoffsMs;
     let result: HttpResult | null = null;
     for (let attempt = 0; attempt <= backoffsMs.length; attempt += 1) {
       result = await this.request(urlPath, init);
       if (result.res.status !== 429) break;
       if (attempt === backoffsMs.length) break;
+      const retryDelayMs = getRetryDelayMs(result.res, backoffsMs[attempt]);
       await this.emitStatus(
-        `${options.label} was rate-limited. Retrying in ${(backoffsMs[attempt] / 1000).toFixed(1)}s.`
+        `${options.label} was rate-limited. Retrying in ${(retryDelayMs / 1000).toFixed(1)}s.`
       );
-      await sleep(backoffsMs[attempt]);
+      await sleep(retryDelayMs);
     }
     if (!result) {
       throw new Error(`${options.label} failed before a response was received`);
@@ -233,7 +254,7 @@ export class SmokeHttpClient {
 
   async loginWithEmailPassword(email: string, password: string, label: string) {
     this.resetCookies();
-    const backoffsMs = [1500, 3000, 5000];
+    const backoffsMs = defaultRateLimitBackoffsMs;
     let login: HttpResult | null = null;
     for (let attempt = 0; attempt <= backoffsMs.length; attempt += 1) {
       login = await this.request('/api/auth/sign-in/email', {
@@ -242,10 +263,11 @@ export class SmokeHttpClient {
       });
       if (login.res.status !== 429) break;
       if (attempt === backoffsMs.length) break;
+      const retryDelayMs = getRetryDelayMs(login.res, backoffsMs[attempt]);
       await this.emitStatus(
-        `${label} was rate-limited. Retrying in ${(backoffsMs[attempt] / 1000).toFixed(1)}s.`
+        `${label} was rate-limited. Retrying in ${(retryDelayMs / 1000).toFixed(1)}s.`
       );
-      await sleep(backoffsMs[attempt]);
+      await sleep(retryDelayMs);
     }
     assertOk(login, label);
     const session = await this.request('/api/session');
