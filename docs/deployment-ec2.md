@@ -25,6 +25,9 @@ If you provision the EC2 host through this repo's CDK stack, first boot now prep
 - `/etc/projex/projex.env.example`
 - `/usr/local/bin/projex-provision-letsencrypt-cert`
 
+The intended operational access model is SSM-first. SSH can stay disabled by
+leaving the CDK `sshCidr` context empty.
+
 If you are preparing a host manually without CDK, mirror that same baseline before using the deploy workflow.
 
 ## 3) Configure environment
@@ -184,13 +187,18 @@ GitHub Actions manual workflow:
 - default mode: `artifact-only`
 - optional mode when secrets are ready: `ec2`
 
-When enabling the `ec2` mode, set repository or environment secrets for:
+When enabling the `ec2` mode, set GitHub Actions environment secrets for:
 
 - preferred AWS auth: `AWS_DEPLOY_ROLE_ARN`
 - fallback AWS auth: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`
 - `EC2_INSTANCE_ID`
 - `EC2_DEPLOY_ARTIFACT_BUCKET`
+- `EC2_PUBLIC_BASE_URL`
 - optional overrides such as `EC2_APP_ROOT`, `EC2_ENV_FILE`, `EC2_SERVICE_NAME`, `EC2_HEALTH_URL`, `EC2_READY_URL`, and `EC2_KEEP_RELEASES`
+
+Recommended target: create a GitHub environment such as `staging` or
+`production`, put these secrets on that environment, and run
+`.github/workflows/deploy.yml` with the matching `environment_name` input.
 
 The artifact-based release flow performs:
 
@@ -207,6 +215,11 @@ The artifact-based release flow performs:
 - restart `projex`
 - `/api/health` and `/api/ready` checks
 - rollback to the previous release symlink if restart or health checks fail
+
+The deploy host does not need GitHub network access or SSH keys. The runner
+uploads the release tarball to `EC2_DEPLOY_ARTIFACT_BUCKET`, then invokes SSM,
+and the EC2 instance downloads the artifact directly from S3 using its IAM
+role.
 
 Legacy build-on-host fallback remains available from a full repo checkout:
 

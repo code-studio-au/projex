@@ -105,6 +105,10 @@ Use `DeployArtifactBucketName` with:
 
 - `EC2_DEPLOY_ARTIFACT_BUCKET=<DeployArtifactBucketName>`
 
+That bucket is for temporary GitHub Actions deploy handoff only. CI uploads the
+release tarball there, then the EC2 instance downloads it over SSM-dispatched
+deploy commands using the instance IAM role.
+
 When running on AWS S3 itself, the app normally does not need:
 
 - `S3_ENDPOINT`
@@ -126,6 +130,20 @@ The EC2 host created by this stack now self-prepares into a deploy-ready baselin
 - `/usr/local/bin/projex-provision-letsencrypt-cert` for the later HTTPS step
 
 That means a fresh CDK-created instance should be ready to receive the GitHub Actions artifact deploy flow without manual package installation or service-file setup.
+
+For the GitHub environment that will run `.github/workflows/deploy.yml`, set:
+
+- preferred AWS auth: `AWS_DEPLOY_ROLE_ARN`
+- fallback AWS auth: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional
+  `AWS_SESSION_TOKEN`
+- `EC2_INSTANCE_ID=<Ec2InstanceId output>`
+- `EC2_DEPLOY_ARTIFACT_BUCKET=<DeployArtifactBucketName output>`
+- `EC2_PUBLIC_BASE_URL=https://your-public-hostname`
+- optional overrides: `EC2_APP_ROOT`, `EC2_ENV_FILE`, `EC2_SERVICE_NAME`,
+  `EC2_HEALTH_URL`, `EC2_READY_URL`, `EC2_KEEP_RELEASES`
+
+Keep `sshCidr` empty unless you explicitly want break-glass SSH ingress. The
+intended day-to-day deploy path is SSM, not SSH.
 
 ## Notes
 

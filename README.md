@@ -77,6 +77,21 @@ flow, so local `verify:ci` and hosted gates stay aligned on what can merge and
 ship. The supported EC2 deploy handoff is artifact-based and now uses SSM
 instead of SSH for remote activation.
 
+The manual deploy workflow expects GitHub Actions environment secrets for the
+target environment. At minimum this means:
+
+- AWS auth, preferably `AWS_DEPLOY_ROLE_ARN`, or the static-key fallback
+  `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional
+  `AWS_SESSION_TOKEN`
+- `EC2_INSTANCE_ID`
+- `EC2_DEPLOY_ARTIFACT_BUCKET`
+- optional runtime path/health overrides such as `EC2_APP_ROOT`,
+  `EC2_ENV_FILE`, `EC2_SERVICE_NAME`, `EC2_HEALTH_URL`, `EC2_READY_URL`, and
+  `EC2_KEEP_RELEASES`
+
+See [docs/staging-runbook.md](docs/staging-runbook.md) and
+[docs/deployment-ec2.md](docs/deployment-ec2.md) for the full deploy setup.
+
 For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](docs/local-services.md).
 
 Env example files are now split by purpose:
@@ -271,7 +286,7 @@ Operational defaults:
 - `pnpm run db:migrate` runs BetterAuth schema migration plus the squashed app baseline/future app migrations through Kysely's standard migrator.
 - `pnpm run db:generate-types` regenerates `src/server/db/generated/db.d.ts` from the current database schema, while `pnpm run db:verify-types` is the drift check used in local verification.
 - `pnpm run start:server` does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
-- `.github/workflows/deploy.yml` is the manual build-once deploy scaffold. It packages a prebuilt release artifact and can later push that artifact to EC2 without rebuilding on the instance.
+- `.github/workflows/deploy.yml` is the manual build-once deploy scaffold. It packages a prebuilt release artifact, uploads it to the deploy handoff S3 bucket, and can dispatch an SSM-based activation on EC2 without rebuilding on the instance.
 - The enforced CSP intentionally retains `style-src-attr 'unsafe-inline'` for now because Mantine and current app UI still emit runtime `style=""` attributes; the rest of the policy stays nonce-based and strict.
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
 - `package.json` override rationale lives in [docs/dependency-overrides.md](docs/dependency-overrides.md).

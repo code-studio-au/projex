@@ -112,7 +112,8 @@ pnpm run verify:deploy-security
 
 When auth credentials are provided, the verifier also checks that sign-in sets `HttpOnly` cookies, requires `Secure` on HTTPS deployments, and that authenticated `/api/session` returns a `userId`.
 
-GitHub Actions deploys expect these additional environment secrets when `deploy_target=ec2` is used:
+GitHub Actions deploys expect these environment secrets on the target GitHub
+environment when `deploy_target=ec2` is used:
 
 - preferred AWS auth:
   - `AWS_DEPLOY_ROLE_ARN`
@@ -122,6 +123,18 @@ GitHub Actions deploys expect these additional environment secrets when `deploy_
   - optional `AWS_SESSION_TOKEN`
 - `EC2_INSTANCE_ID`
 - `EC2_DEPLOY_ARTIFACT_BUCKET`
+- `EC2_ENV_FILE`
+  - Optional override; default `/etc/projex/projex.env`
+- `EC2_APP_ROOT`
+  - Optional override; default `/opt/projex`
+- `EC2_SERVICE_NAME`
+  - Optional override; default `projex`
+- `EC2_HEALTH_URL`
+  - Optional override; default `http://127.0.0.1:3000/api/health`
+- `EC2_READY_URL`
+  - Optional override; default `http://127.0.0.1:3000/api/ready`
+- `EC2_KEEP_RELEASES`
+  - Optional override; default `5`
 - `EC2_PUBLIC_BASE_URL`
   - The public HTTPS origin that users visit, for example `https://projectexpensetracker.com`
   - Used by the post-deploy `verify-deploy-security` step from the runner
@@ -129,6 +142,18 @@ GitHub Actions deploys expect these additional environment secrets when `deploy_
   - Optional smoke/test user email for authenticated cookie/session verification
 - `EC2_VERIFY_AUTH_PASSWORD`
   - Optional password paired with `EC2_VERIFY_AUTH_EMAIL`
+
+Recommended setup:
+
+- create one GitHub environment per deploy target, for example `staging` or
+  `production`
+- store the EC2 and AWS deploy secrets on that environment rather than as
+  repo-wide secrets
+- prefer `AWS_DEPLOY_ROLE_ARN` via OIDC and leave the static-key fallback
+  empty unless you truly need it
+- point `EC2_DEPLOY_ARTIFACT_BUCKET` at the CDK output
+  `DeployArtifactBucketName`
+- keep the EC2 host SSM-enabled and do not rely on SSH for normal releases
 
 For the most repeatable run, use generated smoke fixtures. This creates
 disposable `smoke_*` users/company/project data, creates temporary
@@ -260,6 +285,12 @@ Preferred deploy model:
 - switch the `/opt/projex/current` symlink
 - restart the service
 
+The deploy runner does not SSH into the box. The only moving parts are:
+
+- GitHub Actions runner with AWS credentials
+- S3 deploy handoff bucket
+- SSM-enabled EC2 instance profile with access to read that bucket
+
 Legacy fallback from a full repo checkout:
 
 ```bash
@@ -276,6 +307,10 @@ sudo sh -c 'cd /opt/projex && set -a && . /etc/projex/projex.env && set +a && pn
 sudo systemctl restart projex
 sudo systemctl status projex --no-pager -l
 ```
+
+Use the manual fallback only for break-glass recovery or when the GitHub
+workflow itself is unavailable. The normal supported production path is the
+artifact + S3 + SSM workflow.
 
 ## Post-Deploy Smoke Test
 
