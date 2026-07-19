@@ -99,7 +99,10 @@ test(
         .execute();
       await db
         .insertInto('project_memberships')
-        .values({ project_id: sourceProjectId, user_id: userId, role: 'lead' })
+        .values([
+          { project_id: sourceProjectId, user_id: userId, role: 'lead' },
+          { project_id: expectedProjectId, user_id: userId, role: 'member' },
+        ])
         .execute();
       await db
         .insertInto('categories')
@@ -159,7 +162,7 @@ test(
           },
           {
             public_id: reversalTxnId,
-            external_id: 'PAIR-1',
+            external_id: 'PAIR-1-REVERSAL',
             company_id: companyId,
             project_id: sourceProjectId,
             txn_date: '2026-07-08',
@@ -231,7 +234,7 @@ test(
       });
       assert.equal(suggestions.length, 1);
       assert.equal(suggestions[0]?.txnId, reversalTxnId);
-      assert.ok(suggestions[0]?.reasons.includes('Same external ID'));
+      assert.ok(suggestions[0]?.reasons.includes('Same absolute amount'));
 
       const matched = await applyTxnReversalActionServer({
         context,
