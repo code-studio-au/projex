@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import { extname, join, normalize, resolve } from 'node:path';
 import { createApp, eventHandler, fromWebHandler } from 'h3-v2';
 import { toNodeHandler } from 'srvx/node';
@@ -20,6 +21,22 @@ function run(cmd, args) {
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
+}
+
+
+async function resolveTlsOptions() {
+  const keyFile = process.env.PROJEX_TLS_KEY_FILE?.trim();
+  const certFile = process.env.PROJEX_TLS_CERT_FILE?.trim();
+  if (!keyFile && !certFile) return null;
+  if (!keyFile || !certFile) {
+    console.error('PROJEX_TLS_KEY_FILE and PROJEX_TLS_CERT_FILE must both be set to enable HTTPS.');
+    process.exit(1);
+  }
+
+  return {
+    key: await readFile(resolve(keyFile)),
+    cert: await readFile(resolve(certFile)),
+  };
 }
 
 if (!existsSync('dist/server/server.js')) {
@@ -212,8 +229,12 @@ app.use(
   })
 );
 
-console.info(`Starting Projex SSR server on http://${host}:${port}`);
-const httpServer = createServer(toNodeHandler(app.fetch));
+const tlsOptions = await resolveTlsOptions();
+const serverProtocol = tlsOptions ? 'https' : 'http';
+console.info(`Starting Projex SSR server on ${serverProtocol}://${host}:${port}`);
+const httpServer = tlsOptions
+  ? createHttpsServer(tlsOptions, toNodeHandler(app.fetch))
+  : createServer(toNodeHandler(app.fetch));
 
 await new Promise((resolve, reject) => {
   httpServer.once('error', reject);

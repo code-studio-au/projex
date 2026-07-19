@@ -67,9 +67,12 @@ That pipeline-shaped command runs:
 
 Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`,
 `pnpm run smoke:server:disposable`, and
-`pnpm run smoke:browser:disposable`. Playwright browser smoke also requires a
-local Chromium install via `pnpm exec playwright install --with-deps chromium`
-the first time you run it on a machine.
+`pnpm run smoke:browser:disposable`. Disposable smoke now provisions a
+short-lived `https://localhost` certificate automatically so production-mode
+auth validation stays aligned locally without any manual TLS setup. Playwright
+browser smoke also requires a local Chromium install via
+`pnpm exec playwright install --with-deps chromium` the first time you run it
+on a machine.
 
 GitHub Actions CI and the deploy-artifact workflow now enforce the full
 generated-fixture server smoke sweep plus the full supported browser smoke
@@ -115,8 +118,8 @@ The short version:
 - `pnpm test` for the fast Vitest app/runtime lane
 - `pnpm run coverage` for the Vitest-owned unit coverage gate and LCOV output
 - `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
-- `pnpm run smoke:server:disposable` for isolated local end-to-end smoke
-- `pnpm run smoke:browser:disposable` for isolated browser-driven smoke
+- `pnpm run smoke:server:disposable` for isolated local end-to-end smoke on an auto-generated temporary `https://localhost` origin
+- `pnpm run smoke:browser:disposable` for isolated browser-driven smoke on the same temporary HTTPS origin
 - `pnpm run smoke:server` and `PROJEX_VERIFY_BASE_URL=... pnpm run verify:deploy-security` for deployed-environment verification
 
 The deploy artifact now includes the server smoke CLI entrypoint as well, so a
@@ -186,7 +189,8 @@ pnpm run smoke:server -- --section=emailChange
 pnpm run smoke:server:generated
 
 # Start a disposable Postgres instance, migrate it, build the app, run a local
-# server against that isolated DB, then execute generated smoke end to end
+# HTTPS server against that isolated DB using an auto-generated localhost cert,
+# then execute generated smoke end to end
 pnpm run smoke:server:disposable
 
 # The same full disposable server sweep, but through the verify namespace
@@ -195,7 +199,7 @@ pnpm run verify:smoke:full
 # Re-run the full disposable server sweep without rebuilding first
 pnpm run verify:smoke:full:skip-build
 
-# The same disposable harness, but with a browser-driven smoke lane
+# The same disposable HTTPS harness, but with a browser-driven smoke lane
 pnpm run smoke:browser:disposable
 
 # Best-effort cleanup sweep for abandoned smoke_* fixtures

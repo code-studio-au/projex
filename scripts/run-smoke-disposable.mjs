@@ -1,4 +1,8 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createServer } from 'node:net';
+import { spawnSync } from 'node:child_process';
 import {
   runProjexCommand,
   runProjexMigrations,
@@ -54,11 +58,65 @@ async function reserveSmokeServerPort() {
   });
 }
 
+async function createLocalTlsBundle() {
+  const tempDir = await mkdtemp(join(tmpdir(), 'projex-smoke-tls-'));
+  const configPath = join(tempDir, 'openssl.cnf');
+  const keyPath = join(tempDir, 'localhost-key.pem');
+  const certPath = join(tempDir, 'localhost-cert.pem');
+
+  await writeFile(
+    configPath,
+    [
+      '[req]',
+      'distinguished_name = req_distinguished_name',
+      'x509_extensions = v3_req',
+      'prompt = no',
+      '[req_distinguished_name]',
+      'CN = localhost',
+      '[v3_req]',
+      'subjectAltName = @alt_names',
+      '[alt_names]',
+      'DNS.1 = localhost',
+      'IP.1 = 127.0.0.1',
+    ].join('\n')
+  );
+
+  const result = spawnSync(
+    'openssl',
+    [
+      'req',
+      '-x509',
+      '-nodes',
+      '-newkey',
+      'rsa:2048',
+      '-keyout',
+      keyPath,
+      '-out',
+      certPath,
+      '-days',
+      '2',
+      '-config',
+      configPath,
+      '-extensions',
+      'v3_req',
+    ],
+    { encoding: 'utf8', stdio: 'pipe' }
+  );
+
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    const detail = result.stderr?.trim();
+    throw new Error(`openssl req exited with code ${result.status ?? 'unknown'}${detail ? `: ${detail}` : ''}`);
+  }
+
+  return { tempDir, keyPath, certPath };
+}
 async function main() {
   logNodeRuntime('disposable smoke runner');
   const port = await reserveSmokeServerPort();
 
-  const baseUrl = `http://${HOST}:${port}`;
+  const tls = await createLocalTlsBundle();
+  const baseUrl = `https://localhost:${port}`;
   const pg = await startDisposablePostgres({
     containerPrefix: 'projex-smoke-db',
   });
@@ -85,12 +143,17 @@ async function main() {
       runProjexCommand('pnpm', ['run', 'build']);
     }
 
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
     const sharedEnv = {
       DATABASE_URL: connectionString,
       BETTER_AUTH_SECRET: BETTER_AUTH_SECRET,
       BETTER_AUTH_URL: baseUrl,
       BETTER_AUTH_TRUSTED_ORIGINS: baseUrl,
       CORS_ALLOWED_ORIGINS: baseUrl,
+      PROJEX_APP_BASE_URL: baseUrl,
+      PROJEX_AUTH_RESET_REDIRECT_URL: `${baseUrl}/reset-password`,
+      PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL: `${baseUrl}/verify-email-change`,
       NODE_ENV: 'test',
       PROJEX_ENABLE_DEV_ENDPOINTS: 'false',
       PROJEX_ENABLE_SMOKE_TOOLS: 'false',
@@ -104,7 +167,10 @@ async function main() {
       S3_FORCE_PATH_STYLE: 'true',
       HOST,
       PORT: String(port),
+      NODE_TLS_REJECT_UNAUTHORIZED: '0',
       PROJEX_NODE_EXECUTABLE: NODE_EXECUTABLE,
+      PROJEX_TLS_KEY_FILE: tls.keyPath,
+      PROJEX_TLS_CERT_FILE: tls.certPath,
     };
 
     serverProcess = spawnProjexCommand(
@@ -150,6 +216,7 @@ async function main() {
       await pg.stop();
     }
     await minio.stop();
+    await rm(tls.tempDir, { recursive: true, force: true });
   }
 }
 

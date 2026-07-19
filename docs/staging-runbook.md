@@ -216,7 +216,7 @@ pnpm run smoke:cleanup
 
 Use the smoke commands like this:
 
-- `pnpm run smoke:server:disposable` is for local or CI use when you want full isolation from shared databases.
+- `pnpm run smoke:server:disposable` is for local or CI use when you want full isolation from shared databases. In local runs it now provisions a temporary `https://localhost` origin automatically so production-mode auth validation and readiness checks stay aligned.
 - `pnpm run smoke:server:generated` is the default repeatable path for an already-running app/database. It creates and cleans disposable `smoke_*` fixture rows in normal tables.
 - `pnpm run smoke:server` is the advanced manual path for targeted runtime verification against a real deployed environment.
 - In the admin Smoke dashboard, generated fixtures are the default run mode. Manual mode is the advanced fallback and accepts per-run inputs in the UI rather than requiring repo-local smoke env values.
