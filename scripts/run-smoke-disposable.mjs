@@ -106,7 +106,9 @@ async function createLocalTlsBundle() {
   if (result.error) throw result.error;
   if (result.status !== 0) {
     const detail = result.stderr?.trim();
-    throw new Error(`openssl req exited with code ${result.status ?? 'unknown'}${detail ? `: ${detail}` : ''}`);
+    throw new Error(
+      `openssl req exited with code ${result.status ?? 'unknown'}${detail ? `: ${detail}` : ''}`
+    );
   }
 
   return { tempDir, keyPath, certPath };

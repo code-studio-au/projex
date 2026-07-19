@@ -23,13 +23,14 @@ function run(cmd, args) {
   }
 }
 
-
 async function resolveTlsOptions() {
   const keyFile = process.env.PROJEX_TLS_KEY_FILE?.trim();
   const certFile = process.env.PROJEX_TLS_CERT_FILE?.trim();
   if (!keyFile && !certFile) return null;
   if (!keyFile || !certFile) {
-    console.error('PROJEX_TLS_KEY_FILE and PROJEX_TLS_CERT_FILE must both be set to enable HTTPS.');
+    console.error(
+      'PROJEX_TLS_KEY_FILE and PROJEX_TLS_CERT_FILE must both be set to enable HTTPS.'
+    );
     process.exit(1);
   }
 
@@ -231,7 +232,9 @@ app.use(
 
 const tlsOptions = await resolveTlsOptions();
 const serverProtocol = tlsOptions ? 'https' : 'http';
-console.info(`Starting Projex SSR server on ${serverProtocol}://${host}:${port}`);
+console.info(
+  `Starting Projex SSR server on ${serverProtocol}://${host}:${port}`
+);
 const httpServer = tlsOptions
   ? createHttpsServer(tlsOptions, toNodeHandler(app.fetch))
   : createServer(toNodeHandler(app.fetch));

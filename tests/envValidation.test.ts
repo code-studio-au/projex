@@ -28,6 +28,10 @@ test('production env validation does not cache a failed validation attempt', () 
   process.env.BETTER_AUTH_SECRET = 'secret';
   process.env.BETTER_AUTH_URL = 'https://app.example.com';
   process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://app.example.com';
+  process.env.PROJEX_AUTH_RESET_REDIRECT_URL =
+    'https://app.example.com/reset-password';
+  process.env.PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL =
+    'https://app.example.com/verify-email-change';
   process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
   process.env.PROJEX_ENABLE_SMOKE_TOOLS = 'false';
 
