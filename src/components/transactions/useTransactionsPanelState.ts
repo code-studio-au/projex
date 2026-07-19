@@ -28,6 +28,7 @@ export function useTransactionsPanelState(args: {
   const [splitTxn, setSplitTxn] = useState<Txn | null>(null);
   const [transferTxn, setTransferTxn] = useState<Txn | null>(null);
   const [reversalTxn, setReversalTxn] = useState<Txn | null>(null);
+  const [reversalModalNonce, setReversalModalNonce] = useState(0);
   const [commentsTxn, setCommentsTxn] = useState<Txn | null>(null);
   const [dismissedLinkedCommentTxnId, setDismissedLinkedCommentTxnId] =
     useState<TxnId | null>(null);
@@ -77,6 +78,7 @@ export function useTransactionsPanelState(args: {
     projectRuleMatchText,
     projectRulePrompt,
     rowSelection,
+    reversalModalNonce,
     reversalTxn,
     sorting,
     splitTxn,
@@ -92,6 +94,7 @@ export function useTransactionsPanelState(args: {
     setProjectRuleError,
     setProjectRuleMatchText,
     setProjectRulePrompt,
+    setReversalModalNonce,
     setReversalTxn,
     setRowSelection,
     setSorting,

@@ -31,6 +31,7 @@ export default function TransactionsModalStack(props: {
   onCloseTransfer: () => void;
   onTransfer: (input: Omit<TxnTransferInput, 'txnId'>) => Promise<void>;
   reversalTxn: Txn | null;
+  reversalModalNonce: number;
   expectedProjectOptions: Array<{ value: ProjectId; label: string }>;
   onCloseReversal: () => void;
   onLoadReversalSuggestions: (
@@ -76,6 +77,7 @@ export default function TransactionsModalStack(props: {
     onCloseTransfer,
     onTransfer,
     reversalTxn,
+    reversalModalNonce,
     expectedProjectOptions,
     onCloseReversal,
     onLoadReversalSuggestions,
@@ -129,7 +131,7 @@ export default function TransactionsModalStack(props: {
 
       {reversalTxn ? (
         <TransactionReversalModal
-          key={reversalTxn.id}
+          key={`${reversalTxn.id}:${reversalModalNonce}`}
           opened
           txn={reversalTxn}
           currencyCode={currencyCode}

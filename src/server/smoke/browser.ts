@@ -181,16 +181,16 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     );
     assert(signInResponse.ok(), 'Browser-context sign-in request failed');
 
-    await page.goto(`/c/${companyId}`, {
+    await page.goto(`/c/${companyId}?tab=projects`, {
       waitUntil: 'domcontentloaded',
     });
     await waitForLocation(
       page,
-      ({ pathname }) => pathname === `/c/${companyId}`,
-      'Sign-in did not redirect to the company dashboard'
+      ({ pathname, search }) =>
+        pathname === `/c/${companyId}` &&
+        new URLSearchParams(search).get('tab') === 'projects',
+      'Company dashboard did not open on the projects tab'
     );
-
-    await page.getByRole('tab', { name: 'Projects & programmes' }).click();
     await waitForTabSelection(
       page,
       'Projects & programmes',
@@ -198,8 +198,10 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     );
     await waitForLocation(
       page,
-      ({ pathname }) => pathname === `/c/${companyId}`,
-      'Company dashboard did not switch to the projects tab'
+      ({ pathname, search }) =>
+        pathname === `/c/${companyId}` &&
+        new URLSearchParams(search).get('tab') === 'projects',
+      'Company dashboard did not keep the projects tab selected'
     );
 
     await emit(options, 'Opening the generated project workspace');

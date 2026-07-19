@@ -91,6 +91,7 @@ export default function TransactionsPanel(props: {
     projectRuleMatchText,
     projectRulePrompt,
     rowSelection,
+    reversalModalNonce,
     reversalTxn,
     sorting,
     splitTxn,
@@ -106,6 +107,7 @@ export default function TransactionsPanel(props: {
     setProjectRuleError,
     setProjectRuleMatchText,
     setProjectRulePrompt,
+    setReversalModalNonce,
     setReversalTxn,
     setRowSelection,
     setSorting,
@@ -184,7 +186,10 @@ export default function TransactionsPanel(props: {
       setExpandedCommentsTxn((current) =>
         current?.id === txn.id ? null : txn
       ),
-    onOpenReversal: setReversalTxn,
+    onOpenReversal: (txn) => {
+      setReversalModalNonce((current) => current + 1);
+      setReversalTxn(txn);
+    },
     onOpenSplit: setSplitTxn,
     onOpenTransfer: setTransferTxn,
   });
@@ -410,6 +415,7 @@ export default function TransactionsPanel(props: {
             : Promise.resolve()
         }
         reversalTxn={reversalTxn}
+        reversalModalNonce={reversalModalNonce}
         expectedProjectOptions={transferProjectOptions.filter(
           (option) => option.value !== projectId
         )}

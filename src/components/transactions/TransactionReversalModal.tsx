@@ -81,16 +81,7 @@ export default function TransactionReversalModal(props: {
   );
 
   useEffect(() => {
-    if (!opened) return;
-
-    setError(null);
-    setCommentBody('');
-    setExpectedProjectId(txn.reversal?.expectedProjectId ?? null);
-    setSelectedSuggestionTxnId(null);
-    setSuggestions([]);
-    setSuggestionsLoading(shouldLoadSuggestions);
-
-    if (!shouldLoadSuggestions) return;
+    if (!opened || !shouldLoadSuggestions) return;
     let cancelled = false;
 
     void loadSuggestions(txn.id)
@@ -117,7 +108,7 @@ export default function TransactionReversalModal(props: {
     return () => {
       cancelled = true;
     };
-  }, [opened, shouldLoadSuggestions, txn.id, txn.reversal?.expectedProjectId]);
+  }, [opened, shouldLoadSuggestions, txn.id]);
 
   const isSourceSide = txn.reversal?.side !== 'reversal';
   const isPending =
