@@ -78,6 +78,18 @@ export default function TransactionsDataTable(props: {
             data={pagedTxns}
             getRowId={(row) => row.id}
             enableRowSelection={!readOnly}
+            displayColumnDefOptions={{
+              'mrt-row-select': {
+                size: 44,
+                grow: false,
+                mantineTableHeadCellProps: {
+                  style: { width: '44px', minWidth: '44px', paddingInline: 6 },
+                },
+                mantineTableBodyCellProps: {
+                  style: { width: '44px', minWidth: '44px', paddingInline: 6 },
+                },
+              },
+            }}
             enableEditing={!readOnly}
             editDisplayMode="cell"
             state={{

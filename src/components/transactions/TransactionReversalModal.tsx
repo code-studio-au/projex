@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -76,12 +76,24 @@ export default function TransactionReversalModal(props: {
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadSuggestions = useEffectEvent((txnId: TxnId) =>
+    onLoadSuggestions(txnId)
+  );
 
   useEffect(() => {
-    if (!opened || !shouldLoadSuggestions) return;
+    if (!opened) return;
+
+    setError(null);
+    setCommentBody('');
+    setExpectedProjectId(txn.reversal?.expectedProjectId ?? null);
+    setSelectedSuggestionTxnId(null);
+    setSuggestions([]);
+    setSuggestionsLoading(shouldLoadSuggestions);
+
+    if (!shouldLoadSuggestions) return;
     let cancelled = false;
 
-    void onLoadSuggestions(txn.id)
+    void loadSuggestions(txn.id)
       .then((next) => {
         if (cancelled) return;
         setSuggestions(next);
@@ -105,7 +117,12 @@ export default function TransactionReversalModal(props: {
     return () => {
       cancelled = true;
     };
-  }, [onLoadSuggestions, opened, shouldLoadSuggestions, txn.id]);
+  }, [
+    opened,
+    shouldLoadSuggestions,
+    txn.id,
+    txn.reversal?.expectedProjectId,
+  ]);
 
   const isSourceSide = txn.reversal?.side !== 'reversal';
   const isPending =
@@ -260,9 +277,11 @@ export default function TransactionReversalModal(props: {
                     {selectedSuggestion.description ||
                       'No description provided'}
                   </Text>
-                  <Text size="xs" c="dimmed" mt={4}>
-                    {selectedSuggestion.reasons.join(' · ')}
-                  </Text>
+                  {(selectedSuggestion.reasons ?? []).length > 0 ? (
+                    <Text size="xs" c="dimmed" mt={4}>
+                      {selectedSuggestion.reasons.join(' · ')}
+                    </Text>
+                  ) : null}
                 </Paper>
               ) : null}
             </Stack>

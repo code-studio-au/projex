@@ -172,6 +172,21 @@ export async function invalidateProjectTransactionQueries(args: {
   await Promise.all([
     args.qc.invalidateQueries({
       queryKey: qk.transactions(args.scopeUserId, args.projectId),
+      exact: true,
+    }),
+    args.qc.invalidateQueries({
+      queryKey: ['transactions', args.scopeUserId, args.projectId, 'page'],
+      exact: false,
+    }),
+    args.qc.invalidateQueries({
+      queryKey: qk.transactionCommentSummaries(
+        args.scopeUserId,
+        args.projectId
+      ),
+    }),
+    args.qc.invalidateQueries({
+      queryKey: ['transactionComments', args.scopeUserId, args.projectId],
+      exact: false,
     }),
     args.qc.invalidateQueries({
       queryKey: qk.companySummaries(args.scopeUserId),
