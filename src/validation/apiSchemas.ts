@@ -132,6 +132,7 @@ const txnListViewSchema = z.enum([
   'uncoded',
   'auto-mapped-pending',
   'assigned-to-me',
+  'pending-reversal',
 ]);
 const txnListSortFieldSchema = z.enum(['date', 'transaction', 'amountCents']);
 const txnListSortDirectionSchema = z.enum(['asc', 'desc']);
@@ -537,6 +538,45 @@ export const transferTxnInputSchema = z.object({
 
 export const transferTxnMutationBodySchema = z.object({
   transfer: transferTxnInputSchema,
+});
+
+export const txnReversalActionInputSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('markPending'),
+    txnId: txnIdSchema,
+    commentBody: txnCommentBodySchema,
+    expectedProjectId: projectIdSchema.optional(),
+  }),
+  z.object({
+    action: z.literal('clearPending'),
+    txnId: txnIdSchema,
+    commentBody: txnCommentBodySchema,
+  }),
+  z.object({
+    action: z.literal('markException'),
+    txnId: txnIdSchema,
+    commentBody: txnCommentBodySchema,
+  }),
+  z.object({
+    action: z.literal('clearException'),
+    txnId: txnIdSchema,
+    commentBody: txnCommentBodySchema,
+  }),
+  z.object({
+    action: z.literal('match'),
+    txnId: txnIdSchema,
+    reversalTxnId: txnIdSchema,
+    commentBody: txnCommentBodySchema.optional(),
+  }),
+  z.object({
+    action: z.literal('unmatch'),
+    txnId: txnIdSchema,
+    commentBody: txnCommentBodySchema,
+  }),
+]);
+
+export const txnReversalActionMutationBodySchema = z.object({
+  reversal: txnReversalActionInputSchema,
 });
 
 export const txnWorkflowStateInputSchema = z.object({

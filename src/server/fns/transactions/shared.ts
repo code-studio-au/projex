@@ -1,4 +1,9 @@
-import { sql, type RawBuilder, type SelectQueryBuilder } from 'kysely';
+import {
+  sql,
+  type JoinCallbackExpression,
+  type RawBuilder,
+  type SelectQueryBuilder,
+} from 'kysely';
 
 import { AppError } from '../../../api/errors';
 import type {
@@ -7,6 +12,7 @@ import type {
   ImportPreviewRow,
   ProjectId,
   Txn,
+  TxnReversalStatus,
 } from '../../../types';
 import {
   asCompanyId,
@@ -47,6 +53,9 @@ export type TxnAliasDb = DB & { t: TxnTable };
 export type TxnPageSummaryRow = {
   total_count: number | string;
   budget_impact_cents: number | string;
+  pending_reversal_count: number | string;
+  pending_reversal_cents: number | string;
+  adjusted_budget_impact_cents: number | string;
   uncoded_count: number | string;
   uncoded_cents: number | string;
   source_only_count: number | string;
@@ -54,6 +63,11 @@ export type TxnPageSummaryRow = {
   reviewed_count: number | string;
   locked_count: number | string;
 };
+
+export const OPEN_TXN_REVERSAL_STATUSES = [
+  'pending_reversal',
+  'reversal_exception',
+] as const satisfies ReadonlyArray<TxnReversalStatus>;
 
 export function txnSelectColumns() {
   return [
@@ -91,6 +105,79 @@ export function txnSelectColumns() {
 
 export function prefixedTxnSelectColumns(prefix: 't') {
   return txnSelectColumns().map((column) => `${prefix}.${column}` as const);
+}
+
+type TxnReversalJoinCallback = JoinCallbackExpression<
+  TxnAliasDb,
+  't',
+  'txn_reversals as tr'
+>;
+
+export function txnReversalJoin(): TxnReversalJoinCallback {
+  return (join) =>
+    join
+      .onRef('tr.project_id', '=', 't.project_id')
+      .on((eb) =>
+        eb.or([
+          eb('tr.source_txn_public_id', '=', eb.ref('t.public_id')),
+          eb('tr.matched_reversal_txn_public_id', '=', eb.ref('t.public_id')),
+        ])
+      );
+}
+
+export function txnReversalSelectExpressions(args: {
+  txnAlias?: 't';
+  reversalAlias?: 'tr';
+}) {
+  const txnAlias = args.txnAlias ?? 't';
+  const reversalAlias = args.reversalAlias ?? 'tr';
+  return [
+    sql<string | null>`${sql.ref(`${reversalAlias}.id`)}`.as('reversal_id'),
+    sql<TxnReversalStatus | null>`${sql.ref(`${reversalAlias}.status`)}`.as(
+      'reversal_status'
+    ),
+    sql<'source' | 'reversal' | null>`case
+      when ${sql.ref(`${reversalAlias}.id`)} is null then null
+      when ${sql.ref(`${reversalAlias}.source_txn_public_id`)} = ${sql.ref(`${txnAlias}.public_id`)} then 'source'
+      else 'reversal'
+    end`.as('reversal_side'),
+    sql<string | null>`case
+      when ${sql.ref(`${reversalAlias}.id`)} is null then null
+      when ${sql.ref(`${reversalAlias}.source_txn_public_id`)} = ${sql.ref(`${txnAlias}.public_id`)} then ${sql.ref(`${reversalAlias}.matched_reversal_txn_public_id`)}
+      else ${sql.ref(`${reversalAlias}.source_txn_public_id`)}
+    end`.as('reversal_counterpart_txn_public_id'),
+    sql<string | null>`${sql.ref(`${reversalAlias}.expected_project_id`)}`.as(
+      'reversal_expected_project_id'
+    ),
+    sql<string | null>`${sql.ref(`${reversalAlias}.marked_at`)}`.as(
+      'reversal_marked_at'
+    ),
+    sql<string | null>`${sql.ref(`${reversalAlias}.marked_by_user_id`)}`.as(
+      'reversal_marked_by_user_id'
+    ),
+    sql<string | null>`${sql.ref(`${reversalAlias}.matched_at`)}`.as(
+      'reversal_matched_at'
+    ),
+    sql<string | null>`${sql.ref(`${reversalAlias}.matched_by_user_id`)}`.as(
+      'reversal_matched_by_user_id'
+    ),
+    sql<string | null>`${sql.ref(`${reversalAlias}.created_at`)}`.as(
+      'reversal_created_at'
+    ),
+    sql<string | null>`${sql.ref(`${reversalAlias}.updated_at`)}`.as(
+      'reversal_updated_at'
+    ),
+  ] as const;
+}
+
+export function pendingTxnReversalExistsSql() {
+  return sql<boolean>`exists (
+    select 1
+    from txn_reversals tr
+    where tr.project_id = t.project_id
+      and tr.source_txn_public_id = t.public_id
+      and tr.status in (${sql.join(OPEN_TXN_REVERSAL_STATUSES)})
+  )`;
 }
 
 export function txnValidSubCategorySql() {
@@ -131,6 +218,7 @@ export function buildTransactionsPageFilters(args: {
   ];
   const validSubCategory = txnValidSubCategorySql();
   const assignedToUser = txnAssignedToUserSql(args.userId);
+  const pendingReversal = pendingTxnReversalExistsSql();
 
   if (args.input.monthFilterKey) {
     filters.push(
@@ -164,6 +252,10 @@ export function buildTransactionsPageFilters(args: {
 
   if (args.input.transactionView === 'assigned-to-me') {
     filters.push(assignedToUser);
+  }
+
+  if (args.input.transactionView === 'pending-reversal') {
+    filters.push(pendingReversal);
   }
 
   if (args.input.drilldown?.kind === 'category') {

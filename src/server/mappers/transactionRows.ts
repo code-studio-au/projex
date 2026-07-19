@@ -1,5 +1,11 @@
 import { AppError } from '../../api/errors';
-import type { BudgetLine, Txn, TxnType } from '../../types';
+import type {
+  BudgetLine,
+  Txn,
+  TxnReversalSide,
+  TxnReversalStatus,
+  TxnType,
+} from '../../types';
 import {
   asBudgetLineId,
   asCategoryId,
@@ -42,6 +48,17 @@ export type TxnRow = {
   reviewed_by_user_id: string | null;
   locked_at: string | null;
   locked_by_user_id: string | null;
+  reversal_id?: string | null;
+  reversal_status?: TxnReversalStatus | null;
+  reversal_side?: TxnReversalSide | null;
+  reversal_counterpart_txn_public_id?: string | null;
+  reversal_expected_project_id?: string | null;
+  reversal_marked_at?: string | null;
+  reversal_marked_by_user_id?: string | null;
+  reversal_matched_at?: string | null;
+  reversal_matched_by_user_id?: string | null;
+  reversal_created_at?: string | null;
+  reversal_updated_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -110,6 +127,30 @@ export function toTxn(row: TxnRow): Txn {
     lockedByUserId: row.locked_by_user_id
       ? asUserId(row.locked_by_user_id)
       : undefined,
+    reversal:
+      row.reversal_id && row.reversal_status && row.reversal_side
+        ? {
+            id: row.reversal_id,
+            status: row.reversal_status,
+            side: row.reversal_side,
+            counterpartTxnId: row.reversal_counterpart_txn_public_id
+              ? asTxnId(row.reversal_counterpart_txn_public_id)
+              : undefined,
+            expectedProjectId: row.reversal_expected_project_id
+              ? asProjectId(row.reversal_expected_project_id)
+              : undefined,
+            markedAt: row.reversal_marked_at ?? undefined,
+            markedByUserId: row.reversal_marked_by_user_id
+              ? asUserId(row.reversal_marked_by_user_id)
+              : undefined,
+            matchedAt: row.reversal_matched_at ?? undefined,
+            matchedByUserId: row.reversal_matched_by_user_id
+              ? asUserId(row.reversal_matched_by_user_id)
+              : undefined,
+            createdAt: row.reversal_created_at ?? undefined,
+            updatedAt: row.reversal_updated_at ?? undefined,
+          }
+        : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

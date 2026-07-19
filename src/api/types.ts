@@ -46,7 +46,8 @@ export type TxnListView =
   | 'all'
   | 'uncoded'
   | 'auto-mapped-pending'
-  | 'assigned-to-me';
+  | 'assigned-to-me'
+  | 'pending-reversal';
 export type TxnListSortField = 'date' | 'transaction' | 'amountCents';
 export type TxnListSortDirection = 'asc' | 'desc';
 export type TxnListSort = {
@@ -76,6 +77,9 @@ export type TxnListPageInput = {
 export type TxnListPageSummary = {
   totalCount: number;
   budgetImpactCents: number;
+  pendingReversalCount: number;
+  pendingReversalCents: number;
+  adjustedBudgetImpactCents: number;
   uncodedCount: number;
   uncodedCents: number;
   sourceOnlyCount: number;
@@ -154,6 +158,57 @@ export type TxnTransferInput = {
 export type TxnTransferResult = {
   source: Txn;
   destination: Txn;
+};
+
+export type TxnReversalActionInput =
+  | {
+      action: 'markPending';
+      txnId: TxnId;
+      commentBody: string;
+      expectedProjectId?: ProjectId;
+    }
+  | {
+      action: 'clearPending';
+      txnId: TxnId;
+      commentBody: string;
+    }
+  | {
+      action: 'markException';
+      txnId: TxnId;
+      commentBody: string;
+    }
+  | {
+      action: 'clearException';
+      txnId: TxnId;
+      commentBody: string;
+    }
+  | {
+      action: 'match';
+      txnId: TxnId;
+      reversalTxnId: TxnId;
+      commentBody?: string;
+    }
+  | {
+      action: 'unmatch';
+      txnId: TxnId;
+      commentBody: string;
+    };
+
+export type TxnReversalActionResult = {
+  action: TxnReversalActionInput['action'];
+  txn: Txn;
+  counterpartTxn?: Txn;
+};
+
+export type TxnReversalMatchSuggestion = {
+  txnId: TxnId;
+  externalId?: string;
+  date: string;
+  item: string;
+  description: string;
+  amountCents: number;
+  score: number;
+  reasons: string[];
 };
 
 export type TxnWorkflowStateInput = {

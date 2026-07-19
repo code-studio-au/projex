@@ -40,12 +40,14 @@ type CreateTransactionColumnsArgs = {
   expandedCommentsLoading: boolean;
   transferOutEnabled: boolean;
   transferProjectOptions: Array<{ value: string; label: string }>;
+  canManageReversals: boolean;
   onApplyProjectRulePrompt: (
     prompt: ProjectRuleSuggestionPrompt | null
   ) => void;
   onProjectRuleError: (message: string | null) => void;
   onOpenComments: (txn: Txn) => void;
   onToggleExpandedComments: (txn: Txn) => void;
+  onOpenReversal: (txn: Txn) => void;
   onOpenSplit: (txn: Txn) => void;
   onOpenTransfer: (txn: Txn) => void;
 };
@@ -96,6 +98,23 @@ function moveToSubcategoryCell(args: {
   args.table.setEditingCell(nextCell ?? null);
 }
 
+function reversalBadge(txn: Txn) {
+  if (txn.reversal?.status === 'reversal_exception') {
+    return { color: 'red', label: 'Reversal exception' };
+  }
+  if (txn.reversal?.status === 'reversed_matched') {
+    return {
+      color: 'green',
+      label:
+        txn.reversal.side === 'source' ? 'Reversal matched' : 'Matched refund',
+    };
+  }
+  if (txn.reversal?.status === 'pending_reversal') {
+    return { color: 'violet', label: 'Pending reversal' };
+  }
+  return null;
+}
+
 export function createTransactionColumns(
   args: CreateTransactionColumnsArgs
 ): MRT_ColumnDef<Txn>[] {
@@ -134,7 +153,9 @@ export function createTransactionColumns(
           !!provenanceLabel ||
           !!row.original.lockedAt ||
           !!row.original.reviewedAt ||
+          !!reversalBadge(row.original) ||
           (!!row.original.codingPendingApproval && hasValidSubCategory);
+        const reversalState = reversalBadge(row.original);
         return (
           <Stack gap={2} style={{ minWidth: 0 }}>
             <Text className="table-body-left-bold" lineClamp={1}>
@@ -167,6 +188,11 @@ export function createTransactionColumns(
                 {row.original.codingPendingApproval && hasValidSubCategory ? (
                   <Badge size="xs" color="yellow" variant="light">
                     Auto-mapped
+                  </Badge>
+                ) : null}
+                {reversalState ? (
+                  <Badge size="xs" color={reversalState.color} variant="light">
+                    {reversalState.label}
                   </Badge>
                 ) : null}
               </Group>
@@ -442,6 +468,10 @@ export function createTransactionColumns(
           !row.original.lockedAt &&
           row.original.codingPendingApproval &&
           hasValidSubCategory;
+        const canManageReversal =
+          args.canManageReversals &&
+          !row.original.lockedAt &&
+          isBudgetImpactTxn(row.original);
         return (
           <Menu withinPortal position="bottom-end" shadow="md">
             <Menu.Target>
@@ -498,6 +528,11 @@ export function createTransactionColumns(
                   </Menu.Item>
                   <Menu.Divider />
                 </>
+              ) : null}
+              {canManageReversal ? (
+                <Menu.Item onClick={() => args.onOpenReversal(row.original)}>
+                  Manage pending reversal
+                </Menu.Item>
               ) : null}
               <Menu.Item
                 disabled={!canSplit}

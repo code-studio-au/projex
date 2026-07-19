@@ -336,6 +336,22 @@ export interface TxnComments {
   updated_at: Generated<Timestamp>;
 }
 
+export interface TxnReversals {
+  company_id: string;
+  created_at: Generated<Timestamp>;
+  expected_project_id: string | null;
+  id: string;
+  marked_at: Generated<Timestamp>;
+  marked_by_user_id: string;
+  matched_at: Timestamp | null;
+  matched_by_user_id: string | null;
+  matched_reversal_txn_public_id: string | null;
+  project_id: string;
+  source_txn_public_id: string;
+  status: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Txns {
   amount_cents: Int8;
   budget_impact: Generated<boolean>;
@@ -402,6 +418,7 @@ export interface DB {
   rule_suggestions: RuleSuggestions;
   sub_categories: SubCategories;
   txn_comments: TxnComments;
+  txn_reversals: TxnReversals;
   txns: Txns;
   users: Users;
 }

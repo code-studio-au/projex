@@ -15,6 +15,9 @@ import type {
   TxnListSortDirection,
   TxnListSortField,
   TxnCreateInput,
+  TxnReversalActionInput,
+  TxnReversalActionResult,
+  TxnReversalMatchSuggestion,
   TxnSplitInput,
   TxnTransferInput,
   TxnUpdateInput,
@@ -34,6 +37,8 @@ import {
   splitTxnServerFn,
   transferTxnServerFn,
   bulkTxnActionServerFn,
+  applyTxnReversalActionServerFn,
+  listTxnReversalMatchSuggestionsServerFn,
   updateTxnServerFn,
   updateTxnWorkflowStateServerFn,
 } from '../server/start/functions/transactionReads';
@@ -272,6 +277,26 @@ export function useBulkTxnActionMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (input: TxnBulkActionInput): Promise<TxnBulkActionResult> =>
       bulkTxnActionServerFn({ data: { projectId, payload: input } }),
+    onSuccess: async () =>
+      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
+  });
+}
+
+export function useTxnReversalSuggestionsMutation(projectId: ProjectId) {
+  return useMutation({
+    mutationFn: (txnId: TxnId): Promise<TxnReversalMatchSuggestion[]> =>
+      listTxnReversalMatchSuggestionsServerFn({ data: { projectId, txnId } }),
+  });
+}
+
+export function useTxnReversalActionMutation(projectId: ProjectId) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (
+      input: TxnReversalActionInput
+    ): Promise<TxnReversalActionResult> =>
+      applyTxnReversalActionServerFn({ data: { projectId, payload: input } }),
     onSuccess: async () =>
       invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
   });

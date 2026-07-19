@@ -54,6 +54,9 @@ import type {
   TxnImportPreviewInput,
   TxnImportPreviewResult,
   TxnImportInput,
+  TxnReversalActionInput,
+  TxnReversalActionResult,
+  TxnReversalMatchSuggestion,
   TxnSplitInput,
   TxnSplitResult,
   TxnTransferInput,
@@ -194,6 +197,14 @@ export type TransactionEndpointsModule = {
   transferTxnEndpoint: AppEndpoint<
     { projectId: ProjectId; payload: TxnTransferInput },
     TxnTransferResult
+  >;
+  listTxnReversalMatchSuggestionsEndpoint: AppEndpoint<
+    { projectId: ProjectId; txnId: TxnId },
+    TxnReversalMatchSuggestion[]
+  >;
+  applyTxnReversalActionEndpoint: AppEndpoint<
+    { projectId: ProjectId; payload: TxnReversalActionInput },
+    TxnReversalActionResult
   >;
   updateTxnWorkflowStateEndpoint: AppEndpoint<
     { projectId: ProjectId; payload: TxnWorkflowStateInput },

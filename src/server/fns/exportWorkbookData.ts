@@ -6,6 +6,10 @@ import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import type { DB } from '../db/schema';
 import type { ProjectExportRow } from './exportWorkbookShared';
+import {
+  txnReversalJoin,
+  txnReversalSelectExpressions,
+} from './transactions/shared';
 
 export type CompanyExportCompanyRow = {
   id: string;
@@ -90,6 +94,17 @@ export type TxnExportSourceRow = {
   reviewed_by_user_id: string | null;
   locked_at: string | null;
   locked_by_user_id: string | null;
+  reversal_id: string | null;
+  reversal_status: string | null;
+  reversal_side: string | null;
+  reversal_counterpart_txn_public_id: string | null;
+  reversal_expected_project_id: string | null;
+  reversal_marked_at: string | null;
+  reversal_marked_by_user_id: string | null;
+  reversal_matched_at: string | null;
+  reversal_matched_by_user_id: string | null;
+  reversal_created_at: string | null;
+  reversal_updated_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -304,49 +319,51 @@ export async function loadCompanyExportData(args: {
     projectIds.length
       ? (async () => {
           let query = args.db
-            .selectFrom('txns')
+            .selectFrom('txns as t')
+            .leftJoin('txn_reversals as tr', txnReversalJoin())
             .select([
-              'id',
-              'public_id',
-              'external_id',
-              'company_id',
-              'project_id',
-              'txn_date',
-              'item',
-              'description',
-              'amount_cents',
-              'txn_type',
-              'parent_public_id',
-              'source_public_id',
-              'transfer_project_id',
-              'budget_impact',
-              'categorisable',
-              'import_batch_id',
-              'import_source_type',
-              'import_source_meta',
-              'category_id',
-              'sub_category_id',
-              'company_default_mapping_rule_id',
-              'coding_source',
-              'coding_pending_approval',
-              'reviewed_at',
-              'reviewed_by_user_id',
-              'locked_at',
-              'locked_by_user_id',
-              'created_at',
-              'updated_at',
+              't.id as id',
+              't.public_id as public_id',
+              't.external_id as external_id',
+              't.company_id as company_id',
+              't.project_id as project_id',
+              't.txn_date as txn_date',
+              't.item as item',
+              't.description as description',
+              't.amount_cents as amount_cents',
+              't.txn_type as txn_type',
+              't.parent_public_id as parent_public_id',
+              't.source_public_id as source_public_id',
+              't.transfer_project_id as transfer_project_id',
+              't.budget_impact as budget_impact',
+              't.categorisable as categorisable',
+              't.import_batch_id as import_batch_id',
+              't.import_source_type as import_source_type',
+              't.import_source_meta as import_source_meta',
+              't.category_id as category_id',
+              't.sub_category_id as sub_category_id',
+              't.company_default_mapping_rule_id as company_default_mapping_rule_id',
+              't.coding_source as coding_source',
+              't.coding_pending_approval as coding_pending_approval',
+              't.reviewed_at as reviewed_at',
+              't.reviewed_by_user_id as reviewed_by_user_id',
+              't.locked_at as locked_at',
+              't.locked_by_user_id as locked_by_user_id',
+              ...txnReversalSelectExpressions({}),
+              't.created_at as created_at',
+              't.updated_at as updated_at',
             ])
-            .where('project_id', 'in', projectIds);
+            .where('t.project_id', 'in', projectIds);
           if (args.options.fromDate) {
-            query = query.where('txn_date', '>=', args.options.fromDate);
+            query = query.where('t.txn_date', '>=', args.options.fromDate);
           }
           if (args.options.toDate) {
-            query = query.where('txn_date', '<=', args.options.toDate);
+            query = query.where('t.txn_date', '<=', args.options.toDate);
           }
           return query
-            .orderBy('project_id', 'asc')
-            .orderBy('txn_date', 'asc')
-            .orderBy('id', 'asc')
+            .orderBy('t.project_id', 'asc')
+            .orderBy('t.txn_date', 'asc')
+            .orderBy('t.id', 'asc')
             .execute();
         })()
       : Promise.resolve([]),

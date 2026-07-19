@@ -19,6 +19,14 @@ export function buildProjectFinanceById(
         project,
         (month) => month.actualCodedCents
       ),
+      pendingReversalCents: sumProjectMonths(
+        project,
+        (month) => month.pendingReversalCents
+      ),
+      adjustedActualCodedCents: sumProjectMonths(
+        project,
+        (month) => month.adjustedActualCodedCents
+      ),
       uncodedAmountCents: sumProjectMonths(
         project,
         (month) => month.uncodedAmountCents
@@ -73,6 +81,8 @@ export function buildTaxonomyRollups(args: {
       subCategoryName: rollupArgs.subCategoryName,
       budgetCents: 0,
       actualCodedCents: 0,
+      pendingReversalCents: 0,
+      adjustedActualCodedCents: 0,
       uncodedAmountCents: 0,
       transactionCount: 0,
     };
@@ -108,6 +118,11 @@ export function buildTaxonomyRollups(args: {
     });
     if (row.subCategoryId) {
       rollup.actualCodedCents += row.amountCents;
+      if (row.pendingReversalOpen) {
+        rollup.pendingReversalCents += row.amountCents;
+      }
+      rollup.adjustedActualCodedCents =
+        rollup.actualCodedCents - rollup.pendingReversalCents;
     } else {
       rollup.uncodedAmountCents += row.amountCents;
     }
@@ -129,6 +144,8 @@ export function buildTaxonomyRollups(args: {
     if (existing) {
       existing.budgetCents += row.budgetCents;
       existing.actualCodedCents += row.actualCodedCents;
+      existing.pendingReversalCents += row.pendingReversalCents;
+      existing.adjustedActualCodedCents += row.adjustedActualCodedCents;
       existing.uncodedAmountCents += row.uncodedAmountCents;
       existing.transactionCount += row.transactionCount;
       continue;

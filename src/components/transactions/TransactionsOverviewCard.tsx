@@ -16,11 +16,15 @@ export type TransactionView =
   | 'all'
   | 'uncoded'
   | 'auto-mapped-pending'
-  | 'assigned-to-me';
+  | 'assigned-to-me'
+  | 'pending-reversal';
 
 type TransactionsPageSummary = {
   totalCount: number;
   budgetImpactCents: number;
+  pendingReversalCount: number;
+  pendingReversalCents: number;
+  adjustedBudgetImpactCents: number;
   uncodedCount: number;
   uncodedCents: number;
   sourceOnlyCount: number;
@@ -125,11 +129,32 @@ export default function TransactionsOverviewCard(props: {
               {pageSummary.lockedCount} locked
             </Badge>
           ) : null}
+          {pageSummary.pendingReversalCount > 0 ? (
+            <Badge variant="light" color="violet">
+              {pageSummary.pendingReversalCount} pending reversal
+              {` · ${formatCurrencyFromCents(
+                pageSummary.pendingReversalCents,
+                currencyCode
+              )}`}
+            </Badge>
+          ) : null}
           <Badge
             variant="light"
             color={autoMappedPendingCount > 0 ? 'yellow' : 'gray'}
           >
             {autoMappedPendingCount} pending review
+          </Badge>
+          <Badge variant="outline" color="blue">
+            Budget impact{' '}
+            {formatCurrencyFromCents(
+              pageSummary.budgetImpactCents,
+              currencyCode
+            )}
+            {' -> '}
+            {formatCurrencyFromCents(
+              pageSummary.adjustedBudgetImpactCents,
+              currencyCode
+            )}
           </Badge>
         </Group>
 
@@ -145,6 +170,7 @@ export default function TransactionsOverviewCard(props: {
                   label: 'Auto-mapped pending approval',
                 },
                 { value: 'assigned-to-me', label: 'Assigned to me' },
+                { value: 'pending-reversal', label: 'Pending reversal' },
               ]}
               value={transactionView}
               onChange={(value) => {
@@ -153,7 +179,8 @@ export default function TransactionsOverviewCard(props: {
                 setTransactionView(
                   value === 'uncoded' ||
                     value === 'auto-mapped-pending' ||
-                    value === 'assigned-to-me'
+                    value === 'assigned-to-me' ||
+                    value === 'pending-reversal'
                     ? value
                     : 'all'
                 );

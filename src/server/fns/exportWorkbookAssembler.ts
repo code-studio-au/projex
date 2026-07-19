@@ -83,6 +83,10 @@ export async function assembleCompanyWorkbook(
       date: row.txn_date,
       amountCents: Number(row.amount_cents),
       budgetImpact: row.budget_impact,
+      pendingReversal:
+        row.reversal_side === 'source' &&
+        (row.reversal_status === 'pending_reversal' ||
+          row.reversal_status === 'reversal_exception'),
       subCategoryId: row.sub_category_id,
     })),
     validSubCategoryIdsByProject: validSubIdsByProject,
@@ -132,12 +136,26 @@ export async function assembleCompanyWorkbook(
     (sum, row) => sum + Number(row.amount_cents),
     0
   );
-  const totalActualCodedCents = flatSummaryProjects.reduce(
+  const financialSummaryProjects = flatSummaryProjects.filter(
+    (project) => project.projectType === 'project'
+  );
+  const totalActualCodedCents = financialSummaryProjects.reduce(
     (sum, project) =>
       sum + sumProjectMonths(project, (month) => month.actualCodedCents),
     0
   );
-  const totalUncodedCents = flatSummaryProjects.reduce(
+  const totalPendingReversalCents = financialSummaryProjects.reduce(
+    (sum, project) =>
+      sum + sumProjectMonths(project, (month) => month.pendingReversalCents),
+    0
+  );
+  const totalAdjustedActualCodedCents = financialSummaryProjects.reduce(
+    (sum, project) =>
+      sum +
+      sumProjectMonths(project, (month) => month.adjustedActualCodedCents),
+    0
+  );
+  const totalUncodedCents = financialSummaryProjects.reduce(
     (sum, project) =>
       sum + sumProjectMonths(project, (month) => month.uncodedAmountCents),
     0
@@ -160,6 +178,8 @@ export async function assembleCompanyWorkbook(
     transactionCount: args.txns.length,
     totalBudgetCents,
     totalActualCodedCents,
+    totalPendingReversalCents,
+    totalAdjustedActualCodedCents,
     totalUncodedCents,
   });
 
@@ -196,6 +216,12 @@ export async function assembleCompanyWorkbook(
   const autoMappedPendingTxnCount = args.txns.filter(
     (row) => row.coding_pending_approval
   ).length;
+  const pendingReversalTxnCount = args.txns.filter(
+    (row) =>
+      row.reversal_side === 'source' &&
+      (row.reversal_status === 'pending_reversal' ||
+        row.reversal_status === 'reversal_exception')
+  ).length;
   addExecutiveSummaryWorksheet({
     workbook,
     companyName: args.company.name,
@@ -209,7 +235,9 @@ export async function assembleCompanyWorkbook(
     transactionCount: args.txns.length,
     totalBudgetCents,
     totalTxnCents,
+    totalPendingReversalCents,
     uncodedTxnCount,
+    pendingReversalTxnCount,
     reviewedTxnCount,
     lockedTxnCount,
     autoMappedPendingTxnCount,
@@ -271,6 +299,18 @@ export async function assembleCompanyWorkbook(
       defaultMappingRuleId: row.company_default_mapping_rule_id ?? '',
       codingSource: row.coding_source ?? '',
       codingPendingApproval: row.coding_pending_approval,
+      reversalStatus: row.reversal_status ?? '',
+      reversalSide: row.reversal_side ?? '',
+      reversalCounterpartTxnId: row.reversal_counterpart_txn_public_id ?? '',
+      reversalExpectedProjectId: row.reversal_expected_project_id ?? '',
+      reversalMarkedAt: row.reversal_marked_at ?? '',
+      reversalMarkedByUserId: row.reversal_marked_by_user_id ?? '',
+      reversalMatchedAt: row.reversal_matched_at ?? '',
+      reversalMatchedByUserId: row.reversal_matched_by_user_id ?? '',
+      pendingReversalOpen:
+        row.reversal_side === 'source' &&
+        (row.reversal_status === 'pending_reversal' ||
+          row.reversal_status === 'reversal_exception'),
       transferProjectId:
         row.transfer_project_id && projectIdSet.has(row.transfer_project_id)
           ? row.transfer_project_id
@@ -301,6 +341,9 @@ export async function assembleCompanyWorkbook(
   const autoMappedPendingRows = transactionExportRows.filter(
     (row) => row.codingPendingApproval
   );
+  const pendingReversalRows = transactionExportRows.filter(
+    (row) => row.pendingReversalOpen
+  );
   const projectFinanceById = buildProjectFinanceById(flatSummaryProjects);
   const { taxonomyRollupRows, categoryRollupRows } = buildTaxonomyRollups({
     budgetLines: args.budgetLines,
@@ -320,6 +363,7 @@ export async function assembleCompanyWorkbook(
     transactionColumns,
     uncodedTransactionRows,
     autoMappedPendingRows,
+    pendingReversalRows,
   });
 
   if (args.options.detail === 'full') {

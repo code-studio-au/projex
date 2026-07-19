@@ -149,6 +149,13 @@ export async function getCompanySummaryServer(args: {
           'amount_cents',
           'budget_impact',
           'sub_category_id',
+          sql<boolean>`exists (
+            select 1
+            from txn_reversals tr
+            where tr.project_id = txns.project_id
+              and tr.source_txn_public_id = txns.public_id
+              and tr.status in ('pending_reversal', 'reversal_exception')
+          )`.as('pending_reversal'),
         ])
         .where('project_id', 'in', projectIds)
         .execute(),
@@ -170,6 +177,7 @@ export async function getCompanySummaryServer(args: {
           date: row.txn_date,
           amountCents: Number(row.amount_cents ?? 0),
           budgetImpact: row.budget_impact,
+          pendingReversal: row.pending_reversal,
           subCategoryId: row.sub_category_id,
         })),
         validSubCategoryIdsByProject: validSubIdsByProject,

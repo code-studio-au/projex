@@ -32,6 +32,8 @@ export function addOverviewWorksheet(args: {
   transactionCount: number;
   totalBudgetCents: number;
   totalActualCodedCents: number;
+  totalPendingReversalCents: number;
+  totalAdjustedActualCodedCents: number;
   totalUncodedCents: number;
 }) {
   const worksheet = args.workbook.addWorksheet('Overview');
@@ -66,6 +68,8 @@ export function addOverviewWorksheet(args: {
     `- ${args.transactionCount} transaction rows`,
     `- ${centsToMajorUnits(args.totalBudgetCents).toFixed(2)} planned budget`,
     `- ${centsToMajorUnits(args.totalActualCodedCents).toFixed(2)} coded actuals`,
+    `- ${centsToMajorUnits(args.totalPendingReversalCents).toFixed(2)} pending reversal amount`,
+    `- ${centsToMajorUnits(args.totalAdjustedActualCodedCents).toFixed(2)} adjusted coded actuals`,
     `- ${centsToMajorUnits(args.totalUncodedCents).toFixed(2)} uncoded amount`,
     '',
     'Recommended worksheet order',
@@ -197,6 +201,7 @@ export function addAnalysisWorksheets(args: {
   transactionColumns: WorksheetColumn[];
   uncodedTransactionRows: TransactionExportRow[];
   autoMappedPendingRows: TransactionExportRow[];
+  pendingReversalRows: TransactionExportRow[];
 }) {
   createWorksheet(
     args.workbook,
@@ -217,6 +222,21 @@ export function addAnalysisWorksheets(args: {
         key: 'actualCodedAmount',
         style: amountStyle,
       },
+      { header: 'Pending reversal cents', key: 'pendingReversalCents' },
+      {
+        header: 'Pending reversal amount',
+        key: 'pendingReversalAmount',
+        style: amountStyle,
+      },
+      {
+        header: 'Adjusted actual coded cents',
+        key: 'adjustedActualCodedCents',
+      },
+      {
+        header: 'Adjusted actual coded amount',
+        key: 'adjustedActualCodedAmount',
+        style: amountStyle,
+      },
       { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
       { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
       { header: 'Total actual incl uncoded cents', key: 'totalActualCents' },
@@ -233,6 +253,8 @@ export function addAnalysisWorksheets(args: {
       const finance = args.projectFinanceById.get(project.id) ?? {
         budgetCents: project.budgetCents,
         actualCodedCents: 0,
+        pendingReversalCents: 0,
+        adjustedActualCodedCents: 0,
         uncodedAmountCents: 0,
       };
       const totalActualCentsForProject =
@@ -253,6 +275,12 @@ export function addAnalysisWorksheets(args: {
         budgetAmount: centsToMajorUnits(finance.budgetCents),
         actualCodedCents: finance.actualCodedCents,
         actualCodedAmount: centsToMajorUnits(finance.actualCodedCents),
+        pendingReversalCents: finance.pendingReversalCents,
+        pendingReversalAmount: centsToMajorUnits(finance.pendingReversalCents),
+        adjustedActualCodedCents: finance.adjustedActualCodedCents,
+        adjustedActualCodedAmount: centsToMajorUnits(
+          finance.adjustedActualCodedCents
+        ),
         uncodedAmountCents: finance.uncodedAmountCents,
         uncodedAmount: centsToMajorUnits(finance.uncodedAmountCents),
         totalActualCents: totalActualCentsForProject,
@@ -286,6 +314,21 @@ export function addAnalysisWorksheets(args: {
         key: 'actualCodedAmount',
         style: amountStyle,
       },
+      { header: 'Pending reversal cents', key: 'pendingReversalCents' },
+      {
+        header: 'Pending reversal amount',
+        key: 'pendingReversalAmount',
+        style: amountStyle,
+      },
+      {
+        header: 'Adjusted actual coded cents',
+        key: 'adjustedActualCodedCents',
+      },
+      {
+        header: 'Adjusted actual coded amount',
+        key: 'adjustedActualCodedAmount',
+        style: amountStyle,
+      },
       { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
       { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
     ],
@@ -310,6 +353,12 @@ export function addAnalysisWorksheets(args: {
         budgetAmount: centsToMajorUnits(monthlyBudgetCents),
         actualCodedCents: month.actualCodedCents,
         actualCodedAmount: centsToMajorUnits(month.actualCodedCents),
+        pendingReversalCents: month.pendingReversalCents,
+        pendingReversalAmount: centsToMajorUnits(month.pendingReversalCents),
+        adjustedActualCodedCents: month.adjustedActualCodedCents,
+        adjustedActualCodedAmount: centsToMajorUnits(
+          month.adjustedActualCodedCents
+        ),
         uncodedAmountCents: month.uncodedAmountCents,
         uncodedAmount: centsToMajorUnits(month.uncodedAmountCents),
       }));
@@ -336,6 +385,21 @@ export function addAnalysisWorksheets(args: {
         key: 'actualCodedAmount',
         style: amountStyle,
       },
+      { header: 'Pending reversal cents', key: 'pendingReversalCents' },
+      {
+        header: 'Pending reversal amount',
+        key: 'pendingReversalAmount',
+        style: amountStyle,
+      },
+      {
+        header: 'Adjusted actual coded cents',
+        key: 'adjustedActualCodedCents',
+      },
+      {
+        header: 'Adjusted actual coded amount',
+        key: 'adjustedActualCodedAmount',
+        style: amountStyle,
+      },
       { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
       { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
       { header: 'Transaction count', key: 'transactionCount' },
@@ -344,6 +408,10 @@ export function addAnalysisWorksheets(args: {
       ...row,
       budgetAmount: centsToMajorUnits(row.budgetCents),
       actualCodedAmount: centsToMajorUnits(row.actualCodedCents),
+      pendingReversalAmount: centsToMajorUnits(row.pendingReversalCents),
+      adjustedActualCodedAmount: centsToMajorUnits(
+        row.adjustedActualCodedCents
+      ),
       uncodedAmount: centsToMajorUnits(row.uncodedAmountCents),
     }))
   );
@@ -370,6 +438,21 @@ export function addAnalysisWorksheets(args: {
         key: 'actualCodedAmount',
         style: amountStyle,
       },
+      { header: 'Pending reversal cents', key: 'pendingReversalCents' },
+      {
+        header: 'Pending reversal amount',
+        key: 'pendingReversalAmount',
+        style: amountStyle,
+      },
+      {
+        header: 'Adjusted actual coded cents',
+        key: 'adjustedActualCodedCents',
+      },
+      {
+        header: 'Adjusted actual coded amount',
+        key: 'adjustedActualCodedAmount',
+        style: amountStyle,
+      },
       { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
       { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
       { header: 'Transaction count', key: 'transactionCount' },
@@ -378,6 +461,10 @@ export function addAnalysisWorksheets(args: {
       ...row,
       budgetAmount: centsToMajorUnits(row.budgetCents),
       actualCodedAmount: centsToMajorUnits(row.actualCodedCents),
+      pendingReversalAmount: centsToMajorUnits(row.pendingReversalCents),
+      adjustedActualCodedAmount: centsToMajorUnits(
+        row.adjustedActualCodedCents
+      ),
       uncodedAmount: centsToMajorUnits(row.uncodedAmountCents),
     }))
   );
@@ -394,6 +481,12 @@ export function addAnalysisWorksheets(args: {
     args.transactionColumns,
     args.autoMappedPendingRows
   );
+  createWorksheet(
+    args.workbook,
+    'Pending Reversal',
+    args.transactionColumns,
+    args.pendingReversalRows
+  );
 }
 
 export function addExecutiveSummaryWorksheet(args: {
@@ -409,7 +502,9 @@ export function addExecutiveSummaryWorksheet(args: {
   transactionCount: number;
   totalBudgetCents: number;
   totalTxnCents: number;
+  totalPendingReversalCents: number;
   uncodedTxnCount: number;
+  pendingReversalTxnCount: number;
   reviewedTxnCount: number;
   lockedTxnCount: number;
   autoMappedPendingTxnCount: number;
@@ -441,7 +536,12 @@ export function addExecutiveSummaryWorksheet(args: {
       'Total transaction amount (major units)',
       centsToMajorUnits(args.totalTxnCents),
     ],
+    [
+      'Pending reversal amount (major units)',
+      centsToMajorUnits(args.totalPendingReversalCents),
+    ],
     ['Uncoded transactions', args.uncodedTxnCount],
+    ['Pending reversal transactions', args.pendingReversalTxnCount],
     ['Reviewed transactions', args.reviewedTxnCount],
     ['Locked transactions', args.lockedTxnCount],
     ['Auto-mapped pending transactions', args.autoMappedPendingTxnCount],
@@ -459,6 +559,10 @@ export function addExecutiveSummaryWorksheet(args: {
     'Budget amount',
     'Actual coded cents',
     'Actual coded amount',
+    'Pending reversal cents',
+    'Pending reversal amount',
+    'Adjusted actual coded cents',
+    'Adjusted actual coded amount',
     'Uncoded count',
     'Uncoded amount cents',
     'Uncoded amount',
@@ -466,6 +570,14 @@ export function addExecutiveSummaryWorksheet(args: {
   args.flatSummaryProjects.forEach((project) => {
     const actualCodedCents = project.months.reduce(
       (sum, month) => sum + month.actualCodedCents,
+      0
+    );
+    const pendingReversalCents = project.months.reduce(
+      (sum, month) => sum + month.pendingReversalCents,
+      0
+    );
+    const adjustedActualCodedCents = project.months.reduce(
+      (sum, month) => sum + month.adjustedActualCodedCents,
       0
     );
     const uncodedCount = project.months.reduce(
@@ -487,6 +599,10 @@ export function addExecutiveSummaryWorksheet(args: {
       centsToMajorUnits(project.budgetCents),
       actualCodedCents,
       centsToMajorUnits(actualCodedCents),
+      pendingReversalCents,
+      centsToMajorUnits(pendingReversalCents),
+      adjustedActualCodedCents,
+      centsToMajorUnits(adjustedActualCodedCents),
       uncodedCount,
       uncodedAmountCents,
       centsToMajorUnits(uncodedAmountCents),
@@ -497,7 +613,7 @@ export function addExecutiveSummaryWorksheet(args: {
   setHeaderStyle(executiveSummary, headerRow);
   executiveSummary.autoFilter = {
     from: { row: headerRow, column: 1 },
-    to: { row: headerRow, column: 13 },
+    to: { row: headerRow, column: 17 },
   };
   executiveSummary.views = [{ state: 'frozen', ySplit: headerRow }];
   executiveSummary.columns = [
@@ -512,7 +628,11 @@ export function addExecutiveSummaryWorksheet(args: {
     { key: 'i', width: 18 },
     { key: 'j', width: 18 },
     { key: 'k', width: 16 },
-    { key: 'l', width: 20 },
+    { key: 'l', width: 18 },
     { key: 'm', width: 18 },
+    { key: 'n', width: 18 },
+    { key: 'o', width: 20 },
+    { key: 'p', width: 20 },
+    { key: 'q', width: 18 },
   ];
 }

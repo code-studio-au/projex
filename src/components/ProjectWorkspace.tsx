@@ -65,7 +65,8 @@ type TransactionView =
   | 'all'
   | 'uncoded'
   | 'auto-mapped-pending'
-  | 'assigned-to-me';
+  | 'assigned-to-me'
+  | 'pending-reversal';
 type TransactionDrilldownSearch =
   | {
       kind: 'category';
@@ -354,6 +355,9 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     (isHydrated
       ? initialCanEditTaxonomy || access.can('taxonomy:edit', projectId)
       : initialCanEditTaxonomy);
+  const canManageReversals =
+    isOperationalProject &&
+    (isHydrated ? access.can('txns:manage_reversals', projectId) : false);
   const canManageImportRules = isHydrated
     ? access.can('project:import', projectId)
     : false;
@@ -1045,6 +1049,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                 });
               }}
               canEditTaxonomy={canEditTaxonomy}
+              canManageReversals={canManageReversals}
               readOnly={!canEditTxns}
             />
           </Tabs.Panel>

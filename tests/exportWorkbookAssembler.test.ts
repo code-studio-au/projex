@@ -137,6 +137,17 @@ function buildExportFixture(
         reviewed_by_user_id: 'usr_1',
         locked_at: '2026-05-12T00:00:00.000Z',
         locked_by_user_id: 'usr_1',
+        reversal_id: 'rev_1',
+        reversal_status: 'pending_reversal',
+        reversal_side: 'source',
+        reversal_counterpart_txn_public_id: null,
+        reversal_expected_project_id: 'prj_2',
+        reversal_marked_at: '2026-05-13T00:00:00.000Z',
+        reversal_marked_by_user_id: 'usr_1',
+        reversal_matched_at: null,
+        reversal_matched_by_user_id: null,
+        reversal_created_at: '2026-05-13T00:00:00.000Z',
+        reversal_updated_at: '2026-05-13T00:00:00.000Z',
         created_at: '2026-05-10T00:00:00.000Z',
         updated_at: '2026-05-12T00:00:00.000Z',
       },
@@ -168,6 +179,17 @@ function buildExportFixture(
         reviewed_by_user_id: null,
         locked_at: null,
         locked_by_user_id: null,
+        reversal_id: null,
+        reversal_status: null,
+        reversal_side: null,
+        reversal_counterpart_txn_public_id: null,
+        reversal_expected_project_id: null,
+        reversal_marked_at: null,
+        reversal_marked_by_user_id: null,
+        reversal_matched_at: null,
+        reversal_matched_by_user_id: null,
+        reversal_created_at: null,
+        reversal_updated_at: null,
         created_at: '2026-05-15T00:00:00.000Z',
         updated_at: '2026-05-15T00:00:00.000Z',
       },
@@ -242,12 +264,24 @@ test('assembleCompanyWorkbook builds summary workbook metadata and omits detail 
   assert.ok(workbook.getWorksheet('Overview'));
   assert.ok(workbook.getWorksheet('Executive Summary'));
   assert.ok(workbook.getWorksheet('Budget vs Actual'));
+  assert.ok(workbook.getWorksheet('Pending Reversal'));
   assert.ok(!workbook.getWorksheet('Transactions'));
 
   const metadataSheet = workbook.getWorksheet('Export Metadata');
+  const overviewSheet = workbook.getWorksheet('Overview');
   assert.ok(metadataSheet);
+  assert.ok(overviewSheet);
   assert.equal(metadataSheet?.state, 'hidden');
   assert.equal(metadataSheet?.getCell('B3').value, 'company_workbook');
+  const overviewLines = Array.from(
+    { length: overviewSheet?.rowCount ?? 0 },
+    (_, index) => String(overviewSheet?.getCell(`A${index + 1}`).value ?? '')
+  );
+  assert.ok(
+    overviewLines.some((line) =>
+      line.includes('125.00 pending reversal amount')
+    )
+  );
 });
 
 test('assembleCompanyWorkbook builds full detail tabs and keeps scoped transfer links blank', async () => {
@@ -258,14 +292,17 @@ test('assembleCompanyWorkbook builds full detail tabs and keeps scoped transfer 
   const reviewedSheet = workbook.getWorksheet('Reviewed Transactions');
   const lockedSheet = workbook.getWorksheet('Locked Transactions');
   const membersSheet = workbook.getWorksheet('Company Members');
+  const pendingReversalSheet = workbook.getWorksheet('Pending Reversal');
 
   assert.ok(transactionSheet);
   assert.ok(reviewedSheet);
   assert.ok(lockedSheet);
   assert.ok(membersSheet);
+  assert.ok(pendingReversalSheet);
   assert.equal(transactionSheet?.rowCount, 3);
   assert.equal(reviewedSheet?.rowCount, 2);
   assert.equal(lockedSheet?.rowCount, 2);
+  assert.equal(pendingReversalSheet?.rowCount, 2);
 
   const headers = (transactionSheet?.getRow(1).values as Array<unknown>).slice(
     1

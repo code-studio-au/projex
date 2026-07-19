@@ -475,6 +475,48 @@ test('company summary rolls sub-project totals into programmes', () => {
   assert.equal(result[0].children?.[0].id, childProjectId);
 });
 
+test('company summary tracks pending reversal totals separately from adjusted actuals', () => {
+  const result = buildCompanySummaryProjects({
+    projects: [
+      {
+        id: projectId,
+        name: 'Project One',
+        projectType: 'project' as const,
+        parentProjectId: undefined,
+        status: 'active' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 50000,
+      },
+    ],
+    validSubCategoryIdsByProject: new Map([
+      [projectId, new Set<string>([subCategory.id])],
+    ]),
+    transactions: [
+      {
+        projectId,
+        date: '2026-04-28',
+        amountCents: 12500,
+        budgetImpact: true,
+        pendingReversal: true,
+        subCategoryId: subCategory.id,
+      },
+      {
+        projectId,
+        date: '2026-04-29',
+        amountCents: 5000,
+        budgetImpact: true,
+        subCategoryId: subCategory.id,
+      },
+    ],
+  });
+
+  assert.equal(result[0].months.length, 1);
+  assert.equal(result[0].months[0].actualCodedCents, 17500);
+  assert.equal(result[0].months[0].pendingReversalCents, 12500);
+  assert.equal(result[0].months[0].adjustedActualCodedCents, 5000);
+});
+
 test('company summary keeps active sub-projects visible when programme is archived', () => {
   const childProjectId = asProjectId('prj_child');
   const result = buildCompanySummaryProjects({

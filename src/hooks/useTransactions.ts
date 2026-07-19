@@ -10,6 +10,9 @@ import type {
 import type {
   TxnBulkActionInput,
   TxnBulkActionResult,
+  TxnReversalActionInput,
+  TxnReversalActionResult,
+  TxnReversalMatchSuggestion,
   TxnSplitInput,
   TxnTransferInput,
   TxnUpdateInput,
@@ -19,6 +22,8 @@ import { useImportTransactionsMutation } from '../queries/admin';
 import {
   useBulkTxnActionMutation,
   useSplitTxnMutation,
+  useTxnReversalActionMutation,
+  useTxnReversalSuggestionsMutation,
   useTransferTxnMutation,
   useTransactionsQuery,
   useUpdateTxnMutation,
@@ -44,6 +49,8 @@ export function useTransactions(params: {
   const transfer = useTransferTxnMutation(projectId);
   const workflowState = useUpdateTxnWorkflowStateMutation(projectId);
   const bulkTxnAction = useBulkTxnActionMutation(projectId);
+  const reversalAction = useTxnReversalActionMutation(projectId);
+  const reversalSuggestions = useTxnReversalSuggestionsMutation(projectId);
   const importMut = useImportTransactionsMutation(projectId);
 
   const transactions = useMemo(() => q.data ?? [], [q.data]);
@@ -74,6 +81,15 @@ export function useTransactions(params: {
   const runBulkAction = async (
     input: TxnBulkActionInput
   ): Promise<TxnBulkActionResult> => bulkTxnAction.mutateAsync(input);
+
+  const runReversalAction = async (
+    input: TxnReversalActionInput
+  ): Promise<TxnReversalActionResult> => reversalAction.mutateAsync(input);
+
+  const getReversalSuggestions = async (
+    txnId: TxnId
+  ): Promise<TxnReversalMatchSuggestion[]> =>
+    reversalSuggestions.mutateAsync(txnId);
 
   const replaceAll = async (
     next: Txn[],
@@ -155,6 +171,8 @@ export function useTransactions(params: {
     transferTxn,
     updateWorkflowState,
     runBulkAction,
+    runReversalAction,
+    getReversalSuggestions,
     stripCodingForSubCategoryIds,
     stripCodingForCategoryIds,
     replaceAll,

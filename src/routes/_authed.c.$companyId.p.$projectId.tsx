@@ -38,7 +38,13 @@ const projectWorkspaceSearchSchema = z
       .regex(/^\d{4}-\d{2}$/)
       .optional(),
     view: z
-      .enum(['all', 'uncoded', 'auto-mapped-pending', 'assigned-to-me'])
+      .enum([
+        'all',
+        'uncoded',
+        'auto-mapped-pending',
+        'assigned-to-me',
+        'pending-reversal',
+      ])
       .optional(),
     commentTxn: z.string().trim().min(1).optional(),
     commentId: z.string().trim().min(1).optional(),

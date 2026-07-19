@@ -8,6 +8,8 @@ import { monthKeyFromDateOnlyInput, type DateOnlyInput } from './finance';
 
 type CompanySummaryMonthBucket = {
   actualCodedCents: number;
+  pendingReversalCents: number;
+  adjustedActualCodedCents: number;
   uncodedCount: number;
   uncodedAmountCents: number;
 };
@@ -29,6 +31,7 @@ export type CompanySummaryTxnInput = {
   date: DateOnlyInput;
   amountCents: number;
   budgetImpact: boolean;
+  pendingReversal?: boolean;
   subCategoryId?: SubCategoryId | string | null;
 };
 
@@ -53,6 +56,8 @@ export function buildCompanySummaryProjects(args: {
       new Map<string, CompanySummaryMonthBucket>();
     const bucket = projectBuckets.get(monthKey) ?? {
       actualCodedCents: 0,
+      pendingReversalCents: 0,
+      adjustedActualCodedCents: 0,
       uncodedCount: 0,
       uncodedAmountCents: 0,
     };
@@ -66,6 +71,11 @@ export function buildCompanySummaryProjects(args: {
       validSubIds.has(String(transaction.subCategoryId))
     ) {
       bucket.actualCodedCents += amount;
+      if (transaction.pendingReversal) {
+        bucket.pendingReversalCents += amount;
+      }
+      bucket.adjustedActualCodedCents =
+        bucket.actualCodedCents - bucket.pendingReversalCents;
     } else {
       bucket.uncodedCount += 1;
       bucket.uncodedAmountCents += amount;
@@ -128,10 +138,14 @@ export function buildCompanySummaryProjects(args: {
       for (const month of child.months) {
         const bucket = monthBuckets.get(month.monthKey) ?? {
           actualCodedCents: 0,
+          pendingReversalCents: 0,
+          adjustedActualCodedCents: 0,
           uncodedCount: 0,
           uncodedAmountCents: 0,
         };
         bucket.actualCodedCents += month.actualCodedCents;
+        bucket.pendingReversalCents += month.pendingReversalCents;
+        bucket.adjustedActualCodedCents += month.adjustedActualCodedCents;
         bucket.uncodedCount += month.uncodedCount;
         bucket.uncodedAmountCents += month.uncodedAmountCents;
         monthBuckets.set(month.monthKey, bucket);

@@ -1,5 +1,8 @@
 import type {
   ProjectRuleSuggestionPrompt,
+  TxnReversalActionInput,
+  TxnReversalActionResult,
+  TxnReversalMatchSuggestion,
   TxnSplitInput,
   TxnTransferInput,
 } from '../../api/types';
@@ -8,6 +11,7 @@ import type { ProjectId, Txn, TxnId } from '../../types';
 import { asCategoryId, asSubCategoryId } from '../../types/ids';
 import TaxonomyManagerModal from '../TaxonomyManagerModal';
 import TransactionCommentsModal from '../TransactionCommentsModal';
+import TransactionReversalModal from './TransactionReversalModal';
 import TransactionSplitModal from '../TransactionSplitModal';
 import TransactionTransferModal from '../TransactionTransferModal';
 import TransactionBulkRecodeModal from './TransactionBulkRecodeModal';
@@ -26,6 +30,15 @@ export default function TransactionsModalStack(props: {
   transferProjectOptions: Array<{ value: ProjectId; label: string }>;
   onCloseTransfer: () => void;
   onTransfer: (input: Omit<TxnTransferInput, 'txnId'>) => Promise<void>;
+  reversalTxn: Txn | null;
+  expectedProjectOptions: Array<{ value: ProjectId; label: string }>;
+  onCloseReversal: () => void;
+  onLoadReversalSuggestions: (
+    txnId: TxnId
+  ) => Promise<TxnReversalMatchSuggestion[]>;
+  onSubmitReversalAction: (
+    input: TxnReversalActionInput
+  ) => Promise<TxnReversalActionResult>;
   activeCommentsTxn: Txn | null;
   onCloseComments: () => void;
   bulkRecodeOpen: boolean;
@@ -62,6 +75,11 @@ export default function TransactionsModalStack(props: {
     transferProjectOptions,
     onCloseTransfer,
     onTransfer,
+    reversalTxn,
+    expectedProjectOptions,
+    onCloseReversal,
+    onLoadReversalSuggestions,
+    onSubmitReversalAction,
     activeCommentsTxn,
     onCloseComments,
     bulkRecodeOpen,
@@ -108,6 +126,19 @@ export default function TransactionsModalStack(props: {
         onClose={onCloseTransfer}
         onTransfer={onTransfer}
       />
+
+      {reversalTxn ? (
+        <TransactionReversalModal
+          key={reversalTxn.id}
+          opened
+          txn={reversalTxn}
+          currencyCode={currencyCode}
+          expectedProjectOptions={expectedProjectOptions}
+          onClose={onCloseReversal}
+          onLoadSuggestions={onLoadReversalSuggestions}
+          onSubmitAction={onSubmitReversalAction}
+        />
+      ) : null}
 
       <TransactionCommentsModal
         opened={Boolean(activeCommentsTxn)}

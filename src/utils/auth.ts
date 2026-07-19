@@ -27,7 +27,8 @@ export type Action =
   | 'comments:resolve'
   | 'comments:moderate'
   | 'taxonomy:edit'
-  | 'txns:edit';
+  | 'txns:edit'
+  | 'txns:manage_reversals';
 
 const companyRank: Record<CompanyRole, number> = {
   admin: 4,
@@ -177,6 +178,8 @@ export function can(params: {
       pRole === 'lead' ||
       pRole === 'member'
     );
+  if (action === 'txns:manage_reversals')
+    return companyCanEdit || pRole === 'owner' || pRole === 'lead';
 
   return false;
 }

@@ -56,6 +56,15 @@ export type TransactionExportRow = {
   defaultMappingRuleId: string;
   codingSource: string;
   codingPendingApproval: boolean;
+  reversalStatus: string;
+  reversalSide: string;
+  reversalCounterpartTxnId: string;
+  reversalExpectedProjectId: string;
+  reversalMarkedAt: string;
+  reversalMarkedByUserId: string;
+  reversalMatchedAt: string;
+  reversalMatchedByUserId: string;
+  pendingReversalOpen: boolean;
   transferProjectId: string;
   transferProjectName: string;
   parentTxnId: string;
@@ -75,6 +84,8 @@ export type TransactionExportRow = {
 export type ProjectFinanceRollup = {
   budgetCents: number;
   actualCodedCents: number;
+  pendingReversalCents: number;
+  adjustedActualCodedCents: number;
   uncodedAmountCents: number;
 };
 
@@ -91,13 +102,15 @@ export type TaxonomyRollup = {
   subCategoryName: string;
   budgetCents: number;
   actualCodedCents: number;
+  pendingReversalCents: number;
+  adjustedActualCodedCents: number;
   uncodedAmountCents: number;
   transactionCount: number;
 };
 
 export const amountStyle: Partial<ExcelJS.Style> = { numFmt: '#,##0.00' };
 export const percentStyle: Partial<ExcelJS.Style> = { numFmt: '0.00%' };
-export const COMPANY_EXPORT_CONTRACT_VERSION = '2026.06-v2';
+export const COMPANY_EXPORT_CONTRACT_VERSION = '2026.07-v3';
 
 export function buildTransactionColumns(): WorksheetColumn[] {
   return [
@@ -124,6 +137,21 @@ export function buildTransactionColumns(): WorksheetColumn[] {
     { header: 'Default mapping rule ID', key: 'defaultMappingRuleId' },
     { header: 'Coding source', key: 'codingSource' },
     { header: 'Coding pending approval', key: 'codingPendingApproval' },
+    { header: 'Reversal status', key: 'reversalStatus' },
+    { header: 'Reversal side', key: 'reversalSide' },
+    {
+      header: 'Reversal counterpart transaction ID',
+      key: 'reversalCounterpartTxnId',
+    },
+    {
+      header: 'Reversal expected project ID',
+      key: 'reversalExpectedProjectId',
+    },
+    { header: 'Reversal marked at', key: 'reversalMarkedAt' },
+    { header: 'Reversal marked by user ID', key: 'reversalMarkedByUserId' },
+    { header: 'Reversal matched at', key: 'reversalMatchedAt' },
+    { header: 'Reversal matched by user ID', key: 'reversalMatchedByUserId' },
+    { header: 'Pending reversal open', key: 'pendingReversalOpen' },
     { header: 'Transfer project ID', key: 'transferProjectId' },
     { header: 'Transfer project name', key: 'transferProjectName' },
     { header: 'Parent transaction ID', key: 'parentTxnId' },

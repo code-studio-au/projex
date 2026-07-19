@@ -46,6 +46,7 @@ export default function TransactionsPanel(props: {
   transferProjectOptions: Array<{ value: ProjectId; label: string }>;
   onClearFilters: () => void;
   canEditTaxonomy: boolean;
+  canManageReversals: boolean;
   readOnly?: boolean;
 }) {
   const {
@@ -71,6 +72,7 @@ export default function TransactionsPanel(props: {
     transferProjectOptions,
     onClearFilters,
     canEditTaxonomy,
+    canManageReversals,
     readOnly = false,
   } = props;
   const {
@@ -89,6 +91,7 @@ export default function TransactionsPanel(props: {
     projectRuleMatchText,
     projectRulePrompt,
     rowSelection,
+    reversalTxn,
     sorting,
     splitTxn,
     transferTxn,
@@ -103,6 +106,7 @@ export default function TransactionsPanel(props: {
     setProjectRuleError,
     setProjectRuleMatchText,
     setProjectRulePrompt,
+    setReversalTxn,
     setRowSelection,
     setSorting,
     setSplitTxn,
@@ -172,6 +176,7 @@ export default function TransactionsPanel(props: {
     expandedCommentsLoading: expandedCommentsQ.isLoading,
     transferOutEnabled,
     transferProjectOptions,
+    canManageReversals,
     onApplyProjectRulePrompt: applyProjectRulePrompt,
     onProjectRuleError: setProjectRuleError,
     onOpenComments: setCommentsTxn,
@@ -179,6 +184,7 @@ export default function TransactionsPanel(props: {
       setExpandedCommentsTxn((current) =>
         current?.id === txn.id ? null : txn
       ),
+    onOpenReversal: setReversalTxn,
     onOpenSplit: setSplitTxn,
     onOpenTransfer: setTransferTxn,
   });
@@ -403,6 +409,15 @@ export default function TransactionsPanel(props: {
             ? txns.transferTxn(transferTxn.id, input)
             : Promise.resolve()
         }
+        reversalTxn={reversalTxn}
+        expectedProjectOptions={transferProjectOptions.filter(
+          (option) => option.value !== projectId
+        )}
+        onCloseReversal={() => setReversalTxn(null)}
+        onLoadReversalSuggestions={(txnId) =>
+          txns.getReversalSuggestions(txnId)
+        }
+        onSubmitReversalAction={(input) => txns.runReversalAction(input)}
         activeCommentsTxn={activeCommentsTxn}
         onCloseComments={() => {
           setCommentsTxn(null);

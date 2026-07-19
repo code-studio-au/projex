@@ -378,6 +378,32 @@ export const TXN_TYPES = [
 
 export type TxnType = (typeof TXN_TYPES)[number];
 
+export const TXN_REVERSAL_STATUSES = [
+  'pending_reversal',
+  'reversed_matched',
+  'reversal_exception',
+] as const;
+
+export type TxnReversalStatus = (typeof TXN_REVERSAL_STATUSES)[number];
+
+export const TXN_REVERSAL_SIDES = ['source', 'reversal'] as const;
+
+export type TxnReversalSide = (typeof TXN_REVERSAL_SIDES)[number];
+
+export type TxnReversal = {
+  id: string;
+  status: TxnReversalStatus;
+  side: TxnReversalSide;
+  counterpartTxnId?: TxnId;
+  expectedProjectId?: ProjectId;
+  markedAt?: string;
+  markedByUserId?: UserId;
+  matchedAt?: string;
+  matchedByUserId?: UserId;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type Txn = {
   id: TxnId;
   /**
@@ -418,6 +444,7 @@ export type Txn = {
   reviewedByUserId?: UserId;
   lockedAt?: string;
   lockedByUserId?: UserId;
+  reversal?: TxnReversal;
   /** Audit timestamps as ISO strings (UTC). */
   createdAt?: string;
   updatedAt?: string;
@@ -466,6 +493,8 @@ export type BudgetLine = {
 export type CompanySummaryMonth = {
   monthKey: string;
   actualCodedCents: number;
+  pendingReversalCents: number;
+  adjustedActualCodedCents: number;
   uncodedCount: number;
   uncodedAmountCents: number;
 };

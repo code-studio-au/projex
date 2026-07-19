@@ -21,6 +21,7 @@ import type {
   RuleSuggestions,
   SubCategories,
   TxnComments,
+  TxnReversals,
   Txns,
   Users,
 } from './generated/db';
@@ -41,6 +42,7 @@ import type {
   ProjectStandardSyncStatus,
   ProjectType,
   ProjectVisibility,
+  TxnReversalStatus,
   TxnType,
 } from '../../types';
 import type {
@@ -123,6 +125,17 @@ export type TxnCommentTable = Override<
   TxnComments,
   {
     resolved_at: string | null;
+    created_at: Generated<string>;
+    updated_at: Generated<string>;
+  }
+>;
+
+export type TxnReversalTable = Override<
+  TxnReversals,
+  {
+    status: TxnReversalStatus;
+    marked_at: Generated<string>;
+    matched_at: string | null;
     created_at: Generated<string>;
     updated_at: Generated<string>;
   }
@@ -295,6 +308,7 @@ type AppTableOverrides = {
   project_memberships: ProjectMembershipTable;
   txns: TxnTable;
   txn_comments: TxnCommentTable;
+  txn_reversals: TxnReversalTable;
   budget_lines: BudgetLineTable;
   categories: CategoryTable;
   sub_categories: SubCategoryTable;
@@ -339,6 +353,7 @@ export const DB_TABLES = [
   'rule_suggestions',
   'sub_categories',
   'txn_comments',
+  'txn_reversals',
   'txns',
   'users',
 ] as const satisfies ReadonlyArray<keyof DB>;

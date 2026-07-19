@@ -126,6 +126,9 @@ export function useTransactionsPanelData(args: {
   const pageSummary = transactionsPageQ.data?.summary ?? {
     totalCount: 0,
     budgetImpactCents: 0,
+    pendingReversalCount: 0,
+    pendingReversalCents: 0,
+    adjustedBudgetImpactCents: 0,
     uncodedCount: 0,
     uncodedCents: 0,
     sourceOnlyCount: 0,

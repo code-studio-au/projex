@@ -173,6 +173,40 @@ export const transferTxnServerFn = createServerFn({ method: 'POST' })
     )
   );
 
+export const listTxnReversalMatchSuggestionsServerFn = createServerFn({
+  method: 'GET',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'listTxnReversalMatchSuggestionsEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'listTxnReversalMatchSuggestionsEndpoint'
+    )
+  );
+
+export const applyTxnReversalActionServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'applyTxnReversalActionEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'applyTxnReversalActionEndpoint'
+    )
+  );
+
 export const updateTxnWorkflowStateServerFn = createServerFn({
   method: 'POST',
 })

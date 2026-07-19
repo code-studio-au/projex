@@ -12,10 +12,12 @@ import {
 import {
   applyTxnPageFilters,
   buildTransactionsPageFilters,
+  pendingTxnReversalExistsSql,
   prefixedTxnSelectColumns,
   toCount,
   txnAssignedToUserSql,
-  txnSelectColumns,
+  txnReversalJoin,
+  txnReversalSelectExpressions,
   txnValidSubCategorySql,
   type TxnPageSummaryRow,
 } from './shared';
@@ -32,11 +34,15 @@ export async function listTransactionsServer(args: {
       'project:view'
     );
     const rows = await db
-      .selectFrom('txns')
-      .select(txnSelectColumns())
-      .where('project_id', '=', args.projectId)
-      .orderBy('created_at', 'asc')
-      .orderBy('id', 'asc')
+      .selectFrom('txns as t')
+      .leftJoin('txn_reversals as tr', txnReversalJoin())
+      .select([
+        ...prefixedTxnSelectColumns('t'),
+        ...txnReversalSelectExpressions({}),
+      ])
+      .where('t.project_id', '=', args.projectId)
+      .orderBy('t.created_at', 'asc')
+      .orderBy('t.id', 'asc')
       .execute();
     return rows.map(toTxn);
   });
@@ -67,7 +73,13 @@ export async function listTransactionsPageServer(args: {
     });
 
     let rowsQuery = applyTxnPageFilters(
-      db.selectFrom('txns as t').select(prefixedTxnSelectColumns('t')),
+      db
+        .selectFrom('txns as t')
+        .leftJoin('txn_reversals as tr', txnReversalJoin())
+        .select([
+          ...prefixedTxnSelectColumns('t'),
+          ...txnReversalSelectExpressions({}),
+        ]),
       filters
     );
 
@@ -94,10 +106,20 @@ export async function listTransactionsPageServer(args: {
           db.selectFrom('txns as t').select(() => {
             const validSubCategory = txnValidSubCategorySql();
             const assignedToUser = txnAssignedToUserSql(userId);
+            const pendingReversal = pendingTxnReversalExistsSql();
             return [
               sql<number>`count(*)`.as('total_count'),
               sql<number>`coalesce(sum(case when t.budget_impact then t.amount_cents else 0 end), 0)`.as(
                 'budget_impact_cents'
+              ),
+              sql<number>`coalesce(sum(case when ${pendingReversal} then 1 else 0 end), 0)`.as(
+                'pending_reversal_count'
+              ),
+              sql<number>`coalesce(sum(case when ${pendingReversal} then t.amount_cents else 0 end), 0)`.as(
+                'pending_reversal_cents'
+              ),
+              sql<number>`coalesce(sum(case when t.budget_impact then t.amount_cents else 0 end), 0) - coalesce(sum(case when ${pendingReversal} then t.amount_cents else 0 end), 0)`.as(
+                'adjusted_budget_impact_cents'
               ),
               sql<number>`coalesce(sum(case when t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then 1 else 0 end), 0)`.as(
                 'uncoded_count'
@@ -131,6 +153,15 @@ export async function listTransactionsPageServer(args: {
         totalCount: toCount((summaryRow as TxnPageSummaryRow).total_count),
         budgetImpactCents: toCount(
           (summaryRow as TxnPageSummaryRow).budget_impact_cents
+        ),
+        pendingReversalCount: toCount(
+          (summaryRow as TxnPageSummaryRow).pending_reversal_count
+        ),
+        pendingReversalCents: toCount(
+          (summaryRow as TxnPageSummaryRow).pending_reversal_cents
+        ),
+        adjustedBudgetImpactCents: toCount(
+          (summaryRow as TxnPageSummaryRow).adjusted_budget_impact_cents
         ),
         uncodedCount: toCount((summaryRow as TxnPageSummaryRow).uncoded_count),
         uncodedCents: toCount((summaryRow as TxnPageSummaryRow).uncoded_cents),

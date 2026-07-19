@@ -16,6 +16,8 @@ import {
   asTxnId,
   asUserId,
   TXN_TYPES,
+  TXN_REVERSAL_SIDES,
+  TXN_REVERSAL_STATUSES,
 } from '../types/index.ts';
 import type { CompanySummaryProject } from '../types/index.ts';
 import {
@@ -86,6 +88,7 @@ const txnListViewSchema = z.enum([
   'uncoded',
   'auto-mapped-pending',
   'assigned-to-me',
+  'pending-reversal',
 ]);
 const txnListSortFieldSchema = z.enum(['date', 'transaction', 'amountCents']);
 const txnListSortDirectionSchema = z.enum(['asc', 'desc']);
@@ -123,6 +126,8 @@ export const companiesResponseSchema = z.array(companyResponseSchema);
 export const companySummaryMonthResponseSchema = z.object({
   monthKey: z.string(),
   actualCodedCents: transactionAmountCentsSchema,
+  pendingReversalCents: transactionAmountCentsSchema,
+  adjustedActualCodedCents: transactionAmountCentsSchema,
   uncodedCount: z.number().int().nonnegative(),
   uncodedAmountCents: transactionAmountCentsSchema,
 });
@@ -387,6 +392,21 @@ export const txnResponseSchema = z.object({
   reviewedByUserId: userIdSchema.optional(),
   lockedAt: optionalIsoTimestampSchema,
   lockedByUserId: userIdSchema.optional(),
+  reversal: z
+    .object({
+      id: z.string(),
+      status: z.enum(TXN_REVERSAL_STATUSES),
+      side: z.enum(TXN_REVERSAL_SIDES),
+      counterpartTxnId: txnIdSchema.optional(),
+      expectedProjectId: projectIdSchema.optional(),
+      markedAt: optionalIsoTimestampSchema,
+      markedByUserId: userIdSchema.optional(),
+      matchedAt: optionalIsoTimestampSchema,
+      matchedByUserId: userIdSchema.optional(),
+      createdAt: optionalIsoTimestampSchema,
+      updatedAt: optionalIsoTimestampSchema,
+    })
+    .optional(),
   createdAt: optionalIsoTimestampSchema,
   updatedAt: optionalIsoTimestampSchema,
 });
@@ -401,6 +421,9 @@ export const txnUpdateResultResponseSchema = z.object({
 export const txnListPageSummaryResponseSchema = z.object({
   totalCount: z.number().int().nonnegative(),
   budgetImpactCents: z.number().int(),
+  pendingReversalCount: z.number().int().nonnegative(),
+  pendingReversalCents: z.number().int(),
+  adjustedBudgetImpactCents: z.number().int(),
   uncodedCount: z.number().int().nonnegative(),
   uncodedCents: z.number().int(),
   sourceOnlyCount: z.number().int().nonnegative(),

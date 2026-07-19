@@ -45,10 +45,12 @@ type ProjectSummaryRow = {
   currency: Project['currency'];
   budgetCents: number;
   actualCodedCents: number;
-  remainingCents: number;
+  pendingReversalCents: number;
+  adjustedActualCodedCents: number;
+  remainingAdjustedCents: number;
   uncodedCount: number;
   uncodedAmountCents: number;
-  isOverBudget: boolean;
+  isOverBudgetAdjusted: boolean;
 };
 
 function quarterFromMonthNumber(month: number): QuarterOption {
@@ -109,7 +111,12 @@ function buildProjectDrilldownSearch(args: {
   quarterFilter: QuarterOption | null;
   monthFilterKey: string | null;
   tab?: 'budget' | 'transactions';
-  view?: 'all' | 'uncoded' | 'auto-mapped-pending' | 'assigned-to-me';
+  view?:
+    | 'all'
+    | 'uncoded'
+    | 'auto-mapped-pending'
+    | 'pending-reversal'
+    | 'assigned-to-me';
   focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 }) {
   return {
@@ -130,7 +137,12 @@ function SummaryDrilldownLink(props: {
   quarterFilter: QuarterOption | null;
   monthFilterKey: string | null;
   tab: 'budget' | 'transactions';
-  view?: 'all' | 'uncoded' | 'auto-mapped-pending' | 'assigned-to-me';
+  view?:
+    | 'all'
+    | 'uncoded'
+    | 'auto-mapped-pending'
+    | 'pending-reversal'
+    | 'assigned-to-me';
   focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
   children: ReactNode;
   color?: string;
@@ -247,6 +259,12 @@ export default function CompanySummaryPanel(props: {
       const actualCodedCents = sum(
         visibleMonths.map((month) => month.actualCodedCents)
       );
+      const pendingReversalCents = sum(
+        visibleMonths.map((month) => month.pendingReversalCents)
+      );
+      const adjustedActualCodedCents = sum(
+        visibleMonths.map((month) => month.adjustedActualCodedCents)
+      );
       const uncodedCount = sum(
         visibleMonths.map((month) => month.uncodedCount)
       );
@@ -257,6 +275,7 @@ export default function CompanySummaryPanel(props: {
         quarterFilter,
         monthFilterKey,
       });
+      const remainingAdjustedCents = budgetCents - adjustedActualCodedCents;
       return {
         id: project.id,
         name: project.name,
@@ -268,10 +287,12 @@ export default function CompanySummaryPanel(props: {
         currency: project.currency,
         budgetCents,
         actualCodedCents,
-        remainingCents: budgetCents - actualCodedCents,
+        pendingReversalCents,
+        adjustedActualCodedCents,
+        remainingAdjustedCents,
         uncodedCount,
         uncodedAmountCents,
-        isOverBudget: actualCodedCents > budgetCents,
+        isOverBudgetAdjusted: remainingAdjustedCents < 0,
       };
     };
 
@@ -292,11 +313,17 @@ export default function CompanySummaryPanel(props: {
       totalBudget: formatCurrencyGroups(
         totalsByCurrency(activeRows, (row) => row.budgetCents)
       ),
-      totalActual: formatCurrencyGroups(
+      totalActualRaw: formatCurrencyGroups(
         totalsByCurrency(activeRows, (row) => row.actualCodedCents)
       ),
-      totalRemaining: formatCurrencyGroups(
-        totalsByCurrency(activeRows, (row) => row.remainingCents)
+      totalPendingReversal: formatCurrencyGroups(
+        totalsByCurrency(activeRows, (row) => row.pendingReversalCents)
+      ),
+      totalActualAdjusted: formatCurrencyGroups(
+        totalsByCurrency(activeRows, (row) => row.adjustedActualCodedCents)
+      ),
+      totalRemainingAdjusted: formatCurrencyGroups(
+        totalsByCurrency(activeRows, (row) => row.remainingAdjustedCents)
       ),
       totalUncodedAmount: formatCurrencyGroups(
         totalsByCurrency(activeRows, (row) => row.uncodedAmountCents)
@@ -360,7 +387,7 @@ export default function CompanySummaryPanel(props: {
       },
       {
         accessorKey: 'actualCodedCents',
-        header: 'Actual',
+        header: 'Actual Raw',
         size: 110,
         Cell: ({ row }) => (
           <SummaryDrilldownLink
@@ -381,8 +408,61 @@ export default function CompanySummaryPanel(props: {
         ),
       },
       {
-        accessorKey: 'remainingCents',
-        header: 'Remaining',
+        accessorKey: 'pendingReversalCents',
+        header: 'Pending Rev',
+        size: 120,
+        Cell: ({ row }) =>
+          row.original.pendingReversalCents > 0 ? (
+            <SummaryDrilldownLink
+              companyId={companyId}
+              projectId={row.original.id}
+              yearFilter={yearFilter}
+              quarterFilter={quarterFilter}
+              monthFilterKey={monthFilterKey}
+              tab="transactions"
+              view="pending-reversal"
+              focus="actual"
+              className="table-body-right"
+            >
+              {formatCurrencyFromCents(
+                row.original.pendingReversalCents,
+                row.original.currency
+              )}
+            </SummaryDrilldownLink>
+          ) : (
+            <Text className="table-body-right">
+              {formatCurrencyFromCents(
+                row.original.pendingReversalCents,
+                row.original.currency
+              )}
+            </Text>
+          ),
+      },
+      {
+        accessorKey: 'adjustedActualCodedCents',
+        header: 'Actual Adj',
+        size: 120,
+        Cell: ({ row }) => (
+          <SummaryDrilldownLink
+            companyId={companyId}
+            projectId={row.original.id}
+            yearFilter={yearFilter}
+            quarterFilter={quarterFilter}
+            monthFilterKey={monthFilterKey}
+            tab="transactions"
+            focus="actual"
+            className="table-body-right"
+          >
+            {formatCurrencyFromCents(
+              row.original.adjustedActualCodedCents,
+              row.original.currency
+            )}
+          </SummaryDrilldownLink>
+        ),
+      },
+      {
+        accessorKey: 'remainingAdjustedCents',
+        header: 'Remaining Adj',
         size: 120,
         Cell: ({ row }) => (
           <SummaryDrilldownLink
@@ -393,11 +473,11 @@ export default function CompanySummaryPanel(props: {
             monthFilterKey={monthFilterKey}
             tab="budget"
             focus="remaining"
-            color={row.original.remainingCents < 0 ? 'red.7' : 'black'}
+            color={row.original.remainingAdjustedCents < 0 ? 'red.7' : 'black'}
             className="table-body-right"
           >
             {formatCurrencyFromCents(
-              row.original.remainingCents,
+              row.original.remainingAdjustedCents,
               row.original.currency
             )}
           </SummaryDrilldownLink>
@@ -468,7 +548,7 @@ export default function CompanySummaryPanel(props: {
         enableSorting: false,
         Cell: ({ row }) => (
           <Stack gap={6}>
-            {row.original.isOverBudget ? (
+            {row.original.isOverBudgetAdjusted ? (
               <Link
                 to={projectRoute.to}
                 params={{ companyId, projectId: row.original.id }}
@@ -483,6 +563,25 @@ export default function CompanySummaryPanel(props: {
               >
                 <Badge variant="light" color="red">
                   Over budget
+                </Badge>
+              </Link>
+            ) : null}
+            {row.original.pendingReversalCents > 0 ? (
+              <Link
+                to={projectRoute.to}
+                params={{ companyId, projectId: row.original.id }}
+                search={buildProjectDrilldownSearch({
+                  yearFilter,
+                  quarterFilter,
+                  monthFilterKey,
+                  tab: 'transactions',
+                  view: 'pending-reversal',
+                  focus: 'actual',
+                })}
+                className={classes.badgeLink}
+              >
+                <Badge variant="light" color="violet">
+                  Pending reversal
                 </Badge>
               </Link>
             ) : null}
@@ -503,7 +602,9 @@ export default function CompanySummaryPanel(props: {
                 <Badge variant="light">Has uncoded</Badge>
               </Link>
             ) : null}
-            {!row.original.isOverBudget && row.original.uncodedCount === 0 ? (
+            {!row.original.isOverBudgetAdjusted &&
+            row.original.pendingReversalCents === 0 &&
+            row.original.uncodedCount === 0 ? (
               <Link
                 to={projectRoute.to}
                 params={{ companyId, projectId: row.original.id }}
@@ -603,7 +704,7 @@ export default function CompanySummaryPanel(props: {
         </Group>
       </Paper>
 
-      <SimpleGrid cols={isMobile ? 1 : 3} spacing="md" verticalSpacing="md">
+      <SimpleGrid cols={isMobile ? 1 : 4} spacing="md" verticalSpacing="md">
         <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
@@ -623,17 +724,33 @@ export default function CompanySummaryPanel(props: {
         <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Total actual
+              Total actual raw
             </Text>
-            <Title order={4}>{summary.totalActual}</Title>
+            <Title order={4}>{summary.totalActualRaw}</Title>
           </Stack>
         </Paper>
         <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Remaining
+              Pending reversal
             </Text>
-            <Title order={4}>{summary.totalRemaining}</Title>
+            <Title order={4}>{summary.totalPendingReversal}</Title>
+          </Stack>
+        </Paper>
+        <Paper className={classes.statCard} withBorder={false}>
+          <Stack gap={4}>
+            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+              Total actual adj
+            </Text>
+            <Title order={4}>{summary.totalActualAdjusted}</Title>
+          </Stack>
+        </Paper>
+        <Paper className={classes.statCard} withBorder={false}>
+          <Stack gap={4}>
+            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+              Remaining adj
+            </Text>
+            <Title order={4}>{summary.totalRemainingAdjusted}</Title>
           </Stack>
         </Paper>
         <Paper className={classes.statCard} withBorder={false}>

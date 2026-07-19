@@ -10,14 +10,17 @@ import {
   txnCommentIdSchema,
   txnIdSchema,
   txnImportInputSchema,
+  txnReversalActionInputSchema,
   txnWorkflowStateInputSchema,
   updateTxnCommentInputSchema,
   updateTxnInputSchema,
 } from '../../validation/apiSchemas';
 import {
+  applyTxnReversalActionServer,
   createTxnServer,
   deleteTxnServer,
   importTransactionsServer,
+  listTxnReversalMatchSuggestionsServer,
   listTransactionsServer,
   splitTxnServer,
   transferTxnServer,
@@ -104,6 +107,32 @@ export const transferTxnEndpoint = defineAppEndpoint({
   }),
   execute: ({ context, input }) =>
     transferTxnServer({
+      context,
+      projectId: input.projectId,
+      input: input.payload,
+    }),
+});
+
+export const listTxnReversalMatchSuggestionsEndpoint = defineAppEndpoint({
+  inputSchema: z.object({
+    projectId: projectIdSchema,
+    txnId: txnIdSchema,
+  }),
+  execute: ({ context, input }) =>
+    listTxnReversalMatchSuggestionsServer({
+      context,
+      projectId: input.projectId,
+      txnId: input.txnId,
+    }),
+});
+
+export const applyTxnReversalActionEndpoint = defineAppEndpoint({
+  inputSchema: z.object({
+    projectId: projectIdSchema,
+    payload: txnReversalActionInputSchema,
+  }),
+  execute: ({ context, input }) =>
+    applyTxnReversalActionServer({
       context,
       projectId: input.projectId,
       input: input.payload,
