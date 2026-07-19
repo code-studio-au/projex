@@ -117,12 +117,7 @@ export default function TransactionReversalModal(props: {
     return () => {
       cancelled = true;
     };
-  }, [
-    opened,
-    shouldLoadSuggestions,
-    txn.id,
-    txn.reversal?.expectedProjectId,
-  ]);
+  }, [opened, shouldLoadSuggestions, txn.id, txn.reversal?.expectedProjectId]);
 
   const isSourceSide = txn.reversal?.side !== 'reversal';
   const isPending =
