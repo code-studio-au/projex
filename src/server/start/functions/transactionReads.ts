@@ -28,6 +28,38 @@ export const listTransactionsServerFn = createServerFn({ method: 'GET' })
     )
   );
 
+export const getTransactionServerFn = createServerFn({ method: 'GET' })
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'getTransactionEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'getTransactionEndpoint'
+    )
+  );
+
+export const listProjectTransactionSummaryServerFn = createServerFn({
+  method: 'GET',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'listProjectTransactionSummaryEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'listProjectTransactionSummaryEndpoint'
+    )
+  );
+
 export const listTransactionCommentsServerFn = createServerFn({
   method: 'GET',
 })

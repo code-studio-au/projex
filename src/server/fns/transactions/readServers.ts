@@ -1,7 +1,11 @@
 import { sql } from 'kysely';
 
-import type { ProjectId, Txn } from '../../../types';
-import type { TxnListPageInput, TxnListPageResult } from '../../../api/types';
+import { asSubCategoryId, type ProjectId, type Txn } from '../../../types';
+import type {
+  ProjectTransactionSummary,
+  TxnListPageInput,
+  TxnListPageResult,
+} from '../../../api/types';
 import { toTxn } from '../../mappers/transactionRows';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
@@ -19,6 +23,7 @@ import {
   txnReversalJoin,
   txnReversalSelectExpressions,
   txnValidSubCategorySql,
+  type ProjectTransactionSummaryAggregateRow,
   type TxnPageSummaryRow,
 } from './shared';
 
@@ -45,6 +50,32 @@ export async function listTransactionsServer(args: {
       .orderBy('t.id', 'asc')
       .execute();
     return rows.map(toTxn);
+  });
+}
+
+export async function getTransactionServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  txnId: string;
+}): Promise<Txn | null> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'project:view'
+    );
+    const row = await db
+      .selectFrom('txns as t')
+      .leftJoin('txn_reversals as tr', txnReversalJoin())
+      .select([
+        ...prefixedTxnSelectColumns('t'),
+        ...txnReversalSelectExpressions({}),
+      ])
+      .where('t.project_id', '=', args.projectId)
+      .where('t.public_id', '=', args.txnId)
+      .executeTakeFirst();
+    return row ? toTxn(row) : null;
   });
 }
 
@@ -177,6 +208,77 @@ export async function listTransactionsPageServer(args: {
         lockedCount: toCount((summaryRow as TxnPageSummaryRow).locked_count),
         invalidDateCount: 0,
       },
+    };
+  });
+}
+
+export async function listProjectTransactionSummaryServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+}): Promise<ProjectTransactionSummary> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'project:view'
+    );
+    const validSubCategory = txnValidSubCategorySql();
+
+    const [monthRows, actualRows, uncodedRow] = await Promise.all([
+      db
+        .selectFrom('txns as t')
+        .select([sql<string>`to_char(t.txn_date, 'YYYY-MM')`.as('month_key')])
+        .where('t.project_id', '=', args.projectId)
+        .where('t.budget_impact', '=', true)
+        .groupBy(sql`to_char(t.txn_date, 'YYYY-MM')`)
+        .orderBy('month_key', 'asc')
+        .execute(),
+      db
+        .selectFrom('txns as t')
+        .select([
+          sql<string>`${sql.ref('t.sub_category_id')}`.as('sub_category_id'),
+          sql<string>`to_char(t.txn_date, 'YYYY-MM')`.as('month_key'),
+          sql<number>`coalesce(sum(t.amount_cents), 0)`.as('actual_cents'),
+        ])
+        .where('t.project_id', '=', args.projectId)
+        .where('t.budget_impact', '=', true)
+        .where('t.categorisable', '=', true)
+        .where('t.sub_category_id', 'is not', null)
+        .where(validSubCategory)
+        .groupBy('t.sub_category_id')
+        .groupBy(sql`to_char(t.txn_date, 'YYYY-MM')`)
+        .orderBy('month_key', 'asc')
+        .orderBy('t.sub_category_id', 'asc')
+        .execute(),
+      db
+        .selectFrom('txns as t')
+        .select([
+          sql<number>`coalesce(sum(case when t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then 1 else 0 end), 0)`.as(
+            'uncoded_count'
+          ),
+          sql<number>`coalesce(sum(case when t.budget_impact and t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then t.amount_cents else 0 end), 0)`.as(
+            'uncoded_cents'
+          ),
+          sql<number>`coalesce(sum(case when t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory} and t.locked_at is null then 1 else 0 end), 0)`.as(
+            'auto_mapped_pending_count'
+          ),
+        ])
+        .where('t.project_id', '=', args.projectId)
+        .executeTakeFirstOrThrow() as Promise<ProjectTransactionSummaryAggregateRow>,
+    ]);
+
+    return {
+      monthKeys: monthRows.map((row) => row.month_key),
+      rows: actualRows.map((row) => ({
+        subCategoryId: asSubCategoryId(row.sub_category_id),
+        monthKey: row.month_key,
+        actualCents: toCount(row.actual_cents),
+      })),
+      uncodedCount: toCount(uncodedRow.uncoded_count),
+      uncodedAmountCents: toCount(uncodedRow.uncoded_cents),
+      autoMappedPendingCount: toCount(uncodedRow.auto_mapped_pending_count),
+      invalidDateCount: 0,
     };
   });
 }

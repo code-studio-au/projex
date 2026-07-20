@@ -33,6 +33,8 @@ import { apiErrorFromBody } from '../api/errorResponses';
 import {
   createTxnServerFn,
   deleteTxnServerFn,
+  getTransactionServerFn,
+  listProjectTransactionSummaryServerFn,
   listTransactionsServerFn,
   splitTxnServerFn,
   transferTxnServerFn,
@@ -126,6 +128,55 @@ export function useTransactionsQuery(
   return useQuery(transactionsQueryOptions(scopeUserId, projectId, options));
 }
 
+export function useTransactionQuery(
+  projectId: ProjectId,
+  txnId: TxnId,
+  options: { enabled?: boolean } = {}
+) {
+  const scopeUserId = useQueryScopeUserId();
+  return useQuery(
+    transactionQueryOptions(scopeUserId, projectId, txnId, options)
+  );
+}
+
+export function transactionQueryOptions(
+  userId: string,
+  projectId: ProjectId,
+  txnId: TxnId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    queryKey: qk.transaction(userId, projectId, txnId),
+    queryFn: () => getTransactionServerFn({ data: { projectId, txnId } }),
+    placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
+  } as const;
+}
+
+export function useProjectTransactionSummaryQuery(
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
+  const scopeUserId = useQueryScopeUserId();
+  return useQuery(
+    projectTransactionSummaryQueryOptions(scopeUserId, projectId, options)
+  );
+}
+
+export function projectTransactionSummaryQueryOptions(
+  userId: string,
+  projectId: ProjectId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    queryKey: qk.transactionSummary(userId, projectId),
+    queryFn: () =>
+      listProjectTransactionSummaryServerFn({ data: { projectId } }),
+    placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
+  } as const;
+}
+
 export function transactionsQueryOptions(
   userId: string,
   projectId: ProjectId,
@@ -175,14 +226,24 @@ export async function invalidateProjectTransactionQueries(args: {
       exact: true,
     }),
     args.qc.invalidateQueries({
+      queryKey: qk.transactionSummary(args.scopeUserId, args.projectId),
+      exact: true,
+    }),
+    args.qc.invalidateQueries({
+      queryKey: ['transactions', args.scopeUserId, args.projectId, 'by-id'],
+      exact: false,
+    }),
+    args.qc.invalidateQueries({
       queryKey: ['transactions', args.scopeUserId, args.projectId, 'page'],
       exact: false,
     }),
     args.qc.invalidateQueries({
-      queryKey: qk.transactionCommentSummaries(
+      queryKey: [
+        'transactionCommentSummaries',
         args.scopeUserId,
-        args.projectId
-      ),
+        args.projectId,
+      ],
+      exact: false,
     }),
     args.qc.invalidateQueries({
       queryKey: ['transactionComments', args.scopeUserId, args.projectId],

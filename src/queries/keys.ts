@@ -44,6 +44,10 @@ export const qk = {
 
   transactions: (userId: string, projectId: string) =>
     ['transactions', userId, projectId] as const,
+  transaction: (userId: string, projectId: string, txnId: string) =>
+    ['transactions', userId, projectId, 'by-id', txnId] as const,
+  transactionSummary: (userId: string, projectId: string) =>
+    ['transactions', userId, projectId, 'summary'] as const,
   transactionsPage: (
     userId: string,
     projectId: string,
@@ -53,8 +57,11 @@ export const qk = {
     ['importCandidates', userId, projectId] as const,
   transactionComments: (userId: string, projectId: string, txnId: string) =>
     ['transactionComments', userId, projectId, txnId] as const,
-  transactionCommentSummaries: (userId: string, projectId: string) =>
-    ['transactionCommentSummaries', userId, projectId] as const,
+  transactionCommentSummaries: (
+    userId: string,
+    projectId: string,
+    txnIdsKey: string
+  ) => ['transactionCommentSummaries', userId, projectId, txnIdsKey] as const,
   budgets: (userId: string, projectId: string) =>
     ['budgets', userId, projectId] as const,
   categories: (userId: string, projectId: string) =>

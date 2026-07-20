@@ -22,6 +22,7 @@ import {
 } from '../runtime';
 import {
   type BulkTxnActionRow,
+  txnValidSubCategorySql,
   txnSelectColumns,
   workflowPatchIsNoop,
 } from './shared';
@@ -107,6 +108,7 @@ export async function bulkTxnActionServer(args: {
       'txns:edit'
     );
     const now = new Date().toISOString();
+    const validSubCategory = txnValidSubCategorySql();
 
     if (args.input.action === 'recode') {
       await assertCategoryInProject({
@@ -120,6 +122,33 @@ export async function bulkTxnActionServer(args: {
         subCategoryId: args.input.subCategoryId,
         categoryId: args.input.categoryId,
       });
+    }
+
+    if (args.input.action === 'approveAllAutoMappings') {
+      const updatedRows = await context.db
+        .updateTable('txns')
+        .set({
+          coding_pending_approval: false,
+          updated_at: now,
+        })
+        .where('project_id', '=', args.projectId)
+        .where('locked_at', 'is', null)
+        .where('categorisable', '=', true)
+        .where('coding_pending_approval', '=', true)
+        .where('sub_category_id', 'is not', null)
+        .where(validSubCategory)
+        .returning('public_id')
+        .execute();
+
+      return {
+        action: args.input.action,
+        requestedCount: updatedRows.length,
+        foundCount: updatedRows.length,
+        updatedCount: updatedRows.length,
+        unchangedCount: 0,
+        lockedCount: 0,
+        ineligibleCount: 0,
+      };
     }
 
     const rows = await context.db

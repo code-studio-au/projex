@@ -98,6 +98,9 @@ See [docs/staging-runbook.md](docs/staging-runbook.md) and
 
 For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](docs/local-services.md).
 
+For the month-to-month pending reversal and auto-match workflow, use
+[docs/reversal-workflow.md](docs/reversal-workflow.md).
+
 Env example files are now split by purpose:
 
 - `.env.example` for deploy-facing baseline values
@@ -218,6 +221,22 @@ Command semantics and deploy-time verification details live in [docs/staging-run
 - Companies own users, company defaults, projects, and programmes.
 - Company standards currently include default taxonomy, import rules, and company auto-coding rules.
 - Programmes are reporting-only containers. They can group one or more operational projects and show rollups for company admins, executives, and global superadmins.
+- Transaction coding supports pending reversal workflows where one month can be
+  marked as awaiting reversal and a later import can suggest or default-match
+  the reversing transaction for review.
+
+## Pending Reversals
+
+- Users can mark an EXA transaction as `Pending reversal` at coding time when
+  they know the spend should reverse in a later period.
+- Future imports automatically check new transactions against open pending
+  reversals and raise review items when a likely reversal match is found.
+- Clear matches become suggested reversal reviews; ambiguous matches are
+  defaulted to the closest candidate and still require approval.
+- Reviewers can use the `Needs review` filter and bulk-approve suggested
+  reversal matches.
+- Approved pairs move to `Matched reversal pair`, while rejected suggestions
+  return to `Pending reversal` for manual handling.
 - Projects are the operational workspace for budgets, imports, transactions, taxonomy, coding, splits, and transfers. Transaction transfer-out is disabled by default and can be enabled per project by company admins, executives, management, or an enabled global superadmin.
 - New operational projects can start with company standards applied immediately, and synced projects can later reapply company standards to backfill missing categories plus resync inherited import and auto-coding rules.
 - Synced projects may keep project-local exceptions, and company admins can promote stable project taxonomy, import rules, and auto-coding patterns back up into the company standard set.

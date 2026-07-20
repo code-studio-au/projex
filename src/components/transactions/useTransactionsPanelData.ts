@@ -3,7 +3,6 @@ import type {
   MRT_PaginationState,
   MRT_SortingState,
 } from 'mantine-react-table-open';
-import type { TransactionsHook } from '../../hooks/useTransactions';
 import type { TaxonomyHook } from '../../hooks/useTaxonomy';
 import type {
   ProjectId,
@@ -17,7 +16,10 @@ import {
   useTransactionCommentsQuery,
   useTransactionCommentSummariesQuery,
 } from '../../queries/transactionComments';
-import { useTransactionsPageQuery } from '../../queries/transactions';
+import {
+  useTransactionQuery,
+  useTransactionsPageQuery,
+} from '../../queries/transactions';
 import type { TransactionView } from './TransactionsOverviewCard';
 import type { QuarterOption } from './transactionsPanelUtils';
 
@@ -25,8 +27,8 @@ const EMPTY_TXNS: Txn[] = [];
 
 export function useTransactionsPanelData(args: {
   projectId: ProjectId;
-  txns: TransactionsHook;
   taxonomy: TaxonomyHook;
+  autoMappedPendingCount: number;
   yearFilter: string | null;
   quarterFilter: QuarterOption | null;
   monthFilterKey: string | null;
@@ -87,13 +89,34 @@ export function useTransactionsPanelData(args: {
     transactionsPageInput,
     { enabled: args.isHydrated }
   );
-  const commentSummariesQ = useTransactionCommentSummariesQuery(args.projectId);
+  const linkedCommentsTxnQ = useTransactionQuery(
+    args.projectId,
+    args.initialCommentTxnId ?? asTxnId('__no_linked_txn__'),
+    {
+      enabled: Boolean(
+        args.initialCommentTxnId &&
+        args.dismissedLinkedCommentTxnId !== args.initialCommentTxnId
+      ),
+    }
+  );
   const expandedCommentsTxnId =
     args.expandedCommentsTxn?.id ?? asTxnId('__no_expanded_txn__');
   const expandedCommentsQ = useTransactionCommentsQuery(
     args.projectId,
     expandedCommentsTxnId,
     { enabled: Boolean(args.expandedCommentsTxn) }
+  );
+  const isTransitioningPageData =
+    transactionsPageQ.isFetching && transactionsPageQ.isPlaceholderData;
+  const pagedTxns = transactionsPageQ.data?.rows ?? EMPTY_TXNS;
+  const visibleTxnIds = useMemo(
+    () => pagedTxns.map((txn) => txn.id),
+    [pagedTxns]
+  );
+  const commentSummariesQ = useTransactionCommentSummariesQuery(
+    args.projectId,
+    { txnIds: visibleTxnIds },
+    { enabled: args.isHydrated && visibleTxnIds.length > 0 }
   );
   const commentSummaryByTxnId = useMemo(
     () =>
@@ -108,13 +131,8 @@ export function useTransactionsPanelData(args: {
   const linkedCommentsTxn =
     args.initialCommentTxnId &&
     args.dismissedLinkedCommentTxnId !== args.initialCommentTxnId
-      ? (args.txns.transactions.find(
-          (txn) => txn.id === args.initialCommentTxnId
-        ) ?? null)
+      ? (linkedCommentsTxnQ.data ?? null)
       : null;
-  const isTransitioningPageData =
-    transactionsPageQ.isFetching && transactionsPageQ.isPlaceholderData;
-  const pagedTxns = transactionsPageQ.data?.rows ?? EMPTY_TXNS;
   const selectedTxns = useMemo(
     () => pagedTxns.filter((txn) => args.rowSelection[txn.id]),
     [pagedTxns, args.rowSelection]
@@ -192,21 +210,8 @@ export function useTransactionsPanelData(args: {
       ? `${args.transactionDrilldown.categoryName} > ${args.transactionDrilldown.subCategoryName}`
       : args.transactionDrilldown.categoryName
     : null;
-  const autoMappedPendingTxns = useMemo(
-    () =>
-      args.txns.transactions.filter(
-        (txn) =>
-          !txn.lockedAt &&
-          isCategorisableTxn(txn) &&
-          !!txn.codingPendingApproval &&
-          !!txn.subCategoryId &&
-          args.taxonomy.validSubIds.has(txn.subCategoryId)
-      ),
-    [args.taxonomy.validSubIds, args.txns.transactions]
-  );
-
   return {
-    autoMappedPendingTxns,
+    autoMappedPendingCount: args.autoMappedPendingCount,
     bulkRecodeSubCategoryOptions,
     commentSummaryByTxnId,
     drilldownLabel,

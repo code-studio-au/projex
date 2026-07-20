@@ -21,7 +21,6 @@ import {
   categoriesQueryOptions,
   subCategoriesQueryOptions,
 } from '../queries/taxonomy';
-import { transactionCommentSummariesQueryOptions } from '../queries/transactionComments';
 
 const quarterSchema = z.enum(['Q1', 'Q2', 'Q3', 'Q4']);
 
@@ -130,9 +129,6 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
         ),
         context.queryClient.ensureQueryData(
           subCategoriesQueryOptions(session.userId, projectId)
-        ),
-        context.queryClient.ensureQueryData(
-          transactionCommentSummariesQueryOptions(session.userId, projectId)
         ),
       ]);
     }

@@ -12,6 +12,7 @@ import { asCategoryId, asSubCategoryId } from '../types';
 import { uid } from '../utils/id';
 import {
   useCategoriesQuery,
+  useBulkRecodeProjectTransactionsMutation,
   useCreateCategoryMutation,
   useCreateSubCategoryMutation,
   useDeleteCategoryMutation,
@@ -21,7 +22,6 @@ import {
   useUpdateSubCategoryMutation,
 } from '../queries/taxonomy';
 import type { BudgetsHook } from './useBudgets';
-import type { TransactionsHook } from './useTransactions';
 
 function normalizeTaxonomyName(value: string) {
   return value.trim().toLocaleLowerCase();
@@ -81,7 +81,6 @@ export function useTaxonomy(params: {
   companyId: CompanyId;
   projectId: ProjectId;
   budgets: BudgetsHook;
-  txns: TransactionsHook;
   canEditBudgets: boolean;
   enabled?: boolean;
 }) {
@@ -89,7 +88,6 @@ export function useTaxonomy(params: {
     companyId,
     projectId,
     budgets,
-    txns,
     canEditBudgets,
     enabled = true,
   } = params;
@@ -100,6 +98,8 @@ export function useTaxonomy(params: {
   const createCat = useCreateCategoryMutation(projectId);
   const updateCat = useUpdateCategoryMutation(projectId);
   const deleteCat = useDeleteCategoryMutation(projectId);
+  const bulkRecodeProjectTransactions =
+    useBulkRecodeProjectTransactionsMutation(projectId);
 
   const createSub = useCreateSubCategoryMutation(projectId);
   const updateSub = useUpdateSubCategoryMutation(projectId);
@@ -242,13 +242,11 @@ export function useTaxonomy(params: {
       subCategoryId,
       newCategoryId
     );
-    // Update txn categoryId to match (keep subCategoryId)
-    const next = txns.transactions.map((t) =>
-      t.subCategoryId === subCategoryId
-        ? { ...t, categoryId: newCategoryId }
-        : t
-    );
-    await txns.replaceAll(next);
+    await bulkRecodeProjectTransactions.mutateAsync({
+      fromSubCategoryId: subCategoryId,
+      toCategoryId: newCategoryId,
+      toSubCategoryId: subCategoryId,
+    });
   };
 
   const deleteSubCategory = async (subCategoryId: SubCategoryId) => {

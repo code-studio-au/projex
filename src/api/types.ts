@@ -94,6 +94,19 @@ export type TxnListPageResult = {
   rows: Txn[];
   summary: TxnListPageSummary;
 };
+export type ProjectTransactionSummaryRow = {
+  subCategoryId: SubCategory['id'];
+  monthKey: string;
+  actualCents: number;
+};
+export type ProjectTransactionSummary = {
+  monthKeys: string[];
+  rows: ProjectTransactionSummaryRow[];
+  uncodedCount: number;
+  uncodedAmountCents: number;
+  autoMappedPendingCount: number;
+  invalidDateCount: number;
+};
 export type TxnImportTxnInput = Omit<
   Txn,
   | 'internalId'
@@ -231,6 +244,9 @@ export type TxnWorkflowStateInput = {
 
 export type TxnBulkActionInput =
   | {
+      action: 'approveAllAutoMappings';
+    }
+  | {
       action: 'approveAutoMappings';
       txnIds: TxnId[];
     }
@@ -278,6 +294,10 @@ export type TxnCommentCreateInput = {
   body: string;
   parentCommentId?: TxnCommentId;
   assignedToUserId?: UserId | null;
+};
+
+export type TxnCommentSummariesInput = {
+  txnIds?: TxnId[];
 };
 
 export type TxnCommentUpdateInput = {

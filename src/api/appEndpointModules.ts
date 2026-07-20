@@ -49,11 +49,13 @@ import type {
   TxnBulkActionInput,
   TxnBulkActionResult,
   TxnCommentCreateInput,
+  TxnCommentSummariesInput,
   TxnCommentUpdateInput,
   TxnCreateInput,
   TxnImportPreviewInput,
   TxnImportPreviewResult,
   TxnImportInput,
+  ProjectTransactionSummary,
   TxnReversalActionInput,
   TxnReversalActionResult,
   TxnReversalMatchSuggestion,
@@ -161,12 +163,20 @@ export type CompanyEndpointsModule = {
 
 export type TransactionEndpointsModule = {
   listTransactionsEndpoint: AppEndpoint<{ projectId: ProjectId }, Txn[]>;
+  getTransactionEndpoint: AppEndpoint<
+    { projectId: ProjectId; txnId: TxnId },
+    Txn | null
+  >;
+  listProjectTransactionSummaryEndpoint: AppEndpoint<
+    { projectId: ProjectId },
+    ProjectTransactionSummary
+  >;
   listTransactionCommentsEndpoint: AppEndpoint<
     { projectId: ProjectId; txnId: TxnId },
     TxnComment[]
   >;
   listTransactionCommentSummariesEndpoint: AppEndpoint<
-    { projectId: ProjectId },
+    { projectId: ProjectId; payload?: TxnCommentSummariesInput },
     TxnCommentSummary[]
   >;
   createTransactionCommentEndpoint: AppEndpoint<

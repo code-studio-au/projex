@@ -28,6 +28,7 @@ export default function TransactionsPanel(props: {
   projectId: ProjectId;
   txns: TransactionsHook;
   taxonomy: TaxonomyHook;
+  autoMappedPendingCount: number;
   currencyCode: string;
   yearFilterOptions: { value: string; label: string }[];
   yearFilter: string | null;
@@ -54,6 +55,7 @@ export default function TransactionsPanel(props: {
     projectId,
     txns,
     taxonomy,
+    autoMappedPendingCount,
     currencyCode,
     yearFilterOptions,
     yearFilter,
@@ -123,7 +125,7 @@ export default function TransactionsPanel(props: {
   });
   const createProjectRule = useCreateProjectAutoCodingRuleMutation(projectId);
   const {
-    autoMappedPendingTxns,
+    autoMappedPendingCount: totalAutoMappedPendingCount,
     bulkRecodeSubCategoryOptions,
     commentSummaryByTxnId,
     drilldownLabel,
@@ -152,9 +154,9 @@ export default function TransactionsPanel(props: {
     rowSelection,
     sorting,
     taxonomy,
+    autoMappedPendingCount,
     transactionDrilldown,
     transactionView,
-    txns,
     yearFilter,
   });
   const activeCommentsTxn = commentsTxn ?? linkedCommentsTxn;
@@ -205,6 +207,9 @@ export default function TransactionsPanel(props: {
 
   async function runBulkAction(args: {
     input:
+      | {
+          action: 'approveAllAutoMappings';
+        }
       | {
           action: 'approveAutoMappings';
           txnIds: TxnId[];
@@ -285,7 +290,7 @@ export default function TransactionsPanel(props: {
       <TransactionsOverviewCard
         pageSummary={pageSummary}
         currencyCode={currencyCode}
-        autoMappedPendingCount={autoMappedPendingTxns.length}
+        autoMappedPendingCount={totalAutoMappedPendingCount}
         isHydrated={isHydrated}
         isMobile={isMobile}
         transactionView={transactionView}
@@ -296,8 +301,7 @@ export default function TransactionsPanel(props: {
         onApproveAllAutoMappings={() => {
           void runBulkAction({
             input: {
-              action: 'approveAutoMappings',
-              txnIds: autoMappedPendingTxns.map((txn) => txn.id),
+              action: 'approveAllAutoMappings',
             },
             successLabel: 'Approved',
             clearSelection: false,

@@ -10,6 +10,7 @@ import { useQueryScopeUserId } from './scope';
 import type { ProjectId, TxnCommentId, TxnId } from '../types';
 import type {
   TxnCommentCreateInput,
+  TxnCommentSummariesInput,
   TxnCommentUpdateInput,
 } from '../api/types';
 import {
@@ -37,23 +38,40 @@ export function useTransactionCommentsQuery(
 
 export function useTransactionCommentSummariesQuery(
   projectId: ProjectId,
+  input: TxnCommentSummariesInput,
   options: { enabled?: boolean } = {}
 ) {
   const scopeUserId = useQueryScopeUserId();
   return useQuery(
-    transactionCommentSummariesQueryOptions(scopeUserId, projectId, options)
+    transactionCommentSummariesQueryOptions(
+      scopeUserId,
+      projectId,
+      input,
+      options
+    )
   );
+}
+
+function txnIdsKey(txnIds?: TxnId[]) {
+  return txnIds?.length ? [...txnIds].sort().join(',') : 'all';
 }
 
 export function transactionCommentSummariesQueryOptions(
   userId: string,
   projectId: ProjectId,
+  input: TxnCommentSummariesInput,
   options: { enabled?: boolean } = {}
 ) {
   return {
-    queryKey: qk.transactionCommentSummaries(userId, projectId),
+    queryKey: qk.transactionCommentSummaries(
+      userId,
+      projectId,
+      txnIdsKey(input.txnIds)
+    ),
     queryFn: () =>
-      listTransactionCommentSummariesServerFn({ data: { projectId } }),
+      listTransactionCommentSummariesServerFn({
+        data: { projectId, payload: input },
+      }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
   } as const;
@@ -71,7 +89,8 @@ export function useCreateTransactionCommentMutation(projectId: ProjectId) {
           queryKey: qk.transactionComments(scopeUserId, projectId, input.txnId),
         }),
         qc.invalidateQueries({
-          queryKey: qk.transactionCommentSummaries(scopeUserId, projectId),
+          queryKey: ['transactionCommentSummaries', scopeUserId, projectId],
+          exact: false,
         }),
       ]);
     },
@@ -95,7 +114,8 @@ export function useUpdateTransactionCommentMutation(
           queryKey: qk.transactionComments(scopeUserId, projectId, txnId),
         }),
         qc.invalidateQueries({
-          queryKey: qk.transactionCommentSummaries(scopeUserId, projectId),
+          queryKey: ['transactionCommentSummaries', scopeUserId, projectId],
+          exact: false,
         }),
       ]);
     },
@@ -119,7 +139,8 @@ export function useDeleteTransactionCommentMutation(
           queryKey: qk.transactionComments(scopeUserId, projectId, txnId),
         }),
         qc.invalidateQueries({
-          queryKey: qk.transactionCommentSummaries(scopeUserId, projectId),
+          queryKey: ['transactionCommentSummaries', scopeUserId, projectId],
+          exact: false,
         }),
       ]);
     },

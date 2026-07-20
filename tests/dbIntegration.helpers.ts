@@ -117,6 +117,7 @@ import {
   deleteTxnServer,
   importTransactionsServer,
   listImportCandidatesServer,
+  listProjectTransactionSummaryServer,
   listTransactionsPageServer,
   listTransactionsServer,
   previewImportTransactionsServer,
@@ -459,8 +460,17 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
       input: TxnBulkActionInput
     ) => bulkTxnActionServer({ context, projectId, input }),
     listTransactionCommentSummaries: (
+      projectId: ReturnType<typeof asProjectId>,
+      txnIds?: readonly ReturnType<typeof asTxnId>[]
+    ) =>
+      listTransactionCommentSummariesServer({
+        context,
+        projectId,
+        txnIds: txnIds ? [...txnIds] : undefined,
+      }),
+    listProjectTransactionSummary: (
       projectId: ReturnType<typeof asProjectId>
-    ) => listTransactionCommentSummariesServer({ context, projectId }),
+    ) => listProjectTransactionSummaryServer({ context, projectId }),
     listTransactionComments: (
       projectId: ReturnType<typeof asProjectId>,
       txnId: ReturnType<typeof asTxnId>

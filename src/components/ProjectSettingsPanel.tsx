@@ -43,7 +43,6 @@ import {
 } from '../queries/memberships';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useTaxonomy } from '../hooks/useTaxonomy';
-import { useTransactions } from '../hooks/useTransactions';
 import { getCompanyUsers } from '../store/access';
 import { companyRoute } from '../router';
 import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
@@ -181,15 +180,10 @@ export default function ProjectSettingsPanel(props: {
     projectId,
     enabled: effectiveProject.projectType === 'project',
   });
-  const settingsTxns = useTransactions({
-    projectId,
-    enabled: effectiveProject.projectType === 'project',
-  });
   const settingsTaxonomy = useTaxonomy({
     companyId,
     projectId,
     budgets: settingsBudgets,
-    txns: settingsTxns,
     canEditBudgets,
     enabled: effectiveProject.projectType === 'project',
   });

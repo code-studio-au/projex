@@ -660,6 +660,10 @@ export const createTxnCommentInputSchema = z.object({
   assignedToUserId: userIdSchema.nullable().optional(),
 });
 
+export const txnCommentSummariesInputSchema = z.object({
+  txnIds: z.array(txnIdSchema).max(200).optional(),
+});
+
 export const updateTxnCommentInputSchema = z.object({
   id: txnCommentIdSchema,
   body: txnCommentBodySchema.optional(),

@@ -10,17 +10,16 @@ import { useMemo } from 'react';
  * implementation later (TanStack Start server functions / SQL rollups),
  * while preserving the same UI contract.
  */
-import type { BudgetLine, RollupRow, SubCategoryId, Txn } from '../types';
+import type { ProjectTransactionSummary } from '../api/types';
+import type { BudgetLine, RollupRow, SubCategoryId } from '../types';
 import {
   monthKeyFromStart,
   monthStart,
-  nextMonthStart,
   parseISODate,
   parseYearMonth,
   quarterOfMonth,
   sum,
 } from '../utils/finance';
-import { isBudgetImpactTxn } from '../utils/transactions';
 import type { TaxonomyHook } from './useTaxonomy';
 
 /**
@@ -34,7 +33,7 @@ function parseMonthKeyToDate(input: string) {
 }
 
 export function useRollups(params: {
-  transactions: Txn[];
+  transactionSummary: ProjectTransactionSummary | null | undefined;
   budgets: BudgetLine[];
   taxonomy: TaxonomyHook;
   yearFilter?: string | null;
@@ -42,7 +41,7 @@ export function useRollups(params: {
   monthFilterKey?: string | null;
 }) {
   const {
-    transactions,
+    transactionSummary,
     budgets,
     taxonomy,
     yearFilter,
@@ -51,20 +50,8 @@ export function useRollups(params: {
   } = params;
 
   const monthStarts = useMemo(() => {
-    // Be resilient to malformed dates at import boundaries.
-    // A single NaN in Math.min/Math.max would poison the whole range.
-    const times = transactions
-      .filter(isBudgetImpactTxn)
-      .map((t) => {
-        try {
-          return parseISODate(t.date).getTime();
-        } catch {
-          return NaN;
-        }
-      })
-      .filter((ms) => Number.isFinite(ms)) as number[];
-
-    if (!times.length) {
+    const monthKeys = transactionSummary?.monthKeys ?? [];
+    if (!monthKeys.length) {
       if (!budgets.length) return [];
 
       // Keep the budget time-axis usable even before transaction dates exist.
@@ -78,17 +65,10 @@ export function useRollups(params: {
       );
     }
 
-    const minD = monthStart(new Date(Math.min(...times)));
-    const maxD = monthStart(new Date(Math.max(...times)));
-
-    const out: Date[] = [];
-    let d = new Date(minD);
-    while (d <= maxD) {
-      out.push(new Date(d));
-      d = nextMonthStart(d);
-    }
-    return out;
-  }, [budgets.length, transactions]);
+    return monthKeys.map((monthKey) =>
+      monthStart(parseISODate(`${monthKey}-01`))
+    );
+  }, [budgets.length, transactionSummary?.monthKeys]);
 
   const visibleMonthStarts = useMemo(() => {
     if (monthFilterKey)
@@ -113,43 +93,25 @@ export function useRollups(params: {
     [taxonomy.subCategories]
   );
 
-  const codedTxns = useMemo(
-    () =>
-      transactions.filter(
-        (t) =>
-          isBudgetImpactTxn(t) &&
-          t.subCategoryId &&
-          validSubIds.has(t.subCategoryId)
-      ),
-    [transactions, validSubIds]
-  );
-
   const { actualsBySubMonth, badDateCount } = useMemo(() => {
     const map = new Map<SubCategoryId, Record<string, number>>();
-    let bad = 0;
-
-    for (const t of codedTxns) {
-      const scId = t.subCategoryId!;
+    for (const row of transactionSummary?.rows ?? []) {
+      if (!validSubIds.has(row.subCategoryId)) continue;
+      const scId = row.subCategoryId;
       if (!map.has(scId)) map.set(scId, {});
       const rec = map.get(scId)!;
-
-      // Derive the month key from an actual parsed date instead of string slicing.
-      // This avoids silently mis-bucketing dates like "2025/01/05" or empty strings.
-      let mk: string | null = null;
-      try {
-        const d = parseISODate(t.date);
-        mk = monthKeyFromStart(monthStart(d));
-      } catch {
-        bad += 1;
-      }
-
-      if (!mk) continue;
-
-      rec[mk] = (rec[mk] ?? 0) + t.amountCents;
+      rec[row.monthKey] = (rec[row.monthKey] ?? 0) + row.actualCents;
     }
 
-    return { actualsBySubMonth: map, badDateCount: bad };
-  }, [codedTxns]);
+    return {
+      actualsBySubMonth: map,
+      badDateCount: transactionSummary?.invalidDateCount ?? 0,
+    };
+  }, [
+    transactionSummary?.invalidDateCount,
+    transactionSummary?.rows,
+    validSubIds,
+  ]);
 
   const rollupRows: RollupRow[] = useMemo(() => {
     return budgets

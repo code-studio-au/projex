@@ -252,6 +252,7 @@ export async function listTransactionCommentsServer(args: {
 export async function listTransactionCommentSummariesServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
+  txnIds?: TxnId[];
 }): Promise<TxnCommentSummary[]> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -278,6 +279,9 @@ export async function listTransactionCommentSummariesServer(args: {
         'created_by.name as created_by_name',
       ])
       .where('txn_comments.project_id', '=', args.projectId)
+      .$if(Boolean(args.txnIds?.length), (qb) =>
+        qb.where('txn_comments.txn_public_id', 'in', args.txnIds!)
+      )
       .orderBy('txn_comments.created_at', 'asc')
       .orderBy('txn_comments.id', 'asc')
       .execute();

@@ -8,6 +8,7 @@ import {
   transferTxnInputSchema,
   txnBulkActionInputSchema,
   txnCommentIdSchema,
+  txnCommentSummariesInputSchema,
   txnIdSchema,
   txnImportInputSchema,
   txnReversalActionInputSchema,
@@ -19,7 +20,9 @@ import {
   applyTxnReversalActionServer,
   createTxnServer,
   deleteTxnServer,
+  getTransactionServer,
   importTransactionsServer,
+  listProjectTransactionSummaryServer,
   listTxnReversalMatchSuggestionsServer,
   listTransactionsServer,
   splitTxnServer,
@@ -43,6 +46,30 @@ export const listTransactionsEndpoint = defineAppEndpoint({
   }),
   execute: ({ context, input }) =>
     listTransactionsServer({
+      context,
+      projectId: input.projectId,
+    }),
+});
+
+export const getTransactionEndpoint = defineAppEndpoint({
+  inputSchema: z.object({
+    projectId: projectIdSchema,
+    txnId: txnIdSchema,
+  }),
+  execute: ({ context, input }) =>
+    getTransactionServer({
+      context,
+      projectId: input.projectId,
+      txnId: input.txnId,
+    }),
+});
+
+export const listProjectTransactionSummaryEndpoint = defineAppEndpoint({
+  inputSchema: z.object({
+    projectId: projectIdSchema,
+  }),
+  execute: ({ context, input }) =>
+    listProjectTransactionSummaryServer({
       context,
       projectId: input.projectId,
     }),
@@ -196,11 +223,13 @@ export const listTransactionCommentsEndpoint = defineAppEndpoint({
 export const listTransactionCommentSummariesEndpoint = defineAppEndpoint({
   inputSchema: z.object({
     projectId: projectIdSchema,
+    payload: txnCommentSummariesInputSchema.optional(),
   }),
   execute: ({ context, input }) =>
     listTransactionCommentSummariesServer({
       context,
       projectId: input.projectId,
+      txnIds: input.payload?.txnIds,
     }),
 });
 

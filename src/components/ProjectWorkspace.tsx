@@ -46,6 +46,7 @@ import {
   useProjectsQuery,
 } from '../queries/reference';
 import { useUpdateProjectMutation } from '../queries/admin';
+import { useProjectTransactionSummaryQuery } from '../queries/transactions';
 
 import TransactionsPanel from './TransactionsPanel';
 import BudgetPanel from './BudgetPanel';
@@ -363,22 +364,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   const canManageImportRules = isHydrated
     ? access.can('project:import', projectId)
     : false;
-
-  const budgets = useBudgets({
-    companyId,
-    projectId,
-    enabled: isOperationalProject,
-  });
-  const txns = useTransactions({ projectId, enabled: isOperationalProject });
-  const taxonomy = useTaxonomy({
-    companyId,
-    projectId,
-    budgets,
-    txns,
-    canEditBudgets,
-    enabled: isOperationalProject,
-  });
-
   const [activeTab, setActiveTab] = useState<ProjectWorkspaceTab>(initialTab);
   const [yearFilter, setYearFilter] = useState<string | null>(
     initialYearFilter
@@ -394,6 +379,27 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   );
   const [transactionDrilldown, setTransactionDrilldown] =
     useState<TransactionDrilldownSearch | null>(initialTransactionDrilldown);
+
+  const budgets = useBudgets({
+    companyId,
+    projectId,
+    enabled: isOperationalProject,
+  });
+  const projectTransactionSummaryQ = useProjectTransactionSummaryQuery(
+    projectId,
+    { enabled: isOperationalProject }
+  );
+  const txns = useTransactions({
+    projectId,
+    enabled: false,
+  });
+  const taxonomy = useTaxonomy({
+    companyId,
+    projectId,
+    budgets,
+    canEditBudgets,
+    enabled: isOperationalProject,
+  });
   const nextUrlSyncShouldReplaceRef = useRef(true);
 
   const effectiveCompanyName =
@@ -465,7 +471,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   }
 
   const rollups = useRollups({
-    transactions: txns.transactions,
+    transactionSummary: projectTransactionSummaryQ.data,
     budgets: budgets.budgets,
     taxonomy,
     yearFilter,
@@ -556,12 +562,21 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   );
 
   const uncoded = useMemo(
-    () => txns.getUncodedSummary(taxonomy.validSubIds),
-    [txns, taxonomy.validSubIds]
+    () => ({
+      count: projectTransactionSummaryQ.data?.uncodedCount ?? 0,
+      amountCents: projectTransactionSummaryQ.data?.uncodedAmountCents ?? 0,
+    }),
+    [
+      projectTransactionSummaryQ.data?.uncodedAmountCents,
+      projectTransactionSummaryQ.data?.uncodedCount,
+    ]
   );
   const headerReady = Boolean(effectiveCompanyName && effectiveProjectName);
   const summaryReady =
-    headerReady && !budgets.isLoading && !txns.isLoading && !taxonomy.isLoading;
+    headerReady &&
+    !budgets.isLoading &&
+    !projectTransactionSummaryQ.isLoading &&
+    !taxonomy.isLoading;
   const currencyCode = effectiveCurrencyCode;
   const programmeTotals = useMemo(() => {
     const visibleMonths = (programmeSummary?.months ?? []).filter((month) =>
@@ -1074,6 +1089,9 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
               projectId={projectId}
               txns={txns}
               taxonomy={taxonomy}
+              autoMappedPendingCount={
+                projectTransactionSummaryQ.data?.autoMappedPendingCount ?? 0
+              }
               currencyCode={currencyCode}
               yearFilterOptions={yearFilterOptions}
               yearFilter={yearFilter}

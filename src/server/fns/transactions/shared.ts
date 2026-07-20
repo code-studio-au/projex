@@ -64,6 +64,18 @@ export type TxnPageSummaryRow = {
   locked_count: number | string;
 };
 
+export type ProjectTransactionSummaryRow = {
+  sub_category_id: string;
+  month_key: string;
+  actual_cents: number | string;
+};
+
+export type ProjectTransactionSummaryAggregateRow = {
+  uncoded_count: number | string;
+  uncoded_cents: number | string;
+  auto_mapped_pending_count: number | string;
+};
+
 export const OPEN_TXN_REVERSAL_STATUSES = [
   'pending_reversal',
   'auto_matched_pending_approval',
