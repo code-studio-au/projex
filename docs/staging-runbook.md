@@ -66,6 +66,7 @@ Before cutting over or handing a deployed environment to another developer, conf
 - The first app-side global superadmin has been created with `pnpm run auth:bootstrap-user` on fresh databases.
 - Unauthorized requests return `401` and scoped resources are not visible across companies/projects.
 - The public proxy uses `deploy/nginx/projex.conf` or equivalent HTTPS redirect, forwarded headers, hardening headers, and maintenance fallback behavior.
+- Nginx loads `/etc/nginx/conf.d/projex-request-limits.conf`, which keeps application request bodies bounded at `16m` while allowing validated bulk import commits.
 - If the host was created through CDK, the HTTP bootstrap nginx config has been promoted to HTTPS with `/usr/local/bin/projex-provision-letsencrypt-cert`.
 - `/api/health` returns `200` when the process is running.
 - `/api/ready` returns `200` only when environment and database checks pass.
@@ -291,6 +292,7 @@ Preferred deploy model:
 - dispatch an SSM command to the EC2 host
 - install runtime dependencies only on the host
 - run migrations
+- refresh the managed nginx request-limit include, validate nginx, and reload it
 - switch the `/opt/projex/current` symlink
 - restart the service
 
@@ -416,6 +418,26 @@ Expected effect:
 - users must sign in again
 
 ## Troubleshooting
+
+If accepting an import returns nginx `413 Request Entity Too Large`, confirm the
+managed request-limit include is active:
+
+```bash
+sudo cat /etc/nginx/conf.d/projex-request-limits.conf
+sudo nginx -T | grep client_max_body_size
+```
+
+The expected value is `client_max_body_size 16m;`. Routine artifact deployment
+installs this file and reloads nginx. To recover a host from an already
+activated release manually, run:
+
+```bash
+sudo install -m 0644 \
+  /opt/projex/current/deploy/nginx/projex-request-limits.conf \
+  /etc/nginx/conf.d/projex-request-limits.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
 
 If the app is up locally on EC2 but not from the browser:
 

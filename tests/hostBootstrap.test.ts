@@ -12,6 +12,8 @@ describe('buildHostBootstrapCommands', () => {
 
     const joined = commands.join('\n');
     expect(joined).toContain('/etc/nginx/conf.d/projex.conf');
+    expect(joined).toContain('/etc/nginx/conf.d/projex-request-limits.conf');
+    expect(joined).toContain('client_max_body_size 16m;');
     expect(joined).toContain('/etc/projex/projex.nginx.https.conf.template');
     expect(joined).toContain(
       '/usr/local/bin/projex-provision-letsencrypt-cert'

@@ -1,21 +1,21 @@
 # Dependency Overrides
 
-Projex keeps a small `pnpm.overrides` block in the root [package.json](../package.json)
-to pin transitive dependencies when upstream trees lag behind known-good or
-security-fixed releases.
+Projex keeps a small root `overrides` block in
+[pnpm-workspace.yaml](../pnpm-workspace.yaml) to pin transitive dependencies
+when upstream trees lag behind known-good or security-fixed releases. pnpm 11
+reads dependency-resolution settings from the workspace configuration rather
+than the `pnpm` field in `package.json`.
 
 Current overrides:
 
-- `flatted`
-  Security and parser-hardening floor used by multiple dependency trees.
-- `minimatch`
-  Keep glob parsing on a patched major to avoid older vulnerable ranges.
-- `picomatch`
-  Keep transitive glob matching aligned with patched releases.
-- `postcss`
-  Ensure transitive CSS tooling resolves to the patched 8.5.x line.
-- `yaml`
-  Keep YAML parsing on the audited 1.10.x floor expected by the repo security gate.
+- `brace-expansion@<1.1.16`, `brace-expansion@>=2.0.0 <2.1.2`, and
+  `brace-expansion@>=3.0.0 <5.0.7`
+  Keep each transitive major on its compatible patched line for
+  `GHSA-3jxr-9vmj-r5cp` without forcing old ExcelJS or current lint tooling
+  across a package major boundary.
+- `js-yaml@>=4.0.0 <4.3.0`
+  Keep TanStack Start and tooling YAML parsing on the patched 4.3.x line for
+  `GHSA-52cp-r559-cp3m`.
 
 Update policy:
 

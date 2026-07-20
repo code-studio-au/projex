@@ -8,15 +8,6 @@
     "node": ">=24 <26",
     "pnpm": "11.x"
   },
-  "pnpm": {
-    "overrides": {
-      "flatted": "^3.4.2",
-      "minimatch": "^10.2.3",
-      "picomatch": "^4.0.4",
-      "postcss": "^8.5.15",
-      "yaml": "^1.10.3"
-    }
-  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

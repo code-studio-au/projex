@@ -78,6 +78,7 @@ Notes:
 - `PG_SSL_MODE=require` is the safest default for managed Postgres. Use `no-verify` only when you intentionally rely on a trusted private CA or self-signed cert chain you cannot validate in the container image.
 - Set `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to the canonical public origin users will actually visit.
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
+- Better Auth trusts only the proxy-controlled `X-Real-IP` header for client-IP rate limiting. Keep the application origin private, and ensure the trusted proxy overwrites that header from the direct client address rather than forwarding a caller-provided value.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.
 - `PROJEX_APP_BASE_URL` should point at the public app origin used for transaction-comment notification links; it falls back to `BETTER_AUTH_URL` when unset.
 - `S3_BUCKET` and `S3_REGION` are required for the export feature when using AWS S3. On AWS itself you normally do not need to set `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, or `S3_FORCE_PATH_STYLE`.
@@ -129,6 +130,7 @@ Recommended:
 
 - use the bootstrap nginx template at `deploy/nginx/projex.bootstrap.conf` for first boot
 - promote the host to the HTTPS nginx template rendered from `deploy/nginx/projex.https.conf.template` after certificate issuance
+- install `deploy/nginx/projex-request-limits.conf` under `/etc/nginx/conf.d/`; routine artifact deploys refresh this managed include automatically
 - it includes:
   - HTTP -> HTTPS redirect
   - `server_tokens off`
@@ -136,6 +138,12 @@ Recommended:
   - proxy forwarding for host/origin/proto/IP
   - maintenance-page interception for upstream `502/503/504`
   - a dedicated `__maintenance_ready` probe endpoint that bypasses the maintenance fallback
+
+The managed request-limit include sets `client_max_body_size 16m`. Power BI
+import commits include normalized transactions and retained source metadata, so
+their JSON request is larger than the source CSV. This bounded proxy allowance
+supports the application's validated maximum of 5,000 imported transactions
+without reverting to an effectively unlimited request body.
 
 The maintenance fallback relies on the static file:
 
@@ -148,6 +156,9 @@ In the recommended artifact-based layout, nginx serves those files from:
 - `/opt/projex/shared/nginx-maintenance/maintenance.js`
 
 Each deploy refreshes those shared maintenance assets from the release bundle before the service restart.
+It also installs the managed request-limit include, validates the complete nginx
+configuration with `nginx -t`, and reloads nginx. This means existing hosts pick
+up request-limit changes without replacing their rendered TLS/domain config.
 
 ## 5.1) Enable HTTPS with Let's Encrypt
 

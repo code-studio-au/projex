@@ -1,6 +1,12 @@
 packages:
   - deploy/cdk
 
+overrides:
+  'brace-expansion@<1.1.16': 1.1.16
+  'brace-expansion@>=2.0.0 <2.1.2': 2.1.2
+  'brace-expansion@>=3.0.0 <5.0.7': 5.0.7
+  'js-yaml@>=4.0.0 <4.3.0': 4.3.0
+
 # Delay dependency resolution for newly published packages to reduce
 # exposure to fresh supply-chain compromises and registry hijacks.
 minimumReleaseAge: 10080

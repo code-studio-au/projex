@@ -37,6 +37,9 @@ export function buildHostBootstrapCommands() {
   const httpsNginxTemplate = readRepoFile(
     'deploy/nginx/projex.https.conf.template'
   );
+  const nginxRequestLimits = readRepoFile(
+    'deploy/nginx/projex-request-limits.conf'
+  );
   const envExample = readRepoFile('.env.example');
   const provisionLetsEncryptScript = readRepoFile(
     'scripts/provision-letsencrypt-cert.sh'
@@ -60,6 +63,11 @@ export function buildHostBootstrapCommands() {
       '0644'
     ),
     installFileCommand('/etc/nginx/conf.d/projex.conf', bootstrapNginx, '0644'),
+    installFileCommand(
+      '/etc/nginx/conf.d/projex-request-limits.conf',
+      nginxRequestLimits,
+      '0644'
+    ),
     installFileCommand(
       '/etc/projex/projex.nginx.https.conf.template',
       httpsNginxTemplate,

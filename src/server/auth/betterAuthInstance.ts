@@ -42,6 +42,11 @@ export function buildBetterAuthOptions(): BetterAuthOptions {
     secret,
     baseURL,
     trustedOrigins: trustedOrigins.length ? trustedOrigins : undefined,
+    advanced: {
+      ipAddress: {
+        ipAddressHeaders: ['x-real-ip'],
+      },
+    },
     database: {
       db: getDb(),
       type: 'postgres',

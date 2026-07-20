@@ -1,6 +1,13 @@
 import { readFile } from 'node:fs/promises';
 
 const optionalDeploymentEnvPaths = ['.env.production', '.env.staging'];
+const nginxProxyConfigPaths = [
+  'deploy/nginx/projex.bootstrap.conf',
+  'deploy/nginx/projex.conf',
+  'deploy/nginx/projex.https.conf.template',
+];
+const nginxRequestLimitsPath = 'deploy/nginx/projex-request-limits.conf';
+const nginxImportBodyLimit = 'client_max_body_size 16m;';
 
 const checks = [
   {
@@ -97,8 +104,51 @@ async function verifyGitignoreCoverage() {
   }
 }
 
+async function verifyTrustedProxyClientIpHeaders() {
+  for (const path of nginxProxyConfigPaths) {
+    const content = await readFile(path, 'utf8');
+    const appLocation = content.match(/location \/ \{[\s\S]*?\n\s*\}/)?.[0];
+    assertCondition(
+      appLocation,
+      `${path} is missing its application proxy location`
+    );
+    assertCondition(
+      appLocation.includes('proxy_set_header X-Real-IP $remote_addr;'),
+      `${path} must overwrite X-Real-IP with the direct client address`
+    );
+  }
+}
+
+async function verifyNginxRequestLimits() {
+  const [requestLimits, createArtifactScript, deployScript] = await Promise.all(
+    [
+      readFile(nginxRequestLimitsPath, 'utf8'),
+      readFile('scripts/create-deploy-artifact.sh', 'utf8'),
+      readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
+    ]
+  );
+  assertCondition(
+    requestLimits.includes(nginxImportBodyLimit),
+    `${nginxRequestLimitsPath} must retain the bounded ${nginxImportBodyLimit} import allowance`
+  );
+  assertCondition(
+    createArtifactScript.includes(`require_path "${nginxRequestLimitsPath}"`),
+    'Deploy artifacts must require the managed nginx request limits'
+  );
+  assertCondition(
+    deployScript.includes(nginxRequestLimitsPath),
+    'Artifact deploys must install the managed nginx request limits'
+  );
+  assertCondition(
+    deployScript.includes('sudo nginx -t'),
+    'Artifact deploys must validate nginx before reloading it'
+  );
+}
+
 async function main() {
   await verifyGitignoreCoverage();
+  await verifyTrustedProxyClientIpHeaders();
+  await verifyNginxRequestLimits();
 
   const skipped = [];
   for (const check of checks) {

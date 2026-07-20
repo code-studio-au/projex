@@ -13,6 +13,7 @@ KEEP_RELEASES="${KEEP_RELEASES:-5}"
 HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-60}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-60}"
 HTTP_CHECK_INTERVAL_SECONDS="${HTTP_CHECK_INTERVAL_SECONDS:-2}"
+NGINX_REQUEST_LIMITS_PATH="${NGINX_REQUEST_LIMITS_PATH:-/etc/nginx/conf.d/projex-request-limits.conf}"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -112,6 +113,7 @@ require_file "$RELEASE_DIR/scripts/node-runtime.mjs"
 require_file "$RELEASE_DIR/scripts/deploy-artifact-ec2.sh"
 require_file "$RELEASE_DIR/deploy/nginx/maintenance.html"
 require_file "$RELEASE_DIR/deploy/nginx/maintenance.js"
+require_file "$RELEASE_DIR/deploy/nginx/projex-request-limits.conf"
 
 mkdir -p "${APP_ROOT}/releases" "$SHARED_DIR/nginx-maintenance"
 
@@ -133,6 +135,15 @@ pnpm run db:migrate
 log "Refreshing shared maintenance assets"
 cp "$RELEASE_DIR/deploy/nginx/maintenance.html" "$SHARED_DIR/nginx-maintenance/maintenance.html"
 cp "$RELEASE_DIR/deploy/nginx/maintenance.js" "$SHARED_DIR/nginx-maintenance/maintenance.js"
+
+log "Refreshing nginx request limits"
+sudo install -m 0644 \
+  "$RELEASE_DIR/deploy/nginx/projex-request-limits.conf" \
+  "$NGINX_REQUEST_LIMITS_PATH"
+if ! sudo nginx -t; then
+  fail "Nginx configuration validation failed after refreshing request limits"
+fi
+sudo systemctl reload nginx
 
 log "Activating release ${RELEASE_DIR}"
 ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"

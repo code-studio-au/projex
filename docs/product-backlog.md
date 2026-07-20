@@ -2,6 +2,151 @@
 
 This backlog is intentionally focused on unfinished work. Implemented platform capabilities such as transaction comments, split/transfer workflows, programme rollups, PowerBI import foundations, smoke cleanup automation, and destructive delete safeguards are no longer tracked here as active backlog items.
 
+## Immediate TODO
+
+These items come from the July 2026 professional repository review. The numbering is retained so implementation and review follow-up can refer to the original finding unambiguously.
+
+### 1. Harden authentication rate-limit client IP handling
+
+Status: completed 21 July 2026.
+
+Risk:
+
+- Better Auth currently uses its default `x-forwarded-for` client IP source
+- Nginx builds that header with `$proxy_add_x_forwarded_for`, so a client-provided value can appear before the trusted proxy address
+- Better Auth 1.6.x reads the first valid address, allowing a caller to rotate forged values and weaken per-IP authentication rate limiting
+
+Implemented:
+
+- Better Auth now reads only the Nginx-controlled `x-real-ip` header
+- all maintained Nginx application proxy configurations overwrite `X-Real-IP` with `$remote_addr`
+- repository security verification and a focused auth-options test guard both sides of that trust boundary
+- full disposable server and browser smoke flows pass with the trusted proxy header and exercise active sign-in rate limiting
+
+### 2. Prevent internal server exception details from reaching clients
+
+Risk:
+
+- `toAppError` currently preserves the original message when an unknown `Error` is converted to `INTERNAL_ERROR`
+- `withServerBoundary` applies that conversion to unexpected server-function failures
+- the HTTP boundary serializes `AppError.message`, so database constraints and implementation details can be exposed to clients
+
+Required work:
+
+- preserve messages for deliberate domain `AppError` instances only
+- return a fixed generic message for unknown errors converted to `INTERNAL_ERROR`
+- retain the original cause in server-side structured logs with the request ID
+- add regression coverage for an unexpected error that passes through both the server-function and HTTP boundaries
+
+### 3. Restore a clean dependency security audit
+
+Status: completed 21 July 2026.
+
+Risk:
+
+- the mandatory `pnpm audit` gate currently reports high-severity denial-of-service advisories in transitive `brace-expansion` and `js-yaml` versions
+- affected paths include production dependency trees through ExcelJS and TanStack Start as well as development tooling
+- `verify:app` and CI stop at the audit stage, preventing a releasable green verification result
+
+Implemented:
+
+- pnpm 11 override configuration now lives in root `pnpm-workspace.yaml`, where pnpm actually applies dependency-resolution settings
+- vulnerable `brace-expansion` major lines resolve to `1.1.16`, `2.1.2`, and `5.0.7`, while vulnerable `js-yaml` 4.x resolves to `4.3.0`
+- stale broad overrides were removed instead of forcing legacy consumers across incompatible package majors
+- the override rationale and removal policy are documented in `docs/dependency-overrides.md`
+- the regenerated lockfile, zero-vulnerability audit, full application gate, CDK synthesis, database gate, export flow, and browser smoke all pass
+
+### 4. Align the default EXA import rule with reversal matching
+
+Risk:
+
+- the seeded rule named `Exclude EXA unacquitted Concur source` matches only `Source = EXA`
+- its predicate therefore excludes every EXA transaction rather than the narrower subset described by its name
+- new companies can silently exclude both pending-reversal and actual-reversal candidates before the matching workflow sees them
+
+Required work:
+
+- confirm the business fields that distinguish unacquitted Concur rows from reversal-relevant EXA rows
+- narrow the exclusion predicate when a reliable discriminator exists, otherwise default EXA rows to import or review
+- define a safe migration or baseline-sync policy for companies that already inherited the broad rule
+- add import-preview and month-one/month-two reversal integration coverage for the chosen default
+
+### 5. Make ambiguous reversal pairing valid by construction
+
+Risk:
+
+- ambiguous matching independently orders tied source and counterpart arrays and pairs them by index
+- optional reference and cost-centre comparisons are not transitive, so a zipped pair can be invalid even though each row participated in a tie around another row
+- approval rechecks amount, sign, project, and lock state but does not re-run the import-metadata compatibility score
+
+Required work:
+
+- construct a bipartite graph containing only source/counterpart edges that pass `autoMatchScore`
+- choose deterministic default matches only from valid edges and preserve the ambiguity explanation for review
+- revalidate metadata compatibility during approval or otherwise enforce an invariant that stored suggested pairs are valid
+- add asymmetric missing/reference/cost-centre test cases, not only fully identical duplicate rows
+
+### 6. Make bulk transaction and reversal operations concurrency-safe
+
+Risk:
+
+- bulk transaction eligibility is read before the database transaction begins
+- subsequent updates do not consistently recheck lock, categorisable, or reversal-workflow conditions in their SQL predicates
+- bulk reversal approval commits each selected reversal separately, so a later error can return failure after earlier items have already committed
+
+Required work:
+
+- load and lock selected rows inside the mutation transaction
+- use conditional updates/deletes and verify affected-row counts to prevent stale eligibility decisions
+- make bulk approval atomic, or explicitly expose and test per-item success/failure semantics
+- add concurrent lock/reversal-state and mid-batch failure integration tests
+
+### 7. Split oversized feature modules along domain boundaries
+
+Current concentration:
+
+- reversal server handling combines scoring, ambiguous pairing, comments, workflow transitions, import orchestration, and bulk approval in one module
+- `ProjectWorkspace`, PowerBI import, company settings, budget, summary, and smoke dashboard components each coordinate several responsibilities
+- company and project import-rule modals duplicate draft management, validation, save, reorder, and editor rendering
+
+Required work:
+
+- split reversal matching, reversal workflow transitions, comments, and bulk commands into focused domain services
+- move complex UI mutation orchestration into feature controllers/hooks while keeping rendering components presentational
+- extract a shared import-rule editor with company/project scope adapters
+- preserve the existing documented API/server boundary and add focused tests around each extracted boundary
+
+### 8. Remove verified dead code and control export surface growth
+
+Verified examples:
+
+- unused `LoadingChip` and `useRequiredSession` exports
+- unused create/delete transaction and update-company query mutations
+- unused legacy access helpers and company-default mapping functions
+- the disabled full-list transaction query and coding helpers in `useTransactions`, while the workspace only consumes its replace/append import mutations
+
+Required work:
+
+- remove only candidates confirmed by repository-wide reference checks, accounting for dynamic route, script, CDK, and ambient type entry points
+- replace the legacy `useTransactions` wrapper with focused import mutations where that is its only remaining responsibility
+- reduce unnecessary exports for helpers that are file-local
+- add a configured Knip check or equivalent dead-code report with explicit dynamic-entry exceptions
+
+### 9. Complete paginated transaction query behaviour and profile its cost
+
+Risk:
+
+- the transaction panel checks `isPlaceholderData`, but the paginated query does not configure `placeholderData`, leaving the intended transition state inactive
+- every page/filter request also recalculates a multi-field aggregate summary over the matching transaction set
+- the current transaction indexes do not directly cover the default project/date/id page ordering
+
+Required work:
+
+- either configure `placeholderData: keepPreviousData` or remove the inactive transition branch and use an intentional loading state
+- add focused pagination tests for page/filter transitions
+- capture `EXPLAIN (ANALYZE, BUFFERS)` evidence with representative project sizes before adding indexes
+- add a project/date/id index or summary-query redesign only when profiling demonstrates the benefit
+
 ## Active Backlog
 
 ### 1. Add bulk transaction review actions

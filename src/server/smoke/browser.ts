@@ -145,6 +145,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
   try {
     const context = await browser.newContext({
       baseURL: baseUrl,
+      extraHTTPHeaders: { 'x-real-ip': '127.0.0.1' },
       ignoreHTTPSErrors: true,
     });
     const page = await context.newPage();

@@ -192,6 +192,7 @@ export class SmokeHttpClient {
     if (cookie) headers.set('cookie', cookie);
     if (!headers.has('origin')) headers.set('origin', this.baseUrl);
     if (!headers.has('referer')) headers.set('referer', `${this.baseUrl}/`);
+    if (!headers.has('x-real-ip')) headers.set('x-real-ip', '127.0.0.1');
     if (!headers.has('content-type') && init.body) {
       headers.set('content-type', 'application/json');
     }
@@ -232,6 +233,7 @@ export class SmokeHttpClient {
     if (cookie) headers.set('cookie', cookie);
     if (!headers.has('origin')) headers.set('origin', this.baseUrl);
     if (!headers.has('referer')) headers.set('referer', `${this.baseUrl}/`);
+    if (!headers.has('x-real-ip')) headers.set('x-real-ip', '127.0.0.1');
     const res = await fetch(`${this.baseUrl}${urlPath}`, { ...init, headers });
     this.storeSetCookie(res.headers);
     const body = await res.text();
@@ -244,6 +246,7 @@ export class SmokeHttpClient {
     if (cookie) headers.set('cookie', cookie);
     if (!headers.has('origin')) headers.set('origin', this.baseUrl);
     if (!headers.has('referer')) headers.set('referer', `${this.baseUrl}/`);
+    if (!headers.has('x-real-ip')) headers.set('x-real-ip', '127.0.0.1');
     const res = await fetch(`${this.baseUrl}${urlPath}`, { ...init, headers });
     this.storeSetCookie(res.headers);
     return {
