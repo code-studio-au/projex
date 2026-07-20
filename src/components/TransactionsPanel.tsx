@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Stack } from '@mantine/core';
 import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
@@ -131,7 +132,10 @@ export default function TransactionsPanel(props: {
     linkedCommentsTxn,
     pageSummary,
     pagedTxns,
+    selectedAmbiguousSuggestedReversalCount,
     selectedAutoMappedPendingCount,
+    selectedSuggestedReversalCount,
+    selectedDeletableCount,
     selectedTxnIds,
     selectedUnlockedCategorisableCount,
     transactionsPageQ,
@@ -154,6 +158,11 @@ export default function TransactionsPanel(props: {
     yearFilter,
   });
   const activeCommentsTxn = commentsTxn ?? linkedCommentsTxn;
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [
+    bulkApproveSuggestedReversalsConfirmOpen,
+    setBulkApproveSuggestedReversalsConfirmOpen,
+  ] = useState(false);
   const resetPage = () =>
     setPagination((current) => ({ ...current, pageIndex: 0 }));
   const clearSelection = () => setRowSelection({});
@@ -201,6 +210,10 @@ export default function TransactionsPanel(props: {
           txnIds: TxnId[];
         }
       | {
+          action: 'approveSuggestedReversals';
+          txnIds: TxnId[];
+        }
+      | {
           action: 'clearCoding';
           txnIds: TxnId[];
         }
@@ -219,6 +232,10 @@ export default function TransactionsPanel(props: {
           txnIds: TxnId[];
           categoryId: ReturnType<typeof asCategoryId>;
           subCategoryId: ReturnType<typeof asSubCategoryId>;
+        }
+      | {
+          action: 'delete';
+          txnIds: TxnId[];
         };
     successLabel: string;
     clearSelection?: boolean;
@@ -275,6 +292,7 @@ export default function TransactionsPanel(props: {
         setTransactionView={setTransactionView}
         readOnly={readOnly}
         canEditTaxonomy={canEditTaxonomy}
+        canManageReversals={canManageReversals}
         onApproveAllAutoMappings={() => {
           void runBulkAction({
             input: {
@@ -289,7 +307,12 @@ export default function TransactionsPanel(props: {
         selectedTxnCount={selectedTxnIds.length}
         selectedCountLabel={formatTxnCountLabel(selectedTxnIds.length)}
         selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
+        selectedAmbiguousSuggestedReversalCount={
+          selectedAmbiguousSuggestedReversalCount
+        }
+        selectedSuggestedReversalCount={selectedSuggestedReversalCount}
         selectedUnlockedCategorisableCount={selectedUnlockedCategorisableCount}
+        selectedDeletableCount={selectedDeletableCount}
         onClearSelection={clearSelection}
         onMarkReviewed={() => {
           void runBulkAction({
@@ -352,6 +375,44 @@ export default function TransactionsPanel(props: {
               txnIds: selectedTxnIds,
             },
             successLabel: 'Cleared coding for',
+          });
+        }}
+        bulkDeleteConfirmOpen={bulkDeleteConfirmOpen}
+        bulkApproveSuggestedReversalsConfirmOpen={
+          bulkApproveSuggestedReversalsConfirmOpen
+        }
+        onOpenBulkDeleteConfirm={() => setBulkDeleteConfirmOpen(true)}
+        onCloseBulkDeleteConfirm={() => setBulkDeleteConfirmOpen(false)}
+        onConfirmBulkDelete={() => {
+          void runBulkAction({
+            input: {
+              action: 'delete',
+              txnIds: selectedTxnIds,
+            },
+            successLabel: 'Deleted',
+          }).then((result) => {
+            if (result) {
+              setBulkDeleteConfirmOpen(false);
+            }
+          });
+        }}
+        onOpenBulkApproveSuggestedReversalsConfirm={() =>
+          setBulkApproveSuggestedReversalsConfirmOpen(true)
+        }
+        onCloseBulkApproveSuggestedReversalsConfirm={() =>
+          setBulkApproveSuggestedReversalsConfirmOpen(false)
+        }
+        onConfirmBulkApproveSuggestedReversals={() => {
+          void runBulkAction({
+            input: {
+              action: 'approveSuggestedReversals',
+              txnIds: selectedTxnIds,
+            },
+            successLabel: 'Approved reversal matches for',
+          }).then((result) => {
+            if (result) {
+              setBulkApproveSuggestedReversalsConfirmOpen(false);
+            }
           });
         }}
         drilldownLabel={drilldownLabel}

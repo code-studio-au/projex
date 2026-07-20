@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Group,
+  Modal,
   Paper,
   Select,
   Stack,
@@ -15,9 +16,11 @@ import TransactionBulkActionsBar from './TransactionBulkActionsBar';
 export type TransactionView =
   | 'all'
   | 'uncoded'
+  | 'needs-review'
   | 'auto-mapped-pending'
   | 'assigned-to-me'
-  | 'pending-reversal';
+  | 'pending-reversal'
+  | 'matched-reversal-pairs';
 
 type TransactionsPageSummary = {
   totalCount: number;
@@ -44,12 +47,16 @@ export default function TransactionsOverviewCard(props: {
   setTransactionView: (value: TransactionView) => void;
   readOnly: boolean;
   canEditTaxonomy: boolean;
+  canManageReversals: boolean;
   onApproveAllAutoMappings: () => void;
   onOpenTaxonomyManager: () => void;
   selectedTxnCount: number;
   selectedCountLabel: string;
   selectedAutoMappedPendingCount: number;
+  selectedAmbiguousSuggestedReversalCount: number;
+  selectedSuggestedReversalCount: number;
   selectedUnlockedCategorisableCount: number;
+  selectedDeletableCount: number;
   onClearSelection: () => void;
   onMarkReviewed: () => void;
   onMarkUnreviewed: () => void;
@@ -58,6 +65,14 @@ export default function TransactionsOverviewCard(props: {
   onApproveAutoMappings: () => void;
   onOpenRecode: () => void;
   onClearCoding: () => void;
+  bulkDeleteConfirmOpen: boolean;
+  bulkApproveSuggestedReversalsConfirmOpen: boolean;
+  onOpenBulkDeleteConfirm: () => void;
+  onCloseBulkDeleteConfirm: () => void;
+  onConfirmBulkDelete: () => void;
+  onOpenBulkApproveSuggestedReversalsConfirm: () => void;
+  onCloseBulkApproveSuggestedReversalsConfirm: () => void;
+  onConfirmBulkApproveSuggestedReversals: () => void;
   drilldownLabel: string | null;
   onClearDrilldown: () => void;
   invalidDateCount: number;
@@ -75,12 +90,16 @@ export default function TransactionsOverviewCard(props: {
     setTransactionView,
     readOnly,
     canEditTaxonomy,
+    canManageReversals,
     onApproveAllAutoMappings,
     onOpenTaxonomyManager,
     selectedTxnCount,
     selectedCountLabel,
     selectedAutoMappedPendingCount,
+    selectedAmbiguousSuggestedReversalCount,
+    selectedSuggestedReversalCount,
     selectedUnlockedCategorisableCount,
+    selectedDeletableCount,
     onClearSelection,
     onMarkReviewed,
     onMarkUnreviewed,
@@ -89,6 +108,14 @@ export default function TransactionsOverviewCard(props: {
     onApproveAutoMappings,
     onOpenRecode,
     onClearCoding,
+    bulkDeleteConfirmOpen,
+    bulkApproveSuggestedReversalsConfirmOpen,
+    onOpenBulkDeleteConfirm,
+    onCloseBulkDeleteConfirm,
+    onConfirmBulkDelete,
+    onOpenBulkApproveSuggestedReversalsConfirm,
+    onCloseBulkApproveSuggestedReversalsConfirm,
+    onConfirmBulkApproveSuggestedReversals,
     drilldownLabel,
     onClearDrilldown,
     invalidDateCount,
@@ -165,12 +192,17 @@ export default function TransactionsOverviewCard(props: {
               data={[
                 { value: 'all', label: 'All' },
                 { value: 'uncoded', label: 'Uncoded only' },
+                { value: 'needs-review', label: 'Needs review' },
                 {
                   value: 'auto-mapped-pending',
                   label: 'Auto-mapped pending approval',
                 },
                 { value: 'assigned-to-me', label: 'Assigned to me' },
                 { value: 'pending-reversal', label: 'Pending reversal' },
+                {
+                  value: 'matched-reversal-pairs',
+                  label: 'Matched reversal pairs',
+                },
               ]}
               value={transactionView}
               onChange={(value) => {
@@ -178,9 +210,11 @@ export default function TransactionsOverviewCard(props: {
                 onResetPage();
                 setTransactionView(
                   value === 'uncoded' ||
+                    value === 'needs-review' ||
                     value === 'auto-mapped-pending' ||
                     value === 'assigned-to-me' ||
-                    value === 'pending-reversal'
+                    value === 'pending-reversal' ||
+                    value === 'matched-reversal-pairs'
                     ? value
                     : 'all'
                 );
@@ -219,17 +253,24 @@ export default function TransactionsOverviewCard(props: {
           <TransactionBulkActionsBar
             selectedCountLabel={selectedCountLabel}
             selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
+            selectedSuggestedReversalCount={selectedSuggestedReversalCount}
             selectedUnlockedCategorisableCount={
               selectedUnlockedCategorisableCount
             }
+            selectedDeletableCount={selectedDeletableCount}
+            canManageReversals={canManageReversals}
             onClearSelection={onClearSelection}
             onMarkReviewed={onMarkReviewed}
             onMarkUnreviewed={onMarkUnreviewed}
             onLock={onLock}
             onUnlock={onUnlock}
             onApproveAutoMappings={onApproveAutoMappings}
+            onApproveSuggestedReversals={
+              onOpenBulkApproveSuggestedReversalsConfirm
+            }
             onOpenRecode={onOpenRecode}
             onClearCoding={onClearCoding}
+            onDeleteSelected={onOpenBulkDeleteConfirm}
           />
         ) : null}
 
@@ -258,6 +299,66 @@ export default function TransactionsOverviewCard(props: {
           <Alert color="red">{projectRuleError}</Alert>
         ) : null}
       </Stack>
+
+      <Modal
+        opened={bulkApproveSuggestedReversalsConfirmOpen}
+        onClose={onCloseBulkApproveSuggestedReversalsConfirm}
+        title="Approve selected reversal matches?"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {selectedAmbiguousSuggestedReversalCount > 0
+              ? `You have selected to approve ${selectedSuggestedReversalCount} reversal match${
+                  selectedSuggestedReversalCount === 1 ? '' : 'es'
+                }. ${selectedAmbiguousSuggestedReversalCount} ${
+                  selectedAmbiguousSuggestedReversalCount === 1 ? 'was' : 'were'
+                } auto-matched to the closest default matching reversal because multiple possible matches existed. Continue with the selected defaults?`
+              : 'This will approve the selected auto-matched reversal review items using their recommended matches and mark them as reversed.'}
+          </Text>
+          <Group justify="flex-end">
+            <Button
+              variant="light"
+              color="gray"
+              onClick={onCloseBulkApproveSuggestedReversalsConfirm}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="blue"
+              onClick={onConfirmBulkApproveSuggestedReversals}
+            >
+              Approve selected matches
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={bulkDeleteConfirmOpen}
+        onClose={onCloseBulkDeleteConfirm}
+        title="Delete selected transactions?"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            This will permanently delete the selected unlocked transactions that
+            are not part of a reversal workflow. This cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button
+              variant="light"
+              color="gray"
+              onClick={onCloseBulkDeleteConfirm}
+            >
+              Cancel
+            </Button>
+            <Button color="red" onClick={onConfirmBulkDelete}>
+              Delete selected
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Paper>
   );
 }

@@ -221,6 +221,7 @@ test(
     const lockedTxnId = asTxnId('itest_bulk_txn_actions_txn_2');
     const uncodedTxnId = asTxnId('itest_bulk_txn_actions_txn_3');
     const sourceOnlyTxnId = asTxnId('itest_bulk_txn_actions_txn_4');
+    const reversalTxnId = asTxnId('itest_bulk_txn_actions_txn_5');
     const now = new Date().toISOString();
 
     try {
@@ -440,7 +441,55 @@ test(
             created_at: now,
             updated_at: now,
           },
+          {
+            public_id: reversalTxnId,
+            external_id: 'itest-bulk-txn-actions-ext-5',
+            company_id: companyId,
+            project_id: projectId,
+            txn_date: '2026-06-20',
+            item: 'Pending Reversal Source',
+            description: 'Included in a reversal workflow',
+            amount_cents: 1900,
+            txn_type: 'standard',
+            parent_public_id: null,
+            source_public_id: null,
+            transfer_project_id: null,
+            budget_impact: true,
+            categorisable: true,
+            import_batch_id: null,
+            import_source_type: null,
+            import_source_meta: null,
+            category_id: sourceCategoryId,
+            sub_category_id: sourceSubCategoryId,
+            company_default_mapping_rule_id: null,
+            coding_source: 'manual',
+            coding_pending_approval: false,
+            reviewed_at: null,
+            reviewed_by_user_id: null,
+            locked_at: null,
+            locked_by_user_id: null,
+            created_at: now,
+            updated_at: now,
+          },
         ])
+        .execute();
+      await db
+        .insertInto('txn_reversals')
+        .values({
+          id: 'itest_bulk_txn_actions_reversal_1',
+          company_id: companyId,
+          project_id: projectId,
+          source_txn_public_id: reversalTxnId,
+          matched_reversal_txn_public_id: null,
+          expected_project_id: null,
+          status: 'pending_reversal',
+          marked_at: now,
+          marked_by_user_id: userId,
+          matched_at: null,
+          matched_by_user_id: null,
+          created_at: now,
+          updated_at: now,
+        })
         .execute();
 
       const approveResult = await bulkTxnActionServer({
@@ -496,6 +545,36 @@ test(
         },
       });
       assert.equal(clearCodingResult.updatedCount, 1);
+
+      const deleteResult = await bulkTxnActionServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          action: 'delete',
+          txnIds: [
+            sourceOnlyTxnId,
+            lockedTxnId,
+            reversalTxnId,
+            asTxnId('itest_bulk_txn_actions_missing_txn'),
+          ],
+        },
+      });
+      assert.equal(deleteResult.requestedCount, 4);
+      assert.equal(deleteResult.foundCount, 3);
+      assert.equal(deleteResult.updatedCount, 1);
+      assert.equal(deleteResult.lockedCount, 1);
+      assert.equal(deleteResult.ineligibleCount, 1);
+
+      const remainingTxnIds = await db
+        .selectFrom('txns')
+        .select('public_id')
+        .where('project_id', '=', projectId)
+        .orderBy('public_id', 'asc')
+        .execute();
+      assert.deepEqual(
+        remainingTxnIds.map((row) => row.public_id),
+        [pendingTxnId, lockedTxnId, uncodedTxnId, reversalTxnId]
+      );
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

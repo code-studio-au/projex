@@ -4,6 +4,7 @@ import { AppError } from '../../../api/errors';
 import type { ProjectId, Txn, TxnId, TxnReversalStatus } from '../../../types';
 import { asTxnId } from '../../../types';
 import type {
+  TxnBulkActionResult,
   TxnReversalActionInput,
   TxnReversalActionResult,
   TxnReversalMatchSuggestion,
@@ -57,8 +58,13 @@ function isOpenReversalStatus(
 
 function isSuggestedReversalStatus(
   status: TxnReversalStatus
-): status is 'auto_matched_pending_approval' {
-  return status === 'auto_matched_pending_approval';
+): status is
+  | 'auto_matched_pending_approval'
+  | 'auto_matched_ambiguous_pending_approval' {
+  return (
+    status === 'auto_matched_pending_approval' ||
+    status === 'auto_matched_ambiguous_pending_approval'
+  );
 }
 
 async function getTxnServerRow(args: {
@@ -321,6 +327,28 @@ function buildSuggestedCounterpartComment(args: { sourceTxn: Txn }) {
 Auto-matched to pending reversal transaction ${args.sourceTxn.id} dated ${args.sourceTxn.date} for ${formatSignedMajorUnits(args.sourceTxn.amountCents)}. Awaiting admin approval.`;
 }
 
+function buildAmbiguousSuggestedSourceComment(args: {
+  counterpartTxn: Txn;
+  counterpartTxnIds: TxnId[];
+}) {
+  return `[Default reversal match selected]
+Multiple possible EXA reversals were found, so the closest default match was selected for review.
+Defaulted to ${args.counterpartTxn.id} on ${args.counterpartTxn.date} for ${formatSignedMajorUnits(args.counterpartTxn.amountCents)}.
+Other possible reversal transactions: ${args.counterpartTxnIds.join(', ')}.
+
+Review and approve the default match, or reject it to return this transaction to manual matching.`;
+}
+
+function buildAmbiguousSuggestedCounterpartComment(args: {
+  sourceTxn: Txn;
+  sourceTxnIds: TxnId[];
+}) {
+  return `[Defaulted as reversal]
+Multiple pending reversal sources were possible, so this transaction was default-matched to ${args.sourceTxn.id} dated ${args.sourceTxn.date} for ${formatSignedMajorUnits(args.sourceTxn.amountCents)}.
+Other possible source transactions: ${args.sourceTxnIds.join(', ')}.
+Awaiting admin approval.`;
+}
+
 function buildApproveSuggestedSourceComment(args: {
   counterpartTxn: Txn;
   commentBody?: string;
@@ -335,6 +363,22 @@ function buildApproveSuggestedCounterpartComment(args: {
 }) {
   return `[Matched as reversal]
 Approved auto-match to pending reversal transaction ${args.sourceTxn.id} dated ${args.sourceTxn.date} for ${formatSignedMajorUnits(args.sourceTxn.amountCents)}.${appendUserNote(args.commentBody)}`;
+}
+
+function buildApproveAmbiguousSuggestedSourceComment(args: {
+  counterpartTxn: Txn;
+  commentBody?: string;
+}) {
+  return `[Reversal matched]
+Approved the defaulted reversal match to ${args.counterpartTxn.id} on ${args.counterpartTxn.date} for ${formatSignedMajorUnits(args.counterpartTxn.amountCents)}.${appendUserNote(args.commentBody)}`;
+}
+
+function buildApproveAmbiguousSuggestedCounterpartComment(args: {
+  sourceTxn: Txn;
+  commentBody?: string;
+}) {
+  return `[Matched as reversal]
+Approved the defaulted match to pending reversal transaction ${args.sourceTxn.id} dated ${args.sourceTxn.date} for ${formatSignedMajorUnits(args.sourceTxn.amountCents)}.${appendUserNote(args.commentBody)}`;
 }
 
 function buildRejectSuggestedSourceComment(args: {
@@ -353,16 +397,20 @@ function buildRejectSuggestedCounterpartComment(args: {
 Removed the auto-suggested match to source transaction ${args.sourceTxn.id}.${appendUserNote(args.commentBody)}`;
 }
 
-function buildAmbiguousAutoMatchComment(args: {
-  counterpartTxnIds: TxnId[];
-  counterpartAmountCents: number;
+function buildRejectAmbiguousSuggestedSourceComment(args: {
+  counterpartTxn: Txn;
+  commentBody?: string;
 }) {
-  return `[Auto-match review needed]
-Imported reversal candidates matched the same EXA signature and amount, so automatic approval was skipped.
-Possible reversal transactions: ${args.counterpartTxnIds.join(', ')}
-Imported reversal amount: ${formatSignedMajorUnits(args.counterpartAmountCents)}
+  return `[Default reversal match rejected]
+Removed the defaulted match to ${args.counterpartTxn.id}; the transaction is pending reversal again.${appendUserNote(args.commentBody)}`;
+}
 
-Review the suggestions in the pending reversal modal and match the correct transaction manually.`;
+function buildRejectAmbiguousSuggestedCounterpartComment(args: {
+  sourceTxn: Txn;
+  commentBody?: string;
+}) {
+  return `[Removed as defaulted reversal]
+Removed the defaulted match to source transaction ${args.sourceTxn.id}.${appendUserNote(args.commentBody)}`;
 }
 
 function normalizeSuggestionReason(reason: string) {
@@ -555,18 +603,42 @@ async function markSourcesForAmbiguousAutoMatchReview(args: {
   userId: string;
   sourceTxns: Txn[];
   counterpartTxns: Txn[];
-}) {
-  if (!args.sourceTxns.length || !args.counterpartTxns.length) return;
+}): Promise<{
+  pairedSourceIds: TxnId[];
+  pairedCounterpartIds: TxnId[];
+}> {
+  if (!args.sourceTxns.length || !args.counterpartTxns.length) {
+    return { pairedSourceIds: [], pairedCounterpartIds: [] };
+  }
 
   const now = new Date().toISOString();
+  const sourceTxnIds = args.sourceTxns.map((txn) => txn.id);
   const counterpartTxnIds = args.counterpartTxns.map((txn) => txn.id);
-  const counterpartAmountCents = args.counterpartTxns[0]!.amountCents;
+  const orderedSourceTxns = [...args.sourceTxns].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)
+  );
+  const orderedCounterpartTxns = [...args.counterpartTxns].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)
+  );
+  const pairCount = Math.min(
+    orderedSourceTxns.length,
+    orderedCounterpartTxns.length
+  );
+  const pairedSourceIds: TxnId[] = [];
+  const pairedCounterpartIds: TxnId[] = [];
 
-  for (const sourceTxn of args.sourceTxns) {
+  for (let index = 0; index < pairCount; index += 1) {
+    const sourceTxn = orderedSourceTxns[index];
+    const counterpartTxn = orderedCounterpartTxns[index];
+    if (!sourceTxn || !counterpartTxn) continue;
+
     await args.db
       .updateTable('txn_reversals')
       .set({
-        status: 'reversal_exception',
+        status: 'auto_matched_ambiguous_pending_approval',
+        matched_reversal_txn_public_id: counterpartTxn.id,
+        matched_at: null,
+        matched_by_user_id: null,
         updated_at: now,
       })
       .where('project_id', '=', args.projectId)
@@ -574,18 +646,39 @@ async function markSourcesForAmbiguousAutoMatchReview(args: {
       .where('status', '=', 'pending_reversal')
       .executeTakeFirst();
 
-    await createReversalComment({
-      db: args.db,
-      companyId: args.companyId,
-      projectId: args.projectId,
-      txnId: sourceTxn.id,
-      userId: args.userId,
-      body: buildAmbiguousAutoMatchComment({
-        counterpartTxnIds,
-        counterpartAmountCents,
+    await Promise.all([
+      createReversalComment({
+        db: args.db,
+        companyId: args.companyId,
+        projectId: args.projectId,
+        txnId: sourceTxn.id,
+        userId: args.userId,
+        body: buildAmbiguousSuggestedSourceComment({
+          counterpartTxn,
+          counterpartTxnIds,
+        }),
       }),
-    });
+      createReversalComment({
+        db: args.db,
+        companyId: args.companyId,
+        projectId: args.projectId,
+        txnId: counterpartTxn.id,
+        userId: args.userId,
+        body: buildAmbiguousSuggestedCounterpartComment({
+          sourceTxn,
+          sourceTxnIds,
+        }),
+      }),
+    ]);
+
+    pairedSourceIds.push(sourceTxn.id);
+    pairedCounterpartIds.push(counterpartTxn.id);
   }
+
+  return {
+    pairedSourceIds,
+    pairedCounterpartIds,
+  };
 }
 
 export async function listTxnReversalMatchSuggestionsServer(args: {
@@ -670,7 +763,6 @@ export async function autoSuggestTxnReversalMatchesForImportedTransactions(args:
 
   const availableSources = pendingSourceRows.map((row) => toTxn(row));
   const claimedSourceIds = new Set<string>();
-  const reviewFlaggedSourceIds = new Set<string>();
   const claimedCounterpartIds = new Set<string>();
 
   for (const counterpartTxn of importedCandidates) {
@@ -680,7 +772,6 @@ export async function autoSuggestTxnReversalMatchesForImportedTransactions(args:
       .filter(
         (sourceTxn) =>
           !claimedSourceIds.has(sourceTxn.id) &&
-          !reviewFlaggedSourceIds.has(sourceTxn.id) &&
           sourceTxn.amountCents === Math.abs(counterpartTxn.amountCents) &&
           Date.parse(counterpartTxn.date) >= Date.parse(sourceTxn.date)
       )
@@ -714,8 +805,7 @@ export async function autoSuggestTxnReversalMatchesForImportedTransactions(args:
       const tiedCounterpartTxns = bestSourceCounterparts
         .filter((entry) => entry.score === best.score)
         .map((entry) => entry.counterpartTxn);
-      tiedSourceTxns.forEach((txn) => reviewFlaggedSourceIds.add(txn.id));
-      await markSourcesForAmbiguousAutoMatchReview({
+      const ambiguousPairing = await markSourcesForAmbiguousAutoMatchReview({
         db: args.db,
         companyId: args.companyId,
         projectId: args.projectId,
@@ -723,12 +813,17 @@ export async function autoSuggestTxnReversalMatchesForImportedTransactions(args:
         sourceTxns: tiedSourceTxns,
         counterpartTxns: tiedCounterpartTxns,
       });
+      ambiguousPairing.pairedSourceIds.forEach((id) =>
+        claimedSourceIds.add(id)
+      );
+      ambiguousPairing.pairedCounterpartIds.forEach((id) =>
+        claimedCounterpartIds.add(id)
+      );
       continue;
     }
 
     if (bestSourceRunnerUp && bestSourceRunnerUp.score === best.score) {
-      reviewFlaggedSourceIds.add(best.sourceTxn.id);
-      await markSourcesForAmbiguousAutoMatchReview({
+      const ambiguousPairing = await markSourcesForAmbiguousAutoMatchReview({
         db: args.db,
         companyId: args.companyId,
         projectId: args.projectId,
@@ -738,6 +833,12 @@ export async function autoSuggestTxnReversalMatchesForImportedTransactions(args:
           .filter((entry) => entry.score === best.score)
           .map((entry) => entry.counterpartTxn),
       });
+      ambiguousPairing.pairedSourceIds.forEach((id) =>
+        claimedSourceIds.add(id)
+      );
+      ambiguousPairing.pairedCounterpartIds.forEach((id) =>
+        claimedCounterpartIds.add(id)
+      );
       continue;
     }
 
@@ -1151,6 +1252,8 @@ export async function applyTxnReversalActionServer(args: {
         ]);
         assertSourceTxnEligible(sourceTxn);
         assertCounterpartTxnEligible({ sourceTxn, counterpartTxn });
+        const isAmbiguousSuggested =
+          reversal.status === 'auto_matched_ambiguous_pending_approval';
 
         await trx
           .updateTable('txn_reversals')
@@ -1171,10 +1274,15 @@ export async function applyTxnReversalActionServer(args: {
             projectId: args.projectId,
             txnId: sourceTxnId,
             userId: context.userId,
-            body: buildApproveSuggestedSourceComment({
-              counterpartTxn,
-              commentBody: args.input.commentBody,
-            }),
+            body: isAmbiguousSuggested
+              ? buildApproveAmbiguousSuggestedSourceComment({
+                  counterpartTxn,
+                  commentBody: args.input.commentBody,
+                })
+              : buildApproveSuggestedSourceComment({
+                  counterpartTxn,
+                  commentBody: args.input.commentBody,
+                }),
           }),
           createReversalComment({
             db: trx,
@@ -1182,10 +1290,15 @@ export async function applyTxnReversalActionServer(args: {
             projectId: args.projectId,
             txnId: counterpartTxnId,
             userId: context.userId,
-            body: buildApproveSuggestedCounterpartComment({
-              sourceTxn,
-              commentBody: args.input.commentBody,
-            }),
+            body: isAmbiguousSuggested
+              ? buildApproveAmbiguousSuggestedCounterpartComment({
+                  sourceTxn,
+                  commentBody: args.input.commentBody,
+                })
+              : buildApproveSuggestedCounterpartComment({
+                  sourceTxn,
+                  commentBody: args.input.commentBody,
+                }),
           }),
         ]);
 
@@ -1242,6 +1355,8 @@ export async function applyTxnReversalActionServer(args: {
         ]);
         assertTxnUnlocked(sourceTxn);
         assertTxnUnlocked(counterpartTxn);
+        const isAmbiguousSuggested =
+          reversal.status === 'auto_matched_ambiguous_pending_approval';
 
         await trx
           .updateTable('txn_reversals')
@@ -1261,10 +1376,15 @@ export async function applyTxnReversalActionServer(args: {
             projectId: args.projectId,
             txnId: sourceTxnId,
             userId: context.userId,
-            body: buildRejectSuggestedSourceComment({
-              counterpartTxn,
-              commentBody: args.input.commentBody,
-            }),
+            body: isAmbiguousSuggested
+              ? buildRejectAmbiguousSuggestedSourceComment({
+                  counterpartTxn,
+                  commentBody: args.input.commentBody,
+                })
+              : buildRejectSuggestedSourceComment({
+                  counterpartTxn,
+                  commentBody: args.input.commentBody,
+                }),
           }),
           createReversalComment({
             db: trx,
@@ -1272,10 +1392,15 @@ export async function applyTxnReversalActionServer(args: {
             projectId: args.projectId,
             txnId: counterpartTxnId,
             userId: context.userId,
-            body: buildRejectSuggestedCounterpartComment({
-              sourceTxn,
-              commentBody: args.input.commentBody,
-            }),
+            body: isAmbiguousSuggested
+              ? buildRejectAmbiguousSuggestedCounterpartComment({
+                  sourceTxn,
+                  commentBody: args.input.commentBody,
+                })
+              : buildRejectSuggestedCounterpartComment({
+                  sourceTxn,
+                  commentBody: args.input.commentBody,
+                }),
           }),
         ]);
 
@@ -1384,5 +1509,92 @@ export async function applyTxnReversalActionServer(args: {
         }),
       };
     });
+  });
+}
+
+export async function approveSuggestedTxnReversalsBulkServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  txnIds: TxnId[];
+}): Promise<TxnBulkActionResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const context = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:manage_reversals'
+    );
+
+    const selectedRows = await context.db
+      .selectFrom('txns as t')
+      .leftJoin('txn_reversals as tr', txnReversalJoin())
+      .select([
+        't.public_id',
+        't.locked_at',
+        'tr.id as reversal_id',
+        'tr.status as reversal_status',
+      ])
+      .where('t.project_id', '=', args.projectId)
+      .where('t.public_id', 'in', args.txnIds)
+      .execute();
+
+    const selectedByTxnId = new Map(
+      selectedRows.map((row) => [row.public_id, row] as const)
+    );
+
+    let updatedCount = 0;
+    let unchangedCount = 0;
+    let lockedCount = 0;
+    let ineligibleCount = 0;
+
+    const uniqueReversalSelections = new Map<string, TxnId>();
+
+    for (const txnId of args.txnIds) {
+      const row = selectedByTxnId.get(txnId);
+      if (!row) continue;
+      if (row.locked_at) {
+        lockedCount += 1;
+        continue;
+      }
+      if (
+        !row.reversal_id ||
+        !row.reversal_status ||
+        !isSuggestedReversalStatus(row.reversal_status)
+      ) {
+        ineligibleCount += 1;
+        continue;
+      }
+      if (uniqueReversalSelections.has(row.reversal_id)) {
+        unchangedCount += 1;
+        continue;
+      }
+      uniqueReversalSelections.set(row.reversal_id, asTxnId(row.public_id));
+    }
+
+    for (const txnId of uniqueReversalSelections.values()) {
+      const result = await applyTxnReversalActionServer({
+        context: args.context,
+        projectId: args.projectId,
+        input: {
+          action: 'approveSuggestedMatch',
+          txnId,
+        },
+      });
+      if (result.txn.reversal?.status === 'reversed_matched') {
+        updatedCount += 1;
+      } else {
+        unchangedCount += 1;
+      }
+    }
+
+    return {
+      action: 'approveSuggestedReversals',
+      requestedCount: args.txnIds.length,
+      foundCount: selectedRows.length,
+      updatedCount,
+      unchangedCount,
+      lockedCount,
+      ineligibleCount,
+    };
   });
 }

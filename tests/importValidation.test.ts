@@ -161,6 +161,22 @@ test('split transaction schema rejects zero-value children and bulk actions reje
     }).success,
     true
   );
+
+  assert.equal(
+    txnBulkActionInputSchema.safeParse({
+      action: 'approveSuggestedReversals',
+      txnIds: ['txn_1'],
+    }).success,
+    true
+  );
+
+  assert.equal(
+    txnBulkActionInputSchema.safeParse({
+      action: 'delete',
+      txnIds: ['txn_1'],
+    }).success,
+    true
+  );
 });
 
 test('company export query schema rejects inverted date ranges', async () => {

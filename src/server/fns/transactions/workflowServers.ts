@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import type { ProjectId, Txn } from '../../../types';
 import { asUserId } from '../../../types';
 import { AppError } from '../../../api/errors';
@@ -24,6 +25,7 @@ import {
   txnSelectColumns,
   workflowPatchIsNoop,
 } from './shared';
+import { approveSuggestedTxnReversalsBulkServer } from './reversalServers';
 
 export async function updateTxnWorkflowStateServer(args: {
   context: ServerFnContextInput;
@@ -92,6 +94,13 @@ export async function bulkTxnActionServer(args: {
 }): Promise<TxnBulkActionResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
+    if (args.input.action === 'approveSuggestedReversals') {
+      return approveSuggestedTxnReversalsBulkServer({
+        context: args.context,
+        projectId: args.projectId,
+        txnIds: args.input.txnIds,
+      });
+    }
     const context = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
@@ -127,6 +136,15 @@ export async function bulkTxnActionServer(args: {
         'reviewed_by_user_id',
         'locked_at',
         'locked_by_user_id',
+        sql<boolean>`exists (
+          select 1
+          from txn_reversals tr
+          where tr.project_id = txns.project_id
+            and (
+              tr.source_txn_public_id = txns.public_id
+              or tr.matched_reversal_txn_public_id = txns.public_id
+            )
+        )`.as('in_reversal_workflow'),
       ])
       .where('project_id', '=', args.projectId)
       .where('public_id', 'in', args.input.txnIds)
@@ -158,6 +176,24 @@ export async function bulkTxnActionServer(args: {
               coding_pending_approval: false,
               updated_at: now,
             })
+            .where('project_id', '=', args.projectId)
+            .where('public_id', '=', row.public_id)
+            .executeTakeFirst();
+          updatedCount += 1;
+          continue;
+        }
+
+        if (args.input.action === 'delete') {
+          if (row.locked_at) {
+            lockedCount += 1;
+            continue;
+          }
+          if (row.in_reversal_workflow) {
+            ineligibleCount += 1;
+            continue;
+          }
+          await trx
+            .deleteFrom('txns')
             .where('project_id', '=', args.projectId)
             .where('public_id', '=', row.public_id)
             .executeTakeFirst();
@@ -270,35 +306,37 @@ export async function bulkTxnActionServer(args: {
           continue;
         }
 
-        const patch = planTxnWorkflowState({
-          current: {
-            reviewedAt: row.reviewed_at ?? undefined,
-            reviewedByUserId: row.reviewed_by_user_id
-              ? asUserId(row.reviewed_by_user_id)
-              : undefined,
-            lockedAt: row.locked_at ?? undefined,
-            lockedByUserId: row.locked_by_user_id
-              ? asUserId(row.locked_by_user_id)
-              : undefined,
-          },
-          locked: args.input.locked,
-          actorUserId: context.userId,
-          now,
-        });
-        if (workflowPatchIsNoop({ row, patch })) {
-          unchangedCount += 1;
-          continue;
+        if (args.input.action === 'setLocked') {
+          const patch = planTxnWorkflowState({
+            current: {
+              reviewedAt: row.reviewed_at ?? undefined,
+              reviewedByUserId: row.reviewed_by_user_id
+                ? asUserId(row.reviewed_by_user_id)
+                : undefined,
+              lockedAt: row.locked_at ?? undefined,
+              lockedByUserId: row.locked_by_user_id
+                ? asUserId(row.locked_by_user_id)
+                : undefined,
+            },
+            locked: args.input.locked,
+            actorUserId: context.userId,
+            now,
+          });
+          if (workflowPatchIsNoop({ row, patch })) {
+            unchangedCount += 1;
+            continue;
+          }
+          await trx
+            .updateTable('txns')
+            .set({
+              ...patch,
+              updated_at: now,
+            })
+            .where('project_id', '=', args.projectId)
+            .where('public_id', '=', row.public_id)
+            .executeTakeFirst();
+          updatedCount += 1;
         }
-        await trx
-          .updateTable('txns')
-          .set({
-            ...patch,
-            updated_at: now,
-          })
-          .where('project_id', '=', args.projectId)
-          .where('public_id', '=', row.public_id)
-          .executeTakeFirst();
-        updatedCount += 1;
       }
 
       if (args.input.action === 'recode' && updatedCount > 0) {

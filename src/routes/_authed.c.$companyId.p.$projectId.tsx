@@ -41,9 +41,11 @@ const projectWorkspaceSearchSchema = z
       .enum([
         'all',
         'uncoded',
+        'needs-review',
         'auto-mapped-pending',
         'assigned-to-me',
         'pending-reversal',
+        'matched-reversal-pairs',
       ])
       .optional(),
     commentTxn: z.string().trim().min(1).optional(),

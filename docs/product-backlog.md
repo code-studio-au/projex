@@ -224,6 +224,26 @@ Why this matters:
 
 - budget setup still works, but repeated admin effort will become more noticeable as usage grows
 
+### Transaction data loading separation
+
+Examples:
+
+- stop loading the full project transaction list when the Transactions tab already uses the paged transactions query
+- separate budget/rollup data needs from transaction-table data needs so each screen asks for the smallest dataset it actually requires
+- keep full transaction reads only for features that genuinely need the whole project dataset
+- reduce duplicate refresh-time reads across project workspace, transaction table, comments summaries, and related tab loads
+
+Why this matters:
+
+- the current project workspace refresh path still does more work than necessary, especially on filtered transaction views such as Needs review
+- cleaner data boundaries will improve refresh performance, reduce network churn, and make the app feel more deliberate as project data grows
+
+Design direction:
+
+- short term: gate full transaction loading away from the Transactions tab when the paged table query is already active
+- proper cleanup: move budget and summary dependencies onto purpose-built summary data instead of sharing the full transactions dataset by default
+- prefer explicit data ownership per screen over cross-tab shared queries that happen to work but create hidden performance costs
+
 ### Executive reporting depth
 
 Examples:

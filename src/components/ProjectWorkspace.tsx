@@ -64,9 +64,11 @@ type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 type TransactionView =
   | 'all'
   | 'uncoded'
+  | 'needs-review'
   | 'auto-mapped-pending'
   | 'assigned-to-me'
-  | 'pending-reversal';
+  | 'pending-reversal'
+  | 'matched-reversal-pairs';
 type TransactionDrilldownSearch =
   | {
       kind: 'category';
@@ -609,29 +611,96 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   useEffect(() => {
     const replace = nextUrlSyncShouldReplaceRef.current;
     nextUrlSyncShouldReplaceRef.current = true;
+    const nextSearch = {
+      year: yearFilter ?? undefined,
+      quarter: quarterFilter ?? undefined,
+      tab: activeTab === 'budget' ? undefined : activeTab,
+      month: monthFilterKey ?? undefined,
+      view: transactionView === 'all' ? undefined : transactionView,
+      source: initialEntrySource,
+      focus: initialEntryFocus,
+      drilldownKind: transactionDrilldown?.kind,
+      categoryId: transactionDrilldown?.categoryId,
+      categoryName: transactionDrilldown?.categoryName,
+      subCategoryId:
+        transactionDrilldown?.kind === 'subcategory'
+          ? transactionDrilldown.subCategoryId
+          : undefined,
+      subCategoryName:
+        transactionDrilldown?.kind === 'subcategory'
+          ? transactionDrilldown.subCategoryName
+          : undefined,
+    };
+    const currentSearch = router.state.location.search as Record<
+      string,
+      unknown
+    >;
+    const normalizedCurrentSearch = {
+      year:
+        typeof currentSearch.year === 'string' ? currentSearch.year : undefined,
+      quarter:
+        currentSearch.quarter === 'Q1' ||
+        currentSearch.quarter === 'Q2' ||
+        currentSearch.quarter === 'Q3' ||
+        currentSearch.quarter === 'Q4'
+          ? currentSearch.quarter
+          : undefined,
+      tab:
+        currentSearch.tab === 'budget' ||
+        currentSearch.tab === 'transactions' ||
+        currentSearch.tab === 'import' ||
+        currentSearch.tab === 'settings'
+          ? currentSearch.tab
+          : undefined,
+      month:
+        typeof currentSearch.month === 'string'
+          ? currentSearch.month
+          : undefined,
+      view:
+        typeof currentSearch.view === 'string' ? currentSearch.view : undefined,
+      source:
+        currentSearch.source === 'company-summary'
+          ? currentSearch.source
+          : undefined,
+      focus:
+        currentSearch.focus === 'budget' ||
+        currentSearch.focus === 'actual' ||
+        currentSearch.focus === 'remaining' ||
+        currentSearch.focus === 'uncoded' ||
+        currentSearch.focus === 'health'
+          ? currentSearch.focus
+          : undefined,
+      drilldownKind:
+        currentSearch.drilldownKind === 'category' ||
+        currentSearch.drilldownKind === 'subcategory'
+          ? currentSearch.drilldownKind
+          : undefined,
+      categoryId:
+        typeof currentSearch.categoryId === 'string'
+          ? currentSearch.categoryId
+          : undefined,
+      categoryName:
+        typeof currentSearch.categoryName === 'string'
+          ? currentSearch.categoryName
+          : undefined,
+      subCategoryId:
+        typeof currentSearch.subCategoryId === 'string'
+          ? currentSearch.subCategoryId
+          : undefined,
+      subCategoryName:
+        typeof currentSearch.subCategoryName === 'string'
+          ? currentSearch.subCategoryName
+          : undefined,
+    };
+    if (
+      JSON.stringify(normalizedCurrentSearch) === JSON.stringify(nextSearch)
+    ) {
+      return;
+    }
     void router.navigate({
       to: '/c/$companyId/p/$projectId',
       params: { companyId, projectId },
-      search: {
-        year: yearFilter ?? undefined,
-        quarter: quarterFilter ?? undefined,
-        tab: activeTab === 'budget' ? undefined : activeTab,
-        month: monthFilterKey ?? undefined,
-        view: transactionView === 'all' ? undefined : transactionView,
-        source: initialEntrySource,
-        focus: initialEntryFocus,
-        drilldownKind: transactionDrilldown?.kind,
-        categoryId: transactionDrilldown?.categoryId,
-        categoryName: transactionDrilldown?.categoryName,
-        subCategoryId:
-          transactionDrilldown?.kind === 'subcategory'
-            ? transactionDrilldown.subCategoryId
-            : undefined,
-        subCategoryName:
-          transactionDrilldown?.kind === 'subcategory'
-            ? transactionDrilldown.subCategoryName
-            : undefined,
-      },
+      search: nextSearch,
       replace,
     });
   }, [

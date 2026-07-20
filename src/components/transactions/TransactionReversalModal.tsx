@@ -25,6 +25,8 @@ import { firefoxSafeModalSelectProps } from '../modalSelectProps';
 function statusTone(txn: Txn) {
   if (txn.reversal?.status === 'reversal_exception') return 'red';
   if (txn.reversal?.status === 'reversed_matched') return 'green';
+  if (txn.reversal?.status === 'auto_matched_ambiguous_pending_approval')
+    return 'orange';
   if (txn.reversal?.status === 'auto_matched_pending_approval') return 'blue';
   if (txn.reversal?.status === 'pending_reversal') return 'violet';
   return 'gray';
@@ -33,7 +35,10 @@ function statusTone(txn: Txn) {
 function statusLabel(txn: Txn) {
   if (txn.reversal?.status === 'reversal_exception')
     return 'Reversal exception';
-  if (txn.reversal?.status === 'reversed_matched') return 'Reversal matched';
+  if (txn.reversal?.status === 'reversed_matched')
+    return 'Matched reversal pair';
+  if (txn.reversal?.status === 'auto_matched_ambiguous_pending_approval')
+    return 'Defaulted auto-match awaiting approval';
   if (txn.reversal?.status === 'auto_matched_pending_approval')
     return 'Auto-match awaiting approval';
   if (txn.reversal?.status === 'pending_reversal') return 'Pending reversal';
@@ -117,7 +122,11 @@ export default function TransactionReversalModal(props: {
   const isPending =
     txn.reversal?.status === 'pending_reversal' ||
     txn.reversal?.status === 'reversal_exception';
-  const isSuggested = txn.reversal?.status === 'auto_matched_pending_approval';
+  const isSuggested =
+    txn.reversal?.status === 'auto_matched_pending_approval' ||
+    txn.reversal?.status === 'auto_matched_ambiguous_pending_approval';
+  const isAmbiguousSuggested =
+    txn.reversal?.status === 'auto_matched_ambiguous_pending_approval';
   const isException = txn.reversal?.status === 'reversal_exception';
   const isMatched = txn.reversal?.status === 'reversed_matched';
   const selectedSuggestion =
@@ -363,9 +372,9 @@ export default function TransactionReversalModal(props: {
                 Auto-match review
               </Text>
               <Text size="sm" c="dimmed">
-                This EXA reversal pair was suggested during import. Approve it
-                to finalize the match, or reject it to return the source
-                transaction to pending reversal for manual matching.
+                {isAmbiguousSuggested
+                  ? 'This EXA reversal pair was default-matched during import because multiple possible reversals existed. Approve it to accept the default, or reject it to return the source transaction to pending reversal for manual matching.'
+                  : 'This EXA reversal pair was suggested during import. Approve it to finalize the match, or reject it to return the source transaction to pending reversal for manual matching.'}
               </Text>
             </Paper>
             <Group justify="space-between" wrap="wrap">
@@ -381,7 +390,9 @@ export default function TransactionReversalModal(props: {
                   })
                 }
               >
-                Reject suggestion
+                {isAmbiguousSuggested
+                  ? 'Reject default match'
+                  : 'Reject suggestion'}
               </Button>
               <Button
                 loading={submitting}
@@ -393,7 +404,9 @@ export default function TransactionReversalModal(props: {
                   })
                 }
               >
-                Approve auto-match
+                {isAmbiguousSuggested
+                  ? 'Approve default match'
+                  : 'Approve auto-match'}
               </Button>
             </Group>
           </>

@@ -37,7 +37,7 @@ export function showBulkActionResultToast(args: {
   const missingCount = result.requestedCount - result.foundCount;
   const details = [
     result.unchangedCount > 0
-      ? `${formatTxnCountLabel(result.unchangedCount)} already matched`
+      ? `${formatTxnCountLabel(result.unchangedCount)} unchanged`
       : null,
     result.lockedCount > 0
       ? `${formatTxnCountLabel(result.lockedCount)} locked`

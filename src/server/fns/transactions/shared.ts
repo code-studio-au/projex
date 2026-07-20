@@ -67,6 +67,7 @@ export type TxnPageSummaryRow = {
 export const OPEN_TXN_REVERSAL_STATUSES = [
   'pending_reversal',
   'auto_matched_pending_approval',
+  'auto_matched_ambiguous_pending_approval',
   'reversal_exception',
 ] as const satisfies ReadonlyArray<TxnReversalStatus>;
 
@@ -181,6 +182,56 @@ export function pendingTxnReversalExistsSql() {
   )`;
 }
 
+export function matchedTxnReversalExistsSql() {
+  return sql<boolean>`exists (
+    select 1
+    from txn_reversals tr
+    where tr.project_id = t.project_id
+      and (
+        tr.source_txn_public_id = t.public_id
+        or tr.matched_reversal_txn_public_id = t.public_id
+      )
+      and tr.status = 'reversed_matched'
+  )`;
+}
+
+export function needsReviewTxnSql() {
+  const pendingReversal = pendingTxnReversalExistsSql();
+  return sql<boolean>`(
+    (
+      t.categorisable
+      and t.coding_pending_approval
+      and t.sub_category_id is not null
+      and ${txnValidSubCategorySql()}
+    )
+    or exists (
+      select 1
+      from txn_reversals tr
+      where tr.project_id = t.project_id
+        and tr.source_txn_public_id = t.public_id
+        and tr.status in (
+          'auto_matched_pending_approval',
+          'auto_matched_ambiguous_pending_approval',
+          'reversal_exception'
+        )
+    )
+    or (
+      ${pendingReversal}
+      and exists (
+        select 1
+        from txn_reversals tr
+        where tr.project_id = t.project_id
+          and tr.source_txn_public_id = t.public_id
+          and tr.status in (
+            'auto_matched_pending_approval',
+            'auto_matched_ambiguous_pending_approval',
+            'reversal_exception'
+          )
+      )
+    )
+  )`;
+}
+
 export function txnValidSubCategorySql() {
   return sql<boolean>`exists (
     select 1
@@ -220,6 +271,7 @@ export function buildTransactionsPageFilters(args: {
   const validSubCategory = txnValidSubCategorySql();
   const assignedToUser = txnAssignedToUserSql(args.userId);
   const pendingReversal = pendingTxnReversalExistsSql();
+  const matchedReversal = matchedTxnReversalExistsSql();
 
   if (args.input.monthFilterKey) {
     filters.push(
@@ -245,6 +297,10 @@ export function buildTransactionsPageFilters(args: {
     );
   }
 
+  if (args.input.transactionView === 'needs-review') {
+    filters.push(needsReviewTxnSql());
+  }
+
   if (args.input.transactionView === 'auto-mapped-pending') {
     filters.push(
       sql<boolean>`t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory}`
@@ -257,6 +313,10 @@ export function buildTransactionsPageFilters(args: {
 
   if (args.input.transactionView === 'pending-reversal') {
     filters.push(pendingReversal);
+  }
+
+  if (args.input.transactionView === 'matched-reversal-pairs') {
+    filters.push(matchedReversal);
   }
 
   if (args.input.drilldown?.kind === 'category') {
@@ -319,6 +379,7 @@ export type BulkTxnActionRow = {
   reviewed_by_user_id: string | null;
   locked_at: string | null;
   locked_by_user_id: string | null;
+  in_reversal_workflow: boolean;
 };
 
 export function workflowPatchIsNoop(args: {

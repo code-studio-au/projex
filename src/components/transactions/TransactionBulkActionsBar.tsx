@@ -3,28 +3,38 @@ import { Button, Group, Paper, Stack, Text } from '@mantine/core';
 export default function TransactionBulkActionsBar(props: {
   selectedCountLabel: string;
   selectedAutoMappedPendingCount: number;
+  selectedSuggestedReversalCount: number;
   selectedUnlockedCategorisableCount: number;
+  selectedDeletableCount: number;
+  canManageReversals: boolean;
   onClearSelection: () => void;
   onMarkReviewed: () => void;
   onMarkUnreviewed: () => void;
   onLock: () => void;
   onUnlock: () => void;
   onApproveAutoMappings: () => void;
+  onApproveSuggestedReversals: () => void;
   onOpenRecode: () => void;
   onClearCoding: () => void;
+  onDeleteSelected: () => void;
 }) {
   const {
     selectedCountLabel,
     selectedAutoMappedPendingCount,
+    selectedSuggestedReversalCount,
     selectedUnlockedCategorisableCount,
+    selectedDeletableCount,
+    canManageReversals,
     onClearSelection,
     onMarkReviewed,
     onMarkUnreviewed,
     onLock,
     onUnlock,
     onApproveAutoMappings,
+    onApproveSuggestedReversals,
     onOpenRecode,
     onClearCoding,
+    onDeleteSelected,
   } = props;
 
   return (
@@ -65,6 +75,17 @@ export default function TransactionBulkActionsBar(props: {
           >
             Approve auto-mappings ({selectedAutoMappedPendingCount})
           </Button>
+          {canManageReversals ? (
+            <Button
+              size="xs"
+              variant="light"
+              color="blue"
+              disabled={selectedSuggestedReversalCount === 0}
+              onClick={onApproveSuggestedReversals}
+            >
+              Approve reversal matches ({selectedSuggestedReversalCount})
+            </Button>
+          ) : null}
           <Button
             size="xs"
             variant="light"
@@ -81,6 +102,14 @@ export default function TransactionBulkActionsBar(props: {
             onClick={onClearCoding}
           >
             Clear coding
+          </Button>
+          <Button
+            size="xs"
+            color="red"
+            disabled={selectedDeletableCount === 0}
+            onClick={onDeleteSelected}
+          >
+            Delete selected ({selectedDeletableCount})
           </Button>
         </Group>
       </Stack>

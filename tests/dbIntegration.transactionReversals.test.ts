@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   applyTxnReversalActionServer,
+  bulkTxnActionServer,
   importTransactionsServer,
   listTransactionsPageServer,
   listTxnReversalMatchSuggestionsServer,
@@ -254,6 +255,20 @@ test(
       assert.equal(
         matched.counterpartTxn?.reversal?.counterpartTxnId,
         sourceTxnId
+      );
+
+      const matchedPairsPage = await listTransactionsPageServer({
+        context,
+        projectId: sourceProjectId,
+        input: {
+          pageIndex: 0,
+          pageSize: 10,
+          transactionView: 'matched-reversal-pairs',
+        },
+      });
+      assert.deepEqual(
+        new Set(matchedPairsPage.rows.map((row) => row.id)),
+        new Set([sourceTxnId, reversalTxnId])
       );
 
       const commentsAfterMatch = await db
@@ -740,7 +755,268 @@ test(
 );
 
 test(
-  'ambiguous EXA reversal imports become visible manual review exceptions',
+  'bulk approval can approve selected suggested reversal matches',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_txn_reversal_bulk_approve_co_1');
+    const userId = asUserId('itest_txn_reversal_bulk_approve_usr_1');
+    const projectId = asProjectId('itest_txn_reversal_bulk_approve_prj_1');
+    const sourceTxnAId = asTxnId('itest_txn_reversal_bulk_approve_txn_1');
+    const sourceTxnBId = asTxnId('itest_txn_reversal_bulk_approve_txn_2');
+    const reversalTxnAId = asTxnId('itest_txn_reversal_bulk_approve_txn_3');
+    const reversalTxnBId = asTxnId('itest_txn_reversal_bulk_approve_txn_4');
+    const lockedTxnId = asTxnId('itest_txn_reversal_bulk_approve_txn_5');
+    const context = { session: { userId } };
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Txn Reversal Bulk Approve Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'txn-reversal-bulk-approve@example.com',
+          name: 'Txn Reversal Bulk Approve Lead',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'member' })
+        .execute();
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Bulk Approve Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 200000,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          sync_company_defaults: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'lead' })
+        .execute();
+
+      await importTransactionsServer({
+        context,
+        projectId,
+        mode: 'append',
+        txns: [
+          {
+            id: sourceTxnAId,
+            externalId: 'BULK-REV-1',
+            companyId,
+            projectId,
+            date: '2026-05-30',
+            item: '1181853 Source A',
+            description:
+              '1181853 Source A | CC100 Team | Source: EXA | Reference: REF-A',
+            amountCents: 12500,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 Source A',
+              'CC and Description': 'CC100 Team',
+              'Reference Num': 'REF-A',
+            },
+          },
+          {
+            id: sourceTxnBId,
+            externalId: 'BULK-REV-2',
+            companyId,
+            projectId,
+            date: '2026-05-30',
+            item: '1181853 Source B',
+            description:
+              '1181853 Source B | CC200 Team | Source: EXA | Reference: REF-B',
+            amountCents: 13000,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 Source B',
+              'CC and Description': 'CC200 Team',
+              'Reference Num': 'REF-B',
+            },
+          },
+          {
+            id: lockedTxnId,
+            externalId: 'BULK-REV-LOCKED',
+            companyId,
+            projectId,
+            date: '2026-05-30',
+            item: '1181853 Locked Source',
+            description:
+              '1181853 Locked Source | CC300 Team | Source: EXA | Reference: REF-C',
+            amountCents: 14000,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 Locked Source',
+              'CC and Description': 'CC300 Team',
+              'Reference Num': 'REF-C',
+            },
+          },
+        ],
+      });
+
+      await applyTxnReversalActionServer({
+        context,
+        projectId,
+        input: {
+          action: 'markPending',
+          txnId: sourceTxnAId,
+          commentBody: 'Pending A',
+        },
+      });
+      await applyTxnReversalActionServer({
+        context,
+        projectId,
+        input: {
+          action: 'markPending',
+          txnId: sourceTxnBId,
+          commentBody: 'Pending B',
+        },
+      });
+      await applyTxnReversalActionServer({
+        context,
+        projectId,
+        input: {
+          action: 'markPending',
+          txnId: lockedTxnId,
+          commentBody: 'Pending locked',
+        },
+      });
+
+      await importTransactionsServer({
+        context,
+        projectId,
+        mode: 'append',
+        txns: [
+          {
+            id: reversalTxnAId,
+            externalId: 'BULK-REV-3',
+            companyId,
+            projectId,
+            date: '2026-06-28',
+            item: '1181853 Reversal A',
+            description:
+              '1181853 Source A | CC100 Team | Source: EXA | Reference: REF-A',
+            amountCents: -12500,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 Source A',
+              'CC and Description': 'CC100 Team',
+              'Reference Num': 'REF-A',
+            },
+          },
+          {
+            id: reversalTxnBId,
+            externalId: 'BULK-REV-4',
+            companyId,
+            projectId,
+            date: '2026-06-28',
+            item: '1181853 Reversal B',
+            description:
+              '1181853 Source B | CC200 Team | Source: EXA | Reference: REF-B',
+            amountCents: -13000,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 Source B',
+              'CC and Description': 'CC200 Team',
+              'Reference Num': 'REF-B',
+            },
+          },
+        ],
+      });
+
+      await db
+        .updateTable('txns')
+        .set({
+          reviewed_at: new Date().toISOString(),
+          reviewed_by_user_id: userId,
+          locked_at: new Date().toISOString(),
+          locked_by_user_id: userId,
+        })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', lockedTxnId)
+        .executeTakeFirst();
+
+      const bulkResult = await bulkTxnActionServer({
+        context,
+        projectId,
+        input: {
+          action: 'approveSuggestedReversals',
+          txnIds: [sourceTxnAId, sourceTxnBId, lockedTxnId],
+        },
+      });
+      assert.equal(bulkResult.updatedCount, 2);
+      assert.equal(bulkResult.lockedCount, 1);
+      assert.equal(bulkResult.ineligibleCount, 0);
+
+      const reversals = await db
+        .selectFrom('txn_reversals')
+        .select([
+          'source_txn_public_id',
+          'matched_reversal_txn_public_id',
+          'status',
+          'matched_at',
+          'matched_by_user_id',
+        ])
+        .where('project_id', '=', projectId)
+        .orderBy('source_txn_public_id', 'asc')
+        .execute();
+      const reversalBySourceTxnId = new Map(
+        reversals.map((row) => [row.source_txn_public_id, row] as const)
+      );
+      assert.equal(
+        reversalBySourceTxnId.get(sourceTxnAId)?.status,
+        'reversed_matched'
+      );
+      assert.equal(
+        reversalBySourceTxnId.get(sourceTxnBId)?.status,
+        'reversed_matched'
+      );
+      assert.equal(
+        reversalBySourceTxnId.get(lockedTxnId)?.status,
+        'pending_reversal'
+      );
+      assert.ok(reversalBySourceTxnId.get(sourceTxnAId)?.matched_at);
+      assert.ok(reversalBySourceTxnId.get(sourceTxnBId)?.matched_at);
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'ambiguous EXA reversal imports default to reviewable matches that can be bulk approved',
   { skip: !integrationDatabaseUrl },
   async () => {
     const db = createIntegrationDb();
@@ -921,21 +1197,27 @@ test(
         },
       });
       assert.equal(pendingPage.rows.length, 2);
-      assert.equal(pendingPage.rows[0]?.reversal?.status, 'reversal_exception');
-      assert.equal(pendingPage.rows[1]?.reversal?.status, 'reversal_exception');
-
-      const sourceSuggestions = await listTxnReversalMatchSuggestionsServer({
-        context,
-        projectId,
-        txnId: sourceTxnAId,
-      });
-      assert.equal(sourceSuggestions.length, 2);
-      assert.deepEqual(
-        new Set(sourceSuggestions.map((suggestion) => suggestion.txnId)),
-        new Set([reversalTxnAId, reversalTxnBId])
+      const pendingByTxnId = new Map(
+        pendingPage.rows.map((row) => [row.id, row] as const)
+      );
+      assert.equal(
+        pendingByTxnId.get(sourceTxnAId)?.reversal?.status,
+        'auto_matched_ambiguous_pending_approval'
+      );
+      assert.equal(
+        pendingByTxnId.get(sourceTxnAId)?.reversal?.counterpartTxnId,
+        reversalTxnAId
+      );
+      assert.equal(
+        pendingByTxnId.get(sourceTxnBId)?.reversal?.status,
+        'auto_matched_ambiguous_pending_approval'
+      );
+      assert.equal(
+        pendingByTxnId.get(sourceTxnBId)?.reversal?.counterpartTxnId,
+        reversalTxnBId
       );
 
-      const exceptionComments = await db
+      const reviewComments = await db
         .selectFrom('txn_comments')
         .select(['txn_public_id', 'body'])
         .where('project_id', '=', projectId)
@@ -944,17 +1226,338 @@ test(
         .orderBy('created_at', 'asc')
         .execute();
       assert.ok(
-        exceptionComments.some(
+        reviewComments.some(
           (row) =>
             row.txn_public_id === sourceTxnAId &&
-            row.body.includes('[Auto-match review needed]')
+            row.body.includes('[Default reversal match selected]')
         )
       );
       assert.ok(
-        exceptionComments.some(
+        reviewComments.some(
           (row) =>
             row.txn_public_id === sourceTxnBId &&
-            row.body.includes('[Auto-match review needed]')
+            row.body.includes('[Default reversal match selected]')
+        )
+      );
+
+      const bulkResult = await bulkTxnActionServer({
+        context,
+        projectId,
+        input: {
+          action: 'approveSuggestedReversals',
+          txnIds: [sourceTxnAId, sourceTxnBId],
+        },
+      });
+      assert.equal(bulkResult.updatedCount, 2);
+      assert.equal(bulkResult.lockedCount, 0);
+      assert.equal(bulkResult.ineligibleCount, 0);
+
+      const approvedReversals = await db
+        .selectFrom('txn_reversals')
+        .select(['source_txn_public_id', 'status'])
+        .where('project_id', '=', projectId)
+        .execute();
+      const approvedByTxnId = new Map(
+        approvedReversals.map((row) => [row.source_txn_public_id, row] as const)
+      );
+      assert.equal(
+        approvedByTxnId.get(sourceTxnAId)?.status,
+        'reversed_matched'
+      );
+      assert.equal(
+        approvedByTxnId.get(sourceTxnBId)?.status,
+        'reversed_matched'
+      );
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'needs-review view combines coding approvals and reversal review workflows',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_txn_needs_review_co_1');
+    const userId = asUserId('itest_txn_needs_review_usr_1');
+    const projectId = asProjectId('itest_txn_needs_review_prj_1');
+    const categoryId = asCategoryId('itest_txn_needs_review_cat_1');
+    const subCategoryId = asSubCategoryId('itest_txn_needs_review_sub_1');
+    const codingTxnId = asTxnId('itest_txn_needs_review_txn_1');
+    const pendingSourceTxnId = asTxnId('itest_txn_needs_review_txn_2');
+    const reversalTxnId = asTxnId('itest_txn_needs_review_txn_3');
+    const exceptionSourceTxnId = asTxnId('itest_txn_needs_review_txn_4');
+    const exceptionReversalTxnAId = asTxnId('itest_txn_needs_review_txn_5');
+    const exceptionReversalTxnBId = asTxnId('itest_txn_needs_review_txn_6');
+    const now = new Date().toISOString();
+    const context = { session: { userId } };
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Txn Needs Review Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'txn-needs-review@example.com',
+          name: 'Txn Needs Review Lead',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'member' })
+        .execute();
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Needs Review Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 200000,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          sync_company_defaults: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'lead' })
+        .execute();
+      await db
+        .insertInto('categories')
+        .values({
+          id: categoryId,
+          company_id: companyId,
+          project_id: projectId,
+          name: 'Operations',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+      await db
+        .insertInto('sub_categories')
+        .values({
+          id: subCategoryId,
+          company_id: companyId,
+          project_id: projectId,
+          category_id: categoryId,
+          name: 'Services',
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+      await db
+        .insertInto('txns')
+        .values({
+          public_id: codingTxnId,
+          external_id: 'itest-txn-needs-review-ext-1',
+          company_id: companyId,
+          project_id: projectId,
+          txn_date: '2026-06-01',
+          item: 'Coding pending',
+          description: 'Auto-coded and awaiting approval',
+          amount_cents: 5000,
+          txn_type: 'standard',
+          parent_public_id: null,
+          source_public_id: null,
+          transfer_project_id: null,
+          budget_impact: true,
+          categorisable: true,
+          import_batch_id: null,
+          import_source_type: null,
+          import_source_meta: null,
+          category_id: categoryId,
+          sub_category_id: subCategoryId,
+          company_default_mapping_rule_id: null,
+          coding_source: 'project_rule',
+          coding_pending_approval: true,
+          reviewed_at: null,
+          reviewed_by_user_id: null,
+          locked_at: null,
+          locked_by_user_id: null,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      await importTransactionsServer({
+        context,
+        projectId,
+        mode: 'append',
+        txns: [
+          {
+            id: pendingSourceTxnId,
+            externalId: 'NEEDS-REVIEW-EXA-1',
+            companyId,
+            projectId,
+            date: '2026-05-30',
+            item: '1181853 Monthly accrual',
+            description:
+              '1181853 Monthly accrual | CC100 Team | Source: EXA | Reference: REF-ONE',
+            amountCents: 12500,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 Monthly accrual',
+              'CC and Description': 'CC100 Team',
+              'Reference Num': 'REF-ONE',
+            },
+          },
+          {
+            id: exceptionSourceTxnId,
+            externalId: 'NEEDS-REVIEW-EXA-2',
+            companyId,
+            projectId,
+            date: '2026-05-31',
+            item: '1181853 - CONFERENCES & FUNCTI',
+            description:
+              '1181853 - CONFERENCES & FUNCTI | 5800 (Conference & Function) | Source: EXA',
+            amountCents: 123596,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 - CONFERENCES & FUNCTI',
+              'CC and Description': '5800 (Conference & Function)',
+              'Reference Num': '',
+            },
+          },
+        ],
+      });
+
+      await applyTxnReversalActionServer({
+        context,
+        projectId,
+        input: {
+          action: 'markPending',
+          txnId: pendingSourceTxnId,
+          commentBody: 'Waiting for matching June reversal.',
+        },
+      });
+      await applyTxnReversalActionServer({
+        context,
+        projectId,
+        input: {
+          action: 'markPending',
+          txnId: exceptionSourceTxnId,
+          commentBody: 'Ambiguous reversal expected.',
+        },
+      });
+
+      await importTransactionsServer({
+        context,
+        projectId,
+        mode: 'append',
+        txns: [
+          {
+            id: reversalTxnId,
+            externalId: 'NEEDS-REVIEW-EXA-3',
+            companyId,
+            projectId,
+            date: '2026-06-28',
+            item: '1181853 Monthly accrual reversal',
+            description:
+              '1181853 Monthly accrual | CC100 Team | Source: EXA | Reference: REF-ONE',
+            amountCents: -12500,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 Monthly accrual',
+              'CC and Description': 'CC100 Team',
+              'Reference Num': 'REF-ONE',
+            },
+          },
+          {
+            id: exceptionReversalTxnAId,
+            externalId: 'NEEDS-REVIEW-EXA-4',
+            companyId,
+            projectId,
+            date: '2026-06-01',
+            item: '1181853 - CONFERENCES & FUNCTI',
+            description:
+              '1181853 - CONFERENCES & FUNCTI | 5800 (Conference & Function) | Source: EXA',
+            amountCents: -123596,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 - CONFERENCES & FUNCTI',
+              'CC and Description': '5800 (Conference & Function)',
+              'Reference Num': '',
+            },
+          },
+          {
+            id: exceptionReversalTxnBId,
+            externalId: 'NEEDS-REVIEW-EXA-5',
+            companyId,
+            projectId,
+            date: '2026-06-01',
+            item: '1181853 - CONFERENCES & FUNCTI',
+            description:
+              '1181853 - CONFERENCES & FUNCTI | 5800 (Conference & Function) | Source: EXA',
+            amountCents: -123596,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 - CONFERENCES & FUNCTI',
+              'CC and Description': '5800 (Conference & Function)',
+              'Reference Num': '',
+            },
+          },
+        ],
+      });
+
+      const reviewPage = await listTransactionsPageServer({
+        context,
+        projectId,
+        input: {
+          pageIndex: 0,
+          pageSize: 20,
+          transactionView: 'needs-review',
+        },
+      });
+      assert.deepEqual(
+        new Set(reviewPage.rows.map((row) => row.id)),
+        new Set([codingTxnId, pendingSourceTxnId, exceptionSourceTxnId])
+      );
+      assert.equal(reviewPage.rows.length, 3);
+      assert.ok(
+        reviewPage.rows.some(
+          (row) => row.id === codingTxnId && row.codingPendingApproval
+        )
+      );
+      assert.ok(
+        reviewPage.rows.some(
+          (row) =>
+            row.id === pendingSourceTxnId &&
+            row.reversal?.status === 'auto_matched_pending_approval'
+        )
+      );
+      assert.ok(
+        reviewPage.rows.some(
+          (row) =>
+            row.id === exceptionSourceTxnId &&
+            row.reversal?.status === 'auto_matched_ambiguous_pending_approval'
         )
       );
     } finally {

@@ -130,9 +130,11 @@ const importPreviewSourceTypeSchema = z.enum(['powerbi_expenditure_actuals']);
 const txnListViewSchema = z.enum([
   'all',
   'uncoded',
+  'needs-review',
   'auto-mapped-pending',
   'assigned-to-me',
   'pending-reversal',
+  'matched-reversal-pairs',
 ]);
 const txnListSortFieldSchema = z.enum(['date', 'transaction', 'amountCents']);
 const txnListSortDirectionSchema = z.enum(['asc', 'desc']);
@@ -609,6 +611,10 @@ export const txnBulkActionInputSchema = z.discriminatedUnion('action', [
     txnIds: txnBulkActionTxnIdsSchema,
   }),
   z.object({
+    action: z.literal('approveSuggestedReversals'),
+    txnIds: txnBulkActionTxnIdsSchema,
+  }),
+  z.object({
     action: z.literal('clearCoding'),
     txnIds: txnBulkActionTxnIdsSchema,
   }),
@@ -627,6 +633,10 @@ export const txnBulkActionInputSchema = z.discriminatedUnion('action', [
     txnIds: txnBulkActionTxnIdsSchema,
     categoryId: categoryIdSchema,
     subCategoryId: subCategoryIdSchema,
+  }),
+  z.object({
+    action: z.literal('delete'),
+    txnIds: txnBulkActionTxnIdsSchema,
   }),
 ]);
 

@@ -102,6 +102,15 @@ function reversalBadge(txn: Txn) {
   if (txn.reversal?.status === 'reversal_exception') {
     return { color: 'red', label: 'Reversal exception' };
   }
+  if (txn.reversal?.status === 'auto_matched_ambiguous_pending_approval') {
+    return {
+      color: 'orange',
+      label:
+        txn.reversal.side === 'source'
+          ? 'Defaulted reversal review'
+          : 'Defaulted reversal',
+    };
+  }
   if (txn.reversal?.status === 'auto_matched_pending_approval') {
     return {
       color: 'blue',
@@ -114,8 +123,7 @@ function reversalBadge(txn: Txn) {
   if (txn.reversal?.status === 'reversed_matched') {
     return {
       color: 'green',
-      label:
-        txn.reversal.side === 'source' ? 'Reversal matched' : 'Matched refund',
+      label: 'Matched reversal pair',
     };
   }
   if (txn.reversal?.status === 'pending_reversal') {

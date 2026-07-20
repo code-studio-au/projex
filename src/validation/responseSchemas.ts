@@ -86,9 +86,11 @@ const codingSourceSchema = z.enum([
 const txnListViewSchema = z.enum([
   'all',
   'uncoded',
+  'needs-review',
   'auto-mapped-pending',
   'assigned-to-me',
   'pending-reversal',
+  'matched-reversal-pairs',
 ]);
 const txnListSortFieldSchema = z.enum(['date', 'transaction', 'amountCents']);
 const txnListSortDirectionSchema = z.enum(['asc', 'desc']);

@@ -45,9 +45,11 @@ export type TxnImportMode = 'append' | 'replaceAll';
 export type TxnListView =
   | 'all'
   | 'uncoded'
+  | 'needs-review'
   | 'auto-mapped-pending'
   | 'assigned-to-me'
-  | 'pending-reversal';
+  | 'pending-reversal'
+  | 'matched-reversal-pairs';
 export type TxnListSortField = 'date' | 'transaction' | 'amountCents';
 export type TxnListSortDirection = 'asc' | 'desc';
 export type TxnListSort = {
@@ -233,6 +235,10 @@ export type TxnBulkActionInput =
       txnIds: TxnId[];
     }
   | {
+      action: 'approveSuggestedReversals';
+      txnIds: TxnId[];
+    }
+  | {
       action: 'clearCoding';
       txnIds: TxnId[];
     }
@@ -251,6 +257,10 @@ export type TxnBulkActionInput =
       txnIds: TxnId[];
       categoryId: Category['id'];
       subCategoryId: SubCategory['id'];
+    }
+  | {
+      action: 'delete';
+      txnIds: TxnId[];
     };
 
 export type TxnBulkActionResult = {

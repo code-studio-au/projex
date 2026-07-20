@@ -149,10 +149,33 @@ export function useTransactionsPanelData(args: {
       ).length,
     [selectedTxns, args.taxonomy.validSubIds]
   );
+  const selectedSuggestedReversalCount = useMemo(
+    () =>
+      selectedTxns.filter(
+        (txn) =>
+          !txn.lockedAt &&
+          (txn.reversal?.status === 'auto_matched_pending_approval' ||
+            txn.reversal?.status === 'auto_matched_ambiguous_pending_approval')
+      ).length,
+    [selectedTxns]
+  );
+  const selectedAmbiguousSuggestedReversalCount = useMemo(
+    () =>
+      selectedTxns.filter(
+        (txn) =>
+          !txn.lockedAt &&
+          txn.reversal?.status === 'auto_matched_ambiguous_pending_approval'
+      ).length,
+    [selectedTxns]
+  );
   const selectedUnlockedCategorisableCount = useMemo(
     () =>
       selectedTxns.filter((txn) => !txn.lockedAt && isCategorisableTxn(txn))
         .length,
+    [selectedTxns]
+  );
+  const selectedDeletableCount = useMemo(
+    () => selectedTxns.filter((txn) => !txn.lockedAt && !txn.reversal).length,
     [selectedTxns]
   );
   const bulkRecodeSubCategoryOptions = useMemo(
@@ -192,7 +215,10 @@ export function useTransactionsPanelData(args: {
     linkedCommentsTxn,
     pageSummary,
     pagedTxns,
+    selectedAmbiguousSuggestedReversalCount,
     selectedAutoMappedPendingCount,
+    selectedSuggestedReversalCount,
+    selectedDeletableCount,
     selectedTxnIds,
     selectedTxns,
     selectedUnlockedCategorisableCount,

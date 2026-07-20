@@ -114,8 +114,10 @@ function buildProjectDrilldownSearch(args: {
   view?:
     | 'all'
     | 'uncoded'
+    | 'needs-review'
     | 'auto-mapped-pending'
     | 'pending-reversal'
+    | 'matched-reversal-pairs'
     | 'assigned-to-me';
   focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 }) {
@@ -140,8 +142,10 @@ function SummaryDrilldownLink(props: {
   view?:
     | 'all'
     | 'uncoded'
+    | 'needs-review'
     | 'auto-mapped-pending'
     | 'pending-reversal'
+    | 'matched-reversal-pairs'
     | 'assigned-to-me';
   focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
   children: ReactNode;
