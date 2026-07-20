@@ -189,6 +189,16 @@ export type TxnReversalActionInput =
       commentBody?: string;
     }
   | {
+      action: 'approveSuggestedMatch';
+      txnId: TxnId;
+      commentBody?: string;
+    }
+  | {
+      action: 'rejectSuggestedMatch';
+      txnId: TxnId;
+      commentBody?: string;
+    }
+  | {
       action: 'unmatch';
       txnId: TxnId;
       commentBody: string;

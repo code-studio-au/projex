@@ -154,7 +154,7 @@ export async function getCompanySummaryServer(args: {
             from txn_reversals tr
             where tr.project_id = txns.project_id
               and tr.source_txn_public_id = txns.public_id
-              and tr.status in ('pending_reversal', 'reversal_exception')
+              and tr.status in ('pending_reversal', 'auto_matched_pending_approval', 'reversal_exception')
           )`.as('pending_reversal'),
         ])
         .where('project_id', 'in', projectIds)

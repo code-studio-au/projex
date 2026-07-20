@@ -25,6 +25,7 @@ import { firefoxSafeModalSelectProps } from '../modalSelectProps';
 function statusTone(txn: Txn) {
   if (txn.reversal?.status === 'reversal_exception') return 'red';
   if (txn.reversal?.status === 'reversed_matched') return 'green';
+  if (txn.reversal?.status === 'auto_matched_pending_approval') return 'blue';
   if (txn.reversal?.status === 'pending_reversal') return 'violet';
   return 'gray';
 }
@@ -33,6 +34,8 @@ function statusLabel(txn: Txn) {
   if (txn.reversal?.status === 'reversal_exception')
     return 'Reversal exception';
   if (txn.reversal?.status === 'reversed_matched') return 'Reversal matched';
+  if (txn.reversal?.status === 'auto_matched_pending_approval')
+    return 'Auto-match awaiting approval';
   if (txn.reversal?.status === 'pending_reversal') return 'Pending reversal';
   return 'No reversal workflow';
 }
@@ -114,6 +117,7 @@ export default function TransactionReversalModal(props: {
   const isPending =
     txn.reversal?.status === 'pending_reversal' ||
     txn.reversal?.status === 'reversal_exception';
+  const isSuggested = txn.reversal?.status === 'auto_matched_pending_approval';
   const isException = txn.reversal?.status === 'reversal_exception';
   const isMatched = txn.reversal?.status === 'reversed_matched';
   const selectedSuggestion =
@@ -340,6 +344,56 @@ export default function TransactionReversalModal(props: {
                 }
               >
                 Match selected refund
+              </Button>
+            </Group>
+          </>
+        ) : null}
+
+        {isSuggested ? (
+          <>
+            <Textarea
+              label="Review note"
+              description="Optional. Add context when approving or rejecting the auto-match."
+              value={commentBody}
+              minRows={4}
+              onChange={(event) => setCommentBody(event.currentTarget.value)}
+            />
+            <Paper withBorder radius="md" p="sm">
+              <Text size="sm" fw={600}>
+                Auto-match review
+              </Text>
+              <Text size="sm" c="dimmed">
+                This EXA reversal pair was suggested during import. Approve it
+                to finalize the match, or reject it to return the source
+                transaction to pending reversal for manual matching.
+              </Text>
+            </Paper>
+            <Group justify="space-between" wrap="wrap">
+              <Button
+                variant="light"
+                color="gray"
+                loading={submitting}
+                onClick={() =>
+                  void submit({
+                    action: 'rejectSuggestedMatch',
+                    txnId: txn.id,
+                    commentBody: commentBody.trim() || undefined,
+                  })
+                }
+              >
+                Reject suggestion
+              </Button>
+              <Button
+                loading={submitting}
+                onClick={() =>
+                  void submit({
+                    action: 'approveSuggestedMatch',
+                    txnId: txn.id,
+                    commentBody: commentBody.trim() || undefined,
+                  })
+                }
+              >
+                Approve auto-match
               </Button>
             </Group>
           </>

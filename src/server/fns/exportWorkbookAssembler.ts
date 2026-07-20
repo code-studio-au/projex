@@ -86,6 +86,7 @@ export async function assembleCompanyWorkbook(
       pendingReversal:
         row.reversal_side === 'source' &&
         (row.reversal_status === 'pending_reversal' ||
+          row.reversal_status === 'auto_matched_pending_approval' ||
           row.reversal_status === 'reversal_exception'),
       subCategoryId: row.sub_category_id,
     })),
@@ -220,6 +221,7 @@ export async function assembleCompanyWorkbook(
     (row) =>
       row.reversal_side === 'source' &&
       (row.reversal_status === 'pending_reversal' ||
+        row.reversal_status === 'auto_matched_pending_approval' ||
         row.reversal_status === 'reversal_exception')
   ).length;
   addExecutiveSummaryWorksheet({
@@ -310,6 +312,7 @@ export async function assembleCompanyWorkbook(
       pendingReversalOpen:
         row.reversal_side === 'source' &&
         (row.reversal_status === 'pending_reversal' ||
+          row.reversal_status === 'auto_matched_pending_approval' ||
           row.reversal_status === 'reversal_exception'),
       transferProjectId:
         row.transfer_project_id && projectIdSet.has(row.transfer_project_id)

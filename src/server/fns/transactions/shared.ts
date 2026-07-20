@@ -66,6 +66,7 @@ export type TxnPageSummaryRow = {
 
 export const OPEN_TXN_REVERSAL_STATUSES = [
   'pending_reversal',
+  'auto_matched_pending_approval',
   'reversal_exception',
 ] as const satisfies ReadonlyArray<TxnReversalStatus>;
 

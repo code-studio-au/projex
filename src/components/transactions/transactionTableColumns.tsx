@@ -102,6 +102,15 @@ function reversalBadge(txn: Txn) {
   if (txn.reversal?.status === 'reversal_exception') {
     return { color: 'red', label: 'Reversal exception' };
   }
+  if (txn.reversal?.status === 'auto_matched_pending_approval') {
+    return {
+      color: 'blue',
+      label:
+        txn.reversal.side === 'source'
+          ? 'Auto-match review'
+          : 'Suggested reversal',
+    };
+  }
   if (txn.reversal?.status === 'reversed_matched') {
     return {
       color: 'green',

@@ -569,6 +569,16 @@ export const txnReversalActionInputSchema = z.discriminatedUnion('action', [
     commentBody: txnCommentBodySchema.optional(),
   }),
   z.object({
+    action: z.literal('approveSuggestedMatch'),
+    txnId: txnIdSchema,
+    commentBody: txnCommentBodySchema.optional(),
+  }),
+  z.object({
+    action: z.literal('rejectSuggestedMatch'),
+    txnId: txnIdSchema,
+    commentBody: txnCommentBodySchema.optional(),
+  }),
+  z.object({
     action: z.literal('unmatch'),
     txnId: txnIdSchema,
     commentBody: txnCommentBodySchema,

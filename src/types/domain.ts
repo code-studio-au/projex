@@ -380,6 +380,7 @@ export type TxnType = (typeof TXN_TYPES)[number];
 
 export const TXN_REVERSAL_STATUSES = [
   'pending_reversal',
+  'auto_matched_pending_approval',
   'reversed_matched',
   'reversal_exception',
 ] as const;
