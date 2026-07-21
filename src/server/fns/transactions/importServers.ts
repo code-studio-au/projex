@@ -47,7 +47,7 @@ import {
   txnSelectColumns,
   type ImportCandidateRow,
 } from './shared';
-import { autoSuggestTxnReversalMatchesForImportedTransactions } from './reversalServers';
+import { reconcilePendingReversalMatches } from './reversalServers';
 
 export async function importTransactionsServer(args: {
   context: ServerFnContextInput;
@@ -257,12 +257,12 @@ export async function importTransactionsServer(args: {
             }))
           )
           .execute();
-        await autoSuggestTxnReversalMatchesForImportedTransactions({
+        await reconcilePendingReversalMatches({
           db: trx,
           companyId,
           projectId: args.projectId,
           userId,
-          importedTransactions: plan.importedTransactions,
+          counterpartTxnIds: plan.importedTransactions.map((txn) => txn.id),
         });
         await markImportedBatchCandidates(trx, plan.importedTransactions, now);
       });

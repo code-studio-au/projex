@@ -172,6 +172,20 @@ test('split transaction schema rejects zero-value children and bulk actions reje
 
   assert.equal(
     txnBulkActionInputSchema.safeParse({
+      action: 'approveAllAutoMappings',
+    }).success,
+    true
+  );
+
+  assert.equal(
+    txnBulkActionInputSchema.safeParse({
+      action: 'reconcilePendingReversals',
+    }).success,
+    true
+  );
+
+  assert.equal(
+    txnBulkActionInputSchema.safeParse({
       action: 'delete',
       txnIds: ['txn_1'],
     }).success,

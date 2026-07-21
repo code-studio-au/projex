@@ -1,11 +1,16 @@
 import { createMiddleware } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
+import { getRequest, setResponseHeader } from '@tanstack/react-start/server';
 
 import type { ServerFnContextInput } from '../../api/appEndpoints';
 import type { ServerSession } from '../auth/session';
+import {
+  normalizeAndLogServerFnError,
+  serverFnRequestId,
+} from './errorBoundary';
 
 export type StartApiMiddlewareContext = {
   request: Request;
+  requestId: string;
   session: ServerSession | null;
   serverContext: ServerFnContextInput;
 };
@@ -36,18 +41,31 @@ function loadRequestContextModule() {
  * context to native Start server functions.
  */
 export const startApiMiddleware = createMiddleware({ type: 'function' }).server(
-  async ({ next }) => {
+  async ({ next, serverFnMeta }) => {
     const request = getRequest();
-    const { resolveRequestServerContext } = await loadRequestContextModule();
-    const { session, serverContext } =
-      await resolveRequestServerContext(request);
+    const requestId = serverFnRequestId(request);
 
-    return next({
-      context: {
+    try {
+      setResponseHeader('x-request-id', requestId);
+      const { resolveRequestServerContext } = await loadRequestContextModule();
+      const { session, serverContext } =
+        await resolveRequestServerContext(request);
+
+      return await next({
+        context: {
+          request,
+          requestId,
+          session,
+          serverContext,
+        } satisfies StartApiMiddlewareContext,
+      });
+    } catch (error) {
+      throw normalizeAndLogServerFnError({
+        error,
         request,
-        session,
-        serverContext,
-      } satisfies StartApiMiddlewareContext,
-    });
+        requestId,
+        serverFnMeta,
+      });
+    }
   }
 );

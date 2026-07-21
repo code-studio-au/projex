@@ -244,12 +244,15 @@ export function needsReviewTxnSql() {
   )`;
 }
 
-export function txnValidSubCategorySql() {
+export function txnValidSubCategorySql(txnTableReference: 't' | 'txns' = 't') {
+  const subCategoryId = sql.ref(`${txnTableReference}.sub_category_id`);
+  const projectId = sql.ref(`${txnTableReference}.project_id`);
+
   return sql<boolean>`exists (
     select 1
     from sub_categories sc
-    where sc.id = t.sub_category_id
-      and sc.project_id = t.project_id
+    where sc.id = ${subCategoryId}
+      and sc.project_id = ${projectId}
   )`;
 }
 

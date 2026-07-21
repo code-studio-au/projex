@@ -336,6 +336,18 @@ export interface TxnComments {
   updated_at: Generated<Timestamp>;
 }
 
+export interface TxnReversalMatchRejections {
+  company_id: string;
+  counterpart_txn_public_id: string;
+  created_at: Generated<Timestamp>;
+  id: string;
+  project_id: string;
+  rejected_at: Generated<Timestamp>;
+  rejected_by_user_id: string | null;
+  source_txn_public_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface TxnReversals {
   company_id: string;
   created_at: Generated<Timestamp>;
@@ -418,6 +430,7 @@ export interface DB {
   rule_suggestions: RuleSuggestions;
   sub_categories: SubCategories;
   txn_comments: TxnComments;
+  txn_reversal_match_rejections: TxnReversalMatchRejections;
   txn_reversals: TxnReversals;
   txns: Txns;
   users: Users;

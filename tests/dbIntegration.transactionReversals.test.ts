@@ -17,6 +17,7 @@ import {
   asUserId,
 } from '../src/types/index.ts';
 import {
+  assertAppErrorCode,
   createIntegrationDb,
   integrationDatabaseUrl,
 } from './dbIntegration.helpers.ts';
@@ -529,6 +530,55 @@ test(
         )
       );
 
+      await db
+        .updateTable('txns')
+        .set({
+          import_source_meta: {
+            Source: 'EXA',
+            'Journal Line Description': '1181853 Monthly accrual',
+            'CC and Description': 'CC100 Team',
+            'Reference Num': 'REF-CHANGED',
+          },
+        })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', reversalTxnId)
+        .executeTakeFirstOrThrow();
+      await assertAppErrorCode(
+        () =>
+          applyTxnReversalActionServer({
+            context,
+            projectId,
+            input: {
+              action: 'approveSuggestedMatch',
+              txnId: reversalTxnId,
+            },
+          }),
+        'CONFLICT',
+        'approval revalidates changed EXA metadata'
+      );
+
+      const stillSuggested = await db
+        .selectFrom('txn_reversals')
+        .select('status')
+        .where('project_id', '=', projectId)
+        .where('source_txn_public_id', '=', sourceTxnId)
+        .executeTakeFirstOrThrow();
+      assert.equal(stillSuggested.status, 'auto_matched_pending_approval');
+
+      await db
+        .updateTable('txns')
+        .set({
+          import_source_meta: {
+            Source: 'EXA',
+            'Journal Line Description': '1181853 Monthly accrual',
+            'CC and Description': 'CC100 Team',
+            'Reference Num': 'REF-1181853',
+          },
+        })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', reversalTxnId)
+        .executeTakeFirstOrThrow();
+
       const approved = await applyTxnReversalActionServer({
         context,
         projectId,
@@ -570,6 +620,259 @@ test(
             )
         )
       );
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
+  'multi-month imports reconcile when pending is marked later and support project-wide recovery',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_txn_reconcile_co_1');
+    const userId = asUserId('itest_txn_reconcile_usr_1');
+    const projectId = asProjectId('itest_txn_reconcile_prj_1');
+    const sourceTxnAId = asTxnId('itest_txn_reconcile_source_1');
+    const sourceTxnBId = asTxnId('itest_txn_reconcile_source_2');
+    const counterpartTxnAId = asTxnId('itest_txn_reconcile_counterpart_1');
+    const counterpartTxnBId = asTxnId('itest_txn_reconcile_counterpart_2');
+    const earlierCounterpartTxnId = asTxnId(
+      'itest_txn_reconcile_counterpart_earlier'
+    );
+    const context = { session: { userId } };
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Txn Reconciliation Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'txn-reconcile@example.com',
+          name: 'Txn Reconciliation Lead',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'member' })
+        .execute();
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Reconciliation Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 200000,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          sync_company_defaults: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'lead' })
+        .execute();
+
+      const imported = await importTransactionsServer({
+        context,
+        projectId,
+        mode: 'append',
+        txns: [
+          {
+            id: earlierCounterpartTxnId,
+            externalId: 'RECONCILE-A-APRIL',
+            companyId,
+            projectId,
+            date: '2026-04-20',
+            item: 'Earlier May accrual A credit',
+            description: 'Earlier May accrual A credit',
+            amountCents: -12500,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': 'May accrual A',
+              'CC and Description': 'CC100 Team',
+              'Reference Num': 'REF-A',
+            },
+          },
+          {
+            id: sourceTxnAId,
+            externalId: 'RECONCILE-A-MAY',
+            companyId,
+            projectId,
+            date: '2026-05-20',
+            item: 'May accrual A',
+            description: 'May accrual A',
+            amountCents: 12500,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': 'May accrual A',
+              'CC and Description': 'CC100 Team',
+              'Reference Num': 'REF-A',
+            },
+          },
+          {
+            id: counterpartTxnAId,
+            externalId: 'RECONCILE-A-JUNE',
+            companyId,
+            projectId,
+            date: '2026-06-20',
+            item: 'May accrual A reversal',
+            description: 'May accrual A reversal',
+            amountCents: -12500,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': 'May accrual A',
+              'CC and Description': 'CC100 Team',
+              'Reference Num': 'REF-A',
+            },
+          },
+          {
+            id: sourceTxnBId,
+            externalId: 'RECONCILE-B-MAY',
+            companyId,
+            projectId,
+            date: '2026-05-25',
+            item: 'May accrual B',
+            description: 'May accrual B',
+            amountCents: 9900,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': 'May accrual B',
+              'CC and Description': 'CC200 Team',
+              'Reference Num': 'REF-B',
+            },
+          },
+          {
+            id: counterpartTxnBId,
+            externalId: 'RECONCILE-B-JUNE',
+            companyId,
+            projectId,
+            date: '2026-06-25',
+            item: 'May accrual B reversal',
+            description: 'May accrual B reversal',
+            amountCents: -9900,
+            importSourceType: 'powerbi_expenditure_actuals',
+            importSourceMeta: {
+              Source: 'EXA',
+              'Journal Line Description': 'May accrual B',
+              'CC and Description': 'CC200 Team',
+              'Reference Num': 'REF-B',
+            },
+          },
+        ],
+      });
+      assert.equal(imported.count, 5);
+
+      const markedAfterImport = await applyTxnReversalActionServer({
+        context,
+        projectId,
+        input: {
+          action: 'markPending',
+          txnId: sourceTxnAId,
+          commentBody: 'Marked after the multi-month import.',
+        },
+      });
+      assert.equal(
+        markedAfterImport.txn.reversal?.status,
+        'auto_matched_pending_approval'
+      );
+      assert.equal(
+        markedAfterImport.txn.reversal?.counterpartTxnId,
+        counterpartTxnAId
+      );
+
+      const now = new Date().toISOString();
+      await db
+        .insertInto('txn_reversals')
+        .values({
+          id: 'itest_txn_reconcile_workflow_2',
+          company_id: companyId,
+          project_id: projectId,
+          source_txn_public_id: sourceTxnBId,
+          matched_reversal_txn_public_id: null,
+          expected_project_id: null,
+          status: 'pending_reversal',
+          marked_at: now,
+          marked_by_user_id: userId,
+          matched_at: null,
+          matched_by_user_id: null,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      const recovered = await bulkTxnActionServer({
+        context,
+        projectId,
+        input: { action: 'reconcilePendingReversals' },
+      });
+      assert.equal(recovered.requestedCount, 1);
+      assert.equal(recovered.updatedCount, 1);
+
+      const recoveredRow = await db
+        .selectFrom('txn_reversals')
+        .select(['status', 'matched_reversal_txn_public_id'])
+        .where('project_id', '=', projectId)
+        .where('source_txn_public_id', '=', sourceTxnBId)
+        .executeTakeFirstOrThrow();
+      assert.equal(recoveredRow.status, 'auto_matched_pending_approval');
+      assert.equal(
+        recoveredRow.matched_reversal_txn_public_id,
+        counterpartTxnBId
+      );
+
+      const rejected = await applyTxnReversalActionServer({
+        context,
+        projectId,
+        input: {
+          action: 'rejectSuggestedMatch',
+          txnId: sourceTxnAId,
+        },
+      });
+      assert.equal(rejected.txn.reversal?.status, 'pending_reversal');
+
+      const rerun = await bulkTxnActionServer({
+        context,
+        projectId,
+        input: { action: 'reconcilePendingReversals' },
+      });
+      assert.equal(rerun.requestedCount, 1);
+      assert.equal(rerun.updatedCount, 0);
+
+      const rejection = await db
+        .selectFrom('txn_reversal_match_rejections')
+        .select(['source_txn_public_id', 'counterpart_txn_public_id'])
+        .where('project_id', '=', projectId)
+        .where('source_txn_public_id', '=', sourceTxnAId)
+        .executeTakeFirstOrThrow();
+      assert.equal(rejection.counterpart_txn_public_id, counterpartTxnAId);
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

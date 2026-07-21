@@ -1,4 +1,4 @@
-import type { Insertable, Kysely, Transaction } from 'kysely';
+import { sql, type Insertable, type Kysely, type Transaction } from 'kysely';
 
 import { AppError } from '../../../api/errors';
 import type { ProjectId, Txn, TxnId, TxnReversalStatus } from '../../../types';
@@ -24,15 +24,14 @@ import {
   txnReversalJoin,
   txnReversalSelectExpressions,
 } from './shared';
+import {
+  buildReversalAutoMatchPlan,
+  isValidReversalAutoMatchEdge,
+  reversalAutoMatchPairKey,
+  type ReversalAutoMatchPlanEntry,
+} from './reversalMatching';
 
 type DbExecutor = Kysely<DB> | Transaction<DB>;
-type PowerBiSourceMeta = Partial<Record<string, string>>;
-type CanonicalPowerBiSourceMeta = Partial<
-  Record<
-    'source' | 'journalLineDescription' | 'ccAndDescription' | 'referenceNum',
-    string
-  >
->;
 
 type TxnReversalRow = {
   id: string;
@@ -208,6 +207,17 @@ function assertCounterpartTxnEligible(args: {
   }
 }
 
+function assertSuggestedMatchMetadataCompatible(args: {
+  sourceTxn: Txn;
+  counterpartTxn: Txn;
+}): void {
+  if (isValidReversalAutoMatchEdge(args)) return;
+  throw new AppError(
+    'CONFLICT',
+    'This auto-matched reversal is no longer compatible with the source transaction. Reject it and review the match manually.'
+  );
+}
+
 function appendUserNote(body: string | undefined): string {
   const trimmed = body?.trim();
   return trimmed ? `\n\nNote:\n${trimmed}` : '';
@@ -329,23 +339,23 @@ Auto-matched to pending reversal transaction ${args.sourceTxn.id} dated ${args.s
 
 function buildAmbiguousSuggestedSourceComment(args: {
   counterpartTxn: Txn;
-  counterpartTxnIds: TxnId[];
+  validCounterpartTxnIds: TxnId[];
 }) {
   return `[Default reversal match selected]
-Multiple possible EXA reversals were found, so the closest default match was selected for review.
+The EXA matching group had overlapping candidates, so a deterministic valid default was selected for review.
 Defaulted to ${args.counterpartTxn.id} on ${args.counterpartTxn.date} for ${formatSignedMajorUnits(args.counterpartTxn.amountCents)}.
-Other possible reversal transactions: ${args.counterpartTxnIds.join(', ')}.
+Valid reversal candidates for this source: ${args.validCounterpartTxnIds.join(', ')}.
 
 Review and approve the default match, or reject it to return this transaction to manual matching.`;
 }
 
 function buildAmbiguousSuggestedCounterpartComment(args: {
   sourceTxn: Txn;
-  sourceTxnIds: TxnId[];
+  validSourceTxnIds: TxnId[];
 }) {
   return `[Defaulted as reversal]
-Multiple pending reversal sources were possible, so this transaction was default-matched to ${args.sourceTxn.id} dated ${args.sourceTxn.date} for ${formatSignedMajorUnits(args.sourceTxn.amountCents)}.
-Other possible source transactions: ${args.sourceTxnIds.join(', ')}.
+The EXA matching group had overlapping candidates, so this transaction was default-matched to ${args.sourceTxn.id} dated ${args.sourceTxn.date} for ${formatSignedMajorUnits(args.sourceTxn.amountCents)}.
+Valid pending reversal sources for this transaction: ${args.validSourceTxnIds.join(', ')}.
 Awaiting admin approval.`;
 }
 
@@ -417,105 +427,6 @@ function normalizeSuggestionReason(reason: string) {
   return reason.replace(/\s+/g, ' ').trim();
 }
 
-function normalizeMetaValue(value: string | undefined | null) {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ');
-}
-
-const POWER_BI_META_KEY_ALIASES = {
-  source: ['source', 'Source'],
-  journalLineDescription: [
-    'journalLineDescription',
-    'Journal Line Description',
-  ],
-  ccAndDescription: ['ccAndDescription', 'CC and Description'],
-  referenceNum: ['referenceNum', 'Reference Num'],
-} as const;
-
-function toPowerBiSourceMeta(
-  meta: Txn['importSourceMeta']
-): CanonicalPowerBiSourceMeta | null {
-  if (!meta) return null;
-  const rawMeta = meta as PowerBiSourceMeta;
-
-  return Object.fromEntries(
-    Object.entries(POWER_BI_META_KEY_ALIASES).map(([canonicalKey, aliases]) => [
-      canonicalKey,
-      aliases
-        .map((alias) => rawMeta[alias])
-        .find((value) => typeof value === 'string' && value.trim()),
-    ])
-  ) as CanonicalPowerBiSourceMeta;
-}
-
-function autoMatchScore(args: { sourceTxn: Txn; counterpartTxn: Txn }): number {
-  const sourceMeta = toPowerBiSourceMeta(args.sourceTxn.importSourceMeta);
-  const counterpartMeta = toPowerBiSourceMeta(
-    args.counterpartTxn.importSourceMeta
-  );
-  if (!sourceMeta || !counterpartMeta) return Number.NEGATIVE_INFINITY;
-
-  if (
-    normalizeMetaValue(sourceMeta.source) !== 'exa' ||
-    normalizeMetaValue(counterpartMeta.source) !== 'exa'
-  ) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  const sourceJournalLineDescription = normalizeMetaValue(
-    sourceMeta.journalLineDescription
-  );
-  const counterpartJournalLineDescription = normalizeMetaValue(
-    counterpartMeta.journalLineDescription
-  );
-  if (
-    !sourceJournalLineDescription ||
-    sourceJournalLineDescription !== counterpartJournalLineDescription
-  ) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  const sourceReferenceNum = normalizeMetaValue(sourceMeta.referenceNum);
-  const counterpartReferenceNum = normalizeMetaValue(
-    counterpartMeta.referenceNum
-  );
-  if (
-    sourceReferenceNum &&
-    counterpartReferenceNum &&
-    sourceReferenceNum !== counterpartReferenceNum
-  ) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  const sourceCostCentre = normalizeMetaValue(sourceMeta.ccAndDescription);
-  const counterpartCostCentre = normalizeMetaValue(
-    counterpartMeta.ccAndDescription
-  );
-  if (
-    sourceCostCentre &&
-    counterpartCostCentre &&
-    sourceCostCentre !== counterpartCostCentre
-  ) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  const dayDelta = Math.round(
-    (Date.parse(args.counterpartTxn.date) - Date.parse(args.sourceTxn.date)) /
-      (24 * 60 * 60 * 1000)
-  );
-  if (dayDelta < 0 || dayDelta > 62) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  let score = 100;
-  if (sourceReferenceNum && counterpartReferenceNum) score += 100;
-  if (sourceCostCentre && counterpartCostCentre) score += 25;
-  if (dayDelta <= 31) score += 25;
-  return score;
-}
-
 function buildSuggestion(args: {
   sourceTxn: Txn;
   candidateTxn: Txn;
@@ -573,112 +484,70 @@ function buildSuggestion(args: {
   };
 }
 
-function scoredCounterpartsForSource(args: {
-  sourceTxn: Txn;
-  counterpartCandidates: Txn[];
-}) {
-  return args.counterpartCandidates
-    .filter(
-      (counterpartTxn) =>
-        counterpartTxn.amountCents < 0 &&
-        args.sourceTxn.amountCents === Math.abs(counterpartTxn.amountCents) &&
-        Date.parse(counterpartTxn.date) >= Date.parse(args.sourceTxn.date)
-    )
-    .map((counterpartTxn) => ({
-      counterpartTxn,
-      score: autoMatchScore({ sourceTxn: args.sourceTxn, counterpartTxn }),
-    }))
-    .filter((entry) => Number.isFinite(entry.score))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        a.counterpartTxn.date.localeCompare(b.counterpartTxn.date)
-    );
-}
-
-async function markSourcesForAmbiguousAutoMatchReview(args: {
+async function markAutoMatchPlanForReview(args: {
   db: DbExecutor;
   companyId: string;
   projectId: ProjectId;
   userId: string;
-  sourceTxns: Txn[];
-  counterpartTxns: Txn[];
-}): Promise<{
-  pairedSourceIds: TxnId[];
-  pairedCounterpartIds: TxnId[];
-}> {
-  if (!args.sourceTxns.length || !args.counterpartTxns.length) {
-    return { pairedSourceIds: [], pairedCounterpartIds: [] };
-  }
+  matches: ReversalAutoMatchPlanEntry[];
+}): Promise<number> {
+  if (!args.matches.length) return 0;
 
   const now = new Date().toISOString();
-  const sourceTxnIds = args.sourceTxns.map((txn) => txn.id);
-  const counterpartTxnIds = args.counterpartTxns.map((txn) => txn.id);
-  const orderedSourceTxns = [...args.sourceTxns].sort(
-    (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)
-  );
-  const orderedCounterpartTxns = [...args.counterpartTxns].sort(
-    (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)
-  );
-  const pairCount = Math.min(
-    orderedSourceTxns.length,
-    orderedCounterpartTxns.length
-  );
-  const pairedSourceIds: TxnId[] = [];
-  const pairedCounterpartIds: TxnId[] = [];
-
-  for (let index = 0; index < pairCount; index += 1) {
-    const sourceTxn = orderedSourceTxns[index];
-    const counterpartTxn = orderedCounterpartTxns[index];
-    if (!sourceTxn || !counterpartTxn) continue;
-
-    await args.db
+  let suggestedCount = 0;
+  for (const match of args.matches) {
+    const updateResult = await args.db
       .updateTable('txn_reversals')
       .set({
-        status: 'auto_matched_ambiguous_pending_approval',
-        matched_reversal_txn_public_id: counterpartTxn.id,
+        status: match.ambiguous
+          ? 'auto_matched_ambiguous_pending_approval'
+          : 'auto_matched_pending_approval',
+        matched_reversal_txn_public_id: match.counterpartTxn.id,
         matched_at: null,
         matched_by_user_id: null,
         updated_at: now,
       })
       .where('project_id', '=', args.projectId)
-      .where('source_txn_public_id', '=', sourceTxn.id)
+      .where('source_txn_public_id', '=', match.sourceTxn.id)
       .where('status', '=', 'pending_reversal')
       .executeTakeFirst();
+    if (updateResult.numUpdatedRows !== 1n) continue;
 
     await Promise.all([
       createReversalComment({
         db: args.db,
         companyId: args.companyId,
         projectId: args.projectId,
-        txnId: sourceTxn.id,
+        txnId: match.sourceTxn.id,
         userId: args.userId,
-        body: buildAmbiguousSuggestedSourceComment({
-          counterpartTxn,
-          counterpartTxnIds,
-        }),
+        body: match.ambiguous
+          ? buildAmbiguousSuggestedSourceComment({
+              counterpartTxn: match.counterpartTxn,
+              validCounterpartTxnIds: match.sourceCandidateTxnIds,
+            })
+          : buildSuggestedSourceComment({
+              counterpartTxn: match.counterpartTxn,
+            }),
       }),
       createReversalComment({
         db: args.db,
         companyId: args.companyId,
         projectId: args.projectId,
-        txnId: counterpartTxn.id,
+        txnId: match.counterpartTxn.id,
         userId: args.userId,
-        body: buildAmbiguousSuggestedCounterpartComment({
-          sourceTxn,
-          sourceTxnIds,
-        }),
+        body: match.ambiguous
+          ? buildAmbiguousSuggestedCounterpartComment({
+              sourceTxn: match.sourceTxn,
+              validSourceTxnIds: match.counterpartCandidateTxnIds,
+            })
+          : buildSuggestedCounterpartComment({
+              sourceTxn: match.sourceTxn,
+            }),
       }),
     ]);
-
-    pairedSourceIds.push(sourceTxn.id);
-    pairedCounterpartIds.push(counterpartTxn.id);
+    suggestedCount += 1;
   }
-
-  return {
-    pairedSourceIds,
-    pairedCounterpartIds,
-  };
+  return suggestedCount;
 }
 
 export async function listTxnReversalMatchSuggestionsServer(args: {
@@ -727,23 +596,54 @@ export async function listTxnReversalMatchSuggestionsServer(args: {
   });
 }
 
-export async function autoSuggestTxnReversalMatchesForImportedTransactions(args: {
-  db: DbExecutor;
+export type ReversalReconciliationResult = {
+  pendingSourceCount: number;
+  eligibleSourceCount: number;
+  lockedSourceCount: number;
+  ineligibleSourceCount: number;
+  candidateCount: number;
+  suggestedCount: number;
+};
+
+function emptyReversalReconciliationResult(): ReversalReconciliationResult {
+  return {
+    pendingSourceCount: 0,
+    eligibleSourceCount: 0,
+    lockedSourceCount: 0,
+    ineligibleSourceCount: 0,
+    candidateCount: 0,
+    suggestedCount: 0,
+  };
+}
+
+function addDays(date: string, days: number) {
+  const timestamp = Date.parse(date);
+  if (!Number.isFinite(timestamp)) return null;
+  return new Date(timestamp + days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+export async function reconcilePendingReversalMatches(args: {
+  db: Transaction<DB>;
   companyId: string;
   projectId: ProjectId;
   userId: string;
-  importedTransactions: Txn[];
-}) {
-  const importedCandidates = args.importedTransactions.filter(
-    (txn) =>
-      txn.importSourceType === 'powerbi_expenditure_actuals' &&
-      txn.amountCents < 0 &&
-      txn.budgetImpact &&
-      !txn.lockedAt
-  );
-  if (!importedCandidates.length) return;
+  sourceTxnIds?: TxnId[];
+  counterpartTxnIds?: TxnId[];
+}): Promise<ReversalReconciliationResult> {
+  if (args.sourceTxnIds && !args.sourceTxnIds.length) {
+    return emptyReversalReconciliationResult();
+  }
+  if (args.counterpartTxnIds && !args.counterpartTxnIds.length) {
+    return emptyReversalReconciliationResult();
+  }
 
-  const pendingSourceRows = await args.db
+  await sql`select pg_advisory_xact_lock(hashtextextended(${`txn-reversal:${args.projectId}`}, 0))`.execute(
+    args.db
+  );
+
+  let pendingSourceQuery = args.db
     .selectFrom('txns as t')
     .innerJoin('txn_reversals as tr', (join) =>
       join
@@ -755,134 +655,125 @@ export async function autoSuggestTxnReversalMatchesForImportedTransactions(args:
       ...txnReversalSelectExpressions({}),
     ])
     .where('t.project_id', '=', args.projectId)
+    .where('tr.status', '=', 'pending_reversal');
+  if (args.sourceTxnIds) {
+    pendingSourceQuery = pendingSourceQuery.where(
+      't.public_id',
+      'in',
+      args.sourceTxnIds
+    );
+  }
+  const pendingSources = (await pendingSourceQuery.execute()).map((row) =>
+    toTxn(row)
+  );
+  const lockedSourceCount = pendingSources.filter((txn) => txn.lockedAt).length;
+  const availableSources = pendingSources.filter(
+    (txn) =>
+      !txn.lockedAt &&
+      txn.budgetImpact &&
+      txn.amountCents > 0 &&
+      Number.isFinite(Date.parse(txn.date))
+  );
+  const ineligibleSourceCount =
+    pendingSources.length - availableSources.length - lockedSourceCount;
+  const baseResult = {
+    pendingSourceCount: pendingSources.length,
+    eligibleSourceCount: availableSources.length,
+    lockedSourceCount,
+    ineligibleSourceCount,
+    candidateCount: 0,
+    suggestedCount: 0,
+  };
+  if (!availableSources.length) return baseResult;
+
+  const sourceDates = availableSources.map((txn) => txn.date).sort();
+  const latestCounterpartDate = addDays(sourceDates.at(-1)!, 62);
+  if (!latestCounterpartDate) return baseResult;
+  const counterpartAmounts = [
+    ...new Set(availableSources.map((txn) => -txn.amountCents)),
+  ];
+
+  let counterpartQuery = args.db
+    .selectFrom('txns as t')
+    .leftJoin('txn_reversals as tr', txnReversalJoin())
+    .select([
+      ...prefixedTxnSelectColumns('t'),
+      ...txnReversalSelectExpressions({}),
+    ])
+    .where('t.project_id', '=', args.projectId)
+    .where('t.import_source_type', '=', 'powerbi_expenditure_actuals')
     .where('t.locked_at', 'is', null)
     .where('t.budget_impact', '=', true)
-    .where('t.amount_cents', '>', 0)
-    .where('tr.status', '=', 'pending_reversal')
-    .execute();
-
-  const availableSources = pendingSourceRows.map((row) => toTxn(row));
-  const claimedSourceIds = new Set<string>();
-  const claimedCounterpartIds = new Set<string>();
-
-  for (const counterpartTxn of importedCandidates) {
-    if (claimedCounterpartIds.has(counterpartTxn.id)) continue;
-
-    const scoredSources = availableSources
-      .filter(
-        (sourceTxn) =>
-          !claimedSourceIds.has(sourceTxn.id) &&
-          sourceTxn.amountCents === Math.abs(counterpartTxn.amountCents) &&
-          Date.parse(counterpartTxn.date) >= Date.parse(sourceTxn.date)
+    .where('t.amount_cents', 'in', counterpartAmounts)
+    .where('t.txn_date', '>=', sourceDates[0]!)
+    .where('t.txn_date', '<=', latestCounterpartDate)
+    .where(({ exists, selectFrom }) =>
+      exists(
+        selectFrom('txns as source')
+          .select('source.public_id')
+          .whereRef('source.project_id', '=', 't.project_id')
+          .where(
+            'source.public_id',
+            'in',
+            availableSources.map((txn) => txn.id)
+          )
+          .where(
+            sql<boolean>`${sql.ref('source.amount_cents')} = -${sql.ref('t.amount_cents')}`
+          )
+          .whereRef('source.txn_date', '<=', 't.txn_date')
+          .where(
+            sql<boolean>`${sql.ref('t.txn_date')} <= ${sql.ref('source.txn_date')} + interval '62 days'`
+          )
       )
-      .map((sourceTxn) => ({
-        sourceTxn,
-        score: autoMatchScore({ sourceTxn, counterpartTxn }),
-      }))
-      .filter((entry) => Number.isFinite(entry.score))
-      .sort(
-        (a, b) =>
-          b.score - a.score || a.sourceTxn.date.localeCompare(b.sourceTxn.date)
-      );
-
-    const best = scoredSources[0];
-    const runnerUp = scoredSources[1];
-    if (!best) continue;
-    if (best.score < 125) continue;
-
-    const bestSourceCounterparts = scoredCounterpartsForSource({
-      sourceTxn: best.sourceTxn,
-      counterpartCandidates: importedCandidates.filter(
-        (candidate) => !claimedCounterpartIds.has(candidate.id)
-      ),
-    });
-    const bestSourceRunnerUp = bestSourceCounterparts[1];
-
-    if (runnerUp && runnerUp.score === best.score) {
-      const tiedSourceTxns = scoredSources
-        .filter((entry) => entry.score === best.score)
-        .map((entry) => entry.sourceTxn);
-      const tiedCounterpartTxns = bestSourceCounterparts
-        .filter((entry) => entry.score === best.score)
-        .map((entry) => entry.counterpartTxn);
-      const ambiguousPairing = await markSourcesForAmbiguousAutoMatchReview({
-        db: args.db,
-        companyId: args.companyId,
-        projectId: args.projectId,
-        userId: args.userId,
-        sourceTxns: tiedSourceTxns,
-        counterpartTxns: tiedCounterpartTxns,
-      });
-      ambiguousPairing.pairedSourceIds.forEach((id) =>
-        claimedSourceIds.add(id)
-      );
-      ambiguousPairing.pairedCounterpartIds.forEach((id) =>
-        claimedCounterpartIds.add(id)
-      );
-      continue;
-    }
-
-    if (bestSourceRunnerUp && bestSourceRunnerUp.score === best.score) {
-      const ambiguousPairing = await markSourcesForAmbiguousAutoMatchReview({
-        db: args.db,
-        companyId: args.companyId,
-        projectId: args.projectId,
-        userId: args.userId,
-        sourceTxns: [best.sourceTxn],
-        counterpartTxns: bestSourceCounterparts
-          .filter((entry) => entry.score === best.score)
-          .map((entry) => entry.counterpartTxn),
-      });
-      ambiguousPairing.pairedSourceIds.forEach((id) =>
-        claimedSourceIds.add(id)
-      );
-      ambiguousPairing.pairedCounterpartIds.forEach((id) =>
-        claimedCounterpartIds.add(id)
-      );
-      continue;
-    }
-
-    claimedSourceIds.add(best.sourceTxn.id);
-    claimedCounterpartIds.add(counterpartTxn.id);
-    const now = new Date().toISOString();
-
-    await args.db
-      .updateTable('txn_reversals')
-      .set({
-        status: 'auto_matched_pending_approval',
-        matched_reversal_txn_public_id: counterpartTxn.id,
-        matched_at: null,
-        matched_by_user_id: null,
-        updated_at: now,
-      })
-      .where('project_id', '=', args.projectId)
-      .where('source_txn_public_id', '=', best.sourceTxn.id)
-      .where('status', '=', 'pending_reversal')
-      .executeTakeFirst();
-
-    await Promise.all([
-      createReversalComment({
-        db: args.db,
-        companyId: args.companyId,
-        projectId: args.projectId,
-        txnId: best.sourceTxn.id,
-        userId: args.userId,
-        body: buildSuggestedSourceComment({
-          counterpartTxn,
-        }),
-      }),
-      createReversalComment({
-        db: args.db,
-        companyId: args.companyId,
-        projectId: args.projectId,
-        txnId: counterpartTxn.id,
-        userId: args.userId,
-        body: buildSuggestedCounterpartComment({
-          sourceTxn: best.sourceTxn,
-        }),
-      }),
-    ]);
+    )
+    .where('tr.id', 'is', null);
+  if (args.counterpartTxnIds) {
+    counterpartQuery = counterpartQuery.where(
+      't.public_id',
+      'in',
+      args.counterpartTxnIds
+    );
   }
+  const counterpartTxns = (await counterpartQuery.execute()).map((row) =>
+    toTxn(row)
+  );
+  if (!counterpartTxns.length) return baseResult;
+
+  const rejectedPairs = await args.db
+    .selectFrom('txn_reversal_match_rejections')
+    .select(['source_txn_public_id', 'counterpart_txn_public_id'])
+    .where('project_id', '=', args.projectId)
+    .where(
+      'source_txn_public_id',
+      'in',
+      availableSources.map((txn) => txn.id)
+    )
+    .execute();
+  const excludedPairKeys = new Set(
+    rejectedPairs.map((row) =>
+      reversalAutoMatchPairKey(
+        asTxnId(row.source_txn_public_id),
+        asTxnId(row.counterpart_txn_public_id)
+      )
+    )
+  );
+  const matches = buildReversalAutoMatchPlan({
+    sourceTxns: availableSources,
+    counterpartTxns,
+    excludedPairKeys,
+  });
+  const suggestedCount = await markAutoMatchPlanForReview({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+    userId: args.userId,
+    matches,
+  });
+  return {
+    ...baseResult,
+    candidateCount: counterpartTxns.length,
+    suggestedCount,
+  };
 }
 
 export async function applyTxnReversalActionServer(args: {
@@ -975,6 +866,14 @@ export async function applyTxnReversalActionServer(args: {
             expectedProjectId: args.input.expectedProjectId,
             commentBody: args.input.commentBody,
           }),
+        });
+
+        await reconcilePendingReversalMatches({
+          db: trx,
+          companyId: context.companyId,
+          projectId: args.projectId,
+          userId: context.userId,
+          sourceTxnIds: [args.input.txnId],
         });
 
         return {
@@ -1252,6 +1151,7 @@ export async function applyTxnReversalActionServer(args: {
         ]);
         assertSourceTxnEligible(sourceTxn);
         assertCounterpartTxnEligible({ sourceTxn, counterpartTxn });
+        assertSuggestedMatchMetadataCompatible({ sourceTxn, counterpartTxn });
         const isAmbiguousSuggested =
           reversal.status === 'auto_matched_ambiguous_pending_approval';
 
@@ -1357,6 +1257,34 @@ export async function applyTxnReversalActionServer(args: {
         assertTxnUnlocked(counterpartTxn);
         const isAmbiguousSuggested =
           reversal.status === 'auto_matched_ambiguous_pending_approval';
+
+        await trx
+          .insertInto('txn_reversal_match_rejections')
+          .values({
+            id: uid('txnrj'),
+            company_id: context.companyId,
+            project_id: args.projectId,
+            source_txn_public_id: sourceTxnId,
+            counterpart_txn_public_id: counterpartTxnId,
+            rejected_at: now,
+            rejected_by_user_id: context.userId,
+            created_at: now,
+            updated_at: now,
+          })
+          .onConflict((conflict) =>
+            conflict
+              .columns([
+                'project_id',
+                'source_txn_public_id',
+                'counterpart_txn_public_id',
+              ])
+              .doUpdateSet({
+                rejected_at: now,
+                rejected_by_user_id: context.userId,
+                updated_at: now,
+              })
+          )
+          .executeTakeFirst();
 
         await trx
           .updateTable('txn_reversals')
@@ -1509,6 +1437,39 @@ export async function applyTxnReversalActionServer(args: {
         }),
       };
     });
+  });
+}
+
+export async function reconcilePendingTxnReversalsServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+}): Promise<TxnBulkActionResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const context = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'txns:manage_reversals'
+    );
+
+    const result = await context.db.transaction().execute((trx) =>
+      reconcilePendingReversalMatches({
+        db: trx,
+        companyId: context.companyId,
+        projectId: args.projectId,
+        userId: context.userId,
+      })
+    );
+
+    return {
+      action: 'reconcilePendingReversals',
+      requestedCount: result.pendingSourceCount,
+      foundCount: result.pendingSourceCount,
+      updatedCount: result.suggestedCount,
+      unchangedCount: result.eligibleSourceCount - result.suggestedCount,
+      lockedCount: result.lockedSourceCount,
+      ineligibleCount: result.ineligibleSourceCount,
+    };
   });
 }
 

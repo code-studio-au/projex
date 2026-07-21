@@ -247,6 +247,9 @@ export type TxnBulkActionInput =
       action: 'approveAllAutoMappings';
     }
   | {
+      action: 'reconcilePendingReversals';
+    }
+  | {
       action: 'approveAutoMappings';
       txnIds: TxnId[];
     }

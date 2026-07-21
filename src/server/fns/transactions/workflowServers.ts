@@ -26,7 +26,10 @@ import {
   txnSelectColumns,
   workflowPatchIsNoop,
 } from './shared';
-import { approveSuggestedTxnReversalsBulkServer } from './reversalServers';
+import {
+  approveSuggestedTxnReversalsBulkServer,
+  reconcilePendingTxnReversalsServer,
+} from './reversalServers';
 
 export async function updateTxnWorkflowStateServer(args: {
   context: ServerFnContextInput;
@@ -102,13 +105,19 @@ export async function bulkTxnActionServer(args: {
         txnIds: args.input.txnIds,
       });
     }
+    if (args.input.action === 'reconcilePendingReversals') {
+      return reconcilePendingTxnReversalsServer({
+        context: args.context,
+        projectId: args.projectId,
+      });
+    }
     const context = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
       'txns:edit'
     );
     const now = new Date().toISOString();
-    const validSubCategory = txnValidSubCategorySql();
+    const validSubCategory = txnValidSubCategorySql('txns');
 
     if (args.input.action === 'recode') {
       await assertCategoryInProject({

@@ -48,6 +48,8 @@ export default function TransactionsOverviewCard(props: {
   readOnly: boolean;
   canEditTaxonomy: boolean;
   canManageReversals: boolean;
+  reconcilingPendingReversals: boolean;
+  onReconcilePendingReversals: () => void;
   onApproveAllAutoMappings: () => void;
   onOpenTaxonomyManager: () => void;
   selectedTxnCount: number;
@@ -91,6 +93,8 @@ export default function TransactionsOverviewCard(props: {
     readOnly,
     canEditTaxonomy,
     canManageReversals,
+    reconcilingPendingReversals,
+    onReconcilePendingReversals,
     onApproveAllAutoMappings,
     onOpenTaxonomyManager,
     selectedTxnCount,
@@ -221,6 +225,17 @@ export default function TransactionsOverviewCard(props: {
               }}
               style={{ width: isMobile ? '100%' : 250 }}
             />
+            <Button
+              variant="light"
+              color="violet"
+              size="sm"
+              fullWidth={isMobile}
+              loading={reconcilingPendingReversals}
+              disabled={readOnly || !canManageReversals}
+              onClick={onReconcilePendingReversals}
+            >
+              Find reversal matches
+            </Button>
             <Button
               variant="light"
               color="teal"

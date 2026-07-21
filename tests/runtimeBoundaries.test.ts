@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, test, vi } from 'vitest';
 
-import { AppError } from '../src/api/errors.ts';
+import { AppError, getAppErrorCause } from '../src/api/errors.ts';
 import { asUserId } from '../src/types/index.ts';
 
 const resolveVerifiedCurrentSessionMock = vi.fn();
@@ -97,15 +97,31 @@ test('withServerBoundary preserves app errors and normalizes unknown errors', as
     }
   );
 
+  const unexpectedError = new Error('boom');
   await assert.rejects(
     () =>
       withServerBoundary(async () => {
-        throw new Error('boom');
+        throw unexpectedError;
       }),
     (error) => {
       assert.ok(error instanceof AppError);
       assert.equal(error.code, 'INTERNAL_ERROR');
-      assert.equal(error.message, 'boom');
+      assert.equal(error.message, 'Unexpected server error');
+      assert.equal(getAppErrorCause(error)?.value, unexpectedError);
+      return true;
+    }
+  );
+
+  await assert.rejects(
+    () =>
+      withServerBoundary(async () => {
+        throw 'private string failure';
+      }),
+    (error) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'INTERNAL_ERROR');
+      assert.equal(error.message, 'Unexpected server error');
+      assert.equal(getAppErrorCause(error)?.value, 'private string failure');
       return true;
     }
   );

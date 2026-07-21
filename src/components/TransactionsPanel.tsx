@@ -165,6 +165,8 @@ export default function TransactionsPanel(props: {
     bulkApproveSuggestedReversalsConfirmOpen,
     setBulkApproveSuggestedReversalsConfirmOpen,
   ] = useState(false);
+  const [reconcilingPendingReversals, setReconcilingPendingReversals] =
+    useState(false);
   const resetPage = () =>
     setPagination((current) => ({ ...current, pageIndex: 0 }));
   const clearSelection = () => setRowSelection({});
@@ -209,6 +211,9 @@ export default function TransactionsPanel(props: {
     input:
       | {
           action: 'approveAllAutoMappings';
+        }
+      | {
+          action: 'reconcilePendingReversals';
         }
       | {
           action: 'approveAutoMappings';
@@ -268,6 +273,37 @@ export default function TransactionsPanel(props: {
     }
   }
 
+  async function reconcilePendingReversals() {
+    setReconcilingPendingReversals(true);
+    try {
+      const result = await txns.runBulkAction({
+        action: 'reconcilePendingReversals',
+      });
+      showAppToast({
+        title:
+          result.updatedCount > 0
+            ? 'Reversal matches found'
+            : 'No new reversal matches',
+        tone: result.updatedCount > 0 ? 'success' : 'info',
+        message:
+          result.updatedCount > 0
+            ? `Suggested ${formatTxnCountLabel(result.updatedCount)} for review.`
+            : 'No eligible pending reversals matched an unclaimed existing EXA transaction.',
+      });
+    } catch (error) {
+      showAppToast({
+        title: 'Reversal matching failed',
+        tone: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not search for pending reversal matches.',
+      });
+    } finally {
+      setReconcilingPendingReversals(false);
+    }
+  }
+
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <TransactionFiltersCard
@@ -298,6 +334,10 @@ export default function TransactionsPanel(props: {
         readOnly={readOnly}
         canEditTaxonomy={canEditTaxonomy}
         canManageReversals={canManageReversals}
+        reconcilingPendingReversals={reconcilingPendingReversals}
+        onReconcilePendingReversals={() => {
+          void reconcilePendingReversals();
+        }}
         onApproveAllAutoMappings={() => {
           void runBulkAction({
             input: {

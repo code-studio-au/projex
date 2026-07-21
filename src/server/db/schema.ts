@@ -21,6 +21,7 @@ import type {
   RuleSuggestions,
   SubCategories,
   TxnComments,
+  TxnReversalMatchRejections,
   TxnReversals,
   Txns,
   Users,
@@ -136,6 +137,15 @@ export type TxnReversalTable = Override<
     status: TxnReversalStatus;
     marked_at: Generated<string>;
     matched_at: string | null;
+    created_at: Generated<string>;
+    updated_at: Generated<string>;
+  }
+>;
+
+export type TxnReversalMatchRejectionTable = Override<
+  TxnReversalMatchRejections,
+  {
+    rejected_at: Generated<string>;
     created_at: Generated<string>;
     updated_at: Generated<string>;
   }
@@ -308,6 +318,7 @@ type AppTableOverrides = {
   project_memberships: ProjectMembershipTable;
   txns: TxnTable;
   txn_comments: TxnCommentTable;
+  txn_reversal_match_rejections: TxnReversalMatchRejectionTable;
   txn_reversals: TxnReversalTable;
   budget_lines: BudgetLineTable;
   categories: CategoryTable;
@@ -353,6 +364,7 @@ export const DB_TABLES = [
   'rule_suggestions',
   'sub_categories',
   'txn_comments',
+  'txn_reversal_match_rejections',
   'txn_reversals',
   'txns',
   'users',

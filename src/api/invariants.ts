@@ -35,4 +35,5 @@ export const INVARIANTS: readonly string[] = [
 
   // Authorization
   'All write operations validate session and authorize against company/project roles on the server.',
+  'Unexpected server exceptions use a generic public message; original causes remain server-side in request-ID logs.',
 ];

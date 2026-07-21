@@ -255,7 +255,7 @@ test('PowerBI helpers fall back cleanly when optional columns are missing or bla
   assert.equal(powerBiExternalId(row), 'JRNL-404');
 });
 
-test('PowerBI default import rules exclude SAL and EXA while reviewing salary transfers', () => {
+test('PowerBI default import rules exclude SAL, import EXA, and review salary transfers', () => {
   const rules = defaultPowerBiImportRules(companyId).map((rule, index) => ({
     ...rule,
     id: asImportRuleId(`rule_${index + 1}`),
@@ -278,10 +278,15 @@ test('PowerBI default import rules exclude SAL and EXA while reviewing salary tr
   );
   assert.equal(
     decidePowerBiImportRule({
-      row: toPowerBiExpenditureActualsRow(rawPowerBiRow({ Source: 'EXA' })),
+      row: toPowerBiExpenditureActualsRow(
+        rawPowerBiRow({
+          Source: 'EXA',
+          'CC and Description': '5000 Operations',
+        })
+      ),
       rules,
     }).action,
-    'exclude'
+    'import'
   );
   assert.equal(
     decidePowerBiImportRule({

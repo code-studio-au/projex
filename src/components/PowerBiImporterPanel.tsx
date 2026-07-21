@@ -633,7 +633,8 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           <Text size="sm" c="dimmed" className={classes.filterIntro}>
             Upload or paste the PowerBI expenditure actuals CSV export, then
             preview the import before committing it. Import Rules run first to
-            exclude SAL/EXA and flag suspected salary transfers for review.
+            exclude SAL and flag suspected salary transfers for review. EXA rows
+            import by default so reversal candidates can be matched.
           </Text>
 
           <FileInput

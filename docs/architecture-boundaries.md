@@ -26,6 +26,9 @@ normalized server context:
 - `src/server/http/requestContext.ts` caches that verified result per request.
 - `src/server/fns/runtime.ts` trusts `sessionVerified` when request context has
   already normalized the session.
+- `src/server/start/middleware.ts` assigns native server-function request IDs,
+  returns them as response headers, and logs private unexpected-error causes
+  before the generic `AppError` crosses the RPC boundary.
 
 Do not re-implement session-user lookups inside feature modules when normalized
 context is already available.

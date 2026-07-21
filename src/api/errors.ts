@@ -30,6 +30,11 @@ export class AppError extends Error {
   }
 }
 
+const normalizedErrorCauses = new WeakMap<
+  AppError,
+  Readonly<{ value: unknown }>
+>();
+
 export function isAppError(err: unknown): err is AppError {
   if (typeof err !== 'object' || err === null) return false;
   const maybe = err as { name?: unknown };
@@ -38,6 +43,7 @@ export function isAppError(err: unknown): err is AppError {
 
 /**
  * Normalizes unknown thrown values into AppError for consistent API boundaries.
+ * Only messages from deliberately constructed AppError instances are public.
  */
 export function toAppError(
   err: unknown,
@@ -45,7 +51,26 @@ export function toAppError(
   fallbackMessage = 'Unexpected error'
 ): AppError {
   if (isAppError(err)) return err;
-  if (err instanceof Error) return new AppError(fallbackCode, err.message);
-  if (typeof err === 'string') return new AppError(fallbackCode, err);
-  return new AppError(fallbackCode, fallbackMessage);
+
+  const appError = new AppError(fallbackCode, fallbackMessage);
+  normalizedErrorCauses.set(appError, { value: err });
+  return appError;
+}
+
+export function getAppErrorCause(
+  error: AppError
+): Readonly<{ value: unknown }> | undefined {
+  return normalizedErrorCauses.get(error);
+}
+
+/** Formats private exception details for structured server logs, never responses. */
+export function serverErrorLogFields(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      error: error.message,
+      errorName: error.name,
+      ...(error.stack ? { errorStack: error.stack } : {}),
+    };
+  }
+  return { error: String(error) };
 }

@@ -607,6 +607,12 @@ const txnBulkActionTxnIdsSchema = z
 
 export const txnBulkActionInputSchema = z.discriminatedUnion('action', [
   z.object({
+    action: z.literal('approveAllAutoMappings'),
+  }),
+  z.object({
+    action: z.literal('reconcilePendingReversals'),
+  }),
+  z.object({
     action: z.literal('approveAutoMappings'),
     txnIds: txnBulkActionTxnIdsSchema,
   }),

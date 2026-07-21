@@ -502,6 +502,30 @@ test(
       });
       assert.equal(approveResult.updatedCount, 1);
 
+      await db
+        .updateTable('txns')
+        .set({ coding_pending_approval: true })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', pendingTxnId)
+        .executeTakeFirst();
+
+      const approveAllResult = await bulkTxnActionServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          action: 'approveAllAutoMappings',
+        },
+      });
+      assert.equal(approveAllResult.updatedCount, 1);
+
+      const approvedTxn = await db
+        .selectFrom('txns')
+        .select('coding_pending_approval')
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', pendingTxnId)
+        .executeTakeFirstOrThrow();
+      assert.equal(approvedTxn.coding_pending_approval, false);
+
       const recodeResult = await bulkTxnActionServer({
         context: { session: { userId } },
         projectId,

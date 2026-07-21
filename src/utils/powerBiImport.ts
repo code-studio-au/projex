@@ -357,23 +357,12 @@ export function defaultPowerBiImportRules(
     {
       companyId,
       scope: 'company',
-      name: 'Exclude EXA unacquitted Concur source',
-      action: 'exclude',
-      field: 'source',
-      operator: 'equals',
-      value: 'EXA',
-      sortOrder: 20,
-      enabled: true,
-    },
-    {
-      companyId,
-      scope: 'company',
       name: 'Review internal salary transfer cost codes',
       action: 'review',
       field: 'ccAndDescription',
       operator: 'contains_any',
       value: '4041,4141,salaries trf',
-      sortOrder: 30,
+      sortOrder: 20,
       enabled: true,
     },
     {
@@ -384,7 +373,7 @@ export function defaultPowerBiImportRules(
       field: 'journalLineDescription',
       operator: 'contains_any',
       value: 'sal,salary,salaries,payroll,wage,wages,suspense,trf',
-      sortOrder: 40,
+      sortOrder: 30,
       enabled: true,
     },
   ];

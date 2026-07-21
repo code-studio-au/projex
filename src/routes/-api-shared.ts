@@ -1,6 +1,10 @@
 import { createMiddleware } from '@tanstack/react-start';
 import type { z } from 'zod';
-import { AppError } from '../api/errors';
+import {
+  AppError,
+  getAppErrorCause,
+  serverErrorLogFields,
+} from '../api/errors';
 import {
   parseAppEndpointInput,
   type AppEndpoint,
@@ -322,19 +326,28 @@ async function withApiCore(
       if (retryAfterSeconds) {
         finalRes.headers.set('retry-after', String(retryAfterSeconds));
       }
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          type: 'api_request',
-          requestId,
-          method: request.method,
-          path: url.pathname,
-          status: finalRes.status,
-          durationMs: Date.now() - started,
-          code: err.code,
-          message: err.message,
-        })
-      );
+      const logEntry = {
+        level: finalRes.status >= 500 ? 'error' : 'warn',
+        type: 'api_request',
+        requestId,
+        method: request.method,
+        path: url.pathname,
+        status: finalRes.status,
+        durationMs: Date.now() - started,
+        code: err.code,
+        message: err.message,
+      };
+      if (finalRes.status >= 500) {
+        const cause = getAppErrorCause(err);
+        console.error(
+          JSON.stringify({
+            ...logEntry,
+            ...(cause ? serverErrorLogFields(cause.value) : {}),
+          })
+        );
+      } else {
+        console.warn(JSON.stringify(logEntry));
+      }
       return finalRes;
     }
     const res = Response.json(
@@ -354,7 +367,7 @@ async function withApiCore(
         path: url.pathname,
         status: finalRes.status,
         durationMs: Date.now() - started,
-        error: err instanceof Error ? err.message : String(err),
+        ...serverErrorLogFields(err),
       })
     );
     return finalRes;

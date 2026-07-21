@@ -25,18 +25,20 @@ Implemented:
 
 ### 2. Prevent internal server exception details from reaching clients
 
+Status: completed 21 July 2026.
+
 Risk:
 
 - `toAppError` currently preserves the original message when an unknown `Error` is converted to `INTERNAL_ERROR`
 - `withServerBoundary` applies that conversion to unexpected server-function failures
 - the HTTP boundary serializes `AppError.message`, so database constraints and implementation details can be exposed to clients
 
-Required work:
+Implemented:
 
-- preserve messages for deliberate domain `AppError` instances only
-- return a fixed generic message for unknown errors converted to `INTERNAL_ERROR`
-- retain the original cause in server-side structured logs with the request ID
-- add regression coverage for an unexpected error that passes through both the server-function and HTTP boundaries
+- deliberate domain `AppError` instances retain their public messages, while all unknown thrown values normalize to the fixed `Unexpected server error` message
+- original causes are held in a process-local, non-serializable association rather than response metadata or enumerable error properties
+- the HTTP and native TanStack server-function boundaries emit structured 500 logs containing the cause message, name, stack, and request ID only on the server
+- focused regression coverage passes an unexpected database-style exception through both the server-function and HTTP boundaries and verifies the private detail is logged but not returned
 
 ### 3. Restore a clean dependency security audit
 
@@ -58,20 +60,24 @@ Implemented:
 
 ### 4. Align the default EXA import rule with reversal matching
 
+Status: completed 21 July 2026.
+
 Risk:
 
 - the seeded rule named `Exclude EXA unacquitted Concur source` matches only `Source = EXA`
 - its predicate therefore excludes every EXA transaction rather than the narrower subset described by its name
 - new companies can silently exclude both pending-reversal and actual-reversal candidates before the matching workflow sees them
 
-Required work:
+Implemented:
 
-- confirm the business fields that distinguish unacquitted Concur rows from reversal-relevant EXA rows
-- narrow the exclusion predicate when a reliable discriminator exists, otherwise default EXA rows to import or review
-- define a safe migration or baseline-sync policy for companies that already inherited the broad rule
-- add import-preview and month-one/month-two reversal integration coverage for the chosen default
+- EXA now defaults to import because the available export fields do not provide a reliable discriminator for unacquitted Concur rows
+- new company baselines retain the SAL exclusion and salary-transfer review rules without creating a broad EXA exclusion
+- a forward migration removes only the exact untouched company seed and inherited project copies; customized project overrides are preserved as detached local rules
+- focused rule tests and database-backed import-preview coverage confirm EXA reaches the existing month-one/month-two reversal workflow
 
 ### 5. Make ambiguous reversal pairing valid by construction
+
+Status: completed 21 July 2026.
 
 Risk:
 
@@ -79,12 +85,15 @@ Risk:
 - optional reference and cost-centre comparisons are not transitive, so a zipped pair can be invalid even though each row participated in a tie around another row
 - approval rechecks amount, sign, project, and lock state but does not re-run the import-metadata compatibility score
 
-Required work:
+Implemented:
 
-- construct a bipartite graph containing only source/counterpart edges that pass `autoMatchScore`
-- choose deterministic default matches only from valid edges and preserve the ambiguity explanation for review
-- revalidate metadata compatibility during approval or otherwise enforce an invariant that stored suggested pairs are valid
-- add asymmetric missing/reference/cost-centre test cases, not only fully identical duplicate rows
+- reversal scoring and matching now live in a focused pure matching module that builds a bipartite graph from qualifying metadata-compatible edges only
+- deterministic augmenting-path matching preserves the maximum valid pair count, keeps stable closest ordering where possible, and marks every selected pair in an ambiguous candidate component for review
+- ambiguous audit comments list only valid candidates for that source or counterpart rather than every row in an independently sorted group
+- individual and bulk approval re-run the same amount, date, EXA metadata, reference, and cost-centre compatibility invariant before accepting a stored suggestion
+- focused asymmetric missing-reference and missing-cost-centre tests, metadata-drift approval coverage, and the duplicate-row database workflow all pass
+- reconciliation now runs in both directions: imports match new negatives to existing pending sources, while marking pending searches existing later negatives; reviewers can also run project-wide recovery after historical or multi-month imports
+- rejected automatic pairs are persisted and excluded from future reconciliation without removing them from manual matching
 
 ### 6. Make bulk transaction and reversal operations concurrency-safe
 
@@ -105,7 +114,7 @@ Required work:
 
 Current concentration:
 
-- reversal server handling combines scoring, ambiguous pairing, comments, workflow transitions, import orchestration, and bulk approval in one module
+- reversal server handling still combines comments, workflow transitions, import orchestration, and bulk approval after matching and scoring were extracted
 - `ProjectWorkspace`, PowerBI import, company settings, budget, summary, and smoke dashboard components each coordinate several responsibilities
 - company and project import-rule modals duplicate draft management, validation, save, reorder, and editor rendering
 

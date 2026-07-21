@@ -231,18 +231,23 @@ Command semantics and deploy-time verification details live in [docs/staging-run
   they know the spend should reverse in a later period.
 - Future imports automatically check new transactions against open pending
   reversals and raise review items when a likely reversal match is found.
+- Marking a transaction as pending also checks eligible negative EXA
+  transactions already in the project, including transactions loaded by a
+  multi-month import. Reviewers can use `Find reversal matches` to recover any
+  older pending items.
 - Clear matches become suggested reversal reviews; ambiguous matches are
   defaulted to the closest candidate and still require approval.
 - Reviewers can use the `Needs review` filter and bulk-approve suggested
   reversal matches.
 - Approved pairs move to `Matched reversal pair`, while rejected suggestions
-  return to `Pending reversal` for manual handling.
+  return to `Pending reversal` for manual handling and are not automatically
+  suggested again.
 - Projects are the operational workspace for budgets, imports, transactions, taxonomy, coding, splits, and transfers. Transaction transfer-out is disabled by default and can be enabled per project by company admins, executives, management, or an enabled global superadmin.
 - New operational projects can start with company standards applied immediately, and synced projects can later reapply company standards to backfill missing categories plus resync inherited import and auto-coding rules.
 - Synced projects may keep project-local exceptions, and company admins can promote stable project taxonomy, import rules, and auto-coding patterns back up into the company standard set.
 - Programme rollups are derived from active sub-project data; transactions and budgets are never duplicated onto the programme.
 - Sub-projects must belong to the same company and use the same currency as their programme.
-- PowerBI expenditure actuals are the primary import shape. Import Rules run before Auto-Categorise Rules so rows can be imported, excluded, or staged for project review before any category/subcategory coding is applied.
+- PowerBI expenditure actuals are the primary import shape. Import Rules run before Auto-Categorise Rules so rows can be imported, excluded, or staged for project review before any category/subcategory coding is applied. EXA rows import by default so pending and actual reversal candidates remain available for month-to-month matching.
 - Repeated manual coding can trigger immediate project auto-coding suggestions, while company admins can also review repeated-pattern rule suggestions and accept them into company auto-coding defaults.
 - Transaction actuals support signed amounts for credits, reversals, and recoveries. Budget allocations remain non-negative.
 
@@ -320,7 +325,7 @@ Operational defaults:
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
 - `package.json` override rationale lives in [docs/dependency-overrides.md](docs/dependency-overrides.md).
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
-- API responses include `x-request-id`; structured request logs are emitted server-side.
+- API responses include `x-request-id`; structured request logs are emitted server-side. Deliberate `AppError` messages form the public error contract, while unexpected exception details are replaced with a generic response and retained only in request-ID error logs.
 - Public deployments should use the nginx template at `deploy/nginx/projex.conf` for HTTPS redirects, security headers, forwarded headers, and the restart maintenance page.
 - The Node SSR wrapper stays on the known-good `h3-v2` RC alias for now.
   `h3@2.0.0` is deprecated upstream, and swapping to the newer direct `h3`

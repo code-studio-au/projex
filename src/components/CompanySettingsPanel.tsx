@@ -784,8 +784,9 @@ export default function CompanySettingsPanel(props: {
             Manage Import Rules
           </Button>
           <Text size="xs" c="dimmed">
-            Defaults are seeded for SAL, EXA, and suspected salary transfers,
-            then can be adjusted centrally for the company without code changes.
+            Defaults are seeded for SAL and suspected salary transfers, then can
+            be adjusted centrally for the company without code changes. EXA rows
+            import by default so reversal candidates remain available.
           </Text>
         </Stack>
       </Paper>
