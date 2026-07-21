@@ -9,10 +9,11 @@ import {
 import type { Txn } from '../src/types/index.ts';
 import { asCompanyId, asProjectId, asTxnId } from '../src/types/index.ts';
 
-function exaTxn(args: {
+function powerBiTxn(args: {
   id: string;
   amountCents: number;
   date?: string;
+  source?: string;
   referenceNum?: string;
   costCentre?: string;
 }): Txn {
@@ -29,7 +30,7 @@ function exaTxn(args: {
     categorisable: true,
     importSourceType: 'powerbi_expenditure_actuals',
     importSourceMeta: {
-      Source: 'EXA',
+      Source: args.source ?? 'EXA',
       'Journal Line Description': 'Monthly accrual',
       ...(args.referenceNum ? { 'Reference Num': args.referenceNum } : {}),
       ...(args.costCentre ? { 'CC and Description': args.costCentre } : {}),
@@ -41,21 +42,21 @@ function exaTxn(args: {
 }
 
 test('ambiguous matching uses only valid cost-centre edges instead of independently zipping candidates', () => {
-  const sourceA = exaTxn({
+  const sourceA = powerBiTxn({
     id: 'txn_source_a',
     amountCents: 10000,
     referenceNum: 'REF-A',
   });
-  const sourceB = exaTxn({
+  const sourceB = powerBiTxn({
     id: 'txn_source_b',
     amountCents: 10000,
     costCentre: 'CC-B',
   });
-  const counterpartA = exaTxn({
+  const counterpartA = powerBiTxn({
     id: 'txn_counterpart_a',
     amountCents: -10000,
   });
-  const counterpartB = exaTxn({
+  const counterpartB = powerBiTxn({
     id: 'txn_counterpart_b',
     amountCents: -10000,
     costCentre: 'CC-A',
@@ -87,20 +88,20 @@ test('ambiguous matching uses only valid cost-centre edges instead of independen
 });
 
 test('ambiguous matching handles asymmetric missing references without creating a conflicting pair', () => {
-  const sourceWithReference = exaTxn({
+  const sourceWithReference = powerBiTxn({
     id: 'txn_source_with_ref',
     amountCents: 20000,
     referenceNum: 'REF-A',
   });
-  const sourceWithoutReference = exaTxn({
+  const sourceWithoutReference = powerBiTxn({
     id: 'txn_source_without_ref',
     amountCents: 20000,
   });
-  const counterpartWithoutReference = exaTxn({
+  const counterpartWithoutReference = powerBiTxn({
     id: 'txn_counterpart_without_ref',
     amountCents: -20000,
   });
-  const counterpartWithDifferentReference = exaTxn({
+  const counterpartWithDifferentReference = powerBiTxn({
     id: 'txn_counterpart_with_ref',
     amountCents: -20000,
     referenceNum: 'REF-B',
@@ -129,17 +130,17 @@ test('ambiguous matching handles asymmetric missing references without creating 
 });
 
 test('matching excludes previously rejected automatic pairs while retaining other valid candidates', () => {
-  const source = exaTxn({
+  const source = powerBiTxn({
     id: 'txn_rejected_source',
     amountCents: 30000,
     referenceNum: 'REF-A',
   });
-  const rejectedCounterpart = exaTxn({
+  const rejectedCounterpart = powerBiTxn({
     id: 'txn_rejected_counterpart',
     amountCents: -30000,
     referenceNum: 'REF-A',
   });
-  const alternativeCounterpart = exaTxn({
+  const alternativeCounterpart = powerBiTxn({
     id: 'txn_alternative_counterpart',
     amountCents: -30000,
     referenceNum: 'REF-A',
@@ -156,4 +157,63 @@ test('matching excludes previously rejected automatic pairs while retaining othe
   assert.equal(plan.length, 1);
   assert.equal(plan[0]?.counterpartTxn.id, alternativeCounterpart.id);
   assert.equal(plan[0]?.ambiguous, false);
+});
+
+test('matching supports arbitrary same-source Power BI transactions', () => {
+  const source = powerBiTxn({
+    id: 'txn_custom_source',
+    amountCents: 1_121_434,
+    date: '2024-06-13',
+    source: 'Customer Ledger Next',
+    costCentre: '6401 (Contractors)',
+  });
+  const counterpart = powerBiTxn({
+    id: 'txn_custom_counterpart',
+    amountCents: -1_121_434,
+    date: '2024-06-13',
+    source: ' customer ledger next ',
+    costCentre: '6401 (Contractors)',
+  });
+
+  assert.ok(
+    isValidReversalAutoMatchEdge({
+      sourceTxn: source,
+      counterpartTxn: counterpart,
+    })
+  );
+  assert.equal(
+    buildReversalAutoMatchPlan({
+      sourceTxns: [source],
+      counterpartTxns: [counterpart],
+    })[0]?.counterpartTxn.id,
+    counterpart.id
+  );
+});
+
+test('matching never pairs transactions from different Power BI sources', () => {
+  const source = powerBiTxn({
+    id: 'txn_source_system_a',
+    amountCents: 40_000,
+    source: 'System A',
+  });
+  const counterpart = powerBiTxn({
+    id: 'txn_source_system_b',
+    amountCents: -40_000,
+    source: 'System B',
+  });
+
+  assert.equal(
+    isValidReversalAutoMatchEdge({
+      sourceTxn: source,
+      counterpartTxn: counterpart,
+    }),
+    false
+  );
+  assert.deepEqual(
+    buildReversalAutoMatchPlan({
+      sourceTxns: [source],
+      counterpartTxns: [counterpart],
+    }),
+    []
+  );
 });

@@ -373,8 +373,8 @@ export default function TransactionReversalModal(props: {
               </Text>
               <Text size="sm" c="dimmed">
                 {isAmbiguousSuggested
-                  ? 'This EXA reversal pair was default-matched during import because multiple possible reversals existed. Approve it to accept the default, or reject it to return the source transaction to pending reversal for manual matching.'
-                  : 'This EXA reversal pair was suggested during import. Approve it to finalize the match, or reject it to return the source transaction to pending reversal for manual matching.'}
+                  ? 'This Power BI reversal pair was default-matched because multiple possible reversals existed. Approve it to accept the default, or reject it to return the source transaction to pending reversal for manual matching.'
+                  : 'This Power BI reversal pair was suggested automatically. Approve it to finalize the match, or reject it to return the source transaction to pending reversal for manual matching.'}
               </Text>
             </Paper>
             <Group justify="space-between" wrap="wrap">

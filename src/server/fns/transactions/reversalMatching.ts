@@ -66,16 +66,22 @@ export function autoMatchScore(args: {
   sourceTxn: Txn;
   counterpartTxn: Txn;
 }): number {
+  if (
+    args.sourceTxn.importSourceType !== 'powerbi_expenditure_actuals' ||
+    args.counterpartTxn.importSourceType !== 'powerbi_expenditure_actuals'
+  ) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
   const sourceMeta = toPowerBiSourceMeta(args.sourceTxn.importSourceMeta);
   const counterpartMeta = toPowerBiSourceMeta(
     args.counterpartTxn.importSourceMeta
   );
   if (!sourceMeta || !counterpartMeta) return Number.NEGATIVE_INFINITY;
 
-  if (
-    normalizeMetaValue(sourceMeta.source) !== 'exa' ||
-    normalizeMetaValue(counterpartMeta.source) !== 'exa'
-  ) {
+  const sourceType = normalizeMetaValue(sourceMeta.source);
+  const counterpartType = normalizeMetaValue(counterpartMeta.source);
+  if (!sourceType || sourceType !== counterpartType) {
     return Number.NEGATIVE_INFINITY;
   }
 

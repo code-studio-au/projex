@@ -211,7 +211,6 @@ export function matchedTxnReversalExistsSql() {
 }
 
 export function needsReviewTxnSql() {
-  const pendingReversal = pendingTxnReversalExistsSql();
   return sql<boolean>`(
     (
       t.categorisable
@@ -229,20 +228,6 @@ export function needsReviewTxnSql() {
           'auto_matched_ambiguous_pending_approval',
           'reversal_exception'
         )
-    )
-    or (
-      ${pendingReversal}
-      and exists (
-        select 1
-        from txn_reversals tr
-        where tr.project_id = t.project_id
-          and tr.source_txn_public_id = t.public_id
-          and tr.status in (
-            'auto_matched_pending_approval',
-            'auto_matched_ambiguous_pending_approval',
-            'reversal_exception'
-          )
-      )
     )
   )`;
 }

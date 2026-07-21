@@ -170,6 +170,8 @@ export async function listTxnReversalMatchSuggestionsServer(args: {
       txnId: args.txnId,
     });
     assertSourceTxnEligible(sourceTxn);
+    const latestCandidateDate = addDays(sourceTxn.date, 62);
+    if (!latestCandidateDate) return [];
 
     const candidateRows = await context.db
       .selectFrom('txns as t')
@@ -183,6 +185,8 @@ export async function listTxnReversalMatchSuggestionsServer(args: {
       .where('t.locked_at', 'is', null)
       .where('t.budget_impact', '=', true)
       .where('t.amount_cents', '=', -sourceTxn.amountCents)
+      .where('t.txn_date', '>=', sourceTxn.date)
+      .where('t.txn_date', '<=', latestCandidateDate)
       .where('tr.id', 'is', null)
       .orderBy('t.txn_date', 'desc')
       .orderBy('t.id', 'desc')

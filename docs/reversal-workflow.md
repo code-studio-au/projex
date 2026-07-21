@@ -1,12 +1,13 @@
 # Reversal Workflow
 
-The reversal workflow is designed for month-to-month EXA handling where a user
-may know a transaction should reverse later, but the actual reversal has not
-been imported yet.
+The reversal workflow is designed for month-to-month Power BI expenditure
+handling where a user may know a transaction should reverse later, but the
+actual reversal has not been imported yet.
 
 ## Core flow
 
-1. In month 1, a user codes an EXA transaction and marks it as `Pending reversal`.
+1. In month 1, a user codes an imported transaction and marks it as
+   `Pending reversal`.
 2. When the next import arrives, Projex checks new transactions against open
    pending reversals in the same project. If several months were imported
    together, marking the source pending later checks the reversals already in
@@ -35,15 +36,18 @@ been imported yet.
 - A selected bulk approval is atomic: if any suggested pair has become invalid,
   none of the selected pairs or approval comments are committed.
 - `Find reversal matches` searches all currently pending sources against
-  eligible, unclaimed negative EXA transactions already in the project. This is
-  useful after historical or multi-month imports.
+  eligible, unclaimed negative Power BI transactions already in the project.
+  This is useful after historical or multi-month imports.
 - `Accept all auto-mappings` only applies to coding approvals, while reversal
   suggestions use the dedicated reversal approval action.
 
 ## Matching behavior
 
 - Matching is intended for monthly import cadence where month 1 contains the
-  source EXA and month 2 may contain the reversing EXA.
+  source transaction and month 2 may contain its reversal.
+- The `Source` value is not vendor-coded. Any current or future source value is
+  eligible when both sides contain the same normalized value; transactions from
+  different source systems are never paired automatically.
 - A reversal candidate must occur on or after its source transaction and no
   more than 62 days later; earlier negative transactions are never considered.
 - EXA rows import by default. Company or project Import Rules can still review

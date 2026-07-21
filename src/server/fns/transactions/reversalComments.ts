@@ -126,7 +126,7 @@ export function buildAmbiguousSuggestedSourceComment(args: {
   validCounterpartTxnIds: TxnId[];
 }) {
   return `[Default reversal match selected]
-The EXA matching group had overlapping candidates, so a deterministic valid default was selected for review.
+The Power BI matching group had overlapping candidates, so a deterministic valid default was selected for review.
 Defaulted to ${args.counterpartTxn.id} on ${args.counterpartTxn.date} for ${formatSignedMajorUnits(args.counterpartTxn.amountCents)}.
 Valid reversal candidates for this source: ${args.validCounterpartTxnIds.join(', ')}.
 
@@ -138,7 +138,7 @@ export function buildAmbiguousSuggestedCounterpartComment(args: {
   validSourceTxnIds: TxnId[];
 }) {
   return `[Defaulted as reversal]
-The EXA matching group had overlapping candidates, so this transaction was default-matched to ${args.sourceTxn.id} dated ${args.sourceTxn.date} for ${formatSignedMajorUnits(args.sourceTxn.amountCents)}.
+The Power BI matching group had overlapping candidates, so this transaction was default-matched to ${args.sourceTxn.id} dated ${args.sourceTxn.date} for ${formatSignedMajorUnits(args.sourceTxn.amountCents)}.
 Valid pending reversal sources for this transaction: ${args.validSourceTxnIds.join(', ')}.
 Awaiting admin approval.`;
 }

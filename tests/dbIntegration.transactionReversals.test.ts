@@ -629,7 +629,7 @@ test(
 );
 
 test(
-  'multi-month imports reconcile when pending is marked later and support project-wide recovery',
+  'multi-month imports from arbitrary same-source systems reconcile when pending is marked later',
   { skip: !integrationDatabaseUrl },
   async () => {
     const db = createIntegrationDb();
@@ -712,7 +712,7 @@ test(
             amountCents: -12500,
             importSourceType: 'powerbi_expenditure_actuals',
             importSourceMeta: {
-              Source: 'EXA',
+              Source: 'CUSTOMER_LEDGER_V2',
               'Journal Line Description': 'May accrual A',
               'CC and Description': 'CC100 Team',
               'Reference Num': 'REF-A',
@@ -729,7 +729,7 @@ test(
             amountCents: 12500,
             importSourceType: 'powerbi_expenditure_actuals',
             importSourceMeta: {
-              Source: 'EXA',
+              Source: 'CUSTOMER_LEDGER_V2',
               'Journal Line Description': 'May accrual A',
               'CC and Description': 'CC100 Team',
               'Reference Num': 'REF-A',
@@ -746,7 +746,7 @@ test(
             amountCents: -12500,
             importSourceType: 'powerbi_expenditure_actuals',
             importSourceMeta: {
-              Source: 'EXA',
+              Source: 'CUSTOMER_LEDGER_V2',
               'Journal Line Description': 'May accrual A',
               'CC and Description': 'CC100 Team',
               'Reference Num': 'REF-A',
@@ -763,7 +763,7 @@ test(
             amountCents: 9900,
             importSourceType: 'powerbi_expenditure_actuals',
             importSourceMeta: {
-              Source: 'EXA',
+              Source: 'CUSTOMER_LEDGER_V2',
               'Journal Line Description': 'May accrual B',
               'CC and Description': 'CC200 Team',
               'Reference Num': 'REF-B',
@@ -780,7 +780,7 @@ test(
             amountCents: -9900,
             importSourceType: 'powerbi_expenditure_actuals',
             importSourceMeta: {
-              Source: 'EXA',
+              Source: 'CUSTOMER_LEDGER_V2',
               'Journal Line Description': 'May accrual B',
               'CC and Description': 'CC200 Team',
               'Reference Num': 'REF-B',
