@@ -7,29 +7,8 @@ import type {
   CompanyDefaultSubCategoryId,
   SubCategory,
   SubCategoryId,
-  Txn,
 } from '../types';
-import {
-  canonicalizeRuleText,
-  normalizeRuleText,
-  textRuleMatches,
-  transactionRuleHaystack,
-} from './textRuleMatching';
-
-export function findMatchingCompanyDefaultRule(
-  txn: Pick<Txn, 'item' | 'description'>,
-  rules: CompanyDefaultMappingRule[]
-): CompanyDefaultMappingRule | null {
-  const haystack = transactionRuleHaystack(txn);
-  if (!haystack) return null;
-  const sorted = [...rules].sort((a, b) => a.sortOrder - b.sortOrder);
-  for (const rule of sorted) {
-    if (textRuleMatches({ haystack, needle: rule.matchText })) {
-      return rule;
-    }
-  }
-  return null;
-}
+import { canonicalizeRuleText, normalizeRuleText } from './textRuleMatching';
 
 export function resolveCompanyDefaultRuleToProjectTaxonomy(args: {
   rule: CompanyDefaultMappingRule;
@@ -80,38 +59,6 @@ export function resolveCompanyDefaultRuleToProjectTaxonomy(args: {
   return {
     categoryId: projectCategory.id,
     subCategoryId: projectSubCategory.id,
-  };
-}
-
-export function mapImportedTransactionWithCompanyDefaults(args: {
-  txn: Txn;
-  rules: CompanyDefaultMappingRule[];
-  defaultCategories: CompanyDefaultCategory[];
-  defaultSubCategories: CompanyDefaultSubCategory[];
-  projectCategories: Category[];
-  projectSubCategories: SubCategory[];
-}): Txn {
-  if (args.txn.subCategoryId) return args.txn;
-
-  const rule = findMatchingCompanyDefaultRule(args.txn, args.rules);
-  if (!rule) return args.txn;
-
-  const resolved = resolveCompanyDefaultRuleToProjectTaxonomy({
-    rule,
-    defaultCategories: args.defaultCategories,
-    defaultSubCategories: args.defaultSubCategories,
-    projectCategories: args.projectCategories,
-    projectSubCategories: args.projectSubCategories,
-  });
-  if (!resolved) return args.txn;
-
-  return {
-    ...args.txn,
-    categoryId: resolved.categoryId,
-    subCategoryId: resolved.subCategoryId,
-    companyDefaultMappingRuleId: rule.id,
-    codingSource: 'company_default_rule',
-    codingPendingApproval: true,
   };
 }
 

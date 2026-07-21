@@ -31,10 +31,6 @@ export function monthStart(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-export function nextMonthStart(d: Date) {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
-}
-
 export function monthKeyFromStart(d: Date) {
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -53,10 +49,6 @@ export function quarterOfMonth(month: number): Quarter {
   if (month <= 6) return 'Q2';
   if (month <= 9) return 'Q3';
   return 'Q4';
-}
-
-export function quarterKey(year: number, q: Quarter) {
-  return `${year}_${q}`;
 }
 
 export function formatMonthLabel(mk: string) {

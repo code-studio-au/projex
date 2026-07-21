@@ -23,7 +23,6 @@ export type CompanyDefaultMappingRuleId = Brand<
   'CompanyDefaultMappingRuleId'
 >;
 export type ProjectAutoCodingRuleId = Brand<string, 'ProjectAutoCodingRuleId'>;
-export type RuleSuggestionSignalId = Brand<string, 'RuleSuggestionSignalId'>;
 export type RuleSuggestionId = Brand<string, 'RuleSuggestionId'>;
 export type ImportRuleId = Brand<string, 'ImportRuleId'>;
 export type ImportBatchId = Brand<string, 'ImportBatchId'>;
@@ -32,27 +31,6 @@ export type CompanyExportJobId = Brand<string, 'CompanyExportJobId'>;
 export type TxnId = Brand<string, 'TxnId'>;
 export type TxnCommentId = Brand<string, 'TxnCommentId'>;
 export type BudgetLineId = Brand<string, 'BudgetLineId'>;
-
-/** Prefer specific ID types; this exists only for cases where a truly-generic ID is required. */
-export type AnyId =
-  | CompanyId
-  | ProjectId
-  | UserId
-  | CategoryId
-  | SubCategoryId
-  | CompanyDefaultCategoryId
-  | CompanyDefaultSubCategoryId
-  | CompanyDefaultMappingRuleId
-  | ProjectAutoCodingRuleId
-  | RuleSuggestionSignalId
-  | RuleSuggestionId
-  | ImportRuleId
-  | ImportBatchId
-  | ImportCandidateId
-  | CompanyExportJobId
-  | TxnId
-  | TxnCommentId
-  | BudgetLineId;
 
 // --- cast helpers (no runtime validation) ---
 export const asCompanyId = (v: string) => brand<string, 'CompanyId'>(v);

@@ -16,7 +16,7 @@ import {
 import {
   applyTxnPageFilters,
   buildTransactionsPageFilters,
-  pendingTxnReversalExistsSql,
+  OPEN_TXN_REVERSAL_STATUSES,
   prefixedTxnSelectColumns,
   toCount,
   txnAssignedToUserSql,
@@ -134,10 +134,25 @@ export async function listTransactionsPageServer(args: {
       rowsQuery.limit(args.input.pageSize).offset(offset).execute(),
       (() => {
         const summaryQuery = applyTxnPageFilters(
-          db.selectFrom('txns as t').select(() => {
-            const validSubCategory = txnValidSubCategorySql();
+          db.selectFrom('txns as t'),
+          filters
+        )
+          .leftJoin('sub_categories as summary_sc', (join) =>
+            join
+              .onRef('summary_sc.project_id', '=', 't.project_id')
+              .onRef('summary_sc.id', '=', 't.sub_category_id')
+          )
+          .leftJoin('txn_reversals as summary_tr', (join) =>
+            join
+              .onRef('summary_tr.project_id', '=', 't.project_id')
+              .onRef('summary_tr.source_txn_public_id', '=', 't.public_id')
+              .on('summary_tr.status', 'in', OPEN_TXN_REVERSAL_STATUSES)
+          )
+          .select(() => {
+            // Both joins are unique in project scope, so they cannot multiply txns.
+            const validSubCategory = sql<boolean>`summary_sc.id is not null`;
             const assignedToUser = txnAssignedToUserSql(userId);
-            const pendingReversal = pendingTxnReversalExistsSql();
+            const pendingReversal = sql<boolean>`summary_tr.id is not null`;
             return [
               sql<number>`count(*)`.as('total_count'),
               sql<number>`coalesce(sum(case when t.budget_impact then t.amount_cents else 0 end), 0)`.as(
@@ -171,9 +186,7 @@ export async function listTransactionsPageServer(args: {
                 'locked_count'
               ),
             ];
-          }),
-          filters
-        );
+          });
         return summaryQuery.executeTakeFirstOrThrow();
       })(),
     ]);

@@ -43,7 +43,7 @@ export async function refreshAfterAuthChange(queryClient: QueryClient) {
   await queryClient.invalidateQueries();
 }
 
-export async function clearProtectedDataAfterLogout(queryClient: QueryClient) {
+async function clearProtectedDataAfterLogout(queryClient: QueryClient) {
   await queryClient.cancelQueries({
     predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] !== 'session',
   });

@@ -7,7 +7,7 @@ import type { CompanyDefaultMappingRuleId } from './ids.ts';
  * `externalId` is optional because source exports may not provide a stable ID.
  * `id` is optional and may be synthesized later for local/client identity.
  */
-export type ImportTxn = Omit<
+type ImportTxn = Omit<
   Txn,
   | 'id'
   | 'internalId'
@@ -40,14 +40,14 @@ export type ImportTxnWithTaxonomy = ImportTxn & {
   rawSourceRow?: Record<string, string>;
 };
 
-export type ImportPreviewMappingStatus =
+type ImportPreviewMappingStatus =
   | 'matched_rule'
   | 'source_taxonomy'
   | 'auto_created'
   | 'uncoded'
   | 'invalid';
 
-export type ImportPreviewDuplicateReason = 'existing' | 'import';
+type ImportPreviewDuplicateReason = 'existing' | 'import';
 
 export type ImportPreviewRow = {
   sourceRowIndex: number;

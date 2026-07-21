@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { listTransactionCommentSummariesServer } from '../src/server/fns/transactionComments.ts';
-import { listProjectTransactionSummaryServer } from '../src/server/fns/transactions.ts';
+import {
+  listProjectTransactionSummaryServer,
+  listTransactionsPageServer,
+} from '../src/server/fns/transactions.ts';
 import {
   asCategoryId,
   asCompanyId,
@@ -230,6 +233,23 @@ test(
           },
         ])
         .execute();
+      await db
+        .insertInto('txn_comments')
+        .values({
+          id: 'itest_txn_summary_comment_1',
+          company_id: companyId,
+          project_id: projectId,
+          txn_public_id: codedTxnId,
+          parent_comment_id: null,
+          body: 'Assigned summary fixture',
+          assigned_to_user_id: userId,
+          created_by_user_id: userId,
+          resolved_at: null,
+          resolved_by_user_id: null,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
 
       const summary = await listProjectTransactionSummaryServer({
         context: { session: { userId } },
@@ -253,6 +273,26 @@ test(
       assert.equal(summary.uncodedAmountCents, 4000);
       assert.equal(summary.autoMappedPendingCount, 1);
       assert.equal(summary.invalidDateCount, 0);
+
+      const page = await listTransactionsPageServer({
+        context: { session: { userId } },
+        projectId,
+        input: { pageIndex: 0, pageSize: 20 },
+      });
+      assert.deepEqual(page.summary, {
+        totalCount: 4,
+        budgetImpactCents: 29000,
+        pendingReversalCount: 0,
+        pendingReversalCents: 0,
+        adjustedBudgetImpactCents: 29000,
+        uncodedCount: 1,
+        uncodedCents: 4000,
+        sourceOnlyCount: 1,
+        assignedToMeCount: 1,
+        reviewedCount: 0,
+        lockedCount: 0,
+        invalidDateCount: 0,
+      });
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

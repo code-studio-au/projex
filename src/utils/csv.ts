@@ -122,7 +122,7 @@ function fingerprint(
   ].join('|');
 }
 
-export /**
+/**
  * Derives a deterministic ID string from stable row fields.
  *
  * This is used to avoid re-import duplicates when the same bank export is imported multiple times.

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreIssues": {
+    "scripts/disposable-postgres.mjs": ["exports"]
+  },
+  "workspaces": {
+    ".": {
+      "entry": [
+        "auth.ts",
+        "src/router.tsx",
+        "src/routes/**/*.{ts,tsx}",
+        "src/server/db/kysely-migrations/*.ts",
+        "scripts/disposable-postgres.d.ts",
+        "deploy/nginx/maintenance.js"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}",
+        "tests/**/*.ts",
+        "scripts/**/*.{js,mjs,ts}"
+      ],
+      "ignoreDependencies": ["kysely-codegen"],
+      "ignoreBinaries": ["cdk", "openssl"]
+    },
+    "deploy/cdk": {
+      "entry": ["bin/projex-infra.ts"],
+      "project": ["**/*.ts"],
+      "ignoreDependencies": ["ts-node"]
+    }
+  }
+}

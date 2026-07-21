@@ -5,7 +5,6 @@ import type {
   CompanyCreateInput,
   CompanyCreateResult,
   CreateCompanyUserInput,
-  CompanyUpdateInput,
   ProjectCreateInput,
   ProjectUpdateInput,
   TxnImportInput,
@@ -26,7 +25,6 @@ import {
   reactivateCompanyServerFn,
   reactivateProjectServerFn,
   sendCompanyUserInviteEmailServerFn,
-  updateCompanyServerFn,
   updateProjectServerFn,
 } from '../server/start/functions/admin';
 
@@ -81,22 +79,6 @@ export function useUpdateProjectMutation(companyId: CompanyId) {
           queryKey: qk.companySummary(scopeUserId, companyId),
         }),
       ]);
-    },
-  });
-}
-
-export function useUpdateCompanyMutation() {
-  const qc = useQueryClient();
-  const scopeUserId = useQueryScopeUserId();
-  return useMutation({
-    mutationFn: (input: CompanyUpdateInput) =>
-      updateCompanyServerFn({ data: input }),
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: qk.company(scopeUserId, vars.id) });
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
-      });
     },
   });
 }

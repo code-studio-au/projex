@@ -17,7 +17,7 @@ function createDefaultOptions() {
 
 let browserQueryClient: QueryClient | null = null;
 
-export function makeQueryClient() {
+function makeQueryClient() {
   return new QueryClient({
     defaultOptions: createDefaultOptions(),
   });

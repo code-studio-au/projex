@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Stack } from '@mantine/core';
-import type { TransactionsHook } from '../hooks/useTransactions';
+import type { TransactionActions } from '../hooks/useTransactionActions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { ProjectId, TransactionDrilldownFilter, TxnId } from '../types';
 import type { ProjectRuleSuggestionPrompt } from '../api/types';
@@ -24,7 +24,7 @@ import classes from '../styles/ui.module.css';
 
 export default function TransactionsPanel(props: {
   projectId: ProjectId;
-  txns: TransactionsHook;
+  transactionActions: TransactionActions;
   taxonomy: TaxonomyHook;
   autoMappedPendingCount: number;
   currencyCode: string;
@@ -51,7 +51,7 @@ export default function TransactionsPanel(props: {
 }) {
   const {
     projectId,
-    txns,
+    transactionActions,
     taxonomy,
     autoMappedPendingCount,
     currencyCode,
@@ -171,7 +171,7 @@ export default function TransactionsPanel(props: {
     reconcilingPendingReversals,
     runBulkAction,
   } = useTransactionBulkActionsController({
-    mutate: txns.runBulkAction,
+    mutate: transactionActions.runBulkAction,
     clearSelection,
   });
 
@@ -185,7 +185,7 @@ export default function TransactionsPanel(props: {
   // Note: keep columns as a plain value (no manual memoization).
   // This avoids conflicts with the React Compiler's memoization preservation rule.
   const txnColumns = createTransactionColumns({
-    txns,
+    transactionActions,
     taxonomy,
     currencyCode,
     readOnly,
@@ -416,14 +416,16 @@ export default function TransactionsPanel(props: {
         currencyCode={currencyCode}
         onCloseSplit={() => setSplitTxn(null)}
         onSplit={(children) =>
-          splitTxn ? txns.splitTxn(splitTxn.id, children) : Promise.resolve()
+          splitTxn
+            ? transactionActions.splitTxn(splitTxn.id, children)
+            : Promise.resolve()
         }
         transferTxn={transferTxn}
         transferProjectOptions={transferProjectOptions}
         onCloseTransfer={() => setTransferTxn(null)}
         onTransfer={(input) =>
           transferTxn
-            ? txns.transferTxn(transferTxn.id, input)
+            ? transactionActions.transferTxn(transferTxn.id, input)
             : Promise.resolve()
         }
         reversalTxn={reversalTxn}
@@ -433,9 +435,11 @@ export default function TransactionsPanel(props: {
         )}
         onCloseReversal={() => setReversalTxn(null)}
         onLoadReversalSuggestions={(txnId) =>
-          txns.getReversalSuggestions(txnId)
+          transactionActions.getReversalSuggestions(txnId)
         }
-        onSubmitReversalAction={(input) => txns.runReversalAction(input)}
+        onSubmitReversalAction={(input) =>
+          transactionActions.runReversalAction(input)
+        }
         activeCommentsTxn={activeCommentsTxn}
         onCloseComments={() => {
           setCommentsTxn(null);

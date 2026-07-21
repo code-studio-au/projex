@@ -12,7 +12,7 @@ type TxnAccountingMetadata = Pick<
   | 'categorisable'
 >;
 
-export function standardTxnAccountingMetadata(): TxnAccountingMetadata {
+function standardTxnAccountingMetadata(): TxnAccountingMetadata {
   return {
     txnType: 'standard',
     parentTxnId: undefined,
@@ -148,56 +148,4 @@ export function assertUniqueTransactionKeysInProject(
     }
     externalIds.add(externalId);
   }
-}
-
-function compareOptionalString(
-  a: string | undefined,
-  b: string | undefined
-): number {
-  if (a && b) return a.localeCompare(b);
-  if (a) return 1;
-  if (b) return -1;
-  return 0;
-}
-
-function compareOptionalDecimalString(
-  a: string | undefined,
-  b: string | undefined
-): number {
-  if (a && b) {
-    const aNumber = /^\d+$/.test(a) ? BigInt(a) : null;
-    const bNumber = /^\d+$/.test(b) ? BigInt(b) : null;
-    if (aNumber !== null && bNumber !== null) {
-      if (aNumber < bNumber) return -1;
-      if (aNumber > bNumber) return 1;
-      return 0;
-    }
-    return a.localeCompare(b);
-  }
-  if (a) return 1;
-  if (b) return -1;
-  return 0;
-}
-
-export function sortTransactionsForList<
-  T extends Pick<Txn, 'createdAt' | 'internalId'>,
->(transactions: readonly T[]): T[] {
-  return transactions
-    .map((transaction, index) => ({ transaction, index }))
-    .sort((a, b) => {
-      const createdAtOrder = compareOptionalString(
-        a.transaction.createdAt,
-        b.transaction.createdAt
-      );
-      if (createdAtOrder !== 0) return createdAtOrder;
-
-      const internalIdOrder = compareOptionalDecimalString(
-        a.transaction.internalId,
-        b.transaction.internalId
-      );
-      if (internalIdOrder !== 0) return internalIdOrder;
-
-      return a.index - b.index;
-    })
-    .map(({ transaction }) => transaction);
 }

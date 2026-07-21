@@ -106,7 +106,7 @@ export function buildCreateDatabaseExecArgs({ user, password, database }) {
   ];
 }
 
-export function ensureDockerAvailable() {
+function ensureDockerAvailable() {
   try {
     runCommand('docker', ['version'], { stdio: 'ignore' });
   } catch {

@@ -127,34 +127,28 @@ Implemented:
 
 ### 8. Remove verified dead code and control export surface growth
 
-Verified examples:
+Status: completed 21 July 2026.
 
-- unused `LoadingChip` and `useRequiredSession` exports
-- unused create/delete transaction and update-company query mutations
-- unused legacy access helpers and company-default mapping functions
-- the disabled full-list transaction query and coding helpers in `useTransactions`, while the workspace only consumes its replace/append import mutations
+Implemented:
 
-Required work:
-
-- remove only candidates confirmed by repository-wide reference checks, accounting for dynamic route, script, CDK, and ambient type entry points
-- replace the legacy `useTransactions` wrapper with focused import mutations where that is its only remaining responsibility
-- reduce unnecessary exports for helpers that are file-local
-- add a configured Knip check or equivalent dead-code report with explicit dynamic-entry exceptions
+- five orphan files, unused UI/query mutations, legacy access and mapping helpers, obsolete response schemas, and unused domain types were removed after repository-wide reference checks
+- the disabled full-list `useTransactions` model was replaced by focused transaction actions and the existing import mutation, so the workspace no longer creates an unused full-list query
+- file-local query options, validators, and helper types are no longer exported as accidental API surface
+- Knip now covers application, route, test, script, migration, nginx, and CDK entry points in application and pre-commit verification
+- the four non-static dependency/export exceptions are narrow and documented in `docs/dead-code-verification.md`
 
 ### 9. Complete paginated transaction query behaviour and profile its cost
 
-Risk:
+Status: completed 21 July 2026.
 
-- the transaction panel checks `isPlaceholderData`, but the paginated query does not configure `placeholderData`, leaving the intended transition state inactive
-- every page/filter request also recalculates a multi-field aggregate summary over the matching transaction set
-- the current transaction indexes do not directly cover the default project/date/id page ordering
+Implemented:
 
-Required work:
-
-- either configure `placeholderData: keepPreviousData` or remove the inactive transition branch and use an intentional loading state
-- add focused pagination tests for page/filter transitions
-- capture `EXPLAIN (ANALYZE, BUFFERS)` evidence with representative project sizes before adding indexes
-- add a project/date/id index or summary-query redesign only when profiling demonstrates the benefit
+- paginated transaction queries now use `keepPreviousData`, activating the intended transition state without clearing the table between page or filter requests
+- focused Query Observer tests verify both page and filter transitions retain previous rows and report placeholder loading state
+- a reproducible disposable-Postgres harness records warm `EXPLAIN (ANALYZE, BUFFERS)` evidence at 1,000, 10,000, and 100,000 transactions per project
+- profiling justified a project/date/id index, which changed the 100,000-row page plan from a parallel sequential scan plus sort to a directly ordered index scan
+- the page summary now joins unique valid-subcategory and open-reversal state once instead of repeating correlated checks across aggregate fields
+- the measured evidence and host-dependent timing caveat are recorded in `docs/transaction-query-profile.md`
 
 ## Active Backlog
 

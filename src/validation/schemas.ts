@@ -28,7 +28,7 @@ const nonEmptyTrimmed = (label: string, max?: number) =>
     }
   });
 
-export const nonNegativeInt = (label: string) =>
+const nonNegativeInt = (label: string) =>
   z.number().superRefine((value, ctx) => {
     if (!Number.isSafeInteger(value) || value < 0) {
       ctx.addIssue({
@@ -38,7 +38,7 @@ export const nonNegativeInt = (label: string) =>
     }
   });
 
-export const safeInt = (label: string) =>
+const safeInt = (label: string) =>
   z.number().superRefine((value, ctx) => {
     if (!Number.isSafeInteger(value)) {
       ctx.addIssue({

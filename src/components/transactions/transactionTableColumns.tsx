@@ -18,7 +18,7 @@ import {
 
 import type { ProjectRuleSuggestionPrompt } from '../../api/types';
 import type { TaxonomyHook } from '../../hooks/useTaxonomy';
-import type { TransactionsHook } from '../../hooks/useTransactions';
+import type { TransactionActions } from '../../hooks/useTransactionActions';
 import type { Txn, TxnComment, TxnCommentSummary } from '../../types';
 import { asCategoryId, asSubCategoryId } from '../../types/ids';
 import { formatCurrencyFromCents, fromCents, toCents } from '../../utils/money';
@@ -30,7 +30,7 @@ import {
 import TransactionCommentsCell from './TransactionCommentsCell';
 
 type CreateTransactionColumnsArgs = {
-  txns: TransactionsHook;
+  transactionActions: TransactionActions;
   taxonomy: TaxonomyHook;
   currencyCode: string;
   readOnly: boolean;
@@ -269,7 +269,7 @@ export function createTransactionColumns(
           hideControls
           styles={{ input: { textAlign: 'right' } }}
           onChange={(value) => {
-            void args.txns
+            void args.transactionActions
               .updateTxn(row.original.id, {
                 amountCents: toCents(Number(value ?? 0)),
               })
@@ -326,7 +326,7 @@ export function createTransactionColumns(
             clearable
             disabled={!canCode}
             onChange={(value) => {
-              void args.txns
+              void args.transactionActions
                 .updateTxn(row.original.id, {
                   categoryId: value ? asCategoryId(value) : null,
                   subCategoryId: null,
@@ -406,7 +406,7 @@ export function createTransactionColumns(
             disabled={!categoryId || !canCode}
             onChange={(value) => {
               args.onProjectRuleError(null);
-              void args.txns
+              void args.transactionActions
                 .updateTxn(row.original.id, {
                   categoryId: categoryId ?? null,
                   subCategoryId: value ? asSubCategoryId(value) : null,
@@ -512,9 +512,12 @@ export function createTransactionColumns(
                   <Menu.Divider />
                   <Menu.Item
                     onClick={() =>
-                      void args.txns.updateWorkflowState(row.original.id, {
-                        reviewed: !row.original.reviewedAt,
-                      })
+                      void args.transactionActions.updateWorkflowState(
+                        row.original.id,
+                        {
+                          reviewed: !row.original.reviewedAt,
+                        }
+                      )
                     }
                   >
                     {row.original.reviewedAt
@@ -524,9 +527,12 @@ export function createTransactionColumns(
                   {canApproveAutoMapping ? (
                     <Menu.Item
                       onClick={() => {
-                        void args.txns.updateTxn(row.original.id, {
-                          codingPendingApproval: false,
-                        });
+                        void args.transactionActions.updateTxn(
+                          row.original.id,
+                          {
+                            codingPendingApproval: false,
+                          }
+                        );
                       }}
                     >
                       Approve auto-mapping
@@ -534,9 +540,12 @@ export function createTransactionColumns(
                   ) : null}
                   <Menu.Item
                     onClick={() =>
-                      void args.txns.updateWorkflowState(row.original.id, {
-                        locked: !row.original.lockedAt,
-                      })
+                      void args.transactionActions.updateWorkflowState(
+                        row.original.id,
+                        {
+                          locked: !row.original.lockedAt,
+                        }
+                      )
                     }
                   >
                     {row.original.lockedAt

@@ -25,7 +25,7 @@ export function resolveNodeExecutable() {
   return process.env.PROJEX_NODE_EXECUTABLE?.trim() || process.execPath;
 }
 
-export function getNodeRuntimeInfo() {
+function getNodeRuntimeInfo() {
   const pinned = readPinnedNodeVersion();
   const currentMajor = parseMajor(process.version);
   const pinnedMajor = pinned ? parseMajor(pinned.version) : null;

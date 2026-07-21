@@ -21,7 +21,7 @@ export function useUsersQuery() {
   return useQuery(usersQueryOptions(session.data?.userId));
 }
 
-export function usersQueryOptions(userId?: UserId) {
+function usersQueryOptions(userId?: UserId) {
   return {
     enabled: !!userId,
     queryKey: userId ? qk.users(userId) : ['users', 'anonymous'],

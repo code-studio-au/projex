@@ -42,10 +42,7 @@ export function useProjectImportRulesQuery(projectId: ProjectId) {
   return useQuery(projectImportRulesQueryOptions(scopeUserId, projectId));
 }
 
-export function projectImportRulesQueryOptions(
-  userId: string,
-  projectId: ProjectId
-) {
+function projectImportRulesQueryOptions(userId: string, projectId: ProjectId) {
   return {
     queryKey: qk.projectImportRules(userId, projectId),
     queryFn: () => listProjectImportRulesServerFn({ data: { projectId } }),

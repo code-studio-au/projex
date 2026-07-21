@@ -100,7 +100,7 @@ const appEndpointModuleLoaders = import.meta.glob(
   '../server/app/*.ts'
 ) as Record<string, AppEndpointModuleLoader>;
 
-export type PostLoginTarget =
+type PostLoginTarget =
   | { to: '/companies' }
   | {
       to: '/c/$companyId';
@@ -478,10 +478,6 @@ export type BudgetEndpointsModule = {
     void
   >;
 };
-
-export function appEndpointModuleSpecifier(fileStem: string): string {
-  return ['..', '..', 'app', fileStem].join('/');
-}
 
 export function loadAppEndpointModule<TModule>(
   fileStem: string

@@ -46,9 +46,6 @@ import {
   deleteSubCategoryServerFn,
   getCompanyDefaultsServerFn,
   listCategoriesServerFn,
-  listCompanyDefaultCategoriesServerFn,
-  listCompanyDefaultMappingRulesServerFn,
-  listCompanyDefaultSubCategoriesServerFn,
   listSubCategoriesServerFn,
   promoteProjectSubCategoryToCompanyDefaultServerFn,
   updateCategoryServerFn,
@@ -79,16 +76,6 @@ export function categoriesQueryOptions(
   } as const;
 }
 
-export function useCompanyDefaultCategoriesQuery(companyId: CompanyId) {
-  const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
-    queryFn: () =>
-      listCompanyDefaultCategoriesServerFn({ data: { companyId } }),
-    placeholderData: keepPreviousData,
-  });
-}
-
 export function useCompanyDefaultsQuery(companyId: CompanyId) {
   const scopeUserId = useQueryScopeUserId();
   return useQuery<CompanyDefaults>(
@@ -105,26 +92,6 @@ export function companyDefaultsQueryOptions(
     queryFn: () => getCompanyDefaultsServerFn({ data: { companyId } }),
     placeholderData: keepPreviousData,
   } as const;
-}
-
-export function useCompanyDefaultSubCategoriesQuery(companyId: CompanyId) {
-  const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.companyDefaultSubCategories(scopeUserId, companyId),
-    queryFn: () =>
-      listCompanyDefaultSubCategoriesServerFn({ data: { companyId } }),
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useCompanyDefaultMappingRulesQuery(companyId: CompanyId) {
-  const scopeUserId = useQueryScopeUserId();
-  return useQuery({
-    queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
-    queryFn: () =>
-      listCompanyDefaultMappingRulesServerFn({ data: { companyId } }),
-    placeholderData: keepPreviousData,
-  });
 }
 
 export function useSubCategoriesQuery(

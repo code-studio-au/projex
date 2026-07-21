@@ -3,13 +3,9 @@ import {
   asBudgetLineId,
   asCategoryId,
   asCompanyExportJobId,
-  asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyId,
-  asCompanyDefaultSubCategoryId,
   asImportBatchId,
-  asImportCandidateId,
-  asImportRuleId,
   asProjectId,
   asSubCategoryId,
   asTxnCommentId,
@@ -55,16 +51,8 @@ const userIdSchema = idSchema.transform(asUserId);
 const categoryIdSchema = idSchema.transform(asCategoryId);
 const subCategoryIdSchema = idSchema.transform(asSubCategoryId);
 const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
-const companyDefaultCategoryIdSchema = idSchema.transform(
-  asCompanyDefaultCategoryId
-);
-const companyDefaultSubCategoryIdSchema = idSchema.transform(
-  asCompanyDefaultSubCategoryId
-);
 const mappingRuleIdSchema = idSchema.transform(asCompanyDefaultMappingRuleId);
 const importBatchIdSchema = idSchema.transform(asImportBatchId);
-const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
-const importRuleIdSchema = idSchema.transform(asImportRuleId);
 const txnIdSchema = idSchema.transform(asTxnId);
 const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
 const companyExportJobIdSchema = idSchema.transform(asCompanyExportJobId);
@@ -76,24 +64,12 @@ const companyRoleSchema = z.enum([
   'management',
   'member',
 ]);
-const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const projectTypeSchema = z.enum(['project', 'programme']);
 const codingSourceSchema = z.enum([
   'manual',
   'company_default_rule',
   'project_rule',
 ]);
-const txnListViewSchema = z.enum([
-  'all',
-  'uncoded',
-  'needs-review',
-  'auto-mapped-pending',
-  'assigned-to-me',
-  'pending-reversal',
-  'matched-reversal-pairs',
-]);
-const txnListSortFieldSchema = z.enum(['date', 'transaction', 'amountCents']);
-const txnListSortDirectionSchema = z.enum(['asc', 'desc']);
 const companyExportReadyNotificationStatusSchema = z.enum([
   'not_requested',
   'pending',
@@ -113,10 +89,7 @@ export const authenticatedSessionResponseSchema = z.object({
   userId: userIdSchema,
 });
 
-export const sessionResponseSchema =
-  authenticatedSessionResponseSchema.nullable();
-
-export const companyResponseSchema = z.object({
+const companyResponseSchema = z.object({
   id: companyIdSchema,
   name: z.string(),
   status: z.enum(['active', 'deactivated']),
@@ -125,7 +98,7 @@ export const companyResponseSchema = z.object({
 
 export const companiesResponseSchema = z.array(companyResponseSchema);
 
-export const companySummaryMonthResponseSchema = z.object({
+const companySummaryMonthResponseSchema = z.object({
   monthKey: z.string(),
   actualCodedCents: transactionAmountCentsSchema,
   pendingReversalCents: transactionAmountCentsSchema,
@@ -202,7 +175,7 @@ export const projectResponseSchema = z.object({
 
 export const projectsResponseSchema = z.array(projectResponseSchema);
 
-export const userResponseSchema = z.object({
+const userResponseSchema = z.object({
   id: userIdSchema,
   email: z.email(),
   name: z.string(),
@@ -212,7 +185,7 @@ export const userResponseSchema = z.object({
 
 export const usersResponseSchema = z.array(userResponseSchema);
 
-export const companyMembershipResponseSchema = z.object({
+const companyMembershipResponseSchema = z.object({
   companyId: companyIdSchema,
   userId: userIdSchema,
   role: companyRoleSchema,
@@ -222,105 +195,7 @@ export const companyMembershipsResponseSchema = z.array(
   companyMembershipResponseSchema
 );
 
-export const projectMembershipResponseSchema = z.object({
-  projectId: projectIdSchema,
-  userId: userIdSchema,
-  role: projectRoleSchema,
-});
-
-export const projectMembershipsResponseSchema = z.array(
-  projectMembershipResponseSchema
-);
-
-export const companyDefaultCategoryResponseSchema = z.object({
-  id: companyDefaultCategoryIdSchema,
-  companyId: companyIdSchema,
-  name: z.string(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
-});
-
-export const companyDefaultCategoriesResponseSchema = z.array(
-  companyDefaultCategoryResponseSchema
-);
-
-export const companyDefaultSubCategoryResponseSchema = z.object({
-  id: companyDefaultSubCategoryIdSchema,
-  companyId: companyIdSchema,
-  companyDefaultCategoryId: companyDefaultCategoryIdSchema,
-  name: z.string(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
-});
-
-export const companyDefaultSubCategoriesResponseSchema = z.array(
-  companyDefaultSubCategoryResponseSchema
-);
-
-export const companyDefaultMappingRuleResponseSchema = z.object({
-  id: mappingRuleIdSchema,
-  companyId: companyIdSchema,
-  matchText: z.string(),
-  companyDefaultCategoryId: companyDefaultCategoryIdSchema,
-  companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema,
-  sortOrder: z.number().int(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
-});
-
-export const companyDefaultMappingRulesResponseSchema = z.array(
-  companyDefaultMappingRuleResponseSchema
-);
-
-export const companyDefaultsResponseSchema = z.object({
-  categories: companyDefaultCategoriesResponseSchema,
-  subCategories: companyDefaultSubCategoriesResponseSchema,
-  mappingRules: companyDefaultMappingRulesResponseSchema,
-});
-
-export const importRuleResponseSchema = z.object({
-  id: importRuleIdSchema,
-  companyId: companyIdSchema,
-  scope: z.enum(['company', 'project']),
-  projectId: projectIdSchema.optional(),
-  name: z.string(),
-  originScope: projectStandardOriginScopeSchema.optional(),
-  originCompanyItemId: z.string().optional(),
-  syncStatus: projectStandardSyncStatusSchema.optional(),
-  lastSyncedAt: optionalIsoTimestampSchema,
-  sourceUpdatedAtSnapshot: optionalIsoTimestampSchema,
-  action: z.enum(['import', 'exclude', 'review']),
-  field: z.enum([
-    'ledger',
-    'source',
-    'journalId',
-    'journalLineDescription',
-    'ccAndDescription',
-    'vendorName',
-    'poId',
-    'referenceNum',
-    'anyText',
-  ]),
-  operator: z.enum([
-    'equals',
-    'equals_any',
-    'contains',
-    'contains_any',
-    'starts_with',
-    'starts_with_any',
-    'ends_with',
-    'ends_with_any',
-  ]),
-  value: z.string(),
-  sortOrder: z.number().int(),
-  enabled: z.boolean(),
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
-});
-
-export const importRulesResponseSchema = z.array(importRuleResponseSchema);
-
-export const categoryResponseSchema = z.object({
+const categoryResponseSchema = z.object({
   id: categoryIdSchema,
   companyId: companyIdSchema,
   projectId: projectIdSchema,
@@ -336,7 +211,7 @@ export const categoryResponseSchema = z.object({
 
 export const categoriesResponseSchema = z.array(categoryResponseSchema);
 
-export const subCategoryResponseSchema = z.object({
+const subCategoryResponseSchema = z.object({
   id: subCategoryIdSchema,
   companyId: companyIdSchema,
   projectId: projectIdSchema,
@@ -353,7 +228,7 @@ export const subCategoryResponseSchema = z.object({
 
 export const subCategoriesResponseSchema = z.array(subCategoryResponseSchema);
 
-export const budgetLineResponseSchema = z.object({
+const budgetLineResponseSchema = z.object({
   id: budgetLineIdSchema,
   companyId: companyIdSchema,
   projectId: projectIdSchema,
@@ -366,7 +241,7 @@ export const budgetLineResponseSchema = z.object({
 
 export const budgetLinesResponseSchema = z.array(budgetLineResponseSchema);
 
-export const txnResponseSchema = z.object({
+const txnResponseSchema = z.object({
   id: txnIdSchema,
   internalId: z.string().optional(),
   externalId: z.string().optional(),
@@ -420,7 +295,7 @@ export const txnUpdateResultResponseSchema = z.object({
   projectRulePrompt: z.unknown().nullable(),
 });
 
-export const txnListPageSummaryResponseSchema = z.object({
+const txnListPageSummaryResponseSchema = z.object({
   totalCount: z.number().int().nonnegative(),
   budgetImpactCents: z.number().int(),
   pendingReversalCount: z.number().int().nonnegative(),
@@ -440,44 +315,6 @@ export const txnListPageResultResponseSchema = z.object({
   summary: txnListPageSummaryResponseSchema,
 });
 
-export const txnListPageInputResponseSchema = z.object({
-  pageIndex: z.number().int().nonnegative(),
-  pageSize: z.number().int().positive(),
-  sort: z
-    .object({
-      field: txnListSortFieldSchema,
-      direction: txnListSortDirectionSchema,
-    })
-    .optional(),
-  yearFilter: z.string().optional(),
-  quarterFilter: z.enum(['Q1', 'Q2', 'Q3', 'Q4']).optional(),
-  monthFilterKey: z.string().optional(),
-  transactionView: txnListViewSchema.optional(),
-  drilldown: z
-    .union([
-      z.object({
-        kind: z.literal('category'),
-        categoryId: categoryIdSchema,
-      }),
-      z.object({
-        kind: z.literal('subcategory'),
-        categoryId: categoryIdSchema,
-        subCategoryId: subCategoryIdSchema,
-      }),
-    ])
-    .optional(),
-});
-
-export const txnSplitResponseSchema = z.object({
-  parent: txnResponseSchema,
-  children: txnsResponseSchema,
-});
-
-export const txnTransferResponseSchema = z.object({
-  source: txnResponseSchema,
-  destination: txnResponseSchema,
-});
-
 export const txnCommentResponseSchema = z.object({
   id: txnCommentIdSchema,
   companyId: companyIdSchema,
@@ -493,23 +330,6 @@ export const txnCommentResponseSchema = z.object({
   createdAt: isoTimestampSchema,
   updatedAt: isoTimestampSchema,
 });
-
-export const txnCommentsResponseSchema = z.array(txnCommentResponseSchema);
-
-export const txnCommentSummaryResponseSchema = z.object({
-  txnId: txnIdSchema,
-  totalCount: z.number().int().nonnegative(),
-  unresolvedCount: z.number().int().nonnegative(),
-  resolvedCount: z.number().int().nonnegative(),
-  assignedToMeUnresolvedCount: z.number().int().nonnegative(),
-  latestCommentBody: z.string().optional(),
-  latestCommentCreatedAt: optionalIsoTimestampSchema,
-  latestCommentAuthorName: z.string().optional(),
-});
-
-export const txnCommentSummariesResponseSchema = z.array(
-  txnCommentSummaryResponseSchema
-);
 
 export const pendingEmailChangeResponseSchema = z
   .object({
@@ -530,18 +350,6 @@ export const emailChangeConfirmResponseSchema = z.object({
   previousEmail: z.email(),
 });
 
-export const countResponseSchema = z.object({
-  count: z.number().int().nonnegative(),
-});
-
-export const okResponseSchema = z.object({
-  ok: z.literal(true),
-});
-
-export const defaultCompanyResponseSchema = z.object({
-  companyId: companyIdSchema.nullable(),
-});
-
 export const companyUserInviteResultResponseSchema = z.object({
   user: userResponseSchema,
   createdAuthUser: z.boolean(),
@@ -550,85 +358,7 @@ export const companyUserInviteResultResponseSchema = z.object({
   onboardingDelivery: z.enum(['email', 'log', 'none']),
 });
 
-export const importPreviewRowResponseSchema = z.object({
-  sourceRowIndex: z.number().int().nonnegative(),
-  importId: z.string(),
-  externalId: z.string().optional(),
-  parsedDate: z.string().nullable(),
-  amountCents: z.number().nullable(),
-  item: z.string().nullable(),
-  description: z.string().nullable(),
-  duplicate: z.boolean(),
-  duplicateReason: z.enum(['existing', 'import']).optional(),
-  importAction: z.enum(['import', 'exclude', 'review']),
-  importRuleId: importRuleIdSchema.optional(),
-  importRuleName: z.string().optional(),
-  importDecisionReason: z.string().optional(),
-  mappingStatus: z.enum([
-    'matched_rule',
-    'source_taxonomy',
-    'auto_created',
-    'uncoded',
-    'invalid',
-  ]),
-  categoryId: categoryIdSchema.optional(),
-  subCategoryId: subCategoryIdSchema.optional(),
-  categoryName: z.string().optional(),
-  subCategoryName: z.string().optional(),
-  ruleId: mappingRuleIdSchema.optional(),
-  codingSource: z
-    .enum(['manual', 'company_default_rule', 'project_rule'])
-    .optional(),
-  codingPendingApproval: z.boolean(),
-  willCreateCategory: z.boolean(),
-  willCreateSubCategory: z.boolean(),
-  willCreateBudgetLine: z.boolean(),
-  sourceType: z.enum(['powerbi_expenditure_actuals']).optional(),
-  rawSourceRow: z.record(z.string(), z.string()).optional(),
-  warnings: z.array(z.string()),
-});
-
-export const txnImportPreviewResultResponseSchema = z.object({
-  importBatchId: importBatchIdSchema.optional(),
-  rows: z.array(importPreviewRowResponseSchema),
-});
-
-export const importCandidateResponseSchema = z.object({
-  id: importCandidateIdSchema,
-  companyId: companyIdSchema,
-  projectId: projectIdSchema,
-  batchId: importBatchIdSchema,
-  sourceRowIndex: z.number().int().nonnegative(),
-  rawRow: z.record(z.string(), z.string()),
-  status: z.enum([
-    'ready',
-    'excluded',
-    'needs_project_review',
-    'approved',
-    'rejected',
-    'imported',
-    'invalid',
-    'duplicate',
-  ]),
-  matchedImportRuleId: importRuleIdSchema.optional(),
-  statusReason: z.string().optional(),
-  txnId: txnIdSchema.optional(),
-  reviewedByUserId: userIdSchema.optional(),
-  reviewedAt: optionalIsoTimestampSchema,
-  createdAt: optionalIsoTimestampSchema,
-  updatedAt: optionalIsoTimestampSchema,
-});
-
-export const importCandidatesResponseSchema = z.array(
-  importCandidateResponseSchema
-);
-
-export const importCandidateReviewResultResponseSchema = z.object({
-  candidate: importCandidateResponseSchema,
-  txn: txnResponseSchema.optional(),
-});
-
-export const applyCompanyTaxonomyResultResponseSchema = z.object({
+const applyCompanyTaxonomyResultResponseSchema = z.object({
   companyDefaultsConfigured: z.boolean(),
   categoriesAdded: z.number().int().nonnegative(),
   subCategoriesAdded: z.number().int().nonnegative(),
@@ -639,25 +369,6 @@ export const applyCompanyStandardsResultResponseSchema =
     importRulesSynced: z.boolean(),
     autoCodingRulesSynced: z.boolean(),
   });
-
-export const betterAuthLikePayloadSchema = z
-  .object({
-    error: z
-      .object({
-        code: z.string().optional(),
-        message: z.string().optional(),
-      })
-      .optional(),
-    message: z.string().optional(),
-    userId: z.string().nullable().optional(),
-    user: z
-      .object({
-        id: z.string().nullable().optional(),
-      })
-      .nullable()
-      .optional(),
-  })
-  .nullable();
 
 export const betterAuthSignUpResponseSchema = z.object({
   user: z.object({

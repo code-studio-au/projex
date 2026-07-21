@@ -1,5 +1,5 @@
 -- 0001_init.sql
--- Core schema aligned with src/api/invariants.ts and local adapter behavior.
+-- Core application schema for fresh Projex databases.
 
 create table if not exists companies (
   id text primary key,

@@ -8,7 +8,7 @@ import {
   readJsonBody,
   requireApiRouteContext,
 } from './-api-shared';
-import { createCompanyExportJobBodySchema } from '../validation/apiSchemas';
+import { companyExportQuerySchema } from '../validation/apiSchemas';
 import { validateOrThrow } from '../validation/validate';
 
 export const Route = createFileRoute('/api/companies/$companyId/export-jobs')({
@@ -32,7 +32,7 @@ export const Route = createFileRoute('/api/companies/$companyId/export-jobs')({
       POST: async ({ context, params, request }) => {
         const { serverContext } = requireApiRouteContext(context);
         const body = validateOrThrow(
-          createCompanyExportJobBodySchema,
+          companyExportQuerySchema,
           await readJsonBody(request)
         );
         const createCompanyExportJobServer = await loadRouteServerExport<

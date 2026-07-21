@@ -12,7 +12,6 @@ import type {
   ProjectId,
   ProjectAutoCodingRuleId,
   RuleSuggestionId,
-  RuleSuggestionSignalId,
   SubCategoryId,
   TxnCommentId,
   TxnId,
@@ -171,7 +170,7 @@ export type ProjectAutoCodingRule = {
 };
 
 export type ImportRuleAction = 'import' | 'exclude' | 'review';
-export type ImportRuleScope = 'company' | 'project';
+type ImportRuleScope = 'company' | 'project';
 export type ImportRuleField =
   | 'ledger'
   | 'source'
@@ -213,24 +212,6 @@ export type ImportRule = {
   updatedAt?: string;
 };
 
-export type ImportBatchStatus =
-  | 'previewed'
-  | 'partially_imported'
-  | 'imported'
-  | 'cancelled';
-
-export type ImportBatch = {
-  id: ImportBatchId;
-  companyId: CompanyId;
-  projectId: ProjectId;
-  sourceType: 'powerbi_expenditure_actuals';
-  fileName: string;
-  status: ImportBatchStatus;
-  createdByUserId: UserId;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
 export type ImportCandidateStatus =
   | 'ready'
   | 'excluded'
@@ -258,31 +239,8 @@ export type ImportCandidate = {
   updatedAt?: string;
 };
 
-export type RuleSuggestionType = 'create_rule';
-export type RuleSuggestionStatus = 'open' | 'accepted' | 'dismissed';
-export type RuleSuggestionPatternBasis =
-  | 'item'
-  | 'description'
-  | 'item_description';
-
-export type RuleSuggestionSignal = {
-  id: RuleSuggestionSignalId;
-  companyId: CompanyId;
-  projectId: ProjectId;
-  txnId: TxnId;
-  suggestionType: RuleSuggestionType;
-  patternBasis: RuleSuggestionPatternBasis;
-  patternTextRaw: string;
-  patternTextNormalized: string;
-  projectCategoryId: CategoryId;
-  projectSubCategoryId: SubCategoryId;
-  companyDefaultCategoryId: CompanyDefaultCategoryId;
-  companyDefaultSubCategoryId: CompanyDefaultSubCategoryId;
-  actedByUserId: UserId;
-  createdAt: string;
-  updatedAt: string;
-};
-
+type RuleSuggestionType = 'create_rule';
+type RuleSuggestionStatus = 'open' | 'accepted' | 'dismissed';
 export type RuleSuggestion = {
   id: RuleSuggestionId;
   companyId: CompanyId;
@@ -306,7 +264,7 @@ export type RuleSuggestion = {
   updatedAt: string;
 };
 
-export type RuleSuggestionEvidence = {
+type RuleSuggestionEvidence = {
   txnId: TxnId;
   projectId: ProjectId;
   item: string;
@@ -392,7 +350,7 @@ export const TXN_REVERSAL_SIDES = ['source', 'reversal'] as const;
 
 export type TxnReversalSide = (typeof TXN_REVERSAL_SIDES)[number];
 
-export type TxnReversal = {
+type TxnReversal = {
   id: string;
   status: TxnReversalStatus;
   side: TxnReversalSide;
@@ -492,7 +450,7 @@ export type BudgetLine = {
   updatedAt?: string;
 };
 
-export type CompanySummaryMonth = {
+type CompanySummaryMonth = {
   monthKey: string;
   actualCodedCents: number;
   pendingReversalCents: number;

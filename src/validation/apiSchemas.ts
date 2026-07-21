@@ -52,13 +52,13 @@ export const companyDefaultMappingRuleIdSchema = idSchema.transform(
 );
 export const importRuleIdSchema = idSchema.transform(asImportRuleId);
 export const importBatchIdParamSchema = idSchema.transform(asImportBatchId);
-export const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
+const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
 export const companyExportJobIdParamSchema =
   idSchema.transform(asCompanyExportJobId);
 export const projectAutoCodingRuleIdSchema = idSchema.transform(
   asProjectAutoCodingRuleId
 );
-export const ruleSuggestionIdSchema = idSchema.transform(asRuleSuggestionId);
+const ruleSuggestionIdSchema = idSchema.transform(asRuleSuggestionId);
 export const txnIdSchema = idSchema.transform(asTxnId);
 export const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
 export const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
@@ -82,13 +82,13 @@ const nullableOptionalMappingRuleIdSchema = companyDefaultMappingRuleIdSchema
   .nullable()
   .optional();
 
-export const companyRoleSchema = z.enum([
+const companyRoleSchema = z.enum([
   'admin',
   'executive',
   'management',
   'member',
 ]);
-export const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
+const projectRoleSchema = z.enum(['owner', 'lead', 'member', 'viewer']);
 const projectVisibilitySchema = z.enum(['company', 'private']);
 const projectTypeSchema = z.enum(['project', 'programme']);
 const currencySchema = z.enum(['AUD', 'USD', 'EUR', 'GBP']);
@@ -254,8 +254,6 @@ export const companyExportQuerySchema = z
       });
     }
   });
-
-export const createCompanyExportJobBodySchema = companyExportQuerySchema;
 
 export const deleteProjectBodySchema = z.object({
   confirmation: destructiveConfirmationSchema,
@@ -587,10 +585,6 @@ export const txnReversalActionInputSchema = z.discriminatedUnion('action', [
   }),
 ]);
 
-export const txnReversalActionMutationBodySchema = z.object({
-  reversal: txnReversalActionInputSchema,
-});
-
 export const txnWorkflowStateInputSchema = z.object({
   txnId: txnIdSchema,
   reviewed: z.boolean().optional(),
@@ -653,10 +647,6 @@ export const txnWorkflowStateMutationBodySchema = z.object({
       typeof value.locked !== 'undefined',
     'At least one workflow state field is required'
   ),
-});
-
-export const txnBulkActionMutationBodySchema = z.object({
-  bulk: txnBulkActionInputSchema,
 });
 
 export const createTxnCommentInputSchema = z.object({

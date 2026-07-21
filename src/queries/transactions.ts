@@ -14,7 +14,6 @@ import type {
   TxnListPageInput,
   TxnListSortDirection,
   TxnListSortField,
-  TxnCreateInput,
   TxnReversalActionInput,
   TxnReversalActionResult,
   TxnReversalMatchSuggestion,
@@ -31,11 +30,8 @@ import {
 import { txnListPageResultResponseSchema } from '../validation/responseSchemas';
 import { apiErrorFromBody } from '../api/errorResponses';
 import {
-  createTxnServerFn,
-  deleteTxnServerFn,
   getTransactionServerFn,
   listProjectTransactionSummaryServerFn,
-  listTransactionsServerFn,
   splitTxnServerFn,
   transferTxnServerFn,
   bulkTxnActionServerFn,
@@ -61,7 +57,7 @@ type TransactionsPageQueryParams = {
   subCategoryId?: string;
 };
 
-export function toTransactionsPageQueryParams(
+function toTransactionsPageQueryParams(
   input: TxnListPageInput
 ): TransactionsPageQueryParams {
   return {
@@ -120,14 +116,6 @@ async function fetchTransactionsPageViaApi(
   return payload.data satisfies TxnListPageResult;
 }
 
-export function useTransactionsQuery(
-  projectId: ProjectId,
-  options: { enabled?: boolean } = {}
-) {
-  const scopeUserId = useQueryScopeUserId();
-  return useQuery(transactionsQueryOptions(scopeUserId, projectId, options));
-}
-
 export function useTransactionQuery(
   projectId: ProjectId,
   txnId: TxnId,
@@ -139,7 +127,7 @@ export function useTransactionQuery(
   );
 }
 
-export function transactionQueryOptions(
+function transactionQueryOptions(
   userId: string,
   projectId: ProjectId,
   txnId: TxnId,
@@ -163,7 +151,7 @@ export function useProjectTransactionSummaryQuery(
   );
 }
 
-export function projectTransactionSummaryQueryOptions(
+function projectTransactionSummaryQueryOptions(
   userId: string,
   projectId: ProjectId,
   options: { enabled?: boolean } = {}
@@ -172,19 +160,6 @@ export function projectTransactionSummaryQueryOptions(
     queryKey: qk.transactionSummary(userId, projectId),
     queryFn: () =>
       listProjectTransactionSummaryServerFn({ data: { projectId } }),
-    placeholderData: keepPreviousData,
-    enabled: options.enabled ?? true,
-  } as const;
-}
-
-export function transactionsQueryOptions(
-  userId: string,
-  projectId: ProjectId,
-  options: { enabled?: boolean } = {}
-) {
-  return {
-    queryKey: qk.transactions(userId, projectId),
-    queryFn: () => listTransactionsServerFn({ data: { projectId } }),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
   } as const;
@@ -211,6 +186,7 @@ export function transactionsPageQueryOptions(
   return {
     queryKey: qk.transactionsPage(userId, projectId, queryParams),
     queryFn: () => fetchTransactionsPageViaApi(projectId, input),
+    placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
   } as const;
 }
@@ -255,17 +231,6 @@ export async function invalidateProjectTransactionQueries(args: {
   ]);
 }
 
-export function useCreateTxnMutation(projectId: ProjectId) {
-  const qc = useQueryClient();
-  const scopeUserId = useQueryScopeUserId();
-  return useMutation({
-    mutationFn: (input: TxnCreateInput) =>
-      createTxnServerFn({ data: { projectId, payload: input } }),
-    onSuccess: async () =>
-      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
-  });
-}
-
 export function useUpdateTxnMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
@@ -290,17 +255,6 @@ export function useUpdateTxnMutation(projectId: ProjectId) {
     onError: (_error, _vars, context) => {
       if (context?.previous) qc.setQueryData(queryKey, context.previous);
     },
-    onSuccess: async () =>
-      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
-  });
-}
-
-export function useDeleteTxnMutation(projectId: ProjectId) {
-  const qc = useQueryClient();
-  const scopeUserId = useQueryScopeUserId();
-  return useMutation({
-    mutationFn: (txnId: TxnId) =>
-      deleteTxnServerFn({ data: { projectId, txnId } }),
     onSuccess: async () =>
       invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
   });

@@ -41,8 +41,8 @@ export type Session = {
   userId: UserId;
 };
 
-export type TxnImportMode = 'append' | 'replaceAll';
-export type TxnListView =
+type TxnImportMode = 'append' | 'replaceAll';
+type TxnListView =
   | 'all'
   | 'uncoded'
   | 'needs-review'
@@ -52,11 +52,11 @@ export type TxnListView =
   | 'matched-reversal-pairs';
 export type TxnListSortField = 'date' | 'transaction' | 'amountCents';
 export type TxnListSortDirection = 'asc' | 'desc';
-export type TxnListSort = {
+type TxnListSort = {
   field: TxnListSortField;
   direction: TxnListSortDirection;
 };
-export type TxnListDrilldown =
+type TxnListDrilldown =
   | {
       kind: 'category';
       categoryId: Txn['categoryId'];
@@ -76,7 +76,7 @@ export type TxnListPageInput = {
   transactionView?: TxnListView;
   drilldown?: TxnListDrilldown | null;
 };
-export type TxnListPageSummary = {
+type TxnListPageSummary = {
   totalCount: number;
   budgetImpactCents: number;
   pendingReversalCount: number;
@@ -94,7 +94,7 @@ export type TxnListPageResult = {
   rows: Txn[];
   summary: TxnListPageSummary;
 };
-export type ProjectTransactionSummaryRow = {
+type ProjectTransactionSummaryRow = {
   subCategoryId: SubCategory['id'];
   monthKey: string;
   actualCents: number;

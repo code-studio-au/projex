@@ -34,7 +34,7 @@ import type {
 
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useBudgets } from '../hooks/useBudgets';
-import { useTransactions } from '../hooks/useTransactions';
+import { useTransactionActions } from '../hooks/useTransactionActions';
 import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useRollups } from '../hooks/useRollups';
 import { formatCurrencyFromCents } from '../utils/money';
@@ -45,7 +45,10 @@ import {
   useProjectQuery,
   useProjectsQuery,
 } from '../queries/reference';
-import { useUpdateProjectMutation } from '../queries/admin';
+import {
+  useImportTransactionsMutation,
+  useUpdateProjectMutation,
+} from '../queries/admin';
 import { useProjectTransactionSummaryQuery } from '../queries/transactions';
 
 import TransactionsPanel from './TransactionsPanel';
@@ -389,10 +392,8 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     projectId,
     { enabled: isOperationalProject }
   );
-  const txns = useTransactions({
-    projectId,
-    enabled: false,
-  });
+  const transactionActions = useTransactionActions(projectId);
+  const importTransactions = useImportTransactionsMutation(projectId);
   const taxonomy = useTaxonomy({
     companyId,
     projectId,
@@ -1087,7 +1088,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
           <Tabs.Panel value="transactions" pt="md">
             <TransactionsPanel
               projectId={projectId}
-              txns={txns}
+              transactionActions={transactionActions}
               taxonomy={taxonomy}
               autoMappedPendingCount={
                 projectTransactionSummaryQ.data?.autoMappedPendingCount ?? 0
@@ -1212,8 +1213,20 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                 canEditTaxonomy={canEditTaxonomy}
                 canEditBudgets={canEditBudgets}
                 canManageImportRules={canManageImportRules}
-                onReplaceAll={(next, options) => txns.replaceAll(next, options)}
-                onAppend={(next, options) => txns.appendMany(next, options)}
+                onReplaceAll={async (next, options) => {
+                  await importTransactions.mutateAsync({
+                    txns: next,
+                    mode: 'replaceAll',
+                    autoCreateBudgets: options?.autoCreateBudgets,
+                  });
+                }}
+                onAppend={async (next, options) => {
+                  await importTransactions.mutateAsync({
+                    txns: next,
+                    mode: 'append',
+                    autoCreateBudgets: options?.autoCreateBudgets,
+                  });
+                }}
               />
             </Stack>
           </Tabs.Panel>

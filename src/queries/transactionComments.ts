@@ -7,7 +7,7 @@ import {
 
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
-import type { ProjectId, TxnCommentId, TxnId } from '../types';
+import type { ProjectId, TxnId } from '../types';
 import type {
   TxnCommentCreateInput,
   TxnCommentSummariesInput,
@@ -15,7 +15,6 @@ import type {
 } from '../api/types';
 import {
   createTransactionCommentServerFn,
-  deleteTransactionCommentServerFn,
   listTransactionCommentSummariesServerFn,
   listTransactionCommentsServerFn,
   updateTransactionCommentServerFn,
@@ -56,7 +55,7 @@ function txnIdsKey(txnIds?: TxnId[]) {
   return txnIds?.length ? [...txnIds].sort().join(',') : 'all';
 }
 
-export function transactionCommentSummariesQueryOptions(
+function transactionCommentSummariesQueryOptions(
   userId: string,
   projectId: ProjectId,
   input: TxnCommentSummariesInput,
@@ -107,31 +106,6 @@ export function useUpdateTransactionCommentMutation(
     mutationFn: (input: TxnCommentUpdateInput) =>
       updateTransactionCommentServerFn({
         data: { projectId, txnId, payload: input },
-      }),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({
-          queryKey: qk.transactionComments(scopeUserId, projectId, txnId),
-        }),
-        qc.invalidateQueries({
-          queryKey: ['transactionCommentSummaries', scopeUserId, projectId],
-          exact: false,
-        }),
-      ]);
-    },
-  });
-}
-
-export function useDeleteTransactionCommentMutation(
-  projectId: ProjectId,
-  txnId: TxnId
-) {
-  const qc = useQueryClient();
-  const scopeUserId = useQueryScopeUserId();
-  return useMutation({
-    mutationFn: (commentId: TxnCommentId) =>
-      deleteTransactionCommentServerFn({
-        data: { projectId, txnId, commentId },
       }),
     onSuccess: async () => {
       await Promise.all([

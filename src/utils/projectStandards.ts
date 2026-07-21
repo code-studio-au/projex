@@ -12,10 +12,6 @@ export function isInheritedCompanyStandard(item: ProjectStandardLike) {
   return item.originScope === 'company' && item.syncStatus === 'inherited';
 }
 
-export function isCompanyBackedStandard(item: ProjectStandardLike) {
-  return item.originScope === 'company';
-}
-
 export function getProjectStandardBadge(item: ProjectStandardLike) {
   if (item.syncStatus === 'inherited') {
     return {

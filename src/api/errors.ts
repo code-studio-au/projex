@@ -35,7 +35,7 @@ const normalizedErrorCauses = new WeakMap<
   Readonly<{ value: unknown }>
 >();
 
-export function isAppError(err: unknown): err is AppError {
+function isAppError(err: unknown): err is AppError {
   if (typeof err !== 'object' || err === null) return false;
   const maybe = err as { name?: unknown };
   return maybe.name === 'AppError';

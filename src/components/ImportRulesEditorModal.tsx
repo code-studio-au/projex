@@ -47,7 +47,7 @@ import {
 } from './importRuleEditorModel';
 import classes from '../styles/ui.module.css';
 
-export type ImportRuleEditorDraft = Pick<
+type ImportRuleEditorDraft = Pick<
   ImportRule,
   'name' | 'action' | 'field' | 'operator' | 'value' | 'enabled' | 'sortOrder'
 >;

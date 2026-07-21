@@ -29,7 +29,7 @@ export function useProjectAutoCodingRulesQuery(projectId: ProjectId) {
   return useQuery(projectAutoCodingRulesQueryOptions(scopeUserId, projectId));
 }
 
-export function projectAutoCodingRulesQueryOptions(
+function projectAutoCodingRulesQueryOptions(
   userId: string,
   projectId: ProjectId
 ) {
