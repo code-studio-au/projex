@@ -20,15 +20,14 @@ import {
   useTransactionQuery,
   useTransactionsPageQuery,
 } from '../../queries/transactions';
-import type { TransactionView } from './TransactionsOverviewCard';
 import type { QuarterOption } from './transactionsPanelUtils';
+import type { TransactionView } from './transactionViews';
 
 const EMPTY_TXNS: Txn[] = [];
 
 export function useTransactionsPanelData(args: {
   projectId: ProjectId;
   taxonomy: TaxonomyHook;
-  autoMappedPendingCount: number;
   yearFilter: string | null;
   quarterFilter: QuarterOption | null;
   monthFilterKey: string | null;
@@ -149,6 +148,9 @@ export function useTransactionsPanelData(args: {
     adjustedBudgetImpactCents: 0,
     uncodedCount: 0,
     uncodedCents: 0,
+    codingApprovalCount: 0,
+    reversalReviewCount: 0,
+    awaitingReversalCount: 0,
     sourceOnlyCount: 0,
     assignedToMeCount: 0,
     reviewedCount: 0,
@@ -211,7 +213,6 @@ export function useTransactionsPanelData(args: {
       : args.transactionDrilldown.categoryName
     : null;
   return {
-    autoMappedPendingCount: args.autoMappedPendingCount,
     bulkRecodeSubCategoryOptions,
     commentSummaryByTxnId,
     drilldownLabel,

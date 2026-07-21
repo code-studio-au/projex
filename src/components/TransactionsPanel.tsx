@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Stack } from '@mantine/core';
+import { Divider, Paper, Stack } from '@mantine/core';
 import type { TransactionActions } from '../hooks/useTransactionActions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { ProjectId, TransactionDrilldownFilter, TxnId } from '../types';
@@ -7,10 +7,9 @@ import type { ProjectRuleSuggestionPrompt } from '../api/types';
 import TransactionFiltersCard from './transactions/TransactionFiltersCard';
 import TransactionsModalStack from './transactions/TransactionsModalStack';
 import TransactionsDataTable from './transactions/TransactionsDataTable';
-import TransactionsOverviewCard, {
-  type TransactionView,
-} from './transactions/TransactionsOverviewCard';
+import TransactionsOverviewCard from './transactions/TransactionsOverviewCard';
 import { createTransactionColumns } from './transactions/transactionTableColumns';
+import type { TransactionView } from './transactions/transactionViews';
 import { useTransactionsPanelData } from './transactions/useTransactionsPanelData';
 import { useTransactionsPanelState } from './transactions/useTransactionsPanelState';
 import { useTransactionBulkActionsController } from './transactions/useTransactionBulkActionsController';
@@ -123,7 +122,6 @@ export default function TransactionsPanel(props: {
   });
   const createProjectRule = useCreateProjectAutoCodingRuleMutation(projectId);
   const {
-    autoMappedPendingCount: totalAutoMappedPendingCount,
     bulkRecodeSubCategoryOptions,
     commentSummaryByTxnId,
     drilldownLabel,
@@ -152,7 +150,6 @@ export default function TransactionsPanel(props: {
     rowSelection,
     sorting,
     taxonomy,
-    autoMappedPendingCount,
     transactionDrilldown,
     transactionView,
     yearFilter,
@@ -213,170 +210,177 @@ export default function TransactionsPanel(props: {
 
   return (
     <Stack gap="lg" className={classes.pageStack}>
-      <TransactionFiltersCard
-        isMobile={isMobile}
-        yearFilterOptions={yearFilterOptions}
-        yearFilter={yearFilter}
-        setYearFilter={setYearFilter}
-        quarterFilterOptions={quarterFilterOptions}
-        quarterFilter={quarterFilter}
-        setQuarterFilter={setQuarterFilter}
-        monthFilterOptions={monthFilterOptions}
-        monthFilterKey={monthFilterKey}
-        setMonthFilterKey={setMonthFilterKey}
-        onClearFilters={onClearFilters}
-        onResetPage={resetPage}
-        onClearSelection={clearSelection}
-        toQuarterOption={toQuarterOption}
-      />
+      <Paper className={classes.surfaceCard} radius="xl" p="md">
+        <Stack gap="md">
+          <TransactionFiltersCard
+            isMobile={isMobile}
+            transactionView={transactionView}
+            setTransactionView={setTransactionView}
+            yearFilterOptions={yearFilterOptions}
+            yearFilter={yearFilter}
+            setYearFilter={setYearFilter}
+            quarterFilterOptions={quarterFilterOptions}
+            quarterFilter={quarterFilter}
+            setQuarterFilter={setQuarterFilter}
+            monthFilterOptions={monthFilterOptions}
+            monthFilterKey={monthFilterKey}
+            setMonthFilterKey={setMonthFilterKey}
+            onClearFilters={onClearFilters}
+            onResetPage={resetPage}
+            onClearSelection={clearSelection}
+            toQuarterOption={toQuarterOption}
+          />
 
-      <TransactionsOverviewCard
-        pageSummary={pageSummary}
-        currencyCode={currencyCode}
-        autoMappedPendingCount={totalAutoMappedPendingCount}
-        isHydrated={isHydrated}
-        isMobile={isMobile}
-        transactionView={transactionView}
-        setTransactionView={setTransactionView}
-        readOnly={readOnly}
-        canEditTaxonomy={canEditTaxonomy}
-        canManageReversals={canManageReversals}
-        reconcilingPendingReversals={reconcilingPendingReversals}
-        onReconcilePendingReversals={() => {
-          void reconcilePendingReversals();
-        }}
-        onApproveAllAutoMappings={() => {
-          void runBulkAction({
-            input: {
-              action: 'approveAllAutoMappings',
-            },
-            successLabel: 'Approved',
-            clearSelection: false,
-          });
-        }}
-        onOpenTaxonomyManager={() => setManageOpen(true)}
-        selectedTxnCount={selectedTxnIds.length}
-        selectedCountLabel={formatTxnCountLabel(selectedTxnIds.length)}
-        selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
-        selectedAmbiguousSuggestedReversalCount={
-          selectedAmbiguousSuggestedReversalCount
-        }
-        selectedSuggestedReversalCount={selectedSuggestedReversalCount}
-        selectedUnlockedCategorisableCount={selectedUnlockedCategorisableCount}
-        selectedDeletableCount={selectedDeletableCount}
-        onClearSelection={clearSelection}
-        onMarkReviewed={() => {
-          void runBulkAction({
-            input: {
-              action: 'setReviewed',
-              txnIds: selectedTxnIds,
-              reviewed: true,
-            },
-            successLabel: 'Reviewed',
-          });
-        }}
-        onMarkUnreviewed={() => {
-          void runBulkAction({
-            input: {
-              action: 'setReviewed',
-              txnIds: selectedTxnIds,
-              reviewed: false,
-            },
-            successLabel: 'Marked unreviewed for',
-          });
-        }}
-        onLock={() => {
-          void runBulkAction({
-            input: {
-              action: 'setLocked',
-              txnIds: selectedTxnIds,
-              locked: true,
-            },
-            successLabel: 'Locked',
-          });
-        }}
-        onUnlock={() => {
-          void runBulkAction({
-            input: {
-              action: 'setLocked',
-              txnIds: selectedTxnIds,
-              locked: false,
-            },
-            successLabel: 'Unlocked',
-          });
-        }}
-        onApproveAutoMappings={() => {
-          void runBulkAction({
-            input: {
-              action: 'approveAutoMappings',
-              txnIds: selectedTxnIds,
-            },
-            successLabel: 'Approved',
-          });
-        }}
-        onOpenRecode={() => {
-          setBulkRecodeCategoryId(null);
-          setBulkRecodeSubCategoryId(null);
-          setBulkRecodeOpen(true);
-        }}
-        onClearCoding={() => {
-          void runBulkAction({
-            input: {
-              action: 'clearCoding',
-              txnIds: selectedTxnIds,
-            },
-            successLabel: 'Cleared coding for',
-          });
-        }}
-        bulkDeleteConfirmOpen={bulkDeleteConfirmOpen}
-        bulkApproveSuggestedReversalsConfirmOpen={
-          bulkApproveSuggestedReversalsConfirmOpen
-        }
-        onOpenBulkDeleteConfirm={() => setBulkDeleteConfirmOpen(true)}
-        onCloseBulkDeleteConfirm={() => setBulkDeleteConfirmOpen(false)}
-        onConfirmBulkDelete={() => {
-          void runBulkAction({
-            input: {
-              action: 'delete',
-              txnIds: selectedTxnIds,
-            },
-            successLabel: 'Deleted',
-          }).then((result) => {
-            if (result) {
-              setBulkDeleteConfirmOpen(false);
+          <Divider />
+
+          <TransactionsOverviewCard
+            pageSummary={pageSummary}
+            transactionView={transactionView}
+            projectAutoMappedPendingCount={autoMappedPendingCount}
+            isHydrated={isHydrated}
+            isMobile={isMobile}
+            readOnly={readOnly}
+            canEditTaxonomy={canEditTaxonomy}
+            canManageReversals={canManageReversals}
+            reconcilingPendingReversals={reconcilingPendingReversals}
+            onReconcilePendingReversals={() => {
+              void reconcilePendingReversals();
+            }}
+            onApproveAllAutoMappings={() => {
+              void runBulkAction({
+                input: {
+                  action: 'approveAllAutoMappings',
+                },
+                successLabel: 'Approved',
+                clearSelection: false,
+              });
+            }}
+            onOpenTaxonomyManager={() => setManageOpen(true)}
+            selectedTxnCount={selectedTxnIds.length}
+            selectedCountLabel={formatTxnCountLabel(selectedTxnIds.length)}
+            selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
+            selectedAmbiguousSuggestedReversalCount={
+              selectedAmbiguousSuggestedReversalCount
             }
-          });
-        }}
-        onOpenBulkApproveSuggestedReversalsConfirm={() =>
-          setBulkApproveSuggestedReversalsConfirmOpen(true)
-        }
-        onCloseBulkApproveSuggestedReversalsConfirm={() =>
-          setBulkApproveSuggestedReversalsConfirmOpen(false)
-        }
-        onConfirmBulkApproveSuggestedReversals={() => {
-          void runBulkAction({
-            input: {
-              action: 'approveSuggestedReversals',
-              txnIds: selectedTxnIds,
-            },
-            successLabel: 'Approved reversal matches for',
-          }).then((result) => {
-            if (result) {
-              setBulkApproveSuggestedReversalsConfirmOpen(false);
+            selectedSuggestedReversalCount={selectedSuggestedReversalCount}
+            selectedUnlockedCategorisableCount={
+              selectedUnlockedCategorisableCount
             }
-          });
-        }}
-        drilldownLabel={drilldownLabel}
-        onClearDrilldown={() => {
-          clearSelection();
-          resetPage();
-          onClearTransactionDrilldown?.();
-        }}
-        invalidDateCount={pageSummary.invalidDateCount}
-        projectRuleError={projectRuleError}
-        projectRulePromptOpen={Boolean(projectRulePrompt)}
-        onResetPage={resetPage}
-      />
+            selectedDeletableCount={selectedDeletableCount}
+            onClearSelection={clearSelection}
+            onMarkReviewed={() => {
+              void runBulkAction({
+                input: {
+                  action: 'setReviewed',
+                  txnIds: selectedTxnIds,
+                  reviewed: true,
+                },
+                successLabel: 'Reviewed',
+              });
+            }}
+            onMarkUnreviewed={() => {
+              void runBulkAction({
+                input: {
+                  action: 'setReviewed',
+                  txnIds: selectedTxnIds,
+                  reviewed: false,
+                },
+                successLabel: 'Marked unreviewed for',
+              });
+            }}
+            onLock={() => {
+              void runBulkAction({
+                input: {
+                  action: 'setLocked',
+                  txnIds: selectedTxnIds,
+                  locked: true,
+                },
+                successLabel: 'Locked',
+              });
+            }}
+            onUnlock={() => {
+              void runBulkAction({
+                input: {
+                  action: 'setLocked',
+                  txnIds: selectedTxnIds,
+                  locked: false,
+                },
+                successLabel: 'Unlocked',
+              });
+            }}
+            onApproveAutoMappings={() => {
+              void runBulkAction({
+                input: {
+                  action: 'approveAutoMappings',
+                  txnIds: selectedTxnIds,
+                },
+                successLabel: 'Approved',
+              });
+            }}
+            onOpenRecode={() => {
+              setBulkRecodeCategoryId(null);
+              setBulkRecodeSubCategoryId(null);
+              setBulkRecodeOpen(true);
+            }}
+            onClearCoding={() => {
+              void runBulkAction({
+                input: {
+                  action: 'clearCoding',
+                  txnIds: selectedTxnIds,
+                },
+                successLabel: 'Cleared coding for',
+              });
+            }}
+            bulkDeleteConfirmOpen={bulkDeleteConfirmOpen}
+            bulkApproveSuggestedReversalsConfirmOpen={
+              bulkApproveSuggestedReversalsConfirmOpen
+            }
+            onOpenBulkDeleteConfirm={() => setBulkDeleteConfirmOpen(true)}
+            onCloseBulkDeleteConfirm={() => setBulkDeleteConfirmOpen(false)}
+            onConfirmBulkDelete={() => {
+              void runBulkAction({
+                input: {
+                  action: 'delete',
+                  txnIds: selectedTxnIds,
+                },
+                successLabel: 'Deleted',
+              }).then((result) => {
+                if (result) {
+                  setBulkDeleteConfirmOpen(false);
+                }
+              });
+            }}
+            onOpenBulkApproveSuggestedReversalsConfirm={() =>
+              setBulkApproveSuggestedReversalsConfirmOpen(true)
+            }
+            onCloseBulkApproveSuggestedReversalsConfirm={() =>
+              setBulkApproveSuggestedReversalsConfirmOpen(false)
+            }
+            onConfirmBulkApproveSuggestedReversals={() => {
+              void runBulkAction({
+                input: {
+                  action: 'approveSuggestedReversals',
+                  txnIds: selectedTxnIds,
+                },
+                successLabel: 'Approved reversal matches for',
+              }).then((result) => {
+                if (result) {
+                  setBulkApproveSuggestedReversalsConfirmOpen(false);
+                }
+              });
+            }}
+            drilldownLabel={drilldownLabel}
+            onClearDrilldown={() => {
+              clearSelection();
+              resetPage();
+              onClearTransactionDrilldown?.();
+            }}
+            invalidDateCount={pageSummary.invalidDateCount}
+            projectRuleError={projectRuleError}
+            projectRulePromptOpen={Boolean(projectRulePrompt)}
+          />
+        </Stack>
+      </Paper>
 
       <TransactionsDataTable
         isHydrated={isHydrated}
@@ -391,7 +395,6 @@ export default function TransactionsPanel(props: {
         rowSelection={rowSelection}
         sorting={sorting}
         totalCount={pageSummary.totalCount}
-        validSubIds={taxonomy.validSubIds}
         showProgressBars={transactionsPageQ.isFetching}
         onPaginationChange={(updater) => {
           clearSelection();

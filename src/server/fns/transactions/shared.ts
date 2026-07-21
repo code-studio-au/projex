@@ -58,6 +58,9 @@ export type TxnPageSummaryRow = {
   adjusted_budget_impact_cents: number | string;
   uncoded_count: number | string;
   uncoded_cents: number | string;
+  coding_approval_count: number | string;
+  reversal_review_count: number | string;
+  awaiting_reversal_count: number | string;
   source_only_count: number | string;
   assigned_to_me_count: number | string;
   reviewed_count: number | string;

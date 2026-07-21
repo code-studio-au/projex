@@ -84,6 +84,9 @@ type TxnListPageSummary = {
   adjustedBudgetImpactCents: number;
   uncodedCount: number;
   uncodedCents: number;
+  codingApprovalCount: number;
+  reversalReviewCount: number;
+  awaitingReversalCount: number;
   sourceOnlyCount: number;
   assignedToMeCount: number;
   reviewedCount: number;

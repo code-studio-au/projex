@@ -1885,6 +1885,10 @@ test(
         new Set([codingTxnId, pendingSourceTxnId, exceptionSourceTxnId])
       );
       assert.equal(reviewPage.rows.length, 3);
+      assert.equal(reviewPage.summary.totalCount, 3);
+      assert.equal(reviewPage.summary.codingApprovalCount, 1);
+      assert.equal(reviewPage.summary.reversalReviewCount, 2);
+      assert.equal(reviewPage.summary.awaitingReversalCount, 0);
       assert.ok(
         reviewPage.rows.some(
           (row) => row.id === codingTxnId && row.codingPendingApproval

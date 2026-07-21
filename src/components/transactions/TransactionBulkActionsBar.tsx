@@ -1,4 +1,4 @@
-import { Button, Group, Paper, Stack, Text } from '@mantine/core';
+import { Button, Group, Menu, Paper, Text } from '@mantine/core';
 
 export default function TransactionBulkActionsBar(props: {
   selectedCountLabel: string;
@@ -38,81 +38,73 @@ export default function TransactionBulkActionsBar(props: {
   } = props;
 
   return (
-    <Paper radius="xl" p="md">
-      <Stack gap="sm">
-        <Group gap="sm" align="center" wrap="wrap">
+    <Paper radius="md" p="sm" withBorder bg="gray.0">
+      <Group justify="space-between" gap="sm" align="center" wrap="wrap">
+        <Group gap="xs" align="center" wrap="wrap">
           <Text size="sm" fw={600}>
-            {selectedCountLabel} selected on this page
+            {selectedCountLabel} selected
           </Text>
           <Button size="compact-sm" variant="subtle" onClick={onClearSelection}>
-            Clear selection
+            Clear
           </Button>
         </Group>
-        <Group gap="sm" wrap="wrap">
-          <Button size="xs" variant="light" onClick={onMarkReviewed}>
-            Mark reviewed
-          </Button>
-          <Button
-            size="xs"
-            variant="light"
-            color="gray"
-            onClick={onMarkUnreviewed}
-          >
-            Mark unreviewed
-          </Button>
-          <Button size="xs" variant="light" color="dark" onClick={onLock}>
-            Lock
-          </Button>
-          <Button size="xs" variant="light" color="gray" onClick={onUnlock}>
-            Unlock
-          </Button>
-          <Button
-            size="xs"
-            variant="light"
-            color="teal"
-            disabled={selectedAutoMappedPendingCount === 0}
-            onClick={onApproveAutoMappings}
-          >
-            Approve auto-mappings ({selectedAutoMappedPendingCount})
-          </Button>
-          {canManageReversals ? (
+        <Group gap="xs" wrap="wrap">
+          {canManageReversals && selectedSuggestedReversalCount > 0 ? (
             <Button
-              size="xs"
+              size="compact-sm"
               variant="light"
               color="blue"
-              disabled={selectedSuggestedReversalCount === 0}
               onClick={onApproveSuggestedReversals}
             >
-              Approve reversal matches ({selectedSuggestedReversalCount})
+              Approve matches ({selectedSuggestedReversalCount})
             </Button>
           ) : null}
-          <Button
-            size="xs"
-            variant="light"
-            disabled={selectedUnlockedCategorisableCount === 0}
-            onClick={onOpenRecode}
-          >
-            Recode selected
+          {selectedAutoMappedPendingCount > 0 ? (
+            <Button
+              size="compact-sm"
+              variant="light"
+              color="teal"
+              onClick={onApproveAutoMappings}
+            >
+              Approve coding ({selectedAutoMappedPendingCount})
+            </Button>
+          ) : null}
+          {selectedUnlockedCategorisableCount > 0 ? (
+            <Button size="compact-sm" variant="light" onClick={onOpenRecode}>
+              Recode ({selectedUnlockedCategorisableCount})
+            </Button>
+          ) : null}
+          <Button size="compact-sm" variant="light" onClick={onMarkReviewed}>
+            Mark reviewed
           </Button>
-          <Button
-            size="xs"
-            variant="light"
-            color="red"
-            disabled={selectedUnlockedCategorisableCount === 0}
-            onClick={onClearCoding}
-          >
-            Clear coding
-          </Button>
-          <Button
-            size="xs"
-            color="red"
-            disabled={selectedDeletableCount === 0}
-            onClick={onDeleteSelected}
-          >
-            Delete selected ({selectedDeletableCount})
-          </Button>
+          <Menu withinPortal position="bottom-end" shadow="md">
+            <Menu.Target>
+              <Button size="compact-sm" variant="default">
+                More actions
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item onClick={onMarkUnreviewed}>Mark unreviewed</Menu.Item>
+              <Menu.Item onClick={onLock}>Lock transactions</Menu.Item>
+              <Menu.Item onClick={onUnlock}>Unlock transactions</Menu.Item>
+              <Menu.Divider />
+              <Menu.Item
+                disabled={selectedUnlockedCategorisableCount === 0}
+                onClick={onClearCoding}
+              >
+                Clear coding
+              </Menu.Item>
+              <Menu.Item
+                color="red"
+                disabled={selectedDeletableCount === 0}
+                onClick={onDeleteSelected}
+              >
+                Delete eligible ({selectedDeletableCount})
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
         </Group>
-      </Stack>
+      </Group>
     </Paper>
   );
 }

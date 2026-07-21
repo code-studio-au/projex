@@ -52,6 +52,7 @@ import {
 import { useProjectTransactionSummaryQuery } from '../queries/transactions';
 
 import TransactionsPanel from './TransactionsPanel';
+import type { TransactionView } from './transactions/transactionViews';
 import BudgetPanel from './BudgetPanel';
 import PowerBiImporterPanel from './PowerBiImporterPanel';
 import ImportReviewQueuePanel from './ImportReviewQueuePanel';
@@ -65,14 +66,6 @@ const getServerHydratedSnapshot = () => false;
 
 type ProjectWorkspaceTab = 'budget' | 'transactions' | 'import' | 'settings';
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
-type TransactionView =
-  | 'all'
-  | 'uncoded'
-  | 'needs-review'
-  | 'auto-mapped-pending'
-  | 'assigned-to-me'
-  | 'pending-reversal'
-  | 'matched-reversal-pairs';
 type TransactionDrilldownSearch =
   | {
       kind: 'category';
@@ -1042,16 +1035,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                   color="teal"
                 >
                   Superadmin access enabled
-                </Badge>
-              ) : null}
-              {summaryReady ? (
-                <Badge
-                  size={isMobile ? 'md' : 'lg'}
-                  variant="light"
-                  color={uncoded.count ? 'red' : 'gray'}
-                >
-                  Uncoded: {uncoded.count} (
-                  {formatCurrencyFromCents(uncoded.amountCents, currencyCode)})
                 </Badge>
               ) : null}
             </Group>

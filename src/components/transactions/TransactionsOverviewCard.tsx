@@ -3,48 +3,34 @@ import {
   Badge,
   Button,
   Group,
+  Menu,
   Modal,
-  Paper,
-  Select,
   Stack,
   Text,
 } from '@mantine/core';
 
-import { formatCurrencyFromCents } from '../../utils/money';
 import TransactionBulkActionsBar from './TransactionBulkActionsBar';
-
-export type TransactionView =
-  | 'all'
-  | 'uncoded'
-  | 'needs-review'
-  | 'auto-mapped-pending'
-  | 'assigned-to-me'
-  | 'pending-reversal'
-  | 'matched-reversal-pairs';
+import {
+  transactionWorkflowBadges,
+  transactionWorkflowHeading,
+} from './transactionWorkflowSummary';
+import type { TransactionView } from './transactionViews';
 
 type TransactionsPageSummary = {
   totalCount: number;
-  budgetImpactCents: number;
-  pendingReversalCount: number;
-  pendingReversalCents: number;
-  adjustedBudgetImpactCents: number;
   uncodedCount: number;
-  uncodedCents: number;
-  sourceOnlyCount: number;
+  codingApprovalCount: number;
+  reversalReviewCount: number;
+  awaitingReversalCount: number;
   assignedToMeCount: number;
-  reviewedCount: number;
-  lockedCount: number;
-  invalidDateCount: number;
 };
 
 export default function TransactionsOverviewCard(props: {
   pageSummary: TransactionsPageSummary;
-  currencyCode: string;
-  autoMappedPendingCount: number;
+  transactionView: TransactionView;
+  projectAutoMappedPendingCount: number;
   isHydrated: boolean;
   isMobile: boolean;
-  transactionView: TransactionView;
-  setTransactionView: (value: TransactionView) => void;
   readOnly: boolean;
   canEditTaxonomy: boolean;
   canManageReversals: boolean;
@@ -80,16 +66,13 @@ export default function TransactionsOverviewCard(props: {
   invalidDateCount: number;
   projectRuleError: string | null;
   projectRulePromptOpen: boolean;
-  onResetPage: () => void;
 }) {
   const {
     pageSummary,
-    currencyCode,
-    autoMappedPendingCount,
+    transactionView,
+    projectAutoMappedPendingCount,
     isHydrated,
     isMobile,
-    transactionView,
-    setTransactionView,
     readOnly,
     canEditTaxonomy,
     canManageReversals,
@@ -125,144 +108,78 @@ export default function TransactionsOverviewCard(props: {
     invalidDateCount,
     projectRuleError,
     projectRulePromptOpen,
-    onResetPage,
   } = props;
+  const workflowHeading = transactionWorkflowHeading(
+    transactionView,
+    pageSummary.totalCount
+  );
+  const workflowBadges = transactionWorkflowBadges(
+    transactionView,
+    pageSummary
+  );
 
   return (
-    <Paper radius="xl" p="md">
+    <>
       <Stack gap="md">
-        <Group gap="sm" align="center" wrap="wrap">
-          <Badge variant="light">{pageSummary.totalCount} shown</Badge>
-          <Badge
-            variant="light"
-            color={pageSummary.uncodedCount > 0 ? 'red' : 'gray'}
-          >
-            {pageSummary.uncodedCount} uncoded
-            {pageSummary.uncodedCount > 0
-              ? ` · ${formatCurrencyFromCents(
-                  pageSummary.uncodedCents,
-                  currencyCode
-                )}`
-              : ''}
-          </Badge>
-          {pageSummary.assignedToMeCount > 0 ? (
-            <Badge variant="light" color="orange">
-              {pageSummary.assignedToMeCount} assigned to me
-            </Badge>
-          ) : null}
-          {pageSummary.reviewedCount > 0 ? (
-            <Badge variant="light" color="green">
-              {pageSummary.reviewedCount} reviewed
-            </Badge>
-          ) : null}
-          {pageSummary.lockedCount > 0 ? (
-            <Badge variant="light" color="gray">
-              {pageSummary.lockedCount} locked
-            </Badge>
-          ) : null}
-          {pageSummary.pendingReversalCount > 0 ? (
-            <Badge variant="light" color="violet">
-              {pageSummary.pendingReversalCount} pending reversal
-              {` · ${formatCurrencyFromCents(
-                pageSummary.pendingReversalCents,
-                currencyCode
-              )}`}
-            </Badge>
-          ) : null}
-          <Badge
-            variant="light"
-            color={autoMappedPendingCount > 0 ? 'yellow' : 'gray'}
-          >
-            {autoMappedPendingCount} pending review
-          </Badge>
-          <Badge variant="outline" color="blue">
-            Budget impact{' '}
-            {formatCurrencyFromCents(
-              pageSummary.budgetImpactCents,
-              currencyCode
-            )}
-            {' -> '}
-            {formatCurrencyFromCents(
-              pageSummary.adjustedBudgetImpactCents,
-              currencyCode
-            )}
-          </Badge>
-        </Group>
-
-        {isHydrated ? (
-          <Group gap="sm" align="flex-end" wrap="wrap">
-            <Select
-              label="View"
-              data={[
-                { value: 'all', label: 'All' },
-                { value: 'uncoded', label: 'Uncoded only' },
-                { value: 'needs-review', label: 'Needs review' },
-                {
-                  value: 'auto-mapped-pending',
-                  label: 'Auto-mapped pending approval',
-                },
-                { value: 'assigned-to-me', label: 'Assigned to me' },
-                { value: 'pending-reversal', label: 'Pending reversal' },
-                {
-                  value: 'matched-reversal-pairs',
-                  label: 'Matched reversal pairs',
-                },
-              ]}
-              value={transactionView}
-              onChange={(value) => {
-                onClearSelection();
-                onResetPage();
-                setTransactionView(
-                  value === 'uncoded' ||
-                    value === 'needs-review' ||
-                    value === 'auto-mapped-pending' ||
-                    value === 'assigned-to-me' ||
-                    value === 'pending-reversal' ||
-                    value === 'matched-reversal-pairs'
-                    ? value
-                    : 'all'
-                );
-              }}
-              style={{ width: isMobile ? '100%' : 250 }}
-            />
-            <Button
-              variant="light"
-              color="violet"
-              size="sm"
-              fullWidth={isMobile}
-              loading={reconcilingPendingReversals}
-              disabled={readOnly || !canManageReversals}
-              onClick={onReconcilePendingReversals}
-            >
-              Find reversal matches
-            </Button>
-            <Button
-              variant="light"
-              color="teal"
-              size="sm"
-              fullWidth={isMobile}
-              disabled={readOnly || autoMappedPendingCount === 0}
-              onClick={onApproveAllAutoMappings}
-            >
-              Accept all auto-mappings ({autoMappedPendingCount})
-            </Button>
-            <Button
-              variant="light"
-              size="sm"
-              fullWidth={isMobile}
-              disabled={readOnly || !canEditTaxonomy}
-              onClick={onOpenTaxonomyManager}
-            >
-              Manage categories
-            </Button>
+        <Group justify="space-between" align="flex-start" gap="md" wrap="wrap">
+          <Group gap="sm" align="center" wrap="wrap">
+            <Text fw={650}>{workflowHeading}</Text>
+            {workflowBadges.map((badge) => (
+              <Badge
+                key={`${badge.color}-${badge.label}`}
+                variant="light"
+                color={badge.color}
+              >
+                {badge.label}
+              </Badge>
+            ))}
           </Group>
-        ) : (
-          <Paper p="md">
-            <Text size="sm" c="dimmed">
-              Loading transaction controls...
-            </Text>
-          </Paper>
-        )}
+
+          {isHydrated ? (
+            <Group
+              gap="sm"
+              wrap="wrap"
+              style={{ width: isMobile ? '100%' : undefined }}
+            >
+              <Menu withinPortal position="bottom-end" shadow="md">
+                <Menu.Target>
+                  <Button variant="default" size="sm" fullWidth={isMobile}>
+                    Tools
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  {projectAutoMappedPendingCount > 0 && !readOnly ? (
+                    <>
+                      <Menu.Item onClick={onApproveAllAutoMappings}>
+                        Approve all project coding (
+                        {projectAutoMappedPendingCount})
+                      </Menu.Item>
+                      <Menu.Divider />
+                    </>
+                  ) : null}
+                  <Menu.Item
+                    disabled={
+                      readOnly ||
+                      !canManageReversals ||
+                      reconcilingPendingReversals
+                    }
+                    onClick={onReconcilePendingReversals}
+                  >
+                    {reconcilingPendingReversals
+                      ? 'Finding reversal matches...'
+                      : 'Find reversal matches'}
+                  </Menu.Item>
+                  <Menu.Item
+                    disabled={readOnly || !canEditTaxonomy}
+                    onClick={onOpenTaxonomyManager}
+                  >
+                    Manage categories
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Group>
+          ) : null}
+        </Group>
 
         {isHydrated && !readOnly && selectedTxnCount > 0 ? (
           <TransactionBulkActionsBar
@@ -304,7 +221,7 @@ export default function TransactionsOverviewCard(props: {
         ) : null}
 
         {invalidDateCount > 0 ? (
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="orange.8">
             {invalidDateCount} transaction(s) have invalid dates and may be
             excluded from month filters or rollups.
           </Text>
@@ -374,6 +291,6 @@ export default function TransactionsOverviewCard(props: {
           </Group>
         </Stack>
       </Modal>
-    </Paper>
+    </>
   );
 }

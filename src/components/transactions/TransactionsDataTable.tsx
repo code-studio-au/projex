@@ -6,7 +6,6 @@ import {
 } from 'mantine-react-table-open';
 
 import type { Txn } from '../../types';
-import { isCategorisableTxn } from '../../utils/transactions';
 import classes from '../../styles/ui.module.css';
 
 export default function TransactionsDataTable(props: {
@@ -24,7 +23,6 @@ export default function TransactionsDataTable(props: {
   rowSelection: Record<string, boolean>;
   sorting: MRT_SortingState;
   totalCount: number;
-  validSubIds: Set<string>;
   showProgressBars: boolean;
   onPaginationChange: (
     updater:
@@ -51,7 +49,6 @@ export default function TransactionsDataTable(props: {
     rowSelection,
     sorting,
     totalCount,
-    validSubIds,
     showProgressBars,
     onPaginationChange,
     onRowSelectionChange,
@@ -119,21 +116,12 @@ export default function TransactionsDataTable(props: {
             mantineTableBodyCellProps={{ style: { verticalAlign: 'middle' } }}
             mantineTableProps={{
               highlightOnHover: true,
-              striped: 'odd',
               withTableBorder: true,
               style: { tableLayout: 'auto' },
             }}
             enableTopToolbar={false}
             enableDensityToggle={false}
             enableFullScreenToggle={false}
-            mantineTableBodyRowProps={({ row }) => {
-              const ok =
-                !!row.original.subCategoryId &&
-                validSubIds.has(row.original.subCategoryId);
-              return isCategorisableTxn(row.original) && !ok
-                ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-                : {};
-            }}
           />
         </div>
       )}

@@ -224,6 +224,35 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
         new URLSearchParams(search).get('tab') === 'transactions',
       'Project workspace did not switch to the transactions tab'
     );
+
+    const transactionView = page.getByRole('combobox', { name: 'Show' });
+    await transactionView.waitFor({ state: 'visible' });
+    assert(
+      (await transactionView.inputValue()) === 'All transactions',
+      'Transaction workflow filter did not default to all transactions'
+    );
+    await page.getByText(/^0 transactions$/).waitFor({ state: 'visible' });
+
+    await transactionView.click();
+    await page.getByRole('option', { name: 'Needs review' }).click();
+    await waitForLocation(
+      page,
+      ({ pathname, search }) =>
+        pathname === `/c/${companyId}/p/${projectId}` &&
+        new URLSearchParams(search).get('tab') === 'transactions' &&
+        new URLSearchParams(search).get('view') === 'needs-review',
+      'Transaction workflow filter did not update the workspace URL'
+    );
+
+    await page.getByRole('button', { name: 'Tools' }).click();
+    await page
+      .getByRole('menuitem', { name: 'Find reversal matches' })
+      .waitFor({ state: 'visible' });
+    await page
+      .getByRole('menuitem', { name: 'Manage categories' })
+      .waitFor({ state: 'visible' });
+    await page.keyboard.press('Escape');
+
     await page.getByRole('tab', { name: 'Budget' }).click();
     await waitForLocation(
       page,

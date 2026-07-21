@@ -7,7 +7,7 @@ import type {
 import type { TransactionDrilldownFilter, Txn } from '../../types';
 import type { ProjectRuleSuggestionPrompt } from '../../api/types';
 import type { TxnId } from '../../types/ids';
-import type { TransactionView } from './TransactionsOverviewCard';
+import type { TransactionView } from './transactionViews';
 import {
   buildPaginationScopeKey,
   type QuarterOption,

@@ -106,7 +106,8 @@ export default function TransactionCommentsCell(props: {
     );
   }
 
-  const threadResolved = summary.resolvedCount > 0;
+  const threadResolved =
+    summary.resolvedCount > 0 && summary.unresolvedCount === 0;
   const repliesByParent = buildTxnCommentRepliesByParent(comments);
   const topLevelComments = comments.filter(
     (comment) => !comment.parentCommentId
@@ -146,48 +147,37 @@ export default function TransactionCommentsCell(props: {
           </Stack>
         </Collapse>
       ) : (
-        <Paper className={classes.commentSummaryCard} onClick={onOpenComments}>
-          <Stack gap={4} style={{ minWidth: 0 }}>
-            <Group gap={5} wrap="wrap">
-              {threadResolved ? (
-                <Badge size="xs" variant="light" color="green">
-                  Resolved
-                </Badge>
-              ) : summary.unresolvedCount > 0 ? (
-                <Badge size="xs" variant="light" color="yellow">
-                  Unresolved
-                </Badge>
-              ) : null}
-              {!threadResolved && summary.assignedToMeUnresolvedCount > 0 ? (
-                <Badge size="xs" variant="light" color="orange">
-                  Assigned to me
-                </Badge>
-              ) : null}
-            </Group>
-            <Group gap={8} align="flex-start" wrap="nowrap">
-              <span className={classes.commentAvatar}>
-                {commentInitials(summary.latestCommentAuthorName ?? 'Someone')}
-              </span>
-              <Stack gap={3} style={{ minWidth: 0, flex: 1 }}>
-                <Text fw={650} size="xs">
-                  {summary.latestCommentAuthorName ?? 'Someone'}
-                </Text>
-                {summary.latestCommentCreatedAt ? (
-                  <Text size="xs" c="dimmed">
-                    {formatTxnCommentDateTime(summary.latestCommentCreatedAt)}
-                  </Text>
-                ) : null}
-                <Text
-                  size="xs"
-                  lineClamp={2}
-                  style={{ whiteSpace: 'pre-wrap' }}
-                >
-                  {commentExcerpt(summary.latestCommentBody)}
-                </Text>
-              </Stack>
-            </Group>
-          </Stack>
-        </Paper>
+        <Stack gap={3} style={{ minWidth: 0 }}>
+          <Group gap={6} wrap="wrap">
+            {summary.assignedToMeUnresolvedCount > 0 ? (
+              <Badge size="xs" variant="light" color="orange">
+                Assigned to me
+              </Badge>
+            ) : threadResolved ? (
+              <Badge size="xs" variant="light" color="green">
+                Resolved
+              </Badge>
+            ) : summary.unresolvedCount > 0 ? (
+              <Badge size="xs" variant="light" color="yellow">
+                Open
+              </Badge>
+            ) : null}
+            <Text size="xs" c="dimmed" lineClamp={1}>
+              {summary.latestCommentAuthorName ?? 'Someone'}
+              {summary.latestCommentCreatedAt
+                ? ` - ${formatTxnCommentDateTime(summary.latestCommentCreatedAt)}`
+                : ''}
+            </Text>
+          </Group>
+          <Text
+            size="xs"
+            lineClamp={2}
+            style={{ whiteSpace: 'pre-wrap', cursor: 'pointer' }}
+            onClick={onOpenComments}
+          >
+            {commentExcerpt(summary.latestCommentBody)}
+          </Text>
+        </Stack>
       )}
       <Button
         size="compact-xs"
@@ -197,7 +187,7 @@ export default function TransactionCommentsCell(props: {
       >
         {expanded
           ? 'Hide thread'
-          : `View thread (${summary.totalCount} comment${summary.totalCount === 1 ? '' : 's'})`}
+          : `${summary.totalCount} comment${summary.totalCount === 1 ? '' : 's'}`}
       </Button>
     </Stack>
   );

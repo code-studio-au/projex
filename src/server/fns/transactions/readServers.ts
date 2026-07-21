@@ -153,6 +153,9 @@ export async function listTransactionsPageServer(args: {
             const validSubCategory = sql<boolean>`summary_sc.id is not null`;
             const assignedToUser = txnAssignedToUserSql(userId);
             const pendingReversal = sql<boolean>`summary_tr.id is not null`;
+            const codingApproval = sql<boolean>`t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory}`;
+            const reversalReview = sql<boolean>`summary_tr.status in ('auto_matched_pending_approval', 'auto_matched_ambiguous_pending_approval', 'reversal_exception')`;
+            const awaitingReversal = sql<boolean>`summary_tr.status = 'pending_reversal'`;
             return [
               sql<number>`count(*)`.as('total_count'),
               sql<number>`coalesce(sum(case when t.budget_impact then t.amount_cents else 0 end), 0)`.as(
@@ -172,6 +175,15 @@ export async function listTransactionsPageServer(args: {
               ),
               sql<number>`coalesce(sum(case when t.budget_impact and t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then t.amount_cents else 0 end), 0)`.as(
                 'uncoded_cents'
+              ),
+              sql<number>`coalesce(sum(case when ${codingApproval} then 1 else 0 end), 0)`.as(
+                'coding_approval_count'
+              ),
+              sql<number>`coalesce(sum(case when ${reversalReview} then 1 else 0 end), 0)`.as(
+                'reversal_review_count'
+              ),
+              sql<number>`coalesce(sum(case when ${awaitingReversal} then 1 else 0 end), 0)`.as(
+                'awaiting_reversal_count'
               ),
               sql<number>`coalesce(sum(case when (not t.budget_impact) or (not t.categorisable) then 1 else 0 end), 0)`.as(
                 'source_only_count'
@@ -209,6 +221,15 @@ export async function listTransactionsPageServer(args: {
         ),
         uncodedCount: toCount((summaryRow as TxnPageSummaryRow).uncoded_count),
         uncodedCents: toCount((summaryRow as TxnPageSummaryRow).uncoded_cents),
+        codingApprovalCount: toCount(
+          (summaryRow as TxnPageSummaryRow).coding_approval_count
+        ),
+        reversalReviewCount: toCount(
+          (summaryRow as TxnPageSummaryRow).reversal_review_count
+        ),
+        awaitingReversalCount: toCount(
+          (summaryRow as TxnPageSummaryRow).awaiting_reversal_count
+        ),
         sourceOnlyCount: toCount(
           (summaryRow as TxnPageSummaryRow).source_only_count
         ),

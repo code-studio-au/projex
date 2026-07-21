@@ -1,7 +1,7 @@
 import type { TxnBulkActionResult } from '../../api/types';
 import type { TransactionDrilldownFilter } from '../../types';
 import { showAppToast } from '../../utils/toast';
-import type { TransactionView } from './TransactionsOverviewCard';
+import type { TransactionView } from './transactionViews';
 
 export type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 

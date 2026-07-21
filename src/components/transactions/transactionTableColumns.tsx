@@ -10,10 +10,10 @@ import {
 } from '@mantine/core';
 import type { MRT_ColumnDef } from 'mantine-react-table-open';
 import {
+  IconCheck,
   IconDotsVertical,
   IconLock,
   IconMessageCircle,
-  IconSettings,
 } from '@tabler/icons-react';
 
 import type { ProjectRuleSuggestionPrompt } from '../../api/types';
@@ -28,6 +28,7 @@ import {
   txnTypeLabel,
 } from '../../utils/transactions';
 import TransactionCommentsCell from './TransactionCommentsCell';
+import { getTransactionRowStatus } from './transactionRowPresentation';
 
 type CreateTransactionColumnsArgs = {
   transactionActions: TransactionActions;
@@ -98,40 +99,6 @@ function moveToSubcategoryCell(args: {
   args.table.setEditingCell(nextCell ?? null);
 }
 
-function reversalBadge(txn: Txn) {
-  if (txn.reversal?.status === 'reversal_exception') {
-    return { color: 'red', label: 'Reversal exception' };
-  }
-  if (txn.reversal?.status === 'auto_matched_ambiguous_pending_approval') {
-    return {
-      color: 'orange',
-      label:
-        txn.reversal.side === 'source'
-          ? 'Defaulted reversal review'
-          : 'Defaulted reversal',
-    };
-  }
-  if (txn.reversal?.status === 'auto_matched_pending_approval') {
-    return {
-      color: 'blue',
-      label:
-        txn.reversal.side === 'source'
-          ? 'Auto-match review'
-          : 'Suggested reversal',
-    };
-  }
-  if (txn.reversal?.status === 'reversed_matched') {
-    return {
-      color: 'green',
-      label: 'Matched reversal pair',
-    };
-  }
-  if (txn.reversal?.status === 'pending_reversal') {
-    return { color: 'violet', label: 'Pending reversal' };
-  }
-  return null;
-}
-
 export function createTransactionColumns(
   args: CreateTransactionColumnsArgs
 ): MRT_ColumnDef<Txn>[] {
@@ -166,13 +133,14 @@ export function createTransactionColumns(
         const hasValidSubCategory =
           !!row.original.subCategoryId &&
           args.taxonomy.validSubIds.has(row.original.subCategoryId);
-        const showStateBadges =
+        const primaryStatus = getTransactionRowStatus({
+          txn: row.original,
+          hasValidSubCategory,
+        });
+        const showMetadata =
           !!provenanceLabel ||
           !!row.original.lockedAt ||
-          !!row.original.reviewedAt ||
-          !!reversalBadge(row.original) ||
-          (!!row.original.codingPendingApproval && hasValidSubCategory);
-        const reversalState = reversalBadge(row.original);
+          !!row.original.reviewedAt;
         return (
           <Stack gap={2} style={{ minWidth: 0 }}>
             <Text className="table-body-left-bold" lineClamp={1}>
@@ -181,36 +149,32 @@ export function createTransactionColumns(
             <Text c="dimmed" className="table-body-left" lineClamp={2}>
               {description || 'No description provided'}
             </Text>
-            {showStateBadges ? (
-              <Group gap={6} wrap="wrap">
-                {row.original.lockedAt ? (
-                  <Badge
-                    size="xs"
-                    color="gray"
-                    variant="light"
-                    leftSection={<IconLock size={11} />}
-                  >
-                    Locked
-                  </Badge>
-                ) : row.original.reviewedAt ? (
-                  <Badge size="xs" color="green" variant="light">
-                    Reviewed
+            {primaryStatus || showMetadata ? (
+              <Group gap={8} wrap="wrap" align="center">
+                {primaryStatus ? (
+                  <Badge size="xs" color={primaryStatus.color} variant="light">
+                    {primaryStatus.label}
                   </Badge>
                 ) : null}
                 {provenanceLabel ? (
-                  <Badge size="xs" color="blue" variant="light">
+                  <Text size="xs" c="dimmed">
                     {provenanceLabel}
-                  </Badge>
+                  </Text>
                 ) : null}
-                {row.original.codingPendingApproval && hasValidSubCategory ? (
-                  <Badge size="xs" color="yellow" variant="light">
-                    Auto-mapped
-                  </Badge>
-                ) : null}
-                {reversalState ? (
-                  <Badge size="xs" color={reversalState.color} variant="light">
-                    {reversalState.label}
-                  </Badge>
+                {row.original.lockedAt ? (
+                  <Group gap={3} wrap="nowrap">
+                    <IconLock size={11} aria-hidden="true" />
+                    <Text size="xs" c="dimmed">
+                      Locked
+                    </Text>
+                  </Group>
+                ) : row.original.reviewedAt ? (
+                  <Group gap={3} wrap="nowrap">
+                    <IconCheck size={11} aria-hidden="true" />
+                    <Text size="xs" c="dimmed">
+                      Reviewed
+                    </Text>
+                  </Group>
                 ) : null}
               </Group>
             ) : null}
@@ -347,30 +311,18 @@ export function createTransactionColumns(
       },
       Cell: ({ row }) => {
         if (!isCategorisableTxn(row.original)) {
-          return (
-            <Badge color="gray" variant="light">
-              Source only
-            </Badge>
-          );
+          return <Text c="dimmed">Not applicable</Text>;
         }
         const categoryName = args.taxonomy.getCategoryName(
           row.original.categoryId
         );
-        const isCategoryCoded = !!row.original.categoryId;
         return (
-          <Group gap="xs" wrap="wrap">
-            <Text
-              className="table-body-left"
-              c={row.original.categoryId ? undefined : 'dimmed'}
-            >
-              {categoryName}
-            </Text>
-            {!isCategoryCoded ? (
-              <Badge color="red" variant="light">
-                Uncoded
-              </Badge>
-            ) : null}
-          </Group>
+          <Text
+            className="table-body-left"
+            c={row.original.categoryId ? undefined : 'dimmed'}
+          >
+            {row.original.categoryId ? categoryName : 'Not assigned'}
+          </Text>
         );
       },
       mantineTableHeadCellProps: {
@@ -431,27 +383,18 @@ export function createTransactionColumns(
       },
       Cell: ({ row }) => {
         if (!isCategorisableTxn(row.original)) {
-          return (
-            <Badge color="gray" variant="light">
-              Source only
-            </Badge>
-          );
+          return <Text c="dimmed">-</Text>;
         }
         const subCategoryName = args.taxonomy.getSubCategoryName(
           row.original.subCategoryId
         );
-        const isFullyCoded =
-          !!row.original.subCategoryId &&
-          args.taxonomy.validSubIds.has(row.original.subCategoryId);
         return (
-          <Group gap="xs" wrap="wrap">
-            <Text className="table-body-left">{subCategoryName}</Text>
-            {!isFullyCoded ? (
-              <Badge color="red" variant="light">
-                Uncoded
-              </Badge>
-            ) : null}
-          </Group>
+          <Text
+            className="table-body-left"
+            c={row.original.subCategoryId ? undefined : 'dimmed'}
+          >
+            {row.original.subCategoryId ? subCategoryName : 'Not assigned'}
+          </Text>
         );
       },
       mantineTableHeadCellProps: {
@@ -462,7 +405,6 @@ export function createTransactionColumns(
     {
       id: 'actions',
       header: '',
-      Header: () => <IconSettings size={16} aria-label="Actions" />,
       size: 58,
       enableEditing: false,
       enableSorting: false,
