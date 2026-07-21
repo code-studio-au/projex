@@ -32,6 +32,8 @@ been imported yet.
   review work and reversal review work.
 - Users can bulk-approve selected suggested reversal matches from the row
   selector.
+- A selected bulk approval is atomic: if any suggested pair has become invalid,
+  none of the selected pairs or approval comments are committed.
 - `Find reversal matches` searches all currently pending sources against
   eligible, unclaimed negative EXA transactions already in the project. This is
   useful after historical or multi-month imports.
@@ -54,6 +56,8 @@ been imported yet.
   visibly defaulted for review.
 - Approval rechecks the matching fields, amount, sign, and date window so a
   stale suggestion cannot be approved after its transaction metadata changes.
+- Approval and transaction lock changes are serialized per project so a
+  concurrent lock or reversal-state change cannot bypass those checks.
 - Rejected suggestions return the source transaction to `Pending reversal` so a
   user can match it manually later. The rejected source/counterpart pair is
   excluded from later automatic reconciliation so it is not repeatedly

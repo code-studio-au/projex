@@ -20,6 +20,14 @@ import {
   integrationDatabaseUrl,
 } from './dbIntegration.helpers.ts';
 
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 test(
   'project rule backfill can auto-code uncoded rows and promote a project rule to company defaults',
   { skip: !integrationDatabaseUrl },
@@ -491,6 +499,108 @@ test(
           updated_at: now,
         })
         .execute();
+
+      const lockReady = deferred();
+      const releaseLock = deferred();
+      const concurrentLock = db.transaction().execute(async (trx) => {
+        await trx
+          .selectFrom('txns')
+          .select('public_id')
+          .where('project_id', '=', projectId)
+          .where('public_id', '=', pendingTxnId)
+          .forUpdate()
+          .executeTakeFirstOrThrow();
+        lockReady.resolve();
+        await releaseLock.promise;
+        await trx
+          .updateTable('txns')
+          .set({
+            reviewed_at: now,
+            reviewed_by_user_id: userId,
+            locked_at: now,
+            locked_by_user_id: userId,
+          })
+          .where('project_id', '=', projectId)
+          .where('public_id', '=', pendingTxnId)
+          .executeTakeFirst();
+      });
+      await lockReady.promise;
+      const approveDuringLock = bulkTxnActionServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          action: 'approveAutoMappings',
+          txnIds: [pendingTxnId],
+        },
+      });
+      releaseLock.resolve();
+      const concurrentLockResult = await approveDuringLock;
+      await concurrentLock;
+      assert.equal(concurrentLockResult.updatedCount, 0);
+      assert.equal(concurrentLockResult.lockedCount, 1);
+
+      await db
+        .updateTable('txns')
+        .set({
+          reviewed_at: null,
+          reviewed_by_user_id: null,
+          locked_at: null,
+          locked_by_user_id: null,
+        })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', pendingTxnId)
+        .executeTakeFirst();
+
+      const reversalReady = deferred();
+      const releaseReversal = deferred();
+      const concurrentReversal = db.transaction().execute(async (trx) => {
+        await trx
+          .selectFrom('txns')
+          .select('public_id')
+          .where('project_id', '=', projectId)
+          .where('public_id', '=', sourceOnlyTxnId)
+          .forUpdate()
+          .executeTakeFirstOrThrow();
+        reversalReady.resolve();
+        await releaseReversal.promise;
+        await trx
+          .insertInto('txn_reversals')
+          .values({
+            id: 'itest_bulk_txn_actions_reversal_concurrent',
+            company_id: companyId,
+            project_id: projectId,
+            source_txn_public_id: sourceOnlyTxnId,
+            matched_reversal_txn_public_id: null,
+            expected_project_id: null,
+            status: 'pending_reversal',
+            marked_at: now,
+            marked_by_user_id: userId,
+            matched_at: null,
+            matched_by_user_id: null,
+            created_at: now,
+            updated_at: now,
+          })
+          .executeTakeFirst();
+      });
+      await reversalReady.promise;
+      const deleteDuringReversal = bulkTxnActionServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          action: 'delete',
+          txnIds: [sourceOnlyTxnId],
+        },
+      });
+      releaseReversal.resolve();
+      const concurrentReversalResult = await deleteDuringReversal;
+      await concurrentReversal;
+      assert.equal(concurrentReversalResult.updatedCount, 0);
+      assert.equal(concurrentReversalResult.ineligibleCount, 1);
+
+      await db
+        .deleteFrom('txn_reversals')
+        .where('id', '=', 'itest_bulk_txn_actions_reversal_concurrent')
+        .executeTakeFirst();
 
       const approveResult = await bulkTxnActionServer({
         context: { session: { userId } },

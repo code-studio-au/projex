@@ -1543,6 +1543,47 @@ test(
         )
       );
 
+      await db
+        .updateTable('txns')
+        .set({ amount_cents: -123595 })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', reversalTxnBId)
+        .executeTakeFirst();
+
+      await assertAppErrorCode(
+        () =>
+          bulkTxnActionServer({
+            context,
+            projectId,
+            input: {
+              action: 'approveSuggestedReversals',
+              txnIds: [sourceTxnAId, sourceTxnBId],
+            },
+          }),
+        'VALIDATION_ERROR',
+        'bulk approval rolls back when a later reversal is invalid'
+      );
+
+      const rolledBackReversals = await db
+        .selectFrom('txn_reversals')
+        .select(['source_txn_public_id', 'status'])
+        .where('project_id', '=', projectId)
+        .where('source_txn_public_id', 'in', [sourceTxnAId, sourceTxnBId])
+        .execute();
+      assert.equal(
+        rolledBackReversals.every(
+          (row) => row.status === 'auto_matched_ambiguous_pending_approval'
+        ),
+        true
+      );
+
+      await db
+        .updateTable('txns')
+        .set({ amount_cents: -123596 })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', reversalTxnBId)
+        .executeTakeFirst();
+
       const bulkResult = await bulkTxnActionServer({
         context,
         projectId,

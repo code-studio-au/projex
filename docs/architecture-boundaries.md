@@ -91,3 +91,34 @@ Current reference patterns:
 - `src/server/fns/importRules/sync.ts`
 - `src/server/fns/projectAutoCodingRules/sync.ts`
 - `src/server/fns/taxonomy/standards.ts`
+
+## Transaction workflow rule
+
+Keep transaction and reversal responsibilities behind the existing transaction
+server-function boundary, but separate their domain implementation:
+
+- `reversalMatching.ts` owns pure candidate compatibility and pairing.
+- `reversalReconciliation.ts` owns candidate discovery and suggestion
+  persistence.
+- `reversalDomain.ts` owns workflow invariants and persisted-row lookup.
+- `reversalComments.ts` owns audit-comment construction and persistence.
+- `reversalWorkflowServers.ts` owns individual workflow transitions.
+- `reversalBulkServers.ts` owns project recovery and atomic bulk approval.
+- `bulkWorkflowServers.ts` owns non-reversal bulk transaction commands.
+- `reversalServers.ts` remains a compatibility facade, not an implementation
+  module.
+
+Bulk commands must make eligibility decisions after entering their database
+transaction. Lock selected rows in deterministic order, repeat eligibility in
+the write predicate, and verify affected-row counts. Transaction lock changes
+and reversal transitions also take the shared project-scoped advisory lock so
+neither workflow can invalidate the other's decision mid-command.
+
+## Feature UI rule
+
+Rendering components should delegate reusable mutation orchestration to feature
+controllers or scope adapters. The transaction bulk-action controller is the
+reference for loading state, result notifications, and selection cleanup. The
+shared import-rule editor is the reference for one editor receiving thin
+company/project data adapters while pure option, dirty-state, and ordering
+decisions remain independently testable.

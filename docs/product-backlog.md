@@ -97,33 +97,33 @@ Implemented:
 
 ### 6. Make bulk transaction and reversal operations concurrency-safe
 
+Status: completed 21 July 2026.
+
 Risk:
 
 - bulk transaction eligibility is read before the database transaction begins
 - subsequent updates do not consistently recheck lock, categorisable, or reversal-workflow conditions in their SQL predicates
 - bulk reversal approval commits each selected reversal separately, so a later error can return failure after earlier items have already committed
 
-Required work:
+Implemented:
 
-- load and lock selected rows inside the mutation transaction
-- use conditional updates/deletes and verify affected-row counts to prevent stale eligibility decisions
-- make bulk approval atomic, or explicitly expose and test per-item success/failure semantics
-- add concurrent lock/reversal-state and mid-batch failure integration tests
+- project-scoped advisory transaction locks now serialize reversal and transaction workflow transitions that share lock or reversal eligibility
+- selected transaction and reversal rows are loaded in deterministic order with `FOR UPDATE` inside the mutation transaction
+- bulk approve, recode, clear-coding, and delete writes repeat their eligibility predicates and reject unexpected affected-row counts instead of acting on stale reads
+- selected reversal approvals now share one transaction, so comments and earlier pair approvals roll back when any later selected pair fails validation
+- database integration coverage exercises a concurrent transaction lock, a concurrent reversal insertion, and atomic rollback after a mid-batch reversal validation failure
 
 ### 7. Split oversized feature modules along domain boundaries
 
-Current concentration:
+Status: completed 21 July 2026.
 
-- reversal server handling still combines comments, workflow transitions, import orchestration, and bulk approval after matching and scoring were extracted
-- `ProjectWorkspace`, PowerBI import, company settings, budget, summary, and smoke dashboard components each coordinate several responsibilities
-- company and project import-rule modals duplicate draft management, validation, save, reorder, and editor rendering
+Implemented:
 
-Required work:
-
-- split reversal matching, reversal workflow transitions, comments, and bulk commands into focused domain services
-- move complex UI mutation orchestration into feature controllers/hooks while keeping rendering components presentational
-- extract a shared import-rule editor with company/project scope adapters
-- preserve the existing documented API/server boundary and add focused tests around each extracted boundary
+- the reversal facade now delegates to focused matching, reconciliation, domain validation, comment, workflow-transition, concurrency, and bulk-command modules
+- transaction bulk commands are separate from single-row workflow transitions, and the Transactions panel delegates mutation/toast/selection orchestration to a feature controller hook
+- company and project import-rule modals now provide scope-specific query and mutation adapters to one shared editor rather than duplicating editor state, validation, ordering, and rendering
+- import-rule option parsing, dirty-state, ordering, and project-provenance movement rules live in a pure tested editor model
+- the existing `src/server/start/functions/**` application boundary remains unchanged, while focused unit and database integration tests cover the extracted decision and transaction boundaries
 
 ### 8. Remove verified dead code and control export surface growth
 

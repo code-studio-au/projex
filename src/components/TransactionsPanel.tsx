@@ -4,7 +4,6 @@ import type { TransactionsHook } from '../hooks/useTransactions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { ProjectId, TransactionDrilldownFilter, TxnId } from '../types';
 import type { ProjectRuleSuggestionPrompt } from '../api/types';
-import { asCategoryId, asSubCategoryId } from '../types/ids';
 import TransactionFiltersCard from './transactions/TransactionFiltersCard';
 import TransactionsModalStack from './transactions/TransactionsModalStack';
 import TransactionsDataTable from './transactions/TransactionsDataTable';
@@ -14,11 +13,10 @@ import TransactionsOverviewCard, {
 import { createTransactionColumns } from './transactions/transactionTableColumns';
 import { useTransactionsPanelData } from './transactions/useTransactionsPanelData';
 import { useTransactionsPanelState } from './transactions/useTransactionsPanelState';
+import { useTransactionBulkActionsController } from './transactions/useTransactionBulkActionsController';
 import { useCreateProjectAutoCodingRuleMutation } from '../queries/projectAutoCodingRules';
-import { showAppToast } from '../utils/toast';
 import {
   formatTxnCountLabel,
-  showBulkActionResultToast,
   toQuarterOption,
   type QuarterOption,
 } from './transactions/transactionsPanelUtils';
@@ -165,11 +163,17 @@ export default function TransactionsPanel(props: {
     bulkApproveSuggestedReversalsConfirmOpen,
     setBulkApproveSuggestedReversalsConfirmOpen,
   ] = useState(false);
-  const [reconcilingPendingReversals, setReconcilingPendingReversals] =
-    useState(false);
   const resetPage = () =>
     setPagination((current) => ({ ...current, pageIndex: 0 }));
   const clearSelection = () => setRowSelection({});
+  const {
+    reconcilePendingReversals,
+    reconcilingPendingReversals,
+    runBulkAction,
+  } = useTransactionBulkActionsController({
+    mutate: txns.runBulkAction,
+    clearSelection,
+  });
 
   function applyProjectRulePrompt(prompt: ProjectRuleSuggestionPrompt | null) {
     if (!prompt) return;
@@ -206,103 +210,6 @@ export default function TransactionsPanel(props: {
     onOpenSplit: setSplitTxn,
     onOpenTransfer: setTransferTxn,
   });
-
-  async function runBulkAction(args: {
-    input:
-      | {
-          action: 'approveAllAutoMappings';
-        }
-      | {
-          action: 'reconcilePendingReversals';
-        }
-      | {
-          action: 'approveAutoMappings';
-          txnIds: TxnId[];
-        }
-      | {
-          action: 'approveSuggestedReversals';
-          txnIds: TxnId[];
-        }
-      | {
-          action: 'clearCoding';
-          txnIds: TxnId[];
-        }
-      | {
-          action: 'setReviewed';
-          txnIds: TxnId[];
-          reviewed: boolean;
-        }
-      | {
-          action: 'setLocked';
-          txnIds: TxnId[];
-          locked: boolean;
-        }
-      | {
-          action: 'recode';
-          txnIds: TxnId[];
-          categoryId: ReturnType<typeof asCategoryId>;
-          subCategoryId: ReturnType<typeof asSubCategoryId>;
-        }
-      | {
-          action: 'delete';
-          txnIds: TxnId[];
-        };
-    successLabel: string;
-    clearSelection?: boolean;
-  }) {
-    try {
-      const result = await txns.runBulkAction(args.input);
-      showBulkActionResultToast({
-        result,
-        successLabel: args.successLabel,
-      });
-      if (args.clearSelection ?? true) {
-        setRowSelection({});
-      }
-      return result;
-    } catch (error) {
-      showAppToast({
-        title: 'Bulk action failed',
-        tone: 'error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Could not update the selected transactions.',
-      });
-      return null;
-    }
-  }
-
-  async function reconcilePendingReversals() {
-    setReconcilingPendingReversals(true);
-    try {
-      const result = await txns.runBulkAction({
-        action: 'reconcilePendingReversals',
-      });
-      showAppToast({
-        title:
-          result.updatedCount > 0
-            ? 'Reversal matches found'
-            : 'No new reversal matches',
-        tone: result.updatedCount > 0 ? 'success' : 'info',
-        message:
-          result.updatedCount > 0
-            ? `Suggested ${formatTxnCountLabel(result.updatedCount)} for review.`
-            : 'No eligible pending reversals matched an unclaimed existing EXA transaction.',
-      });
-    } catch (error) {
-      showAppToast({
-        title: 'Reversal matching failed',
-        tone: 'error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Could not search for pending reversal matches.',
-      });
-    } finally {
-      setReconcilingPendingReversals(false);
-    }
-  }
 
   return (
     <Stack gap="lg" className={classes.pageStack}>
