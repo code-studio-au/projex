@@ -130,7 +130,7 @@ export default function PowerBiImporterPanel(props: {
     txns: TxnImportTxnInput[],
     options?: PowerBiImportCommitOptions
   ) => Promise<void>;
-  onImportComplete: () => void;
+  onImportComplete: (message: string) => void;
 }) {
   const {
     taxonomy,
@@ -177,7 +177,6 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     skipDuplicates,
     previewTab,
     confirmReplaceOpen,
-    importNotice,
     importError,
     previewSourceLabel,
     excludedImportIds,
@@ -681,11 +680,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
   );
 
   async function handleCommitAppend() {
-    if (await commitAppend()) onImportComplete();
+    const message = await commitAppend();
+    if (message) onImportComplete(message);
   }
 
   async function handleCommitReplaceAll() {
-    if (await commitReplaceAll()) onImportComplete();
+    const message = await commitReplaceAll();
+    if (message) onImportComplete(message);
   }
 
   return (
@@ -719,12 +720,6 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               {importError}
             </Alert>
           ) : null}
-          {importNotice ? (
-            <Alert color="green" className={classes.notice}>
-              {importNotice}
-            </Alert>
-          ) : null}
-
           <Text size="sm" c="dimmed" className={classes.filterIntro}>
             Upload or paste the PowerBI expenditure actuals CSV export, then
             preview the import before committing it. Import Rules run first to

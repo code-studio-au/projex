@@ -14,7 +14,6 @@ import {
   asSubCategoryId,
   asTxnId,
   asUserId,
-  type ImportBatchId,
   type ImportPreviewRow,
 } from '../src/types/index.ts';
 import {
@@ -39,7 +38,6 @@ function importedTxnFromPreview(args: {
   row: ImportPreviewRow;
   companyId: ReturnType<typeof asCompanyId>;
   projectId: ReturnType<typeof asProjectId>;
-  importBatchId: ImportBatchId;
 }) {
   const { row } = args;
   const { parsedDate, item, description, amountCents } = row;
@@ -57,7 +55,6 @@ function importedTxnFromPreview(args: {
     item,
     description,
     amountCents,
-    importBatchId: args.importBatchId,
     importSourceType: row.sourceType,
     importSourceMeta: row.rawSourceRow,
   };
@@ -229,7 +226,6 @@ test(
         row: ordinaryRow,
         companyId,
         projectId,
-        importBatchId: preview.importBatchId,
       });
       await assertAppError(
         () =>
@@ -249,7 +245,6 @@ test(
           row: reviewRow,
           companyId,
           projectId,
-          importBatchId: preview.importBatchId,
         }),
         forceUncoded: true,
       };
@@ -282,6 +277,13 @@ test(
       assert.equal(importedReviewTxn.sub_category_id, null);
       assert.equal(importedReviewTxn.coding_source, null);
       assert.equal(importedReviewTxn.coding_pending_approval, false);
+
+      const importedBatch = await db
+        .selectFrom('txns')
+        .select('import_batch_id')
+        .where('public_id', '=', reviewedTxn.id)
+        .executeTakeFirstOrThrow();
+      assert.equal(importedBatch.import_batch_id, preview.importBatchId);
 
       const reviewCandidate = await db
         .selectFrom('import_candidates')

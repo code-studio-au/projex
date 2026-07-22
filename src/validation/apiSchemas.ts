@@ -675,6 +675,7 @@ export const txnCommentUpdateMutationBodySchema = z.object({
 
 const importedTxnInputSchema = createTxnInputSchema.extend({
   id: txnIdSchema,
+  importBatchId: importBatchIdParamSchema.optional(),
   forceUncoded: z.boolean().optional(),
 });
 

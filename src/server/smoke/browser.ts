@@ -266,7 +266,9 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
       'Project workspace did not switch to the transactions tab'
     );
 
-    const transactionView = page.getByRole('combobox', { name: 'Show' });
+    const transactionView = page.getByRole('combobox', {
+      name: 'Workflow view',
+    });
     await transactionView.waitFor({ state: 'visible' });
     assert(
       (await transactionView.inputValue()) === 'All transactions',

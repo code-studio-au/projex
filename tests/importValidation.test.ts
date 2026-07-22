@@ -73,6 +73,8 @@ test('transaction import schema accepts an uncoded review decision', () => {
   });
 
   assert.equal(result.success, true);
+  if (!result.success) return;
+  assert.equal(result.data.txns[0]?.importBatchId, 'impb_1');
 });
 
 test('transaction import preview schema limits CSV payload size', () => {

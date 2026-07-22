@@ -38,6 +38,7 @@ import { useTransactionActions } from '../hooks/useTransactionActions';
 import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useRollups } from '../hooks/useRollups';
 import { formatCurrencyFromCents } from '../utils/money';
+import { showAppToast } from '../utils/toast';
 
 import {
   useCompanyQuery,
@@ -1190,7 +1191,15 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                 canEditTaxonomy={canEditTaxonomy}
                 canEditBudgets={canEditBudgets}
                 canManageImportRules={canManageImportRules}
-                onImportComplete={() => setActiveTab('transactions')}
+                onImportComplete={(message) => {
+                  setActiveTab('transactions');
+                  showAppToast({
+                    tone: 'success',
+                    title: 'Import complete',
+                    message,
+                    autoClose: 8000,
+                  });
+                }}
                 onReplaceAll={async (next, options) => {
                   await importTransactions.mutateAsync({
                     txns: next,

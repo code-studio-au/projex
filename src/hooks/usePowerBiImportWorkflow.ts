@@ -19,6 +19,7 @@ import type {
 import { asTxnId } from '../types';
 import { withStandardTxnAccountingMetadata } from '../utils/transactions';
 import { txnInputSchema } from '../validation/schemas';
+import { showAppToast } from '../utils/toast';
 import {
   cancelImportPreviewServerFn,
   previewImportTransactionsServerFn,
@@ -90,7 +91,6 @@ export function usePowerBiImportWorkflow(params: {
   const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [previewTab, setPreviewTab] = useState<ImportPreviewTab>('included');
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
-  const [importNotice, setImportNotice] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [previewRows, setPreviewRows] = useState<ImportPreviewRow[] | null>(
     null
@@ -233,7 +233,6 @@ export function usePowerBiImportWorkflow(params: {
 
   function clearFeedback() {
     setImportError(null);
-    setImportNotice(null);
   }
 
   function updatePreviewTab(nextTab: ImportPreviewTab) {
@@ -568,22 +567,19 @@ export function usePowerBiImportWorkflow(params: {
       await onAppend(txns, importCommitOptions());
       const importedCount = txns.length;
       resetImporter();
-      setImportNotice(
-        importedCount === 0
-          ? 'Completed the import with no rows added.'
-          : skipped > 0
-            ? `Imported ${importedCount} rows. Skipped ${skipped} duplicate preview row(s).`
-            : `Imported ${importedCount} rows.`
-      );
-      return true;
+      return importedCount === 0
+        ? 'Completed the import with no rows added.'
+        : skipped > 0
+          ? `Imported ${importedCount} rows. Skipped ${skipped} duplicate preview row(s).`
+          : `Imported ${importedCount} rows.`;
     } catch (error) {
-      setImportNotice(null);
-      setImportError(
+      const message =
         error instanceof Error
           ? error.message
-          : 'Could not append imported transactions.'
-      );
-      return false;
+          : 'Could not append imported transactions.';
+      setImportError(message);
+      showAppToast({ tone: 'error', title: 'Import failed', message });
+      return null;
     }
   }
 
@@ -596,18 +592,15 @@ export function usePowerBiImportWorkflow(params: {
       const importedCount = txns.length;
       setConfirmReplaceOpen(false);
       resetImporter();
-      setImportNotice(
-        `Replaced transactions with ${importedCount} imported rows.`
-      );
-      return true;
+      return `Replaced transactions with ${importedCount} imported rows.`;
     } catch (error) {
-      setImportNotice(null);
-      setImportError(
+      const message =
         error instanceof Error
           ? error.message
-          : 'Could not replace imported transactions.'
-      );
-      return false;
+          : 'Could not replace imported transactions.';
+      setImportError(message);
+      showAppToast({ tone: 'error', title: 'Import failed', message });
+      return null;
     }
   }
 
@@ -620,7 +613,6 @@ export function usePowerBiImportWorkflow(params: {
     skipDuplicates,
     previewTab,
     confirmReplaceOpen,
-    importNotice,
     importError,
     previewRows,
     activePreviewRows,

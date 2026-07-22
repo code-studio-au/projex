@@ -60,6 +60,9 @@ export async function importTransactionsServer(args: {
       excludedImportIds: args.excludedImportIds,
       reviewDecisions: args.reviewDecisions,
     });
+    const incomingTransactions = importBatchId
+      ? args.txns.map((txn) => ({ ...txn, importBatchId }))
+      : args.txns;
     await enforceRateLimit({
       db,
       bucket: `project-import-commit:${companyId}:${args.projectId}:${userId}`,
@@ -85,7 +88,7 @@ export async function importTransactionsServer(args: {
     const plan = planTransactionImportCommit({
       projectId: args.projectId,
       companyId,
-      incomingTransactions: args.txns,
+      incomingTransactions,
       existingTransactions: importContext.existingTransactions,
       existingBudgets: importContext.budgets,
       projectAutoCodingRules: importContext.projectAutoCodingRules,
@@ -100,7 +103,7 @@ export async function importTransactionsServer(args: {
           db: trx,
           projectId: args.projectId,
           importBatchId,
-          incomingTransactions: args.txns,
+          incomingTransactions,
           excludedImportIds: args.excludedImportIds,
           reviewDecisions: args.reviewDecisions,
         });
@@ -202,7 +205,7 @@ export async function importTransactionsServer(args: {
           db: trx,
           projectId: args.projectId,
           importBatchId,
-          incomingTransactions: args.txns,
+          incomingTransactions,
           excludedImportIds: args.excludedImportIds,
           reviewDecisions: args.reviewDecisions,
         });
