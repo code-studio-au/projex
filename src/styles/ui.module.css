@@ -275,6 +275,35 @@
   box-shadow: var(--surface-shadow);
 }
 
+.taxonomyCreateCard {
+  background: var(--surface-soft);
+}
+
+.taxonomyAccordionItem {
+  overflow: hidden;
+  border-color: var(--surface-border);
+  background: var(--table-cell-bg);
+}
+
+.taxonomyAccordionControl {
+  min-width: 0;
+}
+
+.taxonomySubCategoryRow {
+  background: var(--surface-soft);
+}
+
+.managementListCard {
+  background: var(--surface-soft);
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.managementListCard:hover {
+  border-color: var(--surface-border-strong);
+}
+
 .subtleCard {
   padding: 1rem;
   border: 1px solid var(--surface-border);

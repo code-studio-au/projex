@@ -1,180 +1,17 @@
 # Product Backlog
 
-This backlog is intentionally focused on unfinished work. Implemented platform capabilities such as transaction comments, split/transfer workflows, programme rollups, PowerBI import foundations, smoke cleanup automation, and destructive delete safeguards are no longer tracked here as active backlog items.
-
-## Immediate TODO
-
-These items come from the July 2026 professional repository review. The numbering is retained so implementation and review follow-up can refer to the original finding unambiguously.
-
-### 1. Harden authentication rate-limit client IP handling
-
-Status: completed 21 July 2026.
-
-Risk:
-
-- Better Auth currently uses its default `x-forwarded-for` client IP source
-- Nginx builds that header with `$proxy_add_x_forwarded_for`, so a client-provided value can appear before the trusted proxy address
-- Better Auth 1.6.x reads the first valid address, allowing a caller to rotate forged values and weaken per-IP authentication rate limiting
-
-Implemented:
-
-- Better Auth now reads only the Nginx-controlled `x-real-ip` header
-- all maintained Nginx application proxy configurations overwrite `X-Real-IP` with `$remote_addr`
-- repository security verification and a focused auth-options test guard both sides of that trust boundary
-- full disposable server and browser smoke flows pass with the trusted proxy header and exercise active sign-in rate limiting
-
-### 2. Prevent internal server exception details from reaching clients
-
-Status: completed 21 July 2026.
-
-Risk:
-
-- `toAppError` currently preserves the original message when an unknown `Error` is converted to `INTERNAL_ERROR`
-- `withServerBoundary` applies that conversion to unexpected server-function failures
-- the HTTP boundary serializes `AppError.message`, so database constraints and implementation details can be exposed to clients
-
-Implemented:
-
-- deliberate domain `AppError` instances retain their public messages, while all unknown thrown values normalize to the fixed `Unexpected server error` message
-- original causes are held in a process-local, non-serializable association rather than response metadata or enumerable error properties
-- the HTTP and native TanStack server-function boundaries emit structured 500 logs containing the cause message, name, stack, and request ID only on the server
-- focused regression coverage passes an unexpected database-style exception through both the server-function and HTTP boundaries and verifies the private detail is logged but not returned
-
-### 3. Restore a clean dependency security audit
-
-Status: completed 21 July 2026.
-
-Risk:
-
-- the mandatory `pnpm audit` gate currently reports high-severity denial-of-service advisories in transitive `brace-expansion` and `js-yaml` versions
-- affected paths include production dependency trees through ExcelJS and TanStack Start as well as development tooling
-- `verify:app` and CI stop at the audit stage, preventing a releasable green verification result
-
-Implemented:
-
-- pnpm 11 override configuration now lives in root `pnpm-workspace.yaml`, where pnpm actually applies dependency-resolution settings
-- vulnerable `brace-expansion` major lines resolve to `1.1.16`, `2.1.2`, and `5.0.7`, while vulnerable `js-yaml` 4.x resolves to `4.3.0`
-- stale broad overrides were removed instead of forcing legacy consumers across incompatible package majors
-- the override rationale and removal policy are documented in `docs/dependency-overrides.md`
-- the regenerated lockfile, zero-vulnerability audit, full application gate, CDK synthesis, database gate, export flow, and browser smoke all pass
-
-### 4. Align the default EXA import rule with reversal matching
-
-Status: completed 21 July 2026.
-
-Risk:
-
-- the seeded rule named `Exclude EXA unacquitted Concur source` matches only `Source = EXA`
-- its predicate therefore excludes every EXA transaction rather than the narrower subset described by its name
-- new companies can silently exclude both pending-reversal and actual-reversal candidates before the matching workflow sees them
-
-Implemented:
-
-- EXA now defaults to import because the available export fields do not provide a reliable discriminator for unacquitted Concur rows
-- new company baselines retain the SAL exclusion and salary-transfer review rules without creating a broad EXA exclusion
-- a forward migration removes only the exact untouched company seed and inherited project copies; customized project overrides are preserved as detached local rules
-- focused rule tests and database-backed import-preview coverage confirm EXA reaches the existing month-one/month-two reversal workflow
-
-### 5. Make ambiguous reversal pairing valid by construction
-
-Status: completed 21 July 2026.
-
-Risk:
-
-- ambiguous matching independently orders tied source and counterpart arrays and pairs them by index
-- optional reference and cost-centre comparisons are not transitive, so a zipped pair can be invalid even though each row participated in a tie around another row
-- approval rechecks amount, sign, project, and lock state but does not re-run the import-metadata compatibility score
-
-Implemented:
-
-- reversal scoring and matching now live in a focused pure matching module that builds a bipartite graph from qualifying metadata-compatible edges only
-- deterministic augmenting-path matching preserves the maximum valid pair count, keeps stable closest ordering where possible, and marks every selected pair in an ambiguous candidate component for review
-- ambiguous audit comments list only valid candidates for that source or counterpart rather than every row in an independently sorted group
-- individual and bulk approval re-run the same amount, date, EXA metadata, reference, and cost-centre compatibility invariant before accepting a stored suggestion
-- focused asymmetric missing-reference and missing-cost-centre tests, metadata-drift approval coverage, and the duplicate-row database workflow all pass
-- reconciliation now runs in both directions: imports match new negatives to existing pending sources, while marking pending searches existing later negatives; reviewers can also run project-wide recovery after historical or multi-month imports
-- rejected automatic pairs are persisted and excluded from future reconciliation without removing them from manual matching
-
-### 6. Make bulk transaction and reversal operations concurrency-safe
-
-Status: completed 21 July 2026.
-
-Risk:
-
-- bulk transaction eligibility is read before the database transaction begins
-- subsequent updates do not consistently recheck lock, categorisable, or reversal-workflow conditions in their SQL predicates
-- bulk reversal approval commits each selected reversal separately, so a later error can return failure after earlier items have already committed
-
-Implemented:
-
-- project-scoped advisory transaction locks now serialize reversal and transaction workflow transitions that share lock or reversal eligibility
-- selected transaction and reversal rows are loaded in deterministic order with `FOR UPDATE` inside the mutation transaction
-- bulk approve, recode, clear-coding, and delete writes repeat their eligibility predicates and reject unexpected affected-row counts instead of acting on stale reads
-- selected reversal approvals now share one transaction, so comments and earlier pair approvals roll back when any later selected pair fails validation
-- database integration coverage exercises a concurrent transaction lock, a concurrent reversal insertion, and atomic rollback after a mid-batch reversal validation failure
-
-### 7. Split oversized feature modules along domain boundaries
-
-Status: completed 21 July 2026.
-
-Implemented:
-
-- the reversal facade now delegates to focused matching, reconciliation, domain validation, comment, workflow-transition, concurrency, and bulk-command modules
-- transaction bulk commands are separate from single-row workflow transitions, and the Transactions panel delegates mutation/toast/selection orchestration to a feature controller hook
-- company and project import-rule modals now provide scope-specific query and mutation adapters to one shared editor rather than duplicating editor state, validation, ordering, and rendering
-- import-rule option parsing, dirty-state, ordering, and project-provenance movement rules live in a pure tested editor model
-- the existing `src/server/start/functions/**` application boundary remains unchanged, while focused unit and database integration tests cover the extracted decision and transaction boundaries
-
-### 8. Remove verified dead code and control export surface growth
-
-Status: completed 21 July 2026.
-
-Implemented:
-
-- five orphan files, unused UI/query mutations, legacy access and mapping helpers, obsolete response schemas, and unused domain types were removed after repository-wide reference checks
-- the disabled full-list `useTransactions` model was replaced by focused transaction actions and the existing import mutation, so the workspace no longer creates an unused full-list query
-- file-local query options, validators, and helper types are no longer exported as accidental API surface
-- Knip now covers application, route, test, script, migration, nginx, and CDK entry points in application and pre-commit verification
-- the four non-static dependency/export exceptions are narrow and documented in `docs/dead-code-verification.md`
-
-### 9. Complete paginated transaction query behaviour and profile its cost
-
-Status: completed 21 July 2026.
-
-Implemented:
-
-- paginated transaction queries now use `keepPreviousData`, activating the intended transition state without clearing the table between page or filter requests
-- focused Query Observer tests verify both page and filter transitions retain previous rows and report placeholder loading state
-- a reproducible disposable-Postgres harness records warm `EXPLAIN (ANALYZE, BUFFERS)` evidence at 1,000, 10,000, and 100,000 transactions per project
-- profiling justified a project/date/id index, which changed the 100,000-row page plan from a parallel sequential scan plus sort to a directly ordered index scan
-- the page summary now joins unique valid-subcategory and open-reversal state once instead of repeating correlated checks across aggregate fields
-- the measured evidence and host-dependent timing caveat are recorded in `docs/transaction-query-profile.md`
+This backlog contains only unfinished work. Completed work belongs in Git history and feature documentation, not here.
 
 ## Active Backlog
 
-### 1. Add bulk transaction review actions
+### 1. Finish reviewed and locked transaction workflow
 
 Examples:
 
-- bulk approve auto-mapped transactions
-- bulk recode selected rows
-- bulk clear coding
-- bulk milestone assignment when milestone modeling exists
-- future reviewed / locked actions once transaction workflow state is explicit
-
-Why this matters:
-
-- row-by-row transaction review will become the main bottleneck as data volume increases
-- bulk actions are one of the highest-value workflow improvements available now
-
-### 2. Finish reviewed and locked transaction workflow
-
-Examples:
-
-- explicit transaction states such as imported, coding pending, reviewed, and locked
-- lock finalized transactions so they cannot be silently changed later
-- allow standard users to request unlock while admins or execs can unlock directly
-- surface badges for uncoded, auto-coded pending, reviewed, locked, and unlock requested
+- allow standard users to request an unlock with a reason while admins or executives can unlock directly
+- let authorized reviewers approve or reject unlock requests
+- surface an unlock-requested badge and workflow filter so requests cannot be missed
+- retain an event history for review, lock, unlock-request, approval, rejection, and reopen transitions
 
 Why this matters:
 
@@ -187,14 +24,7 @@ Design direction:
 - define exactly which fields become immutable when locked
 - ensure all lock, unlock, review, and reopen actions emit audit events
 
-Implemented:
-
-- transactions now store reviewed/locked metadata with the acting user and timestamp
-- transaction rows expose reviewed and locked badges, plus row actions to review/unreview and lock/unlock
-- locked transactions are blocked from normal edit, delete, split, and transfer paths
-- remaining work: unlock request workflow, bulk review/lock actions, and audit event history for workflow transitions
-
-### 3. Clarify budget semantics, health messaging, and lightweight forecasting
+### 2. Clarify budget semantics, health messaging, and lightweight forecasting
 
 Examples:
 
@@ -210,7 +40,7 @@ Why this matters:
 - sharper financial semantics will make the app feel more trustworthy to finance-oriented users
 - users need interpretation and risk cues, not just raw spend totals
 
-### 4. Extend repeated-coding suggestions beyond the shipped first pass
+### 3. Improve repeated-coding suggestions
 
 Design note:
 
@@ -233,13 +63,7 @@ Design direction:
 - distinguish clearly between create-rule suggestions and update-rule suggestions
 - keep suggestions reviewable and dismissible so noisy patterns do not become brittle rules
 
-Implemented already:
-
-- repeated manual coding can now trigger immediate project auto-coding suggestions
-- admins can review accepted-threshold repeated-pattern suggestions in the company queue and accept them into company auto-coding defaults
-- inherited company auto-coding rules now sync into standards-enabled projects and can be reapplied alongside other company standards
-
-### 5. Expand audit logging into a first-class product feature
+### 4. Expand audit logging into a first-class product feature
 
 Examples:
 
@@ -281,7 +105,7 @@ Notes:
 - it needs careful schema, indexing, retention, and UI design before we build it
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 6. Extend self-service account/profile
+### 5. Extend self-service account/profile
 
 Examples:
 
@@ -321,6 +145,7 @@ Examples:
 
 - optional project milestones with budgets, dates, and statuses
 - milestone attribution on transaction allocations where needed
+- bulk milestone assignment for selected eligible transactions
 - milestone tables and charts showing budget, actuals, remaining, and forecast variance
 
 Why this matters:
@@ -411,16 +236,11 @@ Why this matters:
 - the current implementation is stable, but part of that stability comes from a pragmatic workaround rather than an ideal UX outcome
 - in Zen/Firefox, Mantine modal scroll locking and combobox dropdown scrolling can interact badly enough to freeze scrolling after dropdown use
 
-Current solution and reasoning:
-
-- taxonomy modals currently use `lockScroll={false}` because Mantine scroll locking appeared to be the real source of the stuck-scroll state in Zen/Firefox
-- some modal-based rule editors also use a Firefox-safe dropdown configuration that avoids Mantine's internal dropdown `ScrollArea`
-- this leaves a small UX compromise where background/window scrolling can still occur while some modal interactions are open, but it avoids the more serious broken-scroll failure mode
-
 Design direction:
 
-- keep the current targeted workaround for now because it is stable and low-risk
-- later, re-evaluate whether the better long-term answer is a Mantine upgrade, a more surgical modal configuration, or moving the most complex taxonomy editors out of modal context altogether
+- reproduce the issue in an isolated Mantine modal/select harness on current Firefox and Zen releases
+- compare a Mantine upgrade, a more surgical modal configuration, and moving complex taxonomy editors out of modal context
+- retain a targeted workaround only if the isolated test confirms it remains necessary
 
 ### Search and filtering maturity
 
@@ -438,11 +258,9 @@ Why this matters:
 
 Examples:
 
-- shipped: company Excel export with full/detail summary modes, active/all scope, transaction date filters, reporting rollups, background job generation, and optional ready-email notification
-- shipped: workbook payloads now persist in S3-compatible object storage while job state, authorization, and retention metadata remain in the application database
-- shipped: export payload retention is now 24 hours with stale/failed cleanup that also removes stored objects
-- next: continue hardening the BI/export contract only where downstream consumers prove they need it, plus optional workbook polish such as protected report tabs or branded coversheets
-- future: project-level export variants only if users prove they need a narrower handoff than the current company workbook
+- harden the BI/export contract where downstream consumers demonstrate a concrete need
+- consider optional workbook polish such as protected report tabs or branded cover sheets
+- add project-level export variants only if users need a narrower handoff than the company workbook
 
 Why this matters:
 

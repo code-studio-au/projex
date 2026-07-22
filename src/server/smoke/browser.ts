@@ -170,7 +170,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     const page = await context.newPage();
 
     page.on('pageerror', (error) => {
-      pageErrors.push(error.message);
+      pageErrors.push(`${page.url()}: ${error.message}`);
     });
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
@@ -291,8 +291,34 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     await page
       .getByRole('menuitem', { name: 'Find reversal matches' })
       .waitFor({ state: 'visible' });
+    const manageCategoriesItem = page.getByRole('menuitem', {
+      name: 'Manage categories',
+    });
+    await manageCategoriesItem.waitFor({ state: 'visible' });
+    await manageCategoriesItem.click();
     await page
-      .getByRole('menuitem', { name: 'Manage categories' })
+      .getByText('Company standards', { exact: true })
+      .waitFor({ state: 'visible' });
+    await page.keyboard.press('Escape');
+
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await waitForLocation(
+      page,
+      ({ pathname, search }) =>
+        pathname === `/c/${companyId}/p/${projectId}` &&
+        new URLSearchParams(search).get('tab') === 'settings',
+      'Project workspace did not switch to the settings tab'
+    );
+    await page
+      .getByRole('button', { name: 'Manage Auto-Coding Rules' })
+      .click();
+    await page
+      .getByText('Project rule priority', { exact: true })
+      .waitFor({ state: 'visible' });
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Manage Import Rules' }).click();
+    await page
+      .getByText('Import rule priority', { exact: true })
       .waitFor({ state: 'visible' });
     await page.keyboard.press('Escape');
 
@@ -304,6 +330,30 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
         !new URLSearchParams(search).get('tab'),
       'Project workspace did not switch back to the budget tab'
     );
+
+    await page.goto(`${baseUrl}/c/${companyId}?tab=settings`, {
+      waitUntil: 'domcontentloaded',
+    });
+    await page.getByRole('tab', { name: 'Settings' }).waitFor({
+      state: 'visible',
+    });
+    await page.getByRole('button', { name: 'Manage Categories' }).click();
+    await page
+      .getByText('Company category standards', { exact: true })
+      .waitFor({ state: 'visible' });
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Manage Import Rules' }).click();
+    await page
+      .getByText('Import rule priority', { exact: true })
+      .waitFor({ state: 'visible' });
+    await page.keyboard.press('Escape');
+    await page
+      .getByRole('button', { name: 'Manage Auto-Coding Rules' })
+      .click();
+    await page
+      .getByText('Company rule priority', { exact: true })
+      .waitFor({ state: 'visible' });
+    await page.keyboard.press('Escape');
 
     assert(
       pageErrors.length === 0,

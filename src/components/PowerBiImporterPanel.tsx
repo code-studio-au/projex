@@ -691,123 +691,110 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
 
   return (
     <Stack gap="lg" className={classes.pageStack}>
-      <Paper
-        className={`${classes.surfaceCard} importPanelCard`}
-        radius="xl"
-        p="lg"
-      >
-        <Stack gap="md">
-          <Group justify="space-between" align="center" wrap="wrap">
-            <div>
-              <Text className={classes.sectionEyebrow}>Import</Text>
-              <Title order={5} mt={4}>
-                PowerBI expenditure import
-              </Title>
-            </div>
-            {previewActive ? (
-              <Button
-                variant="subtle"
-                color="gray"
-                onClick={() => void clearPreview()}
-              >
-                Clear preview
-              </Button>
+      {!previewActive ? (
+        <Paper
+          className={`${classes.surfaceCard} importPanelCard`}
+          radius="xl"
+          p="lg"
+        >
+          <Stack gap="md">
+            <Group justify="space-between" align="center" wrap="wrap">
+              <div>
+                <Text className={classes.sectionEyebrow}>Import</Text>
+                <Title order={5} mt={4}>
+                  PowerBI expenditure import
+                </Title>
+              </div>
+            </Group>
+
+            {importError ? (
+              <Alert color="red" className={classes.notice}>
+                {importError}
+              </Alert>
             ) : null}
-          </Group>
+            <Text size="sm" c="dimmed" className={classes.filterIntro}>
+              Upload or paste the PowerBI expenditure actuals CSV export, then
+              preview the import before committing it. Import Rules run first to
+              exclude known non-project rows or require a decision for uncertain
+              rows. EXA rows import by default so reversal candidates can be
+              matched.
+            </Text>
 
-          {importError ? (
-            <Alert color="red" className={classes.notice}>
-              {importError}
-            </Alert>
-          ) : null}
-          <Text size="sm" c="dimmed" className={classes.filterIntro}>
-            Upload or paste the PowerBI expenditure actuals CSV export, then
-            preview the import before committing it. Import Rules run first to
-            exclude known non-project rows or require a decision for uncertain
-            rows. EXA rows import by default so reversal candidates can be
-            matched.
-          </Text>
+            <FileInput
+              label="Upload PowerBI CSV"
+              placeholder="Select file"
+              value={file}
+              disabled={isPreviewing}
+              accept=".csv,text/csv"
+              onChange={handleFileChange}
+            />
 
-          <FileInput
-            label="Upload PowerBI CSV"
-            placeholder="Select file"
-            value={file}
-            disabled={previewActive || isPreviewing}
-            accept=".csv,text/csv"
-            onChange={handleFileChange}
-          />
+            <Accordion variant="contained">
+              <Accordion.Item value="paste-csv">
+                <Accordion.Control>Paste CSV or view example</Accordion.Control>
+                <Accordion.Panel>
+                  <Stack gap="md">
+                    <Textarea
+                      label="Paste PowerBI CSV"
+                      description="Use this option instead of uploading a CSV file."
+                      minRows={8}
+                      value={draftCsvText}
+                      disabled={isPreviewing}
+                      onChange={(event) =>
+                        handleDraftCsvTextChange(event.currentTarget.value)
+                      }
+                      placeholder="Paste the exported CSV content here"
+                    />
 
-          <Accordion variant="contained">
-            <Accordion.Item value="paste-csv">
-              <Accordion.Control>Paste CSV or view example</Accordion.Control>
-              <Accordion.Panel>
-                <Stack gap="md">
-                  <Textarea
-                    label="Paste PowerBI CSV"
-                    description="Use this option instead of uploading a CSV file."
-                    minRows={8}
-                    value={draftCsvText}
-                    disabled={previewActive || isPreviewing}
-                    onChange={(event) =>
-                      handleDraftCsvTextChange(event.currentTarget.value)
-                    }
-                    placeholder="Paste the exported CSV content here"
-                  />
-
-                  <Stack gap="xs">
-                    <Text fw={700} size="sm">
-                      Example PowerBI CSV
-                    </Text>
-                    <pre className="importExamplePre">{exampleCsv}</pre>
+                    <Stack gap="xs">
+                      <Text fw={700} size="sm">
+                        Example PowerBI CSV
+                      </Text>
+                      <pre className="importExamplePre">{exampleCsv}</pre>
+                    </Stack>
                   </Stack>
-                </Stack>
-              </Accordion.Panel>
-            </Accordion.Item>
-          </Accordion>
+                </Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>
 
-          <Group gap="md" align="center" wrap="wrap">
-            <Switch
-              label="Auto-create new categories/subcategories and budget lines"
-              checked={autoCreateStructures}
-              disabled={
-                previewActive ||
-                isPreviewing ||
-                !canEditTaxonomy ||
-                !canEditBudgets
-              }
-              onChange={(event) =>
-                setAutoCreateStructures(event.currentTarget.checked)
-              }
-              className={isMobile ? classes.fieldFull : undefined}
-            />
-            <Switch
-              label="Skip duplicates (existing and within this import)"
-              checked={skipDuplicates}
-              disabled={previewActive || isPreviewing}
-              onChange={(event) =>
-                setSkipDuplicates(event.currentTarget.checked)
-              }
-              className={isMobile ? classes.fieldFull : undefined}
-            />
-          </Group>
+            <Group gap="md" align="center" wrap="wrap">
+              <Switch
+                label="Auto-create new categories/subcategories and budget lines"
+                checked={autoCreateStructures}
+                disabled={isPreviewing || !canEditTaxonomy || !canEditBudgets}
+                onChange={(event) =>
+                  setAutoCreateStructures(event.currentTarget.checked)
+                }
+                className={isMobile ? classes.fieldFull : undefined}
+              />
+              <Switch
+                label="Skip duplicates (existing and within this import)"
+                checked={skipDuplicates}
+                disabled={isPreviewing}
+                onChange={(event) =>
+                  setSkipDuplicates(event.currentTarget.checked)
+                }
+                className={isMobile ? classes.fieldFull : undefined}
+              />
+            </Group>
 
-          <Group className={classes.footerRow}>
-            <Button
-              fullWidth={isMobile}
-              onClick={() => void previewImport()}
-              loading={isReadingFile || isPreviewing}
-              disabled={
-                previewActive ||
-                isReadingFile ||
-                isPreviewing ||
-                (!file && !draftCsvText.trim())
-              }
-            >
-              Preview import
-            </Button>
-          </Group>
-        </Stack>
-      </Paper>
+            <Group className={classes.footerRow}>
+              <Button
+                fullWidth={isMobile}
+                onClick={() => void previewImport()}
+                loading={isReadingFile || isPreviewing}
+                disabled={
+                  isReadingFile ||
+                  isPreviewing ||
+                  (!file && !draftCsvText.trim())
+                }
+              >
+                Preview import
+              </Button>
+            </Group>
+          </Stack>
+        </Paper>
+      ) : null}
 
       {previewActive ? (
         <Stack gap="md">
@@ -817,7 +804,16 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 <Group gap="sm" align="center" wrap="wrap">
                   <Title order={5}>PowerBI import preview</Title>
                 </Group>
+                <Button variant="default" onClick={() => void clearPreview()}>
+                  Cancel preview
+                </Button>
               </Group>
+
+              {importError ? (
+                <Alert color="red" className={classes.notice}>
+                  {importError}
+                </Alert>
+              ) : null}
 
               <Group justify="space-between" align="center" wrap="wrap">
                 <Text size="sm" c="dimmed">
@@ -1164,7 +1160,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                   color="gray"
                   onClick={() => void clearPreview()}
                 >
-                  Clear preview
+                  Cancel preview
                 </Button>
                 <Button
                   fullWidth={isMobile}

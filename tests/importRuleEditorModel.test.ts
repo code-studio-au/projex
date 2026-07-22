@@ -3,7 +3,6 @@ import { test } from 'vitest';
 
 import {
   canMoveImportRule,
-  importRuleDraftIsDirty,
   nextImportRuleSortOrder,
   toImportRuleAction,
   toImportRuleField,
@@ -56,9 +55,4 @@ test('import rule editor model preserves project provenance ordering groups', ()
     true
   );
   assert.equal(nextImportRuleSortOrder(rules), 30);
-  assert.equal(importRuleDraftIsDirty(rules[0]!, { ...rules[0]! }), false);
-  assert.equal(
-    importRuleDraftIsDirty(rules[0]!, { ...rules[0]!, enabled: false }),
-    true
-  );
 });

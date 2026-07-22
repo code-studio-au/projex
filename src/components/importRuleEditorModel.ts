@@ -65,10 +65,6 @@ export function nextImportRuleSortOrder(rules: ImportRule[]) {
     : 10;
 }
 
-export function importRuleDraftIsDirty(rule: ImportRule, draft: ImportRule) {
-  return JSON.stringify(draft) !== JSON.stringify(rule);
-}
-
 export function canMoveImportRule(args: {
   rules: ImportRule[];
   index: number;

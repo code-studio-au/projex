@@ -760,8 +760,8 @@ export default function CompanySettingsPanel(props: {
           <Text size="sm" c="dimmed">
             Decide which PowerBI rows import, which are excluded, and which are
             held for a required decision in the import preview before
-            Auto-Categorise Rules run. These are the company-level rules that
-            synced projects inherit by default.
+            Auto-Coding Rules run. These are the company-level rules that synced
+            projects inherit by default.
           </Text>
           {companyImportRulesQ.isPending && !companyImportRulesQ.data ? (
             <Text size="sm" c="dimmed">
@@ -794,7 +794,7 @@ export default function CompanySettingsPanel(props: {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
-          <Title order={5}>Auto-Categorise Rules</Title>
+          <Title order={5}>Auto-Coding Rules</Title>
           <Text size="sm" c="dimmed">
             Match imported transaction text to company categories so uncoded
             imports can be auto-categorised in projects that already contain the
@@ -802,13 +802,12 @@ export default function CompanySettingsPanel(props: {
           </Text>
           {companyDefaultsLoading ? (
             <Text size="sm" c="dimmed">
-              Loading Auto-Categorise Rules…
+              Loading Auto-Coding Rules…
             </Text>
           ) : (
             <Group gap="sm" wrap="wrap">
               <Badge variant="light">
-                {effectiveDefaults?.mappingRules.length ?? 0} Auto-Categorise
-                Rules
+                {effectiveDefaults?.mappingRules.length ?? 0} Auto-Coding Rules
               </Badge>
             </Group>
           )}
@@ -817,7 +816,7 @@ export default function CompanySettingsPanel(props: {
             disabled={!canEditCompanyDefaults}
             onClick={() => setMappingsModalOpen(true)}
           >
-            Manage Auto-Categorise Rules
+            Manage Auto-Coding Rules
           </Button>
           <Text size="xs" c="dimmed">
             The first matching rule wins. Rules search transaction item and
@@ -832,7 +831,7 @@ export default function CompanySettingsPanel(props: {
           <Title order={5}>Rule Suggestions</Title>
           <Text size="sm" c="dimmed">
             Review repeated manual coding patterns and turn them into reusable
-            Auto-Categorise Rules for the company.
+            Auto-Coding Rules for the company.
           </Text>
           {ruleSuggestionsQ.isPending && !ruleSuggestionsQ.data ? (
             <Text size="sm" c="dimmed">
@@ -854,7 +853,7 @@ export default function CompanySettingsPanel(props: {
           </Button>
           <Text size="xs" c="dimmed">
             Suggestions appear after repeated manual coding on similar
-            transactions and can be accepted into normal Auto-Categorise Rules.
+            transactions and can be accepted into normal Auto-Coding Rules.
           </Text>
         </Stack>
       </Paper>

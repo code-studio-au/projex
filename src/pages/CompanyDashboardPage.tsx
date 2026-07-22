@@ -737,10 +737,16 @@ export default function CompanyDashboardPage() {
         ) : null}
 
         <Tabs.Panel value="settings" pt="md">
-          <CompanySettingsPanel
-            companyId={companyId}
-            initialExportJobId={dashboardSearch.exportJob ?? null}
-          />
+          {!isHydrated ? (
+            <Paper className={classes.surfaceCard} radius="xl" p="lg">
+              <Text c="dimmed">Loading company settings...</Text>
+            </Paper>
+          ) : (
+            <CompanySettingsPanel
+              companyId={companyId}
+              initialExportJobId={dashboardSearch.exportJob ?? null}
+            />
+          )}
         </Tabs.Panel>
       </Tabs>
 
