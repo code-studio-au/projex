@@ -52,7 +52,7 @@ export default function TransactionProjectRuleModal(props: {
           onChange={(event) => onMatchTextChange(event.currentTarget.value)}
         />
         <Group justify="flex-end">
-          <Button variant="subtle" onClick={onClose}>
+          <Button variant="default" onClick={onClose}>
             Not now
           </Button>
           <Button

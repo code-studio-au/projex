@@ -62,7 +62,7 @@ export default function TransactionBulkRecodeModal(props: {
           onChange={onSubCategoryChange}
         />
         <Group justify="flex-end">
-          <Button variant="subtle" onClick={onClose}>
+          <Button variant="default" onClick={onClose}>
             Cancel
           </Button>
           <Button

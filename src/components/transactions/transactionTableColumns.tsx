@@ -263,7 +263,7 @@ export function createTransactionColumns(
         className: 'table-body-right txnTable-cell',
       },
       mantineTableHeadCellProps: {
-        className: 'table-head-cell table-head-right txnTable-head',
+        className: 'table-head-cell table-head-left txnTable-head',
       },
     },
     {

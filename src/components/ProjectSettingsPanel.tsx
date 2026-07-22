@@ -316,7 +316,7 @@ export default function ProjectSettingsPanel(props: {
         <Stack gap="sm">
           <Group justify="space-between" align="flex-start" wrap="wrap">
             <Title order={5}>Project settings</Title>
-            <Badge variant="light" color={canEditProject ? 'gray' : 'red'}>
+            <Badge variant="light" color={canEditProject ? 'teal' : 'red'}>
               {canEditProject ? 'Can edit project' : 'Read-only'}
             </Badge>
           </Group>
@@ -464,7 +464,7 @@ export default function ProjectSettingsPanel(props: {
           </Text>
           <Group gap="sm" wrap="wrap">
             <Button
-              variant="light"
+              variant="default"
               disabled={
                 effectiveProject.projectType !== 'project' || !canEditTaxonomy
               }
@@ -506,7 +506,7 @@ export default function ProjectSettingsPanel(props: {
               Reapply Company Standards
             </Button>
             <Button
-              variant="light"
+              variant="default"
               disabled={
                 effectiveProject.projectType !== 'project' || !canEditTaxonomy
               }
@@ -515,14 +515,14 @@ export default function ProjectSettingsPanel(props: {
               Manage Project Categories
             </Button>
             <Button
-              variant="light"
+              variant="default"
               disabled={!canEditProject}
               onClick={() => setProjectRulesModalOpen(true)}
             >
               Manage Auto-Coding Rules
             </Button>
             <Button
-              variant="light"
+              variant="default"
               disabled={!canEditProject}
               onClick={() => setProjectImportRulesModalOpen(true)}
             >
@@ -558,6 +558,7 @@ export default function ProjectSettingsPanel(props: {
             />
             <Button
               size="sm"
+              variant="default"
               disabled={!canEditProject || !memberUserId || !memberRole}
               onClick={async () => {
                 if (!memberUserId || !memberRole) return;
@@ -631,7 +632,7 @@ export default function ProjectSettingsPanel(props: {
           </Text>
           <Group justify="flex-end" wrap="wrap">
             <Button
-              variant="light"
+              variant="default"
               onClick={() => setPendingSuperadminAccess(null)}
               fullWidth={isMobile}
             >

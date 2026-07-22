@@ -6,20 +6,75 @@
 */
 
 :root {
-  --app-bg: #f6f7f9;
-  --app-bg-subtle: #fbfbfc;
-  --surface-0: rgba(255, 255, 255, 0.96);
-  --surface-1: #ffffff;
-  --surface-2: #f8f8fa;
+  /* Shared neutral scale for both light and dark semantic tokens. */
+  --neutral-0: #ffffff;
+  --neutral-50: #fafafb;
+  --neutral-100: #f6f7f9;
+  --neutral-200: #eef1f4;
+  --neutral-300: #d8dfe6;
+  --neutral-400: #b8c2ce;
+  --neutral-500: #8b95a1;
+  --neutral-550: #707a86;
+  --neutral-600: #6b7280;
+  --neutral-700: #4b5563;
+  --neutral-800: #3b4047;
+  --neutral-900: #2b2e33;
+  --neutral-950: #181a1d;
+
+  --app-bg: var(--neutral-100);
+  --app-bg-subtle: color-mix(in oklab, var(--neutral-0) 65%, var(--neutral-50));
+  --surface-0: color-mix(in srgb, var(--neutral-0) 96%, transparent);
+  --surface-1: var(--neutral-0);
+  --surface-2: color-mix(in oklab, var(--neutral-50) 55%, var(--neutral-100));
   --surface-border: rgba(15, 23, 42, 0.08);
   --surface-border-strong: rgba(15, 23, 42, 0.14);
   --surface-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   --surface-shadow-lg:
     0 1px 3px rgba(15, 23, 42, 0.06), 0 12px 32px rgba(15, 23, 42, 0.05);
   --copy-strong: #111827;
-  --copy-muted: #6b7280;
-  --accent-soft: #eef2f7;
+  --copy-secondary: var(--neutral-700);
+  --copy-muted: var(--neutral-600);
+  --accent-soft: var(--neutral-200);
   --accent-border: rgba(71, 85, 105, 0.14);
+  --body-gradient-start: var(--neutral-50);
+  --shell-bg: rgba(255, 255, 255, 0.92);
+  --surface-gradient-start: rgba(255, 255, 255, 0.98);
+  --surface-gradient-end: rgba(255, 255, 255, 0.94);
+  --surface-muted: var(--surface-2);
+  --surface-soft: var(--neutral-50);
+  --surface-inset: #f7fafc;
+  --surface-inset-border: #d8e1eb;
+  --table-head-bg: var(--surface-2);
+  --table-cell-bg: color-mix(in srgb, var(--neutral-0) 98%, transparent);
+  --table-cell-bg-alt: var(--neutral-100);
+  --table-row-hover: var(--neutral-200);
+  --table-category-bg: var(--surface-2);
+  --table-row-border: rgba(15, 23, 42, 0.05);
+  --brand-bg: #111827;
+  --brand-copy: var(--neutral-0);
+  --interactive-copy: #24527a;
+  --interactive-copy-hover: #163c5f;
+  --danger-copy: #c92a2a;
+  --control-bg: var(--neutral-0);
+  --control-bg-hover: var(--neutral-100);
+  --control-border: var(--neutral-500);
+  --control-border-hover: var(--neutral-600);
+  --control-placeholder: var(--neutral-600);
+  --control-disabled-bg: var(--neutral-200);
+  --control-disabled-border: var(--neutral-300);
+  --control-disabled-copy: var(--neutral-500);
+  --toggle-active-bg: var(--mantine-color-teal-7);
+  --toggle-active-border: var(--mantine-color-teal-8);
+  --toggle-off-bg: var(--neutral-300);
+  --toggle-off-border: var(--neutral-500);
+  --toggle-thumb-border: var(--neutral-500);
+  --toggle-disabled-bg: var(--neutral-200);
+  --toggle-disabled-border: var(--neutral-300);
+  --link-decoration: rgba(15, 23, 42, 0.2);
+  --link-decoration-hover: rgba(15, 23, 42, 0.42);
+  --focus-ring: rgba(59, 130, 246, 0.6);
+  --selection-bg: rgba(37, 99, 235, 0.14);
+  --comment-reply-border: #dbe5f0;
   --table-head-font-size: 12.5px;
   --table-body-font-size: 12.5px;
 
@@ -29,6 +84,87 @@
   --table-head-bold-weight: 700;
   --table-body-bold-weight: 600;
   --table-body-emphasis-weight: 500;
+}
+
+[data-mantine-color-scheme='dark'] {
+  --app-bg: var(--neutral-950);
+  --app-bg-subtle: color-mix(
+    in oklab,
+    var(--neutral-950) 72%,
+    var(--neutral-900)
+  );
+  --surface-0: color-mix(in srgb, var(--neutral-900) 98%, transparent);
+  --surface-1: var(--neutral-900);
+  --surface-2: color-mix(in oklab, var(--neutral-800) 45%, var(--neutral-900));
+  --surface-border: rgba(241, 245, 249, 0.11);
+  --surface-border-strong: rgba(241, 245, 249, 0.2);
+  --surface-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --surface-shadow-lg:
+    0 2px 4px rgba(0, 0, 0, 0.28), 0 18px 42px rgba(0, 0, 0, 0.24);
+  --copy-strong: var(--neutral-200);
+  --copy-secondary: var(--neutral-400);
+  --copy-muted: #96a3b3;
+  --accent-soft: var(--surface-2);
+  --accent-border: rgba(148, 163, 184, 0.18);
+  --body-gradient-start: color-mix(
+    in oklab,
+    var(--neutral-950) 58%,
+    var(--neutral-900)
+  );
+  --shell-bg: rgba(24, 26, 29, 0.92);
+  --surface-gradient-start: rgba(50, 54, 59, 0.99);
+  --surface-gradient-end: rgba(41, 44, 49, 0.97);
+  --surface-muted: color-mix(
+    in oklab,
+    var(--neutral-800) 28%,
+    var(--neutral-900)
+  );
+  --surface-soft: color-mix(
+    in oklab,
+    var(--neutral-950) 52%,
+    var(--neutral-900)
+  );
+  --surface-inset: var(--body-gradient-start);
+  --surface-inset-border: #464b52;
+  --table-head-bg: color-mix(
+    in oklab,
+    var(--neutral-950) 38%,
+    var(--neutral-900)
+  );
+  --table-cell-bg: color-mix(in srgb, var(--neutral-900) 94%, transparent);
+  --table-cell-bg-alt: var(--surface-2);
+  --table-row-hover: var(--neutral-800);
+  --table-category-bg: var(--surface-2);
+  --table-row-border: rgba(241, 245, 249, 0.08);
+  --brand-bg: var(--neutral-200);
+  --brand-copy: #111827;
+  --interactive-copy: #8ecbff;
+  --interactive-copy-hover: #b8ddff;
+  --danger-copy: #ff8787;
+  --control-bg: var(--neutral-800);
+  --control-bg-hover: color-mix(
+    in oklab,
+    var(--neutral-800) 82%,
+    var(--neutral-700)
+  );
+  --control-border: var(--neutral-550);
+  --control-border-hover: var(--neutral-500);
+  --control-placeholder: var(--neutral-400);
+  --control-disabled-bg: var(--table-head-bg);
+  --control-disabled-border: var(--neutral-800);
+  --control-disabled-copy: #78838f;
+  --toggle-active-bg: var(--mantine-color-teal-5);
+  --toggle-active-border: var(--mantine-color-teal-4);
+  --toggle-off-bg: var(--neutral-800);
+  --toggle-off-border: var(--neutral-550);
+  --toggle-thumb-border: var(--neutral-550);
+  --toggle-disabled-bg: var(--table-head-bg);
+  --toggle-disabled-border: var(--neutral-800);
+  --link-decoration: rgba(226, 232, 240, 0.26);
+  --link-decoration-hover: rgba(226, 232, 240, 0.52);
+  --focus-ring: rgba(96, 165, 250, 0.75);
+  --selection-bg: rgba(59, 130, 246, 0.28);
+  --comment-reply-border: #474c54;
 }
 
 /* ===== App-level look & feel ===== */
@@ -45,13 +181,17 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(180deg, #fafafb 0%, var(--app-bg) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--body-gradient-start) 0%,
+    var(--app-bg) 100%
+  );
   color: var(--copy-strong);
 }
 
 /* Subtle, consistent focus ring for keyboard navigation */
 :focus-visible {
-  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -63,7 +203,81 @@ a {
 }
 
 ::selection {
-  background: rgba(37, 99, 235, 0.14);
+  background: var(--selection-bg);
+}
+
+/* Keep enabled fields visually raised from cards and disabled fields recessed. */
+.mantine-Input-wrapper[data-variant='default'] {
+  --input-bg: var(--control-bg);
+  --input-bd: var(--control-border);
+  --input-bd-focus: var(--interactive-copy);
+  --input-color: var(--copy-strong);
+  --input-placeholder-color: var(--control-placeholder);
+  --input-disabled-bg: var(--control-disabled-bg);
+  --input-disabled-color: var(--control-disabled-copy);
+}
+
+.mantine-Input-input:not(:disabled, [data-disabled]):hover {
+  border-color: var(--control-border-hover);
+}
+
+.mantine-Input-input:where(:disabled, [data-disabled]),
+.mantine-Input-input:has(input:disabled) {
+  border-color: var(--control-disabled-border);
+  opacity: 1;
+}
+
+/* Switch states stay distinct from disabled controls on both surface schemes. */
+.mantine-Switch-input:not(:checked, :disabled, [data-disabled])
+  + .mantine-Switch-track {
+  --switch-bg: var(--toggle-off-bg);
+  border: 1px solid var(--toggle-off-border);
+}
+
+.mantine-Switch-input:not(:checked, :disabled, [data-disabled])
+  + .mantine-Switch-track
+  .mantine-Switch-thumb {
+  box-shadow: inset 0 0 0 1px var(--toggle-thumb-border);
+}
+
+.mantine-Switch-input:checked:not(:disabled, [data-disabled])
+  + .mantine-Switch-track {
+  --switch-bg: var(--toggle-active-bg);
+  border: 1px solid var(--toggle-active-border);
+}
+
+.mantine-Switch-input:where(:disabled, [data-disabled])
+  + .mantine-Switch-track {
+  --switch-bg: var(--toggle-disabled-bg);
+  border: 1px solid var(--toggle-disabled-border);
+}
+
+.mantine-Switch-input:focus-visible + .mantine-Switch-track {
+  outline-color: var(--interactive-copy);
+}
+
+[data-mantine-color-scheme='dark']
+  .mantine-Button-root[data-variant='light']:not(:disabled, [data-disabled]) {
+  border-color: color-mix(in srgb, currentColor 32%, transparent);
+}
+
+[data-mantine-color-scheme='dark']
+  .mantine-Button-root[data-variant='filled']:not(:disabled, [data-disabled]) {
+  border-color: color-mix(in srgb, currentColor 28%, transparent);
+}
+
+.mantine-Button-root[data-variant='default']:not(:disabled, [data-disabled]) {
+  background: var(--control-bg);
+  border-color: var(--control-border);
+  color: var(--copy-strong);
+}
+
+.mantine-Button-root[data-variant='default']:hover:not(
+    :disabled,
+    [data-disabled]
+  ) {
+  background: var(--control-bg-hover);
+  border-color: var(--control-border-hover);
 }
 
 /* Base head cell */
@@ -187,8 +401,9 @@ a {
 }
 
 .financeTable thead th {
-  background: #f7f7f8;
+  background: var(--table-head-bg);
   border-bottom: 1px solid var(--surface-border);
+  color: var(--copy-secondary);
 }
 
 .financeTable tbody .mantine-Button-root {
@@ -215,19 +430,33 @@ a {
 }
 
 .financeTable .table-link-text {
-  color: var(--copy-strong);
+  color: var(--interactive-copy);
   text-decoration: underline;
-  text-decoration-color: rgba(15, 23, 42, 0.18);
+  text-decoration-color: var(--link-decoration);
   text-underline-offset: 0.18em;
 }
 
 .financeTable .table-link-text:hover {
-  text-decoration-color: rgba(15, 23, 42, 0.4);
+  color: var(--interactive-copy-hover);
+  text-decoration-color: var(--link-decoration-hover);
 }
 
 .financeTable tbody td {
-  background: rgba(255, 255, 255, 0.98);
-  border-color: rgba(15, 23, 42, 0.05);
+  background: var(--table-cell-bg);
+  border-color: var(--table-row-border);
+  color: var(--copy-strong);
+}
+
+.financeTable tbody tr:nth-of-type(even) td {
+  background: var(--table-cell-bg-alt);
+}
+
+.financeTable tbody tr:hover td {
+  background: var(--table-row-hover);
+}
+
+[data-mantine-color-scheme='dark'] .mantine-Badge-root[data-variant='light'] {
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
 }
 
 @media (max-width: 48em) {
@@ -299,19 +528,19 @@ a {
 }
 
 .budgetTable .budgetTable-row-category td {
-  background: #f8f8f9 !important;
+  background: var(--table-category-bg) !important;
   border-top: 1px solid var(--surface-border);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  border-bottom: 1px solid var(--table-row-border);
 }
 
 .budgetTable .budgetTable-row-subcategory td {
-  background: rgba(255, 255, 255, 0.98) !important;
+  background: var(--table-cell-bg) !important;
 }
 
 .budgetTable .budgetTable-subcategory {
   padding-left: 0.65rem;
   font-size: var(--table-head-font-size) !important;
-  color: var(--mantine-color-gray-7);
+  color: var(--copy-muted);
   line-height: 1.3 !important;
 }
 
@@ -406,7 +635,7 @@ a {
 }
 
 .txnTable tbody td {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--table-cell-bg);
 }
 
 .txnTable .mantine-Pagination-root,
@@ -439,11 +668,11 @@ a {
   font-family: 'IBM Plex Mono', 'SFMono-Regular', 'SF Mono', monospace;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--mantine-color-gray-7);
+  color: var(--copy-muted);
 }
 
 .importNoticeCard {
-  background: #f8f8f9;
+  background: var(--surface-muted);
 }
 
 .taxonomyModal .mantine-Modal-title {
@@ -451,5 +680,5 @@ a {
 }
 
 .taxonomyCategoryCard {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--table-cell-bg);
 }

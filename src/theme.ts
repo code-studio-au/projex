@@ -67,6 +67,7 @@ export const theme = createTheme({
     },
     Button: {
       defaultProps: {
+        color: 'blue',
         radius: 'sm',
         size: 'sm',
       },
@@ -110,7 +111,7 @@ export const theme = createTheme({
           border: '1px solid var(--surface-border)',
           boxShadow: 'var(--surface-shadow-lg)',
           background:
-            'linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.96))',
+            'linear-gradient(180deg, var(--surface-gradient-start), var(--surface-gradient-end))',
         },
         header: {
           padding: '1rem 1.1rem 0.5rem',

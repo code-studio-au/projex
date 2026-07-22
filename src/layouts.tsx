@@ -3,8 +3,10 @@ import { Outlet, useRouter, useRouterState } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
 import {
   AppShell,
+  Box,
   Button,
   Container,
+  localStorageColorSchemeManager,
   Menu,
   Stack,
   Text,
@@ -28,6 +30,14 @@ import { getDefaultCompanyIdForUser } from './queries/reference';
 import { useLogoutMutation, useSessionQuery } from './queries/session';
 import { useCompaniesQuery } from './queries/reference';
 import { useCurrentUserQuery } from './queries/account';
+import {
+  APP_COLOR_SCHEME_STORAGE_KEY,
+  APP_DEFAULT_COLOR_SCHEME,
+} from './colorScheme';
+import {
+  ColorSchemeMenuItem,
+  ColorSchemeToggle,
+} from './components/ColorSchemeControl';
 import classes from './styles/ui.module.css';
 
 const smokeToolsEnabled = import.meta.env.VITE_ENABLE_SMOKE_TOOLS === 'true';
@@ -36,6 +46,9 @@ const devtoolsEnabled =
 const Devtools = devtoolsEnabled
   ? lazy(async () => import('./components/Devtools'))
   : null;
+const colorSchemeManager = localStorageColorSchemeManager({
+  key: APP_COLOR_SCHEME_STORAGE_KEY,
+});
 
 /** Root layout: intentionally minimal to keep route config clean. */
 export function RootProviders({
@@ -49,7 +62,11 @@ export function RootProviders({
   const activeQueryClient = queryClient ?? router.options.context.queryClient;
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider
+      theme={theme}
+      colorSchemeManager={colorSchemeManager}
+      defaultColorScheme={APP_DEFAULT_COLOR_SCHEME}
+    >
       <Notifications />
       <QueryClientProvider client={activeQueryClient}>
         {children}
@@ -153,6 +170,9 @@ export function AuthedLayout() {
               >
                 Workspace
               </Button>
+              <Box visibleFrom="sm">
+                <ColorSchemeToggle />
+              </Box>
               <div className={classes.accountMenuWrap}>
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
@@ -174,6 +194,8 @@ export function AuthedLayout() {
                         </Stack>
                       </Menu.Item>
                     ) : null}
+                    <ColorSchemeMenuItem />
+                    <Menu.Divider />
                     <Menu.Item
                       onClick={() => {
                         router.navigate({ to: accountRoute.to });

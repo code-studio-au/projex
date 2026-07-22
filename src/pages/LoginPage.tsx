@@ -23,6 +23,7 @@ import {
   sessionQueryOptions,
 } from '../queries/session';
 import classes from '../styles/ui.module.css';
+import { ColorSchemeToggle } from '../components/ColorSchemeControl';
 
 export default function LoginPage() {
   return <ServerLoginPanel />;
@@ -81,6 +82,9 @@ function ServerLoginPanel() {
       px={isMobile ? 'xs' : 'md'}
       py={isMobile ? 'lg' : 'xl'}
     >
+      <Group justify="flex-end" mb="md">
+        <ColorSchemeToggle />
+      </Group>
       <div className={classes.authShell}>
         <Paper className={classes.authPanel} radius="xl">
           <Stack gap="xl">

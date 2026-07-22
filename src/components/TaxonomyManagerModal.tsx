@@ -656,7 +656,7 @@ export default function TaxonomyManagerModal(props: {
           />
           <Group className={classes.footerRow}>
             <Button
-              variant="light"
+              variant="default"
               fullWidth={isMobile}
               onClick={() => {
                 setPendingBulkRecode(null);
@@ -732,7 +732,7 @@ export default function TaxonomyManagerModal(props: {
           </Text>
           <Group className={classes.footerRow}>
             <Button
-              variant="light"
+              variant="default"
               fullWidth={isMobile}
               onClick={() => setPendingDelete(null)}
             >

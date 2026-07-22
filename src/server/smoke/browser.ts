@@ -7,6 +7,7 @@ import {
   type SmokeFixtures,
 } from './fixtures.ts';
 import { getSmokeConfiguredBaseUrl } from './env.ts';
+import { APP_COLOR_SCHEME_STORAGE_KEY } from '../../colorScheme.ts';
 
 type BrowserSmokeOptions = {
   onStatus?: (message: string) => void | Promise<void>;
@@ -120,6 +121,23 @@ async function waitForTabSelection(
   throw new Error(`${message}. Current URL: ${page.url()}`);
 }
 
+async function waitForColorScheme(
+  page: import('playwright').Page,
+  colorScheme: 'light' | 'dark'
+) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 15_000) {
+    if (
+      (await page.locator('html').getAttribute('data-mantine-color-scheme')) ===
+      colorScheme
+    ) {
+      return;
+    }
+    await page.waitForTimeout(100);
+  }
+  throw new Error(`App did not switch to ${colorScheme} mode`);
+}
+
 async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
   const companyId = requireEnv('PROJEX_SMOKE_COMPANY_ID');
   const projectId = requireEnv('PROJEX_SMOKE_PROJECT_ID');
@@ -145,6 +163,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
   try {
     const context = await browser.newContext({
       baseURL: baseUrl,
+      colorScheme: 'light',
       extraHTTPHeaders: { 'x-real-ip': '127.0.0.1' },
       ignoreHTTPSErrors: true,
     });
@@ -169,6 +188,27 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     assert(loginResponse?.ok(), 'Login page did not load successfully');
     const loginHtml = await page.content();
     verifyCsp(loginHtml, loginResponse?.headers()['content-security-policy']);
+
+    const colorSchemeToggle = page.getByRole('button', {
+      name: 'Toggle light or dark mode',
+    });
+    await colorSchemeToggle.click();
+    await waitForColorScheme(page, 'dark');
+    assert(
+      (await page.evaluate(
+        (storageKey) => globalThis.localStorage.getItem(storageKey),
+        APP_COLOR_SCHEME_STORAGE_KEY
+      )) === 'dark',
+      'Dark mode preference was not persisted'
+    );
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForColorScheme(page, 'dark');
+    await colorSchemeToggle.waitFor({ state: 'visible' });
+    await colorSchemeToggle.click();
+    await waitForColorScheme(page, 'light');
+    await colorSchemeToggle.click();
+    await waitForColorScheme(page, 'dark');
+
     await emit(options, 'Signing in through the browser session');
     const signInResponse = await context.request.post(
       `${baseUrl}/api/auth/sign-in/email`,
@@ -204,6 +244,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
         new URLSearchParams(search).get('tab') === 'projects',
       'Company dashboard did not keep the projects tab selected'
     );
+    await waitForColorScheme(page, 'dark');
 
     await emit(options, 'Opening the generated project workspace');
     await page

@@ -162,7 +162,7 @@ function SummaryDrilldownLink(props: {
     view,
     focus,
     children,
-    color = 'black',
+    color = 'var(--interactive-copy)',
     className = 'table-body-left',
   } = props;
   return (
@@ -361,7 +361,9 @@ export default function CompanySummaryPanel(props: {
                   : row.original.name}
               </SummaryDrilldownLink>
               {row.original.projectType === 'programme' ? (
-                <Badge variant="light">Programme</Badge>
+                <Badge variant="light" color="blue">
+                  Programme
+                </Badge>
               ) : null}
             </Group>
           </Stack>
@@ -477,7 +479,11 @@ export default function CompanySummaryPanel(props: {
             monthFilterKey={monthFilterKey}
             tab="budget"
             focus="remaining"
-            color={row.original.remainingAdjustedCents < 0 ? 'red.7' : 'black'}
+            color={
+              row.original.remainingAdjustedCents < 0
+                ? 'var(--danger-copy)'
+                : undefined
+            }
             className="table-body-right"
           >
             {formatCurrencyFromCents(
@@ -502,7 +508,6 @@ export default function CompanySummaryPanel(props: {
               tab="transactions"
               view="uncoded"
               focus="uncoded"
-              color="black"
               className="table-body-right"
             >
               {row.original.uncodedCount}
@@ -528,7 +533,6 @@ export default function CompanySummaryPanel(props: {
               tab="transactions"
               view="uncoded"
               focus="uncoded"
-              color="black"
               className="table-body-right"
             >
               {formatCurrencyFromCents(
@@ -603,7 +607,9 @@ export default function CompanySummaryPanel(props: {
                 })}
                 className={classes.badgeLink}
               >
-                <Badge variant="light">Has uncoded</Badge>
+                <Badge variant="light" color="orange">
+                  Has uncoded
+                </Badge>
               </Link>
             ) : null}
             {!row.original.isOverBudgetAdjusted &&
@@ -634,7 +640,10 @@ export default function CompanySummaryPanel(props: {
         header: 'Status',
         size: 96,
         Cell: ({ row }) => (
-          <Badge variant="light">
+          <Badge
+            variant="light"
+            color={row.original.status === 'active' ? 'green' : 'gray'}
+          >
             {row.original.status === 'active' ? 'Active' : 'Archived'}
           </Badge>
         ),
@@ -645,9 +654,13 @@ export default function CompanySummaryPanel(props: {
         size: 90,
         Cell: ({ row }) =>
           row.original.visibility === 'private' ? (
-            <Badge variant="light">Private</Badge>
+            <Badge variant="light" color="orange">
+              Private
+            </Badge>
           ) : (
-            <Badge variant="light">Company</Badge>
+            <Badge variant="light" color="teal">
+              Company
+            </Badge>
           ),
       },
     ],

@@ -527,7 +527,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
               : `Delete “${pendingDelete?.name}” from the company categories? This does not change existing project categories.`}
           </Text>
           <Group justify="flex-end">
-            <Button variant="subtle" onClick={() => setPendingDelete(null)}>
+            <Button variant="default" onClick={() => setPendingDelete(null)}>
               Cancel
             </Button>
             <Button

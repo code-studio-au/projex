@@ -151,7 +151,7 @@ function TransactionTransferModalContent(props: {
       />
 
       <Group className={classes.footerRow}>
-        <Button variant="subtle" disabled={submitting} onClick={onClose}>
+        <Button variant="default" disabled={submitting} onClick={onClose}>
           Cancel
         </Button>
         <Button

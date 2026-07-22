@@ -250,8 +250,7 @@ export default function TransactionsOverviewCard(props: {
           </Text>
           <Group justify="flex-end">
             <Button
-              variant="light"
-              color="gray"
+              variant="default"
               onClick={onCloseBulkApproveSuggestedReversalsConfirm}
             >
               Cancel
@@ -278,11 +277,7 @@ export default function TransactionsOverviewCard(props: {
             are not part of a reversal workflow. This cannot be undone.
           </Text>
           <Group justify="flex-end">
-            <Button
-              variant="light"
-              color="gray"
-              onClick={onCloseBulkDeleteConfirm}
-            >
+            <Button variant="default" onClick={onCloseBulkDeleteConfirm}>
               Cancel
             </Button>
             <Button color="red" onClick={onConfirmBulkDelete}>

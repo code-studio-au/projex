@@ -220,7 +220,9 @@ export default function LandingPage() {
         header: 'Status',
         Cell: ({ row }) =>
           row.original.status === 'active' ? (
-            <Badge variant="light">Active</Badge>
+            <Badge variant="light" color="green">
+              Active
+            </Badge>
           ) : (
             <Badge variant="light" color="gray">
               Deactivated
@@ -367,7 +369,7 @@ export default function LandingPage() {
                     />
                     <Group justify="flex-end">
                       <Button
-                        variant="light"
+                        variant="default"
                         onClick={() => {
                           setNewCompanyOpen(false);
                           setNewCompanyError(null);
@@ -528,7 +530,11 @@ export default function LandingPage() {
           />
 
           <Group justify="flex-end" wrap="wrap">
-            <Button variant="light" onClick={closeConfirm} fullWidth={isMobile}>
+            <Button
+              variant="default"
+              onClick={closeConfirm}
+              fullWidth={isMobile}
+            >
               Cancel
             </Button>
             <Button

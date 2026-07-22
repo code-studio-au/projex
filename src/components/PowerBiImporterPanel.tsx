@@ -1076,7 +1076,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           </Text>
           <Group className={classes.footerRow}>
             <Button
-              variant="light"
+              variant="default"
               fullWidth={isMobile}
               onClick={() => setConfirmReplaceOpen(false)}
             >
@@ -1159,7 +1159,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           />
           <Group className={classes.footerRow}>
             <Button
-              variant="light"
+              variant="default"
               fullWidth={isMobile}
               onClick={closeExcludeRuleModal}
             >

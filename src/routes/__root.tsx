@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ColorSchemeScript, mantineHtmlProps } from '@mantine/core';
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -14,15 +15,23 @@ import {
   RootNotFoundComponent,
 } from '../components/routerErrors';
 import { RootLayout, RootProviders } from '../layouts';
+import {
+  APP_COLOR_SCHEME_STORAGE_KEY,
+  APP_DEFAULT_COLOR_SCHEME,
+} from '../colorScheme';
 import type { RouterContext } from '../router-context';
 
 function Document({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" {...mantineHtmlProps}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
+        <ColorSchemeScript
+          defaultColorScheme={APP_DEFAULT_COLOR_SCHEME}
+          localStorageKey={APP_COLOR_SCHEME_STORAGE_KEY}
+        />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <HeadContent />
       </head>

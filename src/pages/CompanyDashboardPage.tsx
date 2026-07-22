@@ -340,7 +340,9 @@ export default function CompanyDashboardPage() {
             <Group gap="xs" wrap="wrap">
               {nameContent}
               {project.projectType === 'programme' ? (
-                <Badge variant="light">Programme</Badge>
+                <Badge variant="light" color="blue">
+                  Programme
+                </Badge>
               ) : null}
             </Group>
             {project.parentProjectId ? (
@@ -358,7 +360,9 @@ export default function CompanyDashboardPage() {
       header: 'Type',
       Cell: ({ row }) =>
         row.original.projectType === 'programme' ? (
-          <Badge variant="light">Programme</Badge>
+          <Badge variant="light" color="blue">
+            Programme
+          </Badge>
         ) : (
           <Badge variant="light" color="gray">
             Project
@@ -370,9 +374,13 @@ export default function CompanyDashboardPage() {
       header: 'Visibility',
       Cell: ({ row }) =>
         row.original.visibility === 'private' ? (
-          <Badge variant="light">Private</Badge>
+          <Badge variant="light" color="orange">
+            Private
+          </Badge>
         ) : (
-          <Badge variant="light">Company</Badge>
+          <Badge variant="light" color="teal">
+            Company
+          </Badge>
         ),
     },
     {
@@ -592,7 +600,7 @@ export default function CompanyDashboardPage() {
                     ) : null}
                     <Group justify="flex-end">
                       <Button
-                        variant="light"
+                        variant="default"
                         onClick={() => {
                           setNewProjectOpen(false);
                           setNewProjectOwnerId(null);
@@ -763,7 +771,11 @@ export default function CompanyDashboardPage() {
           />
 
           <Group justify="flex-end" wrap="wrap">
-            <Button variant="light" onClick={closeConfirm} fullWidth={isMobile}>
+            <Button
+              variant="default"
+              onClick={closeConfirm}
+              fullWidth={isMobile}
+            >
               Cancel
             </Button>
             <Button

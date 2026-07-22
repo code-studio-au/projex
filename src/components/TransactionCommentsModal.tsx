@@ -399,6 +399,7 @@ export default function TransactionCommentsModal(props: {
                       <Button
                         size="xs"
                         variant="subtle"
+                        color="gray"
                         onClick={() => setReplyToCommentId(null)}
                       >
                         Cancel reply
