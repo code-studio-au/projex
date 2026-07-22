@@ -164,6 +164,20 @@ async function openTaxonomyCategory(
     .click();
 }
 
+async function clickActionMenuItem(
+  page: import('playwright').Page,
+  actionButton: import('playwright').Locator,
+  itemName: string | RegExp
+) {
+  await actionButton.click();
+  const menuId = await actionButton.getAttribute('aria-controls');
+  assert(menuId, 'Action menu trigger did not identify its dropdown');
+
+  const menu = page.locator(`#${menuId}`);
+  await menu.waitFor({ state: 'visible' });
+  await menu.getByRole('menuitem', { name: itemName }).click();
+}
+
 async function runGeneratedTaxonomyRuleFlow(
   page: import('playwright').Page,
   fixtures: SmokeFixtures,
@@ -173,14 +187,10 @@ async function runGeneratedTaxonomyRuleFlow(
 
   await emit(options, 'Moving a subcategory with a dependent auto-coding rule');
   await openTaxonomyCategory(page, taxonomy.sourceCategoryName);
-  await page
-    .getByRole('button', {
-      name: `Actions for subcategory ${taxonomy.sourceSubCategoryName}`,
-    })
-    .click();
-  await page
-    .getByRole('menuitem', { name: /Move to another category/ })
-    .click();
+  const sourceActions = page.getByRole('button', {
+    name: `Actions for subcategory ${taxonomy.sourceSubCategoryName}`,
+  });
+  await clickActionMenuItem(page, sourceActions, /Move to another category/);
 
   const moveDialog = page.getByRole('dialog', { name: 'Move subcategory' });
   await moveDialog.waitFor({ state: 'visible' });
@@ -210,12 +220,11 @@ async function runGeneratedTaxonomyRuleFlow(
     'Deleting the moved subcategory and reassigning its dependent rule'
   );
   await openTaxonomyCategory(page, taxonomy.destinationCategoryName);
-  const sourceActions = page.getByRole('button', {
+  const movedSourceActions = page.getByRole('button', {
     name: `Actions for subcategory ${taxonomy.sourceSubCategoryName}`,
   });
-  await sourceActions.waitFor({ state: 'visible' });
-  await sourceActions.click();
-  await page.getByRole('menuitem', { name: 'Delete subcategory' }).click();
+  await movedSourceActions.waitFor({ state: 'visible' });
+  await clickActionMenuItem(page, movedSourceActions, 'Delete subcategory');
 
   const deleteDialog = page.getByRole('dialog', {
     name: 'Delete subcategory?',
@@ -247,7 +256,7 @@ async function runGeneratedTaxonomyRuleFlow(
   );
   await deleteDialog.getByRole('button', { name: 'Delete' }).click();
   await deleteDialog.waitFor({ state: 'hidden' });
-  await sourceActions.waitFor({ state: 'detached' });
+  await movedSourceActions.waitFor({ state: 'detached' });
   await page.keyboard.press('Escape');
 }
 
