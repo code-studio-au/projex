@@ -9,8 +9,10 @@ import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import type { ProjectId, Txn, TxnId } from '../types';
 import type {
+  TxnBulkSelectionResult,
   TxnBulkActionInput,
   TxnBulkActionResult,
+  TxnListFilterInput,
   TxnListPageInput,
   TxnListSortDirection,
   TxnListSortField,
@@ -27,7 +29,10 @@ import {
   readJsonResponseOrNull,
   readJsonResponseWithSchema,
 } from '../utils/json';
-import { txnListPageResultResponseSchema } from '../validation/responseSchemas';
+import {
+  txnBulkSelectionResultResponseSchema,
+  txnListPageResultResponseSchema,
+} from '../validation/responseSchemas';
 import { apiErrorFromBody } from '../api/errorResponses';
 import {
   getTransactionServerFn,
@@ -57,6 +62,11 @@ type TransactionsPageQueryParams = {
   subCategoryId?: string;
 };
 
+type TransactionsSelectionQueryParams = Omit<
+  TransactionsPageQueryParams,
+  'mode' | 'pageIndex' | 'pageSize' | 'sortField' | 'sortDirection'
+> & { mode: 'selection' };
+
 function toTransactionsPageQueryParams(
   input: TxnListPageInput
 ): TransactionsPageQueryParams {
@@ -66,6 +76,24 @@ function toTransactionsPageQueryParams(
     pageSize: input.pageSize,
     sortField: input.sort?.field,
     sortDirection: input.sort?.direction,
+    yearFilter: input.yearFilter ?? undefined,
+    quarterFilter: input.quarterFilter ?? undefined,
+    monthFilterKey: input.monthFilterKey ?? undefined,
+    transactionView: input.transactionView ?? undefined,
+    drilldownKind: input.drilldown?.kind,
+    categoryId: input.drilldown?.categoryId,
+    subCategoryId:
+      input.drilldown?.kind === 'subcategory'
+        ? input.drilldown.subCategoryId
+        : undefined,
+  };
+}
+
+function toTransactionsSelectionQueryParams(
+  input: TxnListFilterInput
+): TransactionsSelectionQueryParams {
+  return {
+    mode: 'selection',
     yearFilter: input.yearFilter ?? undefined,
     quarterFilter: input.quarterFilter ?? undefined,
     monthFilterKey: input.monthFilterKey ?? undefined,
@@ -114,6 +142,43 @@ async function fetchTransactionsPageViaApi(
     );
   }
   return payload.data satisfies TxnListPageResult;
+}
+
+async function fetchTransactionsSelectionViaApi(
+  projectId: ProjectId,
+  input: TxnListFilterInput
+): Promise<TxnBulkSelectionResult> {
+  const query = toTransactionsSelectionQueryParams(input);
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined) continue;
+    params.set(key, String(value));
+  }
+  const res = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/transactions?${params.toString()}`,
+    {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' },
+    }
+  );
+
+  if (!res.ok) {
+    const body = await readJsonResponseOrNull(res);
+    throw apiErrorFromBody(body, 'Could not select filtered transactions');
+  }
+
+  const payload = await readJsonResponseWithSchema(
+    res,
+    txnBulkSelectionResultResponseSchema
+  );
+  if (!payload.success) {
+    throw apiErrorFromBody(
+      null,
+      'Transaction selection response was not valid JSON'
+    );
+  }
+  return payload.data satisfies TxnBulkSelectionResult;
 }
 
 export function useTransactionQuery(
@@ -174,6 +239,13 @@ export function useTransactionsPageQuery(
   return useQuery(
     transactionsPageQueryOptions(scopeUserId, projectId, input, options)
   );
+}
+
+export function useTransactionsBulkSelectionMutation(projectId: ProjectId) {
+  return useMutation({
+    mutationFn: (input: TxnListFilterInput) =>
+      fetchTransactionsSelectionViaApi(projectId, input),
+  });
 }
 
 export function transactionsPageQueryOptions(

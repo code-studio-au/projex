@@ -3,7 +3,10 @@ import { Divider, Paper, Stack } from '@mantine/core';
 import type { TransactionActions } from '../hooks/useTransactionActions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { ProjectId, TransactionDrilldownFilter, TxnId } from '../types';
-import type { ProjectRuleSuggestionPrompt } from '../api/types';
+import type {
+  ProjectRuleSuggestionPrompt,
+  TxnBulkSelectionRow,
+} from '../api/types';
 import TransactionFiltersCard from './transactions/TransactionFiltersCard';
 import TransactionsModalStack from './transactions/TransactionsModalStack';
 import TransactionsDataTable from './transactions/TransactionsDataTable';
@@ -17,12 +20,14 @@ import { useTransactionsPanelData } from './transactions/useTransactionsPanelDat
 import { useTransactionsPanelState } from './transactions/useTransactionsPanelState';
 import { useTransactionBulkActionsController } from './transactions/useTransactionBulkActionsController';
 import { useCreateProjectAutoCodingRuleMutation } from '../queries/projectAutoCodingRules';
+import { useTransactionsBulkSelectionMutation } from '../queries/transactions';
 import {
   formatTxnCountLabel,
   toQuarterOption,
   type QuarterOption,
 } from './transactions/transactionsPanelUtils';
 import classes from '../styles/ui.module.css';
+import { showAppToast } from '../utils/toast';
 
 export default function TransactionsPanel(props: {
   projectId: ProjectId;
@@ -124,6 +129,10 @@ export default function TransactionsPanel(props: {
     yearFilter,
   });
   const createProjectRule = useCreateProjectAutoCodingRuleMutation(projectId);
+  const selectTransactions = useTransactionsBulkSelectionMutation(projectId);
+  const [bulkSelectionRows, setBulkSelectionRows] = useState<
+    TxnBulkSelectionRow[] | null
+  >(null);
   const {
     bulkRecodeSubCategoryOptions,
     commentSummaryByTxnId,
@@ -139,6 +148,7 @@ export default function TransactionsPanel(props: {
     selectedDeletableCount,
     selectedTxnIds,
     selectedUnlockedCategorisableCount,
+    transactionsPageInput,
     transactionsPageQ,
   } = useTransactionsPanelData({
     bulkRecodeCategoryId,
@@ -153,6 +163,7 @@ export default function TransactionsPanel(props: {
     rowSelection,
     sorting,
     taxonomy,
+    bulkSelectionRows,
     transactionDrilldown,
     transactionView,
     yearFilter,
@@ -165,7 +176,10 @@ export default function TransactionsPanel(props: {
   ] = useState(false);
   const resetPage = () =>
     setPagination((current) => ({ ...current, pageIndex: 0 }));
-  const clearSelection = () => setRowSelection({});
+  const clearSelection = () => {
+    setRowSelection({});
+    setBulkSelectionRows(null);
+  };
   const {
     reconcilePendingReversals,
     reconcilingPendingReversals,
@@ -174,6 +188,27 @@ export default function TransactionsPanel(props: {
     mutate: transactionActions.runBulkAction,
     clearSelection,
   });
+
+  async function selectAllFilteredTransactions() {
+    try {
+      const result = await selectTransactions.mutateAsync(
+        transactionsPageInput
+      );
+      setBulkSelectionRows(result.rows);
+      setRowSelection(
+        Object.fromEntries(result.rows.map((txn) => [txn.id, true]))
+      );
+    } catch (error) {
+      showAppToast({
+        tone: 'error',
+        title: 'Could not select all transactions',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'The filtered transactions could not be selected.',
+      });
+    }
+  }
 
   function applyProjectRulePrompt(prompt: ProjectRuleSuggestionPrompt | null) {
     if (!prompt) return;
@@ -261,6 +296,8 @@ export default function TransactionsPanel(props: {
             onOpenTaxonomyManager={() => setManageOpen(true)}
             selectedTxnCount={selectedTxnIds.length}
             selectedCountLabel={formatTxnCountLabel(selectedTxnIds.length)}
+            selectableTxnCount={pageSummary.totalCount}
+            selectingAll={selectTransactions.isPending}
             selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
             selectedAmbiguousSuggestedReversalCount={
               selectedAmbiguousSuggestedReversalCount
@@ -270,6 +307,7 @@ export default function TransactionsPanel(props: {
               selectedUnlockedCategorisableCount
             }
             selectedDeletableCount={selectedDeletableCount}
+            onSelectAll={() => void selectAllFilteredTransactions()}
             onClearSelection={clearSelection}
             onMarkReviewed={() => {
               void runBulkAction({

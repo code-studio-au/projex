@@ -122,6 +122,11 @@
   background: var(--surface-muted);
 }
 
+.bulkActionsBar {
+  background: var(--surface-muted);
+  border-color: var(--surface-border);
+}
+
 .sectionPad {
   padding: 1.25rem;
 }

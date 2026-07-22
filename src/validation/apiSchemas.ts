@@ -35,6 +35,7 @@ import {
   MAX_IMPORT_PREVIEW_CSV_TEXT_LENGTH,
   MAX_IMPORT_TXN_COUNT,
 } from '../utils/importLimits.ts';
+import { MAX_BULK_TXN_COUNT } from '../utils/transactionLimits.ts';
 export const companyIdSchema = idSchema.transform(asCompanyId);
 export const projectIdSchema = idSchema.transform(asProjectId);
 export const userIdSchema = idSchema.transform(asUserId);
@@ -592,7 +593,10 @@ export const txnWorkflowStateInputSchema = z.object({
 const txnBulkActionTxnIdsSchema = z
   .array(txnIdSchema)
   .min(1, 'Select at least one transaction')
-  .max(200, 'Select no more than 200 transactions at once')
+  .max(
+    MAX_BULK_TXN_COUNT,
+    `Select no more than ${MAX_BULK_TXN_COUNT.toLocaleString()} transactions at once`
+  )
   .refine((value) => new Set(value).size === value.length, {
     message: 'Duplicate transactions are not allowed',
   });
@@ -743,6 +747,16 @@ export const txnListPageQuerySchema = z.object({
   categoryId: categoryIdSchema.optional(),
   subCategoryId: subCategoryIdSchema.optional(),
 });
+
+export const txnListSelectionQuerySchema = txnListPageQuerySchema
+  .omit({
+    mode: true,
+    pageIndex: true,
+    pageSize: true,
+    sortField: true,
+    sortDirection: true,
+  })
+  .extend({ mode: z.literal('selection') });
 
 export const devSessionBodySchema = z.object({
   userId: userIdSchema,

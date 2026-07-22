@@ -75,6 +75,21 @@ export type TxnListPageInput = {
   transactionView?: TxnListView;
   drilldown?: TxnListDrilldown | null;
 };
+export type TxnListFilterInput = Omit<
+  TxnListPageInput,
+  'pageIndex' | 'pageSize' | 'sort'
+>;
+export type TxnBulkSelectionRow = {
+  id: TxnId;
+  categorisable: boolean;
+  subCategoryId?: Txn['subCategoryId'];
+  codingPendingApproval: boolean;
+  locked: boolean;
+  reversalStatus?: NonNullable<Txn['reversal']>['status'];
+};
+export type TxnBulkSelectionResult = {
+  rows: TxnBulkSelectionRow[];
+};
 type TxnListPageSummary = {
   totalCount: number;
   budgetImpactCents: number;

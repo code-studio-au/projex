@@ -13,7 +13,7 @@ import type {
   Txn,
   TxnReversalStatus,
 } from '../../../types';
-import type { TxnListPageInput } from '../../../api/types';
+import type { TxnListFilterInput, TxnListPageInput } from '../../../api/types';
 import type { DB, TxnTable } from '../../db/schema';
 import type { ProjectActionContext } from '../resourceGuards';
 import {
@@ -251,7 +251,7 @@ export function quarterFilterNumber(value: TxnListPageInput['quarterFilter']) {
 export function buildTransactionsPageFilters(args: {
   projectId: ProjectId;
   userId: string;
-  input: TxnListPageInput;
+  input: TxnListFilterInput;
 }): RawBuilder<boolean>[] {
   const filters: RawBuilder<boolean>[] = [
     sql<boolean>`t.project_id = ${args.projectId}`,

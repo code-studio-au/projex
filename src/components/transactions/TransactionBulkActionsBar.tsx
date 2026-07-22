@@ -1,12 +1,19 @@
-import { Button, Group, Menu, Paper, Text } from '@mantine/core';
+import { Button, Group, Menu, Paper, Text, Tooltip } from '@mantine/core';
+
+import classes from '../../styles/ui.module.css';
+import { MAX_BULK_TXN_COUNT } from '../../utils/transactionLimits';
 
 export default function TransactionBulkActionsBar(props: {
+  selectedTxnCount: number;
   selectedCountLabel: string;
+  selectableTxnCount: number;
+  selectingAll: boolean;
   selectedAutoMappedPendingCount: number;
   selectedSuggestedReversalCount: number;
   selectedUnlockedCategorisableCount: number;
   selectedDeletableCount: number;
   canManageReversals: boolean;
+  onSelectAll: () => void;
   onClearSelection: () => void;
   onMarkReviewed: () => void;
   onMarkUnreviewed: () => void;
@@ -19,12 +26,16 @@ export default function TransactionBulkActionsBar(props: {
   onDeleteSelected: () => void;
 }) {
   const {
+    selectedTxnCount,
     selectedCountLabel,
+    selectableTxnCount,
+    selectingAll,
     selectedAutoMappedPendingCount,
     selectedSuggestedReversalCount,
     selectedUnlockedCategorisableCount,
     selectedDeletableCount,
     canManageReversals,
+    onSelectAll,
     onClearSelection,
     onMarkReviewed,
     onMarkUnreviewed,
@@ -36,14 +47,33 @@ export default function TransactionBulkActionsBar(props: {
     onClearCoding,
     onDeleteSelected,
   } = props;
+  const selectAllExceedsLimit = selectableTxnCount > MAX_BULK_TXN_COUNT;
 
   return (
-    <Paper radius="md" p="sm" withBorder bg="gray.0">
+    <Paper className={classes.bulkActionsBar} radius="md" p="sm" withBorder>
       <Group justify="space-between" gap="sm" align="center" wrap="wrap">
         <Group gap="xs" align="center" wrap="wrap">
           <Text size="sm" fw={600}>
             {selectedCountLabel} selected
           </Text>
+          {selectedTxnCount < selectableTxnCount ? (
+            <Tooltip
+              disabled={!selectAllExceedsLimit}
+              label={`Narrow the workflow or date filters to ${MAX_BULK_TXN_COUNT.toLocaleString()} rows or fewer.`}
+            >
+              <span>
+                <Button
+                  size="compact-sm"
+                  variant="subtle"
+                  loading={selectingAll}
+                  disabled={selectAllExceedsLimit}
+                  onClick={onSelectAll}
+                >
+                  Select all ({selectableTxnCount.toLocaleString()} rows)
+                </Button>
+              </span>
+            </Tooltip>
+          ) : null}
           <Button size="compact-sm" variant="subtle" onClick={onClearSelection}>
             Clear
           </Button>

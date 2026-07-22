@@ -7,6 +7,7 @@ import {
   splitTxnInputSchema,
   txnBulkActionInputSchema,
   txnListPageQuerySchema,
+  txnListSelectionQuerySchema,
   txnImportInputSchema,
   txnImportPreviewInputSchema,
 } from '../src/validation/apiSchemas.ts';
@@ -16,6 +17,7 @@ import {
   MAX_IMPORT_PREVIEW_ROW_COUNT,
   MAX_IMPORT_TXN_COUNT,
 } from '../src/utils/importLimits.ts';
+import { MAX_BULK_TXN_COUNT } from '../src/utils/transactionLimits.ts';
 import { asCompanyId, asProjectId, asTxnId } from '../src/types/index.ts';
 
 test('transaction import schema limits the number of imported transactions', () => {
@@ -229,6 +231,28 @@ test('split transaction schema rejects zero-value children and bulk actions reje
       txnIds: ['txn_1'],
     }).success,
     true
+  );
+});
+
+test('transaction selection schema preserves filters and bulk actions enforce the selection limit', () => {
+  const selection = txnListSelectionQuerySchema.safeParse({
+    mode: 'selection',
+    yearFilter: '2026',
+    transactionView: 'needs-review',
+  });
+  assert.equal(selection.success, true);
+
+  const oversizedSelection = Array.from(
+    { length: MAX_BULK_TXN_COUNT + 1 },
+    (_, index) => `txn_${index}`
+  );
+  assert.equal(
+    txnBulkActionInputSchema.safeParse({
+      action: 'setReviewed',
+      txnIds: oversizedSelection,
+      reviewed: true,
+    }).success,
+    false
   );
 });
 

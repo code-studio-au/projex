@@ -5,6 +5,7 @@ import { listTransactionCommentSummariesServer } from '../src/server/fns/transac
 import {
   listProjectTransactionSummaryServer,
   listTransactionsPageServer,
+  listTransactionsSelectionServer,
 } from '../src/server/fns/transactions.ts';
 import {
   asCategoryId,
@@ -296,6 +297,25 @@ test(
         lockedCount: 0,
         invalidDateCount: 0,
       });
+
+      const selection = await listTransactionsSelectionServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          monthFilterKey: '2026-06',
+          transactionView: 'auto-mapped-pending',
+        },
+      });
+      assert.deepEqual(selection.rows, [
+        {
+          id: autoMappedTxnId,
+          categorisable: true,
+          subCategoryId,
+          codingPendingApproval: true,
+          locked: false,
+          reversalStatus: undefined,
+        },
+      ]);
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

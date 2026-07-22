@@ -3,6 +3,7 @@ import type {
   MRT_PaginationState,
   MRT_SortingState,
 } from 'mantine-react-table-open';
+import type { TxnBulkSelectionRow } from '../../api/types';
 import type { TaxonomyHook } from '../../hooks/useTaxonomy';
 import type {
   ProjectId,
@@ -11,7 +12,6 @@ import type {
   TxnId,
 } from '../../types';
 import { asCategoryId, asTxnId } from '../../types/ids';
-import { isCategorisableTxn } from '../../utils/transactions';
 import {
   useTransactionCommentsQuery,
   useTransactionCommentSummariesQuery,
@@ -41,6 +41,7 @@ export function useTransactionsPanelData(args: {
   pagination: MRT_PaginationState;
   sorting: MRT_SortingState;
   rowSelection: Record<string, boolean>;
+  bulkSelectionRows: TxnBulkSelectionRow[] | null;
 }) {
   const transactionsPageInput = useMemo(() => {
     const sortField =
@@ -132,13 +133,24 @@ export function useTransactionsPanelData(args: {
     args.dismissedLinkedCommentTxnId !== args.initialCommentTxnId
       ? (linkedCommentsTxnQ.data ?? null)
       : null;
-  const selectedTxns = useMemo(
-    () => pagedTxns.filter((txn) => args.rowSelection[txn.id]),
-    [pagedTxns, args.rowSelection]
+  const selectedRows = useMemo(
+    () =>
+      (
+        args.bulkSelectionRows ??
+        pagedTxns.map((txn) => ({
+          id: txn.id,
+          categorisable: txn.categorisable,
+          subCategoryId: txn.subCategoryId,
+          codingPendingApproval: Boolean(txn.codingPendingApproval),
+          locked: Boolean(txn.lockedAt),
+          reversalStatus: txn.reversal?.status,
+        }))
+      ).filter((txn) => args.rowSelection[txn.id]),
+    [args.bulkSelectionRows, args.rowSelection, pagedTxns]
   );
   const selectedTxnIds = useMemo(
-    () => selectedTxns.map((txn) => txn.id),
-    [selectedTxns]
+    () => selectedRows.map((txn) => txn.id),
+    [selectedRows]
   );
   const pageSummary = transactionsPageQ.data?.summary ?? {
     totalCount: 0,
@@ -159,44 +171,43 @@ export function useTransactionsPanelData(args: {
   };
   const selectedAutoMappedPendingCount = useMemo(
     () =>
-      selectedTxns.filter(
+      selectedRows.filter(
         (txn) =>
-          !txn.lockedAt &&
-          isCategorisableTxn(txn) &&
-          !!txn.codingPendingApproval &&
+          !txn.locked &&
+          txn.categorisable &&
+          txn.codingPendingApproval &&
           !!txn.subCategoryId &&
           args.taxonomy.validSubIds.has(txn.subCategoryId)
       ).length,
-    [selectedTxns, args.taxonomy.validSubIds]
+    [selectedRows, args.taxonomy.validSubIds]
   );
   const selectedSuggestedReversalCount = useMemo(
     () =>
-      selectedTxns.filter(
+      selectedRows.filter(
         (txn) =>
-          !txn.lockedAt &&
-          (txn.reversal?.status === 'auto_matched_pending_approval' ||
-            txn.reversal?.status === 'auto_matched_ambiguous_pending_approval')
+          !txn.locked &&
+          (txn.reversalStatus === 'auto_matched_pending_approval' ||
+            txn.reversalStatus === 'auto_matched_ambiguous_pending_approval')
       ).length,
-    [selectedTxns]
+    [selectedRows]
   );
   const selectedAmbiguousSuggestedReversalCount = useMemo(
     () =>
-      selectedTxns.filter(
+      selectedRows.filter(
         (txn) =>
-          !txn.lockedAt &&
-          txn.reversal?.status === 'auto_matched_ambiguous_pending_approval'
+          !txn.locked &&
+          txn.reversalStatus === 'auto_matched_ambiguous_pending_approval'
       ).length,
-    [selectedTxns]
+    [selectedRows]
   );
   const selectedUnlockedCategorisableCount = useMemo(
-    () =>
-      selectedTxns.filter((txn) => !txn.lockedAt && isCategorisableTxn(txn))
-        .length,
-    [selectedTxns]
+    () => selectedRows.filter((txn) => !txn.locked && txn.categorisable).length,
+    [selectedRows]
   );
   const selectedDeletableCount = useMemo(
-    () => selectedTxns.filter((txn) => !txn.lockedAt && !txn.reversal).length,
-    [selectedTxns]
+    () =>
+      selectedRows.filter((txn) => !txn.locked && !txn.reversalStatus).length,
+    [selectedRows]
   );
   const bulkRecodeSubCategoryOptions = useMemo(
     () =>
@@ -226,8 +237,8 @@ export function useTransactionsPanelData(args: {
     selectedSuggestedReversalCount,
     selectedDeletableCount,
     selectedTxnIds,
-    selectedTxns,
     selectedUnlockedCategorisableCount,
+    transactionsPageInput,
     transactionsPageQ,
   };
 }

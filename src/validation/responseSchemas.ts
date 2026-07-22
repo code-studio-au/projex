@@ -22,6 +22,7 @@ import {
   projectBudgetTotalCentsSchema,
   transactionAmountCentsSchema,
 } from './schemas.ts';
+import { MAX_BULK_TXN_COUNT } from '../utils/transactionLimits.ts';
 
 export const apiMessageResponseSchema = z.object({
   message: z.string().optional(),
@@ -316,6 +317,21 @@ const txnListPageSummaryResponseSchema = z.object({
 export const txnListPageResultResponseSchema = z.object({
   rows: txnsResponseSchema,
   summary: txnListPageSummaryResponseSchema,
+});
+
+export const txnBulkSelectionResultResponseSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        id: txnIdSchema,
+        categorisable: z.boolean(),
+        subCategoryId: subCategoryIdSchema.optional(),
+        codingPendingApproval: z.boolean(),
+        locked: z.boolean(),
+        reversalStatus: z.enum(TXN_REVERSAL_STATUSES).optional(),
+      })
+    )
+    .max(MAX_BULK_TXN_COUNT),
 });
 
 export const txnCommentResponseSchema = z.object({

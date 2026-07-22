@@ -1,11 +1,20 @@
 import { sql } from 'kysely';
 
-import { asSubCategoryId, type ProjectId, type Txn } from '../../../types';
+import {
+  asSubCategoryId,
+  asTxnId,
+  type ProjectId,
+  type Txn,
+} from '../../../types';
 import type {
   ProjectTransactionSummary,
+  TxnBulkSelectionResult,
+  TxnListFilterInput,
   TxnListPageInput,
   TxnListPageResult,
 } from '../../../api/types';
+import { AppError } from '../../../api/errors';
+import { MAX_BULK_TXN_COUNT } from '../../../utils/transactionLimits';
 import { toTxn } from '../../mappers/transactionRows';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
@@ -76,6 +85,59 @@ export async function getTransactionServer(args: {
       .where('t.public_id', '=', args.txnId)
       .executeTakeFirst();
     return row ? toTxn(row) : null;
+  });
+}
+
+export async function listTransactionsSelectionServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  input: TxnListFilterInput;
+}): Promise<TxnBulkSelectionResult> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db, userId } = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'project:view'
+    );
+    const filters = buildTransactionsPageFilters({
+      projectId: args.projectId,
+      userId,
+      input: args.input,
+    });
+    const rows = await applyTxnPageFilters(db.selectFrom('txns as t'), filters)
+      .leftJoin('txn_reversals as tr', txnReversalJoin())
+      .select([
+        't.public_id',
+        't.categorisable',
+        't.sub_category_id',
+        't.coding_pending_approval',
+        't.locked_at',
+        'tr.status as reversal_status',
+      ])
+      .orderBy('t.public_id', 'asc')
+      .limit(MAX_BULK_TXN_COUNT + 1)
+      .execute();
+
+    if (rows.length > MAX_BULK_TXN_COUNT) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `Select all supports up to ${MAX_BULK_TXN_COUNT.toLocaleString()} transactions. Narrow the workflow or date filters and try again.`
+      );
+    }
+
+    return {
+      rows: rows.map((row) => ({
+        id: asTxnId(row.public_id),
+        categorisable: row.categorisable,
+        subCategoryId: row.sub_category_id
+          ? asSubCategoryId(row.sub_category_id)
+          : undefined,
+        codingPendingApproval: row.coding_pending_approval,
+        locked: Boolean(row.locked_at),
+        reversalStatus: row.reversal_status ?? undefined,
+      })),
+    };
   });
 }
 

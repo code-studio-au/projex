@@ -13,6 +13,7 @@ import { asProjectId } from '../types';
 
 import {
   txnListPageQuerySchema,
+  txnListSelectionQuerySchema,
   txnMutationBodySchema,
   txnUpdateMutationBodySchema,
 } from '../validation/apiSchemas';
@@ -27,6 +28,45 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
         const { serverContext } = requireApiRouteContext(context);
         const url = new URL(request.url);
         const search = Object.fromEntries(url.searchParams.entries());
+        if (search.mode === 'selection') {
+          const listTransactionsSelectionServer = await loadRouteServerExport<
+            (args: {
+              context: typeof serverContext;
+              projectId: ReturnType<typeof asProjectId>;
+              input: unknown;
+            }) => Promise<unknown>
+          >('../server/fns/transactions', 'listTransactionsSelectionServer');
+          const query = validateOrThrow(txnListSelectionQuerySchema, search);
+          const drilldown =
+            query.drilldownKind === 'subcategory' &&
+            query.categoryId &&
+            query.subCategoryId
+              ? {
+                  kind: 'subcategory' as const,
+                  categoryId: query.categoryId,
+                  subCategoryId: query.subCategoryId,
+                }
+              : query.drilldownKind === 'category' && query.categoryId
+                ? {
+                    kind: 'category' as const,
+                    categoryId: query.categoryId,
+                  }
+                : undefined;
+
+          return jsonApi(
+            await listTransactionsSelectionServer({
+              context: serverContext,
+              projectId: asProjectId(params.projectId),
+              input: {
+                yearFilter: query.yearFilter,
+                quarterFilter: query.quarterFilter,
+                monthFilterKey: query.monthFilterKey,
+                transactionView: query.transactionView,
+                drilldown,
+              },
+            })
+          );
+        }
         if (search.mode === 'page') {
           const listTransactionsPageServer = await loadRouteServerExport<
             (args: {

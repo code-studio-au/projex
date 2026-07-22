@@ -40,11 +40,14 @@ export default function TransactionsOverviewCard(props: {
   onOpenTaxonomyManager: () => void;
   selectedTxnCount: number;
   selectedCountLabel: string;
+  selectableTxnCount: number;
+  selectingAll: boolean;
   selectedAutoMappedPendingCount: number;
   selectedAmbiguousSuggestedReversalCount: number;
   selectedSuggestedReversalCount: number;
   selectedUnlockedCategorisableCount: number;
   selectedDeletableCount: number;
+  onSelectAll: () => void;
   onClearSelection: () => void;
   onMarkReviewed: () => void;
   onMarkUnreviewed: () => void;
@@ -82,11 +85,14 @@ export default function TransactionsOverviewCard(props: {
     onOpenTaxonomyManager,
     selectedTxnCount,
     selectedCountLabel,
+    selectableTxnCount,
+    selectingAll,
     selectedAutoMappedPendingCount,
     selectedAmbiguousSuggestedReversalCount,
     selectedSuggestedReversalCount,
     selectedUnlockedCategorisableCount,
     selectedDeletableCount,
+    onSelectAll,
     onClearSelection,
     onMarkReviewed,
     onMarkUnreviewed,
@@ -183,7 +189,10 @@ export default function TransactionsOverviewCard(props: {
 
         {isHydrated && !readOnly && selectedTxnCount > 0 ? (
           <TransactionBulkActionsBar
+            selectedTxnCount={selectedTxnCount}
             selectedCountLabel={selectedCountLabel}
+            selectableTxnCount={selectableTxnCount}
+            selectingAll={selectingAll}
             selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
             selectedSuggestedReversalCount={selectedSuggestedReversalCount}
             selectedUnlockedCategorisableCount={
@@ -191,6 +200,7 @@ export default function TransactionsOverviewCard(props: {
             }
             selectedDeletableCount={selectedDeletableCount}
             canManageReversals={canManageReversals}
+            onSelectAll={onSelectAll}
             onClearSelection={onClearSelection}
             onMarkReviewed={onMarkReviewed}
             onMarkUnreviewed={onMarkUnreviewed}
