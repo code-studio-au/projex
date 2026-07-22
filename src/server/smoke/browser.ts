@@ -164,18 +164,51 @@ async function openTaxonomyCategory(
     .click();
 }
 
+async function waitForStableLocator(
+  page: import('playwright').Page,
+  locator: import('playwright').Locator
+) {
+  const startedAt = Date.now();
+  let previousBox: Awaited<ReturnType<typeof locator.boundingBox>> = null;
+  let stableSamples = 0;
+
+  while (Date.now() - startedAt < 5_000) {
+    const box = await locator.boundingBox();
+    const isStable =
+      box !== null &&
+      previousBox !== null &&
+      Math.abs(box.x - previousBox.x) < 0.5 &&
+      Math.abs(box.y - previousBox.y) < 0.5 &&
+      Math.abs(box.width - previousBox.width) < 0.5 &&
+      Math.abs(box.height - previousBox.height) < 0.5;
+
+    stableSamples = isStable ? stableSamples + 1 : 0;
+    if (stableSamples >= 3) return;
+
+    previousBox = box;
+    await page.waitForTimeout(75);
+  }
+
+  throw new Error('Timed out waiting for an animated control to settle');
+}
+
 async function clickActionMenuItem(
   page: import('playwright').Page,
   actionButton: import('playwright').Locator,
   itemName: string | RegExp
 ) {
+  await actionButton.waitFor({ state: 'visible' });
+  await waitForStableLocator(page, actionButton);
   await actionButton.click();
   const menuId = await actionButton.getAttribute('aria-controls');
   assert(menuId, 'Action menu trigger did not identify its dropdown');
 
   const menu = page.locator(`#${menuId}`);
   await menu.waitFor({ state: 'visible' });
-  await menu.getByRole('menuitem', { name: itemName }).click();
+  const menuItem = menu.getByRole('menuitem', { name: itemName });
+  await menuItem.waitFor({ state: 'visible' });
+  await waitForStableLocator(page, menuItem);
+  await menuItem.click();
 }
 
 async function runGeneratedTaxonomyRuleFlow(
