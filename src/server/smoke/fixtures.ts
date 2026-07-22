@@ -13,6 +13,19 @@ type SmokeFixtureUser = {
   name: string;
 };
 
+export type BrowserSmokeTaxonomyFixtures = {
+  sourceCategoryId: string;
+  sourceCategoryName: string;
+  destinationCategoryId: string;
+  destinationCategoryName: string;
+  sourceSubCategoryId: string;
+  sourceSubCategoryName: string;
+  replacementSubCategoryId: string;
+  replacementSubCategoryName: string;
+  ruleId: string;
+  ruleMatchText: string;
+};
+
 export type SmokeFixtures = {
   runId: string;
   companyId: string;
@@ -22,6 +35,7 @@ export type SmokeFixtures = {
     privacyAdmin: SmokeFixtureUser;
     privacySuperadmin: SmokeFixtureUser;
   };
+  browserTaxonomy: BrowserSmokeTaxonomyFixtures;
   inviteEmail: string;
   emailChangeTo: string;
 };
@@ -193,6 +207,104 @@ async function ensureFixtureMemberships(
   }
 }
 
+async function ensureBrowserTaxonomyFixtures(
+  pool: TypedPgPool,
+  fixtures: SmokeFixtures
+) {
+  const taxonomy = fixtures.browserTaxonomy;
+  const now = new Date().toISOString();
+
+  await pool.query(
+    `insert into categories (
+       id,
+       company_id,
+       project_id,
+       name,
+       origin_scope,
+       origin_company_item_id,
+       sync_status,
+       last_synced_at,
+       source_updated_at_snapshot,
+       created_at,
+       updated_at
+     )
+     values
+       ($1, $2, $3, $4, 'project', null, 'local', null, null, $5, $5),
+       ($6, $2, $3, $7, 'project', null, 'local', null, null, $5, $5)`,
+    [
+      taxonomy.sourceCategoryId,
+      fixtures.companyId,
+      fixtures.projectId,
+      taxonomy.sourceCategoryName,
+      now,
+      taxonomy.destinationCategoryId,
+      taxonomy.destinationCategoryName,
+    ]
+  );
+
+  await pool.query(
+    `insert into sub_categories (
+       id,
+       company_id,
+       project_id,
+       category_id,
+       name,
+       origin_scope,
+       origin_company_item_id,
+       sync_status,
+       last_synced_at,
+       source_updated_at_snapshot,
+       created_at,
+       updated_at
+     )
+     values
+       ($1, $2, $3, $4, $5, 'project', null, 'local', null, null, $6, $6),
+       ($7, $2, $3, $8, $9, 'project', null, 'local', null, null, $6, $6)`,
+    [
+      taxonomy.sourceSubCategoryId,
+      fixtures.companyId,
+      fixtures.projectId,
+      taxonomy.sourceCategoryId,
+      taxonomy.sourceSubCategoryName,
+      now,
+      taxonomy.replacementSubCategoryId,
+      taxonomy.destinationCategoryId,
+      taxonomy.replacementSubCategoryName,
+    ]
+  );
+
+  await pool.query(
+    `insert into project_auto_coding_rules (
+       id,
+       company_id,
+       project_id,
+       match_text,
+       category_id,
+       sub_category_id,
+       sort_order,
+       created_by_user_id,
+       origin_scope,
+       origin_company_item_id,
+       sync_status,
+       last_synced_at,
+       source_updated_at_snapshot,
+       created_at,
+       updated_at
+     )
+     values ($1, $2, $3, $4, $5, $6, 0, $7, 'project', null, 'local', null, null, $8, $8)`,
+    [
+      taxonomy.ruleId,
+      fixtures.companyId,
+      fixtures.projectId,
+      taxonomy.ruleMatchText,
+      taxonomy.sourceCategoryId,
+      taxonomy.sourceSubCategoryId,
+      fixtures.users.privacyAdmin.id,
+      now,
+    ]
+  );
+}
+
 export function applySmokeFixtureEnv(fixtures: SmokeFixtures) {
   applySmokeEnvOverrides(buildSmokeFixtureEnv(fixtures));
 }
@@ -298,6 +410,18 @@ export async function createSmokeFixtures(
       privacyAdmin: makeUser('privacy_admin', runId),
       privacySuperadmin: makeUser('privacy_superadmin', runId),
     },
+    browserTaxonomy: {
+      sourceCategoryId: `cat_smoke_browser_source_${runId}`,
+      sourceCategoryName: `Smoke Source ${runId}`,
+      destinationCategoryId: `cat_smoke_browser_destination_${runId}`,
+      destinationCategoryName: `Smoke Destination ${runId}`,
+      sourceSubCategoryId: `sub_smoke_browser_source_${runId}`,
+      sourceSubCategoryName: `Smoke Move Target ${runId}`,
+      replacementSubCategoryId: `sub_smoke_browser_replacement_${runId}`,
+      replacementSubCategoryName: `Smoke Replacement ${runId}`,
+      ruleId: `prule_smoke_browser_${runId}`,
+      ruleMatchText: `smoke taxonomy rule ${runId}`,
+    },
     inviteEmail: `smoke_invite_${runId}@${generatedEmailDomain()}`,
     emailChangeTo: `smoke_email_change_${runId}@${generatedEmailDomain()}`,
   };
@@ -316,6 +440,7 @@ export async function createSmokeFixtures(
 
     await ensureSmokeCompanyAndProject(pool, fixtures);
     await ensureFixtureMemberships(pool, fixtures);
+    await ensureBrowserTaxonomyFixtures(pool, fixtures);
     applySmokeFixtureEnv(fixtures);
     await emit(
       options,

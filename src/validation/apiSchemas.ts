@@ -344,7 +344,6 @@ export const createCompanyDefaultMappingRuleInputSchema = z.object({
   id: companyDefaultMappingRuleIdSchema.optional(),
   companyId: companyIdSchema,
   matchText: matchTextSchema,
-  companyDefaultCategoryId: companyDefaultCategoryIdSchema,
   companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema,
   sortOrder: z.number().int().min(0),
 });
@@ -352,21 +351,18 @@ export const createCompanyDefaultMappingRuleInputSchema = z.object({
 export const updateCompanyDefaultMappingRuleInputSchema = z.object({
   id: companyDefaultMappingRuleIdSchema,
   matchText: matchTextSchema.optional(),
-  companyDefaultCategoryId: companyDefaultCategoryIdSchema.optional(),
   companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema.optional(),
   sortOrder: z.number().int().min(0).optional(),
 });
 
 export const createProjectAutoCodingRuleInputSchema = z.object({
   matchText: matchTextSchema,
-  categoryId: categoryIdSchema,
   subCategoryId: subCategoryIdSchema,
 });
 
 export const updateProjectAutoCodingRuleInputSchema = z.object({
   id: projectAutoCodingRuleIdSchema,
   matchText: matchTextSchema.optional(),
-  categoryId: categoryIdSchema.optional(),
   subCategoryId: subCategoryIdSchema.optional(),
   sortOrder: z.number().int().min(0).optional(),
 });
@@ -392,7 +388,6 @@ export const promoteProjectSubCategoryToCompanyDefaultInputSchema = z.object({
 export const ruleSuggestionAcceptInputSchema = z.object({
   id: ruleSuggestionIdSchema,
   proposedMatchText: matchTextSchema,
-  companyDefaultCategoryId: companyDefaultCategoryIdSchema,
   companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema,
 });
 

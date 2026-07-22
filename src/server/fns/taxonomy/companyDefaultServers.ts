@@ -19,7 +19,6 @@ import {
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
 } from '../../../types';
-import { defaultCategoryIdForRule } from '../../../utils/companyDefaultMappings';
 import { uid } from '../../../utils/id';
 import {
   categoryNameSchema,
@@ -34,7 +33,7 @@ import {
 } from '../runtime';
 import {
   assertCompanyDefaultCategoryExists,
-  assertCompanyDefaultSubCategoryBelongsToCategory,
+  assertCompanyDefaultSubCategoryExists,
   companyDefaultCategorySelectColumns,
   companyDefaultMappingRuleSelectColumns,
   companyDefaultSubCategorySelectColumns,
@@ -45,10 +44,8 @@ import {
   listCompanyDefaultCategories,
   listCompanyDefaultMappingRules,
   listCompanyDefaultSubCategories,
-  listCompanyDefaultSubCategoryRows,
   syncCompanyDefaultTaxonomyChange,
   toCompanyDefaultCategoryId,
-  toCompanyDefaultSubCategoryId,
 } from './companyDefaults';
 import { requireCompanyTaxonomyContext } from './context';
 
@@ -465,6 +462,7 @@ export async function deleteCompanyDefaultSubCategoryServer(args: {
   context: ServerFnContextInput;
   companyId: CompanyId;
   subCategoryId: CompanyDefaultSubCategory['id'];
+  replacementSubCategoryId?: CompanyDefaultSubCategory['id'];
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -474,7 +472,68 @@ export async function deleteCompanyDefaultSubCategoryServer(args: {
       'company:manage_defaults'
     );
     const db = getDb();
+    const replacement = args.replacementSubCategoryId
+      ? await db
+          .selectFrom('company_default_sub_categories')
+          .select(['id', 'company_default_category_id'])
+          .where('company_id', '=', args.companyId)
+          .where('id', '=', args.replacementSubCategoryId)
+          .executeTakeFirst()
+      : null;
+    if (args.replacementSubCategoryId && !replacement) {
+      throw new AppError('NOT_FOUND', 'Unknown replacement subcategory');
+    }
+    if (replacement?.id === args.subCategoryId) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Replacement subcategory must be different from the deleted subcategory'
+      );
+    }
+
+    const affectedRules = replacement
+      ? await db
+          .selectFrom('company_default_mapping_rules')
+          .select(['id', 'match_text'])
+          .where('company_id', '=', args.companyId)
+          .where('company_default_sub_category_id', '=', args.subCategoryId)
+          .execute()
+      : [];
+    if (replacement && affectedRules.length > 0) {
+      const replacementRules = await db
+        .selectFrom('company_default_mapping_rules')
+        .select('match_text')
+        .where('company_id', '=', args.companyId)
+        .where('company_default_sub_category_id', '=', replacement.id)
+        .execute();
+      const replacementMatches = new Set(
+        replacementRules.map((rule) => rule.match_text.trim().toLowerCase())
+      );
+      const conflict = affectedRules.find((rule) =>
+        replacementMatches.has(rule.match_text.trim().toLowerCase())
+      );
+      if (conflict) {
+        throw new AppError(
+          'CONFLICT',
+          `Auto-coding rule "${conflict.match_text}" already targets the replacement subcategory`
+        );
+      }
+    }
+
     await db.transaction().execute(async (trx) => {
+      if (replacement) {
+        await trx
+          .updateTable('company_default_mapping_rules')
+          .set({
+            company_default_category_id:
+              replacement.company_default_category_id,
+            company_default_sub_category_id: replacement.id,
+            updated_at: new Date().toISOString(),
+          })
+          .where('company_id', '=', args.companyId)
+          .where('company_default_sub_category_id', '=', args.subCategoryId)
+          .execute();
+      }
+
       await trx
         .deleteFrom('company_default_sub_categories')
         .where('company_id', '=', args.companyId)
@@ -507,15 +566,13 @@ export async function createCompanyDefaultMappingRuleServer(args: {
     const db = getDb();
     const matchText = args.input.matchText.trim();
 
-    await assertCompanyDefaultCategoryExists({
-      companyId: args.companyId,
-      categoryId: args.input.companyDefaultCategoryId,
-    });
-    await assertCompanyDefaultSubCategoryBelongsToCategory({
+    const targetSubCategory = await assertCompanyDefaultSubCategoryExists({
       companyId: args.companyId,
       subCategoryId: args.input.companyDefaultSubCategoryId,
-      categoryId: args.input.companyDefaultCategoryId,
     });
+    const targetCategoryId = toCompanyDefaultCategoryId(
+      targetSubCategory.company_default_category_id
+    );
 
     const existing = await db
       .selectFrom('company_default_mapping_rules')
@@ -558,7 +615,7 @@ export async function createCompanyDefaultMappingRuleServer(args: {
           id: args.input.id ?? asCompanyDefaultMappingRuleId(uid('cmap')),
           company_id: args.companyId,
           match_text: matchText,
-          company_default_category_id: args.input.companyDefaultCategoryId,
+          company_default_category_id: targetCategoryId,
           company_default_sub_category_id:
             args.input.companyDefaultSubCategoryId,
           sort_order: nextSortOrder,
@@ -615,44 +672,16 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
       validateOrThrow(subCategoryNameSchema, args.input.matchText);
     }
 
-    const subCategories = await listCompanyDefaultSubCategoryRows(
-      args.companyId
-    );
     const nextSubCategoryId =
       args.input.companyDefaultSubCategoryId ??
-      toCompanyDefaultSubCategoryId(existing.company_default_sub_category_id);
-    const nextCategoryId =
-      args.input.companyDefaultCategoryId ??
-      defaultCategoryIdForRule(
-        nextSubCategoryId,
-        subCategories.map((row) => ({
-          id: toCompanyDefaultSubCategoryId(row.id),
-          companyId: args.companyId,
-          companyDefaultCategoryId: toCompanyDefaultCategoryId(
-            row.company_default_category_id
-          ),
-          name: '',
-        }))
-      ) ??
-      toCompanyDefaultCategoryId(existing.company_default_category_id);
-
-    await assertCompanyDefaultCategoryExists({
+      asCompanyDefaultSubCategoryId(existing.company_default_sub_category_id);
+    const targetSubCategory = await assertCompanyDefaultSubCategoryExists({
       companyId: args.companyId,
-      categoryId: nextCategoryId,
+      subCategoryId: nextSubCategoryId,
     });
-
-    const subCategory = subCategories.find(
-      (row) => row.id === nextSubCategoryId
+    const nextCategoryId = toCompanyDefaultCategoryId(
+      targetSubCategory.company_default_category_id
     );
-    if (!subCategory) {
-      throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
-    }
-    if (subCategory.company_default_category_id !== nextCategoryId) {
-      throw new AppError(
-        'VALIDATION_ERROR',
-        'Subcategory does not belong to the selected company default category'
-      );
-    }
 
     const nextMatchText =
       typeof args.input.matchText === 'string'
@@ -681,11 +710,9 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
     if (typeof args.input.matchText === 'string') {
       patch.match_text = nextMatchText;
     }
-    if (typeof args.input.companyDefaultCategoryId !== 'undefined') {
-      patch.company_default_category_id = nextCategoryId;
-    }
     if (typeof args.input.companyDefaultSubCategoryId !== 'undefined') {
       patch.company_default_sub_category_id = nextSubCategoryId;
+      patch.company_default_category_id = nextCategoryId;
     }
     if (typeof args.input.sortOrder === 'number') {
       patch.sort_order = args.input.sortOrder;

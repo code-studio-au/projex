@@ -537,7 +537,6 @@ export default function TransactionsPanel(props: {
             setProjectRuleError(null);
             await createProjectRule.mutateAsync({
               matchText: projectRuleMatchText.trim(),
-              categoryId: projectRulePrompt.categoryId,
               subCategoryId: projectRulePrompt.subCategoryId,
             });
             setProjectRulePrompt(null);

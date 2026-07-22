@@ -479,7 +479,6 @@ test(
           id: defaultRuleId,
           companyId,
           matchText: 'microsoft 365',
-          companyDefaultCategoryId: defaultCategoryId,
           companyDefaultSubCategoryId: defaultSubCategoryId,
           sortOrder: 10,
         },

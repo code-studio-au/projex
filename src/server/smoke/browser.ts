@@ -10,6 +10,7 @@ import { getSmokeConfiguredBaseUrl } from './env.ts';
 import { APP_COLOR_SCHEME_STORAGE_KEY } from '../../colorScheme.ts';
 
 type BrowserSmokeOptions = {
+  generatedFixtures?: SmokeFixtures;
   onStatus?: (message: string) => void | Promise<void>;
 };
 
@@ -136,6 +137,133 @@ async function waitForColorScheme(
     await page.waitForTimeout(100);
   }
   throw new Error(`App did not switch to ${colorScheme} mode`);
+}
+
+async function selectOption(
+  page: import('playwright').Page,
+  dialog: import('playwright').Locator,
+  label: string,
+  option: string
+) {
+  await dialog.getByRole('combobox', { name: label }).click();
+  await page.getByRole('option', { name: option, exact: true }).click();
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function openTaxonomyCategory(
+  page: import('playwright').Page,
+  categoryName: string
+) {
+  await page
+    .getByRole('button', {
+      name: new RegExp(`^${escapeRegExp(categoryName)}\\b`),
+    })
+    .click();
+}
+
+async function runGeneratedTaxonomyRuleFlow(
+  page: import('playwright').Page,
+  fixtures: SmokeFixtures,
+  options: BrowserSmokeOptions
+) {
+  const taxonomy = fixtures.browserTaxonomy;
+
+  await emit(options, 'Moving a subcategory with a dependent auto-coding rule');
+  await openTaxonomyCategory(page, taxonomy.sourceCategoryName);
+  await page
+    .getByRole('button', {
+      name: `Actions for subcategory ${taxonomy.sourceSubCategoryName}`,
+    })
+    .click();
+  await page
+    .getByRole('menuitem', { name: /Move to another category/ })
+    .click();
+
+  const moveDialog = page.getByRole('dialog', { name: 'Move subcategory' });
+  await moveDialog.waitFor({ state: 'visible' });
+  await moveDialog
+    .getByText(
+      /1 rule targeting this exact subcategory ID will follow the move/
+    )
+    .waitFor({ state: 'visible' });
+  await selectOption(
+    page,
+    moveDialog,
+    'New category',
+    taxonomy.destinationCategoryName
+  );
+  await moveDialog
+    .getByRole('button', { name: 'Move subcategory', exact: true })
+    .click();
+  await moveDialog.waitFor({ state: 'hidden' });
+  await page
+    .getByText(`Moved subcategory "${taxonomy.sourceSubCategoryName}".`, {
+      exact: true,
+    })
+    .waitFor({ state: 'visible' });
+
+  await emit(
+    options,
+    'Deleting the moved subcategory and reassigning its dependent rule'
+  );
+  await openTaxonomyCategory(page, taxonomy.destinationCategoryName);
+  const sourceActions = page.getByRole('button', {
+    name: `Actions for subcategory ${taxonomy.sourceSubCategoryName}`,
+  });
+  await sourceActions.waitFor({ state: 'visible' });
+  await sourceActions.click();
+  await page.getByRole('menuitem', { name: 'Delete subcategory' }).click();
+
+  const deleteDialog = page.getByRole('dialog', {
+    name: 'Delete subcategory?',
+  });
+  await deleteDialog.waitFor({ state: 'visible' });
+  await deleteDialog
+    .getByText(
+      new RegExp(`1 rule targets this subcategory.*${taxonomy.ruleMatchText}`)
+    )
+    .waitFor({ state: 'visible' });
+  const handling = deleteDialog.getByRole('combobox', {
+    name: 'Affected rule handling',
+  });
+  assert(
+    (await handling.inputValue()).startsWith('Reassign 1 rule'),
+    'Dependent rule reassignment was not the default delete behavior'
+  );
+  await selectOption(
+    page,
+    deleteDialog,
+    'Replacement category',
+    taxonomy.destinationCategoryName
+  );
+  await selectOption(
+    page,
+    deleteDialog,
+    'Replacement subcategory',
+    taxonomy.replacementSubCategoryName
+  );
+  await deleteDialog.getByRole('button', { name: 'Delete' }).click();
+  await deleteDialog.waitFor({ state: 'hidden' });
+  await sourceActions.waitFor({ state: 'detached' });
+  await page.keyboard.press('Escape');
+}
+
+async function verifyGeneratedRuleTarget(
+  page: import('playwright').Page,
+  fixtures: SmokeFixtures
+) {
+  const taxonomy = fixtures.browserTaxonomy;
+  const ruleTitle = page.getByText(taxonomy.ruleMatchText, { exact: true });
+  await ruleTitle.waitFor({ state: 'visible' });
+  const ruleCardText = await ruleTitle.locator('..').textContent();
+  assert(
+    ruleCardText?.includes(taxonomy.destinationCategoryName) &&
+      ruleCardText.includes(taxonomy.replacementSubCategoryName),
+    'Reassigned auto-coding rule did not display its final category and subcategory target'
+  );
 }
 
 async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
@@ -299,7 +427,15 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     await page
       .getByText('Company standards', { exact: true })
       .waitFor({ state: 'visible' });
-    await page.keyboard.press('Escape');
+    if (options.generatedFixtures) {
+      await runGeneratedTaxonomyRuleFlow(
+        page,
+        options.generatedFixtures,
+        options
+      );
+    } else {
+      await page.keyboard.press('Escape');
+    }
 
     await page.getByRole('tab', { name: 'Settings' }).click();
     await waitForLocation(
@@ -315,6 +451,9 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     await page
       .getByText('Project rule priority', { exact: true })
       .waitFor({ state: 'visible' });
+    if (options.generatedFixtures) {
+      await verifyGeneratedRuleTarget(page, options.generatedFixtures);
+    }
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Manage Import Rules' }).click();
     await page
@@ -416,6 +555,7 @@ async function main() {
     }
 
     await runBrowserSmoke(baseUrl, {
+      generatedFixtures: fixtures ?? undefined,
       onStatus(message) {
         console.info(`[..] ${message}`);
       },

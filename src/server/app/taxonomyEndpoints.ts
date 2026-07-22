@@ -184,12 +184,14 @@ export const deleteSubCategoryEndpoint = defineAppEndpoint({
   inputSchema: z.object({
     projectId: projectIdSchema,
     subCategoryId: subCategoryIdSchema,
+    replacementSubCategoryId: subCategoryIdSchema.optional(),
   }),
   execute: ({ context, input }) =>
     deleteSubCategoryServer({
       context,
       projectId: input.projectId,
       subCategoryId: input.subCategoryId,
+      replacementSubCategoryId: input.replacementSubCategoryId,
     }),
 });
 
@@ -262,12 +264,14 @@ export const deleteCompanyDefaultSubCategoryEndpoint = defineAppEndpoint({
   inputSchema: z.object({
     companyId: companyIdSchema,
     subCategoryId: companyDefaultSubCategoryIdSchema,
+    replacementSubCategoryId: companyDefaultSubCategoryIdSchema.optional(),
   }),
   execute: ({ context, input }) =>
     deleteCompanyDefaultSubCategoryServer({
       context,
       companyId: input.companyId,
       subCategoryId: input.subCategoryId,
+      replacementSubCategoryId: input.replacementSubCategoryId,
     }),
 });
 

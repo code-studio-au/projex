@@ -12,7 +12,6 @@ import { asCategoryId, asSubCategoryId } from '../types';
 import { uid } from '../utils/id';
 import {
   useCategoriesQuery,
-  useBulkRecodeProjectTransactionsMutation,
   useCreateCategoryMutation,
   useCreateSubCategoryMutation,
   useDeleteCategoryMutation,
@@ -98,8 +97,6 @@ export function useTaxonomy(params: {
   const createCat = useCreateCategoryMutation(projectId);
   const updateCat = useUpdateCategoryMutation(projectId);
   const deleteCat = useDeleteCategoryMutation(projectId);
-  const bulkRecodeProjectTransactions =
-    useBulkRecodeProjectTransactionsMutation(projectId);
 
   const createSub = useCreateSubCategoryMutation(projectId);
   const updateSub = useUpdateSubCategoryMutation(projectId);
@@ -238,19 +235,16 @@ export function useTaxonomy(params: {
       id: subCategoryId,
       categoryId: newCategoryId,
     });
-    await budgets.updateBudgetCategoryForSubCategory(
-      subCategoryId,
-      newCategoryId
-    );
-    await bulkRecodeProjectTransactions.mutateAsync({
-      fromSubCategoryId: subCategoryId,
-      toCategoryId: newCategoryId,
-      toSubCategoryId: subCategoryId,
-    });
   };
 
-  const deleteSubCategory = async (subCategoryId: SubCategoryId) => {
-    await deleteSub.mutateAsync(subCategoryId);
+  const deleteSubCategory = async (
+    subCategoryId: SubCategoryId,
+    replacementSubCategoryId?: SubCategoryId
+  ) => {
+    await deleteSub.mutateAsync({
+      subCategoryId,
+      ...(replacementSubCategoryId ? { replacementSubCategoryId } : {}),
+    });
   };
 
   // Helpers used by the Transactions table

@@ -11,11 +11,7 @@ import {
 } from '../queries/projectAutoCodingRules';
 import { useCategoriesQuery, useSubCategoriesQuery } from '../queries/taxonomy';
 import type { CompanyId, ProjectId } from '../types';
-import {
-  asCategoryId,
-  asProjectAutoCodingRuleId,
-  asSubCategoryId,
-} from '../types';
+import { asProjectAutoCodingRuleId, asSubCategoryId } from '../types';
 import AutoCodingRulesEditorModal from './AutoCodingRulesEditorModal';
 
 export default function ProjectAutoCodingRulesModal(props: {
@@ -85,19 +81,15 @@ export default function ProjectAutoCodingRulesModal(props: {
         promoting: promoteRule.isPending,
         backfilling: backfill.isPending,
         canPromote: access.can('company:manage_defaults'),
-        create: ({ matchText, categoryId, subCategoryId }) =>
+        create: ({ matchText, subCategoryId }) =>
           createRule.mutateAsync({
             matchText,
-            categoryId: asCategoryId(categoryId),
             subCategoryId: asSubCategoryId(subCategoryId),
           }),
-        update: ({ id, matchText, categoryId, subCategoryId, sortOrder }) =>
+        update: ({ id, matchText, subCategoryId, sortOrder }) =>
           updateRule.mutateAsync({
             id: asProjectAutoCodingRuleId(id),
             ...(typeof matchText === 'string' ? { matchText } : {}),
-            ...(typeof categoryId === 'string'
-              ? { categoryId: asCategoryId(categoryId) }
-              : {}),
             ...(typeof subCategoryId === 'string'
               ? { subCategoryId: asSubCategoryId(subCategoryId) }
               : {}),

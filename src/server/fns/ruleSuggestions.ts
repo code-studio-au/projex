@@ -94,13 +94,13 @@ async function resolveCompanyDefaultTarget(args: {
   ] = await Promise.all([
     args.db
       .selectFrom('categories')
-      .select(['id', 'name'])
+      .select(['id', 'name', 'origin_company_item_id'])
       .where('project_id', '=', args.projectId)
       .where('id', '=', args.categoryId)
       .executeTakeFirst(),
     args.db
       .selectFrom('sub_categories')
-      .select(['id', 'category_id', 'name'])
+      .select(['id', 'category_id', 'name', 'origin_company_item_id'])
       .where('project_id', '=', args.projectId)
       .where('id', '=', args.subCategoryId)
       .executeTakeFirst(),
@@ -116,16 +116,46 @@ async function resolveCompanyDefaultTarget(args: {
       .execute(),
   ]);
 
-  if (!projectCategory || !projectSubCategory) return null;
+  if (
+    !projectCategory ||
+    !projectSubCategory ||
+    projectSubCategory.category_id !== projectCategory.id
+  ) {
+    return null;
+  }
+
+  const inheritedDefaultSubCategory = projectSubCategory.origin_company_item_id
+    ? defaultSubCategories.find(
+        (row) => row.id === projectSubCategory.origin_company_item_id
+      )
+    : null;
+  if (inheritedDefaultSubCategory) {
+    return {
+      projectCategoryId: asCategoryId(projectCategory.id),
+      projectSubCategoryId: args.subCategoryId,
+      companyDefaultCategoryId: asCompanyDefaultCategoryId(
+        inheritedDefaultSubCategory.company_default_category_id
+      ),
+      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
+        inheritedDefaultSubCategory.id
+      ),
+    };
+  }
 
   const normalize = (value: string) =>
     value.trim().toLowerCase().replace(/\s+/g, ' ');
   const projectCategoryName = normalize(projectCategory.name);
   const projectSubCategoryName = normalize(projectSubCategory.name);
 
-  const defaultCategory = defaultCategories.find(
-    (row) => normalize(row.name) === projectCategoryName
-  );
+  const defaultCategory =
+    (projectCategory.origin_company_item_id
+      ? defaultCategories.find(
+          (row) => row.id === projectCategory.origin_company_item_id
+        )
+      : null) ??
+    defaultCategories.find(
+      (row) => normalize(row.name) === projectCategoryName
+    );
   if (!defaultCategory) return null;
 
   const defaultSubCategory = defaultSubCategories.find(
@@ -593,16 +623,6 @@ export async function acceptRuleSuggestionServer(args: {
       throw new AppError('NOT_FOUND', 'Unknown open rule suggestion');
     }
 
-    const category = await db
-      .selectFrom('company_default_categories')
-      .select('id')
-      .where('company_id', '=', args.companyId)
-      .where('id', '=', args.input.companyDefaultCategoryId)
-      .executeTakeFirst();
-    if (!category) {
-      throw new AppError('NOT_FOUND', 'Unknown company default category');
-    }
-
     const subCategory = await db
       .selectFrom('company_default_sub_categories')
       .select(['id', 'company_default_category_id'])
@@ -612,15 +632,9 @@ export async function acceptRuleSuggestionServer(args: {
     if (!subCategory) {
       throw new AppError('NOT_FOUND', 'Unknown company default subcategory');
     }
-    if (
-      subCategory.company_default_category_id !==
-      args.input.companyDefaultCategoryId
-    ) {
-      throw new AppError(
-        'VALIDATION_ERROR',
-        'Subcategory does not belong to the selected company default category'
-      );
-    }
+    const targetCategoryId = asCompanyDefaultCategoryId(
+      subCategory.company_default_category_id
+    );
 
     const existingRule = await db
       .selectFrom('company_default_mapping_rules')
@@ -661,7 +675,7 @@ export async function acceptRuleSuggestionServer(args: {
             id: asCompanyDefaultMappingRuleId(uid('cmap')),
             company_id: args.companyId,
             match_text: matchText,
-            company_default_category_id: args.input.companyDefaultCategoryId,
+            company_default_category_id: targetCategoryId,
             company_default_sub_category_id:
               args.input.companyDefaultSubCategoryId,
             sort_order: Number(maxSort?.max_sort_order ?? -1) + 1,
@@ -678,7 +692,7 @@ export async function acceptRuleSuggestionServer(args: {
         .set({
           status: 'accepted',
           proposed_match_text: matchText,
-          company_default_category_id: args.input.companyDefaultCategoryId,
+          company_default_category_id: targetCategoryId,
           company_default_sub_category_id:
             args.input.companyDefaultSubCategoryId,
           accepted_rule_id: finalRuleId,

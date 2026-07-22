@@ -134,7 +134,7 @@ export async function assertSubCategoryInProject(params: {
   projectId: ProjectId;
   subCategoryId: SubCategoryId;
   categoryId?: CategoryId;
-}): Promise<void> {
+}) {
   const subCategory = await params.db
     .selectFrom('sub_categories')
     .select(['id', 'category_id'])
@@ -150,6 +150,8 @@ export async function assertSubCategoryInProject(params: {
       'Subcategory does not belong to category'
     );
   }
+
+  return subCategory;
 }
 
 export async function assertCompanyDefaultMappingRuleInCompany(params: {

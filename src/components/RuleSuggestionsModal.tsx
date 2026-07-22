@@ -292,7 +292,6 @@ export default function RuleSuggestionsModal(props: {
                             await acceptSuggestion.mutateAsync({
                               id: suggestion.id,
                               proposedMatchText: draftMatchText.trim(),
-                              companyDefaultCategoryId: selectedCategoryId,
                               companyDefaultSubCategoryId:
                                 selectedSubCategoryId,
                             });
