@@ -4,7 +4,6 @@ import {
   companyIdSchema,
   createImportRuleInputSchema,
   importBatchIdParamSchema,
-  importCandidateReviewInputSchema,
   importRuleIdSchema,
   projectIdSchema,
   txnImportPreviewInputSchema,
@@ -23,22 +22,9 @@ import {
 } from '../fns/importRules';
 import {
   cancelImportPreviewServer,
-  listImportCandidatesServer,
   previewImportTransactionsServer,
-  reviewImportCandidateServer,
 } from '../fns/transactions';
 import { defineAppEndpoint } from './shared';
-
-export const listImportCandidatesEndpoint = defineAppEndpoint({
-  inputSchema: z.object({
-    projectId: projectIdSchema,
-  }),
-  execute: ({ context, input }) =>
-    listImportCandidatesServer({
-      context,
-      projectId: input.projectId,
-    }),
-});
 
 export const listImportRulesEndpoint = defineAppEndpoint({
   inputSchema: z.object({
@@ -48,20 +34,6 @@ export const listImportRulesEndpoint = defineAppEndpoint({
     listImportRulesServer({
       context,
       companyId: input.companyId,
-    }),
-});
-
-export const reviewImportCandidateEndpoint = defineAppEndpoint({
-  inputSchema: z.object({
-    projectId: projectIdSchema,
-    payload: importCandidateReviewInputSchema,
-  }),
-  execute: ({ context, input }) =>
-    reviewImportCandidateServer({
-      context,
-      projectId: input.projectId,
-      candidateId: input.payload.candidateId,
-      decision: input.payload.decision,
     }),
 });
 

@@ -7,7 +7,6 @@ import {
   asCompanyDefaultSubCategoryId,
   asCompanyId,
   asImportBatchId,
-  asImportCandidateId,
   asImportRuleId,
   asCompanyExportJobId,
   asProjectAutoCodingRuleId,
@@ -52,7 +51,6 @@ export const companyDefaultMappingRuleIdSchema = idSchema.transform(
 );
 export const importRuleIdSchema = idSchema.transform(asImportRuleId);
 export const importBatchIdParamSchema = idSchema.transform(asImportBatchId);
-const importCandidateIdSchema = idSchema.transform(asImportCandidateId);
 export const companyExportJobIdParamSchema =
   idSchema.transform(asCompanyExportJobId);
 export const projectAutoCodingRuleIdSchema = idSchema.transform(
@@ -677,13 +675,43 @@ export const txnCommentUpdateMutationBodySchema = z.object({
 
 const importedTxnInputSchema = createTxnInputSchema.extend({
   id: txnIdSchema,
+  forceUncoded: z.boolean().optional(),
 });
 
-export const txnImportInputSchema = z.object({
-  txns: z.array(importedTxnInputSchema).max(MAX_IMPORT_TXN_COUNT),
-  mode: csvImportModeSchema,
-  autoCreateBudgets: z.boolean().optional(),
+const importReviewDecisionSchema = z.object({
+  previewImportId: txnIdSchema,
+  decision: z.enum(['import_uncoded', 'exclude']),
 });
+
+export const txnImportInputSchema = z
+  .object({
+    txns: z.array(importedTxnInputSchema).max(MAX_IMPORT_TXN_COUNT),
+    mode: csvImportModeSchema,
+    autoCreateBudgets: z.boolean().optional(),
+    importBatchId: importBatchIdParamSchema.optional(),
+    excludedImportIds: z
+      .array(txnIdSchema)
+      .max(MAX_IMPORT_TXN_COUNT)
+      .optional(),
+    reviewDecisions: z
+      .array(importReviewDecisionSchema)
+      .max(MAX_IMPORT_TXN_COUNT)
+      .optional(),
+  })
+  .superRefine((input, context) => {
+    if (
+      !input.importBatchId &&
+      (input.excludedImportIds?.length ||
+        input.reviewDecisions?.length ||
+        input.txns.some((txn) => txn.forceUncoded))
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['importBatchId'],
+        message: 'Import preview decisions require an import batch ID',
+      });
+    }
+  });
 
 export const txnImportPreviewInputSchema = z.object({
   csvText: z.string().max(MAX_IMPORT_PREVIEW_CSV_TEXT_LENGTH),
@@ -713,15 +741,6 @@ export const txnListPageQuerySchema = z.object({
   drilldownKind: z.enum(['category', 'subcategory']).optional(),
   categoryId: categoryIdSchema.optional(),
   subCategoryId: subCategoryIdSchema.optional(),
-});
-
-export const importCandidateReviewInputSchema = z.object({
-  candidateId: importCandidateIdSchema,
-  decision: z.enum(['import', 'reject']),
-});
-
-export const importCandidateReviewMutationBodySchema = z.object({
-  review: importCandidateReviewInputSchema,
 });
 
 export const devSessionBodySchema = z.object({

@@ -35,7 +35,8 @@ export function planTransactionImportCommit(args: {
     subCategoryId: SubCategory['id'];
   }>;
 } {
-  const normalizedIncoming = args.incomingTransactions.map((txn) => {
+  const normalizedIncoming = args.incomingTransactions.map((input) => {
+    const { forceUncoded = false, ...txn } = input;
     if (txn.projectId !== args.projectId) {
       throw new AppError(
         'VALIDATION_ERROR',
@@ -49,17 +50,32 @@ export function planTransactionImportCommit(args: {
       );
     }
 
-    return withStandardTxnAccountingMetadata({
-      ...txn,
-      externalId: normalizeExternalId(txn.externalId),
-    });
+    return {
+      forceUncoded,
+      txn: withStandardTxnAccountingMetadata({
+        ...txn,
+        externalId: normalizeExternalId(txn.externalId),
+      }),
+    };
   });
 
-  const importedTransactions = normalizedIncoming.map((txn) =>
-    applyProjectAutoCodingRule({
-      txn,
-      rules: args.projectAutoCodingRules ?? [],
-    })
+  const importedTransactions = normalizedIncoming.map(
+    ({ forceUncoded, txn }) => {
+      if (forceUncoded) {
+        return {
+          ...txn,
+          categoryId: undefined,
+          subCategoryId: undefined,
+          companyDefaultMappingRuleId: undefined,
+          codingSource: undefined,
+          codingPendingApproval: false,
+        };
+      }
+      return applyProjectAutoCodingRule({
+        txn,
+        rules: args.projectAutoCodingRules ?? [],
+      });
+    }
   );
 
   for (const txn of importedTransactions) {

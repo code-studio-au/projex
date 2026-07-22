@@ -7,9 +7,8 @@ import type {
   CompanyDefaultSubCategory,
   CompanyId,
   CompanyRole,
-  ImportCandidate,
+  ImportBatchId,
   ImportRule,
-  ImportCandidateId,
   Project,
   ProjectAutoCodingRule,
   ProjectId,
@@ -121,11 +120,20 @@ export type TxnImportTxnInput = Omit<
   | 'transferProjectId'
   | 'budgetImpact'
   | 'categorisable'
->;
+> & {
+  forceUncoded?: boolean;
+};
+export type ImportReviewDecision = {
+  previewImportId: TxnId;
+  decision: 'import_uncoded' | 'exclude';
+};
 export type TxnImportInput = {
   txns: TxnImportTxnInput[];
   mode: TxnImportMode;
   autoCreateBudgets?: boolean;
+  importBatchId?: ImportBatchId;
+  excludedImportIds?: TxnId[];
+  reviewDecisions?: ImportReviewDecision[];
 };
 export type TxnImportPreviewInput = {
   csvText: string;
@@ -137,15 +145,6 @@ export type TxnImportPreviewResult = {
   importBatchId?: Txn['importBatchId'];
   rows: ImportPreviewRow[];
 };
-export type ImportCandidateReviewInput = {
-  candidateId: ImportCandidateId;
-  decision: 'import' | 'reject';
-};
-export type ImportCandidateReviewResult = {
-  candidate: ImportCandidate;
-  txn?: Txn;
-};
-
 export type TxnSplitChildInput = {
   id?: TxnId;
   item?: string;

@@ -247,7 +247,7 @@ Command semantics and deploy-time verification details live in [docs/staging-run
 - Synced projects may keep project-local exceptions, and company admins can promote stable project taxonomy, import rules, and auto-coding patterns back up into the company standard set.
 - Programme rollups are derived from active sub-project data; transactions and budgets are never duplicated onto the programme.
 - Sub-projects must belong to the same company and use the same currency as their programme.
-- PowerBI expenditure actuals are the primary import shape. Import Rules run before Auto-Categorise Rules so rows can be imported, excluded, or staged for project review before any category/subcategory coding is applied. EXA rows import by default so pending and actual reversal candidates remain available for month-to-month matching.
+- PowerBI expenditure actuals are the primary import shape. Import Rules run before Auto-Categorise Rules so rows can be imported, excluded, or held for an explicit decision inside the import preview. Every held row must be imported uncoded or excluded before the import can complete. EXA rows import by default so pending and actual reversal candidates remain available for month-to-month matching.
 - Repeated manual coding can trigger immediate project auto-coding suggestions, while company admins can also review repeated-pattern rule suggestions and accept them into company auto-coding defaults.
 - Transaction actuals support signed amounts for credits, reversals, and recoveries. Budget allocations remain non-negative.
 

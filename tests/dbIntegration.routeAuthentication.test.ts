@@ -8,7 +8,6 @@ import {
   asCompanyDefaultSubCategoryId,
   asCompanyId,
   asImportBatchId,
-  asImportCandidateId,
   asImportRuleId,
   asProjectId,
   asSubCategoryId,
@@ -60,9 +59,6 @@ test(
     const txnId = asTxnId('itest_routeauth_txn_1');
     const commentId = asTxnCommentId('itest_routeauth_comment_1');
     const importBatchId = asImportBatchId('itest_routeauth_batch_1');
-    const importCandidateId = asImportCandidateId(
-      'itest_routeauth_candidate_1'
-    );
     const now = new Date().toISOString();
     const seededCompanyIds = [companyId, otherCompanyId] as const;
     const seededUserIds = [
@@ -410,27 +406,6 @@ test(
           updated_at: now,
         })
         .execute();
-      await db
-        .insertInto('import_candidates')
-        .values({
-          id: importCandidateId,
-          company_id: companyId,
-          project_id: projectId,
-          batch_id: importBatchId,
-          source_row_index: 0,
-          preview_import_id: 'preview-1',
-          raw_row: { description: 'Candidate Row' },
-          status: 'needs_project_review',
-          matched_import_rule_id: importRuleId,
-          status_reason: 'Needs review',
-          txn_public_id: null,
-          reviewed_by_user_id: null,
-          reviewed_at: null,
-          created_at: now,
-          updated_at: now,
-        })
-        .execute();
-
       const api = createRouteApi(null);
       const unauthenticatedOps: Array<{
         route: string;
@@ -813,19 +788,6 @@ test(
                   subCategoryId,
                 },
               ],
-            }),
-        },
-        {
-          route: 'GET /api/projects/:projectId/import-candidates',
-          run: (x) => x.listImportCandidates(projectId),
-        },
-        {
-          route:
-            'POST /api/projects/:projectId/import-candidates/:candidateId/review',
-          run: (x) =>
-            x.reviewImportCandidate(projectId, {
-              candidateId: importCandidateId,
-              decision: 'reject',
             }),
         },
         {

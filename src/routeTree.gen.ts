@@ -39,7 +39,6 @@ import { Route as ApiProjectsProjectIdTransactionsRouteImport } from './routes/a
 import { Route as ApiProjectsProjectIdSubCategoriesRouteImport } from './routes/api.projects.$projectId.sub-categories'
 import { Route as ApiProjectsProjectIdReactivateRouteImport } from './routes/api.projects.$projectId.reactivate'
 import { Route as ApiProjectsProjectIdMembershipsRouteImport } from './routes/api.projects.$projectId.memberships'
-import { Route as ApiProjectsProjectIdImportCandidatesRouteImport } from './routes/api.projects.$projectId.import-candidates'
 import { Route as ApiProjectsProjectIdDeactivateRouteImport } from './routes/api.projects.$projectId.deactivate'
 import { Route as ApiProjectsProjectIdCategoriesRouteImport } from './routes/api.projects.$projectId.categories'
 import { Route as ApiProjectsProjectIdBudgetsRouteImport } from './routes/api.projects.$projectId.budgets'
@@ -77,7 +76,6 @@ import { Route as ApiProjectsProjectIdTransactionsTxnIdWorkflowRouteImport } fro
 import { Route as ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.transfer'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.split'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments'
-import { Route as ApiProjectsProjectIdImportCandidatesCandidateIdReviewRouteImport } from './routes/api.projects.$projectId.import-candidates.$candidateId.review'
 import { Route as ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport } from './routes/api.projects.$projectId.import-batches.$batchId.cancel'
 import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments.$commentId'
@@ -233,12 +231,6 @@ const ApiProjectsProjectIdMembershipsRoute =
   ApiProjectsProjectIdMembershipsRouteImport.update({
     id: '/memberships',
     path: '/memberships',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiProjectsProjectIdImportCandidatesRoute =
-  ApiProjectsProjectIdImportCandidatesRouteImport.update({
-    id: '/import-candidates',
-    path: '/import-candidates',
     getParentRoute: () => ApiProjectsProjectIdRoute,
   } as any)
 const ApiProjectsProjectIdDeactivateRoute =
@@ -461,12 +453,6 @@ const ApiProjectsProjectIdTransactionsTxnIdCommentsRoute =
     path: '/comments',
     getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
   } as any)
-const ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute =
-  ApiProjectsProjectIdImportCandidatesCandidateIdReviewRouteImport.update({
-    id: '/$candidateId/review',
-    path: '/$candidateId/review',
-    getParentRoute: () => ApiProjectsProjectIdImportCandidatesRoute,
-  } as any)
 const ApiProjectsProjectIdImportBatchesBatchIdCancelRoute =
   ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport.update({
     id: '/import-batches/$batchId/cancel',
@@ -532,7 +518,6 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
-  '/api/projects/$projectId/import-candidates': typeof ApiProjectsProjectIdImportCandidatesRouteWithChildren
   '/api/projects/$projectId/memberships': typeof ApiProjectsProjectIdMembershipsRoute
   '/api/projects/$projectId/reactivate': typeof ApiProjectsProjectIdReactivateRoute
   '/api/projects/$projectId/sub-categories': typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
@@ -552,7 +537,6 @@ export interface FileRoutesByFullPath {
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
   '/api/projects/$projectId/import-batches/$batchId/cancel': typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
-  '/api/projects/$projectId/import-candidates/$candidateId/review': typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
@@ -604,7 +588,6 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
-  '/api/projects/$projectId/import-candidates': typeof ApiProjectsProjectIdImportCandidatesRouteWithChildren
   '/api/projects/$projectId/memberships': typeof ApiProjectsProjectIdMembershipsRoute
   '/api/projects/$projectId/reactivate': typeof ApiProjectsProjectIdReactivateRoute
   '/api/projects/$projectId/sub-categories': typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
@@ -624,7 +607,6 @@ export interface FileRoutesByTo {
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
   '/api/projects/$projectId/import-batches/$batchId/cancel': typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
-  '/api/projects/$projectId/import-candidates/$candidateId/review': typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
@@ -679,7 +661,6 @@ export interface FileRoutesById {
   '/api/projects/$projectId/budgets': typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   '/api/projects/$projectId/categories': typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   '/api/projects/$projectId/deactivate': typeof ApiProjectsProjectIdDeactivateRoute
-  '/api/projects/$projectId/import-candidates': typeof ApiProjectsProjectIdImportCandidatesRouteWithChildren
   '/api/projects/$projectId/memberships': typeof ApiProjectsProjectIdMembershipsRoute
   '/api/projects/$projectId/reactivate': typeof ApiProjectsProjectIdReactivateRoute
   '/api/projects/$projectId/sub-categories': typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
@@ -699,7 +680,6 @@ export interface FileRoutesById {
   '/api/projects/$projectId/transactions/import-preview': typeof ApiProjectsProjectIdTransactionsImportPreviewRoute
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
   '/api/projects/$projectId/import-batches/$batchId/cancel': typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
-  '/api/projects/$projectId/import-candidates/$candidateId/review': typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
@@ -754,7 +734,6 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
-    | '/api/projects/$projectId/import-candidates'
     | '/api/projects/$projectId/memberships'
     | '/api/projects/$projectId/reactivate'
     | '/api/projects/$projectId/sub-categories'
@@ -774,7 +753,6 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
     | '/api/projects/$projectId/import-batches/$batchId/cancel'
-    | '/api/projects/$projectId/import-candidates/$candidateId/review'
     | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
@@ -826,7 +804,6 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
-    | '/api/projects/$projectId/import-candidates'
     | '/api/projects/$projectId/memberships'
     | '/api/projects/$projectId/reactivate'
     | '/api/projects/$projectId/sub-categories'
@@ -846,7 +823,6 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
     | '/api/projects/$projectId/import-batches/$batchId/cancel'
-    | '/api/projects/$projectId/import-candidates/$candidateId/review'
     | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
@@ -900,7 +876,6 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/budgets'
     | '/api/projects/$projectId/categories'
     | '/api/projects/$projectId/deactivate'
-    | '/api/projects/$projectId/import-candidates'
     | '/api/projects/$projectId/memberships'
     | '/api/projects/$projectId/reactivate'
     | '/api/projects/$projectId/sub-categories'
@@ -920,7 +895,6 @@ export interface FileRouteTypes {
     | '/api/projects/$projectId/transactions/import-preview'
     | '/api/companies/$companyId/users/$userId/invite'
     | '/api/projects/$projectId/import-batches/$batchId/cancel'
-    | '/api/projects/$projectId/import-candidates/$candidateId/review'
     | '/api/projects/$projectId/transactions/$txnId/comments'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
@@ -1161,13 +1135,6 @@ declare module '@tanstack/react-router' {
       path: '/memberships'
       fullPath: '/api/projects/$projectId/memberships'
       preLoaderRoute: typeof ApiProjectsProjectIdMembershipsRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/projects/$projectId/import-candidates': {
-      id: '/api/projects/$projectId/import-candidates'
-      path: '/import-candidates'
-      fullPath: '/api/projects/$projectId/import-candidates'
-      preLoaderRoute: typeof ApiProjectsProjectIdImportCandidatesRouteImport
       parentRoute: typeof ApiProjectsProjectIdRoute
     }
     '/api/projects/$projectId/deactivate': {
@@ -1429,13 +1396,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
     }
-    '/api/projects/$projectId/import-candidates/$candidateId/review': {
-      id: '/api/projects/$projectId/import-candidates/$candidateId/review'
-      path: '/$candidateId/review'
-      fullPath: '/api/projects/$projectId/import-candidates/$candidateId/review'
-      preLoaderRoute: typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRouteImport
-      parentRoute: typeof ApiProjectsProjectIdImportCandidatesRoute
-    }
     '/api/projects/$projectId/import-batches/$batchId/cancel': {
       id: '/api/projects/$projectId/import-batches/$batchId/cancel'
       path: '/import-batches/$batchId/cancel'
@@ -1675,21 +1635,6 @@ const ApiProjectsProjectIdCategoriesRouteWithChildren =
     ApiProjectsProjectIdCategoriesRouteChildren,
   )
 
-interface ApiProjectsProjectIdImportCandidatesRouteChildren {
-  ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute: typeof ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute
-}
-
-const ApiProjectsProjectIdImportCandidatesRouteChildren: ApiProjectsProjectIdImportCandidatesRouteChildren =
-  {
-    ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute:
-      ApiProjectsProjectIdImportCandidatesCandidateIdReviewRoute,
-  }
-
-const ApiProjectsProjectIdImportCandidatesRouteWithChildren =
-  ApiProjectsProjectIdImportCandidatesRoute._addFileChildren(
-    ApiProjectsProjectIdImportCandidatesRouteChildren,
-  )
-
 interface ApiProjectsProjectIdSubCategoriesRouteChildren {
   ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute: typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute
 }
@@ -1773,7 +1718,6 @@ interface ApiProjectsProjectIdRouteChildren {
   ApiProjectsProjectIdBudgetsRoute: typeof ApiProjectsProjectIdBudgetsRouteWithChildren
   ApiProjectsProjectIdCategoriesRoute: typeof ApiProjectsProjectIdCategoriesRouteWithChildren
   ApiProjectsProjectIdDeactivateRoute: typeof ApiProjectsProjectIdDeactivateRoute
-  ApiProjectsProjectIdImportCandidatesRoute: typeof ApiProjectsProjectIdImportCandidatesRouteWithChildren
   ApiProjectsProjectIdMembershipsRoute: typeof ApiProjectsProjectIdMembershipsRoute
   ApiProjectsProjectIdReactivateRoute: typeof ApiProjectsProjectIdReactivateRoute
   ApiProjectsProjectIdSubCategoriesRoute: typeof ApiProjectsProjectIdSubCategoriesRouteWithChildren
@@ -1789,8 +1733,6 @@ const ApiProjectsProjectIdRouteChildren: ApiProjectsProjectIdRouteChildren = {
   ApiProjectsProjectIdCategoriesRoute:
     ApiProjectsProjectIdCategoriesRouteWithChildren,
   ApiProjectsProjectIdDeactivateRoute: ApiProjectsProjectIdDeactivateRoute,
-  ApiProjectsProjectIdImportCandidatesRoute:
-    ApiProjectsProjectIdImportCandidatesRouteWithChildren,
   ApiProjectsProjectIdMembershipsRoute: ApiProjectsProjectIdMembershipsRoute,
   ApiProjectsProjectIdReactivateRoute: ApiProjectsProjectIdReactivateRoute,
   ApiProjectsProjectIdSubCategoriesRoute:

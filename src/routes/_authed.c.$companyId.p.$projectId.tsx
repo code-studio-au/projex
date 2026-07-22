@@ -5,7 +5,6 @@ import { asCompanyId, asProjectId } from '../types';
 import { getUserCompanyRole } from '../store/access';
 import { can } from '../utils/auth';
 import { budgetsQueryOptions } from '../queries/budgets';
-import { importCandidatesQueryOptions } from '../queries/importCandidates';
 import {
   allCompanyMembershipsQueryOptions,
   myProjectMembershipsQueryOptions,
@@ -61,36 +60,13 @@ const projectWorkspaceSearchSchema = z
   })
   .catch({});
 
-function projectWorkspaceLoaderDeps(
-  search: z.infer<typeof projectWorkspaceSearchSchema>
-) {
-  return {
-    tab: search.tab,
-    year: search.year,
-    quarter: search.quarter,
-    month: search.month,
-    view: search.view,
-    commentTxn: search.commentTxn,
-    commentId: search.commentId,
-    source: search.source,
-    focus: search.focus,
-    drilldownKind: search.drilldownKind,
-    categoryId: search.categoryId,
-    subCategoryId: search.subCategoryId,
-    categoryName: search.categoryName,
-    subCategoryName: search.subCategoryName,
-  } as const;
-}
-
 export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
   validateSearch: (search) => projectWorkspaceSearchSchema.parse(search),
-  loaderDeps: ({ search }) => projectWorkspaceLoaderDeps(search),
   component: lazyRouteComponent(() => import('../pages/ProjectWorkspacePage')),
   ssr: true,
-  loader: async ({ context, params, deps }) => {
+  loader: async ({ context, params }) => {
     const companyId = asCompanyId(params.companyId);
     const projectId = asProjectId(params.projectId);
-    const search = deps;
     const session = (context.queryClient.getQueryData(
       sessionQueryOptions().queryKey
     ) ??
@@ -139,14 +115,6 @@ export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
             companySummaryQueryOptions(session.userId, companyId)
           )
         : null;
-
-    if (project?.projectType !== 'programme') {
-      if (search.tab === 'import') {
-        await context.queryClient.ensureQueryData(
-          importCandidatesQueryOptions(session.userId, projectId)
-        );
-      }
-    }
 
     const isGlobalSuperadmin = currentUser?.isGlobalSuperadmin === true;
     const companyRole = getUserCompanyRole(

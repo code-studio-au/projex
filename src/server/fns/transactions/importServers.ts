@@ -1,27 +1,20 @@
 import type {
   ImportBatchId,
-  ImportCandidate,
-  ImportCandidateId,
   ImportPreviewRow,
   ProjectId,
   Txn,
+  TxnId,
 } from '../../../types';
-import { asBudgetLineId, asImportBatchId, asTxnId } from '../../../types';
+import { asBudgetLineId, asImportBatchId } from '../../../types';
 import { AppError } from '../../../api/errors';
-import type { TxnImportTxnInput } from '../../../api/types';
+import type {
+  ImportReviewDecision,
+  TxnImportTxnInput,
+} from '../../../api/types';
 import { uid } from '../../../utils/id';
 import { planImportPreview } from '../../../utils/importPreviewPlan';
 import { planTransactionImportCommit } from '../../../utils/transactionImportCommitPlan';
-import {
-  powerBiAmountCents,
-  powerBiDescription,
-  powerBiExternalId,
-  powerBiItem,
-  powerBiTransactionDate,
-  toPowerBiExpenditureActualsRow,
-} from '../../../utils/powerBiImport';
 import { isAuthorized, requireAuthorized } from '../../auth/authorize';
-import { toTxn } from '../../mappers/transactionRows';
 import {
   loadTransactionImportCommitContext,
   loadTransactionImportPreviewContext,
@@ -38,14 +31,8 @@ import {
 import {
   IMPORT_COMMIT_RATE_LIMIT,
   IMPORT_PREVIEW_RATE_LIMIT,
-  IMPORT_REVIEW_RATE_LIMIT,
-  assertCommittedImportBatchStatus,
-  importCandidateSelectColumns,
   importCandidateStatusForPreviewRow,
   persistedImportRuleId,
-  toImportCandidate,
-  txnSelectColumns,
-  type ImportCandidateRow,
 } from './shared';
 import { reconcilePendingReversalMatches } from './reversalServers';
 
@@ -55,6 +42,9 @@ export async function importTransactionsServer(args: {
   txns: TxnImportTxnInput[];
   mode: 'append' | 'replaceAll';
   autoCreateBudgets?: boolean;
+  importBatchId?: ImportBatchId;
+  excludedImportIds?: TxnId[];
+  reviewDecisions?: ImportReviewDecision[];
 }): Promise<{ count: number }> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -64,6 +54,12 @@ export async function importTransactionsServer(args: {
       'project:import'
     );
     const { db, userId, companyId } = context;
+    const importBatchId = importBatchIdForCommit({
+      explicitImportBatchId: args.importBatchId,
+      incomingTransactions: args.txns,
+      excludedImportIds: args.excludedImportIds,
+      reviewDecisions: args.reviewDecisions,
+    });
     await enforceRateLimit({
       db,
       bucket: `project-import-commit:${companyId}:${args.projectId}:${userId}`,
@@ -100,6 +96,14 @@ export async function importTransactionsServer(args: {
     if (args.mode === 'replaceAll') {
       const now = new Date().toISOString();
       await db.transaction().execute(async (trx) => {
+        await assertImportPreviewCommit({
+          db: trx,
+          projectId: args.projectId,
+          importBatchId,
+          incomingTransactions: args.txns,
+          excludedImportIds: args.excludedImportIds,
+          reviewDecisions: args.reviewDecisions,
+        });
         const codedBudgetTargets = [
           ...new Map(
             plan.importedTransactions
@@ -144,47 +148,64 @@ export async function importTransactionsServer(args: {
             subCategoryId: txn.subCategoryId,
           })),
         });
-        if (!plan.importedTransactions.length) return;
-        await trx
-          .insertInto('txns')
-          .values(
-            plan.importedTransactions.map((txn) => ({
-              public_id: txn.id,
-              external_id: txn.externalId ?? null,
-              company_id: txn.companyId,
-              project_id: txn.projectId,
-              txn_date: txn.date,
-              item: txn.item,
-              description: txn.description,
-              amount_cents: txn.amountCents,
-              txn_type: 'standard',
-              parent_public_id: null,
-              source_public_id: null,
-              transfer_project_id: null,
-              budget_impact: true,
-              categorisable: true,
-              import_batch_id: txn.importBatchId ?? null,
-              import_source_type: txn.importSourceType ?? null,
-              import_source_meta: txn.importSourceMeta ?? null,
-              category_id: txn.categoryId ?? null,
-              sub_category_id: txn.subCategoryId ?? null,
-              company_default_mapping_rule_id:
-                txn.companyDefaultMappingRuleId ?? null,
-              coding_source: txn.codingSource ?? null,
-              coding_pending_approval: !!txn.codingPendingApproval,
-              created_at: now,
-              updated_at: now,
-            }))
-          )
-          .execute();
-        await markImportedBatchCandidates(trx, plan.importedTransactions, now);
+        if (plan.importedTransactions.length) {
+          await trx
+            .insertInto('txns')
+            .values(
+              plan.importedTransactions.map((txn) => ({
+                public_id: txn.id,
+                external_id: txn.externalId ?? null,
+                company_id: txn.companyId,
+                project_id: txn.projectId,
+                txn_date: txn.date,
+                item: txn.item,
+                description: txn.description,
+                amount_cents: txn.amountCents,
+                txn_type: 'standard',
+                parent_public_id: null,
+                source_public_id: null,
+                transfer_project_id: null,
+                budget_impact: true,
+                categorisable: true,
+                import_batch_id: txn.importBatchId ?? null,
+                import_source_type: txn.importSourceType ?? null,
+                import_source_meta: txn.importSourceMeta ?? null,
+                category_id: txn.categoryId ?? null,
+                sub_category_id: txn.subCategoryId ?? null,
+                company_default_mapping_rule_id:
+                  txn.companyDefaultMappingRuleId ?? null,
+                coding_source: txn.codingSource ?? null,
+                coding_pending_approval: !!txn.codingPendingApproval,
+                created_at: now,
+                updated_at: now,
+              }))
+            )
+            .execute();
+        }
+        await finalizeImportBatchCandidates({
+          db: trx,
+          importedTransactions: plan.importedTransactions,
+          importBatchId,
+          excludedImportIds: args.excludedImportIds,
+          reviewDecisions: args.reviewDecisions,
+          userId,
+          now,
+        });
       });
       return { count: plan.importedTransactions.length };
     }
 
-    if (plan.importedTransactions.length) {
+    if (plan.importedTransactions.length || importBatchId) {
       const now = new Date().toISOString();
       await db.transaction().execute(async (trx) => {
+        await assertImportPreviewCommit({
+          db: trx,
+          projectId: args.projectId,
+          importBatchId,
+          incomingTransactions: args.txns,
+          excludedImportIds: args.excludedImportIds,
+          reviewDecisions: args.reviewDecisions,
+        });
         const codedBudgetTargets = [
           ...new Map(
             plan.importedTransactions
@@ -225,46 +246,56 @@ export async function importTransactionsServer(args: {
             subCategoryId: txn.subCategoryId,
           })),
         });
-        await trx
-          .insertInto('txns')
-          .values(
-            plan.importedTransactions.map((txn) => ({
-              public_id: txn.id,
-              external_id: txn.externalId ?? null,
-              company_id: txn.companyId,
-              project_id: txn.projectId,
-              txn_date: txn.date,
-              item: txn.item,
-              description: txn.description,
-              amount_cents: txn.amountCents,
-              txn_type: 'standard',
-              parent_public_id: null,
-              source_public_id: null,
-              transfer_project_id: null,
-              budget_impact: true,
-              categorisable: true,
-              import_batch_id: txn.importBatchId ?? null,
-              import_source_type: txn.importSourceType ?? null,
-              import_source_meta: txn.importSourceMeta ?? null,
-              category_id: txn.categoryId ?? null,
-              sub_category_id: txn.subCategoryId ?? null,
-              company_default_mapping_rule_id:
-                txn.companyDefaultMappingRuleId ?? null,
-              coding_source: txn.codingSource ?? null,
-              coding_pending_approval: !!txn.codingPendingApproval,
-              created_at: now,
-              updated_at: now,
-            }))
-          )
-          .execute();
-        await reconcilePendingReversalMatches({
+        if (plan.importedTransactions.length) {
+          await trx
+            .insertInto('txns')
+            .values(
+              plan.importedTransactions.map((txn) => ({
+                public_id: txn.id,
+                external_id: txn.externalId ?? null,
+                company_id: txn.companyId,
+                project_id: txn.projectId,
+                txn_date: txn.date,
+                item: txn.item,
+                description: txn.description,
+                amount_cents: txn.amountCents,
+                txn_type: 'standard',
+                parent_public_id: null,
+                source_public_id: null,
+                transfer_project_id: null,
+                budget_impact: true,
+                categorisable: true,
+                import_batch_id: txn.importBatchId ?? null,
+                import_source_type: txn.importSourceType ?? null,
+                import_source_meta: txn.importSourceMeta ?? null,
+                category_id: txn.categoryId ?? null,
+                sub_category_id: txn.subCategoryId ?? null,
+                company_default_mapping_rule_id:
+                  txn.companyDefaultMappingRuleId ?? null,
+                coding_source: txn.codingSource ?? null,
+                coding_pending_approval: !!txn.codingPendingApproval,
+                created_at: now,
+                updated_at: now,
+              }))
+            )
+            .execute();
+          await reconcilePendingReversalMatches({
+            db: trx,
+            companyId,
+            projectId: args.projectId,
+            userId,
+            counterpartTxnIds: plan.importedTransactions.map((txn) => txn.id),
+          });
+        }
+        await finalizeImportBatchCandidates({
           db: trx,
-          companyId,
-          projectId: args.projectId,
+          importedTransactions: plan.importedTransactions,
+          importBatchId,
+          excludedImportIds: args.excludedImportIds,
+          reviewDecisions: args.reviewDecisions,
           userId,
-          counterpartTxnIds: plan.importedTransactions.map((txn) => txn.id),
+          now,
         });
-        await markImportedBatchCandidates(trx, plan.importedTransactions, now);
       });
     }
     return { count: plan.importedTransactions.length };
@@ -357,36 +388,6 @@ export async function previewImportTransactionsServer(args: {
   });
 }
 
-export async function listImportCandidatesServer(args: {
-  context: ServerFnContextInput;
-  projectId: ProjectId;
-}): Promise<ImportCandidate[]> {
-  return withServerBoundary(async () => {
-    assertContextProvided(args.context);
-    const { db } = await requireOperationalProjectForAction(
-      args.context,
-      args.projectId,
-      'project:import'
-    );
-
-    const rows = await db
-      .selectFrom('import_candidates')
-      .select(importCandidateSelectColumns())
-      .where('project_id', '=', args.projectId)
-      .where('batch_id', 'in', (eb) =>
-        eb
-          .selectFrom('import_batches')
-          .select('id')
-          .where('project_id', '=', args.projectId)
-          .where('status', 'in', ['partially_imported', 'imported'])
-      )
-      .orderBy('created_at', 'desc')
-      .orderBy('source_row_index', 'asc')
-      .execute();
-    return rows.map((row) => toImportCandidate(row as ImportCandidateRow));
-  });
-}
-
 export async function cancelImportPreviewServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
@@ -406,185 +407,6 @@ export async function cancelImportPreviewServer(args: {
       .where('id', '=', args.importBatchId)
       .where('status', '=', 'previewed')
       .execute();
-  });
-}
-
-export async function reviewImportCandidateServer(args: {
-  context: ServerFnContextInput;
-  projectId: ProjectId;
-  candidateId: ImportCandidateId;
-  decision: 'import' | 'reject';
-}): Promise<{ candidate: ImportCandidate; txn?: Txn }> {
-  return withServerBoundary(async () => {
-    assertContextProvided(args.context);
-    const context = await requireOperationalProjectForAction(
-      args.context,
-      args.projectId,
-      'project:import'
-    );
-    const { db, userId, companyId } = context;
-    await enforceRateLimit({
-      db,
-      bucket: `project-import-review:${companyId}:${args.projectId}:${userId}`,
-      limit: IMPORT_REVIEW_RATE_LIMIT.limit,
-      windowMs: IMPORT_REVIEW_RATE_LIMIT.windowMs,
-      message:
-        'Too many import review actions. Please wait a few minutes and try again.',
-    });
-
-    const existing = await db
-      .selectFrom('import_candidates')
-      .select(importCandidateSelectColumns())
-      .where('project_id', '=', args.projectId)
-      .where('id', '=', args.candidateId)
-      .executeTakeFirst();
-    if (!existing) throw new AppError('NOT_FOUND', 'Unknown import candidate');
-    if (existing.status !== 'needs_project_review') {
-      throw new AppError(
-        'CONFLICT',
-        'Only candidates waiting for project review can be actioned'
-      );
-    }
-    const batch = await db
-      .selectFrom('import_batches')
-      .select('status')
-      .where('project_id', '=', args.projectId)
-      .where('id', '=', existing.batch_id)
-      .executeTakeFirst();
-    assertCommittedImportBatchStatus(batch?.status);
-
-    const now = new Date().toISOString();
-    if (args.decision === 'reject') {
-      const row = await db.transaction().execute(async (trx) => {
-        const candidate = await trx
-          .updateTable('import_candidates')
-          .set({
-            status: 'rejected',
-            reviewed_by_user_id: userId,
-            reviewed_at: now,
-            updated_at: now,
-          })
-          .where('project_id', '=', args.projectId)
-          .where('id', '=', args.candidateId)
-          .returning(importCandidateSelectColumns())
-          .executeTakeFirstOrThrow();
-        await syncImportBatchStatuses(
-          trx,
-          [asImportBatchId(existing.batch_id)],
-          now
-        );
-        return candidate;
-      });
-      return { candidate: toImportCandidate(row as ImportCandidateRow) };
-    }
-
-    const powerBiRow = toPowerBiExpenditureActualsRow(existing.raw_row);
-    const importContext = await loadTransactionImportCommitContext(db, {
-      companyId,
-      projectId: args.projectId,
-    });
-    const planned = planTransactionImportCommit({
-      projectId: args.projectId,
-      companyId,
-      incomingTransactions: [
-        {
-          id: asTxnId(uid('txn')),
-          externalId: powerBiExternalId(powerBiRow) || undefined,
-          companyId,
-          projectId: args.projectId,
-          date: powerBiTransactionDate(powerBiRow),
-          item: powerBiItem(powerBiRow),
-          description: powerBiDescription(powerBiRow),
-          amountCents: powerBiAmountCents(powerBiRow),
-          importBatchId: asImportBatchId(existing.batch_id),
-          importSourceType: 'powerbi_expenditure_actuals',
-          importSourceMeta: existing.raw_row,
-        },
-      ],
-      existingTransactions: importContext.existingTransactions,
-      existingBudgets: importContext.budgets,
-      projectAutoCodingRules: importContext.projectAutoCodingRules,
-      mode: 'append',
-      autoCreateBudgets: false,
-    });
-    const txn = planned.importedTransactions[0];
-    if (!txn) throw new AppError('INTERNAL_ERROR', 'Import candidate failed');
-
-    let insertedTxn: Txn | undefined;
-    let updatedCandidate: ImportCandidate | undefined;
-    await db.transaction().execute(async (trx) => {
-      if (txn.categoryId && txn.subCategoryId) {
-        await ensureBudgetLinesForProjectSubCategories({
-          db: trx,
-          companyId,
-          projectId: args.projectId,
-          targets: [
-            {
-              categoryId: txn.categoryId,
-              subCategoryId: txn.subCategoryId,
-            },
-          ],
-        });
-      }
-      const txnRow = await trx
-        .insertInto('txns')
-        .values({
-          public_id: txn.id,
-          external_id: txn.externalId ?? null,
-          company_id: txn.companyId,
-          project_id: txn.projectId,
-          txn_date: txn.date,
-          item: txn.item,
-          description: txn.description,
-          amount_cents: txn.amountCents,
-          txn_type: 'standard',
-          parent_public_id: null,
-          source_public_id: null,
-          transfer_project_id: null,
-          budget_impact: true,
-          categorisable: true,
-          import_batch_id: txn.importBatchId ?? null,
-          import_source_type: txn.importSourceType ?? null,
-          import_source_meta: txn.importSourceMeta ?? null,
-          category_id: txn.categoryId ?? null,
-          sub_category_id: txn.subCategoryId ?? null,
-          company_default_mapping_rule_id:
-            txn.companyDefaultMappingRuleId ?? null,
-          coding_source: txn.codingSource ?? null,
-          coding_pending_approval: !!txn.codingPendingApproval,
-          created_at: now,
-          updated_at: now,
-        })
-        .returning(txnSelectColumns())
-        .executeTakeFirstOrThrow();
-      insertedTxn = toTxn(txnRow);
-
-      const candidateRow = await trx
-        .updateTable('import_candidates')
-        .set({
-          status: 'imported',
-          txn_public_id: txn.id,
-          reviewed_by_user_id: userId,
-          reviewed_at: now,
-          updated_at: now,
-        })
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', args.candidateId)
-        .returning(importCandidateSelectColumns())
-        .executeTakeFirstOrThrow();
-      updatedCandidate = toImportCandidate(candidateRow as ImportCandidateRow);
-
-      await syncImportBatchStatuses(
-        trx,
-        [asImportBatchId(existing.batch_id)],
-        now
-      );
-    });
-
-    if (!updatedCandidate || !insertedTxn) {
-      throw new AppError('INTERNAL_ERROR', 'Import candidate failed');
-    }
-    return { candidate: updatedCandidate, txn: insertedTxn };
   });
 }
 
@@ -645,90 +467,270 @@ async function createPowerBiImportBatch(args: {
   return batchId;
 }
 
-async function markImportedBatchCandidates(
-  db: ProjectActionContext['db'],
-  importedTransactions: Txn[],
-  now: string
-): Promise<void> {
-  const batchIds = [
+function importBatchIdForCommit(args: {
+  explicitImportBatchId?: ImportBatchId;
+  incomingTransactions: TxnImportTxnInput[];
+  excludedImportIds?: TxnId[];
+  reviewDecisions?: ImportReviewDecision[];
+}): ImportBatchId | undefined {
+  const transactionBatchIds = [
     ...new Set(
-      importedTransactions
+      args.incomingTransactions
         .map((txn) => txn.importBatchId)
         .filter((id): id is ImportBatchId => Boolean(id))
     ),
   ];
-  if (!batchIds.length) return;
-  const importedIds = importedTransactions.map((txn) => String(txn.id));
+  if (transactionBatchIds.length > 1) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'An import commit cannot contain transactions from multiple previews'
+    );
+  }
 
-  await db
-    .updateTable('import_candidates')
-    .set({
-      status: 'imported',
-      updated_at: now,
-    })
-    .where('batch_id', 'in', batchIds)
-    .where('preview_import_id', 'in', importedIds)
-    .where('status', '=', 'ready')
-    .execute();
+  const transactionBatchId = transactionBatchIds[0];
+  if (
+    args.explicitImportBatchId &&
+    transactionBatchId &&
+    args.explicitImportBatchId !== transactionBatchId
+  ) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Transaction import batch does not match the preview being committed'
+    );
+  }
 
-  await db
-    .updateTable('import_batches')
-    .set({
-      status: 'partially_imported',
-      updated_at: now,
-    })
-    .where('id', 'in', batchIds)
-    .execute();
-
-  await syncImportBatchStatuses(db, batchIds, now);
+  const importBatchId = args.explicitImportBatchId ?? transactionBatchId;
+  if (
+    !importBatchId &&
+    (args.excludedImportIds?.length ||
+      args.reviewDecisions?.length ||
+      args.incomingTransactions.some((txn) => txn.forceUncoded))
+  ) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Import preview decisions require an import batch ID'
+    );
+  }
+  return importBatchId;
 }
 
-async function syncImportBatchStatuses(
-  db: ProjectActionContext['db'],
-  batchIds: ImportBatchId[],
-  now: string
-): Promise<void> {
-  if (!batchIds.length) return;
+async function assertImportPreviewCommit(args: {
+  db: ProjectActionContext['db'];
+  projectId: ProjectId;
+  importBatchId?: ImportBatchId;
+  incomingTransactions: TxnImportTxnInput[];
+  excludedImportIds?: TxnId[];
+  reviewDecisions?: ImportReviewDecision[];
+}): Promise<void> {
+  if (!args.importBatchId) return;
 
-  const candidateRows = await db
+  const batch = await args.db
+    .selectFrom('import_batches')
+    .select('status')
+    .where('id', '=', args.importBatchId)
+    .where('project_id', '=', args.projectId)
+    .forUpdate()
+    .executeTakeFirst();
+  if (!batch) throw new AppError('NOT_FOUND', 'Unknown import preview');
+  if (batch.status !== 'previewed') {
+    throw new AppError('CONFLICT', 'This import preview was already committed');
+  }
+
+  const candidates = await args.db
     .selectFrom('import_candidates')
-    .select(['batch_id', 'status'])
-    .where('batch_id', 'in', batchIds)
+    .select(['preview_import_id', 'status'])
+    .where('batch_id', '=', args.importBatchId)
+    .where('project_id', '=', args.projectId)
+    .forUpdate()
     .execute();
+  const candidateByImportId = new Map(
+    candidates.flatMap((candidate) =>
+      candidate.preview_import_id
+        ? [[candidate.preview_import_id, candidate] as const]
+        : []
+    )
+  );
+  const incomingById = new Map(
+    args.incomingTransactions.map((txn) => [String(txn.id), txn] as const)
+  );
+  const excludedIds = new Set(
+    (args.excludedImportIds ?? []).map((id) => String(id))
+  );
+  const reviewDecisionById = new Map<
+    string,
+    ImportReviewDecision['decision']
+  >();
 
-  const partiallyImportedIds = new Set<string>();
-  for (const row of candidateRows) {
-    if (row.status === 'ready' || row.status === 'needs_project_review') {
-      partiallyImportedIds.add(row.batch_id);
+  for (const decision of args.reviewDecisions ?? []) {
+    const importId = String(decision.previewImportId);
+    if (reviewDecisionById.has(importId)) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Each review row must have exactly one decision'
+      );
+    }
+    reviewDecisionById.set(importId, decision.decision);
+  }
+
+  for (const txn of args.incomingTransactions) {
+    const importId = String(txn.id);
+    if (txn.importBatchId !== args.importBatchId) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Every imported transaction must belong to the committed preview'
+      );
+    }
+    const candidate = candidateByImportId.get(importId);
+    if (!candidate) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Imported transaction does not belong to this preview'
+      );
+    }
+    if (candidate.status === 'excluded' || candidate.status === 'invalid') {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Excluded or invalid preview rows cannot be imported'
+      );
+    }
+    if (txn.forceUncoded && candidate.status !== 'needs_project_review') {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Only review rows selected for uncoded import can bypass automatic coding'
+      );
+    }
+    if (excludedIds.has(importId)) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'A preview row cannot be both imported and excluded'
+      );
     }
   }
 
-  const importedBatchIds = batchIds.filter(
-    (batchId) => !partiallyImportedIds.has(batchId)
-  );
-  const partialBatchIds = batchIds.filter((batchId) =>
-    partiallyImportedIds.has(batchId)
-  );
-
-  if (partialBatchIds.length) {
-    await db
-      .updateTable('import_batches')
-      .set({
-        status: 'partially_imported',
-        updated_at: now,
-      })
-      .where('id', 'in', partialBatchIds)
-      .execute();
+  for (const importId of excludedIds) {
+    if (!candidateByImportId.has(importId)) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Excluded row does not belong to this preview'
+      );
+    }
   }
 
-  if (importedBatchIds.length) {
-    await db
-      .updateTable('import_batches')
-      .set({
+  for (const [importId, decision] of reviewDecisionById) {
+    if (candidateByImportId.get(importId)?.status !== 'needs_project_review') {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Review decision does not belong to a review row in this preview'
+      );
+    }
+    const incoming = incomingById.get(importId);
+    if (decision === 'import_uncoded') {
+      if (!incoming || !incoming.forceUncoded || excludedIds.has(importId)) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Rows approved for import review must be imported without coding'
+        );
+      }
+    } else if (incoming || !excludedIds.has(importId)) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Rows excluded during import review must not be imported'
+      );
+    }
+  }
+
+  for (const [importId, candidate] of candidateByImportId) {
+    if (candidate.status === 'needs_project_review') {
+      if (!reviewDecisionById.has(importId)) {
+        throw new AppError(
+          'CONFLICT',
+          'Resolve every review row before committing the import'
+        );
+      }
+      continue;
+    }
+    if (
+      candidate.status === 'ready' &&
+      !incomingById.has(importId) &&
+      !excludedIds.has(importId)
+    ) {
+      throw new AppError(
+        'CONFLICT',
+        'Resolve every included preview row before committing the import'
+      );
+    }
+  }
+}
+
+async function finalizeImportBatchCandidates(args: {
+  db: ProjectActionContext['db'];
+  importedTransactions: Txn[];
+  importBatchId?: ImportBatchId;
+  excludedImportIds?: TxnId[];
+  reviewDecisions?: ImportReviewDecision[];
+  userId: ProjectActionContext['userId'];
+  now: string;
+}): Promise<void> {
+  const batchIds = [
+    ...new Set(
+      [
+        args.importBatchId,
+        ...args.importedTransactions.map((txn) => txn.importBatchId),
+      ].filter((id): id is ImportBatchId => Boolean(id))
+    ),
+  ];
+  if (!batchIds.length) return;
+
+  const importedIds = args.importedTransactions.map((txn) => String(txn.id));
+  if (importedIds.length) {
+    await args.db
+      .updateTable('import_candidates')
+      .set((eb) => ({
         status: 'imported',
-        updated_at: now,
-      })
-      .where('id', 'in', importedBatchIds)
+        txn_public_id: eb.ref('preview_import_id'),
+        updated_at: args.now,
+      }))
+      .where('batch_id', 'in', batchIds)
+      .where('preview_import_id', 'in', importedIds)
       .execute();
   }
+
+  const excludedIds = (args.excludedImportIds ?? []).map((id) => String(id));
+  if (excludedIds.length) {
+    await args.db
+      .updateTable('import_candidates')
+      .set({
+        status: 'excluded',
+        reviewed_by_user_id: args.userId,
+        reviewed_at: args.now,
+        updated_at: args.now,
+      })
+      .where('batch_id', 'in', batchIds)
+      .where('preview_import_id', 'in', excludedIds)
+      .where('status', '!=', 'imported')
+      .execute();
+  }
+
+  const importedReviewIds = (args.reviewDecisions ?? [])
+    .filter((decision) => decision.decision === 'import_uncoded')
+    .map((decision) => String(decision.previewImportId));
+  if (importedReviewIds.length) {
+    await args.db
+      .updateTable('import_candidates')
+      .set({
+        reviewed_by_user_id: args.userId,
+        reviewed_at: args.now,
+        updated_at: args.now,
+      })
+      .where('batch_id', 'in', batchIds)
+      .where('preview_import_id', 'in', importedReviewIds)
+      .where('status', '=', 'imported')
+      .execute();
+  }
+
+  await args.db
+    .updateTable('import_batches')
+    .set({ status: 'imported', updated_at: args.now })
+    .where('id', 'in', batchIds)
+    .execute();
 }

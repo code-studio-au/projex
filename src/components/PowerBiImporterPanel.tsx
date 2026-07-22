@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
+  Accordion,
   Alert,
   Badge,
   Button,
@@ -22,13 +23,13 @@ import {
   type MRT_ColumnDef,
 } from 'mantine-react-table-open';
 
+import type { TxnImportInput, TxnImportTxnInput } from '../api/types';
 import type {
   CompanyId,
   ImportPreviewRow,
   ImportRuleField,
   ImportRuleOperator,
   ProjectId,
-  Txn,
 } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
 import type { BudgetsHook } from '../hooks/useBudgets';
@@ -82,6 +83,14 @@ const importRuleSelectProps = {
   },
 } as const;
 
+type PowerBiImportCommitOptions = Pick<
+  TxnImportInput,
+  | 'autoCreateBudgets'
+  | 'importBatchId'
+  | 'excludedImportIds'
+  | 'reviewDecisions'
+>;
+
 function toImportRuleField(value: string | null): ImportRuleField | null {
   return fieldOptions.some((option) => option.value === value)
     ? (value as ImportRuleField)
@@ -114,13 +123,14 @@ export default function PowerBiImporterPanel(props: {
   canEditBudgets: boolean;
   canManageImportRules: boolean;
   onAppend: (
-    txns: Txn[],
-    options?: { autoCreateBudgets?: boolean }
+    txns: TxnImportTxnInput[],
+    options?: PowerBiImportCommitOptions
   ) => Promise<void>;
   onReplaceAll: (
-    txns: Txn[],
-    options?: { autoCreateBudgets?: boolean }
+    txns: TxnImportTxnInput[],
+    options?: PowerBiImportCommitOptions
   ) => Promise<void>;
+  onImportComplete: () => void;
 }) {
   const {
     taxonomy,
@@ -133,6 +143,7 @@ export default function PowerBiImporterPanel(props: {
     canManageImportRules,
     onAppend,
     onReplaceAll,
+    onImportComplete,
   } = props;
 
   const isMobile = useMediaQuery('(max-width: 48em)');
@@ -160,6 +171,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
   const {
     file,
     isReadingFile,
+    isPreviewing,
     draftCsvText,
     autoCreateStructures,
     skipDuplicates,
@@ -169,12 +181,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     importError,
     previewSourceLabel,
     excludedImportIds,
+    reviewDecisions,
     pagination,
     sorting,
     previewActive,
-    activePreviewRows,
     includedPreviewRows,
     needsReviewPreviewRows,
+    unresolvedReviewPreviewRows,
     duplicatePreviewRows,
     invalidPreviewRows,
     excludedPreviewRows,
@@ -193,7 +206,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     clearPreview,
     previewImport,
     togglePreviewRow,
-    setPreviewRowsExcluded,
+    setReviewRowsDecision,
     commitAppend,
     commitReplaceAll,
   } = importer;
@@ -237,12 +250,8 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
   );
 
   const selectedNeedsReviewRows = useMemo(
-    () =>
-      selectedPreviewRows.filter(
-        (row) =>
-          row.importAction === 'review' && !excludedImportIds.has(row.importId)
-      ),
-    [excludedImportIds, selectedPreviewRows]
+    () => selectedPreviewRows.filter((row) => row.importAction === 'review'),
+    [selectedPreviewRows]
   );
 
   const handleTogglePreviewRow = useCallback(
@@ -269,36 +278,47 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     ]
   );
 
-  const handleExcludeNeedsReviewRows = useCallback(
-    (rows: ImportPreviewRow[], mode: 'selected' | 'all') => {
-      const importIds = rows
-        .filter((row) => !excludedImportIds.has(row.importId))
-        .map((row) => row.importId);
+  const handleReviewDecision = useCallback(
+    (
+      rows: ImportPreviewRow[],
+      decision: 'import_uncoded' | 'exclude',
+      mode: 'selected' | 'all' | 'row'
+    ) => {
+      const eligibleRows =
+        decision === 'import_uncoded'
+          ? rows.filter(
+              (row) => row.mappingStatus !== 'invalid' && !row.duplicate
+            )
+          : rows;
+      const importIds = eligibleRows.map((row) => row.importId);
 
       if (!importIds.length) {
         showAppToast({
           tone: 'warning',
-          title: 'Nothing to exclude',
+          title: 'No eligible review rows',
           message:
             mode === 'selected'
               ? 'Select one or more review rows first.'
-              : 'There are no review rows left to exclude.',
+              : 'Invalid and duplicate review rows must be excluded.',
         });
         return;
       }
 
-      setPreviewRowsExcluded(importIds, true);
+      setReviewRowsDecision(importIds, decision);
       setRowSelection({});
       showAppToast({
         tone: 'success',
         title:
-          mode === 'selected'
-            ? 'Review rows excluded'
-            : 'All review rows excluded',
-        message: `Excluded ${importIds.length} review row${importIds.length === 1 ? '' : 's'} from the current preview.`,
+          decision === 'import_uncoded'
+            ? 'Review decision recorded'
+            : 'Review rows excluded',
+        message:
+          decision === 'import_uncoded'
+            ? `${importIds.length} review row${importIds.length === 1 ? '' : 's'} will be imported without coding.`
+            : `${importIds.length} review row${importIds.length === 1 ? '' : 's'} will be excluded from this import.`,
       });
     },
-    [excludedImportIds, setPreviewRowsExcluded]
+    [setReviewRowsDecision]
   );
 
   async function handleCreateExcludeRule() {
@@ -477,82 +497,104 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         accessorFn: (row) =>
           `${row.categoryName ?? ''} ${row.subCategoryName ?? ''} ${row.mappingStatus} ${row.duplicateReason ?? ''}`,
         enableSorting: false,
-        Cell: ({ row }) => (
-          <Stack gap={4}>
-            <Group gap="xs" wrap="wrap">
-              {excludedImportIds.has(row.original.importId) ? (
-                <Badge size="sm" variant="light" color="gray">
-                  Excluded
-                </Badge>
-              ) : null}
-              {row.original.importAction === 'review' ? (
-                <Badge size="sm" variant="light" color="yellow">
-                  Needs review
-                </Badge>
-              ) : null}
-              {row.original.importAction === 'exclude' ? (
-                <Badge size="sm" variant="light" color="gray">
-                  Rule excluded
-                </Badge>
-              ) : null}
-              <Badge
-                size="sm"
-                variant="light"
-                color={
-                  row.original.mappingStatus === 'invalid'
-                    ? 'red'
-                    : row.original.mappingStatus === 'uncoded'
-                      ? 'red'
-                      : row.original.mappingStatus === 'matched_rule'
-                        ? 'green'
-                        : row.original.mappingStatus === 'auto_created'
-                          ? 'yellow'
-                          : 'green'
-                }
-              >
-                {row.original.mappingStatus === 'matched_rule'
-                  ? 'Auto-Categorise match'
-                  : row.original.mappingStatus === 'source_taxonomy'
-                    ? 'Category match'
-                    : row.original.mappingStatus === 'auto_created'
-                      ? 'Will auto-create'
-                      : row.original.mappingStatus === 'invalid'
-                        ? 'Invalid'
-                        : 'Uncoded'}
-              </Badge>
-              {row.original.duplicate ? (
-                <Badge size="sm" variant="light" color="orange">
-                  {row.original.duplicateReason === 'existing'
-                    ? 'Existing duplicate'
-                    : 'Import duplicate'}
-                </Badge>
-              ) : null}
-            </Group>
-            {row.original.categoryName && row.original.subCategoryName ? (
-              <Text size="xs" c="dimmed">
-                {row.original.categoryName} &gt; {row.original.subCategoryName}
-              </Text>
-            ) : null}
-            {row.original.importRuleName ? (
-              <Text size="xs" c="dimmed">
-                Import rule: {row.original.importRuleName}
-              </Text>
-            ) : null}
-            {displayWarningsForRow(row.original).length ? (
-              <Stack gap={2}>
-                {displayWarningsForRow(row.original).map((warning, index) => (
-                  <Text
-                    key={`${row.original.importId}-warning-${index}`}
-                    size="xs"
-                    c="dimmed"
+        Cell: ({ row }) => {
+          const reviewDecision = reviewDecisions.get(row.original.importId);
+          const isReviewRow = row.original.importAction === 'review';
+          return (
+            <Stack gap={4}>
+              <Group gap="xs" wrap="wrap">
+                {isReviewRow && !reviewDecision ? (
+                  <Badge size="sm" variant="light" color="yellow">
+                    Decision required
+                  </Badge>
+                ) : null}
+                {reviewDecision === 'import_uncoded' ? (
+                  <Badge size="sm" variant="light" color="blue">
+                    Import uncoded
+                  </Badge>
+                ) : null}
+                {reviewDecision === 'exclude' ||
+                (!isReviewRow &&
+                  excludedImportIds.has(row.original.importId)) ? (
+                  <Badge size="sm" variant="light" color="gray">
+                    Excluded
+                  </Badge>
+                ) : null}
+                {row.original.importAction === 'exclude' ? (
+                  <Badge size="sm" variant="light" color="gray">
+                    Rule excluded
+                  </Badge>
+                ) : null}
+                {!isReviewRow ? (
+                  <Badge
+                    size="sm"
+                    variant="light"
+                    color={
+                      row.original.mappingStatus === 'invalid'
+                        ? 'red'
+                        : row.original.mappingStatus === 'uncoded'
+                          ? 'red'
+                          : row.original.mappingStatus === 'matched_rule'
+                            ? 'green'
+                            : row.original.mappingStatus === 'auto_created'
+                              ? 'yellow'
+                              : 'green'
+                    }
                   >
-                    {warning}
-                  </Text>
-                ))}
-              </Stack>
-            ) : null}
-          </Stack>
-        ),
+                    {row.original.mappingStatus === 'matched_rule'
+                      ? 'Auto-Categorise match'
+                      : row.original.mappingStatus === 'source_taxonomy'
+                        ? 'Category match'
+                        : row.original.mappingStatus === 'auto_created'
+                          ? 'Will auto-create'
+                          : row.original.mappingStatus === 'invalid'
+                            ? 'Invalid'
+                            : 'Uncoded'}
+                  </Badge>
+                ) : null}
+                {row.original.duplicate ? (
+                  <Badge size="sm" variant="light" color="orange">
+                    {row.original.duplicateReason === 'existing'
+                      ? 'Existing duplicate'
+                      : 'Import duplicate'}
+                  </Badge>
+                ) : null}
+              </Group>
+              {!isReviewRow &&
+              row.original.categoryName &&
+              row.original.subCategoryName ? (
+                <Text size="xs" c="dimmed">
+                  {row.original.categoryName} &gt;{' '}
+                  {row.original.subCategoryName}
+                </Text>
+              ) : null}
+              {row.original.importRuleName ? (
+                <Text size="xs" c="dimmed">
+                  Import rule: {row.original.importRuleName}
+                </Text>
+              ) : null}
+              {isReviewRow && reviewDecision === 'import_uncoded' ? (
+                <Text size="xs" c="dimmed">
+                  Any suggested category will be ignored so this transaction
+                  enters the coding workflow.
+                </Text>
+              ) : null}
+              {displayWarningsForRow(row.original).length ? (
+                <Stack gap={2}>
+                  {displayWarningsForRow(row.original).map((warning, index) => (
+                    <Text
+                      key={`${row.original.importId}-warning-${index}`}
+                      size="xs"
+                      c="dimmed"
+                    >
+                      {warning}
+                    </Text>
+                  ))}
+                </Stack>
+              ) : null}
+            </Stack>
+          );
+        },
         mantineTableHeadCellProps: {
           className: 'table-head-cell table-head-left txnTable-head',
         },
@@ -561,37 +603,90 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
       {
         id: 'action',
         header: 'Action',
-        size: 100,
+        size: 220,
         enableSorting: false,
-        Cell: ({ row }) => (
-          <Button
-            size="xs"
-            variant={
-              excludedImportIds.has(row.original.importId) ? 'light' : 'subtle'
-            }
-            color={
-              excludedImportIds.has(row.original.importId) ? 'blue' : 'gray'
-            }
-            onClick={() => handleTogglePreviewRow(row.original)}
-          >
-            {excludedImportIds.has(row.original.importId)
-              ? 'Include'
-              : 'Exclude'}
-          </Button>
-        ),
+        Cell: ({ row }) => {
+          if (row.original.importAction === 'review') {
+            const decision = reviewDecisions.get(row.original.importId);
+            const cannotImport =
+              row.original.mappingStatus === 'invalid' ||
+              row.original.duplicate;
+            return (
+              <Group gap="xs" wrap="nowrap">
+                <Button
+                  size="xs"
+                  variant={decision === 'import_uncoded' ? 'filled' : 'light'}
+                  disabled={cannotImport}
+                  onClick={() =>
+                    handleReviewDecision(
+                      [row.original],
+                      'import_uncoded',
+                      'row'
+                    )
+                  }
+                >
+                  Import uncoded
+                </Button>
+                <Button
+                  size="xs"
+                  variant={decision === 'exclude' ? 'filled' : 'subtle'}
+                  color="gray"
+                  onClick={() =>
+                    handleReviewDecision([row.original], 'exclude', 'row')
+                  }
+                >
+                  Exclude
+                </Button>
+              </Group>
+            );
+          }
+
+          return (
+            <Button
+              size="xs"
+              variant={
+                excludedImportIds.has(row.original.importId)
+                  ? 'light'
+                  : 'subtle'
+              }
+              color={
+                excludedImportIds.has(row.original.importId) ? 'blue' : 'gray'
+              }
+              onClick={() => handleTogglePreviewRow(row.original)}
+            >
+              {excludedImportIds.has(row.original.importId)
+                ? 'Include'
+                : 'Exclude'}
+            </Button>
+          );
+        },
         mantineTableHeadCellProps: {
           className: 'table-head-cell table-head-left txnTable-head',
         },
         mantineTableBodyCellProps: { className: 'txnTable-cell' },
       },
     ],
-    [currencyCode, excludedImportIds, handleTogglePreviewRow]
+    [
+      currencyCode,
+      excludedImportIds,
+      handleReviewDecision,
+      handleTogglePreviewRow,
+      reviewDecisions,
+    ]
   );
 
   const excludedPreviewColumns = useMemo(
     () => previewColumns.filter((column) => column.id !== 'mapping'),
     [previewColumns]
   );
+
+  async function handleCommitAppend() {
+    if (await commitAppend()) onImportComplete();
+  }
+
+  async function handleCommitReplaceAll() {
+    if (await commitReplaceAll()) onImportComplete();
+  }
 
   return (
     <Stack gap="lg" className={classes.pageStack}>
@@ -633,35 +728,58 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           <Text size="sm" c="dimmed" className={classes.filterIntro}>
             Upload or paste the PowerBI expenditure actuals CSV export, then
             preview the import before committing it. Import Rules run first to
-            exclude SAL and flag suspected salary transfers for review. EXA rows
-            import by default so reversal candidates can be matched.
+            exclude known non-project rows or require a decision for uncertain
+            rows. EXA rows import by default so reversal candidates can be
+            matched.
           </Text>
 
           <FileInput
             label="Upload PowerBI CSV"
             placeholder="Select file"
             value={file}
-            disabled={previewActive}
+            disabled={previewActive || isPreviewing}
             accept=".csv,text/csv"
             onChange={handleFileChange}
           />
 
-          <Textarea
-            label="Paste PowerBI CSV"
-            minRows={8}
-            value={draftCsvText}
-            disabled={previewActive}
-            onChange={(event) =>
-              handleDraftCsvTextChange(event.currentTarget.value)
-            }
-            placeholder={exampleCsv}
-          />
+          <Accordion variant="contained">
+            <Accordion.Item value="paste-csv">
+              <Accordion.Control>Paste CSV or view example</Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="md">
+                  <Textarea
+                    label="Paste PowerBI CSV"
+                    description="Use this option instead of uploading a CSV file."
+                    minRows={8}
+                    value={draftCsvText}
+                    disabled={previewActive || isPreviewing}
+                    onChange={(event) =>
+                      handleDraftCsvTextChange(event.currentTarget.value)
+                    }
+                    placeholder="Paste the exported CSV content here"
+                  />
+
+                  <Stack gap="xs">
+                    <Text fw={700} size="sm">
+                      Example PowerBI CSV
+                    </Text>
+                    <pre className="importExamplePre">{exampleCsv}</pre>
+                  </Stack>
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
 
           <Group gap="md" align="center" wrap="wrap">
             <Switch
               label="Auto-create new categories/subcategories and budget lines"
               checked={autoCreateStructures}
-              disabled={previewActive || !canEditTaxonomy || !canEditBudgets}
+              disabled={
+                previewActive ||
+                isPreviewing ||
+                !canEditTaxonomy ||
+                !canEditBudgets
+              }
               onChange={(event) =>
                 setAutoCreateStructures(event.currentTarget.checked)
               }
@@ -670,7 +788,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Switch
               label="Skip duplicates (existing and within this import)"
               checked={skipDuplicates}
-              disabled={previewActive}
+              disabled={previewActive || isPreviewing}
               onChange={(event) =>
                 setSkipDuplicates(event.currentTarget.checked)
               }
@@ -682,10 +800,11 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Button
               fullWidth={isMobile}
               onClick={() => void previewImport()}
-              loading={isReadingFile}
+              loading={isReadingFile || isPreviewing}
               disabled={
                 previewActive ||
                 isReadingFile ||
+                isPreviewing ||
                 (!file && !draftCsvText.trim())
               }
             >
@@ -721,9 +840,8 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
 
               {hasBlockingIssues ? (
                 <Alert color="red" className={classes.notice}>
-                  Invalid rows, review rows, or duplicate handling settings will
-                  block append until those rows are excluded, reviewed, or
-                  corrected.
+                  Complete every review decision and resolve invalid or
+                  duplicate rows before committing this import.
                 </Alert>
               ) : null}
 
@@ -773,7 +891,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 Included ({includedPreviewRows.length})
               </Tabs.Tab>
               <Tabs.Tab value="needsReview">
-                Needs review ({needsReviewPreviewRows.length})
+                Review ({unresolvedReviewPreviewRows.length} remaining)
               </Tabs.Tab>
               <Tabs.Tab value="duplicate">
                 Duplicate ({duplicatePreviewRows.length})
@@ -825,31 +943,63 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Tabs.Panel value="needsReview" pt="md">
               <Group justify="space-between" align="center" mb="sm" wrap="wrap">
                 <Text size="sm" c="dimmed">
-                  Excluding review rows removes them from this preview only. Use
-                  the row action if you also want to create a persistent project
-                  import rule.
+                  Every row must be imported without coding or excluded before
+                  this import can continue. The matched rule and your decision
+                  remain in the import audit trail.
                 </Text>
                 <Group gap="xs" wrap="wrap">
+                  <Button
+                    size="xs"
+                    variant="light"
+                    disabled={!needsReviewPreviewRows.length}
+                    onClick={() =>
+                      handleReviewDecision(
+                        needsReviewPreviewRows,
+                        'import_uncoded',
+                        'all'
+                      )
+                    }
+                  >
+                    Import all as uncoded
+                  </Button>
                   <Button
                     size="xs"
                     variant="light"
                     color="gray"
                     disabled={!needsReviewPreviewRows.length}
                     onClick={() =>
-                      handleExcludeNeedsReviewRows(
+                      handleReviewDecision(
                         needsReviewPreviewRows,
+                        'exclude',
                         'all'
                       )
                     }
                   >
-                    Exclude all review rows
+                    Exclude all
                   </Button>
                   <Button
                     size="xs"
                     disabled={!selectedNeedsReviewRows.length}
                     onClick={() =>
-                      handleExcludeNeedsReviewRows(
+                      handleReviewDecision(
                         selectedNeedsReviewRows,
+                        'import_uncoded',
+                        'selected'
+                      )
+                    }
+                  >
+                    Import selected as uncoded ({selectedNeedsReviewRows.length}
+                    )
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    disabled={!selectedNeedsReviewRows.length}
+                    onClick={() =>
+                      handleReviewDecision(
+                        selectedNeedsReviewRows,
+                        'exclude',
                         'selected'
                       )
                     }
@@ -1009,10 +1159,9 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           <Paper className={classes.surfaceCard} radius="xl" p="md">
             <Group className={classes.footerRowBetween}>
               <Text size="sm" c="dimmed">
-                Review the preview, exclude anything that should stay out of the
-                tracker, then commit the included rows.{' '}
-                {activePreviewRows.length} active row(s) remain outside the
-                excluded tab.
+                Review the preview and resolve all flagged rows, then commit{' '}
+                {includedPreviewRows.length} included row(s).{' '}
+                {unresolvedReviewPreviewRows.length} review decision(s) remain.
               </Text>
               <Group wrap="wrap">
                 <Button
@@ -1024,10 +1173,10 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 </Button>
                 <Button
                   fullWidth={isMobile}
-                  disabled={!previewSummary.included || hasBlockingIssues}
-                  onClick={() => void commitAppend()}
+                  disabled={hasBlockingIssues}
+                  onClick={() => void handleCommitAppend()}
                 >
-                  Append
+                  {previewSummary.included ? 'Append' : 'Complete import'}
                 </Button>
                 <Button
                   color="red"
@@ -1041,19 +1190,6 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             </Group>
           </Paper>
         </Stack>
-      ) : null}
-
-      {!previewActive ? (
-        <Paper
-          radius="xl"
-          p="lg"
-          className={`${classes.surfaceCard} importPanelCard importExampleCard`}
-        >
-          <Stack gap="sm">
-            <Text fw={700}>Example PowerBI CSV</Text>
-            <pre className="importExamplePre">{exampleCsv}</pre>
-          </Stack>
-        </Paper>
       ) : null}
 
       <Modal
@@ -1085,7 +1221,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Button
               color="red"
               fullWidth={isMobile}
-              onClick={() => void commitReplaceAll()}
+              onClick={() => void handleCommitReplaceAll()}
             >
               Replace all
             </Button>

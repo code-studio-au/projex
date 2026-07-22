@@ -55,7 +55,6 @@ import TransactionsPanel from './TransactionsPanel';
 import type { TransactionView } from './transactions/transactionViews';
 import BudgetPanel from './BudgetPanel';
 import PowerBiImporterPanel from './PowerBiImporterPanel';
-import ImportReviewQueuePanel from './ImportReviewQueuePanel';
 import ProjectSettingsPanel from './ProjectSettingsPanel';
 import { LoadingLine } from './LoadingValue';
 import classes from '../styles/ui.module.css';
@@ -1182,11 +1181,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
 
           <Tabs.Panel value="import" pt="md">
             <Stack gap="md">
-              <ImportReviewQueuePanel
-                projectId={projectId}
-                currencyCode={currencyCode}
-                enabled={canImport}
-              />
               <PowerBiImporterPanel
                 taxonomy={taxonomy}
                 budgets={budgets}
@@ -1196,11 +1190,15 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                 canEditTaxonomy={canEditTaxonomy}
                 canEditBudgets={canEditBudgets}
                 canManageImportRules={canManageImportRules}
+                onImportComplete={() => setActiveTab('transactions')}
                 onReplaceAll={async (next, options) => {
                   await importTransactions.mutateAsync({
                     txns: next,
                     mode: 'replaceAll',
                     autoCreateBudgets: options?.autoCreateBudgets,
+                    importBatchId: options?.importBatchId,
+                    excludedImportIds: options?.excludedImportIds,
+                    reviewDecisions: options?.reviewDecisions,
                   });
                 }}
                 onAppend={async (next, options) => {
@@ -1208,6 +1206,9 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                     txns: next,
                     mode: 'append',
                     autoCreateBudgets: options?.autoCreateBudgets,
+                    importBatchId: options?.importBatchId,
+                    excludedImportIds: options?.excludedImportIds,
+                    reviewDecisions: options?.reviewDecisions,
                   });
                 }}
               />

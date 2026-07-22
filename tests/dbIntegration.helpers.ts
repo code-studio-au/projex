@@ -13,7 +13,6 @@ import type {
   CreateCompanyUserInput,
   DeleteCompanyInput,
   DeleteProjectInput,
-  ImportCandidateReviewInput,
   ImportRuleCreateInput,
   ProjectCreateInput,
   ProjectUpdateInput,
@@ -116,12 +115,10 @@ import {
   createTxnServer,
   deleteTxnServer,
   importTransactionsServer,
-  listImportCandidatesServer,
   listProjectTransactionSummaryServer,
   listTransactionsPageServer,
   listTransactionsServer,
   previewImportTransactionsServer,
-  reviewImportCandidateServer,
   splitTxnServer,
   transferTxnServer,
   updateTxnServer,
@@ -512,18 +509,9 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
         txns: input.txns,
         mode: input.mode,
         autoCreateBudgets: input.autoCreateBudgets,
-      }),
-    listImportCandidates: (projectId: ReturnType<typeof asProjectId>) =>
-      listImportCandidatesServer({ context, projectId }),
-    reviewImportCandidate: (
-      projectId: ReturnType<typeof asProjectId>,
-      input: ImportCandidateReviewInput
-    ) =>
-      reviewImportCandidateServer({
-        context,
-        projectId,
-        candidateId: input.candidateId,
-        decision: input.decision,
+        importBatchId: input.importBatchId,
+        excludedImportIds: input.excludedImportIds,
+        reviewDecisions: input.reviewDecisions,
       }),
     cancelImportPreview: (
       projectId: ReturnType<typeof asProjectId>,

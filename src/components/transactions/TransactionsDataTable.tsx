@@ -1,4 +1,4 @@
-import { Paper, Text } from '@mantine/core';
+import { Paper, Stack, Text } from '@mantine/core';
 import {
   MantineReactTable,
   type MRT_PaginationState,
@@ -24,6 +24,7 @@ export default function TransactionsDataTable(props: {
   sorting: MRT_SortingState;
   totalCount: number;
   showProgressBars: boolean;
+  emptyStateMessage: string;
   onPaginationChange: (
     updater:
       | MRT_PaginationState
@@ -50,6 +51,7 @@ export default function TransactionsDataTable(props: {
     sorting,
     totalCount,
     showProgressBars,
+    emptyStateMessage,
     onPaginationChange,
     onRowSelectionChange,
     onSortingChange,
@@ -122,6 +124,14 @@ export default function TransactionsDataTable(props: {
             enableTopToolbar={false}
             enableDensityToggle={false}
             enableFullScreenToggle={false}
+            renderEmptyRowsFallback={() => (
+              <Stack align="center" gap={4} py="xl">
+                <Text fw={600}>No transactions to display</Text>
+                <Text size="sm" c="dimmed" ta="center">
+                  {emptyStateMessage}
+                </Text>
+              </Stack>
+            )}
           />
         </div>
       )}

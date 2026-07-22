@@ -7,21 +7,11 @@ import {
 
 import { AppError } from '../../../api/errors';
 import type {
-  ImportCandidate,
   ImportCandidateStatus,
   ImportPreviewRow,
   ProjectId,
   Txn,
   TxnReversalStatus,
-} from '../../../types';
-import {
-  asCompanyId,
-  asImportBatchId,
-  asImportCandidateId,
-  asImportRuleId,
-  asProjectId,
-  asTxnId,
-  asUserId,
 } from '../../../types';
 import type { TxnListPageInput } from '../../../api/types';
 import type { DB, TxnTable } from '../../db/schema';
@@ -40,11 +30,6 @@ export const IMPORT_PREVIEW_RATE_LIMIT = {
 
 export const IMPORT_COMMIT_RATE_LIMIT = {
   limit: 8,
-  windowMs: 10 * 60 * 1000,
-} as const;
-
-export const IMPORT_REVIEW_RATE_LIMIT = {
-  limit: 30,
   windowMs: 10 * 60 * 1000,
 } as const;
 
@@ -352,15 +337,6 @@ export function toCount(value: number | string | null | undefined): number {
   return Number(value ?? 0);
 }
 
-export function assertCommittedImportBatchStatus(status?: string | null) {
-  if (!status || !['partially_imported', 'imported'].includes(status)) {
-    throw new AppError(
-      'CONFLICT',
-      'Import preview must be committed before review candidates can be actioned'
-    );
-  }
-}
-
 export function assertTxnUnlocked(txn: Txn): void {
   if (txn.lockedAt) {
     throw new AppError(
@@ -456,63 +432,4 @@ export function persistedImportRuleId(row: ImportPreviewRow) {
   return String(row.importRuleId).startsWith('default_import_rule_')
     ? null
     : row.importRuleId;
-}
-
-export type ImportCandidateRow = {
-  id: string;
-  company_id: string;
-  project_id: string;
-  batch_id: string;
-  source_row_index: number;
-  raw_row: Record<string, string>;
-  status: ImportCandidateStatus;
-  matched_import_rule_id: string | null;
-  status_reason: string | null;
-  txn_public_id: string | null;
-  reviewed_by_user_id: string | null;
-  reviewed_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export function importCandidateSelectColumns() {
-  return [
-    'id',
-    'company_id',
-    'project_id',
-    'batch_id',
-    'source_row_index',
-    'raw_row',
-    'status',
-    'matched_import_rule_id',
-    'status_reason',
-    'txn_public_id',
-    'reviewed_by_user_id',
-    'reviewed_at',
-    'created_at',
-    'updated_at',
-  ] as const;
-}
-
-export function toImportCandidate(row: ImportCandidateRow): ImportCandidate {
-  return {
-    id: asImportCandidateId(row.id),
-    companyId: asCompanyId(row.company_id),
-    projectId: asProjectId(row.project_id),
-    batchId: asImportBatchId(row.batch_id),
-    sourceRowIndex: row.source_row_index,
-    rawRow: row.raw_row,
-    status: row.status,
-    matchedImportRuleId: row.matched_import_rule_id
-      ? asImportRuleId(row.matched_import_rule_id)
-      : undefined,
-    statusReason: row.status_reason ?? undefined,
-    txnId: row.txn_public_id ? asTxnId(row.txn_public_id) : undefined,
-    reviewedByUserId: row.reviewed_by_user_id
-      ? asUserId(row.reviewed_by_user_id)
-      : undefined,
-    reviewedAt: row.reviewed_at ?? undefined,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
 }

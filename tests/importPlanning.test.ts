@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 
 import { AppError } from '../src/api/errors.ts';
+import type { TxnImportTxnInput } from '../src/api/types.ts';
 import type {
   BudgetLine,
   Category,
@@ -114,7 +115,7 @@ function txn(overrides: Partial<Txn> = {}): Txn {
 
 function planImport(
   overrides: {
-    incomingTransactions?: Txn[];
+    incomingTransactions?: TxnImportTxnInput[];
     existingTransactions?: Txn[];
     existingBudgets?: BudgetLine[];
     projectAutoCodingRules?: ProjectAutoCodingRule[];
@@ -225,6 +226,28 @@ test('transaction import commit prioritizes project auto-coding rules over compa
   );
   assert.equal(result.importedTransactions[0].codingSource, 'project_rule');
   assert.equal(result.importedTransactions[0].codingPendingApproval, true);
+});
+
+test('transaction import commit keeps selected review rows uncoded', () => {
+  const result = planImport({
+    autoCreateBudgets: true,
+    incomingTransactions: [
+      {
+        ...txn({
+          categoryId: category.id,
+          subCategoryId: subCategory.id,
+          codingSource: 'manual',
+        }),
+        forceUncoded: true,
+      },
+    ],
+  });
+
+  assert.equal(result.importedTransactions[0].categoryId, undefined);
+  assert.equal(result.importedTransactions[0].subCategoryId, undefined);
+  assert.equal(result.importedTransactions[0].codingSource, undefined);
+  assert.equal(result.importedTransactions[0].codingPendingApproval, false);
+  assert.deepEqual(result.budgetTargetsToCreate, []);
 });
 
 test('transaction import commit resolves company defaults via inherited taxonomy provenance', () => {

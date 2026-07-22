@@ -204,6 +204,9 @@ export const importTransactionsEndpoint = defineAppEndpoint({
       txns: input.payload.txns,
       mode: input.payload.mode,
       autoCreateBudgets: input.payload.autoCreateBudgets,
+      importBatchId: input.payload.importBatchId,
+      excludedImportIds: input.payload.excludedImportIds,
+      reviewDecisions: input.payload.reviewDecisions,
     }),
 });
 

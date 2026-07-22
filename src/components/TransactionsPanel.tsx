@@ -9,7 +9,10 @@ import TransactionsModalStack from './transactions/TransactionsModalStack';
 import TransactionsDataTable from './transactions/TransactionsDataTable';
 import TransactionsOverviewCard from './transactions/TransactionsOverviewCard';
 import { createTransactionColumns } from './transactions/transactionTableColumns';
-import type { TransactionView } from './transactions/transactionViews';
+import {
+  transactionEmptyStateMessage,
+  type TransactionView,
+} from './transactions/transactionViews';
 import { useTransactionsPanelData } from './transactions/useTransactionsPanelData';
 import { useTransactionsPanelState } from './transactions/useTransactionsPanelState';
 import { useTransactionBulkActionsController } from './transactions/useTransactionBulkActionsController';
@@ -396,6 +399,13 @@ export default function TransactionsPanel(props: {
         sorting={sorting}
         totalCount={pageSummary.totalCount}
         showProgressBars={transactionsPageQ.isFetching}
+        emptyStateMessage={transactionEmptyStateMessage({
+          transactionView,
+          yearFilter,
+          quarterFilter,
+          monthFilterKey,
+          drilldownLabel,
+        })}
         onPaginationChange={(updater) => {
           clearSelection();
           setPagination(updater);

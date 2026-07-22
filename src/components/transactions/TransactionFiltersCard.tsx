@@ -1,8 +1,10 @@
-import { Button, Group, Select } from '@mantine/core';
+import { Button, Group, Select, Stack, Text } from '@mantine/core';
 
 import type { QuarterOption } from './transactionsPanelUtils';
 import {
+  TRANSACTION_VIEW_GROUPS,
   TRANSACTION_VIEW_OPTIONS,
+  transactionViewDescription,
   toTransactionView,
   type TransactionView,
 } from './transactionViews';
@@ -47,16 +49,38 @@ export default function TransactionFiltersCard(props: {
   return (
     <Group align="flex-end" gap="sm" wrap="wrap">
       <Select
-        label="Show"
-        data={TRANSACTION_VIEW_OPTIONS}
+        label="Workflow view"
+        description={transactionViewDescription(transactionView)}
+        data={TRANSACTION_VIEW_GROUPS}
         value={transactionView}
         allowDeselect={false}
+        comboboxProps={{
+          position: 'bottom-start',
+          width: isMobile ? 'target' : 360,
+        }}
+        renderOption={({ option }) => {
+          const view = TRANSACTION_VIEW_OPTIONS.find(
+            (candidate) => candidate.value === option.value
+          );
+          return (
+            <Stack gap={1} py={2}>
+              <Text size="sm" fw={600}>
+                {option.label}
+              </Text>
+              {view ? (
+                <Text size="xs" c="dimmed">
+                  {view.description}
+                </Text>
+              ) : null}
+            </Stack>
+          );
+        }}
         onChange={(value) => {
           onClearSelection();
           onResetPage();
           setTransactionView(toTransactionView(value));
         }}
-        style={{ width: isMobile ? '100%' : 230 }}
+        style={{ width: isMobile ? '100%' : 260 }}
       />
       <Select
         label="Year"

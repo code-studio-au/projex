@@ -657,10 +657,6 @@ a {
   background: var(--surface-1);
 }
 
-.importExampleCard {
-  background: var(--surface-1);
-}
-
 .importExamplePre {
   margin: 0;
   white-space: pre-wrap;

@@ -6,7 +6,6 @@ import type {
   CompanyDefaultMappingRuleId,
   CompanyDefaultSubCategoryId,
   ImportBatchId,
-  ImportCandidateId,
   ImportRuleId,
   CompanyExportJobId,
   ProjectId,
@@ -216,28 +215,9 @@ export type ImportCandidateStatus =
   | 'ready'
   | 'excluded'
   | 'needs_project_review'
-  | 'approved'
-  | 'rejected'
   | 'imported'
   | 'invalid'
   | 'duplicate';
-
-export type ImportCandidate = {
-  id: ImportCandidateId;
-  companyId: CompanyId;
-  projectId: ProjectId;
-  batchId: ImportBatchId;
-  sourceRowIndex: number;
-  rawRow: Record<string, string>;
-  status: ImportCandidateStatus;
-  matchedImportRuleId?: ImportRuleId;
-  statusReason?: string;
-  txnId?: TxnId;
-  reviewedByUserId?: UserId;
-  reviewedAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
-};
 
 type RuleSuggestionType = 'create_rule';
 type RuleSuggestionStatus = 'open' | 'accepted' | 'dismissed';

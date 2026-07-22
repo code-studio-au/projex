@@ -197,7 +197,7 @@ export default function ImportRulesEditorModal(props: {
             <Text size="sm" c="dimmed" className={classes.modalIntro}>
               {projectScoped
                 ? 'Project import rules apply only within this project. They run before company import rules so project-specific handling can override broader company defaults.'
-                : 'Import rules run before auto-categorise rules. Use them to exclude known non-project spend or hold uncertain rows for project review.'}
+                : 'Import rules run before auto-categorise rules. Use them to exclude known non-project spend or require an explicit preview decision for uncertain rows.'}
             </Text>
             <Text size="xs" c="dimmed">
               For any "any of" operator, separate values with commas or new

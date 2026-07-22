@@ -26,8 +26,6 @@ import type {
   DeleteProjectInput,
   EmailChangeRequestInput,
   EmailChangeRequestResult,
-  ImportCandidateReviewInput,
-  ImportCandidateReviewResult,
   ImportRuleCreateInput,
   ImportRuleUpdateInput,
   PendingEmailChange,
@@ -78,7 +76,6 @@ import type {
   CompanyMembership,
   ProjectId,
   CompanySummary,
-  ImportCandidate,
   ImportRule,
   ProjectAutoCodingRule,
   ProjectMembership,
@@ -263,15 +260,7 @@ export type MembershipEndpointsModule = {
 };
 
 export type ImportEndpointsModule = {
-  listImportCandidatesEndpoint: AppEndpoint<
-    { projectId: ProjectId },
-    ImportCandidate[]
-  >;
   listImportRulesEndpoint: AppEndpoint<{ companyId: CompanyId }, ImportRule[]>;
-  reviewImportCandidateEndpoint: AppEndpoint<
-    { projectId: ProjectId; payload: ImportCandidateReviewInput },
-    ImportCandidateReviewResult
-  >;
   createImportRuleEndpoint: AppEndpoint<
     { companyId: CompanyId; payload: ImportRuleCreateInput },
     ImportRule

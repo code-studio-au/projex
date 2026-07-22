@@ -3,7 +3,10 @@ import { test } from 'vitest';
 
 import { getTransactionRowStatus } from '../src/components/transactions/transactionRowPresentation.ts';
 import {
+  TRANSACTION_VIEW_GROUPS,
   TRANSACTION_VIEW_OPTIONS,
+  transactionEmptyStateMessage,
+  transactionViewDescription,
   toTransactionView,
 } from '../src/components/transactions/transactionViews.ts';
 import {
@@ -163,6 +166,70 @@ test('transaction view parsing keeps the filter options and fallback aligned', (
   assert.equal(toTransactionView('needs-review'), 'needs-review');
   assert.equal(toTransactionView('unsupported'), 'all');
   assert.equal(toTransactionView(null), 'all');
+  assert.deepEqual(
+    TRANSACTION_VIEW_GROUPS.map(({ group, items }) => ({
+      group,
+      values: items.map((item) => item.value),
+    })),
+    [
+      {
+        group: 'Common views',
+        values: ['all', 'uncoded', 'needs-review', 'assigned-to-me'],
+      },
+      {
+        group: 'Specialist views',
+        values: [
+          'auto-mapped-pending',
+          'pending-reversal',
+          'matched-reversal-pairs',
+        ],
+      },
+    ]
+  );
+  assert.equal(
+    transactionViewDescription('needs-review'),
+    'Coding approvals and reversal decisions requiring attention.'
+  );
+});
+
+test('transaction empty states describe workflow and date filters', () => {
+  assert.equal(
+    transactionEmptyStateMessage({
+      transactionView: 'all',
+      yearFilter: null,
+      quarterFilter: null,
+      monthFilterKey: null,
+    }),
+    'No transactions have been imported for this project yet.'
+  );
+  assert.equal(
+    transactionEmptyStateMessage({
+      transactionView: 'needs-review',
+      yearFilter: '2025',
+      quarterFilter: 'Q2',
+      monthFilterKey: null,
+    }),
+    'No transactions match the "Needs review" view and Q2 2025.'
+  );
+  assert.equal(
+    transactionEmptyStateMessage({
+      transactionView: 'pending-reversal',
+      yearFilter: null,
+      quarterFilter: null,
+      monthFilterKey: null,
+    }),
+    'No transactions match the "Open reversal items" view.'
+  );
+  assert.equal(
+    transactionEmptyStateMessage({
+      transactionView: 'all',
+      yearFilter: '2025',
+      quarterFilter: 'Q2',
+      monthFilterKey: '2025-06',
+      drilldownLabel: 'Travel / Flights',
+    }),
+    'No transactions match month 2025-06 and the "Travel / Flights" budget drilldown.'
+  );
 });
 
 test('workflow headings describe the selected queue without financial totals', () => {

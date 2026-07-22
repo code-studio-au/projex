@@ -38,6 +38,43 @@ test('transaction import schema limits the number of imported transactions', () 
   assert.equal(result.success, false);
 });
 
+test('transaction import schema requires a preview batch for review decisions', () => {
+  const result = txnImportInputSchema.safeParse({
+    txns: [],
+    mode: 'append',
+    reviewDecisions: [{ previewImportId: 'txn_review_1', decision: 'exclude' }],
+  });
+
+  assert.equal(result.success, false);
+  if (result.success) return;
+  assert.equal(result.error.issues[0]?.path[0], 'importBatchId');
+});
+
+test('transaction import schema accepts an uncoded review decision', () => {
+  const result = txnImportInputSchema.safeParse({
+    txns: [
+      {
+        id: 'txn_review_1',
+        companyId: 'co_1',
+        projectId: 'prj_1',
+        date: '2026-05-01',
+        item: 'Salary transfer',
+        description: 'Review row',
+        amountCents: 100,
+        importBatchId: 'impb_1',
+        forceUncoded: true,
+      },
+    ],
+    mode: 'append',
+    importBatchId: 'impb_1',
+    reviewDecisions: [
+      { previewImportId: 'txn_review_1', decision: 'import_uncoded' },
+    ],
+  });
+
+  assert.equal(result.success, true);
+});
+
 test('transaction import preview schema limits CSV payload size', () => {
   const result = txnImportPreviewInputSchema.safeParse({
     csvText: 'a'.repeat(MAX_IMPORT_PREVIEW_CSV_TEXT_LENGTH + 1),

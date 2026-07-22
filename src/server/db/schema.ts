@@ -263,7 +263,7 @@ export type ImportBatchTable = Override<
   ImportBatches,
   {
     source_type: 'powerbi_expenditure_actuals';
-    status: 'previewed' | 'partially_imported' | 'imported' | 'cancelled';
+    status: 'previewed' | 'imported';
     created_at: Generated<string>;
     updated_at: Generated<string>;
   }

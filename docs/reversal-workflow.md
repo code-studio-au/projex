@@ -50,8 +50,9 @@ actual reversal has not been imported yet.
   different source systems are never paired automatically.
 - A reversal candidate must occur on or after its source transaction and no
   more than 62 days later; earlier negative transactions are never considered.
-- EXA rows import by default. Company or project Import Rules can still review
-  or exclude a narrower EXA subset when the team has a reliable local marker.
+- EXA rows import by default. Company or project Import Rules can still hold a
+  narrower EXA subset for an explicit preview decision, or exclude it, when the
+  team has a reliable local marker.
 - Matching uses the transaction information available in the import data and
   therefore may need a “best available” default when multiple imported rows are
   effectively indistinguishable.

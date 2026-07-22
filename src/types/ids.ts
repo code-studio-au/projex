@@ -26,7 +26,6 @@ export type ProjectAutoCodingRuleId = Brand<string, 'ProjectAutoCodingRuleId'>;
 export type RuleSuggestionId = Brand<string, 'RuleSuggestionId'>;
 export type ImportRuleId = Brand<string, 'ImportRuleId'>;
 export type ImportBatchId = Brand<string, 'ImportBatchId'>;
-export type ImportCandidateId = Brand<string, 'ImportCandidateId'>;
 export type CompanyExportJobId = Brand<string, 'CompanyExportJobId'>;
 export type TxnId = Brand<string, 'TxnId'>;
 export type TxnCommentId = Brand<string, 'TxnCommentId'>;
@@ -52,8 +51,6 @@ export const asRuleSuggestionId = (v: string) =>
   brand<string, 'RuleSuggestionId'>(v);
 export const asImportRuleId = (v: string) => brand<string, 'ImportRuleId'>(v);
 export const asImportBatchId = (v: string) => brand<string, 'ImportBatchId'>(v);
-export const asImportCandidateId = (v: string) =>
-  brand<string, 'ImportCandidateId'>(v);
 export const asCompanyExportJobId = (v: string) =>
   brand<string, 'CompanyExportJobId'>(v);
 export const asTxnId = (v: string) => brand<string, 'TxnId'>(v);

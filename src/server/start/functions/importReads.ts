@@ -13,21 +13,6 @@ import {
 const loadImportEndpoints = () =>
   loadAppEndpointModule<ImportEndpointsModule>('importEndpoints');
 
-export const listImportCandidatesServerFn = createServerFn({ method: 'GET' })
-  .middleware([startApiMiddleware])
-  .inputValidator(
-    lazyServerFnInputValidator(
-      loadImportEndpoints,
-      'listImportCandidatesEndpoint'
-    )
-  )
-  .handler(
-    createLazyServerFnEndpointHandler(
-      loadImportEndpoints,
-      'listImportCandidatesEndpoint'
-    )
-  );
-
 export const listImportRulesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .inputValidator(
@@ -37,23 +22,6 @@ export const listImportRulesServerFn = createServerFn({ method: 'GET' })
     createLazyServerFnEndpointHandler(
       loadImportEndpoints,
       'listImportRulesEndpoint'
-    )
-  );
-
-export const reviewImportCandidateServerFn = createServerFn({
-  method: 'POST',
-})
-  .middleware([startApiMiddleware])
-  .inputValidator(
-    lazyServerFnInputValidator(
-      loadImportEndpoints,
-      'reviewImportCandidateEndpoint'
-    )
-  )
-  .handler(
-    createLazyServerFnEndpointHandler(
-      loadImportEndpoints,
-      'reviewImportCandidateEndpoint'
     )
   );
 

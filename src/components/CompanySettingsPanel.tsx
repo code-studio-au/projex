@@ -759,8 +759,9 @@ export default function CompanySettingsPanel(props: {
           <Title order={5}>Import Rules</Title>
           <Text size="sm" c="dimmed">
             Decide which PowerBI rows import, which are excluded, and which are
-            staged for project review before Auto-Categorise Rules run. These
-            are the company-level rules that synced projects inherit by default.
+            held for a required decision in the import preview before
+            Auto-Categorise Rules run. These are the company-level rules that
+            synced projects inherit by default.
           </Text>
           {companyImportRulesQ.isPending && !companyImportRulesQ.data ? (
             <Text size="sm" c="dimmed">
