@@ -51,8 +51,10 @@ The design should stay anchored to the existing repo behavior:
 - manual category and subcategory edits in `TransactionsPanel` explicitly write
   `codingSource: 'manual'`, clear any prior mapping rule reference, and clear
   pending approval
-- company default mapping rules are company-scoped and later resolved into each
-  project's taxonomy by matching default category and subcategory names
+- company default mapping rules are company-scoped and canonically target a
+  company default subcategory ID; the category is derived from that target
+- company rules resolve into project taxonomy by explicit company-origin IDs
+  first, with a category-qualified name fallback for older or local taxonomy
 
 This means suggestions should be created from manual coding events, but the
 accepted output should still be a normal company default mapping rule.
@@ -376,14 +378,18 @@ logic.
 Accepted suggestions must produce company default mapping rules, not project-only
 taxonomy shortcuts.
 
-That means suggestion acceptance must verify that the chosen project category and
-subcategory map cleanly to existing company default taxonomy by name or, better,
-by explicit relationship if we later add one.
+That means suggestion acceptance must verify that the chosen project
+subcategory maps cleanly to existing company default taxonomy. Subcategory ID
+is the canonical rule target; category is retained for display and
+rollback-compatible storage but is derived by the server.
 
 For V1:
 
-- reuse the existing "company defaults applied into projects by matching names"
-  model
+- resolve explicit company-origin subcategory IDs first, including project
+  overrides that have moved the inherited subcategory to a different category
+- use a category-qualified name fallback only when no explicit origin link is
+  available, so duplicate subcategory names in different categories remain
+  unambiguous
 - if the project target cannot be resolved back to company defaults, block
   acceptance and ask the admin to fix company defaults first
 
@@ -414,10 +420,24 @@ Each suggestion row should show:
 Acceptance UX should allow a final edit to:
 
 - proposed match text
-- target company default category
-- target company default subcategory
+- target company default category, used to narrow and explain the available
+  choices
+- target company default subcategory, whose ID is the submitted rule target
 
 This keeps the system helpful without being overly automatic.
+
+## Taxonomy Change Behaviour
+
+- Moving a subcategory keeps its ID, so dependent auto-coding rules follow it
+  automatically and their derived category is updated atomically.
+- Duplicate subcategory names are allowed across categories and are
+  distinguished by ID and full category path.
+- Deleting a subcategory with dependent rules requires an explicit choice to
+  reassign those rules to another subcategory or delete them with the target.
+- Company-linked project taxonomy can be renamed or moved as a project
+  override, but cannot be deleted while its company source still exists.
+- Unlocked transactions and budget lines follow project subcategory moves;
+  locked transactions preserve their historical category assignment.
 
 ## Performance Approach
 

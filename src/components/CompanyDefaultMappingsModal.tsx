@@ -8,7 +8,6 @@ import {
 } from '../queries/taxonomy';
 import type { CompanyId } from '../types';
 import {
-  asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
   asCompanyDefaultSubCategoryId,
 } from '../types';
@@ -69,25 +68,18 @@ export default function CompanyDefaultMappingsModal(props: {
         creating: createRule.isPending,
         updating: updateRule.isPending,
         deleting: deleteRule.isPending,
-        create: ({ matchText, categoryId, subCategoryId, sortOrder }) =>
+        create: ({ matchText, subCategoryId, sortOrder }) =>
           createRule.mutateAsync({
             companyId,
             matchText,
-            companyDefaultCategoryId: asCompanyDefaultCategoryId(categoryId),
             companyDefaultSubCategoryId:
               asCompanyDefaultSubCategoryId(subCategoryId),
             sortOrder,
           }),
-        update: ({ id, matchText, categoryId, subCategoryId, sortOrder }) =>
+        update: ({ id, matchText, subCategoryId, sortOrder }) =>
           updateRule.mutateAsync({
             id: asCompanyDefaultMappingRuleId(id),
             ...(typeof matchText === 'string' ? { matchText } : {}),
-            ...(typeof categoryId === 'string'
-              ? {
-                  companyDefaultCategoryId:
-                    asCompanyDefaultCategoryId(categoryId),
-                }
-              : {}),
             ...(typeof subCategoryId === 'string'
               ? {
                   companyDefaultSubCategoryId:

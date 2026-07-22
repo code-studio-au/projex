@@ -418,6 +418,11 @@ export type SubCategoryUpdateInput = Partial<
   id: SubCategory['id'];
 };
 
+export type DeleteSubCategoryInput = {
+  subCategoryId: SubCategory['id'];
+  replacementSubCategoryId?: SubCategory['id'];
+};
+
 export type CompanyDefaultSubCategoryCreateInput = Omit<
   CompanyDefaultSubCategory,
   'id' | 'createdAt' | 'updatedAt'
@@ -430,16 +435,21 @@ export type CompanyDefaultSubCategoryUpdateInput = Partial<
   id: CompanyDefaultSubCategory['id'];
 };
 
+export type DeleteCompanyDefaultSubCategoryInput = {
+  subCategoryId: CompanyDefaultSubCategory['id'];
+  replacementSubCategoryId?: CompanyDefaultSubCategory['id'];
+};
+
 export type CompanyDefaultMappingRuleCreateInput = Omit<
   CompanyDefaultMappingRule,
-  'id' | 'createdAt' | 'updatedAt'
+  'id' | 'companyDefaultCategoryId' | 'createdAt' | 'updatedAt'
 > & {
   id?: CompanyDefaultMappingRule['id'];
 };
 export type CompanyDefaultMappingRuleUpdateInput = Partial<
   Omit<
     CompanyDefaultMappingRule,
-    'id' | 'companyId' | 'createdAt' | 'updatedAt'
+    'id' | 'companyId' | 'companyDefaultCategoryId' | 'createdAt' | 'updatedAt'
   >
 > & {
   id: CompanyDefaultMappingRule['id'];
@@ -448,7 +458,6 @@ export type CompanyDefaultMappingRuleUpdateInput = Partial<
 export type RuleSuggestionAcceptInput = {
   id: RuleSuggestion['id'];
   proposedMatchText: string;
-  companyDefaultCategoryId: CompanyDefaultMappingRule['companyDefaultCategoryId'];
   companyDefaultSubCategoryId: CompanyDefaultMappingRule['companyDefaultSubCategoryId'];
 };
 
@@ -466,20 +475,9 @@ export type ProjectRuleSuggestionPrompt = {
   supportingCount: number;
 };
 
-export type CreateProjectAutoCodingRuleInput = Omit<
+export type CreateProjectAutoCodingRuleInput = Pick<
   ProjectAutoCodingRule,
-  | 'id'
-  | 'companyId'
-  | 'projectId'
-  | 'originScope'
-  | 'originCompanyItemId'
-  | 'syncStatus'
-  | 'lastSyncedAt'
-  | 'sourceUpdatedAtSnapshot'
-  | 'sortOrder'
-  | 'createdByUserId'
-  | 'createdAt'
-  | 'updatedAt'
+  'matchText' | 'subCategoryId'
 >;
 
 export type CreateProjectAutoCodingRuleResult = {
@@ -498,6 +496,7 @@ export type ProjectAutoCodingRuleUpdateInput = Partial<
     | 'syncStatus'
     | 'lastSyncedAt'
     | 'sourceUpdatedAtSnapshot'
+    | 'categoryId'
     | 'createdByUserId'
     | 'createdAt'
     | 'updatedAt'

@@ -208,19 +208,30 @@ export async function deleteProjectCategory(args: {
   const db = getDb();
   const existing = await db
     .selectFrom('categories')
-    .select(['id', 'origin_scope', 'sync_status'])
+    .select([
+      'id',
+      'company_id',
+      'origin_scope',
+      'origin_company_item_id',
+      'sync_status',
+    ])
     .where('project_id', '=', args.projectId)
     .where('id', '=', args.categoryId)
     .executeTakeFirst();
   if (!existing) return;
-  if (
-    existing.origin_scope === 'company' &&
-    existing.sync_status === 'inherited'
-  ) {
-    throw new AppError(
-      'VALIDATION_ERROR',
-      'Inherited company categories cannot be deleted from a synced project.'
-    );
+  if (existing.origin_scope === 'company' && existing.origin_company_item_id) {
+    const companySource = await db
+      .selectFrom('company_default_categories')
+      .select('id')
+      .where('company_id', '=', asCompanyId(existing.company_id))
+      .where('id', '=', existing.origin_company_item_id)
+      .executeTakeFirst();
+    if (companySource) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Company-linked categories cannot be deleted while their company default still exists.'
+      );
+    }
   }
 
   await db.transaction().execute(async (trx) => {
@@ -231,6 +242,27 @@ export async function deleteProjectCategory(args: {
       .where('category_id', '=', args.categoryId)
       .execute();
     const subIds = subs.map((s) => s.id);
+
+    const lockedTransaction = await trx
+      .selectFrom('txns')
+      .select('public_id')
+      .where('project_id', '=', args.projectId)
+      .where('locked_at', 'is not', null)
+      .where((eb) =>
+        subIds.length
+          ? eb.or([
+              eb('category_id', '=', args.categoryId),
+              eb('sub_category_id', 'in', subIds),
+            ])
+          : eb('category_id', '=', args.categoryId)
+      )
+      .executeTakeFirst();
+    if (lockedTransaction) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Category cannot be deleted while locked transactions use it'
+      );
+    }
 
     await trx
       .deleteFrom('sub_categories')
@@ -418,6 +450,24 @@ export async function updateProjectSubCategory(args: {
     typeof args.input.categoryId !== 'undefined'
       ? args.input.categoryId
       : asCategoryId(existing.category_id);
+  if (nextCategoryId !== asCategoryId(existing.category_id)) {
+    const duplicate = await db
+      .selectFrom('sub_categories')
+      .select('id')
+      .where('project_id', '=', args.projectId)
+      .where('id', '!=', args.input.id)
+      .where('category_id', '=', nextCategoryId)
+      .where(({ fn, eb }) =>
+        eb(fn('lower', ['name']), '=', nextName.toLowerCase())
+      )
+      .executeTakeFirst();
+    if (duplicate) {
+      throw new AppError(
+        'CONFLICT',
+        `Subcategory "${nextName}" already exists in the destination category`
+      );
+    }
+  }
   const patch: Record<string, unknown> = {};
   if (typeof args.input.name === 'string') patch.name = nextName;
   if (typeof args.input.categoryId !== 'undefined') {
@@ -463,42 +513,167 @@ export async function updateProjectSubCategory(args: {
       patch.last_synced_at = new Date().toISOString();
     }
   }
-  patch.updated_at = new Date().toISOString();
+  const now = new Date().toISOString();
+  patch.updated_at = now;
 
-  const updated = await db
-    .updateTable('sub_categories')
-    .set(patch)
-    .where('project_id', '=', args.projectId)
-    .where('id', '=', args.input.id)
-    .returning(subCategorySelectColumns())
-    .executeTakeFirstOrThrow();
+  const updated = await db.transaction().execute(async (trx) => {
+    const row = await trx
+      .updateTable('sub_categories')
+      .set(patch)
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', args.input.id)
+      .returning(subCategorySelectColumns())
+      .executeTakeFirstOrThrow();
+
+    if (nextCategoryId !== asCategoryId(existing.category_id)) {
+      await trx
+        .updateTable('budget_lines')
+        .set({ category_id: nextCategoryId, updated_at: now })
+        .where('project_id', '=', args.projectId)
+        .where('sub_category_id', '=', args.input.id)
+        .execute();
+
+      await trx
+        .updateTable('txns')
+        .set({ category_id: nextCategoryId, updated_at: now })
+        .where('project_id', '=', args.projectId)
+        .where('sub_category_id', '=', args.input.id)
+        .where('locked_at', 'is', null)
+        .execute();
+    }
+
+    return row;
+  });
   return toSubCategory(updated);
 }
 
 export async function deleteProjectSubCategory(args: {
   projectId: ProjectId;
   subCategoryId: SubCategory['id'];
+  replacementSubCategoryId?: SubCategory['id'];
 }) {
   const db = getDb();
   const existing = await db
     .selectFrom('sub_categories')
-    .select(['id', 'origin_scope', 'sync_status'])
+    .select([
+      'id',
+      'company_id',
+      'origin_scope',
+      'origin_company_item_id',
+      'sync_status',
+    ])
     .where('project_id', '=', args.projectId)
     .where('id', '=', args.subCategoryId)
     .executeTakeFirst();
   if (!existing) return;
-  if (
-    existing.origin_scope === 'company' &&
-    existing.sync_status === 'inherited'
-  ) {
+  if (existing.origin_scope === 'company' && existing.origin_company_item_id) {
+    const companySource = await db
+      .selectFrom('company_default_sub_categories')
+      .select('id')
+      .where('company_id', '=', asCompanyId(existing.company_id))
+      .where('id', '=', existing.origin_company_item_id)
+      .executeTakeFirst();
+    if (companySource) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Company-linked subcategories cannot be deleted while their company default still exists.'
+      );
+    }
+  }
+
+  const lockedTransaction = await db
+    .selectFrom('txns')
+    .select('public_id')
+    .where('project_id', '=', args.projectId)
+    .where('sub_category_id', '=', args.subCategoryId)
+    .where('locked_at', 'is not', null)
+    .executeTakeFirst();
+  if (lockedTransaction) {
     throw new AppError(
       'VALIDATION_ERROR',
-      'Inherited company subcategories cannot be deleted from a synced project.'
+      'Subcategory cannot be deleted while locked transactions use it'
     );
   }
 
   const now = new Date().toISOString();
+  const replacement = args.replacementSubCategoryId
+    ? await db
+        .selectFrom('sub_categories')
+        .select(['id', 'category_id'])
+        .where('project_id', '=', args.projectId)
+        .where('id', '=', args.replacementSubCategoryId)
+        .executeTakeFirst()
+    : null;
+  if (args.replacementSubCategoryId && !replacement) {
+    throw new AppError('NOT_FOUND', 'Unknown replacement subcategory');
+  }
+  if (replacement?.id === args.subCategoryId) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Replacement subcategory must be different from the deleted subcategory'
+    );
+  }
+
+  const affectedRules = replacement
+    ? await db
+        .selectFrom('project_auto_coding_rules')
+        .select([
+          'id',
+          'match_text',
+          'origin_scope',
+          'origin_company_item_id',
+          'sync_status',
+        ])
+        .where('project_id', '=', args.projectId)
+        .where('sub_category_id', '=', args.subCategoryId)
+        .execute()
+    : [];
+  if (replacement && affectedRules.length > 0) {
+    const replacementRules = await db
+      .selectFrom('project_auto_coding_rules')
+      .select('match_text')
+      .where('project_id', '=', args.projectId)
+      .where('sub_category_id', '=', replacement.id)
+      .execute();
+    const replacementMatches = new Set(
+      replacementRules.map((rule) => rule.match_text.trim().toLowerCase())
+    );
+    const conflict = affectedRules.find((rule) =>
+      replacementMatches.has(rule.match_text.trim().toLowerCase())
+    );
+    if (conflict) {
+      throw new AppError(
+        'CONFLICT',
+        `Auto-coding rule "${conflict.match_text}" already targets the replacement subcategory`
+      );
+    }
+  }
+
   await db.transaction().execute(async (trx) => {
+    if (replacement) {
+      for (const rule of affectedRules) {
+        const patch: Record<string, unknown> = {
+          category_id: replacement.category_id,
+          sub_category_id: replacement.id,
+          updated_at: now,
+        };
+        if (
+          rule.origin_scope === 'company' &&
+          rule.origin_company_item_id &&
+          rule.sync_status === 'inherited'
+        ) {
+          patch.sync_status = 'overridden';
+          patch.last_synced_at = now;
+        }
+        await trx
+          .updateTable('project_auto_coding_rules')
+          .set(patch)
+          .where('project_id', '=', args.projectId)
+          .where('id', '=', rule.id)
+          .execute();
+      }
+    }
+
     await trx
       .updateTable('budget_lines')
       .set({ sub_category_id: null, updated_at: now })

@@ -21,6 +21,7 @@ import {
   useBulkRecodeProjectTransactionsMutation,
   usePromoteProjectSubCategoryToCompanyDefaultMutation,
 } from '../queries/taxonomy';
+import { useProjectAutoCodingRulesQuery } from '../queries/projectAutoCodingRules';
 import classes from '../styles/ui.module.css';
 import { asCategoryId, asSubCategoryId } from '../types/ids';
 import {
@@ -68,6 +69,10 @@ function ProjectStandardStatus(props: { item: ProjectStandardItem }) {
   );
 }
 
+function canDeleteProjectStandard(item: ProjectStandardItem) {
+  return item.originScope !== 'company' || item.syncStatus === 'detached';
+}
+
 export default function TaxonomyManagerModal(props: {
   opened: boolean;
   onClose: () => void;
@@ -81,6 +86,7 @@ export default function TaxonomyManagerModal(props: {
   const bulkRecode = useBulkRecodeProjectTransactionsMutation(
     taxonomy.projectId
   );
+  const autoCodingRulesQ = useProjectAutoCodingRulesQuery(taxonomy.projectId);
   const promoteProjectSubCategory =
     usePromoteProjectSubCategoryToCompanyDefaultMutation(
       taxonomy.projectId,
@@ -119,6 +125,13 @@ export default function TaxonomyManagerModal(props: {
     null
   );
   const [deleting, setDeleting] = useState(false);
+  const [deleteRuleHandling, setDeleteRuleHandling] = useState<
+    'delete' | 'reassign'
+  >('delete');
+  const [deleteReplacementCategoryId, setDeleteReplacementCategoryId] =
+    useState<string | null>(null);
+  const [deleteReplacementSubCategoryId, setDeleteReplacementSubCategoryId] =
+    useState<string | null>(null);
 
   const categoryOptions = taxonomy.categoryOptions;
   const normalizedSearch = taxonomySearch.trim().toLocaleLowerCase();
@@ -144,6 +157,34 @@ export default function TaxonomyManagerModal(props: {
   const moveCategoryOptions = categoryOptions.filter(
     (option) => option.value !== pendingMove?.currentCategoryId
   );
+  const autoCodingRules = autoCodingRulesQ.data ?? [];
+  const moveAffectedRules = pendingMove
+    ? autoCodingRules.filter(
+        (rule) => rule.subCategoryId === pendingMove.subCategoryId
+      )
+    : [];
+  const deleteAffectedSubCategoryIds = new Set(
+    pendingDelete?.kind === 'category'
+      ? taxonomy.subCategories
+          .filter((subCategory) => subCategory.categoryId === pendingDelete.id)
+          .map((subCategory) => subCategory.id)
+      : pendingDelete?.kind === 'subcategory'
+        ? [pendingDelete.id]
+        : []
+  );
+  const deleteAffectedRules = autoCodingRules.filter((rule) =>
+    deleteAffectedSubCategoryIds.has(rule.subCategoryId)
+  );
+  const deleteReplacementSubCategoryOptions = taxonomy.subCategories
+    .filter(
+      (subCategory) =>
+        subCategory.categoryId === deleteReplacementCategoryId &&
+        !deleteAffectedSubCategoryIds.has(subCategory.id)
+    )
+    .map((subCategory) => ({
+      value: subCategory.id,
+      label: subCategory.name,
+    }));
   const bulkRecodeSubCategoryOptions = taxonomy.subCategories
     .filter(
       (subCategory) =>
@@ -158,6 +199,26 @@ export default function TaxonomyManagerModal(props: {
   function clearMessages() {
     setError(null);
     setStatus(null);
+  }
+
+  function beginDelete(target: PendingDelete) {
+    clearMessages();
+    setPendingDelete(target);
+    setDeleteRuleHandling(
+      target.kind === 'subcategory' &&
+        autoCodingRules.some((rule) => rule.subCategoryId === target.id)
+        ? 'reassign'
+        : 'delete'
+    );
+    setDeleteReplacementCategoryId(null);
+    setDeleteReplacementSubCategoryId(null);
+  }
+
+  function closeDelete() {
+    setPendingDelete(null);
+    setDeleteRuleHandling('delete');
+    setDeleteReplacementCategoryId(null);
+    setDeleteReplacementSubCategoryId(null);
   }
 
   function beginRename(target: RenameTarget) {
@@ -481,7 +542,7 @@ export default function TaxonomyManagerModal(props: {
                           .includes(normalizedSearch)
                       )
                     : allSubCategories;
-                const canDeleteCategory = !isInheritedCompanyStandard(category);
+                const canDeleteCategory = canDeleteProjectStandard(category);
                 const renamingCategory =
                   renameTarget?.kind === 'category' &&
                   renameTarget.id === category.id;
@@ -565,8 +626,7 @@ export default function TaxonomyManagerModal(props: {
                                   color="red"
                                   leftSection={<IconTrash size={15} />}
                                   onClick={() => {
-                                    clearMessages();
-                                    setPendingDelete({
+                                    beginDelete({
                                       kind: 'category',
                                       id: category.id,
                                       name: category.name,
@@ -592,6 +652,8 @@ export default function TaxonomyManagerModal(props: {
                           {visibleSubCategories.map((subCategory) => {
                             const inherited =
                               isInheritedCompanyStandard(subCategory);
+                            const canDeleteSubCategory =
+                              canDeleteProjectStandard(subCategory);
                             const renamingSubCategory =
                               renameTarget?.kind === 'subcategory' &&
                               renameTarget.id === subCategory.id;
@@ -744,7 +806,7 @@ export default function TaxonomyManagerModal(props: {
                                             Add to company defaults
                                           </Menu.Item>
                                         ) : null}
-                                        {!inherited ? (
+                                        {canDeleteSubCategory ? (
                                           <>
                                             <Menu.Divider />
                                             <Menu.Item
@@ -753,8 +815,7 @@ export default function TaxonomyManagerModal(props: {
                                                 <IconTrash size={15} />
                                               }
                                               onClick={() => {
-                                                clearMessages();
-                                                setPendingDelete({
+                                                beginDelete({
                                                   kind: 'subcategory',
                                                   id: subCategory.id,
                                                   name: subCategory.name,
@@ -798,6 +859,21 @@ export default function TaxonomyManagerModal(props: {
             budget line moves with it, and unlocked transactions using it will
             be updated to the new category.
           </Text>
+          {moveAffectedRules.length > 0 ? (
+            <Alert color="blue" title="Auto-coding impact">
+              {moveAffectedRules.length}{' '}
+              {moveAffectedRules.length === 1 ? 'rule' : 'rules'} targeting this
+              exact subcategory ID will follow the move automatically
+              {moveCategoryId
+                ? ` to ${
+                    taxonomy.categories.find(
+                      (category) => category.id === moveCategoryId
+                    )?.name ?? 'the selected category'
+                  } > ${pendingMove?.subCategoryName ?? ''}`
+                : ''}
+              .
+            </Alert>
+          ) : null}
           <Select
             label="New category"
             placeholder="Select category"
@@ -939,7 +1015,7 @@ export default function TaxonomyManagerModal(props: {
 
       <Modal
         opened={!!pendingDelete}
-        onClose={() => setPendingDelete(null)}
+        onClose={closeDelete}
         title={
           pendingDelete?.kind === 'category'
             ? 'Delete category?'
@@ -956,12 +1032,90 @@ export default function TaxonomyManagerModal(props: {
               ? `Deleting "${pendingDelete.name}" will remove its subcategories and uncode affected transactions and budgets.`
               : `Deleting "${pendingDelete?.name ?? ''}" will uncode affected transactions and budgets.`}
           </Text>
+          {deleteAffectedRules.length > 0 ? (
+            <Alert color="yellow" title="Auto-coding rules affected">
+              {deleteAffectedRules.length}{' '}
+              {deleteAffectedRules.length === 1
+                ? 'rule targets'
+                : 'rules target'}{' '}
+              this {pendingDelete?.kind}. Matches:{' '}
+              {deleteAffectedRules.map((rule) => rule.matchText).join(', ')}.
+            </Alert>
+          ) : null}
+          {pendingDelete?.kind === 'subcategory' &&
+          deleteAffectedRules.length > 0 ? (
+            <>
+              <Select
+                label="Affected rule handling"
+                data={[
+                  {
+                    value: 'reassign',
+                    label: `Reassign ${deleteAffectedRules.length} ${
+                      deleteAffectedRules.length === 1 ? 'rule' : 'rules'
+                    } before deleting`,
+                  },
+                  {
+                    value: 'delete',
+                    label: `Delete ${deleteAffectedRules.length} ${
+                      deleteAffectedRules.length === 1 ? 'rule' : 'rules'
+                    } with the subcategory`,
+                  },
+                ]}
+                value={deleteRuleHandling}
+                allowDeselect={false}
+                onChange={(value) => {
+                  setDeleteRuleHandling(
+                    value === 'reassign' ? 'reassign' : 'delete'
+                  );
+                  setDeleteReplacementCategoryId(null);
+                  setDeleteReplacementSubCategoryId(null);
+                }}
+              />
+              {deleteRuleHandling === 'reassign' ? (
+                <Group grow align="flex-end" wrap="wrap">
+                  <Select
+                    label="Replacement category"
+                    data={categoryOptions}
+                    value={deleteReplacementCategoryId}
+                    searchable
+                    {...firefoxSafeModalSelectProps}
+                    onChange={(value) => {
+                      setDeleteReplacementCategoryId(value);
+                      setDeleteReplacementSubCategoryId(null);
+                    }}
+                  />
+                  <Select
+                    label="Replacement subcategory"
+                    placeholder={
+                      deleteReplacementCategoryId
+                        ? 'Select subcategory'
+                        : 'Choose category first'
+                    }
+                    data={deleteReplacementSubCategoryOptions}
+                    value={deleteReplacementSubCategoryId}
+                    searchable
+                    disabled={!deleteReplacementCategoryId}
+                    {...firefoxSafeModalSelectProps}
+                    onChange={setDeleteReplacementSubCategoryId}
+                  />
+                </Group>
+              ) : null}
+            </>
+          ) : null}
+          {pendingDelete?.kind === 'category' &&
+          deleteAffectedRules.length > 0 ? (
+            <Text size="sm" c="dimmed">
+              Category deletion removes all affected rules. To preserve any of
+              them, cancel and reassign those rules before deleting the
+              category.
+            </Text>
+          ) : null}
           <Group className={classes.footerRow}>
             <Button
               variant="default"
               fullWidth={isMobile}
               disabled={deleting}
-              onClick={() => setPendingDelete(null)}
+              onClick={closeDelete}
             >
               Cancel
             </Button>
@@ -969,6 +1123,12 @@ export default function TaxonomyManagerModal(props: {
               color="red"
               fullWidth={isMobile}
               loading={deleting}
+              disabled={
+                pendingDelete?.kind === 'subcategory' &&
+                deleteAffectedRules.length > 0 &&
+                deleteRuleHandling === 'reassign' &&
+                !deleteReplacementSubCategoryId
+              }
               onClick={async () => {
                 if (!pendingDelete) return;
                 try {
@@ -980,10 +1140,14 @@ export default function TaxonomyManagerModal(props: {
                     );
                   } else {
                     await taxonomy.deleteSubCategory(
-                      asSubCategoryId(pendingDelete.id)
+                      asSubCategoryId(pendingDelete.id),
+                      deleteRuleHandling === 'reassign' &&
+                        deleteReplacementSubCategoryId
+                        ? asSubCategoryId(deleteReplacementSubCategoryId)
+                        : undefined
                     );
                   }
-                  setPendingDelete(null);
+                  closeDelete();
                 } catch (err) {
                   setError(
                     err instanceof Error

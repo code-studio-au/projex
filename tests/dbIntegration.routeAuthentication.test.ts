@@ -539,7 +539,6 @@ test(
             x.createCompanyDefaultMappingRule(companyId, {
               companyId,
               matchText: 'hotel',
-              companyDefaultCategoryId: defaultCategoryId,
               companyDefaultSubCategoryId: defaultSubCategoryId,
               sortOrder: 1,
             }),

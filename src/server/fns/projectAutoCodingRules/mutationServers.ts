@@ -41,7 +41,6 @@ import {
 import { syncCompanyTaxonomyToProjects } from '../taxonomy/standards';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import {
-  assertCategoryInProject,
   assertSubCategoryInProject,
   requireOperationalProjectForAction,
 } from '../resourceGuards';
@@ -73,17 +72,12 @@ export async function createProjectAutoCodingRuleServer(args: {
     );
     const { db, userId, companyId } = context;
     validateOrThrow(subCategoryNameSchema, args.input.matchText);
-    await assertCategoryInProject({
-      db,
-      projectId: args.projectId,
-      categoryId: args.input.categoryId,
-    });
-    await assertSubCategoryInProject({
+    const targetSubCategory = await assertSubCategoryInProject({
       db,
       projectId: args.projectId,
       subCategoryId: args.input.subCategoryId,
-      categoryId: args.input.categoryId,
     });
+    const targetCategoryId = asCategoryId(targetSubCategory.category_id);
 
     const matchText = args.input.matchText.trim();
     const now = new Date().toISOString();
@@ -115,7 +109,7 @@ export async function createProjectAutoCodingRuleServer(args: {
             company_id: companyId,
             project_id: args.projectId,
             match_text: matchText,
-            category_id: args.input.categoryId,
+            category_id: targetCategoryId,
             sub_category_id: args.input.subCategoryId,
             ...buildLocalProjectStandardMetadata(now),
             sort_order: Number(maxSort?.max_sort_order ?? -1) + 1,
@@ -147,7 +141,7 @@ export async function createProjectAutoCodingRuleServer(args: {
           projectId: args.projectId,
           targets: [
             {
-              categoryId: args.input.categoryId,
+              categoryId: targetCategoryId,
               subCategoryId: args.input.subCategoryId,
             },
           ],
@@ -155,7 +149,7 @@ export async function createProjectAutoCodingRuleServer(args: {
         await trx
           .updateTable('txns')
           .set({
-            category_id: args.input.categoryId,
+            category_id: targetCategoryId,
             sub_category_id: args.input.subCategoryId,
             company_default_mapping_rule_id: null,
             coding_source: 'project_rule',
@@ -203,24 +197,14 @@ export async function updateProjectAutoCodingRuleServer(args: {
       validateOrThrow(subCategoryNameSchema, args.input.matchText);
     }
 
-    const nextCategoryId =
-      args.input.categoryId ?? asCategoryId(existing.category_id);
     const nextSubCategoryId =
       args.input.subCategoryId ?? asSubCategoryId(existing.sub_category_id);
-
-    if (args.input.categoryId != null || args.input.subCategoryId != null) {
-      await assertCategoryInProject({
-        db,
-        projectId: args.projectId,
-        categoryId: nextCategoryId,
-      });
-      await assertSubCategoryInProject({
-        db,
-        projectId: args.projectId,
-        categoryId: nextCategoryId,
-        subCategoryId: nextSubCategoryId,
-      });
-    }
+    const targetSubCategory = await assertSubCategoryInProject({
+      db,
+      projectId: args.projectId,
+      subCategoryId: nextSubCategoryId,
+    });
+    const nextCategoryId = asCategoryId(targetSubCategory.category_id);
 
     const nextMatchText = args.input.matchText?.trim() ?? existing.match_text;
     const duplicate = await db
@@ -244,10 +228,9 @@ export async function updateProjectAutoCodingRuleServer(args: {
       updated_at: new Date().toISOString(),
     };
     if (args.input.matchText != null) patch.match_text = nextMatchText;
-    if (args.input.categoryId != null)
-      patch.category_id = args.input.categoryId;
     if (args.input.subCategoryId != null) {
       patch.sub_category_id = args.input.subCategoryId;
+      patch.category_id = nextCategoryId;
     }
     if (args.input.sortOrder != null) patch.sort_order = args.input.sortOrder;
     if (
@@ -484,21 +467,21 @@ export async function promoteProjectRuleToCompanyDefaultServer(args: {
       throw new AppError('NOT_FOUND', 'Unknown project auto-coding rule');
     }
 
-    const [category, subCategory] = await Promise.all([
-      db
-        .selectFrom('categories')
-        .select(['id', 'name'])
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', rule.category_id)
-        .executeTakeFirst(),
-      db
-        .selectFrom('sub_categories')
-        .select(['id', 'name'])
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', rule.sub_category_id)
-        .executeTakeFirst(),
-    ]);
-    if (!category || !subCategory) {
+    const subCategory = await db
+      .selectFrom('sub_categories')
+      .select(['id', 'category_id', 'name'])
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', rule.sub_category_id)
+      .executeTakeFirst();
+    const category = subCategory
+      ? await db
+          .selectFrom('categories')
+          .select(['id', 'name'])
+          .where('project_id', '=', args.projectId)
+          .where('id', '=', subCategory.category_id)
+          .executeTakeFirst()
+      : null;
+    if (!subCategory || !category) {
       throw new AppError(
         'VALIDATION_ERROR',
         'Project rule target taxonomy no longer exists in this project'

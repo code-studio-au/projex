@@ -50,9 +50,9 @@ type AutoCodingSubCategory = AutoCodingTaxonomyItem & {
   categoryId: string;
 };
 
-type AutoCodingRuleDraft = Pick<
+type AutoCodingRuleMutationDraft = Pick<
   AutoCodingRuleView,
-  'matchText' | 'categoryId' | 'subCategoryId'
+  'matchText' | 'subCategoryId'
 >;
 
 export type AutoCodingRulesEditorAdapter = {
@@ -68,10 +68,10 @@ export type AutoCodingRulesEditorAdapter = {
   backfilling?: boolean;
   canPromote?: boolean;
   create: (
-    draft: AutoCodingRuleDraft & { sortOrder: number }
+    draft: AutoCodingRuleMutationDraft & { sortOrder: number }
   ) => Promise<unknown>;
   update: (
-    draft: Partial<AutoCodingRuleDraft> & {
+    draft: Partial<AutoCodingRuleMutationDraft> & {
       id: string;
       sortOrder?: number;
     }
@@ -371,7 +371,6 @@ export default function AutoCodingRulesEditorModal(props: {
                         clearFeedback();
                         await adapter.create({
                           matchText: newMatchText.trim(),
-                          categoryId: newCategoryId,
                           subCategoryId: newSubCategoryId,
                           sortOrder: rules.length,
                         });
@@ -581,7 +580,6 @@ export default function AutoCodingRulesEditorModal(props: {
                   await adapter.update({
                     id: editingRule.id,
                     matchText: editMatchText.trim(),
-                    categoryId: editCategoryId,
                     subCategoryId: editSubCategoryId,
                   });
                   closeEdit();

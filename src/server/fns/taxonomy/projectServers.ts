@@ -173,6 +173,7 @@ export async function deleteSubCategoryServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
   subCategoryId: SubCategory['id'];
+  replacementSubCategoryId?: SubCategory['id'];
 }): Promise<void> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -184,6 +185,7 @@ export async function deleteSubCategoryServer(args: {
     await deleteProjectSubCategory({
       projectId: args.projectId,
       subCategoryId: args.subCategoryId,
+      replacementSubCategoryId: args.replacementSubCategoryId,
     });
   });
 }

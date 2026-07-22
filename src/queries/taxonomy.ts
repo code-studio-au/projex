@@ -10,10 +10,8 @@ import type {
   CompanyDefaultCategory,
   CompanyDefaults,
   CompanyDefaultMappingRule,
-  CompanyDefaultSubCategory,
   CompanyId,
   ProjectId,
-  SubCategory,
 } from '../types';
 import type {
   BulkRecodeProjectTransactionsInput,
@@ -23,6 +21,8 @@ import type {
   CompanyDefaultMappingRuleUpdateInput,
   CompanyDefaultSubCategoryCreateInput,
   CompanyDefaultSubCategoryUpdateInput,
+  DeleteCompanyDefaultSubCategoryInput,
+  DeleteSubCategoryInput,
   CategoryCreateInput,
   PromoteProjectSubCategoryToCompanyDefaultInput,
   CategoryUpdateInput,
@@ -424,8 +424,8 @@ export function useDeleteSubCategoryMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (subCategoryId: SubCategory['id']) =>
-      deleteSubCategoryServerFn({ data: { projectId, subCategoryId } }),
+    mutationFn: (input: DeleteSubCategoryInput) =>
+      deleteSubCategoryServerFn({ data: { projectId, ...input } }),
     onSuccess: () => {
       qc.invalidateQueries({
         queryKey: qk.subCategories(scopeUserId, projectId),
@@ -448,9 +448,9 @@ export function useDeleteCompanyDefaultSubCategoryMutation(
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    mutationFn: (subCategoryId: CompanyDefaultSubCategory['id']) =>
+    mutationFn: (input: DeleteCompanyDefaultSubCategoryInput) =>
       deleteCompanyDefaultSubCategoryServerFn({
-        data: { companyId, subCategoryId },
+        data: { companyId, ...input },
       }),
     onSuccess: async () => {
       await Promise.all([

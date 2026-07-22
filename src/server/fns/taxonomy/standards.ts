@@ -251,6 +251,8 @@ async function applyCompanyTaxonomyWithPreloadedState(args: {
       if (!shouldApplyInheritedUpdate(inheritedSubCategory.sync_status)) {
         continue;
       }
+      const categoryChanged =
+        inheritedSubCategory.category_id !== projectCategoryId;
       await db
         .updateTable('sub_categories')
         .set({
@@ -266,6 +268,21 @@ async function applyCompanyTaxonomyWithPreloadedState(args: {
         .where('project_id', '=', projectId)
         .where('id', '=', inheritedSubCategory.id)
         .execute();
+      if (categoryChanged) {
+        await db
+          .updateTable('budget_lines')
+          .set({ category_id: projectCategoryId, updated_at: now })
+          .where('project_id', '=', projectId)
+          .where('sub_category_id', '=', inheritedSubCategory.id)
+          .execute();
+        await db
+          .updateTable('txns')
+          .set({ category_id: projectCategoryId, updated_at: now })
+          .where('project_id', '=', projectId)
+          .where('sub_category_id', '=', inheritedSubCategory.id)
+          .where('locked_at', 'is', null)
+          .execute();
+      }
       continue;
     }
 

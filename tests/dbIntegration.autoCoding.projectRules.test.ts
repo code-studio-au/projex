@@ -212,7 +212,6 @@ test(
         projectId,
         input: {
           matchText: 'qantas',
-          categoryId,
           subCategoryId,
         },
       });

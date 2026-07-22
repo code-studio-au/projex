@@ -4,7 +4,6 @@ import type {
   CompanyDefaultCategory,
   CompanyDefaultMappingRule,
   CompanyDefaultSubCategory,
-  CompanyDefaultSubCategoryId,
   SubCategory,
   SubCategoryId,
 } from '../types';
@@ -23,9 +22,26 @@ export function resolveCompanyDefaultRuleToProjectTaxonomy(args: {
   if (!defaultSubCategory) return null;
 
   const defaultCategory = args.defaultCategories.find(
-    (category) => category.id === args.rule.companyDefaultCategoryId
+    (category) => category.id === defaultSubCategory.companyDefaultCategoryId
   );
   if (!defaultCategory) return null;
+
+  // Origin IDs remain unambiguous when the same subcategory name appears under
+  // multiple categories. A project override may also move the inherited item,
+  // so resolve its current project parent rather than requiring the company path.
+  const inheritedProjectSubCategory = args.projectSubCategories.find(
+    (subCategory) => subCategory.originCompanyItemId === defaultSubCategory.id
+  );
+  if (inheritedProjectSubCategory) {
+    const currentProjectCategory = args.projectCategories.find(
+      (category) => category.id === inheritedProjectSubCategory.categoryId
+    );
+    if (!currentProjectCategory) return null;
+    return {
+      categoryId: currentProjectCategory.id,
+      subCategoryId: inheritedProjectSubCategory.id,
+    };
+  }
 
   const projectCategory =
     args.projectCategories.find(
@@ -40,34 +56,18 @@ export function resolveCompanyDefaultRuleToProjectTaxonomy(args: {
     );
   if (!projectCategory) return null;
 
-  const projectSubCategory =
-    args.projectSubCategories.find(
-      (subCategory) =>
-        subCategory.categoryId === projectCategory.id &&
-        subCategory.originCompanyItemId === defaultSubCategory.id
-    ) ??
-    args.projectSubCategories.find(
-      (subCategory) =>
-        subCategory.categoryId === projectCategory.id &&
-        (normalizeRuleText(subCategory.name) ===
-          normalizeRuleText(defaultSubCategory.name) ||
-          canonicalizeRuleText(subCategory.name) ===
-            canonicalizeRuleText(defaultSubCategory.name))
-    );
+  const projectSubCategory = args.projectSubCategories.find(
+    (subCategory) =>
+      subCategory.categoryId === projectCategory.id &&
+      (normalizeRuleText(subCategory.name) ===
+        normalizeRuleText(defaultSubCategory.name) ||
+        canonicalizeRuleText(subCategory.name) ===
+          canonicalizeRuleText(defaultSubCategory.name))
+  );
   if (!projectSubCategory) return null;
 
   return {
     categoryId: projectCategory.id,
     subCategoryId: projectSubCategory.id,
   };
-}
-
-export function defaultCategoryIdForRule(
-  subCategoryId: CompanyDefaultSubCategoryId,
-  defaultSubCategories: CompanyDefaultSubCategory[]
-) {
-  return (
-    defaultSubCategories.find((subCategory) => subCategory.id === subCategoryId)
-      ?.companyDefaultCategoryId ?? null
-  );
 }

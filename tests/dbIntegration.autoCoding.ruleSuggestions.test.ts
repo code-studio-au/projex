@@ -699,7 +699,6 @@ test(
         input: {
           id: listedBefore[0]!.id,
           proposedMatchText: 'virgin',
-          companyDefaultCategoryId: defaultCategoryId,
           companyDefaultSubCategoryId: defaultFlightsSubCategoryId,
         },
       });

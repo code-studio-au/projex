@@ -16,10 +16,15 @@ import {
   createCompanyDefaultCategoryServer,
   createCompanyDefaultMappingRuleServer,
   createCompanyDefaultSubCategoryServer,
+  deleteCompanyDefaultSubCategoryServer,
+  deleteSubCategoryServer,
   deleteCompanyDefaultMappingRuleServer,
+  updateCompanyDefaultSubCategoryServer,
+  updateSubCategoryServer,
 } from '../src/server/fns/taxonomy.ts';
 import type { ServerFnContextInput } from '../src/server/fns/runtime.ts';
 import {
+  asBudgetLineId,
   asCategoryId,
   asCompanyDefaultCategoryId,
   asCompanyDefaultMappingRuleId,
@@ -154,7 +159,6 @@ test(
         projectId,
         input: {
           matchText: 'qantas',
-          categoryId: categoryAId,
           subCategoryId: subCategoryAId,
         },
       });
@@ -163,7 +167,6 @@ test(
         projectId,
         input: {
           matchText: 'microsoft',
-          categoryId: categoryBId,
           subCategoryId: subCategoryBId,
         },
       });
@@ -184,7 +187,6 @@ test(
         input: {
           id: second.rule.id,
           matchText: 'm365',
-          categoryId: categoryBId,
           subCategoryId: subCategoryBId,
         },
       });
@@ -238,6 +240,270 @@ test(
 );
 
 test(
+  'subcategory IDs keep duplicate names distinct and moves update dependent rules atomically',
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const db = createIntegrationDb();
+    const companyId = asCompanyId('itest_sub_target_co_1');
+    const userId = asUserId('itest_sub_target_usr_1');
+    const projectId = asProjectId('itest_sub_target_prj_1');
+    const itCategoryId = asCategoryId('itest_sub_target_cat_it');
+    const facilitiesCategoryId = asCategoryId(
+      'itest_sub_target_cat_facilities'
+    );
+    const travelCategoryId = asCategoryId('itest_sub_target_cat_travel');
+    const sourceSubCategoryId = asSubCategoryId('itest_sub_target_sub_source');
+    const duplicateSubCategoryId = asSubCategoryId(
+      'itest_sub_target_sub_duplicate'
+    );
+    const unlockedTxnId = asTxnId('itest_sub_target_txn_unlocked');
+    const lockedTxnId = asTxnId('itest_sub_target_txn_locked');
+    const now = new Date().toISOString();
+    const context = { session: { userId } } satisfies ServerFnContextInput;
+
+    try {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+
+      await db
+        .insertInto('companies')
+        .values({
+          id: companyId,
+          name: 'Subcategory Target Co',
+          status: 'active',
+          deactivated_at: null,
+        })
+        .execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: userId,
+          email: 'subcategory-target@example.com',
+          name: 'Subcategory Target User',
+          disabled: false,
+          disabled_reason: null,
+          is_global_superadmin: false,
+        })
+        .execute();
+      await db
+        .insertInto('company_memberships')
+        .values({ company_id: companyId, user_id: userId, role: 'admin' })
+        .execute();
+      await db
+        .insertInto('projects')
+        .values({
+          id: projectId,
+          company_id: companyId,
+          name: 'Subcategory Target Project',
+          project_type: 'project',
+          parent_project_id: null,
+          budget_total_cents: 0,
+          currency: 'AUD',
+          status: 'active',
+          deactivated_at: null,
+          visibility: 'private',
+          allow_superadmin_access: true,
+          allow_txn_transfers: false,
+        })
+        .execute();
+      await db
+        .insertInto('project_memberships')
+        .values({ project_id: projectId, user_id: userId, role: 'member' })
+        .execute();
+      await db
+        .insertInto('categories')
+        .values([
+          {
+            id: itCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            name: 'IT',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: facilitiesCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            name: 'Facilities',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: travelCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            name: 'Travel',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+      await db
+        .insertInto('sub_categories')
+        .values([
+          {
+            id: sourceSubCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: itCategoryId,
+            name: 'Equipment',
+            created_at: now,
+            updated_at: now,
+          },
+          {
+            id: duplicateSubCategoryId,
+            company_id: companyId,
+            project_id: projectId,
+            category_id: facilitiesCategoryId,
+            name: 'Equipment',
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .execute();
+      await db
+        .insertInto('budget_lines')
+        .values({
+          id: asBudgetLineId('itest_sub_target_budget_1'),
+          company_id: companyId,
+          project_id: projectId,
+          category_id: itCategoryId,
+          sub_category_id: sourceSubCategoryId,
+          allocated_cents: 5000,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+      await db
+        .insertInto('txns')
+        .values(
+          [
+            { publicId: unlockedTxnId, locked: false },
+            { publicId: lockedTxnId, locked: true },
+          ].map(({ publicId, locked }, index) => ({
+            public_id: publicId,
+            external_id: `itest-sub-target-ext-${index + 1}`,
+            company_id: companyId,
+            project_id: projectId,
+            txn_date: '2026-07-01',
+            item: 'Equipment purchase',
+            description: 'Equipment purchase',
+            amount_cents: 1000 + index,
+            txn_type: 'standard' as const,
+            parent_public_id: null,
+            source_public_id: null,
+            transfer_project_id: null,
+            budget_impact: true,
+            categorisable: true,
+            import_batch_id: null,
+            import_source_type: null,
+            import_source_meta: null,
+            category_id: itCategoryId,
+            sub_category_id: sourceSubCategoryId,
+            company_default_mapping_rule_id: null,
+            coding_source: 'manual' as const,
+            coding_pending_approval: false,
+            reviewed_at: locked ? now : null,
+            reviewed_by_user_id: locked ? userId : null,
+            locked_at: locked ? now : null,
+            locked_by_user_id: locked ? userId : null,
+            created_at: now,
+            updated_at: now,
+          }))
+        )
+        .execute();
+
+      const createdRule = await createProjectAutoCodingRuleServer({
+        context,
+        projectId,
+        input: {
+          matchText: 'equipment purchase',
+          subCategoryId: sourceSubCategoryId,
+        },
+      });
+
+      await updateSubCategoryServer({
+        context,
+        projectId,
+        input: { id: sourceSubCategoryId, categoryId: travelCategoryId },
+      });
+
+      const movedRule = await listProjectAutoCodingRulesServer({
+        context,
+        projectId,
+      });
+      assert.equal(movedRule[0]?.id, createdRule.rule.id);
+      assert.equal(movedRule[0]?.categoryId, travelCategoryId);
+      assert.equal(movedRule[0]?.subCategoryId, sourceSubCategoryId);
+      const movedBudget = await db
+        .selectFrom('budget_lines')
+        .select(['category_id', 'sub_category_id'])
+        .where('project_id', '=', projectId)
+        .where('sub_category_id', '=', sourceSubCategoryId)
+        .executeTakeFirstOrThrow();
+      assert.equal(movedBudget.category_id, travelCategoryId);
+      const movedTxns = await db
+        .selectFrom('txns')
+        .select(['public_id', 'category_id', 'sub_category_id'])
+        .where('project_id', '=', projectId)
+        .orderBy('public_id', 'asc')
+        .execute();
+      assert.equal(
+        movedTxns.find((txn) => txn.public_id === unlockedTxnId)?.category_id,
+        travelCategoryId
+      );
+      assert.equal(
+        movedTxns.find((txn) => txn.public_id === lockedTxnId)?.category_id,
+        itCategoryId
+      );
+
+      await assert.rejects(
+        deleteSubCategoryServer({
+          context,
+          projectId,
+          subCategoryId: sourceSubCategoryId,
+          replacementSubCategoryId: duplicateSubCategoryId,
+        }),
+        /locked transactions use it/
+      );
+      await db
+        .updateTable('txns')
+        .set({ locked_at: null, locked_by_user_id: null, updated_at: now })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', lockedTxnId)
+        .execute();
+      await deleteSubCategoryServer({
+        context,
+        projectId,
+        subCategoryId: sourceSubCategoryId,
+        replacementSubCategoryId: duplicateSubCategoryId,
+      });
+
+      const reassignedRules = await listProjectAutoCodingRulesServer({
+        context,
+        projectId,
+      });
+      assert.equal(reassignedRules[0]?.categoryId, facilitiesCategoryId);
+      assert.equal(reassignedRules[0]?.subCategoryId, duplicateSubCategoryId);
+      assert.equal(
+        await db
+          .selectFrom('sub_categories')
+          .select('id')
+          .where('project_id', '=', projectId)
+          .where('id', '=', sourceSubCategoryId)
+          .executeTakeFirst(),
+        undefined
+      );
+    } finally {
+      await db.deleteFrom('companies').where('id', '=', companyId).execute();
+      await db.deleteFrom('users').where('id', '=', userId).execute();
+      await db.destroy();
+    }
+  }
+);
+
+test(
   'existing synced projects expose inherited company auto-coding rules and company imports still resolve after company rules are added later',
   { skip: !integrationDatabaseUrl },
   async () => {
@@ -248,8 +514,14 @@ test(
     const defaultCategoryId = asCompanyDefaultCategoryId(
       'itest_inherited_prule_dcat_1'
     );
+    const movedDefaultCategoryId = asCompanyDefaultCategoryId(
+      'itest_inherited_prule_dcat_2'
+    );
     const defaultSubCategoryId = asCompanyDefaultSubCategoryId(
       'itest_inherited_prule_dsub_1'
+    );
+    const replacementDefaultSubCategoryId = asCompanyDefaultSubCategoryId(
+      'itest_inherited_prule_dsub_2'
     );
     const defaultRuleId = asCompanyDefaultMappingRuleId(
       'itest_inherited_prule_rule_1'
@@ -307,6 +579,15 @@ test(
           name: 'Software and Services',
         },
       });
+      await createCompanyDefaultCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: movedDefaultCategoryId,
+          companyId,
+          name: 'Travel',
+        },
+      });
 
       await createProjectServer({
         context,
@@ -324,7 +605,6 @@ test(
           id: defaultRuleId,
           companyId,
           matchText: 'microsoft 365',
-          companyDefaultCategoryId: defaultCategoryId,
           companyDefaultSubCategoryId: defaultSubCategoryId,
           sortOrder: 0,
         },
@@ -339,6 +619,65 @@ test(
       assert.equal(effectiveRules[0]?.originScope, 'company');
       assert.equal(effectiveRules[0]?.originCompanyItemId, defaultRuleId);
       assert.equal(effectiveRules[0]?.syncStatus, 'inherited');
+
+      await updateCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: defaultSubCategoryId,
+          companyDefaultCategoryId: movedDefaultCategoryId,
+        },
+      });
+      const movedProjectSubCategory = await db
+        .selectFrom('sub_categories')
+        .select(['id', 'category_id'])
+        .where('project_id', '=', projectId)
+        .where('origin_company_item_id', '=', defaultSubCategoryId)
+        .executeTakeFirstOrThrow();
+      const movedProjectCategory = await db
+        .selectFrom('categories')
+        .select('id')
+        .where('project_id', '=', projectId)
+        .where('origin_company_item_id', '=', movedDefaultCategoryId)
+        .executeTakeFirstOrThrow();
+      assert.equal(
+        movedProjectSubCategory.category_id,
+        movedProjectCategory.id
+      );
+      const rulesAfterCompanyMove = await listProjectAutoCodingRulesServer({
+        context,
+        projectId,
+      });
+      assert.equal(
+        rulesAfterCompanyMove[0]?.categoryId,
+        movedProjectCategory.id
+      );
+      assert.equal(rulesAfterCompanyMove[0]?.syncStatus, 'inherited');
+
+      await updateSubCategoryServer({
+        context,
+        projectId,
+        input: {
+          id: asSubCategoryId(movedProjectSubCategory.id),
+          name: 'Project Software Override',
+        },
+      });
+      await assert.rejects(
+        deleteSubCategoryServer({
+          context,
+          projectId,
+          subCategoryId: asSubCategoryId(movedProjectSubCategory.id),
+        }),
+        /company default still exists/
+      );
+      await updateSubCategoryServer({
+        context,
+        projectId,
+        input: {
+          id: asSubCategoryId(movedProjectSubCategory.id),
+          name: 'Software and Services',
+        },
+      });
 
       const inheritedImport = await importTransactionsServer({
         context,
@@ -396,7 +735,6 @@ test(
         projectId,
         input: {
           id: effectiveRules[0]!.id,
-          categoryId: projectCategory.id as ReturnType<typeof asCategoryId>,
           subCategoryId: overrideSubCategoryId,
         },
       });
@@ -430,6 +768,40 @@ test(
       assert.equal(importedTxn?.companyDefaultMappingRuleId, undefined);
       assert.equal(importedTxn?.codingSource, 'project_rule');
       assert.equal(importedTxn?.codingPendingApproval, true);
+
+      await createCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        input: {
+          id: replacementDefaultSubCategoryId,
+          companyId,
+          companyDefaultCategoryId: movedDefaultCategoryId,
+          name: 'Cloud Services',
+        },
+      });
+      await deleteCompanyDefaultSubCategoryServer({
+        context,
+        companyId,
+        subCategoryId: defaultSubCategoryId,
+        replacementSubCategoryId: replacementDefaultSubCategoryId,
+      });
+      const reassignedCompanyRule = await db
+        .selectFrom('company_default_mapping_rules')
+        .select([
+          'company_default_category_id',
+          'company_default_sub_category_id',
+        ])
+        .where('company_id', '=', companyId)
+        .where('id', '=', defaultRuleId)
+        .executeTakeFirstOrThrow();
+      assert.equal(
+        reassignedCompanyRule.company_default_category_id,
+        movedDefaultCategoryId
+      );
+      assert.equal(
+        reassignedCompanyRule.company_default_sub_category_id,
+        replacementDefaultSubCategoryId
+      );
 
       await deleteCompanyDefaultMappingRuleServer({
         context,
@@ -536,7 +908,6 @@ test(
           id: defaultRuleId,
           companyId,
           matchText: 'microsoft 365',
-          companyDefaultCategoryId: defaultCategoryId,
           companyDefaultSubCategoryId: defaultSubCategoryId,
           sortOrder: 10,
         },
@@ -579,7 +950,6 @@ test(
         projectId,
         input: {
           id: inheritedRule!.id,
-          categoryId: projectCategory.id as ReturnType<typeof asCategoryId>,
           subCategoryId: overrideSubCategoryId,
           sortOrder: 20,
         },
@@ -592,7 +962,6 @@ test(
         input: {
           id: inheritedRule!.id,
           matchText: 'microsoft 365',
-          categoryId: projectCategory.id as ReturnType<typeof asCategoryId>,
           subCategoryId: inheritedRule!.subCategoryId,
           sortOrder: 10,
         },

@@ -103,6 +103,13 @@ export default function CompanyDefaultTaxonomyModal(props: {
   const [pendingDelete, setPendingDelete] = useState<TaxonomyTarget | null>(
     null
   );
+  const [deleteRuleHandling, setDeleteRuleHandling] = useState<
+    'delete' | 'reassign'
+  >('delete');
+  const [deleteReplacementCategoryId, setDeleteReplacementCategoryId] =
+    useState<string | null>(null);
+  const [deleteReplacementSubCategoryId, setDeleteReplacementSubCategoryId] =
+    useState<string | null>(null);
 
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const showSearch =
@@ -127,6 +134,37 @@ export default function CompanyDefaultTaxonomyModal(props: {
   const moveCategoryOptions = categoryOptions.filter(
     (option) => option.value !== pendingMove?.currentCategoryId
   );
+  const autoCodingRules = companyDefaultsQ.data?.mappingRules ?? [];
+  const moveAffectedRules = pendingMove
+    ? autoCodingRules.filter(
+        (rule) => rule.companyDefaultSubCategoryId === pendingMove.id
+      )
+    : [];
+  const deleteAffectedSubCategoryIds = new Set(
+    pendingDelete?.kind === 'category'
+      ? subCategories
+          .filter(
+            (subCategory) =>
+              subCategory.companyDefaultCategoryId === pendingDelete.id
+          )
+          .map((subCategory) => subCategory.id)
+      : pendingDelete?.kind === 'subcategory'
+        ? [pendingDelete.id]
+        : []
+  );
+  const deleteAffectedRules = autoCodingRules.filter((rule) =>
+    deleteAffectedSubCategoryIds.has(rule.companyDefaultSubCategoryId)
+  );
+  const deleteReplacementSubCategoryOptions = subCategories
+    .filter(
+      (subCategory) =>
+        subCategory.companyDefaultCategoryId === deleteReplacementCategoryId &&
+        !deleteAffectedSubCategoryIds.has(subCategory.id)
+    )
+    .map((subCategory) => ({
+      value: subCategory.id,
+      label: subCategory.name,
+    }));
   const creating = createCategory.isPending || createSubCategory.isPending;
   const renaming = updateCategory.isPending || updateSubCategory.isPending;
   const deleting = deleteCategory.isPending || deleteSubCategory.isPending;
@@ -134,6 +172,28 @@ export default function CompanyDefaultTaxonomyModal(props: {
   function clearFeedback() {
     setError(null);
     setSuccess(null);
+  }
+
+  function beginDelete(target: TaxonomyTarget) {
+    clearFeedback();
+    setPendingDelete(target);
+    setDeleteRuleHandling(
+      target.kind === 'subcategory' &&
+        autoCodingRules.some(
+          (rule) => rule.companyDefaultSubCategoryId === target.id
+        )
+        ? 'reassign'
+        : 'delete'
+    );
+    setDeleteReplacementCategoryId(null);
+    setDeleteReplacementSubCategoryId(null);
+  }
+
+  function closeDelete() {
+    setPendingDelete(null);
+    setDeleteRuleHandling('delete');
+    setDeleteReplacementCategoryId(null);
+    setDeleteReplacementSubCategoryId(null);
   }
 
   function beginRename(target: TaxonomyTarget) {
@@ -529,8 +589,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
                               color="red"
                               leftSection={<IconTrash size={15} />}
                               onClick={() => {
-                                clearFeedback();
-                                setPendingDelete({
+                                beginDelete({
                                   kind: 'category',
                                   id: category.id,
                                   name: category.name,
@@ -646,8 +705,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
                                           color="red"
                                           leftSection={<IconTrash size={15} />}
                                           onClick={() => {
-                                            clearFeedback();
-                                            setPendingDelete({
+                                            beginDelete({
                                               kind: 'subcategory',
                                               id: subCategory.id,
                                               name: subCategory.name,
@@ -692,6 +750,25 @@ export default function CompanyDefaultTaxonomyModal(props: {
             projects refresh inherited items automatically; project overrides
             remain unchanged.
           </Text>
+          {moveAffectedRules.length > 0 ? (
+            <Alert color="blue" title="Auto-coding impact">
+              {moveAffectedRules.length}{' '}
+              {moveAffectedRules.length === 1
+                ? 'company rule'
+                : 'company rules'}{' '}
+              targeting this exact subcategory ID will follow the move
+              automatically
+              {moveCategoryId
+                ? ` to ${
+                    categories.find(
+                      (category) => category.id === moveCategoryId
+                    )?.name ?? 'the selected category'
+                  } > ${pendingMove?.name ?? ''}`
+                : ''}
+              . Inherited project copies will refresh to the same target unless
+              their taxonomy placement is overridden locally.
+            </Alert>
+          ) : null}
           <Select
             label="New company category"
             placeholder="Select category"
@@ -747,7 +824,7 @@ export default function CompanyDefaultTaxonomyModal(props: {
 
       <Modal
         opened={!!pendingDelete}
-        onClose={() => setPendingDelete(null)}
+        onClose={closeDelete}
         title={
           pendingDelete?.kind === 'category'
             ? 'Delete company category?'
@@ -764,12 +841,91 @@ export default function CompanyDefaultTaxonomyModal(props: {
               ? `Delete "${pendingDelete.name}" and all of its company subcategories? Linked project items are detached rather than deleting existing project coding data.`
               : `Delete "${pendingDelete?.name ?? ''}" from the company categories? Linked project items are detached rather than deleting existing project coding data.`}
           </Text>
+          {deleteAffectedRules.length > 0 ? (
+            <Alert color="yellow" title="Auto-coding rules affected">
+              {deleteAffectedRules.length}{' '}
+              {deleteAffectedRules.length === 1
+                ? 'company rule targets'
+                : 'company rules target'}{' '}
+              this {pendingDelete?.kind}. Matches:{' '}
+              {deleteAffectedRules.map((rule) => rule.matchText).join(', ')}.
+            </Alert>
+          ) : null}
+          {pendingDelete?.kind === 'subcategory' &&
+          deleteAffectedRules.length > 0 ? (
+            <>
+              <Select
+                label="Affected rule handling"
+                data={[
+                  {
+                    value: 'reassign',
+                    label: `Reassign ${deleteAffectedRules.length} ${
+                      deleteAffectedRules.length === 1 ? 'rule' : 'rules'
+                    } before deleting`,
+                  },
+                  {
+                    value: 'delete',
+                    label: `Delete ${deleteAffectedRules.length} ${
+                      deleteAffectedRules.length === 1 ? 'rule' : 'rules'
+                    } with the subcategory`,
+                  },
+                ]}
+                value={deleteRuleHandling}
+                allowDeselect={false}
+                onChange={(value) => {
+                  setDeleteRuleHandling(
+                    value === 'reassign' ? 'reassign' : 'delete'
+                  );
+                  setDeleteReplacementCategoryId(null);
+                  setDeleteReplacementSubCategoryId(null);
+                }}
+              />
+              {deleteRuleHandling === 'reassign' ? (
+                <Group grow align="flex-end" wrap="wrap">
+                  <Select
+                    label="Replacement company category"
+                    data={categoryOptions}
+                    value={deleteReplacementCategoryId}
+                    searchable
+                    {...firefoxSafeModalSelectProps}
+                    onChange={(value) => {
+                      setDeleteReplacementCategoryId(value);
+                      setDeleteReplacementSubCategoryId(null);
+                    }}
+                  />
+                  <Select
+                    label="Replacement company subcategory"
+                    placeholder={
+                      deleteReplacementCategoryId
+                        ? 'Select subcategory'
+                        : 'Choose category first'
+                    }
+                    data={deleteReplacementSubCategoryOptions}
+                    value={deleteReplacementSubCategoryId}
+                    searchable
+                    disabled={!deleteReplacementCategoryId}
+                    {...firefoxSafeModalSelectProps}
+                    onChange={setDeleteReplacementSubCategoryId}
+                  />
+                </Group>
+              ) : null}
+            </>
+          ) : null}
+          {pendingDelete?.kind === 'category' &&
+          deleteAffectedRules.length > 0 ? (
+            <Text size="sm" c="dimmed">
+              Category deletion removes these company rules. Existing linked
+              project copies become detached local rules. To preserve the
+              company rules, cancel and reassign them before deleting the
+              category.
+            </Text>
+          ) : null}
           <Group className={classes.footerRow}>
             <Button
               variant="default"
               fullWidth={isMobile}
               disabled={deleting}
-              onClick={() => setPendingDelete(null)}
+              onClick={closeDelete}
             >
               Cancel
             </Button>
@@ -777,6 +933,12 @@ export default function CompanyDefaultTaxonomyModal(props: {
               color="red"
               fullWidth={isMobile}
               loading={deleting}
+              disabled={
+                pendingDelete?.kind === 'subcategory' &&
+                deleteAffectedRules.length > 0 &&
+                deleteRuleHandling === 'reassign' &&
+                !deleteReplacementSubCategoryId
+              }
               onClick={async () => {
                 if (!pendingDelete) return;
                 try {
@@ -786,11 +948,22 @@ export default function CompanyDefaultTaxonomyModal(props: {
                       asCompanyDefaultCategoryId(pendingDelete.id)
                     );
                   } else {
-                    await deleteSubCategory.mutateAsync(
-                      asCompanyDefaultSubCategoryId(pendingDelete.id)
-                    );
+                    await deleteSubCategory.mutateAsync({
+                      subCategoryId: asCompanyDefaultSubCategoryId(
+                        pendingDelete.id
+                      ),
+                      ...(deleteRuleHandling === 'reassign' &&
+                      deleteReplacementSubCategoryId
+                        ? {
+                            replacementSubCategoryId:
+                              asCompanyDefaultSubCategoryId(
+                                deleteReplacementSubCategoryId
+                              ),
+                          }
+                        : {}),
+                    });
                   }
-                  setPendingDelete(null);
+                  closeDelete();
                   setSuccess(`Deleted company ${pendingDelete.kind}.`);
                 } catch (err) {
                   setError(

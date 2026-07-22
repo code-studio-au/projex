@@ -153,7 +153,6 @@ test(
         projectId,
         input: {
           matchText: 'microsoft 365',
-          categoryId,
           subCategoryId,
         },
       });
