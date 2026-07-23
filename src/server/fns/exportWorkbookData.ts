@@ -99,6 +99,15 @@ export type TxnExportSourceRow = {
   reversal_side: string | null;
   reversal_counterpart_txn_public_id: string | null;
   reversal_expected_project_id: string | null;
+  reversal_version?: number | null;
+  reversal_match_method?: string | null;
+  reversal_match_score?: number | null;
+  reversal_candidate_count?: number | null;
+  reversal_match_evidence?: unknown;
+  reversal_source_snapshot?: unknown;
+  reversal_counterpart_snapshot?: unknown;
+  reversal_proposed_at?: string | null;
+  reversal_proposed_by_user_id?: string | null;
   reversal_marked_at: string | null;
   reversal_marked_by_user_id: string | null;
   reversal_matched_at: string | null;

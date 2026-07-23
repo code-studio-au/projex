@@ -18,6 +18,7 @@ import type {
   Txn,
   TxnCommentId,
   TxnId,
+  TxnReversalMatchEvidence,
   TxnUnlockRequestId,
   User,
   UserId,
@@ -78,7 +79,7 @@ export type TxnListPageInput = {
 };
 export type TxnListFilterInput = Omit<
   TxnListPageInput,
-  'pageIndex' | 'pageSize' | 'sort'
+  'pageIndex' | 'pageSize'
 >;
 export type TxnBulkSelectionRow = {
   id: TxnId;
@@ -87,7 +88,16 @@ export type TxnBulkSelectionRow = {
   codingPendingApproval: boolean;
   locked: boolean;
   workflowVersion: number;
-  reversalStatus?: NonNullable<Txn['reversal']>['status'];
+  reversal?: Pick<
+    NonNullable<Txn['reversal']>,
+    | 'id'
+    | 'status'
+    | 'side'
+    | 'version'
+    | 'matchMethod'
+    | 'sourceTxn'
+    | 'counterpartTxn'
+  >;
 };
 export type TxnBulkSelectionResult = {
   rows: TxnBulkSelectionRow[];
@@ -102,6 +112,7 @@ type TxnListPageSummary = {
   uncodedCents: number;
   codingApprovalCount: number;
   reversalReviewCount: number;
+  reversalMatchReviewCount: number;
   awaitingReversalCount: number;
   sourceOnlyCount: number;
   assignedToMeCount: number;
@@ -208,7 +219,11 @@ export type TxnTransferResult = {
   destination: Txn;
 };
 
-export type TxnReversalActionInput =
+type TxnReversalVersionInput = {
+  expectedReversalVersion?: number;
+};
+
+export type TxnReversalActionInput = (
   | {
       action: 'markPending';
       txnId: TxnId;
@@ -250,7 +265,9 @@ export type TxnReversalActionInput =
       action: 'unmatch';
       txnId: TxnId;
       commentBody: string;
-    };
+    }
+) &
+  TxnReversalVersionInput;
 
 export type TxnReversalActionResult = {
   action: TxnReversalActionInput['action'];
@@ -267,6 +284,7 @@ export type TxnReversalMatchSuggestion = {
   amountCents: number;
   score: number;
   reasons: string[];
+  evidence: TxnReversalMatchEvidence;
 };
 
 export type TxnWorkflowStateInput = {
@@ -303,7 +321,8 @@ export type TxnBulkActionInput =
     }
   | {
       action: 'approveSuggestedReversals';
-      txnIds: TxnId[];
+      reversalIds?: string[];
+      txnIds?: TxnId[];
     }
   | {
       action: 'clearCoding';

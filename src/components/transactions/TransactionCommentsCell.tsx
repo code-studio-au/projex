@@ -66,7 +66,7 @@ function CompactCommentCard(props: {
                 </Text>
                 {comment.resolvedAt ? (
                   <Badge size="xs" color="green" variant="light">
-                    Resolved
+                    Closed
                   </Badge>
                 ) : null}
               </Group>
@@ -155,7 +155,7 @@ export default function TransactionCommentsCell(props: {
               </Badge>
             ) : threadResolved ? (
               <Badge size="xs" variant="light" color="green">
-                Resolved
+                Closed
               </Badge>
             ) : summary.unresolvedCount > 0 ? (
               <Badge size="xs" variant="light" color="yellow">

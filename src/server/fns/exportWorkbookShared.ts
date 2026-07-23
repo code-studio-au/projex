@@ -60,6 +60,15 @@ export type TransactionExportRow = {
   reversalSide: string;
   reversalCounterpartTxnId: string;
   reversalExpectedProjectId: string;
+  reversalVersion: number | string;
+  reversalMatchMethod: string;
+  reversalMatchScore: number | string;
+  reversalCandidateCount: number | string;
+  reversalSourceSnapshot: string;
+  reversalCounterpartSnapshot: string;
+  reversalMatchEvidence: string;
+  reversalProposedAt: string;
+  reversalProposedByUserId: string;
   reversalMarkedAt: string;
   reversalMarkedByUserId: string;
   reversalMatchedAt: string;
@@ -114,7 +123,7 @@ export type TaxonomyRollup = {
 
 export const amountStyle: Partial<ExcelJS.Style> = { numFmt: '#,##0.00' };
 export const percentStyle: Partial<ExcelJS.Style> = { numFmt: '0.00%' };
-export const COMPANY_EXPORT_CONTRACT_VERSION = '2026.07-v4';
+export const COMPANY_EXPORT_CONTRACT_VERSION = '2026.07-v5';
 
 export function buildTransactionColumns(): WorksheetColumn[] {
   return [
@@ -150,6 +159,21 @@ export function buildTransactionColumns(): WorksheetColumn[] {
     {
       header: 'Reversal expected project ID',
       key: 'reversalExpectedProjectId',
+    },
+    { header: 'Reversal version', key: 'reversalVersion' },
+    { header: 'Reversal match method', key: 'reversalMatchMethod' },
+    { header: 'Reversal match score', key: 'reversalMatchScore' },
+    { header: 'Reversal candidate count', key: 'reversalCandidateCount' },
+    { header: 'Reversal source details', key: 'reversalSourceSnapshot' },
+    {
+      header: 'Reversal counterpart details',
+      key: 'reversalCounterpartSnapshot',
+    },
+    { header: 'Reversal match evidence', key: 'reversalMatchEvidence' },
+    { header: 'Reversal proposed at', key: 'reversalProposedAt' },
+    {
+      header: 'Reversal proposed by user ID',
+      key: 'reversalProposedByUserId',
     },
     { header: 'Reversal marked at', key: 'reversalMarkedAt' },
     { header: 'Reversal marked by user ID', key: 'reversalMarkedByUserId' },

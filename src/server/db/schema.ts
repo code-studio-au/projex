@@ -46,11 +46,15 @@ import type {
   ProjectStandardSyncStatus,
   ProjectType,
   ProjectVisibility,
+  TxnReversalMatchEvidence,
+  TxnReversalMatchMethod,
   TxnReversalStatus,
+  TxnReversalTxnSummary,
   TxnType,
 } from '../../types';
 import type {
   JsonObjectColumn,
+  NullableJsonColumn,
   NullableStringRecordJsonColumn,
   StringRecordJsonColumn,
 } from './generated/custom-types';
@@ -165,6 +169,7 @@ export type AuditEventTable = Override<
 export type TxnCommentTable = Override<
   TxnComments,
   {
+    comment_origin: Generated<'user' | 'reversal_workflow'>;
     resolved_at: string | null;
     created_at: Generated<string>;
     updated_at: Generated<string>;
@@ -184,8 +189,14 @@ export type TxnReversalTable = Override<
   TxnReversals,
   {
     status: TxnReversalStatus;
+    match_method: TxnReversalMatchMethod | null;
+    match_evidence: NullableJsonColumn<TxnReversalMatchEvidence>;
+    source_snapshot: NullableJsonColumn<TxnReversalTxnSummary>;
+    counterpart_snapshot: NullableJsonColumn<TxnReversalTxnSummary>;
     marked_at: Generated<string>;
+    proposed_at: string | null;
     matched_at: string | null;
+    version: Generated<number>;
     created_at: Generated<string>;
     updated_at: Generated<string>;
   }

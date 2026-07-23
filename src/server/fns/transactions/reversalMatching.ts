@@ -1,12 +1,9 @@
 import type { Txn, TxnId } from '../../../types';
-
-type PowerBiSourceMeta = Partial<Record<string, string>>;
-type CanonicalPowerBiSourceMeta = Partial<
-  Record<
-    'source' | 'journalLineDescription' | 'ccAndDescription' | 'referenceNum',
-    string
-  >
->;
+import {
+  normalizeReversalMatchValue,
+  reversalDayDelta,
+  toReversalMatchFacts,
+} from './reversalMatchFacts';
 
 type ReversalAutoMatchEdge = {
   sourceTxn: Txn;
@@ -18,6 +15,8 @@ export type ReversalAutoMatchPlanEntry = ReversalAutoMatchEdge & {
   ambiguous: boolean;
   sourceCandidateTxnIds: TxnId[];
   counterpartCandidateTxnIds: TxnId[];
+  validCounterpartTxns: Txn[];
+  validSourceTxns: Txn[];
 };
 
 const MIN_AUTO_MATCH_SCORE = 125;
@@ -29,90 +28,56 @@ export function reversalAutoMatchPairKey(
   return `${sourceTxnId}\u0000${counterpartTxnId}`;
 }
 
-const POWER_BI_META_KEY_ALIASES = {
-  source: ['source', 'Source'],
-  journalLineDescription: [
-    'journalLineDescription',
-    'Journal Line Description',
-  ],
-  ccAndDescription: ['ccAndDescription', 'CC and Description'],
-  referenceNum: ['referenceNum', 'Reference Num'],
-} as const;
-
-function normalizeMetaValue(value: string | undefined | null) {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ');
-}
-
-function toPowerBiSourceMeta(
-  meta: Txn['importSourceMeta']
-): CanonicalPowerBiSourceMeta | null {
-  if (!meta) return null;
-  const rawMeta = meta as PowerBiSourceMeta;
-
-  return Object.fromEntries(
-    Object.entries(POWER_BI_META_KEY_ALIASES).map(([canonicalKey, aliases]) => [
-      canonicalKey,
-      aliases
-        .map((alias) => rawMeta[alias])
-        .find((value) => typeof value === 'string' && value.trim()),
-    ])
-  ) as CanonicalPowerBiSourceMeta;
-}
-
 export function autoMatchScore(args: {
   sourceTxn: Txn;
   counterpartTxn: Txn;
 }): number {
+  const sourceFacts = toReversalMatchFacts(args.sourceTxn);
+  const counterpartFacts = toReversalMatchFacts(args.counterpartTxn);
+  const sourceType = normalizeReversalMatchValue(sourceFacts.sourceType);
+  const counterpartType = normalizeReversalMatchValue(
+    counterpartFacts.sourceType
+  );
+  if (sourceType && counterpartType && sourceType !== counterpartType) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const sourceSystem = normalizeReversalMatchValue(sourceFacts.sourceSystem);
+  const counterpartSystem = normalizeReversalMatchValue(
+    counterpartFacts.sourceSystem
+  );
+  if (!sourceSystem || sourceSystem !== counterpartSystem) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const sourceJournalDescription = normalizeReversalMatchValue(
+    sourceFacts.journalDescription
+  );
+  const counterpartJournalDescription = normalizeReversalMatchValue(
+    counterpartFacts.journalDescription
+  );
   if (
-    args.sourceTxn.importSourceType !== 'powerbi_expenditure_actuals' ||
-    args.counterpartTxn.importSourceType !== 'powerbi_expenditure_actuals'
+    !sourceJournalDescription ||
+    sourceJournalDescription !== counterpartJournalDescription
   ) {
     return Number.NEGATIVE_INFINITY;
   }
 
-  const sourceMeta = toPowerBiSourceMeta(args.sourceTxn.importSourceMeta);
-  const counterpartMeta = toPowerBiSourceMeta(
-    args.counterpartTxn.importSourceMeta
-  );
-  if (!sourceMeta || !counterpartMeta) return Number.NEGATIVE_INFINITY;
-
-  const sourceType = normalizeMetaValue(sourceMeta.source);
-  const counterpartType = normalizeMetaValue(counterpartMeta.source);
-  if (!sourceType || sourceType !== counterpartType) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  const sourceJournalLineDescription = normalizeMetaValue(
-    sourceMeta.journalLineDescription
-  );
-  const counterpartJournalLineDescription = normalizeMetaValue(
-    counterpartMeta.journalLineDescription
+  const sourceReference = normalizeReversalMatchValue(sourceFacts.reference);
+  const counterpartReference = normalizeReversalMatchValue(
+    counterpartFacts.reference
   );
   if (
-    !sourceJournalLineDescription ||
-    sourceJournalLineDescription !== counterpartJournalLineDescription
+    sourceReference &&
+    counterpartReference &&
+    sourceReference !== counterpartReference
   ) {
     return Number.NEGATIVE_INFINITY;
   }
 
-  const sourceReferenceNum = normalizeMetaValue(sourceMeta.referenceNum);
-  const counterpartReferenceNum = normalizeMetaValue(
-    counterpartMeta.referenceNum
-  );
-  if (
-    sourceReferenceNum &&
-    counterpartReferenceNum &&
-    sourceReferenceNum !== counterpartReferenceNum
-  ) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  const sourceCostCentre = normalizeMetaValue(sourceMeta.ccAndDescription);
-  const counterpartCostCentre = normalizeMetaValue(
-    counterpartMeta.ccAndDescription
+  const sourceCostCentre = normalizeReversalMatchValue(sourceFacts.costCentre);
+  const counterpartCostCentre = normalizeReversalMatchValue(
+    counterpartFacts.costCentre
   );
   if (
     sourceCostCentre &&
@@ -122,16 +87,13 @@ export function autoMatchScore(args: {
     return Number.NEGATIVE_INFINITY;
   }
 
-  const dayDelta = Math.round(
-    (Date.parse(args.counterpartTxn.date) - Date.parse(args.sourceTxn.date)) /
-      (24 * 60 * 60 * 1000)
-  );
+  const dayDelta = reversalDayDelta(args);
   if (!Number.isFinite(dayDelta) || dayDelta < 0 || dayDelta > 62) {
     return Number.NEGATIVE_INFINITY;
   }
 
   let score = 100;
-  if (sourceReferenceNum && counterpartReferenceNum) score += 100;
+  if (sourceReference && counterpartReference) score += 100;
   if (sourceCostCentre && counterpartCostCentre) score += 25;
   if (dayDelta <= 31) score += 25;
   return score;
@@ -305,20 +267,14 @@ export function buildReversalAutoMatchPlan(args: {
       }
     }
 
-    const hasTopScoreTie =
-      [...componentSourceIds].some((sourceTxnId) => {
-        const sourceEdges = edgesBySourceId.get(sourceTxnId) ?? [];
-        const topScore = highestScore(sourceEdges);
-        return sourceEdges.filter((edge) => edge.score === topScore).length > 1;
-      }) ||
-      [...componentCounterpartIds].some((counterpartTxnId) => {
-        const counterpartEdges =
-          edgesByCounterpartId.get(counterpartTxnId) ?? [];
-        const topScore = highestScore(counterpartEdges);
-        return (
-          counterpartEdges.filter((edge) => edge.score === topScore).length > 1
-        );
-      });
+    const hasMultipleCandidates =
+      [...componentSourceIds].some(
+        (sourceTxnId) => (edgesBySourceId.get(sourceTxnId) ?? []).length > 1
+      ) ||
+      [...componentCounterpartIds].some(
+        (counterpartTxnId) =>
+          (edgesByCounterpartId.get(counterpartTxnId) ?? []).length > 1
+      );
     const selectedNonTopEdge = [...componentSourceIds].some((sourceTxnId) => {
       const selectedEdge = matchedEdgeBySourceId.get(sourceTxnId);
       if (!selectedEdge) return false;
@@ -332,7 +288,7 @@ export function buildReversalAutoMatchPlan(args: {
       );
     });
 
-    if (hasTopScoreTie || selectedNonTopEdge) {
+    if (hasMultipleCandidates || selectedNonTopEdge) {
       componentSourceIds.forEach((sourceTxnId) =>
         ambiguousSourceIds.add(sourceTxnId)
       );
@@ -353,5 +309,11 @@ export function buildReversalAutoMatchPlan(args: {
         .map((candidate) => candidate.sourceTxn)
         .sort(compareTxns)
         .map((txn) => txn.id),
+      validCounterpartTxns: (edgesBySourceId.get(edge.sourceTxn.id) ?? [])
+        .map((candidate) => candidate.counterpartTxn)
+        .sort(compareTxns),
+      validSourceTxns: (edgesByCounterpartId.get(edge.counterpartTxn.id) ?? [])
+        .map((candidate) => candidate.sourceTxn)
+        .sort(compareTxns),
     }));
 }

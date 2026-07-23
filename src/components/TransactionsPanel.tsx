@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { Divider, Paper, Stack } from '@mantine/core';
 import type { TransactionActions } from '../hooks/useTransactionActions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
-import type { ProjectId, TransactionDrilldownFilter, TxnId } from '../types';
+import {
+  asTxnId,
+  type ProjectId,
+  type TransactionDrilldownFilter,
+  type TxnId,
+} from '../types';
 import type {
   ProjectRuleSuggestionPrompt,
   TxnBulkSelectionRow,
@@ -20,7 +25,10 @@ import { useTransactionsPanelData } from './transactions/useTransactionsPanelDat
 import { useTransactionsPanelState } from './transactions/useTransactionsPanelState';
 import { useTransactionBulkActionsController } from './transactions/useTransactionBulkActionsController';
 import { useCreateProjectAutoCodingRuleMutation } from '../queries/projectAutoCodingRules';
-import { useTransactionsBulkSelectionMutation } from '../queries/transactions';
+import {
+  useTransactionQuery,
+  useTransactionsBulkSelectionMutation,
+} from '../queries/transactions';
 import {
   formatTxnCountLabel,
   toQuarterOption,
@@ -28,6 +36,14 @@ import {
 } from './transactions/transactionsPanelUtils';
 import classes from '../styles/ui.module.css';
 import { showAppToast } from '../utils/toast';
+import {
+  canMoveReversalReviewQueue,
+  createReversalReviewQueue,
+  currentReversalReviewTxnId,
+  moveReversalReviewQueue,
+  resolveReversalReviewItem,
+  reversalReviewQueueSummary,
+} from './transactions/reversalReviewQueue';
 
 export default function TransactionsPanel(props: {
   projectId: ProjectId;
@@ -104,6 +120,7 @@ export default function TransactionsPanel(props: {
     projectRulePrompt,
     rowSelection,
     reversalModalNonce,
+    reversalReviewQueue,
     reversalTxn,
     sorting,
     splitTxn,
@@ -121,6 +138,7 @@ export default function TransactionsPanel(props: {
     setProjectRuleMatchText,
     setProjectRulePrompt,
     setReversalModalNonce,
+    setReversalReviewQueue,
     setReversalTxn,
     setRowSelection,
     setSorting,
@@ -136,6 +154,8 @@ export default function TransactionsPanel(props: {
   });
   const createProjectRule = useCreateProjectAutoCodingRuleMutation(projectId);
   const selectTransactions = useTransactionsBulkSelectionMutation(projectId);
+  const loadReversalReviewQueue =
+    useTransactionsBulkSelectionMutation(projectId);
   const [bulkSelectionRows, setBulkSelectionRows] = useState<
     TxnBulkSelectionRow[] | null
   >(null);
@@ -151,6 +171,8 @@ export default function TransactionsPanel(props: {
     selectedAmbiguousSuggestedReversalCount,
     selectedAutoMappedPendingCount,
     selectedSuggestedReversalCount,
+    selectedSuggestedReversalIds,
+    selectedSuggestedReversalPairs,
     selectedDeletableCount,
     selectedTxnIds,
     selectedWorkflowVersions,
@@ -175,7 +197,24 @@ export default function TransactionsPanel(props: {
     transactionView,
     yearFilter,
   });
+  const activeReversalReviewTxnId =
+    currentReversalReviewTxnId(reversalReviewQueue);
+  const reversalReviewTxnQ = useTransactionQuery(
+    projectId,
+    activeReversalReviewTxnId ?? asTxnId('__no_reversal_review_txn__'),
+    { enabled: Boolean(activeReversalReviewTxnId) }
+  );
   const activeCommentsTxn = commentsTxn ?? linkedCommentsTxn;
+  const activeReversalReviewTxn =
+    reversalReviewTxnQ.data?.id === activeReversalReviewTxnId
+      ? reversalReviewTxnQ.data
+      : null;
+  const activeReversalTxn = reversalReviewQueue
+    ? activeReversalReviewTxn
+    : reversalTxn;
+  const reviewQueueSummary = reversalReviewQueue
+    ? reversalReviewQueueSummary(reversalReviewQueue)
+    : null;
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [
     bulkApproveSuggestedReversalsConfirmOpen,
@@ -217,6 +256,87 @@ export default function TransactionsPanel(props: {
     }
   }
 
+  async function openReversalReviewQueue() {
+    try {
+      const result = await loadReversalReviewQueue.mutateAsync(
+        transactionsPageInput
+      );
+      const queue = createReversalReviewQueue(result.rows);
+      if (!queue) {
+        showAppToast({
+          tone: 'info',
+          title: 'No reversal matches to review',
+          message:
+            'No unlocked auto-matched reversal pairs match the current filters.',
+        });
+        return;
+      }
+      setReversalTxn(null);
+      setReversalReviewQueue(queue);
+    } catch (error) {
+      showAppToast({
+        tone: 'error',
+        title: 'Could not open reversal review',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'The reversal review queue could not be loaded.',
+      });
+    }
+  }
+
+  function closeReversalModal() {
+    if (!reversalReviewQueue) {
+      setReversalTxn(null);
+      return;
+    }
+    const summary = reversalReviewQueueSummary(reversalReviewQueue);
+    setReversalReviewQueue(null);
+    if (summary.reviewedCount === 0) return;
+    showAppToast({
+      tone: 'info',
+      title: 'Reversal review paused',
+      message: `${summary.approvedCount} approved, ${summary.rejectedCount} rejected, and ${summary.remainingCount} remaining.`,
+    });
+  }
+
+  function resolveReversalReviewQueueItem(outcome: 'approved' | 'rejected') {
+    if (!reversalReviewQueue) return;
+    const nextQueue = resolveReversalReviewItem(reversalReviewQueue, outcome);
+    const summary = reversalReviewQueueSummary(nextQueue);
+    if (summary.remainingCount > 0) {
+      setReversalReviewQueue(nextQueue);
+      return;
+    }
+    setReversalReviewQueue(null);
+    showAppToast({
+      tone: 'success',
+      title: 'Reversal review complete',
+      message: `${summary.approvedCount} approved and ${summary.rejectedCount} rejected across ${summary.totalCount} reversal match${summary.totalCount === 1 ? '' : 'es'}.`,
+    });
+  }
+
+  const reversalReviewQueueControls =
+    reversalReviewQueue && reviewQueueSummary
+      ? {
+          currentPosition: reversalReviewQueue.currentIndex + 1,
+          totalCount: reviewQueueSummary.totalCount,
+          reviewedCount: reviewQueueSummary.reviewedCount,
+          remainingCount: reviewQueueSummary.remainingCount,
+          hasPrevious: canMoveReversalReviewQueue(reversalReviewQueue, -1),
+          hasNext: canMoveReversalReviewQueue(reversalReviewQueue, 1),
+          onPrevious: () =>
+            setReversalReviewQueue((current) =>
+              current ? moveReversalReviewQueue(current, -1) : current
+            ),
+          onNext: () =>
+            setReversalReviewQueue((current) =>
+              current ? moveReversalReviewQueue(current, 1) : current
+            ),
+          onResolved: resolveReversalReviewQueueItem,
+        }
+      : undefined;
+
   function applyProjectRulePrompt(prompt: ProjectRuleSuggestionPrompt | null) {
     if (!prompt) return;
     setProjectRuleError(null);
@@ -247,6 +367,7 @@ export default function TransactionsPanel(props: {
         current?.id === txn.id ? null : txn
       ),
     onOpenReversal: (txn) => {
+      setReversalReviewQueue(null);
       setReversalModalNonce((current) => current + 1);
       setReversalTxn(txn);
     },
@@ -283,6 +404,7 @@ export default function TransactionsPanel(props: {
           <TransactionsOverviewCard
             pageSummary={pageSummary}
             transactionView={transactionView}
+            currencyCode={currencyCode}
             projectAutoMappedPendingCount={autoMappedPendingCount}
             isHydrated={isHydrated}
             isMobile={isMobile}
@@ -291,8 +413,12 @@ export default function TransactionsPanel(props: {
             canManageReversals={canManageReversals}
             canAdminUnlock={canAdminUnlock}
             reconcilingPendingReversals={reconcilingPendingReversals}
+            loadingReversalReviewQueue={loadReversalReviewQueue.isPending}
             onReconcilePendingReversals={() => {
               void reconcilePendingReversals();
+            }}
+            onOpenReversalReviewQueue={() => {
+              void openReversalReviewQueue();
             }}
             onApproveAllAutoMappings={() => {
               void runBulkAction({
@@ -313,6 +439,7 @@ export default function TransactionsPanel(props: {
               selectedAmbiguousSuggestedReversalCount
             }
             selectedSuggestedReversalCount={selectedSuggestedReversalCount}
+            selectedSuggestedReversalPairs={selectedSuggestedReversalPairs}
             selectedUnlockedCategorisableCount={
               selectedUnlockedCategorisableCount
             }
@@ -416,7 +543,7 @@ export default function TransactionsPanel(props: {
               void runBulkAction({
                 input: {
                   action: 'approveSuggestedReversals',
-                  txnIds: selectedTxnIds,
+                  reversalIds: selectedSuggestedReversalIds,
                 },
                 successLabel: 'Approved reversal matches for',
               }).then((result) => {
@@ -494,12 +621,28 @@ export default function TransactionsPanel(props: {
             ? transactionActions.transferTxn(transferTxn.id, input)
             : Promise.resolve()
         }
-        reversalTxn={reversalTxn}
+        reversalTxn={activeReversalTxn}
         reversalModalNonce={reversalModalNonce}
+        reversalReviewQueue={reversalReviewQueueControls}
+        reversalReviewQueueLoading={Boolean(
+          reversalReviewQueue &&
+          !activeReversalReviewTxn &&
+          (reversalReviewTxnQ.isLoading || reversalReviewTxnQ.isFetching)
+        )}
+        reversalReviewQueueError={
+          reversalReviewQueue && !activeReversalReviewTxn
+            ? reversalReviewTxnQ.error instanceof Error
+              ? reversalReviewTxnQ.error.message
+              : reversalReviewTxnQ.isSuccess
+                ? 'This transaction is no longer available for review.'
+                : null
+            : null
+        }
+        canManageReversals={canManageReversals}
         expectedProjectOptions={transferProjectOptions.filter(
           (option) => option.value !== projectId
         )}
-        onCloseReversal={() => setReversalTxn(null)}
+        onCloseReversal={closeReversalModal}
         onLoadReversalSuggestions={(txnId) =>
           transactionActions.getReversalSuggestions(txnId)
         }

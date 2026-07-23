@@ -98,10 +98,15 @@ Keep transaction and reversal responsibilities behind the existing transaction
 server-function boundary, but separate their domain implementation:
 
 - `reversalMatching.ts` owns pure candidate compatibility and pairing.
+- `reversalMatchFacts.ts` owns provider-neutral canonical match facts,
+  immutable pair snapshots, and review evidence.
 - `reversalReconciliation.ts` owns candidate discovery and suggestion
   persistence.
 - `reversalDomain.ts` owns workflow invariants and persisted-row lookup.
-- `reversalComments.ts` owns audit-comment construction and persistence.
+- `reversalComments.ts` owns human reversal notes and their workflow lifecycle;
+  transaction status belongs to the reversal record and immutable history
+  belongs to `reversalAudit.ts`.
+- `reversalAudit.ts` owns immutable reversal transition audit records.
 - `reversalWorkflowServers.ts` owns individual workflow transitions.
 - `reversalBulkServers.ts` owns project recovery and atomic bulk approval.
 - `bulkWorkflowServers.ts` owns non-reversal bulk transaction commands.
@@ -113,6 +118,9 @@ transaction. Lock selected rows in deterministic order, repeat eligibility in
 the write predicate, and verify affected-row counts. Transaction lock changes
 and reversal transitions also take the shared project-scoped advisory lock so
 neither workflow can invalidate the other's decision mid-command.
+Database constraints independently enforce pair ownership, sign, amount, date
+order, and linked transaction identity so alternate write paths cannot bypass
+the server-function boundary.
 
 ## Financial integrity rule
 

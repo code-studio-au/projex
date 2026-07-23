@@ -115,7 +115,9 @@ export const theme = createTheme({
         },
         header: {
           padding: '1rem 1.1rem 0.5rem',
-          background: 'transparent',
+          background: 'var(--surface-1)',
+          borderBottom: '1px solid var(--surface-border)',
+          zIndex: 1,
         },
         title: {
           fontSize: '1rem',

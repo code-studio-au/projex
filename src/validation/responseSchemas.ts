@@ -304,8 +304,121 @@ const txnResponseSchema = z.object({
       id: z.string(),
       status: z.enum(TXN_REVERSAL_STATUSES),
       side: z.enum(TXN_REVERSAL_SIDES),
+      version: z.number().int().positive(),
       counterpartTxnId: txnIdSchema.optional(),
       expectedProjectId: projectIdSchema.optional(),
+      matchMethod: z.enum(['manual', 'auto_clear', 'auto_default']).optional(),
+      matchScore: z.number().int().nonnegative().optional(),
+      candidateCount: z.number().int().positive().optional(),
+      matchEvidence: z
+        .object({
+          amountExact: z.boolean().optional(),
+          oppositeSign: z.boolean().optional(),
+          dayDelta: z.number().int().optional(),
+          withinAutoWindow: z.boolean().optional(),
+          sourceSystem: z
+            .object({
+              sourceValue: z.string().optional(),
+              counterpartValue: z.string().optional(),
+              outcome: z.enum([
+                'match',
+                'missing',
+                'mismatch',
+                'not_applicable',
+              ]),
+            })
+            .optional(),
+          journalDescription: z
+            .object({
+              sourceValue: z.string().optional(),
+              counterpartValue: z.string().optional(),
+              outcome: z.enum([
+                'match',
+                'missing',
+                'mismatch',
+                'not_applicable',
+              ]),
+            })
+            .optional(),
+          reference: z
+            .object({
+              sourceValue: z.string().optional(),
+              counterpartValue: z.string().optional(),
+              outcome: z.enum([
+                'match',
+                'missing',
+                'mismatch',
+                'not_applicable',
+              ]),
+            })
+            .optional(),
+          costCentre: z
+            .object({
+              sourceValue: z.string().optional(),
+              counterpartValue: z.string().optional(),
+              outcome: z.enum([
+                'match',
+                'missing',
+                'mismatch',
+                'not_applicable',
+              ]),
+            })
+            .optional(),
+          sourceCandidateCount: z.number().int().nonnegative().optional(),
+          counterpartCandidateCount: z.number().int().nonnegative().optional(),
+          alternativeCounterparts: z
+            .array(
+              z.object({
+                txnId: txnIdSchema,
+                externalId: z.string().optional(),
+                date: z.string(),
+                item: z.string(),
+                description: z.string(),
+                amountCents: transactionAmountCentsSchema,
+                sourceType: z.string().optional(),
+                sourceSystem: z.string().optional(),
+                journalDescription: z.string().optional(),
+                reference: z.string().optional(),
+                costCentre: z.string().optional(),
+              })
+            )
+            .optional(),
+          reasons: z.array(z.string()),
+          legacy: z.boolean().optional(),
+        })
+        .optional(),
+      sourceTxn: z
+        .object({
+          txnId: txnIdSchema,
+          externalId: z.string().optional(),
+          date: z.string(),
+          item: z.string(),
+          description: z.string(),
+          amountCents: transactionAmountCentsSchema,
+          sourceType: z.string().optional(),
+          sourceSystem: z.string().optional(),
+          journalDescription: z.string().optional(),
+          reference: z.string().optional(),
+          costCentre: z.string().optional(),
+        })
+        .optional(),
+      counterpartTxn: z
+        .object({
+          txnId: txnIdSchema,
+          externalId: z.string().optional(),
+          date: z.string(),
+          item: z.string(),
+          description: z.string(),
+          amountCents: transactionAmountCentsSchema,
+          sourceType: z.string().optional(),
+          sourceSystem: z.string().optional(),
+          journalDescription: z.string().optional(),
+          reference: z.string().optional(),
+          costCentre: z.string().optional(),
+        })
+        .optional(),
+      proposedAt: optionalIsoTimestampSchema,
+      proposedByUserId: userIdSchema.optional(),
       markedAt: optionalIsoTimestampSchema,
       markedByUserId: userIdSchema.optional(),
       matchedAt: optionalIsoTimestampSchema,
@@ -335,6 +448,7 @@ const txnListPageSummaryResponseSchema = z.object({
   uncodedCents: z.number().int(),
   codingApprovalCount: z.number().int().nonnegative(),
   reversalReviewCount: z.number().int().nonnegative(),
+  reversalMatchReviewCount: z.number().int().nonnegative(),
   awaitingReversalCount: z.number().int().nonnegative(),
   sourceOnlyCount: z.number().int().nonnegative(),
   assignedToMeCount: z.number().int().nonnegative(),
@@ -348,6 +462,20 @@ export const txnListPageResultResponseSchema = z.object({
   summary: txnListPageSummaryResponseSchema,
 });
 
+const txnReversalSelectionSummaryResponseSchema = z.object({
+  txnId: txnIdSchema,
+  externalId: z.string().optional(),
+  date: z.string(),
+  item: z.string(),
+  description: z.string(),
+  amountCents: transactionAmountCentsSchema,
+  sourceType: z.string().optional(),
+  sourceSystem: z.string().optional(),
+  journalDescription: z.string().optional(),
+  reference: z.string().optional(),
+  costCentre: z.string().optional(),
+});
+
 export const txnBulkSelectionResultResponseSchema = z.object({
   rows: z
     .array(
@@ -358,7 +486,20 @@ export const txnBulkSelectionResultResponseSchema = z.object({
         codingPendingApproval: z.boolean(),
         locked: z.boolean(),
         workflowVersion: z.number().int().nonnegative(),
-        reversalStatus: z.enum(TXN_REVERSAL_STATUSES).optional(),
+        reversal: z
+          .object({
+            id: z.string(),
+            status: z.enum(TXN_REVERSAL_STATUSES),
+            side: z.enum(TXN_REVERSAL_SIDES),
+            version: z.number().int().positive(),
+            matchMethod: z
+              .enum(['manual', 'auto_clear', 'auto_default'])
+              .optional(),
+            sourceTxn: txnReversalSelectionSummaryResponseSchema.optional(),
+            counterpartTxn:
+              txnReversalSelectionSummaryResponseSchema.optional(),
+          })
+          .optional(),
       })
     )
     .max(MAX_BULK_TXN_COUNT),

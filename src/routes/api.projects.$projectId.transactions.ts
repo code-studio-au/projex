@@ -58,6 +58,13 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
               context: serverContext,
               projectId: asProjectId(params.projectId),
               input: {
+                sort:
+                  query.sortField && query.sortDirection
+                    ? {
+                        field: query.sortField,
+                        direction: query.sortDirection,
+                      }
+                    : undefined,
                 yearFilter: query.yearFilter,
                 quarterFilter: query.quarterFilter,
                 monthFilterKey: query.monthFilterKey,

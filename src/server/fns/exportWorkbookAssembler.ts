@@ -312,6 +312,21 @@ export async function assembleCompanyWorkbook(
       reversalSide: row.reversal_side ?? '',
       reversalCounterpartTxnId: row.reversal_counterpart_txn_public_id ?? '',
       reversalExpectedProjectId: row.reversal_expected_project_id ?? '',
+      reversalVersion: row.reversal_version ?? '',
+      reversalMatchMethod: row.reversal_match_method ?? '',
+      reversalMatchScore: row.reversal_match_score ?? '',
+      reversalCandidateCount: row.reversal_candidate_count ?? '',
+      reversalSourceSnapshot: row.reversal_source_snapshot
+        ? JSON.stringify(row.reversal_source_snapshot)
+        : '',
+      reversalCounterpartSnapshot: row.reversal_counterpart_snapshot
+        ? JSON.stringify(row.reversal_counterpart_snapshot)
+        : '',
+      reversalMatchEvidence: row.reversal_match_evidence
+        ? JSON.stringify(row.reversal_match_evidence)
+        : '',
+      reversalProposedAt: row.reversal_proposed_at ?? '',
+      reversalProposedByUserId: row.reversal_proposed_by_user_id ?? '',
       reversalMarkedAt: row.reversal_marked_at ?? '',
       reversalMarkedByUserId: row.reversal_marked_by_user_id ?? '',
       reversalMatchedAt: row.reversal_matched_at ?? '',

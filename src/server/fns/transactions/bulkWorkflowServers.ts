@@ -55,6 +55,7 @@ export async function bulkTxnActionServer(args: {
       return approveSuggestedTxnReversalsBulkServer({
         context: args.context,
         projectId: args.projectId,
+        reversalIds: args.input.reversalIds,
         txnIds: args.input.txnIds,
       });
     }
@@ -64,7 +65,6 @@ export async function bulkTxnActionServer(args: {
         projectId: args.projectId,
       });
     }
-
     const context = await requireOperationalProjectForAction(
       args.context,
       args.projectId,
@@ -142,6 +142,13 @@ export async function bulkTxnActionServer(args: {
           'Selected transaction IDs are required for this bulk action'
         );
       }
+      const txnIds = args.input.txnIds;
+      if (!txnIds) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Selected transaction IDs are required for this bulk action'
+        );
+      }
 
       if (args.input.action === 'recode') {
         await assertCategoryInProject({
@@ -195,7 +202,7 @@ export async function bulkTxnActionServer(args: {
           )`.as('in_structural_operation'),
         ])
         .where('project_id', '=', args.projectId)
-        .where('public_id', 'in', args.input.txnIds)
+        .where('public_id', 'in', txnIds)
         .orderBy('public_id', 'asc')
         .forUpdate()
         .execute()) as LockedBulkTxnActionRow[];
@@ -216,10 +223,8 @@ export async function bulkTxnActionServer(args: {
 
       if (
         expectedWorkflowVersionByTxnId &&
-        (expectedWorkflowVersionByTxnId.size !== args.input.txnIds.length ||
-          args.input.txnIds.some(
-            (txnId) => !expectedWorkflowVersionByTxnId.has(txnId)
-          ))
+        (expectedWorkflowVersionByTxnId.size !== txnIds.length ||
+          txnIds.some((txnId) => !expectedWorkflowVersionByTxnId.has(txnId)))
       ) {
         throw new AppError(
           'VALIDATION_ERROR',
@@ -561,7 +566,7 @@ export async function bulkTxnActionServer(args: {
 
       return {
         action: args.input.action,
-        requestedCount: args.input.txnIds.length,
+        requestedCount: txnIds.length,
         foundCount: rows.length,
         updatedCount,
         unchangedCount,

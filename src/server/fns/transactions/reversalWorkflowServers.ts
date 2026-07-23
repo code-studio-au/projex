@@ -1,7 +1,7 @@
-import type { Insertable, Transaction } from 'kysely';
+import { sql, type Insertable, type Transaction } from 'kysely';
 
 import { AppError } from '../../../api/errors';
-import type { ProjectId, TxnId } from '../../../types';
+import type { CompanyId, ProjectId, TxnId, UserId } from '../../../types';
 import { asTxnId } from '../../../types';
 import type {
   TxnReversalActionInput,
@@ -17,26 +17,17 @@ import {
 } from '../runtime';
 import { assertTxnUnlocked } from './shared';
 import { lockProjectReversalWorkflow } from './reversalConcurrency';
+import { recordReversalTransition } from './reversalAudit';
 import { reconcilePendingReversalMatches } from './reversalReconciliation';
 import {
-  buildApproveAmbiguousSuggestedCounterpartComment,
-  buildApproveAmbiguousSuggestedSourceComment,
-  buildApproveSuggestedCounterpartComment,
-  buildApproveSuggestedSourceComment,
-  buildClearExceptionComment,
-  buildClearPendingComment,
-  buildExceptionComment,
-  buildMatchCounterpartComment,
-  buildMatchSourceComment,
+  buildReversalMatchEvidence,
+  toTxnReversalTxnSummary,
+} from './reversalMatchFacts';
+import {
   buildPendingComment,
-  buildRejectAmbiguousSuggestedCounterpartComment,
-  buildRejectAmbiguousSuggestedSourceComment,
-  buildRejectSuggestedCounterpartComment,
-  buildRejectSuggestedSourceComment,
-  buildUnmatchCounterpartComment,
-  buildUnmatchSourceComment,
+  completeReversalComments,
   createReversalComment,
-  getProjectName,
+  resolveOpenReversalComments,
 } from './reversalComments';
 import {
   assertCounterpartTxnEligible,
@@ -48,15 +39,46 @@ import {
   getTxnOrThrow,
   isOpenReversalStatus,
   isSuggestedReversalStatus,
+  type TxnReversalRow,
 } from './reversalDomain';
+
+function assertExpectedReversalVersion(
+  reversal: TxnReversalRow,
+  expectedVersion: number | undefined
+) {
+  if (
+    typeof expectedVersion === 'number' &&
+    reversal.version !== expectedVersion
+  ) {
+    throw new AppError(
+      'CONFLICT',
+      'This reversal workflow changed while you were reviewing it. Refresh and try again.'
+    );
+  }
+}
+
+const clearedMatchFields = {
+  matched_reversal_txn_public_id: null,
+  matched_at: null,
+  matched_by_user_id: null,
+  match_method: null,
+  match_score: null,
+  candidate_count: null,
+  match_evidence: null,
+  source_snapshot: null,
+  counterpart_snapshot: null,
+  proposed_at: null,
+  proposed_by_user_id: null,
+} as const;
 
 export async function approveSuggestedTxnReversalMatch(args: {
   db: Transaction<DB>;
-  companyId: string;
+  companyId: CompanyId;
   projectId: ProjectId;
-  userId: string;
+  userId: UserId;
   txnId: TxnId;
   commentBody?: string;
+  expectedReversalVersion?: number;
   now: string;
 }): Promise<TxnReversalActionResult> {
   const reversal = await getReversalRowForAnyTxn({
@@ -70,6 +92,7 @@ export async function approveSuggestedTxnReversalMatch(args: {
       'This transaction does not have an auto-matched reversal awaiting approval'
     );
   }
+  assertExpectedReversalVersion(reversal, args.expectedReversalVersion);
 
   const sourceTxnId = asTxnId(reversal.source_txn_public_id);
   const counterpartTxnId = reversal.matched_reversal_txn_public_id
@@ -109,12 +132,13 @@ export async function approveSuggestedTxnReversalMatch(args: {
   const isAmbiguousSuggested =
     reversal.status === 'auto_matched_ambiguous_pending_approval';
 
-  const updateResult = await args.db
+  const updated = await args.db
     .updateTable('txn_reversals')
     .set({
       status: 'reversed_matched',
       matched_at: args.now,
       matched_by_user_id: args.userId,
+      version: sql`version + 1`,
       updated_at: args.now,
     })
     .where('project_id', '=', args.projectId)
@@ -124,8 +148,10 @@ export async function approveSuggestedTxnReversalMatch(args: {
       'auto_matched_pending_approval',
       'auto_matched_ambiguous_pending_approval',
     ])
+    .where('version', '=', reversal.version)
+    .returningAll()
     .executeTakeFirst();
-  if (updateResult.numUpdatedRows !== 1n) {
+  if (!updated) {
     throw new AppError(
       'CONFLICT',
       'The suggested reversal changed while it was being approved'
@@ -133,37 +159,28 @@ export async function approveSuggestedTxnReversalMatch(args: {
   }
 
   await Promise.all([
-    createReversalComment({
+    completeReversalComments({
       db: args.db,
       companyId: args.companyId,
       projectId: args.projectId,
-      txnId: sourceTxnId,
+      txnIds: [sourceTxnId, counterpartTxnId],
       userId: args.userId,
-      body: isAmbiguousSuggested
-        ? buildApproveAmbiguousSuggestedSourceComment({
-            counterpartTxn,
-            commentBody: args.commentBody,
-          })
-        : buildApproveSuggestedSourceComment({
-            counterpartTxn,
-            commentBody: args.commentBody,
-          }),
+      now: args.now,
+      commentBody: args.commentBody,
     }),
-    createReversalComment({
+    recordReversalTransition({
       db: args.db,
       companyId: args.companyId,
       projectId: args.projectId,
-      txnId: counterpartTxnId,
-      userId: args.userId,
-      body: isAmbiguousSuggested
-        ? buildApproveAmbiguousSuggestedCounterpartComment({
-            sourceTxn,
-            commentBody: args.commentBody,
-          })
-        : buildApproveSuggestedCounterpartComment({
-            sourceTxn,
-            commentBody: args.commentBody,
-          }),
+      actorUserId: args.userId,
+      reversalId: reversal.id,
+      eventType: 'txn_reversal.match_approved',
+      reason: isAmbiguousSuggested
+        ? 'Approved the deterministic default reversal proposal'
+        : 'Approved the automatic reversal proposal',
+      previous: reversal,
+      resulting: updated as TxnReversalRow,
+      now: args.now,
     }),
   ]);
 
@@ -222,26 +239,44 @@ export async function applyTxnReversalActionServer(args: {
           projectId: args.projectId,
           txnId: args.input.txnId,
         });
-        if (current?.status === 'reversed_matched') {
+        if (current && current.status !== 'pending_reversal') {
           throw new AppError(
             'CONFLICT',
-            'This transaction is already matched to a reversal. Unmatch it before marking it pending again.'
+            current.status === 'reversal_exception'
+              ? 'Return the reversal exception to pending before updating it.'
+              : 'This transaction already has a reversal match. Resolve that proposal or match first.'
           );
         }
 
+        let updatedReversal: TxnReversalRow;
         if (current) {
-          await trx
+          assertExpectedReversalVersion(
+            current,
+            args.input.expectedReversalVersion
+          );
+          const updated = await trx
             .updateTable('txn_reversals')
             .set({
               expected_project_id: args.input.expectedProjectId ?? null,
               status: 'pending_reversal',
+              ...clearedMatchFields,
+              version: sql`version + 1`,
               updated_at: now,
             })
             .where('project_id', '=', args.projectId)
             .where('source_txn_public_id', '=', args.input.txnId)
+            .where('version', '=', current.version)
+            .returningAll()
             .executeTakeFirst();
+          if (!updated) {
+            throw new AppError(
+              'CONFLICT',
+              'This pending reversal changed while it was being updated'
+            );
+          }
+          updatedReversal = updated as TxnReversalRow;
         } else {
-          await trx
+          const inserted = await trx
             .insertInto('txn_reversals')
             .values({
               id: uid('txnr'),
@@ -258,25 +293,39 @@ export async function applyTxnReversalActionServer(args: {
               created_at: now,
               updated_at: now,
             } satisfies Insertable<TxnReversalTable>)
-            .executeTakeFirst();
+            .returningAll()
+            .executeTakeFirstOrThrow();
+          updatedReversal = inserted as TxnReversalRow;
         }
 
-        const expectedProjectName = await getProjectName({
-          db: trx,
-          projectId: args.input.expectedProjectId,
-        });
-        await createReversalComment({
-          db: trx,
-          companyId: context.companyId,
-          projectId: args.projectId,
-          txnId: args.input.txnId,
-          userId: context.userId,
-          body: buildPendingComment({
-            expectedProjectName,
-            expectedProjectId: args.input.expectedProjectId,
-            commentBody: args.input.commentBody,
+        await Promise.all([
+          createReversalComment({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            txnId: args.input.txnId,
+            userId: context.userId,
+            body: buildPendingComment({
+              commentBody: args.input.commentBody,
+            }),
           }),
-        });
+          recordReversalTransition({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            actorUserId: context.userId,
+            reversalId: updatedReversal.id,
+            eventType: current
+              ? 'txn_reversal.pending_updated'
+              : 'txn_reversal.pending_created',
+            reason: current
+              ? 'Updated the pending reversal details'
+              : 'Marked the source transaction as awaiting reversal',
+            previous: current,
+            resulting: updatedReversal,
+            now,
+          }),
+        ]);
 
         await reconcilePendingReversalMatches({
           db: trx,
@@ -314,27 +363,52 @@ export async function applyTxnReversalActionServer(args: {
             'This transaction is not marked as pending reversal'
           );
         }
-        if (current.status !== 'pending_reversal') {
+        if (!isOpenReversalStatus(current.status)) {
           throw new AppError(
             'CONFLICT',
-            current.status === 'reversal_exception'
-              ? 'Clear the reversal exception instead.'
-              : 'Unmatch the reversal before clearing the pending state.'
+            'Resolve or unmatch the reversal proposal before cancelling this workflow.'
           );
         }
-        await trx
+        assertExpectedReversalVersion(
+          current,
+          args.input.expectedReversalVersion
+        );
+        const deleted = await trx
           .deleteFrom('txn_reversals')
           .where('project_id', '=', args.projectId)
           .where('source_txn_public_id', '=', args.input.txnId)
+          .where('version', '=', current.version)
+          .returning('id')
           .executeTakeFirst();
-        await createReversalComment({
-          db: trx,
-          companyId: context.companyId,
-          projectId: args.projectId,
-          txnId: args.input.txnId,
-          userId: context.userId,
-          body: buildClearPendingComment(args.input.commentBody),
-        });
+        if (!deleted) {
+          throw new AppError(
+            'CONFLICT',
+            'This reversal workflow changed while it was being cancelled'
+          );
+        }
+        await Promise.all([
+          completeReversalComments({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            txnIds: [args.input.txnId],
+            userId: context.userId,
+            now,
+            commentBody: args.input.commentBody,
+          }),
+          recordReversalTransition({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            actorUserId: context.userId,
+            reversalId: current.id,
+            eventType: 'txn_reversal.cancelled',
+            reason: 'Cancelled the reversal workflow',
+            previous: current,
+            resulting: null,
+            now,
+          }),
+        ]);
         return {
           action: args.input.action,
           txn: await getTxnOrThrow({
@@ -357,29 +431,64 @@ export async function applyTxnReversalActionServer(args: {
           projectId: args.projectId,
           txnId: args.input.txnId,
         });
-        if (!current || !isOpenReversalStatus(current.status)) {
+        if (!current || current.status !== 'pending_reversal') {
           throw new AppError(
             'CONFLICT',
             'Only pending reversal transactions can be marked as exceptions'
           );
         }
-        await trx
+        assertExpectedReversalVersion(
+          current,
+          args.input.expectedReversalVersion
+        );
+        const updated = await trx
           .updateTable('txn_reversals')
           .set({
             status: 'reversal_exception',
+            version: sql`version + 1`,
             updated_at: now,
           })
           .where('project_id', '=', args.projectId)
           .where('source_txn_public_id', '=', args.input.txnId)
+          .where('version', '=', current.version)
+          .returningAll()
           .executeTakeFirst();
-        await createReversalComment({
+        if (!updated) {
+          throw new AppError(
+            'CONFLICT',
+            'This pending reversal changed while it was being updated'
+          );
+        }
+        await resolveOpenReversalComments({
           db: trx,
-          companyId: context.companyId,
           projectId: args.projectId,
-          txnId: args.input.txnId,
+          txnIds: [args.input.txnId],
           userId: context.userId,
-          body: buildExceptionComment(args.input.commentBody),
+          now,
         });
+        await Promise.all([
+          createReversalComment({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            txnId: args.input.txnId,
+            userId: context.userId,
+            body: args.input.commentBody,
+          }),
+          recordReversalTransition({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            actorUserId: context.userId,
+            reversalId: current.id,
+            eventType: 'txn_reversal.exception_marked',
+            reason:
+              'Marked the pending reversal as an exception requiring manual review',
+            previous: current,
+            resulting: updated as TxnReversalRow,
+            now,
+          }),
+        ]);
         return {
           action: args.input.action,
           txn: await getTxnOrThrow({
@@ -408,19 +517,58 @@ export async function applyTxnReversalActionServer(args: {
             'This transaction is not marked as a reversal exception'
           );
         }
-        await trx
-          .deleteFrom('txn_reversals')
+        assertExpectedReversalVersion(
+          current,
+          args.input.expectedReversalVersion
+        );
+        const updated = await trx
+          .updateTable('txn_reversals')
+          .set({
+            status: 'pending_reversal',
+            ...clearedMatchFields,
+            version: sql`version + 1`,
+            updated_at: now,
+          })
           .where('project_id', '=', args.projectId)
           .where('source_txn_public_id', '=', args.input.txnId)
+          .where('version', '=', current.version)
+          .returningAll()
           .executeTakeFirst();
-        await createReversalComment({
+        if (!updated) {
+          throw new AppError(
+            'CONFLICT',
+            'This reversal exception changed while it was being returned to pending'
+          );
+        }
+        await resolveOpenReversalComments({
           db: trx,
-          companyId: context.companyId,
           projectId: args.projectId,
-          txnId: args.input.txnId,
+          txnIds: [args.input.txnId],
           userId: context.userId,
-          body: buildClearExceptionComment(args.input.commentBody),
+          now,
         });
+        await Promise.all([
+          createReversalComment({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            txnId: args.input.txnId,
+            userId: context.userId,
+            body: args.input.commentBody,
+          }),
+          recordReversalTransition({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            actorUserId: context.userId,
+            reversalId: current.id,
+            eventType: 'txn_reversal.exception_returned_to_pending',
+            reason: 'Returned the exception to the pending reversal queue',
+            previous: current,
+            resulting: updated as TxnReversalRow,
+            now,
+          }),
+        ]);
         return {
           action: args.input.action,
           txn: await getTxnOrThrow({
@@ -449,6 +597,10 @@ export async function applyTxnReversalActionServer(args: {
             'Only pending reversal transactions can be matched'
           );
         }
+        assertExpectedReversalVersion(
+          current,
+          args.input.expectedReversalVersion
+        );
 
         const counterpartTxn = await getTxnOrThrow({
           db: trx,
@@ -469,42 +621,60 @@ export async function applyTxnReversalActionServer(args: {
           );
         }
 
-        await trx
+        const updated = await trx
           .updateTable('txn_reversals')
           .set({
             status: 'reversed_matched',
             matched_reversal_txn_public_id: args.input.reversalTxnId,
             matched_at: now,
             matched_by_user_id: context.userId,
+            match_method: 'manual',
+            match_score: null,
+            candidate_count: 1,
+            match_evidence: buildReversalMatchEvidence({
+              sourceTxn,
+              counterpartTxn,
+            }),
+            source_snapshot: toTxnReversalTxnSummary(sourceTxn),
+            counterpart_snapshot: toTxnReversalTxnSummary(counterpartTxn),
+            proposed_at: now,
+            proposed_by_user_id: context.userId,
+            version: sql`version + 1`,
             updated_at: now,
           })
           .where('project_id', '=', args.projectId)
           .where('source_txn_public_id', '=', args.input.txnId)
+          .where('version', '=', current.version)
+          .returningAll()
           .executeTakeFirst();
+        if (!updated) {
+          throw new AppError(
+            'CONFLICT',
+            'This pending reversal changed while it was being matched'
+          );
+        }
 
         await Promise.all([
-          createReversalComment({
+          completeReversalComments({
             db: trx,
             companyId: context.companyId,
             projectId: args.projectId,
-            txnId: args.input.txnId,
+            txnIds: [args.input.txnId, args.input.reversalTxnId],
             userId: context.userId,
-            body: buildMatchSourceComment({
-              sourceTxn,
-              counterpartTxn,
-              commentBody: args.input.commentBody,
-            }),
+            now,
+            commentBody: args.input.commentBody,
           }),
-          createReversalComment({
+          recordReversalTransition({
             db: trx,
             companyId: context.companyId,
             projectId: args.projectId,
-            txnId: args.input.reversalTxnId,
-            userId: context.userId,
-            body: buildMatchCounterpartComment({
-              sourceTxn,
-              commentBody: args.input.commentBody,
-            }),
+            actorUserId: context.userId,
+            reversalId: current.id,
+            eventType: 'txn_reversal.matched_manually',
+            reason: 'Manually matched the source and reversal transactions',
+            previous: current,
+            resulting: updated as TxnReversalRow,
+            now,
           }),
         ]);
 
@@ -531,6 +701,7 @@ export async function applyTxnReversalActionServer(args: {
           userId: context.userId,
           txnId: args.input.txnId,
           commentBody: args.input.commentBody,
+          expectedReversalVersion: args.input.expectedReversalVersion,
           now,
         });
       }
@@ -547,6 +718,10 @@ export async function applyTxnReversalActionServer(args: {
             'This transaction does not have an auto-matched reversal awaiting approval'
           );
         }
+        assertExpectedReversalVersion(
+          reversal,
+          args.input.expectedReversalVersion
+        );
 
         const sourceTxnId = asTxnId(reversal.source_txn_public_id);
         const counterpartTxnId = reversal.matched_reversal_txn_public_id
@@ -604,17 +779,33 @@ export async function applyTxnReversalActionServer(args: {
           )
           .executeTakeFirst();
 
-        await trx
+        const updated = await trx
           .updateTable('txn_reversals')
           .set({
             status: 'pending_reversal',
-            matched_reversal_txn_public_id: null,
+            ...clearedMatchFields,
+            version: sql`version + 1`,
             updated_at: now,
           })
           .where('project_id', '=', args.projectId)
           .where('source_txn_public_id', '=', sourceTxnId)
+          .where('version', '=', reversal.version)
+          .returningAll()
           .executeTakeFirst();
+        if (!updated) {
+          throw new AppError(
+            'CONFLICT',
+            'This suggested reversal changed while it was being rejected'
+          );
+        }
 
+        await resolveOpenReversalComments({
+          db: trx,
+          projectId: args.projectId,
+          txnIds: [sourceTxnId, counterpartTxnId],
+          userId: context.userId,
+          now,
+        });
         await Promise.all([
           createReversalComment({
             db: trx,
@@ -622,31 +813,21 @@ export async function applyTxnReversalActionServer(args: {
             projectId: args.projectId,
             txnId: sourceTxnId,
             userId: context.userId,
-            body: isAmbiguousSuggested
-              ? buildRejectAmbiguousSuggestedSourceComment({
-                  counterpartTxn,
-                  commentBody: args.input.commentBody,
-                })
-              : buildRejectSuggestedSourceComment({
-                  counterpartTxn,
-                  commentBody: args.input.commentBody,
-                }),
+            body: args.input.commentBody ?? '',
           }),
-          createReversalComment({
+          recordReversalTransition({
             db: trx,
             companyId: context.companyId,
             projectId: args.projectId,
-            txnId: counterpartTxnId,
-            userId: context.userId,
-            body: isAmbiguousSuggested
-              ? buildRejectAmbiguousSuggestedCounterpartComment({
-                  sourceTxn,
-                  commentBody: args.input.commentBody,
-                })
-              : buildRejectSuggestedCounterpartComment({
-                  sourceTxn,
-                  commentBody: args.input.commentBody,
-                }),
+            actorUserId: context.userId,
+            reversalId: reversal.id,
+            eventType: 'txn_reversal.match_rejected',
+            reason: isAmbiguousSuggested
+              ? 'Rejected the deterministic default reversal proposal'
+              : 'Rejected the automatic reversal proposal',
+            previous: reversal,
+            resulting: updated as TxnReversalRow,
+            now,
           }),
         ]);
 
@@ -676,6 +857,10 @@ export async function applyTxnReversalActionServer(args: {
           'This transaction is not currently matched to a reversal'
         );
       }
+      assertExpectedReversalVersion(
+        reversal,
+        args.input.expectedReversalVersion
+      );
 
       const sourceTxnId = asTxnId(reversal.source_txn_public_id);
       const counterpartTxnId = reversal.matched_reversal_txn_public_id
@@ -703,19 +888,63 @@ export async function applyTxnReversalActionServer(args: {
       assertTxnUnlocked(sourceTxn);
       assertTxnUnlocked(counterpartTxn);
 
-      await trx
+      if (reversal.match_method !== 'manual') {
+        await trx
+          .insertInto('txn_reversal_match_rejections')
+          .values({
+            id: uid('txnrj'),
+            company_id: context.companyId,
+            project_id: args.projectId,
+            source_txn_public_id: sourceTxnId,
+            counterpart_txn_public_id: counterpartTxnId,
+            rejected_at: now,
+            rejected_by_user_id: context.userId,
+            created_at: now,
+            updated_at: now,
+          })
+          .onConflict((conflict) =>
+            conflict
+              .columns([
+                'project_id',
+                'source_txn_public_id',
+                'counterpart_txn_public_id',
+              ])
+              .doUpdateSet({
+                rejected_at: now,
+                rejected_by_user_id: context.userId,
+                updated_at: now,
+              })
+          )
+          .executeTakeFirst();
+      }
+
+      const updated = await trx
         .updateTable('txn_reversals')
         .set({
           status: 'pending_reversal',
-          matched_reversal_txn_public_id: null,
-          matched_at: null,
-          matched_by_user_id: null,
+          ...clearedMatchFields,
+          version: sql`version + 1`,
           updated_at: now,
         })
         .where('project_id', '=', args.projectId)
         .where('source_txn_public_id', '=', sourceTxnId)
+        .where('version', '=', reversal.version)
+        .returningAll()
         .executeTakeFirst();
+      if (!updated) {
+        throw new AppError(
+          'CONFLICT',
+          'This reversal match changed while it was being removed'
+        );
+      }
 
+      await resolveOpenReversalComments({
+        db: trx,
+        projectId: args.projectId,
+        txnIds: [sourceTxnId, counterpartTxnId],
+        userId: context.userId,
+        now,
+      });
       await Promise.all([
         createReversalComment({
           db: trx,
@@ -723,21 +952,20 @@ export async function applyTxnReversalActionServer(args: {
           projectId: args.projectId,
           txnId: sourceTxnId,
           userId: context.userId,
-          body: buildUnmatchSourceComment({
-            counterpartTxn,
-            commentBody: args.input.commentBody,
-          }),
+          body: args.input.commentBody,
         }),
-        createReversalComment({
+        recordReversalTransition({
           db: trx,
           companyId: context.companyId,
           projectId: args.projectId,
-          txnId: counterpartTxnId,
-          userId: context.userId,
-          body: buildUnmatchCounterpartComment({
-            sourceTxn,
-            commentBody: args.input.commentBody,
-          }),
+          actorUserId: context.userId,
+          reversalId: reversal.id,
+          eventType: 'txn_reversal.unmatched',
+          reason:
+            'Removed the approved reversal match and returned the source to pending',
+          previous: reversal,
+          resulting: updated as TxnReversalRow,
+          now,
         }),
       ]);
 

@@ -20,7 +20,13 @@ export function getTransactionRowStatus(args: {
     return { color: 'red', label: 'Reversal issue' };
   }
   if (txn.reversal?.status === 'auto_matched_ambiguous_pending_approval') {
-    return { color: 'orange', label: 'Review default match' };
+    return {
+      color: 'orange',
+      label:
+        txn.reversal.side === 'source'
+          ? 'Review default match'
+          : 'Default reversal',
+    };
   }
   if (txn.reversal?.status === 'auto_matched_pending_approval') {
     return {
@@ -32,10 +38,16 @@ export function getTransactionRowStatus(args: {
     };
   }
   if (txn.reversal?.status === 'pending_reversal') {
-    return { color: 'violet', label: 'Pending reversal' };
+    return { color: 'violet', label: 'Awaiting reversal' };
   }
   if (txn.reversal?.status === 'reversed_matched') {
-    return { color: 'green', label: 'Reversal matched' };
+    return {
+      color: 'green',
+      label:
+        txn.reversal.side === 'source'
+          ? 'Matched original'
+          : 'Matched reversal',
+    };
   }
   if (txn.codingPendingApproval && hasValidSubCategory) {
     return { color: 'yellow', label: 'Review coding' };

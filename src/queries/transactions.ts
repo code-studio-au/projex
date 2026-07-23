@@ -68,7 +68,7 @@ type TransactionsPageQueryParams = {
 
 type TransactionsSelectionQueryParams = Omit<
   TransactionsPageQueryParams,
-  'mode' | 'pageIndex' | 'pageSize' | 'sortField' | 'sortDirection'
+  'mode' | 'pageIndex' | 'pageSize'
 > & { mode: 'selection' };
 
 function toTransactionsPageQueryParams(
@@ -98,6 +98,8 @@ function toTransactionsSelectionQueryParams(
 ): TransactionsSelectionQueryParams {
   return {
     mode: 'selection',
+    sortField: input.sort?.field,
+    sortDirection: input.sort?.direction,
     yearFilter: input.yearFilter ?? undefined,
     quarterFilter: input.quarterFilter ?? undefined,
     monthFilterKey: input.monthFilterKey ?? undefined,

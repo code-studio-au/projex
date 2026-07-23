@@ -144,7 +144,17 @@ export function useTransactionsPanelData(args: {
           codingPendingApproval: Boolean(txn.codingPendingApproval),
           locked: Boolean(txn.lockedAt),
           workflowVersion: txn.workflowVersion ?? 0,
-          reversalStatus: txn.reversal?.status,
+          reversal: txn.reversal
+            ? {
+                id: txn.reversal.id,
+                status: txn.reversal.status,
+                side: txn.reversal.side,
+                version: txn.reversal.version,
+                matchMethod: txn.reversal.matchMethod,
+                sourceTxn: txn.reversal.sourceTxn,
+                counterpartTxn: txn.reversal.counterpartTxn,
+              }
+            : undefined,
         }))
       ).filter((txn) => args.rowSelection[txn.id]),
     [args.bulkSelectionRows, args.rowSelection, pagedTxns]
@@ -171,6 +181,7 @@ export function useTransactionsPanelData(args: {
     uncodedCents: 0,
     codingApprovalCount: 0,
     reversalReviewCount: 0,
+    reversalMatchReviewCount: 0,
     awaitingReversalCount: 0,
     sourceOnlyCount: 0,
     assignedToMeCount: 0,
@@ -190,32 +201,42 @@ export function useTransactionsPanelData(args: {
       ).length,
     [selectedRows, args.taxonomy.validSubIds]
   );
-  const selectedSuggestedReversalCount = useMemo(
-    () =>
-      selectedRows.filter(
-        (txn) =>
-          !txn.locked &&
-          (txn.reversalStatus === 'auto_matched_pending_approval' ||
-            txn.reversalStatus === 'auto_matched_ambiguous_pending_approval')
-      ).length,
+  const selectedSuggestedReversalPairs = useMemo(
+    () => [
+      ...new Map(
+        selectedRows
+          .filter(
+            (txn) =>
+              !txn.locked &&
+              txn.reversal &&
+              (txn.reversal.status === 'auto_matched_pending_approval' ||
+                txn.reversal.status ===
+                  'auto_matched_ambiguous_pending_approval')
+          )
+          .map((txn) => [txn.reversal!.id, txn.reversal!] as const)
+      ).values(),
+    ],
     [selectedRows]
   );
+  const selectedSuggestedReversalIds = useMemo(
+    () => selectedSuggestedReversalPairs.map((reversal) => reversal.id),
+    [selectedSuggestedReversalPairs]
+  );
+  const selectedSuggestedReversalCount = selectedSuggestedReversalPairs.length;
   const selectedAmbiguousSuggestedReversalCount = useMemo(
     () =>
-      selectedRows.filter(
-        (txn) =>
-          !txn.locked &&
-          txn.reversalStatus === 'auto_matched_ambiguous_pending_approval'
+      selectedSuggestedReversalPairs.filter(
+        (reversal) =>
+          reversal.status === 'auto_matched_ambiguous_pending_approval'
       ).length,
-    [selectedRows]
+    [selectedSuggestedReversalPairs]
   );
   const selectedUnlockedCategorisableCount = useMemo(
     () => selectedRows.filter((txn) => !txn.locked && txn.categorisable).length,
     [selectedRows]
   );
   const selectedDeletableCount = useMemo(
-    () =>
-      selectedRows.filter((txn) => !txn.locked && !txn.reversalStatus).length,
+    () => selectedRows.filter((txn) => !txn.locked && !txn.reversal).length,
     [selectedRows]
   );
   const bulkRecodeSubCategoryOptions = useMemo(
@@ -244,6 +265,8 @@ export function useTransactionsPanelData(args: {
     selectedAmbiguousSuggestedReversalCount,
     selectedAutoMappedPendingCount,
     selectedSuggestedReversalCount,
+    selectedSuggestedReversalIds,
+    selectedSuggestedReversalPairs,
     selectedDeletableCount,
     selectedTxnIds,
     selectedWorkflowVersions,

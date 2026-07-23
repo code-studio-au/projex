@@ -1,9 +1,9 @@
-import type { Kysely } from 'kysely';
+import type { Kysely, Selectable } from 'kysely';
 
 import { AppError } from '../../../api/errors';
 import type { ProjectId, Txn, TxnId, TxnReversalStatus } from '../../../types';
 import { toTxn } from '../../mappers/transactionRows';
-import type { DB } from '../../db/schema';
+import type { DB, TxnReversalTable } from '../../db/schema';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import type { ServerFnContextInput } from '../runtime';
 import {
@@ -15,21 +15,7 @@ import {
 import { isValidReversalAutoMatchEdge } from './reversalMatching';
 import type { ReversalDbExecutor } from './reversalTypes';
 
-export type TxnReversalRow = {
-  id: string;
-  company_id: string;
-  project_id: string;
-  source_txn_public_id: string;
-  matched_reversal_txn_public_id: string | null;
-  expected_project_id: string | null;
-  status: TxnReversalStatus;
-  marked_at: string;
-  marked_by_user_id: string;
-  matched_at: string | null;
-  matched_by_user_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type TxnReversalRow = Selectable<TxnReversalTable>;
 
 export function isOpenReversalStatus(
   status: TxnReversalStatus
@@ -101,6 +87,25 @@ export async function getReversalRowForAnyTxn(args: {
         ])
       )
       .executeTakeFirst()) ?? null
+  );
+}
+
+export async function assertTxnNotInReversalWorkflow(args: {
+  db: ReversalDbExecutor;
+  projectId: ProjectId;
+  txnId: TxnId;
+  operation: 'edit' | 'delete' | 'split' | 'transfer';
+}): Promise<void> {
+  const reversal = await getReversalRowForAnyTxn(args);
+  if (!reversal) return;
+
+  const action =
+    reversal.status === 'reversed_matched'
+      ? 'unmatch the reversal pair'
+      : 'cancel the pending reversal workflow';
+  throw new AppError(
+    'CONFLICT',
+    `This transaction is part of a reversal workflow. Please ${action} before you ${args.operation} it.`
   );
 }
 
@@ -177,6 +182,12 @@ export function assertCounterpartTxnEligible(args: {
     throw new AppError(
       'VALIDATION_ERROR',
       'Matched reversal transactions must have the same absolute amount as the source transaction'
+    );
+  }
+  if (args.counterpartTxn.date < args.sourceTxn.date) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'A reversal must be dated on or after its source transaction'
     );
   }
 }

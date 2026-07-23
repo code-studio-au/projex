@@ -11,6 +11,9 @@ import type {
   ImportPreviewRow,
   ProjectId,
   Txn,
+  TxnReversalMatchEvidence,
+  TxnReversalMatchMethod,
+  TxnReversalTxnSummary,
   TxnReversalStatus,
 } from '../../../types';
 import type { TxnListFilterInput, TxnListPageInput } from '../../../api/types';
@@ -45,6 +48,7 @@ export type TxnPageSummaryRow = {
   uncoded_cents: number | string;
   coding_approval_count: number | string;
   reversal_review_count: number | string;
+  reversal_match_review_count: number | string;
   awaiting_reversal_count: number | string;
   source_only_count: number | string;
   assigned_to_me_count: number | string;
@@ -187,6 +191,33 @@ export function txnReversalSelectExpressions(args: {
     end`.as('reversal_counterpart_txn_public_id'),
     sql<string | null>`${sql.ref(`${reversalAlias}.expected_project_id`)}`.as(
       'reversal_expected_project_id'
+    ),
+    sql<number | null>`${sql.ref(`${reversalAlias}.version`)}`.as(
+      'reversal_version'
+    ),
+    sql<TxnReversalMatchMethod | null>`${sql.ref(`${reversalAlias}.match_method`)}`.as(
+      'reversal_match_method'
+    ),
+    sql<number | null>`${sql.ref(`${reversalAlias}.match_score`)}`.as(
+      'reversal_match_score'
+    ),
+    sql<number | null>`${sql.ref(`${reversalAlias}.candidate_count`)}`.as(
+      'reversal_candidate_count'
+    ),
+    sql<TxnReversalMatchEvidence | null>`${sql.ref(`${reversalAlias}.match_evidence`)}`.as(
+      'reversal_match_evidence'
+    ),
+    sql<TxnReversalTxnSummary | null>`${sql.ref(`${reversalAlias}.source_snapshot`)}`.as(
+      'reversal_source_snapshot'
+    ),
+    sql<TxnReversalTxnSummary | null>`${sql.ref(`${reversalAlias}.counterpart_snapshot`)}`.as(
+      'reversal_counterpart_snapshot'
+    ),
+    sql<string | null>`${sql.ref(`${reversalAlias}.proposed_at`)}`.as(
+      'reversal_proposed_at'
+    ),
+    sql<string | null>`${sql.ref(`${reversalAlias}.proposed_by_user_id`)}`.as(
+      'reversal_proposed_by_user_id'
     ),
     sql<string | null>`${sql.ref(`${reversalAlias}.marked_at`)}`.as(
       'reversal_marked_at'

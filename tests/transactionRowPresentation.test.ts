@@ -55,6 +55,7 @@ test('reversal review takes priority over coding presentation', () => {
           id: 'reversal_1',
           status: 'auto_matched_pending_approval',
           side: 'source',
+          version: 1,
         },
       }),
       hasValidSubCategory: true,
@@ -68,6 +69,7 @@ test('reversal review takes priority over coding presentation', () => {
           id: 'reversal_2',
           status: 'auto_matched_pending_approval',
           side: 'reversal',
+          version: 1,
         },
       }),
       hasValidSubCategory: true,
@@ -85,11 +87,15 @@ test('ambiguous pairs use the same review label on both rows', () => {
             id: `reversal_${side}`,
             status: 'auto_matched_ambiguous_pending_approval',
             side,
+            version: 1,
           },
         }),
         hasValidSubCategory: true,
       }),
-      { color: 'orange', label: 'Review default match' }
+      {
+        color: 'orange',
+        label: side === 'source' ? 'Review default match' : 'Default reversal',
+      }
     );
   }
 });
@@ -102,11 +108,12 @@ test('completed and non-categorisable rows avoid false coding warnings', () => {
           id: 'reversal_matched',
           status: 'reversed_matched',
           side: 'source',
+          version: 1,
         },
       }),
       hasValidSubCategory: true,
     }),
-    { color: 'green', label: 'Reversal matched' }
+    { color: 'green', label: 'Matched original' }
   );
   assert.equal(
     getTransactionRowStatus({
@@ -129,11 +136,12 @@ test('pending and exception reversals retain their distinct action states', () =
           id: 'reversal_pending',
           status: 'pending_reversal',
           side: 'source',
+          version: 1,
         },
       }),
       hasValidSubCategory: true,
     }),
-    { color: 'violet', label: 'Pending reversal' }
+    { color: 'violet', label: 'Awaiting reversal' }
   );
   assert.deepEqual(
     getTransactionRowStatus({
@@ -142,6 +150,7 @@ test('pending and exception reversals retain their distinct action states', () =
           id: 'reversal_exception',
           status: 'reversal_exception',
           side: 'source',
+          version: 1,
         },
       }),
       hasValidSubCategory: true,

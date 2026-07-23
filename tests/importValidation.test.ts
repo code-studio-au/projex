@@ -234,6 +234,19 @@ test('split transaction schema rejects zero-value children and bulk actions reje
     }).success,
     true
   );
+  assert.equal(
+    txnBulkActionInputSchema.safeParse({
+      action: 'approveSuggestedReversals',
+      reversalIds: ['txnr_1', 'txnr_2'],
+    }).success,
+    true
+  );
+  assert.equal(
+    txnBulkActionInputSchema.safeParse({
+      action: 'approveSuggestedReversals',
+    }).success,
+    false
+  );
 
   assert.equal(
     txnBulkActionInputSchema.safeParse({
@@ -263,8 +276,12 @@ test('transaction selection schema preserves filters and bulk actions enforce th
     mode: 'selection',
     yearFilter: '2026',
     transactionView: 'needs-review',
+    sortField: 'date',
+    sortDirection: 'asc',
   });
   assert.equal(selection.success, true);
+  assert.deepEqual(selection.data?.sortField, 'date');
+  assert.deepEqual(selection.data?.sortDirection, 'asc');
 
   const oversizedSelection = Array.from(
     { length: MAX_BULK_TXN_COUNT + 1 },

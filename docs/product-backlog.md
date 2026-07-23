@@ -70,7 +70,7 @@ Examples of retention strategy:
 Notes:
 
 - immutable workflow events already support important transaction review,
-  locking, import, and structural-integrity paths
+  locking, import, reversal proposal/approval, and structural-integrity paths
 - remaining work needs careful event-coverage, schema, indexing, retention,
   access, export, and admin-UI design
 - do not choose retention periods or expose a broad audit UI until the

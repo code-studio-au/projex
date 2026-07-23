@@ -277,7 +277,7 @@ export default function TransactionCommentsModal(props: {
                   </Text>
                   {comment.resolvedAt ? (
                     <Badge size="xs" color="green" variant="light">
-                      Resolved
+                      Closed
                     </Badge>
                   ) : null}
                 </Group>
@@ -292,7 +292,7 @@ export default function TransactionCommentsModal(props: {
             <div className={classes.commentActionRow}>
               <Select
                 size="xs"
-                placeholder={resolved ? 'Resolved' : 'Assign'}
+                placeholder={resolved ? 'Closed' : 'Assign'}
                 data={userOptions}
                 value={comment.assignedToUserId ?? null}
                 clearable
@@ -307,7 +307,7 @@ export default function TransactionCommentsModal(props: {
                 disabled={updateComment.isPending}
                 onClick={() => void setResolved(comment, !comment.resolvedAt)}
               >
-                {comment.resolvedAt ? 'Reopen' : 'Resolve'}
+                {comment.resolvedAt ? 'Reopen' : 'Close'}
               </Button>
               {!nested ? (
                 <Button

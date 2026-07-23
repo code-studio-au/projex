@@ -30,6 +30,8 @@ import {
   assertTxnUnlocked,
   txnSelectColumns,
 } from './shared';
+import { lockProjectReversalWorkflow } from './reversalConcurrency';
+import { assertTxnNotInReversalWorkflow } from './reversalDomain';
 
 export async function createTxnServer(args: {
   context: ServerFnContextInput;
@@ -237,13 +239,33 @@ export async function updateTxnServer(args: {
         : {}),
     };
 
-    const updated = await db
-      .updateTable('txns')
-      .set(patch)
-      .where('project_id', '=', args.projectId)
-      .where('public_id', '=', args.input.id)
-      .returning(txnSelectColumns())
-      .executeTakeFirstOrThrow();
+    const changesReversalIdentity =
+      prev.date !== next.date ||
+      prev.item !== next.item ||
+      prev.description !== next.description ||
+      prev.amountCents !== next.amountCents ||
+      prev.externalId !== next.externalId;
+    const updated = await db.transaction().execute(async (trx) => {
+      await lockProjectReversalWorkflow({
+        db: trx,
+        projectId: args.projectId,
+      });
+      if (changesReversalIdentity) {
+        await assertTxnNotInReversalWorkflow({
+          db: trx,
+          projectId: args.projectId,
+          txnId: args.input.id,
+          operation: 'edit',
+        });
+      }
+      return trx
+        .updateTable('txns')
+        .set(patch)
+        .where('project_id', '=', args.projectId)
+        .where('public_id', '=', args.input.id)
+        .returning(txnSelectColumns())
+        .executeTakeFirstOrThrow();
+    });
 
     const updatedTxn = toTxn(updated);
     if (updatedTxn.categoryId && updatedTxn.subCategoryId) {
@@ -301,6 +323,10 @@ export async function deleteTxnServer(args: {
       'txns:edit'
     );
     await db.transaction().execute(async (trx) => {
+      await lockProjectReversalWorkflow({
+        db: trx,
+        projectId: args.projectId,
+      });
       const existing = await trx
         .selectFrom('txns')
         .select('locked_at')
@@ -315,6 +341,12 @@ export async function deleteTxnServer(args: {
           'Transaction is locked and cannot be deleted'
         );
       }
+      await assertTxnNotInReversalWorkflow({
+        db: trx,
+        projectId: args.projectId,
+        txnId: args.txnId,
+        operation: 'delete',
+      });
       const structuralLink = await trx
         .selectFrom('txn_links')
         .select('id')

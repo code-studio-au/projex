@@ -59,6 +59,7 @@ function canSplitTransaction(args: { readOnly: boolean; txn: Txn }) {
   return (
     !args.readOnly &&
     !args.txn.lockedAt &&
+    !args.txn.reversal &&
     isBudgetImpactTxn(args.txn) &&
     isCategorisableTxn(args.txn) &&
     (args.txn.txnType === 'standard' || args.txn.txnType === 'transfer_child')
@@ -75,6 +76,7 @@ function canTransferTransaction(args: {
     !args.readOnly &&
     args.transferOutEnabled &&
     !args.txn.lockedAt &&
+    !args.txn.reversal &&
     args.transferProjectOptions.length > 0 &&
     isBudgetImpactTxn(args.txn) &&
     isCategorisableTxn(args.txn) &&
@@ -85,6 +87,7 @@ function canTransferTransaction(args: {
 function canEditTxnAmount(args: { readOnly: boolean; txn: Txn }) {
   return (
     !args.readOnly &&
+    !args.txn.reversal &&
     args.txn.txnType !== 'split_parent' &&
     args.txn.txnType !== 'transfer_source' &&
     args.txn.txnType !== 'transfer_child'
@@ -143,6 +146,10 @@ export function createTransactionColumns(
           !!provenanceLabel ||
           !!row.original.lockedAt ||
           !!row.original.reviewedAt;
+        const linkedTxn =
+          row.original.reversal?.side === 'source'
+            ? row.original.reversal.counterpartTxn
+            : row.original.reversal?.sourceTxn;
         return (
           <Stack gap={2} style={{ minWidth: 0 }}>
             <Text className="table-body-left-bold" lineClamp={1}>
@@ -154,7 +161,20 @@ export function createTransactionColumns(
             {primaryStatus || showMetadata ? (
               <Group gap={8} wrap="wrap" align="center">
                 {primaryStatus ? (
-                  <Badge size="xs" color={primaryStatus.color} variant="light">
+                  <Badge
+                    size="xs"
+                    color={primaryStatus.color}
+                    variant="light"
+                    component={row.original.reversal ? 'button' : 'div'}
+                    style={{
+                      cursor: row.original.reversal ? 'pointer' : undefined,
+                    }}
+                    onClick={
+                      row.original.reversal
+                        ? () => args.onOpenReversal(row.original)
+                        : undefined
+                    }
+                  >
                     {primaryStatus.label}
                   </Badge>
                 ) : null}
@@ -179,6 +199,16 @@ export function createTransactionColumns(
                   </Group>
                 ) : null}
               </Group>
+            ) : null}
+            {linkedTxn ? (
+              <Text size="xs" c="dimmed" lineClamp={1}>
+                Paired with {linkedTxn.date} ·{' '}
+                {formatCurrencyFromCents(
+                  linkedTxn.amountCents,
+                  args.currencyCode
+                )}{' '}
+                · {linkedTxn.item}
+              </Text>
             ) : null}
           </Stack>
         );
@@ -510,9 +540,13 @@ export function createTransactionColumns(
                   <Menu.Divider />
                 </>
               ) : null}
-              {canManageReversal ? (
+              {canManageReversal || row.original.reversal ? (
                 <Menu.Item onClick={() => args.onOpenReversal(row.original)}>
-                  Manage pending reversal
+                  {canManageReversal
+                    ? row.original.reversal
+                      ? 'Review reversal details'
+                      : 'Mark pending reversal'
+                    : 'View reversal details'}
                 </Menu.Item>
               ) : null}
               <Menu.Item

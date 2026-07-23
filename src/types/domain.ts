@@ -331,12 +331,59 @@ export const TXN_REVERSAL_SIDES = ['source', 'reversal'] as const;
 
 export type TxnReversalSide = (typeof TXN_REVERSAL_SIDES)[number];
 
+export type TxnReversalMatchMethod = 'manual' | 'auto_clear' | 'auto_default';
+
+export type TxnReversalMatchComparison = {
+  sourceValue?: string;
+  counterpartValue?: string;
+  outcome: 'match' | 'missing' | 'mismatch' | 'not_applicable';
+};
+
+export type TxnReversalTxnSummary = {
+  txnId: TxnId;
+  externalId?: string;
+  date: string;
+  item: string;
+  description: string;
+  amountCents: number;
+  sourceType?: string;
+  sourceSystem?: string;
+  journalDescription?: string;
+  reference?: string;
+  costCentre?: string;
+};
+
+export type TxnReversalMatchEvidence = {
+  amountExact?: boolean;
+  oppositeSign?: boolean;
+  dayDelta?: number;
+  withinAutoWindow?: boolean;
+  sourceSystem?: TxnReversalMatchComparison;
+  journalDescription?: TxnReversalMatchComparison;
+  reference?: TxnReversalMatchComparison;
+  costCentre?: TxnReversalMatchComparison;
+  sourceCandidateCount?: number;
+  counterpartCandidateCount?: number;
+  alternativeCounterparts?: TxnReversalTxnSummary[];
+  reasons: string[];
+  legacy?: boolean;
+};
+
 type TxnReversal = {
   id: string;
   status: TxnReversalStatus;
   side: TxnReversalSide;
+  version: number;
   counterpartTxnId?: TxnId;
   expectedProjectId?: ProjectId;
+  matchMethod?: TxnReversalMatchMethod;
+  matchScore?: number;
+  candidateCount?: number;
+  matchEvidence?: TxnReversalMatchEvidence;
+  sourceTxn?: TxnReversalTxnSummary;
+  counterpartTxn?: TxnReversalTxnSummary;
+  proposedAt?: string;
+  proposedByUserId?: UserId;
   markedAt?: string;
   markedByUserId?: UserId;
   matchedAt?: string;

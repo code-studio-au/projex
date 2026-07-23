@@ -431,7 +431,7 @@ test(
             parent_public_id: null,
             source_public_id: null,
             transfer_project_id: null,
-            budget_impact: false,
+            budget_impact: true,
             categorisable: false,
             import_batch_id: null,
             import_source_type: null,

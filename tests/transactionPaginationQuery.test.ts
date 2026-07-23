@@ -19,6 +19,7 @@ const previousPage: TxnListPageResult = {
     uncodedCents: 0,
     codingApprovalCount: 0,
     reversalReviewCount: 0,
+    reversalMatchReviewCount: 0,
     awaitingReversalCount: 0,
     sourceOnlyCount: 0,
     assignedToMeCount: 0,

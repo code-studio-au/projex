@@ -1,3 +1,4 @@
+import { AppError } from '../../../api/errors';
 import type { TxnBulkActionResult } from '../../../api/types';
 import type { ProjectId, TxnId } from '../../../types';
 import { asTxnId } from '../../../types';
@@ -49,7 +50,8 @@ export async function reconcilePendingTxnReversalsServer(args: {
 export async function approveSuggestedTxnReversalsBulkServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
-  txnIds: TxnId[];
+  reversalIds?: string[];
+  txnIds?: TxnId[];
 }): Promise<TxnBulkActionResult> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -61,87 +63,94 @@ export async function approveSuggestedTxnReversalsBulkServer(args: {
 
     return context.db.transaction().execute(async (trx) => {
       await lockProjectReversalWorkflow({ db: trx, projectId: args.projectId });
-      const selectedRows = await trx
-        .selectFrom('txns')
-        .select(['public_id', 'locked_at'])
-        .where('project_id', '=', args.projectId)
-        .where('public_id', 'in', args.txnIds)
-        .orderBy('public_id', 'asc')
-        .forUpdate()
-        .execute();
-      const selectedByTxnId = new Map(
-        selectedRows.map((row) => [row.public_id, row] as const)
-      );
+      const requestedIds = args.reversalIds ?? args.txnIds ?? [];
+      if (!requestedIds.length) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Select at least one suggested reversal pair to approve'
+        );
+      }
 
-      const reversalRows = (await trx
+      let reversalQuery = trx
         .selectFrom('txn_reversals')
         .selectAll()
         .where('project_id', '=', args.projectId)
-        .where(({ eb, or }) =>
-          or([
-            eb('source_txn_public_id', 'in', args.txnIds),
-            eb('matched_reversal_txn_public_id', 'in', args.txnIds),
-          ])
-        )
         .orderBy('id', 'asc')
-        .forUpdate()
-        .execute()) as TxnReversalRow[];
-      const reversalByTxnId = new Map<string, TxnReversalRow>();
-      for (const reversal of reversalRows) {
-        reversalByTxnId.set(reversal.source_txn_public_id, reversal);
-        if (reversal.matched_reversal_txn_public_id) {
-          reversalByTxnId.set(
-            reversal.matched_reversal_txn_public_id,
-            reversal
-          );
-        }
+        .forUpdate();
+      if (args.reversalIds) {
+        reversalQuery = reversalQuery.where('id', 'in', args.reversalIds);
+      } else {
+        reversalQuery = reversalQuery.where(({ eb, or }) =>
+          or([
+            eb('source_txn_public_id', 'in', args.txnIds!),
+            eb('matched_reversal_txn_public_id', 'in', args.txnIds!),
+          ])
+        );
       }
+      const reversalRows = (await reversalQuery.execute()) as TxnReversalRow[];
+      const uniqueReversals = new Map(
+        reversalRows.map((reversal) => [reversal.id, reversal] as const)
+      );
+
+      const involvedTxnIds = [
+        ...new Set(
+          [...uniqueReversals.values()].flatMap((reversal) => [
+            reversal.source_txn_public_id,
+            ...(reversal.matched_reversal_txn_public_id
+              ? [reversal.matched_reversal_txn_public_id]
+              : []),
+          ])
+        ),
+      ];
+      const involvedRows = involvedTxnIds.length
+        ? await trx
+            .selectFrom('txns')
+            .select(['public_id', 'locked_at'])
+            .where('project_id', '=', args.projectId)
+            .where('public_id', 'in', involvedTxnIds)
+            .orderBy('public_id', 'asc')
+            .forUpdate()
+            .execute()
+        : [];
+      const lockedTxnIds = new Set(
+        involvedRows.filter((row) => row.locked_at).map((row) => row.public_id)
+      );
 
       let updatedCount = 0;
       let unchangedCount = 0;
       let lockedCount = 0;
       let ineligibleCount = 0;
-      const uniqueReversalSelections = new Map<string, TxnId>();
-
-      for (const txnId of args.txnIds) {
-        const row = selectedByTxnId.get(txnId);
-        if (!row) continue;
-        if (row.locked_at) {
+      const now = new Date().toISOString();
+      for (const reversal of uniqueReversals.values()) {
+        if (
+          lockedTxnIds.has(reversal.source_txn_public_id) ||
+          (reversal.matched_reversal_txn_public_id &&
+            lockedTxnIds.has(reversal.matched_reversal_txn_public_id))
+        ) {
           lockedCount += 1;
           continue;
         }
-        const reversal = reversalByTxnId.get(txnId);
-        if (!reversal || !isSuggestedReversalStatus(reversal.status)) {
+        if (!isSuggestedReversalStatus(reversal.status)) {
           ineligibleCount += 1;
           continue;
         }
-        if (uniqueReversalSelections.has(reversal.id)) {
-          unchangedCount += 1;
-          continue;
-        }
-        uniqueReversalSelections.set(
-          reversal.id,
-          asTxnId(reversal.source_txn_public_id)
-        );
-      }
-
-      const now = new Date().toISOString();
-      for (const txnId of uniqueReversalSelections.values()) {
         await approveSuggestedTxnReversalMatch({
           db: trx,
           companyId: context.companyId,
           projectId: args.projectId,
           userId: context.userId,
-          txnId,
+          txnId: asTxnId(reversal.source_txn_public_id),
+          expectedReversalVersion: reversal.version,
           now,
         });
         updatedCount += 1;
       }
+      unchangedCount = Math.max(0, requestedIds.length - uniqueReversals.size);
 
       return {
         action: 'approveSuggestedReversals',
-        requestedCount: args.txnIds.length,
-        foundCount: selectedRows.length,
+        requestedCount: requestedIds.length,
+        foundCount: uniqueReversals.size,
         updatedCount,
         unchangedCount,
         lockedCount,

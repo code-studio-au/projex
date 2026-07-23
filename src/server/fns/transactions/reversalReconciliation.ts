@@ -1,7 +1,8 @@
 import { sql, type Transaction } from 'kysely';
+import { isDeepStrictEqual } from 'node:util';
 
 import type { TxnReversalMatchSuggestion } from '../../../api/types';
-import type { ProjectId, Txn, TxnId } from '../../../types';
+import type { CompanyId, ProjectId, Txn, TxnId, UserId } from '../../../types';
 import { asTxnId } from '../../../types';
 import { toTxn } from '../../mappers/transactionRows';
 import type { DB } from '../../db/schema';
@@ -17,20 +18,19 @@ import {
   txnReversalSelectExpressions,
 } from './shared';
 import {
+  buildReversalMatchEvidence,
+  toTxnReversalTxnSummary,
+} from './reversalMatchFacts';
+import {
   buildReversalAutoMatchPlan,
   reversalAutoMatchPairKey,
   type ReversalAutoMatchPlanEntry,
 } from './reversalMatching';
 import { lockProjectReversalWorkflow } from './reversalConcurrency';
 import type { ReversalDbExecutor } from './reversalTypes';
-import {
-  buildAmbiguousSuggestedCounterpartComment,
-  buildAmbiguousSuggestedSourceComment,
-  buildSuggestedCounterpartComment,
-  buildSuggestedSourceComment,
-  createReversalComment,
-} from './reversalComments';
 import { assertSourceTxnEligible, getTxnOrThrow } from './reversalDomain';
+import { getSourceReversalRow, type TxnReversalRow } from './reversalDomain';
+import { recordReversalTransition } from './reversalAudit';
 
 function normalizeSuggestionReason(reason: string) {
   return reason.replace(/\s+/g, ' ').trim();
@@ -85,14 +85,18 @@ function buildSuggestion(args: {
     amountCents: args.candidateTxn.amountCents,
     score,
     reasons: reasons.map(normalizeSuggestionReason),
+    evidence: buildReversalMatchEvidence({
+      sourceTxn: args.sourceTxn,
+      counterpartTxn: args.candidateTxn,
+    }),
   };
 }
 
 async function markAutoMatchPlanForReview(args: {
   db: ReversalDbExecutor;
-  companyId: string;
+  companyId: CompanyId;
   projectId: ProjectId;
-  userId: string;
+  userId: UserId;
   matches: ReversalAutoMatchPlanEntry[];
 }): Promise<number> {
   if (!args.matches.length) return 0;
@@ -100,56 +104,161 @@ async function markAutoMatchPlanForReview(args: {
   const now = new Date().toISOString();
   let suggestedCount = 0;
   for (const match of args.matches) {
-    const updateResult = await args.db
+    const previous = await getSourceReversalRow({
+      db: args.db,
+      projectId: args.projectId,
+      txnId: match.sourceTxn.id,
+    });
+    if (
+      !previous ||
+      ![
+        'pending_reversal',
+        'auto_matched_pending_approval',
+        'auto_matched_ambiguous_pending_approval',
+      ].includes(previous.status)
+    ) {
+      continue;
+    }
+
+    const matchMethod = match.ambiguous ? 'auto_default' : 'auto_clear';
+    const candidateCount = Math.max(
+      match.sourceCandidateTxnIds.length,
+      match.counterpartCandidateTxnIds.length
+    );
+    const evidence = buildReversalMatchEvidence({
+      sourceTxn: match.sourceTxn,
+      counterpartTxn: match.counterpartTxn,
+      sourceCandidateCount: match.sourceCandidateTxnIds.length,
+      counterpartCandidateCount: match.counterpartCandidateTxnIds.length,
+      alternativeCounterparts: match.validCounterpartTxns.filter(
+        (txn) => txn.id !== match.counterpartTxn.id
+      ),
+    });
+    const desiredStatus = match.ambiguous
+      ? 'auto_matched_ambiguous_pending_approval'
+      : 'auto_matched_pending_approval';
+    const sourceSnapshot = toTxnReversalTxnSummary(match.sourceTxn);
+    const counterpartSnapshot = toTxnReversalTxnSummary(match.counterpartTxn);
+    const proposalIsUnchanged =
+      previous.status === desiredStatus &&
+      previous.matched_reversal_txn_public_id === match.counterpartTxn.id &&
+      previous.match_method === matchMethod &&
+      previous.match_score === match.score &&
+      previous.candidate_count === candidateCount &&
+      isDeepStrictEqual(previous.match_evidence, evidence) &&
+      isDeepStrictEqual(previous.source_snapshot, sourceSnapshot) &&
+      isDeepStrictEqual(previous.counterpart_snapshot, counterpartSnapshot);
+    if (proposalIsUnchanged) continue;
+
+    const updated = await args.db
       .updateTable('txn_reversals')
       .set({
-        status: match.ambiguous
-          ? 'auto_matched_ambiguous_pending_approval'
-          : 'auto_matched_pending_approval',
+        status: desiredStatus,
         matched_reversal_txn_public_id: match.counterpartTxn.id,
         matched_at: null,
         matched_by_user_id: null,
+        match_method: matchMethod,
+        match_score: match.score,
+        candidate_count: candidateCount,
+        match_evidence: evidence,
+        source_snapshot: sourceSnapshot,
+        counterpart_snapshot: counterpartSnapshot,
+        proposed_at: now,
+        proposed_by_user_id: args.userId,
+        version: sql`version + 1`,
         updated_at: now,
       })
       .where('project_id', '=', args.projectId)
       .where('source_txn_public_id', '=', match.sourceTxn.id)
-      .where('status', '=', 'pending_reversal')
+      .where('status', 'in', [
+        'pending_reversal',
+        'auto_matched_pending_approval',
+        'auto_matched_ambiguous_pending_approval',
+      ])
+      .where('version', '=', previous.version)
+      .returningAll()
       .executeTakeFirst();
-    if (updateResult.numUpdatedRows !== 1n) continue;
+    if (!updated) continue;
 
-    await Promise.all([
-      createReversalComment({
-        db: args.db,
-        companyId: args.companyId,
-        projectId: args.projectId,
-        txnId: match.sourceTxn.id,
-        userId: args.userId,
-        body: match.ambiguous
-          ? buildAmbiguousSuggestedSourceComment({
-              counterpartTxn: match.counterpartTxn,
-              validCounterpartTxnIds: match.sourceCandidateTxnIds,
-            })
-          : buildSuggestedSourceComment({
-              counterpartTxn: match.counterpartTxn,
-            }),
-      }),
-      createReversalComment({
-        db: args.db,
-        companyId: args.companyId,
-        projectId: args.projectId,
-        txnId: match.counterpartTxn.id,
-        userId: args.userId,
-        body: match.ambiguous
-          ? buildAmbiguousSuggestedCounterpartComment({
-              sourceTxn: match.sourceTxn,
-              validSourceTxnIds: match.counterpartCandidateTxnIds,
-            })
-          : buildSuggestedCounterpartComment({ sourceTxn: match.sourceTxn }),
-      }),
-    ]);
+    await recordReversalTransition({
+      db: args.db,
+      companyId: args.companyId,
+      projectId: args.projectId,
+      actorUserId: args.userId,
+      reversalId: updated.id,
+      eventType: 'txn_reversal.match_suggested',
+      reason: match.ambiguous
+        ? 'Created a deterministic default reversal proposal for an ambiguous candidate group'
+        : 'Created an unambiguous automatic reversal proposal',
+      previous,
+      resulting: updated as TxnReversalRow,
+      now,
+    });
     suggestedCount += 1;
   }
   return suggestedCount;
+}
+
+async function resetUnselectedSuggestions(args: {
+  db: ReversalDbExecutor;
+  companyId: CompanyId;
+  projectId: ProjectId;
+  userId: UserId;
+  selectedSourceTxnIds: ReadonlySet<TxnId>;
+}) {
+  const staleSuggestions = (await args.db
+    .selectFrom('txn_reversals')
+    .selectAll()
+    .where('project_id', '=', args.projectId)
+    .where('status', 'in', [
+      'auto_matched_pending_approval',
+      'auto_matched_ambiguous_pending_approval',
+    ])
+    .forUpdate()
+    .execute()) as TxnReversalRow[];
+  const now = new Date().toISOString();
+  for (const suggestion of staleSuggestions) {
+    if (
+      args.selectedSourceTxnIds.has(asTxnId(suggestion.source_txn_public_id))
+    ) {
+      continue;
+    }
+    const reset = await args.db
+      .updateTable('txn_reversals')
+      .set({
+        status: 'pending_reversal',
+        matched_reversal_txn_public_id: null,
+        matched_at: null,
+        matched_by_user_id: null,
+        match_method: null,
+        match_score: null,
+        candidate_count: null,
+        match_evidence: null,
+        source_snapshot: null,
+        counterpart_snapshot: null,
+        proposed_at: null,
+        proposed_by_user_id: null,
+        version: sql`version + 1`,
+        updated_at: now,
+      })
+      .where('id', '=', suggestion.id)
+      .where('version', '=', suggestion.version)
+      .returningAll()
+      .executeTakeFirst();
+    if (!reset) continue;
+    await recordReversalTransition({
+      db: args.db,
+      companyId: args.companyId,
+      projectId: args.projectId,
+      actorUserId: args.userId,
+      reversalId: suggestion.id,
+      eventType: 'txn_reversal.proposal_withdrawn',
+      reason: 'No compatible counterpart remained after full reconciliation',
+      previous: suggestion,
+      resulting: reset as TxnReversalRow,
+      now,
+    });
+  }
 }
 
 export async function listTxnReversalMatchSuggestionsServer(args: {
@@ -190,7 +299,6 @@ export async function listTxnReversalMatchSuggestionsServer(args: {
       .where('tr.id', 'is', null)
       .orderBy('t.txn_date', 'desc')
       .orderBy('t.id', 'desc')
-      .limit(20)
       .execute();
 
     return candidateRows
@@ -198,7 +306,8 @@ export async function listTxnReversalMatchSuggestionsServer(args: {
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         return b.date.localeCompare(a.date);
-      });
+      })
+      .slice(0, 20);
   });
 }
 
@@ -232,9 +341,9 @@ function addDays(date: string, days: number) {
 
 export async function reconcilePendingReversalMatches(args: {
   db: Transaction<DB>;
-  companyId: string;
+  companyId: CompanyId;
   projectId: ProjectId;
-  userId: string;
+  userId: UserId;
   sourceTxnIds?: TxnId[];
   counterpartTxnIds?: TxnId[];
 }): Promise<ReversalReconciliationResult> {
@@ -259,7 +368,11 @@ export async function reconcilePendingReversalMatches(args: {
       ...txnReversalSelectExpressions({}),
     ])
     .where('t.project_id', '=', args.projectId)
-    .where('tr.status', '=', 'pending_reversal');
+    .where('tr.status', 'in', [
+      'pending_reversal',
+      'auto_matched_pending_approval',
+      'auto_matched_ambiguous_pending_approval',
+    ]);
   if (args.sourceTxnIds) {
     pendingSourceQuery = pendingSourceQuery.where(
       't.public_id',
@@ -305,7 +418,6 @@ export async function reconcilePendingReversalMatches(args: {
       ...txnReversalSelectExpressions({}),
     ])
     .where('t.project_id', '=', args.projectId)
-    .where('t.import_source_type', '=', 'powerbi_expenditure_actuals')
     .where('t.locked_at', 'is', null)
     .where('t.budget_impact', '=', true)
     .where('t.amount_cents', 'in', counterpartAmounts)
@@ -330,7 +442,22 @@ export async function reconcilePendingReversalMatches(args: {
           )
       )
     )
-    .where('tr.id', 'is', null);
+    .where(({ eb, or, and }) =>
+      or([
+        eb('tr.id', 'is', null),
+        and([
+          eb('tr.status', 'in', [
+            'auto_matched_pending_approval',
+            'auto_matched_ambiguous_pending_approval',
+          ]),
+          eb(
+            'tr.source_txn_public_id',
+            'in',
+            availableSources.map((txn) => txn.id)
+          ),
+        ]),
+      ])
+    );
   if (args.counterpartTxnIds) {
     counterpartQuery = counterpartQuery.where(
       't.public_id',
@@ -341,8 +468,6 @@ export async function reconcilePendingReversalMatches(args: {
   const counterpartTxns = (await counterpartQuery.execute()).map((row) =>
     toTxn(row)
   );
-  if (!counterpartTxns.length) return baseResult;
-
   const rejectedPairs = await args.db
     .selectFrom('txn_reversal_match_rejections')
     .select(['source_txn_public_id', 'counterpart_txn_public_id'])
@@ -366,6 +491,15 @@ export async function reconcilePendingReversalMatches(args: {
     counterpartTxns,
     excludedPairKeys,
   });
+  if (!args.sourceTxnIds && !args.counterpartTxnIds) {
+    await resetUnselectedSuggestions({
+      db: args.db,
+      companyId: args.companyId,
+      projectId: args.projectId,
+      userId: args.userId,
+      selectedSourceTxnIds: new Set(matches.map((match) => match.sourceTxn.id)),
+    });
+  }
   const suggestedCount = await markAutoMatchPlanForReview({
     db: args.db,
     companyId: args.companyId,

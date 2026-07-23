@@ -234,21 +234,29 @@ Command semantics and deploy-time verification details live in [docs/staging-run
 
 ## Pending Reversals
 
-- Users can mark an EXA transaction as `Pending reversal` at coding time when
+- Users can mark a transaction as awaiting reversal at coding time when
   they know the spend should reverse in a later period.
 - Future imports automatically check new transactions against open pending
   reversals and raise review items when a likely reversal match is found.
-- Marking a transaction as pending also checks eligible negative EXA
+- Marking a transaction as pending also checks eligible negative
   transactions already in the project, including transactions loaded by a
   multi-month import. Reviewers can use `Find reversal matches` to recover any
   older pending items.
 - Clear matches become suggested reversal reviews; ambiguous matches are
   defaulted to the closest candidate and still require approval.
 - Reviewers can use the `Needs review` filter and bulk-approve suggested
-  reversal matches.
-- Approved pairs move to `Matched reversal pair`, while rejected suggestions
+  reversal pairs. Pair review shows both transactions and the recorded matching
+  evidence instead of relying on internal transaction IDs.
+- Approved rows are labelled `Matched original` and `Matched reversal`, while
+  rejected suggestions
   return to `Pending reversal` for manual handling and are not automatically
   suggested again.
+- Reversal-linked transaction identity, deletion, splitting, and transfer are
+  protected until the workflow is cancelled or unmatched. Every reversal
+  transition is versioned and recorded in the immutable workflow audit trail.
+- Reversal comments are reserved for human notes rather than duplicating status
+  pills or match details. Pending notes close automatically when a match is
+  accepted, while unrelated transaction comments remain open.
 - Projects are the operational workspace for budgets, imports, transactions, taxonomy, coding, splits, and transfers. Transaction transfer-out is disabled by default and can be enabled per project by company admins, executives, management, or an enabled global superadmin.
 - New operational projects can start with company standards applied immediately, and synced projects can later reapply company standards to backfill missing categories plus resync inherited import and auto-coding rules.
 - Synced projects may keep project-local exceptions, and company admins can promote stable project taxonomy, import rules, and auto-coding patterns back up into the company standard set.

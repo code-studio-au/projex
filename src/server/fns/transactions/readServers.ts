@@ -112,7 +112,11 @@ export async function listTransactionsSelectionServer(args: {
       userId,
       input: args.input,
     });
-    const rows = await applyTxnPageFilters(db.selectFrom('txns as t'), filters)
+    const sort = args.input.sort ?? {
+      field: 'date' as const,
+      direction: 'desc' as const,
+    };
+    let rowsQuery = applyTxnPageFilters(db.selectFrom('txns as t'), filters)
       .leftJoin('txn_reversals as tr', txnReversalJoin())
       .select([
         't.public_id',
@@ -121,11 +125,35 @@ export async function listTransactionsSelectionServer(args: {
         't.coding_pending_approval',
         't.locked_at',
         't.workflow_version',
+        'tr.id as reversal_id',
         'tr.status as reversal_status',
-      ])
-      .orderBy('t.public_id', 'asc')
-      .limit(MAX_BULK_TXN_COUNT + 1)
-      .execute();
+        'tr.version as reversal_version',
+        'tr.match_method as reversal_match_method',
+        'tr.source_snapshot as reversal_source_snapshot',
+        'tr.counterpart_snapshot as reversal_counterpart_snapshot',
+        sql<'source' | 'reversal'>`
+          case
+            when tr.source_txn_public_id = t.public_id then 'source'
+            else 'reversal'
+          end
+        `.as('reversal_side'),
+      ]);
+    if (sort.field === 'transaction') {
+      rowsQuery = rowsQuery
+        .orderBy('t.item', sort.direction)
+        .orderBy('t.description', sort.direction)
+        .orderBy('t.id', 'desc');
+    } else if (sort.field === 'amountCents') {
+      rowsQuery = rowsQuery
+        .orderBy('t.amount_cents', sort.direction)
+        .orderBy('t.txn_date', 'desc')
+        .orderBy('t.id', 'desc');
+    } else {
+      rowsQuery = rowsQuery
+        .orderBy('t.txn_date', sort.direction)
+        .orderBy('t.id', sort.direction);
+    }
+    const rows = await rowsQuery.limit(MAX_BULK_TXN_COUNT + 1).execute();
 
     if (rows.length > MAX_BULK_TXN_COUNT) {
       throw new AppError(
@@ -144,7 +172,17 @@ export async function listTransactionsSelectionServer(args: {
         codingPendingApproval: row.coding_pending_approval,
         locked: Boolean(row.locked_at),
         workflowVersion: row.workflow_version,
-        reversalStatus: row.reversal_status ?? undefined,
+        reversal: row.reversal_id
+          ? {
+              id: row.reversal_id,
+              status: row.reversal_status!,
+              side: row.reversal_side,
+              version: row.reversal_version!,
+              matchMethod: row.reversal_match_method ?? undefined,
+              sourceTxn: row.reversal_source_snapshot ?? undefined,
+              counterpartTxn: row.reversal_counterpart_snapshot ?? undefined,
+            }
+          : undefined,
       })),
     };
   });
@@ -229,6 +267,7 @@ export async function listTransactionsPageServer(args: {
             const unrecordedPendingReversal = sql<boolean>`summary_tr.id is not null and summary_tr.matched_reversal_txn_public_id is null`;
             const codingApproval = sql<boolean>`t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory}`;
             const reversalReview = sql<boolean>`summary_tr.status in ('auto_matched_pending_approval', 'auto_matched_ambiguous_pending_approval', 'reversal_exception')`;
+            const reversalMatchReview = sql<boolean>`t.locked_at is null and summary_tr.status in ('auto_matched_pending_approval', 'auto_matched_ambiguous_pending_approval')`;
             const awaitingReversal = sql<boolean>`summary_tr.status = 'pending_reversal'`;
             return [
               sql<number>`count(*)`.as('total_count'),
@@ -255,6 +294,9 @@ export async function listTransactionsPageServer(args: {
               ),
               sql<number>`coalesce(sum(case when ${reversalReview} then 1 else 0 end), 0)`.as(
                 'reversal_review_count'
+              ),
+              sql<number>`coalesce(sum(case when ${reversalMatchReview} then 1 else 0 end), 0)`.as(
+                'reversal_match_review_count'
               ),
               sql<number>`coalesce(sum(case when ${awaitingReversal} then 1 else 0 end), 0)`.as(
                 'awaiting_reversal_count'
@@ -300,6 +342,9 @@ export async function listTransactionsPageServer(args: {
         ),
         reversalReviewCount: toCount(
           (summaryRow as TxnPageSummaryRow).reversal_review_count
+        ),
+        reversalMatchReviewCount: toCount(
+          (summaryRow as TxnPageSummaryRow).reversal_match_review_count
         ),
         awaitingReversalCount: toCount(
           (summaryRow as TxnPageSummaryRow).awaiting_reversal_count

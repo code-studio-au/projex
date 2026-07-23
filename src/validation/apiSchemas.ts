@@ -542,42 +542,50 @@ export const txnReversalActionInputSchema = z.discriminatedUnion('action', [
     txnId: txnIdSchema,
     commentBody: txnCommentBodySchema,
     expectedProjectId: projectIdSchema.optional(),
+    expectedReversalVersion: z.number().int().positive().optional(),
   }),
   z.object({
     action: z.literal('clearPending'),
     txnId: txnIdSchema,
     commentBody: txnCommentBodySchema,
+    expectedReversalVersion: z.number().int().positive().optional(),
   }),
   z.object({
     action: z.literal('markException'),
     txnId: txnIdSchema,
     commentBody: txnCommentBodySchema,
+    expectedReversalVersion: z.number().int().positive().optional(),
   }),
   z.object({
     action: z.literal('clearException'),
     txnId: txnIdSchema,
     commentBody: txnCommentBodySchema,
+    expectedReversalVersion: z.number().int().positive().optional(),
   }),
   z.object({
     action: z.literal('match'),
     txnId: txnIdSchema,
     reversalTxnId: txnIdSchema,
     commentBody: txnCommentBodySchema.optional(),
+    expectedReversalVersion: z.number().int().positive().optional(),
   }),
   z.object({
     action: z.literal('approveSuggestedMatch'),
     txnId: txnIdSchema,
     commentBody: txnCommentBodySchema.optional(),
+    expectedReversalVersion: z.number().int().positive().optional(),
   }),
   z.object({
     action: z.literal('rejectSuggestedMatch'),
     txnId: txnIdSchema,
     commentBody: txnCommentBodySchema.optional(),
+    expectedReversalVersion: z.number().int().positive().optional(),
   }),
   z.object({
     action: z.literal('unmatch'),
     txnId: txnIdSchema,
     commentBody: txnCommentBodySchema,
+    expectedReversalVersion: z.number().int().positive().optional(),
   }),
 ]);
 
@@ -637,10 +645,23 @@ export const txnBulkActionInputSchema = z.discriminatedUnion('action', [
     action: z.literal('approveAutoMappings'),
     txnIds: txnBulkActionTxnIdsSchema,
   }),
-  z.object({
-    action: z.literal('approveSuggestedReversals'),
-    txnIds: txnBulkActionTxnIdsSchema,
-  }),
+  z
+    .object({
+      action: z.literal('approveSuggestedReversals'),
+      reversalIds: z
+        .array(z.string().trim().min(1))
+        .min(1, 'Select at least one reversal pair')
+        .max(MAX_BULK_TXN_COUNT)
+        .refine((value) => new Set(value).size === value.length, {
+          message: 'Duplicate reversal pairs are not allowed',
+        })
+        .optional(),
+      txnIds: txnBulkActionTxnIdsSchema.optional(),
+    })
+    .refine(
+      (value) => Boolean(value.reversalIds?.length) !== Boolean(value.txnIds),
+      'Provide either reversal pair IDs or legacy transaction IDs'
+    ),
   z.object({
     action: z.literal('clearCoding'),
     txnIds: txnBulkActionTxnIdsSchema,
@@ -762,8 +783,6 @@ export const txnListSelectionQuerySchema = txnListPageQuerySchema
     mode: true,
     pageIndex: true,
     pageSize: true,
-    sortField: true,
-    sortDirection: true,
   })
   .extend({ mode: z.literal('selection') });
 

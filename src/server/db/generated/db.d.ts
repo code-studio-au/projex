@@ -359,6 +359,7 @@ export interface SubCategories {
 export interface TxnComments {
   assigned_to_user_id: string | null;
   body: string;
+  comment_origin: Generated<string>;
   company_id: string;
   created_at: Generated<Timestamp>;
   created_by_user_id: string;
@@ -397,19 +398,28 @@ export interface TxnReversalMatchRejections {
 }
 
 export interface TxnReversals {
+  candidate_count: number | null;
   company_id: string;
+  counterpart_snapshot: Json | null;
   created_at: Generated<Timestamp>;
   expected_project_id: string | null;
   id: string;
   marked_at: Generated<Timestamp>;
   marked_by_user_id: string;
+  match_evidence: Json | null;
+  match_method: string | null;
+  match_score: number | null;
   matched_at: Timestamp | null;
   matched_by_user_id: string | null;
   matched_reversal_txn_public_id: string | null;
   project_id: string;
+  proposed_at: Timestamp | null;
+  proposed_by_user_id: string | null;
+  source_snapshot: Json | null;
   source_txn_public_id: string;
   status: string;
   updated_at: Generated<Timestamp>;
+  version: Generated<number>;
 }
 
 export interface Txns {

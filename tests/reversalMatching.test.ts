@@ -6,6 +6,8 @@ import {
   isValidReversalAutoMatchEdge,
   reversalAutoMatchPairKey,
 } from '../src/server/fns/transactions/reversalMatching.ts';
+import { buildReversalMatchEvidence } from '../src/server/fns/transactions/reversalMatchFacts.ts';
+import { assertCounterpartTxnEligible } from '../src/server/fns/transactions/reversalDomain.ts';
 import type { Txn } from '../src/types/index.ts';
 import { asCompanyId, asProjectId, asTxnId } from '../src/types/index.ts';
 
@@ -159,7 +161,7 @@ test('matching excludes previously rejected automatic pairs while retaining othe
   assert.equal(plan[0]?.ambiguous, false);
 });
 
-test('matching supports arbitrary same-source Power BI transactions', () => {
+test('matching is provider agnostic when canonical source facts align', () => {
   const source = powerBiTxn({
     id: 'txn_custom_source',
     amountCents: 1_121_434,
@@ -174,6 +176,8 @@ test('matching supports arbitrary same-source Power BI transactions', () => {
     source: ' customer ledger next ',
     costCentre: '6401 (Contractors)',
   });
+  source.importSourceType = 'concur_journal' as never;
+  counterpart.importSourceType = 'concur_journal' as never;
 
   assert.ok(
     isValidReversalAutoMatchEdge({
@@ -190,7 +194,7 @@ test('matching supports arbitrary same-source Power BI transactions', () => {
   );
 });
 
-test('matching never pairs transactions from different Power BI sources', () => {
+test('matching never pairs transactions from different source systems', () => {
   const source = powerBiTxn({
     id: 'txn_source_system_a',
     amountCents: 40_000,
@@ -216,4 +220,67 @@ test('matching never pairs transactions from different Power BI sources', () => 
     }),
     []
   );
+});
+
+test('matching only considers reversals dated on or after the source', () => {
+  const source = powerBiTxn({
+    id: 'txn_date_source',
+    amountCents: 40_000,
+    date: '2026-06-30',
+  });
+  const earlierCounterpart = powerBiTxn({
+    id: 'txn_date_counterpart',
+    amountCents: -40_000,
+    date: '2026-05-31',
+  });
+
+  assert.equal(
+    isValidReversalAutoMatchEdge({
+      sourceTxn: source,
+      counterpartTxn: earlierCounterpart,
+    }),
+    false
+  );
+  assert.throws(
+    () =>
+      assertCounterpartTxnEligible({
+        sourceTxn: source,
+        counterpartTxn: earlierCounterpart,
+      }),
+    /reversal must be dated on or after its source/i
+  );
+});
+
+test('match evidence preserves human-verifiable pair facts and alternatives', () => {
+  const source = powerBiTxn({
+    id: 'txn_evidence_source',
+    amountCents: 50_000,
+    date: '2026-05-31',
+    referenceNum: 'REF-50',
+  });
+  const counterpart = powerBiTxn({
+    id: 'txn_evidence_counterpart',
+    amountCents: -50_000,
+    date: '2026-06-30',
+    referenceNum: 'REF-50',
+  });
+  const alternative = {
+    ...counterpart,
+    id: asTxnId('txn_evidence_alternative'),
+  };
+
+  const evidence = buildReversalMatchEvidence({
+    sourceTxn: source,
+    counterpartTxn: counterpart,
+    sourceCandidateCount: 2,
+    counterpartCandidateCount: 1,
+    alternativeCounterparts: [alternative],
+  });
+
+  assert.equal(evidence.amountExact, true);
+  assert.equal(evidence.oppositeSign, true);
+  assert.equal(evidence.dayDelta, 30);
+  assert.equal(evidence.reference?.outcome, 'match');
+  assert.equal(evidence.sourceCandidateCount, 2);
+  assert.equal(evidence.alternativeCounterparts?.[0]?.txnId, alternative.id);
 });

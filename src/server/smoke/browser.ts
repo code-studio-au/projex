@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 import { chromium } from 'playwright';
 
 import {
@@ -308,6 +310,200 @@ async function verifyGeneratedRuleTarget(
   );
 }
 
+async function runGeneratedReversalFlow(
+  page: import('playwright').Page,
+  fixtures: SmokeFixtures,
+  options: BrowserSmokeOptions
+) {
+  await emit(options, 'Reviewing generated reversal pairs as a queue');
+  const transactionUrl = `/api/projects/${fixtures.projectId}/transactions`;
+  const pairs = [
+    {
+      suffix: 'a',
+      sourceDate: '2026-05-30',
+      counterpartDate: '2026-06-29',
+      sourceItem: 'Browser smoke accrual A',
+      counterpartItem: 'Browser smoke reversal A',
+      amountCents: 12_345,
+    },
+    {
+      suffix: 'b',
+      sourceDate: '2026-05-31',
+      counterpartDate: '2026-06-30',
+      sourceItem: 'Browser smoke accrual B',
+      counterpartItem: 'Browser smoke reversal B',
+      amountCents: 23_456,
+    },
+  ];
+  const txns = pairs.flatMap((pair) => {
+    const sourceTxnId = `txn_smoke_reversal_source_${pair.suffix}_${fixtures.runId}`;
+    const counterpartTxnId = `txn_smoke_reversal_counterpart_${pair.suffix}_${fixtures.runId}`;
+    const common = {
+      companyId: fixtures.companyId,
+      projectId: fixtures.projectId,
+      description: `Browser smoke reversal pair ${pair.suffix.toUpperCase()}`,
+      importSourceType: 'powerbi_expenditure_actuals',
+      importSourceMeta: {
+        Source: 'SMOKE_LEDGER',
+        'Journal Line Description': pair.sourceItem,
+        'Reference Num': `SMOKE-REV-${pair.suffix}-${fixtures.runId}`,
+        'CC and Description': 'SMOKE-COST-CENTRE',
+      },
+    };
+    return [
+      {
+        ...common,
+        id: sourceTxnId,
+        externalId: `${sourceTxnId}-external`,
+        date: pair.sourceDate,
+        item: pair.sourceItem,
+        amountCents: pair.amountCents,
+      },
+      {
+        ...common,
+        id: counterpartTxnId,
+        externalId: `${counterpartTxnId}-external`,
+        date: pair.counterpartDate,
+        item: pair.counterpartItem,
+        amountCents: -pair.amountCents,
+      },
+    ];
+  });
+  for (const txn of txns) {
+    const response = await page.context().request.post(transactionUrl, {
+      data: { txn },
+      headers: {
+        origin: new URL(page.url()).origin,
+        referer: page.url(),
+      },
+    });
+    assert(
+      response.ok(),
+      `Could not create browser reversal fixture: ${response.status()} ${await response.text()}`
+    );
+  }
+
+  await page.goto(
+    `/c/${fixtures.companyId}/p/${fixtures.projectId}?tab=transactions`,
+    { waitUntil: 'domcontentloaded' }
+  );
+  await page.getByText(/^4 transactions$/).waitFor({ state: 'visible' });
+  for (const pair of pairs) {
+    await page
+      .getByRole('button', { name: `Actions for ${pair.sourceItem}` })
+      .click();
+    await page.getByRole('menuitem', { name: 'Mark pending reversal' }).click();
+
+    const pendingDialog = page.getByRole('dialog', {
+      name: 'Mark pending reversal',
+    });
+    await pendingDialog.waitFor({ state: 'visible' });
+    await pendingDialog
+      .getByRole('textbox', { name: 'Comment' })
+      .fill('Browser smoke expects a reversal in the following month.');
+    await pendingDialog
+      .getByRole('button', { name: 'Mark pending reversal' })
+      .click();
+    await pendingDialog.waitFor({ state: 'hidden' });
+  }
+
+  const reviewQueueButton = page.getByRole('button', {
+    name: 'Review matches (2)',
+  });
+  await reviewQueueButton.waitFor({ state: 'visible' });
+  await reviewQueueButton.click();
+  const reviewDialog = page.getByRole('dialog', {
+    name: 'Review reversal match',
+  });
+  await reviewDialog.waitFor({ state: 'visible' });
+  await reviewDialog
+    .getByText('Match 1 of 2', { exact: true })
+    .waitFor({ state: 'visible' });
+  await reviewDialog
+    .getByText('Original transaction', { exact: true })
+    .waitFor({ state: 'visible' });
+  await reviewDialog
+    .getByText('Reversal transaction', { exact: true })
+    .waitFor({ state: 'visible' });
+  await reviewDialog
+    .getByText('Browser smoke accrual B', { exact: true })
+    .first()
+    .waitFor({ state: 'visible' });
+  await reviewDialog
+    .getByText('Browser smoke reversal B', { exact: true })
+    .waitFor({ state: 'visible' });
+  await reviewDialog
+    .getByText('Match evidence', { exact: true })
+    .waitFor({ state: 'visible' });
+
+  const reviewModalBody = reviewDialog.locator('.mantine-Modal-body');
+  const initialScroll = await reviewModalBody.evaluate<
+    { clientHeight: number; scrollHeight: number; scrollTop: number },
+    HTMLElement
+  >((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    scrollTop: element.scrollTop,
+  }));
+  assert(
+    initialScroll.scrollHeight > initialScroll.clientHeight,
+    'Reversal review modal did not create an internal scroll region'
+  );
+  await reviewModalBody.hover();
+  await page.mouse.wheel(0, 500);
+  await page.waitForTimeout(100);
+  const scrolledTop = await reviewModalBody.evaluate<number, HTMLElement>(
+    (element) => element.scrollTop
+  );
+  assert(
+    scrolledTop > initialScroll.scrollTop,
+    'Reversal review modal did not respond to wheel scrolling'
+  );
+  await reviewModalBody.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+
+  await reviewDialog.getByRole('button', { name: 'Next', exact: true }).click();
+  await reviewDialog
+    .getByText('Browser smoke accrual A', { exact: true })
+    .first()
+    .waitFor({ state: 'visible' });
+  await reviewDialog.getByRole('button', { name: 'Previous' }).click();
+  await reviewDialog
+    .getByText('Browser smoke accrual B', { exact: true })
+    .first()
+    .waitFor({ state: 'visible' });
+  await reviewDialog.getByRole('button', { name: 'Next', exact: true }).click();
+  await reviewDialog
+    .getByText('Browser smoke accrual A', { exact: true })
+    .first()
+    .waitFor({ state: 'visible' });
+  await reviewDialog.getByRole('button', { name: 'Approve and next' }).click();
+  await reviewDialog
+    .getByText('Browser smoke accrual B', { exact: true })
+    .first()
+    .waitFor({ state: 'visible' });
+  await reviewDialog
+    .getByRole('button', { name: 'Approve and finish' })
+    .click();
+  await reviewDialog.waitFor({ state: 'hidden' });
+  await page
+    .getByText('Reversal review complete', { exact: true })
+    .waitFor({ state: 'visible' });
+
+  const matchedBadge = page
+    .getByRole('button', { name: 'Matched original' })
+    .first();
+  await matchedBadge.waitFor({ state: 'visible' });
+  await matchedBadge.click();
+  const pairDialog = page.getByRole('dialog', { name: 'Reversal pair' });
+  await pairDialog.waitFor({ state: 'visible' });
+  await pairDialog
+    .getByText('Reversal transaction', { exact: true })
+    .waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape');
+}
+
 async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
   const companyId = requireEnv('PROJEX_SMOKE_COMPANY_ID');
   const projectId = requireEnv('PROJEX_SMOKE_PROJECT_ID');
@@ -475,6 +671,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
         options.generatedFixtures,
         options
       );
+      await runGeneratedReversalFlow(page, options.generatedFixtures, options);
     } else {
       await page.keyboard.press('Escape');
     }

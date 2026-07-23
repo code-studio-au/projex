@@ -308,6 +308,7 @@ test(
         uncodedCents: 4000,
         codingApprovalCount: 1,
         reversalReviewCount: 0,
+        reversalMatchReviewCount: 0,
         awaitingReversalCount: 0,
         sourceOnlyCount: 1,
         assignedToMeCount: 1,
@@ -332,7 +333,7 @@ test(
           codingPendingApproval: true,
           locked: false,
           workflowVersion: 0,
-          reversalStatus: undefined,
+          reversal: undefined,
         },
       ]);
     } finally {

@@ -30,6 +30,8 @@ import {
   assertTxnUnlocked,
   txnSelectColumns,
 } from './shared';
+import { lockProjectReversalWorkflow } from './reversalConcurrency';
+import { assertTxnNotInReversalWorkflow } from './reversalDomain';
 
 export async function splitTxnServer(args: {
   context: ServerFnContextInput;
@@ -82,6 +84,16 @@ export async function splitTxnServer(args: {
     ]);
 
     return db.transaction().execute(async (trx) => {
+      await lockProjectReversalWorkflow({
+        db: trx,
+        projectId: args.projectId,
+      });
+      await assertTxnNotInReversalWorkflow({
+        db: trx,
+        projectId: args.projectId,
+        txnId: args.input.txnId,
+        operation: 'split',
+      });
       const parent = await trx
         .updateTable('txns')
         .set({
@@ -281,6 +293,16 @@ export async function transferTxnServer(args: {
     ]);
 
     return db.transaction().execute(async (trx) => {
+      await lockProjectReversalWorkflow({
+        db: trx,
+        projectId: args.projectId,
+      });
+      await assertTxnNotInReversalWorkflow({
+        db: trx,
+        projectId: args.projectId,
+        txnId: args.input.txnId,
+        operation: 'transfer',
+      });
       const source = await trx
         .updateTable('txns')
         .set({

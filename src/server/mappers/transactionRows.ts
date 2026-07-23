@@ -2,8 +2,11 @@ import { AppError } from '../../api/errors';
 import type {
   BudgetLine,
   Txn,
+  TxnReversalMatchEvidence,
+  TxnReversalMatchMethod,
   TxnReversalSide,
   TxnReversalStatus,
+  TxnReversalTxnSummary,
   TxnType,
 } from '../../types';
 import {
@@ -60,6 +63,15 @@ export type TxnRow = {
   reversal_side?: TxnReversalSide | null;
   reversal_counterpart_txn_public_id?: string | null;
   reversal_expected_project_id?: string | null;
+  reversal_version?: number | null;
+  reversal_match_method?: TxnReversalMatchMethod | null;
+  reversal_match_score?: number | null;
+  reversal_candidate_count?: number | null;
+  reversal_match_evidence?: TxnReversalMatchEvidence | null;
+  reversal_source_snapshot?: TxnReversalTxnSummary | null;
+  reversal_counterpart_snapshot?: TxnReversalTxnSummary | null;
+  reversal_proposed_at?: string | null;
+  reversal_proposed_by_user_id?: string | null;
   reversal_marked_at?: string | null;
   reversal_marked_by_user_id?: string | null;
   reversal_matched_at?: string | null;
@@ -80,6 +92,17 @@ export type BudgetLineRow = {
   created_at: string;
   updated_at: string;
 };
+
+function toReversalTxnSummary(
+  value: TxnReversalTxnSummary | null | undefined
+): TxnReversalTxnSummary | undefined {
+  if (!value) return undefined;
+  return {
+    ...value,
+    txnId: asTxnId(value.txnId),
+    amountCents: Number(value.amountCents),
+  };
+}
 
 export function toTxn(row: TxnRow): Txn {
   const date = dateOnlyFromInput(row.txn_date);
@@ -159,11 +182,30 @@ export function toTxn(row: TxnRow): Txn {
             id: row.reversal_id,
             status: row.reversal_status,
             side: row.reversal_side,
+            version: Number(row.reversal_version ?? 1),
             counterpartTxnId: row.reversal_counterpart_txn_public_id
               ? asTxnId(row.reversal_counterpart_txn_public_id)
               : undefined,
             expectedProjectId: row.reversal_expected_project_id
               ? asProjectId(row.reversal_expected_project_id)
+              : undefined,
+            matchMethod: row.reversal_match_method ?? undefined,
+            matchScore:
+              row.reversal_match_score == null
+                ? undefined
+                : Number(row.reversal_match_score),
+            candidateCount:
+              row.reversal_candidate_count == null
+                ? undefined
+                : Number(row.reversal_candidate_count),
+            matchEvidence: row.reversal_match_evidence ?? undefined,
+            sourceTxn: toReversalTxnSummary(row.reversal_source_snapshot),
+            counterpartTxn: toReversalTxnSummary(
+              row.reversal_counterpart_snapshot
+            ),
+            proposedAt: row.reversal_proposed_at ?? undefined,
+            proposedByUserId: row.reversal_proposed_by_user_id
+              ? asUserId(row.reversal_proposed_by_user_id)
               : undefined,
             markedAt: row.reversal_marked_at ?? undefined,
             markedByUserId: row.reversal_marked_by_user_id

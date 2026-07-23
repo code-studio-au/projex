@@ -3,6 +3,7 @@ import {
   Alert,
   Badge,
   Button,
+  Divider,
   Group,
   Loader,
   Modal,
@@ -19,8 +20,28 @@ import type {
   TxnReversalMatchSuggestion,
 } from '../../api/types';
 import type { ProjectId, Txn, TxnId } from '../../types';
+import type { TxnReversalTxnSummary } from '../../types';
 import { formatCurrencyFromCents } from '../../utils/money';
 import { firefoxSafeModalSelectProps } from '../modalSelectProps';
+import TransactionReversalPairDetails from './TransactionReversalPairDetails';
+
+const containedModalSelectProps = {
+  ...firefoxSafeModalSelectProps,
+  // Keep wheel events inside the modal's scroll-lock boundary.
+  comboboxProps: { withinPortal: false },
+} as const;
+
+export type ReversalReviewQueueControls = {
+  currentPosition: number;
+  totalCount: number;
+  reviewedCount: number;
+  remainingCount: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+  onResolved: (outcome: 'approved' | 'rejected') => void;
+};
 
 function statusTone(txn: Txn) {
   if (txn.reversal?.status === 'reversal_exception') return 'red';
@@ -36,13 +57,27 @@ function statusLabel(txn: Txn) {
   if (txn.reversal?.status === 'reversal_exception')
     return 'Reversal exception';
   if (txn.reversal?.status === 'reversed_matched')
-    return 'Matched reversal pair';
+    return txn.reversal.side === 'source'
+      ? 'Matched original'
+      : 'Matched reversal';
   if (txn.reversal?.status === 'auto_matched_ambiguous_pending_approval')
     return 'Defaulted auto-match awaiting approval';
   if (txn.reversal?.status === 'auto_matched_pending_approval')
     return 'Auto-match awaiting approval';
-  if (txn.reversal?.status === 'pending_reversal') return 'Pending reversal';
+  if (txn.reversal?.status === 'pending_reversal') return 'Awaiting reversal';
   return 'No reversal workflow';
+}
+
+function toTxnSummary(txn: Txn): TxnReversalTxnSummary {
+  return {
+    txnId: txn.id,
+    externalId: txn.externalId,
+    date: txn.date,
+    item: txn.item,
+    description: txn.description,
+    amountCents: txn.amountCents,
+    sourceType: txn.importSourceType,
+  };
 }
 
 export default function TransactionReversalModal(props: {
@@ -50,6 +85,8 @@ export default function TransactionReversalModal(props: {
   txn: Txn;
   currencyCode: string;
   expectedProjectOptions: Array<{ value: ProjectId; label: string }>;
+  canManage: boolean;
+  reviewQueue?: ReversalReviewQueueControls;
   onClose: () => void;
   onLoadSuggestions: (txnId: TxnId) => Promise<TxnReversalMatchSuggestion[]>;
   onSubmitAction: (
@@ -61,6 +98,8 @@ export default function TransactionReversalModal(props: {
     txn,
     currencyCode,
     expectedProjectOptions,
+    canManage,
+    reviewQueue,
     onClose,
     onLoadSuggestions,
     onSubmitAction,
@@ -133,13 +172,52 @@ export default function TransactionReversalModal(props: {
     suggestions.find(
       (suggestion) => suggestion.txnId === selectedSuggestionTxnId
     ) ?? null;
+  const sourceSummary =
+    txn.reversal?.sourceTxn ??
+    (txn.reversal?.side === 'reversal' ? undefined : toTxnSummary(txn));
+  const counterpartSummary =
+    txn.reversal?.counterpartTxn ??
+    (txn.reversal?.side === 'reversal' ? toTxnSummary(txn) : undefined);
+  const selectedSuggestionSummary = selectedSuggestion
+    ? {
+        txnId: selectedSuggestion.txnId,
+        externalId: selectedSuggestion.externalId,
+        date: selectedSuggestion.date,
+        item: selectedSuggestion.item,
+        description: selectedSuggestion.description,
+        amountCents: selectedSuggestion.amountCents,
+      }
+    : null;
+  const expectedProjectName =
+    expectedProjectOptions.find(
+      (option) => option.value === txn.reversal?.expectedProjectId
+    )?.label ?? null;
+  const modalTitle = isMatched
+    ? 'Reversal pair'
+    : isSuggested
+      ? 'Review reversal match'
+      : isException
+        ? 'Reversal exception'
+        : txn.reversal
+          ? 'Pending reversal'
+          : 'Mark pending reversal';
 
-  async function submit(input: TxnReversalActionInput) {
+  async function submit(
+    input: TxnReversalActionInput,
+    queueOutcome?: 'approved' | 'rejected'
+  ) {
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmitAction(input);
-      onClose();
+      await onSubmitAction({
+        ...input,
+        expectedReversalVersion: txn.reversal?.version,
+      });
+      if (queueOutcome && reviewQueue) {
+        reviewQueue.onResolved(queueOutcome);
+      } else {
+        onClose();
+      }
     } catch (nextError) {
       setError(
         nextError instanceof Error
@@ -155,41 +233,102 @@ export default function TransactionReversalModal(props: {
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Pending reversal"
+      title={modalTitle}
       centered
-      size="lg"
+      size="xl"
+      lockScroll={false}
+      styles={{
+        body: {
+          maxHeight: 'calc(100dvh - 10rem)',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+        },
+      }}
     >
       <Stack gap="md">
-        <Group justify="space-between" align="flex-start">
-          <Stack gap={2}>
-            <Text fw={600}>{txn.item}</Text>
-            <Text size="sm" c="dimmed">
-              {txn.description || 'No description provided'}
-            </Text>
-            <Text size="sm" c="dimmed">
-              {txn.date} ·{' '}
-              {formatCurrencyFromCents(txn.amountCents, currencyCode)}
-            </Text>
-          </Stack>
-          <Badge color={statusTone(txn)} variant="light">
-            {statusLabel(txn)}
-          </Badge>
-        </Group>
+        {!isSuggested ? (
+          <Group justify="space-between" align="flex-start">
+            <Stack gap={2}>
+              <Text fw={600}>{txn.item}</Text>
+              <Text size="sm" c="dimmed">
+                {txn.description || 'No description provided'}
+              </Text>
+              <Text size="sm" c="dimmed">
+                {txn.date} ·{' '}
+                {formatCurrencyFromCents(txn.amountCents, currencyCode)}
+              </Text>
+            </Stack>
+            <Badge color={statusTone(txn)} variant="light">
+              {statusLabel(txn)}
+            </Badge>
+          </Group>
+        ) : null}
 
-        {txn.reversal?.counterpartTxnId ? (
-          <Paper withBorder radius="md" p="sm">
-            <Text size="sm" fw={600}>
-              Linked transaction
-            </Text>
-            <Text size="sm" c="dimmed">
-              {txn.reversal.side === 'source'
-                ? `Matched reversal: ${txn.reversal.counterpartTxnId}`
-                : `Source transaction: ${txn.reversal.counterpartTxnId}`}
-            </Text>
+        {isSuggested && canManage ? (
+          <Paper withBorder radius="md" p="md">
+            <Stack gap={reviewQueue ? 'sm' : 2}>
+              <Stack gap={2}>
+                <Text size="sm" fw={650}>
+                  {isAmbiguousSuggested
+                    ? 'Default match selected'
+                    : 'Recommended match'}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  {isAmbiguousSuggested
+                    ? 'Multiple valid pairings existed, so Projex selected a deterministic default. Verify both transactions and the evidence before deciding.'
+                    : 'Projex recommended this pair automatically. Verify both transactions and the evidence before deciding.'}
+                </Text>
+              </Stack>
+              {reviewQueue ? (
+                <>
+                  <Divider />
+                  <Group justify="space-between" gap="sm" wrap="wrap">
+                    <Badge color="gray" variant="light">
+                      Match {reviewQueue.currentPosition} of{' '}
+                      {reviewQueue.totalCount}
+                    </Badge>
+                    <Group gap="xs">
+                      <Button
+                        size="xs"
+                        variant="default"
+                        disabled={!reviewQueue.hasPrevious || submitting}
+                        onClick={reviewQueue.onPrevious}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="default"
+                        disabled={!reviewQueue.hasNext || submitting}
+                        onClick={reviewQueue.onNext}
+                      >
+                        Next
+                      </Button>
+                    </Group>
+                  </Group>
+                </>
+              ) : null}
+            </Stack>
           </Paper>
         ) : null}
 
-        {!txn.reversal ? (
+        {sourceSummary && counterpartSummary ? (
+          <TransactionReversalPairDetails
+            sourceTxn={sourceSummary}
+            counterpartTxn={counterpartSummary}
+            evidence={txn.reversal?.matchEvidence}
+            currencyCode={currencyCode}
+          />
+        ) : null}
+
+        {txn.reversal?.expectedProjectId ? (
+          <Text size="sm" c="dimmed">
+            Expected destination project:{' '}
+            {expectedProjectName ?? txn.reversal.expectedProjectId}
+          </Text>
+        ) : null}
+
+        {!txn.reversal && canManage ? (
           <>
             <Select
               label="Expected destination project"
@@ -198,7 +337,7 @@ export default function TransactionReversalModal(props: {
               value={expectedProjectId}
               clearable
               searchable
-              {...firefoxSafeModalSelectProps}
+              {...containedModalSelectProps}
               onChange={setExpectedProjectId}
             />
             <Textarea
@@ -228,7 +367,7 @@ export default function TransactionReversalModal(props: {
           </>
         ) : null}
 
-        {isPending && isSourceSide ? (
+        {isPending && isSourceSide && canManage ? (
           <>
             <Textarea
               label={isException ? 'Review note' : 'Workflow note'}
@@ -258,7 +397,7 @@ export default function TransactionReversalModal(props: {
                   value={selectedSuggestionTxnId}
                   onChange={setSelectedSuggestionTxnId}
                   searchable
-                  {...firefoxSafeModalSelectProps}
+                  {...containedModalSelectProps}
                 />
               ) : (
                 <Text size="sm" c="dimmed">
@@ -267,21 +406,16 @@ export default function TransactionReversalModal(props: {
                     : 'No candidate refund transactions were found yet.'}
                 </Text>
               )}
-              {selectedSuggestion ? (
-                <Paper withBorder radius="md" p="sm">
-                  <Text size="sm" fw={600}>
-                    {selectedSuggestion.item}
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    {selectedSuggestion.description ||
-                      'No description provided'}
-                  </Text>
-                  {(selectedSuggestion.reasons ?? []).length > 0 ? (
-                    <Text size="xs" c="dimmed" mt={4}>
-                      {selectedSuggestion.reasons.join(' · ')}
-                    </Text>
-                  ) : null}
-                </Paper>
+              {selectedSuggestion &&
+              selectedSuggestionSummary &&
+              sourceSummary ? (
+                <TransactionReversalPairDetails
+                  sourceTxn={sourceSummary}
+                  counterpartTxn={selectedSuggestionSummary}
+                  evidence={selectedSuggestion.evidence}
+                  currencyCode={currencyCode}
+                  showAlternatives={false}
+                />
               ) : null}
             </Stack>
 
@@ -301,7 +435,7 @@ export default function TransactionReversalModal(props: {
                       })
                     }
                   >
-                    Clear exception
+                    Return to pending
                   </Button>
                 ) : (
                   <>
@@ -333,7 +467,7 @@ export default function TransactionReversalModal(props: {
                         })
                       }
                     >
-                      Clear pending
+                      Cancel workflow
                     </Button>
                   </>
                 )}
@@ -352,67 +486,75 @@ export default function TransactionReversalModal(props: {
                     : undefined
                 }
               >
-                Match selected refund
+                Match selected reversal
               </Button>
             </Group>
           </>
         ) : null}
 
-        {isSuggested ? (
+        {isSuggested && canManage ? (
           <>
             <Textarea
-              label="Review note"
-              description="Optional. Add context when approving or rejecting the auto-match."
+              label="Review note (optional)"
               value={commentBody}
-              minRows={4}
+              autosize
+              minRows={2}
+              maxRows={4}
               onChange={(event) => setCommentBody(event.currentTarget.value)}
             />
-            <Paper withBorder radius="md" p="sm">
-              <Text size="sm" fw={600}>
-                Auto-match review
-              </Text>
-              <Text size="sm" c="dimmed">
-                {isAmbiguousSuggested
-                  ? 'This Power BI reversal pair was default-matched because multiple possible reversals existed. Approve it to accept the default, or reject it to return the source transaction to pending reversal for manual matching.'
-                  : 'This Power BI reversal pair was suggested automatically. Approve it to finalize the match, or reject it to return the source transaction to pending reversal for manual matching.'}
-              </Text>
-            </Paper>
-            <Group justify="space-between" wrap="wrap">
+            <Divider />
+            <Group justify="flex-end" gap="sm" wrap="wrap">
               <Button
                 variant="light"
                 color="gray"
                 loading={submitting}
+                w={{ base: '100%', sm: 'auto' }}
                 onClick={() =>
-                  void submit({
-                    action: 'rejectSuggestedMatch',
-                    txnId: txn.id,
-                    commentBody: commentBody.trim() || undefined,
-                  })
+                  void submit(
+                    {
+                      action: 'rejectSuggestedMatch',
+                      txnId: txn.id,
+                      commentBody: commentBody.trim() || undefined,
+                    },
+                    reviewQueue ? 'rejected' : undefined
+                  )
                 }
               >
-                {isAmbiguousSuggested
-                  ? 'Reject default match'
-                  : 'Reject suggestion'}
+                {reviewQueue
+                  ? reviewQueue.remainingCount === 1
+                    ? 'Reject and finish'
+                    : 'Reject and next'
+                  : isAmbiguousSuggested
+                    ? 'Reject default match'
+                    : 'Reject suggestion'}
               </Button>
               <Button
                 loading={submitting}
+                w={{ base: '100%', sm: 'auto' }}
                 onClick={() =>
-                  void submit({
-                    action: 'approveSuggestedMatch',
-                    txnId: txn.id,
-                    commentBody: commentBody.trim() || undefined,
-                  })
+                  void submit(
+                    {
+                      action: 'approveSuggestedMatch',
+                      txnId: txn.id,
+                      commentBody: commentBody.trim() || undefined,
+                    },
+                    reviewQueue ? 'approved' : undefined
+                  )
                 }
               >
-                {isAmbiguousSuggested
-                  ? 'Approve default match'
-                  : 'Approve auto-match'}
+                {reviewQueue
+                  ? reviewQueue.remainingCount === 1
+                    ? 'Approve and finish'
+                    : 'Approve and next'
+                  : isAmbiguousSuggested
+                    ? 'Approve default match'
+                    : 'Approve auto-match'}
               </Button>
             </Group>
           </>
         ) : null}
 
-        {isMatched ? (
+        {isMatched && canManage ? (
           <>
             <Textarea
               label="Reason"
@@ -439,6 +581,13 @@ export default function TransactionReversalModal(props: {
               </Button>
             </Group>
           </>
+        ) : null}
+
+        {txn.reversal && !canManage ? (
+          <Alert color="blue" variant="light">
+            This reversal workflow is read-only for your role. The pair details
+            and recorded match evidence are shown above.
+          </Alert>
         ) : null}
 
         {error ? <Alert color="red">{error}</Alert> : null}

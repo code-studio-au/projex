@@ -5,6 +5,7 @@ export type StringRecord = Record<string, string>;
 export type JsonObject = Record<string, unknown>;
 
 export type JsonObjectColumn = ColumnType<JsonObject, JsonObject, JsonObject>;
+export type NullableJsonColumn<T> = ColumnType<T | null, T | null, T | null>;
 
 export type NullableStringRecordJsonColumn = ColumnType<
   StringRecord | null,

@@ -5,6 +5,7 @@ import {
   Group,
   Menu,
   Modal,
+  Paper,
   Stack,
   Text,
 } from '@mantine/core';
@@ -15,12 +16,15 @@ import {
   transactionWorkflowHeading,
 } from './transactionWorkflowSummary';
 import type { TransactionView } from './transactionViews';
+import type { TxnBulkSelectionRow } from '../../api/types';
+import { formatCurrencyFromCents } from '../../utils/money';
 
 type TransactionsPageSummary = {
   totalCount: number;
   uncodedCount: number;
   codingApprovalCount: number;
   reversalReviewCount: number;
+  reversalMatchReviewCount: number;
   awaitingReversalCount: number;
   assignedToMeCount: number;
 };
@@ -28,6 +32,7 @@ type TransactionsPageSummary = {
 export default function TransactionsOverviewCard(props: {
   pageSummary: TransactionsPageSummary;
   transactionView: TransactionView;
+  currencyCode: string;
   projectAutoMappedPendingCount: number;
   isHydrated: boolean;
   isMobile: boolean;
@@ -36,7 +41,9 @@ export default function TransactionsOverviewCard(props: {
   canManageReversals: boolean;
   canAdminUnlock: boolean;
   reconcilingPendingReversals: boolean;
+  loadingReversalReviewQueue: boolean;
   onReconcilePendingReversals: () => void;
+  onOpenReversalReviewQueue: () => void;
   onApproveAllAutoMappings: () => void;
   onOpenTaxonomyManager: () => void;
   selectedTxnCount: number;
@@ -46,6 +53,9 @@ export default function TransactionsOverviewCard(props: {
   selectedAutoMappedPendingCount: number;
   selectedAmbiguousSuggestedReversalCount: number;
   selectedSuggestedReversalCount: number;
+  selectedSuggestedReversalPairs: Array<
+    NonNullable<TxnBulkSelectionRow['reversal']>
+  >;
   selectedUnlockedCategorisableCount: number;
   selectedDeletableCount: number;
   onSelectAll: () => void;
@@ -74,6 +84,7 @@ export default function TransactionsOverviewCard(props: {
   const {
     pageSummary,
     transactionView,
+    currencyCode,
     projectAutoMappedPendingCount,
     isHydrated,
     isMobile,
@@ -82,7 +93,9 @@ export default function TransactionsOverviewCard(props: {
     canManageReversals,
     canAdminUnlock,
     reconcilingPendingReversals,
+    loadingReversalReviewQueue,
     onReconcilePendingReversals,
+    onOpenReversalReviewQueue,
     onApproveAllAutoMappings,
     onOpenTaxonomyManager,
     selectedTxnCount,
@@ -92,6 +105,7 @@ export default function TransactionsOverviewCard(props: {
     selectedAutoMappedPendingCount,
     selectedAmbiguousSuggestedReversalCount,
     selectedSuggestedReversalCount,
+    selectedSuggestedReversalPairs,
     selectedUnlockedCategorisableCount,
     selectedDeletableCount,
     onSelectAll,
@@ -149,6 +163,19 @@ export default function TransactionsOverviewCard(props: {
               wrap="wrap"
               style={{ width: isMobile ? '100%' : undefined }}
             >
+              {pageSummary.reversalMatchReviewCount > 0 &&
+              canManageReversals &&
+              !readOnly ? (
+                <Button
+                  variant="light"
+                  size="sm"
+                  loading={loadingReversalReviewQueue}
+                  fullWidth={isMobile}
+                  onClick={onOpenReversalReviewQueue}
+                >
+                  Review matches ({pageSummary.reversalMatchReviewCount})
+                </Button>
+              ) : null}
               <Menu withinPortal position="bottom-end" shadow="md">
                 <Menu.Target>
                   <Button variant="default" size="sm" fullWidth={isMobile}>
@@ -261,6 +288,45 @@ export default function TransactionsOverviewCard(props: {
                 } auto-matched to the closest default matching reversal because multiple possible matches existed. Continue with the selected defaults?`
               : 'This will approve the selected auto-matched reversal review items using their recommended matches and mark them as reversed.'}
           </Text>
+          <Stack gap="xs">
+            {selectedSuggestedReversalPairs.map((reversal) => (
+              <Paper key={reversal.id} withBorder radius="md" p="sm">
+                <Text size="sm" fw={600}>
+                  {reversal.sourceTxn?.item ?? 'Source transaction'} to{' '}
+                  {reversal.counterpartTxn?.item ?? 'Reversal transaction'}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {reversal.sourceTxn?.date ?? 'Unknown date'} ·{' '}
+                  {reversal.sourceTxn?.amountCents !== undefined
+                    ? formatCurrencyFromCents(
+                        reversal.sourceTxn.amountCents,
+                        currencyCode
+                      )
+                    : 'Unknown amount'}
+                  {' -> '}
+                  {reversal.counterpartTxn?.date ?? 'Unknown date'} ·{' '}
+                  {reversal.counterpartTxn?.amountCents !== undefined
+                    ? formatCurrencyFromCents(
+                        reversal.counterpartTxn.amountCents,
+                        currencyCode
+                      )
+                    : 'Unknown amount'}
+                </Text>
+                <Badge
+                  mt={6}
+                  size="xs"
+                  color={
+                    reversal.matchMethod === 'auto_default' ? 'orange' : 'blue'
+                  }
+                  variant="light"
+                >
+                  {reversal.matchMethod === 'auto_default'
+                    ? 'Default match'
+                    : 'Recommended match'}
+                </Badge>
+              </Paper>
+            ))}
+          </Stack>
           <Group justify="flex-end">
             <Button
               variant="default"

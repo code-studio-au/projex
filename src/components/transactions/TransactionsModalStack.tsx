@@ -11,7 +11,9 @@ import type { ProjectId, Txn, TxnId } from '../../types';
 import { asCategoryId, asSubCategoryId } from '../../types/ids';
 import TaxonomyManagerModal from '../TaxonomyManagerModal';
 import TransactionCommentsModal from '../TransactionCommentsModal';
-import TransactionReversalModal from './TransactionReversalModal';
+import TransactionReversalModal, {
+  type ReversalReviewQueueControls,
+} from './TransactionReversalModal';
 import TransactionSplitModal from '../TransactionSplitModal';
 import TransactionTransferModal from '../TransactionTransferModal';
 import TransactionBulkRecodeModal from './TransactionBulkRecodeModal';
@@ -34,6 +36,10 @@ export default function TransactionsModalStack(props: {
   onTransfer: (input: Omit<TxnTransferInput, 'txnId'>) => Promise<void>;
   reversalTxn: Txn | null;
   reversalModalNonce: number;
+  reversalReviewQueue?: ReversalReviewQueueControls;
+  reversalReviewQueueLoading: boolean;
+  reversalReviewQueueError: string | null;
+  canManageReversals: boolean;
   expectedProjectOptions: Array<{ value: ProjectId; label: string }>;
   onCloseReversal: () => void;
   onLoadReversalSuggestions: (
@@ -85,6 +91,10 @@ export default function TransactionsModalStack(props: {
     onTransfer,
     reversalTxn,
     reversalModalNonce,
+    reversalReviewQueue,
+    reversalReviewQueueLoading,
+    reversalReviewQueueError,
+    canManageReversals,
     expectedProjectOptions,
     onCloseReversal,
     onLoadReversalSuggestions,
@@ -148,10 +158,54 @@ export default function TransactionsModalStack(props: {
           txn={reversalTxn}
           currencyCode={currencyCode}
           expectedProjectOptions={expectedProjectOptions}
+          canManage={canManageReversals}
+          reviewQueue={reversalReviewQueue}
           onClose={onCloseReversal}
           onLoadSuggestions={onLoadReversalSuggestions}
           onSubmitAction={onSubmitReversalAction}
         />
+      ) : null}
+
+      {reversalReviewQueue && !reversalTxn ? (
+        <Modal
+          opened
+          centered
+          title={
+            <Group gap="xs">
+              <span>Review reversal match</span>
+              <Badge color="gray" variant="light">
+                Match {reversalReviewQueue.currentPosition} of{' '}
+                {reversalReviewQueue.totalCount}
+              </Badge>
+            </Group>
+          }
+          onClose={onCloseReversal}
+        >
+          <Stack gap="md" align="center">
+            {reversalReviewQueueLoading ? (
+              <>
+                <Loader size="sm" />
+                <Text size="sm" c="dimmed">
+                  Loading the next reversal match...
+                </Text>
+              </>
+            ) : (
+              <>
+                <Alert color="yellow" w="100%">
+                  {reversalReviewQueueError ??
+                    'This transaction is no longer available for review.'}
+                </Alert>
+                <Button
+                  variant="light"
+                  disabled={!reversalReviewQueue.hasNext}
+                  onClick={reversalReviewQueue.onNext}
+                >
+                  Next match
+                </Button>
+              </>
+            )}
+          </Stack>
+        </Modal>
       ) : null}
 
       <TransactionCommentsModal
@@ -206,3 +260,13 @@ export default function TransactionsModalStack(props: {
     </>
   );
 }
+import {
+  Alert,
+  Badge,
+  Button,
+  Group,
+  Loader,
+  Modal,
+  Stack,
+  Text,
+} from '@mantine/core';

@@ -4,10 +4,14 @@ import test from 'node:test';
 import {
   applyTxnReversalActionServer,
   bulkTxnActionServer,
+  deleteTxnServer,
   importTrustedTransactionsServer as importTransactionsServer,
   listProjectTransactionSummaryServer,
+  listTransactionsSelectionServer,
   listTransactionsPageServer,
   listTxnReversalMatchSuggestionsServer,
+  splitTxnServer,
+  updateTxnServer,
 } from '../src/server/fns/transactions.ts';
 import {
   asCategoryId,
@@ -216,6 +220,39 @@ test(
         markedPending.txn.reversal?.expectedProjectId,
         expectedProjectId
       );
+      await assertAppErrorCode(
+        () =>
+          updateTxnServer({
+            context,
+            projectId: sourceProjectId,
+            input: { id: sourceTxnId, amountCents: 10001 },
+          }),
+        'CONFLICT',
+        'reversal source matching identity cannot be edited'
+      );
+      await assertAppErrorCode(
+        () =>
+          deleteTxnServer({
+            context,
+            projectId: sourceProjectId,
+            txnId: sourceTxnId,
+          }),
+        'CONFLICT',
+        'reversal source cannot be deleted independently'
+      );
+      await assertAppErrorCode(
+        () =>
+          splitTxnServer({
+            context,
+            projectId: sourceProjectId,
+            input: {
+              txnId: sourceTxnId,
+              children: [{ amountCents: 6000 }, { amountCents: 4000 }],
+            },
+          }),
+        'CONFLICT',
+        'reversal source cannot be split while pending'
+      );
 
       const pendingPage = await listTransactionsPageServer({
         context,
@@ -239,6 +276,23 @@ test(
       assert.equal(suggestions.length, 1);
       assert.equal(suggestions[0]?.txnId, reversalTxnId);
       assert.ok(suggestions[0]?.reasons.includes('Same absolute amount'));
+      assert.equal(suggestions[0]?.evidence.amountExact, true);
+
+      await assertAppErrorCode(
+        () =>
+          applyTxnReversalActionServer({
+            context,
+            projectId: sourceProjectId,
+            input: {
+              action: 'match',
+              txnId: sourceTxnId,
+              reversalTxnId,
+              expectedReversalVersion: 999,
+            },
+          }),
+        'CONFLICT',
+        'stale reversal version is rejected'
+      );
 
       const matched = await applyTxnReversalActionServer({
         context,
@@ -248,6 +302,7 @@ test(
           txnId: sourceTxnId,
           reversalTxnId,
           commentBody: 'Matched after the refund arrived.',
+          expectedReversalVersion: markedPending.txn.reversal?.version,
         },
       });
 
@@ -257,6 +312,35 @@ test(
       assert.equal(
         matched.counterpartTxn?.reversal?.counterpartTxnId,
         sourceTxnId
+      );
+      assert.equal(matched.txn.reversal?.matchMethod, 'manual');
+      assert.equal(matched.txn.reversal?.sourceTxn?.item, 'Consulting invoice');
+      assert.equal(
+        matched.txn.reversal?.counterpartTxn?.item,
+        'Consulting reversal'
+      );
+      assert.equal(matched.txn.reversal?.matchEvidence?.amountExact, true);
+      await assertAppErrorCode(
+        () =>
+          deleteTxnServer({
+            context,
+            projectId: sourceProjectId,
+            txnId: reversalTxnId,
+          }),
+        'CONFLICT',
+        'matched reversal counterpart cannot be deleted independently'
+      );
+
+      const reversalAuditEvents = await db
+        .selectFrom('audit_events')
+        .select('event_type')
+        .where('project_id', '=', sourceProjectId)
+        .where('entity_type', '=', 'txn_reversal')
+        .orderBy('created_at', 'asc')
+        .execute();
+      assert.deepEqual(
+        reversalAuditEvents.map((event) => event.event_type),
+        ['txn_reversal.pending_created', 'txn_reversal.matched_manually']
       );
 
       const matchedPairsPage = await listTransactionsPageServer({
@@ -275,31 +359,48 @@ test(
 
       const commentsAfterMatch = await db
         .selectFrom('txn_comments')
-        .select(['txn_public_id', 'body'])
+        .select([
+          'txn_public_id',
+          'body',
+          'comment_origin',
+          'resolved_at',
+          'resolved_by_user_id',
+        ])
         .where('project_id', '=', sourceProjectId)
         .orderBy('txn_public_id', 'asc')
         .orderBy('created_at', 'asc')
         .execute();
-      assert.ok(
-        commentsAfterMatch.some(
-          (row) =>
-            row.txn_public_id === sourceTxnId &&
-            row.body.includes('[Pending reversal]')
-        )
-      );
-      assert.ok(
-        commentsAfterMatch.some(
-          (row) =>
-            row.txn_public_id === sourceTxnId &&
-            row.body.includes('[Reversal matched]')
-        )
-      );
-      assert.ok(
-        commentsAfterMatch.some(
-          (row) =>
-            row.txn_public_id === reversalTxnId &&
-            row.body.includes('[Matched as reversal]')
-        )
+      assert.deepEqual(
+        commentsAfterMatch.map((row) => ({
+          txnId: row.txn_public_id,
+          body: row.body,
+          origin: row.comment_origin,
+          closed: Boolean(row.resolved_at),
+          closedBy: row.resolved_by_user_id,
+        })),
+        [
+          {
+            txnId: sourceTxnId,
+            body: 'Waiting for the Power BI reversal import.',
+            origin: 'reversal_workflow',
+            closed: true,
+            closedBy: userId,
+          },
+          {
+            txnId: sourceTxnId,
+            body: 'Matched after the refund arrived.',
+            origin: 'reversal_workflow',
+            closed: true,
+            closedBy: userId,
+          },
+          {
+            txnId: reversalTxnId,
+            body: 'Matched after the refund arrived.',
+            origin: 'reversal_workflow',
+            closed: true,
+            closedBy: userId,
+          },
+        ]
       );
 
       const unmatched = await applyTxnReversalActionServer({
@@ -318,25 +419,65 @@ test(
 
       const commentsAfterUnmatch = await db
         .selectFrom('txn_comments')
-        .select(['txn_public_id', 'body'])
+        .select(['txn_public_id', 'body', 'comment_origin', 'resolved_at'])
         .where('project_id', '=', sourceProjectId)
         .orderBy('txn_public_id', 'asc')
         .orderBy('created_at', 'asc')
         .execute();
-      assert.ok(
-        commentsAfterUnmatch.some(
-          (row) =>
-            row.txn_public_id === sourceTxnId &&
-            row.body.includes('[Reversal match removed]')
-        )
+      assert.deepEqual(
+        commentsAfterUnmatch.find(
+          (row) => row.body === 'Reopened for manual review.'
+        ),
+        {
+          txn_public_id: sourceTxnId,
+          body: 'Reopened for manual review.',
+          comment_origin: 'reversal_workflow',
+          resolved_at: null,
+        }
       );
-      assert.ok(
-        commentsAfterUnmatch.some(
-          (row) =>
-            row.txn_public_id === reversalTxnId &&
-            row.body.includes('[Removed as reversal match]')
-        )
+      assert.ok(commentsAfterUnmatch.every((row) => !row.body.startsWith('[')));
+
+      const exception = await applyTxnReversalActionServer({
+        context,
+        projectId: sourceProjectId,
+        input: {
+          action: 'markException',
+          txnId: sourceTxnId,
+          commentBody: 'Needs a manual follow-up.',
+          expectedReversalVersion: unmatched.txn.reversal?.version,
+        },
+      });
+      assert.equal(exception.txn.reversal?.status, 'reversal_exception');
+
+      const returnedToPending = await applyTxnReversalActionServer({
+        context,
+        projectId: sourceProjectId,
+        input: {
+          action: 'clearException',
+          txnId: sourceTxnId,
+          commentBody: 'Ready to search again.',
+          expectedReversalVersion: exception.txn.reversal?.version,
+        },
+      });
+      assert.equal(returnedToPending.txn.reversal?.status, 'pending_reversal');
+      assert.equal(
+        returnedToPending.txn.reversal?.id,
+        unmatched.txn.reversal?.id
       );
+      const openReversalComments = await db
+        .selectFrom('txn_comments')
+        .select(['body', 'resolved_at'])
+        .where('project_id', '=', sourceProjectId)
+        .where('txn_public_id', '=', sourceTxnId)
+        .where('comment_origin', '=', 'reversal_workflow')
+        .where('resolved_at', 'is', null)
+        .execute();
+      assert.deepEqual(openReversalComments, [
+        {
+          body: 'Ready to search again.',
+          resolved_at: null,
+        },
+      ]);
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();
@@ -523,6 +664,13 @@ test(
           'matched_reversal_txn_public_id',
           'matched_at',
           'matched_by_user_id',
+          'match_method',
+          'match_score',
+          'candidate_count',
+          'match_evidence',
+          'source_snapshot',
+          'counterpart_snapshot',
+          'version',
         ])
         .where('project_id', '=', projectId)
         .where('source_txn_public_id', '=', sourceTxnId)
@@ -534,77 +682,86 @@ test(
       );
       assert.equal(suggestedReversal.matched_at, null);
       assert.equal(suggestedReversal.matched_by_user_id, null);
+      assert.equal(suggestedReversal.match_method, 'auto_clear');
+      assert.ok(suggestedReversal.match_score);
+      assert.equal(suggestedReversal.candidate_count, 1);
+      assert.equal(suggestedReversal.match_evidence?.amountExact, true);
+      assert.equal(suggestedReversal.source_snapshot?.txnId, sourceTxnId);
+      assert.equal(
+        suggestedReversal.counterpart_snapshot?.txnId,
+        reversalTxnId
+      );
+
+      const bulkSelection = await listTransactionsSelectionServer({
+        context,
+        projectId,
+        input: { transactionView: 'all' },
+      });
+      const selectedPairRows = bulkSelection.rows.filter(
+        (row) => row.reversal?.id === pendingPage.rows[0]?.reversal?.id
+      );
+      assert.equal(selectedPairRows.length, 2);
+      assert.equal(
+        new Set(selectedPairRows.map((row) => row.reversal?.id)).size,
+        1
+      );
+      assert.ok(
+        selectedPairRows.every(
+          (row) =>
+            row.reversal?.sourceTxn?.item === '1181853 Monthly accrual' &&
+            row.reversal.counterpartTxn?.item ===
+              '1181853 Monthly accrual reversal'
+        )
+      );
 
       const suggestedComments = await db
         .selectFrom('txn_comments')
-        .select(['txn_public_id', 'body'])
+        .select(['txn_public_id', 'body', 'comment_origin', 'resolved_at'])
         .where('project_id', '=', projectId)
         .orderBy('txn_public_id', 'asc')
         .orderBy('created_at', 'asc')
         .execute();
-      assert.ok(
-        suggestedComments.some(
-          (row) =>
-            row.txn_public_id === sourceTxnId &&
-            row.body.includes('[Reversal match suggested]')
-        )
-      );
-      assert.ok(
-        suggestedComments.some(
-          (row) =>
-            row.txn_public_id === reversalTxnId &&
-            row.body.includes('[Suggested as reversal]')
-        )
-      );
+      assert.deepEqual(suggestedComments, [
+        {
+          txn_public_id: sourceTxnId,
+          body: 'Expected to reverse in the next monthly EXA import.',
+          comment_origin: 'reversal_workflow',
+          resolved_at: null,
+        },
+      ]);
 
       await db
-        .updateTable('txns')
-        .set({
-          import_source_meta: {
-            Source: 'EXA',
-            'Journal Line Description': '1181853 Monthly accrual',
-            'CC and Description': 'CC100 Team',
-            'Reference Num': 'REF-CHANGED',
-          },
+        .insertInto('txn_comments')
+        .values({
+          id: 'itest_txn_reversal_auto_comment_1',
+          company_id: companyId,
+          project_id: projectId,
+          txn_public_id: sourceTxnId,
+          parent_comment_id: null,
+          body: 'Unrelated coding question.',
+          assigned_to_user_id: null,
+          created_by_user_id: userId,
+          resolved_at: null,
+          resolved_by_user_id: null,
         })
-        .where('project_id', '=', projectId)
-        .where('public_id', '=', reversalTxnId)
-        .executeTakeFirstOrThrow();
-      await assertAppErrorCode(
-        () =>
-          applyTxnReversalActionServer({
-            context,
-            projectId,
-            input: {
-              action: 'approveSuggestedMatch',
-              txnId: reversalTxnId,
+        .execute();
+
+      await assert.rejects(
+        db
+          .updateTable('txns')
+          .set({
+            import_source_meta: {
+              Source: 'EXA',
+              'Journal Line Description': '1181853 Monthly accrual',
+              'CC and Description': 'CC100 Team',
+              'Reference Num': 'REF-CHANGED',
             },
-          }),
-        'CONFLICT',
-        'approval revalidates changed EXA metadata'
+          })
+          .where('project_id', '=', projectId)
+          .where('public_id', '=', reversalTxnId)
+          .executeTakeFirstOrThrow(),
+        /Reversal-linked transaction identity cannot be changed/
       );
-
-      const stillSuggested = await db
-        .selectFrom('txn_reversals')
-        .select('status')
-        .where('project_id', '=', projectId)
-        .where('source_txn_public_id', '=', sourceTxnId)
-        .executeTakeFirstOrThrow();
-      assert.equal(stillSuggested.status, 'auto_matched_pending_approval');
-
-      await db
-        .updateTable('txns')
-        .set({
-          import_source_meta: {
-            Source: 'EXA',
-            'Journal Line Description': '1181853 Monthly accrual',
-            'CC and Description': 'CC100 Team',
-            'Reference Num': 'REF-1181853',
-          },
-        })
-        .where('project_id', '=', projectId)
-        .where('public_id', '=', reversalTxnId)
-        .executeTakeFirstOrThrow();
 
       const approved = await applyTxnReversalActionServer({
         context,
@@ -626,26 +783,47 @@ test(
 
       const approvedComments = await db
         .selectFrom('txn_comments')
-        .select(['txn_public_id', 'body'])
+        .select([
+          'txn_public_id',
+          'body',
+          'comment_origin',
+          'resolved_at',
+          'resolved_by_user_id',
+        ])
         .where('project_id', '=', projectId)
         .orderBy('txn_public_id', 'asc')
         .orderBy('created_at', 'asc')
         .execute();
+      const reversalWorkflowComments = approvedComments.filter(
+        (row) => row.comment_origin === 'reversal_workflow'
+      );
+      assert.equal(reversalWorkflowComments.length, 3);
       assert.ok(
-        approvedComments.some(
+        reversalWorkflowComments.every(
           (row) =>
-            row.txn_public_id === sourceTxnId &&
-            row.body.includes('Approved auto-matched reversal')
+            row.resolved_at !== null && row.resolved_by_user_id === userId
         )
       );
+      assert.equal(
+        reversalWorkflowComments.filter(
+          (row) => row.body === 'Reviewed and approved after month-two import.'
+        ).length,
+        2
+      );
       assert.ok(
-        approvedComments.some(
-          (row) =>
-            row.txn_public_id === reversalTxnId &&
-            row.body.includes(
-              'Approved auto-match to pending reversal transaction'
-            )
-        )
+        reversalWorkflowComments.every((row) => !row.body.startsWith('['))
+      );
+      assert.deepEqual(
+        approvedComments.find(
+          (row) => row.body === 'Unrelated coding question.'
+        ),
+        {
+          txn_public_id: sourceTxnId,
+          body: 'Unrelated coding question.',
+          comment_origin: 'user',
+          resolved_at: null,
+          resolved_by_user_id: null,
+        }
       );
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
@@ -860,7 +1038,7 @@ test(
         projectId,
         input: { action: 'reconcilePendingReversals' },
       });
-      assert.equal(recovered.requestedCount, 1);
+      assert.equal(recovered.requestedCount, 2);
       assert.equal(recovered.updatedCount, 1);
 
       const recoveredRow = await db
@@ -873,6 +1051,27 @@ test(
       assert.equal(
         recoveredRow.matched_reversal_txn_public_id,
         counterpartTxnBId
+      );
+      const suggestionCommentCountBefore = await db
+        .selectFrom('txn_comments')
+        .select(({ fn }) => fn.countAll<number>().as('count'))
+        .where('project_id', '=', projectId)
+        .executeTakeFirstOrThrow();
+      const repeatedRecovery = await bulkTxnActionServer({
+        context,
+        projectId,
+        input: { action: 'reconcilePendingReversals' },
+      });
+      assert.equal(repeatedRecovery.requestedCount, 2);
+      assert.equal(repeatedRecovery.updatedCount, 0);
+      const suggestionCommentCountAfter = await db
+        .selectFrom('txn_comments')
+        .select(({ fn }) => fn.countAll<number>().as('count'))
+        .where('project_id', '=', projectId)
+        .executeTakeFirstOrThrow();
+      assert.equal(
+        Number(suggestionCommentCountAfter.count),
+        Number(suggestionCommentCountBefore.count)
       );
 
       const rejected = await applyTxnReversalActionServer({
@@ -890,7 +1089,7 @@ test(
         projectId,
         input: { action: 'reconcilePendingReversals' },
       });
-      assert.equal(rerun.requestedCount, 1);
+      assert.equal(rerun.requestedCount, 2);
       assert.equal(rerun.updatedCount, 0);
 
       const rejection = await db
@@ -1057,24 +1256,41 @@ test(
 
       const rejectedComments = await db
         .selectFrom('txn_comments')
-        .select(['txn_public_id', 'body'])
+        .select([
+          'txn_public_id',
+          'body',
+          'comment_origin',
+          'resolved_at',
+          'resolved_by_user_id',
+        ])
         .where('project_id', '=', projectId)
         .orderBy('txn_public_id', 'asc')
         .orderBy('created_at', 'asc')
         .execute();
-      assert.ok(
-        rejectedComments.some(
-          (row) =>
-            row.txn_public_id === sourceTxnId &&
-            row.body.includes('[Suggested reversal rejected]')
-        )
-      );
-      assert.ok(
-        rejectedComments.some(
-          (row) =>
-            row.txn_public_id === reversalTxnId &&
-            row.body.includes('[Removed as suggested reversal]')
-        )
+      assert.deepEqual(
+        rejectedComments.map((row) => ({
+          txnId: row.txn_public_id,
+          body: row.body,
+          origin: row.comment_origin,
+          closed: Boolean(row.resolved_at),
+          closedBy: row.resolved_by_user_id,
+        })),
+        [
+          {
+            txnId: sourceTxnId,
+            body: 'Waiting for the next import to confirm the reversal.',
+            origin: 'reversal_workflow',
+            closed: true,
+            closedBy: userId,
+          },
+          {
+            txnId: sourceTxnId,
+            body: 'Leaving this one for manual confirmation.',
+            origin: 'reversal_workflow',
+            closed: false,
+            closedBy: null,
+          },
+        ]
       );
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
@@ -1549,74 +1765,55 @@ test(
 
       const reviewComments = await db
         .selectFrom('txn_comments')
-        .select(['txn_public_id', 'body'])
+        .select(['txn_public_id', 'body', 'comment_origin', 'resolved_at'])
         .where('project_id', '=', projectId)
         .where('txn_public_id', 'in', [sourceTxnAId, sourceTxnBId])
         .orderBy('txn_public_id', 'asc')
         .orderBy('created_at', 'asc')
         .execute();
-      assert.ok(
-        reviewComments.some(
-          (row) =>
-            row.txn_public_id === sourceTxnAId &&
-            row.body.includes('[Default reversal match selected]')
-        )
-      );
-      assert.ok(
-        reviewComments.some(
-          (row) =>
-            row.txn_public_id === sourceTxnBId &&
-            row.body.includes('[Default reversal match selected]')
-        )
-      );
-
-      await db
-        .updateTable('txns')
-        .set({ amount_cents: -123595 })
-        .where('project_id', '=', projectId)
-        .where('public_id', '=', reversalTxnBId)
-        .executeTakeFirst();
-
-      await assertAppErrorCode(
-        () =>
-          bulkTxnActionServer({
-            context,
-            projectId,
-            input: {
-              action: 'approveSuggestedReversals',
-              txnIds: [sourceTxnAId, sourceTxnBId],
-            },
-          }),
-        'VALIDATION_ERROR',
-        'bulk approval rolls back when a later reversal is invalid'
+      assert.deepEqual(
+        reviewComments.map((row) => ({
+          body: row.body,
+          origin: row.comment_origin,
+          closed: Boolean(row.resolved_at),
+        })),
+        [
+          {
+            body: 'Pending reversal A.',
+            origin: 'reversal_workflow',
+            closed: false,
+          },
+          {
+            body: 'Pending reversal B.',
+            origin: 'reversal_workflow',
+            closed: false,
+          },
+        ]
       );
 
-      const rolledBackReversals = await db
+      await assert.rejects(
+        db
+          .updateTable('txns')
+          .set({ amount_cents: -123595 })
+          .where('project_id', '=', projectId)
+          .where('public_id', '=', reversalTxnBId)
+          .executeTakeFirst(),
+        /Reversal-linked transaction identity cannot be changed/
+      );
+
+      const suggestedPairRows = await db
         .selectFrom('txn_reversals')
-        .select(['source_txn_public_id', 'status'])
+        .select('id')
         .where('project_id', '=', projectId)
         .where('source_txn_public_id', 'in', [sourceTxnAId, sourceTxnBId])
+        .orderBy('id', 'asc')
         .execute();
-      assert.equal(
-        rolledBackReversals.every(
-          (row) => row.status === 'auto_matched_ambiguous_pending_approval'
-        ),
-        true
-      );
-
-      await db
-        .updateTable('txns')
-        .set({ amount_cents: -123596 })
-        .where('project_id', '=', projectId)
-        .where('public_id', '=', reversalTxnBId)
-        .executeTakeFirst();
-
       const bulkResult = await bulkTxnActionServer({
         context,
         projectId,
         input: {
           action: 'approveSuggestedReversals',
-          txnIds: [sourceTxnAId, sourceTxnBId],
+          reversalIds: suggestedPairRows.map((row) => row.id),
         },
       });
       assert.equal(bulkResult.updatedCount, 2);
@@ -1638,6 +1835,20 @@ test(
       assert.equal(
         approvedByTxnId.get(sourceTxnBId)?.status,
         'reversed_matched'
+      );
+      const closedBulkReviewComments = await db
+        .selectFrom('txn_comments')
+        .select(['comment_origin', 'resolved_at', 'resolved_by_user_id'])
+        .where('project_id', '=', projectId)
+        .where('txn_public_id', 'in', [sourceTxnAId, sourceTxnBId])
+        .execute();
+      assert.ok(
+        closedBulkReviewComments.every(
+          (row) =>
+            row.comment_origin === 'reversal_workflow' &&
+            row.resolved_at !== null &&
+            row.resolved_by_user_id === userId
+        )
       );
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
@@ -1915,6 +2126,7 @@ test(
       assert.equal(reviewPage.summary.totalCount, 3);
       assert.equal(reviewPage.summary.codingApprovalCount, 1);
       assert.equal(reviewPage.summary.reversalReviewCount, 2);
+      assert.equal(reviewPage.summary.reversalMatchReviewCount, 2);
       assert.equal(reviewPage.summary.awaitingReversalCount, 0);
       assert.ok(
         reviewPage.rows.some(

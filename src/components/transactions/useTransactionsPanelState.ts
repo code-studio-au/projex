@@ -12,6 +12,7 @@ import {
   buildPaginationScopeKey,
   type QuarterOption,
 } from './transactionsPanelUtils';
+import type { ReversalReviewQueueState } from './reversalReviewQueue';
 
 const hydrateSubscription = () => () => {};
 const getClientHydratedSnapshot = () => true;
@@ -28,6 +29,8 @@ export function useTransactionsPanelState(args: {
   const [splitTxn, setSplitTxn] = useState<Txn | null>(null);
   const [transferTxn, setTransferTxn] = useState<Txn | null>(null);
   const [reversalTxn, setReversalTxn] = useState<Txn | null>(null);
+  const [reversalReviewQueue, setReversalReviewQueue] =
+    useState<ReversalReviewQueueState | null>(null);
   const [unlockTxn, setUnlockTxn] = useState<Txn | null>(null);
   const [reversalModalNonce, setReversalModalNonce] = useState(0);
   const [commentsTxn, setCommentsTxn] = useState<Txn | null>(null);
@@ -80,6 +83,7 @@ export function useTransactionsPanelState(args: {
     projectRulePrompt,
     rowSelection,
     reversalModalNonce,
+    reversalReviewQueue,
     reversalTxn,
     sorting,
     splitTxn,
@@ -97,6 +101,7 @@ export function useTransactionsPanelState(args: {
     setProjectRuleMatchText,
     setProjectRulePrompt,
     setReversalModalNonce,
+    setReversalReviewQueue,
     setReversalTxn,
     setRowSelection,
     setSorting,
