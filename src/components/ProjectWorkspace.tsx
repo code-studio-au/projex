@@ -38,6 +38,7 @@ import { useTransactionActions } from '../hooks/useTransactionActions';
 import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useRollups } from '../hooks/useRollups';
 import { formatCurrencyFromCents } from '../utils/money';
+import { calculateBudgetPosition } from '../utils/budgetSemantics';
 import { showAppToast } from '../utils/toast';
 
 import {
@@ -111,18 +112,6 @@ function monthKeyMatchesFilters(args: {
   if (yearFilter && !monthKey.startsWith(`${yearFilter}-`)) return false;
   if (!quarterFilter) return true;
   return quarterFromMonthKey(monthKey) === quarterFilter;
-}
-
-function filteredBudgetCents(
-  budgetCents: number,
-  args: { quarterFilter: QuarterOption | null; monthFilterKey: string | null }
-) {
-  const visibleMonthCount = args.monthFilterKey
-    ? 1
-    : args.quarterFilter
-      ? 3
-      : 12;
-  return Math.round((budgetCents * visibleMonthCount) / 12);
 }
 
 type ProjectWorkspaceProps = {
@@ -561,16 +550,41 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     [access, projectId, projects.data]
   );
 
-  const uncoded = useMemo(
-    () => ({
-      count: projectTransactionSummaryQ.data?.uncodedCount ?? 0,
-      amountCents: projectTransactionSummaryQ.data?.uncodedAmountCents ?? 0,
-    }),
-    [
-      projectTransactionSummaryQ.data?.uncodedAmountCents,
-      projectTransactionSummaryQ.data?.uncodedCount,
-    ]
-  );
+  const transactionPeriodSummary = useMemo(() => {
+    const visiblePeriods = (
+      projectTransactionSummaryQ.data?.periodSummaries ?? []
+    ).filter((period) =>
+      monthKeyMatchesFilters({
+        monthKey: period.monthKey,
+        yearFilter,
+        quarterFilter,
+        monthFilterKey,
+      })
+    );
+    return {
+      uncodedCount: visiblePeriods.reduce(
+        (total, period) => total + period.uncodedCount,
+        0
+      ),
+      uncodedAmountCents: visiblePeriods.reduce(
+        (total, period) => total + period.uncodedAmountCents,
+        0
+      ),
+      pendingReversalCents: visiblePeriods.reduce(
+        (total, period) => total + period.pendingReversalCents,
+        0
+      ),
+      pendingReversalCount: visiblePeriods.reduce(
+        (total, period) => total + period.pendingReversalCount,
+        0
+      ),
+    };
+  }, [
+    monthFilterKey,
+    projectTransactionSummaryQ.data?.periodSummaries,
+    quarterFilter,
+    yearFilter,
+  ]);
   const headerReady = Boolean(effectiveCompanyName && effectiveProjectName);
   const summaryReady =
     headerReady &&
@@ -587,23 +601,37 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
         monthFilterKey,
       })
     );
+    const budgetCents = programmeSummary?.budgetCents ?? 0;
+    const codedActualCents = visibleMonths.reduce(
+      (total, month) => total + month.actualCodedCents,
+      0
+    );
+    const uncodedCount = visibleMonths.reduce(
+      (total, month) => total + month.uncodedCount,
+      0
+    );
+    const uncodedExposureCents = visibleMonths.reduce(
+      (total, month) => total + month.uncodedAmountCents,
+      0
+    );
+    const pendingReversalCents = visibleMonths.reduce(
+      (total, month) => total + month.pendingReversalCents,
+      0
+    );
+    const pendingReversalCount = visibleMonths.reduce(
+      (total, month) => total + month.pendingReversalCount,
+      0
+    );
     return {
-      budgetCents: filteredBudgetCents(programmeSummary?.budgetCents ?? 0, {
-        quarterFilter,
-        monthFilterKey,
+      budgetCents,
+      ...calculateBudgetPosition({
+        projectBudgetCents: budgetCents,
+        codedActualCents,
+        uncodedExposureCents,
+        uncodedCount,
+        pendingReversalCount,
+        pendingReversalCents,
       }),
-      actualCents: visibleMonths.reduce(
-        (total, month) => total + month.actualCodedCents,
-        0
-      ),
-      uncodedCount: visibleMonths.reduce(
-        (total, month) => total + month.uncodedCount,
-        0
-      ),
-      uncodedAmountCents: visibleMonths.reduce(
-        (total, month) => total + month.uncodedAmountCents,
-        0
-      ),
     };
   }, [monthFilterKey, programmeSummary, quarterFilter, yearFilter]);
   const entryMessage = useMemo(() => {
@@ -831,8 +859,8 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                 </SimpleGrid>
                 {monthFilterKey || quarterFilter || yearFilter ? (
                   <Text size="xs" c="dimmed">
-                    Programme budget, actual, and uncoded totals reflect the
-                    selected time filter.
+                    Programme budget remains the full-programme total; spend,
+                    exposure, headroom, and health reflect the selected period.
                   </Text>
                 ) : null}
               </Stack>
@@ -858,20 +886,39 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
               </Paper>
               <Paper className={classes.statCard} withBorder={false}>
                 <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                  Actual
+                  Recorded spend
                 </Text>
                 <Title order={4}>
                   {formatCurrencyFromCents(
-                    programmeTotals.actualCents,
+                    programmeTotals.recordedSpendCents,
                     currencyCode
                   )}
                 </Title>
+                <Text size="sm" c="dimmed">
+                  Uncoded:{' '}
+                  {formatCurrencyFromCents(
+                    programmeTotals.uncodedExposureCents,
+                    currencyCode
+                  )}
+                </Text>
               </Paper>
               <Paper className={classes.statCard} withBorder={false}>
                 <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                  Uncoded
+                  Budget headroom
                 </Text>
-                <Title order={4}>{programmeTotals.uncodedCount}</Title>
+                <Title order={4}>
+                  {formatCurrencyFromCents(
+                    programmeTotals.confirmedHeadroomCents,
+                    currencyCode
+                  )}
+                </Title>
+                <Badge
+                  variant="light"
+                  color={programmeTotals.health.color}
+                  title={programmeTotals.health.reason}
+                >
+                  {programmeTotals.health.label}
+                </Badge>
               </Paper>
             </SimpleGrid>
           </>
@@ -894,10 +941,13 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                             Budget
                           </Table.Th>
                           <Table.Th className="table-head-cell table-head-right">
-                            Actual
+                            Recorded spend
                           </Table.Th>
                           <Table.Th className="table-head-cell table-head-right">
-                            Uncoded
+                            Budget headroom
+                          </Table.Th>
+                          <Table.Th className="table-head-cell table-head-left">
+                            Health
                           </Table.Th>
                           <Table.Th className="table-head-cell table-head-left">
                             Status
@@ -914,7 +964,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                               monthFilterKey,
                             })
                           );
-                          const actualCents = visibleMonths.reduce(
+                          const codedActualCents = visibleMonths.reduce(
                             (total, month) => total + month.actualCodedCents,
                             0
                           );
@@ -922,13 +972,29 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                             (total, month) => total + month.uncodedCount,
                             0
                           );
-                          const budgetCents = filteredBudgetCents(
-                            child.budgetCents,
-                            {
-                              quarterFilter,
-                              monthFilterKey,
-                            }
+                          const uncodedExposureCents = visibleMonths.reduce(
+                            (total, month) => total + month.uncodedAmountCents,
+                            0
                           );
+                          const pendingReversalCents = visibleMonths.reduce(
+                            (total, month) =>
+                              total + month.pendingReversalCents,
+                            0
+                          );
+                          const pendingReversalCount = visibleMonths.reduce(
+                            (total, month) =>
+                              total + month.pendingReversalCount,
+                            0
+                          );
+                          const budgetCents = child.budgetCents;
+                          const childPosition = calculateBudgetPosition({
+                            projectBudgetCents: budgetCents,
+                            codedActualCents,
+                            uncodedExposureCents,
+                            uncodedCount,
+                            pendingReversalCount,
+                            pendingReversalCents,
+                          });
                           const canOpenChild = child.status === 'active';
                           return (
                             <Table.Tr key={child.id}>
@@ -977,15 +1043,27 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                               <Table.Td>
                                 <Text className="table-body-right">
                                   {formatCurrencyFromCents(
-                                    actualCents,
+                                    childPosition.recordedSpendCents,
                                     child.currency
                                   )}
                                 </Text>
                               </Table.Td>
                               <Table.Td>
                                 <Text className="table-body-right">
-                                  {uncodedCount}
+                                  {formatCurrencyFromCents(
+                                    childPosition.confirmedHeadroomCents,
+                                    child.currency
+                                  )}
                                 </Text>
+                              </Table.Td>
+                              <Table.Td>
+                                <Badge
+                                  variant="light"
+                                  color={childPosition.health.color}
+                                  title={childPosition.health.reason}
+                                >
+                                  {childPosition.health.label}
+                                </Badge>
                               </Table.Td>
                               <Table.Td>
                                 <Badge
@@ -1181,7 +1259,16 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
               }}
               rollups={rollups}
               budgets={budgets}
-              uncodedSummary={uncoded}
+              uncodedSummary={{
+                count: transactionPeriodSummary.uncodedCount,
+                amountCents: transactionPeriodSummary.uncodedAmountCents,
+              }}
+              pendingReversalCents={
+                transactionPeriodSummary.pendingReversalCents
+              }
+              pendingReversalCount={
+                transactionPeriodSummary.pendingReversalCount
+              }
               isLoading={!summaryReady}
               canEditProjectBudgetTotal={canEditBudgets}
               readOnly={!canEditBudgets}

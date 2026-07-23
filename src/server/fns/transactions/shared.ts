@@ -61,7 +61,17 @@ export type ProjectTransactionSummaryRow = {
 export type ProjectTransactionSummaryAggregateRow = {
   uncoded_count: number | string;
   uncoded_cents: number | string;
+  pending_reversal_count: number | string;
+  pending_reversal_cents: number | string;
   auto_mapped_pending_count: number | string;
+};
+
+export type ProjectTransactionPeriodSummaryRow = {
+  month_key: string;
+  uncoded_count: number | string;
+  uncoded_cents: number | string;
+  pending_reversal_count: number | string;
+  pending_reversal_cents: number | string;
 };
 
 export const OPEN_TXN_REVERSAL_STATUSES = [

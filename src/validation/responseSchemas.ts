@@ -115,6 +115,7 @@ export const companiesResponseSchema = z.array(companyResponseSchema);
 const companySummaryMonthResponseSchema = z.object({
   monthKey: z.string(),
   actualCodedCents: transactionAmountCentsSchema,
+  pendingReversalCount: z.number().int().nonnegative(),
   pendingReversalCents: transactionAmountCentsSchema,
   adjustedActualCodedCents: transactionAmountCentsSchema,
   uncodedCount: z.number().int().nonnegative(),

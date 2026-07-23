@@ -5,6 +5,7 @@ import type {
   CompanyId,
   CompanySummaryProject,
 } from '../../types';
+import { calculateBudgetPosition } from '../../utils/budgetSemantics';
 import {
   amountStyle,
   centsToMajorUnits,
@@ -37,6 +38,10 @@ export function addOverviewWorksheet(args: {
   totalUncodedCents: number;
 }) {
   const worksheet = args.workbook.addWorksheet('Overview');
+  const totalRecordedSpendCents =
+    args.totalActualCodedCents + args.totalUncodedCents;
+  const totalExpectedSpendCents =
+    args.totalAdjustedActualCodedCents + args.totalUncodedCents;
   const sections: string[] = [
     'Projex company export',
     `Company: ${args.companyName}`,
@@ -67,21 +72,26 @@ export function addOverviewWorksheet(args: {
     `- ${args.budgetCount} budget lines`,
     `- ${args.transactionCount} transaction rows`,
     `- ${centsToMajorUnits(args.totalBudgetCents).toFixed(2)} planned budget`,
-    `- ${centsToMajorUnits(args.totalActualCodedCents).toFixed(2)} coded actuals`,
-    `- ${centsToMajorUnits(args.totalPendingReversalCents).toFixed(2)} pending reversal amount`,
-    `- ${centsToMajorUnits(args.totalAdjustedActualCodedCents).toFixed(2)} adjusted coded actuals`,
-    `- ${centsToMajorUnits(args.totalUncodedCents).toFixed(2)} uncoded amount`,
+    `- ${centsToMajorUnits(totalRecordedSpendCents).toFixed(2)} recorded spend`,
+    `- ${centsToMajorUnits(args.totalPendingReversalCents).toFixed(2)} unrecorded pending reversal amount`,
+    `- ${centsToMajorUnits(totalExpectedSpendCents).toFixed(2)} expected spend after pending reversals`,
+    `- ${centsToMajorUnits(args.totalBudgetCents - totalRecordedSpendCents).toFixed(2)} budget headroom`,
+    `- ${centsToMajorUnits(args.totalUncodedCents).toFixed(2)} uncoded exposure`,
     '',
     'Recommended worksheet order',
     '- Executive Summary: company-level totals and project-level rollup',
-    '- Budget vs Actual: core variance analysis by programme and project',
-    '- Budget vs Actual Monthly: monthly burn and variance tracking',
+    '- Budget vs Actual: project budget, spend, headroom, and health',
+    '- Monthly Spend: monthly recorded and expected spend components',
     '- Category Rollup / Subcategory Rollup: taxonomy-level budget and spend analysis',
     '- Workflow Summary / Uncoded / Auto-Mapped Pending: coding and review operations',
     '- Detail tabs: audit and reconciliation support',
     '',
     'Model notes',
     '- Programmes are reporting containers and roll up active child projects.',
+    '- Project budgets are approved full-project totals and are not prorated across observed months.',
+    '- Recorded spend includes coded actuals and uncoded exposure.',
+    '- Expected spend subtracts open pending reversals but does not treat them as confirmed.',
+    '- Health uses recorded spend; no straight-line burn forecast is inferred.',
     '- Currency is preserved row-by-row; aggregate mixed currencies outside this workbook with care.',
     '- IDs and parent relationships are intentionally included for reconciliation.',
     `- ${args.projectRows.filter((row) => row.project_type === 'programme' && row.status === 'active').length} active programmes contribute rolled-up child metrics.`,
@@ -222,44 +232,86 @@ export function addAnalysisWorksheets(args: {
         key: 'actualCodedAmount',
         style: amountStyle,
       },
-      { header: 'Pending reversal cents', key: 'pendingReversalCents' },
       {
-        header: 'Pending reversal amount',
+        header: 'Open pending reversal workflows',
+        key: 'pendingReversalCount',
+      },
+      {
+        header: 'Unrecorded pending reversal cents',
+        key: 'pendingReversalCents',
+      },
+      {
+        header: 'Unrecorded pending reversal amount',
         key: 'pendingReversalAmount',
         style: amountStyle,
       },
       {
-        header: 'Adjusted actual coded cents',
+        header: 'Expected coded spend after pending reversals cents',
         key: 'adjustedActualCodedCents',
       },
       {
-        header: 'Adjusted actual coded amount',
+        header: 'Expected coded spend after pending reversals',
         key: 'adjustedActualCodedAmount',
         style: amountStyle,
       },
       { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
       { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
-      { header: 'Total actual incl uncoded cents', key: 'totalActualCents' },
+      { header: 'Recorded spend cents', key: 'recordedSpendCents' },
       {
-        header: 'Total actual incl uncoded',
-        key: 'totalActualAmount',
+        header: 'Recorded spend',
+        key: 'recordedSpendAmount',
         style: amountStyle,
       },
-      { header: 'Variance cents', key: 'varianceCents' },
-      { header: 'Variance amount', key: 'varianceAmount', style: amountStyle },
-      { header: 'Variance %', key: 'variancePct', style: percentStyle },
+      {
+        header: 'Expected spend after pending reversals cents',
+        key: 'expectedSpendCents',
+      },
+      {
+        header: 'Expected spend after pending reversals',
+        key: 'expectedSpendAmount',
+        style: amountStyle,
+      },
+      { header: 'Budget headroom cents', key: 'budgetHeadroomCents' },
+      {
+        header: 'Budget headroom',
+        key: 'budgetHeadroomAmount',
+        style: amountStyle,
+      },
+      {
+        header: 'Expected headroom after pending reversals cents',
+        key: 'expectedHeadroomCents',
+      },
+      {
+        header: 'Expected headroom after pending reversals',
+        key: 'expectedHeadroomAmount',
+        style: amountStyle,
+      },
+      {
+        header: 'Recorded spend utilization %',
+        key: 'spendUtilizationPct',
+        style: percentStyle,
+      },
+      { header: 'Budget health', key: 'budgetHealth' },
+      { header: 'Budget health reason', key: 'budgetHealthReason' },
     ],
     args.flatSummaryProjects.map((project) => {
       const finance = args.projectFinanceById.get(project.id) ?? {
         budgetCents: project.budgetCents,
         actualCodedCents: 0,
+        pendingReversalCount: 0,
         pendingReversalCents: 0,
         adjustedActualCodedCents: 0,
+        uncodedCount: 0,
         uncodedAmountCents: 0,
       };
-      const totalActualCentsForProject =
-        finance.actualCodedCents + finance.uncodedAmountCents;
-      const varianceCents = finance.budgetCents - totalActualCentsForProject;
+      const position = calculateBudgetPosition({
+        projectBudgetCents: finance.budgetCents,
+        codedActualCents: finance.actualCodedCents,
+        uncodedExposureCents: finance.uncodedAmountCents,
+        uncodedCount: finance.uncodedCount,
+        pendingReversalCount: finance.pendingReversalCount,
+        pendingReversalCents: finance.pendingReversalCents,
+      });
       const parentProjectId = project.parentProjectId ?? '';
       return {
         projectId: project.id,
@@ -275,6 +327,7 @@ export function addAnalysisWorksheets(args: {
         budgetAmount: centsToMajorUnits(finance.budgetCents),
         actualCodedCents: finance.actualCodedCents,
         actualCodedAmount: centsToMajorUnits(finance.actualCodedCents),
+        pendingReversalCount: finance.pendingReversalCount,
         pendingReversalCents: finance.pendingReversalCents,
         pendingReversalAmount: centsToMajorUnits(finance.pendingReversalCents),
         adjustedActualCodedCents: finance.adjustedActualCodedCents,
@@ -283,21 +336,34 @@ export function addAnalysisWorksheets(args: {
         ),
         uncodedAmountCents: finance.uncodedAmountCents,
         uncodedAmount: centsToMajorUnits(finance.uncodedAmountCents),
-        totalActualCents: totalActualCentsForProject,
-        totalActualAmount: centsToMajorUnits(totalActualCentsForProject),
-        varianceCents,
-        varianceAmount: centsToMajorUnits(varianceCents),
-        variancePct:
-          finance.budgetCents === 0
+        recordedSpendCents: position.recordedSpendCents,
+        recordedSpendAmount: centsToMajorUnits(position.recordedSpendCents),
+        expectedSpendCents: position.expectedSpendAfterPendingReversalsCents,
+        expectedSpendAmount: centsToMajorUnits(
+          position.expectedSpendAfterPendingReversalsCents
+        ),
+        budgetHeadroomCents: position.confirmedHeadroomCents,
+        budgetHeadroomAmount: centsToMajorUnits(
+          position.confirmedHeadroomCents
+        ),
+        expectedHeadroomCents:
+          position.expectedHeadroomAfterPendingReversalsCents,
+        expectedHeadroomAmount: centsToMajorUnits(
+          position.expectedHeadroomAfterPendingReversalsCents
+        ),
+        spendUtilizationPct:
+          position.spendUtilizationPct === null
             ? undefined
-            : varianceCents / finance.budgetCents,
+            : position.spendUtilizationPct / 100,
+        budgetHealth: position.health.label,
+        budgetHealthReason: position.health.reason,
       };
     })
   );
 
   createWorksheet(
     args.workbook,
-    'Budget vs Actual Monthly',
+    'Monthly Spend',
     [
       { header: 'Project ID', key: 'projectId' },
       { header: 'Project name', key: 'projectName' },
@@ -306,62 +372,86 @@ export function addAnalysisWorksheets(args: {
       { header: 'Parent programme name', key: 'parentProgrammeName' },
       { header: 'Currency', key: 'currency' },
       { header: 'Month', key: 'monthKey' },
-      { header: 'Budget cents', key: 'budgetCents' },
-      { header: 'Budget amount', key: 'budgetAmount', style: amountStyle },
       { header: 'Actual coded cents', key: 'actualCodedCents' },
       {
         header: 'Actual coded amount',
         key: 'actualCodedAmount',
         style: amountStyle,
       },
-      { header: 'Pending reversal cents', key: 'pendingReversalCents' },
       {
-        header: 'Pending reversal amount',
+        header: 'Open pending reversal workflows',
+        key: 'pendingReversalCount',
+      },
+      {
+        header: 'Unrecorded pending reversal cents',
+        key: 'pendingReversalCents',
+      },
+      {
+        header: 'Unrecorded pending reversal amount',
         key: 'pendingReversalAmount',
         style: amountStyle,
       },
       {
-        header: 'Adjusted actual coded cents',
+        header: 'Expected coded spend after pending reversals cents',
         key: 'adjustedActualCodedCents',
       },
       {
-        header: 'Adjusted actual coded amount',
+        header: 'Expected coded spend after pending reversals',
         key: 'adjustedActualCodedAmount',
         style: amountStyle,
       },
       { header: 'Uncoded amount cents', key: 'uncodedAmountCents' },
       { header: 'Uncoded amount', key: 'uncodedAmount', style: amountStyle },
+      { header: 'Recorded spend cents', key: 'recordedSpendCents' },
+      {
+        header: 'Recorded spend',
+        key: 'recordedSpendAmount',
+        style: amountStyle,
+      },
+      {
+        header: 'Expected spend after pending reversals cents',
+        key: 'expectedSpendCents',
+      },
+      {
+        header: 'Expected spend after pending reversals',
+        key: 'expectedSpendAmount',
+        style: amountStyle,
+      },
     ],
     args.flatSummaryProjects.flatMap((project) => {
-      const monthCount = project.months.length || 1;
-      const monthlyBudgetCents =
-        project.projectType === 'programme' || monthCount === 0
-          ? 0
-          : Math.round(project.budgetCents / monthCount);
       const parentProjectId = project.parentProjectId ?? '';
-      return project.months.map((month) => ({
-        projectId: project.id,
-        projectName: project.name,
-        projectType: project.projectType,
-        parentProgrammeId: parentProjectId,
-        parentProgrammeName: parentProjectId
-          ? (args.projectNameById.get(parentProjectId) ?? '')
-          : '',
-        currency: project.currency,
-        monthKey: month.monthKey,
-        budgetCents: monthlyBudgetCents,
-        budgetAmount: centsToMajorUnits(monthlyBudgetCents),
-        actualCodedCents: month.actualCodedCents,
-        actualCodedAmount: centsToMajorUnits(month.actualCodedCents),
-        pendingReversalCents: month.pendingReversalCents,
-        pendingReversalAmount: centsToMajorUnits(month.pendingReversalCents),
-        adjustedActualCodedCents: month.adjustedActualCodedCents,
-        adjustedActualCodedAmount: centsToMajorUnits(
-          month.adjustedActualCodedCents
-        ),
-        uncodedAmountCents: month.uncodedAmountCents,
-        uncodedAmount: centsToMajorUnits(month.uncodedAmountCents),
-      }));
+      return project.months.map((month) => {
+        const recordedSpendCents =
+          month.actualCodedCents + month.uncodedAmountCents;
+        const expectedSpendCents =
+          recordedSpendCents - Math.max(0, month.pendingReversalCents);
+        return {
+          projectId: project.id,
+          projectName: project.name,
+          projectType: project.projectType,
+          parentProgrammeId: parentProjectId,
+          parentProgrammeName: parentProjectId
+            ? (args.projectNameById.get(parentProjectId) ?? '')
+            : '',
+          currency: project.currency,
+          monthKey: month.monthKey,
+          actualCodedCents: month.actualCodedCents,
+          actualCodedAmount: centsToMajorUnits(month.actualCodedCents),
+          pendingReversalCount: month.pendingReversalCount,
+          pendingReversalCents: month.pendingReversalCents,
+          pendingReversalAmount: centsToMajorUnits(month.pendingReversalCents),
+          adjustedActualCodedCents: month.adjustedActualCodedCents,
+          adjustedActualCodedAmount: centsToMajorUnits(
+            month.adjustedActualCodedCents
+          ),
+          uncodedAmountCents: month.uncodedAmountCents,
+          uncodedAmount: centsToMajorUnits(month.uncodedAmountCents),
+          recordedSpendCents,
+          recordedSpendAmount: centsToMajorUnits(recordedSpendCents),
+          expectedSpendCents,
+          expectedSpendAmount: centsToMajorUnits(expectedSpendCents),
+        };
+      });
     })
   );
 
@@ -385,18 +475,25 @@ export function addAnalysisWorksheets(args: {
         key: 'actualCodedAmount',
         style: amountStyle,
       },
-      { header: 'Pending reversal cents', key: 'pendingReversalCents' },
       {
-        header: 'Pending reversal amount',
+        header: 'Open pending reversal workflows',
+        key: 'pendingReversalCount',
+      },
+      {
+        header: 'Unrecorded pending reversal cents',
+        key: 'pendingReversalCents',
+      },
+      {
+        header: 'Unrecorded pending reversal amount',
         key: 'pendingReversalAmount',
         style: amountStyle,
       },
       {
-        header: 'Adjusted actual coded cents',
+        header: 'Expected coded spend after pending reversals cents',
         key: 'adjustedActualCodedCents',
       },
       {
-        header: 'Adjusted actual coded amount',
+        header: 'Expected coded spend after pending reversals',
         key: 'adjustedActualCodedAmount',
         style: amountStyle,
       },
@@ -438,18 +535,25 @@ export function addAnalysisWorksheets(args: {
         key: 'actualCodedAmount',
         style: amountStyle,
       },
-      { header: 'Pending reversal cents', key: 'pendingReversalCents' },
       {
-        header: 'Pending reversal amount',
+        header: 'Open pending reversal workflows',
+        key: 'pendingReversalCount',
+      },
+      {
+        header: 'Unrecorded pending reversal cents',
+        key: 'pendingReversalCents',
+      },
+      {
+        header: 'Unrecorded pending reversal amount',
         key: 'pendingReversalAmount',
         style: amountStyle,
       },
       {
-        header: 'Adjusted actual coded cents',
+        header: 'Expected coded spend after pending reversals cents',
         key: 'adjustedActualCodedCents',
       },
       {
-        header: 'Adjusted actual coded amount',
+        header: 'Expected coded spend after pending reversals',
         key: 'adjustedActualCodedAmount',
         style: amountStyle,
       },
@@ -537,7 +641,7 @@ export function addExecutiveSummaryWorksheet(args: {
       centsToMajorUnits(args.totalTxnCents),
     ],
     [
-      'Pending reversal amount (major units)',
+      'Unrecorded pending reversal amount (major units)',
       centsToMajorUnits(args.totalPendingReversalCents),
     ],
     ['Uncoded transactions', args.uncodedTxnCount],
@@ -559,13 +663,25 @@ export function addExecutiveSummaryWorksheet(args: {
     'Budget amount',
     'Actual coded cents',
     'Actual coded amount',
-    'Pending reversal cents',
-    'Pending reversal amount',
-    'Adjusted actual coded cents',
-    'Adjusted actual coded amount',
+    'Open pending reversal workflows',
+    'Unrecorded pending reversal cents',
+    'Unrecorded pending reversal amount',
+    'Expected coded spend after pending reversals cents',
+    'Expected coded spend after pending reversals',
     'Uncoded count',
     'Uncoded amount cents',
     'Uncoded amount',
+    'Recorded spend cents',
+    'Recorded spend',
+    'Expected spend after pending reversals cents',
+    'Expected spend after pending reversals',
+    'Budget headroom cents',
+    'Budget headroom',
+    'Expected headroom after pending reversals cents',
+    'Expected headroom after pending reversals',
+    'Recorded spend utilization %',
+    'Budget health',
+    'Budget health reason',
   ]);
   args.flatSummaryProjects.forEach((project) => {
     const actualCodedCents = project.months.reduce(
@@ -574,6 +690,10 @@ export function addExecutiveSummaryWorksheet(args: {
     );
     const pendingReversalCents = project.months.reduce(
       (sum, month) => sum + month.pendingReversalCents,
+      0
+    );
+    const pendingReversalCount = project.months.reduce(
+      (sum, month) => sum + month.pendingReversalCount,
       0
     );
     const adjustedActualCodedCents = project.months.reduce(
@@ -588,6 +708,14 @@ export function addExecutiveSummaryWorksheet(args: {
       (sum, month) => sum + month.uncodedAmountCents,
       0
     );
+    const position = calculateBudgetPosition({
+      projectBudgetCents: project.budgetCents,
+      codedActualCents: actualCodedCents,
+      uncodedExposureCents: uncodedAmountCents,
+      uncodedCount,
+      pendingReversalCount,
+      pendingReversalCents,
+    });
     executiveSummary.addRow([
       project.id,
       project.name,
@@ -599,6 +727,7 @@ export function addExecutiveSummaryWorksheet(args: {
       centsToMajorUnits(project.budgetCents),
       actualCodedCents,
       centsToMajorUnits(actualCodedCents),
+      pendingReversalCount,
       pendingReversalCents,
       centsToMajorUnits(pendingReversalCents),
       adjustedActualCodedCents,
@@ -606,6 +735,19 @@ export function addExecutiveSummaryWorksheet(args: {
       uncodedCount,
       uncodedAmountCents,
       centsToMajorUnits(uncodedAmountCents),
+      position.recordedSpendCents,
+      centsToMajorUnits(position.recordedSpendCents),
+      position.expectedSpendAfterPendingReversalsCents,
+      centsToMajorUnits(position.expectedSpendAfterPendingReversalsCents),
+      position.confirmedHeadroomCents,
+      centsToMajorUnits(position.confirmedHeadroomCents),
+      position.expectedHeadroomAfterPendingReversalsCents,
+      centsToMajorUnits(position.expectedHeadroomAfterPendingReversalsCents),
+      position.spendUtilizationPct === null
+        ? ''
+        : position.spendUtilizationPct / 100,
+      position.health.label,
+      position.health.reason,
     ]);
   });
   const headerRow = metadataRows.length + 2;
@@ -613,7 +755,7 @@ export function addExecutiveSummaryWorksheet(args: {
   setHeaderStyle(executiveSummary, headerRow);
   executiveSummary.autoFilter = {
     from: { row: headerRow, column: 1 },
-    to: { row: headerRow, column: 17 },
+    to: { row: headerRow, column: 29 },
   };
   executiveSummary.views = [{ state: 'frozen', ySplit: headerRow }];
   executiveSummary.columns = [
@@ -634,5 +776,18 @@ export function addExecutiveSummaryWorksheet(args: {
     { key: 'o', width: 20 },
     { key: 'p', width: 20 },
     { key: 'q', width: 18 },
+    { key: 'r', width: 20 },
+    { key: 's', width: 18 },
+    { key: 't', width: 28 },
+    { key: 'u', width: 28 },
+    { key: 'v', width: 20 },
+    { key: 'w', width: 18 },
+    { key: 'x', width: 30 },
+    { key: 'y', width: 30 },
+    { key: 'z', width: 24 },
+    { key: 'aa', width: 16 },
+    { key: 'ab', width: 16 },
+    { key: 'ac', width: 54 },
   ];
+  executiveSummary.getColumn(27).numFmt = '0.00%';
 }

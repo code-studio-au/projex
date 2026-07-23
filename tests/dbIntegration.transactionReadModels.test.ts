@@ -270,8 +270,26 @@ test(
           actualCents: 15000,
         },
       ]);
+      assert.deepEqual(summary.periodSummaries, [
+        {
+          monthKey: '2026-05',
+          uncodedCount: 0,
+          uncodedAmountCents: 0,
+          pendingReversalCount: 0,
+          pendingReversalCents: 0,
+        },
+        {
+          monthKey: '2026-06',
+          uncodedCount: 1,
+          uncodedAmountCents: 4000,
+          pendingReversalCount: 0,
+          pendingReversalCents: 0,
+        },
+      ]);
       assert.equal(summary.uncodedCount, 1);
       assert.equal(summary.uncodedAmountCents, 4000);
+      assert.equal(summary.pendingReversalCount, 0);
+      assert.equal(summary.pendingReversalCents, 0);
       assert.equal(summary.autoMappedPendingCount, 1);
       assert.equal(summary.invalidDateCount, 0);
 

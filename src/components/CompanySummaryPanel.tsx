@@ -19,6 +19,10 @@ import {
 import type { CompanyId, Project } from '../types';
 import { formatCurrencyFromCents } from '../utils/money';
 import { sum } from '../utils/finance';
+import {
+  calculateBudgetPosition,
+  type BudgetHealth,
+} from '../utils/budgetSemantics';
 import { projectRoute } from '../router';
 import { useCompanySummaryQuery } from '../queries/reference';
 import classes from '../styles/ui.module.css';
@@ -44,13 +48,13 @@ type ProjectSummaryRow = {
   visibility: Project['visibility'];
   currency: Project['currency'];
   budgetCents: number;
-  actualCodedCents: number;
+  pendingReversalCount: number;
   pendingReversalCents: number;
-  adjustedActualCodedCents: number;
-  remainingAdjustedCents: number;
   uncodedCount: number;
-  uncodedAmountCents: number;
-  isOverBudgetAdjusted: boolean;
+  uncodedExposureCents: number;
+  recordedSpendCents: number;
+  confirmedHeadroomCents: number;
+  health: BudgetHealth;
 };
 
 function quarterFromMonthNumber(month: number): QuarterOption {
@@ -71,18 +75,6 @@ function monthKeyMatchesFilters(args: {
   if (yearFilter && !monthKey.startsWith(`${yearFilter}-`)) return false;
   if (!quarterFilter) return true;
   return quarterFromMonthNumber(Number(monthKey.slice(5, 7))) === quarterFilter;
-}
-
-function filteredBudgetCents(
-  projectBudgetCents: number,
-  args: {
-    quarterFilter: QuarterOption | null;
-    monthFilterKey: string | null;
-  }
-) {
-  const { quarterFilter, monthFilterKey } = args;
-  const visibleMonthCount = monthFilterKey ? 1 : quarterFilter ? 3 : 12;
-  return Math.round((projectBudgetCents * visibleMonthCount) / 12);
 }
 
 function formatCurrencyGroups(groups: Map<Project['currency'], number>) {
@@ -260,26 +252,29 @@ export default function CompanySummaryPanel(props: {
         })
       );
 
-      const actualCodedCents = sum(
+      const codedActualCents = sum(
         visibleMonths.map((month) => month.actualCodedCents)
       );
       const pendingReversalCents = sum(
         visibleMonths.map((month) => month.pendingReversalCents)
       );
-      const adjustedActualCodedCents = sum(
-        visibleMonths.map((month) => month.adjustedActualCodedCents)
+      const pendingReversalCount = sum(
+        visibleMonths.map((month) => month.pendingReversalCount)
       );
       const uncodedCount = sum(
         visibleMonths.map((month) => month.uncodedCount)
       );
-      const uncodedAmountCents = sum(
+      const uncodedExposureCents = sum(
         visibleMonths.map((month) => month.uncodedAmountCents)
       );
-      const budgetCents = filteredBudgetCents(project.budgetCents, {
-        quarterFilter,
-        monthFilterKey,
+      const position = calculateBudgetPosition({
+        projectBudgetCents: project.budgetCents,
+        codedActualCents,
+        uncodedExposureCents,
+        uncodedCount,
+        pendingReversalCount,
+        pendingReversalCents,
       });
-      const remainingAdjustedCents = budgetCents - adjustedActualCodedCents;
       return {
         id: project.id,
         name: project.name,
@@ -289,14 +284,14 @@ export default function CompanySummaryPanel(props: {
         status: project.status,
         visibility: project.visibility,
         currency: project.currency,
-        budgetCents,
-        actualCodedCents,
+        budgetCents: project.budgetCents,
+        pendingReversalCount,
         pendingReversalCents,
-        adjustedActualCodedCents,
-        remainingAdjustedCents,
         uncodedCount,
-        uncodedAmountCents,
-        isOverBudgetAdjusted: remainingAdjustedCents < 0,
+        uncodedExposureCents,
+        recordedSpendCents: position.recordedSpendCents,
+        confirmedHeadroomCents: position.confirmedHeadroomCents,
+        health: position.health,
       };
     };
 
@@ -317,20 +312,20 @@ export default function CompanySummaryPanel(props: {
       totalBudget: formatCurrencyGroups(
         totalsByCurrency(activeRows, (row) => row.budgetCents)
       ),
-      totalActualRaw: formatCurrencyGroups(
-        totalsByCurrency(activeRows, (row) => row.actualCodedCents)
+      totalRecordedSpend: formatCurrencyGroups(
+        totalsByCurrency(activeRows, (row) => row.recordedSpendCents)
       ),
       totalPendingReversal: formatCurrencyGroups(
         totalsByCurrency(activeRows, (row) => row.pendingReversalCents)
       ),
-      totalActualAdjusted: formatCurrencyGroups(
-        totalsByCurrency(activeRows, (row) => row.adjustedActualCodedCents)
+      totalPendingReversalCount: sum(
+        activeRows.map((row) => row.pendingReversalCount)
       ),
-      totalRemainingAdjusted: formatCurrencyGroups(
-        totalsByCurrency(activeRows, (row) => row.remainingAdjustedCents)
+      totalConfirmedHeadroom: formatCurrencyGroups(
+        totalsByCurrency(activeRows, (row) => row.confirmedHeadroomCents)
       ),
       totalUncodedAmount: formatCurrencyGroups(
-        totalsByCurrency(activeRows, (row) => row.uncodedAmountCents)
+        totalsByCurrency(activeRows, (row) => row.uncodedExposureCents)
       ),
       totalUncodedCount: sum(activeRows.map((row) => row.uncodedCount)),
     }),
@@ -392,9 +387,9 @@ export default function CompanySummaryPanel(props: {
         ),
       },
       {
-        accessorKey: 'actualCodedCents',
-        header: 'Actual Raw',
-        size: 110,
+        accessorKey: 'recordedSpendCents',
+        header: 'Recorded spend',
+        size: 130,
         Cell: ({ row }) => (
           <SummaryDrilldownLink
             companyId={companyId}
@@ -407,7 +402,7 @@ export default function CompanySummaryPanel(props: {
             className="table-body-right"
           >
             {formatCurrencyFromCents(
-              row.original.actualCodedCents,
+              row.original.recordedSpendCents,
               row.original.currency
             )}
           </SummaryDrilldownLink>
@@ -415,10 +410,10 @@ export default function CompanySummaryPanel(props: {
       },
       {
         accessorKey: 'pendingReversalCents',
-        header: 'Pending Rev',
+        header: 'Pending reversal',
         size: 120,
         Cell: ({ row }) =>
-          row.original.pendingReversalCents > 0 ? (
+          row.original.pendingReversalCount > 0 ? (
             <SummaryDrilldownLink
               companyId={companyId}
               projectId={row.original.id}
@@ -433,7 +428,8 @@ export default function CompanySummaryPanel(props: {
               {formatCurrencyFromCents(
                 row.original.pendingReversalCents,
                 row.original.currency
-              )}
+              )}{' '}
+              ({row.original.pendingReversalCount})
             </SummaryDrilldownLink>
           ) : (
             <Text className="table-body-right">
@@ -445,30 +441,8 @@ export default function CompanySummaryPanel(props: {
           ),
       },
       {
-        accessorKey: 'adjustedActualCodedCents',
-        header: 'Actual Adj',
-        size: 120,
-        Cell: ({ row }) => (
-          <SummaryDrilldownLink
-            companyId={companyId}
-            projectId={row.original.id}
-            yearFilter={yearFilter}
-            quarterFilter={quarterFilter}
-            monthFilterKey={monthFilterKey}
-            tab="transactions"
-            focus="actual"
-            className="table-body-right"
-          >
-            {formatCurrencyFromCents(
-              row.original.adjustedActualCodedCents,
-              row.original.currency
-            )}
-          </SummaryDrilldownLink>
-        ),
-      },
-      {
-        accessorKey: 'remainingAdjustedCents',
-        header: 'Remaining Adj',
+        accessorKey: 'confirmedHeadroomCents',
+        header: 'Budget headroom',
         size: 120,
         Cell: ({ row }) => (
           <SummaryDrilldownLink
@@ -480,23 +454,23 @@ export default function CompanySummaryPanel(props: {
             tab="budget"
             focus="remaining"
             color={
-              row.original.remainingAdjustedCents < 0
+              row.original.confirmedHeadroomCents < 0
                 ? 'var(--danger-copy)'
                 : undefined
             }
             className="table-body-right"
           >
             {formatCurrencyFromCents(
-              row.original.remainingAdjustedCents,
+              row.original.confirmedHeadroomCents,
               row.original.currency
             )}
           </SummaryDrilldownLink>
         ),
       },
       {
-        accessorKey: 'uncodedCount',
-        header: 'Uncoded',
-        size: 84,
+        accessorKey: 'uncodedExposureCents',
+        header: 'Uncoded exposure',
+        size: 140,
         Cell: ({ row }) =>
           row.original.uncodedCount > 0 ? (
             <SummaryDrilldownLink
@@ -510,129 +484,44 @@ export default function CompanySummaryPanel(props: {
               focus="uncoded"
               className="table-body-right"
             >
-              {row.original.uncodedCount}
-            </SummaryDrilldownLink>
-          ) : (
-            <Text className="table-body-right">
-              {row.original.uncodedCount}
-            </Text>
-          ),
-      },
-      {
-        accessorKey: 'uncodedAmountCents',
-        header: 'Uncoded Amt',
-        size: 120,
-        Cell: ({ row }) =>
-          row.original.uncodedAmountCents > 0 ? (
-            <SummaryDrilldownLink
-              companyId={companyId}
-              projectId={row.original.id}
-              yearFilter={yearFilter}
-              quarterFilter={quarterFilter}
-              monthFilterKey={monthFilterKey}
-              tab="transactions"
-              view="uncoded"
-              focus="uncoded"
-              className="table-body-right"
-            >
               {formatCurrencyFromCents(
-                row.original.uncodedAmountCents,
+                row.original.uncodedExposureCents,
                 row.original.currency
-              )}
+              )}{' '}
+              ({row.original.uncodedCount})
             </SummaryDrilldownLink>
           ) : (
             <Text className="table-body-right">
               {formatCurrencyFromCents(
-                row.original.uncodedAmountCents,
+                row.original.uncodedExposureCents,
                 row.original.currency
               )}
             </Text>
           ),
       },
       {
-        id: 'flags',
-        header: 'Flags',
-        size: 116,
+        id: 'health',
+        header: 'Health',
+        size: 150,
         enableSorting: false,
         Cell: ({ row }) => (
-          <Stack gap={6}>
-            {row.original.isOverBudgetAdjusted ? (
-              <Link
-                to={projectRoute.to}
-                params={{ companyId, projectId: row.original.id }}
-                search={buildProjectDrilldownSearch({
-                  yearFilter,
-                  quarterFilter,
-                  monthFilterKey,
-                  tab: 'budget',
-                  focus: 'health',
-                })}
-                className={classes.badgeLink}
-              >
-                <Badge variant="light" color="red">
-                  Over budget
-                </Badge>
-              </Link>
-            ) : null}
-            {row.original.pendingReversalCents > 0 ? (
-              <Link
-                to={projectRoute.to}
-                params={{ companyId, projectId: row.original.id }}
-                search={buildProjectDrilldownSearch({
-                  yearFilter,
-                  quarterFilter,
-                  monthFilterKey,
-                  tab: 'transactions',
-                  view: 'pending-reversal',
-                  focus: 'actual',
-                })}
-                className={classes.badgeLink}
-              >
-                <Badge variant="light" color="violet">
-                  Pending reversal
-                </Badge>
-              </Link>
-            ) : null}
-            {row.original.uncodedCount > 0 ? (
-              <Link
-                to={projectRoute.to}
-                params={{ companyId, projectId: row.original.id }}
-                search={buildProjectDrilldownSearch({
-                  yearFilter,
-                  quarterFilter,
-                  monthFilterKey,
-                  tab: 'transactions',
-                  view: 'uncoded',
-                  focus: 'uncoded',
-                })}
-                className={classes.badgeLink}
-              >
-                <Badge variant="light" color="orange">
-                  Has uncoded
-                </Badge>
-              </Link>
-            ) : null}
-            {!row.original.isOverBudgetAdjusted &&
-            row.original.pendingReversalCents === 0 &&
-            row.original.uncodedCount === 0 ? (
-              <Link
-                to={projectRoute.to}
-                params={{ companyId, projectId: row.original.id }}
-                search={buildProjectDrilldownSearch({
-                  yearFilter,
-                  quarterFilter,
-                  monthFilterKey,
-                  tab: 'budget',
-                  focus: 'health',
-                })}
-                className={classes.badgeLink}
-              >
-                <Badge variant="light" color="green">
-                  Healthy
-                </Badge>
-              </Link>
-            ) : null}
-          </Stack>
+          <Link
+            to={projectRoute.to}
+            params={{ companyId, projectId: row.original.id }}
+            search={buildProjectDrilldownSearch({
+              yearFilter,
+              quarterFilter,
+              monthFilterKey,
+              tab: 'budget',
+              focus: 'health',
+            })}
+            className={classes.badgeLink}
+            title={row.original.health.reason}
+          >
+            <Badge variant="light" color={row.original.health.color}>
+              {row.original.health.label}
+            </Badge>
+          </Link>
         ),
       },
       {
@@ -670,58 +559,66 @@ export default function CompanySummaryPanel(props: {
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <Paper className={classes.filterCard} radius="xl">
-        <Group align="flex-end" gap="sm" wrap="wrap">
-          <Select
-            label="Year"
-            placeholder="All years"
-            data={yearFilterOptions}
-            value={yearFilter}
-            clearable
-            onChange={(value) => {
-              setYearFilter(value);
-              setQuarterFilter(null);
-              setMonthFilterKey(null);
-            }}
-            style={{ width: isMobile ? '100%' : 140 }}
-          />
-          <Select
-            label="Quarter"
-            placeholder="All quarters"
-            data={quarterFilterOptions}
-            value={quarterFilter}
-            clearable
-            disabled={!yearFilter}
-            onChange={(value) => {
-              setQuarterFilter(toQuarterOption(value));
-              setMonthFilterKey(null);
-            }}
-            style={{ width: isMobile ? '100%' : 150 }}
-          />
-          <Select
-            label="Month"
-            placeholder="All months"
-            data={monthFilterOptions}
-            value={monthFilterKey}
-            clearable
-            onChange={setMonthFilterKey}
-            style={{ width: isMobile ? '100%' : 180 }}
-          />
-          <Button
-            size="sm"
-            variant="subtle"
-            disabled={!yearFilter && !quarterFilter && !monthFilterKey}
-            onClick={() => {
-              setYearFilter(null);
-              setQuarterFilter(null);
-              setMonthFilterKey(null);
-            }}
-          >
-            Remove filter(s)
-          </Button>
-        </Group>
+        <Stack gap="sm">
+          <Group align="flex-end" gap="sm" wrap="wrap">
+            <Select
+              label="Year"
+              placeholder="All years"
+              data={yearFilterOptions}
+              value={yearFilter}
+              clearable
+              onChange={(value) => {
+                setYearFilter(value);
+                setQuarterFilter(null);
+                setMonthFilterKey(null);
+              }}
+              style={{ width: isMobile ? '100%' : 140 }}
+            />
+            <Select
+              label="Quarter"
+              placeholder="All quarters"
+              data={quarterFilterOptions}
+              value={quarterFilter}
+              clearable
+              disabled={!yearFilter}
+              onChange={(value) => {
+                setQuarterFilter(toQuarterOption(value));
+                setMonthFilterKey(null);
+              }}
+              style={{ width: isMobile ? '100%' : 150 }}
+            />
+            <Select
+              label="Month"
+              placeholder="All months"
+              data={monthFilterOptions}
+              value={monthFilterKey}
+              clearable
+              onChange={setMonthFilterKey}
+              style={{ width: isMobile ? '100%' : 180 }}
+            />
+            <Button
+              size="sm"
+              variant="subtle"
+              disabled={!yearFilter && !quarterFilter && !monthFilterKey}
+              onClick={() => {
+                setYearFilter(null);
+                setQuarterFilter(null);
+                setMonthFilterKey(null);
+              }}
+            >
+              Remove filter(s)
+            </Button>
+          </Group>
+          {yearFilter || quarterFilter || monthFilterKey ? (
+            <Text size="xs" c="dimmed">
+              Project budgets remain full-project totals; spend, exposure,
+              headroom, and health reflect the selected period.
+            </Text>
+          ) : null}
+        </Stack>
       </Paper>
 
-      <SimpleGrid cols={isMobile ? 1 : 4} spacing="md" verticalSpacing="md">
+      <SimpleGrid cols={isMobile ? 1 : 3} spacing="md" verticalSpacing="md">
         <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
@@ -733,7 +630,7 @@ export default function CompanySummaryPanel(props: {
         <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Total budget
+              Project budgets
             </Text>
             <Title order={4}>{summary.totalBudget}</Title>
           </Stack>
@@ -741,49 +638,39 @@ export default function CompanySummaryPanel(props: {
         <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Total actual raw
+              Recorded spend
             </Text>
-            <Title order={4}>{summary.totalActualRaw}</Title>
+            <Title order={4}>{summary.totalRecordedSpend}</Title>
           </Stack>
         </Paper>
         <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Pending reversal
+              Budget headroom
             </Text>
-            <Title order={4}>{summary.totalPendingReversal}</Title>
+            <Title order={4}>{summary.totalConfirmedHeadroom}</Title>
           </Stack>
         </Paper>
         <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Total actual adj
-            </Text>
-            <Title order={4}>{summary.totalActualAdjusted}</Title>
-          </Stack>
-        </Paper>
-        <Paper className={classes.statCard} withBorder={false}>
-          <Stack gap={4}>
-            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Remaining adj
-            </Text>
-            <Title order={4}>{summary.totalRemainingAdjusted}</Title>
-          </Stack>
-        </Paper>
-        <Paper className={classes.statCard} withBorder={false}>
-          <Stack gap={4}>
-            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Uncoded transactions
-            </Text>
-            <Title order={3}>{summary.totalUncodedCount}</Title>
-          </Stack>
-        </Paper>
-        <Paper className={classes.statCard} withBorder={false}>
-          <Stack gap={4}>
-            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-              Uncoded amount
+              Uncoded exposure
             </Text>
             <Title order={4}>{summary.totalUncodedAmount}</Title>
+            <Text size="sm" c="dimmed">
+              {summary.totalUncodedCount} transactions
+            </Text>
+          </Stack>
+        </Paper>
+        <Paper className={classes.statCard} withBorder={false}>
+          <Stack gap={4}>
+            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
+              Pending reversals
+            </Text>
+            <Title order={4}>{summary.totalPendingReversal}</Title>
+            <Text size="sm" c="dimmed">
+              {summary.totalPendingReversalCount} open workflows
+            </Text>
           </Stack>
         </Paper>
       </SimpleGrid>

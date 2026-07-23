@@ -35,6 +35,7 @@ import {
   txnUnlockRequestSelectExpressions,
   txnValidSubCategorySql,
   type ProjectTransactionSummaryAggregateRow,
+  type ProjectTransactionPeriodSummaryRow,
   type TxnPageSummaryRow,
 } from './shared';
 
@@ -225,6 +226,7 @@ export async function listTransactionsPageServer(args: {
             const validSubCategory = sql<boolean>`summary_sc.id is not null`;
             const assignedToUser = txnAssignedToUserSql(userId);
             const pendingReversal = sql<boolean>`summary_tr.id is not null`;
+            const unrecordedPendingReversal = sql<boolean>`summary_tr.id is not null and summary_tr.matched_reversal_txn_public_id is null`;
             const codingApproval = sql<boolean>`t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory}`;
             const reversalReview = sql<boolean>`summary_tr.status in ('auto_matched_pending_approval', 'auto_matched_ambiguous_pending_approval', 'reversal_exception')`;
             const awaitingReversal = sql<boolean>`summary_tr.status = 'pending_reversal'`;
@@ -236,10 +238,10 @@ export async function listTransactionsPageServer(args: {
               sql<number>`coalesce(sum(case when ${pendingReversal} then 1 else 0 end), 0)`.as(
                 'pending_reversal_count'
               ),
-              sql<number>`coalesce(sum(case when ${pendingReversal} then t.amount_cents else 0 end), 0)`.as(
+              sql<number>`coalesce(sum(case when ${unrecordedPendingReversal} then t.amount_cents else 0 end), 0)`.as(
                 'pending_reversal_cents'
               ),
-              sql<number>`coalesce(sum(case when t.budget_impact then t.amount_cents else 0 end), 0) - coalesce(sum(case when ${pendingReversal} then t.amount_cents else 0 end), 0)`.as(
+              sql<number>`coalesce(sum(case when t.budget_impact then t.amount_cents else 0 end), 0) - coalesce(sum(case when ${unrecordedPendingReversal} then t.amount_cents else 0 end), 0)`.as(
                 'adjusted_budget_impact_cents'
               ),
               sql<number>`coalesce(sum(case when t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then 1 else 0 end), 0)`.as(
@@ -331,7 +333,7 @@ export async function listProjectTransactionSummaryServer(args: {
     );
     const validSubCategory = txnValidSubCategorySql();
 
-    const [monthRows, actualRows, uncodedRow] = await Promise.all([
+    const [monthRows, actualRows, periodRows, uncodedRow] = await Promise.all([
       db
         .selectFrom('txns as t')
         .select([sql<string>`to_char(t.txn_date, 'YYYY-MM')`.as('month_key')])
@@ -359,6 +361,40 @@ export async function listProjectTransactionSummaryServer(args: {
         .execute(),
       db
         .selectFrom('txns as t')
+        .leftJoin('txn_reversals as period_tr', (join) =>
+          join
+            .onRef('period_tr.project_id', '=', 't.project_id')
+            .onRef('period_tr.source_txn_public_id', '=', 't.public_id')
+            .on('period_tr.status', 'in', OPEN_TXN_REVERSAL_STATUSES)
+        )
+        .select([
+          sql<string>`to_char(t.txn_date, 'YYYY-MM')`.as('month_key'),
+          sql<number>`coalesce(sum(case when t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then 1 else 0 end), 0)`.as(
+            'uncoded_count'
+          ),
+          sql<number>`coalesce(sum(case when t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then t.amount_cents else 0 end), 0)`.as(
+            'uncoded_cents'
+          ),
+          sql<number>`coalesce(sum(case when period_tr.id is not null then 1 else 0 end), 0)`.as(
+            'pending_reversal_count'
+          ),
+          sql<number>`coalesce(sum(case when period_tr.id is not null and period_tr.matched_reversal_txn_public_id is null then t.amount_cents else 0 end), 0)`.as(
+            'pending_reversal_cents'
+          ),
+        ])
+        .where('t.project_id', '=', args.projectId)
+        .where('t.budget_impact', '=', true)
+        .groupBy(sql`to_char(t.txn_date, 'YYYY-MM')`)
+        .orderBy('month_key', 'asc')
+        .execute() as Promise<ProjectTransactionPeriodSummaryRow[]>,
+      db
+        .selectFrom('txns as t')
+        .leftJoin('txn_reversals as summary_tr', (join) =>
+          join
+            .onRef('summary_tr.project_id', '=', 't.project_id')
+            .onRef('summary_tr.source_txn_public_id', '=', 't.public_id')
+            .on('summary_tr.status', 'in', OPEN_TXN_REVERSAL_STATUSES)
+        )
         .select([
           sql<number>`coalesce(sum(case when t.categorisable and (t.sub_category_id is null or not (${validSubCategory})) then 1 else 0 end), 0)`.as(
             'uncoded_count'
@@ -368,6 +404,12 @@ export async function listProjectTransactionSummaryServer(args: {
           ),
           sql<number>`coalesce(sum(case when t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory} and t.locked_at is null then 1 else 0 end), 0)`.as(
             'auto_mapped_pending_count'
+          ),
+          sql<number>`coalesce(sum(case when t.budget_impact and summary_tr.id is not null then 1 else 0 end), 0)`.as(
+            'pending_reversal_count'
+          ),
+          sql<number>`coalesce(sum(case when t.budget_impact and summary_tr.id is not null and summary_tr.matched_reversal_txn_public_id is null then t.amount_cents else 0 end), 0)`.as(
+            'pending_reversal_cents'
           ),
         ])
         .where('t.project_id', '=', args.projectId)
@@ -381,8 +423,17 @@ export async function listProjectTransactionSummaryServer(args: {
         monthKey: row.month_key,
         actualCents: toCount(row.actual_cents),
       })),
+      periodSummaries: periodRows.map((row) => ({
+        monthKey: row.month_key,
+        uncodedCount: toCount(row.uncoded_count),
+        uncodedAmountCents: toCount(row.uncoded_cents),
+        pendingReversalCount: toCount(row.pending_reversal_count),
+        pendingReversalCents: toCount(row.pending_reversal_cents),
+      })),
       uncodedCount: toCount(uncodedRow.uncoded_count),
       uncodedAmountCents: toCount(uncodedRow.uncoded_cents),
+      pendingReversalCount: toCount(uncodedRow.pending_reversal_count),
+      pendingReversalCents: toCount(uncodedRow.pending_reversal_cents),
       autoMappedPendingCount: toCount(uncodedRow.auto_mapped_pending_count),
       invalidDateCount: 0,
     };

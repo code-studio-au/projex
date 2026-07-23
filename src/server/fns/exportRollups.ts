@@ -19,6 +19,10 @@ export function buildProjectFinanceById(
         project,
         (month) => month.actualCodedCents
       ),
+      pendingReversalCount: sumProjectMonths(
+        project,
+        (month) => month.pendingReversalCount
+      ),
       pendingReversalCents: sumProjectMonths(
         project,
         (month) => month.pendingReversalCents
@@ -27,6 +31,7 @@ export function buildProjectFinanceById(
         project,
         (month) => month.adjustedActualCodedCents
       ),
+      uncodedCount: sumProjectMonths(project, (month) => month.uncodedCount),
       uncodedAmountCents: sumProjectMonths(
         project,
         (month) => month.uncodedAmountCents
@@ -81,6 +86,7 @@ export function buildTaxonomyRollups(args: {
       subCategoryName: rollupArgs.subCategoryName,
       budgetCents: 0,
       actualCodedCents: 0,
+      pendingReversalCount: 0,
       pendingReversalCents: 0,
       adjustedActualCodedCents: 0,
       uncodedAmountCents: 0,
@@ -116,11 +122,14 @@ export function buildTaxonomyRollups(args: {
       subCategoryId: row.subCategoryId,
       subCategoryName: row.subCategoryName,
     });
+    if (row.pendingReversalOpen) {
+      rollup.pendingReversalCount += 1;
+    }
+    if (row.pendingReversalExpected) {
+      rollup.pendingReversalCents += row.amountCents;
+    }
     if (row.subCategoryId) {
       rollup.actualCodedCents += row.amountCents;
-      if (row.pendingReversalOpen) {
-        rollup.pendingReversalCents += row.amountCents;
-      }
       rollup.adjustedActualCodedCents =
         rollup.actualCodedCents - rollup.pendingReversalCents;
     } else {
@@ -144,6 +153,7 @@ export function buildTaxonomyRollups(args: {
     if (existing) {
       existing.budgetCents += row.budgetCents;
       existing.actualCodedCents += row.actualCodedCents;
+      existing.pendingReversalCount += row.pendingReversalCount;
       existing.pendingReversalCents += row.pendingReversalCents;
       existing.adjustedActualCodedCents += row.adjustedActualCodedCents;
       existing.uncodedAmountCents += row.uncodedAmountCents;

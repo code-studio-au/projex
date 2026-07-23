@@ -101,6 +101,9 @@ For a reproducible local dependency stack with Postgres and MinIO, use [docs/loc
 For the month-to-month pending reversal and auto-match workflow, use
 [docs/reversal-workflow.md](docs/reversal-workflow.md).
 
+For the canonical project budget, allocation, recorded spend, headroom, and
+health definitions, use [docs/budget-semantics.md](docs/budget-semantics.md).
+
 For server-owned imports, category targets, structural lineage, versioned
 review/unlock transitions, immutable audit events, and company-standard
 provenance, use [docs/transaction-integrity.md](docs/transaction-integrity.md).

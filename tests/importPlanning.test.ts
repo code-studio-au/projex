@@ -522,6 +522,7 @@ test('company summary tracks pending reversal totals separately from adjusted ac
         amountCents: 12500,
         budgetImpact: true,
         pendingReversal: true,
+        pendingReversalExpected: true,
         subCategoryId: subCategory.id,
       },
       {
@@ -536,8 +537,52 @@ test('company summary tracks pending reversal totals separately from adjusted ac
 
   assert.equal(result[0].months.length, 1);
   assert.equal(result[0].months[0].actualCodedCents, 17500);
+  assert.equal(result[0].months[0].pendingReversalCount, 1);
   assert.equal(result[0].months[0].pendingReversalCents, 12500);
   assert.equal(result[0].months[0].adjustedActualCodedCents, 5000);
+});
+
+test('company summary does not subtract an imported reversal candidate twice', () => {
+  const result = buildCompanySummaryProjects({
+    projects: [
+      {
+        id: projectId,
+        name: 'Project One',
+        projectType: 'project' as const,
+        parentProjectId: undefined,
+        status: 'active' as const,
+        visibility: 'company' as const,
+        currency: 'AUD' as const,
+        budgetTotalCents: 50000,
+      },
+    ],
+    validSubCategoryIdsByProject: new Map([
+      [projectId, new Set<string>([subCategory.id])],
+    ]),
+    transactions: [
+      {
+        projectId,
+        date: '2026-04-28',
+        amountCents: 12500,
+        budgetImpact: true,
+        pendingReversal: true,
+        pendingReversalExpected: false,
+        subCategoryId: subCategory.id,
+      },
+      {
+        projectId,
+        date: '2026-04-29',
+        amountCents: -12500,
+        budgetImpact: true,
+        subCategoryId: subCategory.id,
+      },
+    ],
+  });
+
+  assert.equal(result[0].months[0].actualCodedCents, 0);
+  assert.equal(result[0].months[0].pendingReversalCount, 1);
+  assert.equal(result[0].months[0].pendingReversalCents, 0);
+  assert.equal(result[0].months[0].adjustedActualCodedCents, 0);
 });
 
 test('company summary keeps active sub-projects visible when programme is archived', () => {

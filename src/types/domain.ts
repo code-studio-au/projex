@@ -450,6 +450,7 @@ export type BudgetLine = {
 type CompanySummaryMonth = {
   monthKey: string;
   actualCodedCents: number;
+  pendingReversalCount: number;
   pendingReversalCents: number;
   adjustedActualCodedCents: number;
   uncodedCount: number;

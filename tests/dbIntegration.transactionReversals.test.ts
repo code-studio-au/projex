@@ -5,6 +5,7 @@ import {
   applyTxnReversalActionServer,
   bulkTxnActionServer,
   importTrustedTransactionsServer as importTransactionsServer,
+  listProjectTransactionSummaryServer,
   listTransactionsPageServer,
   listTxnReversalMatchSuggestionsServer,
 } from '../src/server/fns/transactions.ts';
@@ -486,6 +487,32 @@ test(
       assert.equal(
         pendingPage.rows[0]?.reversal?.status,
         'auto_matched_pending_approval'
+      );
+
+      const budgetSummary = await listProjectTransactionSummaryServer({
+        context,
+        projectId,
+      });
+      assert.equal(budgetSummary.pendingReversalCount, 1);
+      assert.equal(budgetSummary.pendingReversalCents, 0);
+      assert.deepEqual(
+        budgetSummary.periodSummaries.map((period) => ({
+          monthKey: period.monthKey,
+          pendingReversalCount: period.pendingReversalCount,
+          pendingReversalCents: period.pendingReversalCents,
+        })),
+        [
+          {
+            monthKey: '2026-05',
+            pendingReversalCount: 1,
+            pendingReversalCents: 0,
+          },
+          {
+            monthKey: '2026-06',
+            pendingReversalCount: 0,
+            pendingReversalCents: 0,
+          },
+        ]
       );
 
       const suggestedReversal = await db

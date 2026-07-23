@@ -579,10 +579,18 @@ export default function CompanySettingsPanel(props: {
 
   return (
     <Stack gap="lg" className={classes.pageStack}>
-      <Group justify="space-between" align="center" wrap="wrap">
-        <Title order={4}>Company settings</Title>
-        {highestRoleBadge}
-      </Group>
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
+        <Stack gap="sm">
+          <Group justify="space-between" align="flex-start" wrap="wrap">
+            <Title order={5}>Company settings</Title>
+            {highestRoleBadge}
+          </Group>
+          <Text size="sm" c="dimmed">
+            Manage company-wide standards, access, exports, and member roles.
+            Project-specific settings remain in each project workspace.
+          </Text>
+        </Stack>
+      </Paper>
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
@@ -591,270 +599,201 @@ export default function CompanySettingsPanel(props: {
             Download a full-company Excel workbook for finance handoff, offline
             analysis, or executive reporting.
           </Text>
-          <Select
-            label="Project scope"
-            data={[
-              { value: 'all', label: 'All visible projects and programmes' },
-              { value: 'active', label: 'Active projects and programmes only' },
-            ]}
-            value={exportScope}
-            onChange={(value) =>
-              setExportScope(value === 'active' ? 'active' : 'all')
-            }
-            disabled={!canExportCompany || exportInFlight}
-          />
-          <Select
-            label="Workbook detail"
-            data={[
-              { value: 'full', label: 'Full detail workbook' },
-              { value: 'summary', label: 'Summary and reporting only' },
-            ]}
-            value={exportDetail}
-            onChange={(value) =>
-              setExportDetail(value === 'summary' ? 'summary' : 'full')
-            }
-            disabled={!canExportCompany || exportInFlight}
-          />
-          <Group grow align="flex-end">
-            <TextInput
-              label="Transactions from"
-              type="date"
-              value={exportFromDate}
-              onChange={(event) => setExportFromDate(event.currentTarget.value)}
-              disabled={!canExportCompany || exportInFlight}
-            />
-            <TextInput
-              label="Transactions to"
-              type="date"
-              value={exportToDate}
-              onChange={(event) => setExportToDate(event.currentTarget.value)}
-              disabled={!canExportCompany || exportInFlight}
-            />
-          </Group>
-          <Checkbox
-            label="Email me when this export is ready"
-            checked={notifyWhenReady}
-            onChange={(event) =>
-              setNotifyWhenReady(event.currentTarget.checked)
-            }
-            disabled={!canExportCompany || exportInFlight}
-          />
-          <Text size="xs" c="dimmed">
-            The email links back to this export in Company Settings and still
-            respects your current sign-in and company access.
-          </Text>
-          {exportJobState.error ? (
-            <Alert color="red">{exportJobState.error}</Alert>
-          ) : null}
-          {exportJob ? (
-            <Alert color={exportJob.status === 'failed' ? 'red' : 'blue'}>
-              {exportJob.status === 'queued'
-                ? 'Export queued. We are preparing the workbook in the background.'
-                : exportJob.status === 'running'
-                  ? 'Export in progress. The workbook will download automatically when it is ready.'
-                  : exportJob.status === 'completed'
-                    ? `Workbook ready${exportJob.fileName ? `: ${exportJob.fileName}` : ''}${typeof exportJob.fileSizeBytes === 'number' ? ` (${formatFileSize(exportJob.fileSizeBytes)})` : ''}.`
-                    : exportJob.status === 'expired'
-                      ? 'That prepared workbook expired. Start a fresh export to regenerate it.'
-                      : (exportJob.errorMessage ?? 'Export failed.')}
-            </Alert>
-          ) : null}
-          {exportNotificationMessage ? (
-            <Alert
-              color={
-                exportJob?.readyNotificationStatus === 'failed'
-                  ? 'yellow'
-                  : 'gray'
+          <Stack gap="sm" style={{ width: '100%', maxWidth: 680 }}>
+            <Select
+              label="Project scope"
+              data={[
+                { value: 'all', label: 'All visible projects and programmes' },
+                {
+                  value: 'active',
+                  label: 'Active projects and programmes only',
+                },
+              ]}
+              value={exportScope}
+              onChange={(value) =>
+                setExportScope(value === 'active' ? 'active' : 'all')
               }
-            >
-              {exportNotificationMessage}
-            </Alert>
-          ) : null}
-          {exportJobSummaryRows.length ? (
-            <Paper
-              withBorder
-              radius="md"
-              p="sm"
-              bg="var(--mantine-color-gray-0)"
-            >
-              <Stack gap={4}>
-                {exportJobSummaryRows.map((row) => (
-                  <Text key={row} size="xs" c="dimmed">
-                    {row}
-                  </Text>
-                ))}
-              </Stack>
-            </Paper>
-          ) : null}
-          <Group gap="sm" wrap="wrap">
-            <Button
-              variant="light"
               disabled={!canExportCompany || exportInFlight}
-              loading={exportJobState.isStarting}
-              onClick={() => {
-                void handleStartExport();
-              }}
-            >
-              {exportJob?.status === 'completed' ||
-              exportJob?.status === 'failed'
-                ? 'Generate fresh export'
-                : 'Prepare company export'}
-            </Button>
-            {exportJob?.status === 'completed' && exportJob.downloadPath ? (
-              <Button
-                component="a"
-                href={exportJob.downloadPath}
-                variant="default"
+            />
+            <Select
+              label="Workbook detail"
+              data={[
+                { value: 'full', label: 'Full detail workbook' },
+                { value: 'summary', label: 'Summary and reporting only' },
+              ]}
+              value={exportDetail}
+              onChange={(value) =>
+                setExportDetail(value === 'summary' ? 'summary' : 'full')
+              }
+              disabled={!canExportCompany || exportInFlight}
+            />
+            <Group grow align="flex-end" wrap="wrap">
+              <TextInput
+                label="Transactions from"
+                type="date"
+                value={exportFromDate}
+                onChange={(event) =>
+                  setExportFromDate(event.currentTarget.value)
+                }
+                disabled={!canExportCompany || exportInFlight}
+              />
+              <TextInput
+                label="Transactions to"
+                type="date"
+                value={exportToDate}
+                onChange={(event) => setExportToDate(event.currentTarget.value)}
+                disabled={!canExportCompany || exportInFlight}
+              />
+            </Group>
+            <Checkbox
+              label="Email me when this export is ready"
+              checked={notifyWhenReady}
+              onChange={(event) =>
+                setNotifyWhenReady(event.currentTarget.checked)
+              }
+              disabled={!canExportCompany || exportInFlight}
+            />
+            <Text size="xs" c="dimmed">
+              The email links back to this export in Company Settings and still
+              respects your current sign-in and company access.
+            </Text>
+            {exportJobState.error ? (
+              <Alert color="red">{exportJobState.error}</Alert>
+            ) : null}
+            {exportJob ? (
+              <Alert color={exportJob.status === 'failed' ? 'red' : 'blue'}>
+                {exportJob.status === 'queued'
+                  ? 'Export queued. We are preparing the workbook in the background.'
+                  : exportJob.status === 'running'
+                    ? 'Export in progress. The workbook will download automatically when it is ready.'
+                    : exportJob.status === 'completed'
+                      ? `Workbook ready${exportJob.fileName ? `: ${exportJob.fileName}` : ''}${typeof exportJob.fileSizeBytes === 'number' ? ` (${formatFileSize(exportJob.fileSizeBytes)})` : ''}.`
+                      : exportJob.status === 'expired'
+                        ? 'That prepared workbook expired. Start a fresh export to regenerate it.'
+                        : (exportJob.errorMessage ?? 'Export failed.')}
+              </Alert>
+            ) : null}
+            {exportNotificationMessage ? (
+              <Alert
+                color={
+                  exportJob?.readyNotificationStatus === 'failed'
+                    ? 'yellow'
+                    : 'gray'
+                }
               >
-                Download workbook
+                {exportNotificationMessage}
+              </Alert>
+            ) : null}
+            {exportJobSummaryRows.length ? (
+              <Paper withBorder radius="md" p="sm">
+                <Stack gap={4}>
+                  {exportJobSummaryRows.map((row) => (
+                    <Text key={row} size="xs" c="dimmed">
+                      {row}
+                    </Text>
+                  ))}
+                </Stack>
+              </Paper>
+            ) : null}
+            <Group gap="sm" wrap="wrap">
+              <Button
+                variant="default"
+                disabled={!canExportCompany || exportInFlight}
+                loading={exportJobState.isStarting}
+                onClick={() => {
+                  void handleStartExport();
+                }}
+              >
+                {exportJob?.status === 'completed' ||
+                exportJob?.status === 'failed'
+                  ? 'Generate fresh export'
+                  : 'Prepare company export'}
               </Button>
+              {exportJob?.status === 'completed' && exportJob.downloadPath ? (
+                <Button
+                  component="a"
+                  href={exportJob.downloadPath}
+                  variant="default"
+                >
+                  Download workbook
+                </Button>
+              ) : null}
+            </Group>
+            <Text size="xs" c="dimmed">
+              Current exports support active-only scope, transaction date
+              ranges, full or summary workbooks, and detailed reporting tabs.
+              Large workbooks now prepare in the background and download when
+              ready.
+            </Text>
+          </Stack>
+        </Stack>
+      </Paper>
+
+      <Paper className={classes.surfaceCard} radius="xl" p="lg">
+        <Stack gap="sm">
+          <Title order={5}>Company Standards Alignment</Title>
+          <Text size="sm" c="dimmed">
+            Define the shared categories, import rules, and auto-coding used by
+            projects that sync with company standards.
+          </Text>
+          {companyDefaultsLoading ||
+          (companyImportRulesQ.isPending && !companyImportRulesQ.data) ||
+          (ruleSuggestionsQ.isPending && !ruleSuggestionsQ.data) ? (
+            <Text size="sm" c="dimmed">
+              Loading company standards...
+            </Text>
+          ) : (
+            <Text size="xs" c="dimmed">
+              {effectiveDefaults?.categories.length ?? 0} categories,{' '}
+              {effectiveDefaults?.subCategories.length ?? 0} subcategories,{' '}
+              {companyImportRulesQ.data?.length ?? 0} import rules, and{' '}
+              {effectiveDefaults?.mappingRules.length ?? 0} auto-coding rules.
+            </Text>
+          )}
+          <Group gap="sm" wrap="wrap">
+            <Badge variant="light" color="teal">
+              Synced projects inherit these
+            </Badge>
+            {(ruleSuggestionsQ.data?.length ?? 0) > 0 ? (
+              <Badge variant="light" color="orange">
+                {ruleSuggestionsQ.data?.length ?? 0} rule suggestions
+              </Badge>
             ) : null}
           </Group>
           <Text size="xs" c="dimmed">
-            Current exports support active-only scope, transaction date ranges,
-            full or summary workbooks, and detailed reporting tabs. Large
-            workbooks now prepare in the background and download when ready.
+            Project-specific overrides stay local. Repeated manual coding can
+            also be reviewed here and promoted into reusable company rules.
           </Text>
-        </Stack>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Categories</Title>
-          <Text size="sm" c="dimmed">
-            Define the shared category structure for the company. Synced
-            projects inherit new categories automatically, while older projects
-            can pull them in without losing local project structure.
-          </Text>
-          {companyDefaultsLoading ? (
-            <Text size="sm" c="dimmed">
-              Loading categories…
-            </Text>
-          ) : (
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">
-                {effectiveDefaults?.categories.length ?? 0} categories
-              </Badge>
-              <Badge variant="light">
-                {effectiveDefaults?.subCategories.length ?? 0} subcategories
-              </Badge>
-            </Group>
-          )}
-          <Button
-            variant="light"
-            disabled={!canEditCompanyDefaults}
-            onClick={() => setDefaultsModalOpen(true)}
-          >
-            Manage Categories
-          </Button>
-          <Text size="xs" c="dimmed">
-            Syncing from company adds missing categories and refreshes inherited
-            items. Project-specific overrides remain local to the project.
-          </Text>
-        </Stack>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Import Rules</Title>
-          <Text size="sm" c="dimmed">
-            Decide which PowerBI rows import, which are excluded, and which are
-            held for a required decision in the import preview before
-            Auto-Coding Rules run. These are the company-level rules that synced
-            projects inherit by default.
-          </Text>
-          {companyImportRulesQ.isPending && !companyImportRulesQ.data ? (
-            <Text size="sm" c="dimmed">
-              Loading import rules…
-            </Text>
-          ) : (
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">
-                {companyImportRulesQ.data?.length ?? 0} company rules
-              </Badge>
-              <Badge variant="light" color="teal">
-                Synced projects inherit these
-              </Badge>
-            </Group>
-          )}
-          <Button
-            variant="light"
-            disabled={!canEditCompanyDefaults}
-            onClick={() => setImportRulesModalOpen(true)}
-          >
-            Manage Import Rules
-          </Button>
-          <Text size="xs" c="dimmed">
-            Defaults are seeded for SAL and suspected salary transfers, then can
-            be adjusted centrally for the company without code changes. EXA rows
-            import by default so reversal candidates remain available.
-          </Text>
-        </Stack>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Auto-Coding Rules</Title>
-          <Text size="sm" c="dimmed">
-            Match imported transaction text to company categories so uncoded
-            imports can be auto-categorised in projects that already contain the
-            required categories.
-          </Text>
-          {companyDefaultsLoading ? (
-            <Text size="sm" c="dimmed">
-              Loading Auto-Coding Rules…
-            </Text>
-          ) : (
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">
-                {effectiveDefaults?.mappingRules.length ?? 0} Auto-Coding Rules
-              </Badge>
-            </Group>
-          )}
-          <Button
-            variant="light"
-            disabled={!canEditCompanyDefaults}
-            onClick={() => setMappingsModalOpen(true)}
-          >
-            Manage Auto-Coding Rules
-          </Button>
-          <Text size="xs" c="dimmed">
-            The first matching rule wins. Rules search transaction item and
-            description text, support simple singular/plural matches, and mark
-            auto-categorised rows for approval in the transaction list.
-          </Text>
-        </Stack>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Rule Suggestions</Title>
-          <Text size="sm" c="dimmed">
-            Review repeated manual coding patterns and turn them into reusable
-            Auto-Coding Rules for the company.
-          </Text>
-          {ruleSuggestionsQ.isPending && !ruleSuggestionsQ.data ? (
-            <Text size="sm" c="dimmed">
-              Loading rule suggestions…
-            </Text>
-          ) : (
-            <Group gap="sm" wrap="wrap">
-              <Badge variant="light">
-                {ruleSuggestionsQ.data?.length ?? 0} ready for review
-              </Badge>
-            </Group>
-          )}
-          <Button
-            variant="light"
-            disabled={!canEditCompanyDefaults}
-            onClick={() => setRuleSuggestionsModalOpen(true)}
-          >
-            Review Rule Suggestions
-          </Button>
-          <Text size="xs" c="dimmed">
-            Suggestions appear after repeated manual coding on similar
-            transactions and can be accepted into normal Auto-Coding Rules.
-          </Text>
+          <Group gap="sm" wrap="wrap">
+            <Button
+              variant="default"
+              disabled={!canEditCompanyDefaults}
+              onClick={() => setDefaultsModalOpen(true)}
+            >
+              Manage Categories
+            </Button>
+            <Button
+              variant="default"
+              disabled={!canEditCompanyDefaults}
+              onClick={() => setMappingsModalOpen(true)}
+            >
+              Manage Auto-Coding Rules
+            </Button>
+            <Button
+              variant="default"
+              disabled={!canEditCompanyDefaults}
+              onClick={() => setImportRulesModalOpen(true)}
+            >
+              Manage Import Rules
+            </Button>
+            <Button
+              variant="default"
+              disabled={!canEditCompanyDefaults}
+              onClick={() => setRuleSuggestionsModalOpen(true)}
+            >
+              Review Rule Suggestions
+            </Button>
+          </Group>
         </Stack>
       </Paper>
 
@@ -863,78 +802,88 @@ export default function CompanySettingsPanel(props: {
           <Title order={5}>Add member</Title>
           {inviteError ? <Alert color="red">{inviteError}</Alert> : null}
           {inviteStatus ? <Alert color="green">{inviteStatus}</Alert> : null}
-          <TextInput
-            label="Name"
-            value={newUserName}
-            onChange={(e) => setNewUserName(e.currentTarget.value)}
-          />
-          <TextInput
-            label="Email"
-            value={newUserEmail}
-            onChange={(e) => setNewUserEmail(e.currentTarget.value)}
-          />
-          <Select
-            label="Initial company role"
-            data={[
-              { value: 'member', label: 'member' },
-              { value: 'management', label: 'management' },
-              { value: 'executive', label: 'executive' },
-              { value: 'admin', label: 'admin' },
-            ]}
-            value={newUserRole}
-            onChange={(v) => setNewUserRole(toCompanyRole(v))}
-          />
-          <Checkbox
-            label="Send password setup email now"
-            description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
-            checked={sendOnboardingEmail}
-            onChange={(e) => setSendOnboardingEmail(e.currentTarget.checked)}
-          />
-          <Button
-            disabled={!canAddCompanyUsers || createUser.isPending}
-            onClick={async () => {
-              const name = newUserName.trim();
-              const email = newUserEmail.trim();
-              if (!name || !email) return;
-              setInviteError(null);
-              setInviteStatus(null);
-              try {
-                const result = await createUser.mutateAsync({
-                  name,
-                  email,
-                  role: newUserRole ?? 'member',
-                  sendOnboardingEmail,
-                });
-                setNewUserName('');
-                setNewUserEmail('');
-                setNewUserRole('member');
-                setSendOnboardingEmail(false);
-                if (result.onboardingEmailSent) {
-                  setInviteStatus(
-                    result.createdAuthUser
-                      ? result.onboardingDelivery === 'email'
-                        ? `${result.user.email} was added as a new company member and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
-                        : `${result.user.email} was added as a new company member. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
-                      : result.onboardingDelivery === 'email'
-                        ? `${result.user.email} was added to the company and sent the newest password setup email. Ask them to check spam or junk if it does not arrive soon.`
-                        : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
-                  );
-                  return;
-                }
-                setInviteStatus(
-                  result.membershipCreated
-                    ? `${result.user.email} was added to the company. No email was sent. You can resend their password setup email later from the member list if they need it.`
-                    : `${result.user.email} was already in the company. Their role was updated and no email was sent.`
-                );
-              } catch (err) {
-                setInviteError(
-                  err instanceof Error ? err.message : 'Could not invite user.'
-                );
-              }
-            }}
-          >
-            Add member
-          </Button>
+          <Text size="sm" c="dimmed">
+            Add someone to the company and choose their initial access level.
+          </Text>
+          <Stack gap="sm" style={{ width: '100%', maxWidth: 460 }}>
+            <TextInput
+              label="Name"
+              value={newUserName}
+              onChange={(e) => setNewUserName(e.currentTarget.value)}
+            />
+            <TextInput
+              label="Email"
+              value={newUserEmail}
+              onChange={(e) => setNewUserEmail(e.currentTarget.value)}
+            />
+            <Select
+              label="Initial company role"
+              data={[
+                { value: 'member', label: 'member' },
+                { value: 'management', label: 'management' },
+                { value: 'executive', label: 'executive' },
+                { value: 'admin', label: 'admin' },
+              ]}
+              value={newUserRole}
+              onChange={(v) => setNewUserRole(toCompanyRole(v))}
+            />
+            <Checkbox
+              label="Send password setup email now"
+              description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
+              checked={sendOnboardingEmail}
+              onChange={(e) => setSendOnboardingEmail(e.currentTarget.checked)}
+            />
+            <Group>
+              <Button
+                variant="default"
+                disabled={!canAddCompanyUsers || createUser.isPending}
+                onClick={async () => {
+                  const name = newUserName.trim();
+                  const email = newUserEmail.trim();
+                  if (!name || !email) return;
+                  setInviteError(null);
+                  setInviteStatus(null);
+                  try {
+                    const result = await createUser.mutateAsync({
+                      name,
+                      email,
+                      role: newUserRole ?? 'member',
+                      sendOnboardingEmail,
+                    });
+                    setNewUserName('');
+                    setNewUserEmail('');
+                    setNewUserRole('member');
+                    setSendOnboardingEmail(false);
+                    if (result.onboardingEmailSent) {
+                      setInviteStatus(
+                        result.createdAuthUser
+                          ? result.onboardingDelivery === 'email'
+                            ? `${result.user.email} was added as a new company member and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
+                            : `${result.user.email} was added as a new company member. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
+                          : result.onboardingDelivery === 'email'
+                            ? `${result.user.email} was added to the company and sent the newest password setup email. Ask them to check spam or junk if it does not arrive soon.`
+                            : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
+                      );
+                      return;
+                    }
+                    setInviteStatus(
+                      result.membershipCreated
+                        ? `${result.user.email} was added to the company. No email was sent. You can resend their password setup email later from the member list if they need it.`
+                        : `${result.user.email} was already in the company. Their role was updated and no email was sent.`
+                    );
+                  } catch (err) {
+                    setInviteError(
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not invite user.'
+                    );
+                  }
+                }}
+              >
+                Add member
+              </Button>
+            </Group>
+          </Stack>
           <Text size="xs" c="dimmed">
             Adding someone to the company and emailing them are now separate
             choices. New BetterAuth accounts still get their setup email
@@ -946,7 +895,11 @@ export default function CompanySettingsPanel(props: {
 
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
-          <Title order={5}>Company roles</Title>
+          <Title order={5}>Current members</Title>
+          <Text size="sm" c="dimmed">
+            Update a teammate's company role or remove them from the company
+            entirely.
+          </Text>
           {membershipError ? (
             <Alert color="red">{membershipError}</Alert>
           ) : null}
@@ -977,6 +930,7 @@ export default function CompanySettingsPanel(props: {
               />
               <Button
                 size="sm"
+                variant="default"
                 disabled={
                   !effectiveRoleUserId ||
                   !membershipCompanyRole ||
@@ -1018,10 +972,6 @@ export default function CompanySettingsPanel(props: {
             </Alert>
           ) : null}
           <Divider />
-          <Text size="sm" c="dimmed">
-            Update a teammate’s company role or remove them from the company
-            entirely.
-          </Text>
           <div className={classes.tableWrap}>
             {isHydrated ? (
               <MantineReactTable
