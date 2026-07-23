@@ -264,6 +264,7 @@ test('assembleCompanyWorkbook builds summary workbook metadata and omits detail 
   assert.ok(workbook.getWorksheet('Overview'));
   assert.ok(workbook.getWorksheet('Executive Summary'));
   assert.ok(workbook.getWorksheet('Budget vs Actual'));
+  assert.ok(workbook.getWorksheet('Monthly Spend'));
   assert.ok(workbook.getWorksheet('Pending Reversal'));
   assert.ok(!workbook.getWorksheet('Transactions'));
 
@@ -279,9 +280,21 @@ test('assembleCompanyWorkbook builds summary workbook metadata and omits detail 
   );
   assert.ok(
     overviewLines.some((line) =>
-      line.includes('125.00 pending reversal amount')
+      line.includes('125.00 unrecorded pending reversal amount')
     )
   );
+
+  const budgetHeaders = (
+    workbook.getWorksheet('Budget vs Actual')?.getRow(1).values as unknown[]
+  ).slice(1);
+  const monthlyHeaders = (
+    workbook.getWorksheet('Monthly Spend')?.getRow(1).values as unknown[]
+  ).slice(1);
+  assert.ok(budgetHeaders.includes('Recorded spend'));
+  assert.ok(budgetHeaders.includes('Budget headroom'));
+  assert.ok(budgetHeaders.includes('Budget health'));
+  assert.ok(monthlyHeaders.includes('Recorded spend'));
+  assert.ok(!monthlyHeaders.includes('Budget amount'));
 });
 
 test('assembleCompanyWorkbook builds full detail tabs and keeps scoped transfer links blank', async () => {

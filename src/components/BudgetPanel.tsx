@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   ActionIcon,
   Alert,
+  Badge,
   Button,
   Group,
   Menu,
@@ -35,6 +36,10 @@ import {
   type Quarter,
 } from '../utils/finance';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
+import {
+  calculateAllocationPosition,
+  calculateBudgetPosition,
+} from '../utils/budgetSemantics';
 import { useSessionQuery } from '../queries/session';
 import {
   loadBudgetCollapseState,
@@ -95,6 +100,8 @@ export default function BudgetPanel(props: {
   rollups: RollupsHook;
   budgets: BudgetsHook;
   uncodedSummary: { count: number; amountCents: number };
+  pendingReversalCount: number;
+  pendingReversalCents: number;
   isLoading?: boolean;
   canEditProjectBudgetTotal?: boolean;
   readOnly?: boolean;
@@ -117,6 +124,8 @@ export default function BudgetPanel(props: {
     rollups,
     budgets,
     uncodedSummary,
+    pendingReversalCount,
+    pendingReversalCents,
     isLoading = false,
     canEditProjectBudgetTotal = false,
     readOnly = false,
@@ -183,19 +192,21 @@ export default function BudgetPanel(props: {
 
   const projectAllocatedCents = rollups.totals.allocatedCents;
   const projectActualCents = rollups.totals.actualCents;
-  const projectRemainingCents = projectBudgetTotalCents - projectAllocatedCents;
-  const allocatedVsActualCents = projectAllocatedCents - projectActualCents;
-  const projectVsActualCents = projectBudgetTotalCents - projectActualCents;
-  const remainingAfterUncodedCents =
-    projectRemainingCents - uncodedSummary.amountCents;
-  const allocatedCoveragePct =
-    projectBudgetTotalCents > 0
-      ? (projectAllocatedCents / projectBudgetTotalCents) * 100
-      : 0;
-  const actualCoveragePct =
-    projectBudgetTotalCents > 0
-      ? (projectActualCents / projectBudgetTotalCents) * 100
-      : 0;
+  const allocationPosition = calculateAllocationPosition({
+    projectBudgetCents: projectBudgetTotalCents,
+    allocatedBudgetCents: projectAllocatedCents,
+  });
+  const budgetPosition = calculateBudgetPosition({
+    projectBudgetCents: projectBudgetTotalCents,
+    codedActualCents: projectActualCents,
+    uncodedExposureCents: uncodedSummary.amountCents,
+    uncodedCount: uncodedSummary.count,
+    pendingReversalCount,
+    pendingReversalCents,
+  });
+  const hasPeriodFilter = Boolean(
+    yearFilter || quarterFilter || monthFilterKey
+  );
 
   async function commitProjectBudgetTotal() {
     if (!onUpdateProjectBudgetTotal) return;
@@ -619,7 +630,7 @@ export default function BudgetPanel(props: {
       },
       {
         accessorKey: 'totalActualCents',
-        header: 'Actual (Total)',
+        header: 'Coded actual',
         size: 132,
         minSize: 120,
         Cell: ({ cell }) => (
@@ -636,7 +647,7 @@ export default function BudgetPanel(props: {
       },
       {
         id: 'remainingCents',
-        header: 'Remaining',
+        header: 'Allocation remaining',
         accessorFn: (row) => row.remainingCents,
         size: 132,
         minSize: 120,
@@ -723,6 +734,15 @@ export default function BudgetPanel(props: {
         <Stack gap="xs">
           <Group justify="space-between" align="center" wrap="wrap">
             <Text className={classes.sectionEyebrow}>Project totals</Text>
+            {!isLoading ? (
+              <Badge
+                variant="light"
+                color={budgetPosition.health.color}
+                title={budgetPosition.health.reason}
+              >
+                {budgetPosition.health.label}
+              </Badge>
+            ) : null}
           </Group>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
             <Paper
@@ -731,7 +751,7 @@ export default function BudgetPanel(props: {
             >
               <Stack gap={4}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Total project budget
+                  Project budget
                 </Text>
                 {canEditProjectBudgetTotal && isEditingProjectBudget ? (
                   <Group gap="xs" align="center" wrap="nowrap">
@@ -812,6 +832,9 @@ export default function BudgetPanel(props: {
                     ) : null}
                   </Group>
                 )}
+                <Text size="sm" c="dimmed">
+                  Approved full project funding
+                </Text>
               </Stack>
             </Paper>
 
@@ -821,7 +844,7 @@ export default function BudgetPanel(props: {
             >
               <Stack gap={4}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Allocated
+                  Allocated budget
                 </Text>
                 <Text component="div" fw={800} size="lg">
                   {isLoading ? (
@@ -839,17 +862,27 @@ export default function BudgetPanel(props: {
                   <>
                     <Text
                       size="sm"
-                      c={allocatedCoveragePct > 100 ? 'red' : 'dimmed'}
+                      c={
+                        (allocationPosition.allocationCoveragePct ?? 0) > 100
+                          ? 'red'
+                          : 'dimmed'
+                      }
                     >
-                      {allocatedCoveragePct.toFixed(1)}% of project budget
+                      {allocationPosition.allocationCoveragePct === null
+                        ? 'No project budget set'
+                        : `${allocationPosition.allocationCoveragePct.toFixed(1)}% assigned`}
                     </Text>
                     <Text
                       size="sm"
-                      c={allocatedVsActualCents < 0 ? 'red' : 'dimmed'}
+                      c={
+                        allocationPosition.unallocatedBudgetCents < 0
+                          ? 'red'
+                          : 'dimmed'
+                      }
                     >
-                      vs actual:{' '}
+                      Unallocated:{' '}
                       {formatCurrencyFromCents(
-                        allocatedVsActualCents,
+                        allocationPosition.unallocatedBudgetCents,
                         currencyCode
                       )}
                     </Text>
@@ -864,13 +897,16 @@ export default function BudgetPanel(props: {
             >
               <Stack gap={4}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Actual
+                  Recorded spend
                 </Text>
                 <Text component="div" fw={800} size="lg">
                   {isLoading ? (
                     <LoadingLine width={120} height={28} radius="md" />
                   ) : (
-                    formatCurrencyFromCents(projectActualCents, currencyCode)
+                    formatCurrencyFromCents(
+                      budgetPosition.recordedSpendCents,
+                      currencyCode
+                    )
                   )}
                 </Text>
                 {isLoading ? (
@@ -880,19 +916,17 @@ export default function BudgetPanel(props: {
                   </>
                 ) : (
                   <>
-                    <Text
-                      size="sm"
-                      c={actualCoveragePct > 100 ? 'red' : 'dimmed'}
-                    >
-                      {actualCoveragePct.toFixed(1)}% of project budget
-                    </Text>
-                    <Text
-                      size="sm"
-                      c={projectVsActualCents < 0 ? 'red' : 'dimmed'}
-                    >
-                      budget headroom:{' '}
+                    <Text size="sm" c="dimmed">
+                      Coded:{' '}
                       {formatCurrencyFromCents(
-                        projectVsActualCents,
+                        budgetPosition.codedActualCents,
+                        currencyCode
+                      )}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Uncoded exposure:{' '}
+                      {formatCurrencyFromCents(
+                        budgetPosition.uncodedExposureCents,
                         currencyCode
                       )}
                     </Text>
@@ -907,18 +941,25 @@ export default function BudgetPanel(props: {
             >
               <Stack gap={4}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Remaining
+                  Budget headroom
                 </Text>
                 <Text
                   component="div"
                   fw={800}
                   size="lg"
-                  c={projectRemainingCents < 0 ? 'red' : undefined}
+                  c={
+                    budgetPosition.confirmedHeadroomCents < 0
+                      ? 'red'
+                      : undefined
+                  }
                 >
                   {isLoading ? (
                     <LoadingLine width={120} height={28} radius="md" />
                   ) : (
-                    formatCurrencyFromCents(projectRemainingCents, currencyCode)
+                    formatCurrencyFromCents(
+                      budgetPosition.confirmedHeadroomCents,
+                      currencyCode
+                    )
                   )}
                 </Text>
                 {isLoading ? (
@@ -928,28 +969,36 @@ export default function BudgetPanel(props: {
                   </>
                 ) : (
                   <>
-                    <Text
-                      size="sm"
-                      c={remainingAfterUncodedCents < 0 ? 'red' : 'dimmed'}
-                    >
-                      after uncoded:{' '}
-                      {formatCurrencyFromCents(
-                        remainingAfterUncodedCents,
-                        currencyCode
-                      )}
-                    </Text>
                     <Text size="sm" c="dimmed">
-                      uncoded impact:{' '}
-                      {formatCurrencyFromCents(
-                        uncodedSummary.amountCents,
-                        currencyCode
-                      )}
+                      {budgetPosition.spendUtilizationPct === null
+                        ? 'Set a budget to calculate utilization'
+                        : `${budgetPosition.spendUtilizationPct.toFixed(1)}% used`}
                     </Text>
+                    {budgetPosition.pendingReversalCents > 0 ? (
+                      <Text size="sm" c="dimmed">
+                        Expected after pending reversals:{' '}
+                        {formatCurrencyFromCents(
+                          budgetPosition.expectedHeadroomAfterPendingReversalsCents,
+                          currencyCode
+                        )}
+                      </Text>
+                    ) : (
+                      <Text size="sm" c="dimmed">
+                        {budgetPosition.health.reason}
+                      </Text>
+                    )}
                   </>
                 )}
               </Stack>
             </Paper>
           </SimpleGrid>
+
+          {hasPeriodFilter ? (
+            <Text size="xs" c="dimmed">
+              Project budget and allocations remain full-project totals; spend,
+              exposure, headroom, and health reflect the selected period.
+            </Text>
+          ) : null}
 
           {projectAllocatedCents > projectBudgetTotalCents ? (
             <Alert color="red" variant="light" radius="md">

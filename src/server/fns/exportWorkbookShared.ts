@@ -65,6 +65,7 @@ export type TransactionExportRow = {
   reversalMatchedAt: string;
   reversalMatchedByUserId: string;
   pendingReversalOpen: boolean;
+  pendingReversalExpected: boolean;
   transferProjectId: string;
   transferProjectName: string;
   parentTxnId: string;
@@ -84,8 +85,10 @@ export type TransactionExportRow = {
 export type ProjectFinanceRollup = {
   budgetCents: number;
   actualCodedCents: number;
+  pendingReversalCount: number;
   pendingReversalCents: number;
   adjustedActualCodedCents: number;
+  uncodedCount: number;
   uncodedAmountCents: number;
 };
 
@@ -102,6 +105,7 @@ export type TaxonomyRollup = {
   subCategoryName: string;
   budgetCents: number;
   actualCodedCents: number;
+  pendingReversalCount: number;
   pendingReversalCents: number;
   adjustedActualCodedCents: number;
   uncodedAmountCents: number;
@@ -110,7 +114,7 @@ export type TaxonomyRollup = {
 
 export const amountStyle: Partial<ExcelJS.Style> = { numFmt: '#,##0.00' };
 export const percentStyle: Partial<ExcelJS.Style> = { numFmt: '0.00%' };
-export const COMPANY_EXPORT_CONTRACT_VERSION = '2026.07-v3';
+export const COMPANY_EXPORT_CONTRACT_VERSION = '2026.07-v4';
 
 export function buildTransactionColumns(): WorksheetColumn[] {
   return [
@@ -152,6 +156,10 @@ export function buildTransactionColumns(): WorksheetColumn[] {
     { header: 'Reversal matched at', key: 'reversalMatchedAt' },
     { header: 'Reversal matched by user ID', key: 'reversalMatchedByUserId' },
     { header: 'Pending reversal open', key: 'pendingReversalOpen' },
+    {
+      header: 'Pending reversal still expected',
+      key: 'pendingReversalExpected',
+    },
     { header: 'Transfer project ID', key: 'transferProjectId' },
     { header: 'Transfer project name', key: 'transferProjectName' },
     { header: 'Parent transaction ID', key: 'parentTxnId' },

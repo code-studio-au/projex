@@ -8,6 +8,7 @@ import { monthKeyFromDateOnlyInput, type DateOnlyInput } from './finance';
 
 type CompanySummaryMonthBucket = {
   actualCodedCents: number;
+  pendingReversalCount: number;
   pendingReversalCents: number;
   adjustedActualCodedCents: number;
   uncodedCount: number;
@@ -32,6 +33,7 @@ export type CompanySummaryTxnInput = {
   amountCents: number;
   budgetImpact: boolean;
   pendingReversal?: boolean;
+  pendingReversalExpected?: boolean;
   subCategoryId?: SubCategoryId | string | null;
 };
 
@@ -56,6 +58,7 @@ export function buildCompanySummaryProjects(args: {
       new Map<string, CompanySummaryMonthBucket>();
     const bucket = projectBuckets.get(monthKey) ?? {
       actualCodedCents: 0,
+      pendingReversalCount: 0,
       pendingReversalCents: 0,
       adjustedActualCodedCents: 0,
       uncodedCount: 0,
@@ -66,16 +69,21 @@ export function buildCompanySummaryProjects(args: {
       args.validSubCategoryIdsByProject.get(transaction.projectId) ??
       new Set<string>();
 
+    if (transaction.pendingReversal) {
+      bucket.pendingReversalCount += 1;
+    }
+    if (transaction.pendingReversalExpected) {
+      bucket.pendingReversalCents += amount;
+    }
+
     if (
       transaction.subCategoryId &&
       validSubIds.has(String(transaction.subCategoryId))
     ) {
       bucket.actualCodedCents += amount;
-      if (transaction.pendingReversal) {
-        bucket.pendingReversalCents += amount;
-      }
-      bucket.adjustedActualCodedCents =
-        bucket.actualCodedCents - bucket.pendingReversalCents;
+      bucket.adjustedActualCodedCents += transaction.pendingReversalExpected
+        ? 0
+        : amount;
     } else {
       bucket.uncodedCount += 1;
       bucket.uncodedAmountCents += amount;
@@ -138,12 +146,14 @@ export function buildCompanySummaryProjects(args: {
       for (const month of child.months) {
         const bucket = monthBuckets.get(month.monthKey) ?? {
           actualCodedCents: 0,
+          pendingReversalCount: 0,
           pendingReversalCents: 0,
           adjustedActualCodedCents: 0,
           uncodedCount: 0,
           uncodedAmountCents: 0,
         };
         bucket.actualCodedCents += month.actualCodedCents;
+        bucket.pendingReversalCount += month.pendingReversalCount;
         bucket.pendingReversalCents += month.pendingReversalCents;
         bucket.adjustedActualCodedCents += month.adjustedActualCodedCents;
         bucket.uncodedCount += month.uncodedCount;

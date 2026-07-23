@@ -118,11 +118,21 @@ type ProjectTransactionSummaryRow = {
   monthKey: string;
   actualCents: number;
 };
+type ProjectTransactionPeriodSummary = {
+  monthKey: string;
+  uncodedCount: number;
+  uncodedAmountCents: number;
+  pendingReversalCount: number;
+  pendingReversalCents: number;
+};
 export type ProjectTransactionSummary = {
   monthKeys: string[];
   rows: ProjectTransactionSummaryRow[];
+  periodSummaries: ProjectTransactionPeriodSummary[];
   uncodedCount: number;
   uncodedAmountCents: number;
+  pendingReversalCount: number;
+  pendingReversalCents: number;
   autoMappedPendingCount: number;
   invalidDateCount: number;
 };

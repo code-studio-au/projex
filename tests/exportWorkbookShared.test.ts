@@ -72,6 +72,7 @@ test('flattenSummaryProjects and sumProjectMonths handle nested company summary 
         {
           monthKey: '2026-01',
           actualCodedCents: 0,
+          pendingReversalCount: 0,
           pendingReversalCents: 0,
           adjustedActualCodedCents: 0,
           uncodedCount: 0,
@@ -92,6 +93,7 @@ test('flattenSummaryProjects and sumProjectMonths handle nested company summary 
             {
               monthKey: '2026-01',
               actualCodedCents: 250,
+              pendingReversalCount: 0,
               pendingReversalCents: 0,
               adjustedActualCodedCents: 250,
               uncodedCount: 1,

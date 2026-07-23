@@ -4,43 +4,7 @@ This backlog contains only unfinished work. Completed work belongs in Git histor
 
 ## Active Backlog
 
-### 1. Finish reviewed and locked transaction workflow
-
-Examples:
-
-- allow standard users to request an unlock with a reason while admins or executives can unlock directly
-- let authorized reviewers approve or reject unlock requests
-- surface an unlock-requested badge and workflow filter so requests cannot be missed
-- retain an event history for review, lock, unlock-request, approval, rejection, and reopen transitions
-
-Why this matters:
-
-- a finance workflow needs a visible boundary between coded and finalized
-- locking reduces accidental edits, improves reporting confidence, and prepares the app for stronger auditability
-
-Design direction:
-
-- keep the core review state machine separate from unlock-request workflow state
-- define exactly which fields become immutable when locked
-- ensure all lock, unlock, review, and reopen actions emit audit events
-
-### 2. Clarify budget semantics, health messaging, and lightweight forecasting
-
-Examples:
-
-- distinguish project budget, allocated budget, actual spend, remaining allocation, and remaining headroom more explicitly
-- add clearer budget-health language around uncoded exposure and over-budget status
-- reduce ambiguity around what “remaining” means in each budget context
-- add health states such as healthy, watch, at risk, and over budget
-- introduce cautious forecasting that does not over-promise on naive burn-rate extrapolation
-
-Why this matters:
-
-- the underlying budget model is already strong, but the user-facing messaging can still be misread
-- sharper financial semantics will make the app feel more trustworthy to finance-oriented users
-- users need interpretation and risk cues, not just raw spend totals
-
-### 3. Improve repeated-coding suggestions
+### 1. Improve repeated-coding suggestions
 
 Design note:
 
@@ -63,7 +27,11 @@ Design direction:
 - distinguish clearly between create-rule suggestions and update-rule suggestions
 - keep suggestions reviewable and dismissible so noisy patterns do not become brittle rules
 
-### 4. Expand audit logging into a first-class product feature
+### 2. Expand audit logging into a first-class product feature
+
+Standing TODO: confirm the organisation's audit-retention, access, privacy, and
+export requirements before expanding the current immutable event history into
+an administrator-facing product.
 
 Examples:
 
@@ -101,11 +69,15 @@ Examples of retention strategy:
 
 Notes:
 
-- this is still not the first implementation to start with, even though it is strategically important
-- it needs careful schema, indexing, retention, and UI design before we build it
+- immutable workflow events already support important transaction review,
+  locking, import, and structural-integrity paths
+- remaining work needs careful event-coverage, schema, indexing, retention,
+  access, export, and admin-UI design
+- do not choose retention periods or expose a broad audit UI until the
+  organisation confirms its governance requirements
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 5. Extend self-service account/profile
+### 3. Extend self-service account/profile
 
 Examples:
 
@@ -190,8 +162,9 @@ Examples:
 - duplicate or copy budget lines
 - import/export budgets
 - budget templates
-- future period-based planning helpers
-- richer budget health bands and future forecast logic
+- explicit period-based budgets where projects need monthly or quarterly plans
+- milestone-aware forecast logic based on planned delivery rather than naive
+  straight-line spend extrapolation
 
 Why this matters:
 
