@@ -13,6 +13,7 @@ import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
 import { requireCompanyMember } from './resourceGuards';
 import { applyCompanyStandardsToProject } from './taxonomy/standards';
+import { recordAuditEvent } from '../audit/auditEvents';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -323,6 +324,26 @@ export async function updateProjectServer(args: {
           companyId,
           projectId,
           actorUserId: userId,
+        });
+      }
+
+      if (typeof args.input.allowSuperadminAccess !== 'undefined') {
+        await recordAuditEvent({
+          db: trx,
+          companyId,
+          projectId,
+          actorUserId: userId,
+          eventClass: 'access',
+          eventType: 'project.superadmin_access_changed',
+          entityType: 'project',
+          entityId: projectId,
+          reason: 'Changed project superadmin access',
+          previousState: {
+            allowSuperadminAccess: existing.allow_superadmin_access,
+          },
+          resultingState: {
+            allowSuperadminAccess: args.input.allowSuperadminAccess,
+          },
         });
       }
 

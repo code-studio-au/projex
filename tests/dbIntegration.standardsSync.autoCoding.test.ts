@@ -9,7 +9,7 @@ import {
 } from '../src/server/fns/projectAutoCodingRules.ts';
 import { createProjectServer } from '../src/server/fns/projects.ts';
 import {
-  importTransactionsServer,
+  importTrustedTransactionsServer as importTransactionsServer,
   listTransactionsServer,
 } from '../src/server/fns/transactions.ts';
 import {
@@ -423,6 +423,20 @@ test(
         },
       });
 
+      await assert.rejects(
+        updateSubCategoryServer({
+          context,
+          projectId,
+          input: { id: sourceSubCategoryId, categoryId: travelCategoryId },
+        }),
+        /locked transactions use it/
+      );
+      await db
+        .updateTable('txns')
+        .set({ locked_at: null, locked_by_user_id: null, updated_at: now })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', lockedTxnId)
+        .execute();
       await updateSubCategoryServer({
         context,
         projectId,
@@ -455,9 +469,19 @@ test(
       );
       assert.equal(
         movedTxns.find((txn) => txn.public_id === lockedTxnId)?.category_id,
-        itCategoryId
+        travelCategoryId
       );
 
+      await db
+        .updateTable('txns')
+        .set({
+          locked_at: now,
+          locked_by_user_id: userId,
+          updated_at: now,
+        })
+        .where('project_id', '=', projectId)
+        .where('public_id', '=', lockedTxnId)
+        .execute();
       await assert.rejects(
         deleteSubCategoryServer({
           context,
@@ -723,7 +747,7 @@ test(
           origin_scope: 'project',
           origin_company_item_id: null,
           sync_status: 'local',
-          last_synced_at: null,
+          last_synced_at: new Date().toISOString(),
           source_updated_at_snapshot: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -938,7 +962,7 @@ test(
           origin_scope: 'project',
           origin_company_item_id: null,
           sync_status: 'local',
-          last_synced_at: null,
+          last_synced_at: new Date().toISOString(),
           source_updated_at_snapshot: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),

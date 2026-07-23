@@ -17,12 +17,13 @@ import { asCategoryId, asSubCategoryId } from '../../../types';
 import { uid } from '../../../utils/id';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import { getDb } from '../../db/db';
+import { recordAuditEvent } from '../../audit/auditEvents';
 import type { DB } from '../../db/schema';
 import {
   buildDetachedProjectStandardMetadata,
   buildInheritedProjectStandardMetadata,
   listSyncedProjectIdsForCompany,
-  shouldApplyInheritedUpdate,
+  planProjectStandardReconciliation,
 } from '../../sync/projectStandards';
 import { syncCompanyAutoCodingRulesToProject } from '../projectAutoCodingRules';
 import { syncCompanyImportRulesToProject } from '../importRules';
@@ -123,105 +124,76 @@ async function applyCompanyTaxonomyWithPreloadedState(args: {
   const projectSubCategoryRows = projectSubCategories;
   const defaultCategoryIdToProjectCategoryId = new Map<string, string>();
 
-  for (const defaultCategory of defaultCategories) {
-    const inheritedCategory = projectCategoryRows.find(
-      (category) => category.origin_company_item_id === defaultCategory.id
-    );
-    const localNameMatch = projectCategoryRows.find(
-      (category) =>
-        !category.origin_company_item_id &&
-        taxonomyNameKey(category.name) === taxonomyNameKey(defaultCategory.name)
-    );
+  const categoryActions = planProjectStandardReconciliation({
+    sources: defaultCategories,
+    projectItems: projectCategoryRows,
+    sourceId: (category) => category.id,
+    originCompanyItemId: (category) => category.origin_company_item_id,
+    syncStatus: (category) => category.sync_status,
+    isExactLocalDuplicate: (source, target) =>
+      taxonomyNameKey(source.name) === taxonomyNameKey(target.name),
+  });
 
-    if (inheritedCategory) {
-      defaultCategoryIdToProjectCategoryId.set(
-        defaultCategory.id,
-        inheritedCategory.id
-      );
-      if (!shouldApplyInheritedUpdate(inheritedCategory.sync_status)) continue;
+  for (const action of categoryActions) {
+    if (action.kind === 'detach') {
       await db
         .updateTable('categories')
         .set({
-          name: defaultCategory.name,
-          ...buildInheritedProjectStandardMetadata({
-            companyItemId: defaultCategory.id,
-            sourceUpdatedAt: defaultCategory.updated_at,
+          ...buildDetachedProjectStandardMetadata({
+            companyItemId: action.target.origin_company_item_id!,
+            previousSourceUpdatedAt: action.target.source_updated_at_snapshot,
             nowIso: now,
           }),
           updated_at: now,
         })
         .where('project_id', '=', projectId)
-        .where('id', '=', inheritedCategory.id)
+        .where('id', '=', action.target.id)
         .execute();
       continue;
     }
 
-    if (localNameMatch) {
-      if (!localNameMatch.origin_scope) {
-        await db
-          .updateTable('categories')
-          .set({
-            ...buildInheritedProjectStandardMetadata({
-              companyItemId: defaultCategory.id,
-              sourceUpdatedAt: defaultCategory.updated_at,
-              nowIso: now,
-            }),
-            updated_at: now,
-          })
-          .where('project_id', '=', projectId)
-          .where('id', '=', localNameMatch.id)
-          .execute();
-      }
+    if (action.kind === 'preserve') {
       defaultCategoryIdToProjectCategoryId.set(
-        defaultCategory.id,
-        localNameMatch.id
+        action.source.id,
+        action.target.id
       );
       continue;
     }
 
-    const createdId = asCategoryId(uid('cat'));
-    await db
-      .insertInto('categories')
-      .values({
-        id: createdId,
-        company_id: companyId,
-        project_id: projectId,
-        name: defaultCategory.name,
-        ...buildInheritedProjectStandardMetadata({
-          companyItemId: defaultCategory.id,
-          sourceUpdatedAt: defaultCategory.updated_at,
-          nowIso: now,
-        }),
-        created_at: now,
-        updated_at: now,
-      })
-      .execute();
-    defaultCategoryIdToProjectCategoryId.set(defaultCategory.id, createdId);
-    categoriesAdded += 1;
-  }
+    const metadata = buildInheritedProjectStandardMetadata({
+      companyItemId: action.source.id,
+      sourceUpdatedAt: action.source.updated_at,
+      nowIso: now,
+    });
+    if (action.kind === 'create') {
+      const createdId = asCategoryId(uid('cat'));
+      await db
+        .insertInto('categories')
+        .values({
+          id: createdId,
+          company_id: companyId,
+          project_id: projectId,
+          name: action.source.name,
+          ...metadata,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+      defaultCategoryIdToProjectCategoryId.set(action.source.id, createdId);
+      categoriesAdded += 1;
+      continue;
+    }
 
-  const liveDefaultCategoryIds = new Set(
-    defaultCategories.map((category) => category.id)
-  );
-  for (const staleCategory of projectCategoryRows.filter(
-    (category) =>
-      category.origin_company_item_id &&
-      !liveDefaultCategoryIds.has(category.origin_company_item_id) &&
-      category.sync_status !== 'detached'
-  )) {
     await db
       .updateTable('categories')
-      .set({
-        ...buildDetachedProjectStandardMetadata({
-          companyItemId: staleCategory.origin_company_item_id!,
-          previousSourceUpdatedAt: staleCategory.source_updated_at_snapshot,
-          nowIso: now,
-        }),
-        updated_at: now,
-      })
+      .set({ name: action.source.name, ...metadata, updated_at: now })
       .where('project_id', '=', projectId)
-      .where('id', '=', staleCategory.id)
+      .where('id', '=', action.target.id)
       .execute();
+    defaultCategoryIdToProjectCategoryId.set(
+      action.source.id,
+      action.target.id
+    );
   }
 
   const createdBudgetTargets: Array<{
@@ -229,130 +201,100 @@ async function applyCompanyTaxonomyWithPreloadedState(args: {
     subCategoryId: SubCategory['id'];
   }> = [];
 
-  for (const defaultSubCategory of defaultSubCategories) {
-    const projectCategoryId = defaultCategoryIdToProjectCategoryId.get(
-      defaultSubCategory.company_default_category_id
-    );
-    if (!projectCategoryId) continue;
+  const resolvedDefaultSubCategories = defaultSubCategories.flatMap(
+    (subCategory) => {
+      const projectCategoryId = defaultCategoryIdToProjectCategoryId.get(
+        subCategory.company_default_category_id
+      );
+      return projectCategoryId ? [{ subCategory, projectCategoryId }] : [];
+    }
+  );
+  const subCategoryActions = planProjectStandardReconciliation({
+    sources: resolvedDefaultSubCategories,
+    projectItems: projectSubCategoryRows,
+    sourceId: (source) => source.subCategory.id,
+    originCompanyItemId: (subCategory) => subCategory.origin_company_item_id,
+    syncStatus: (subCategory) => subCategory.sync_status,
+    isExactLocalDuplicate: (source, target) =>
+      target.category_id === source.projectCategoryId &&
+      taxonomyNameKey(target.name) === taxonomyNameKey(source.subCategory.name),
+  });
 
-    const inheritedSubCategory = projectSubCategoryRows.find(
-      (subCategory) =>
-        subCategory.origin_company_item_id === defaultSubCategory.id
-    );
-    const localNameMatch = projectSubCategoryRows.find(
-      (subCategory) =>
-        !subCategory.origin_company_item_id &&
-        subCategory.category_id === projectCategoryId &&
-        taxonomyNameKey(subCategory.name) ===
-          taxonomyNameKey(defaultSubCategory.name)
-    );
-
-    if (inheritedSubCategory) {
-      if (!shouldApplyInheritedUpdate(inheritedSubCategory.sync_status)) {
-        continue;
-      }
-      const categoryChanged =
-        inheritedSubCategory.category_id !== projectCategoryId;
+  for (const action of subCategoryActions) {
+    if (action.kind === 'preserve') continue;
+    if (action.kind === 'detach') {
       await db
         .updateTable('sub_categories')
         .set({
-          category_id: projectCategoryId,
-          name: defaultSubCategory.name,
-          ...buildInheritedProjectStandardMetadata({
-            companyItemId: defaultSubCategory.id,
-            sourceUpdatedAt: defaultSubCategory.updated_at,
+          ...buildDetachedProjectStandardMetadata({
+            companyItemId: action.target.origin_company_item_id!,
+            previousSourceUpdatedAt: action.target.source_updated_at_snapshot,
             nowIso: now,
           }),
           updated_at: now,
         })
         .where('project_id', '=', projectId)
-        .where('id', '=', inheritedSubCategory.id)
+        .where('id', '=', action.target.id)
         .execute();
-      if (categoryChanged) {
-        await db
-          .updateTable('budget_lines')
-          .set({ category_id: projectCategoryId, updated_at: now })
-          .where('project_id', '=', projectId)
-          .where('sub_category_id', '=', inheritedSubCategory.id)
-          .execute();
-        await db
-          .updateTable('txns')
-          .set({ category_id: projectCategoryId, updated_at: now })
-          .where('project_id', '=', projectId)
-          .where('sub_category_id', '=', inheritedSubCategory.id)
-          .where('locked_at', 'is', null)
-          .execute();
-      }
       continue;
     }
 
-    if (localNameMatch) {
-      if (!localNameMatch.origin_scope) {
-        await db
-          .updateTable('sub_categories')
-          .set({
-            category_id: projectCategoryId,
-            ...buildInheritedProjectStandardMetadata({
-              companyItemId: defaultSubCategory.id,
-              sourceUpdatedAt: defaultSubCategory.updated_at,
-              nowIso: now,
-            }),
-            updated_at: now,
-          })
-          .where('project_id', '=', projectId)
-          .where('id', '=', localNameMatch.id)
-          .execute();
-      }
-      continue;
-    }
-
-    const createdId = asSubCategoryId(uid('sub'));
-    await db
-      .insertInto('sub_categories')
-      .values({
-        id: createdId,
-        company_id: companyId,
-        project_id: projectId,
-        category_id: projectCategoryId,
-        name: defaultSubCategory.name,
-        ...buildInheritedProjectStandardMetadata({
-          companyItemId: defaultSubCategory.id,
-          sourceUpdatedAt: defaultSubCategory.updated_at,
-          nowIso: now,
-        }),
-        created_at: now,
-        updated_at: now,
-      })
-      .execute();
-    createdBudgetTargets.push({
-      categoryId: asCategoryId(projectCategoryId),
-      subCategoryId: createdId,
+    const { subCategory: source, projectCategoryId } = action.source;
+    const metadata = buildInheritedProjectStandardMetadata({
+      companyItemId: source.id,
+      sourceUpdatedAt: source.updated_at,
+      nowIso: now,
     });
-    subCategoriesAdded += 1;
-  }
+    if (action.kind === 'create') {
+      const createdId = asSubCategoryId(uid('sub'));
+      await db
+        .insertInto('sub_categories')
+        .values({
+          id: createdId,
+          company_id: companyId,
+          project_id: projectId,
+          category_id: projectCategoryId,
+          name: source.name,
+          ...metadata,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+      createdBudgetTargets.push({
+        categoryId: asCategoryId(projectCategoryId),
+        subCategoryId: createdId,
+      });
+      subCategoriesAdded += 1;
+      continue;
+    }
 
-  const liveDefaultSubCategoryIds = new Set(
-    defaultSubCategories.map((subCategory) => subCategory.id)
-  );
-  for (const staleSubCategory of projectSubCategoryRows.filter(
-    (subCategory) =>
-      subCategory.origin_company_item_id &&
-      !liveDefaultSubCategoryIds.has(subCategory.origin_company_item_id) &&
-      subCategory.sync_status !== 'detached'
-  )) {
+    const categoryChanged = action.target.category_id !== projectCategoryId;
     await db
       .updateTable('sub_categories')
       .set({
-        ...buildDetachedProjectStandardMetadata({
-          companyItemId: staleSubCategory.origin_company_item_id!,
-          previousSourceUpdatedAt: staleSubCategory.source_updated_at_snapshot,
-          nowIso: now,
-        }),
+        category_id: projectCategoryId,
+        name: source.name,
+        ...metadata,
         updated_at: now,
       })
       .where('project_id', '=', projectId)
-      .where('id', '=', staleSubCategory.id)
+      .where('id', '=', action.target.id)
       .execute();
+    if (categoryChanged) {
+      await db
+        .updateTable('budget_lines')
+        .set({ category_id: projectCategoryId, updated_at: now })
+        .where('project_id', '=', projectId)
+        .where('sub_category_id', '=', action.target.id)
+        .execute();
+      await db
+        .updateTable('txns')
+        .set({ category_id: projectCategoryId, updated_at: now })
+        .where('project_id', '=', projectId)
+        .where('sub_category_id', '=', action.target.id)
+        .where('locked_at', 'is', null)
+        .execute();
+    }
   }
 
   if (createdBudgetTargets.length) {
@@ -487,6 +429,23 @@ export async function applyCompanyStandardsToProject(args: {
     companyId: args.companyId,
     projectId: args.projectId,
     actorUserId: args.actorUserId,
+  });
+  await recordAuditEvent({
+    db: args.db,
+    companyId: args.companyId,
+    projectId: args.projectId,
+    actorUserId: args.actorUserId,
+    eventClass: 'inheritance',
+    eventType: 'company_standards.reconciled',
+    entityType: 'project',
+    entityId: args.projectId,
+    reason: 'Applied company standards to project',
+    resultingState: {
+      categoriesAdded: result.categoriesAdded,
+      subCategoriesAdded: result.subCategoriesAdded,
+      importRulesSynced: true,
+      autoCodingRulesSynced: true,
+    },
   });
   return {
     ...result,

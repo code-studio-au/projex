@@ -17,6 +17,7 @@ import {
   normalizeExternalId,
 } from '../../../utils/transactions';
 import { toTxn } from '../../mappers/transactionRows';
+import { recordAuditEvent } from '../../audit/auditEvents';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
@@ -143,6 +144,24 @@ export async function splitTxnServer(args: {
         .returning(txnSelectColumns())
         .execute();
 
+      await trx
+        .insertInto('txn_links')
+        .values(
+          split.children.map((child) => ({
+            id: uid('txnl'),
+            company_id: context.companyId,
+            link_type: 'split' as const,
+            source_project_id: args.projectId,
+            source_txn_public_id: split.parent.id,
+            target_project_id: args.projectId,
+            target_txn_public_id: child.id,
+            amount_cents: child.amountCents,
+            created_by_user_id: context.userId,
+            created_at: now,
+          }))
+        )
+        .execute();
+
       await ensureBudgetLinesForProjectSubCategories({
         db: trx,
         companyId: context.companyId,
@@ -160,6 +179,29 @@ export async function splitTxnServer(args: {
             categoryId: child.categoryId,
             subCategoryId: child.subCategoryId,
           })),
+      });
+
+      await recordAuditEvent({
+        db: trx,
+        companyId: context.companyId,
+        projectId: args.projectId,
+        actorUserId: context.userId,
+        eventClass: 'structural',
+        eventType: 'transaction.split',
+        entityType: 'transaction',
+        entityId: split.parent.id,
+        reason: 'Split transaction into balanced child transactions',
+        previousState: {
+          txnType: parentTxn.txnType,
+          amountCents: parentTxn.amountCents,
+          budgetImpact: parentTxn.budgetImpact,
+        },
+        resultingState: {
+          txnType: split.parent.txnType,
+          childTxnIds: split.children.map((child) => child.id),
+          childAmountCents: split.children.map((child) => child.amountCents),
+        },
+        nowIso: now,
       });
 
       return { parent: toTxn(parent), children: children.map(toTxn) };
@@ -298,6 +340,46 @@ export async function transferTxnServer(args: {
         })
         .returning(txnSelectColumns())
         .executeTakeFirstOrThrow();
+
+      await trx
+        .insertInto('txn_links')
+        .values({
+          id: uid('txnl'),
+          company_id: sourceContext.companyId,
+          link_type: 'transfer',
+          source_project_id: args.projectId,
+          source_txn_public_id: transfer.source.id,
+          target_project_id: args.input.destinationProjectId,
+          target_txn_public_id: transfer.destination.id,
+          amount_cents: transfer.destination.amountCents,
+          created_by_user_id: sourceContext.userId,
+          created_at: now,
+        })
+        .execute();
+
+      await recordAuditEvent({
+        db: trx,
+        companyId: sourceContext.companyId,
+        projectId: args.projectId,
+        actorUserId: sourceContext.userId,
+        eventClass: 'structural',
+        eventType: 'transaction.transferred',
+        entityType: 'transaction',
+        entityId: transfer.source.id,
+        reason: 'Transferred transaction to another project',
+        previousState: {
+          projectId: args.projectId,
+          txnType: sourceTxn.txnType,
+          amountCents: sourceTxn.amountCents,
+        },
+        resultingState: {
+          sourceTxnType: transfer.source.txnType,
+          destinationProjectId: args.input.destinationProjectId,
+          destinationTxnId: transfer.destination.id,
+          amountCents: transfer.destination.amountCents,
+        },
+        nowIso: now,
+      });
 
       return { source: toTxn(source), destination: toTxn(destination) };
     });

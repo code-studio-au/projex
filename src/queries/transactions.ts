@@ -23,6 +23,8 @@ import type {
   TxnTransferInput,
   TxnUpdateInput,
   TxnWorkflowStateInput,
+  TxnUnlockRequestInput,
+  TxnUnlockResolutionInput,
 } from '../api/types';
 import { normalizeTxnPatch } from '../utils/transactions';
 import {
@@ -44,6 +46,8 @@ import {
   listTxnReversalMatchSuggestionsServerFn,
   updateTxnServerFn,
   updateTxnWorkflowStateServerFn,
+  requestTxnUnlockServerFn,
+  resolveTxnUnlockRequestServerFn,
 } from '../server/start/functions/transactionReads';
 import type { TxnListPageResult } from '../api/types';
 
@@ -368,6 +372,28 @@ export function useUpdateTxnWorkflowStateMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (input: TxnWorkflowStateInput) =>
       updateTxnWorkflowStateServerFn({ data: { projectId, payload: input } }),
+    onSuccess: async () =>
+      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
+  });
+}
+
+export function useRequestTxnUnlockMutation(projectId: ProjectId) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: TxnUnlockRequestInput) =>
+      requestTxnUnlockServerFn({ data: { projectId, payload: input } }),
+    onSuccess: async () =>
+      invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
+  });
+}
+
+export function useResolveTxnUnlockRequestMutation(projectId: ProjectId) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
+  return useMutation({
+    mutationFn: (input: TxnUnlockResolutionInput) =>
+      resolveTxnUnlockRequestServerFn({ data: { projectId, payload: input } }),
     onSuccess: async () =>
       invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),
   });

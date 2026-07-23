@@ -3,6 +3,7 @@ import {
   budgetLinesResponseSchema,
   categoriesResponseSchema,
   subCategoriesResponseSchema,
+  txnImportPreviewResultResponseSchema,
   txnUpdateResultResponseSchema,
   txnsResponseSchema,
 } from '../../../validation/responseSchemas.ts';
@@ -39,7 +40,6 @@ export async function runCompanyDefaultsSection(
     .split(' ')
     .slice(0, -1)
     .join(' ');
-  const txnId = uniqueId('txn_smoke_defaults');
   const txnExternalId = uniqueId('external_smoke_defaults');
 
   let projectCategoryId: string | null = null;
@@ -182,29 +182,40 @@ export async function runCompanyDefaultsSection(
       'import-mapped-transaction',
       `Importing a matching uncoded transaction for ${preferredMatchText}`,
       async () => {
+        const csvText = [
+          'Ledger,Fiscal Year,Period,CC and Description,RC and Description,PC and Description,AC,Expenditure Actuals,Journal Line Description,Journal ID,Reference Num,Journal Date,Journal Line,Journal Line Ref,Posted Date,Unpost Seq,Source,Operator ID,PO ID,Vendor ID,Vendor Name',
+          `ACTUALS,2024,1,Smoke Cost Centre,Smoke RC,Smoke Programme,EXP,245.60,Auto-map ${preferredMatchText},${txnExternalId},,2024-01-09,,,2024-01-09,0,SMOKE,,,,Smoke Imported Flight`,
+        ].join('\n');
+        const previewResult = await client.request(
+          `/api/projects/${encodeURIComponent(project.id)}/transactions/import-preview`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              csvText,
+              sourceType: 'powerbi_expenditure_actuals',
+              fileName: 'smoke-company-defaults.csv',
+              autoCreateStructures: true,
+            }),
+          }
+        );
+        assertOk(previewResult, 'preview auto-mapped transaction');
+        const preview = parseBody(
+          txnImportPreviewResultResponseSchema,
+          previewResult.body,
+          'preview auto-mapped transaction'
+        );
         const result = await client.request(
           `/api/projects/${encodeURIComponent(project.id)}/transactions/import`,
           {
             method: 'POST',
             body: JSON.stringify({
               mode: 'append',
-              autoCreateBudgets: true,
-              txns: [
-                {
-                  id: txnId,
-                  externalId: txnExternalId,
-                  companyId: company.id,
-                  projectId: project.id,
-                  date: '2024-01-09',
-                  item: 'Smoke Imported Flight',
-                  description: `Auto-map ${preferredMatchText}`,
-                  amountCents: 24560,
-                },
-              ],
+              importBatchId: preview.importBatchId,
+              skipDuplicates: true,
             }),
           }
         );
-        assertOk(result, 'import auto-mapped transaction');
+        assertOk(result, 'commit auto-mapped transaction');
       }
     );
 
@@ -221,9 +232,7 @@ export async function runCompanyDefaultsSection(
           result.body,
           'list imported transactions'
         );
-        const imported = txns.find(
-          (txn) => txn.id === txnId || txn.externalId === txnExternalId
-        );
+        const imported = txns.find((txn) => txn.externalId === txnExternalId);
         if (!imported) {
           throw new Error('Imported smoke transaction was not found.');
         }

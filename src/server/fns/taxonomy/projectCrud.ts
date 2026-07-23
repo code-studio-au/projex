@@ -451,6 +451,20 @@ export async function updateProjectSubCategory(args: {
       ? args.input.categoryId
       : asCategoryId(existing.category_id);
   if (nextCategoryId !== asCategoryId(existing.category_id)) {
+    const lockedTransaction = await db
+      .selectFrom('txns')
+      .select('public_id')
+      .where('project_id', '=', args.projectId)
+      .where('sub_category_id', '=', args.input.id)
+      .where('locked_at', 'is not', null)
+      .executeTakeFirst();
+    if (lockedTransaction) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Subcategory cannot be moved while locked transactions use it'
+      );
+    }
+
     const duplicate = await db
       .selectFrom('sub_categories')
       .select('id')

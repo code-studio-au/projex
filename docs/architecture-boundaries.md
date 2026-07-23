@@ -114,6 +114,37 @@ the write predicate, and verify affected-row counts. Transaction lock changes
 and reversal transitions also take the shared project-scoped advisory lock so
 neither workflow can invalidate the other's decision mid-command.
 
+## Financial integrity rule
+
+Import preview candidates, category targets, and structural transaction lineage
+are server-owned relational state. Browser code may submit decisions, never a
+reconstructed financial transaction. Subcategory identity owns category
+identity, and split or transfer relationships must be represented by balanced
+`txn_links` created in the same transaction as their rows. See
+`docs/transaction-integrity.md` for the persisted contracts.
+
+## Audit and workflow rule
+
+Protected financial and administrative mutations must use
+`src/server/audit/auditEvents.ts` from inside the mutation transaction. Keep
+editable comments separate from immutable audit history, select an event class
+for its retention policy, and include meaningful previous/resulting state rather
+than storing presentation text as evidence.
+
+Transaction workflow commands must lock the row and compare
+`workflow_version` before changing review or lock state. Unlock requests are
+separate workflow records and must be resolved through their authorized command
+boundary; never update a locked transaction directly to simulate approval.
+
+## Inheritance reconciliation rule
+
+Categories, subcategories, import rules, and project auto-coding rules must use
+the pure transition planner in `src/server/sync/projectStandards.ts`. Persistence
+adapters remain entity-specific, but they must share the local, inherited,
+overridden, and detached lifecycle, adopt exact local duplicates, preserve
+overrides, and detach missing sources. Company propagation must remain
+transactional and emit an inheritance audit event.
+
 ## Feature UI rule
 
 Rendering components should delegate reusable mutation orchestration to feature

@@ -28,6 +28,7 @@ export function useTransactionsPanelState(args: {
   const [splitTxn, setSplitTxn] = useState<Txn | null>(null);
   const [transferTxn, setTransferTxn] = useState<Txn | null>(null);
   const [reversalTxn, setReversalTxn] = useState<Txn | null>(null);
+  const [unlockTxn, setUnlockTxn] = useState<Txn | null>(null);
   const [reversalModalNonce, setReversalModalNonce] = useState(0);
   const [commentsTxn, setCommentsTxn] = useState<Txn | null>(null);
   const [dismissedLinkedCommentTxnId, setDismissedLinkedCommentTxnId] =
@@ -83,6 +84,7 @@ export function useTransactionsPanelState(args: {
     sorting,
     splitTxn,
     transferTxn,
+    unlockTxn,
     setBulkRecodeCategoryId,
     setBulkRecodeOpen,
     setBulkRecodeSubCategoryId,
@@ -100,5 +102,6 @@ export function useTransactionsPanelState(args: {
     setSorting,
     setSplitTxn,
     setTransferTxn,
+    setUnlockTxn,
   };
 }

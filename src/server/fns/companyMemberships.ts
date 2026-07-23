@@ -5,6 +5,7 @@ import { asUserId } from '../../types';
 import { emailSchema, userNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
+import { recordAuditEvent } from '../audit/auditEvents';
 import { getDb } from '../db/db';
 import { enforceRateLimit } from '../rateLimit';
 import {
@@ -55,7 +56,7 @@ export async function ensureCompanyUserMembership(args: {
 
   const existingMembership = await args.db
     .selectFrom('company_memberships')
-    .select('user_id')
+    .select(['user_id', 'role'])
     .where('company_id', '=', args.companyId)
     .where('user_id', '=', user.id)
     .executeTakeFirst();
@@ -78,6 +79,7 @@ export async function ensureCompanyUserMembership(args: {
     user,
     createdAuthUser,
     membershipCreated: !existingMembership,
+    previousRole: existingMembership?.role ?? null,
     trimmedEmail,
   };
 }
@@ -110,12 +112,31 @@ export async function createUserInCompanyServer(args: {
         'Too many company invite actions. Please wait a few minutes and try again.',
     });
 
-    const membership = await ensureCompanyUserMembership({
-      db,
-      companyId: args.companyId,
-      name: args.name,
-      email: args.email,
-      role: args.role,
+    const membership = await db.transaction().execute(async (trx) => {
+      const result = await ensureCompanyUserMembership({
+        db: trx,
+        companyId: args.companyId,
+        name: args.name,
+        email: args.email,
+        role: args.role,
+      });
+      await recordAuditEvent({
+        db: trx,
+        companyId: args.companyId,
+        actorUserId: sessionUserId,
+        eventClass: 'membership',
+        eventType: result.membershipCreated
+          ? 'company_membership.created'
+          : 'company_membership.role_changed',
+        entityType: 'company_membership',
+        entityId: `${args.companyId}:${result.user.id}`,
+        reason: result.membershipCreated
+          ? 'Added user to company'
+          : 'Updated company membership role',
+        previousState: { role: result.previousRole },
+        resultingState: { role: args.role, userId: result.user.id },
+      });
+      return result;
     });
 
     const shouldSendOnboardingEmail =

@@ -28,6 +28,8 @@ export type Action =
   | 'comments:moderate'
   | 'taxonomy:edit'
   | 'txns:edit'
+  | 'txns:resolve_unlock'
+  | 'txns:admin_unlock'
   | 'txns:manage_reversals';
 
 const companyRank: Record<CompanyRole, number> = {
@@ -178,6 +180,9 @@ export function can(params: {
       pRole === 'lead' ||
       pRole === 'member'
     );
+  if (action === 'txns:resolve_unlock')
+    return companyCanEdit || pRole === 'owner' || pRole === 'lead';
+  if (action === 'txns:admin_unlock') return companyCanEdit;
   if (action === 'txns:manage_reversals')
     return companyCanEdit || pRole === 'owner' || pRole === 'lead';
 

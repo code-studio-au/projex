@@ -14,6 +14,7 @@ import type {
   SubCategoryId,
   TxnCommentId,
   TxnId,
+  TxnUnlockRequestId,
   UserId,
 } from './ids.ts';
 import type { CompanyRole, ProjectRole } from './roles.ts';
@@ -384,10 +385,26 @@ export type Txn = {
   reviewedByUserId?: UserId;
   lockedAt?: string;
   lockedByUserId?: UserId;
+  /** Monotonic concurrency token for review and lock transitions. */
+  workflowVersion?: number;
+  pendingUnlockRequest?: TxnUnlockRequest;
   reversal?: TxnReversal;
   /** Audit timestamps as ISO strings (UTC). */
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type TxnUnlockRequest = {
+  id: TxnUnlockRequestId;
+  txnId: TxnId;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  reason: string;
+  requestedByUserId: UserId;
+  requestedAt: string;
+  resolvedByUserId?: UserId;
+  resolvedAt?: string;
+  resolutionReason?: string;
+  version: number;
 };
 
 export type TxnComment = {

@@ -1,4 +1,5 @@
 import type {
+  AuditEvents,
   BudgetLines,
   Categories,
   Companies,
@@ -21,6 +22,8 @@ import type {
   RuleSuggestions,
   SubCategories,
   TxnComments,
+  TxnLinks,
+  TxnUnlockRequests,
   TxnReversalMatchRejections,
   TxnReversals,
   Txns,
@@ -47,6 +50,7 @@ import type {
   TxnType,
 } from '../../types';
 import type {
+  JsonObjectColumn,
   NullableStringRecordJsonColumn,
   StringRecordJsonColumn,
 } from './generated/custom-types';
@@ -117,8 +121,44 @@ export type TxnTable = Override<
     coding_source: 'manual' | 'company_default_rule' | 'project_rule' | null;
     reviewed_at: string | null;
     locked_at: string | null;
+    workflow_version: Generated<number>;
     created_at: Generated<string>;
     updated_at: Generated<string>;
+  }
+>;
+
+export type TxnUnlockRequestTable = Override<
+  TxnUnlockRequests,
+  {
+    status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+    requested_at: string;
+    resolved_at: string | null;
+    created_at: Generated<string>;
+    updated_at: Generated<string>;
+    version: Generated<number>;
+  }
+>;
+
+export type AuditEventTable = Override<
+  AuditEvents,
+  {
+    event_class:
+      | 'workflow'
+      | 'import'
+      | 'coding'
+      | 'taxonomy'
+      | 'structural'
+      | 'rules'
+      | 'membership'
+      | 'access'
+      | 'lifecycle'
+      | 'inheritance';
+    previous_state: JsonObjectColumn;
+    resulting_state: JsonObjectColumn;
+    metadata: JsonObjectColumn;
+    retention_class: 'financial' | 'security' | 'operational' | 'diagnostic';
+    retain_until: string | null;
+    created_at: Generated<string>;
   }
 >;
 
@@ -128,6 +168,15 @@ export type TxnCommentTable = Override<
     resolved_at: string | null;
     created_at: Generated<string>;
     updated_at: Generated<string>;
+  }
+>;
+
+export type TxnLinkTable = Override<
+  TxnLinks,
+  {
+    amount_cents: number;
+    link_type: 'split' | 'transfer';
+    created_at: Generated<string>;
   }
 >;
 
@@ -318,6 +367,9 @@ type AppTableOverrides = {
   project_memberships: ProjectMembershipTable;
   txns: TxnTable;
   txn_comments: TxnCommentTable;
+  txn_links: TxnLinkTable;
+  txn_unlock_requests: TxnUnlockRequestTable;
+  audit_events: AuditEventTable;
   txn_reversal_match_rejections: TxnReversalMatchRejectionTable;
   txn_reversals: TxnReversalTable;
   budget_lines: BudgetLineTable;
@@ -344,6 +396,7 @@ export const DB_TABLES = [
   'ba_session',
   'ba_user',
   'ba_verification',
+  'audit_events',
   'budget_lines',
   'categories',
   'companies',
@@ -364,6 +417,8 @@ export const DB_TABLES = [
   'rule_suggestions',
   'sub_categories',
   'txn_comments',
+  'txn_links',
+  'txn_unlock_requests',
   'txn_reversal_match_rejections',
   'txn_reversals',
   'txns',

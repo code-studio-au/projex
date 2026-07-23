@@ -2,6 +2,7 @@ import { AppError } from '../../api/errors';
 import type { ProjectId } from '../../types';
 import { asCompanyId } from '../../types';
 import { requireAuthorized } from '../auth/authorize';
+import { recordAuditEvent } from '../audit/auditEvents';
 import { getDb } from '../db/db';
 import {
   assertContextProvided,
@@ -34,14 +35,28 @@ export async function deactivateProjectServer(args: {
     });
     if (project.status === 'archived') return;
 
-    await db
-      .updateTable('projects')
-      .set({
-        status: 'archived',
-        deactivated_at: new Date().toISOString(),
-      })
-      .where('id', '=', args.projectId)
-      .execute();
+    await db.transaction().execute(async (trx) => {
+      const now = new Date().toISOString();
+      await trx
+        .updateTable('projects')
+        .set({ status: 'archived', deactivated_at: now })
+        .where('id', '=', args.projectId)
+        .execute();
+      await recordAuditEvent({
+        db: trx,
+        companyId: asCompanyId(project.company_id),
+        projectId: args.projectId,
+        actorUserId: userId,
+        eventClass: 'lifecycle',
+        eventType: 'project.deactivated',
+        entityType: 'project',
+        entityId: args.projectId,
+        reason: 'Deactivated project',
+        previousState: { status: project.status },
+        resultingState: { status: 'archived' },
+        nowIso: now,
+      });
+    });
   });
 }
 
@@ -82,14 +97,28 @@ export async function reactivateProjectServer(args: {
     }
     if (project.status === 'active') return;
 
-    await db
-      .updateTable('projects')
-      .set({
-        status: 'active',
-        deactivated_at: null,
-      })
-      .where('id', '=', args.projectId)
-      .execute();
+    await db.transaction().execute(async (trx) => {
+      const now = new Date().toISOString();
+      await trx
+        .updateTable('projects')
+        .set({ status: 'active', deactivated_at: null })
+        .where('id', '=', args.projectId)
+        .execute();
+      await recordAuditEvent({
+        db: trx,
+        companyId: asCompanyId(project.company_id),
+        projectId: args.projectId,
+        actorUserId: userId,
+        eventClass: 'lifecycle',
+        eventType: 'project.reactivated',
+        entityType: 'project',
+        entityId: args.projectId,
+        reason: 'Reactivated project',
+        previousState: { status: project.status },
+        resultingState: { status: 'active' },
+        nowIso: now,
+      });
+    });
   });
 }
 
@@ -131,6 +160,24 @@ export async function deleteProjectServer(args: {
       );
     }
 
-    await db.deleteFrom('projects').where('id', '=', args.projectId).execute();
+    await db.transaction().execute(async (trx) => {
+      await recordAuditEvent({
+        db: trx,
+        companyId: asCompanyId(project.company_id),
+        projectId: args.projectId,
+        actorUserId: userId,
+        eventClass: 'lifecycle',
+        eventType: 'project.deleted',
+        entityType: 'project',
+        entityId: args.projectId,
+        reason: 'Permanently deleted archived project',
+        previousState: { name: project.name, status: project.status },
+        resultingState: { deleted: true },
+      });
+      await trx
+        .deleteFrom('projects')
+        .where('id', '=', args.projectId)
+        .execute();
+    });
   });
 }

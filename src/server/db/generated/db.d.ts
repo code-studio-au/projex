@@ -3,7 +3,7 @@
  * Please do not edit it manually.
  */
 
-import type { NullableStringRecordJsonColumn, StringRecordJsonColumn } from "./custom-types";
+import type { ImportPreviewRowJsonColumn, NullableStringRecordJsonColumn, StringRecordJsonColumn } from "./custom-types";
 import type { ColumnType } from "kysely";
 
 export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
@@ -12,7 +12,37 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
 
 export type Int8 = ColumnType<string, bigint | number | string, bigint | number | string>;
 
+export type Json = JsonValue;
+
+export type JsonArray = JsonValue[];
+
+export type JsonObject = {
+  [x: string]: JsonValue | undefined;
+};
+
+export type JsonPrimitive = boolean | number | string | null;
+
+export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
+
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
+
+export interface AuditEvents {
+  actor_user_id: string;
+  company_id: string;
+  created_at: Timestamp;
+  entity_id: string;
+  entity_type: string;
+  event_class: string;
+  event_type: string;
+  id: string;
+  metadata: Generated<Json>;
+  previous_state: Generated<Json>;
+  project_id: string | null;
+  reason: string;
+  resulting_state: Generated<Json>;
+  retain_until: Timestamp | null;
+  retention_class: string;
+}
 
 export interface BaAccount {
   accessToken: string | null;
@@ -75,13 +105,13 @@ export interface Categories {
   company_id: string;
   created_at: Generated<Timestamp>;
   id: string;
-  last_synced_at: Timestamp | null;
+  last_synced_at: Generated<Timestamp | null>;
   name: string;
   origin_company_item_id: string | null;
-  origin_scope: string | null;
+  origin_scope: Generated<string | null>;
   project_id: string;
   source_updated_at_snapshot: Timestamp | null;
-  sync_status: string | null;
+  sync_status: Generated<string | null>;
   updated_at: Generated<Timestamp>;
 }
 
@@ -169,6 +199,7 @@ export interface EmailChangeRequests {
 }
 
 export interface ImportBatches {
+  auto_create_structures: Generated<boolean>;
   company_id: string;
   created_at: Generated<Timestamp>;
   created_by_user_id: string;
@@ -187,6 +218,10 @@ export interface ImportCandidates {
   id: string;
   matched_import_rule_id: string | null;
   preview_import_id: string | null;
+  /**
+   * Immutable canonical import plan produced by preview and consumed by commit.
+   */
+  preview_plan: ImportPreviewRowJsonColumn;
   project_id: string;
   raw_row: StringRecordJsonColumn;
   reviewed_at: Timestamp | null;
@@ -224,15 +259,15 @@ export interface ProjectAutoCodingRules {
   created_at: Generated<Timestamp>;
   created_by_user_id: string;
   id: string;
-  last_synced_at: Timestamp | null;
+  last_synced_at: Generated<Timestamp | null>;
   match_text: string;
   origin_company_item_id: string | null;
-  origin_scope: string | null;
+  origin_scope: Generated<string | null>;
   project_id: string;
   sort_order: number;
   source_updated_at_snapshot: Timestamp | null;
   sub_category_id: string;
-  sync_status: string | null;
+  sync_status: Generated<string | null>;
   updated_at: Generated<Timestamp>;
 }
 
@@ -311,13 +346,13 @@ export interface SubCategories {
   company_id: string;
   created_at: Generated<Timestamp>;
   id: string;
-  last_synced_at: Timestamp | null;
+  last_synced_at: Generated<Timestamp | null>;
   name: string;
   origin_company_item_id: string | null;
-  origin_scope: string | null;
+  origin_scope: Generated<string | null>;
   project_id: string;
   source_updated_at_snapshot: Timestamp | null;
-  sync_status: string | null;
+  sync_status: Generated<string | null>;
   updated_at: Generated<Timestamp>;
 }
 
@@ -334,6 +369,19 @@ export interface TxnComments {
   resolved_by_user_id: string | null;
   txn_public_id: string;
   updated_at: Generated<Timestamp>;
+}
+
+export interface TxnLinks {
+  amount_cents: Int8;
+  company_id: string;
+  created_at: Generated<Timestamp>;
+  created_by_user_id: string | null;
+  id: string;
+  link_type: string;
+  source_project_id: string;
+  source_txn_public_id: string;
+  target_project_id: string;
+  target_txn_public_id: string;
 }
 
 export interface TxnReversalMatchRejections {
@@ -394,6 +442,24 @@ export interface Txns {
   txn_date: Timestamp;
   txn_type: Generated<string>;
   updated_at: Generated<Timestamp>;
+  workflow_version: Generated<number>;
+}
+
+export interface TxnUnlockRequests {
+  company_id: string;
+  created_at: Timestamp;
+  id: string;
+  project_id: string;
+  reason: string;
+  requested_at: Timestamp;
+  requested_by_user_id: string;
+  resolution_reason: string | null;
+  resolved_at: Timestamp | null;
+  resolved_by_user_id: string | null;
+  status: string;
+  txn_public_id: string;
+  updated_at: Timestamp;
+  version: Generated<number>;
 }
 
 export interface Users {
@@ -406,6 +472,7 @@ export interface Users {
 }
 
 export interface DB {
+  audit_events: AuditEvents;
   ba_account: BaAccount;
   ba_session: BaSession;
   ba_user: BaUser;
@@ -430,8 +497,10 @@ export interface DB {
   rule_suggestions: RuleSuggestions;
   sub_categories: SubCategories;
   txn_comments: TxnComments;
+  txn_links: TxnLinks;
   txn_reversal_match_rejections: TxnReversalMatchRejections;
   txn_reversals: TxnReversals;
+  txn_unlock_requests: TxnUnlockRequests;
   txns: Txns;
   users: Users;
 }

@@ -34,6 +34,7 @@ export default function TransactionsOverviewCard(props: {
   readOnly: boolean;
   canEditTaxonomy: boolean;
   canManageReversals: boolean;
+  canAdminUnlock: boolean;
   reconcilingPendingReversals: boolean;
   onReconcilePendingReversals: () => void;
   onApproveAllAutoMappings: () => void;
@@ -79,6 +80,7 @@ export default function TransactionsOverviewCard(props: {
     readOnly,
     canEditTaxonomy,
     canManageReversals,
+    canAdminUnlock,
     reconcilingPendingReversals,
     onReconcilePendingReversals,
     onApproveAllAutoMappings,
@@ -200,6 +202,7 @@ export default function TransactionsOverviewCard(props: {
             }
             selectedDeletableCount={selectedDeletableCount}
             canManageReversals={canManageReversals}
+            canAdminUnlock={canAdminUnlock}
             onSelectAll={onSelectAll}
             onClearSelection={onClearSelection}
             onMarkReviewed={onMarkReviewed}

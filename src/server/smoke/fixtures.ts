@@ -229,8 +229,8 @@ async function ensureBrowserTaxonomyFixtures(
        updated_at
      )
      values
-       ($1, $2, $3, $4, 'project', null, 'local', null, null, $5, $5),
-       ($6, $2, $3, $7, 'project', null, 'local', null, null, $5, $5)`,
+       ($1, $2, $3, $4, 'project', null, 'local', $5, null, $5, $5),
+       ($6, $2, $3, $7, 'project', null, 'local', $5, null, $5, $5)`,
     [
       taxonomy.sourceCategoryId,
       fixtures.companyId,
@@ -258,8 +258,8 @@ async function ensureBrowserTaxonomyFixtures(
        updated_at
      )
      values
-       ($1, $2, $3, $4, $5, 'project', null, 'local', null, null, $6, $6),
-       ($7, $2, $3, $8, $9, 'project', null, 'local', null, null, $6, $6)`,
+       ($1, $2, $3, $4, $5, 'project', null, 'local', $6, null, $6, $6),
+       ($7, $2, $3, $8, $9, 'project', null, 'local', $6, null, $6, $6)`,
     [
       taxonomy.sourceSubCategoryId,
       fixtures.companyId,
@@ -291,7 +291,7 @@ async function ensureBrowserTaxonomyFixtures(
        created_at,
        updated_at
      )
-     values ($1, $2, $3, $4, $5, $6, 0, $7, 'project', null, 'local', null, null, $8, $8)`,
+     values ($1, $2, $3, $4, $5, $6, 0, $7, 'project', null, 'local', $8, null, $8, $8)`,
     [
       taxonomy.ruleId,
       fixtures.companyId,

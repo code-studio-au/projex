@@ -15,6 +15,7 @@ import {
   asSubCategoryId,
   asTxnCommentId,
   asTxnId,
+  asTxnUnlockRequestId,
   asUserId,
 } from '../types/index.ts';
 
@@ -60,6 +61,7 @@ export const projectAutoCodingRuleIdSchema = idSchema.transform(
 const ruleSuggestionIdSchema = idSchema.transform(asRuleSuggestionId);
 export const txnIdSchema = idSchema.transform(asTxnId);
 export const txnCommentIdSchema = idSchema.transform(asTxnCommentId);
+const txnUnlockRequestIdSchema = idSchema.transform(asTxnUnlockRequestId);
 export const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
 const optionalCategoryIdSchema = categoryIdSchema
   .nullable()
@@ -579,10 +581,38 @@ export const txnReversalActionInputSchema = z.discriminatedUnion('action', [
   }),
 ]);
 
-export const txnWorkflowStateInputSchema = z.object({
+export const txnWorkflowStateInputSchema = z
+  .object({
+    txnId: txnIdSchema,
+    expectedWorkflowVersion: z.number().int().nonnegative(),
+    reviewed: z.boolean().optional(),
+    locked: z.boolean().optional(),
+    reason: z.string().trim().min(3).max(1000).optional(),
+  })
+  .refine(
+    (value) =>
+      Number(value.reviewed !== undefined) +
+        Number(value.locked !== undefined) ===
+      1,
+    'Exactly one workflow state field is required'
+  );
+
+const txnWorkflowVersionSchema = z.object({
   txnId: txnIdSchema,
-  reviewed: z.boolean().optional(),
-  locked: z.boolean().optional(),
+  version: z.number().int().nonnegative(),
+});
+
+export const txnUnlockRequestInputSchema = z.object({
+  txnId: txnIdSchema,
+  expectedWorkflowVersion: z.number().int().nonnegative(),
+  reason: z.string().trim().min(3).max(1000),
+});
+
+export const txnUnlockResolutionInputSchema = z.object({
+  requestId: txnUnlockRequestIdSchema,
+  expectedRequestVersion: z.number().int().positive(),
+  decision: z.enum(['approve', 'reject']),
+  reason: z.string().trim().min(3).max(1000),
 });
 
 const txnBulkActionTxnIdsSchema = z
@@ -619,11 +649,15 @@ export const txnBulkActionInputSchema = z.discriminatedUnion('action', [
     action: z.literal('setReviewed'),
     txnIds: txnBulkActionTxnIdsSchema,
     reviewed: z.boolean(),
+    workflowVersions: z.array(txnWorkflowVersionSchema),
+    reason: z.string().trim().min(3).max(1000).optional(),
   }),
   z.object({
     action: z.literal('setLocked'),
     txnIds: txnBulkActionTxnIdsSchema,
     locked: z.boolean(),
+    workflowVersions: z.array(txnWorkflowVersionSchema),
+    reason: z.string().trim().min(3).max(1000).optional(),
   }),
   z.object({
     action: z.literal('recode'),
@@ -672,12 +706,6 @@ export const txnCommentUpdateMutationBodySchema = z.object({
   comment: updateTxnCommentInputSchema,
 });
 
-const importedTxnInputSchema = createTxnInputSchema.extend({
-  id: txnIdSchema,
-  importBatchId: importBatchIdParamSchema.optional(),
-  forceUncoded: z.boolean().optional(),
-});
-
 const importReviewDecisionSchema = z.object({
   previewImportId: txnIdSchema,
   decision: z.enum(['import_uncoded', 'exclude']),
@@ -685,10 +713,9 @@ const importReviewDecisionSchema = z.object({
 
 export const txnImportInputSchema = z
   .object({
-    txns: z.array(importedTxnInputSchema).max(MAX_IMPORT_TXN_COUNT),
     mode: csvImportModeSchema,
-    autoCreateBudgets: z.boolean().optional(),
-    importBatchId: importBatchIdParamSchema.optional(),
+    importBatchId: importBatchIdParamSchema,
+    skipDuplicates: z.boolean().optional(),
     excludedImportIds: z
       .array(txnIdSchema)
       .max(MAX_IMPORT_TXN_COUNT)
@@ -698,20 +725,7 @@ export const txnImportInputSchema = z
       .max(MAX_IMPORT_TXN_COUNT)
       .optional(),
   })
-  .superRefine((input, context) => {
-    if (
-      !input.importBatchId &&
-      (input.excludedImportIds?.length ||
-        input.reviewDecisions?.length ||
-        input.txns.some((txn) => txn.forceUncoded))
-    ) {
-      context.addIssue({
-        code: 'custom',
-        path: ['importBatchId'],
-        message: 'Import preview decisions require an import batch ID',
-      });
-    }
-  });
+  .strict();
 
 export const txnImportPreviewInputSchema = z.object({
   csvText: z.string().max(MAX_IMPORT_PREVIEW_CSV_TEXT_LENGTH),

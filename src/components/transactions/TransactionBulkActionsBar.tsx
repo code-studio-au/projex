@@ -13,6 +13,7 @@ export default function TransactionBulkActionsBar(props: {
   selectedUnlockedCategorisableCount: number;
   selectedDeletableCount: number;
   canManageReversals: boolean;
+  canAdminUnlock: boolean;
   onSelectAll: () => void;
   onClearSelection: () => void;
   onMarkReviewed: () => void;
@@ -35,6 +36,7 @@ export default function TransactionBulkActionsBar(props: {
     selectedUnlockedCategorisableCount,
     selectedDeletableCount,
     canManageReversals,
+    canAdminUnlock,
     onSelectAll,
     onClearSelection,
     onMarkReviewed,
@@ -116,7 +118,9 @@ export default function TransactionBulkActionsBar(props: {
             <Menu.Dropdown>
               <Menu.Item onClick={onMarkUnreviewed}>Mark unreviewed</Menu.Item>
               <Menu.Item onClick={onLock}>Lock transactions</Menu.Item>
-              <Menu.Item onClick={onUnlock}>Unlock transactions</Menu.Item>
+              {canAdminUnlock ? (
+                <Menu.Item onClick={onUnlock}>Unlock transactions</Menu.Item>
+              ) : null}
               <Menu.Divider />
               <Menu.Item
                 disabled={selectedUnlockedCategorisableCount === 0}

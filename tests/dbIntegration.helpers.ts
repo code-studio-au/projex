@@ -506,10 +506,9 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
       importTransactionsServer({
         context,
         projectId,
-        txns: input.txns,
         mode: input.mode,
-        autoCreateBudgets: input.autoCreateBudgets,
         importBatchId: input.importBatchId,
+        skipDuplicates: input.skipDuplicates,
         excludedImportIds: input.excludedImportIds,
         reviewDecisions: input.reviewDecisions,
       }),

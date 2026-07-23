@@ -18,6 +18,7 @@ import type {
   Txn,
   TxnCommentId,
   TxnId,
+  TxnUnlockRequestId,
   User,
   UserId,
   ImportPreviewRow,
@@ -85,6 +86,7 @@ export type TxnBulkSelectionRow = {
   subCategoryId?: Txn['subCategoryId'];
   codingPendingApproval: boolean;
   locked: boolean;
+  workflowVersion: number;
   reversalStatus?: NonNullable<Txn['reversal']>['status'];
 };
 export type TxnBulkSelectionResult = {
@@ -143,12 +145,16 @@ export type ImportReviewDecision = {
   decision: 'import_uncoded' | 'exclude';
 };
 export type TxnImportInput = {
-  txns: TxnImportTxnInput[];
   mode: TxnImportMode;
-  autoCreateBudgets?: boolean;
-  importBatchId?: ImportBatchId;
+  importBatchId: ImportBatchId;
+  skipDuplicates?: boolean;
   excludedImportIds?: TxnId[];
   reviewDecisions?: ImportReviewDecision[];
+};
+export type TxnImportResult = {
+  count: number;
+  skipped: number;
+  replaced: number;
 };
 export type TxnImportPreviewInput = {
   csvText: string;
@@ -255,8 +261,23 @@ export type TxnReversalMatchSuggestion = {
 
 export type TxnWorkflowStateInput = {
   txnId: TxnId;
+  expectedWorkflowVersion: number;
   reviewed?: boolean;
   locked?: boolean;
+  reason?: string;
+};
+
+export type TxnUnlockRequestInput = {
+  txnId: TxnId;
+  expectedWorkflowVersion: number;
+  reason: string;
+};
+
+export type TxnUnlockResolutionInput = {
+  requestId: TxnUnlockRequestId;
+  expectedRequestVersion: number;
+  decision: 'approve' | 'reject';
+  reason: string;
 };
 
 export type TxnBulkActionInput =
@@ -282,11 +303,15 @@ export type TxnBulkActionInput =
       action: 'setReviewed';
       txnIds: TxnId[];
       reviewed: boolean;
+      workflowVersions: Array<{ txnId: TxnId; version: number }>;
+      reason?: string;
     }
   | {
       action: 'setLocked';
       txnIds: TxnId[];
       locked: boolean;
+      workflowVersions: Array<{ txnId: TxnId; version: number }>;
+      reason?: string;
     }
   | {
       action: 'recode';

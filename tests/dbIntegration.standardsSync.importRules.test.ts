@@ -31,6 +31,7 @@ test(
     const db = createIntegrationDb();
     const companyId = asCompanyId('itest_exa_retirement_co_1');
     const projectId = asProjectId('itest_exa_retirement_prj_1');
+    const overriddenProjectId = asProjectId('itest_exa_retirement_prj_2');
     const seededRuleId = 'itest_exa_retirement_seed_1';
     const inheritedRuleId = 'itest_exa_retirement_inherited_1';
     const overriddenRuleId = 'itest_exa_retirement_overridden_1';
@@ -50,21 +51,38 @@ test(
         .execute();
       await db
         .insertInto('projects')
-        .values({
-          id: projectId,
-          company_id: companyId,
-          name: 'EXA Retirement Project',
-          project_type: 'project',
-          parent_project_id: null,
-          budget_total_cents: 0,
-          currency: 'AUD',
-          status: 'active',
-          deactivated_at: null,
-          visibility: 'private',
-          allow_superadmin_access: true,
-          sync_company_defaults: true,
-          allow_txn_transfers: false,
-        })
+        .values([
+          {
+            id: projectId,
+            company_id: companyId,
+            name: 'EXA Retirement Project',
+            project_type: 'project',
+            parent_project_id: null,
+            budget_total_cents: 0,
+            currency: 'AUD',
+            status: 'active',
+            deactivated_at: null,
+            visibility: 'private',
+            allow_superadmin_access: true,
+            sync_company_defaults: true,
+            allow_txn_transfers: false,
+          },
+          {
+            id: overriddenProjectId,
+            company_id: companyId,
+            name: 'EXA Retirement Override Project',
+            project_type: 'project',
+            parent_project_id: null,
+            budget_total_cents: 0,
+            currency: 'AUD',
+            status: 'active',
+            deactivated_at: null,
+            visibility: 'private',
+            allow_superadmin_access: true,
+            sync_company_defaults: true,
+            allow_txn_transfers: false,
+          },
+        ])
         .execute();
       await db
         .insertInto('import_rules')
@@ -110,7 +128,7 @@ test(
           {
             id: overriddenRuleId,
             company_id: companyId,
-            project_id: projectId,
+            project_id: overriddenProjectId,
             name: 'Review selected EXA source',
             origin_scope: 'company',
             origin_company_item_id: seededRuleId,

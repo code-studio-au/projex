@@ -15,6 +15,7 @@ import {
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
+import { recordAuditEvent } from '../audit/auditEvents';
 import { getDb } from '../db/db';
 import { seedCompanyImportRuleBaseline } from './importRules';
 import {
@@ -84,6 +85,22 @@ export async function createCompanyServer(args: {
         onboardingEmailSent: false,
         onboardingDelivery: 'none',
       };
+
+      await recordAuditEvent({
+        db: trx,
+        companyId,
+        actorUserId: userId,
+        eventClass: 'lifecycle',
+        eventType: 'company.created',
+        entityType: 'company',
+        entityId: companyId,
+        reason: 'Created company',
+        resultingState: {
+          name: trimmedCompanyName,
+          status: 'active',
+          initialAdminUserId: membership.user.id,
+        },
+      });
 
       return {
         id: companyId,

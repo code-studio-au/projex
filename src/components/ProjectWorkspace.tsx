@@ -357,6 +357,12 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   const canManageReversals =
     isOperationalProject &&
     (isHydrated ? access.can('txns:manage_reversals', projectId) : false);
+  const canResolveUnlock =
+    isOperationalProject &&
+    (isHydrated ? access.can('txns:resolve_unlock', projectId) : false);
+  const canAdminUnlock =
+    isOperationalProject &&
+    (isHydrated ? access.can('txns:admin_unlock', projectId) : false);
   const canManageImportRules = isHydrated
     ? access.can('project:import', projectId)
     : false;
@@ -1121,6 +1127,8 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
               }}
               canEditTaxonomy={canEditTaxonomy}
               canManageReversals={canManageReversals}
+              canResolveUnlock={canResolveUnlock}
+              canAdminUnlock={canAdminUnlock}
               readOnly={!canEditTxns}
             />
           </Tabs.Panel>
@@ -1183,8 +1191,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
           <Tabs.Panel value="import" pt="md">
             <Stack gap="md">
               <PowerBiImporterPanel
-                taxonomy={taxonomy}
-                budgets={budgets}
                 companyId={companyId}
                 projectId={projectId}
                 currencyCode={currencyCode}
@@ -1200,24 +1206,16 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                     autoClose: 8000,
                   });
                 }}
-                onReplaceAll={async (next, options) => {
-                  await importTransactions.mutateAsync({
-                    txns: next,
+                onReplaceAll={async (options) => {
+                  return importTransactions.mutateAsync({
                     mode: 'replaceAll',
-                    autoCreateBudgets: options?.autoCreateBudgets,
-                    importBatchId: options?.importBatchId,
-                    excludedImportIds: options?.excludedImportIds,
-                    reviewDecisions: options?.reviewDecisions,
+                    ...options,
                   });
                 }}
-                onAppend={async (next, options) => {
-                  await importTransactions.mutateAsync({
-                    txns: next,
+                onAppend={async (options) => {
+                  return importTransactions.mutateAsync({
                     mode: 'append',
-                    autoCreateBudgets: options?.autoCreateBudgets,
-                    importBatchId: options?.importBatchId,
-                    excludedImportIds: options?.excludedImportIds,
-                    reviewDecisions: options?.reviewDecisions,
+                    ...options,
                   });
                 }}
               />

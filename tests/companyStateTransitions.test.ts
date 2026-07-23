@@ -103,6 +103,11 @@ function createMockDb(options: {
   const deleteLogs: DeleteLog[] = [];
 
   const trx = {
+    insertInto() {
+      return {
+        values: () => ({ execute: async () => {} }),
+      };
+    },
     updateTable(table: string) {
       return {
         set(values: Record<string, unknown>) {

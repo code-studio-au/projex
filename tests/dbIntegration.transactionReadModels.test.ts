@@ -313,6 +313,7 @@ test(
           subCategoryId,
           codingPendingApproval: true,
           locked: false,
+          workflowVersion: 0,
           reversalStatus: undefined,
         },
       ]);

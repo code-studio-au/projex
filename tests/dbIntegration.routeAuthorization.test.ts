@@ -548,20 +548,7 @@ test(
         () =>
           memberApi.importTransactions(projectId, {
             mode: 'append',
-            txns: [
-              {
-                id: asTxnId('itest_routeauthz_import_txn_1'),
-                companyId,
-                projectId,
-                date: '2026-05-03',
-                item: 'Blocked Import',
-                description: 'Blocked Import',
-                amountCents: 990,
-                externalId: 'blocked-import-ext',
-                categoryId,
-                subCategoryId,
-              },
-            ],
+            importBatchId,
           }),
         'FORBIDDEN',
         'POST /api/projects/:projectId/transactions/import member'
@@ -636,6 +623,7 @@ test(
         () =>
           viewerApi.updateTxnWorkflowState(projectId, {
             txnId,
+            expectedWorkflowVersion: 0,
             reviewed: true,
           }),
         'FORBIDDEN',

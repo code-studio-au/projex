@@ -300,23 +300,48 @@ export async function deleteTxnServer(args: {
       args.projectId,
       'txns:edit'
     );
-    const existing = await db
-      .selectFrom('txns')
-      .select('locked_at')
-      .where('project_id', '=', args.projectId)
-      .where('public_id', '=', args.txnId)
-      .executeTakeFirst();
-    if (!existing) throw new AppError('NOT_FOUND', 'Unknown transaction');
-    if (existing.locked_at) {
-      throw new AppError(
-        'CONFLICT',
-        'Transaction is locked and cannot be deleted'
-      );
-    }
-    await db
-      .deleteFrom('txns')
-      .where('project_id', '=', args.projectId)
-      .where('public_id', '=', args.txnId)
-      .execute();
+    await db.transaction().execute(async (trx) => {
+      const existing = await trx
+        .selectFrom('txns')
+        .select('locked_at')
+        .where('project_id', '=', args.projectId)
+        .where('public_id', '=', args.txnId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!existing) throw new AppError('NOT_FOUND', 'Unknown transaction');
+      if (existing.locked_at) {
+        throw new AppError(
+          'CONFLICT',
+          'Transaction is locked and cannot be deleted'
+        );
+      }
+      const structuralLink = await trx
+        .selectFrom('txn_links')
+        .select('id')
+        .where(({ eb, or, and }) =>
+          or([
+            and([
+              eb('source_project_id', '=', args.projectId),
+              eb('source_txn_public_id', '=', args.txnId),
+            ]),
+            and([
+              eb('target_project_id', '=', args.projectId),
+              eb('target_txn_public_id', '=', args.txnId),
+            ]),
+          ])
+        )
+        .executeTakeFirst();
+      if (structuralLink) {
+        throw new AppError(
+          'CONFLICT',
+          'Transaction belongs to a split or transfer and cannot be deleted independently'
+        );
+      }
+      await trx
+        .deleteFrom('txns')
+        .where('project_id', '=', args.projectId)
+        .where('public_id', '=', args.txnId)
+        .execute();
+    });
   });
 }

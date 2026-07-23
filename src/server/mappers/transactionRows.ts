@@ -15,6 +15,7 @@ import {
   asProjectId,
   asSubCategoryId,
   asTxnId,
+  asTxnUnlockRequestId,
   asUserId,
 } from '../../types';
 import { dateOnlyFromInput } from '../../utils/finance';
@@ -48,6 +49,12 @@ export type TxnRow = {
   reviewed_by_user_id: string | null;
   locked_at: string | null;
   locked_by_user_id: string | null;
+  workflow_version?: number;
+  unlock_request_id?: string | null;
+  unlock_request_reason?: string | null;
+  unlock_request_requested_by_user_id?: string | null;
+  unlock_request_requested_at?: string | null;
+  unlock_request_version?: number | null;
   reversal_id?: string | null;
   reversal_status?: TxnReversalStatus | null;
   reversal_side?: TxnReversalSide | null;
@@ -127,6 +134,25 @@ export function toTxn(row: TxnRow): Txn {
     lockedByUserId: row.locked_by_user_id
       ? asUserId(row.locked_by_user_id)
       : undefined,
+    workflowVersion: Number(row.workflow_version ?? 0),
+    pendingUnlockRequest:
+      row.unlock_request_id &&
+      row.unlock_request_reason &&
+      row.unlock_request_requested_by_user_id &&
+      row.unlock_request_requested_at &&
+      row.unlock_request_version != null
+        ? {
+            id: asTxnUnlockRequestId(row.unlock_request_id),
+            txnId: asTxnId(row.public_id),
+            status: 'pending',
+            reason: row.unlock_request_reason,
+            requestedByUserId: asUserId(
+              row.unlock_request_requested_by_user_id
+            ),
+            requestedAt: row.unlock_request_requested_at,
+            version: Number(row.unlock_request_version),
+          }
+        : undefined,
     reversal:
       row.reversal_id && row.reversal_status && row.reversal_side
         ? {

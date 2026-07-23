@@ -9,6 +9,8 @@ import type {
   TxnTransferInput,
   TxnUpdateInput,
   TxnUpdateResult,
+  TxnUnlockRequestInput,
+  TxnUnlockResolutionInput,
 } from '../api/types';
 import {
   useBulkTxnActionMutation,
@@ -18,6 +20,8 @@ import {
   useTransferTxnMutation,
   useUpdateTxnMutation,
   useUpdateTxnWorkflowStateMutation,
+  useRequestTxnUnlockMutation,
+  useResolveTxnUnlockRequestMutation,
 } from '../queries/transactions';
 
 export type TransactionActions = {
@@ -32,8 +36,15 @@ export type TransactionActions = {
   ) => Promise<void>;
   updateWorkflowState: (
     id: TxnId,
-    patch: { reviewed?: boolean; locked?: boolean }
+    patch: {
+      expectedWorkflowVersion: number;
+      reviewed?: boolean;
+      locked?: boolean;
+      reason?: string;
+    }
   ) => Promise<void>;
+  requestUnlock: (input: TxnUnlockRequestInput) => Promise<void>;
+  resolveUnlockRequest: (input: TxnUnlockResolutionInput) => Promise<void>;
   runBulkAction: (input: TxnBulkActionInput) => Promise<TxnBulkActionResult>;
   runReversalAction: (
     input: TxnReversalActionInput
@@ -51,6 +62,8 @@ export function useTransactionActions(
   const transfer = useTransferTxnMutation(projectId);
   const workflowState = useUpdateTxnWorkflowStateMutation(projectId);
   const bulkTxnAction = useBulkTxnActionMutation(projectId);
+  const requestUnlock = useRequestTxnUnlockMutation(projectId);
+  const resolveUnlock = useResolveTxnUnlockRequestMutation(projectId);
   const reversalAction = useTxnReversalActionMutation(projectId);
   const reversalSuggestions = useTxnReversalSuggestionsMutation(projectId);
 
@@ -64,6 +77,12 @@ export function useTransactionActions(
     },
     updateWorkflowState: async (id, patch) => {
       await workflowState.mutateAsync({ txnId: id, ...patch });
+    },
+    requestUnlock: async (input) => {
+      await requestUnlock.mutateAsync(input);
+    },
+    resolveUnlockRequest: async (input) => {
+      await resolveUnlock.mutateAsync(input);
     },
     runBulkAction: (input) => bulkTxnAction.mutateAsync(input),
     runReversalAction: (input) => reversalAction.mutateAsync(input),

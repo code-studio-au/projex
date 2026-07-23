@@ -16,6 +16,8 @@ import TransactionSplitModal from '../TransactionSplitModal';
 import TransactionTransferModal from '../TransactionTransferModal';
 import TransactionBulkRecodeModal from './TransactionBulkRecodeModal';
 import TransactionProjectRuleModal from './TransactionProjectRuleModal';
+import TransactionUnlockModal from './TransactionUnlockModal';
+import type { TransactionActions } from '../../hooks/useTransactionActions';
 
 export default function TransactionsModalStack(props: {
   manageOpen: boolean;
@@ -62,6 +64,11 @@ export default function TransactionsModalStack(props: {
   onCloseProjectRule: () => void;
   onProjectRuleMatchTextChange: (value: string) => void;
   onSubmitProjectRule: () => Promise<void>;
+  unlockTxn: Txn | null;
+  canResolveUnlock: boolean;
+  canAdminUnlock: boolean;
+  transactionActions: TransactionActions;
+  onCloseUnlock: () => void;
 }) {
   const {
     manageOpen,
@@ -100,6 +107,11 @@ export default function TransactionsModalStack(props: {
     onCloseProjectRule,
     onProjectRuleMatchTextChange,
     onSubmitProjectRule,
+    unlockTxn,
+    canResolveUnlock,
+    canAdminUnlock,
+    transactionActions,
+    onCloseUnlock,
   } = props;
 
   return (
@@ -180,6 +192,17 @@ export default function TransactionsModalStack(props: {
         onMatchTextChange={onProjectRuleMatchTextChange}
         onSubmit={onSubmitProjectRule}
       />
+
+      {unlockTxn ? (
+        <TransactionUnlockModal
+          key={`${unlockTxn.id}:${unlockTxn.workflowVersion}`}
+          txn={unlockTxn}
+          canResolveUnlock={canResolveUnlock}
+          canAdminUnlock={canAdminUnlock}
+          transactionActions={transactionActions}
+          onClose={onCloseUnlock}
+        />
+      ) : null}
     </>
   );
 }

@@ -31,6 +31,8 @@ import {
   txnAssignedToUserSql,
   txnReversalJoin,
   txnReversalSelectExpressions,
+  txnUnlockRequestJoin,
+  txnUnlockRequestSelectExpressions,
   txnValidSubCategorySql,
   type ProjectTransactionSummaryAggregateRow,
   type TxnPageSummaryRow,
@@ -50,9 +52,11 @@ export async function listTransactionsServer(args: {
     const rows = await db
       .selectFrom('txns as t')
       .leftJoin('txn_reversals as tr', txnReversalJoin())
+      .leftJoin('txn_unlock_requests as tur', txnUnlockRequestJoin())
       .select([
         ...prefixedTxnSelectColumns('t'),
         ...txnReversalSelectExpressions({}),
+        ...txnUnlockRequestSelectExpressions(),
       ])
       .where('t.project_id', '=', args.projectId)
       .orderBy('t.created_at', 'asc')
@@ -77,9 +81,11 @@ export async function getTransactionServer(args: {
     const row = await db
       .selectFrom('txns as t')
       .leftJoin('txn_reversals as tr', txnReversalJoin())
+      .leftJoin('txn_unlock_requests as tur', txnUnlockRequestJoin())
       .select([
         ...prefixedTxnSelectColumns('t'),
         ...txnReversalSelectExpressions({}),
+        ...txnUnlockRequestSelectExpressions(),
       ])
       .where('t.project_id', '=', args.projectId)
       .where('t.public_id', '=', args.txnId)
@@ -113,6 +119,7 @@ export async function listTransactionsSelectionServer(args: {
         't.sub_category_id',
         't.coding_pending_approval',
         't.locked_at',
+        't.workflow_version',
         'tr.status as reversal_status',
       ])
       .orderBy('t.public_id', 'asc')
@@ -135,6 +142,7 @@ export async function listTransactionsSelectionServer(args: {
           : undefined,
         codingPendingApproval: row.coding_pending_approval,
         locked: Boolean(row.locked_at),
+        workflowVersion: row.workflow_version,
         reversalStatus: row.reversal_status ?? undefined,
       })),
     };
@@ -169,9 +177,11 @@ export async function listTransactionsPageServer(args: {
       db
         .selectFrom('txns as t')
         .leftJoin('txn_reversals as tr', txnReversalJoin())
+        .leftJoin('txn_unlock_requests as tur', txnUnlockRequestJoin())
         .select([
           ...prefixedTxnSelectColumns('t'),
           ...txnReversalSelectExpressions({}),
+          ...txnUnlockRequestSelectExpressions(),
         ]),
       filters
     );

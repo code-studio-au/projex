@@ -143,6 +143,7 @@ export function useTransactionsPanelData(args: {
           subCategoryId: txn.subCategoryId,
           codingPendingApproval: Boolean(txn.codingPendingApproval),
           locked: Boolean(txn.lockedAt),
+          workflowVersion: txn.workflowVersion ?? 0,
           reversalStatus: txn.reversal?.status,
         }))
       ).filter((txn) => args.rowSelection[txn.id]),
@@ -150,6 +151,14 @@ export function useTransactionsPanelData(args: {
   );
   const selectedTxnIds = useMemo(
     () => selectedRows.map((txn) => txn.id),
+    [selectedRows]
+  );
+  const selectedWorkflowVersions = useMemo(
+    () =>
+      selectedRows.map((txn) => ({
+        txnId: txn.id,
+        version: txn.workflowVersion,
+      })),
     [selectedRows]
   );
   const pageSummary = transactionsPageQ.data?.summary ?? {
@@ -237,6 +246,7 @@ export function useTransactionsPanelData(args: {
     selectedSuggestedReversalCount,
     selectedDeletableCount,
     selectedTxnIds,
+    selectedWorkflowVersions,
     selectedUnlockedCategorisableCount,
     transactionsPageInput,
     transactionsPageQ,

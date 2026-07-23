@@ -654,9 +654,29 @@ test(
           action: 'setLocked',
           txnIds: [pendingTxnId, uncodedTxnId],
           locked: true,
+          workflowVersions: [
+            { txnId: pendingTxnId, version: 0 },
+            { txnId: uncodedTxnId, version: 0 },
+          ],
         },
       });
       assert.equal(lockResult.updatedCount, 2);
+
+      const unlockResult = await bulkTxnActionServer({
+        context: { session: { userId } },
+        projectId,
+        input: {
+          action: 'setLocked',
+          txnIds: [pendingTxnId, uncodedTxnId],
+          locked: false,
+          workflowVersions: [
+            { txnId: pendingTxnId, version: 1 },
+            { txnId: uncodedTxnId, version: 1 },
+          ],
+          reason: 'Integration test administrative unlock',
+        },
+      });
+      assert.equal(unlockResult.updatedCount, 2);
 
       const unreviewResult = await bulkTxnActionServer({
         context: { session: { userId } },
@@ -665,6 +685,10 @@ test(
           action: 'setReviewed',
           txnIds: [pendingTxnId, uncodedTxnId],
           reviewed: false,
+          workflowVersions: [
+            { txnId: pendingTxnId, version: 2 },
+            { txnId: uncodedTxnId, version: 2 },
+          ],
         },
       });
       assert.equal(unreviewResult.updatedCount, 2);

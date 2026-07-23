@@ -42,6 +42,7 @@ type CreateTransactionColumnsArgs = {
   transferOutEnabled: boolean;
   transferProjectOptions: Array<{ value: string; label: string }>;
   canManageReversals: boolean;
+  canResolveUnlock: boolean;
   onApplyProjectRulePrompt: (
     prompt: ProjectRuleSuggestionPrompt | null
   ) => void;
@@ -51,6 +52,7 @@ type CreateTransactionColumnsArgs = {
   onOpenReversal: (txn: Txn) => void;
   onOpenSplit: (txn: Txn) => void;
   onOpenTransfer: (txn: Txn) => void;
+  onOpenUnlock: (txn: Txn) => void;
 };
 
 function canSplitTransaction(args: { readOnly: boolean; txn: Txn }) {
@@ -453,11 +455,14 @@ export function createTransactionColumns(
                 <>
                   <Menu.Divider />
                   <Menu.Item
+                    disabled={Boolean(row.original.lockedAt)}
                     onClick={() =>
                       void args.transactionActions.updateWorkflowState(
                         row.original.id,
                         {
                           reviewed: !row.original.reviewedAt,
+                          expectedWorkflowVersion:
+                            row.original.workflowVersion ?? 0,
                         }
                       )
                     }
@@ -482,16 +487,24 @@ export function createTransactionColumns(
                   ) : null}
                   <Menu.Item
                     onClick={() =>
-                      void args.transactionActions.updateWorkflowState(
-                        row.original.id,
-                        {
-                          locked: !row.original.lockedAt,
-                        }
-                      )
+                      row.original.lockedAt
+                        ? args.onOpenUnlock(row.original)
+                        : void args.transactionActions.updateWorkflowState(
+                            row.original.id,
+                            {
+                              locked: true,
+                              expectedWorkflowVersion:
+                                row.original.workflowVersion ?? 0,
+                            }
+                          )
                     }
                   >
                     {row.original.lockedAt
-                      ? 'Unlock transaction'
+                      ? row.original.pendingUnlockRequest
+                        ? args.canResolveUnlock
+                          ? 'Review unlock request'
+                          : 'Unlock requested'
+                        : 'Request unlock'
                       : 'Lock transaction'}
                   </Menu.Item>
                   <Menu.Divider />

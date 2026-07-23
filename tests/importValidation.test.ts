@@ -11,6 +11,7 @@ import {
   txnImportInputSchema,
   txnImportPreviewInputSchema,
 } from '../src/validation/apiSchemas.ts';
+import { persistedImportPreviewRowSchema } from '../src/validation/importPreviewSchemas.ts';
 import { planImportPreview } from '../src/utils/importPreviewPlan.ts';
 import {
   MAX_IMPORT_PREVIEW_CSV_TEXT_LENGTH,
@@ -18,31 +19,22 @@ import {
   MAX_IMPORT_TXN_COUNT,
 } from '../src/utils/importLimits.ts';
 import { MAX_BULK_TXN_COUNT } from '../src/utils/transactionLimits.ts';
-import { asCompanyId, asProjectId, asTxnId } from '../src/types/index.ts';
+import { asTxnId } from '../src/types/index.ts';
 
-test('transaction import schema limits the number of imported transactions', () => {
-  const companyId = asCompanyId('co_1');
-  const projectId = asProjectId('prj_1');
-  const txns = Array.from({ length: MAX_IMPORT_TXN_COUNT + 1 }, (_, index) => ({
-    id: asTxnId(`txn_${index}`),
-    companyId,
-    projectId,
-    date: '2026-05-01',
-    item: `Item ${index}`,
-    description: 'Imported row',
-    amountCents: 100,
-  }));
-
+test('transaction import schema limits the number of row decisions', () => {
   const result = txnImportInputSchema.safeParse({
-    txns,
     mode: 'append',
+    importBatchId: 'impb_1',
+    excludedImportIds: Array.from(
+      { length: MAX_IMPORT_TXN_COUNT + 1 },
+      (_, index) => asTxnId(`txn_${index}`)
+    ),
   });
   assert.equal(result.success, false);
 });
 
 test('transaction import schema requires a preview batch for review decisions', () => {
   const result = txnImportInputSchema.safeParse({
-    txns: [],
     mode: 'append',
     reviewDecisions: [{ previewImportId: 'txn_review_1', decision: 'exclude' }],
   });
@@ -54,19 +46,6 @@ test('transaction import schema requires a preview batch for review decisions', 
 
 test('transaction import schema accepts an uncoded review decision', () => {
   const result = txnImportInputSchema.safeParse({
-    txns: [
-      {
-        id: 'txn_review_1',
-        companyId: 'co_1',
-        projectId: 'prj_1',
-        date: '2026-05-01',
-        item: 'Salary transfer',
-        description: 'Review row',
-        amountCents: 100,
-        importBatchId: 'impb_1',
-        forceUncoded: true,
-      },
-    ],
     mode: 'append',
     importBatchId: 'impb_1',
     reviewDecisions: [
@@ -76,7 +55,52 @@ test('transaction import schema accepts an uncoded review decision', () => {
 
   assert.equal(result.success, true);
   if (!result.success) return;
-  assert.equal(result.data.txns[0]?.importBatchId, 'impb_1');
+  assert.equal(result.data.importBatchId, 'impb_1');
+});
+
+test('transaction import commit rejects client-supplied transaction data', () => {
+  const result = txnImportInputSchema.safeParse({
+    mode: 'append',
+    importBatchId: 'impb_1',
+    txns: [
+      {
+        id: 'txn_tampered_1',
+        date: '2026-05-01',
+        amountCents: 999_999_99,
+      },
+    ],
+  });
+
+  assert.equal(result.success, false);
+});
+
+test('persisted import preview schema validates the canonical financial plan', () => {
+  const valid = persistedImportPreviewRowSchema.safeParse({
+    sourceRowIndex: 1,
+    importId: 'txn_preview_1',
+    parsedDate: '2026-05-01',
+    amountCents: 12_500,
+    item: 'Salary transfer',
+    description: 'Canonical preview row',
+    duplicate: false,
+    importAction: 'import',
+    mappingStatus: 'uncoded',
+    codingPendingApproval: false,
+    willCreateCategory: false,
+    willCreateSubCategory: false,
+    willCreateBudgetLine: false,
+    sourceType: 'powerbi_expenditure_actuals',
+    rawSourceRow: { Source: 'EXA' },
+    warnings: [],
+  });
+  assert.equal(valid.success, true);
+  if (!valid.success) return;
+
+  const tampered = persistedImportPreviewRowSchema.safeParse({
+    ...valid.data,
+    amountCents: 125.5,
+  });
+  assert.equal(tampered.success, false);
 });
 
 test('transaction import preview schema limits CSV payload size', () => {

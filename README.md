@@ -101,6 +101,10 @@ For a reproducible local dependency stack with Postgres and MinIO, use [docs/loc
 For the month-to-month pending reversal and auto-match workflow, use
 [docs/reversal-workflow.md](docs/reversal-workflow.md).
 
+For server-owned imports, category targets, structural lineage, versioned
+review/unlock transitions, immutable audit events, and company-standard
+provenance, use [docs/transaction-integrity.md](docs/transaction-integrity.md).
+
 Env example files are now split by purpose:
 
 - `.env.example` for deploy-facing baseline values
@@ -246,10 +250,11 @@ Command semantics and deploy-time verification details live in [docs/staging-run
 - New operational projects can start with company standards applied immediately, and synced projects can later reapply company standards to backfill missing categories plus resync inherited import and auto-coding rules.
 - Synced projects may keep project-local exceptions, and company admins can promote stable project taxonomy, import rules, and auto-coding patterns back up into the company standard set.
 - Auto-coding rules target a subcategory ID as their canonical destination. The category remains visible throughout the UI but is derived from that subcategory, so duplicate subcategory names in different categories remain unambiguous.
-- Moving a subcategory carries rules targeting that exact ID with it, updates its budget lines and unlocked transactions, and preserves locked transaction history. Deleting a subcategory with dependent rules requires an explicit choice to reassign or delete those rules.
+- Moving a subcategory carries rules targeting that exact ID with it and updates its category projection across dependent transactions and budgets. Moves are blocked while locked transactions use the subcategory, so locked history cannot silently change meaning. Deletion with dependent rules requires an explicit choice to reassign or delete those rules.
 - Programme rollups are derived from active sub-project data; transactions and budgets are never duplicated onto the programme.
 - Sub-projects must belong to the same company and use the same currency as their programme.
-- PowerBI expenditure actuals are the primary import shape. Import Rules run before Auto-Categorise Rules so rows can be imported, excluded, or held for an explicit decision inside the import preview. Every held row must be imported uncoded or excluded before the import can complete. EXA rows import by default so pending and actual reversal candidates remain available for month-to-month matching.
+- PowerBI expenditure actuals are the primary import shape. Import Rules run before Auto-Categorise Rules so rows can be imported, excluded, or held for an explicit decision inside the import preview. Every held row must be imported uncoded or excluded before the import can complete. The server persists the canonical preview and commit requests send only the batch ID and user decisions, keeping large imports small, atomic, and tamper-resistant. Period replacement is limited to eligible PowerBI rows in the preview date range and never silently removes protected workflow history. EXA rows import by default so pending and actual reversal candidates remain available for month-to-month matching.
+- Splits and transfers retain explicit, balanced source-to-target lineage. Structural rows cannot be deleted independently, and database constraints prevent dangling or unbalanced relationships.
 - Repeated manual coding can trigger immediate project auto-coding suggestions, while company admins can also review repeated-pattern rule suggestions and accept them into company auto-coding defaults.
 - Transaction actuals support signed amounts for credits, reversals, and recoveries. Budget allocations remain non-negative.
 

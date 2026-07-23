@@ -14,7 +14,6 @@ import {
   asSubCategoryId,
   asTxnId,
   asUserId,
-  type ImportPreviewRow,
 } from '../src/types/index.ts';
 import {
   assertAppError,
@@ -32,32 +31,6 @@ function csvRow(args: {
   source: string;
 }) {
   return `ACTUALS,2026,5,4041 Operations,Research Centre,Programme Code,EXP,125.00,${args.description},${args.journalId},REF-${args.line},2026-05-01,${args.line},A,2026-05-02,0,${args.source},OP-1,,,`;
-}
-
-function importedTxnFromPreview(args: {
-  row: ImportPreviewRow;
-  companyId: ReturnType<typeof asCompanyId>;
-  projectId: ReturnType<typeof asProjectId>;
-}) {
-  const { row } = args;
-  const { parsedDate, item, description, amountCents } = row;
-  assert.ok(parsedDate);
-  assert.ok(item);
-  assert.ok(description);
-  assert.notEqual(amountCents, null);
-  if (amountCents === null) throw new Error('Expected a valid preview amount');
-  return {
-    id: asTxnId(row.importId),
-    externalId: row.externalId,
-    companyId: args.companyId,
-    projectId: args.projectId,
-    date: parsedDate,
-    item,
-    description,
-    amountCents,
-    importSourceType: row.sourceType,
-    importSourceMeta: row.rawSourceRow,
-  };
 }
 
 test(
@@ -159,10 +132,10 @@ test(
           match_text: 'salary transfer',
           category_id: categoryId,
           sub_category_id: subCategoryId,
-          origin_scope: null,
+          origin_scope: 'project',
           origin_company_item_id: null,
-          sync_status: null,
-          last_synced_at: null,
+          sync_status: 'local',
+          last_synced_at: now,
           source_updated_at_snapshot: null,
           sort_order: 10,
           created_by_user_id: userId,
@@ -177,10 +150,10 @@ test(
           company_id: companyId,
           project_id: projectId,
           name: 'Review REV source',
-          origin_scope: null,
+          origin_scope: 'project',
           origin_company_item_id: null,
-          sync_status: null,
-          last_synced_at: null,
+          sync_status: 'local',
+          last_synced_at: now,
           source_updated_at_snapshot: null,
           action: 'review',
           field: 'source',
@@ -212,7 +185,8 @@ test(
           }),
         ].join('\n'),
       });
-      assert.ok(preview.importBatchId);
+      const previewBatchId = preview.importBatchId;
+      assert.ok(previewBatchId);
       const reviewRow = preview.rows.find(
         (row) => row.importAction === 'review'
       );
@@ -222,46 +196,43 @@ test(
       assert.ok(reviewRow);
       assert.ok(ordinaryRow);
 
-      const ordinaryTxn = importedTxnFromPreview({
-        row: ordinaryRow,
-        companyId,
-        projectId,
-      });
+      // The response object is browser-owned. Mutating it must not alter the
+      // canonical row persisted by preview.
+      ordinaryRow.amountCents = 999_999_99;
+
       await assertAppError(
         () =>
           importTransactionsServer({
             context,
             projectId,
             mode: 'append',
-            importBatchId: preview.importBatchId,
-            txns: [ordinaryTxn],
+            importBatchId: previewBatchId,
           }),
         'CONFLICT',
         'Resolve every review row before committing the import'
       );
 
-      const reviewedTxn = {
-        ...importedTxnFromPreview({
-          row: reviewRow,
-          companyId,
-          projectId,
-        }),
-        forceUncoded: true,
-      };
+      const reviewedTxnId = asTxnId(reviewRow.importId);
       const result = await importTransactionsServer({
         context,
         projectId,
         mode: 'append',
-        importBatchId: preview.importBatchId,
-        txns: [reviewedTxn, ordinaryTxn],
+        importBatchId: previewBatchId,
         reviewDecisions: [
           {
-            previewImportId: reviewedTxn.id,
+            previewImportId: reviewedTxnId,
             decision: 'import_uncoded',
           },
         ],
       });
       assert.equal(result.count, 2);
+
+      const importedOrdinaryTxn = await db
+        .selectFrom('txns')
+        .select('amount_cents')
+        .where('public_id', '=', ordinaryRow.importId)
+        .executeTakeFirstOrThrow();
+      assert.equal(Number(importedOrdinaryTxn.amount_cents), 12_500);
 
       const importedReviewTxn = await db
         .selectFrom('txns')
@@ -271,7 +242,7 @@ test(
           'coding_source',
           'coding_pending_approval',
         ])
-        .where('public_id', '=', reviewedTxn.id)
+        .where('public_id', '=', reviewedTxnId)
         .executeTakeFirstOrThrow();
       assert.equal(importedReviewTxn.category_id, null);
       assert.equal(importedReviewTxn.sub_category_id, null);
@@ -281,15 +252,15 @@ test(
       const importedBatch = await db
         .selectFrom('txns')
         .select('import_batch_id')
-        .where('public_id', '=', reviewedTxn.id)
+        .where('public_id', '=', reviewedTxnId)
         .executeTakeFirstOrThrow();
-      assert.equal(importedBatch.import_batch_id, preview.importBatchId);
+      assert.equal(importedBatch.import_batch_id, previewBatchId);
 
       const reviewCandidate = await db
         .selectFrom('import_candidates')
         .select(['status', 'reviewed_by_user_id', 'reviewed_at'])
-        .where('batch_id', '=', preview.importBatchId)
-        .where('preview_import_id', '=', reviewedTxn.id)
+        .where('batch_id', '=', previewBatchId)
+        .where('preview_import_id', '=', reviewedTxnId)
         .executeTakeFirstOrThrow();
       assert.equal(reviewCandidate.status, 'imported');
       assert.equal(reviewCandidate.reviewed_by_user_id, userId);
@@ -298,9 +269,27 @@ test(
       const batch = await db
         .selectFrom('import_batches')
         .select('status')
-        .where('id', '=', preview.importBatchId)
+        .where('id', '=', previewBatchId)
         .executeTakeFirstOrThrow();
       assert.equal(batch.status, 'imported');
+
+      await assertAppError(
+        () =>
+          importTransactionsServer({
+            context,
+            projectId,
+            mode: 'append',
+            importBatchId: previewBatchId,
+            reviewDecisions: [
+              {
+                previewImportId: reviewedTxnId,
+                decision: 'import_uncoded',
+              },
+            ],
+          }),
+        'CONFLICT',
+        'This import preview was already committed'
+      );
 
       const excludedPreview = await previewImportTransactionsServer({
         context,
@@ -325,7 +314,6 @@ test(
         projectId,
         mode: 'append',
         importBatchId: excludedPreview.importBatchId,
-        txns: [],
         excludedImportIds: [excludedId],
         reviewDecisions: [{ previewImportId: excludedId, decision: 'exclude' }],
       });

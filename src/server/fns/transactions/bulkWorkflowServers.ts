@@ -8,6 +8,8 @@ import type {
 import type { ProjectId } from '../../../types';
 import { asUserId } from '../../../types';
 import { planTxnWorkflowState } from '../../../utils/transactionWorkflow';
+import { requireAuthorized } from '../../auth/authorize';
+import { recordAuditEvent } from '../../audit/auditEvents';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import {
   assertCategoryInProject,
@@ -68,6 +70,21 @@ export async function bulkTxnActionServer(args: {
       args.projectId,
       'txns:edit'
     );
+    if (args.input.action === 'setLocked' && args.input.locked === false) {
+      await requireAuthorized({
+        db: context.db,
+        userId: context.userId,
+        companyId: context.companyId,
+        projectId: args.projectId,
+        action: 'txns:admin_unlock',
+      });
+      if (!args.input.reason?.trim()) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'A reason is required for an administrative unlock'
+        );
+      }
+    }
 
     return context.db.transaction().execute(async (trx) => {
       const now = new Date().toISOString();
@@ -89,6 +106,24 @@ export async function bulkTxnActionServer(args: {
           .where(validSubCategory)
           .returning('public_id')
           .execute();
+
+        if (updatedRows.length) {
+          await recordAuditEvent({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            actorUserId: context.userId,
+            eventClass: 'coding',
+            eventType: 'transaction_coding.bulk_approved',
+            entityType: 'project',
+            entityId: args.projectId,
+            reason: 'Approved all eligible automatic coding',
+            resultingState: {
+              updatedTxnIds: updatedRows.map((row) => row.public_id),
+            },
+            nowIso: now,
+          });
+        }
 
         return {
           action: args.input.action,
@@ -136,6 +171,7 @@ export async function bulkTxnActionServer(args: {
           'reviewed_by_user_id',
           'locked_at',
           'locked_by_user_id',
+          'workflow_version',
           txnValidSubCategorySql('txns').as('valid_sub_category'),
           sql<boolean>`exists (
             select 1
@@ -146,6 +182,17 @@ export async function bulkTxnActionServer(args: {
                 or tr.matched_reversal_txn_public_id = txns.public_id
               )
           )`.as('in_reversal_workflow'),
+          sql<boolean>`exists (
+            select 1
+            from txn_links link
+            where (
+              link.source_project_id = txns.project_id
+              and link.source_txn_public_id = txns.public_id
+            ) or (
+              link.target_project_id = txns.project_id
+              and link.target_txn_public_id = txns.public_id
+            )
+          )`.as('in_structural_operation'),
         ])
         .where('project_id', '=', args.projectId)
         .where('public_id', 'in', args.input.txnIds)
@@ -157,6 +204,28 @@ export async function bulkTxnActionServer(args: {
       let unchangedCount = 0;
       let lockedCount = 0;
       let ineligibleCount = 0;
+      const expectedWorkflowVersionByTxnId =
+        args.input.action === 'setReviewed' || args.input.action === 'setLocked'
+          ? new Map<string, number>(
+              args.input.workflowVersions.map((entry) => [
+                entry.txnId,
+                entry.version,
+              ])
+            )
+          : null;
+
+      if (
+        expectedWorkflowVersionByTxnId &&
+        (expectedWorkflowVersionByTxnId.size !== args.input.txnIds.length ||
+          args.input.txnIds.some(
+            (txnId) => !expectedWorkflowVersionByTxnId.has(txnId)
+          ))
+      ) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'A workflow version is required for every selected transaction'
+        );
+      }
 
       for (const row of rows) {
         if (args.input.action === 'approveAutoMappings') {
@@ -201,6 +270,10 @@ export async function bulkTxnActionServer(args: {
             ineligibleCount += 1;
             continue;
           }
+          if (row.in_structural_operation) {
+            ineligibleCount += 1;
+            continue;
+          }
           const result = await trx
             .deleteFrom('txns')
             .where('project_id', '=', args.projectId)
@@ -215,6 +288,19 @@ export async function bulkTxnActionServer(args: {
                     tr.source_txn_public_id = txns.public_id
                     or tr.matched_reversal_txn_public_id = txns.public_id
                   )
+              )`
+            )
+            .where(
+              sql<boolean>`not exists (
+                select 1
+                from txn_links link
+                where (
+                  link.source_project_id = txns.project_id
+                  and link.source_txn_public_id = txns.public_id
+                ) or (
+                  link.target_project_id = txns.project_id
+                  and link.target_txn_public_id = txns.public_id
+                )
               )`
             )
             .executeTakeFirst();
@@ -301,6 +387,16 @@ export async function bulkTxnActionServer(args: {
           continue;
         }
 
+        if (
+          args.input.action !== 'setReviewed' &&
+          args.input.action !== 'setLocked'
+        ) {
+          throw new AppError(
+            'VALIDATION_ERROR',
+            'Unsupported transaction workflow action'
+          );
+        }
+        const workflowInput = args.input;
         const patch = planTxnWorkflowState({
           current: {
             reviewedAt: row.reviewed_at ?? undefined,
@@ -313,25 +409,112 @@ export async function bulkTxnActionServer(args: {
               : undefined,
           },
           reviewed:
-            args.input.action === 'setReviewed'
-              ? args.input.reviewed
+            workflowInput.action === 'setReviewed'
+              ? workflowInput.reviewed
               : undefined,
           locked:
-            args.input.action === 'setLocked' ? args.input.locked : undefined,
+            workflowInput.action === 'setLocked'
+              ? workflowInput.locked
+              : undefined,
           actorUserId: context.userId,
           now,
         });
+        const expectedWorkflowVersion = expectedWorkflowVersionByTxnId?.get(
+          row.public_id
+        );
+        if (
+          expectedWorkflowVersion == null ||
+          expectedWorkflowVersion !== row.workflow_version
+        ) {
+          throw new AppError(
+            'CONFLICT',
+            'A selected transaction workflow changed. Refresh and try again.'
+          );
+        }
+        if (
+          workflowInput.action === 'setReviewed' &&
+          workflowInput.reviewed === false &&
+          row.locked_at
+        ) {
+          lockedCount += 1;
+          continue;
+        }
         if (workflowPatchIsNoop({ row, patch })) {
           unchangedCount += 1;
           continue;
         }
+        if (
+          workflowInput.action === 'setLocked' &&
+          workflowInput.locked === false
+        ) {
+          await trx
+            .updateTable('txn_unlock_requests')
+            .set({
+              status: 'approved',
+              resolved_by_user_id: context.userId,
+              resolved_at: now,
+              resolution_reason: workflowInput.reason!.trim(),
+              version: sql<number>`version + 1`,
+              updated_at: now,
+            })
+            .where('project_id', '=', args.projectId)
+            .where('txn_public_id', '=', row.public_id)
+            .where('status', '=', 'pending')
+            .execute();
+        }
         const result = await trx
           .updateTable('txns')
-          .set({ ...patch, updated_at: now })
+          .set({
+            ...patch,
+            workflow_version: row.workflow_version + 1,
+            updated_at: now,
+          })
           .where('project_id', '=', args.projectId)
           .where('public_id', '=', row.public_id)
+          .where('workflow_version', '=', expectedWorkflowVersion)
           .executeTakeFirst();
         assertSingleRowChanged(result.numUpdatedRows, 'update workflow state');
+        const eventType =
+          workflowInput.action === 'setReviewed'
+            ? workflowInput.reviewed
+              ? 'transaction.reviewed'
+              : 'transaction.reopened'
+            : workflowInput.locked
+              ? 'transaction.locked'
+              : 'transaction.admin_unlocked';
+        const reason =
+          workflowInput.reason?.trim() ||
+          (eventType === 'transaction.reviewed'
+            ? 'Bulk transaction review'
+            : eventType === 'transaction.reopened'
+              ? 'Bulk reopen for further review'
+              : 'Bulk transaction lock');
+        await recordAuditEvent({
+          db: trx,
+          companyId: context.companyId,
+          projectId: args.projectId,
+          actorUserId: context.userId,
+          eventClass: 'workflow',
+          eventType,
+          entityType: 'transaction',
+          entityId: row.public_id,
+          reason,
+          previousState: {
+            reviewedAt: row.reviewed_at,
+            reviewedByUserId: row.reviewed_by_user_id,
+            lockedAt: row.locked_at,
+            lockedByUserId: row.locked_by_user_id,
+            workflowVersion: row.workflow_version,
+          },
+          resultingState: {
+            reviewedAt: patch.reviewed_at,
+            reviewedByUserId: patch.reviewed_by_user_id,
+            lockedAt: patch.locked_at,
+            lockedByUserId: patch.locked_by_user_id,
+            workflowVersion: row.workflow_version + 1,
+          },
+          nowIso: now,
+        });
         updatedCount += 1;
       }
 
@@ -346,6 +529,33 @@ export async function bulkTxnActionServer(args: {
               subCategoryId: args.input.subCategoryId,
             },
           ],
+        });
+      }
+
+      if (
+        updatedCount > 0 &&
+        (args.input.action === 'approveAutoMappings' ||
+          args.input.action === 'clearCoding' ||
+          args.input.action === 'recode')
+      ) {
+        await recordAuditEvent({
+          db: trx,
+          companyId: context.companyId,
+          projectId: args.projectId,
+          actorUserId: context.userId,
+          eventClass: 'coding',
+          eventType: `transaction_coding.${args.input.action}`,
+          entityType: 'project',
+          entityId: args.projectId,
+          reason:
+            args.input.action === 'recode'
+              ? 'Bulk recoded selected transactions'
+              : args.input.action === 'clearCoding'
+                ? 'Cleared coding from selected transactions'
+                : 'Approved automatic coding for selected transactions',
+          previousState: { requestedTxnIds: args.input.txnIds },
+          resultingState: { updatedCount },
+          nowIso: now,
         });
       }
 

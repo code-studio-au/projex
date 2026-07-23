@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   applyTxnReversalActionServer,
   bulkTxnActionServer,
-  importTransactionsServer,
+  importTrustedTransactionsServer as importTransactionsServer,
   listTransactionsPageServer,
   listTxnReversalMatchSuggestionsServer,
 } from '../src/server/fns/transactions.ts';

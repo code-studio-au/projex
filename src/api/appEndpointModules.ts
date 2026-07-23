@@ -53,6 +53,7 @@ import type {
   TxnImportPreviewInput,
   TxnImportPreviewResult,
   TxnImportInput,
+  TxnImportResult,
   ProjectTransactionSummary,
   TxnReversalActionInput,
   TxnReversalActionResult,
@@ -64,6 +65,8 @@ import type {
   TxnUpdateInput,
   TxnUpdateResult,
   TxnWorkflowStateInput,
+  TxnUnlockRequestInput,
+  TxnUnlockResolutionInput,
 } from './types';
 import type {
   BudgetLine,
@@ -85,6 +88,7 @@ import type {
   TxnCommentId,
   TxnCommentSummary,
   TxnId,
+  TxnUnlockRequest,
   Project,
   User,
   UserId,
@@ -217,13 +221,21 @@ export type TransactionEndpointsModule = {
     { projectId: ProjectId; payload: TxnWorkflowStateInput },
     Txn
   >;
+  requestTxnUnlockEndpoint: AppEndpoint<
+    { projectId: ProjectId; payload: TxnUnlockRequestInput },
+    TxnUnlockRequest
+  >;
+  resolveTxnUnlockRequestEndpoint: AppEndpoint<
+    { projectId: ProjectId; payload: TxnUnlockResolutionInput },
+    Txn
+  >;
   bulkTxnActionEndpoint: AppEndpoint<
     { projectId: ProjectId; payload: TxnBulkActionInput },
     TxnBulkActionResult
   >;
   importTransactionsEndpoint: AppEndpoint<
     { projectId: ProjectId; payload: TxnImportInput },
-    { count: number }
+    TxnImportResult
   >;
 };
 

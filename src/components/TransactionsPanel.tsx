@@ -54,6 +54,8 @@ export default function TransactionsPanel(props: {
   onClearFilters: () => void;
   canEditTaxonomy: boolean;
   canManageReversals: boolean;
+  canResolveUnlock: boolean;
+  canAdminUnlock: boolean;
   readOnly?: boolean;
 }) {
   const {
@@ -81,6 +83,8 @@ export default function TransactionsPanel(props: {
     onClearFilters,
     canEditTaxonomy,
     canManageReversals,
+    canResolveUnlock,
+    canAdminUnlock,
     readOnly = false,
   } = props;
   const {
@@ -104,6 +108,7 @@ export default function TransactionsPanel(props: {
     sorting,
     splitTxn,
     transferTxn,
+    unlockTxn,
     setBulkRecodeCategoryId,
     setBulkRecodeOpen,
     setBulkRecodeSubCategoryId,
@@ -121,6 +126,7 @@ export default function TransactionsPanel(props: {
     setSorting,
     setSplitTxn,
     setTransferTxn,
+    setUnlockTxn,
   } = useTransactionsPanelState({
     monthFilterKey,
     quarterFilter,
@@ -147,6 +153,7 @@ export default function TransactionsPanel(props: {
     selectedSuggestedReversalCount,
     selectedDeletableCount,
     selectedTxnIds,
+    selectedWorkflowVersions,
     selectedUnlockedCategorisableCount,
     transactionsPageInput,
     transactionsPageQ,
@@ -231,6 +238,7 @@ export default function TransactionsPanel(props: {
     transferOutEnabled,
     transferProjectOptions,
     canManageReversals,
+    canResolveUnlock,
     onApplyProjectRulePrompt: applyProjectRulePrompt,
     onProjectRuleError: setProjectRuleError,
     onOpenComments: setCommentsTxn,
@@ -244,6 +252,7 @@ export default function TransactionsPanel(props: {
     },
     onOpenSplit: setSplitTxn,
     onOpenTransfer: setTransferTxn,
+    onOpenUnlock: setUnlockTxn,
   });
 
   return (
@@ -280,6 +289,7 @@ export default function TransactionsPanel(props: {
             readOnly={readOnly}
             canEditTaxonomy={canEditTaxonomy}
             canManageReversals={canManageReversals}
+            canAdminUnlock={canAdminUnlock}
             reconcilingPendingReversals={reconcilingPendingReversals}
             onReconcilePendingReversals={() => {
               void reconcilePendingReversals();
@@ -315,6 +325,7 @@ export default function TransactionsPanel(props: {
                   action: 'setReviewed',
                   txnIds: selectedTxnIds,
                   reviewed: true,
+                  workflowVersions: selectedWorkflowVersions,
                 },
                 successLabel: 'Reviewed',
               });
@@ -325,6 +336,7 @@ export default function TransactionsPanel(props: {
                   action: 'setReviewed',
                   txnIds: selectedTxnIds,
                   reviewed: false,
+                  workflowVersions: selectedWorkflowVersions,
                 },
                 successLabel: 'Marked unreviewed for',
               });
@@ -335,6 +347,7 @@ export default function TransactionsPanel(props: {
                   action: 'setLocked',
                   txnIds: selectedTxnIds,
                   locked: true,
+                  workflowVersions: selectedWorkflowVersions,
                 },
                 successLabel: 'Locked',
               });
@@ -345,6 +358,8 @@ export default function TransactionsPanel(props: {
                   action: 'setLocked',
                   txnIds: selectedTxnIds,
                   locked: false,
+                  workflowVersions: selectedWorkflowVersions,
+                  reason: 'Bulk administrative unlock from transaction table',
                 },
                 successLabel: 'Unlocked',
               });
@@ -548,6 +563,11 @@ export default function TransactionsPanel(props: {
             );
           }
         }}
+        unlockTxn={unlockTxn}
+        canResolveUnlock={canResolveUnlock}
+        canAdminUnlock={canAdminUnlock}
+        transactionActions={transactionActions}
+        onCloseUnlock={() => setUnlockTxn(null)}
       />
     </Stack>
   );

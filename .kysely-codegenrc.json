@@ -4,13 +4,15 @@
   "logLevel": "error",
   "outFile": "./src/server/db/generated/db.d.ts",
   "customImports": {
+    "ImportPreviewRowJsonColumn": "./custom-types",
     "NullableStringRecordJsonColumn": "./custom-types",
     "StringRecordJsonColumn": "./custom-types"
   },
   "overrides": {
     "columns": {
       "txns.import_source_meta": "NullableStringRecordJsonColumn",
-      "import_candidates.raw_row": "StringRecordJsonColumn"
+      "import_candidates.raw_row": "StringRecordJsonColumn",
+      "import_candidates.preview_plan": "ImportPreviewRowJsonColumn"
     }
   }
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import type { CompanyId, ProjectId, Txn, UserId } from '../types';
+import type { CompanyId, ProjectId, UserId } from '../types';
 import type {
   CompanyCreateInput,
   CompanyCreateResult,
@@ -12,7 +12,6 @@ import type {
 import { qk } from './keys';
 import { useQueryScopeUserId } from './scope';
 import { invalidateProjectTransactionQueries } from './transactions';
-import { withStandardTxnAccountingMetadata } from '../utils/transactions';
 import {
   createCompanyServerFn,
   createProjectServerFn,
@@ -128,27 +127,10 @@ export function useSendCompanyUserInviteEmailMutation(companyId: CompanyId) {
 export function useImportTransactionsMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
-  const transactionQueryKey = qk.transactions(scopeUserId, projectId);
   const budgetQueryKey = qk.budgets(scopeUserId, projectId);
   return useMutation({
     mutationFn: (vars: TxnImportInput) =>
       importTransactionsServerFn({ data: { projectId, payload: vars } }),
-    onMutate: async (vars) => {
-      await qc.cancelQueries({ queryKey: transactionQueryKey });
-      const previous = qc.getQueryData<Txn[]>(transactionQueryKey);
-      const optimisticTxns = vars.txns.map(withStandardTxnAccountingMetadata);
-      qc.setQueryData<Txn[]>(
-        transactionQueryKey,
-        vars.mode === 'replaceAll'
-          ? optimisticTxns
-          : [...(previous ?? []), ...optimisticTxns]
-      );
-      return { previous };
-    },
-    onError: (_error, _vars, context) => {
-      if (context?.previous)
-        qc.setQueryData(transactionQueryKey, context.previous);
-    },
     onSuccess: async () => {
       await Promise.all([
         invalidateProjectTransactionQueries({ qc, scopeUserId, projectId }),

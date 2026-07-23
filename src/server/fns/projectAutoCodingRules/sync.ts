@@ -13,8 +13,8 @@ import {
   buildDetachedProjectStandardMetadata,
   buildInheritedProjectStandardMetadata,
   listSyncedProjectIdsForCompany,
+  planProjectStandardReconciliation,
   type ProjectStandardsDb,
-  shouldApplyInheritedUpdate,
 } from '../../sync/projectStandards';
 import { toCompanyDefaultMappingRule } from '../../mappers/taxonomyRows';
 import {
@@ -115,119 +115,87 @@ async function syncCompanyAutoCodingRulesWithPreloadedState(args: {
   } = args;
 
   const now = new Date().toISOString();
-  const companyRuleIds = new Set(companyRules.map((rule) => rule.id));
-
-  for (const companyRule of companyRules) {
-    const inherited = projectRuleRows.find(
-      (rule) => rule.origin_company_item_id === companyRule.id
-    );
+  const resolvedCompanyRules = companyRules.flatMap((rule) => {
     const resolved = resolveCompanyDefaultRuleToProjectTaxonomy({
-      rule: toCompanyDefaultMappingRule(companyRule),
+      rule: toCompanyDefaultMappingRule(rule),
       defaultCategories,
       defaultSubCategories,
       projectCategories,
       projectSubCategories,
     });
+    return resolved ? [{ rule, resolved }] : [];
+  });
+  const actions = planProjectStandardReconciliation({
+    sources: resolvedCompanyRules,
+    projectItems: projectRuleRows,
+    sourceId: (source) => source.rule.id,
+    originCompanyItemId: (rule) => rule.origin_company_item_id,
+    syncStatus: (rule) => rule.sync_status,
+    isExactLocalDuplicate: (source, projectRule) =>
+      projectAutoCodingRuleFingerprint(projectRule) ===
+      projectAutoCodingRuleFingerprint({
+        match_text: source.rule.match_text,
+        sub_category_id: String(source.resolved.subCategoryId),
+      }),
+  });
 
-    if (!resolved) {
-      if (
-        inherited &&
-        inherited.sync_status !== 'detached' &&
-        inherited.origin_company_item_id
-      ) {
-        await args.db
-          .updateTable('project_auto_coding_rules')
-          .set({
-            ...buildDetachedProjectStandardMetadata({
-              companyItemId: inherited.origin_company_item_id,
-              previousSourceUpdatedAt: inherited.source_updated_at_snapshot,
-              nowIso: now,
-            }),
-            updated_at: now,
-          })
-          .where('project_id', '=', args.projectId)
-          .where('id', '=', inherited.id)
-          .execute();
-      }
-      continue;
-    }
-
-    const exactLocalDuplicate = projectRuleRows.find(
-      (rule) =>
-        rule.origin_company_item_id == null &&
-        projectAutoCodingRuleFingerprint(rule) ===
-          projectAutoCodingRuleFingerprint({
-            match_text: companyRule.match_text,
-            sub_category_id: String(resolved.subCategoryId),
-          })
-    );
-
-    if (inherited) {
-      if (!shouldApplyInheritedUpdate(inherited.sync_status)) continue;
+  for (const action of actions) {
+    if (action.kind === 'preserve') continue;
+    if (action.kind === 'detach') {
       await args.db
         .updateTable('project_auto_coding_rules')
         .set({
-          match_text: companyRule.match_text,
-          category_id: resolved.categoryId,
-          sub_category_id: resolved.subCategoryId,
-          sort_order: companyRule.sort_order,
-          ...buildInheritedProjectStandardMetadata({
-            companyItemId: companyRule.id,
-            sourceUpdatedAt: companyRule.updated_at,
+          ...buildDetachedProjectStandardMetadata({
+            companyItemId: action.target.origin_company_item_id!,
+            previousSourceUpdatedAt: action.target.source_updated_at_snapshot,
             nowIso: now,
           }),
           updated_at: now,
         })
         .where('project_id', '=', args.projectId)
-        .where('id', '=', inherited.id)
+        .where('id', '=', action.target.id)
         .execute();
       continue;
     }
 
-    if (exactLocalDuplicate) continue;
+    const { rule: companyRule, resolved } = action.source;
+    const inheritedMetadata = buildInheritedProjectStandardMetadata({
+      companyItemId: companyRule.id,
+      sourceUpdatedAt: companyRule.updated_at,
+      nowIso: now,
+    });
+    if (action.kind === 'create') {
+      await args.db
+        .insertInto('project_auto_coding_rules')
+        .values({
+          id: asProjectAutoCodingRuleId(uid('prule')),
+          company_id: args.companyId,
+          project_id: args.projectId,
+          match_text: companyRule.match_text,
+          category_id: resolved.categoryId,
+          sub_category_id: resolved.subCategoryId,
+          ...inheritedMetadata,
+          sort_order: companyRule.sort_order,
+          created_by_user_id: args.actorUserId,
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+      continue;
+    }
 
-    await args.db
-      .insertInto('project_auto_coding_rules')
-      .values({
-        id: asProjectAutoCodingRuleId(uid('prule')),
-        company_id: args.companyId,
-        project_id: args.projectId,
-        match_text: companyRule.match_text,
-        category_id: resolved.categoryId,
-        sub_category_id: resolved.subCategoryId,
-        ...buildInheritedProjectStandardMetadata({
-          companyItemId: companyRule.id,
-          sourceUpdatedAt: companyRule.updated_at,
-          nowIso: now,
-        }),
-        sort_order: companyRule.sort_order,
-        created_by_user_id: args.actorUserId,
-        created_at: now,
-        updated_at: now,
-      })
-      .execute();
-  }
-
-  const staleProjectRules = projectRuleRows.filter(
-    (rule) =>
-      rule.origin_company_item_id &&
-      !companyRuleIds.has(rule.origin_company_item_id) &&
-      rule.sync_status !== 'detached'
-  );
-
-  for (const staleRule of staleProjectRules) {
     await args.db
       .updateTable('project_auto_coding_rules')
       .set({
-        ...buildDetachedProjectStandardMetadata({
-          companyItemId: staleRule.origin_company_item_id!,
-          previousSourceUpdatedAt: staleRule.source_updated_at_snapshot,
-          nowIso: now,
-        }),
+        match_text: companyRule.match_text,
+        category_id: resolved.categoryId,
+        sub_category_id: resolved.subCategoryId,
+        sort_order: companyRule.sort_order,
+        ...inheritedMetadata,
         updated_at: now,
       })
       .where('project_id', '=', args.projectId)
-      .where('id', '=', staleRule.id)
+      .where('id', '=', action.target.id)
       .execute();
   }
 }

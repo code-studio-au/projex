@@ -29,6 +29,7 @@ export type ImportBatchId = Brand<string, 'ImportBatchId'>;
 export type CompanyExportJobId = Brand<string, 'CompanyExportJobId'>;
 export type TxnId = Brand<string, 'TxnId'>;
 export type TxnCommentId = Brand<string, 'TxnCommentId'>;
+export type TxnUnlockRequestId = Brand<string, 'TxnUnlockRequestId'>;
 export type BudgetLineId = Brand<string, 'BudgetLineId'>;
 
 // --- cast helpers (no runtime validation) ---
@@ -55,4 +56,6 @@ export const asCompanyExportJobId = (v: string) =>
   brand<string, 'CompanyExportJobId'>(v);
 export const asTxnId = (v: string) => brand<string, 'TxnId'>(v);
 export const asTxnCommentId = (v: string) => brand<string, 'TxnCommentId'>(v);
+export const asTxnUnlockRequestId = (v: string) =>
+  brand<string, 'TxnUnlockRequestId'>(v);
 export const asBudgetLineId = (v: string) => brand<string, 'BudgetLineId'>(v);

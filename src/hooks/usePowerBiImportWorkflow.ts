@@ -4,34 +4,20 @@ import type {
   MRT_SortingState,
 } from 'mantine-react-table-open';
 
-import type { TaxonomyHook } from './useTaxonomy';
-import type { BudgetsHook } from './useBudgets';
-import type { ImportReviewDecision, TxnImportTxnInput } from '../api/types';
 import type {
-  CategoryId,
-  CompanyId,
-  ImportBatchId,
-  ImportPreviewRow,
-  ProjectId,
-  SubCategoryId,
-  Txn,
-} from '../types';
+  ImportReviewDecision,
+  TxnImportInput,
+  TxnImportResult,
+} from '../api/types';
+import type { ImportBatchId, ImportPreviewRow, ProjectId } from '../types';
 import { asTxnId } from '../types';
-import { withStandardTxnAccountingMetadata } from '../utils/transactions';
-import { txnInputSchema } from '../validation/schemas';
 import { showAppToast } from '../utils/toast';
 import {
   cancelImportPreviewServerFn,
   previewImportTransactionsServerFn,
 } from '../server/start/functions/importReads';
 
-type PowerBiImportMode = 'append' | 'replaceAll';
-type PowerBiImportCommitOptions = {
-  autoCreateBudgets?: boolean;
-  importBatchId?: ImportBatchId;
-  excludedImportIds?: Txn['id'][];
-  reviewDecisions?: ImportReviewDecision[];
-};
+type PowerBiImportCommitOptions = Omit<TxnImportInput, 'mode'>;
 export type ImportPreviewTab =
   | 'included'
   | 'needsReview'
@@ -39,49 +25,15 @@ export type ImportPreviewTab =
   | 'invalid'
   | 'excluded';
 
-function validateImportedRows(
-  rows: Array<Pick<Txn, 'date' | 'item' | 'description' | 'amountCents'>>
-) {
-  for (let index = 0; index < rows.length; index += 1) {
-    const parsed = txnInputSchema.safeParse(rows[index]);
-    if (parsed.success) continue;
-    const issue = parsed.error.issues[0];
-    const field = String(issue?.path?.[0] ?? '');
-    if (field === 'date') {
-      throw new Error(
-        `Row ${index + 1}: Transaction date "${rows[index]?.date ?? ''}" must be YYYY-MM-DD`
-      );
-    }
-    throw new Error(issue?.message ?? `Row ${index + 1}: Validation failed`);
-  }
-}
-
 export function usePowerBiImportWorkflow(params: {
-  taxonomy: TaxonomyHook;
-  budgets: BudgetsHook;
-  companyId: CompanyId;
   projectId: ProjectId;
-  canEditBudgets: boolean;
   initialPageSize: number;
-  onAppend: (
-    txns: TxnImportTxnInput[],
-    options?: PowerBiImportCommitOptions
-  ) => Promise<void>;
+  onAppend: (options: PowerBiImportCommitOptions) => Promise<TxnImportResult>;
   onReplaceAll: (
-    txns: TxnImportTxnInput[],
-    options?: PowerBiImportCommitOptions
-  ) => Promise<void>;
+    options: PowerBiImportCommitOptions
+  ) => Promise<TxnImportResult>;
 }) {
-  const {
-    taxonomy,
-    budgets,
-    companyId,
-    projectId,
-    canEditBudgets,
-    initialPageSize,
-    onAppend,
-    onReplaceAll,
-  } = params;
+  const { projectId, initialPageSize, onAppend, onReplaceAll } = params;
   const [file, setFile] = useState<File | null>(null);
   const [fileText, setFileText] = useState('');
   const [isReadingFile, setIsReadingFile] = useState(false);
@@ -400,155 +352,13 @@ export function usePowerBiImportWorkflow(params: {
     });
   }
 
-  const ensureBudgetLinesForImportedSubCategories = async (
-    next: Array<{ categoryId?: CategoryId; subCategoryId?: SubCategoryId }>
-  ) => {
-    if (!autoCreateStructures || !canEditBudgets) return;
-
-    const existing = new Set(
-      budgets.budgets
-        .map((budget) => budget.subCategoryId)
-        .filter((id): id is SubCategoryId => Boolean(id))
-    );
-    const createdThisRun = new Set<SubCategoryId>();
-
-    for (const txn of next) {
-      const subId = txn.subCategoryId;
-      const catId = txn.categoryId;
-      if (!subId || !catId) continue;
-      if (existing.has(subId) || createdThisRun.has(subId)) continue;
-      createdThisRun.add(subId);
-      await budgets.upsertBudgetForSubCategory(subId, catId);
-    }
-  };
-
-  const buildImportPayloadFromPreview = async (
-    mode: PowerBiImportMode
-  ): Promise<{ txns: TxnImportTxnInput[]; skipped: number }> => {
-    const activeRows = (previewRows ?? []).filter(
-      (row) =>
-        !excludedImportIds.has(row.importId) &&
-        (row.importAction === 'import' ||
-          reviewDecisions.get(row.importId) === 'import_uncoded') &&
-        row.mappingStatus !== 'invalid' &&
-        (mode === 'replaceAll' || !skipDuplicates || !row.duplicate)
-    );
-
-    const categoryIdByName = new Map<string, CategoryId>(
-      taxonomy.categories.map((category) => [
-        category.name.trim().toLowerCase(),
-        category.id,
-      ])
-    );
-    const subCategoryIdByKey = new Map<string, SubCategoryId>(
-      taxonomy.subCategories.map((subCategory) => {
-        const categoryName = taxonomy
-          .getCategoryName(subCategory.categoryId)
-          .trim()
-          .toLowerCase();
-        return [
-          `${categoryName}|||${subCategory.name.trim().toLowerCase()}`,
-          subCategory.id,
-        ];
-      })
-    );
-
-    for (const row of activeRows) {
-      if (row.importAction === 'review') continue;
-      if (!row.willCreateCategory || !row.categoryName) continue;
-      const key = row.categoryName.trim().toLowerCase();
-      if (categoryIdByName.has(key)) continue;
-      const createdId = await taxonomy.addCategory(row.categoryName);
-      categoryIdByName.set(key, createdId);
-    }
-
-    for (const row of activeRows) {
-      if (row.importAction === 'review') continue;
-      if (
-        !row.willCreateSubCategory ||
-        !row.categoryName ||
-        !row.subCategoryName
-      )
-        continue;
-      const categoryKey = row.categoryName.trim().toLowerCase();
-      const categoryId = categoryIdByName.get(categoryKey);
-      if (!categoryId) {
-        throw new Error(
-          `Could not resolve category "${row.categoryName}" for imported subcategory creation.`
-        );
-      }
-      const subKey = `${categoryKey}|||${row.subCategoryName.trim().toLowerCase()}`;
-      if (subCategoryIdByKey.has(subKey)) continue;
-      const createdId = await taxonomy.addSubCategory(
-        categoryId,
-        row.subCategoryName
-      );
-      subCategoryIdByKey.set(subKey, createdId);
-    }
-
-    const txns: TxnImportTxnInput[] = [];
-    let skipped = 0;
-
-    for (const row of previewRows ?? []) {
-      if (excludedImportIds.has(row.importId)) continue;
-      const importAsUncoded =
-        row.importAction === 'review' &&
-        reviewDecisions.get(row.importId) === 'import_uncoded';
-      if (row.importAction !== 'import' && !importAsUncoded) continue;
-      if (row.mappingStatus === 'invalid') continue;
-      if (mode === 'append' && skipDuplicates && row.duplicate) {
-        skipped += 1;
-        continue;
-      }
-
-      let categoryId = row.categoryId;
-      let subCategoryId = row.subCategoryId;
-
-      if (row.categoryName) {
-        categoryId =
-          categoryIdByName.get(row.categoryName.trim().toLowerCase()) ??
-          categoryId;
-      }
-      if (row.categoryName && row.subCategoryName) {
-        const subKey = `${row.categoryName.trim().toLowerCase()}|||${row.subCategoryName
-          .trim()
-          .toLowerCase()}`;
-        subCategoryId = subCategoryIdByKey.get(subKey) ?? subCategoryId;
-      }
-
-      txns.push(
-        withStandardTxnAccountingMetadata({
-          id: asTxnId(row.importId),
-          externalId: row.externalId,
-          companyId,
-          projectId,
-          date: row.parsedDate ?? '',
-          item: row.item ?? '',
-          description: row.description ?? '',
-          amountCents: row.amountCents ?? 0,
-          categoryId: importAsUncoded ? undefined : categoryId,
-          subCategoryId: importAsUncoded ? undefined : subCategoryId,
-          companyDefaultMappingRuleId: importAsUncoded ? undefined : row.ruleId,
-          codingSource: importAsUncoded ? undefined : row.codingSource,
-          codingPendingApproval: importAsUncoded
-            ? false
-            : row.codingPendingApproval,
-          forceUncoded: importAsUncoded || undefined,
-          importBatchId: previewBatchId ?? undefined,
-          importSourceType: row.sourceType,
-          importSourceMeta: row.rawSourceRow,
-        })
-      );
-    }
-
-    validateImportedRows(txns);
-    return { txns, skipped };
-  };
-
   function importCommitOptions(): PowerBiImportCommitOptions {
+    if (!previewBatchId) {
+      throw new Error('Import preview is missing its server batch ID.');
+    }
     return {
-      autoCreateBudgets: autoCreateStructures,
-      importBatchId: previewBatchId ?? undefined,
+      importBatchId: previewBatchId,
+      skipDuplicates,
       excludedImportIds: [...excludedImportIds].map(asTxnId),
       reviewDecisions: needsReviewPreviewRows.flatMap((row) => {
         const decision = reviewDecisions.get(row.importId);
@@ -562,16 +372,13 @@ export function usePowerBiImportWorkflow(params: {
   async function commitAppend() {
     try {
       clearFeedback();
-      const { txns, skipped } = await buildImportPayloadFromPreview('append');
-      await ensureBudgetLinesForImportedSubCategories(txns);
-      await onAppend(txns, importCommitOptions());
-      const importedCount = txns.length;
+      const result = await onAppend(importCommitOptions());
       resetImporter();
-      return importedCount === 0
+      return result.count === 0
         ? 'Completed the import with no rows added.'
-        : skipped > 0
-          ? `Imported ${importedCount} rows. Skipped ${skipped} duplicate preview row(s).`
-          : `Imported ${importedCount} rows.`;
+        : result.skipped > 0
+          ? `Imported ${result.count} rows. Skipped ${result.skipped} duplicate row(s).`
+          : `Imported ${result.count} rows.`;
     } catch (error) {
       const message =
         error instanceof Error
@@ -586,13 +393,10 @@ export function usePowerBiImportWorkflow(params: {
   async function commitReplaceAll() {
     try {
       clearFeedback();
-      const { txns } = await buildImportPayloadFromPreview('replaceAll');
-      await ensureBudgetLinesForImportedSubCategories(txns);
-      await onReplaceAll(txns, importCommitOptions());
-      const importedCount = txns.length;
+      const result = await onReplaceAll(importCommitOptions());
       setConfirmReplaceOpen(false);
       resetImporter();
-      return `Replaced transactions with ${importedCount} imported rows.`;
+      return `Replaced ${result.replaced} transaction(s) in the imported period with ${result.count} rows.`;
     } catch (error) {
       const message =
         error instanceof Error

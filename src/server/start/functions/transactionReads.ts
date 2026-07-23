@@ -256,6 +256,38 @@ export const updateTxnWorkflowStateServerFn = createServerFn({
     )
   );
 
+export const requestTxnUnlockServerFn = createServerFn({ method: 'POST' })
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'requestTxnUnlockEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'requestTxnUnlockEndpoint'
+    )
+  );
+
+export const resolveTxnUnlockRequestServerFn = createServerFn({
+  method: 'POST',
+})
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadTransactionEndpoints,
+      'resolveTxnUnlockRequestEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadTransactionEndpoints,
+      'resolveTxnUnlockRequestEndpoint'
+    )
+  );
+
 export const bulkTxnActionServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
   .inputValidator(

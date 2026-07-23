@@ -6,8 +6,8 @@ import {
   buildDetachedProjectStandardMetadata,
   buildInheritedProjectStandardMetadata,
   listSyncedProjectIdsForCompany,
+  planProjectStandardReconciliation,
   type ProjectStandardsDb,
-  shouldApplyInheritedUpdate,
 } from '../../sync/projectStandards';
 import type { ImportRuleRow } from './shared';
 import { importRuleFingerprint, importRuleSelectColumns } from './shared';
@@ -91,89 +91,78 @@ async function syncCompanyImportRulesWithPreloadedState(args: {
   const { companyRules, projectRules } = args;
 
   const now = new Date().toISOString();
-  const companyRuleIds = new Set(companyRules.map((rule) => rule.id));
+  const actions = planProjectStandardReconciliation({
+    sources: companyRules,
+    projectItems: projectRules,
+    sourceId: (rule) => rule.id,
+    originCompanyItemId: (rule) => rule.origin_company_item_id,
+    syncStatus: (rule) => rule.sync_status,
+    isExactLocalDuplicate: (companyRule, projectRule) =>
+      importRuleFingerprint(projectRule) === importRuleFingerprint(companyRule),
+  });
 
-  for (const companyRule of companyRules) {
-    const inherited = projectRules.find(
-      (rule) => rule.origin_company_item_id === companyRule.id
-    );
-    const exactLocalDuplicate = projectRules.find(
-      (rule) =>
-        rule.origin_company_item_id == null &&
-        importRuleFingerprint(rule) === importRuleFingerprint(companyRule)
-    );
-
-    if (inherited) {
-      if (!shouldApplyInheritedUpdate(inherited.sync_status)) continue;
+  for (const action of actions) {
+    if (action.kind === 'preserve') continue;
+    if (action.kind === 'detach') {
       await args.db
         .updateTable('import_rules')
         .set({
+          ...buildDetachedProjectStandardMetadata({
+            companyItemId: action.target.origin_company_item_id!,
+            previousSourceUpdatedAt: action.target.source_updated_at_snapshot,
+            nowIso: now,
+          }),
+          updated_at: now,
+        })
+        .where('project_id', '=', args.projectId)
+        .where('id', '=', action.target.id)
+        .execute();
+      continue;
+    }
+
+    const companyRule = action.source;
+    const inheritedMetadata = buildInheritedProjectStandardMetadata({
+      companyItemId: companyRule.id,
+      sourceUpdatedAt: companyRule.updated_at,
+      nowIso: now,
+    });
+    if (action.kind === 'create') {
+      await args.db
+        .insertInto('import_rules')
+        .values({
+          id: asImportRuleId(uid('impr')),
+          company_id: args.companyId,
+          project_id: args.projectId,
           name: companyRule.name,
+          ...inheritedMetadata,
           action: companyRule.action,
           field: companyRule.field,
           operator: companyRule.operator,
           value: companyRule.value,
           sort_order: companyRule.sort_order,
           enabled: companyRule.enabled,
-          ...buildInheritedProjectStandardMetadata({
-            companyItemId: companyRule.id,
-            sourceUpdatedAt: companyRule.updated_at,
-            nowIso: now,
-          }),
+          created_at: now,
           updated_at: now,
         })
-        .where('project_id', '=', args.projectId)
-        .where('id', '=', inherited.id)
         .execute();
       continue;
     }
 
-    if (exactLocalDuplicate) continue;
-
     await args.db
-      .insertInto('import_rules')
-      .values({
-        id: asImportRuleId(uid('impr')),
-        company_id: args.companyId,
-        project_id: args.projectId,
+      .updateTable('import_rules')
+      .set({
         name: companyRule.name,
-        ...buildInheritedProjectStandardMetadata({
-          companyItemId: companyRule.id,
-          sourceUpdatedAt: companyRule.updated_at,
-          nowIso: now,
-        }),
         action: companyRule.action,
         field: companyRule.field,
         operator: companyRule.operator,
         value: companyRule.value,
         sort_order: companyRule.sort_order,
         enabled: companyRule.enabled,
-        created_at: now,
-        updated_at: now,
-      })
-      .execute();
-  }
-
-  const staleProjectRules = projectRules.filter(
-    (rule) =>
-      rule.origin_company_item_id &&
-      !companyRuleIds.has(rule.origin_company_item_id) &&
-      rule.sync_status !== 'detached'
-  );
-
-  for (const staleRule of staleProjectRules) {
-    await args.db
-      .updateTable('import_rules')
-      .set({
-        ...buildDetachedProjectStandardMetadata({
-          companyItemId: staleRule.origin_company_item_id!,
-          previousSourceUpdatedAt: staleRule.source_updated_at_snapshot,
-          nowIso: now,
-        }),
+        ...inheritedMetadata,
         updated_at: now,
       })
       .where('project_id', '=', args.projectId)
-      .where('id', '=', staleRule.id)
+      .where('id', '=', action.target.id)
       .execute();
   }
 }

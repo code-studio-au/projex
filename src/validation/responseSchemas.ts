@@ -10,6 +10,7 @@ import {
   asSubCategoryId,
   asTxnCommentId,
   asTxnId,
+  asTxnUnlockRequestId,
   asUserId,
   TXN_TYPES,
   TXN_REVERSAL_SIDES,
@@ -26,6 +27,17 @@ import { MAX_BULK_TXN_COUNT } from '../utils/transactionLimits.ts';
 
 export const apiMessageResponseSchema = z.object({
   message: z.string().optional(),
+});
+
+export const txnImportPreviewResultResponseSchema = z.object({
+  importBatchId: idSchema.transform(asImportBatchId),
+  rows: z.array(
+    z
+      .object({
+        importId: idSchema,
+      })
+      .passthrough()
+  ),
 });
 
 export const apiErrorResponseSchema = z
@@ -52,6 +64,7 @@ const userIdSchema = idSchema.transform(asUserId);
 const categoryIdSchema = idSchema.transform(asCategoryId);
 const subCategoryIdSchema = idSchema.transform(asSubCategoryId);
 const budgetLineIdSchema = idSchema.transform(asBudgetLineId);
+const txnUnlockRequestIdSchema = idSchema.transform(asTxnUnlockRequestId);
 const mappingRuleIdSchema = idSchema.transform(asCompanyDefaultMappingRuleId);
 const importBatchIdSchema = idSchema.transform(asImportBatchId);
 const txnIdSchema = idSchema.transform(asTxnId);
@@ -270,6 +283,21 @@ const txnResponseSchema = z.object({
   reviewedByUserId: userIdSchema.optional(),
   lockedAt: optionalIsoTimestampSchema,
   lockedByUserId: userIdSchema.optional(),
+  workflowVersion: z.number().int().nonnegative(),
+  pendingUnlockRequest: z
+    .object({
+      id: txnUnlockRequestIdSchema,
+      txnId: txnIdSchema,
+      status: z.enum(['pending', 'approved', 'rejected', 'cancelled']),
+      reason: z.string(),
+      requestedByUserId: userIdSchema,
+      requestedAt: isoTimestampSchema,
+      resolvedByUserId: userIdSchema.optional(),
+      resolvedAt: optionalIsoTimestampSchema,
+      resolutionReason: z.string().optional(),
+      version: z.number().int().positive(),
+    })
+    .optional(),
   reversal: z
     .object({
       id: z.string(),
@@ -328,6 +356,7 @@ export const txnBulkSelectionResultResponseSchema = z.object({
         subCategoryId: subCategoryIdSchema.optional(),
         codingPendingApproval: z.boolean(),
         locked: z.boolean(),
+        workflowVersion: z.number().int().nonnegative(),
         reversalStatus: z.enum(TXN_REVERSAL_STATUSES).optional(),
       })
     )

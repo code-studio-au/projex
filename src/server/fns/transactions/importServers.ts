@@ -34,9 +34,75 @@ import {
   importCandidateStatusForPreviewRow,
   persistedImportRuleId,
 } from './shared';
+import { commitImportPreviewBatch } from './importPreviewCommit';
 import { reconcilePendingReversalMatches } from './reversalServers';
 
 export async function importTransactionsServer(args: {
+  context: ServerFnContextInput;
+  projectId: ProjectId;
+  importBatchId: ImportBatchId;
+  mode: 'append' | 'replaceAll';
+  skipDuplicates?: boolean;
+  excludedImportIds?: TxnId[];
+  reviewDecisions?: ImportReviewDecision[];
+}): Promise<{ count: number; skipped: number; replaced: number }> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const context = await requireOperationalProjectForAction(
+      args.context,
+      args.projectId,
+      'project:import'
+    );
+    const { db, userId, companyId } = context;
+    await enforceRateLimit({
+      db,
+      bucket: `project-import-commit:${companyId}:${args.projectId}:${userId}`,
+      limit: IMPORT_COMMIT_RATE_LIMIT.limit,
+      windowMs: IMPORT_COMMIT_RATE_LIMIT.windowMs,
+      message:
+        'Too many import commits. Please wait a few minutes and try again.',
+    });
+    const [canEditTaxonomy, canEditBudgets] = await Promise.all([
+      isAuthorized({
+        db,
+        userId,
+        action: 'taxonomy:edit',
+        companyId,
+        projectId: args.projectId,
+      }),
+      isAuthorized({
+        db,
+        userId,
+        action: 'budget:edit',
+        companyId,
+        projectId: args.projectId,
+      }),
+    ]);
+
+    return db.transaction().execute((trx) =>
+      commitImportPreviewBatch({
+        db: trx,
+        companyId,
+        projectId: args.projectId,
+        userId,
+        importBatchId: args.importBatchId,
+        mode: args.mode,
+        skipDuplicates: args.skipDuplicates ?? true,
+        excludedImportIds: args.excludedImportIds,
+        reviewDecisions: args.reviewDecisions,
+        canEditTaxonomy,
+        canEditBudgets,
+      })
+    );
+  });
+}
+
+/**
+ * Trusted server-side import helper used by domain integration tests and
+ * internal workflows that already own complete transaction data. Browser and
+ * HTTP import commits must use importTransactionsServer with a preview batch.
+ */
+export async function importTrustedTransactionsServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
   txns: TxnImportTxnInput[];
@@ -384,6 +450,7 @@ export async function previewImportTransactionsServer(args: {
       projectId: args.projectId,
       userId,
       fileName: args.fileName ?? 'PowerBI expenditure actuals CSV',
+      autoCreateStructures: Boolean(args.autoCreateStructures),
       rows: preview.rows,
     });
 
@@ -419,6 +486,7 @@ async function createPowerBiImportBatch(args: {
   projectId: ProjectActionContext['projectId'];
   userId: ProjectActionContext['userId'];
   fileName: string;
+  autoCreateStructures: boolean;
   rows: ImportPreviewRow[];
 }): Promise<ImportBatchId> {
   const now = new Date().toISOString();
@@ -434,6 +502,7 @@ async function createPowerBiImportBatch(args: {
         source_type: 'powerbi_expenditure_actuals',
         file_name: args.fileName,
         status: 'previewed',
+        auto_create_structures: args.autoCreateStructures,
         created_by_user_id: args.userId,
         created_at: now,
         updated_at: now,
@@ -453,6 +522,7 @@ async function createPowerBiImportBatch(args: {
           source_row_index: row.sourceRowIndex,
           preview_import_id: row.importId,
           raw_row: row.rawSourceRow ?? {},
+          preview_plan: row,
           status: importCandidateStatusForPreviewRow(row),
           matched_import_rule_id: persistedImportRuleId(row),
           status_reason:

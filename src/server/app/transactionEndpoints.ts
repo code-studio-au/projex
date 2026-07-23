@@ -13,6 +13,8 @@ import {
   txnImportInputSchema,
   txnReversalActionInputSchema,
   txnWorkflowStateInputSchema,
+  txnUnlockRequestInputSchema,
+  txnUnlockResolutionInputSchema,
   updateTxnCommentInputSchema,
   updateTxnInputSchema,
 } from '../../validation/apiSchemas';
@@ -30,6 +32,8 @@ import {
   bulkTxnActionServer,
   updateTxnServer,
   updateTxnWorkflowStateServer,
+  requestTxnUnlockServer,
+  resolveTxnUnlockRequestServer,
 } from '../fns/transactions';
 import {
   createTransactionCommentServer,
@@ -179,6 +183,32 @@ export const updateTxnWorkflowStateEndpoint = defineAppEndpoint({
     }),
 });
 
+export const requestTxnUnlockEndpoint = defineAppEndpoint({
+  inputSchema: z.object({
+    projectId: projectIdSchema,
+    payload: txnUnlockRequestInputSchema,
+  }),
+  execute: ({ context, input }) =>
+    requestTxnUnlockServer({
+      context,
+      projectId: input.projectId,
+      input: input.payload,
+    }),
+});
+
+export const resolveTxnUnlockRequestEndpoint = defineAppEndpoint({
+  inputSchema: z.object({
+    projectId: projectIdSchema,
+    payload: txnUnlockResolutionInputSchema,
+  }),
+  execute: ({ context, input }) =>
+    resolveTxnUnlockRequestServer({
+      context,
+      projectId: input.projectId,
+      input: input.payload,
+    }),
+});
+
 export const bulkTxnActionEndpoint = defineAppEndpoint({
   inputSchema: z.object({
     projectId: projectIdSchema,
@@ -201,10 +231,9 @@ export const importTransactionsEndpoint = defineAppEndpoint({
     importTransactionsServer({
       context,
       projectId: input.projectId,
-      txns: input.payload.txns,
       mode: input.payload.mode,
-      autoCreateBudgets: input.payload.autoCreateBudgets,
       importBatchId: input.payload.importBatchId,
+      skipDuplicates: input.payload.skipDuplicates,
       excludedImportIds: input.payload.excludedImportIds,
       reviewDecisions: input.payload.reviewDecisions,
     }),

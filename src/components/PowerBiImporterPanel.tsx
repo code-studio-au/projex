@@ -23,7 +23,7 @@ import {
   type MRT_ColumnDef,
 } from 'mantine-react-table-open';
 
-import type { TxnImportInput, TxnImportTxnInput } from '../api/types';
+import type { TxnImportInput, TxnImportResult } from '../api/types';
 import type {
   CompanyId,
   ImportPreviewRow,
@@ -31,8 +31,6 @@ import type {
   ImportRuleOperator,
   ProjectId,
 } from '../types';
-import type { TaxonomyHook } from '../hooks/useTaxonomy';
-import type { BudgetsHook } from '../hooks/useBudgets';
 import { formatCurrencyFromCents } from '../utils/money';
 import {
   matchesPowerBiImportRule,
@@ -85,10 +83,7 @@ const importRuleSelectProps = {
 
 type PowerBiImportCommitOptions = Pick<
   TxnImportInput,
-  | 'autoCreateBudgets'
-  | 'importBatchId'
-  | 'excludedImportIds'
-  | 'reviewDecisions'
+  'importBatchId' | 'skipDuplicates' | 'excludedImportIds' | 'reviewDecisions'
 >;
 
 function toImportRuleField(value: string | null): ImportRuleField | null {
@@ -114,27 +109,19 @@ function displayWarningsForRow(row: ImportPreviewRow): string[] {
 }
 
 export default function PowerBiImporterPanel(props: {
-  taxonomy: TaxonomyHook;
-  budgets: BudgetsHook;
   companyId: CompanyId;
   projectId: ProjectId;
   currencyCode: 'AUD' | 'USD' | 'EUR' | 'GBP';
   canEditTaxonomy: boolean;
   canEditBudgets: boolean;
   canManageImportRules: boolean;
-  onAppend: (
-    txns: TxnImportTxnInput[],
-    options?: PowerBiImportCommitOptions
-  ) => Promise<void>;
+  onAppend: (options: PowerBiImportCommitOptions) => Promise<TxnImportResult>;
   onReplaceAll: (
-    txns: TxnImportTxnInput[],
-    options?: PowerBiImportCommitOptions
-  ) => Promise<void>;
+    options: PowerBiImportCommitOptions
+  ) => Promise<TxnImportResult>;
   onImportComplete: (message: string) => void;
 }) {
   const {
-    taxonomy,
-    budgets,
     companyId,
     projectId,
     currencyCode,
@@ -153,11 +140,7 @@ export default function PowerBiImporterPanel(props: {
     projectId
   );
   const importer = usePowerBiImportWorkflow({
-    taxonomy,
-    budgets,
-    companyId,
     projectId,
-    canEditBudgets,
     initialPageSize: isMobile ? 10 : 20,
     onAppend,
     onReplaceAll,
@@ -848,8 +831,8 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
 
               {!hasBlockingIssues && hasReplaceAllBlockers ? (
                 <Alert color="red" className={classes.notice}>
-                  Duplicate rows inside the import file will block replace all
-                  until they are excluded.
+                  Duplicate rows inside the import file will block period
+                  replacement until they are excluded.
                 </Alert>
               ) : null}
 
@@ -1175,7 +1158,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                   disabled={!previewSummary.included || hasReplaceAllBlockers}
                   onClick={() => setConfirmReplaceOpen(true)}
                 >
-                  Replace all
+                  Replace imported period
                 </Button>
               </Group>
             </Group>
@@ -1186,7 +1169,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
       <Modal
         opened={confirmReplaceOpen}
         onClose={() => setConfirmReplaceOpen(false)}
-        title="Replace all transactions?"
+        title="Replace imported period?"
         fullScreen={isMobile}
         centered={!isMobile}
         styles={{
@@ -1198,8 +1181,10 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            This will replace all existing transactions in this project with the
-            currently included preview rows. This cannot be undone.
+            This replaces PowerBI-imported transactions within the preview's
+            date range. Transactions outside that period are preserved, and
+            replacement is blocked if the period contains reviewed, locked,
+            commented, reversal-linked, or structurally related transactions.
           </Text>
           <Group className={classes.footerRow}>
             <Button
@@ -1214,7 +1199,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               fullWidth={isMobile}
               onClick={() => void handleCommitReplaceAll()}
             >
-              Replace all
+              Replace imported period
             </Button>
           </Group>
         </Stack>

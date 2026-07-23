@@ -726,7 +726,11 @@ test(
         {
           route: 'POST /api/projects/:projectId/transactions/:txnId/workflow',
           run: (x) =>
-            x.updateTxnWorkflowState(projectId, { txnId, reviewed: true }),
+            x.updateTxnWorkflowState(projectId, {
+              txnId,
+              expectedWorkflowVersion: 0,
+              reviewed: true,
+            }),
         },
         {
           route: 'GET /api/projects/:projectId/transactions/comment-summaries',
@@ -773,20 +777,7 @@ test(
           run: (x) =>
             x.importTransactions(projectId, {
               mode: 'append',
-              txns: [
-                {
-                  id: asTxnId('itest_routeauth_import_txn_1'),
-                  companyId,
-                  projectId,
-                  date: '2026-05-03',
-                  item: 'Imported',
-                  description: 'Imported row',
-                  amountCents: 990,
-                  externalId: 'imported-ext-1',
-                  categoryId,
-                  subCategoryId,
-                },
-              ],
+              importBatchId,
             }),
         },
         {

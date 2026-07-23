@@ -4,6 +4,7 @@ import {
   asCompanyDefaultCategoryId,
   asCompanyDefaultSubCategoryId,
 } from '../../../types';
+import { recordAuditEvent } from '../../audit/auditEvents';
 import { getDb } from '../../db/db';
 import type { DB } from '../../db/schema';
 import { syncCompanyAutoCodingRulesToSyncedProjects } from '../projectAutoCodingRules';
@@ -202,6 +203,20 @@ export async function syncCompanyDefaultTaxonomyChange(args: {
     db: args.trx,
     companyId: args.companyId,
     actorUserId: args.actorUserId,
+  });
+  await recordAuditEvent({
+    db: args.trx,
+    companyId: args.companyId,
+    actorUserId: args.actorUserId,
+    eventClass: 'inheritance',
+    eventType: 'company_standards.propagated',
+    entityType: 'company',
+    entityId: args.companyId,
+    reason: 'Propagated changed company standards to synced projects',
+    resultingState: {
+      taxonomyReconciled: args.includeTaxonomy,
+      autoCodingRulesReconciled: true,
+    },
   });
 }
 

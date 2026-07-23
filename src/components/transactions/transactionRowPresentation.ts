@@ -12,6 +12,10 @@ export function getTransactionRowStatus(args: {
 }): TransactionRowStatus | null {
   const { txn, hasValidSubCategory } = args;
 
+  if (txn.pendingUnlockRequest) {
+    return { color: 'orange', label: 'Unlock review' };
+  }
+
   if (txn.reversal?.status === 'reversal_exception') {
     return { color: 'red', label: 'Reversal issue' };
   }

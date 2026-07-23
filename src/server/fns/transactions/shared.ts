@@ -100,8 +100,35 @@ export function txnSelectColumns() {
     'reviewed_by_user_id',
     'locked_at',
     'locked_by_user_id',
+    'workflow_version',
     'created_at',
     'updated_at',
+  ] as const;
+}
+
+type TxnUnlockRequestJoinCallback = JoinCallbackExpression<
+  TxnAliasDb,
+  't',
+  'txn_unlock_requests as tur'
+>;
+
+export function txnUnlockRequestJoin(): TxnUnlockRequestJoinCallback {
+  return (join) =>
+    join
+      .onRef('tur.project_id', '=', 't.project_id')
+      .onRef('tur.txn_public_id', '=', 't.public_id')
+      .on('tur.status', '=', 'pending');
+}
+
+export function txnUnlockRequestSelectExpressions() {
+  return [
+    sql<string | null>`tur.id`.as('unlock_request_id'),
+    sql<string | null>`tur.reason`.as('unlock_request_reason'),
+    sql<string | null>`tur.requested_by_user_id`.as(
+      'unlock_request_requested_by_user_id'
+    ),
+    sql<string | null>`tur.requested_at`.as('unlock_request_requested_at'),
+    sql<number | null>`tur.version`.as('unlock_request_version'),
   ] as const;
 }
 
@@ -213,6 +240,13 @@ export function needsReviewTxnSql() {
           'auto_matched_ambiguous_pending_approval',
           'reversal_exception'
         )
+    )
+    or exists (
+      select 1
+      from txn_unlock_requests tur
+      where tur.project_id = t.project_id
+        and tur.txn_public_id = t.public_id
+        and tur.status = 'pending'
     )
   )`;
 }
@@ -358,11 +392,16 @@ export type BulkTxnActionRow = {
   reviewed_by_user_id: string | null;
   locked_at: string | null;
   locked_by_user_id: string | null;
+  workflow_version: number;
   in_reversal_workflow: boolean;
+  in_structural_operation: boolean;
 };
 
 export function workflowPatchIsNoop(args: {
-  row: BulkTxnActionRow;
+  row: Pick<
+    BulkTxnActionRow,
+    'reviewed_at' | 'reviewed_by_user_id' | 'locked_at' | 'locked_by_user_id'
+  >;
   patch: {
     reviewed_at: string | null | undefined;
     reviewed_by_user_id: string | null | undefined;
