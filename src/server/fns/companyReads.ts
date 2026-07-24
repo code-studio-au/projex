@@ -43,6 +43,11 @@ type CompanyReportingContext = {
   companyRole: string | null;
 };
 
+function toIsoTimestamp(value: Date | string | null | undefined) {
+  if (!value) return undefined;
+  return value instanceof Date ? value.toISOString() : value;
+}
+
 async function requireCompanyReportingContext(
   context: ServerFnContextInput,
   companyId: CompanyId
@@ -299,7 +304,7 @@ export async function getCompanyWorkQueueServer(args: {
             .select([
               'project_id',
               sql<number>`count(*)`.as('unlock_request_count'),
-              sql<string | null>`min(requested_at)`.as(
+              sql<Date | string | null>`min(requested_at)`.as(
                 'oldest_unlock_request_at'
               ),
             ])
@@ -358,7 +363,9 @@ export async function getCompanyWorkQueueServer(args: {
           oldestReversalReviewDate:
             transactions?.oldest_reversal_review_date ?? undefined,
           unlockRequestCount,
-          oldestUnlockRequestAt: unlocks?.oldest_unlock_request_at ?? undefined,
+          oldestUnlockRequestAt: toIsoTimestamp(
+            unlocks?.oldest_unlock_request_at
+          ),
         },
       ];
     });

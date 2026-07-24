@@ -592,6 +592,20 @@ async function runGeneratedReversalFlow(
     .getByText('Reversal review complete', { exact: true })
     .waitFor({ state: 'visible' });
 
+  const transactionView = page.getByRole('combobox', {
+    name: 'Workflow view',
+  });
+  await transactionView.click();
+  await page.getByRole('option', { name: 'Matched reversal pairs' }).click();
+  await waitForLocation(
+    page,
+    ({ pathname, search }) =>
+      pathname === `/c/${fixtures.companyId}/p/${fixtures.projectId}` &&
+      new URLSearchParams(search).get('tab') === 'transactions' &&
+      new URLSearchParams(search).get('view') === 'matched-reversal-pairs',
+    'Transaction workflow filter did not show approved reversal pairs'
+  );
+
   const matchedBadge = page
     .getByRole('button', { name: 'Matched original' })
     .first();

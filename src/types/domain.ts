@@ -546,7 +546,7 @@ export type CompanySummary = {
   projects: CompanySummaryProject[];
 };
 
-export type CompanyWorkQueueProject = {
+type CompanyWorkQueueProject = {
   projectId: ProjectId;
   projectName: string;
   needsCodingCount: number;
