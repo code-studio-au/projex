@@ -512,7 +512,7 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
         mode: input.mode,
         importBatchId: input.importBatchId,
         skipDuplicates: input.skipDuplicates,
-        excludedImportIds: input.excludedImportIds,
+        excludedSourceRowIndexes: input.excludedSourceRowIndexes,
         reviewDecisions: input.reviewDecisions,
       }),
     cancelImportPreview: (

@@ -165,14 +165,14 @@ export type TxnImportTxnInput = Omit<
   forceUncoded?: boolean;
 };
 export type ImportReviewDecision = {
-  previewImportId: TxnId;
+  sourceRowIndex: number;
   decision: 'import_uncoded' | 'exclude';
 };
 export type TxnImportInput = {
   mode: TxnImportMode;
   importBatchId: ImportBatchId;
   skipDuplicates?: boolean;
-  excludedImportIds?: TxnId[];
+  excludedSourceRowIndexes?: number[];
   reviewDecisions?: ImportReviewDecision[];
 };
 export type TxnImportResult = {

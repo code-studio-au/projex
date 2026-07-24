@@ -791,6 +791,23 @@ test(
         ruleId: mappingRuleId,
       });
 
+      await assert.rejects(
+        db
+          .insertInto('categories')
+          .values({
+            id: asCategoryId('itest_cross_company_cat_1'),
+            company_id: otherCompanyId,
+            project_id: projectId,
+            name: 'Invalid cross-company category',
+          })
+          .execute(),
+        (error: unknown) =>
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === '23503'
+      );
+
       await assertAppError(
         () => requireCompanyMember({ db, companyId: otherCompanyId, userId }),
         'VALIDATION_ERROR',

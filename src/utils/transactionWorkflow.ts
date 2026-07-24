@@ -1,4 +1,4 @@
-import type { UserId } from '../types';
+import type { TxnReversalStatus, UserId } from '../types';
 
 export type TxnWorkflowSnapshot = {
   reviewedAt?: string;
@@ -13,6 +13,19 @@ export type TxnWorkflowPatch = {
   locked_at: string | null;
   locked_by_user_id: UserId | null;
 };
+
+export function transactionCanBeLocked(args: {
+  categorisable: boolean;
+  hasValidSubCategory: boolean;
+  codingPendingApproval: boolean;
+  reversalStatus?: TxnReversalStatus;
+}): boolean {
+  return (
+    !args.codingPendingApproval &&
+    (!args.categorisable || args.hasValidSubCategory) &&
+    (!args.reversalStatus || args.reversalStatus === 'reversed_matched')
+  );
+}
 
 export function planTxnWorkflowState(args: {
   current: TxnWorkflowSnapshot;

@@ -5,7 +5,6 @@ import {
   applyTxnReversalActionServer,
   bulkTxnActionServer,
   deleteTxnServer,
-  importTrustedTransactionsServer as importTransactionsServer,
   listProjectTransactionSummaryServer,
   listTransactionsSelectionServer,
   listTransactionsPageServer,
@@ -13,6 +12,7 @@ import {
   splitTxnServer,
   updateTxnServer,
 } from '../src/server/fns/transactions.ts';
+import { importTrustedTransactionsServer as importTransactionsServer } from '../src/server/testing/importTrustedTransactions.ts';
 import {
   asCategoryId,
   asCompanyId,
@@ -1312,7 +1312,6 @@ test(
     const sourceTxnBId = asTxnId('itest_txn_reversal_bulk_approve_txn_2');
     const reversalTxnAId = asTxnId('itest_txn_reversal_bulk_approve_txn_3');
     const reversalTxnBId = asTxnId('itest_txn_reversal_bulk_approve_txn_4');
-    const lockedTxnId = asTxnId('itest_txn_reversal_bulk_approve_txn_5');
     const context = { session: { userId } };
 
     try {
@@ -1407,24 +1406,6 @@ test(
               'Reference Num': 'REF-B',
             },
           },
-          {
-            id: lockedTxnId,
-            externalId: 'BULK-REV-LOCKED',
-            companyId,
-            projectId,
-            date: '2026-05-30',
-            item: '1181853 Locked Source',
-            description:
-              '1181853 Locked Source | CC300 Team | Source: EXA | Reference: REF-C',
-            amountCents: 14000,
-            importSourceType: 'powerbi_expenditure_actuals',
-            importSourceMeta: {
-              Source: 'EXA',
-              'Journal Line Description': '1181853 Locked Source',
-              'CC and Description': 'CC300 Team',
-              'Reference Num': 'REF-C',
-            },
-          },
         ],
       });
 
@@ -1446,16 +1427,6 @@ test(
           commentBody: 'Pending B',
         },
       });
-      await applyTxnReversalActionServer({
-        context,
-        projectId,
-        input: {
-          action: 'markPending',
-          txnId: lockedTxnId,
-          commentBody: 'Pending locked',
-        },
-      });
-
       await importTransactionsServer({
         context,
         projectId,
@@ -1500,28 +1471,16 @@ test(
         ],
       });
 
-      await db
-        .updateTable('txns')
-        .set({
-          reviewed_at: new Date().toISOString(),
-          reviewed_by_user_id: userId,
-          locked_at: new Date().toISOString(),
-          locked_by_user_id: userId,
-        })
-        .where('project_id', '=', projectId)
-        .where('public_id', '=', lockedTxnId)
-        .executeTakeFirst();
-
       const bulkResult = await bulkTxnActionServer({
         context,
         projectId,
         input: {
           action: 'approveSuggestedReversals',
-          txnIds: [sourceTxnAId, sourceTxnBId, lockedTxnId],
+          txnIds: [sourceTxnAId, sourceTxnBId],
         },
       });
       assert.equal(bulkResult.updatedCount, 2);
-      assert.equal(bulkResult.lockedCount, 1);
+      assert.equal(bulkResult.lockedCount, 0);
       assert.equal(bulkResult.ineligibleCount, 0);
 
       const reversals = await db
@@ -1546,10 +1505,6 @@ test(
       assert.equal(
         reversalBySourceTxnId.get(sourceTxnBId)?.status,
         'reversed_matched'
-      );
-      assert.equal(
-        reversalBySourceTxnId.get(lockedTxnId)?.status,
-        'pending_reversal'
       );
       assert.ok(reversalBySourceTxnId.get(sourceTxnAId)?.matched_at);
       assert.ok(reversalBySourceTxnId.get(sourceTxnBId)?.matched_at);

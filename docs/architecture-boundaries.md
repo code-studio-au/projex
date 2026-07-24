@@ -92,6 +92,18 @@ Current reference patterns:
 - `src/server/fns/projectAutoCodingRules/sync.ts`
 - `src/server/fns/taxonomy/standards.ts`
 
+## Rule suggestion rule
+
+Manual-coding signals use `(project_id, txn_public_id)` as their transaction
+identity. Company aggregates contain company-standard target IDs and bounded
+evidence only; they must not depend on one project's taxonomy rows.
+
+Keep signal writes in `ruleSuggestions.ts`, aggregate refresh in
+`ruleSuggestions/aggregation.ts`, reads in `ruleSuggestions/readServers.ts`,
+and review mutations in `ruleSuggestions/reviewServers.ts`. Aggregate refresh
+must take the company pattern advisory lock before reading and writing so
+concurrent coding cannot create competing suggestions.
+
 ## Transaction workflow rule
 
 Keep transaction and reversal responsibilities behind the existing transaction
@@ -118,6 +130,9 @@ transaction. Lock selected rows in deterministic order, repeat eligibility in
 the write predicate, and verify affected-row counts. Transaction lock changes
 and reversal transitions also take the shared project-scoped advisory lock so
 neither workflow can invalidate the other's decision mid-command.
+Single and bulk lock commands use the same SQL eligibility expression, and a
+database trigger rejects uncoded, approval-pending, or reversal-pending locks
+from alternate write paths.
 Database constraints independently enforce pair ownership, sign, amount, date
 order, and linked transaction identity so alternate write paths cannot bypass
 the server-function boundary.
@@ -131,6 +146,12 @@ identity, and split or transfer relationships must be represented by balanced
 `txn_links` created in the same transaction as their rows. See
 `docs/transaction-integrity.md` for the persisted contracts.
 
+Preview row decisions use the persisted source-row index, not a future
+transaction ID. Project-scoped operational tables use composite
+`(company_id, project_id)` foreign keys as defense-in-depth against cross-tenant
+references. Immutable audit events intentionally keep soft entity references
+because they can outlive deleted projects.
+
 ## Audit and workflow rule
 
 Protected financial and administrative mutations must use
@@ -143,6 +164,14 @@ Transaction workflow commands must lock the row and compare
 `workflow_version` before changing review or lock state. Unlock requests are
 separate workflow records and must be resolved through their authorized command
 boundary; never update a locked transaction directly to simulate approval.
+
+## Route state rule
+
+Route search schemas should recover valid fields independently when one query
+parameter is malformed. Interactive transaction search keeps an immediate local
+draft and commits a single delayed route update through
+`useTransactionSearch.ts`; table libraries must not add a second debounce or
+take ownership of the input value.
 
 ## Inheritance reconciliation rule
 

@@ -151,15 +151,32 @@ function deriveStableTxnId(
   return occurrence === 1 ? `txn_${hash}` : `txn_${hash}_${occurrence}`;
 }
 
-/** Assign stable IDs using fingerprint + occurrence count */
+function stableIdentityKey(
+  txn: Pick<
+    ImportTxnWithTaxonomy,
+    'id' | 'externalId' | 'date' | 'item' | 'description' | 'amountCents'
+  >
+): string {
+  const externalId = String(txn.externalId ?? '')
+    .trim()
+    .toLowerCase();
+  if (externalId) return `external:${externalId}`;
+
+  const explicitId = String(txn.id ?? '').trim();
+  if (explicitId) return `id:${explicitId}`;
+
+  return `content:${fingerprint(txn)}`;
+}
+
+/** Assign stable IDs using the chosen identity source plus occurrence count. */
 export function assignStableIds(
   importTxns: ImportTxnWithTaxonomy[]
 ): Array<ImportTxnWithTaxonomy & { id: TxnId | string }> {
   const seen = new Map<string, number>();
   return importTxns.map((t) => {
-    const fp = fingerprint(t);
-    const occ = (seen.get(fp) ?? 0) + 1;
-    seen.set(fp, occ);
+    const identityKey = stableIdentityKey(t);
+    const occ = (seen.get(identityKey) ?? 0) + 1;
+    seen.set(identityKey, occ);
     return { ...t, id: deriveStableTxnId(t, occ) };
   });
 }

@@ -3,6 +3,7 @@ export type AppErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'RATE_LIMITED'
+  | 'PAYLOAD_TOO_LARGE'
   | 'VALIDATION_ERROR'
   | 'CONFLICT'
   | 'NOT_IMPLEMENTED'

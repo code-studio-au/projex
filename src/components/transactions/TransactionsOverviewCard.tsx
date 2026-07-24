@@ -58,6 +58,7 @@ export default function TransactionsOverviewCard(props: {
   >;
   selectedUnlockedCategorisableCount: number;
   selectedDeletableCount: number;
+  selectedLockEligibleCount: number;
   onSelectAll: () => void;
   onClearSelection: () => void;
   onMarkReviewed: () => void;
@@ -108,6 +109,7 @@ export default function TransactionsOverviewCard(props: {
     selectedSuggestedReversalPairs,
     selectedUnlockedCategorisableCount,
     selectedDeletableCount,
+    selectedLockEligibleCount,
     onSelectAll,
     onClearSelection,
     onMarkReviewed,
@@ -228,6 +230,7 @@ export default function TransactionsOverviewCard(props: {
               selectedUnlockedCategorisableCount
             }
             selectedDeletableCount={selectedDeletableCount}
+            selectedLockEligibleCount={selectedLockEligibleCount}
             canManageReversals={canManageReversals}
             canAdminUnlock={canAdminUnlock}
             onSelectAll={onSelectAll}

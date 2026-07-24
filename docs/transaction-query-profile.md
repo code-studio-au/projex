@@ -35,3 +35,17 @@ project-scoped joins for valid subcategories and open reversals reduced the
 100,000-row summary by about 62.5%. The assigned-comment calculation remains a
 single indexed existence check because multiple comments can exist per
 transaction and a direct join would multiply aggregate rows.
+
+## Global Search
+
+Transaction search uses a trigger-maintained `txns.search_text` document that
+normalizes the item, description, external ID, and source metadata once at
+write time. A PostgreSQL GIN trigram index serves contains-style searches
+without expanding JSON for every row. The UI and route schema require at least
+two trimmed characters, preserve a local input draft, and apply one delayed
+route update so remote filtering does not steal focus while the user types.
+
+The paginated page, summary, and bulk-selection reads share this search
+predicate, keeping displayed counts and selected IDs consistent. New searchable
+fields should be added to the database trigger rather than by introducing
+per-query JSON scans.

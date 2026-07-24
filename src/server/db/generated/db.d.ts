@@ -205,6 +205,8 @@ export interface ImportBatches {
   created_by_user_id: string;
   file_name: string;
   id: string;
+  preview_from_date: Timestamp | null;
+  preview_to_date: Timestamp | null;
   project_id: string;
   source_type: string;
   status: Generated<string>;
@@ -322,8 +324,6 @@ export interface RuleSuggestions {
   match_text_alternatives: Generated<string[]>;
   pattern_basis: Generated<string>;
   pattern_text_normalized: string;
-  project_category_id: string;
-  project_sub_category_id: string;
   proposed_match_text: string;
   recommended_action: Generated<string>;
   sample_count: number;
@@ -343,9 +343,7 @@ export interface RuleSuggestionSignals {
   pattern_basis: string;
   pattern_text_normalized: string;
   pattern_text_raw: string;
-  project_category_id: string;
   project_id: string;
-  project_sub_category_id: string;
   source_rule_id: string | null;
   suggestion_type: string;
   txn_public_id: string;
@@ -457,6 +455,7 @@ export interface Txns {
   public_id: string;
   reviewed_at: Timestamp | null;
   reviewed_by_user_id: string | null;
+  search_text: Generated<string>;
   source_public_id: string | null;
   sub_category_id: string | null;
   transfer_project_id: string | null;

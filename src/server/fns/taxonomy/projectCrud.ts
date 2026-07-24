@@ -531,6 +531,66 @@ export async function updateProjectSubCategory(args: {
   patch.updated_at = now;
 
   const updated = await db.transaction().execute(async (trx) => {
+    const current = await trx
+      .selectFrom('sub_categories')
+      .select(['id', 'category_id', 'updated_at'])
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', args.input.id)
+      .forUpdate()
+      .executeTakeFirst();
+    if (
+      !current ||
+      current.updated_at.valueOf() !== existing.updated_at.valueOf()
+    ) {
+      throw new AppError(
+        'CONFLICT',
+        'Subcategory changed while it was being updated. Refresh and try again.'
+      );
+    }
+
+    if (nextCategoryId !== asCategoryId(current.category_id)) {
+      const targetCategory = await trx
+        .selectFrom('categories')
+        .select('id')
+        .where('project_id', '=', args.projectId)
+        .where('id', '=', nextCategoryId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!targetCategory) {
+        throw new AppError('NOT_FOUND', 'Unknown category');
+      }
+      const duplicate = await trx
+        .selectFrom('sub_categories')
+        .select('id')
+        .where('project_id', '=', args.projectId)
+        .where('id', '!=', args.input.id)
+        .where('category_id', '=', nextCategoryId)
+        .where(({ fn, eb }) =>
+          eb(fn('lower', ['name']), '=', nextName.toLowerCase())
+        )
+        .executeTakeFirst();
+      if (duplicate) {
+        throw new AppError(
+          'CONFLICT',
+          `Subcategory "${nextName}" already exists in the destination category`
+        );
+      }
+      const dependentTransactions = await trx
+        .selectFrom('txns')
+        .select(['public_id', 'locked_at'])
+        .where('project_id', '=', args.projectId)
+        .where('sub_category_id', '=', args.input.id)
+        .orderBy('public_id', 'asc')
+        .forUpdate()
+        .execute();
+      if (dependentTransactions.some((txn) => txn.locked_at)) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Subcategory cannot be moved while locked transactions use it'
+        );
+      }
+    }
+
     const row = await trx
       .updateTable('sub_categories')
       .set(patch)
@@ -538,23 +598,6 @@ export async function updateProjectSubCategory(args: {
       .where('id', '=', args.input.id)
       .returning(subCategorySelectColumns())
       .executeTakeFirstOrThrow();
-
-    if (nextCategoryId !== asCategoryId(existing.category_id)) {
-      await trx
-        .updateTable('budget_lines')
-        .set({ category_id: nextCategoryId, updated_at: now })
-        .where('project_id', '=', args.projectId)
-        .where('sub_category_id', '=', args.input.id)
-        .execute();
-
-      await trx
-        .updateTable('txns')
-        .set({ category_id: nextCategoryId, updated_at: now })
-        .where('project_id', '=', args.projectId)
-        .where('sub_category_id', '=', args.input.id)
-        .where('locked_at', 'is', null)
-        .execute();
-    }
 
     return row;
   });
@@ -664,6 +707,30 @@ export async function deleteProjectSubCategory(args: {
   }
 
   await db.transaction().execute(async (trx) => {
+    const current = await trx
+      .selectFrom('sub_categories')
+      .select('id')
+      .where('project_id', '=', args.projectId)
+      .where('id', '=', args.subCategoryId)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!current) return;
+
+    const dependentTransactions = await trx
+      .selectFrom('txns')
+      .select(['public_id', 'locked_at'])
+      .where('project_id', '=', args.projectId)
+      .where('sub_category_id', '=', args.subCategoryId)
+      .orderBy('public_id', 'asc')
+      .forUpdate()
+      .execute();
+    if (dependentTransactions.some((txn) => txn.locked_at)) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Subcategory cannot be deleted while locked transactions use it'
+      );
+    }
+
     if (replacement) {
       for (const rule of affectedRules) {
         const patch: Record<string, unknown> = {

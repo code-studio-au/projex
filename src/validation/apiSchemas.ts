@@ -738,7 +738,7 @@ export const txnCommentUpdateMutationBodySchema = z.object({
 });
 
 const importReviewDecisionSchema = z.object({
-  previewImportId: txnIdSchema,
+  sourceRowIndex: z.number().int().positive(),
   decision: z.enum(['import_uncoded', 'exclude']),
 });
 
@@ -747,8 +747,8 @@ export const txnImportInputSchema = z
     mode: csvImportModeSchema,
     importBatchId: importBatchIdParamSchema,
     skipDuplicates: z.boolean().optional(),
-    excludedImportIds: z
-      .array(txnIdSchema)
+    excludedSourceRowIndexes: z
+      .array(z.number().int().positive())
       .max(MAX_IMPORT_TXN_COUNT)
       .optional(),
     reviewDecisions: z

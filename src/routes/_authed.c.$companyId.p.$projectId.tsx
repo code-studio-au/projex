@@ -1,5 +1,4 @@
 import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
-import { z } from 'zod';
 import type { UserId } from '../types';
 import { asCompanyId, asProjectId } from '../types';
 import { getUserCompanyRole } from '../store/access';
@@ -20,48 +19,7 @@ import {
   categoriesQueryOptions,
   subCategoriesQueryOptions,
 } from '../queries/taxonomy';
-
-const quarterSchema = z.enum(['Q1', 'Q2', 'Q3', 'Q4']);
-
-const projectWorkspaceSearchSchema = z
-  .object({
-    tab: z.enum(['budget', 'transactions', 'import', 'settings']).optional(),
-    year: z
-      .string()
-      .regex(/^\d{4}$/)
-      .optional(),
-    quarter: quarterSchema.optional(),
-    month: z
-      .string()
-      .regex(/^\d{4}-\d{2}$/)
-      .optional(),
-    view: z
-      .enum([
-        'all',
-        'uncoded',
-        'needs-review',
-        'auto-mapped-pending',
-        'reversal-review',
-        'unlock-requests',
-        'assigned-to-me',
-        'pending-reversal',
-        'matched-reversal-pairs',
-      ])
-      .optional(),
-    q: z.string().trim().min(1).max(200).optional(),
-    commentTxn: z.string().trim().min(1).optional(),
-    commentId: z.string().trim().min(1).optional(),
-    source: z.enum(['company-summary', 'company-work-queue']).optional(),
-    focus: z
-      .enum(['budget', 'actual', 'remaining', 'uncoded', 'health'])
-      .optional(),
-    drilldownKind: z.enum(['category', 'subcategory']).optional(),
-    categoryId: z.string().trim().min(1).optional(),
-    subCategoryId: z.string().trim().min(1).optional(),
-    categoryName: z.string().trim().min(1).optional(),
-    subCategoryName: z.string().trim().min(1).optional(),
-  })
-  .catch({});
+import { projectWorkspaceSearchSchema } from './-projectWorkspaceSearch';
 
 export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
   validateSearch: (search) => projectWorkspaceSearchSchema.parse(search),

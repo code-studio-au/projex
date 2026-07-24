@@ -32,6 +32,8 @@ import { reconcilePendingReversalMatches } from './reversalServers';
 type CommitMode = 'append' | 'replaceAll';
 
 type LockedCandidate = {
+  id: string;
+  source_row_index: number;
   preview_import_id: string | null;
   preview_plan: ImportPreviewRow | null;
   status: string;
@@ -51,14 +53,20 @@ export async function commitImportPreviewBatch(args: {
   importBatchId: ImportBatchId;
   mode: CommitMode;
   skipDuplicates: boolean;
-  excludedImportIds?: TxnId[];
+  excludedSourceRowIndexes?: number[];
   reviewDecisions?: ImportReviewDecision[];
   canEditTaxonomy: boolean;
   canEditBudgets: boolean;
 }): Promise<ImportPreviewCommitResult> {
   const batch = await args.db
     .selectFrom('import_batches')
-    .select(['status', 'auto_create_structures', 'source_type'])
+    .select([
+      'status',
+      'auto_create_structures',
+      'source_type',
+      'preview_from_date',
+      'preview_to_date',
+    ])
     .where('id', '=', args.importBatchId)
     .where('company_id', '=', args.companyId)
     .where('project_id', '=', args.projectId)
@@ -72,7 +80,13 @@ export async function commitImportPreviewBatch(args: {
 
   const candidates = await args.db
     .selectFrom('import_candidates')
-    .select(['preview_import_id', 'preview_plan', 'status'])
+    .select([
+      'id',
+      'source_row_index',
+      'preview_import_id',
+      'preview_plan',
+      'status',
+    ])
     .where('batch_id', '=', args.importBatchId)
     .where('project_id', '=', args.projectId)
     .orderBy('source_row_index', 'asc')
@@ -85,7 +99,7 @@ export async function commitImportPreviewBatch(args: {
   })) satisfies LockedCandidate[];
   const selection = resolveCommitSelection({
     candidates: lockedCandidates,
-    excludedImportIds: args.excludedImportIds,
+    excludedSourceRowIndexes: args.excludedSourceRowIndexes,
     reviewDecisions: args.reviewDecisions,
     mode: args.mode,
     skipDuplicates: args.skipDuplicates,
@@ -124,24 +138,27 @@ export async function commitImportPreviewBatch(args: {
     rows: selection.rows,
     autoCreateStructures: batch.auto_create_structures,
   });
-  const plannedTransactions = selection.rows.map(({ row, importUncoded }) =>
-    transactionFromPreviewRow({
+  const plannedRows = selection.rows.map(({ row, importUncoded }) => ({
+    sourceRowIndex: row.sourceRowIndex,
+    transaction: transactionFromPreviewRow({
       row,
       importUncoded,
       companyId: args.companyId,
       projectId: args.projectId,
       importBatchId: args.importBatchId,
       taxonomy,
-    })
-  );
+    }),
+  }));
+  const plannedTransactions = plannedRows.map(({ transaction }) => transaction);
 
   const replacementIds =
     args.mode === 'replaceAll'
       ? await replacementTransactionIds({
           db: args.db,
           projectId: args.projectId,
-          sourceType: batch.source_type,
-          incomingTransactions: plannedTransactions,
+          sourceType: batch.source_type as NonNullable<Txn['importSourceType']>,
+          fromDate: toDateOnly(batch.preview_from_date),
+          toDate: toDateOnly(batch.preview_to_date),
         })
       : [];
   const existingTransactions = await loadExistingTransactionKeys({
@@ -156,11 +173,17 @@ export async function commitImportPreviewBatch(args: {
   });
 
   if (replacementIds.length) {
-    await args.db
+    const deleted = await args.db
       .deleteFrom('txns')
       .where('project_id', '=', args.projectId)
       .where('public_id', 'in', replacementIds)
-      .execute();
+      .executeTakeFirst();
+    if (Number(deleted.numDeletedRows) !== replacementIds.length) {
+      throw new AppError(
+        'CONFLICT',
+        'Transaction eligibility changed while replacing the import period'
+      );
+    }
   }
 
   if (batch.auto_create_structures) {
@@ -228,9 +251,20 @@ export async function commitImportPreviewBatch(args: {
   await finalizePreviewBatch({
     db: args.db,
     importBatchId: args.importBatchId,
-    importedTransactions: deduped.transactions,
-    excludedIds: selection.excludedIds,
-    importedReviewIds: selection.importedReviewIds,
+    importedSourceRows: deduped.transactions.map((transaction) => {
+      const planned = plannedRows.find(
+        (row) => row.transaction.id === transaction.id
+      );
+      if (!planned) {
+        throw new AppError(
+          'CONFLICT',
+          'Imported transaction no longer belongs to the committed preview'
+        );
+      }
+      return planned.sourceRowIndex;
+    }),
+    excludedSourceRows: selection.excludedSourceRows,
+    importedReviewSourceRows: selection.importedReviewSourceRows,
     userId: args.userId,
     now,
   });
@@ -254,7 +288,7 @@ export async function commitImportPreviewBatch(args: {
     metadata: {
       mode: args.mode,
       skippedCount: selection.previewDuplicateCount + deduped.skipped,
-      excludedCount: selection.excludedIds.length,
+      excludedCount: selection.excludedSourceRows.length,
     },
     nowIso: now,
   });
@@ -279,22 +313,17 @@ function parsePreviewPlan(value: ImportPreviewRow | null): ImportPreviewRow {
 
 function resolveCommitSelection(args: {
   candidates: Array<LockedCandidate & { preview_plan: ImportPreviewRow }>;
-  excludedImportIds?: TxnId[];
+  excludedSourceRowIndexes?: number[];
   reviewDecisions?: ImportReviewDecision[];
   mode: CommitMode;
   skipDuplicates: boolean;
 }) {
-  const candidateById = new Map(
-    args.candidates.map((candidate) => [
-      candidate.preview_plan.importId,
-      candidate,
-    ])
+  const candidateBySourceRow = new Map(
+    args.candidates.map((candidate) => [candidate.source_row_index, candidate])
   );
-  const excludedIds = new Set(
-    (args.excludedImportIds ?? []).map((id) => String(id))
-  );
-  for (const id of excludedIds) {
-    if (!candidateById.has(id)) {
+  const excludedSourceRows = new Set(args.excludedSourceRowIndexes ?? []);
+  for (const sourceRowIndex of excludedSourceRows) {
+    if (!candidateBySourceRow.has(sourceRowIndex)) {
       throw new AppError(
         'VALIDATION_ERROR',
         'Excluded row does not belong to this preview'
@@ -302,40 +331,46 @@ function resolveCommitSelection(args: {
     }
   }
 
-  const decisionById = new Map<string, ImportReviewDecision['decision']>();
+  const decisionBySourceRow = new Map<
+    number,
+    ImportReviewDecision['decision']
+  >();
   for (const decision of args.reviewDecisions ?? []) {
-    const id = String(decision.previewImportId);
-    if (decisionById.has(id)) {
+    const sourceRowIndex = decision.sourceRowIndex;
+    if (decisionBySourceRow.has(sourceRowIndex)) {
       throw new AppError(
         'VALIDATION_ERROR',
         'Each review row must have exactly one decision'
       );
     }
-    const candidate = candidateById.get(id);
+    const candidate = candidateBySourceRow.get(sourceRowIndex);
     if (!candidate || candidate.status !== 'needs_project_review') {
       throw new AppError(
         'VALIDATION_ERROR',
         'Review decision does not belong to a review row in this preview'
       );
     }
-    decisionById.set(id, decision.decision);
+    decisionBySourceRow.set(sourceRowIndex, decision.decision);
   }
 
   const rows: Array<{ row: ImportPreviewRow; importUncoded: boolean }> = [];
-  const importedReviewIds: string[] = [];
+  const importedReviewSourceRows: number[] = [];
   let previewDuplicateCount = 0;
 
   for (const candidate of args.candidates) {
     const row = candidate.preview_plan;
-    const id = row.importId;
-    if (candidate.preview_import_id !== id) {
+    const sourceRowIndex = row.sourceRowIndex;
+    if (
+      candidate.source_row_index !== sourceRowIndex ||
+      candidate.preview_import_id !== row.importId
+    ) {
       throw new AppError(
         'CONFLICT',
         'Persisted import preview row identity is inconsistent'
       );
     }
     if (candidate.status === 'needs_project_review') {
-      const decision = decisionById.get(id);
+      const decision = decisionBySourceRow.get(sourceRowIndex);
       if (!decision) {
         throw new AppError(
           'CONFLICT',
@@ -343,23 +378,23 @@ function resolveCommitSelection(args: {
         );
       }
       if (decision === 'import_uncoded') {
-        if (excludedIds.has(id)) {
+        if (excludedSourceRows.has(sourceRowIndex)) {
           throw new AppError(
             'VALIDATION_ERROR',
             'A review row cannot be both imported and excluded'
           );
         }
         rows.push({ row, importUncoded: true });
-        importedReviewIds.push(id);
+        importedReviewSourceRows.push(sourceRowIndex);
       } else {
-        excludedIds.add(id);
+        excludedSourceRows.add(sourceRowIndex);
       }
       continue;
     }
     if (
       candidate.status === 'excluded' ||
       candidate.status === 'invalid' ||
-      excludedIds.has(id)
+      excludedSourceRows.has(sourceRowIndex)
     ) {
       continue;
     }
@@ -386,8 +421,8 @@ function resolveCommitSelection(args: {
 
   return {
     rows,
-    excludedIds: [...excludedIds],
-    importedReviewIds,
+    excludedSourceRows: [...excludedSourceRows],
+    importedReviewSourceRows,
     previewDuplicateCount,
   };
 }
@@ -427,13 +462,13 @@ async function resolveImportTaxonomy(args: {
     ])
   );
   const resolved = new Map<
-    string,
+    number,
     { categoryId?: CategoryId; subCategoryId?: SubCategoryId }
   >();
 
   for (const { row, importUncoded } of args.rows) {
     if (importUncoded || row.mappingStatus === 'uncoded') {
-      resolved.set(row.importId, {});
+      resolved.set(row.sourceRowIndex, {});
       continue;
     }
 
@@ -534,7 +569,7 @@ async function resolveImportTaxonomy(args: {
     if (!category || (row.subCategoryName && !subCategory)) {
       throw staleTaxonomyError();
     }
-    resolved.set(row.importId, {
+    resolved.set(row.sourceRowIndex, {
       categoryId: asCategoryId(category.id),
       subCategoryId: subCategory ? asSubCategoryId(subCategory.id) : undefined,
     });
@@ -550,11 +585,11 @@ function transactionFromPreviewRow(args: {
   projectId: ProjectId;
   importBatchId: ImportBatchId;
   taxonomy: Map<
-    string,
+    number,
     { categoryId?: CategoryId; subCategoryId?: SubCategoryId }
   >;
 }): Txn {
-  const target = args.taxonomy.get(args.row.importId) ?? {};
+  const target = args.taxonomy.get(args.row.sourceRowIndex) ?? {};
   const txn = withStandardTxnAccountingMetadata({
     id: asTxnId(args.row.importId),
     externalId: normalizeExternalId(args.row.externalId),
@@ -584,25 +619,25 @@ function transactionFromPreviewRow(args: {
 async function replacementTransactionIds(args: {
   db: Transaction<DB>;
   projectId: ProjectId;
-  sourceType: string;
-  incomingTransactions: Txn[];
+  sourceType: NonNullable<Txn['importSourceType']>;
+  fromDate: string | null;
+  toDate: string | null;
 }): Promise<string[]> {
-  if (!args.incomingTransactions.length) {
+  if (!args.fromDate || !args.toDate) {
     throw new AppError(
       'VALIDATION_ERROR',
       'A period replacement must contain at least one importable transaction'
     );
   }
-  const dates = args.incomingTransactions.map((txn) => txn.date).sort();
-  const fromDate = dates[0]!;
-  const toDate = dates[dates.length - 1]!;
   const targets = await args.db
     .selectFrom('txns')
     .select(['public_id', 'txn_type', 'reviewed_at', 'locked_at'])
     .where('project_id', '=', args.projectId)
-    .where('import_source_type', '=', 'powerbi_expenditure_actuals')
-    .where('txn_date', '>=', fromDate)
-    .where('txn_date', '<=', toDate)
+    .where('import_source_type', '=', args.sourceType)
+    .where('txn_date', '>=', args.fromDate)
+    .where('txn_date', '<=', args.toDate)
+    .orderBy('public_id', 'asc')
+    .forUpdate()
     .execute();
   if (!targets.length) return [];
 
@@ -707,14 +742,13 @@ function applyCommitDuplicatePolicy(args: {
 async function finalizePreviewBatch(args: {
   db: Transaction<DB>;
   importBatchId: ImportBatchId;
-  importedTransactions: Txn[];
-  excludedIds: string[];
-  importedReviewIds: string[];
+  importedSourceRows: number[];
+  excludedSourceRows: number[];
+  importedReviewSourceRows: number[];
   userId: UserId;
   now: string;
 }) {
-  const importedIds = args.importedTransactions.map((txn) => String(txn.id));
-  if (importedIds.length) {
+  if (args.importedSourceRows.length) {
     await args.db
       .updateTable('import_candidates')
       .set((eb) => ({
@@ -723,10 +757,10 @@ async function finalizePreviewBatch(args: {
         updated_at: args.now,
       }))
       .where('batch_id', '=', args.importBatchId)
-      .where('preview_import_id', 'in', importedIds)
+      .where('source_row_index', 'in', args.importedSourceRows)
       .execute();
   }
-  if (args.excludedIds.length) {
+  if (args.excludedSourceRows.length) {
     await args.db
       .updateTable('import_candidates')
       .set({
@@ -736,11 +770,11 @@ async function finalizePreviewBatch(args: {
         updated_at: args.now,
       })
       .where('batch_id', '=', args.importBatchId)
-      .where('preview_import_id', 'in', args.excludedIds)
+      .where('source_row_index', 'in', args.excludedSourceRows)
       .where('status', '!=', 'imported')
       .execute();
   }
-  if (args.importedReviewIds.length) {
+  if (args.importedReviewSourceRows.length) {
     await args.db
       .updateTable('import_candidates')
       .set({
@@ -749,7 +783,7 @@ async function finalizePreviewBatch(args: {
         updated_at: args.now,
       })
       .where('batch_id', '=', args.importBatchId)
-      .where('preview_import_id', 'in', args.importedReviewIds)
+      .where('source_row_index', 'in', args.importedReviewSourceRows)
       .where('status', '=', 'imported')
       .execute();
   }
@@ -763,6 +797,13 @@ async function finalizePreviewBatch(args: {
 
 function nameKey(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function toDateOnly(value: Date | string | null): string | null {
+  if (!value) return null;
+  return typeof value === 'string'
+    ? value.slice(0, 10)
+    : value.toISOString().slice(0, 10);
 }
 
 function staleTaxonomyError() {

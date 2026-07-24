@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Divider, Paper, Stack } from '@mantine/core';
 import type { TransactionActions } from '../hooks/useTransactionActions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
@@ -44,8 +44,7 @@ import {
   resolveReversalReviewItem,
   reversalReviewQueueSummary,
 } from './transactions/reversalReviewQueue';
-
-const TRANSACTION_SEARCH_SETTLE_MS = 750;
+import { useTransactionSearch } from './transactions/useTransactionSearch';
 
 export default function TransactionsPanel(props: {
   projectId: ProjectId;
@@ -165,17 +164,6 @@ export default function TransactionsPanel(props: {
   const [bulkSelectionRows, setBulkSelectionRows] = useState<
     TxnBulkSelectionRow[] | null
   >(null);
-  const transactionSearchTimerRef = useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
-  useEffect(
-    () => () => {
-      if (transactionSearchTimerRef.current) {
-        clearTimeout(transactionSearchTimerRef.current);
-      }
-    },
-    []
-  );
   const {
     bulkRecodeSubCategoryOptions,
     commentSummaryByTxnId,
@@ -190,6 +178,7 @@ export default function TransactionsPanel(props: {
     selectedSuggestedReversalIds,
     selectedSuggestedReversalPairs,
     selectedDeletableCount,
+    selectedLockEligibleCount,
     selectedTxnIds,
     selectedWorkflowVersions,
     selectedUnlockedCategorisableCount,
@@ -243,22 +232,14 @@ export default function TransactionsPanel(props: {
     setRowSelection({});
     setBulkSelectionRows(null);
   };
-  const queueTransactionSearch = (value: string) => {
-    if (transactionSearchTimerRef.current) {
-      clearTimeout(transactionSearchTimerRef.current);
-      transactionSearchTimerRef.current = null;
-    }
-
-    if (!value) {
-      setTransactionSearch('');
-      return;
-    }
-
-    transactionSearchTimerRef.current = setTimeout(() => {
-      transactionSearchTimerRef.current = null;
-      setTransactionSearch(value);
-    }, TRANSACTION_SEARCH_SETTLE_MS);
-  };
+  const { searchInput, queueSearch } = useTransactionSearch({
+    value: transactionSearch,
+    onCommit: setTransactionSearch,
+    onBeforeCommit: () => {
+      clearSelection();
+      resetPage();
+    },
+  });
   const {
     reconcilePendingReversals,
     reconcilingPendingReversals,
@@ -477,6 +458,7 @@ export default function TransactionsPanel(props: {
               selectedUnlockedCategorisableCount
             }
             selectedDeletableCount={selectedDeletableCount}
+            selectedLockEligibleCount={selectedLockEligibleCount}
             onSelectAll={() => void selectAllFilteredTransactions()}
             onClearSelection={clearSelection}
             onMarkReviewed={() => {
@@ -609,7 +591,7 @@ export default function TransactionsPanel(props: {
         pagination={pagination}
         rowSelection={rowSelection}
         sorting={sorting}
-        globalFilter={transactionSearch}
+        globalFilter={searchInput}
         totalCount={pageSummary.totalCount}
         showProgressBars={transactionsPageQ.isFetching}
         emptyStateMessage={transactionEmptyStateMessage({
@@ -626,9 +608,7 @@ export default function TransactionsPanel(props: {
         }}
         onRowSelectionChange={setRowSelection}
         onGlobalFilterChange={(nextValue) => {
-          clearSelection();
-          resetPage();
-          queueTransactionSearch(nextValue);
+          queueSearch(nextValue);
         }}
         onSortingChange={(updater) => {
           const nextSorting =

@@ -37,13 +37,18 @@ import {
 import { commitImportPreviewBatch } from './importPreviewCommit';
 import { reconcilePendingReversalMatches } from './reversalServers';
 
+type TrustedImportReviewDecision = {
+  previewImportId: TxnId;
+  decision: 'import_uncoded' | 'exclude';
+};
+
 export async function importTransactionsServer(args: {
   context: ServerFnContextInput;
   projectId: ProjectId;
   importBatchId: ImportBatchId;
   mode: 'append' | 'replaceAll';
   skipDuplicates?: boolean;
-  excludedImportIds?: TxnId[];
+  excludedSourceRowIndexes?: number[];
   reviewDecisions?: ImportReviewDecision[];
 }): Promise<{ count: number; skipped: number; replaced: number }> {
   return withServerBoundary(async () => {
@@ -88,7 +93,7 @@ export async function importTransactionsServer(args: {
         importBatchId: args.importBatchId,
         mode: args.mode,
         skipDuplicates: args.skipDuplicates ?? true,
-        excludedImportIds: args.excludedImportIds,
+        excludedSourceRowIndexes: args.excludedSourceRowIndexes,
         reviewDecisions: args.reviewDecisions,
         canEditTaxonomy,
         canEditBudgets,
@@ -110,7 +115,7 @@ export async function importTrustedTransactionsServer(args: {
   autoCreateBudgets?: boolean;
   importBatchId?: ImportBatchId;
   excludedImportIds?: TxnId[];
-  reviewDecisions?: ImportReviewDecision[];
+  reviewDecisions?: TrustedImportReviewDecision[];
 }): Promise<{ count: number }> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -491,6 +496,9 @@ async function createPowerBiImportBatch(args: {
 }): Promise<ImportBatchId> {
   const now = new Date().toISOString();
   const batchId = asImportBatchId(uid('impb'));
+  const previewDates = args.rows
+    .flatMap((row) => (row.parsedDate ? [row.parsedDate] : []))
+    .sort();
 
   await args.db.transaction().execute(async (trx) => {
     await trx
@@ -503,6 +511,8 @@ async function createPowerBiImportBatch(args: {
         file_name: args.fileName,
         status: 'previewed',
         auto_create_structures: args.autoCreateStructures,
+        preview_from_date: previewDates[0] ?? null,
+        preview_to_date: previewDates[previewDates.length - 1] ?? null,
         created_by_user_id: args.userId,
         created_at: now,
         updated_at: now,
@@ -544,7 +554,7 @@ function importBatchIdForCommit(args: {
   explicitImportBatchId?: ImportBatchId;
   incomingTransactions: TxnImportTxnInput[];
   excludedImportIds?: TxnId[];
-  reviewDecisions?: ImportReviewDecision[];
+  reviewDecisions?: TrustedImportReviewDecision[];
 }): ImportBatchId | undefined {
   const transactionBatchIds = [
     ...new Set(
@@ -593,7 +603,7 @@ async function assertImportPreviewCommit(args: {
   importBatchId?: ImportBatchId;
   incomingTransactions: TxnImportTxnInput[];
   excludedImportIds?: TxnId[];
-  reviewDecisions?: ImportReviewDecision[];
+  reviewDecisions?: TrustedImportReviewDecision[];
 }): Promise<void> {
   if (!args.importBatchId) return;
 
@@ -740,7 +750,7 @@ async function finalizeImportBatchCandidates(args: {
   importedTransactions: Txn[];
   importBatchId?: ImportBatchId;
   excludedImportIds?: TxnId[];
-  reviewDecisions?: ImportReviewDecision[];
+  reviewDecisions?: TrustedImportReviewDecision[];
   userId: ProjectActionContext['userId'];
   now: string;
 }): Promise<void> {

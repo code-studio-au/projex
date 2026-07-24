@@ -110,7 +110,7 @@ test(
           source_public_id: null,
           transfer_project_id: null,
           budget_impact: true,
-          categorisable: true,
+          categorisable: false,
           import_batch_id: null,
           import_source_type: null,
           import_source_meta: null,

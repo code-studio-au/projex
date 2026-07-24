@@ -19,15 +19,13 @@ import {
   MAX_IMPORT_TXN_COUNT,
 } from '../src/utils/importLimits.ts';
 import { MAX_BULK_TXN_COUNT } from '../src/utils/transactionLimits.ts';
-import { asTxnId } from '../src/types/index.ts';
-
 test('transaction import schema limits the number of row decisions', () => {
   const result = txnImportInputSchema.safeParse({
     mode: 'append',
     importBatchId: 'impb_1',
-    excludedImportIds: Array.from(
+    excludedSourceRowIndexes: Array.from(
       { length: MAX_IMPORT_TXN_COUNT + 1 },
-      (_, index) => asTxnId(`txn_${index}`)
+      (_, index) => index + 1
     ),
   });
   assert.equal(result.success, false);
@@ -36,7 +34,7 @@ test('transaction import schema limits the number of row decisions', () => {
 test('transaction import schema requires a preview batch for review decisions', () => {
   const result = txnImportInputSchema.safeParse({
     mode: 'append',
-    reviewDecisions: [{ previewImportId: 'txn_review_1', decision: 'exclude' }],
+    reviewDecisions: [{ sourceRowIndex: 1, decision: 'exclude' }],
   });
 
   assert.equal(result.success, false);
@@ -48,9 +46,7 @@ test('transaction import schema accepts an uncoded review decision', () => {
   const result = txnImportInputSchema.safeParse({
     mode: 'append',
     importBatchId: 'impb_1',
-    reviewDecisions: [
-      { previewImportId: 'txn_review_1', decision: 'import_uncoded' },
-    ],
+    reviewDecisions: [{ sourceRowIndex: 1, decision: 'import_uncoded' }],
   });
 
   assert.equal(result.success, true);

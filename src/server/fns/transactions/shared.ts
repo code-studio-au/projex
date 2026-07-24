@@ -328,6 +328,29 @@ export function txnValidSubCategorySql(txnTableReference: 't' | 'txns' = 't') {
   )`;
 }
 
+export function txnLockEligibleSql() {
+  return sql<boolean>`(
+    not txns.coding_pending_approval
+    and (
+      not txns.categorisable
+      or (
+        txns.sub_category_id is not null
+        and ${txnValidSubCategorySql('txns')}
+      )
+    )
+    and not exists (
+      select 1
+      from txn_reversals reversal
+      where reversal.project_id = txns.project_id
+        and reversal.status <> 'reversed_matched'
+        and (
+          reversal.source_txn_public_id = txns.public_id
+          or reversal.matched_reversal_txn_public_id = txns.public_id
+        )
+    )
+  )`;
+}
+
 export function txnAssignedToUserSql(userId: string) {
   return sql<boolean>`exists (
     select 1
@@ -365,18 +388,10 @@ export function buildTransactionsPageFilters(args: {
   const matchedReversal = matchedTxnReversalExistsSql();
   const search = args.input.search?.trim();
 
-  if (search) {
-    const pattern = `%${escapeLikePattern(search)}%`;
+  if (search && search.length >= 2) {
+    const pattern = `%${escapeLikePattern(search.toLowerCase())}%`;
     filters.push(sql<boolean>`(
-      t.item ilike ${pattern} escape '\'
-      or t.description ilike ${pattern} escape '\'
-      or coalesce(t.external_id, '') ilike ${pattern} escape '\'
-      or replace(coalesce(t.import_source_type, ''), '_', ' ') ilike ${pattern} escape '\'
-      or exists (
-        select 1
-        from jsonb_each_text(coalesce(t.import_source_meta, '{}'::jsonb)) as meta
-        where meta.value ilike ${pattern} escape '\'
-      )
+      t.search_text like ${pattern} escape '\'
       or exists (
         select 1
         from categories search_category

@@ -31,6 +31,33 @@ test('readJsonBody rejects malformed JSON bodies with a validation error', async
   );
 });
 
+test('readJsonBody rejects declared and streamed bodies above the endpoint limit', async () => {
+  const declaredRequest = new Request('http://localhost:3000/api/test', {
+    method: 'POST',
+    body: '{}',
+    headers: {
+      'content-length': '100',
+      'content-type': 'application/json',
+    },
+  });
+  const streamedRequest = new Request('http://localhost:3000/api/test', {
+    method: 'POST',
+    body: JSON.stringify({ value: 'too large' }),
+    headers: { 'content-type': 'application/json' },
+  });
+
+  for (const request of [declaredRequest, streamedRequest]) {
+    await assert.rejects(
+      () => readJsonBody(request, { maxBytes: 8 }),
+      (error) => {
+        assert.ok(error instanceof AppError);
+        assert.equal(error.code, 'PAYLOAD_TOO_LARGE');
+        return true;
+      }
+    );
+  }
+});
+
 test('readValidatedJsonBody parses valid JSON and applies the endpoint schema', async () => {
   const request = new Request('http://localhost:3000/api/test', {
     method: 'POST',

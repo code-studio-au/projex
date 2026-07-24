@@ -22,6 +22,7 @@ import type { TransactionActions } from '../../hooks/useTransactionActions';
 import type { Txn, TxnComment, TxnCommentSummary } from '../../types';
 import { asCategoryId, asSubCategoryId } from '../../types/ids';
 import { formatCurrencyFromCents, fromCents, toCents } from '../../utils/money';
+import { transactionCanBeLocked } from '../../utils/transactionWorkflow';
 import {
   isBudgetImpactTxn,
   isCategorisableTxn,
@@ -463,6 +464,14 @@ export function createTransactionColumns(
           args.canManageReversals &&
           !row.original.lockedAt &&
           isBudgetImpactTxn(row.original);
+        const canLock =
+          !row.original.lockedAt &&
+          transactionCanBeLocked({
+            categorisable: row.original.categorisable,
+            hasValidSubCategory,
+            codingPendingApproval: Boolean(row.original.codingPendingApproval),
+            reversalStatus: row.original.reversal?.status,
+          });
         return (
           <Menu withinPortal position="bottom-end" shadow="md">
             <Menu.Target>
@@ -516,6 +525,7 @@ export function createTransactionColumns(
                     </Menu.Item>
                   ) : null}
                   <Menu.Item
+                    disabled={!row.original.lockedAt && !canLock}
                     onClick={() =>
                       row.original.lockedAt
                         ? args.onOpenUnlock(row.original)

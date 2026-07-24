@@ -17,6 +17,7 @@ function appErrorStatus(code: AppError['code']): number {
   if (code === 'FORBIDDEN') return 403;
   if (code === 'NOT_FOUND') return 404;
   if (code === 'RATE_LIMITED') return 429;
+  if (code === 'PAYLOAD_TOO_LARGE') return 413;
   if (code === 'CONFLICT') return 409;
   if (code === 'VALIDATION_ERROR') return 422;
   if (code === 'NOT_IMPLEMENTED') return 501;
@@ -152,21 +153,58 @@ export function jsonApi(
   return Response.json(data, init);
 }
 
-export async function readJsonBody(request: Request): Promise<unknown> {
+const DEFAULT_JSON_BODY_LIMIT_BYTES = 1024 * 1024;
+
+export async function readJsonBody(
+  request: Request,
+  options?: { maxBytes?: number }
+): Promise<unknown> {
+  const maxBytes = options?.maxBytes ?? DEFAULT_JSON_BODY_LIMIT_BYTES;
+  const contentLength = Number(request.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new AppError(
+      'PAYLOAD_TOO_LARGE',
+      'Request body exceeds the allowed size'
+    );
+  }
+
   try {
-    return await request.json();
-  } catch {
+    if (!request.body) {
+      throw new Error('Missing request body');
+    }
+    const reader = request.body.getReader();
+    const decoder = new TextDecoder();
+    let totalBytes = 0;
+    let bodyText = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new AppError(
+          'PAYLOAD_TOO_LARGE',
+          'Request body exceeds the allowed size'
+        );
+      }
+      bodyText += decoder.decode(value, { stream: true });
+    }
+    bodyText += decoder.decode();
+    return JSON.parse(bodyText);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
     throw new AppError('VALIDATION_ERROR', 'Request body must be valid JSON');
   }
 }
 
 export async function readValidatedJsonBody<T>(
   request: Request,
-  schema: z.ZodType<T>
+  schema: z.ZodType<T>,
+  options?: { maxBytes?: number }
 ): Promise<T> {
   return parseAppEndpointInput(
     { inputSchema: schema },
-    await readJsonBody(request)
+    await readJsonBody(request, options)
   );
 }
 

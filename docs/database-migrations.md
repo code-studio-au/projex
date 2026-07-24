@@ -53,3 +53,8 @@ Current runner safeguards:
 - the migration command takes a Postgres advisory lock before running Better Auth or Kysely app migrations, so concurrent deploys do not race each other
 - `pnpm run start:server` does not auto-run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly
 - production deploys should still treat `pnpm run db:migrate` as an explicit pre-restart step rather than relying on runtime startup behavior
+
+Ownership migrations should prefer composite company/project foreign keys for
+live operational state. Append-only audit records are the deliberate exception:
+their entity IDs remain historical soft references so project deletion cannot
+erase or invalidate immutable history.

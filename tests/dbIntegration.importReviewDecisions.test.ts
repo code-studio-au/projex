@@ -29,8 +29,11 @@ function csvRow(args: {
   journalId: string;
   line: string;
   source: string;
+  date?: string;
+  amount?: string;
 }) {
-  return `ACTUALS,2026,5,4041 Operations,Research Centre,Programme Code,EXP,125.00,${args.description},${args.journalId},REF-${args.line},2026-05-01,${args.line},A,2026-05-02,0,${args.source},OP-1,,,`;
+  const date = args.date ?? '2026-05-01';
+  return `ACTUALS,2026,5,4041 Operations,Research Centre,Programme Code,EXP,${args.amount ?? '125.00'},${args.description},${args.journalId},REF-${args.line},${date},${args.line},A,${date},0,${args.source},OP-1,,,`;
 }
 
 test(
@@ -220,7 +223,7 @@ test(
         importBatchId: previewBatchId,
         reviewDecisions: [
           {
-            previewImportId: reviewedTxnId,
+            sourceRowIndex: reviewRow.sourceRowIndex,
             decision: 'import_uncoded',
           },
         ],
@@ -282,7 +285,7 @@ test(
             importBatchId: previewBatchId,
             reviewDecisions: [
               {
-                previewImportId: reviewedTxnId,
+                sourceRowIndex: reviewRow.sourceRowIndex,
                 decision: 'import_uncoded',
               },
             ],
@@ -307,15 +310,19 @@ test(
       assert.ok(excludedPreview.importBatchId);
       const excludedRow = excludedPreview.rows[0];
       assert.ok(excludedRow);
-      const excludedId = asTxnId(excludedRow.importId);
 
       const excludedResult = await importTransactionsServer({
         context,
         projectId,
         mode: 'append',
         importBatchId: excludedPreview.importBatchId,
-        excludedImportIds: [excludedId],
-        reviewDecisions: [{ previewImportId: excludedId, decision: 'exclude' }],
+        excludedSourceRowIndexes: [excludedRow.sourceRowIndex],
+        reviewDecisions: [
+          {
+            sourceRowIndex: excludedRow.sourceRowIndex,
+            decision: 'exclude',
+          },
+        ],
       });
       assert.equal(excludedResult.count, 0);
 
@@ -327,6 +334,141 @@ test(
       assert.equal(excludedCandidate.status, 'excluded');
       assert.equal(excludedCandidate.reviewed_by_user_id, userId);
       assert.ok(excludedCandidate.reviewed_at);
+
+      const repeatedIdentityPreview = await previewImportTransactionsServer({
+        context,
+        projectId,
+        csvText: [
+          csvHeader,
+          csvRow({
+            description: 'First row sharing an external journal identity',
+            journalId: 'SHARED-IDENTITY',
+            line: '7',
+            source: 'EXA',
+          }),
+          csvRow({
+            description: 'Second row sharing an external journal identity',
+            journalId: 'SHARED-IDENTITY',
+            line: '7',
+            source: 'EXA',
+          }),
+        ].join('\n'),
+      });
+      assert.ok(repeatedIdentityPreview.importBatchId);
+      assert.equal(repeatedIdentityPreview.rows.length, 2);
+      assert.notEqual(
+        repeatedIdentityPreview.rows[0]?.importId,
+        repeatedIdentityPreview.rows[1]?.importId
+      );
+      assert.deepEqual(
+        repeatedIdentityPreview.rows.map((row) => row.sourceRowIndex),
+        [1, 2]
+      );
+
+      const repeatedCandidates = await db
+        .selectFrom('import_candidates')
+        .select(['id', 'source_row_index', 'preview_import_id'])
+        .where('batch_id', '=', repeatedIdentityPreview.importBatchId)
+        .orderBy('source_row_index', 'asc')
+        .execute();
+      assert.equal(new Set(repeatedCandidates.map((row) => row.id)).size, 2);
+      assert.equal(
+        new Set(repeatedCandidates.map((row) => row.preview_import_id)).size,
+        2
+      );
+
+      const staleBoundaryTxnIds = [
+        asTxnId('itest_import_review_stale_from'),
+        asTxnId('itest_import_review_stale_to'),
+        asTxnId('itest_import_review_outside'),
+      ];
+      await db
+        .insertInto('txns')
+        .values(
+          staleBoundaryTxnIds.map((txnId, index) => ({
+            public_id: txnId,
+            external_id: `import-review-stale-${index}`,
+            company_id: companyId,
+            project_id: projectId,
+            txn_date: ['2026-07-01', '2026-07-31', '2026-06-30'][index]!,
+            item: 'Existing import row',
+            description: `Existing import row ${index}`,
+            amount_cents: 1000 + index,
+            txn_type: 'standard' as const,
+            parent_public_id: null,
+            source_public_id: null,
+            transfer_project_id: null,
+            budget_impact: true,
+            categorisable: true,
+            import_batch_id: null,
+            import_source_type: 'powerbi_expenditure_actuals' as const,
+            import_source_meta: {},
+            category_id: null,
+            sub_category_id: null,
+            company_default_mapping_rule_id: null,
+            coding_source: null,
+            coding_pending_approval: false,
+            reviewed_at: null,
+            reviewed_by_user_id: null,
+            locked_at: null,
+            locked_by_user_id: null,
+            created_at: now,
+            updated_at: now,
+          }))
+        )
+        .execute();
+
+      const replacementPreview = await previewImportTransactionsServer({
+        context,
+        projectId,
+        csvText: [
+          csvHeader,
+          csvRow({
+            description: 'Excluded range boundary',
+            journalId: 'REPLACE-RANGE-1',
+            line: '1',
+            source: 'EXA',
+            date: '2026-07-01',
+          }),
+          csvRow({
+            description: 'Included replacement row',
+            journalId: 'REPLACE-RANGE-2',
+            line: '2',
+            source: 'EXA',
+            date: '2026-07-15',
+          }),
+          csvRow({
+            description: 'Included upper boundary',
+            journalId: 'REPLACE-RANGE-3',
+            line: '3',
+            source: 'EXA',
+            date: '2026-07-31',
+          }),
+        ].join('\n'),
+      });
+      assert.ok(replacementPreview.importBatchId);
+      const excludedBoundaryRow = replacementPreview.rows[0];
+      assert.ok(excludedBoundaryRow);
+
+      const replacementResult = await importTransactionsServer({
+        context,
+        projectId,
+        mode: 'replaceAll',
+        importBatchId: replacementPreview.importBatchId,
+        excludedSourceRowIndexes: [excludedBoundaryRow.sourceRowIndex],
+      });
+      assert.equal(replacementResult.count, 2);
+
+      const staleRowsAfterReplace = await db
+        .selectFrom('txns')
+        .select('public_id')
+        .where('public_id', 'in', staleBoundaryTxnIds)
+        .orderBy('public_id', 'asc')
+        .execute();
+      assert.deepEqual(
+        staleRowsAfterReplace.map((row) => row.public_id),
+        [staleBoundaryTxnIds[2]]
+      );
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

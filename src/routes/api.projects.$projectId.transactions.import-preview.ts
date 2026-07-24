@@ -24,7 +24,8 @@ export const Route = createFileRoute(
               ...params,
               payload: await readValidatedJsonBody(
                 request,
-                txnImportPreviewInputSchema
+                txnImportPreviewInputSchema,
+                { maxBytes: 8 * 1024 * 1024 }
               ),
             },
           })

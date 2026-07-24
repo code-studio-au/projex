@@ -83,7 +83,10 @@ const importRuleSelectProps = {
 
 type PowerBiImportCommitOptions = Pick<
   TxnImportInput,
-  'importBatchId' | 'skipDuplicates' | 'excludedImportIds' | 'reviewDecisions'
+  | 'importBatchId'
+  | 'skipDuplicates'
+  | 'excludedSourceRowIndexes'
+  | 'reviewDecisions'
 >;
 
 function toImportRuleField(value: string | null): ImportRuleField | null {
@@ -162,7 +165,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     confirmReplaceOpen,
     importError,
     previewSourceLabel,
-    excludedImportIds,
+    excludedSourceRowIndexes,
     reviewDecisions,
     pagination,
     sorting,
@@ -227,7 +230,10 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
   }
 
   const selectedPreviewRows = useMemo(
-    () => visiblePreviewRows.filter((row) => rowSelection[row.importId]),
+    () =>
+      visiblePreviewRows.filter(
+        (row) => rowSelection[String(row.sourceRowIndex)]
+      ),
     [rowSelection, visiblePreviewRows]
   );
 
@@ -238,8 +244,10 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
 
   const handleTogglePreviewRow = useCallback(
     (row: ImportPreviewRow) => {
-      const currentlyExcluded = excludedImportIds.has(row.importId);
-      togglePreviewRow(row.importId);
+      const currentlyExcluded = excludedSourceRowIndexes.has(
+        row.sourceRowIndex
+      );
+      togglePreviewRow(row.sourceRowIndex);
 
       if (
         currentlyExcluded ||
@@ -254,7 +262,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     },
     [
       canManageImportRules,
-      excludedImportIds,
+      excludedSourceRowIndexes,
       openExcludeRuleModal,
       togglePreviewRow,
     ]
@@ -272,9 +280,9 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               (row) => row.mappingStatus !== 'invalid' && !row.duplicate
             )
           : rows;
-      const importIds = eligibleRows.map((row) => row.importId);
+      const sourceRowIndexes = eligibleRows.map((row) => row.sourceRowIndex);
 
-      if (!importIds.length) {
+      if (!sourceRowIndexes.length) {
         showAppToast({
           tone: 'warning',
           title: 'No eligible review rows',
@@ -286,7 +294,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         return;
       }
 
-      setReviewRowsDecision(importIds, decision);
+      setReviewRowsDecision(sourceRowIndexes, decision);
       setRowSelection({});
       showAppToast({
         tone: 'success',
@@ -296,8 +304,8 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             : 'Review rows excluded',
         message:
           decision === 'import_uncoded'
-            ? `${importIds.length} review row${importIds.length === 1 ? '' : 's'} will be imported without coding.`
-            : `${importIds.length} review row${importIds.length === 1 ? '' : 's'} will be excluded from this import.`,
+            ? `${sourceRowIndexes.length} review row${sourceRowIndexes.length === 1 ? '' : 's'} will be imported without coding.`
+            : `${sourceRowIndexes.length} review row${sourceRowIndexes.length === 1 ? '' : 's'} will be excluded from this import.`,
       });
     },
     [setReviewRowsDecision]
@@ -480,7 +488,9 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           `${row.categoryName ?? ''} ${row.subCategoryName ?? ''} ${row.mappingStatus} ${row.duplicateReason ?? ''}`,
         enableSorting: false,
         Cell: ({ row }) => {
-          const reviewDecision = reviewDecisions.get(row.original.importId);
+          const reviewDecision = reviewDecisions.get(
+            row.original.sourceRowIndex
+          );
           const isReviewRow = row.original.importAction === 'review';
           return (
             <Stack gap={4}>
@@ -497,7 +507,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 ) : null}
                 {reviewDecision === 'exclude' ||
                 (!isReviewRow &&
-                  excludedImportIds.has(row.original.importId)) ? (
+                  excludedSourceRowIndexes.has(row.original.sourceRowIndex)) ? (
                   <Badge size="sm" variant="light" color="gray">
                     Excluded
                   </Badge>
@@ -565,7 +575,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 <Stack gap={2}>
                   {displayWarningsForRow(row.original).map((warning, index) => (
                     <Text
-                      key={`${row.original.importId}-warning-${index}`}
+                      key={`${row.original.sourceRowIndex}-warning-${index}`}
                       size="xs"
                       c="dimmed"
                     >
@@ -589,7 +599,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         enableSorting: false,
         Cell: ({ row }) => {
           if (row.original.importAction === 'review') {
-            const decision = reviewDecisions.get(row.original.importId);
+            const decision = reviewDecisions.get(row.original.sourceRowIndex);
             const cannotImport =
               row.original.mappingStatus === 'invalid' ||
               row.original.duplicate;
@@ -627,16 +637,18 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             <Button
               size="xs"
               variant={
-                excludedImportIds.has(row.original.importId)
+                excludedSourceRowIndexes.has(row.original.sourceRowIndex)
                   ? 'light'
                   : 'subtle'
               }
               color={
-                excludedImportIds.has(row.original.importId) ? 'blue' : 'gray'
+                excludedSourceRowIndexes.has(row.original.sourceRowIndex)
+                  ? 'blue'
+                  : 'gray'
               }
               onClick={() => handleTogglePreviewRow(row.original)}
             >
-              {excludedImportIds.has(row.original.importId)
+              {excludedSourceRowIndexes.has(row.original.sourceRowIndex)
                 ? 'Include'
                 : 'Exclude'}
             </Button>
@@ -650,7 +662,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     ],
     [
       currencyCode,
-      excludedImportIds,
+      excludedSourceRowIndexes,
       handleReviewDecision,
       handleTogglePreviewRow,
       reviewDecisions,
@@ -883,7 +895,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 <MantineReactTable
                   columns={previewColumns}
                   data={visiblePreviewRows}
-                  getRowId={(row) => row.importId}
+                  getRowId={(row) => String(row.sourceRowIndex)}
                   state={{ pagination, sorting }}
                   onPaginationChange={setPagination}
                   onSortingChange={setSorting}
@@ -986,7 +998,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 <MantineReactTable
                   columns={previewColumns}
                   data={visiblePreviewRows}
-                  getRowId={(row) => row.importId}
+                  getRowId={(row) => String(row.sourceRowIndex)}
                   enableRowSelection
                   state={{ pagination, rowSelection, sorting }}
                   onPaginationChange={(updater) => {
@@ -1033,7 +1045,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 <MantineReactTable
                   columns={previewColumns}
                   data={visiblePreviewRows}
-                  getRowId={(row) => row.importId}
+                  getRowId={(row) => String(row.sourceRowIndex)}
                   state={{ pagination, sorting }}
                   onPaginationChange={setPagination}
                   onSortingChange={setSorting}
@@ -1064,7 +1076,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 <MantineReactTable
                   columns={previewColumns}
                   data={visiblePreviewRows}
-                  getRowId={(row) => row.importId}
+                  getRowId={(row) => String(row.sourceRowIndex)}
                   state={{ pagination, sorting }}
                   onPaginationChange={setPagination}
                   onSortingChange={setSorting}
@@ -1098,7 +1110,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
                 <MantineReactTable
                   columns={excludedPreviewColumns}
                   data={visiblePreviewRows}
-                  getRowId={(row) => row.importId}
+                  getRowId={(row) => String(row.sourceRowIndex)}
                   state={{ pagination, sorting }}
                   onPaginationChange={setPagination}
                   onSortingChange={setSorting}

@@ -1,4 +1,5 @@
-import { Paper, Stack, Text } from '@mantine/core';
+import { ActionIcon, Paper, Stack, Text, TextInput } from '@mantine/core';
+import { IconSearch, IconX } from '@tabler/icons-react';
 import {
   MantineReactTable,
   type MRT_PaginationState,
@@ -7,11 +8,6 @@ import {
 
 import type { Txn } from '../../types';
 import classes from '../../styles/ui.module.css';
-
-type GlobalFilterUpdater =
-  | string
-  | undefined
-  | ((current: string | undefined) => string | undefined);
 
 export default function TransactionsDataTable(props: {
   isHydrated: boolean;
@@ -102,29 +98,14 @@ export default function TransactionsDataTable(props: {
               pagination,
               rowSelection,
               sorting,
-              globalFilter,
               showProgressBars,
             }}
             onPaginationChange={onPaginationChange}
             onRowSelectionChange={onRowSelectionChange}
-            onGlobalFilterChange={(updater: GlobalFilterUpdater) => {
-              const nextValue =
-                typeof updater === 'function' ? updater(globalFilter) : updater;
-              onGlobalFilterChange(nextValue ?? '');
-            }}
             onSortingChange={onSortingChange}
-            enableGlobalFilter
+            enableGlobalFilter={false}
             enableColumnFilters={false}
             manualFiltering
-            positionGlobalFilter="left"
-            mantineSearchTextInputProps={{
-              'aria-label': 'Search transactions',
-              placeholder: 'Search transactions',
-              maxLength: 200,
-              style: {
-                width: 'min(22rem, calc(100vw - 5rem))',
-              },
-            }}
             enableColumnResizing
             enableColumnActions={false}
             enableSorting
@@ -149,6 +130,33 @@ export default function TransactionsDataTable(props: {
             }}
             enableTopToolbar
             enableToolbarInternalActions={false}
+            renderTopToolbarCustomActions={() => (
+              <TextInput
+                aria-label="Search transactions"
+                placeholder="Search transactions (2+ characters)"
+                value={globalFilter}
+                maxLength={200}
+                leftSection={<IconSearch size={16} />}
+                rightSection={
+                  globalFilter ? (
+                    <ActionIcon
+                      aria-label="Clear transaction search"
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => onGlobalFilterChange('')}
+                    >
+                      <IconX size={14} />
+                    </ActionIcon>
+                  ) : null
+                }
+                onChange={(event) =>
+                  onGlobalFilterChange(event.currentTarget.value)
+                }
+                style={{
+                  width: 'min(22rem, calc(100vw - 5rem))',
+                }}
+              />
+            )}
             enableDensityToggle={false}
             enableFullScreenToggle={false}
             renderEmptyRowsFallback={() => (

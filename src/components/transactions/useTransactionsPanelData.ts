@@ -12,6 +12,7 @@ import type {
   TxnId,
 } from '../../types';
 import { asCategoryId, asTxnId } from '../../types/ids';
+import { transactionCanBeLocked } from '../../utils/transactionWorkflow';
 import {
   useTransactionCommentsQuery,
   useTransactionCommentSummariesQuery,
@@ -240,6 +241,22 @@ export function useTransactionsPanelData(args: {
     () => selectedRows.filter((txn) => !txn.locked && !txn.reversal).length,
     [selectedRows]
   );
+  const selectedLockEligibleCount = useMemo(
+    () =>
+      selectedRows.filter(
+        (txn) =>
+          !txn.locked &&
+          transactionCanBeLocked({
+            categorisable: txn.categorisable,
+            hasValidSubCategory:
+              !!txn.subCategoryId &&
+              args.taxonomy.validSubIds.has(txn.subCategoryId),
+            codingPendingApproval: txn.codingPendingApproval,
+            reversalStatus: txn.reversal?.status,
+          })
+      ).length,
+    [selectedRows, args.taxonomy.validSubIds]
+  );
   const bulkRecodeSubCategoryOptions = useMemo(
     () =>
       args.bulkRecodeCategoryId
@@ -268,6 +285,7 @@ export function useTransactionsPanelData(args: {
     selectedSuggestedReversalIds,
     selectedSuggestedReversalPairs,
     selectedDeletableCount,
+    selectedLockEligibleCount,
     selectedTxnIds,
     selectedWorkflowVersions,
     selectedUnlockedCategorisableCount,

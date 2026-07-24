@@ -17,7 +17,11 @@ import {
   type ServerFnContextInput,
   withServerBoundary,
 } from '../runtime';
-import { txnSelectColumns, workflowPatchIsNoop } from './shared';
+import {
+  txnLockEligibleSql,
+  txnSelectColumns,
+  workflowPatchIsNoop,
+} from './shared';
 import { lockProjectReversalWorkflow } from './reversalConcurrency';
 
 export { bulkTxnActionServer } from './bulkWorkflowServers';
@@ -152,6 +156,20 @@ export async function updateTxnWorkflowStateServer(args: {
           'Unlock the transaction before reopening its review'
         );
       }
+      if (args.input.locked === true) {
+        const lockEligible = await trx
+          .selectFrom('txns')
+          .select(txnLockEligibleSql().as('eligible'))
+          .where('project_id', '=', args.projectId)
+          .where('public_id', '=', args.input.txnId)
+          .executeTakeFirstOrThrow();
+        if (!lockEligible.eligible) {
+          throw new AppError(
+            'CONFLICT',
+            'Resolve transaction coding and reversal review before locking'
+          );
+        }
+      }
 
       const patch = planTxnWorkflowState({
         current: {
@@ -201,7 +219,7 @@ export async function updateTxnWorkflowStateServer(args: {
         }
       }
 
-      const updated = await trx
+      let updateQuery = trx
         .updateTable('txns')
         .set({
           ...patch,
@@ -210,7 +228,11 @@ export async function updateTxnWorkflowStateServer(args: {
         })
         .where('project_id', '=', args.projectId)
         .where('public_id', '=', args.input.txnId)
-        .where('workflow_version', '=', args.input.expectedWorkflowVersion)
+        .where('workflow_version', '=', args.input.expectedWorkflowVersion);
+      if (args.input.locked === true) {
+        updateQuery = updateQuery.where(txnLockEligibleSql());
+      }
+      const updated = await updateQuery
         .returning(txnSelectColumns())
         .executeTakeFirst();
       if (!updated) {

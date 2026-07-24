@@ -380,7 +380,7 @@ test(
             sub_category_id: sourceSubCategoryId,
             company_default_mapping_rule_id: null,
             coding_source: 'project_rule',
-            coding_pending_approval: true,
+            coding_pending_approval: false,
             reviewed_at: now,
             reviewed_by_user_id: userId,
             locked_at: now,
@@ -499,19 +499,8 @@ test(
         })
         .execute();
 
-      const lockReady = deferred();
-      const releaseLock = deferred();
-      const concurrentLock = db.transaction().execute(async (trx) => {
-        await trx
-          .selectFrom('txns')
-          .select('public_id')
-          .where('project_id', '=', projectId)
-          .where('public_id', '=', pendingTxnId)
-          .forUpdate()
-          .executeTakeFirstOrThrow();
-        lockReady.resolve();
-        await releaseLock.promise;
-        await trx
+      await assert.rejects(
+        db
           .updateTable('txns')
           .set({
             reviewed_at: now,
@@ -521,34 +510,30 @@ test(
           })
           .where('project_id', '=', projectId)
           .where('public_id', '=', pendingTxnId)
-          .executeTakeFirst();
-      });
-      await lockReady.promise;
-      const approveDuringLock = bulkTxnActionServer({
+          .executeTakeFirst(),
+        (error: unknown) =>
+          typeof error === 'object' &&
+          error !== null &&
+          'constraint' in error &&
+          error.constraint === 'txns_lock_eligibility_check'
+      );
+
+      const unresolvedLockResult = await bulkTxnActionServer({
         context: { session: { userId } },
         projectId,
         input: {
-          action: 'approveAutoMappings',
-          txnIds: [pendingTxnId],
+          action: 'setLocked',
+          txnIds: [pendingTxnId, uncodedTxnId, reversalTxnId],
+          locked: true,
+          workflowVersions: [
+            { txnId: pendingTxnId, version: 0 },
+            { txnId: uncodedTxnId, version: 0 },
+            { txnId: reversalTxnId, version: 0 },
+          ],
         },
       });
-      releaseLock.resolve();
-      const concurrentLockResult = await approveDuringLock;
-      await concurrentLock;
-      assert.equal(concurrentLockResult.updatedCount, 0);
-      assert.equal(concurrentLockResult.lockedCount, 1);
-
-      await db
-        .updateTable('txns')
-        .set({
-          reviewed_at: null,
-          reviewed_by_user_id: null,
-          locked_at: null,
-          locked_by_user_id: null,
-        })
-        .where('project_id', '=', projectId)
-        .where('public_id', '=', pendingTxnId)
-        .executeTakeFirst();
+      assert.equal(unresolvedLockResult.updatedCount, 0);
+      assert.equal(unresolvedLockResult.ineligibleCount, 3);
 
       const reversalReady = deferred();
       const releaseReversal = deferred();

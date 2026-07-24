@@ -179,8 +179,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install Playwright Chromium and Firefox
+        run: pnpm exec playwright install --with-deps chromium firefox
 
-      - name: Run browser smoke verification gate
+      - name: Run Chromium browser smoke verification gate
         run: pnpm run verify:smoke:browser:full
+
+      - name: Run Firefox browser smoke verification gate
+        run: pnpm run verify:smoke:browser:firefox:full:skip-build

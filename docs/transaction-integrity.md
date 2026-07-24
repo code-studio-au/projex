@@ -7,7 +7,9 @@ PowerBI import preview and commit are one server-owned workflow:
 1. Preview parses and validates the CSV, applies import and auto-coding rules,
    and persists one canonical `preview_plan` per `import_candidates` row.
 2. The browser receives a presentation copy and sends only the batch ID,
-   duplicate policy, row exclusions, review decisions, and commit mode.
+   duplicate policy, source-row exclusions, source-row review decisions, and
+   commit mode. Source-row identity remains separate from the eventual
+   transaction public ID, including when external journal identifiers repeat.
 3. Commit locks the batch and candidates, validates every decision, resolves or
    creates taxonomy, creates budget lines, inserts transactions, reconciles
    reversals, and finalizes the preview in one database transaction.
@@ -18,9 +20,12 @@ before the canonical-plan format must be cancelled and recreated.
 
 `replaceAll` remains the wire-level mode name for compatibility, but its
 production behavior is a guarded imported-period replacement. It replaces only
-PowerBI-imported rows in the preview date range. It preserves rows outside that
-scope and blocks replacement if any target is reviewed, locked, commented,
-reversal-linked, or part of a split or transfer.
+PowerBI-imported rows in the original preview date range, including excluded
+boundary rows. It preserves rows outside that scope and blocks replacement if
+any target is reviewed, locked, commented, reversal-linked, or part of a split
+or transfer. Replacement candidates are locked before dependency checks; the
+delete verifies its affected-row count so concurrent workflow changes cannot
+silently produce a partial replacement.
 
 ## Category Targets
 
@@ -33,6 +38,10 @@ Moving an unlocked subcategory cascades its category projection to dependants.
 A move is blocked while locked transactions use the subcategory because changing
 the taxonomy beneath locked history would alter its meaning. Deletion must
 explicitly clear or reassign dependants before the subcategory can be removed.
+The server repeats these checks after locking the taxonomy and dependent
+transactions, while database triggers protect direct category and subcategory
+changes. Whole-project and whole-company deletion remains an intentional
+lifecycle operation rather than a taxonomy edit.
 
 ## Split And Transfer Lineage
 
@@ -61,6 +70,8 @@ transaction.
 
 - Review and reopen transitions record the actor, reason, previous state, and
   resulting state in `audit_events`.
+- A transaction can be locked only after valid coding is complete, coding
+  approval is resolved, and any reversal workflow is fully matched.
 - Locking protects the transaction from coding, taxonomy, deletion, and
   structural changes.
 - An ordinary editor cannot reopen a locked transaction directly. The editor
@@ -88,6 +99,15 @@ Events are written inside the same database transaction as their protected
 mutation. Each event identifies its company, optional project, actor, entity,
 reason, previous state, resulting state, and retention class. User comments
 remain editable discussion and do not replace this immutable record.
+Entity IDs are historical soft references rather than cascading foreign keys,
+allowing the immutable event to survive an intentional project deletion.
+
+## Tenant Ownership
+
+Projects expose `(company_id, id)` as a composite ownership key. Operational
+project records reference that key, and cross-project relationships carry the
+same company ID on both ends. Application authorization remains mandatory, but
+the database now independently rejects accidental cross-company references.
 
 ## Company Standard Provenance
 

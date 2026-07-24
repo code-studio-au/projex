@@ -234,7 +234,7 @@ export const importTransactionsEndpoint = defineAppEndpoint({
       mode: input.payload.mode,
       importBatchId: input.payload.importBatchId,
       skipDuplicates: input.payload.skipDuplicates,
-      excludedImportIds: input.payload.excludedImportIds,
+      excludedSourceRowIndexes: input.payload.excludedSourceRowIndexes,
       reviewDecisions: input.payload.reviewDecisions,
     }),
 });

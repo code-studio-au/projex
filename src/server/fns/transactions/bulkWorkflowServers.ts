@@ -29,11 +29,13 @@ import {
 import { lockProjectReversalWorkflow } from './reversalConcurrency';
 import {
   type BulkTxnActionRow,
+  txnLockEligibleSql,
   txnValidSubCategorySql,
   workflowPatchIsNoop,
 } from './shared';
 
 type LockedBulkTxnActionRow = BulkTxnActionRow & {
+  lock_eligible: boolean;
   valid_sub_category: boolean;
 };
 
@@ -224,6 +226,7 @@ export async function bulkTxnActionServer(args: {
           'locked_by_user_id',
           'workflow_version',
           txnValidSubCategorySql('txns').as('valid_sub_category'),
+          txnLockEligibleSql().as('lock_eligible'),
           txnInReversalWorkflowSql().as('in_reversal_workflow'),
           txnInStructuralOperationSql().as('in_structural_operation'),
         ])
@@ -488,6 +491,14 @@ export async function bulkTxnActionServer(args: {
           lockedCount += 1;
           continue;
         }
+        if (
+          workflowInput.action === 'setLocked' &&
+          workflowInput.locked === true &&
+          !row.lock_eligible
+        ) {
+          ineligibleCount += 1;
+          continue;
+        }
         if (workflowPatchIsNoop({ row, patch })) {
           unchangedCount += 1;
           continue;
@@ -511,7 +522,7 @@ export async function bulkTxnActionServer(args: {
             .where('status', '=', 'pending')
             .execute();
         }
-        const result = await trx
+        let updateQuery = trx
           .updateTable('txns')
           .set({
             ...patch,
@@ -520,8 +531,14 @@ export async function bulkTxnActionServer(args: {
           })
           .where('project_id', '=', args.projectId)
           .where('public_id', '=', row.public_id)
-          .where('workflow_version', '=', expectedWorkflowVersion)
-          .executeTakeFirst();
+          .where('workflow_version', '=', expectedWorkflowVersion);
+        if (
+          workflowInput.action === 'setLocked' &&
+          workflowInput.locked === true
+        ) {
+          updateQuery = updateQuery.where(txnLockEligibleSql());
+        }
+        const result = await updateQuery.executeTakeFirst();
         assertSingleRowChanged(result.numUpdatedRows, 'update workflow state');
         const eventType =
           workflowInput.action === 'setReviewed'

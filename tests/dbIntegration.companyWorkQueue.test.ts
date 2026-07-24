@@ -362,8 +362,6 @@ test(
           pattern_text_normalized: 'monthly software',
           proposed_match_text: 'Monthly Software',
           match_text_alternatives: [],
-          project_category_id: categoryId,
-          project_sub_category_id: subCategoryId,
           company_default_category_id: defaultCategoryId,
           company_default_sub_category_id: defaultSubCategoryId,
           sample_count: 3,

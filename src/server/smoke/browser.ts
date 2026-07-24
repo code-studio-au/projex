@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 
-import { chromium } from 'playwright';
+import { chromium, firefox, type BrowserType } from 'playwright';
 
 import {
   cleanupSmokeFixtures,
@@ -15,6 +15,24 @@ type BrowserSmokeOptions = {
   generatedFixtures?: SmokeFixtures;
   onStatus?: (message: string) => void | Promise<void>;
 };
+
+type SmokeBrowserName = 'chromium' | 'firefox';
+
+function smokeBrowser(): {
+  browserName: SmokeBrowserName;
+  browserType: BrowserType;
+} {
+  const browserName = process.env.PROJEX_SMOKE_BROWSER?.trim() || 'chromium';
+  if (browserName === 'chromium') {
+    return { browserName, browserType: chromium };
+  }
+  if (browserName === 'firefox') {
+    return { browserName, browserType: firefox };
+  }
+  throw new Error(
+    `Unsupported PROJEX_SMOKE_BROWSER "${browserName}". Use chromium or firefox.`
+  );
+}
 
 function parseRequestedSections(argv: string[]) {
   const sections = new Set<string>();
@@ -496,7 +514,7 @@ async function runGeneratedReversalFlow(
     ),
     'Transaction search lost focus while applying server results'
   );
-  await page.getByRole('button', { name: 'Clear search' }).click();
+  await page.getByRole('button', { name: 'Clear transaction search' }).click();
   await waitForLocation(
     page,
     ({ pathname, search }) =>
@@ -674,17 +692,19 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
   const password = requireEnv('PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD');
   const pageErrors: string[] = [];
   const consoleErrors: string[] = [];
+  const { browserName, browserType } = smokeBrowser();
 
   let browser;
   try {
-    browser = await chromium.launch({
+    await emit(options, `Launching Playwright ${browserName}`);
+    browser = await browserType.launch({
       headless: process.env.PLAYWRIGHT_HEADLESS !== 'false',
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
       message.includes("Executable doesn't exist")
-        ? 'Playwright Chromium is not installed. Run `pnpm exec playwright install chromium` first.'
+        ? `Playwright ${browserName} is not installed. Run \`pnpm exec playwright install ${browserName}\` first.`
         : message
     );
   }

@@ -8,10 +8,8 @@ import {
   updateProjectAutoCodingRuleServer,
 } from '../src/server/fns/projectAutoCodingRules.ts';
 import { createProjectServer } from '../src/server/fns/projects.ts';
-import {
-  importTrustedTransactionsServer as importTransactionsServer,
-  listTransactionsServer,
-} from '../src/server/fns/transactions.ts';
+import { listTransactionsServer } from '../src/server/fns/transactions.ts';
+import { importTrustedTransactionsServer as importTransactionsServer } from '../src/server/testing/importTrustedTransactions.ts';
 import {
   createCompanyDefaultCategoryServer,
   createCompanyDefaultMappingRuleServer,

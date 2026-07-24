@@ -65,12 +65,22 @@ test('assignStableIds prefers external ids and increments duplicate content occu
       description: 'Melbourne',
       amountCents: 200,
     },
+    {
+      id: '',
+      externalId: 'BANK-1',
+      date: '2026-06-03',
+      item: 'Taxi',
+      description: 'Airport',
+      amountCents: 300,
+    },
   ] as never);
 
   assert.match(String(rows[0].id), /^txn_ext_/);
   assert.match(String(rows[1].id), /^txn_/);
-  assert.match(String(rows[2].id), /^txn_.*_3$/);
+  assert.match(String(rows[2].id), /^txn_.*_2$/);
   assert.equal(rows[3].id, 'txn_existing');
+  assert.match(String(rows[4].id), /^txn_ext_.*_2$/);
+  assert.notEqual(rows[0].id, rows[4].id);
 });
 
 test('text rule helpers normalize plurals and combine haystacks safely', () => {

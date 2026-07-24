@@ -243,8 +243,6 @@ export type RuleSuggestion = {
   patternTextNormalized: string;
   proposedMatchText: string;
   matchTextAlternatives: string[];
-  projectCategoryId: CategoryId;
-  projectSubCategoryId: SubCategoryId;
   companyDefaultCategoryId: CompanyDefaultCategoryId;
   companyDefaultSubCategoryId: CompanyDefaultSubCategoryId;
   sampleCount: number;
