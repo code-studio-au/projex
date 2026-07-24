@@ -44,6 +44,11 @@ Full local/CI-shaped pass:
 pnpm run verify:ci
 ```
 
+GitHub Code Quality is also an acceptance gate. New work must leave both the
+maintainability and reliability ratings at **Excellent**, with no unresolved
+findings. Treat new findings as defects to fix in the same change rather than
+accepting quality debt for a later cleanup.
+
 Before running the browser smoke lane locally for the first time on a machine:
 
 ```bash

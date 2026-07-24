@@ -5,11 +5,10 @@
 
 ## Verification
 
-- [ ] `pnpm run typecheck`
-- [ ] `pnpm run lint`
-- [ ] `pnpm run format:check`
-- [ ] `pnpm test`
-- [ ] `pnpm run build`
+- [ ] `pnpm run verify:app`
+- [ ] Relevant database and smoke lanes pass, or are noted below
+- [ ] GitHub Code Quality has no unresolved findings
+- [ ] Maintainability and reliability remain **Excellent**
 
 ## Risk
 
