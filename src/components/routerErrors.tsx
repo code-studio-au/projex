@@ -71,7 +71,7 @@ export function RootErrorComponent(props: { error: unknown }) {
             <Button
               variant="light"
               onClick={() => {
-                router.invalidate();
+                void router.invalidate();
               }}
             >
               Retry

@@ -28,6 +28,15 @@ function normalizeEtag(value: string | undefined) {
   return value?.replace(/^"+|"+$/g, '') || undefined;
 }
 
+function hasByteArrayTransform(
+  body: object
+): body is { transformToByteArray: () => Promise<Uint8Array> } {
+  return (
+    'transformToByteArray' in body &&
+    typeof body.transformToByteArray === 'function'
+  );
+}
+
 function buildObjectKey(args: { jobId: CompanyExportJobId; fileName: string }) {
   const config = requireExportStorageConfig();
   const requestedOn = new Date().toISOString().slice(0, 10);
@@ -39,20 +48,15 @@ async function bodyToBytes(body: unknown): Promise<Uint8Array> {
     throw new AppError('NOT_FOUND', 'Export file is unavailable');
   }
 
-  if (
-    typeof body === 'object' &&
-    body !== null &&
-    'transformToByteArray' in body &&
-    typeof body.transformToByteArray === 'function'
-  ) {
+  if (typeof body !== 'object') {
+    throw new AppError('NOT_FOUND', 'Export file is unavailable');
+  }
+
+  if (hasByteArrayTransform(body)) {
     return new Uint8Array(await body.transformToByteArray());
   }
 
-  if (
-    typeof body === 'object' &&
-    body !== null &&
-    Symbol.asyncIterator in body
-  ) {
+  if (Symbol.asyncIterator in body) {
     const chunks: Uint8Array[] = [];
     for await (const chunk of body as AsyncIterable<
       Uint8Array | Buffer | string

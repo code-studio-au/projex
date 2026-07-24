@@ -31,8 +31,8 @@ export function useCreateCompanyMutation() {
   const qc = useQueryClient();
   return useMutation<CompanyCreateResult, Error, CompanyCreateInput>({
     mutationFn: (input) => createCompanyServerFn({ data: input }),
-    onSuccess: () => {
-      qc.invalidateQueries({
+    onSuccess: async () => {
+      await qc.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
       });
@@ -90,15 +90,19 @@ export function useCreateUserInCompanyMutation(companyId: CompanyId) {
       createUserInCompanyServerFn({
         data: { companyId, payload: vars },
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
-      });
-      qc.invalidateQueries({
-        queryKey: qk.companyMemberships(scopeUserId, companyId),
-      });
-      qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyMemberships(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.allCompanyMemberships(scopeUserId),
+        }),
+      ]);
     },
   });
 }
@@ -111,15 +115,19 @@ export function useSendCompanyUserInviteEmailMutation(companyId: CompanyId) {
       sendCompanyUserInviteEmailServerFn({
         data: { companyId, userId },
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
-      });
-      qc.invalidateQueries({
-        queryKey: qk.companyMemberships(scopeUserId, companyId),
-      });
-      qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyMemberships(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.allCompanyMemberships(scopeUserId),
+        }),
+      ]);
     },
   });
 }
@@ -146,13 +154,15 @@ export function useDeactivateCompanyMutation() {
   return useMutation({
     mutationFn: (companyId: CompanyId) =>
       deactivateCompanyServerFn({ data: { companyId } }),
-    onSuccess: (_, companyId) => {
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
-      });
-      qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) });
-      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
+    onSuccess: async (_, companyId) => {
+      await Promise.all([
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
+        }),
+        qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+      ]);
     },
   });
 }
@@ -163,18 +173,22 @@ export function useReactivateCompanyMutation() {
   return useMutation({
     mutationFn: (companyId: CompanyId) =>
       reactivateCompanyServerFn({ data: { companyId } }),
-    onSuccess: (_, companyId) => {
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
-      });
-      qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) });
-      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
-      });
-      qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
+    onSuccess: async (_, companyId) => {
+      await Promise.all([
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
+        }),
+        qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) }),
+        qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.allCompanyMemberships(scopeUserId),
+        }),
+      ]);
     },
   });
 }
@@ -185,22 +199,26 @@ export function useDeleteCompanyMutation() {
   return useMutation({
     mutationFn: (input: { companyId: CompanyId; confirmation: string }) =>
       deleteCompanyServerFn({ data: input }),
-    onSuccess: (_, input) => {
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
-      });
-      qc.invalidateQueries({
-        queryKey: qk.company(scopeUserId, input.companyId),
-      });
-      qc.invalidateQueries({
-        queryKey: qk.projects(scopeUserId, input.companyId),
-      });
-      qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
-      });
+    onSuccess: async (_, input) => {
+      await Promise.all([
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === 'companies',
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.company(scopeUserId, input.companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projects(scopeUserId, input.companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.allCompanyMemberships(scopeUserId),
+        }),
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === 'users',
+        }),
+      ]);
     },
   });
 }

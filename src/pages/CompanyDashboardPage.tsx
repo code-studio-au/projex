@@ -669,7 +669,7 @@ export default function CompanyDashboardPage() {
         value={safeActiveTab}
         onChange={(value) => {
           const nextTab = toCompanyDashboardTab(value);
-          router.navigate({
+          void router.navigate({
             to: companyDashboardIndexRoute.to,
             params: { companyId },
             search: (prev) => ({

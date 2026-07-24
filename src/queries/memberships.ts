@@ -98,16 +98,22 @@ export function useUpsertCompanyMembershipMutation(companyId: CompanyId) {
       upsertCompanyMembershipServerFn({
         data: { companyId, userId: vars.userId, role: vars.role },
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
       // Membership changes affect company settings and project visibility/listing.
-      qc.invalidateQueries({
-        queryKey: qk.companyMemberships(scopeUserId, companyId),
-      });
-      qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
-      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
-      qc.invalidateQueries({
-        queryKey: qk.myProjectMemberships(scopeUserId, companyId),
-      });
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.companyMemberships(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.allCompanyMemberships(scopeUserId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projects(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.myProjectMemberships(scopeUserId, companyId),
+        }),
+      ]);
     },
   });
 }
@@ -119,15 +125,21 @@ export function useDeleteCompanyMembershipMutation(companyId: CompanyId) {
   return useMutation({
     mutationFn: (userId: UserId) =>
       deleteCompanyMembershipServerFn({ data: { companyId, userId } }),
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: qk.companyMemberships(scopeUserId, companyId),
-      });
-      qc.invalidateQueries({ queryKey: qk.allCompanyMemberships(scopeUserId) });
-      qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) });
-      qc.invalidateQueries({
-        queryKey: qk.myProjectMemberships(scopeUserId, companyId),
-      });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.companyMemberships(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.allCompanyMemberships(scopeUserId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projects(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.myProjectMemberships(scopeUserId, companyId),
+        }),
+      ]);
     },
   });
 }
@@ -141,19 +153,20 @@ export function useUpsertProjectMembershipMutation(projectId: ProjectId) {
       upsertProjectMembershipServerFn({
         data: { projectId, userId: vars.userId, role: vars.role },
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: qk.projectMemberships(scopeUserId, projectId),
-      });
-
-      // Project membership changes can affect access/visibility across lists.
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          ['myProjectMemberships', 'projects', 'project'].includes(
-            String(q.queryKey[0])
-          ),
-      });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.projectMemberships(scopeUserId, projectId),
+        }),
+        // Project membership changes can affect access/visibility across lists.
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) &&
+            ['myProjectMemberships', 'projects', 'project'].includes(
+              String(q.queryKey[0])
+            ),
+        }),
+      ]);
     },
   });
 }
@@ -167,17 +180,19 @@ export function useDeleteProjectMembershipMutation(projectId: ProjectId) {
       deleteProjectMembershipServerFn({
         data: { projectId, userId: vars.userId, role: vars.role },
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: qk.projectMemberships(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          ['myProjectMemberships', 'projects', 'project'].includes(
-            String(q.queryKey[0])
-          ),
-      });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.projectMemberships(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) &&
+            ['myProjectMemberships', 'projects', 'project'].includes(
+              String(q.queryKey[0])
+            ),
+        }),
+      ]);
     },
   });
 }

@@ -652,7 +652,7 @@ export default function ProjectSettingsPanel(props: {
                   access.isSuperadmin && pendingSuperadminAccess === false;
                 setPendingSuperadminAccess(null);
                 if (disablingWhileSuperadmin) {
-                  router.navigate({
+                  await router.navigate({
                     to: companyRoute.to,
                     params: { companyId },
                   });

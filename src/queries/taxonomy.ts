@@ -284,19 +284,23 @@ export function useDeleteCategoryMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (categoryId: Category['id']) =>
       deleteCategoryServerFn({ data: { projectId, categoryId } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.categories(scopeUserId, projectId) });
-      qc.invalidateQueries({
-        queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({
-        queryKey: qk.subCategories(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
-      qc.invalidateQueries({
-        queryKey: qk.transactions(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.categories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.subCategories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+        qc.invalidateQueries({
+          queryKey: qk.transactions(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
     },
   });
 }
@@ -377,18 +381,20 @@ export function useUpdateSubCategoryMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (input: SubCategoryUpdateInput) =>
       updateSubCategoryServerFn({ data: { projectId, payload: input } }),
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: qk.subCategories(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({
-        queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
-      qc.invalidateQueries({
-        queryKey: qk.transactions(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.subCategories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+        qc.invalidateQueries({
+          queryKey: qk.transactions(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
     },
   });
 }
@@ -426,18 +432,20 @@ export function useDeleteSubCategoryMutation(projectId: ProjectId) {
   return useMutation({
     mutationFn: (input: DeleteSubCategoryInput) =>
       deleteSubCategoryServerFn({ data: { projectId, ...input } }),
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: qk.subCategories(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({
-        queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) });
-      qc.invalidateQueries({
-        queryKey: qk.transactions(scopeUserId, projectId),
-      });
-      qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.subCategories(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.projectAutoCodingRules(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({ queryKey: qk.budgets(scopeUserId, projectId) }),
+        qc.invalidateQueries({
+          queryKey: qk.transactions(scopeUserId, projectId),
+        }),
+        qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+      ]);
     },
   });
 }

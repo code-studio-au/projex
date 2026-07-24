@@ -151,7 +151,7 @@ export function AuthedLayout() {
                 variant="default"
                 onClick={async () => {
                   if (isSuperadmin || companyCount > 1) {
-                    router.navigate({ to: landingRoute.to });
+                    await router.navigate({ to: landingRoute.to });
                     return;
                   }
 
@@ -159,12 +159,12 @@ export function AuthedLayout() {
                   const companyId =
                     companyIdFromUrl ?? (await getDefaultCompanyIdForUser());
                   if (companyId) {
-                    router.navigate({
+                    await router.navigate({
                       to: companyRoute.to,
                       params: { companyId },
                     });
                   } else {
-                    router.navigate({ to: homeRoute.to });
+                    await router.navigate({ to: homeRoute.to });
                   }
                 }}
               >
@@ -198,7 +198,7 @@ export function AuthedLayout() {
                     <Menu.Divider />
                     <Menu.Item
                       onClick={() => {
-                        router.navigate({ to: accountRoute.to });
+                        void router.navigate({ to: accountRoute.to });
                       }}
                     >
                       Account settings
@@ -206,7 +206,7 @@ export function AuthedLayout() {
                     {smokeToolsEnabled && isSuperadmin ? (
                       <Menu.Item
                         onClick={() => {
-                          router.navigate({ to: smokeRoute.to });
+                          void router.navigate({ to: smokeRoute.to });
                         }}
                       >
                         System checks

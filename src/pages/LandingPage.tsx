@@ -104,10 +104,10 @@ export default function LandingPage() {
   useEffect(() => {
     if (!shouldRedirect || !userId) return;
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const companyId = await getDefaultCompanyIdForUser();
       if (!companyId || cancelled) return;
-      router.navigate({ to: companyRoute.to, params: { companyId } });
+      await router.navigate({ to: companyRoute.to, params: { companyId } });
     })();
     return () => {
       cancelled = true;

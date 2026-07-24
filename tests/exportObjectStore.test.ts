@@ -157,6 +157,49 @@ test('getCompanyExportObject converts missing objects into a not-found app error
   );
 });
 
+test('getCompanyExportObject rejects successful responses without a body', async () => {
+  sendMock.mockResolvedValue({ Body: undefined });
+
+  const { getCompanyExportObject } =
+    await import('../src/server/storage/exportObjectStore.ts');
+
+  await assert.rejects(
+    () =>
+      getCompanyExportObject({
+        bucket: 'projex-exports',
+        key: 'company-exports/empty.xlsx',
+      }),
+    (error) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'NOT_FOUND');
+      assert.equal(error.message, 'Export file is unavailable');
+      return true;
+    }
+  );
+});
+
+test('getCompanyExportObject rejects unsupported response body shapes', async () => {
+  const { getCompanyExportObject } =
+    await import('../src/server/storage/exportObjectStore.ts');
+
+  for (const body of ['not-a-stream', {}]) {
+    sendMock.mockResolvedValueOnce({ Body: body });
+    await assert.rejects(
+      () =>
+        getCompanyExportObject({
+          bucket: 'projex-exports',
+          key: 'company-exports/unsupported.xlsx',
+        }),
+      (error) => {
+        assert.ok(error instanceof AppError);
+        assert.equal(error.code, 'NOT_FOUND');
+        assert.equal(error.message, 'Export file is unavailable');
+        return true;
+      }
+    );
+  }
+});
+
 test('deleteCompanyExportObject suppresses missing-object deletes and rethrows unexpected S3 errors', async () => {
   const { deleteCompanyExportObject } =
     await import('../src/server/storage/exportObjectStore.ts');

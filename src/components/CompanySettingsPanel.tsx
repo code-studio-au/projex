@@ -265,16 +265,26 @@ export default function CompanySettingsPanel(props: {
     };
   }, [canExportCompany, companyId, initialExportJobId, isHydrated]);
 
-  useEffect(() => {
-    const job = exportJobState.job;
-    if (!job) return;
-    if (job.status !== 'queued' && job.status !== 'running') return;
+  const polledExportJobId = exportJobState.job?.id;
+  const polledExportJobStatus = exportJobState.job?.status;
 
+  useEffect(() => {
+    if (!polledExportJobId) return;
+    if (
+      polledExportJobStatus !== 'queued' &&
+      polledExportJobStatus !== 'running'
+    ) {
+      return;
+    }
+
+    const jobId = polledExportJobId;
+    let timeoutId: number | null = null;
     let cancelled = false;
-    const intervalId = window.setInterval(async () => {
+
+    async function pollExportJob() {
       try {
         const response = await fetch(
-          `/api/export-jobs/${encodeURIComponent(job.id)}`,
+          `/api/export-jobs/${encodeURIComponent(jobId)}`,
           {
             method: 'GET',
             headers: { accept: 'application/json' },
@@ -306,14 +316,26 @@ export default function CompanySettingsPanel(props: {
           ...current,
           error: 'Could not refresh export job status.',
         }));
+      } finally {
+        if (!cancelled) {
+          timeoutId = window.setTimeout(() => {
+            void pollExportJob();
+          }, EXPORT_JOB_POLL_INTERVAL_MS);
+        }
       }
+    }
+
+    timeoutId = window.setTimeout(() => {
+      void pollExportJob();
     }, EXPORT_JOB_POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
     };
-  }, [exportJobState.job]);
+  }, [polledExportJobId, polledExportJobStatus]);
 
   useEffect(() => {
     const job = exportJobState.job;
