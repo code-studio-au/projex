@@ -451,6 +451,10 @@ test(
           run: (x) => x.getCompanySummary(companyId),
         },
         {
+          route: 'GET /api/companies/:companyId/work-queue',
+          run: (x) => x.getCompanyWorkQueue(companyId),
+        },
+        {
           route: 'GET /api/companies/:companyId/defaults',
           run: (x) => x.getCompanyDefaults(companyId),
         },

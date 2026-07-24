@@ -12,6 +12,7 @@ import {
 import {
   getCompanyServerFn,
   getCompanySummaryServerFn,
+  getCompanyWorkQueueServerFn,
   getProjectServerFn,
   listProjectsServerFn,
 } from '../server/start/functions/projectReads';
@@ -89,6 +90,33 @@ export function companySummaryQueryOptions(
     enabled: !!userId && (options.enabled ?? true),
     queryKey: qk.companySummary(userId, companyId),
     queryFn: () => getCompanySummaryServerFn({ data: { companyId } }),
+  } as const;
+}
+
+export function useCompanyWorkQueueQuery(
+  companyId: CompanyId,
+  options: { enabled?: boolean } = {}
+) {
+  const scopeUserId = useQueryScopeUserId();
+  const session = useSessionQuery();
+  return useQuery(
+    companyWorkQueueQueryOptions(
+      session.data?.userId ?? scopeUserId,
+      companyId,
+      options
+    )
+  );
+}
+
+function companyWorkQueueQueryOptions(
+  userId: string,
+  companyId: CompanyId,
+  options: { enabled?: boolean } = {}
+) {
+  return {
+    enabled: !!userId && (options.enabled ?? true),
+    queryKey: qk.companyWorkQueue(userId, companyId),
+    queryFn: () => getCompanyWorkQueueServerFn({ data: { companyId } }),
   } as const;
 }
 

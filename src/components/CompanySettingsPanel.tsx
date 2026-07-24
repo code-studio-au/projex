@@ -92,8 +92,9 @@ type ExportJobState = {
 export default function CompanySettingsPanel(props: {
   companyId: CompanyId;
   initialExportJobId?: string | null;
+  initialReview?: 'rule-suggestions' | null;
 }) {
-  const { companyId, initialExportJobId = null } = props;
+  const { companyId, initialExportJobId = null, initialReview = null } = props;
   const loaderData = companyLayoutRoute.useLoaderData();
   const isMobile = useMediaQuery('(max-width: 48em)');
   const isHydrated = useSyncExternalStore(
@@ -181,8 +182,9 @@ export default function CompanySettingsPanel(props: {
   const [defaultsModalOpen, setDefaultsModalOpen] = useState(false);
   const [mappingsModalOpen, setMappingsModalOpen] = useState(false);
   const [importRulesModalOpen, setImportRulesModalOpen] = useState(false);
-  const [ruleSuggestionsModalOpen, setRuleSuggestionsModalOpen] =
-    useState(false);
+  const [ruleSuggestionsModalOpen, setRuleSuggestionsModalOpen] = useState(
+    initialReview === 'rule-suggestions'
+  );
   const [exportScope, setExportScope] = useState<'all' | 'active'>('all');
   const [exportDetail, setExportDetail] = useState<'full' | 'summary'>('full');
   const [exportFromDate, setExportFromDate] = useState('');

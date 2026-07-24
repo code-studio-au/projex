@@ -6,11 +6,13 @@ import type {
   Company,
   CompanyId,
   CompanySummary,
+  CompanyWorkQueue,
   ProjectId,
   User,
 } from '../../types';
 import { asCompanyId, asProjectId, asUserId } from '../../types';
 import { buildCompanySummaryProjects } from '../../utils/companySummary';
+import { MIN_RULE_SUGGESTION_SAMPLE_COUNT } from '../../utils/ruleSuggestions';
 import { userNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
@@ -23,6 +25,55 @@ import {
   withServerBoundary,
 } from './runtime';
 import { COMPANY_ROLE_RANK, toCompany } from './companyCore';
+import {
+  reversalReviewTxnSql,
+  txnValidSubCategorySql,
+} from './transactions/shared';
+
+type CompanyReportingContext = {
+  db: ReturnType<typeof getDb>;
+  userId: string;
+  isSuperadmin: boolean;
+  company:
+    | {
+        id: string;
+        status: 'active' | 'deactivated';
+      }
+    | undefined;
+  companyRole: string | null;
+};
+
+async function requireCompanyReportingContext(
+  context: ServerFnContextInput,
+  companyId: CompanyId
+): Promise<CompanyReportingContext> {
+  const db = getDb();
+  const userId = await requireServerUserId(context);
+  const [isSuperadmin, company, membership] = await Promise.all([
+    isGlobalSuperadminUser(userId, db),
+    db
+      .selectFrom('companies')
+      .select(['id', 'status'])
+      .where('id', '=', companyId)
+      .executeTakeFirst(),
+    db
+      .selectFrom('company_memberships')
+      .select('role')
+      .where('company_id', '=', companyId)
+      .where('user_id', '=', userId)
+      .executeTakeFirst(),
+  ]);
+  const companyRole = membership?.role ?? null;
+
+  if (!isSuperadmin && companyRole !== 'admin' && companyRole !== 'executive') {
+    throw new AppError(
+      'FORBIDDEN',
+      'Company reporting access requires admin or executive role'
+    );
+  }
+
+  return { db, userId, isSuperadmin, company, companyRole };
+}
 
 export async function listCompaniesServer(args: {
   context: ServerFnContextInput;
@@ -92,34 +143,8 @@ export async function getCompanySummaryServer(args: {
 }): Promise<CompanySummary> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
-    const db = getDb();
-    const userId = await requireServerUserId(args.context);
-    const isSuperadmin = await isGlobalSuperadminUser(userId, db);
-    const company = await db
-      .selectFrom('companies')
-      .select(['id', 'status'])
-      .where('id', '=', args.companyId)
-      .executeTakeFirst();
-    const companyRole =
-      (
-        await db
-          .selectFrom('company_memberships')
-          .select('role')
-          .where('company_id', '=', args.companyId)
-          .where('user_id', '=', userId)
-          .executeTakeFirst()
-      )?.role ?? null;
-
-    if (
-      !isSuperadmin &&
-      companyRole !== 'admin' &&
-      companyRole !== 'executive'
-    ) {
-      throw new AppError(
-        'FORBIDDEN',
-        'Company summary access requires admin or executive role'
-      );
-    }
+    const { db, userId, isSuperadmin, company, companyRole } =
+      await requireCompanyReportingContext(args.context, args.companyId);
 
     if (!company) return { projects: [] };
 
@@ -196,6 +221,151 @@ export async function getCompanySummaryServer(args: {
         })),
         validSubCategoryIdsByProject: validSubIdsByProject,
       }),
+    };
+  });
+}
+
+export async function getCompanyWorkQueueServer(args: {
+  context: ServerFnContextInput;
+  companyId: CompanyId;
+}): Promise<CompanyWorkQueue> {
+  return withServerBoundary(async () => {
+    assertContextProvided(args.context);
+    const { db, userId, isSuperadmin, company, companyRole } =
+      await requireCompanyReportingContext(args.context, args.companyId);
+
+    if (!company || company.status !== 'active') {
+      return { projects: [], ruleSuggestionCount: 0 };
+    }
+
+    const visibleProjects = (
+      await listVisibleProjectsForCompany({
+        db,
+        userId,
+        companyId: args.companyId,
+        companyStatus: company.status,
+        isSuperadmin,
+        companyRole,
+      })
+    ).filter(
+      (project) =>
+        project.projectType === 'project' && project.status === 'active'
+    );
+    const projectIds = visibleProjects.map((project) => project.id);
+
+    const validSubCategory = txnValidSubCategorySql();
+    const needsCoding = sql<boolean>`t.categorisable and (t.sub_category_id is null or not (${validSubCategory}))`;
+    const codingApproval = sql<boolean>`t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory}`;
+    const reversalReview = reversalReviewTxnSql();
+
+    const [transactionRows, unlockRows, ruleSuggestionRow] = await Promise.all([
+      projectIds.length
+        ? db
+            .selectFrom('txns as t')
+            .select([
+              't.project_id',
+              sql<number>`count(*) filter (where ${needsCoding})`.as(
+                'needs_coding_count'
+              ),
+              sql<
+                string | null
+              >`min(case when ${needsCoding} then t.txn_date end)`.as(
+                'oldest_needs_coding_date'
+              ),
+              sql<number>`count(*) filter (where ${codingApproval})`.as(
+                'coding_approval_count'
+              ),
+              sql<
+                string | null
+              >`min(case when ${codingApproval} then t.txn_date end)`.as(
+                'oldest_coding_approval_date'
+              ),
+              sql<number>`count(*) filter (where ${reversalReview})`.as(
+                'reversal_review_count'
+              ),
+              sql<
+                string | null
+              >`min(case when ${reversalReview} then t.txn_date end)`.as(
+                'oldest_reversal_review_date'
+              ),
+            ])
+            .where('t.project_id', 'in', projectIds)
+            .groupBy('t.project_id')
+            .execute()
+        : Promise.resolve([]),
+      projectIds.length
+        ? db
+            .selectFrom('txn_unlock_requests')
+            .select([
+              'project_id',
+              sql<number>`count(*)`.as('unlock_request_count'),
+              sql<string | null>`min(requested_at)`.as(
+                'oldest_unlock_request_at'
+              ),
+            ])
+            .where('project_id', 'in', projectIds)
+            .where('status', '=', 'pending')
+            .groupBy('project_id')
+            .execute()
+        : Promise.resolve([]),
+      db
+        .selectFrom('rule_suggestions')
+        .select(sql<number>`count(*)`.as('rule_suggestion_count'))
+        .where('company_id', '=', args.companyId)
+        .where('status', '=', 'open')
+        .where('sample_count', '>=', MIN_RULE_SUGGESTION_SAMPLE_COUNT)
+        .executeTakeFirstOrThrow(),
+    ]);
+
+    const transactionByProject = new Map(
+      transactionRows.map((row) => [row.project_id, row])
+    );
+    const unlockByProject = new Map(
+      unlockRows.map((row) => [row.project_id, row])
+    );
+    const projects = visibleProjects.flatMap((project) => {
+      const transactions = transactionByProject.get(project.id);
+      const unlocks = unlockByProject.get(project.id);
+      const needsCodingCount = Number(transactions?.needs_coding_count ?? 0);
+      const codingApprovalCount = Number(
+        transactions?.coding_approval_count ?? 0
+      );
+      const reversalReviewCount = Number(
+        transactions?.reversal_review_count ?? 0
+      );
+      const unlockRequestCount = Number(unlocks?.unlock_request_count ?? 0);
+
+      if (
+        needsCodingCount === 0 &&
+        codingApprovalCount === 0 &&
+        reversalReviewCount === 0 &&
+        unlockRequestCount === 0
+      ) {
+        return [];
+      }
+
+      return [
+        {
+          projectId: project.id,
+          projectName: project.name,
+          needsCodingCount,
+          oldestNeedsCodingDate:
+            transactions?.oldest_needs_coding_date ?? undefined,
+          codingApprovalCount,
+          oldestCodingApprovalDate:
+            transactions?.oldest_coding_approval_date ?? undefined,
+          reversalReviewCount,
+          oldestReversalReviewDate:
+            transactions?.oldest_reversal_review_date ?? undefined,
+          unlockRequestCount,
+          oldestUnlockRequestAt: unlocks?.oldest_unlock_request_at ?? undefined,
+        },
+      ];
+    });
+
+    return {
+      projects,
+      ruleSuggestionCount: Number(ruleSuggestionRow.rule_suggestion_count),
     };
   });
 }

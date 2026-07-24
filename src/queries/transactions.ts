@@ -306,6 +306,9 @@ export async function invalidateProjectTransactionQueries(args: {
     args.qc.invalidateQueries({
       queryKey: qk.companySummaries(args.scopeUserId),
     }),
+    args.qc.invalidateQueries({
+      queryKey: qk.companyWorkQueues(args.scopeUserId),
+    }),
   ]);
 }
 

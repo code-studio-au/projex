@@ -52,6 +52,9 @@ export function useCreateProjectMutation(companyId: CompanyId) {
         qc.invalidateQueries({
           queryKey: qk.companySummary(scopeUserId, companyId),
         }),
+        qc.invalidateQueries({
+          queryKey: qk.companyWorkQueue(scopeUserId, companyId),
+        }),
       ]);
     },
   });
@@ -76,6 +79,9 @@ export function useUpdateProjectMutation(companyId: CompanyId) {
         }),
         qc.invalidateQueries({
           queryKey: qk.companySummary(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyWorkQueue(scopeUserId, companyId),
         }),
       ]);
     },
@@ -162,6 +168,9 @@ export function useDeactivateCompanyMutation() {
         }),
         qc.invalidateQueries({ queryKey: qk.company(scopeUserId, companyId) }),
         qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
+        qc.invalidateQueries({
+          queryKey: qk.companyWorkQueue(scopeUserId, companyId),
+        }),
       ]);
     },
   });
@@ -236,6 +245,9 @@ export function useDeactivateProjectMutation(companyId: CompanyId) {
         qc.invalidateQueries({
           queryKey: qk.companySummary(scopeUserId, companyId),
         }),
+        qc.invalidateQueries({
+          queryKey: qk.companyWorkQueue(scopeUserId, companyId),
+        }),
       ]);
     },
   });
@@ -253,6 +265,9 @@ export function useReactivateProjectMutation(companyId: CompanyId) {
         qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
         qc.invalidateQueries({
           queryKey: qk.companySummary(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyWorkQueue(scopeUserId, companyId),
         }),
       ]);
     },
@@ -273,6 +288,9 @@ export function useDeleteProjectMutation(companyId: CompanyId) {
         qc.invalidateQueries({ queryKey: qk.projects(scopeUserId, companyId) }),
         qc.invalidateQueries({
           queryKey: qk.companySummary(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyWorkQueue(scopeUserId, companyId),
         }),
       ]);
     },

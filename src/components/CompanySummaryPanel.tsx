@@ -24,7 +24,10 @@ import {
   type BudgetHealth,
 } from '../utils/budgetSemantics';
 import { projectRoute } from '../router';
-import { useCompanySummaryQuery } from '../queries/reference';
+import {
+  useCompanySummaryQuery,
+  useCompanyWorkQueueQuery,
+} from '../queries/reference';
 import classes from '../styles/ui.module.css';
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
@@ -52,10 +55,19 @@ type ProjectSummaryRow = {
   pendingReversalCents: number;
   uncodedCount: number;
   uncodedExposureCents: number;
+  codingApprovalCount: number;
+  reversalReviewCount: number;
+  unlockRequestCount: number;
   recordedSpendCents: number;
   confirmedHeadroomCents: number;
   health: BudgetHealth;
 };
+
+type ProjectWorkflowView =
+  | 'uncoded'
+  | 'auto-mapped-pending'
+  | 'reversal-review'
+  | 'unlock-requests';
 
 function quarterFromMonthNumber(month: number): QuarterOption {
   if (month <= 3) return 'Q1';
@@ -178,22 +190,81 @@ function SummaryDrilldownLink(props: {
   );
 }
 
+function WorkflowBadgeLink(props: {
+  companyId: CompanyId;
+  projectId: Project['id'];
+  view: ProjectWorkflowView;
+  count: number;
+  singular: string;
+  plural: string;
+  color: 'blue' | 'orange' | 'red' | 'yellow';
+  yearFilter?: string | null;
+  quarterFilter?: QuarterOption | null;
+  monthFilterKey?: string | null;
+}) {
+  const label = `${props.count} ${
+    props.count === 1 ? props.singular : props.plural
+  }`;
+  const search =
+    props.view === 'uncoded'
+      ? buildProjectDrilldownSearch({
+          yearFilter: props.yearFilter ?? null,
+          quarterFilter: props.quarterFilter ?? null,
+          monthFilterKey: props.monthFilterKey ?? null,
+          tab: 'transactions',
+          view: 'uncoded',
+          focus: 'uncoded',
+        })
+      : {
+          tab: 'transactions' as const,
+          view: props.view,
+          source: 'company-work-queue' as const,
+        };
+  return (
+    <Link
+      to={projectRoute.to}
+      params={{ companyId: props.companyId, projectId: props.projectId }}
+      search={search}
+      className={classes.badgeLink}
+      aria-label={label}
+    >
+      <Badge size="sm" variant="light" color={props.color}>
+        {label}
+      </Badge>
+    </Link>
+  );
+}
+
 export default function CompanySummaryPanel(props: {
   companyId: CompanyId;
   isMobile?: boolean;
 }) {
   const { companyId, isMobile = false } = props;
   const companySummaryQ = useCompanySummaryQuery(companyId);
+  const companyWorkQueueQ = useCompanyWorkQueueQuery(companyId);
   const [yearFilter, setYearFilter] = useState<string | null>(null);
   const [quarterFilter, setQuarterFilter] = useState<QuarterOption | null>(
     null
   );
   const [monthFilterKey, setMonthFilterKey] = useState<string | null>(null);
+  const [projectFilter, setProjectFilter] = useState<'all' | 'needs-attention'>(
+    'all'
+  );
   const summaryProjects = useMemo(
     () => companySummaryQ.data?.projects ?? [],
     [companySummaryQ.data]
   );
-  const isLoading = companySummaryQ.isLoading;
+  const workQueueByProjectId = useMemo(
+    () =>
+      new Map(
+        (companyWorkQueueQ.data?.projects ?? []).map((project) => [
+          project.projectId,
+          project,
+        ])
+      ),
+    [companyWorkQueueQ.data]
+  );
+  const isLoading = companySummaryQ.isLoading || companyWorkQueueQ.isLoading;
 
   const allMonthKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -275,6 +346,7 @@ export default function CompanySummaryPanel(props: {
         pendingReversalCount,
         pendingReversalCents,
       });
+      const workflow = workQueueByProjectId.get(project.id);
       return {
         id: project.id,
         name: project.name,
@@ -289,6 +361,9 @@ export default function CompanySummaryPanel(props: {
         pendingReversalCents,
         uncodedCount,
         uncodedExposureCents,
+        codingApprovalCount: workflow?.codingApprovalCount ?? 0,
+        reversalReviewCount: workflow?.reversalReviewCount ?? 0,
+        unlockRequestCount: workflow?.unlockRequestCount ?? 0,
         recordedSpendCents: position.recordedSpendCents,
         confirmedHeadroomCents: position.confirmedHeadroomCents,
         health: position.health,
@@ -299,7 +374,41 @@ export default function CompanySummaryPanel(props: {
       toRow(project, false),
       ...(project.children ?? []).map((child) => toRow(child, true)),
     ]);
-  }, [monthFilterKey, quarterFilter, summaryProjects, yearFilter]);
+  }, [
+    monthFilterKey,
+    quarterFilter,
+    summaryProjects,
+    workQueueByProjectId,
+    yearFilter,
+  ]);
+
+  const displayedRows = useMemo(() => {
+    if (projectFilter === 'all') return rows;
+    const directAttentionIds = new Set(
+      rows
+        .filter(
+          (row) =>
+            row.status === 'active' &&
+            (row.uncodedCount > 0 ||
+              row.codingApprovalCount > 0 ||
+              row.reversalReviewCount > 0 ||
+              row.unlockRequestCount > 0)
+        )
+        .map((row) => row.id)
+    );
+    const programmeIds = new Set(
+      rows.flatMap((row) =>
+        row.parentProjectId && directAttentionIds.has(row.id)
+          ? [row.parentProjectId]
+          : []
+      )
+    );
+    return rows.filter(
+      (row) =>
+        directAttentionIds.has(row.id) ||
+        (row.projectType === 'programme' && programmeIds.has(row.id))
+    );
+  }, [projectFilter, rows]);
 
   const activeRows = useMemo(
     () => rows.filter((row) => row.status === 'active' && !row.isChild),
@@ -500,6 +609,97 @@ export default function CompanySummaryPanel(props: {
           ),
       },
       {
+        id: 'actionRequired',
+        header: 'Action required',
+        size: 210,
+        enableSorting: false,
+        Cell: ({ row }) => {
+          if (
+            row.original.projectType === 'programme' ||
+            row.original.status !== 'active'
+          ) {
+            return <Text c="dimmed">—</Text>;
+          }
+          if (
+            companyWorkQueueQ.isError &&
+            row.original.projectType === 'project'
+          ) {
+            return (
+              <Text size="sm" c="red">
+                Unavailable
+              </Text>
+            );
+          }
+          const actionCount =
+            row.original.uncodedCount +
+            row.original.codingApprovalCount +
+            row.original.reversalReviewCount +
+            row.original.unlockRequestCount;
+          if (actionCount === 0) {
+            return (
+              <Text size="sm" c="dimmed">
+                None
+              </Text>
+            );
+          }
+          return (
+            <Stack
+              gap={4}
+              align="flex-start"
+              title="Uncoded work follows the selected period. Other workflow actions cover all periods."
+            >
+              {row.original.uncodedCount > 0 ? (
+                <WorkflowBadgeLink
+                  companyId={companyId}
+                  projectId={row.original.id}
+                  view="uncoded"
+                  count={row.original.uncodedCount}
+                  singular="uncoded transaction"
+                  plural="uncoded transactions"
+                  color="red"
+                  yearFilter={yearFilter}
+                  quarterFilter={quarterFilter}
+                  monthFilterKey={monthFilterKey}
+                />
+              ) : null}
+              {row.original.codingApprovalCount > 0 ? (
+                <WorkflowBadgeLink
+                  companyId={companyId}
+                  projectId={row.original.id}
+                  view="auto-mapped-pending"
+                  count={row.original.codingApprovalCount}
+                  singular="coding approval"
+                  plural="coding approvals"
+                  color="yellow"
+                />
+              ) : null}
+              {row.original.reversalReviewCount > 0 ? (
+                <WorkflowBadgeLink
+                  companyId={companyId}
+                  projectId={row.original.id}
+                  view="reversal-review"
+                  count={row.original.reversalReviewCount}
+                  singular="reversal decision"
+                  plural="reversal decisions"
+                  color="blue"
+                />
+              ) : null}
+              {row.original.unlockRequestCount > 0 ? (
+                <WorkflowBadgeLink
+                  companyId={companyId}
+                  projectId={row.original.id}
+                  view="unlock-requests"
+                  count={row.original.unlockRequestCount}
+                  singular="unlock request"
+                  plural="unlock requests"
+                  color="orange"
+                />
+              ) : null}
+            </Stack>
+          );
+        },
+      },
+      {
         id: 'health',
         header: 'Health',
         size: 150,
@@ -553,7 +753,13 @@ export default function CompanySummaryPanel(props: {
           ),
       },
     ],
-    [companyId, monthFilterKey, quarterFilter, yearFilter]
+    [
+      companyId,
+      companyWorkQueueQ.isError,
+      monthFilterKey,
+      quarterFilter,
+      yearFilter,
+    ]
   );
 
   return (
@@ -561,6 +767,21 @@ export default function CompanySummaryPanel(props: {
       <Paper className={classes.filterCard} radius="xl">
         <Stack gap="sm">
           <Group align="flex-end" gap="sm" wrap="wrap">
+            <Select
+              label="Show"
+              data={[
+                { value: 'all', label: 'All projects' },
+                { value: 'needs-attention', label: 'Needs attention' },
+              ]}
+              value={projectFilter}
+              allowDeselect={false}
+              onChange={(value) =>
+                setProjectFilter(
+                  value === 'needs-attention' ? 'needs-attention' : 'all'
+                )
+              }
+              style={{ width: isMobile ? '100%' : 180 }}
+            />
             <Select
               label="Year"
               placeholder="All years"
@@ -612,7 +833,8 @@ export default function CompanySummaryPanel(props: {
           {yearFilter || quarterFilter || monthFilterKey ? (
             <Text size="xs" c="dimmed">
               Project budgets remain full-project totals; spend, exposure,
-              headroom, and health reflect the selected period.
+              headroom, health, and uncoded actions reflect the selected period.
+              Other workflow actions remain across all periods.
             </Text>
           ) : null}
         </Stack>
@@ -675,11 +897,11 @@ export default function CompanySummaryPanel(props: {
         </Paper>
       </SimpleGrid>
 
-      {rows.length > 0 ? (
+      {displayedRows.length > 0 ? (
         <div className={classes.tableWrap}>
           <MantineReactTable
             columns={columns}
-            data={rows}
+            data={displayedRows}
             getRowId={(row) => row.id}
             mantineTableContainerProps={{
               className: 'financeTable companySummaryTable',
@@ -707,6 +929,10 @@ export default function CompanySummaryPanel(props: {
             }}
           />
         </div>
+      ) : rows.length > 0 && projectFilter === 'needs-attention' ? (
+        <Paper className={classes.surfaceCard} radius="xl" p="lg">
+          <Text c="dimmed">No active projects currently need attention.</Text>
+        </Paper>
       ) : (
         <Paper className={classes.surfaceCard} radius="xl" p="lg">
           <Text c="dimmed">

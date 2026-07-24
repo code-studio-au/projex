@@ -476,6 +476,38 @@ async function runGeneratedReversalFlow(
     await pendingDialog.waitFor({ state: 'hidden' });
   }
 
+  await emit(
+    options,
+    'Opening a reversal decision from the company project list'
+  );
+  await page.goto(`/c/${fixtures.companyId}?tab=summary`, {
+    waitUntil: 'domcontentloaded',
+  });
+  const reversalDecisionLink = page.getByRole('link', {
+    name: '2 reversal decisions',
+  });
+  await reversalDecisionLink.waitFor({ state: 'visible' });
+  await reversalDecisionLink.click();
+  await waitForLocation(
+    page,
+    ({ pathname, search }) => {
+      const params = new URLSearchParams(search);
+      return (
+        pathname === `/c/${fixtures.companyId}/p/${fixtures.projectId}` &&
+        params.get('tab') === 'transactions' &&
+        params.get('view') === 'reversal-review' &&
+        params.get('source') === 'company-work-queue'
+      );
+    },
+    'Company project list did not open the reversal decision workflow'
+  );
+  await page
+    .getByText(
+      'Opened from the company project list to resolve outstanding work.',
+      { exact: true }
+    )
+    .waitFor({ state: 'visible' });
+
   const reviewQueueButton = page.getByRole('button', {
     name: 'Review matches (2)',
   });

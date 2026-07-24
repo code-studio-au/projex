@@ -29,6 +29,7 @@ import {
   prefixedTxnSelectColumns,
   toCount,
   txnAssignedToUserSql,
+  reversalMatchReviewTxnSql,
   txnReversalJoin,
   txnReversalSelectExpressions,
   txnUnlockRequestJoin,
@@ -267,7 +268,7 @@ export async function listTransactionsPageServer(args: {
             const unrecordedPendingReversal = sql<boolean>`summary_tr.id is not null and summary_tr.matched_reversal_txn_public_id is null`;
             const codingApproval = sql<boolean>`t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory}`;
             const reversalReview = sql<boolean>`summary_tr.status in ('auto_matched_pending_approval', 'auto_matched_ambiguous_pending_approval', 'reversal_exception')`;
-            const reversalMatchReview = sql<boolean>`t.locked_at is null and summary_tr.status in ('auto_matched_pending_approval', 'auto_matched_ambiguous_pending_approval')`;
+            const reversalMatchReview = reversalMatchReviewTxnSql();
             const awaitingReversal = sql<boolean>`summary_tr.status = 'pending_reversal'`;
             return [
               sql<number>`count(*)`.as('total_count'),

@@ -32,6 +32,7 @@ import {
   calculateRuleSuggestionConfidence,
   deriveRuleSuggestionPattern,
   didManualCodingTargetChange,
+  MIN_RULE_SUGGESTION_SAMPLE_COUNT,
   normalizeRuleSuggestionPatternText,
   ruleSuggestionConfidenceLevel,
   ruleSuggestionConfidenceReasons,
@@ -47,7 +48,6 @@ import {
 } from './runtime';
 import { syncCompanyAutoCodingRulesToSyncedProjects } from './projectAutoCodingRules';
 
-const MIN_RULE_SUGGESTION_SAMPLE_COUNT = 3;
 const DISMISSAL_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 const DISMISSAL_REOPEN_SAMPLE_DELTA = 3;
 

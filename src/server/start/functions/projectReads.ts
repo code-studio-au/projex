@@ -40,6 +40,21 @@ export const getCompanySummaryServerFn = createServerFn({ method: 'GET' })
     )
   );
 
+export const getCompanyWorkQueueServerFn = createServerFn({ method: 'GET' })
+  .middleware([startApiMiddleware])
+  .inputValidator(
+    lazyServerFnInputValidator(
+      loadCompanyEndpoints,
+      'getCompanyWorkQueueEndpoint'
+    )
+  )
+  .handler(
+    createLazyServerFnEndpointHandler(
+      loadCompanyEndpoints,
+      'getCompanyWorkQueueEndpoint'
+    )
+  );
+
 export const listProjectsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
   .inputValidator(

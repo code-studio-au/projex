@@ -45,6 +45,7 @@ import {
   deleteCompanyServer,
   getCompanyServer,
   getCompanySummaryServer,
+  getCompanyWorkQueueServer,
   listCompaniesServer,
   listUsersServer,
   reactivateCompanyServer,
@@ -267,6 +268,8 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
       reactivateCompanyServer({ context, companyId }),
     getCompanySummary: (companyId: ReturnType<typeof asCompanyId>) =>
       getCompanySummaryServer({ context, companyId }),
+    getCompanyWorkQueue: (companyId: ReturnType<typeof asCompanyId>) =>
+      getCompanyWorkQueueServer({ context, companyId }),
     getCompanyDefaults: (companyId: ReturnType<typeof asCompanyId>) =>
       getCompanyDefaultsServer({ context, companyId }),
     listProjects: (companyId: ReturnType<typeof asCompanyId>) =>

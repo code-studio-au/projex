@@ -20,6 +20,7 @@ import {
   deleteCompanyServer,
   getCompanyServer,
   getCompanySummaryServer,
+  getCompanyWorkQueueServer,
   getDefaultCompanyIdForUserServer,
   listCompaniesServer,
   listUsersServer,
@@ -80,6 +81,17 @@ export const getCompanySummaryEndpoint = defineAppEndpoint({
   }),
   execute: ({ context, input }) =>
     getCompanySummaryServer({
+      context,
+      companyId: input.companyId,
+    }),
+});
+
+export const getCompanyWorkQueueEndpoint = defineAppEndpoint({
+  inputSchema: z.object({
+    companyId: companyIdSchema,
+  }),
+  execute: ({ context, input }) =>
+    getCompanyWorkQueueServer({
       context,
       companyId: input.companyId,
     }),

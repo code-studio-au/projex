@@ -38,6 +38,9 @@ export function useAcceptRuleSuggestionMutation(companyId: CompanyId) {
         qc.invalidateQueries({
           queryKey: qk.companyDefaultMappingRules(scopeUserId, companyId),
         }),
+        qc.invalidateQueries({
+          queryKey: qk.companyWorkQueue(scopeUserId, companyId),
+        }),
       ]),
   });
 }
@@ -49,8 +52,13 @@ export function useDismissRuleSuggestionMutation(companyId: CompanyId) {
     mutationFn: (input: RuleSuggestionDismissInput) =>
       dismissRuleSuggestionServerFn({ data: { companyId, payload: input } }),
     onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: qk.ruleSuggestions(scopeUserId, companyId),
-      }),
+      Promise.all([
+        qc.invalidateQueries({
+          queryKey: qk.ruleSuggestions(scopeUserId, companyId),
+        }),
+        qc.invalidateQueries({
+          queryKey: qk.companyWorkQueue(scopeUserId, companyId),
+        }),
+      ]),
   });
 }

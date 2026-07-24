@@ -167,6 +167,8 @@ test('transaction view parsing keeps the filter options and fallback aligned', (
       'uncoded',
       'needs-review',
       'auto-mapped-pending',
+      'reversal-review',
+      'unlock-requests',
       'assigned-to-me',
       'pending-reversal',
       'matched-reversal-pairs',
@@ -189,6 +191,8 @@ test('transaction view parsing keeps the filter options and fallback aligned', (
         group: 'Specialist views',
         values: [
           'auto-mapped-pending',
+          'reversal-review',
+          'unlock-requests',
           'pending-reversal',
           'matched-reversal-pairs',
         ],
@@ -253,6 +257,14 @@ test('workflow headings describe the selected queue without financial totals', (
   assert.equal(
     transactionWorkflowHeading('auto-mapped-pending', 2),
     '2 coding approvals'
+  );
+  assert.equal(
+    transactionWorkflowHeading('reversal-review', 2),
+    '2 reversal decisions'
+  );
+  assert.equal(
+    transactionWorkflowHeading('unlock-requests', 1),
+    '1 unlock request'
   );
   assert.equal(
     transactionWorkflowHeading('pending-reversal', 3),

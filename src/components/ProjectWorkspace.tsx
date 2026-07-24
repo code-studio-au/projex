@@ -138,7 +138,7 @@ type ProjectWorkspaceProps = {
   initialTransactionView?: TransactionView;
   initialCommentTxnId?: TxnId | null;
   initialTransactionDrilldown?: TransactionDrilldownSearch | null;
-  initialEntrySource?: 'company-summary';
+  initialEntrySource?: 'company-summary' | 'company-work-queue';
   initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 };
 
@@ -166,7 +166,7 @@ type ProjectWorkspaceInnerProps = {
   initialTransactionView: TransactionView;
   initialCommentTxnId: TxnId | null;
   initialTransactionDrilldown: TransactionDrilldownSearch | null;
-  initialEntrySource?: 'company-summary';
+  initialEntrySource?: 'company-summary' | 'company-work-queue';
   initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 };
 
@@ -635,6 +635,9 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     };
   }, [monthFilterKey, programmeSummary, quarterFilter, yearFilter]);
   const entryMessage = useMemo(() => {
+    if (initialEntrySource === 'company-work-queue') {
+      return 'Opened from the company project list to resolve outstanding work.';
+    }
     if (initialEntrySource !== 'company-summary') return null;
     switch (initialEntryFocus) {
       case 'actual':
@@ -702,7 +705,8 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
       view:
         typeof currentSearch.view === 'string' ? currentSearch.view : undefined,
       source:
-        currentSearch.source === 'company-summary'
+        currentSearch.source === 'company-summary' ||
+        currentSearch.source === 'company-work-queue'
           ? currentSearch.source
           : undefined,
       focus:

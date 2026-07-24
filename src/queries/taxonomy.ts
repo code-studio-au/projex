@@ -151,6 +151,9 @@ async function invalidateSyncedProjectTaxonomyQueries(args: {
         query.queryKey[0] === 'projectAutoCodingRules' &&
         query.queryKey[1] === scopeUserId,
     }),
+    qc.invalidateQueries({
+      queryKey: qk.companyWorkQueues(scopeUserId),
+    }),
   ]);
 }
 
@@ -300,6 +303,7 @@ export function useDeleteCategoryMutation(projectId: ProjectId) {
           queryKey: qk.transactions(scopeUserId, projectId),
         }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+        qc.invalidateQueries({ queryKey: qk.companyWorkQueues(scopeUserId) }),
       ]);
     },
   });
@@ -394,6 +398,7 @@ export function useUpdateSubCategoryMutation(projectId: ProjectId) {
           queryKey: qk.transactions(scopeUserId, projectId),
         }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+        qc.invalidateQueries({ queryKey: qk.companyWorkQueues(scopeUserId) }),
       ]);
     },
   });
@@ -445,6 +450,7 @@ export function useDeleteSubCategoryMutation(projectId: ProjectId) {
           queryKey: qk.transactions(scopeUserId, projectId),
         }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+        qc.invalidateQueries({ queryKey: qk.companyWorkQueues(scopeUserId) }),
       ]);
     },
   });
@@ -547,6 +553,7 @@ export function useApplyCompanyStandardsMutation(
           queryKey: qk.transactions(scopeUserId, projectId),
         }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+        qc.invalidateQueries({ queryKey: qk.companyWorkQueues(scopeUserId) }),
         qc.invalidateQueries({
           queryKey: qk.companyDefaultCategories(scopeUserId, companyId),
         }),
@@ -583,6 +590,7 @@ export function useBulkRecodeProjectTransactionsMutation(projectId: ProjectId) {
             query.queryKey[3] === 'page',
         }),
         qc.invalidateQueries({ queryKey: qk.companySummaries(scopeUserId) }),
+        qc.invalidateQueries({ queryKey: qk.companyWorkQueues(scopeUserId) }),
       ]);
     },
   });

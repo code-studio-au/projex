@@ -3,6 +3,8 @@ export type TransactionView =
   | 'uncoded'
   | 'needs-review'
   | 'auto-mapped-pending'
+  | 'reversal-review'
+  | 'unlock-requests'
   | 'assigned-to-me'
   | 'pending-reversal'
   | 'matched-reversal-pairs';
@@ -35,6 +37,18 @@ export const TRANSACTION_VIEW_OPTIONS: Array<{
     value: 'auto-mapped-pending',
     label: 'Coding approvals',
     description: 'Auto-coded transactions waiting for approval.',
+    group: 'Specialist views',
+  },
+  {
+    value: 'reversal-review',
+    label: 'Reversal decisions',
+    description: 'Suggested matches and exceptions requiring a decision.',
+    group: 'Specialist views',
+  },
+  {
+    value: 'unlock-requests',
+    label: 'Unlock requests',
+    description: 'Locked transactions with an open unlock request.',
     group: 'Specialist views',
   },
   {

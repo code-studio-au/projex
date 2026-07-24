@@ -546,6 +546,24 @@ export type CompanySummary = {
   projects: CompanySummaryProject[];
 };
 
+export type CompanyWorkQueueProject = {
+  projectId: ProjectId;
+  projectName: string;
+  needsCodingCount: number;
+  oldestNeedsCodingDate?: string;
+  codingApprovalCount: number;
+  oldestCodingApprovalDate?: string;
+  reversalReviewCount: number;
+  oldestReversalReviewDate?: string;
+  unlockRequestCount: number;
+  oldestUnlockRequestAt?: string;
+};
+
+export type CompanyWorkQueue = {
+  projects: CompanyWorkQueueProject[];
+  ruleSuggestionCount: number;
+};
+
 export type CompanyDefaults = {
   categories: CompanyDefaultCategory[];
   subCategories: CompanyDefaultSubCategory[];

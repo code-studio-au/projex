@@ -101,6 +101,13 @@ For a reproducible local dependency stack with Postgres and MinIO, use [docs/loc
 For the month-to-month pending reversal and auto-match workflow, use
 [docs/reversal-workflow.md](docs/reversal-workflow.md).
 
+On the company Summary tab, uncoded counts and amounts remain part of each
+project's financial position. The project list adds an **Action required**
+column for coding approvals, reversal decisions, and unlock requests, with a
+**Needs attention** filter and links to the exact transaction workflow. Eligible
+rule suggestions are flagged on Company Settings. These counts are derived from
+existing workflow state rather than stored as a second queue.
+
 For the canonical project budget, allocation, recorded spend, headroom, and
 health definitions, use [docs/budget-semantics.md](docs/budget-semantics.md).
 

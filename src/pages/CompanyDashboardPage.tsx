@@ -24,6 +24,7 @@ import type { CompanyId, Project, ProjectId } from '../types';
 import { asCompanyId, asUserId } from '../types';
 import {
   useCompanyQuery,
+  useCompanyWorkQueueQuery,
   useProjectsQuery,
   useUsersQuery,
 } from '../queries/reference';
@@ -201,6 +202,10 @@ export default function CompanyDashboardPage() {
     (access.isAdmin ||
       access.isExecutive ||
       (isGlobalSuperadmin && rows.length > 0));
+  const companyWorkQueueQ = useCompanyWorkQueueQuery(companyId, {
+    enabled: canViewCompanySummary,
+  });
+  const ruleSuggestionCount = companyWorkQueueQ.data?.ruleSuggestionCount ?? 0;
   const showSwitchCompany =
     (loaderData?.isGlobalSuperadmin ?? isGlobalSuperadmin) ||
     (loaderData?.userCompanyCount ?? userCompanyCount) > 1;
@@ -688,7 +693,21 @@ export default function CompanyDashboardPage() {
           ) : null}
           <Tabs.Tab value="projects">Projects & programmes</Tabs.Tab>
           <Tabs.Tab value="settings" disabled={!canAccessSettings}>
-            Settings
+            <Group gap={6} wrap="nowrap">
+              Settings
+              {ruleSuggestionCount > 0 ? (
+                <Badge
+                  size="sm"
+                  variant="light"
+                  color="orange"
+                  title={`${ruleSuggestionCount} rule ${
+                    ruleSuggestionCount === 1 ? 'suggestion' : 'suggestions'
+                  } need review`}
+                >
+                  {ruleSuggestionCount}
+                </Badge>
+              ) : null}
+            </Group>
           </Tabs.Tab>
         </Tabs.List>
 
@@ -745,6 +764,7 @@ export default function CompanyDashboardPage() {
             <CompanySettingsPanel
               companyId={companyId}
               initialExportJobId={dashboardSearch.exportJob ?? null}
+              initialReview={dashboardSearch.review ?? null}
             />
           )}
         </Tabs.Panel>

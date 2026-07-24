@@ -17,6 +17,7 @@ import {
   TXN_REVERSAL_STATUSES,
 } from '../types/index.ts';
 import type { CompanySummaryProject } from '../types/index.ts';
+import type { CompanyWorkQueue } from '../types/index.ts';
 import {
   budgetAllocatedCentsSchema,
   idSchema,
@@ -146,6 +147,25 @@ export const companySummaryProjectResponseSchema: z.ZodType<CompanySummaryProjec
 export const companySummaryResponseSchema = z.object({
   projects: z.array(companySummaryProjectResponseSchema),
 });
+
+export const companyWorkQueueResponseSchema: z.ZodType<CompanyWorkQueue> =
+  z.object({
+    projects: z.array(
+      z.object({
+        projectId: projectIdSchema,
+        projectName: z.string(),
+        needsCodingCount: z.number().int().nonnegative(),
+        oldestNeedsCodingDate: z.string().optional(),
+        codingApprovalCount: z.number().int().nonnegative(),
+        oldestCodingApprovalDate: z.string().optional(),
+        reversalReviewCount: z.number().int().nonnegative(),
+        oldestReversalReviewDate: z.string().optional(),
+        unlockRequestCount: z.number().int().nonnegative(),
+        oldestUnlockRequestAt: optionalIsoTimestampSchema,
+      })
+    ),
+    ruleSuggestionCount: z.number().int().nonnegative(),
+  });
 
 export const companyExportJobResponseSchema = z.object({
   id: companyExportJobIdSchema,

@@ -1,5 +1,7 @@
 import type { Txn } from '../types';
 
+export const MIN_RULE_SUGGESTION_SAMPLE_COUNT = 3;
+
 export type RuleSuggestionPatternBasis =
   | 'item'
   | 'description'

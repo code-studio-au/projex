@@ -417,6 +417,11 @@ test(
         'GET /api/companies/:companyId/summary management'
       );
       await assertAppErrorCode(
+        () => managementApi.getCompanyWorkQueue(companyId),
+        'FORBIDDEN',
+        'GET /api/companies/:companyId/work-queue management'
+      );
+      await assertAppErrorCode(
         () => managementApi.createProject(companyId, { name: 'Nope' }),
         'FORBIDDEN',
         'POST /api/companies/:companyId/projects management'

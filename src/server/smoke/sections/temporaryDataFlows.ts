@@ -1,5 +1,6 @@
 import {
   companySummaryResponseSchema,
+  companyWorkQueueResponseSchema,
   projectResponseSchema,
 } from '../../../validation/responseSchemas.ts';
 import {
@@ -24,6 +25,7 @@ async function runProgrammesTemporaryDataSteps(
   const categoryId = uniqueId('cat_programme_smoke');
   const subCategoryId = uniqueId('sub_programme_smoke');
   const txnId = uniqueId('txn_programme_smoke');
+  const uncodedTxnId = uniqueId('txn_programme_uncoded_smoke');
   const programmeName = uniqueId('Smoke Programme');
   const childProjectName = uniqueId('Smoke Programme Child');
 
@@ -167,6 +169,49 @@ async function runProgrammesTemporaryDataSteps(
           }
         );
         assertOk(result, 'create programme child transaction');
+      }
+    );
+
+    await recorder.step(
+      'company-work-queue',
+      `Checking company work queue for ${childProjectName}`,
+      async () => {
+        const createResult = await client.request(
+          `/api/projects/${encodeURIComponent(childProjectId)}/transactions`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              txn: {
+                id: uncodedTxnId,
+                companyId,
+                projectId: childProjectId,
+                date: '2026-05-07',
+                item: 'Programme smoke uncoded transaction',
+                description: 'Company work queue verification',
+                amountCents: 2500,
+              },
+            }),
+          }
+        );
+        assertOk(createResult, 'create company work queue transaction');
+
+        const queueResult = await client.request(
+          `/api/companies/${encodeURIComponent(companyId)}/work-queue`
+        );
+        assertOk(queueResult, 'company work queue');
+        const queue = parseBody(
+          companyWorkQueueResponseSchema,
+          queueResult.body,
+          'company work queue'
+        );
+        const projectQueue = queue.projects.find(
+          (project) => project.projectId === childProjectId
+        );
+        if (!projectQueue || projectQueue.needsCodingCount < 1) {
+          throw new Error(
+            'Company work queue did not expose the uncoded project transaction.'
+          );
+        }
       }
     );
 

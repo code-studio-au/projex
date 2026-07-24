@@ -97,26 +97,25 @@ Design direction:
 - store milestone attribution on allocations when split transactions exist
 - make unassigned operational spend explicit so milestone totals still reconcile to project totals
 
-### Notification-driven work queues
+### Persistent workflow notifications
 
 Examples:
 
-- a company-level inbox that aggregates actionable work across projects
-- alerts for pending coding approvals, reversal decisions, unlock requests, and aging uncoded work
+- personal or role-scoped notifications for aging uncoded work, pending approvals, reversal decisions, and unlock requests
 - alerts when project budget risk thresholds are crossed or rule suggestions are ready for review
-- direct links into the relevant existing project transaction workflow view
+- optional email or collaboration-tool delivery for important overdue work
 
 Why this matters:
 
-- users should not need to open every project to discover outstanding work
-- timely, role-scoped notifications reduce the chance that approvals or coding follow-up are missed
+- users may need proactive reminders in addition to in-app project attention indicators
+- timely notifications reduce the chance that approvals or coding follow-up are missed
 
 Design direction:
 
-- derive queue items from existing workflow state rather than introducing a second source of truth
-- reuse the current project transaction views as the action surface
-- scope visibility and notifications to the user's company and project permissions
-- start with in-app notifications and add deduplication and throttling early to avoid noise
+- continue deriving notification eligibility from authoritative workflow state
+- scope recipients to company/project permissions and the action they can perform
+- add deduplication, aging thresholds, digesting, and throttling before enabling external delivery
+- keep notifications dismissible without changing the underlying workflow item
 
 ### Route-driven deep links and project entry points
 

@@ -44,6 +44,12 @@ export function transactionWorkflowHeading(
   if (transactionView === 'auto-mapped-pending') {
     return `${totalCount} coding approval${totalCount === 1 ? '' : 's'}`;
   }
+  if (transactionView === 'reversal-review') {
+    return `${totalCount} reversal decision${totalCount === 1 ? '' : 's'}`;
+  }
+  if (transactionView === 'unlock-requests') {
+    return `${totalCount} unlock request${totalCount === 1 ? '' : 's'}`;
+  }
   if (transactionView === 'assigned-to-me') {
     return `${transactions} assigned to you`;
   }

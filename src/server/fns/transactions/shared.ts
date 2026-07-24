@@ -263,6 +263,46 @@ export function matchedTxnReversalExistsSql() {
   )`;
 }
 
+export function reversalMatchReviewTxnSql() {
+  return sql<boolean>`(
+    t.locked_at is null
+    and exists (
+      select 1
+      from txn_reversals tr
+      where tr.project_id = t.project_id
+        and tr.source_txn_public_id = t.public_id
+        and tr.status in (
+          'auto_matched_pending_approval',
+          'auto_matched_ambiguous_pending_approval'
+        )
+    )
+  )`;
+}
+
+export function reversalReviewTxnSql() {
+  return sql<boolean>`exists (
+    select 1
+    from txn_reversals tr
+    where tr.project_id = t.project_id
+      and tr.source_txn_public_id = t.public_id
+      and tr.status in (
+        'auto_matched_pending_approval',
+        'auto_matched_ambiguous_pending_approval',
+        'reversal_exception'
+      )
+  )`;
+}
+
+export function unlockRequestTxnSql() {
+  return sql<boolean>`exists (
+    select 1
+    from txn_unlock_requests tur
+    where tur.project_id = t.project_id
+      and tur.txn_public_id = t.public_id
+      and tur.status = 'pending'
+  )`;
+}
+
 export function needsReviewTxnSql() {
   return sql<boolean>`(
     (
@@ -271,24 +311,8 @@ export function needsReviewTxnSql() {
       and t.sub_category_id is not null
       and ${txnValidSubCategorySql()}
     )
-    or exists (
-      select 1
-      from txn_reversals tr
-      where tr.project_id = t.project_id
-        and tr.source_txn_public_id = t.public_id
-        and tr.status in (
-          'auto_matched_pending_approval',
-          'auto_matched_ambiguous_pending_approval',
-          'reversal_exception'
-        )
-    )
-    or exists (
-      select 1
-      from txn_unlock_requests tur
-      where tur.project_id = t.project_id
-        and tur.txn_public_id = t.public_id
-        and tur.status = 'pending'
-    )
+    or ${reversalReviewTxnSql()}
+    or ${unlockRequestTxnSql()}
   )`;
 }
 
@@ -368,6 +392,14 @@ export function buildTransactionsPageFilters(args: {
     filters.push(
       sql<boolean>`t.categorisable and t.coding_pending_approval and t.sub_category_id is not null and ${validSubCategory}`
     );
+  }
+
+  if (args.input.transactionView === 'reversal-review') {
+    filters.push(reversalReviewTxnSql());
+  }
+
+  if (args.input.transactionView === 'unlock-requests') {
+    filters.push(unlockRequestTxnSql());
   }
 
   if (args.input.transactionView === 'assigned-to-me') {

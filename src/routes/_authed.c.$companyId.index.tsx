@@ -5,6 +5,7 @@ const companyDashboardSearchSchema = z
   .object({
     tab: z.enum(['summary', 'projects', 'settings']).optional(),
     exportJob: z.string().trim().min(1).optional(),
+    review: z.enum(['rule-suggestions']).optional(),
   })
   .catch({});
 

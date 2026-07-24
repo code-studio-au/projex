@@ -48,6 +48,8 @@ type TxnListView =
   | 'uncoded'
   | 'needs-review'
   | 'auto-mapped-pending'
+  | 'reversal-review'
+  | 'unlock-requests'
   | 'assigned-to-me'
   | 'pending-reversal'
   | 'matched-reversal-pairs';

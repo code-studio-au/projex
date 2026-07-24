@@ -11,6 +11,9 @@ export const qk = {
   companySummaries: (userId: string) => ['companySummary', userId] as const,
   companySummary: (userId: string, companyId: string) =>
     ['companySummary', userId, companyId] as const,
+  companyWorkQueues: (userId: string) => ['companyWorkQueue', userId] as const,
+  companyWorkQueue: (userId: string, companyId: string) =>
+    ['companyWorkQueue', userId, companyId] as const,
   companyDefaults: (userId: string, companyId: string) =>
     ['companyDefaults', userId, companyId] as const,
   companyMemberships: (userId: string, companyId: string) =>

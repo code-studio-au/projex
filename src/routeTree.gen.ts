@@ -46,6 +46,7 @@ import { Route as ApiProjectsProjectIdApplyCompanyStandardsRouteImport } from '.
 import { Route as ApiMeEmailChangeResendRouteImport } from './routes/api.me.email-change.resend'
 import { Route as ApiMeEmailChangeConfirmRouteImport } from './routes/api.me.email-change.confirm'
 import { Route as ApiExportJobsJobIdDownloadRouteImport } from './routes/api.export-jobs.$jobId.download'
+import { Route as ApiCompaniesCompanyIdWorkQueueRouteImport } from './routes/api.companies.$companyId.work-queue'
 import { Route as ApiCompaniesCompanyIdUsersRouteImport } from './routes/api.companies.$companyId.users'
 import { Route as ApiCompaniesCompanyIdSummaryRouteImport } from './routes/api.companies.$companyId.summary'
 import { Route as ApiCompaniesCompanyIdReactivateRouteImport } from './routes/api.companies.$companyId.reactivate'
@@ -272,6 +273,12 @@ const ApiExportJobsJobIdDownloadRoute =
     id: '/download',
     path: '/download',
     getParentRoute: () => ApiExportJobsJobIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdWorkQueueRoute =
+  ApiCompaniesCompanyIdWorkQueueRouteImport.update({
+    id: '/work-queue',
+    path: '/work-queue',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
 const ApiCompaniesCompanyIdUsersRoute =
   ApiCompaniesCompanyIdUsersRouteImport.update({
@@ -511,6 +518,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/summary': typeof ApiCompaniesCompanyIdSummaryRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  '/api/companies/$companyId/work-queue': typeof ApiCompaniesCompanyIdWorkQueueRoute
   '/api/export-jobs/$jobId/download': typeof ApiExportJobsJobIdDownloadRoute
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
@@ -581,6 +589,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/summary': typeof ApiCompaniesCompanyIdSummaryRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  '/api/companies/$companyId/work-queue': typeof ApiCompaniesCompanyIdWorkQueueRoute
   '/api/export-jobs/$jobId/download': typeof ApiExportJobsJobIdDownloadRoute
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
@@ -654,6 +663,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/reactivate': typeof ApiCompaniesCompanyIdReactivateRoute
   '/api/companies/$companyId/summary': typeof ApiCompaniesCompanyIdSummaryRoute
   '/api/companies/$companyId/users': typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  '/api/companies/$companyId/work-queue': typeof ApiCompaniesCompanyIdWorkQueueRoute
   '/api/export-jobs/$jobId/download': typeof ApiExportJobsJobIdDownloadRoute
   '/api/me/email-change/confirm': typeof ApiMeEmailChangeConfirmRoute
   '/api/me/email-change/resend': typeof ApiMeEmailChangeResendRoute
@@ -727,6 +737,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/summary'
     | '/api/companies/$companyId/users'
+    | '/api/companies/$companyId/work-queue'
     | '/api/export-jobs/$jobId/download'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
@@ -797,6 +808,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/summary'
     | '/api/companies/$companyId/users'
+    | '/api/companies/$companyId/work-queue'
     | '/api/export-jobs/$jobId/download'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
@@ -869,6 +881,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/reactivate'
     | '/api/companies/$companyId/summary'
     | '/api/companies/$companyId/users'
+    | '/api/companies/$companyId/work-queue'
     | '/api/export-jobs/$jobId/download'
     | '/api/me/email-change/confirm'
     | '/api/me/email-change/resend'
@@ -1185,6 +1198,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/export-jobs/$jobId/download'
       preLoaderRoute: typeof ApiExportJobsJobIdDownloadRouteImport
       parentRoute: typeof ApiExportJobsJobIdRoute
+    }
+    '/api/companies/$companyId/work-queue': {
+      id: '/api/companies/$companyId/work-queue'
+      path: '/work-queue'
+      fullPath: '/api/companies/$companyId/work-queue'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdWorkQueueRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
     '/api/companies/$companyId/users': {
       id: '/api/companies/$companyId/users'
@@ -1540,6 +1560,7 @@ interface ApiCompaniesCompanyIdRouteChildren {
   ApiCompaniesCompanyIdReactivateRoute: typeof ApiCompaniesCompanyIdReactivateRoute
   ApiCompaniesCompanyIdSummaryRoute: typeof ApiCompaniesCompanyIdSummaryRoute
   ApiCompaniesCompanyIdUsersRoute: typeof ApiCompaniesCompanyIdUsersRouteWithChildren
+  ApiCompaniesCompanyIdWorkQueueRoute: typeof ApiCompaniesCompanyIdWorkQueueRoute
 }
 
 const ApiCompaniesCompanyIdRouteChildren: ApiCompaniesCompanyIdRouteChildren = {
@@ -1562,6 +1583,7 @@ const ApiCompaniesCompanyIdRouteChildren: ApiCompaniesCompanyIdRouteChildren = {
   ApiCompaniesCompanyIdReactivateRoute: ApiCompaniesCompanyIdReactivateRoute,
   ApiCompaniesCompanyIdSummaryRoute: ApiCompaniesCompanyIdSummaryRoute,
   ApiCompaniesCompanyIdUsersRoute: ApiCompaniesCompanyIdUsersRouteWithChildren,
+  ApiCompaniesCompanyIdWorkQueueRoute: ApiCompaniesCompanyIdWorkQueueRoute,
 }
 
 const ApiCompaniesCompanyIdRouteWithChildren =

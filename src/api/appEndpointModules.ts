@@ -79,6 +79,7 @@ import type {
   CompanyMembership,
   ProjectId,
   CompanySummary,
+  CompanyWorkQueue,
   ImportRule,
   ProjectAutoCodingRule,
   ProjectMembership,
@@ -136,6 +137,10 @@ export type CompanyEndpointsModule = {
   getCompanySummaryEndpoint: AppEndpoint<
     { companyId: CompanyId },
     CompanySummary
+  >;
+  getCompanyWorkQueueEndpoint: AppEndpoint<
+    { companyId: CompanyId },
+    CompanyWorkQueue
   >;
   updateCompanyEndpoint: AppEndpoint<CompanyUpdateInput, Company>;
   deleteCompanyEndpoint: AppEndpoint<DeleteCompanyInput, void>;
