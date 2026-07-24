@@ -1,4 +1,4 @@
-import { sql } from 'kysely';
+import { sql, type Transaction } from 'kysely';
 
 import { AppError } from '../../../api/errors';
 import type {
@@ -10,6 +10,7 @@ import { asUserId } from '../../../types';
 import { planTxnWorkflowState } from '../../../utils/transactionWorkflow';
 import { requireAuthorized } from '../../auth/authorize';
 import { recordAuditEvent } from '../../audit/auditEvents';
+import type { DB } from '../../db/schema';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import {
   assertCategoryInProject,
@@ -35,6 +36,49 @@ import {
 type LockedBulkTxnActionRow = BulkTxnActionRow & {
   valid_sub_category: boolean;
 };
+
+function txnInReversalWorkflowSql() {
+  return sql<boolean>`exists (
+    select 1
+    from txn_reversals tr
+    where tr.project_id = txns.project_id
+      and (
+        tr.source_txn_public_id = txns.public_id
+        or tr.matched_reversal_txn_public_id = txns.public_id
+      )
+  )`;
+}
+
+function txnInStructuralOperationSql() {
+  return sql<boolean>`exists (
+    select 1
+    from txn_links link
+    where (
+      link.source_project_id = txns.project_id
+      and link.source_txn_public_id = txns.public_id
+    ) or (
+      link.target_project_id = txns.project_id
+      and link.target_txn_public_id = txns.public_id
+    )
+  )`;
+}
+
+async function readCurrentDeleteEligibility(args: {
+  trx: Transaction<DB>;
+  projectId: ProjectId;
+  txnId: string;
+}) {
+  return args.trx
+    .selectFrom('txns')
+    .select([
+      'locked_at',
+      txnInReversalWorkflowSql().as('in_reversal_workflow'),
+      txnInStructuralOperationSql().as('in_structural_operation'),
+    ])
+    .where('project_id', '=', args.projectId)
+    .where('public_id', '=', args.txnId)
+    .executeTakeFirst();
+}
 
 function assertSingleRowChanged(count: bigint, action: string) {
   if (count === 1n) return;
@@ -180,26 +224,8 @@ export async function bulkTxnActionServer(args: {
           'locked_by_user_id',
           'workflow_version',
           txnValidSubCategorySql('txns').as('valid_sub_category'),
-          sql<boolean>`exists (
-            select 1
-            from txn_reversals tr
-            where tr.project_id = txns.project_id
-              and (
-                tr.source_txn_public_id = txns.public_id
-                or tr.matched_reversal_txn_public_id = txns.public_id
-              )
-          )`.as('in_reversal_workflow'),
-          sql<boolean>`exists (
-            select 1
-            from txn_links link
-            where (
-              link.source_project_id = txns.project_id
-              and link.source_txn_public_id = txns.public_id
-            ) or (
-              link.target_project_id = txns.project_id
-              and link.target_txn_public_id = txns.public_id
-            )
-          )`.as('in_structural_operation'),
+          txnInReversalWorkflowSql().as('in_reversal_workflow'),
+          txnInStructuralOperationSql().as('in_structural_operation'),
         ])
         .where('project_id', '=', args.projectId)
         .where('public_id', 'in', txnIds)
@@ -309,7 +335,25 @@ export async function bulkTxnActionServer(args: {
               )`
             )
             .executeTakeFirst();
-          assertSingleRowChanged(result.numDeletedRows, 'delete transaction');
+          if (result.numDeletedRows !== 1n) {
+            const currentEligibility = await readCurrentDeleteEligibility({
+              trx,
+              projectId: args.projectId,
+              txnId: row.public_id,
+            });
+            if (currentEligibility?.locked_at) {
+              lockedCount += 1;
+              continue;
+            }
+            if (
+              currentEligibility?.in_reversal_workflow ||
+              currentEligibility?.in_structural_operation
+            ) {
+              ineligibleCount += 1;
+              continue;
+            }
+            assertSingleRowChanged(result.numDeletedRows, 'delete transaction');
+          }
           updatedCount += 1;
           continue;
         }
