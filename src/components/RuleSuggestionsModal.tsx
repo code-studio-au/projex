@@ -314,11 +314,12 @@ export default function RuleSuggestionsModal(props: {
                       value={draftMatchText}
                       disabled={readOnly}
                       onChange={(event) => {
+                        const value = event.currentTarget.value;
                         setError(null);
                         setSuccess(null);
                         setMatchDrafts((prev) => ({
                           ...prev,
-                          [suggestion.id]: event.currentTarget.value,
+                          [suggestion.id]: value,
                         }));
                       }}
                     />
