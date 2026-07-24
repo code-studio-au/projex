@@ -108,6 +108,11 @@ column for coding approvals, reversal decisions, and unlock requests, with a
 rule suggestions are flagged on Company Settings. These counts are derived from
 existing workflow state rather than stored as a second queue.
 
+The project transaction table provides a debounced, server-side search across
+transaction text, imported references and source metadata, external IDs, and
+category names. Search combines with workflow and period filters, applies to
+bulk selection, and is preserved in the project URL.
+
 For the canonical project budget, allocation, recorded spend, headroom, and
 health definitions, use [docs/budget-semantics.md](docs/budget-semantics.md).
 

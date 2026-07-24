@@ -8,10 +8,14 @@ import {
 import type { Txn } from '../../types';
 import classes from '../../styles/ui.module.css';
 
+type GlobalFilterUpdater =
+  | string
+  | undefined
+  | ((current: string | undefined) => string | undefined);
+
 export default function TransactionsDataTable(props: {
   isHydrated: boolean;
   isLoading: boolean;
-  isTransitioningPageData: boolean;
   transactionDrilldownActive: boolean;
   paginationScopeKey: string;
   txnColumns: NonNullable<
@@ -22,6 +26,7 @@ export default function TransactionsDataTable(props: {
   pagination: MRT_PaginationState;
   rowSelection: Record<string, boolean>;
   sorting: MRT_SortingState;
+  globalFilter: string;
   totalCount: number;
   showProgressBars: boolean;
   emptyStateMessage: string;
@@ -33,6 +38,7 @@ export default function TransactionsDataTable(props: {
   onRowSelectionChange: NonNullable<
     Parameters<typeof MantineReactTable<Txn>>[0]['onRowSelectionChange']
   >;
+  onGlobalFilterChange: (value: string) => void;
   onSortingChange: (
     updater: MRT_SortingState | ((prev: MRT_SortingState) => MRT_SortingState)
   ) => void;
@@ -40,7 +46,6 @@ export default function TransactionsDataTable(props: {
   const {
     isHydrated,
     isLoading,
-    isTransitioningPageData,
     transactionDrilldownActive,
     paginationScopeKey,
     txnColumns,
@@ -49,17 +54,19 @@ export default function TransactionsDataTable(props: {
     pagination,
     rowSelection,
     sorting,
+    globalFilter,
     totalCount,
     showProgressBars,
     emptyStateMessage,
     onPaginationChange,
     onRowSelectionChange,
+    onGlobalFilterChange,
     onSortingChange,
   } = props;
 
   return (
     <div className={classes.tableBreakout}>
-      {!isHydrated || isLoading || isTransitioningPageData ? (
+      {!isHydrated || isLoading ? (
         <Paper className={classes.surfaceCard} radius="xl" p="lg">
           <Text c="dimmed">
             {!isHydrated
@@ -95,11 +102,29 @@ export default function TransactionsDataTable(props: {
               pagination,
               rowSelection,
               sorting,
+              globalFilter,
               showProgressBars,
             }}
             onPaginationChange={onPaginationChange}
             onRowSelectionChange={onRowSelectionChange}
+            onGlobalFilterChange={(updater: GlobalFilterUpdater) => {
+              const nextValue =
+                typeof updater === 'function' ? updater(globalFilter) : updater;
+              onGlobalFilterChange(nextValue ?? '');
+            }}
             onSortingChange={onSortingChange}
+            enableGlobalFilter
+            enableColumnFilters={false}
+            manualFiltering
+            positionGlobalFilter="left"
+            mantineSearchTextInputProps={{
+              'aria-label': 'Search transactions',
+              placeholder: 'Search transactions',
+              maxLength: 200,
+              style: {
+                width: 'min(22rem, calc(100vw - 5rem))',
+              },
+            }}
             enableColumnResizing
             enableColumnActions={false}
             enableSorting
@@ -111,6 +136,7 @@ export default function TransactionsDataTable(props: {
             autoResetPageIndex={false}
             initialState={{
               density: 'xs',
+              showGlobalFilter: true,
             }}
             mantineTableContainerProps={{
               className: 'financeTable txnTable',
@@ -121,7 +147,8 @@ export default function TransactionsDataTable(props: {
               withTableBorder: true,
               style: { tableLayout: 'auto' },
             }}
-            enableTopToolbar={false}
+            enableTopToolbar
+            enableToolbarInternalActions={false}
             enableDensityToggle={false}
             enableFullScreenToggle={false}
             renderEmptyRowsFallback={() => (

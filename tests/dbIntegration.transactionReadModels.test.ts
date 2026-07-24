@@ -128,8 +128,11 @@ test(
             budget_impact: true,
             categorisable: true,
             import_batch_id: null,
-            import_source_type: null,
-            import_source_meta: null,
+            import_source_type: 'powerbi_expenditure_actuals',
+            import_source_meta: {
+              referenceNum: 'REF-ALPHA-42',
+              source: 'Concur',
+            },
             category_id: categoryId,
             sub_category_id: subCategoryId,
             company_default_mapping_rule_id: null,
@@ -317,12 +320,51 @@ test(
         invalidDateCount: 0,
       });
 
+      const searchCases = [
+        {
+          search: 'pending APPROVAL',
+          expectedTxnIds: [autoMappedTxnId],
+        },
+        {
+          search: 'ext-3',
+          expectedTxnIds: [uncodedTxnId],
+        },
+        {
+          search: 'ref-alpha-42',
+          expectedTxnIds: [codedTxnId],
+        },
+        {
+          search: 'consulting',
+          expectedTxnIds: [autoMappedTxnId, codedTxnId],
+        },
+      ];
+      for (const searchCase of searchCases) {
+        const searchedPage = await listTransactionsPageServer({
+          context: { session: { userId } },
+          projectId,
+          input: {
+            pageIndex: 0,
+            pageSize: 20,
+            search: searchCase.search,
+          },
+        });
+        assert.deepEqual(
+          searchedPage.rows.map((txn) => txn.id),
+          searchCase.expectedTxnIds
+        );
+        assert.equal(
+          searchedPage.summary.totalCount,
+          searchCase.expectedTxnIds.length
+        );
+      }
+
       const selection = await listTransactionsSelectionServer({
         context: { session: { userId } },
         projectId,
         input: {
           monthFilterKey: '2026-06',
           transactionView: 'auto-mapped-pending',
+          search: 'pending approval',
         },
       });
       assert.deepEqual(selection.rows, [

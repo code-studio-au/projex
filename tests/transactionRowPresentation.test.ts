@@ -243,6 +243,16 @@ test('transaction empty states describe workflow and date filters', () => {
     }),
     'No transactions match month 2025-06 and the "Travel / Flights" budget drilldown.'
   );
+  assert.equal(
+    transactionEmptyStateMessage({
+      transactionView: 'uncoded',
+      yearFilter: null,
+      quarterFilter: null,
+      monthFilterKey: null,
+      search: 'Concur reference',
+    }),
+    'No transactions match the "Needs coding" view and search "Concur reference".'
+  );
 });
 
 test('workflow headings describe the selected queue without financial totals', () => {

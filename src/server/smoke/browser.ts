@@ -457,6 +457,54 @@ async function runGeneratedReversalFlow(
     { waitUntil: 'domcontentloaded' }
   );
   await page.getByText(/^4 transactions$/).waitFor({ state: 'visible' });
+  const transactionSearch = page.getByRole('textbox', {
+    name: 'Search transactions',
+  });
+  const filteredTransactionsResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      response.request().method() === 'GET' &&
+      url.pathname === transactionUrl &&
+      url.searchParams.get('mode') === 'page' &&
+      url.searchParams.get('search') === 'Browser smoke reversal A'
+    );
+  });
+  await transactionSearch.fill('Browser smoke reversal A');
+  await waitForLocation(
+    page,
+    ({ pathname, search }) =>
+      pathname === `/c/${fixtures.companyId}/p/${fixtures.projectId}` &&
+      new URLSearchParams(search).get('q') === 'Browser smoke reversal A',
+    'Transaction search did not update the workspace URL'
+  );
+  const filteredTransactionsPayload = (
+    await filteredTransactionsResponse
+  ).json() as Promise<{
+    rows?: unknown[];
+    summary?: { totalCount?: number };
+  }>;
+  const filteredTransactions = await filteredTransactionsPayload;
+  assert(
+    filteredTransactions.rows?.length === 1 &&
+      filteredTransactions.summary?.totalCount === 1,
+    `Transaction search returned ${String(filteredTransactions.summary?.totalCount)} total rows and ${String(filteredTransactions.rows?.length)} page rows`
+  );
+  await page.getByText(/^1 transaction$/).waitFor({ state: 'visible' });
+  assert(
+    await transactionSearch.evaluate(
+      (element) => document.activeElement === element
+    ),
+    'Transaction search lost focus while applying server results'
+  );
+  await page.getByRole('button', { name: 'Clear search' }).click();
+  await waitForLocation(
+    page,
+    ({ pathname, search }) =>
+      pathname === `/c/${fixtures.companyId}/p/${fixtures.projectId}` &&
+      !new URLSearchParams(search).has('q'),
+    'Clearing transaction search did not update the workspace URL'
+  );
+  await page.getByText(/^4 transactions$/).waitFor({ state: 'visible' });
   for (const pair of pairs) {
     await page
       .getByRole('button', { name: `Actions for ${pair.sourceItem}` })

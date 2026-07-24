@@ -48,6 +48,7 @@ const projectWorkspaceSearchSchema = z
         'matched-reversal-pairs',
       ])
       .optional(),
+    q: z.string().trim().min(1).max(200).optional(),
     commentTxn: z.string().trim().min(1).optional(),
     commentId: z.string().trim().min(1).optional(),
     source: z.enum(['company-summary', 'company-work-queue']).optional(),

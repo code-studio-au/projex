@@ -159,12 +159,21 @@ test('transaction list page query schema coerces pagination and validates suppor
     yearFilter: '2026',
     quarterFilter: 'Q2',
     transactionView: 'assigned-to-me',
+    search: 'supplier reference',
   });
 
   assert.equal(result.success, true);
   if (!result.success) return;
   assert.equal(result.data.pageIndex, 2);
   assert.equal(result.data.pageSize, 25);
+  assert.equal(result.data.search, 'supplier reference');
+  assert.equal(
+    txnListPageQuerySchema.safeParse({
+      mode: 'page',
+      search: 'x'.repeat(201),
+    }).success,
+    false
+  );
 });
 
 test('import rule schema enforces company/project scope consistency', () => {

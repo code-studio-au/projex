@@ -61,6 +61,7 @@ type TransactionsPageQueryParams = {
   quarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4';
   monthFilterKey?: string;
   transactionView?: TxnListPageInput['transactionView'];
+  search?: string;
   drilldownKind?: 'category' | 'subcategory';
   categoryId?: string;
   subCategoryId?: string;
@@ -84,6 +85,7 @@ function toTransactionsPageQueryParams(
     quarterFilter: input.quarterFilter ?? undefined,
     monthFilterKey: input.monthFilterKey ?? undefined,
     transactionView: input.transactionView ?? undefined,
+    search: input.search?.trim() || undefined,
     drilldownKind: input.drilldown?.kind,
     categoryId: input.drilldown?.categoryId,
     subCategoryId:
@@ -104,6 +106,7 @@ function toTransactionsSelectionQueryParams(
     quarterFilter: input.quarterFilter ?? undefined,
     monthFilterKey: input.monthFilterKey ?? undefined,
     transactionView: input.transactionView ?? undefined,
+    search: input.search?.trim() || undefined,
     drilldownKind: input.drilldown?.kind,
     categoryId: input.drilldown?.categoryId,
     subCategoryId:

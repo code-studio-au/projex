@@ -106,6 +106,7 @@ export function transactionEmptyStateMessage(args: {
   quarterFilter: string | null;
   monthFilterKey: string | null;
   drilldownLabel?: string | null;
+  search?: string | null;
 }) {
   const filters: string[] = [];
 
@@ -127,6 +128,10 @@ export function transactionEmptyStateMessage(args: {
 
   if (args.drilldownLabel) {
     filters.push(`the "${args.drilldownLabel}" budget drilldown`);
+  }
+
+  if (args.search?.trim()) {
+    filters.push(`search "${args.search.trim()}"`);
   }
 
   return filters.length

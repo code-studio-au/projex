@@ -85,5 +85,6 @@ test('transaction pagination keeps the previous page during filter transitions',
     ...firstPageInput,
     yearFilter: '2026',
     transactionView: 'needs-review',
+    search: 'supplier reference',
   });
 });

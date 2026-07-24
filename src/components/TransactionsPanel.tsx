@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Divider, Paper, Stack } from '@mantine/core';
 import type { TransactionActions } from '../hooks/useTransactionActions';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
@@ -45,6 +45,8 @@ import {
   reversalReviewQueueSummary,
 } from './transactions/reversalReviewQueue';
 
+const TRANSACTION_SEARCH_SETTLE_MS = 750;
+
 export default function TransactionsPanel(props: {
   projectId: ProjectId;
   transactionActions: TransactionActions;
@@ -62,6 +64,8 @@ export default function TransactionsPanel(props: {
   setMonthFilterKey: (value: string | null) => void;
   transactionView: TransactionView;
   setTransactionView: (v: TransactionView) => void;
+  transactionSearch: string;
+  setTransactionSearch: (value: string) => void;
   transactionDrilldown?: TransactionDrilldownFilter | null;
   onClearTransactionDrilldown?: () => void;
   initialCommentTxnId?: TxnId | null;
@@ -91,6 +95,8 @@ export default function TransactionsPanel(props: {
     setMonthFilterKey,
     transactionView,
     setTransactionView,
+    transactionSearch,
+    setTransactionSearch,
     transactionDrilldown = null,
     onClearTransactionDrilldown,
     initialCommentTxnId = null,
@@ -159,12 +165,22 @@ export default function TransactionsPanel(props: {
   const [bulkSelectionRows, setBulkSelectionRows] = useState<
     TxnBulkSelectionRow[] | null
   >(null);
+  const transactionSearchTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  useEffect(
+    () => () => {
+      if (transactionSearchTimerRef.current) {
+        clearTimeout(transactionSearchTimerRef.current);
+      }
+    },
+    []
+  );
   const {
     bulkRecodeSubCategoryOptions,
     commentSummaryByTxnId,
     drilldownLabel,
     expandedCommentsQ,
-    isTransitioningPageData,
     linkedCommentsTxn,
     pageSummary,
     pagedTxns,
@@ -194,6 +210,7 @@ export default function TransactionsPanel(props: {
     taxonomy,
     bulkSelectionRows,
     transactionDrilldown,
+    transactionSearch,
     transactionView,
     yearFilter,
   });
@@ -225,6 +242,22 @@ export default function TransactionsPanel(props: {
   const clearSelection = () => {
     setRowSelection({});
     setBulkSelectionRows(null);
+  };
+  const queueTransactionSearch = (value: string) => {
+    if (transactionSearchTimerRef.current) {
+      clearTimeout(transactionSearchTimerRef.current);
+      transactionSearchTimerRef.current = null;
+    }
+
+    if (!value) {
+      setTransactionSearch('');
+      return;
+    }
+
+    transactionSearchTimerRef.current = setTimeout(() => {
+      transactionSearchTimerRef.current = null;
+      setTransactionSearch(value);
+    }, TRANSACTION_SEARCH_SETTLE_MS);
   };
   const {
     reconcilePendingReversals,
@@ -568,7 +601,6 @@ export default function TransactionsPanel(props: {
       <TransactionsDataTable
         isHydrated={isHydrated}
         isLoading={transactionsPageQ.isLoading}
-        isTransitioningPageData={isTransitioningPageData}
         transactionDrilldownActive={Boolean(transactionDrilldown)}
         paginationScopeKey={paginationScopeKey}
         txnColumns={txnColumns}
@@ -577,6 +609,7 @@ export default function TransactionsPanel(props: {
         pagination={pagination}
         rowSelection={rowSelection}
         sorting={sorting}
+        globalFilter={transactionSearch}
         totalCount={pageSummary.totalCount}
         showProgressBars={transactionsPageQ.isFetching}
         emptyStateMessage={transactionEmptyStateMessage({
@@ -585,12 +618,18 @@ export default function TransactionsPanel(props: {
           quarterFilter,
           monthFilterKey,
           drilldownLabel,
+          search: transactionSearch,
         })}
         onPaginationChange={(updater) => {
           clearSelection();
           setPagination(updater);
         }}
         onRowSelectionChange={setRowSelection}
+        onGlobalFilterChange={(nextValue) => {
+          clearSelection();
+          resetPage();
+          queueTransactionSearch(nextValue);
+        }}
         onSortingChange={(updater) => {
           const nextSorting =
             typeof updater === 'function' ? updater(sorting) : updater;

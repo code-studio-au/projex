@@ -69,6 +69,7 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
                 quarterFilter: query.quarterFilter,
                 monthFilterKey: query.monthFilterKey,
                 transactionView: query.transactionView,
+                search: query.search,
                 drilldown,
               },
             })
@@ -117,6 +118,7 @@ export const Route = createFileRoute('/api/projects/$projectId/transactions')({
                 quarterFilter: query.quarterFilter,
                 monthFilterKey: query.monthFilterKey,
                 transactionView: query.transactionView,
+                search: query.search,
                 drilldown,
               },
             })

@@ -783,6 +783,7 @@ export const txnListPageQuerySchema = z.object({
     .regex(/^\d{4}-\d{2}$/)
     .optional(),
   transactionView: txnListViewSchema.optional(),
+  search: z.string().trim().min(1).max(200).optional(),
   drilldownKind: z.enum(['category', 'subcategory']).optional(),
   categoryId: categoryIdSchema.optional(),
   subCategoryId: subCategoryIdSchema.optional(),

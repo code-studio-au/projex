@@ -2,6 +2,101 @@
 
 This backlog contains only unfinished work. Completed work belongs in Git history and feature documentation, not here.
 
+## Immediate TODO
+
+These items were identified by the July 2026 structural and architectural
+review. Remove each item when its implementation and regression coverage are
+complete.
+
+### Correct company rule-suggestion identity and concurrency
+
+- scope manual-coding signals by project and transaction instead of assuming a
+  transaction public ID is globally unique
+- make aggregate refresh atomic when concurrent coding creates the same
+  suggestion pattern
+- prevent a company-level suggestion from depending on one project's taxonomy
+  row for its continued existence
+- cover same-ID transactions in different projects and companies, concurrent
+  signal creation, recoding, and taxonomy deletion
+
+### Make replace-import commits concurrency-safe
+
+- lock replacement candidates before checking comments, locks, lineage,
+  reversals, and workflow dependencies
+- repeat eligibility in the destructive write or otherwise serialize competing
+  mutations
+- verify the expected number of rows was deleted
+- cover a workflow or dependency change racing with import commit
+
+### Separate import-preview row identity from transaction identity
+
+- use preview candidate ID or batch row identity for include/exclude decisions
+- keep the eventual transaction public ID as a separate concept
+- support rows that share an external journal identifier but differ in content
+- add regression coverage for duplicate external IDs with distinct source rows
+
+### Prevent unresolved transactions from being locked
+
+- define one server-owned lock-eligibility rule for single and bulk actions
+- prevent uncoded, coding-pending, reversal-pending, and other unresolved rows
+  from being finalized as locked
+- reuse the rule in mutation predicates and UI action availability
+- cover reversal reconciliation and approval around lock attempts
+
+### Enforce locked taxonomy history under concurrency
+
+- move locked-transaction checks inside the taxonomy mutation transaction
+- prevent foreign-key cascades from changing category history on locked
+  transactions
+- enforce the invariant at the database boundary where practical
+- add direct-database and concurrent move/lock regression coverage
+
+### Use the complete preview period for replace imports
+
+- persist or derive the preview's original source date range independently of
+  include/exclude decisions
+- ensure excluding the earliest or latest row cannot leave stale boundary rows
+- document and test the exact replacement-period semantics
+
+### Stabilize transaction search state and debounce ownership
+
+- keep a local search draft while preserving input focus
+- commit delayed searches against the latest route filters rather than a stale
+  callback closure
+- use one intentional debounce instead of stacking application and table
+  library delays
+- cover typing followed immediately by workflow or period filter changes
+
+### Prepare transaction search for realistic data volumes
+
+- profile the filtered page, summary, and bulk-selection queries
+- avoid expensive per-row JSON expansion and correlated taxonomy lookups where
+  possible
+- evaluate a minimum search length plus PostgreSQL trigram or search-document
+  indexing based on measured plans
+
+### Strengthen project/company ownership constraints
+
+- add a composite project ownership key
+- migrate project-scoped tables toward composite company/project foreign keys
+- retain application authorization while using database constraints as
+  defense-in-depth
+
+### Split remaining change-axis coordinators
+
+- separate rule-signal writes, aggregation, and review decisions
+- separate import preview selection, replacement, and finalization
+- continue extracting route-state and modal controllers from the largest UI
+  coordinators when touching those features
+- move trusted test-only import helpers out of the production mutation surface
+
+### Close lower-priority boundary and browser gaps
+
+- add an isolated Firefox modal/select scroll regression harness
+- preserve valid route search parameters when one parameter is invalid
+- reject oversized request bodies before fully parsing them
+- progressively exercise high-risk modal workflows in Firefox CI
+
 ## Awaiting Product Decision
 
 ### Expand audit logging into a first-class product feature
@@ -194,9 +289,10 @@ Design direction:
 
 Examples:
 
-- better transaction search
 - richer cross-project filtering
 - saved or more guided filter states
+- optional column-specific filters where global transaction search is not
+  precise enough
 
 Why this matters:
 

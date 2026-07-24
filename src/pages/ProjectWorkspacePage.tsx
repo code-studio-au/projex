@@ -49,6 +49,7 @@ export default function ProjectWorkspacePage() {
       initialQuarterFilter={search.quarter ?? null}
       initialMonthFilterKey={search.month ?? null}
       initialTransactionView={search.view}
+      initialTransactionSearch={search.q ?? ''}
       initialCommentTxnId={
         search.commentTxn ? asTxnId(search.commentTxn) : null
       }

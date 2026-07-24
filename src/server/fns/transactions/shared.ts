@@ -347,6 +347,10 @@ export function quarterFilterNumber(value: TxnListPageInput['quarterFilter']) {
   return null;
 }
 
+function escapeLikePattern(value: string) {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
+
 export function buildTransactionsPageFilters(args: {
   projectId: ProjectId;
   userId: string;
@@ -359,6 +363,36 @@ export function buildTransactionsPageFilters(args: {
   const assignedToUser = txnAssignedToUserSql(args.userId);
   const pendingReversal = pendingTxnReversalExistsSql();
   const matchedReversal = matchedTxnReversalExistsSql();
+  const search = args.input.search?.trim();
+
+  if (search) {
+    const pattern = `%${escapeLikePattern(search)}%`;
+    filters.push(sql<boolean>`(
+      t.item ilike ${pattern} escape '\'
+      or t.description ilike ${pattern} escape '\'
+      or coalesce(t.external_id, '') ilike ${pattern} escape '\'
+      or replace(coalesce(t.import_source_type, ''), '_', ' ') ilike ${pattern} escape '\'
+      or exists (
+        select 1
+        from jsonb_each_text(coalesce(t.import_source_meta, '{}'::jsonb)) as meta
+        where meta.value ilike ${pattern} escape '\'
+      )
+      or exists (
+        select 1
+        from categories search_category
+        where search_category.project_id = t.project_id
+          and search_category.id = t.category_id
+          and search_category.name ilike ${pattern} escape '\'
+      )
+      or exists (
+        select 1
+        from sub_categories search_sub_category
+        where search_sub_category.project_id = t.project_id
+          and search_sub_category.id = t.sub_category_id
+          and search_sub_category.name ilike ${pattern} escape '\'
+      )
+    )`);
+  }
 
   if (args.input.monthFilterKey) {
     filters.push(

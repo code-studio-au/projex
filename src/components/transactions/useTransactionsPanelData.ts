@@ -32,6 +32,7 @@ export function useTransactionsPanelData(args: {
   quarterFilter: QuarterOption | null;
   monthFilterKey: string | null;
   transactionView: TransactionView;
+  transactionSearch: string;
   transactionDrilldown?: TransactionDrilldownFilter | null;
   initialCommentTxnId?: TxnId | null;
   dismissedLinkedCommentTxnId: TxnId | null;
@@ -61,6 +62,7 @@ export function useTransactionsPanelData(args: {
       quarterFilter: args.quarterFilter,
       monthFilterKey: args.monthFilterKey,
       transactionView: args.transactionView,
+      search: args.transactionSearch.trim() || undefined,
       drilldown: args.transactionDrilldown
         ? args.transactionDrilldown.kind === 'subcategory'
           ? {
@@ -81,6 +83,7 @@ export function useTransactionsPanelData(args: {
     args.quarterFilter,
     args.sorting,
     args.transactionDrilldown,
+    args.transactionSearch,
     args.transactionView,
     args.yearFilter,
   ]);
@@ -106,8 +109,6 @@ export function useTransactionsPanelData(args: {
     expandedCommentsTxnId,
     { enabled: Boolean(args.expandedCommentsTxn) }
   );
-  const isTransitioningPageData =
-    transactionsPageQ.isFetching && transactionsPageQ.isPlaceholderData;
   const pagedTxns = transactionsPageQ.data?.rows ?? EMPTY_TXNS;
   const visibleTxnIds = useMemo(
     () => pagedTxns.map((txn) => txn.id),
@@ -258,7 +259,6 @@ export function useTransactionsPanelData(args: {
     commentSummaryByTxnId,
     drilldownLabel,
     expandedCommentsQ,
-    isTransitioningPageData,
     linkedCommentsTxn,
     pageSummary,
     pagedTxns,

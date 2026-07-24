@@ -136,6 +136,7 @@ type ProjectWorkspaceProps = {
   initialQuarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   initialMonthFilterKey?: string | null;
   initialTransactionView?: TransactionView;
+  initialTransactionSearch?: string;
   initialCommentTxnId?: TxnId | null;
   initialTransactionDrilldown?: TransactionDrilldownSearch | null;
   initialEntrySource?: 'company-summary' | 'company-work-queue';
@@ -164,6 +165,7 @@ type ProjectWorkspaceInnerProps = {
   initialQuarterFilter: QuarterOption | null;
   initialMonthFilterKey: string | null;
   initialTransactionView: TransactionView;
+  initialTransactionSearch: string;
   initialCommentTxnId: TxnId | null;
   initialTransactionDrilldown: TransactionDrilldownSearch | null;
   initialEntrySource?: 'company-summary' | 'company-work-queue';
@@ -193,6 +195,7 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
     initialQuarterFilter = null,
     initialMonthFilterKey = null,
     initialTransactionView = 'all',
+    initialTransactionSearch = '',
     initialCommentTxnId = null,
     initialTransactionDrilldown = null,
     initialEntrySource,
@@ -259,6 +262,7 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
       initialQuarterFilter={resolvedInitialQuarterFilter}
       initialMonthFilterKey={initialMonthFilterKey}
       initialTransactionView={initialTransactionView}
+      initialTransactionSearch={initialTransactionSearch}
       initialCommentTxnId={initialCommentTxnId}
       initialTransactionDrilldown={initialTransactionDrilldown}
       initialEntrySource={initialEntrySource}
@@ -290,6 +294,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     initialQuarterFilter,
     initialMonthFilterKey,
     initialTransactionView,
+    initialTransactionSearch,
     initialCommentTxnId,
     initialTransactionDrilldown,
     initialEntrySource,
@@ -368,6 +373,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   const [transactionView, setTransactionView] = useState<TransactionView>(
     initialTransactionView
   );
+  const transactionSearch = initialTransactionSearch;
   const [transactionDrilldown, setTransactionDrilldown] =
     useState<TransactionDrilldownSearch | null>(initialTransactionDrilldown);
 
@@ -657,12 +663,19 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   useEffect(() => {
     const replace = nextUrlSyncShouldReplaceRef.current;
     nextUrlSyncShouldReplaceRef.current = true;
+    const currentSearch = router.state.location.search as Record<
+      string,
+      unknown
+    >;
+    const currentTransactionSearch =
+      typeof currentSearch.q === 'string' ? currentSearch.q : undefined;
     const nextSearch = {
       year: yearFilter ?? undefined,
       quarter: quarterFilter ?? undefined,
       tab: activeTab === 'budget' ? undefined : activeTab,
       month: monthFilterKey ?? undefined,
       view: transactionView === 'all' ? undefined : transactionView,
+      q: currentTransactionSearch,
       source: initialEntrySource,
       focus: initialEntryFocus,
       drilldownKind: transactionDrilldown?.kind,
@@ -677,10 +690,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
           ? transactionDrilldown.subCategoryName
           : undefined,
     };
-    const currentSearch = router.state.location.search as Record<
-      string,
-      unknown
-    >;
     const normalizedCurrentSearch = {
       year:
         typeof currentSearch.year === 'string' ? currentSearch.year : undefined,
@@ -704,6 +713,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
           : undefined,
       view:
         typeof currentSearch.view === 'string' ? currentSearch.view : undefined,
+      q: typeof currentSearch.q === 'string' ? currentSearch.q : undefined,
       source:
         currentSearch.source === 'company-summary' ||
         currentSearch.source === 'company-work-queue'
@@ -1176,6 +1186,36 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
               setMonthFilterKey={setMonthFilterKey}
               transactionView={transactionView}
               setTransactionView={setTransactionView}
+              transactionSearch={transactionSearch}
+              setTransactionSearch={(value) => {
+                void router.navigate({
+                  to: '/c/$companyId/p/$projectId',
+                  params: { companyId, projectId },
+                  search: {
+                    year: yearFilter ?? undefined,
+                    quarter: quarterFilter ?? undefined,
+                    tab: activeTab === 'budget' ? undefined : activeTab,
+                    month: monthFilterKey ?? undefined,
+                    view:
+                      transactionView === 'all' ? undefined : transactionView,
+                    q: value.trim().slice(0, 200) || undefined,
+                    source: initialEntrySource,
+                    focus: initialEntryFocus,
+                    drilldownKind: transactionDrilldown?.kind,
+                    categoryId: transactionDrilldown?.categoryId,
+                    categoryName: transactionDrilldown?.categoryName,
+                    subCategoryId:
+                      transactionDrilldown?.kind === 'subcategory'
+                        ? transactionDrilldown.subCategoryId
+                        : undefined,
+                    subCategoryName:
+                      transactionDrilldown?.kind === 'subcategory'
+                        ? transactionDrilldown.subCategoryName
+                        : undefined,
+                  },
+                  replace: true,
+                });
+              }}
               transactionDrilldown={effectiveTransactionDrilldown}
               onClearTransactionDrilldown={() => setTransactionDrilldown(null)}
               initialCommentTxnId={initialCommentTxnId}
@@ -1196,6 +1236,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                     year: undefined,
                     view:
                       transactionView === 'all' ? undefined : transactionView,
+                    q: transactionSearch.trim() || undefined,
                     source: undefined,
                     focus: undefined,
                     drilldownKind: undefined,
@@ -1243,6 +1284,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                     year: undefined,
                     view:
                       transactionView === 'all' ? undefined : transactionView,
+                    q: transactionSearch.trim() || undefined,
                     source: undefined,
                     focus: undefined,
                     drilldownKind: undefined,

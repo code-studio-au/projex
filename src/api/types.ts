@@ -77,6 +77,7 @@ export type TxnListPageInput = {
   quarterFilter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   monthFilterKey?: string | null;
   transactionView?: TxnListView;
+  search?: string | null;
   drilldown?: TxnListDrilldown | null;
 };
 export type TxnListFilterInput = Omit<
