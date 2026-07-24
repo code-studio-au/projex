@@ -2,9 +2,9 @@
 
 This backlog contains only unfinished work. Completed work belongs in Git history and feature documentation, not here.
 
-## Active Backlog
+## Awaiting Product Decision
 
-### 1. Expand audit logging into a first-class product feature
+### Expand audit logging into a first-class product feature
 
 Standing TODO: confirm the organisation's audit-retention, access, privacy, and
 export requirements before expanding the current immutable event history into
@@ -54,20 +54,9 @@ Notes:
   organisation confirms its governance requirements
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 2. Extend self-service account/profile
-
-Examples:
-
-- account preferences worth surfacing later
-- any additional self-service profile settings beyond the current name / password / verified email flows
-
-Why this matters:
-
-- keeps building on the now-working account basics without mixing simple profile edits with bigger admin features
-
 ## Future Features
 
-These are worthwhile future additions, but they do not need to compete with the short near-term list above.
+These are worthwhile future additions without a committed delivery order.
 
 ### Reduce shared runtime and router bundle weight
 
@@ -108,16 +97,26 @@ Design direction:
 - store milestone attribution on allocations when split transactions exist
 - make unassigned operational spend explicit so milestone totals still reconcile to project totals
 
-### Deeper transaction review workflow
+### Notification-driven work queues
 
 Examples:
 
-- a clearer review-queue style experience for coding follow-up
-- notification-driven queues for pending approvals, unlock requests, and aging uncoded work
+- a company-level inbox that aggregates actionable work across projects
+- alerts for pending coding approvals, reversal decisions, unlock requests, and aging uncoded work
+- alerts when project budget risk thresholds are crossed or rule suggestions are ready for review
+- direct links into the relevant existing project transaction workflow view
 
 Why this matters:
 
-- transaction review is a core day-to-day workflow and still has room to become faster and more deliberate
+- users should not need to open every project to discover outstanding work
+- timely, role-scoped notifications reduce the chance that approvals or coding follow-up are missed
+
+Design direction:
+
+- derive queue items from existing workflow state rather than introducing a second source of truth
+- reuse the current project transaction views as the action surface
+- scope visibility and notifications to the user's company and project permissions
+- start with in-app notifications and add deduplication and throttling early to avoid noise
 
 ### Route-driven deep links and project entry points
 
@@ -204,7 +203,7 @@ Why this matters:
 
 - once data grows, finding and narrowing data quickly becomes as important as editing it
 
-### Data export and portability
+### Optional export extensions
 
 Examples:
 
@@ -214,27 +213,8 @@ Examples:
 
 Why this matters:
 
-- most business users eventually expect to move data out for reporting, review, or handoff
-
-### Notifications and exception workflows
-
-Examples:
-
-- uncoded transactions added
-- auto-coded pending approvals waiting too long
-- unlock request submitted or resolved
-- project budget risk thresholds crossed
-- rule suggestions ready for review
-
-Why this matters:
-
-- users should not have to poll projects manually to catch operational exceptions
-- lightweight in-app notifications will make review workflows more proactive
-
-Design direction:
-
-- start with in-app notifications only
-- add deduping and throttling rules early so repeated events do not become noise
+- the existing company workbook provides the core portability baseline
+- optional extensions may help when users need a narrower project handoff or more presentation-ready output
 
 ## Not A Priority Right Now
 
