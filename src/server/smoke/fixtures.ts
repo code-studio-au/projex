@@ -519,8 +519,6 @@ async function ensureBrowserRuleSuggestionFixtures(
          pattern_basis,
          pattern_text_raw,
          pattern_text_normalized,
-         project_category_id,
-         project_sub_category_id,
          company_default_category_id,
          company_default_sub_category_id,
          acted_by_user_id,
@@ -529,7 +527,7 @@ async function ensureBrowserRuleSuggestionFixtures(
        )
        values (
          $1, $2, $3, $4, 'update_rule', $5, 'item', $6, $7,
-         $8, $9, $10, $11, $12, $13, $13
+         $8, $9, $10, $11, $11
        )`,
       [
         `rsig_smoke_browser_${index + 1}_${fixtures.runId}`,
@@ -539,8 +537,6 @@ async function ensureBrowserRuleSuggestionFixtures(
         suggestion.sourceRuleId,
         `${suggestion.proposedMatchText} INV-${9000 + index}`,
         suggestion.proposedMatchText.toLowerCase(),
-        suggestion.projectCategoryId,
-        suggestion.targetProjectSubCategoryId,
         suggestion.companyDefaultCategoryId,
         suggestion.targetCompanyDefaultSubCategoryId,
         fixtures.users.privacyAdmin.id,
@@ -560,8 +556,6 @@ async function ensureBrowserRuleSuggestionFixtures(
        pattern_text_normalized,
        proposed_match_text,
        match_text_alternatives,
-       project_category_id,
-       project_sub_category_id,
        company_default_category_id,
        company_default_sub_category_id,
        sample_count,
@@ -576,7 +570,7 @@ async function ensureBrowserRuleSuggestionFixtures(
      )
      values (
        $1, $2, 'open', 'update_rule', $3, 'item', $4, $5, $6,
-       $7, $8, $9, $10, 3, 3, 1, 80, 'create_narrower', $11, $11, $11, $11
+       $7, $8, 3, 3, 1, 80, 'create_narrower', $9, $9, $9, $9
      )`,
     [
       suggestion.suggestionId,
@@ -588,8 +582,6 @@ async function ensureBrowserRuleSuggestionFixtures(
         suggestion.proposedMatchText,
         `${suggestion.proposedMatchText} INV-9000`,
       ],
-      suggestion.projectCategoryId,
-      suggestion.targetProjectSubCategoryId,
       suggestion.companyDefaultCategoryId,
       suggestion.targetCompanyDefaultSubCategoryId,
       now,
