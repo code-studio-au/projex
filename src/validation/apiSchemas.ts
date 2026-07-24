@@ -389,12 +389,20 @@ export const promoteProjectSubCategoryToCompanyDefaultInputSchema = z.object({
 
 export const ruleSuggestionAcceptInputSchema = z.object({
   id: ruleSuggestionIdSchema,
+  action: z.enum(['create_rule', 'update_existing', 'create_narrower']),
   proposedMatchText: matchTextSchema,
   companyDefaultSubCategoryId: companyDefaultSubCategoryIdSchema,
 });
 
 export const ruleSuggestionDismissInputSchema = z.object({
   id: ruleSuggestionIdSchema,
+  reason: z.enum([
+    'noise',
+    'one_off',
+    'too_broad',
+    'intentional_manual',
+    'other',
+  ]),
 });
 
 export const createImportRuleInputSchema = z

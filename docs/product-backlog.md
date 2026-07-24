@@ -4,30 +4,7 @@ This backlog contains only unfinished work. Completed work belongs in Git histor
 
 ## Active Backlog
 
-### 1. Improve repeated-coding suggestions
-
-Design note:
-
-- see `docs/rule-suggestions-design.md` for the recommended V1 to V3 shape, trigger points, schema direction, and admin-review workflow
-
-Examples:
-
-- detect repeated overrides of existing rules and suggest narrowing or retargeting them
-- improve confidence scoring and pattern/operator refinement beyond the current first-pass text matching
-- keep strengthening the admin review queue without making it noisy or brittle
-
-Why this matters:
-
-- repeated manual coding is one of the clearest signals that the product can automate more of the workflow
-- a suggestion layer makes the system feel smarter without forcing full ML-style complexity
-
-Design direction:
-
-- track patterns in a small indexed table rather than scanning raw transaction history on every edit
-- distinguish clearly between create-rule suggestions and update-rule suggestions
-- keep suggestions reviewable and dismissible so noisy patterns do not become brittle rules
-
-### 2. Expand audit logging into a first-class product feature
+### 1. Expand audit logging into a first-class product feature
 
 Standing TODO: confirm the organisation's audit-retention, access, privacy, and
 export requirements before expanding the current immutable event history into
@@ -77,7 +54,7 @@ Notes:
   organisation confirms its governance requirements
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
-### 3. Extend self-service account/profile
+### 2. Extend self-service account/profile
 
 Examples:
 

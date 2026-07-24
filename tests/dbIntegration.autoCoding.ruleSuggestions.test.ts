@@ -698,6 +698,7 @@ test(
         companyId,
         input: {
           id: listedBefore[0]!.id,
+          action: 'create_rule',
           proposedMatchText: 'virgin',
           companyDefaultSubCategoryId: defaultFlightsSubCategoryId,
         },
@@ -764,6 +765,7 @@ test(
         companyId,
         input: {
           id: hotelSuggestion!.id as ReturnType<typeof asRuleSuggestionId>,
+          reason: 'one_off',
         },
       });
 
@@ -772,6 +774,98 @@ test(
         companyId,
       });
       assert.equal(listedAfterDismiss.length, 0);
+
+      const dismissed = await db
+        .selectFrom('rule_suggestions')
+        .select(['dismissed_reason', 'dismissed_sample_count'])
+        .where('id', '=', hotelSuggestion!.id)
+        .executeTakeFirstOrThrow();
+      assert.equal(dismissed.dismissed_reason, 'one_off');
+      assert.equal(dismissed.dismissed_sample_count, 3);
+
+      const cooldownTxnIds = [
+        asTxnId('itest_rulesuggest_txn_10'),
+        asTxnId('itest_rulesuggest_txn_11'),
+        asTxnId('itest_rulesuggest_txn_12'),
+        asTxnId('itest_rulesuggest_txn_13'),
+      ];
+      await db
+        .insertInto('txns')
+        .values(
+          cooldownTxnIds.map((txnId, index) => ({
+            public_id: txnId,
+            external_id: `rule-suggest-cooldown-${index + 1}`,
+            company_id: companyId,
+            project_id: projectId,
+            txn_date: `2026-06-${10 + index}`,
+            item: 'Accor Hotels',
+            description: `Cooldown sample ${index + 1}`,
+            amount_cents: 2200 + index * 100,
+            txn_type: 'standard' as const,
+            parent_public_id: null,
+            source_public_id: null,
+            transfer_project_id: null,
+            budget_impact: true,
+            categorisable: true,
+            import_batch_id: null,
+            import_source_type: null,
+            import_source_meta: null,
+            category_id: null,
+            sub_category_id: null,
+            company_default_mapping_rule_id: null,
+            coding_source: null,
+            coding_pending_approval: false,
+            reviewed_at: null,
+            reviewed_by_user_id: null,
+            locked_at: null,
+            locked_by_user_id: null,
+            created_at: now,
+            updated_at: now,
+          }))
+        )
+        .execute();
+
+      for (const txnId of cooldownTxnIds.slice(0, 3)) {
+        await updateTxnServer({
+          context,
+          projectId,
+          input: {
+            id: txnId,
+            categoryId,
+            subCategoryId: hotelsSubCategoryId,
+            companyDefaultMappingRuleId: null,
+            codingSource: 'manual',
+            codingPendingApproval: false,
+          },
+        });
+      }
+
+      const stillCoolingDown = await listRuleSuggestionsServer({
+        context,
+        companyId,
+      });
+      assert.equal(stillCoolingDown.length, 0);
+
+      await updateTxnServer({
+        context,
+        projectId,
+        input: {
+          id: cooldownTxnIds[3]!,
+          categoryId,
+          subCategoryId: hotelsSubCategoryId,
+          companyDefaultMappingRuleId: null,
+          codingSource: 'manual',
+          codingPendingApproval: false,
+        },
+      });
+
+      const reopenedAfterMoreEvidence = await listRuleSuggestionsServer({
+        context,
+        companyId,
+      });
+      assert.equal(reopenedAfterMoreEvidence.length, 1);
+      assert.equal(reopenedAfterMoreEvidence[0]?.sampleCount, 6);
+      assert.equal(reopenedAfterMoreEvidence[0]?.dismissedReason, undefined);
     } finally {
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();

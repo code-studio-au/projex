@@ -220,25 +220,47 @@ export type ImportCandidateStatus =
   | 'invalid'
   | 'duplicate';
 
-type RuleSuggestionType = 'create_rule';
+export type RuleSuggestionType = 'create_rule' | 'update_rule';
 type RuleSuggestionStatus = 'open' | 'accepted' | 'dismissed';
+export type RuleSuggestionAcceptanceAction =
+  | 'create_rule'
+  | 'update_existing'
+  | 'create_narrower';
+export type RuleSuggestionDismissReason =
+  | 'noise'
+  | 'one_off'
+  | 'too_broad'
+  | 'intentional_manual'
+  | 'other';
+type RuleSuggestionConfidence = 'low' | 'medium' | 'high';
 export type RuleSuggestion = {
   id: RuleSuggestionId;
   companyId: CompanyId;
   status: RuleSuggestionStatus;
   suggestionType: RuleSuggestionType;
+  sourceRuleId?: CompanyDefaultMappingRuleId;
+  patternBasis: 'item' | 'description' | 'item_description';
   patternTextNormalized: string;
   proposedMatchText: string;
+  matchTextAlternatives: string[];
   projectCategoryId: CategoryId;
   projectSubCategoryId: SubCategoryId;
   companyDefaultCategoryId: CompanyDefaultCategoryId;
   companyDefaultSubCategoryId: CompanyDefaultSubCategoryId;
   sampleCount: number;
+  distinctTxnDateCount: number;
+  distinctProjectCount: number;
+  confidenceScore: number;
+  confidence: RuleSuggestionConfidence;
+  confidenceReasons: string[];
+  recommendedAction: RuleSuggestionAcceptanceAction;
   firstSeenAt: string;
   lastSeenAt: string;
   acceptedRuleId?: CompanyDefaultMappingRuleId;
+  acceptedAction?: RuleSuggestionAcceptanceAction;
   acceptedAt?: string;
   acceptedByUserId?: UserId;
+  dismissedReason?: RuleSuggestionDismissReason;
   dismissedAt?: string;
   dismissedByUserId?: UserId;
   createdAt: string;
@@ -251,12 +273,15 @@ type RuleSuggestionEvidence = {
   item: string;
   description: string;
   amountCents: number;
+  projectName: string;
+  currency: Project['currency'];
   txnDate: string;
   createdAt: string;
 };
 
 export type RuleSuggestionReviewItem = RuleSuggestion & {
   evidence: RuleSuggestionEvidence[];
+  sourceRule?: CompanyDefaultMappingRule;
 };
 
 export type CompanyExportScope = 'all' | 'active';

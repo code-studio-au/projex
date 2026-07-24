@@ -301,23 +301,33 @@ export interface RequestRateLimits {
 }
 
 export interface RuleSuggestions {
+  accepted_action: string | null;
   accepted_at: Timestamp | null;
   accepted_by_user_id: string | null;
   accepted_rule_id: string | null;
   company_default_category_id: string;
   company_default_sub_category_id: string;
   company_id: string;
+  confidence_score: Generated<number>;
   created_at: Generated<Timestamp>;
   dismissed_at: Timestamp | null;
   dismissed_by_user_id: string | null;
+  dismissed_reason: string | null;
+  dismissed_sample_count: number | null;
+  distinct_project_count: Generated<number>;
+  distinct_txn_date_count: Generated<number>;
   first_seen_at: Timestamp;
   id: string;
   last_seen_at: Timestamp;
+  match_text_alternatives: Generated<string[]>;
+  pattern_basis: Generated<string>;
   pattern_text_normalized: string;
   project_category_id: string;
   project_sub_category_id: string;
   proposed_match_text: string;
+  recommended_action: Generated<string>;
   sample_count: number;
+  source_rule_id: string | null;
   status: string;
   suggestion_type: string;
   updated_at: Generated<Timestamp>;
@@ -336,6 +346,7 @@ export interface RuleSuggestionSignals {
   project_category_id: string;
   project_id: string;
   project_sub_category_id: string;
+  source_rule_id: string | null;
   suggestion_type: string;
   txn_public_id: string;
   updated_at: Generated<Timestamp>;

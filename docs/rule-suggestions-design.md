@@ -1,20 +1,26 @@
 # Rule Suggestions Design
 
-This note defines a professional first-pass design for suggesting company
-default mapping rules from repeated manual transaction coding.
+This note defines the implemented design for suggesting company default mapping
+rules from repeated manual transaction coding.
 
 It is intentionally a design and delivery guide, not a quick implementation
 patch.
 
 ## Status
 
-The repo has now shipped the first operational pass of this area:
+The repo has now shipped the complete V1 to V3 workflow:
 
 - repeated manual coding can prompt immediate project auto-coding suggestions in project workflow
 - admins can review repeated-pattern suggestion items and accept them into company auto-coding defaults
+- repeated overrides of a known company rule create a distinct correction suggestion that preserves the source rule identity
+- admins can update the existing rule or create a narrower rule immediately ahead of it in priority order
+- deterministic confidence indicators explain the sample, date, project, and text-basis evidence
+- normalized match-text alternatives remove unstable invoice and reference suffixes without introducing opaque scoring
+- dismissals record a reason and remain suppressed for 30 days unless 3 more examples arrive
+- accepted evidence is cleared so a resolved suggestion needs a fresh threshold of examples before resurfacing
 - project/company auto-coding now participates in the same synced company-standards model as taxonomy and import rules
 
-Treat the remaining V2 and V3 sections below as the forward-looking design work, not as a description of what is still entirely absent.
+The sections below document the shipped architecture and its intentional safety boundaries.
 
 ## Goal
 
@@ -63,7 +69,7 @@ accepted output should still be a normal company default mapping rule.
 
 ### V1: New-rule suggestions only
 
-Status: largely shipped
+Status: shipped
 
 Detect repeated manual coding patterns where uncoded or manually coded
 transactions with a similar merchant or description are repeatedly assigned to
@@ -78,7 +84,7 @@ Admins can then:
 
 ### V2: Update existing-rule suggestions
 
-Status: not shipped
+Status: shipped
 
 Detect cases where users repeatedly override the same existing company default
 mapping rule toward a different target subcategory.
@@ -91,7 +97,7 @@ Admins can then:
 
 ### V3: Confidence and operator refinement
 
-Status: not shipped
+Status: shipped
 
 Expand beyond simple suggested match text by offering:
 
@@ -102,7 +108,7 @@ Expand beyond simple suggested match text by offering:
 
 ## Non-Goals
 
-The first implementation should not:
+The implementation does not:
 
 - auto-create rules with no admin approval
 - rewrite historical transactions automatically on suggestion acceptance
@@ -138,13 +144,14 @@ Signals to ignore:
 Aggregate signals into a stable suggestion key rather than treating each edit
 as its own suggestion candidate.
 
-Recommended V1 key:
+Suggestion key:
 
 - `company_id`
 - normalized pattern source
   - start with normalized `item`
   - fallback to normalized `description`
-  - optionally store both raw forms for evidence
+  - store raw forms for evidence and match-text alternatives
+- source company rule ID for update suggestions
 - target project taxonomy outcome
   - `category_id`
   - `sub_category_id`
@@ -164,10 +171,11 @@ Use a deterministic normalization pass similar in spirit to the existing
 - trim
 - lowercase
 - collapse whitespace
-- optionally strip punctuation that does not carry meaning
-- optionally remove obvious invoice/reference suffixes later, but not in V1
+- strip punctuation that does not carry meaning
+- remove unstable invoice/reference suffix tokens while retaining the useful
+  text around them
 
-The first version should stay conservative. A slightly under-eager suggestion
+The normalization remains conservative. A slightly under-eager suggestion
 engine is better than a noisy one.
 
 ## Recommended Data Model
@@ -181,14 +189,14 @@ Purpose:
 - append-only or near-append-only evidence that a qualifying manual coding event
   happened
 
-Suggested columns:
+Stored columns:
 
 - `id`
 - `company_id`
 - `project_id`
 - `txn_public_id`
 - `source_type`
-  - for V1 this can be `manual_coding`
+  - `manual_coding`
 - `pattern_basis`
   - `item`, `description`, or `item_description`
 - `pattern_text_normalized`
@@ -210,21 +218,28 @@ Purpose:
 
 - materialized admin-facing queue item
 
-Suggested columns:
+Stored columns:
 
 - `id`
 - `company_id`
 - `status`
   - `open`, `accepted`, `dismissed`
 - `suggestion_type`
-  - `create_rule`, later `update_rule`
+  - `create_rule`, `update_rule`
+- `source_rule_id` for update suggestions
+- `pattern_basis`
 - `pattern_text_normalized`
 - `proposed_match_text`
 - `project_category_id`
 - `project_sub_category_id`
-- `company_default_category_id` nullable until resolvable
-- `company_default_sub_category_id` nullable until resolvable
+- `company_default_category_id`
+- `company_default_sub_category_id`
 - `sample_count`
+- `distinct_txn_date_count`
+- `distinct_project_count`
+- `confidence_score`
+- `match_text_alternatives`
+- `recommended_action`
 - `first_seen_at`
 - `last_seen_at`
 - `accepted_rule_id` nullable
@@ -243,7 +258,7 @@ Purpose:
 
 - preserve a bounded set of example transactions for admin review
 
-Suggested columns:
+Evidence fields:
 
 - `suggestion_id`
 - `txn_public_id`
@@ -300,21 +315,21 @@ Acceptance flow:
 - mark suggestion accepted
 - link `accepted_rule_id`
 
-Optional but not V1:
+Not currently offered:
 
 - offer a separate action to re-run the new rule against uncoded historical rows
 
 ### 5. Admin dismisses
 
-Dismissal should record a reason:
+Dismissal records a reason:
 
 - noise
 - one-off vendor
 - too broad
 - intentionally handled manually
 
-Dismissal should suppress regeneration for the same key for a cooldown window
-unless significantly more evidence appears later.
+Dismissal suppresses regeneration for the same key for 30 days unless 3 more
+supporting transactions appear first.
 
 ## Create-Rule vs Update-Rule Suggestions
 
@@ -334,7 +349,7 @@ Outcome:
 
 ### Update-rule suggestion
 
-Use later when:
+Use when:
 
 - the previous transaction state was rule-coded by a known company default rule
 - users repeatedly change those results to a different target
@@ -344,8 +359,8 @@ Outcome:
 - suggest narrowing or changing an existing rule rather than blindly creating a
   duplicate
 
-V1 should store enough signal context to support this later, but should only
-ship `create_rule`.
+Update suggestions store the source rule ID so the review and acceptance path
+cannot lose the rule that produced the overridden result.
 
 ## Trigger Point In This Repo
 
@@ -383,7 +398,7 @@ subcategory maps cleanly to existing company default taxonomy. Subcategory ID
 is the canonical rule target; category is retained for display and
 rollback-compatible storage but is derived by the server.
 
-For V1:
+For all suggestions:
 
 - resolve explicit company-origin subcategory IDs first, including project
   overrides that have moved the inherited subcategory to a different category
@@ -468,7 +483,7 @@ Recommended controls:
 - prefer item-based patterns over long free-form descriptions when both exist
 - cap evidence samples stored per suggestion
 
-Suggested V1 defaults:
+Shipped defaults:
 
 - minimum 3 distinct transactions
 - maximum 5 evidence samples shown
@@ -492,12 +507,16 @@ system.
 
 ### Phase 1: Foundations
 
+Status: shipped
+
 - add schema for suggestion signals and suggestions
 - add domain types, mappers, and response schemas
 - add server helper for qualifying manual coding events
 - add DB integration tests for signal capture and dedupe
 
 ### Phase 2: Admin review queue
+
+Status: shipped
 
 - add company-scoped query and mutations
 - add Company Settings UI for listing, accepting, and dismissing suggestions
@@ -506,44 +525,30 @@ system.
 
 ### Phase 3: Professional polish
 
+Status: shipped
+
 - improve normalization heuristics
 - add update-rule suggestions
 - add cooldown tuning and better evidence presentation
 - add smoke coverage for end-to-end suggestion review
 
-## Open Decisions
+## Resolved Decisions
 
-These should be settled before implementation starts:
+The implementation:
 
-1. Should the primary suggested match text come from `item`, `description`, or a
-   heuristically preferred choice between both?
-2. Should acceptance be blocked unless company default taxonomy already exists,
-   or should the accept flow optionally create missing defaults too?
-3. Should dismissals be permanent for the exact key, or expire after a cooldown?
-4. Should repeated overrides of an existing rule create a separate `update_rule`
-   queue immediately, or wait until V2?
-
-## Recommended Answers
-
-My recommendation for this repo is:
-
-1. Use a preferred single match text, usually `item` first and then
+1. Uses a preferred single match text, usually `item` first and then
    `description` fallback, because it will create cleaner rules.
-2. Block acceptance when company default taxonomy does not yet support the
+2. Blocks acceptance when company default taxonomy does not yet support the
    target. This keeps rule governance explicit and avoids hidden taxonomy
    sprawl.
-3. Use a cooldown dismissal model rather than permanent suppression.
-4. Store prior rule context now, but ship only `create_rule` in V1.
+3. Uses a cooldown dismissal model rather than permanent suppression.
+4. Creates a separate `update_rule` suggestion for repeated overrides of a
+   known company rule and preserves that source rule for review.
 
-## Recommended First Build
+## Shipped Safety Boundary
 
-If we start implementation next, the highest-quality first slice is:
-
-- create-rule suggestions only
-- thresholded and deduped
-- company admin review queue
-- accept into existing company default mapping rules
-- dismiss with cooldown
-
-That is large enough to be genuinely useful, but still bounded enough to ship
-cleanly.
+Company Auto-Categorise Rules continue to use deterministic contains-text
+matching. V3 refines the proposed text and confidence evidence without adding a
+second matching engine or rewriting historical transactions. Narrower rules
+are inserted immediately before their broader source rule so existing rule
+priority remains understandable.

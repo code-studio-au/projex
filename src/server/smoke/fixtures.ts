@@ -26,6 +26,25 @@ export type BrowserSmokeTaxonomyFixtures = {
   ruleMatchText: string;
 };
 
+export type BrowserSmokeRuleSuggestionFixtures = {
+  projectId: string;
+  projectName: string;
+  companyDefaultCategoryId: string;
+  companyDefaultCategoryName: string;
+  sourceCompanyDefaultSubCategoryId: string;
+  sourceCompanyDefaultSubCategoryName: string;
+  targetCompanyDefaultSubCategoryId: string;
+  targetCompanyDefaultSubCategoryName: string;
+  projectCategoryId: string;
+  sourceProjectSubCategoryId: string;
+  targetProjectSubCategoryId: string;
+  sourceRuleId: string;
+  sourceRuleMatchText: string;
+  suggestionId: string;
+  proposedMatchText: string;
+  acceptedMatchText: string;
+};
+
 export type SmokeFixtures = {
   runId: string;
   companyId: string;
@@ -36,6 +55,7 @@ export type SmokeFixtures = {
     privacySuperadmin: SmokeFixtureUser;
   };
   browserTaxonomy: BrowserSmokeTaxonomyFixtures;
+  browserRuleSuggestion: BrowserSmokeRuleSuggestionFixtures;
   inviteEmail: string;
   emailChangeTo: string;
 };
@@ -171,15 +191,17 @@ async function ensureSmokeCompanyAndProject(
        status,
        deactivated_at,
        visibility,
-       allow_superadmin_access
+       allow_superadmin_access,
+       sync_company_defaults
      )
-     values ($1, $2, $3, 0, 'AUD', 'active', null, 'private', true)
+     values ($1, $2, $3, 0, 'AUD', 'active', null, 'private', true, true)
      on conflict (id) do update
      set name = excluded.name,
          status = 'active',
          deactivated_at = null,
          visibility = 'private',
-         allow_superadmin_access = true`,
+         allow_superadmin_access = true,
+         sync_company_defaults = true`,
     [fixtures.projectId, fixtures.companyId, `Smoke Project ${fixtures.runId}`]
   );
 }
@@ -305,6 +327,276 @@ async function ensureBrowserTaxonomyFixtures(
   );
 }
 
+async function ensureBrowserRuleSuggestionFixtures(
+  pool: TypedPgPool,
+  fixtures: SmokeFixtures
+) {
+  const suggestion = fixtures.browserRuleSuggestion;
+  const now = new Date().toISOString();
+  const txnIds = [1, 2, 3].map(
+    (index) => `txn_smoke_rule_suggestion_${index}_${fixtures.runId}`
+  );
+
+  await pool.query(
+    `insert into projects (
+       id,
+       company_id,
+       name,
+       budget_total_cents,
+       currency,
+       status,
+       deactivated_at,
+       visibility,
+       allow_superadmin_access,
+       sync_company_defaults
+     )
+     values ($1, $2, $3, 0, 'AUD', 'active', null, 'private', true, true)`,
+    [suggestion.projectId, fixtures.companyId, suggestion.projectName]
+  );
+
+  await pool.query(
+    `insert into company_default_categories (
+       id, company_id, name, created_at, updated_at
+     )
+     values ($1, $2, $3, $4, $4)`,
+    [
+      suggestion.companyDefaultCategoryId,
+      fixtures.companyId,
+      suggestion.companyDefaultCategoryName,
+      now,
+    ]
+  );
+  await pool.query(
+    `insert into company_default_sub_categories (
+       id,
+       company_id,
+       company_default_category_id,
+       name,
+       created_at,
+       updated_at
+     )
+     values
+       ($1, $2, $3, $4, $5, $5),
+       ($6, $2, $3, $7, $5, $5)`,
+    [
+      suggestion.sourceCompanyDefaultSubCategoryId,
+      fixtures.companyId,
+      suggestion.companyDefaultCategoryId,
+      suggestion.sourceCompanyDefaultSubCategoryName,
+      now,
+      suggestion.targetCompanyDefaultSubCategoryId,
+      suggestion.targetCompanyDefaultSubCategoryName,
+    ]
+  );
+  await pool.query(
+    `insert into categories (
+       id,
+       company_id,
+       project_id,
+       name,
+       origin_scope,
+       origin_company_item_id,
+       sync_status,
+       last_synced_at,
+       source_updated_at_snapshot,
+       created_at,
+       updated_at
+     )
+     values ($1, $2, $3, $4, 'company', $5, 'inherited', $6, $6, $6, $6)`,
+    [
+      suggestion.projectCategoryId,
+      fixtures.companyId,
+      suggestion.projectId,
+      suggestion.companyDefaultCategoryName,
+      suggestion.companyDefaultCategoryId,
+      now,
+    ]
+  );
+  await pool.query(
+    `insert into sub_categories (
+       id,
+       company_id,
+       project_id,
+       category_id,
+       name,
+       origin_scope,
+       origin_company_item_id,
+       sync_status,
+       last_synced_at,
+       source_updated_at_snapshot,
+       created_at,
+       updated_at
+     )
+     values
+       ($1, $2, $3, $4, $5, 'company', $6, 'inherited', $7, $7, $7, $7),
+       ($8, $2, $3, $4, $9, 'company', $10, 'inherited', $7, $7, $7, $7)`,
+    [
+      suggestion.sourceProjectSubCategoryId,
+      fixtures.companyId,
+      suggestion.projectId,
+      suggestion.projectCategoryId,
+      suggestion.sourceCompanyDefaultSubCategoryName,
+      suggestion.sourceCompanyDefaultSubCategoryId,
+      now,
+      suggestion.targetProjectSubCategoryId,
+      suggestion.targetCompanyDefaultSubCategoryName,
+      suggestion.targetCompanyDefaultSubCategoryId,
+    ]
+  );
+  await pool.query(
+    `insert into company_default_mapping_rules (
+       id,
+       company_id,
+       match_text,
+       company_default_category_id,
+       company_default_sub_category_id,
+       sort_order,
+       created_at,
+       updated_at
+     )
+     values ($1, $2, $3, $4, $5, 0, $6, $6)`,
+    [
+      suggestion.sourceRuleId,
+      fixtures.companyId,
+      suggestion.sourceRuleMatchText,
+      suggestion.companyDefaultCategoryId,
+      suggestion.sourceCompanyDefaultSubCategoryId,
+      now,
+    ]
+  );
+
+  for (const [index, txnId] of txnIds.entries()) {
+    await pool.query(
+      `insert into txns (
+         public_id,
+         external_id,
+         company_id,
+         project_id,
+         txn_date,
+         item,
+         description,
+         amount_cents,
+         txn_type,
+         parent_public_id,
+         source_public_id,
+         transfer_project_id,
+         budget_impact,
+         categorisable,
+         category_id,
+         sub_category_id,
+         company_default_mapping_rule_id,
+         coding_source,
+         coding_pending_approval,
+         created_at,
+         updated_at
+       )
+       values (
+         $1, $2, $3, $4, $5, $6, $7, $8, 'standard',
+         null, null, null, true, true, $9, $10, null, 'manual', false, $11, $11
+       )`,
+      [
+        txnId,
+        `${txnId}-external`,
+        fixtures.companyId,
+        suggestion.projectId,
+        `2026-04-0${index + 1}`,
+        `${suggestion.proposedMatchText} INV-${9000 + index}`,
+        `Browser rule correction ${index + 1}`,
+        10_000 + index * 100,
+        suggestion.projectCategoryId,
+        suggestion.targetProjectSubCategoryId,
+        now,
+      ]
+    );
+    await pool.query(
+      `insert into rule_suggestion_signals (
+         id,
+         company_id,
+         project_id,
+         txn_public_id,
+         suggestion_type,
+         source_rule_id,
+         pattern_basis,
+         pattern_text_raw,
+         pattern_text_normalized,
+         project_category_id,
+         project_sub_category_id,
+         company_default_category_id,
+         company_default_sub_category_id,
+         acted_by_user_id,
+         created_at,
+         updated_at
+       )
+       values (
+         $1, $2, $3, $4, 'update_rule', $5, 'item', $6, $7,
+         $8, $9, $10, $11, $12, $13, $13
+       )`,
+      [
+        `rsig_smoke_browser_${index + 1}_${fixtures.runId}`,
+        fixtures.companyId,
+        suggestion.projectId,
+        txnId,
+        suggestion.sourceRuleId,
+        `${suggestion.proposedMatchText} INV-${9000 + index}`,
+        suggestion.proposedMatchText.toLowerCase(),
+        suggestion.projectCategoryId,
+        suggestion.targetProjectSubCategoryId,
+        suggestion.companyDefaultCategoryId,
+        suggestion.targetCompanyDefaultSubCategoryId,
+        fixtures.users.privacyAdmin.id,
+        now,
+      ]
+    );
+  }
+
+  await pool.query(
+    `insert into rule_suggestions (
+       id,
+       company_id,
+       status,
+       suggestion_type,
+       source_rule_id,
+       pattern_basis,
+       pattern_text_normalized,
+       proposed_match_text,
+       match_text_alternatives,
+       project_category_id,
+       project_sub_category_id,
+       company_default_category_id,
+       company_default_sub_category_id,
+       sample_count,
+       distinct_txn_date_count,
+       distinct_project_count,
+       confidence_score,
+       recommended_action,
+       first_seen_at,
+       last_seen_at,
+       created_at,
+       updated_at
+     )
+     values (
+       $1, $2, 'open', 'update_rule', $3, 'item', $4, $5, $6,
+       $7, $8, $9, $10, 3, 3, 1, 80, 'create_narrower', $11, $11, $11, $11
+     )`,
+    [
+      suggestion.suggestionId,
+      fixtures.companyId,
+      suggestion.sourceRuleId,
+      suggestion.proposedMatchText.toLowerCase(),
+      suggestion.proposedMatchText,
+      [
+        suggestion.proposedMatchText,
+        `${suggestion.proposedMatchText} INV-9000`,
+      ],
+      suggestion.projectCategoryId,
+      suggestion.targetProjectSubCategoryId,
+      suggestion.companyDefaultCategoryId,
+      suggestion.targetCompanyDefaultSubCategoryId,
+      now,
+    ]
+  );
+}
+
 export function applySmokeFixtureEnv(fixtures: SmokeFixtures) {
   applySmokeEnvOverrides(buildSmokeFixtureEnv(fixtures));
 }
@@ -422,6 +714,24 @@ export async function createSmokeFixtures(
       ruleId: `prule_smoke_browser_${runId}`,
       ruleMatchText: `smoke taxonomy rule ${runId}`,
     },
+    browserRuleSuggestion: {
+      projectId: `prj_smoke_rule_suggestion_${runId}`,
+      projectName: `Smoke Rule Suggestion Project ${runId}`,
+      companyDefaultCategoryId: `cdefcat_smoke_rule_${runId}`,
+      companyDefaultCategoryName: `Smoke Rule Review ${runId}`,
+      sourceCompanyDefaultSubCategoryId: `cdefsub_smoke_rule_source_${runId}`,
+      sourceCompanyDefaultSubCategoryName: `Original Target ${runId}`,
+      targetCompanyDefaultSubCategoryId: `cdefsub_smoke_rule_target_${runId}`,
+      targetCompanyDefaultSubCategoryName: `Corrected Target ${runId}`,
+      projectCategoryId: `cat_smoke_rule_${runId}`,
+      sourceProjectSubCategoryId: `sub_smoke_rule_source_${runId}`,
+      targetProjectSubCategoryId: `sub_smoke_rule_target_${runId}`,
+      sourceRuleId: `cmap_smoke_rule_${runId}`,
+      sourceRuleMatchText: `smoke broad ${runId}`,
+      suggestionId: `rsug_smoke_rule_${runId}`,
+      proposedMatchText: `Smoke consulting ${runId}`,
+      acceptedMatchText: `smoke consulting ${runId}`,
+    },
     inviteEmail: `smoke_invite_${runId}@${generatedEmailDomain()}`,
     emailChangeTo: `smoke_email_change_${runId}@${generatedEmailDomain()}`,
   };
@@ -441,6 +751,7 @@ export async function createSmokeFixtures(
     await ensureSmokeCompanyAndProject(pool, fixtures);
     await ensureFixtureMemberships(pool, fixtures);
     await ensureBrowserTaxonomyFixtures(pool, fixtures);
+    await ensureBrowserRuleSuggestionFixtures(pool, fixtures);
     applySmokeFixtureEnv(fixtures);
     await emit(
       options,

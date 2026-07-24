@@ -46,6 +46,9 @@ import type {
   ProjectStandardSyncStatus,
   ProjectType,
   ProjectVisibility,
+  RuleSuggestionAcceptanceAction,
+  RuleSuggestionDismissReason,
+  RuleSuggestionType,
   TxnReversalMatchEvidence,
   TxnReversalMatchMethod,
   TxnReversalStatus,
@@ -283,7 +286,7 @@ export type ProjectAutoCodingRuleTable = Override<
 export type RuleSuggestionSignalTable = Override<
   RuleSuggestionSignals,
   {
-    suggestion_type: 'create_rule';
+    suggestion_type: RuleSuggestionType;
     pattern_basis: 'item' | 'description' | 'item_description';
     created_at: Generated<string>;
     updated_at: Generated<string>;
@@ -294,7 +297,11 @@ export type RuleSuggestionTable = Override<
   RuleSuggestions,
   {
     status: 'open' | 'accepted' | 'dismissed';
-    suggestion_type: 'create_rule';
+    suggestion_type: RuleSuggestionType;
+    pattern_basis: 'item' | 'description' | 'item_description';
+    recommended_action: RuleSuggestionAcceptanceAction;
+    accepted_action: RuleSuggestionAcceptanceAction | null;
+    dismissed_reason: RuleSuggestionDismissReason | null;
     first_seen_at: string;
     last_seen_at: string;
     accepted_at: string | null;

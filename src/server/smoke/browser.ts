@@ -310,6 +310,75 @@ async function verifyGeneratedRuleTarget(
   );
 }
 
+async function runGeneratedRuleSuggestionFlow(
+  page: import('playwright').Page,
+  fixtures: SmokeFixtures,
+  options: BrowserSmokeOptions
+) {
+  const suggestion = fixtures.browserRuleSuggestion;
+  await emit(options, 'Reviewing and accepting a refined rule suggestion');
+  await page.getByRole('button', { name: 'Review Rule Suggestions' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Rule Suggestions' });
+  await dialog.waitFor({ state: 'visible' });
+  await dialog
+    .getByText('Existing rule correction', { exact: true })
+    .waitFor({ state: 'visible' });
+  await dialog
+    .getByText('high confidence (80%)', { exact: true })
+    .waitFor({ state: 'visible' });
+  await dialog
+    .getByText('Rule being corrected', { exact: true })
+    .waitFor({ state: 'visible' });
+  await dialog
+    .getByText(`Contains "${suggestion.sourceRuleMatchText}"`, {
+      exact: true,
+    })
+    .waitFor({ state: 'visible' });
+
+  const actionSelect = dialog.getByRole('combobox', {
+    name: 'How should this correction be applied?',
+  });
+  assert(
+    (await actionSelect.inputValue()) ===
+      'Create a narrower, higher-priority rule',
+    'Rule suggestion did not default to the safer narrower-rule action'
+  );
+  await dialog
+    .getByRole('textbox', {
+      name: 'Text the transaction must contain',
+    })
+    .fill(suggestion.acceptedMatchText);
+  await dialog
+    .getByRole('button', { name: 'Create narrower rule', exact: true })
+    .click();
+  await dialog
+    .getByText(
+      'Create narrower rule accepted and synced to eligible projects.',
+      { exact: true }
+    )
+    .waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden' });
+}
+
+async function verifyGeneratedCompanyRuleSuggestionTarget(
+  page: import('playwright').Page,
+  fixtures: SmokeFixtures
+) {
+  const suggestion = fixtures.browserRuleSuggestion;
+  const ruleTitle = page.getByText(suggestion.acceptedMatchText, {
+    exact: true,
+  });
+  await ruleTitle.waitFor({ state: 'visible' });
+  const ruleCardText = await ruleTitle.locator('..').textContent();
+  assert(
+    ruleCardText?.includes(suggestion.companyDefaultCategoryName) &&
+      ruleCardText.includes(suggestion.targetCompanyDefaultSubCategoryName),
+    'Accepted rule suggestion did not display its corrected company target'
+  );
+}
+
 async function runGeneratedReversalFlow(
   page: import('playwright').Page,
   fixtures: SmokeFixtures,
@@ -725,12 +794,25 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
       .getByText('Import rule priority', { exact: true })
       .waitFor({ state: 'visible' });
     await page.keyboard.press('Escape');
+    if (options.generatedFixtures) {
+      await runGeneratedRuleSuggestionFlow(
+        page,
+        options.generatedFixtures,
+        options
+      );
+    }
     await page
       .getByRole('button', { name: 'Manage Auto-Coding Rules' })
       .click();
     await page
       .getByText('Company rule priority', { exact: true })
       .waitFor({ state: 'visible' });
+    if (options.generatedFixtures) {
+      await verifyGeneratedCompanyRuleSuggestionTarget(
+        page,
+        options.generatedFixtures
+      );
+    }
     await page.keyboard.press('Escape');
 
     assert(

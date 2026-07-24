@@ -511,12 +511,14 @@ export type CompanyDefaultMappingRuleUpdateInput = Partial<
 
 export type RuleSuggestionAcceptInput = {
   id: RuleSuggestion['id'];
+  action: RuleSuggestion['recommendedAction'];
   proposedMatchText: string;
   companyDefaultSubCategoryId: CompanyDefaultMappingRule['companyDefaultSubCategoryId'];
 };
 
 export type RuleSuggestionDismissInput = {
   id: RuleSuggestion['id'];
+  reason: NonNullable<RuleSuggestion['dismissedReason']>;
 };
 
 export type RuleSuggestionsListResult = RuleSuggestionReviewItem[];
