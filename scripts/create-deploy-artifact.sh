@@ -36,6 +36,7 @@ require_path "package.json"
 require_path "pnpm-lock.yaml"
 require_path "pnpm-workspace.yaml"
 require_path ".pnpmfile.cjs"
+require_path "patches/brace-expansion@5.0.8.patch"
 
 rm -f "$ARTIFACT_PATH"
 
@@ -54,7 +55,8 @@ tar -czf "$ARTIFACT_PATH" \
   package.json \
   pnpm-lock.yaml \
   pnpm-workspace.yaml \
-  .pnpmfile.cjs
+  .pnpmfile.cjs \
+  patches
 
 log "Artifact ready"
 printf '%s\n' "$ARTIFACT_PATH"

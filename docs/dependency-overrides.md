@@ -13,7 +13,9 @@ Current overrides:
   `GHSA-mh99-v99m-4gvg`. Version `5.0.8` is explicitly exempted from the
   minimum-release-age quarantine because it is the security release. A local
   compatibility patch preserves the callable CommonJS export required by
-  legacy consumers while retaining the patched expansion implementation.
+  legacy consumers while retaining the patched expansion implementation. See
+  [the dependency patch note](../patches/README.md) for the exact behavior,
+  security constraints, and removal procedure.
 - `js-yaml@>=4.0.0 <4.3.0`
   Keep TanStack Start and tooling YAML parsing on the patched 4.3.x line for
   `GHSA-52cp-r559-cp3m`.

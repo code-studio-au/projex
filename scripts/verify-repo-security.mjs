@@ -8,6 +8,7 @@ const nginxProxyConfigPaths = [
 ];
 const nginxRequestLimitsPath = 'deploy/nginx/projex-request-limits.conf';
 const nginxImportBodyLimit = 'client_max_body_size 16m;';
+const braceExpansionPatchPath = 'patches/brace-expansion@5.0.8.patch';
 
 const checks = [
   {
@@ -145,10 +146,46 @@ async function verifyNginxRequestLimits() {
   );
 }
 
+async function verifyDeployArtifactDependencyPatches() {
+  const [workspaceConfig, createArtifactScript, deployScript, patch] =
+    await Promise.all([
+      readFile('pnpm-workspace.yaml', 'utf8'),
+      readFile('scripts/create-deploy-artifact.sh', 'utf8'),
+      readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
+      readFile(braceExpansionPatchPath, 'utf8'),
+    ]);
+
+  assertCondition(
+    workspaceConfig.includes(
+      `brace-expansion@5.0.8: ${braceExpansionPatchPath}`
+    ),
+    'The brace-expansion compatibility patch must stay registered with pnpm'
+  );
+  assertCondition(
+    createArtifactScript.includes(`require_path "${braceExpansionPatchPath}"`),
+    'Deploy artifact creation must require the brace-expansion compatibility patch'
+  );
+  assertCondition(
+    /\n\s+patches\s*$/m.test(createArtifactScript),
+    'Deploy artifacts must include the patches directory'
+  );
+  assertCondition(
+    deployScript.includes(
+      `require_file "$RELEASE_DIR/${braceExpansionPatchPath}"`
+    ),
+    'Artifact deploys must verify the brace-expansion compatibility patch before installing dependencies'
+  );
+  assertCondition(
+    patch.includes('module.exports = Object.assign(expand, exports);'),
+    'The brace-expansion patch must retain the callable CommonJS compatibility export'
+  );
+}
+
 async function main() {
   await verifyGitignoreCoverage();
   await verifyTrustedProxyClientIpHeaders();
   await verifyNginxRequestLimits();
+  await verifyDeployArtifactDependencyPatches();
 
   const skipped = [];
   for (const check of checks) {
