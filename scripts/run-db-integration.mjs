@@ -7,6 +7,7 @@ import { loadEnvFile } from './env-file.mjs';
 
 const KEEP_DB = process.argv.includes('--keep-db');
 const DB_NAME = 'projex_integration_test';
+const MIGRATION_UPGRADE_DB_NAME = 'projex_migration_upgrade_test';
 
 async function main() {
   loadEnvFile('.env.local');
@@ -22,6 +23,7 @@ async function main() {
 
   try {
     await pg.createDatabase(DB_NAME);
+    await pg.createDatabase(MIGRATION_UPGRADE_DB_NAME);
     await runProjexMigrations({ connectionString });
 
     runProjexCommand(
@@ -31,6 +33,9 @@ async function main() {
         env: {
           DATABASE_URL: connectionString,
           PROJEX_INTEGRATION_DATABASE_URL: connectionString,
+          PROJEX_MIGRATION_UPGRADE_DATABASE_URL: pg.connectionString(
+            MIGRATION_UPGRADE_DB_NAME
+          ),
         },
       }
     );

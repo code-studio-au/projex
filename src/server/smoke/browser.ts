@@ -422,7 +422,7 @@ async function runGeneratedReversalFlow(
       amountCents: 23_456,
     },
   ];
-  const txns = pairs.flatMap((pair) => {
+  const reversalFixtures = pairs.map((pair) => {
     const sourceTxnId = `txn_smoke_reversal_source_${pair.suffix}_${fixtures.runId}`;
     const counterpartTxnId = `txn_smoke_reversal_counterpart_${pair.suffix}_${fixtures.runId}`;
     const common = {
@@ -437,8 +437,8 @@ async function runGeneratedReversalFlow(
         'CC and Description': 'SMOKE-COST-CENTRE',
       },
     };
-    return [
-      {
+    return {
+      source: {
         ...common,
         id: sourceTxnId,
         externalId: `${sourceTxnId}-external`,
@@ -446,7 +446,7 @@ async function runGeneratedReversalFlow(
         item: pair.sourceItem,
         amountCents: pair.amountCents,
       },
-      {
+      counterpart: {
         ...common,
         id: counterpartTxnId,
         externalId: `${counterpartTxnId}-external`,
@@ -454,11 +454,99 @@ async function runGeneratedReversalFlow(
         item: pair.counterpartItem,
         amountCents: -pair.amountCents,
       },
-    ];
+    };
   });
-  for (const txn of txns) {
+
+  for (const { source } of reversalFixtures) {
     const response = await page.context().request.post(transactionUrl, {
-      data: { txn },
+      data: { txn: source },
+      headers: {
+        origin: new URL(page.url()).origin,
+        referer: page.url(),
+      },
+    });
+    assert(
+      response.ok(),
+      `Could not create browser reversal fixture: ${response.status()} ${await response.text()}`
+    );
+  }
+
+  await page.goto(
+    `/c/${fixtures.companyId}/p/${fixtures.projectId}?tab=transactions`,
+    { waitUntil: 'domcontentloaded' }
+  );
+  await page.getByText(/^2 transactions$/).waitFor({ state: 'visible' });
+
+  for (const pair of pairs) {
+    await page
+      .getByRole('button', { name: `Actions for ${pair.sourceItem}` })
+      .click();
+    await page.getByRole('menuitem', { name: 'Mark pending reversal' }).click();
+
+    const pendingDialog = page.getByRole('dialog', {
+      name: 'Mark pending reversal',
+    });
+    await pendingDialog.waitFor({ state: 'visible' });
+    await pendingDialog
+      .getByRole('textbox', { name: 'Comment' })
+      .fill('Browser smoke expects a reversal in the following month.');
+    await pendingDialog
+      .getByRole('button', { name: 'Mark pending reversal' })
+      .click();
+    await pendingDialog.waitFor({ state: 'hidden' });
+
+    if (pair !== pairs[0]) continue;
+
+    await emit(
+      options,
+      'Reopening and editing an existing pending reversal workflow'
+    );
+    await page
+      .getByRole('button', { name: `Actions for ${pair.sourceItem}` })
+      .click();
+    await page
+      .getByRole('menuitem', { name: 'Review reversal details' })
+      .click();
+
+    const reopenedPendingDialog = page.getByRole('dialog', {
+      name: 'Pending reversal',
+    });
+    await reopenedPendingDialog.waitFor({ state: 'visible' });
+    await reopenedPendingDialog
+      .getByText('No candidate refund transactions were found yet.', {
+        exact: true,
+      })
+      .waitFor({ state: 'visible' });
+    await reopenedPendingDialog
+      .getByRole('textbox', { name: 'Workflow note' })
+      .fill('Browser smoke is escalating this reopened workflow.');
+    await reopenedPendingDialog
+      .getByRole('button', { name: 'Mark exception' })
+      .click();
+    await reopenedPendingDialog.waitFor({ state: 'hidden' });
+
+    await page
+      .getByRole('button', { name: `Actions for ${pair.sourceItem}` })
+      .click();
+    await page
+      .getByRole('menuitem', { name: 'Review reversal details' })
+      .click();
+    const exceptionDialog = page.getByRole('dialog', {
+      name: 'Reversal exception',
+    });
+    await exceptionDialog.waitFor({ state: 'visible' });
+    await exceptionDialog
+      .getByRole('textbox', { name: 'Review note' })
+      .fill('Browser smoke is returning the reopened workflow to pending.');
+    await exceptionDialog
+      .getByRole('button', { name: 'Return to pending' })
+      .click();
+    await exceptionDialog.waitFor({ state: 'hidden' });
+  }
+
+  for (const { counterpart } of reversalFixtures) {
+    const response = await page.context().request.post(transactionUrl, {
+      data: { txn: counterpart },
       headers: {
         origin: new URL(page.url()).origin,
         referer: page.url(),
@@ -475,6 +563,12 @@ async function runGeneratedReversalFlow(
     { waitUntil: 'domcontentloaded' }
   );
   await page.getByText(/^4 transactions$/).waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: 'Tools' }).click();
+  await page.getByRole('menuitem', { name: 'Find reversal matches' }).click();
+  await page
+    .getByText('Reversal matches found', { exact: true })
+    .waitFor({ state: 'visible' });
+
   const transactionSearch = page.getByRole('textbox', {
     name: 'Search transactions',
   });
@@ -523,24 +617,6 @@ async function runGeneratedReversalFlow(
     'Clearing transaction search did not update the workspace URL'
   );
   await page.getByText(/^4 transactions$/).waitFor({ state: 'visible' });
-  for (const pair of pairs) {
-    await page
-      .getByRole('button', { name: `Actions for ${pair.sourceItem}` })
-      .click();
-    await page.getByRole('menuitem', { name: 'Mark pending reversal' }).click();
-
-    const pendingDialog = page.getByRole('dialog', {
-      name: 'Mark pending reversal',
-    });
-    await pendingDialog.waitFor({ state: 'visible' });
-    await pendingDialog
-      .getByRole('textbox', { name: 'Comment' })
-      .fill('Browser smoke expects a reversal in the following month.');
-    await pendingDialog
-      .getByRole('button', { name: 'Mark pending reversal' })
-      .click();
-    await pendingDialog.waitFor({ state: 'hidden' });
-  }
 
   await emit(
     options,
