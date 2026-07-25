@@ -1,10 +1,8 @@
 import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
-import { z } from 'zod';
+
+import { parseResetPasswordSearch } from './-routeSearchValidation';
 
 export const Route = createFileRoute('/reset-password')({
-  validateSearch: z.object({
-    token: z.string().trim().optional().catch(''),
-    error: z.string().trim().optional().catch(''),
-  }),
+  validateSearch: parseResetPasswordSearch,
   component: lazyRouteComponent(() => import('../pages/ResetPasswordPage')),
 });

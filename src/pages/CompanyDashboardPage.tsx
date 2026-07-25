@@ -18,6 +18,7 @@ import {
   MantineReactTable,
   type MRT_ColumnDef,
 } from 'mantine-react-table-open';
+import 'mantine-react-table-open/styles.css';
 import { useMediaQuery } from '@mantine/hooks';
 
 import type { CompanyId, Project, ProjectId } from '../types';

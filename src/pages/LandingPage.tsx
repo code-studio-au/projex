@@ -22,6 +22,7 @@ import {
   MantineReactTable,
   type MRT_ColumnDef,
 } from 'mantine-react-table-open';
+import 'mantine-react-table-open/styles.css';
 import { useMediaQuery } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 

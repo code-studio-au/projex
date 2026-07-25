@@ -3,29 +3,28 @@ import type { UserId } from '../types';
 import { asCompanyId, asProjectId } from '../types';
 import { getUserCompanyRole } from '../store/access';
 import { can } from '../utils/auth';
-import { budgetsQueryOptions } from '../queries/budgets';
-import {
-  allCompanyMembershipsQueryOptions,
-  myProjectMembershipsQueryOptions,
-} from '../queries/memberships';
-import { currentUserQueryOptions } from '../queries/account';
-import {
-  companyQueryOptions,
-  companySummaryQueryOptions,
-  projectQueryOptions,
-} from '../queries/reference';
-import { sessionQueryOptions } from '../queries/session';
-import {
-  categoriesQueryOptions,
-  subCategoriesQueryOptions,
-} from '../queries/taxonomy';
-import { projectWorkspaceSearchSchema } from './-projectWorkspaceSearch';
+import { parseProjectWorkspaceSearch } from './-routeSearchValidation';
 
 export const Route = createFileRoute('/_authed/c/$companyId/p/$projectId')({
-  validateSearch: (search) => projectWorkspaceSearchSchema.parse(search),
+  validateSearch: parseProjectWorkspaceSearch,
   component: lazyRouteComponent(() => import('../pages/ProjectWorkspacePage')),
   ssr: true,
   loader: async ({ context, params }) => {
+    const [
+      { budgetsQueryOptions },
+      { allCompanyMembershipsQueryOptions, myProjectMembershipsQueryOptions },
+      { currentUserQueryOptions },
+      { companyQueryOptions, companySummaryQueryOptions, projectQueryOptions },
+      { sessionQueryOptions },
+      { categoriesQueryOptions, subCategoriesQueryOptions },
+    ] = await Promise.all([
+      import('../queries/budgets'),
+      import('../queries/memberships'),
+      import('../queries/account'),
+      import('../queries/reference'),
+      import('../queries/session'),
+      import('../queries/taxonomy'),
+    ]);
     const companyId = asCompanyId(params.companyId);
     const projectId = asProjectId(params.projectId);
     const session = (context.queryClient.getQueryData(

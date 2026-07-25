@@ -1,14 +1,21 @@
 import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
-import { allCompanyMembershipsQueryOptions } from '../queries/memberships';
-import { currentUserQueryOptions } from '../queries/account';
-import { companiesQueryOptions } from '../queries/reference';
-import { sessionQueryOptions } from '../queries/session';
 import type { UserId } from '../types';
 
 export const Route = createFileRoute('/_authed/companies')({
   component: lazyRouteComponent(() => import('../pages/LandingPage')),
   ssr: true,
   loader: async ({ context }) => {
+    const [
+      { allCompanyMembershipsQueryOptions },
+      { currentUserQueryOptions },
+      { companiesQueryOptions },
+      { sessionQueryOptions },
+    ] = await Promise.all([
+      import('../queries/memberships'),
+      import('../queries/account'),
+      import('../queries/reference'),
+      import('../queries/session'),
+    ]);
     const session = (context.queryClient.getQueryData(
       sessionQueryOptions().queryKey
     ) ??

@@ -2,24 +2,26 @@ import { Outlet, createFileRoute } from '@tanstack/react-router';
 import type { CompanyMembership, UserId } from '../types';
 import { asCompanyId } from '../types';
 import { getUserCompanyRole } from '../store/access';
-import {
-  allCompanyMembershipsQueryOptions,
-  myProjectMembershipsQueryOptions,
-} from '../queries/memberships';
-import { currentUserQueryOptions } from '../queries/account';
-import {
-  companiesQueryOptions,
-  companyQueryOptions,
-  projectsQueryOptions,
-} from '../queries/reference';
-import { companyDefaultsQueryOptions } from '../queries/taxonomy';
-import { importRulesQueryOptions } from '../queries/importRules';
-import { sessionQueryOptions } from '../queries/session';
 
 export const Route = createFileRoute('/_authed/c/$companyId')({
   component: Outlet,
   ssr: true,
   loader: async ({ context, params }) => {
+    const [
+      { allCompanyMembershipsQueryOptions, myProjectMembershipsQueryOptions },
+      { currentUserQueryOptions },
+      { companiesQueryOptions, companyQueryOptions, projectsQueryOptions },
+      { companyDefaultsQueryOptions },
+      { importRulesQueryOptions },
+      { sessionQueryOptions },
+    ] = await Promise.all([
+      import('../queries/memberships'),
+      import('../queries/account'),
+      import('../queries/reference'),
+      import('../queries/taxonomy'),
+      import('../queries/importRules'),
+      import('../queries/session'),
+    ]);
     const companyId = asCompanyId(params.companyId);
     const session = (context.queryClient.getQueryData(
       sessionQueryOptions().queryKey

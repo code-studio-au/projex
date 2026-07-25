@@ -136,17 +136,6 @@ export default defineConfig(({ command }) => {
               return 'vendor-react';
             }
 
-            if (
-              id.includes('node_modules/@mantine/') ||
-              id.includes('node_modules/@emotion/')
-            ) {
-              return 'vendor-ui';
-            }
-
-            if (id.includes('node_modules/@tabler/')) {
-              return 'vendor-icons';
-            }
-
             return undefined;
           },
         },

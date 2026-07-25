@@ -1,5 +1,6 @@
 import { projectRoute } from '../router';
 import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
+import 'mantine-react-table-open/styles.css';
 
 import ProjectWorkspace from '../components/ProjectWorkspace';
 import type { CompanyId, ProjectId } from '../types';

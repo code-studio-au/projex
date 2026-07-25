@@ -1,14 +1,22 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
-
-import { AuthedLayout } from '../layouts';
-import { currentUserQueryOptions } from '../queries/account';
-import { companiesQueryOptions } from '../queries/reference';
-import { sessionQueryOptions } from '../queries/session';
+import {
+  createFileRoute,
+  lazyRouteComponent,
+  redirect,
+} from '@tanstack/react-router';
 
 export const Route = createFileRoute('/_authed')({
-  component: AuthedLayout,
+  component: lazyRouteComponent(() => import('../components/AuthedLayout')),
   ssr: true,
   loader: async ({ context }) => {
+    const [
+      { currentUserQueryOptions },
+      { companiesQueryOptions },
+      { sessionQueryOptions },
+    ] = await Promise.all([
+      import('../queries/account'),
+      import('../queries/reference'),
+      import('../queries/session'),
+    ]);
     const session = await context.queryClient.ensureQueryData(
       sessionQueryOptions()
     );
@@ -26,6 +34,7 @@ export const Route = createFileRoute('/_authed')({
     return null;
   },
   beforeLoad: async ({ context }) => {
+    const { sessionQueryOptions } = await import('../queries/session');
     const session = await context.queryClient.ensureQueryData(
       sessionQueryOptions()
     );

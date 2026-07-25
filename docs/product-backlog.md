@@ -71,6 +71,11 @@ Why this matters:
 - the current bundle is materially better than before, but the shared client runtime is still larger than we want
 - this is now more of a technical-architecture optimization than a feature gap, so it should stay visible but not crowd out near-term product work
 
+Current baseline:
+
+- the root preload is approximately 140 KiB JavaScript gzip and 36 KiB CSS gzip after deferring authenticated chrome, route query modules, and data-table styles, and removing Zod from boot-time search validation
+- `verify:bundle` enforces 160 KiB JavaScript gzip and 45 KiB CSS gzip ceilings for the root preload
+
 Design direction:
 
 - prefer structural wins such as lazy runtime loading and boot-path pruning over brittle chunk hacks
