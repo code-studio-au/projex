@@ -183,16 +183,30 @@ async function runAppMigrations(db: Kysely<Record<string, never>>) {
     }),
   });
 
-  const { error, results } = await migrator.migrateToLatest();
+  // Kysely wraps every migration selected by migrateToLatest in one
+  // transaction. A data migration can leave deferred trigger events pending,
+  // which prevents a later migration in that transaction from altering the
+  // same table (PostgreSQL 55006). Running one step at a time keeps each
+  // migration atomic while giving PostgreSQL a commit boundary between them.
+  while (true) {
+    const { error, results } = await migrator.migrateUp();
 
-  for (const result of results ?? []) {
-    if (result.status === 'Success') {
-      console.log(`Applied migration: ${result.migrationName}`);
+    if (error) {
+      throw error;
     }
-  }
 
-  if (error) {
-    throw error;
+    const result = results?.[0];
+    if (!result) {
+      return;
+    }
+
+    if (result.status !== 'Success') {
+      throw new Error(
+        `Migration ${result.migrationName} finished with status ${result.status}`
+      );
+    }
+
+    console.log(`Applied migration: ${result.migrationName}`);
   }
 }
 
