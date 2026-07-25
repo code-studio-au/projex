@@ -8,14 +8,18 @@ than the `pnpm` field in `package.json`.
 
 Current overrides:
 
-- `brace-expansion@<1.1.16`, `brace-expansion@>=2.0.0 <2.1.2`, and
-  `brace-expansion@>=3.0.0 <5.0.7`
-  Keep each transitive major on its compatible patched line for
-  `GHSA-3jxr-9vmj-r5cp` without forcing old ExcelJS or current lint tooling
-  across a package major boundary.
+- `brace-expansion@<5.0.8`
+  Keep transitive archive and lint tooling on the only patched release for
+  `GHSA-mh99-v99m-4gvg`. Version `5.0.8` is explicitly exempted from the
+  minimum-release-age quarantine because it is the security release. A local
+  compatibility patch preserves the callable CommonJS export required by
+  legacy consumers while retaining the patched expansion implementation.
 - `js-yaml@>=4.0.0 <4.3.0`
   Keep TanStack Start and tooling YAML parsing on the patched 4.3.x line for
   `GHSA-52cp-r559-cp3m`.
+- `postcss@<8.5.18`
+  Keep Vite and its consumers on the patched PostCSS line for
+  `GHSA-r28c-9q8g-f849`.
 
 Update policy:
 
