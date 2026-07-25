@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import {
   ActionIcon,
   Menu,
@@ -32,6 +33,11 @@ function ColorSchemeIcons({ size }: { size: number }) {
 
 export function ColorSchemeToggle() {
   const { toggle } = useColorSchemeControl();
+  const controlRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    controlRef.current?.setAttribute('data-projex-hydrated', 'true');
+  }, []);
 
   return (
     <Tooltip label={COLOR_SCHEME_CONTROL_LABEL} withinPortal>
@@ -40,6 +46,7 @@ export function ColorSchemeToggle() {
         size="lg"
         aria-label={COLOR_SCHEME_CONTROL_LABEL}
         onClick={toggle}
+        ref={controlRef}
       >
         <ColorSchemeIcons size={18} />
       </ActionIcon>

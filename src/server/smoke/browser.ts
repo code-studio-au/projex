@@ -159,6 +159,18 @@ async function waitForColorScheme(
   throw new Error(`App did not switch to ${colorScheme} mode`);
 }
 
+async function waitForHydratedControl(toggle: import('playwright').Locator) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 15_000) {
+    if ((await toggle.getAttribute('data-projex-hydrated')) === 'true') {
+      return;
+    }
+    await toggle.page().waitForTimeout(100);
+  }
+
+  throw new Error('Color scheme control did not hydrate');
+}
+
 async function selectOption(
   page: import('playwright').Page,
   dialog: import('playwright').Locator,
@@ -817,6 +829,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     const colorSchemeToggle = page.getByRole('button', {
       name: 'Toggle light or dark mode',
     });
+    await waitForHydratedControl(colorSchemeToggle);
     await colorSchemeToggle.click();
     await waitForColorScheme(page, 'dark');
     assert(
@@ -829,6 +842,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForColorScheme(page, 'dark');
     await colorSchemeToggle.waitFor({ state: 'visible' });
+    await waitForHydratedControl(colorSchemeToggle);
     await colorSchemeToggle.click();
     await waitForColorScheme(page, 'light');
     await colorSchemeToggle.click();
