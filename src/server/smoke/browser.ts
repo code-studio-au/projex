@@ -159,16 +159,28 @@ async function waitForColorScheme(
   throw new Error(`App did not switch to ${colorScheme} mode`);
 }
 
-async function waitForHydratedControl(toggle: import('playwright').Locator) {
+async function toggleColorScheme(
+  toggle: import('playwright').Locator,
+  colorScheme: 'light' | 'dark'
+) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 15_000) {
-    if ((await toggle.getAttribute('data-projex-hydrated')) === 'true') {
+    const page = toggle.page();
+    if (
+      (await page.locator('html').getAttribute('data-mantine-color-scheme')) ===
+      colorScheme
+    ) {
       return;
     }
-    await toggle.page().waitForTimeout(100);
+
+    // The server-rendered control can be visible before React has attached its
+    // event handler. Exercise the control until it responds instead of coupling
+    // this browser test to an implementation-only hydration marker.
+    await toggle.click();
+    await page.waitForTimeout(250);
   }
 
-  throw new Error('Color scheme control did not hydrate');
+  throw new Error(`Color scheme control did not switch to ${colorScheme} mode`);
 }
 
 async function selectOption(
@@ -829,9 +841,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     const colorSchemeToggle = page.getByRole('button', {
       name: 'Toggle light or dark mode',
     });
-    await waitForHydratedControl(colorSchemeToggle);
-    await colorSchemeToggle.click();
-    await waitForColorScheme(page, 'dark');
+    await toggleColorScheme(colorSchemeToggle, 'dark');
     assert(
       (await page.evaluate(
         (storageKey) => globalThis.localStorage.getItem(storageKey),
@@ -842,11 +852,8 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForColorScheme(page, 'dark');
     await colorSchemeToggle.waitFor({ state: 'visible' });
-    await waitForHydratedControl(colorSchemeToggle);
-    await colorSchemeToggle.click();
-    await waitForColorScheme(page, 'light');
-    await colorSchemeToggle.click();
-    await waitForColorScheme(page, 'dark');
+    await toggleColorScheme(colorSchemeToggle, 'light');
+    await toggleColorScheme(colorSchemeToggle, 'dark');
 
     await emit(options, 'Signing in through the browser session');
     const signInResponse = await context.request.post(
