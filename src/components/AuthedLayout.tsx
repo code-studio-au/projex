@@ -25,6 +25,7 @@ import {
 } from '../queries/reference';
 import { useLogoutMutation, useSessionQuery } from '../queries/session';
 import { useCurrentUserQuery } from '../queries/account';
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import { ColorSchemeMenuItem, ColorSchemeToggle } from './ColorSchemeControl';
 import classes from '../styles/ui.module.css';
 
@@ -38,6 +39,7 @@ export default function AuthedLayout() {
   const session = useSessionQuery();
   const logout = useLogoutMutation();
   const router = useRouter();
+  const isHydrated = useIsHydrated();
 
   const userId = session.data?.userId ?? null;
   const isMobile = useMediaQuery('(max-width: 48em)');
@@ -89,6 +91,8 @@ export default function AuthedLayout() {
             <div className={classes.shellActions}>
               <Button
                 variant="default"
+                aria-label="Workspace"
+                disabled={!isHydrated}
                 onClick={async () => {
                   if (isSuperadmin || companyCount > 1) {
                     await router.navigate({ to: landingRoute.to });
@@ -116,7 +120,12 @@ export default function AuthedLayout() {
               <div className={classes.accountMenuWrap}>
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
-                    <Button variant="subtle" px="sm">
+                    <Button
+                      variant="subtle"
+                      px="sm"
+                      aria-label="Account"
+                      disabled={!isHydrated}
+                    >
                       <span style={{ fontWeight: 600 }}>Account</span>
                     </Button>
                   </Menu.Target>

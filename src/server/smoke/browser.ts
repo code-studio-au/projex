@@ -97,15 +97,15 @@ function verifyCsp(html: string, csp: string | undefined) {
   );
 }
 
-function verifyServerRenderedColorSchemeToggle(html: string) {
-  const toggleTag =
-    /<button\b[^>]*aria-label="Toggle light or dark mode"[^>]*>/i.exec(
-      html
-    )?.[0];
-  assert(toggleTag, 'Login page did not server-render the color scheme toggle');
+function verifyServerRenderedDisabledButton(html: string, label: string) {
+  const buttonTag = new RegExp(
+    `<button\\b[^>]*aria-label="${escapeRegExp(label)}"[^>]*>`,
+    'i'
+  ).exec(html)?.[0];
+  assert(buttonTag, `Page did not server-render the ${label} button`);
   assert(
-    /\sdisabled(?:=""|(?=[\s>]))/i.test(toggleTag),
-    'Server-rendered color scheme toggle was interactive before hydration'
+    /\sdisabled(?:=""|(?=[\s>]))/i.test(buttonTag),
+    `Server-rendered ${label} button was interactive before hydration`
   );
 }
 
@@ -833,7 +833,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     assert(loginResponse.ok(), 'Login page did not load successfully');
     const loginHtml = await loginResponse.text();
     verifyCsp(loginHtml, loginResponse.headers()['content-security-policy']);
-    verifyServerRenderedColorSchemeToggle(loginHtml);
+    verifyServerRenderedDisabledButton(loginHtml, 'Toggle light or dark mode');
 
     const colorSchemeToggle = page.getByRole('button', {
       name: 'Toggle light or dark mode',
@@ -880,9 +880,17 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     );
     assert(signInResponse.ok(), 'Browser-context sign-in request failed');
 
-    await page.goto(`/c/${companyId}?tab=projects`, {
+    const companyResponse = await page.goto(`/c/${companyId}?tab=projects`, {
       waitUntil: 'domcontentloaded',
     });
+    assert(
+      companyResponse,
+      'Company page navigation did not return a response'
+    );
+    assert(companyResponse.ok(), 'Company page did not load successfully');
+    const companyHtml = await companyResponse.text();
+    verifyServerRenderedDisabledButton(companyHtml, 'Workspace');
+    verifyServerRenderedDisabledButton(companyHtml, 'Account');
     await waitForLocation(
       page,
       ({ pathname, search }) =>
@@ -909,6 +917,7 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     const colorSchemeMenuItem = page.getByRole('menuitem', {
       name: 'Toggle light or dark mode',
     });
+    await colorSchemeMenuItem.waitFor({ state: 'visible' });
     assert(
       await colorSchemeMenuItem.isEnabled(),
       'Hydrated color scheme menu item was not interactive'
