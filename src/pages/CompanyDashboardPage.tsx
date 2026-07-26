@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -21,6 +21,7 @@ import {
 import 'mantine-react-table-open/styles.css';
 import { useMediaQuery } from '@mantine/hooks';
 
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import type { CompanyId, Project, ProjectId } from '../types';
 import { asCompanyId, asUserId } from '../types';
 import {
@@ -46,10 +47,6 @@ import classes from '../styles/ui.module.css';
 
 type CompanyDashboardTab = 'summary' | 'projects' | 'settings';
 
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
-
 function toCompanyDashboardTab(value: string | null): CompanyDashboardTab {
   if (value === 'summary' || value === 'projects' || value === 'settings') {
     return value;
@@ -64,11 +61,7 @@ export default function CompanyDashboardPage() {
   const companyId: CompanyId = asCompanyId(rawCompanyId);
   const isMobile = useMediaQuery('(max-width: 48em)');
   const router = useRouter();
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
+  const isHydrated = useIsHydrated();
 
   const companyQ = useCompanyQuery(companyId);
   const projectsQ = useProjectsQuery(companyId);

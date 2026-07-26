@@ -7,6 +7,7 @@ import {
 } from '@mantine/core';
 import { IconMoon, IconSun } from '@tabler/icons-react';
 
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import classes from './ColorSchemeControl.module.css';
 
 const COLOR_SCHEME_CONTROL_LABEL = 'Toggle light or dark mode';
@@ -15,8 +16,10 @@ function useColorSchemeControl() {
   const computedColorScheme = useComputedColorScheme('light');
   const { setColorScheme } = useMantineColorScheme();
   const isDark = computedColorScheme === 'dark';
+  const isHydrated = useIsHydrated();
 
   return {
+    isHydrated,
     toggle: () => setColorScheme(isDark ? 'light' : 'dark'),
   };
 }
@@ -31,7 +34,7 @@ function ColorSchemeIcons({ size }: { size: number }) {
 }
 
 export function ColorSchemeToggle() {
-  const { toggle } = useColorSchemeControl();
+  const { isHydrated, toggle } = useColorSchemeControl();
 
   return (
     <Tooltip label={COLOR_SCHEME_CONTROL_LABEL} withinPortal>
@@ -40,6 +43,7 @@ export function ColorSchemeToggle() {
         size="lg"
         aria-label={COLOR_SCHEME_CONTROL_LABEL}
         onClick={toggle}
+        disabled={!isHydrated}
       >
         <ColorSchemeIcons size={18} />
       </ActionIcon>
@@ -48,10 +52,14 @@ export function ColorSchemeToggle() {
 }
 
 export function ColorSchemeMenuItem() {
-  const { toggle } = useColorSchemeControl();
+  const { isHydrated, toggle } = useColorSchemeControl();
 
   return (
-    <Menu.Item leftSection={<ColorSchemeIcons size={16} />} onClick={toggle}>
+    <Menu.Item
+      leftSection={<ColorSchemeIcons size={16} />}
+      onClick={toggle}
+      disabled={!isHydrated}
+    >
       {COLOR_SCHEME_CONTROL_LABEL}
     </Menu.Item>
   );
