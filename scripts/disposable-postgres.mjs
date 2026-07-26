@@ -44,8 +44,9 @@ function runCommand(command, args, options = {}) {
   }
 
   if (result.status !== 0) {
+    const stderr = result.stderr?.trim();
     throw new Error(
-      `${command} ${args.join(' ')} exited with code ${result.status ?? 'unknown'}`
+      `${command} ${args.join(' ')} exited with code ${result.status ?? 'unknown'}${stderr ? `: ${stderr}` : ''}`
     );
   }
 

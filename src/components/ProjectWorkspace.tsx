@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Button,
@@ -32,6 +26,7 @@ import type {
   TxnId,
 } from '../types';
 
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useBudgets } from '../hooks/useBudgets';
 import { useTransactionActions } from '../hooks/useTransactionActions';
@@ -60,10 +55,6 @@ import PowerBiImporterPanel from './PowerBiImporterPanel';
 import ProjectSettingsPanel from './ProjectSettingsPanel';
 import { LoadingLine } from './LoadingValue';
 import classes from '../styles/ui.module.css';
-
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
 
 type ProjectWorkspaceTab = 'budget' | 'transactions' | 'import' | 'settings';
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
@@ -302,11 +293,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
   const router = useRouter();
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
+  const isHydrated = useIsHydrated();
 
   const access = useCompanyAccess(companyId);
   const company = useCompanyQuery(companyId);
