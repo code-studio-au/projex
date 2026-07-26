@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -30,6 +24,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import { apiErrorMessage } from '../api/errorResponses';
 import { useCurrentUserQuery } from '../queries/account';
 import { useSessionQuery } from '../queries/session';
@@ -87,9 +82,6 @@ const RUN_ALL_RATE_LIMIT_SECTION_RETRIES = 2;
 const APP_HEADER_OFFSET_PX = 70;
 const RUN_ALL_FOCUS_OFFSET_PX = APP_HEADER_OFFSET_PX;
 const SECTION_SCROLL_MARGIN_TOP_PX = 320;
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
 const smokeSectionIdValues = [
   'basics',
   'appPages',
@@ -494,11 +486,7 @@ function applyStepUpdate(
 }
 
 export default function SmokeDashboardPage() {
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
+  const isHydrated = useIsHydrated();
   const session = useSessionQuery();
   const currentUserQ = useCurrentUserQuery();
 

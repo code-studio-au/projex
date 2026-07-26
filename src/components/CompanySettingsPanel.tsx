@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -31,6 +25,7 @@ import type {
   CompanyRole,
   UserId,
 } from '../types';
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import { asUserId } from '../types';
 
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
@@ -56,9 +51,6 @@ import RuleSuggestionsModal from './RuleSuggestionsModal';
 import { formatUtcDateTime } from '../utils/dateTime';
 import classes from '../styles/ui.module.css';
 
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
 const EXPORT_JOB_POLL_INTERVAL_MS = 2000;
 
 function formatFileSize(bytes: number) {
@@ -97,11 +89,7 @@ export default function CompanySettingsPanel(props: {
   const { companyId, initialExportJobId = null, initialReview = null } = props;
   const loaderData = companyLayoutRoute.useLoaderData();
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
+  const isHydrated = useIsHydrated();
 
   const access = useCompanyAccess(companyId);
   const usersQ = useUsersQuery();

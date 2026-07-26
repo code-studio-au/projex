@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -25,6 +25,7 @@ import type {
   ProjectRole,
   UserId,
 } from '../types';
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import { asUserId } from '../types';
 
 import {
@@ -51,10 +52,6 @@ import ProjectImportRulesModal from './ProjectImportRulesModal';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import classes from '../styles/ui.module.css';
 import { showAppToast } from '../utils/toast';
-
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
 
 function toProjectRole(value: string | null): ProjectRole | null {
   if (!value) return null;
@@ -88,11 +85,7 @@ export default function ProjectSettingsPanel(props: {
   const { companyId, projectId } = props;
   const loaderData = projectWorkspaceRoute.useLoaderData();
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
+  const isHydrated = useIsHydrated();
   const router = useRouter();
 
   const project = useProjectQuery(projectId);

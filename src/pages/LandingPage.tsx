@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -26,6 +20,7 @@ import 'mantine-react-table-open/styles.css';
 import { useMediaQuery } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import type { CompanyId } from '../types';
 
 import { companyRoute } from '../router';
@@ -45,20 +40,12 @@ import {
 import { useCurrentUserQuery } from '../queries/account';
 import classes from '../styles/ui.module.css';
 
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
-
 export default function LandingPage() {
   const loaderData = companiesRoute.useLoaderData();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
+  const isHydrated = useIsHydrated();
 
   const sessionQ = useSessionQuery();
   const userId = sessionQ.data?.userId ?? loaderData.userId ?? undefined;
