@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -12,6 +12,7 @@ import {
   Title,
 } from '@mantine/core';
 
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import { apiErrorMessage } from '../api/errorResponses';
 import { Route as accountRoute } from '../routes/_authed.account';
 import { useSessionQuery } from '../queries/session';
@@ -29,10 +30,6 @@ import { formatUtcDateTime } from '../utils/dateTime';
 import { readJsonResponseOrNull } from '../utils/json';
 import classes from '../styles/ui.module.css';
 
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
-
 type EmailActivity = {
   kind: 'requested' | 'resent' | 'cancelled';
   message: string;
@@ -41,11 +38,7 @@ type EmailActivity = {
 
 export default function AccountPage() {
   const loaderData = accountRoute.useLoaderData();
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
+  const isHydrated = useIsHydrated();
   const session = useSessionQuery();
   const userId = session.data?.userId;
   const currentUserQ = useCurrentUserQuery();

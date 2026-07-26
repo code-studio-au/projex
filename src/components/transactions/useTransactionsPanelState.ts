@@ -1,9 +1,10 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import type {
   MRT_PaginationState,
   MRT_SortingState,
 } from 'mantine-react-table-open';
+import { useIsHydrated } from '../../hooks/useIsHydrated';
 import type { TransactionDrilldownFilter, Txn } from '../../types';
 import type { ProjectRuleSuggestionPrompt } from '../../api/types';
 import type { TxnId } from '../../types/ids';
@@ -13,10 +14,6 @@ import {
   type QuarterOption,
 } from './transactionsPanelUtils';
 import type { ReversalReviewQueueState } from './reversalReviewQueue';
-
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
 
 export function useTransactionsPanelState(args: {
   yearFilter: string | null;
@@ -52,11 +49,7 @@ export function useTransactionsPanelState(args: {
     string | null
   >(null);
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
+  const isHydrated = useIsHydrated();
   const [pagination, setPagination] = useState<MRT_PaginationState>({
     pageIndex: 0,
     pageSize: isMobile ? 10 : 20,

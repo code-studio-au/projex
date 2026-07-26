@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActionIcon,
   Alert,
@@ -19,6 +19,7 @@ import {
   type MRT_ColumnDef,
 } from 'mantine-react-table-open';
 import { IconCheck, IconColumns, IconPencil, IconX } from '@tabler/icons-react';
+import { useIsHydrated } from '../hooks/useIsHydrated';
 import type { RollupsHook } from '../hooks/useRollups';
 import type { BudgetsHook } from '../hooks/useBudgets';
 import type {
@@ -47,10 +48,6 @@ import {
 } from '../store/uiPrefs';
 import { LoadingLine } from './LoadingValue';
 import classes from '../styles/ui.module.css';
-
-const hydrateSubscription = () => () => {};
-const getClientHydratedSnapshot = () => true;
-const getServerHydratedSnapshot = () => false;
 
 type BudgetRollupRowWithTaxonomy = RollupRow & {
   categoryId: CategoryId;
@@ -133,11 +130,7 @@ export default function BudgetPanel(props: {
 
   const { updateAllocated } = budgets;
   const session = useSessionQuery();
-  const isHydrated = useSyncExternalStore(
-    hydrateSubscription,
-    getClientHydratedSnapshot,
-    getServerHydratedSnapshot
-  );
+  const isHydrated = useIsHydrated();
   const [userColumnVisibility, setUserColumnVisibility] = useState<
     Record<string, boolean>
   >({});

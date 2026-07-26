@@ -97,6 +97,18 @@ function verifyCsp(html: string, csp: string | undefined) {
   );
 }
 
+function verifyServerRenderedColorSchemeToggle(html: string) {
+  const toggleTag =
+    /<button\b[^>]*aria-label="Toggle light or dark mode"[^>]*>/i.exec(
+      html
+    )?.[0];
+  assert(toggleTag, 'Login page did not server-render the color scheme toggle');
+  assert(
+    /\sdisabled(?:=""|(?=[\s>]))/i.test(toggleTag),
+    'Server-rendered color scheme toggle was interactive before hydration'
+  );
+}
+
 async function waitForLocation(
   page: import('playwright').Page,
   predicate: (location: { pathname: string; search: string }) => boolean,
@@ -146,29 +158,24 @@ async function waitForColorScheme(
   page: import('playwright').Page,
   colorScheme: 'light' | 'dark'
 ) {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < 15_000) {
-    if (
-      (await page.locator('html').getAttribute('data-mantine-color-scheme')) ===
-      colorScheme
-    ) {
-      return;
-    }
-    await page.waitForTimeout(100);
-  }
-  throw new Error(`App did not switch to ${colorScheme} mode`);
+  await page.waitForFunction(
+    (expectedColorScheme) =>
+      document.documentElement.dataset.mantineColorScheme ===
+      expectedColorScheme,
+    colorScheme,
+    { timeout: 15_000 }
+  );
 }
 
-async function waitForHydratedControl(toggle: import('playwright').Locator) {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < 15_000) {
-    if ((await toggle.getAttribute('data-projex-hydrated')) === 'true') {
-      return;
-    }
-    await toggle.page().waitForTimeout(100);
-  }
-
-  throw new Error('Color scheme control did not hydrate');
+async function toggleColorScheme(
+  toggle: import('playwright').Locator,
+  colorScheme: 'light' | 'dark'
+) {
+  // The SSR control stays disabled until React can handle the interaction.
+  // Playwright's actionability check therefore provides the hydration wait,
+  // while one click still verifies the behavior a user actually experiences.
+  await toggle.click();
+  await waitForColorScheme(toggle.page(), colorScheme);
 }
 
 async function selectOption(
@@ -823,15 +830,29 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
       waitUntil: 'domcontentloaded',
     });
     assert(loginResponse?.ok(), 'Login page did not load successfully');
-    const loginHtml = await page.content();
+    const loginHtml = await loginResponse.text();
     verifyCsp(loginHtml, loginResponse?.headers()['content-security-policy']);
+    verifyServerRenderedColorSchemeToggle(loginHtml);
 
     const colorSchemeToggle = page.getByRole('button', {
       name: 'Toggle light or dark mode',
     });
-    await waitForHydratedControl(colorSchemeToggle);
-    await colorSchemeToggle.click();
-    await waitForColorScheme(page, 'dark');
+    await colorSchemeToggle.waitFor({ state: 'visible' });
+    await page.waitForFunction(
+      () =>
+        Array.from(document.querySelectorAll('button')).some(
+          (button) =>
+            button.getAttribute('aria-label') === 'Toggle light or dark mode' &&
+            !button.disabled
+        ),
+      undefined,
+      { timeout: 15_000 }
+    );
+    assert(
+      await colorSchemeToggle.isEnabled(),
+      'Color scheme toggle did not become interactive after hydration'
+    );
+    await toggleColorScheme(colorSchemeToggle, 'dark');
     assert(
       (await page.evaluate(
         (storageKey) => globalThis.localStorage.getItem(storageKey),
@@ -842,11 +863,8 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForColorScheme(page, 'dark');
     await colorSchemeToggle.waitFor({ state: 'visible' });
-    await waitForHydratedControl(colorSchemeToggle);
-    await colorSchemeToggle.click();
-    await waitForColorScheme(page, 'light');
-    await colorSchemeToggle.click();
-    await waitForColorScheme(page, 'dark');
+    await toggleColorScheme(colorSchemeToggle, 'light');
+    await toggleColorScheme(colorSchemeToggle, 'dark');
 
     await emit(options, 'Signing in through the browser session');
     const signInResponse = await context.request.post(
@@ -883,6 +901,23 @@ async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
         new URLSearchParams(search).get('tab') === 'projects',
       'Company dashboard did not keep the projects tab selected'
     );
+    await waitForColorScheme(page, 'dark');
+
+    const accountMenuButton = page.getByRole('button', { name: 'Account' });
+    await accountMenuButton.click();
+    const colorSchemeMenuItem = page.getByRole('menuitem', {
+      name: 'Toggle light or dark mode',
+    });
+    assert(
+      await colorSchemeMenuItem.isEnabled(),
+      'Hydrated color scheme menu item was not interactive'
+    );
+    await colorSchemeMenuItem.click();
+    await waitForColorScheme(page, 'light');
+    await accountMenuButton.click();
+    await page
+      .getByRole('menuitem', { name: 'Toggle light or dark mode' })
+      .click();
     await waitForColorScheme(page, 'dark');
 
     await emit(options, 'Opening the generated project workspace');
