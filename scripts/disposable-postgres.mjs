@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
+import { get as getHttps } from 'node:https';
 import {
   CreateBucketCommand,
   HeadBucketCommand,
@@ -19,6 +20,16 @@ const DEFAULT_MINIO_SECRET_KEY =
 const DEFAULT_BETTER_AUTH_SECRET =
   process.env.PROJEX_TEST_BETTER_AUTH_SECRET ||
   'projex-disposable-test-secret-0123456789';
+const POSTGRES_TLS_MOUNT_PATH = '/run/projex-postgres-tls';
+const POSTGRES_TLS_BOOTSTRAP_SCRIPT = [
+  'set -eu',
+  'cp /run/projex-postgres-tls/server.crt /var/lib/postgresql/server.crt',
+  'cp /run/projex-postgres-tls/server.key /var/lib/postgresql/server.key',
+  'chown postgres:postgres /var/lib/postgresql/server.crt /var/lib/postgresql/server.key',
+  'chmod 0644 /var/lib/postgresql/server.crt',
+  'chmod 0600 /var/lib/postgresql/server.key',
+  'exec /usr/local/bin/docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key',
+].join('\n');
 
 /**
  * @typedef {object} CreateDatabaseExecArgsOptions
@@ -107,6 +118,44 @@ export function buildCreateDatabaseExecArgs({ user, password, database }) {
   ];
 }
 
+export function buildDisposablePostgresRunArgs({
+  containerName,
+  image,
+  password,
+  tlsDirectory,
+  user,
+}) {
+  const args = [
+    'run',
+    '-d',
+    '--rm',
+    '--name',
+    containerName,
+    '-e',
+    `POSTGRES_USER=${user}`,
+    '-e',
+    `POSTGRES_PASSWORD=${password}`,
+    '-e',
+    'POSTGRES_DB=postgres',
+    '-p',
+    `${DEFAULT_HOST}::5432`,
+  ];
+
+  if (tlsDirectory) {
+    args.push(
+      '--mount',
+      `type=bind,source=${tlsDirectory},target=${POSTGRES_TLS_MOUNT_PATH},readonly`
+    );
+  }
+
+  args.push(image);
+  if (tlsDirectory) {
+    args.push('sh', '-ceu', POSTGRES_TLS_BOOTSTRAP_SCRIPT);
+  }
+
+  return args;
+}
+
 function ensureDockerAvailable() {
   try {
     runCommand('docker', ['version'], { stdio: 'ignore' });
@@ -129,22 +178,13 @@ export async function startDisposablePostgres(options = {}) {
 
   const runResult = runCommand(
     'docker',
-    [
-      'run',
-      '-d',
-      '--rm',
-      '--name',
+    buildDisposablePostgresRunArgs({
       containerName,
-      '-e',
-      `POSTGRES_USER=${user}`,
-      '-e',
-      `POSTGRES_PASSWORD=${password}`,
-      '-e',
-      'POSTGRES_DB=postgres',
-      '-p',
-      `${DEFAULT_HOST}::5432`,
       image,
-    ],
+      password,
+      tlsDirectory: options.tlsDirectory,
+      user,
+    }),
     { stdio: 'pipe' }
   );
 
@@ -327,6 +367,7 @@ export async function runProjexMigrations({
   connectionString,
   betterAuthBaseUrl = 'https://projex.test.invalid',
   betterAuthSecret = DEFAULT_BETTER_AUTH_SECRET,
+  databaseSslCaFile,
 }) {
   runProjexCommand('pnpm', ['run', 'db:migrate'], {
     env: {
@@ -334,16 +375,44 @@ export async function runProjexMigrations({
       BETTER_AUTH_SECRET: betterAuthSecret,
       BETTER_AUTH_URL: betterAuthBaseUrl,
       BETTER_AUTH_TRUSTED_ORIGINS: betterAuthBaseUrl,
+      ...(databaseSslCaFile
+        ? {
+            PG_SSL_CA_FILE: databaseSslCaFile,
+            PG_SSL_MODE: 'require',
+          }
+        : {}),
     },
   });
 }
 
-export async function waitForHttpOk(url, timeoutMs = 30_000) {
+async function requestHttpOk(url, ca) {
+  if (!ca) {
+    const response = await fetch(url);
+    return response.ok;
+  }
+
+  return await new Promise((resolve, reject) => {
+    const request = getHttps(
+      url,
+      { ca, rejectUnauthorized: true },
+      (response) => {
+        response.resume();
+        resolve(
+          response.statusCode != null &&
+            response.statusCode >= 200 &&
+            response.statusCode < 300
+        );
+      }
+    );
+    request.once('error', reject);
+  });
+}
+
+export async function waitForHttpOk(url, timeoutMs = 30_000, options = {}) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     try {
-      const response = await fetch(url);
-      if (response.ok) return;
+      if (await requestHttpOk(url, options.ca)) return;
     } catch {
       // Keep polling until timeout.
     }

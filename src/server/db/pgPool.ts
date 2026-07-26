@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import pg from 'pg';
 import pgTypes from 'pg-types';
 
@@ -47,7 +49,12 @@ type PgModule = {
   Pool: new (config: PgPoolConfig) => TypedPgPool;
 };
 
-type PgPoolSslConfig = false | { rejectUnauthorized: boolean };
+type PgPoolSslConfig =
+  | false
+  | {
+      ca?: string;
+      rejectUnauthorized: boolean;
+    };
 
 type PgPoolConfig = {
   connectionString: string;
@@ -83,9 +90,12 @@ function parsePositiveIntEnv(
 }
 
 function pgSslConfig(): PgPoolSslConfig | undefined {
-  if (process.env.NODE_ENV !== 'production') return undefined;
+  const configuredMode = process.env.PG_SSL_MODE?.trim().toLowerCase();
+  if (!configuredMode && process.env.NODE_ENV !== 'production') {
+    return undefined;
+  }
 
-  const mode = (process.env.PG_SSL_MODE ?? 'require').trim().toLowerCase();
+  const mode = configuredMode || 'require';
   if (mode === 'disable' || mode === 'allow' || mode === 'prefer') {
     return false;
   }
@@ -94,7 +104,11 @@ function pgSslConfig(): PgPoolSslConfig | undefined {
     return { rejectUnauthorized: false };
   }
 
-  return { rejectUnauthorized: true };
+  const caFile = process.env.PG_SSL_CA_FILE?.trim();
+  return {
+    rejectUnauthorized: true,
+    ...(caFile ? { ca: readFileSync(caFile, 'utf8') } : {}),
+  };
 }
 
 export function createPgPool(connectionString: string): TypedPgPool {

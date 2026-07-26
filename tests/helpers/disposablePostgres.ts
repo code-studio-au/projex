@@ -8,13 +8,24 @@ type CreateDatabaseExecArgsOptions = {
   database: string;
 };
 
+type DisposablePostgresRunArgsOptions = {
+  containerName: string;
+  image: string;
+  password: string;
+  tlsDirectory?: string;
+  user: string;
+};
+
 type DisposablePostgresModule = {
   buildCreateDatabaseExecArgs: (
     options: CreateDatabaseExecArgsOptions
   ) => string[];
+  buildDisposablePostgresRunArgs: (
+    options: DisposablePostgresRunArgsOptions
+  ) => string[];
 };
 
-const { buildCreateDatabaseExecArgs } =
+const { buildCreateDatabaseExecArgs, buildDisposablePostgresRunArgs } =
   require('../../scripts/disposable-postgres.mjs') as DisposablePostgresModule;
 
-export { buildCreateDatabaseExecArgs };
+export { buildCreateDatabaseExecArgs, buildDisposablePostgresRunArgs };

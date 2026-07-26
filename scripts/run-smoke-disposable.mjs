@@ -1,8 +1,9 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
 import { spawnSync } from 'node:child_process';
+import pg from 'pg';
 import {
   runProjexCommand,
   runProjexMigrations,
@@ -58,50 +59,11 @@ async function reserveSmokeServerPort() {
   });
 }
 
-async function createLocalTlsBundle() {
-  const tempDir = await mkdtemp(join(tmpdir(), 'projex-smoke-tls-'));
-  const configPath = join(tempDir, 'openssl.cnf');
-  const keyPath = join(tempDir, 'localhost-key.pem');
-  const certPath = join(tempDir, 'localhost-cert.pem');
-
-  await writeFile(
-    configPath,
-    [
-      '[req]',
-      'distinguished_name = req_distinguished_name',
-      'x509_extensions = v3_req',
-      'prompt = no',
-      '[req_distinguished_name]',
-      'CN = localhost',
-      '[v3_req]',
-      'subjectAltName = @alt_names',
-      '[alt_names]',
-      'DNS.1 = localhost',
-      'IP.1 = 127.0.0.1',
-    ].join('\n')
-  );
-
-  const result = spawnSync(
-    'openssl',
-    [
-      'req',
-      '-x509',
-      '-nodes',
-      '-newkey',
-      'rsa:2048',
-      '-keyout',
-      keyPath,
-      '-out',
-      certPath,
-      '-days',
-      '2',
-      '-config',
-      configPath,
-      '-extensions',
-      'v3_req',
-    ],
-    { encoding: 'utf8', stdio: 'pipe' }
-  );
+function runOpenSsl(args) {
+  const result = spawnSync('openssl', args, {
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
 
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -110,9 +72,136 @@ async function createLocalTlsBundle() {
       `openssl req exited with code ${result.status ?? 'unknown'}${detail ? `: ${detail}` : ''}`
     );
   }
-
-  return { tempDir, keyPath, certPath };
 }
+
+async function createSignedServerCertificate({
+  caCertPath,
+  caKeyPath,
+  directory,
+  name,
+  serial,
+}) {
+  const keyPath = join(directory, `${name}.key`);
+  const requestPath = join(directory, `${name}.csr`);
+  const certPath = join(directory, `${name}.crt`);
+  const extensionsPath = join(directory, `${name}.ext`);
+
+  await writeFile(
+    extensionsPath,
+    [
+      'subjectAltName=DNS:localhost,IP:127.0.0.1',
+      'extendedKeyUsage=serverAuth',
+      'keyUsage=digitalSignature,keyEncipherment',
+    ].join('\n')
+  );
+
+  runOpenSsl([
+    'req',
+    '-new',
+    '-nodes',
+    '-newkey',
+    'rsa:2048',
+    '-keyout',
+    keyPath,
+    '-out',
+    requestPath,
+    '-subj',
+    '/CN=localhost',
+  ]);
+  runOpenSsl([
+    'x509',
+    '-req',
+    '-in',
+    requestPath,
+    '-CA',
+    caCertPath,
+    '-CAkey',
+    caKeyPath,
+    '-set_serial',
+    String(serial),
+    '-out',
+    certPath,
+    '-days',
+    '2',
+    '-sha256',
+    '-extfile',
+    extensionsPath,
+  ]);
+
+  return { certPath, keyPath };
+}
+
+async function createLocalTlsBundle() {
+  const tempDir = await mkdtemp(join(tmpdir(), 'projex-smoke-tls-'));
+  const postgresDirectory = join(tempDir, 'postgres');
+  await mkdir(postgresDirectory, { mode: 0o700 });
+
+  const caKeyPath = join(tempDir, 'ca.key');
+  const caCertPath = join(tempDir, 'ca.crt');
+  runOpenSsl([
+    'req',
+    '-x509',
+    '-nodes',
+    '-newkey',
+    'rsa:2048',
+    '-keyout',
+    caKeyPath,
+    '-out',
+    caCertPath,
+    '-days',
+    '2',
+    '-sha256',
+    '-subj',
+    '/CN=Projex Disposable Smoke CA',
+  ]);
+
+  const app = await createSignedServerCertificate({
+    caCertPath,
+    caKeyPath,
+    directory: tempDir,
+    name: 'app',
+    serial: 1,
+  });
+  await createSignedServerCertificate({
+    caCertPath,
+    caKeyPath,
+    directory: postgresDirectory,
+    name: 'server',
+    serial: 2,
+  });
+
+  return {
+    appCertPath: app.certPath,
+    appKeyPath: app.keyPath,
+    caCertPath,
+    postgresDirectory,
+    tempDir,
+  };
+}
+
+async function assertPostgresTls(connectionString, caCertPath) {
+  const client = new pg.Client({
+    connectionString,
+    ssl: {
+      ca: await readFile(caCertPath, 'utf8'),
+      rejectUnauthorized: true,
+    },
+  });
+
+  try {
+    await client.connect();
+    const result = await client.query(
+      'select ssl from pg_stat_ssl where pid = pg_backend_pid()'
+    );
+    if (result.rows[0]?.ssl !== true) {
+      throw new Error('Disposable Postgres connection is not using TLS.');
+    }
+    console.info('[smoke] Verified disposable Postgres TLS connection');
+  } finally {
+    await client.end();
+  }
+}
+
 async function main() {
   logNodeRuntime('disposable smoke runner');
   const port = await reserveSmokeServerPort();
@@ -121,6 +210,7 @@ async function main() {
   const baseUrl = `https://localhost:${port}`;
   const pg = await startDisposablePostgres({
     containerPrefix: 'projex-smoke-db',
+    tlsDirectory: tls.postgresDirectory,
   });
   const minio = await startDisposableMinio({
     containerPrefix: 'projex-smoke-s3',
@@ -139,13 +229,13 @@ async function main() {
       connectionString,
       betterAuthBaseUrl: baseUrl,
       betterAuthSecret: BETTER_AUTH_SECRET,
+      databaseSslCaFile: tls.caCertPath,
     });
+    await assertPostgresTls(connectionString, tls.caCertPath);
 
     if (!SKIP_BUILD) {
       runProjexCommand('pnpm', ['run', 'build']);
     }
-
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
     const sharedEnv = {
       DATABASE_URL: connectionString,
@@ -161,6 +251,8 @@ async function main() {
       PROJEX_ENABLE_SMOKE_TOOLS: 'false',
       PROJEX_RUN_MIGRATIONS: 'false',
       PROJEX_SMOKE_BASE_URL: baseUrl,
+      PG_SSL_CA_FILE: tls.caCertPath,
+      PG_SSL_MODE: 'require',
       S3_BUCKET: minio.bucket,
       S3_REGION: minio.region,
       S3_ENDPOINT: minio.endpoint,
@@ -169,10 +261,10 @@ async function main() {
       S3_FORCE_PATH_STYLE: 'true',
       HOST,
       PORT: String(port),
-      NODE_TLS_REJECT_UNAUTHORIZED: '0',
+      NODE_EXTRA_CA_CERTS: tls.caCertPath,
       PROJEX_NODE_EXECUTABLE: NODE_EXECUTABLE,
-      PROJEX_TLS_KEY_FILE: tls.keyPath,
-      PROJEX_TLS_CERT_FILE: tls.certPath,
+      PROJEX_TLS_KEY_FILE: tls.appKeyPath,
+      PROJEX_TLS_CERT_FILE: tls.appCertPath,
     };
 
     serverProcess = spawnProjexCommand(
@@ -182,7 +274,9 @@ async function main() {
         env: sharedEnv,
       }
     );
-    await waitForHttpOk(`${baseUrl}/api/health`);
+    await waitForHttpOk(`${baseUrl}/api/health`, 30_000, {
+      ca: await readFile(tls.caCertPath, 'utf8'),
+    });
 
     runProjexCommand(
       NODE_EXECUTABLE,
