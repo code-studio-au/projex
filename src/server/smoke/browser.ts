@@ -80,6 +80,18 @@ function assert(condition: unknown, message: string): asserts condition {
   }
 }
 
+async function assertApiResponseOk(
+  response: import('playwright').APIResponse,
+  message: string
+) {
+  if (response.ok()) return;
+
+  const responseBody = (await response.text()).trim();
+  throw new Error(
+    `${message}: ${response.status()}${responseBody ? ` ${responseBody}` : ''}`
+  );
+}
+
 function verifyCsp(html: string, csp: string | undefined) {
   assert(csp, 'Missing Content-Security-Policy header on login page');
   assert(
@@ -484,9 +496,9 @@ async function runGeneratedReversalFlow(
         referer: page.url(),
       },
     });
-    assert(
-      response.ok(),
-      `Could not create browser reversal fixture: ${response.status()} ${await response.text()}`
+    await assertApiResponseOk(
+      response,
+      'Could not create browser reversal fixture'
     );
   }
 
@@ -571,9 +583,9 @@ async function runGeneratedReversalFlow(
         referer: page.url(),
       },
     });
-    assert(
-      response.ok(),
-      `Could not create browser reversal fixture: ${response.status()} ${await response.text()}`
+    await assertApiResponseOk(
+      response,
+      'Could not create browser reversal fixture'
     );
   }
 

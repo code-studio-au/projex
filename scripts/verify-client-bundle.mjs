@@ -1,4 +1,5 @@
 import { readFile, readdir } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import path from 'node:path';
 
@@ -11,15 +12,36 @@ const SERVER_ASSETS_DIR = path.resolve('dist/server/assets');
 const MAX_INITIAL_JS_GZIP_BYTES = 160 * 1024;
 const MAX_INITIAL_CSS_GZIP_BYTES = 45 * 1024;
 
-function extractAssetPaths(source, property) {
-  const match = source.match(new RegExp(`${property}:\\s*\\[([\\s\\S]*?)\\]`));
-  if (!match) {
-    throw new Error(`Could not find ${property} in the root route manifest.`);
+function normalizeAssetPaths(value, property) {
+  if (!Array.isArray(value)) {
+    throw new Error(
+      `Expected ${property} to be an array in the root route manifest.`
+    );
   }
 
-  return [...match[1].matchAll(/"\/assets\/([^"]+)"/g)].map(
-    ([, assetPath]) => assetPath
-  );
+  return value.map((assetPath) => {
+    if (typeof assetPath !== 'string' || !assetPath.startsWith('/assets/')) {
+      throw new Error(
+        `Invalid ${property} entry in the root route manifest: ${String(assetPath)}`
+      );
+    }
+
+    const relativeAssetPath = assetPath.slice('/assets/'.length);
+    const resolvedAssetPath = path.resolve(
+      CLIENT_ASSETS_DIR,
+      relativeAssetPath
+    );
+    if (
+      !relativeAssetPath ||
+      !resolvedAssetPath.startsWith(`${CLIENT_ASSETS_DIR}${path.sep}`)
+    ) {
+      throw new Error(
+        `Unsafe ${property} entry in the root route manifest: ${assetPath}`
+      );
+    }
+
+    return relativeAssetPath;
+  });
 }
 
 async function readRootAssets() {
@@ -32,20 +54,23 @@ async function readRootAssets() {
     );
   }
 
-  const manifest = await readFile(
-    path.join(SERVER_ASSETS_DIR, manifestFiles[0]),
-    'utf8'
-  );
-  const rootBlock = manifest.match(
-    /__root__:\s*\{([\s\S]*?)\n\s*\},\n\s*"\/":/
-  )?.[1];
-  if (!rootBlock) {
+  const manifestPath = path.join(SERVER_ASSETS_DIR, manifestFiles[0]);
+  const manifestModule = await import(pathToFileURL(manifestPath).href);
+  if (typeof manifestModule.tsrStartManifest !== 'function') {
+    throw new Error(
+      'The TanStack Start manifest did not export tsrStartManifest.'
+    );
+  }
+
+  const manifest = manifestModule.tsrStartManifest();
+  const rootRoute = manifest?.routes?.__root__;
+  if (!rootRoute || typeof rootRoute !== 'object') {
     throw new Error('Could not find the root route in the build manifest.');
   }
 
   return {
-    js: extractAssetPaths(rootBlock, 'preloads'),
-    css: extractAssetPaths(rootBlock, 'css'),
+    js: normalizeAssetPaths(rootRoute.preloads, 'preloads'),
+    css: normalizeAssetPaths(rootRoute.css ?? [], 'css'),
   };
 }
 

@@ -1,53 +1,3 @@
-type ProjectWorkspaceTab = 'budget' | 'transactions' | 'import' | 'settings';
-type Quarter = 'Q1' | 'Q2' | 'Q3' | 'Q4';
-type TransactionView =
-  | 'all'
-  | 'uncoded'
-  | 'needs-review'
-  | 'auto-mapped-pending'
-  | 'reversal-review'
-  | 'unlock-requests'
-  | 'assigned-to-me'
-  | 'pending-reversal'
-  | 'matched-reversal-pairs';
-type ProjectWorkspaceSource = 'company-summary' | 'company-work-queue';
-type ProjectWorkspaceFocus =
-  | 'budget'
-  | 'actual'
-  | 'remaining'
-  | 'uncoded'
-  | 'health';
-type DrilldownKind = 'category' | 'subcategory';
-
-export interface ProjectWorkspaceSearch {
-  tab?: ProjectWorkspaceTab;
-  year?: string;
-  quarter?: Quarter;
-  month?: string;
-  view?: TransactionView;
-  q?: string;
-  commentTxn?: string;
-  commentId?: string;
-  source?: ProjectWorkspaceSource;
-  focus?: ProjectWorkspaceFocus;
-  drilldownKind?: DrilldownKind;
-  categoryId?: string;
-  subCategoryId?: string;
-  categoryName?: string;
-  subCategoryName?: string;
-}
-
-export interface CompanyDashboardSearch {
-  tab?: 'summary' | 'projects' | 'settings';
-  exportJob?: string;
-  review?: 'rule-suggestions';
-}
-
-interface PasswordLinkSearch {
-  token?: string;
-  error?: string;
-}
-
 const PROJECT_WORKSPACE_TABS = [
   'budget',
   'transactions',
@@ -79,6 +29,43 @@ const PROJECT_WORKSPACE_FOCUSES = [
 ] as const;
 const DRILLDOWN_KINDS = ['category', 'subcategory'] as const;
 const COMPANY_DASHBOARD_TABS = ['summary', 'projects', 'settings'] as const;
+
+type ProjectWorkspaceTab = (typeof PROJECT_WORKSPACE_TABS)[number];
+type Quarter = (typeof QUARTERS)[number];
+type TransactionView = (typeof TRANSACTION_VIEWS)[number];
+type ProjectWorkspaceSource = (typeof PROJECT_WORKSPACE_SOURCES)[number];
+type ProjectWorkspaceFocus = (typeof PROJECT_WORKSPACE_FOCUSES)[number];
+type DrilldownKind = (typeof DRILLDOWN_KINDS)[number];
+type CompanyDashboardTab = (typeof COMPANY_DASHBOARD_TABS)[number];
+
+export interface ProjectWorkspaceSearch {
+  tab?: ProjectWorkspaceTab;
+  year?: string;
+  quarter?: Quarter;
+  month?: string;
+  view?: TransactionView;
+  q?: string;
+  commentTxn?: string;
+  commentId?: string;
+  source?: ProjectWorkspaceSource;
+  focus?: ProjectWorkspaceFocus;
+  drilldownKind?: DrilldownKind;
+  categoryId?: string;
+  subCategoryId?: string;
+  categoryName?: string;
+  subCategoryName?: string;
+}
+
+export interface CompanyDashboardSearch {
+  tab?: CompanyDashboardTab;
+  exportJob?: string;
+  review?: 'rule-suggestions';
+}
+
+interface PasswordLinkSearch {
+  token?: string;
+  error?: string;
+}
 
 function hasOwn(search: Record<string, unknown>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(search, key);
