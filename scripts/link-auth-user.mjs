@@ -28,7 +28,7 @@ async function run() {
     );
     if (!authUser.rows[0]) {
       throw new Error(
-        `No BetterAuth user found for email "${email}". Run auth user creation/sign-up first.`
+        'No BetterAuth user found. Run auth user creation/sign-up first.'
       );
     }
     const { id: userId, name, email: normalizedEmail } = authUser.rows[0];
@@ -206,7 +206,6 @@ async function run() {
         {
           ok: true,
           linkedUserId: userId,
-          email: normalizedEmail,
           isGlobalSuperadmin: true,
           templateUserId,
           bootstrapCompany,
@@ -223,7 +222,9 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error(err);
+run().catch(() => {
+  console.error(
+    'Failed to link the BetterAuth user. Check the supplied identifiers and database state.'
+  );
   process.exitCode = 1;
 });
