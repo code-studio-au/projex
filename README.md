@@ -1,6 +1,6 @@
 # Projex
 
-[![CI](https://github.com/InsideOutInstitute/project-expense-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/InsideOutInstitute/project-expense-tracker/actions/workflows/ci.yml)
+[![CI](https://github.com/code-studio-au/projex/actions/workflows/ci.yml/badge.svg)](https://github.com/code-studio-au/projex/actions/workflows/ci.yml)
 
 Project and grant budget tracking app.
 
@@ -35,17 +35,28 @@ pnpm run build
 ```
 
 The repo now includes a GitHub Actions CI workflow at
-`.github/workflows/ci.yml`. It currently runs four required lanes:
+`.github/workflows/ci.yml`. It currently runs five required lanes:
 
 - an application verification lane for repo security verification,
   `pnpm audit --json`, `format:check`, `lint`, `typecheck`, Vitest
   app/runtime tests, and `build`
 - a Postgres-backed lane for `db:migrate`, `db:verify-types`, and `test:integration:db`
+- an AWS CDK build and synthesis lane
 - a disposable end-to-end lane for the full generated-fixture server smoke sweep
-- a disposable browser smoke lane for the full browser-driven smoke flow
+- a disposable browser smoke lane for the full Chromium and Firefox
+  browser-driven smoke flow
 
 Normal repo flow is now branch -> pull request -> green required checks -> merge.
-Direct pushes to protected `main` should be treated as an exception-only path.
+The protected `main` branch requires all five lanes, resolves review
+conversations, enforces linear history, and applies the same rules to
+administrators. The solo-maintainer repository requires a pull request but does
+not require another person's approval because no second collaborator currently
+exists.
+
+Repository-native security controls complement CI: GitHub Actions only permits
+GitHub-owned actions plus the explicitly approved pnpm and AWS action families,
+requires immutable action pins, and enables Dependabot alerts and security
+updates, secret scanning with push protection, and CodeQL analysis.
 
 For the most complete local reproduction of CI and deploy-artifact verification,
 use:
@@ -70,9 +81,9 @@ Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`,
 `pnpm run smoke:browser:disposable`. Disposable smoke now provisions a
 short-lived `https://localhost` certificate automatically so production-mode
 auth validation stays aligned locally without any manual TLS setup. Playwright
-browser smoke also requires a local Chromium install via
-`pnpm exec playwright install --with-deps chromium` the first time you run it
-on a machine.
+browser smoke also requires local Chromium and Firefox installs via
+`pnpm exec playwright install --with-deps chromium firefox` the first time you
+run it on a machine.
 
 GitHub Actions CI and the deploy-artifact workflow now enforce the full
 generated-fixture server smoke sweep plus the full supported browser smoke
@@ -82,7 +93,10 @@ GitHub Actions build -> S3 handoff -> SSM activation instead of on-host builds
 or SSH-based release steps.
 
 The manual deploy workflow expects GitHub Actions environment secrets for the
-target environment. At minimum this means:
+target environment. EC2 deploys are limited to the protected `main` branch and
+the configured `staging` or `production` environments. Both environments
+require explicit approval before deployment and do not allow administrator
+bypass. At minimum their environment secrets must include:
 
 - AWS auth, preferably `AWS_DEPLOY_ROLE_ARN`, or the static-key fallback
   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional

@@ -2,6 +2,10 @@
 
 This backlog contains only unfinished work. Completed work belongs in Git history and feature documentation, not here.
 
+The prioritized engineering and operational findings from the July 2026
+repository review are tracked in the
+[Immediate TODO Backlog](immediate-todo-backlog.md).
+
 ## Awaiting Product Decision
 
 ### Expand audit logging into a first-class product feature

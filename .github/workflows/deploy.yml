@@ -17,10 +17,13 @@ on:
           - artifact-only
           - ec2
       environment_name:
-        description: Environment label used for the release id
+        description: Protected deployment environment
         required: true
         default: staging
-        type: string
+        type: choice
+        options:
+          - staging
+          - production
       aws_region:
         description: AWS region for artifact handoff and SSM deploy
         required: true
@@ -65,6 +68,17 @@ jobs:
       release-id: ${{ steps.package.outputs.release_id }}
 
     steps:
+      - name: Validate protected deploy source
+        if: ${{ inputs.deploy_target == 'ec2' }}
+        env:
+          DEPLOY_INPUT_REF: ${{ inputs.ref }}
+          DEPLOY_WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          if [[ "$DEPLOY_INPUT_REF" != "main" || "$DEPLOY_WORKFLOW_REF" != "refs/heads/main" ]]; then
+            echo "EC2 deploys must build main from a workflow dispatched on main." >&2
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
