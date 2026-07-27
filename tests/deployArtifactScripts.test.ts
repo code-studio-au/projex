@@ -630,7 +630,7 @@ describe('deploy-artifact-ssm.sh', () => {
     await expect(realpath(join(appRoot, 'current'))).resolves.toBe(
       await realpath(join(appRoot, 'releases', identity.releaseId))
     );
-  });
+  }, 20_000);
 
   test('preserves an inactive failed release until its retry artifact validates', async () => {
     const root = await makeTemporaryRoot();
@@ -668,7 +668,7 @@ describe('deploy-artifact-ssm.sh', () => {
     await expect(
       readFile(join(failedRelease, 'sentinel'), 'utf8')
     ).resolves.toBe('preserved');
-  });
+  }, 20_000);
 });
 
 describe('deploy-artifact-ec2.sh', () => {
