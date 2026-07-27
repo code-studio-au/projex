@@ -91,6 +91,13 @@ exit 0
   );
 
   await writeExecutable(
+    join(bin, 'flock'),
+    `#!/usr/bin/env bash
+exit 0
+`
+  );
+
+  await writeExecutable(
     join(bin, 'sudo'),
     `#!/usr/bin/env bash
 set -euo pipefail
@@ -138,6 +145,9 @@ async function createArtifact(
     join(payload, 'scripts/deploy-artifact-ec2.sh'),
     `#!/usr/bin/env bash
 set -euo pipefail
+if [[ "\${MOCK_RELEASE_DEPLOY_FAIL:-}" == "1" ]]; then
+  exit 29
+fi
 next_link="$APP_ROOT/.current.next.$$"
 ln -s "$RELEASE_DIR" "$next_link"
 node -e 'require("node:fs").renameSync(process.argv[1], process.argv[2])' "$next_link" "$APP_ROOT/current"
@@ -577,6 +587,87 @@ describe('deploy-artifact-ssm.sh', () => {
     await expect(realpath(join(appRoot, 'current'))).resolves.toBe(
       await realpath(join(appRoot, 'releases', identity.releaseId))
     );
+  });
+
+  test('safely retries an exact matching inactive failed release', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    const identity: ReleaseIdentity = {
+      environment: 'staging',
+      gitSha,
+      releaseId: 'staging-aaaaaaaaaaaa-run105-attempt1',
+      runId: '105',
+      runAttempt: '1',
+    };
+    const artifact = await createArtifact(root, identity, 'retry');
+
+    const failed = runSsmDeploy(
+      appRoot,
+      mockBin,
+      identity,
+      artifact.artifactPath,
+      artifact.sha256,
+      { MOCK_RELEASE_DEPLOY_FAIL: '1' }
+    );
+    expect(failed.status).not.toBe(0);
+    await expect(
+      realpath(join(appRoot, 'releases', identity.releaseId))
+    ).resolves.toContain(identity.releaseId);
+    await expect(realpath(join(appRoot, 'current'))).rejects.toThrow();
+
+    const retried = runSsmDeploy(
+      appRoot,
+      mockBin,
+      identity,
+      artifact.artifactPath,
+      artifact.sha256
+    );
+    expect(retried.status, `${retried.stdout}\n${retried.stderr}`).toBe(0);
+    expect(retried.stdout).toContain(
+      'Removing matching inactive failed release before retry promotion'
+    );
+    await expect(realpath(join(appRoot, 'current'))).resolves.toBe(
+      await realpath(join(appRoot, 'releases', identity.releaseId))
+    );
+  });
+
+  test('preserves an inactive failed release until its retry artifact validates', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    const identity: ReleaseIdentity = {
+      environment: 'staging',
+      gitSha,
+      releaseId: 'staging-aaaaaaaaaaaa-run106-attempt1',
+      runId: '106',
+      runAttempt: '1',
+    };
+    const artifact = await createArtifact(root, identity, 'retry-checksum');
+
+    const failed = runSsmDeploy(
+      appRoot,
+      mockBin,
+      identity,
+      artifact.artifactPath,
+      artifact.sha256,
+      { MOCK_RELEASE_DEPLOY_FAIL: '1' }
+    );
+    expect(failed.status).not.toBe(0);
+    const failedRelease = join(appRoot, 'releases', identity.releaseId);
+    await writeFile(join(failedRelease, 'sentinel'), 'preserved');
+
+    const invalidRetry = runSsmDeploy(
+      appRoot,
+      mockBin,
+      identity,
+      artifact.artifactPath,
+      'f'.repeat(64)
+    );
+    expect(invalidRetry.status).not.toBe(0);
+    await expect(
+      readFile(join(failedRelease, 'sentinel'), 'utf8')
+    ).resolves.toBe('preserved');
   });
 });
 

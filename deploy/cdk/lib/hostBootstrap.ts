@@ -3,6 +3,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const packageManagerVersion = '11.0.8';
+const rdsGlobalCaBundlePath = '/etc/projex/rds-global-bundle.pem';
+const rdsGlobalCaBundleUrl =
+  'https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem';
 
 function repoRootFromCurrentFile() {
   return resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -41,6 +44,12 @@ export function buildHostBootstrapCommands() {
     'deploy/nginx/projex-request-limits.conf'
   );
   const envExample = readRepoFile('.env.example');
+  const hostEnvExample = envExample
+    .replace('# PG_SSL_MODE=require', 'PG_SSL_MODE=require')
+    .replace(
+      '# PG_SSL_CA_FILE=/etc/projex/rds-global-bundle.pem',
+      `PG_SSL_CA_FILE=${rdsGlobalCaBundlePath}`
+    );
   const provisionLetsEncryptScript = readRepoFile(
     'scripts/provision-letsencrypt-cert.sh'
   );
@@ -54,8 +63,19 @@ export function buildHostBootstrapCommands() {
     'corepack enable',
     `corepack prepare pnpm@${packageManagerVersion} --activate`,
     'install -d -m 0755 /opt/projex/releases /opt/projex/shared/nginx-maintenance /etc/projex /var/www/certbot/.well-known/acme-challenge',
+    'PROJEX_RDS_CA_TMP="$(mktemp /etc/projex/.rds-global-bundle.pem.XXXXXX)"',
+    'trap \'rm -f -- "$PROJEX_RDS_CA_TMP"\' EXIT',
+    `curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 ${rdsGlobalCaBundleUrl} --output "$PROJEX_RDS_CA_TMP"`,
+    'grep -q -- "-----BEGIN CERTIFICATE-----" "$PROJEX_RDS_CA_TMP"',
+    `install -o root -g root -m 0644 "$PROJEX_RDS_CA_TMP" ${rdsGlobalCaBundlePath}`,
+    'rm -f -- "$PROJEX_RDS_CA_TMP"',
+    'trap - EXIT',
     'chown -R ec2-user:ec2-user /opt/projex',
-    installFileCommand('/etc/projex/projex.env.example', envExample, '0600'),
+    installFileCommand(
+      '/etc/projex/projex.env.example',
+      hostEnvExample,
+      '0600'
+    ),
     'if [ ! -f /etc/projex/projex.env ]; then cp /etc/projex/projex.env.example /etc/projex/projex.env; chmod 0600 /etc/projex/projex.env; fi',
     installFileCommand(
       '/etc/systemd/system/projex.service',

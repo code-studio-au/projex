@@ -20,5 +20,14 @@ describe('buildHostBootstrapCommands', () => {
     );
     expect(joined).toContain('/var/www/certbot/.well-known/acme-challenge');
     expect(joined).toContain('/etc/projex/projex.env.example');
+    expect(joined).toContain(
+      'https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem'
+    );
+    expect(joined).toContain(
+      'PG_SSL_CA_FILE=/etc/projex/rds-global-bundle.pem'
+    );
+    expect(joined).toContain(
+      'install -o root -g root -m 0644 "$PROJEX_RDS_CA_TMP" /etc/projex/rds-global-bundle.pem'
+    );
   });
 });
