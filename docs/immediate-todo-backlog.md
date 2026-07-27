@@ -56,10 +56,11 @@ and applied these changes:
 - Current-release activation and rollback use atomic symlink replacement.
   Pruning resolves and rechecks the active target immediately before deletion
   and never removes the active or rollback release.
-- Nine deploy-script regression tests cover manifest creation, invalid
+- Twelve deploy-path regression tests cover manifest creation, invalid
   identifiers, same-commit redeploys, failed downloads, checksum and manifest
-  mismatch, active-release overwrite refusal, migration failure, activation,
-  and readiness rollback.
+  mismatch, active-release overwrite refusal, broken-symlink recovery,
+  failed-job retry identity, migration failure, activation, and both
+  first-release and previous-release readiness rollback.
 
 # Full Repository Review
 

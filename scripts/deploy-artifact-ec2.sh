@@ -139,6 +139,7 @@ rollback_release() {
     sudo systemctl restart "$SERVICE_NAME" || true
   else
     log "Removing failed first-release activation"
+    sudo systemctl stop "$SERVICE_NAME" || true
     rm -f -- "$CURRENT_LINK"
   fi
 }

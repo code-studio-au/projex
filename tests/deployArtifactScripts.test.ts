@@ -22,6 +22,7 @@ const createArtifactScript = join(
   repoRoot,
   'scripts/create-deploy-artifact.sh'
 );
+const deployWorkflow = join(repoRoot, '.github/workflows/deploy.yml');
 const ssmDeployScript = join(repoRoot, 'scripts/deploy-artifact-ssm.sh');
 const ec2DeployScript = join(repoRoot, 'scripts/deploy-artifact-ec2.sh');
 const gitSha = 'a'.repeat(40);
@@ -93,6 +94,9 @@ exit 0
     join(bin, 'sudo'),
     `#!/usr/bin/env bash
 set -euo pipefail
+if [[ -n "\${MOCK_SUDO_LOG:-}" ]]; then
+  printf '%s\\n' "$*" >>"$MOCK_SUDO_LOG"
+fi
 if [[ "$1" == "install" ]]; then
   args=("$@")
   source_path="\${args[\${#args[@]}-2]}"
@@ -541,6 +545,39 @@ describe('deploy-artifact-ssm.sh', () => {
       readFile(join(activeRelease, 'sentinel'), 'utf8')
     ).resolves.toBe('active');
   });
+
+  test('repairs a broken current-release symlink before promotion', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    await mkdir(join(appRoot, 'releases'), { recursive: true });
+    await symlink(
+      join(appRoot, 'releases', 'missing-release'),
+      join(appRoot, 'current')
+    );
+    const identity: ReleaseIdentity = {
+      environment: 'staging',
+      gitSha,
+      releaseId: 'staging-aaaaaaaaaaaa-run104-attempt1',
+      runId: '104',
+      runAttempt: '1',
+    };
+    const artifact = await createArtifact(root, identity, 'broken-current');
+
+    const result = runSsmDeploy(
+      appRoot,
+      mockBin,
+      identity,
+      artifact.artifactPath,
+      artifact.sha256
+    );
+
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.stdout).toContain('Removing broken current-release symlink');
+    await expect(realpath(join(appRoot, 'current'))).resolves.toBe(
+      await realpath(join(appRoot, 'releases', identity.releaseId))
+    );
+  });
 });
 
 describe('deploy-artifact-ec2.sh', () => {
@@ -613,5 +650,48 @@ describe('deploy-artifact-ec2.sh', () => {
       previousRelease
     );
     await expect(realpath(releaseDir)).resolves.toBe(releaseDir);
+  });
+
+  test('stops a failed service when the first release rolls back', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    const sudoLog = join(root, 'sudo.log');
+    await mkdir(appRoot, { recursive: true });
+    await writeFile(join(appRoot, 'projex.env'), '');
+    const releaseId = 'staging-aaaaaaaaaaaa-run203-attempt1';
+    const releaseDir = await createEc2Release(appRoot, releaseId);
+
+    const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
+      MOCK_SUDO_LOG: sudoLog,
+      READY_TIMEOUT_SECONDS: '0',
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Readiness check failed');
+    await expect(realpath(join(appRoot, 'current'))).rejects.toThrow();
+    await expect(readFile(sudoLog, 'utf8')).resolves.toContain(
+      'systemctl stop projex'
+    );
+    await expect(realpath(releaseDir)).resolves.toBe(releaseDir);
+  });
+});
+
+describe('deploy workflow retry identity', () => {
+  test('reuses the artifact build attempt when only failed jobs rerun', async () => {
+    const workflow = await readFile(deployWorkflow, 'utf8');
+
+    expect(workflow).toContain(
+      'run-attempt: ${{ steps.package.outputs.run_attempt }}'
+    );
+    expect(workflow).toContain(
+      'echo "run_attempt=${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"'
+    );
+    expect(workflow).toContain(
+      'DEPLOY_RUN_ATTEMPT: ${{ needs.build-artifact.outputs.run-attempt }}'
+    );
+    expect(workflow).not.toContain(
+      'DEPLOY_RUN_ATTEMPT: ${{ github.run_attempt }}'
+    );
   });
 });

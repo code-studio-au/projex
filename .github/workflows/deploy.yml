@@ -68,6 +68,7 @@ jobs:
       artifact-sha256: ${{ steps.package.outputs.artifact_sha256 }}
       commit-sha: ${{ steps.source.outputs.commit_sha }}
       release-id: ${{ steps.package.outputs.release_id }}
+      run-attempt: ${{ steps.package.outputs.run_attempt }}
 
     steps:
       - name: Validate protected deploy source
@@ -169,6 +170,7 @@ jobs:
           echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
           echo "artifact_sha256=${ARTIFACT_SHA256}" >> "$GITHUB_OUTPUT"
           echo "release_id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_attempt=${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
           echo "artifact_path=${ARTIFACT_PATH}" >> "$GITHUB_OUTPUT"
 
       - name: Upload deploy artifact
@@ -264,7 +266,7 @@ jobs:
           ARTIFACT_SHA256: ${{ needs.build-artifact.outputs.artifact-sha256 }}
           ARTIFACT_S3_URI: ${{ steps.upload-artifact-s3.outputs.artifact_s3_uri }}
           DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
-          DEPLOY_RUN_ATTEMPT: ${{ github.run_attempt }}
+          DEPLOY_RUN_ATTEMPT: ${{ needs.build-artifact.outputs.run-attempt }}
           DEPLOY_RUN_ID: ${{ github.run_id }}
           EC2_APP_ROOT: ${{ env.DEPLOY_EC2_APP_ROOT }}
           EC2_ENV_FILE: ${{ env.DEPLOY_EC2_ENV_FILE }}

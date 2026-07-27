@@ -136,8 +136,11 @@ CURRENT_LINK="${APP_ROOT}/current"
 mkdir -p "$RELEASES_DIR" "${APP_ROOT}/shared"
 
 if [[ -L "$CURRENT_LINK" ]]; then
-  active_release_dir="$(resolve_existing_path "$CURRENT_LINK")"
-  if [[ "$active_release_dir" == "$RELEASE_DIR" ]]; then
+  active_release_dir="$(resolve_existing_path "$CURRENT_LINK" 2>/dev/null || true)"
+  if [[ -z "$active_release_dir" ]]; then
+    log "Removing broken current-release symlink ${CURRENT_LINK}"
+    rm -f -- "$CURRENT_LINK"
+  elif [[ "$active_release_dir" == "$RELEASE_DIR" ]]; then
     fail "Refusing to overwrite active release: $RELEASE_DIR"
   fi
 fi
