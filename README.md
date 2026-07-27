@@ -92,6 +92,12 @@ ship. The single supported EC2 deployment method is artifact-based and uses
 GitHub Actions build -> S3 handoff -> SSM activation instead of on-host builds
 or SSH-based release steps.
 
+Each deploy resolves and propagates the full checked-out commit SHA. Its
+physical release ID also includes the GitHub run ID and attempt, so retrying the
+same commit cannot overwrite an earlier release. The runner and EC2 host verify
+the artifact SHA-256; the host then validates its embedded identity manifest in
+a fresh staging directory before atomically promoting and activating it.
+
 The manual deploy workflow expects GitHub Actions environment secrets for the
 target environment. EC2 deploys are limited to the protected `main` branch and
 the configured `staging` or `production` environments. Both environments

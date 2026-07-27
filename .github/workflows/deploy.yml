@@ -65,6 +65,8 @@ jobs:
       PROJEX_ENABLE_SMOKE_TOOLS: 'false'
     outputs:
       artifact-name: ${{ steps.package.outputs.artifact_name }}
+      artifact-sha256: ${{ steps.package.outputs.artifact_sha256 }}
+      commit-sha: ${{ steps.source.outputs.commit_sha }}
       release-id: ${{ steps.package.outputs.release_id }}
 
     steps:
@@ -83,6 +85,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.ref }}
+
+      - name: Resolve immutable source revision
+        id: source
+        run: |
+          COMMIT_SHA="$(git rev-parse HEAD)"
+          if [[ ! "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Resolved checkout is not a full lowercase Git SHA." >&2
+            exit 1
+          fi
+          echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -130,11 +142,32 @@ jobs:
 
       - name: Create deploy artifact
         id: package
+        env:
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
+          SOURCE_GIT_SHA: ${{ steps.source.outputs.commit_sha }}
         run: |
-          RELEASE_ID="${{ inputs.environment_name }}-${GITHUB_SHA::12}"
+          if [[ ! "$DEPLOY_ENVIRONMENT" =~ ^[a-z0-9][a-z0-9-]{0,31}$ ]]; then
+            echo "Deployment environment has an invalid identifier." >&2
+            exit 1
+          fi
+          if [[ ! "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ || ! "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "GitHub run identity is invalid." >&2
+            exit 1
+          fi
+          RELEASE_ID="${DEPLOY_ENVIRONMENT}-${SOURCE_GIT_SHA:0:12}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
           ARTIFACT_NAME="projex-${RELEASE_ID}.tar.gz"
-          ARTIFACT_PATH="$(ARTIFACT_NAME="$ARTIFACT_NAME" pnpm run deploy:artifact:create | tail -n 1)"
+          ARTIFACT_PATH="$(
+            GIT_SHA="$SOURCE_GIT_SHA" \
+            DEPLOY_ENVIRONMENT="$DEPLOY_ENVIRONMENT" \
+            DEPLOY_RUN_ID="$GITHUB_RUN_ID" \
+            DEPLOY_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            RELEASE_ID="$RELEASE_ID" \
+            ARTIFACT_NAME="$ARTIFACT_NAME" \
+            pnpm run deploy:artifact:create | tail -n 1
+          )"
+          read -r ARTIFACT_SHA256 _ < <(sha256sum "$ARTIFACT_PATH")
           echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
+          echo "artifact_sha256=${ARTIFACT_SHA256}" >> "$GITHUB_OUTPUT"
           echo "release_id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
           echo "artifact_path=${ARTIFACT_PATH}" >> "$GITHUB_OUTPUT"
 
@@ -171,7 +204,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.build-artifact.outputs.commit-sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -205,10 +238,19 @@ jobs:
         env:
           AWS_REGION_DEPLOY: ${{ inputs.aws_region }}
           DEPLOY_ARTIFACT_BUCKET: ${{ env.DEPLOY_EC2_DEPLOY_ARTIFACT_BUCKET }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
+          EXPECTED_ARTIFACT_SHA256: ${{ needs.build-artifact.outputs.artifact-sha256 }}
+          EXPECTED_GIT_SHA: ${{ needs.build-artifact.outputs.commit-sha }}
+          RELEASE_ID: ${{ needs.build-artifact.outputs.release-id }}
         run: |
           test -n "$DEPLOY_ARTIFACT_BUCKET"
           ARTIFACT_NAME="${{ needs.build-artifact.outputs.artifact-name }}"
-          S3_KEY="deploy-artifacts/${{ needs.build-artifact.outputs.release-id }}/${ARTIFACT_NAME}"
+          read -r ACTUAL_ARTIFACT_SHA256 _ < <(sha256sum "artifacts/${ARTIFACT_NAME}")
+          if [[ "$ACTUAL_ARTIFACT_SHA256" != "$EXPECTED_ARTIFACT_SHA256" ]]; then
+            echo "Downloaded GitHub artifact checksum does not match the build output." >&2
+            exit 1
+          fi
+          S3_KEY="deploy-artifacts/${DEPLOY_ENVIRONMENT}/${EXPECTED_GIT_SHA}/${RELEASE_ID}/${ARTIFACT_NAME}"
           aws s3 cp \
             --region "$AWS_REGION_DEPLOY" \
             "artifacts/${ARTIFACT_NAME}" \
@@ -219,7 +261,11 @@ jobs:
         id: dispatch-ssm
         env:
           ARTIFACT_AWS_REGION: ${{ inputs.aws_region }}
+          ARTIFACT_SHA256: ${{ needs.build-artifact.outputs.artifact-sha256 }}
           ARTIFACT_S3_URI: ${{ steps.upload-artifact-s3.outputs.artifact_s3_uri }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
+          DEPLOY_RUN_ATTEMPT: ${{ github.run_attempt }}
+          DEPLOY_RUN_ID: ${{ github.run_id }}
           EC2_APP_ROOT: ${{ env.DEPLOY_EC2_APP_ROOT }}
           EC2_ENV_FILE: ${{ env.DEPLOY_EC2_ENV_FILE }}
           EC2_HEALTH_URL: ${{ env.DEPLOY_EC2_HEALTH_URL }}
@@ -227,6 +273,7 @@ jobs:
           EC2_READY_URL: ${{ env.DEPLOY_EC2_READY_URL }}
           EC2_SERVICE_NAME: ${{ env.DEPLOY_EC2_SERVICE_NAME }}
           EC2_KEEP_RELEASES: ${{ env.DEPLOY_EC2_KEEP_RELEASES }}
+          EXPECTED_GIT_SHA: ${{ needs.build-artifact.outputs.commit-sha }}
           RELEASE_ID: ${{ needs.build-artifact.outputs.release-id }}
         run: |
           test -n "$EC2_INSTANCE_ID"
@@ -237,9 +284,8 @@ jobs:
           HEALTH_URL="${EC2_HEALTH_URL:-http://127.0.0.1:3000/api/health}"
           READY_URL="${EC2_READY_URL:-http://127.0.0.1:3000/api/ready}"
           KEEP_RELEASES="${EC2_KEEP_RELEASES:-5}"
-          RELEASE_DIR="${APP_ROOT}/releases/${RELEASE_ID}"
           SCRIPT_B64="$(base64 -w 0 scripts/deploy-artifact-ssm.sh)"
-          export APP_ROOT ENV_FILE SERVICE_NAME HEALTH_URL READY_URL KEEP_RELEASES RELEASE_DIR SCRIPT_B64
+          export APP_ROOT ENV_FILE SERVICE_NAME HEALTH_URL READY_URL KEEP_RELEASES SCRIPT_B64
           python3 - <<'PY' > /tmp/projex-ssm-commands.json
           import json
           import os
@@ -247,7 +293,11 @@ jobs:
 
           env_values = {
               "APP_ROOT": os.environ["APP_ROOT"],
-              "RELEASE_DIR": os.environ["RELEASE_DIR"],
+              "RELEASE_ID": os.environ["RELEASE_ID"],
+              "EXPECTED_GIT_SHA": os.environ["EXPECTED_GIT_SHA"],
+              "DEPLOY_ENVIRONMENT": os.environ["DEPLOY_ENVIRONMENT"],
+              "DEPLOY_RUN_ID": os.environ["DEPLOY_RUN_ID"],
+              "DEPLOY_RUN_ATTEMPT": os.environ["DEPLOY_RUN_ATTEMPT"],
               "ENV_FILE": os.environ["ENV_FILE"],
               "SERVICE_NAME": os.environ["SERVICE_NAME"],
               "HEALTH_URL": os.environ["HEALTH_URL"],
@@ -255,6 +305,7 @@ jobs:
               "KEEP_RELEASES": os.environ["KEEP_RELEASES"],
               "ARTIFACT_S3_URI": os.environ["ARTIFACT_S3_URI"],
               "ARTIFACT_AWS_REGION": os.environ["ARTIFACT_AWS_REGION"],
+              "ARTIFACT_SHA256": os.environ["ARTIFACT_SHA256"],
           }
           env_prefix = " ".join(
               f"{key}={shlex.quote(value)}" for key, value in env_values.items()

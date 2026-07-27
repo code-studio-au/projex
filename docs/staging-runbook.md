@@ -288,13 +288,19 @@ Preferred: trigger the manual GitHub Actions deploy workflow
 
 Preferred deploy model:
 
-- build once in GitHub Actions
+- resolve the checked-out commit once and pass its immutable SHA through every
+  job
+- build once in GitHub Actions and embed the SHA, run ID, and attempt in the
+  release manifest
 - upload the prebuilt release artifact to S3
 - dispatch an SSM command to the EC2 host
+- verify the artifact checksum and identity before atomically promoting a fresh
+  staging directory
 - install runtime dependencies only on the host
 - run migrations
 - refresh the managed nginx request-limit include, validate nginx, and reload it
-- switch the `/opt/projex/current` symlink
+- atomically switch the `/opt/projex/current` symlink without overwriting any
+  existing release
 - restart the service
 
 The activated release under `/opt/projex/current` also includes the server

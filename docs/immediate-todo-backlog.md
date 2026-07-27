@@ -7,7 +7,8 @@ individual items are completed.
 ## Execution status
 
 - **Item 1 — GitHub hosted controls:** Completed 26 July 2026.
-- **Items 2 onward:** Pending.
+- **Item 2 — Deploy release identity:** Completed 26 July 2026.
+- **Items 3 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -34,6 +35,31 @@ and applied these controls:
   and `production` and rejects artifacts built from any source other than a
   workflow dispatched on protected `main`.
 - [README.md](../README.md) now matches the enforced controls.
+
+Item 2 completion retained the original finding below as a point-in-time record
+and applied these changes:
+
+- The build job resolves the checked-out commit with `git rev-parse HEAD` and
+  passes that full immutable SHA to every later deployment step.
+- The deployment job checks out that exact SHA rather than resolving the
+  mutable workflow input a second time.
+- Physical release IDs include the protected environment, commit prefix,
+  `GITHUB_RUN_ID`, and `GITHUB_RUN_ATTEMPT`, so retrying the same commit creates
+  a distinct release.
+- Every artifact contains a release manifest, and its SHA-256 is verified after
+  GitHub artifact download and again after the EC2 instance downloads it from
+  S3.
+- Environment and release identifiers use strict allowlist validation.
+- The host extracts into a unique staging directory, rejects unsafe archive
+  paths, validates the manifest, and atomically renames the complete directory
+  into place. Existing release directories are never overwritten.
+- Current-release activation and rollback use atomic symlink replacement.
+  Pruning resolves and rechecks the active target immediately before deletion
+  and never removes the active or rollback release.
+- Nine deploy-script regression tests cover manifest creation, invalid
+  identifiers, same-commit redeploys, failed downloads, checksum and manifest
+  mismatch, active-release overwrite refusal, migration failure, activation,
+  and readiness rollback.
 
 # Full Repository Review
 
