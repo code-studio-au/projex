@@ -214,21 +214,36 @@ Recommended target: create a GitHub environment such as `staging` or
 
 The artifact-based release flow performs:
 
+- check out the requested ref once and resolve its full immutable Git SHA
 - build once in GitHub Actions
 - package a deploy tarball containing `dist`, runtime source, migrations,
-  runtime scripts including the server smoke CLI entrypoint, and nginx
-  maintenance assets
+  runtime scripts including the server smoke CLI entrypoint, nginx maintenance
+  assets, and an immutable release manifest
+- name the physical release with environment, commit prefix, GitHub run ID, and
+  run attempt
+- verify the artifact SHA-256 after GitHub artifact download
 - upload the artifact to an S3 handoff bucket
 - dispatch an SSM shell command to the target EC2 instance
-- extract into `/opt/projex/releases/<release-id>`
+- download to a temporary file and verify the same SHA-256 on the host
+- reject unsafe archive paths, extract into a unique staging directory, and
+  validate the embedded release manifest
+- atomically rename the validated staging directory to
+  `/opt/projex/releases/<environment>-<sha>-run<run-id>-attempt<attempt>`
 - `pnpm install --frozen-lockfile --prod`
 - env load from `/etc/projex/projex.env`
 - `pnpm run db:migrate`
 - refresh shared maintenance assets
-- switch `/opt/projex/current`
+- atomically switch `/opt/projex/current`
 - restart `projex`
 - `/api/health` and `/api/ready` checks
-- rollback to the previous release symlink if restart or health checks fail
+- atomically roll back to the previous release symlink if restart or health
+  checks fail
+
+Existing release directories are never overwritten or removed during staging.
+Retrying the same commit produces a separate physical release because
+`GITHUB_RUN_ATTEMPT` changes. Release pruning resolves the live
+`/opt/projex/current` target and excludes it, the new release, and the rollback
+release from deletion.
 
 The deploy host does not need GitHub network access or SSH keys. The runner
 uploads the release tarball to `EC2_DEPLOY_ARTIFACT_BUCKET`, then invokes SSM,

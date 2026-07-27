@@ -166,7 +166,7 @@ async function verifyDeployArtifactDependencyPatches() {
     'Deploy artifact creation must require the brace-expansion compatibility patch'
   );
   assertCondition(
-    /\n\s+patches\s*$/m.test(createArtifactScript),
+    /\n\s+patches\s+\\$/m.test(createArtifactScript),
     'Deploy artifacts must include the patches directory'
   );
   assertCondition(
@@ -181,11 +181,56 @@ async function verifyDeployArtifactDependencyPatches() {
   );
 }
 
+async function verifyDeployReleaseIdentity() {
+  const [workflow, createArtifactScript, ssmScript, ec2Script] =
+    await Promise.all([
+      readFile('.github/workflows/deploy.yml', 'utf8'),
+      readFile('scripts/create-deploy-artifact.sh', 'utf8'),
+      readFile('scripts/deploy-artifact-ssm.sh', 'utf8'),
+      readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
+    ]);
+
+  assertCondition(
+    workflow.includes('COMMIT_SHA="$(git rev-parse HEAD)"') &&
+      workflow.includes('ref: ${{ needs.build-artifact.outputs.commit-sha }}'),
+    'Deploy build and activation jobs must share the resolved immutable checkout SHA'
+  );
+  assertCondition(
+    workflow.includes('GITHUB_RUN_ID') &&
+      workflow.includes('GITHUB_RUN_ATTEMPT') &&
+      workflow.includes('artifact_sha256'),
+    'Physical deploy identity must include the workflow run and verified artifact checksum'
+  );
+  assertCondition(
+    createArtifactScript.includes('.projex-release.json') &&
+      createArtifactScript.includes('"gitSha": "%s"') &&
+      createArtifactScript.includes('"runAttempt": "%s"'),
+    'Deploy artifacts must embed their immutable release manifest'
+  );
+  assertCondition(
+    ssmScript.includes(
+      'mktemp -d "${RELEASES_DIR}/.${RELEASE_ID}.staging.XXXXXX"'
+    ) &&
+      ssmScript.includes(
+        '\'require("node:fs").renameSync(process.argv[1], process.argv[2])\''
+      ) &&
+      !ssmScript.includes('rm -rf "$RELEASE_DIR"'),
+    'SSM deploys must validate in a fresh staging directory and atomically promote without deleting a release'
+  );
+  assertCondition(
+    ec2Script.includes('active_release_dir="$(current_release_dir') &&
+      ec2Script.includes('activate_release "$RELEASE_DIR"') &&
+      ec2Script.includes('rm -rf -- "$dir"'),
+    'Release activation and pruning must preserve the active release'
+  );
+}
+
 async function main() {
   await verifyGitignoreCoverage();
   await verifyTrustedProxyClientIpHeaders();
   await verifyNginxRequestLimits();
   await verifyDeployArtifactDependencyPatches();
+  await verifyDeployReleaseIdentity();
 
   const skipped = [];
   for (const check of checks) {
