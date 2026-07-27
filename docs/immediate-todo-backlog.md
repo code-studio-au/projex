@@ -8,9 +8,7 @@ individual items are completed.
 
 - **Item 1 — GitHub hosted controls:** Completed 26 July 2026.
 - **Item 2 — Deploy release identity:** Completed 26 July 2026.
-- **Item 3 — AWS deploy access via OIDC:** Repository implementation complete
-  27 July 2026; fresh staging infrastructure and OIDC identity provisioned.
-  Final workflow validation and legacy-key revocation remain pending.
+- **Item 3 — AWS deploy access via OIDC:** Completed 27 July 2026.
 - **Items 4 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
@@ -65,8 +63,8 @@ and applied these changes:
   failed-job retry identity, migration failure, activation, and both
   first-release and previous-release readiness rollback.
 
-Item 3 repository implementation retained the original finding below as a
-point-in-time record and applied these changes:
+Item 3 completion retained the original finding below as a point-in-time
+record and applied these changes:
 
 - CDK owns one account-wide GitHub Actions OIDC provider and creates each
   environment deploy role in a separate identity stack that cannot update the
@@ -90,8 +88,17 @@ point-in-time record and applied these changes:
 - The account-wide OIDC provider and staging-scoped role are live, and the
   GitHub staging environment points at the new role, instance, artifact
   bucket, and HTTPS origin.
-- Item 3 remains open only until a protected-main OIDC deployment succeeds and
-  the legacy GitHub credential secrets and root access key are removed.
+- Protected-main deploy run
+  [30266888167](https://github.com/code-studio-au/projex/actions/runs/30266888167)
+  passed the application, CDK, database, full server smoke, browser smoke,
+  OIDC, SSM activation, and deployed-public-surface gates.
+- The deployment failure review also closed two fresh-host gaps: CDK bootstrap
+  now installs the verified Amazon RDS CA bundle, and atomic release promotion
+  normalizes the release root to a service-traversable mode while keeping the
+  payload root-owned.
+- The legacy staging `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` GitHub
+  secrets were deleted after the successful OIDC run, and the associated root
+  access key was revoked. No root access keys remain active.
 
 # Full Repository Review
 
