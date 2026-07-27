@@ -8,6 +8,7 @@ import {
   readdir,
   realpath,
   rm,
+  stat,
   symlink,
   writeFile,
 } from 'node:fs/promises';
@@ -439,6 +440,8 @@ describe('deploy-artifact-ssm.sh', () => {
     );
     expect(firstRelease).toContain(firstIdentity.releaseId);
     expect(secondRelease).toContain(secondIdentity.releaseId);
+    expect((await stat(firstRelease)).mode & 0o777).toBe(0o755);
+    expect((await stat(secondRelease)).mode & 0o777).toBe(0o755);
     await expect(realpath(join(appRoot, 'current'))).resolves.toBe(
       secondRelease
     );
