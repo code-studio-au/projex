@@ -214,8 +214,14 @@ async function verifyDeployReleaseIdentity() {
       ssmScript.includes(
         '\'require("node:fs").renameSync(process.argv[1], process.argv[2])\''
       ) &&
-      !ssmScript.includes('rm -rf "$RELEASE_DIR"'),
-    'SSM deploys must validate in a fresh staging directory and atomically promote without deleting a release'
+      ssmScript.includes(
+        'validate_manifest_identity "$RELEASE_DIR/.projex-release.json"'
+      ) &&
+      ssmScript.includes(
+        'active_release_dir="$(resolve_existing_path "$CURRENT_LINK"'
+      ) &&
+      ssmScript.includes('rm -rf -- "$RELEASE_DIR"'),
+    'SSM deploys must validate in a fresh staging directory, preserve active releases, and only replace an identity-matched inactive retry'
   );
   assertCondition(
     ec2Script.includes('active_release_dir="$(current_release_dir') &&

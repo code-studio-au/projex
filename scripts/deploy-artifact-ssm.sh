@@ -21,6 +21,7 @@ RELEASES_DIR=""
 RELEASE_DIR=""
 STAGING_DIR=""
 ARCHIVE_LIST_PATH=""
+RECOVER_EXISTING_RELEASE="false"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -62,6 +63,45 @@ read_manifest_value() {
     }
     process.stdout.write(String(value));
   ' "$1" "$2"
+}
+
+validate_manifest_identity() {
+  local manifest_path="$1"
+  if [[ ! -f "$manifest_path" || -L "$manifest_path" ]]; then
+    fail "Release manifest must be a regular file: $manifest_path"
+  fi
+
+  local manifest_schema_version
+  local manifest_release_id
+  local manifest_git_sha
+  local manifest_environment
+  local manifest_run_id
+  local manifest_run_attempt
+  manifest_schema_version="$(read_manifest_value "$manifest_path" schemaVersion)"
+  manifest_release_id="$(read_manifest_value "$manifest_path" releaseId)"
+  manifest_git_sha="$(read_manifest_value "$manifest_path" gitSha)"
+  manifest_environment="$(read_manifest_value "$manifest_path" environment)"
+  manifest_run_id="$(read_manifest_value "$manifest_path" runId)"
+  manifest_run_attempt="$(read_manifest_value "$manifest_path" runAttempt)"
+
+  if [[ "$manifest_schema_version" != "1" ]]; then
+    fail "Unsupported deploy manifest schema: $manifest_schema_version"
+  fi
+  if [[ "$manifest_release_id" != "$RELEASE_ID" ]]; then
+    fail 'Deploy manifest release ID does not match the requested release.'
+  fi
+  if [[ "$manifest_git_sha" != "$EXPECTED_GIT_SHA" ]]; then
+    fail 'Deploy manifest Git SHA does not match the immutable build revision.'
+  fi
+  if [[ "$manifest_environment" != "$DEPLOY_ENVIRONMENT" ]]; then
+    fail 'Deploy manifest environment does not match the protected environment.'
+  fi
+  if [[ "$manifest_run_id" != "$DEPLOY_RUN_ID" ]]; then
+    fail 'Deploy manifest run ID does not match the workflow run.'
+  fi
+  if [[ "$manifest_run_attempt" != "$DEPLOY_RUN_ATTEMPT" ]]; then
+    fail 'Deploy manifest run attempt does not match the workflow run.'
+  fi
 }
 
 cleanup() {
@@ -126,6 +166,7 @@ require_command tar
 require_command mktemp
 require_command node
 require_command sha256sum
+require_command flock
 
 mkdir -p "$APP_ROOT"
 APP_ROOT="$(resolve_existing_path "$APP_ROOT")"
@@ -134,6 +175,10 @@ RELEASE_DIR="${RELEASES_DIR}/${RELEASE_ID}"
 CURRENT_LINK="${APP_ROOT}/current"
 
 mkdir -p "$RELEASES_DIR" "${APP_ROOT}/shared"
+exec 9>"${APP_ROOT}/shared/deploy.lock"
+if ! flock -n 9; then
+  fail 'Another host deployment is already in progress.'
+fi
 
 if [[ -L "$CURRENT_LINK" ]]; then
   active_release_dir="$(resolve_existing_path "$CURRENT_LINK" 2>/dev/null || true)"
@@ -145,8 +190,15 @@ if [[ -L "$CURRENT_LINK" ]]; then
   fi
 fi
 
-if [[ -e "$RELEASE_DIR" || -L "$RELEASE_DIR" ]]; then
-  fail "Release directory already exists; refusing to overwrite it: $RELEASE_DIR"
+if [[ -L "$RELEASE_DIR" ]]; then
+  fail "Release path must not be a symlink: $RELEASE_DIR"
+elif [[ -e "$RELEASE_DIR" ]]; then
+  if [[ ! -d "$RELEASE_DIR" ]]; then
+    fail "Release path must be a directory: $RELEASE_DIR"
+  fi
+  validate_manifest_identity "$RELEASE_DIR/.projex-release.json"
+  RECOVER_EXISTING_RELEASE="true"
+  log "Found an inactive release from an earlier attempt; it will be replaced only after the artifact is fully validated"
 fi
 
 if [[ -z "$ARTIFACT_LOCAL_PATH" ]]; then
@@ -191,34 +243,19 @@ if [[ ! -f "${STAGING_DIR}/scripts/deploy-artifact-ec2.sh" ]]; then
   fail 'Deploy artifact is missing scripts/deploy-artifact-ec2.sh.'
 fi
 
-manifest_schema_version="$(read_manifest_value "$manifest_path" schemaVersion)"
-manifest_release_id="$(read_manifest_value "$manifest_path" releaseId)"
-manifest_git_sha="$(read_manifest_value "$manifest_path" gitSha)"
-manifest_environment="$(read_manifest_value "$manifest_path" environment)"
-manifest_run_id="$(read_manifest_value "$manifest_path" runId)"
-manifest_run_attempt="$(read_manifest_value "$manifest_path" runAttempt)"
-
-if [[ "$manifest_schema_version" != "1" ]]; then
-  fail "Unsupported deploy manifest schema: $manifest_schema_version"
-fi
-if [[ "$manifest_release_id" != "$RELEASE_ID" ]]; then
-  fail 'Deploy manifest release ID does not match the requested release.'
-fi
-if [[ "$manifest_git_sha" != "$EXPECTED_GIT_SHA" ]]; then
-  fail 'Deploy manifest Git SHA does not match the immutable build revision.'
-fi
-if [[ "$manifest_environment" != "$DEPLOY_ENVIRONMENT" ]]; then
-  fail 'Deploy manifest environment does not match the protected environment.'
-fi
-if [[ "$manifest_run_id" != "$DEPLOY_RUN_ID" ]]; then
-  fail 'Deploy manifest run ID does not match the workflow run.'
-fi
-if [[ "$manifest_run_attempt" != "$DEPLOY_RUN_ATTEMPT" ]]; then
-  fail 'Deploy manifest run attempt does not match the workflow run.'
-fi
+validate_manifest_identity "$manifest_path"
 
 if [[ -e "$RELEASE_DIR" || -L "$RELEASE_DIR" ]]; then
-  fail "Release directory appeared during staging; refusing to overwrite it: $RELEASE_DIR"
+  if [[ "$RECOVER_EXISTING_RELEASE" != "true" || -L "$RELEASE_DIR" || ! -d "$RELEASE_DIR" ]]; then
+    fail "Release directory appeared during staging; refusing to overwrite it: $RELEASE_DIR"
+  fi
+  active_release_dir="$(resolve_existing_path "$CURRENT_LINK" 2>/dev/null || true)"
+  if [[ "$active_release_dir" == "$RELEASE_DIR" ]]; then
+    fail "Refusing to replace active release: $RELEASE_DIR"
+  fi
+  validate_manifest_identity "$RELEASE_DIR/.projex-release.json"
+  log "Removing matching inactive failed release before retry promotion"
+  rm -rf -- "$RELEASE_DIR"
 fi
 
 log "Promoting validated release atomically to ${RELEASE_DIR}"

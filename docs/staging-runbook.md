@@ -239,7 +239,7 @@ PG_POOL_MAX=10
 PG_IDLE_TIMEOUT_MS=30000
 PG_CONNECTION_TIMEOUT_MS=5000
 PG_SSL_MODE=require
-# PG_SSL_CA_FILE=/etc/projex/postgres-ca.crt
+PG_SSL_CA_FILE=/etc/projex/rds-global-bundle.pem
 
 BETTER_AUTH_SECRET=replace-with-long-random-secret
 BETTER_AUTH_URL=https://projectexpensetracker.com
@@ -278,7 +278,7 @@ Notes:
   - `CORS_ALLOWED_ORIGINS`
 - For normal production use, prefer the canonical public origin only.
 - Company export readiness depends on the configured object-storage bucket existing and being reachable from the app runtime.
-- Leave `PG_SSL_MODE=require` in normal production/staging. For a private or self-signed CA, set `PG_SSL_CA_FILE` to its mounted CA certificate; reserve `no-verify` for an explicit last-resort exception.
+- Leave `PG_SSL_MODE=require` in normal production/staging. CDK-provisioned hosts install Amazon RDS's commercial-region CA bundle at `/etc/projex/rds-global-bundle.pem`; keep `PG_SSL_CA_FILE` pointed there for RDS. For another provider, use its mounted CA path. Reserve `no-verify` for an explicit last-resort exception.
 - Use the nginx template at `deploy/nginx/projex.conf` as the baseline reverse-proxy config for:
   - HTTP -> HTTPS redirect
   - `server_tokens off`
