@@ -225,12 +225,57 @@ async function verifyDeployReleaseIdentity() {
   );
 }
 
+async function verifyGithubDeployOidcBoundary() {
+  const [workflow, cdkApp, identityStack, deployStack] = await Promise.all([
+    readFile('.github/workflows/deploy.yml', 'utf8'),
+    readFile('deploy/cdk/bin/projex-infra.ts', 'utf8'),
+    readFile('deploy/cdk/lib/projex-github-identity-stack.ts', 'utf8'),
+    readFile('deploy/cdk/lib/projex-github-deploy-stack.ts', 'utf8'),
+  ]);
+
+  assertCondition(
+    workflow.includes('vars.AWS_DEPLOY_ROLE_ARN') &&
+      workflow.includes('id-token: write') &&
+      workflow.includes('Configure AWS credentials from GitHub OIDC'),
+    'EC2 deploys must authenticate through the protected environment OIDC role'
+  );
+  for (const forbiddenStaticCredential of [
+    'secrets.AWS_ACCESS_KEY_ID',
+    'secrets.AWS_SECRET_ACCESS_KEY',
+    'aws-access-key-id:',
+    'aws-secret-access-key:',
+  ]) {
+    assertCondition(
+      !workflow.includes(forbiddenStaticCredential),
+      `Deploy workflow must not retain static AWS credential input: ${forbiddenStaticCredential}`
+    );
+  }
+  assertCondition(
+    cdkApp.includes('ProjexGithubIdentityStack') &&
+      identityStack.includes('token.actions.githubusercontent.com') &&
+      identityStack.includes("clientIdList: ['sts.amazonaws.com']"),
+    'CDK must own the account-wide GitHub Actions OIDC provider'
+  );
+  assertCondition(
+    deployStack.includes("'token.actions.githubusercontent.com:sub'") &&
+      deployStack.includes(
+        'repo:${props.githubRepository}:environment:${props.envName}'
+      ) &&
+      deployStack.includes("'s3:PutObject'") &&
+      deployStack.includes('artifactBucket.arnForObjects') &&
+      deployStack.includes("actions: ['ssm:SendCommand']") &&
+      deployStack.includes("actions: ['ssm:GetCommandInvocation']"),
+    'CDK deploy roles must bind the protected GitHub environment to narrow S3 and SSM permissions'
+  );
+}
+
 async function main() {
   await verifyGitignoreCoverage();
   await verifyTrustedProxyClientIpHeaders();
   await verifyNginxRequestLimits();
   await verifyDeployArtifactDependencyPatches();
   await verifyDeployReleaseIdentity();
+  await verifyGithubDeployOidcBoundary();
 
   const skipped = [];
   for (const check of checks) {

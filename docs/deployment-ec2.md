@@ -197,20 +197,48 @@ GitHub Actions manual workflow:
 
 - `.github/workflows/deploy.yml`
 - default mode: `artifact-only`
-- optional mode when secrets are ready: `ec2`
+- optional mode when environment configuration is ready: `ec2`
 
-When enabling the `ec2` mode, set GitHub Actions environment secrets for:
+When enabling the `ec2` mode, set:
 
-- preferred AWS auth: `AWS_DEPLOY_ROLE_ARN`
-- fallback AWS auth: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`
+- GitHub environment variable
+  `AWS_DEPLOY_ROLE_ARN=<GithubDeployRoleArn CDK output>`
 - `EC2_INSTANCE_ID`
 - `EC2_DEPLOY_ARTIFACT_BUCKET`
 - `EC2_PUBLIC_BASE_URL`
 - optional overrides such as `EC2_APP_ROOT`, `EC2_ENV_FILE`, `EC2_SERVICE_NAME`, `EC2_HEALTH_URL`, `EC2_READY_URL`, and `EC2_KEEP_RELEASES`
 
 Recommended target: create a GitHub environment such as `staging` or
-`production`, put these secrets on that environment, and run
+`production`, put the role ARN in that environment's variables and the EC2
+values in its secrets, and run
 `.github/workflows/deploy.yml` with the matching `environment_name` input.
+
+### GitHub OIDC deployment identity
+
+CDK owns the account-wide GitHub Actions OIDC provider in
+`ProjexGithubIdentity`. Each separate
+`ProjexGithubDeploy-<environment>` stack creates its own deploy role,
+restricted to the exact GitHub OIDC subject:
+
+```text
+repo:code-studio-au/projex:environment:<environment>
+```
+
+The role can write only to
+`deploy-artifacts/<environment>/*` in that stack's handoff bucket, send
+`AWS-RunShellScript` only to that stack's EC2 instance, and read the resulting
+command invocation. The workflow grants `id-token: write` only to the EC2
+deployment job.
+
+The deploy-role stack receives the existing `Ec2InstanceId` and
+`DeployArtifactBucketName` as CDK context. It is deliberately independent of
+`ProjexInfra-<environment>` so credential changes cannot apply unrelated AMI,
+EC2 bootstrap, RDS, VPC, or bucket changes.
+
+There is deliberately no static-access-key fallback. After confirming an
+existing environment deploys successfully with OIDC, delete its GitHub
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` secrets
+and revoke the associated IAM access key.
 
 The artifact-based release flow performs:
 

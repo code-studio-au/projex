@@ -5,7 +5,9 @@
     "exclude": ["README.md", "cdk*.json", "package*.json", "tsconfig.json"]
   },
   "context": {
+    "@aws-cdk/core:defaultCrossStackReferences": "strong",
     "envName": "staging",
+    "githubRepository": "code-studio-au/projex",
     "instanceType": "t4g.small",
     "dbInstanceType": "t4g.micro",
     "dbAllocatedStorage": 20,

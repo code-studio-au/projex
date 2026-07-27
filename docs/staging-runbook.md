@@ -124,15 +124,14 @@ pnpm run verify:deploy-security
 
 When auth credentials are provided, the verifier also checks that sign-in sets `HttpOnly` cookies, requires `Secure` on HTTPS deployments, and that authenticated `/api/session` returns a `userId`.
 
-GitHub Actions deploys expect these environment secrets on the target GitHub
+GitHub Actions deploys expect the following configuration on the target GitHub
 environment when `deploy_target=ec2` is used:
 
-- preferred AWS auth:
+- environment variable:
   - `AWS_DEPLOY_ROLE_ARN`
-- fallback AWS auth:
-  - `AWS_ACCESS_KEY_ID`
-  - `AWS_SECRET_ACCESS_KEY`
-  - optional `AWS_SESSION_TOKEN`
+    - Set to the matching CDK `GithubDeployRoleArn` output.
+    - Authentication is GitHub OIDC only; static AWS access keys are rejected.
+- environment secrets:
 - `EC2_INSTANCE_ID`
 - `EC2_DEPLOY_ARTIFACT_BUCKET`
 - `EC2_ENV_FILE`
@@ -159,10 +158,16 @@ Recommended setup:
 
 - create one GitHub environment per deploy target, for example `staging` or
   `production`
-- store the EC2 and AWS deploy secrets on that environment rather than as
-  repo-wide secrets
-- prefer `AWS_DEPLOY_ROLE_ARN` via OIDC and leave the static-key fallback
-  empty unless you truly need it
+- deploy `ProjexGithubIdentity` plus the matching
+  `ProjexGithubDeploy-<environment>` CDK stack using the existing
+  `Ec2InstanceId` and `DeployArtifactBucketName` outputs; this identity-only
+  deployment cannot update or replace the application infrastructure
+- set `AWS_DEPLOY_ROLE_ARN` as an environment variable, not a secret, using the
+  matching environment stack output
+- keep EC2 deploy values as environment secrets rather than repo-wide secrets
+- do not configure `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, or
+  `AWS_SESSION_TOKEN`; after OIDC verification, delete any legacy GitHub
+  secrets and revoke the associated IAM access key
 - point `EC2_DEPLOY_ARTIFACT_BUCKET` at the CDK output
   `DeployArtifactBucketName`
 - keep the EC2 host SSM-enabled and do not rely on SSH for normal releases

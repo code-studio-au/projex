@@ -7,13 +7,23 @@ This CDK app provisions a staging/prod baseline:
 - RDS Postgres (private isolated subnet)
 - S3 bucket for company export workbook objects
 - S3 bucket for temporary deploy artifact handoff
+- account-wide GitHub Actions OIDC provider
+- environment-scoped GitHub deploy role with narrow S3 and SSM access
 - Security groups (DB only accessible from app SG)
 - Secrets Manager DB credentials
 
 ## Prereqs
 
 - AWS account + IAM permissions for VPC/EC2/RDS/S3/SecretsManager/CloudFormation
-- AWS CLI configured (`aws configure`)
+- AWS CLI v2 using short-lived human authentication. For example:
+
+  ```bash
+  aws login --profile <profile> --region <region>
+  ```
+
+  IAM Identity Center (`aws sso login`) is the preferred team setup. Do not
+  configure a root or IAM-user access key for routine CDK work.
+
 - Node.js 24 on your machine, matching the root repo `.nvmrc`, `.node-version`,
   and CI/deploy workflows
 
@@ -36,6 +46,10 @@ AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:bootstrap
 You can override per run using `-c key=value`:
 
 - `envName` (`staging` or `production`)
+- `githubRepository` (default `code-studio-au/projex`)
+- `deployInstanceId` (optional; provide with `deployArtifactBucketName` to
+  synthesize the environment OIDC deploy-role stack)
+- `deployArtifactBucketName` (optional; provide with `deployInstanceId`)
 - `instanceType` (default `t4g.small`)
 - `dbInstanceType` (default `t4g.micro`)
 - `dbAllocatedStorage` (default `20`)
@@ -54,7 +68,7 @@ Recommended region for this repo:
 ## Preview
 
 ```bash
-AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:synth -- \
+AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:synth \
   -c envName=staging \
   -c instanceType=t4g.small \
   -c dbInstanceType=t4g.micro \
@@ -72,7 +86,8 @@ inspect templates.
 ## Deploy Staging
 
 ```bash
-AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:deploy -- \
+AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:deploy \
+  ProjexInfra-staging \
   -c envName=staging \
   -c instanceType=t4g.small \
   -c dbInstanceType=t4g.micro \
@@ -82,6 +97,21 @@ AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:deploy -- \
   -c dbName=projex \
   -c dbUsername=projex_app
 ```
+
+After the infrastructure stack succeeds, deploy the separate OIDC identity and
+environment role stacks using its outputs:
+
+```bash
+AWS_PROFILE=<profile> AWS_REGION=<region> pnpm run cdk:deploy \
+  ProjexGithubIdentity ProjexGithubDeploy-staging \
+  -c envName=staging \
+  -c deployInstanceId=<Ec2InstanceId> \
+  -c deployArtifactBucketName=<DeployArtifactBucketName>
+```
+
+Keeping the deploy identity separate is intentional. Adding or updating the
+GitHub role does not update the EC2/RDS/VPC stack, so unrelated AMI or bootstrap
+drift cannot replace the application host during a credential migration.
 
 ## Outputs
 
@@ -94,6 +124,7 @@ After deploy, collect:
 - `DbSecretArn`
 - `ExportBucketName`
 - `DeployArtifactBucketName`
+- `GithubDeployRoleArn` from `ProjexGithubDeploy-<environment>`
 
 Use `DbSecretArn` to fetch DB credentials and build `DATABASE_URL` for your app env.
 Use `ExportBucketName` with:
@@ -131,16 +162,34 @@ The EC2 host created by this stack now self-prepares into a deploy-ready baselin
 
 That means a fresh CDK-created instance should be ready to receive the GitHub Actions artifact deploy flow without manual package installation or service-file setup.
 
-For the GitHub environment that will run `.github/workflows/deploy.yml`, set:
+The `ProjexGithubIdentity` stack owns the account-wide
+`token.actions.githubusercontent.com` provider. Each
+`ProjexGithubDeploy-<environment>` stack owns a deploy role whose trust policy
+accepts only:
 
-- preferred AWS auth: `AWS_DEPLOY_ROLE_ARN`
-- fallback AWS auth: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional
-  `AWS_SESSION_TOKEN`
+```text
+repo:<githubRepository>:environment:<envName>
+```
+
+The role can upload only under that environment's deploy-artifact prefix, send
+`AWS-RunShellScript` only to that stack's EC2 instance, and read command
+results. It cannot use general S3 or SSM administration APIs.
+
+For the matching GitHub environment that will run
+`.github/workflows/deploy.yml`, set:
+
+- environment variable
+  `AWS_DEPLOY_ROLE_ARN=<GithubDeployRoleArn output>`
 - `EC2_INSTANCE_ID=<Ec2InstanceId output>`
 - `EC2_DEPLOY_ARTIFACT_BUCKET=<DeployArtifactBucketName output>`
 - `EC2_PUBLIC_BASE_URL=https://your-public-hostname`
 - optional overrides: `EC2_APP_ROOT`, `EC2_ENV_FILE`, `EC2_SERVICE_NAME`,
   `EC2_HEALTH_URL`, `EC2_READY_URL`, `EC2_KEEP_RELEASES`
+
+Do not configure AWS access-key secrets. After an existing environment
+successfully deploys through OIDC, delete its GitHub `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` secrets and revoke the
+corresponding IAM access key.
 
 Keep `sshCidr` empty unless you have a separate operational need for SSH
 outside the repo's supported deployment flow. The supported deployment path is
