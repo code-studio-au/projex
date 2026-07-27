@@ -24,6 +24,12 @@ describe('buildHostBootstrapCommands', () => {
       '/usr/local/lib/nodejs/$PROJEX_NODE_RELEASE_DIR/bin/$PROJEX_NODE_BINARY'
     );
     expect(joined).toContain(
+      'tar --extract --xz --no-same-owner --file "$PROJEX_NODE_TMP/$PROJEX_NODE_ARCHIVE" --directory /usr/local/lib/nodejs'
+    );
+    expect(joined).toContain(
+      'chown -R root:root "/usr/local/lib/nodejs/$PROJEX_NODE_RELEASE_DIR"'
+    );
+    expect(joined).toContain(
       'sudo -u ec2-user /usr/local/bin/corepack prepare pnpm@11.0.8 --activate'
     );
     expect(commands).toContain('node --version');
