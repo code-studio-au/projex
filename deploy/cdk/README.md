@@ -162,6 +162,11 @@ The EC2 host created by this stack now self-prepares into a deploy-ready baselin
 
 That means a fresh CDK-created instance should be ready to receive the GitHub Actions artifact deploy flow without manual package installation or service-file setup.
 
+The bootstrap installs the current Node.js 24 LTS binary for the host
+architecture directly from the official Node.js release service and verifies
+it against the published SHA-256 manifest before installation. It does not
+depend on a third-party package-repository setup script.
+
 The `ProjexGithubIdentity` stack owns the account-wide
 `token.actions.githubusercontent.com` provider. Each
 `ProjexGithubDeploy-<environment>` stack owns a deploy role whose trust policy

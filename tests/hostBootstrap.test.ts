@@ -6,11 +6,37 @@ describe('buildHostBootstrapCommands', () => {
   test('installs deploy-ready host assets and cert provisioning helpers', () => {
     const commands = buildHostBootstrapCommands();
 
-    expect(commands).toContain('corepack enable');
+    expect(commands).toContain(
+      'corepack enable pnpm --install-directory /usr/local/bin'
+    );
     expect(commands).toContain('systemctl enable projex');
     expect(commands).toContain('systemctl restart nginx');
 
     const joined = commands.join('\n');
+    expect(joined).not.toContain('rpm.nodesource.com');
+    expect(joined).toContain(
+      'https://nodejs.org/download/release/latest-v24.x/SHASUMS256.txt'
+    );
+    expect(joined).toContain('aarch64) PROJEX_NODE_ARCH=arm64');
+    expect(joined).toContain('x86_64) PROJEX_NODE_ARCH=x64');
+    expect(joined).toContain('sha256sum --check SHASUMS256-linux.txt');
+    expect(joined).toContain(
+      '/usr/local/lib/nodejs/$PROJEX_NODE_RELEASE_DIR/bin/$PROJEX_NODE_BINARY'
+    );
+    expect(joined).toContain(
+      'tar --extract --xz --no-same-owner --file "$PROJEX_NODE_TMP/$PROJEX_NODE_ARCHIVE" --directory /usr/local/lib/nodejs'
+    );
+    expect(joined).toContain(
+      'chown -R root:root "/usr/local/lib/nodejs/$PROJEX_NODE_RELEASE_DIR"'
+    );
+    expect(joined).toContain(
+      'sudo -u ec2-user /usr/local/bin/corepack prepare pnpm@11.0.8 --activate'
+    );
+    expect(commands).toContain('node --version');
+    expect(commands).toContain('pnpm --version');
+    expect(commands).toContain(
+      'sudo -u ec2-user /usr/local/bin/pnpm --version'
+    );
     expect(joined).toContain('/etc/nginx/conf.d/projex.conf');
     expect(joined).toContain('/etc/nginx/conf.d/projex-request-limits.conf');
     expect(joined).toContain('client_max_body_size 16m;');
