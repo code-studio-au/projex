@@ -8,7 +8,10 @@ individual items are completed.
 
 - **Item 1 — GitHub hosted controls:** Completed 26 July 2026.
 - **Item 2 — Deploy release identity:** Completed 26 July 2026.
-- **Items 3 onward:** Pending.
+- **Item 3 — AWS deploy access via OIDC:** Repository implementation complete
+  27 July 2026; fresh staging infrastructure and OIDC identity provisioned.
+  Final workflow validation and legacy-key revocation remain pending.
+- **Items 4 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -61,6 +64,34 @@ and applied these changes:
   mismatch, active-release overwrite refusal, broken-symlink recovery,
   failed-job retry identity, migration failure, activation, and both
   first-release and previous-release readiness rollback.
+
+Item 3 repository implementation retained the original finding below as a
+point-in-time record and applied these changes:
+
+- CDK owns one account-wide GitHub Actions OIDC provider and creates each
+  environment deploy role in a separate identity stack that cannot update the
+  EC2/RDS/VPC stack.
+- Each role trusts only the exact protected GitHub environment identity for
+  `code-studio-au/projex`, with the standard STS audience.
+- Deploy permissions are limited to the environment's artifact prefix,
+  `AWS-RunShellScript` on that environment's EC2 instance, and command-result
+  reads.
+- The deploy workflow grants `id-token: write` only to the deployment job and
+  requires the CDK role ARN through a GitHub environment variable.
+- All static AWS access-key inputs and fallback logic were removed from the
+  workflow.
+- CDK synthesis tests and repository boundary checks prevent broad trust,
+  wildcard service permissions, or static-key fallback from returning.
+- Deployment documentation now describes the OIDC-only setup and the required
+  post-verification deletion and revocation of legacy access keys.
+- The unused staging stack was deliberately destroyed and recreated from the
+  reviewed CDK definition. The fresh host uses an automatically renewing
+  Let's Encrypt certificate and a temporary IP-derived staging hostname.
+- The account-wide OIDC provider and staging-scoped role are live, and the
+  GitHub staging environment points at the new role, instance, artifact
+  bucket, and HTTPS origin.
+- Item 3 remains open only until a protected-main OIDC deployment succeeds and
+  the legacy GitHub credential secrets and root access key are removed.
 
 # Full Repository Review
 

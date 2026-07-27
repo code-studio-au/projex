@@ -98,15 +98,15 @@ same commit cannot overwrite an earlier release. The runner and EC2 host verify
 the artifact SHA-256; the host then validates its embedded identity manifest in
 a fresh staging directory before atomically promoting and activating it.
 
-The manual deploy workflow expects GitHub Actions environment secrets for the
-target environment. EC2 deploys are limited to the protected `main` branch and
-the configured `staging` or `production` environments. Both environments
+The manual deploy workflow expects GitHub Actions environment configuration for
+the target environment. EC2 deploys are limited to the protected `main` branch
+and the configured `staging` or `production` environments. Both environments
 require explicit approval before deployment and do not allow administrator
-bypass. At minimum their environment secrets must include:
+bypass. At minimum configure:
 
-- AWS auth, preferably `AWS_DEPLOY_ROLE_ARN`, or the static-key fallback
-  `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional
-  `AWS_SESSION_TOKEN`
+- environment variable `AWS_DEPLOY_ROLE_ARN`, using the matching CDK
+  `GithubDeployRoleArn` output; deploys accept GitHub OIDC only and have no
+  static AWS key fallback
 - `EC2_INSTANCE_ID`
 - `EC2_DEPLOY_ARTIFACT_BUCKET`
 - optional runtime path/health overrides such as `EC2_APP_ROOT`,

@@ -36,7 +36,6 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   build-artifact:
@@ -187,11 +186,11 @@ jobs:
     needs:
       - build-artifact
     environment: ${{ inputs.environment_name }}
+    permissions:
+      contents: read
+      id-token: write
     env:
-      DEPLOY_AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-      DEPLOY_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      DEPLOY_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      DEPLOY_AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      DEPLOY_AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
       DEPLOY_EC2_APP_ROOT: ${{ secrets.EC2_APP_ROOT }}
       DEPLOY_EC2_DEPLOY_ARTIFACT_BUCKET: ${{ secrets.EC2_DEPLOY_ARTIFACT_BUCKET }}
       DEPLOY_EC2_ENV_FILE: ${{ secrets.EC2_ENV_FILE }}
@@ -213,21 +212,19 @@ jobs:
         with:
           node-version: 24
 
-      - name: Configure AWS credentials from OIDC
-        if: ${{ env.DEPLOY_AWS_DEPLOY_ROLE_ARN != '' }}
+      - name: Validate OIDC deployment role
+        run: |
+          if [[ -z "$DEPLOY_AWS_DEPLOY_ROLE_ARN" ]]; then
+            echo "AWS_DEPLOY_ROLE_ARN must be configured as a GitHub environment variable." >&2
+            exit 1
+          fi
+
+      - name: Configure AWS credentials from GitHub OIDC
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           aws-region: ${{ inputs.aws_region }}
           role-to-assume: ${{ env.DEPLOY_AWS_DEPLOY_ROLE_ARN }}
-
-      - name: Configure AWS credentials from static secrets
-        if: ${{ env.DEPLOY_AWS_DEPLOY_ROLE_ARN == '' }}
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: ${{ inputs.aws_region }}
-          aws-access-key-id: ${{ env.DEPLOY_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.DEPLOY_AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ env.DEPLOY_AWS_SESSION_TOKEN }}
+          role-session-name: projex-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Download deploy artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8

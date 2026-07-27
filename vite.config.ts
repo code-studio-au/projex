@@ -81,7 +81,7 @@ export default defineConfig(({ command }) => {
     plugins: [tanstackStart(), react()],
     test: {
       environment: 'node',
-      include: ['tests/**/*.test.ts'],
+      include: ['tests/**/*.test.ts', 'deploy/cdk/tests/**/*.test.ts'],
       exclude: ['tests/dbIntegration*.test.ts'],
       coverage: {
         provider: 'v8',
