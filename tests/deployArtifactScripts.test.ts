@@ -338,13 +338,7 @@ describe('create-deploy-artifact.sh', () => {
     await mkdir(extractRoot);
     const extract = spawnSync(
       'tar',
-      [
-        '-xzf',
-        join(sourceRoot, 'artifacts', artifactName),
-        '-C',
-        extractRoot,
-        './.projex-release.json',
-      ],
+      ['-xzf', join(sourceRoot, 'artifacts', artifactName), '-C', extractRoot],
       { encoding: 'utf8' }
     );
     expect(extract.status, extract.stderr).toBe(0);
