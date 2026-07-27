@@ -167,6 +167,7 @@ require_command mktemp
 require_command node
 require_command sha256sum
 require_command flock
+require_command chmod
 
 mkdir -p "$APP_ROOT"
 APP_ROOT="$(resolve_existing_path "$APP_ROOT")"
@@ -244,6 +245,7 @@ if [[ ! -f "${STAGING_DIR}/scripts/deploy-artifact-ec2.sh" ]]; then
 fi
 
 validate_manifest_identity "$manifest_path"
+chmod 0755 "$STAGING_DIR"
 
 if [[ -e "$RELEASE_DIR" || -L "$RELEASE_DIR" ]]; then
   if [[ "$RECOVER_EXISTING_RELEASE" != "true" || -L "$RELEASE_DIR" || ! -d "$RELEASE_DIR" ]]; then
