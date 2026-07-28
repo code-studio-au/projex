@@ -799,6 +799,25 @@ describe('deploy-artifact-ec2.sh', () => {
     );
   });
 
+  test('rejects service names that already include the systemd unit suffix', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    await mkdir(appRoot, { recursive: true });
+    await writeFile(join(appRoot, 'projex.env'), '');
+    const releaseId = 'staging-aaaaaaaaaaaa-run198-attempt3';
+    const releaseDir = await createEc2Release(appRoot, releaseId);
+
+    const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
+      SERVICE_NAME: 'projex-custom.service',
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'SERVICE_NAME must omit the .service suffix'
+    );
+  });
+
   test('activates a validated release with an atomic symlink replacement', async () => {
     const root = await makeTemporaryRoot();
     const appRoot = join(root, 'app');
@@ -862,6 +881,9 @@ describe('deploy-artifact-ec2.sh', () => {
     await symlink(previousRelease, join(appRoot, 'current'));
     const releaseId = 'staging-aaaaaaaaaaaa-run202-attempt1';
     const releaseDir = await createEc2Release(appRoot, releaseId);
+    const systemdServicePath = join(appRoot, 'systemd', 'projex.service');
+    await mkdir(dirname(systemdServicePath), { recursive: true });
+    await writeFile(systemdServicePath, 'previous systemd unit\n');
 
     const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
       READY_TIMEOUT_SECONDS: '0',
@@ -874,6 +896,9 @@ describe('deploy-artifact-ec2.sh', () => {
       previousRelease
     );
     await expect(realpath(releaseDir)).resolves.toBe(releaseDir);
+    await expect(readFile(systemdServicePath, 'utf8')).resolves.toBe(
+      'previous systemd unit\n'
+    );
   });
 
   test('stops a failed service when the first release rolls back', async () => {

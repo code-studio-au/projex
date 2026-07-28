@@ -24,6 +24,10 @@ SYSTEMD_SERVICE_PATH="${SYSTEMD_SERVICE_PATH:-}"
 RELEASES_DIR=""
 NEXT_LINK=""
 SYSTEMD_RENDER_PATH=""
+SYSTEMD_BACKUP_PATH=""
+SYSTEMD_UNIT_EXISTED="false"
+SYSTEMD_UNIT_UPDATED="false"
+SYSTEMD_SERVICE_WAS_ENABLED="false"
 DEPLOY_GROUP=""
 RELEASE_OWNED_BY_DEPLOY_USER="false"
 
@@ -130,6 +134,65 @@ render_systemd_service() {
   ' "$source_path" "$destination_path" "$CURRENT_LINK" "$ENV_FILE"
 }
 
+preserve_systemd_service() {
+  if [[ -L "$SYSTEMD_SERVICE_PATH" ]]; then
+    fail "Systemd service path must not be a symlink: $SYSTEMD_SERVICE_PATH"
+  fi
+  if [[ -e "$SYSTEMD_SERVICE_PATH" && ! -f "$SYSTEMD_SERVICE_PATH" ]]; then
+    fail "Systemd service path must be a regular file: $SYSTEMD_SERVICE_PATH"
+  fi
+
+  if [[ -f "$SYSTEMD_SERVICE_PATH" ]]; then
+    SYSTEMD_BACKUP_PATH="${RELEASE_DIR}/.projex-systemd-backup-${RELEASE_ID}.$$.service"
+    sudo install -o root -g root -m 0600 \
+      "$SYSTEMD_SERVICE_PATH" \
+      "$SYSTEMD_BACKUP_PATH"
+    SYSTEMD_UNIT_EXISTED="true"
+  fi
+  if sudo systemctl is-enabled --quiet "$SERVICE_NAME"; then
+    SYSTEMD_SERVICE_WAS_ENABLED="true"
+  fi
+}
+
+restore_systemd_service() {
+  if [[ "$SYSTEMD_UNIT_UPDATED" != "true" ]]; then
+    return 0
+  fi
+
+  local restore_failed="false"
+  log "Restoring the previous systemd service configuration"
+  if [[ "$SYSTEMD_UNIT_EXISTED" == "true" ]]; then
+    if ! sudo install -o root -g root -m 0644 \
+      "$SYSTEMD_BACKUP_PATH" \
+      "$SYSTEMD_SERVICE_PATH"; then
+      restore_failed="true"
+    fi
+  elif ! sudo rm -f -- "$SYSTEMD_SERVICE_PATH"; then
+    restore_failed="true"
+  fi
+
+  if ! sudo systemctl daemon-reload; then
+    restore_failed="true"
+  fi
+  if [[ "$SYSTEMD_SERVICE_WAS_ENABLED" == "true" ]]; then
+    if ! sudo systemctl enable "$SERVICE_NAME"; then
+      restore_failed="true"
+    fi
+  elif ! sudo systemctl disable "$SERVICE_NAME"; then
+    restore_failed="true"
+  fi
+
+  SYSTEMD_UNIT_UPDATED="false"
+  if [[ -n "$SYSTEMD_BACKUP_PATH" ]]; then
+    rm -f -- "$SYSTEMD_BACKUP_PATH"
+    SYSTEMD_BACKUP_PATH=""
+  fi
+  if [[ "$restore_failed" == "true" ]]; then
+    log "WARNING: failed to fully restore the previous systemd service configuration"
+    return 1
+  fi
+}
+
 ensure_deploy_identity() {
   if ! id -u "$DEPLOY_USER" >/dev/null 2>&1; then
     log "Creating constrained deployment identity ${DEPLOY_USER}"
@@ -192,11 +255,15 @@ activate_release() {
 }
 
 cleanup() {
+  restore_systemd_service || true
   if [[ -n "$NEXT_LINK" && -L "$NEXT_LINK" ]]; then
     rm -f -- "$NEXT_LINK"
   fi
   if [[ -n "$SYSTEMD_RENDER_PATH" ]]; then
     rm -f -- "$SYSTEMD_RENDER_PATH"
+  fi
+  if [[ -n "$SYSTEMD_BACKUP_PATH" ]]; then
+    rm -f -- "$SYSTEMD_BACKUP_PATH"
   fi
   if [[ "$RELEASE_OWNED_BY_DEPLOY_USER" == "true" && -d "$RELEASE_DIR" ]]; then
     sudo chown -R root:root "$RELEASE_DIR" || true
@@ -225,6 +292,7 @@ wait_for_http_ok() {
 }
 
 rollback_release() {
+  restore_systemd_service || true
   if [[ -n "${PREVIOUS_RELEASE_DIR:-}" && -d "${PREVIOUS_RELEASE_DIR:-}" ]]; then
     log "Rolling back to previous release ${PREVIOUS_RELEASE_DIR}"
     activate_release "$PREVIOUS_RELEASE_DIR"
@@ -291,6 +359,9 @@ validate_service_sandbox_path "CURRENT_LINK" "$CURRENT_LINK"
 
 validate_identifier "RELEASE_ID" "$RELEASE_ID"
 validate_identifier "SERVICE_NAME" "$SERVICE_NAME"
+if [[ "$SERVICE_NAME" == *.service ]]; then
+  fail 'SERVICE_NAME must omit the .service suffix.'
+fi
 validate_system_user "DEPLOY_USER" "$DEPLOY_USER"
 if [[ ! "$EXPECTED_GIT_SHA" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
   fail 'EXPECTED_GIT_SHA must be a full lowercase Git object ID.'
@@ -411,9 +482,11 @@ render_systemd_service \
   "$RELEASE_DIR/deploy/systemd/projex.service" \
   "$SYSTEMD_RENDER_PATH"
 sudo systemd-analyze verify "$SYSTEMD_RENDER_PATH"
+preserve_systemd_service
 sudo install -o root -g root -m 0644 \
   "$SYSTEMD_RENDER_PATH" \
   "$SYSTEMD_SERVICE_PATH"
+SYSTEMD_UNIT_UPDATED="true"
 rm -f -- "$SYSTEMD_RENDER_PATH"
 SYSTEMD_RENDER_PATH=""
 sudo systemctl daemon-reload
@@ -468,3 +541,9 @@ sudo journalctl -u "$SERVICE_NAME" -n 40 --no-pager
 
 log "Pruning old releases"
 prune_old_releases
+
+SYSTEMD_UNIT_UPDATED="false"
+if [[ -n "$SYSTEMD_BACKUP_PATH" ]]; then
+  rm -f -- "$SYSTEMD_BACKUP_PATH"
+  SYSTEMD_BACKUP_PATH=""
+fi

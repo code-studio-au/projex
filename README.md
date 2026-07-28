@@ -110,7 +110,9 @@ When deployment path overrides are configured, the installed systemd unit is
 rendered from those validated paths so activation and service startup remain
 aligned and the selected service is enabled for reboot. Application and
 environment paths below `/home`, `/root`, or `/run/user` are rejected because
-the service sandbox deliberately makes those locations inaccessible.
+the service sandbox deliberately makes those locations inaccessible. Service
+name overrides omit the `.service` suffix. A failed activation restores both
+the previous release and its systemd unit configuration.
 
 The manual deploy workflow expects GitHub Actions environment configuration for
 the target environment. EC2 deploys are limited to the protected `main` branch
