@@ -92,6 +92,7 @@ export abstract class AuthenticatedSmokePage {
     );
     this.assert(response, 'Company page navigation did not return a response');
     this.assert(response.ok(), 'Company page did not load successfully');
+    await this.waitForAuthenticatedHydration();
     return response;
   }
 
@@ -103,6 +104,7 @@ export abstract class AuthenticatedSmokePage {
     );
     this.assert(response, 'Project navigation did not return a response');
     this.assert(response.ok(), 'Project workspace did not load successfully');
+    await this.waitForAuthenticatedHydration();
     return response;
   }
 
@@ -151,6 +153,20 @@ export abstract class AuthenticatedSmokePage {
       await this.page.waitForTimeout(250);
     }
     throw new Error(`${message}. Current URL: ${this.page.url()}`);
+  }
+
+  private async waitForAuthenticatedHydration() {
+    const accountButton = this.page.getByRole('button', { name: 'Account' });
+    await accountButton.waitFor({ state: 'visible' });
+    await this.page.waitForFunction(
+      () =>
+        Array.from(document.querySelectorAll('button')).some(
+          (button) =>
+            button.getAttribute('aria-label') === 'Account' && !button.disabled
+        ),
+      undefined,
+      { timeout: 15_000 }
+    );
   }
 
   protected async waitForStableLocator(locator: Locator) {
