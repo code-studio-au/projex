@@ -5,6 +5,7 @@ import { getDb } from '../db/db.ts';
 import { sendAuthEmail } from './email.ts';
 import { AppError } from '../../api/errors.ts';
 import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas.ts';
+import { buildPasswordSetupEmailMessage } from '../email/authMessages.ts';
 
 export type BetterAuthSessionApi = ReturnType<typeof betterAuth>;
 
@@ -66,24 +67,14 @@ function buildBetterAuthOptionsForPurpose(
       enabled: true,
       disableSignUp: purpose === 'public-handler',
       async sendResetPassword({ user, url }) {
+        const message = buildPasswordSetupEmailMessage({
+          recipientName: user.name,
+          recipientEmail: user.email,
+          url,
+        });
         await sendAuthEmail({
           to: user.email,
-          subject: 'Set up your Projex password',
-          text: [
-            `Hi ${user.name || user.email},`,
-            '',
-            'You have been invited to Projex.',
-            'Use the link below to set your password:',
-            url,
-            '',
-            'If you were not expecting this email, you can ignore it.',
-          ].join('\n'),
-          html: [
-            `<p>Hi ${user.name || user.email},</p>`,
-            '<p>You have been invited to Projex.</p>',
-            `<p><a href="${url}">Set your password</a></p>`,
-            '<p>If you were not expecting this email, you can ignore it.</p>',
-          ].join(''),
+          ...message,
         });
       },
     },

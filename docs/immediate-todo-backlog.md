@@ -153,6 +153,16 @@ record and applies these controls:
   `EMAIL_PASSWORD_SIGN_UP_DISABLED` response before confirming that the
   provisioned smoke user can still sign in.
 
+The 28 July 2026 security-review follow-up also closes the email HTML-escaping
+finding retained below:
+
+- All authentication, account, export, and transaction-comment HTML emails use
+  one shared escaping primitive for both text-node and attribute values.
+- Password-setup and email-change message composition is isolated in pure,
+  directly tested builders.
+- Regression tests cover HTML metacharacters, attribute breakout attempts, and
+  injected markup across every email-template family.
+
 # Full Repository Review
 
 Overall, the current application is technically healthy and substantially
