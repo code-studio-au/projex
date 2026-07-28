@@ -60,7 +60,7 @@ S3_REGION=ap-southeast-2
 # Preferred: direct Resend delivery.
 RESEND_API_KEY=
 RESEND_BASE_URL=https://api.resend.com
-RESEND_FROM=
+RESEND_FROM='Projex <noreply@projectexpensetracker.com>'
 
 # Alternative invite/reset email delivery webhook.
 PROJEX_AUTH_EMAIL_WEBHOOK_URL=
@@ -85,7 +85,10 @@ Notes:
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.
 - `PROJEX_APP_BASE_URL` should point at the public app origin used for transaction-comment notification links; it falls back to `BETTER_AUTH_URL` when unset.
 - `S3_BUCKET` and `S3_REGION` are required for the export feature when using AWS S3. On AWS itself you normally do not need to set `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, or `S3_FORCE_PATH_STYLE`.
-- `RESEND_FROM` should be a verified sender, for example `Projex <noreply@projectexpensetracker.com>`.
+- The production Resend account verifies `projectexpensetracker.com`, so keep
+  `RESEND_FROM` set to `Projex <noreply@projectexpensetracker.com>`. A sender on
+  a different domain or subdomain requires that exact domain to be verified and
+  authorized for the API key first.
 - Run `pnpm run db:migrate` as an explicit deploy step before restarting the service; `pnpm run start:server` no longer auto-migrates by default.
 
 Sizing guidance:

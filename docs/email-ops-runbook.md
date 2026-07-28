@@ -26,7 +26,10 @@ PROJEX_APP_BASE_URL=https://projectexpensetracker.com
 
 Notes:
 
-- `RESEND_FROM` must use a verified domain/sender in Resend.
+- The production Resend account verifies the root
+  `projectexpensetracker.com` domain. Keep `RESEND_FROM` on that exact domain;
+  do not change it to a subdomain unless that subdomain is separately verified
+  and authorized for the API key.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should match the public HTTPS reset page users open from email.
 - `PROJEX_APP_BASE_URL` should match the public app origin used by transaction-comment deep links.
 
@@ -57,7 +60,7 @@ Expected:
 
 - `RESEND_API_KEY=set`
 - `RESEND_BASE_URL=https://api.resend.com`
-- `RESEND_FROM=Projex <...>`
+- `RESEND_FROM=Projex <noreply@projectexpensetracker.com>`
 - `PROJEX_APP_BASE_URL=https://projectexpensetracker.com`
 - `PROJEX_AUTH_RESET_REDIRECT_URL=https://projectexpensetracker.com/reset-password`
 

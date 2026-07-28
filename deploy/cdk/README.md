@@ -158,7 +158,9 @@ The EC2 host created by this stack now self-prepares into a deploy-ready baselin
 - the non-login `projex-deploy` identity with its own pinned pnpm cache
 - root-owned application release directories
 - `/etc/projex/projex.env.example` and a `root:projex-deploy` mode-`0640`
-  placeholder `/etc/projex/projex.env` on first boot only
+  placeholder `/etc/projex/projex.env` on first boot only; the template presets
+  `RESEND_FROM='Projex <noreply@projectexpensetracker.com>'`, while the API key
+  remains intentionally blank and must be supplied securely
 - the `projex` systemd unit
 - a safe HTTP bootstrap nginx config
 - `/usr/local/bin/projex-provision-letsencrypt-cert` for the later HTTPS step
