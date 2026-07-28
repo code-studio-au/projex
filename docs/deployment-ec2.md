@@ -20,6 +20,8 @@ If you provision the EC2 host through this repo's CDK stack, first boot now prep
   - `/opt/projex/shared/nginx-maintenance`
   - `/etc/projex`
   - `/var/www/certbot`
+- the non-login `projex-deploy` identity used only for dependency installation,
+  migrations, and operator-run application commands
 - the `projex` systemd unit
 - a safe HTTP-only bootstrap nginx config with maintenance fallback and ACME challenge support
 - `/etc/projex/projex.env.example`
@@ -94,7 +96,11 @@ Sizing guidance:
 
 ## 4) Configure the real environment file
 
-CDK bootstrap installs `/etc/projex/projex.env.example` and, on first boot, copies it to `/etc/projex/projex.env` only if the real file does not already exist.
+CDK bootstrap installs `/etc/projex/projex.env.example` and, on first boot,
+copies it to `/etc/projex/projex.env` only if the real file does not already
+exist. The real file is owned by `root:projex-deploy` with mode `0640`; the
+systemd manager can load it for the runtime service, and only the constrained
+deployment identity can read it for migrations and operator commands.
 
 Replace the placeholder values before your first application deploy:
 
@@ -124,6 +130,10 @@ sudo journalctl -u projex -f
 `start:server` validates the runtime env, serves built client assets, and starts the SSR app server (host/port via `HOST` and `PORT`, default `0.0.0.0:3000`). It does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
 
 The systemd unit now points at `/opt/projex/current`, so each deploy activates a fully extracted release directory by switching that symlink after migrations succeed.
+It starts Node directly rather than resolving pnpm from a user-home Corepack
+cache. `NoNewPrivileges`, an empty capability set, home/device/tmp isolation,
+kernel and namespace protections, and `ProtectSystem=strict` keep the runtime
+read-only apart from the explicit `/var/lib/projex` state directory.
 
 The bootstrap nginx config serves plain HTTP only and is intentionally safe to apply before DNS and certificates are ready. It proxies to `http://127.0.0.1:3000`, preserves standard forwarded headers, exposes `/.well-known/acme-challenge/` for Let's Encrypt, and keeps the maintenance-page fallback.
 
@@ -257,9 +267,13 @@ The artifact-based release flow performs:
   validate the embedded release manifest
 - atomically rename the validated staging directory to
   `/opt/projex/releases/<environment>-<sha>-run<run-id>-attempt<attempt>`
-- `pnpm install --frozen-lockfile --prod`
-- env load from `/etc/projex/projex.env`
-- `pnpm run db:migrate`
+- create or validate the non-login `projex-deploy` identity
+- install only frozen production dependencies with lifecycle scripts disabled,
+  as `projex-deploy`
+- load `/etc/projex/projex.env` and run `pnpm run db:migrate` as
+  `projex-deploy`, never as the elevated SSM identity
+- restore the complete release tree to root ownership and install the reviewed
+  sandboxed systemd unit
 - refresh shared maintenance assets
 - atomically switch `/opt/projex/current`
 - restart `projex`
@@ -283,7 +297,8 @@ host from `/opt/projex/current`, for example:
 
 ```bash
 cd /opt/projex/current
-sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; pnpm run smoke:server:generated -- --section=basics'
+sudo -u projex-deploy -- /bin/bash -c \
+  'set -a; source /etc/projex/projex.env; set +a; exec /usr/local/bin/pnpm run smoke:server:generated -- --section=basics'
 ```
 
 Use this for post-deploy runtime verification or staged incident triage. It is
@@ -297,6 +312,11 @@ There is now a single supported deploy method for EC2 environments:
 - the runner dispatches the SSM activation command
 - the EC2 host installs runtime dependencies, runs migrations, switches
   `/opt/projex/current`, and restarts the service
+
+The SSM command retains root only for verified artifact extraction, ownership,
+service configuration, symlink activation, and service control. Package hooks
+are disabled, and package installation plus application migrations execute as
+`projex-deploy`. Release contents are root-owned and read-only to the runtime.
 
 ## 6) Health checks
 

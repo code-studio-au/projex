@@ -9,7 +9,9 @@ individual items are completed.
 - **Item 1 — GitHub hosted controls:** Completed 26 July 2026.
 - **Item 2 — Deploy release identity:** Completed 26 July 2026.
 - **Item 3 — AWS deploy access via OIDC:** Completed 27 July 2026.
-- **Items 4 onward:** Pending.
+- **Item 4 — On-host and runtime privileges:** Completed 28 July 2026.
+- **Item 5 — Migration rollback compatibility:** Completed 28 July 2026.
+- **Items 6 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -99,6 +101,40 @@ record and applied these changes:
 - The legacy staging `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` GitHub
   secrets were deleted after the successful OIDC run, and the associated root
   access key was revoked. No root access keys remain active.
+
+Item 4 implementation preserves the original finding below as a point-in-time
+record and adds these controls:
+
+- A dedicated non-login `projex-deploy` identity owns only its package-manager
+  home. Application releases and shared deployment directories remain
+  root-owned.
+- The host still installs only frozen production dependencies for its native
+  architecture; dependency lifecycle scripts are disabled. Installation and
+  migrations run as `projex-deploy` through a clean environment.
+- The runtime environment file is `root:projex-deploy` mode `0640`, so it is
+  not sourced by the elevated SSM shell.
+- The artifact carries the reviewed systemd unit. Each deployment validates
+  and refreshes it before restart.
+- The `ec2-user` runtime starts Node directly and has no capabilities, no
+  privilege escalation, a read-only filesystem, private temporary/device
+  views, protected kernel and home surfaces, restricted namespaces/address
+  families, and only `/var/lib/projex` as explicit writable state.
+- CDK explicitly requires IMDSv2, with synthesis and repository-boundary tests
+  preventing a return to optional instance-metadata tokens.
+
+Item 5 completion preserves the original finding below as a point-in-time
+record and formalizes the existing forward-migration deployment model:
+
+- Every migration in release `N` must remain compatible with both `N` and the
+  immediately previous application release `N-1`.
+- Schema changes follow explicit expand, migrate, and delayed contract phases;
+  destructive changes cannot remove a contract still used by the rollback
+  candidate.
+- Pull requests with schema changes must document compatibility, rollback
+  evidence, and the provenance of any destructive contract step.
+- Deployment regression coverage proves that a successful forward migration
+  remains applied when readiness failure atomically restores the previous
+  compatible application release.
 
 # Full Repository Review
 

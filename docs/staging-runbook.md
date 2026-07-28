@@ -55,6 +55,7 @@ Before cutting over or handing a deployed environment to another developer, conf
 - `DATABASE_URL` points at the target Postgres instance.
 - `NODE_ENV=production` is supplied by runtime env or systemd, not committed repo env files consumed by Vite.
 - `/etc/projex/projex.env` contains real values rather than the bootstrap example placeholders.
+- `/etc/projex/projex.env` is owned by `root:projex-deploy` with mode `0640`.
 - `BETTER_AUTH_SECRET` is present and generated from a strong random value.
 - `BETTER_AUTH_URL` is the canonical public origin users will visit.
 - `BETTER_AUTH_TRUSTED_ORIGINS` contains only the canonical public origin(s) that should be allowed to complete auth flows.
@@ -68,6 +69,8 @@ Before cutting over or handing a deployed environment to another developer, conf
 - The public proxy uses `deploy/nginx/projex.conf` or equivalent HTTPS redirect, forwarded headers, hardening headers, and maintenance fallback behavior.
 - Nginx loads `/etc/nginx/conf.d/projex-request-limits.conf`, which keeps application request bodies bounded at `16m` while allowing validated bulk import commits.
 - If the host was created through CDK, the HTTP bootstrap nginx config has been promoted to HTTPS with `/usr/local/bin/projex-provision-letsencrypt-cert`.
+- The EC2 instance requires IMDSv2, and `systemctl show projex` reports the
+  reviewed runtime sandbox properties.
 - `/api/health` returns `200` when the process is running.
 - `/api/ready` returns `200` only when environment and database checks pass.
 - `/api/ready` exposes minimal public detail; use the status code for probes.
@@ -101,7 +104,8 @@ fixtures from the activated release:
 
 ```bash
 cd /opt/projex/current
-sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; pnpm run smoke:server:generated'
+sudo -u projex-deploy -- /bin/bash -c \
+  'set -a; source /etc/projex/projex.env; set +a; exec /usr/local/bin/pnpm run smoke:server:generated'
 ```
 
 The deploy artifact now includes the server smoke CLI entrypoint, so these
@@ -369,16 +373,39 @@ build-on-host fallback for routine or emergency releases.
 Create a BetterAuth user:
 
 ```bash
-cd /opt/projex/current
-sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_AUTH_PASSWORD="replace-me" PROJEX_AUTH_NAME="Staging User" pnpm run auth:create-user'
+sudo -u projex-deploy -- /bin/bash -c '
+  cd /opt/projex/current || exit 1
+  set -a
+  source /etc/projex/projex.env
+  set +a
+  read -rp "Email: " PROJEX_AUTH_EMAIL
+  read -rp "Name: " PROJEX_AUTH_NAME
+  read -rsp "Password: " PROJEX_AUTH_PASSWORD
+  echo
+  export PROJEX_AUTH_EMAIL PROJEX_AUTH_NAME PROJEX_AUTH_PASSWORD
+  /usr/local/bin/pnpm run auth:create-user
+  unset PROJEX_AUTH_PASSWORD
+'
 ```
 
 Bootstrap that BetterAuth user into the app as a global superadmin.
 On a fresh database, this is the required step that makes the account usable in the app and able to see `/companies`.
 
 ```bash
-cd /opt/projex/current
-sudo sh -c 'set -a; . /etc/projex/projex.env; set +a; PROJEX_AUTH_EMAIL="name@example.com" PROJEX_BOOTSTRAP_COMPANY_NAME="Demo Company" PROJEX_BOOTSTRAP_PROJECT_NAME="Demo Project" pnpm run auth:bootstrap-user'
+sudo -u projex-deploy -- /bin/bash -c '
+  cd /opt/projex/current || exit 1
+  set -a
+  source /etc/projex/projex.env
+  set +a
+  read -rp "Email: " PROJEX_AUTH_EMAIL
+  export PROJEX_AUTH_EMAIL
+  PROJEX_BOOTSTRAP_DATABASE_URL="$(
+    /usr/local/bin/node -e '"'"'const u=new URL(process.env.DATABASE_URL); u.searchParams.set("sslmode","verify-full"); u.searchParams.set("sslrootcert",process.env.PG_SSL_CA_FILE); process.stdout.write(u.toString())'"'"'
+  )"
+  DATABASE_URL="$PROJEX_BOOTSTRAP_DATABASE_URL" \
+    /usr/local/bin/pnpm run auth:bootstrap-user
+  unset PROJEX_BOOTSTRAP_DATABASE_URL
+'
 ```
 
 Notes:

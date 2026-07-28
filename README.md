@@ -98,6 +98,15 @@ same commit cannot overwrite an earlier release. The runner and EC2 host verify
 the artifact SHA-256; the host then validates its embedded identity manifest in
 a fresh staging directory before atomically promoting and activating it.
 
+The artifact intentionally does not ship runner-built `node_modules` to the
+Arm host. The host installs only frozen production dependencies, with
+lifecycle scripts disabled, as the non-login `projex-deploy` user. Database
+migrations run under that same constrained identity, while the promoted
+release is returned to root ownership before the sandboxed `ec2-user` service
+starts it. The service has no Linux capabilities, a read-only filesystem apart
+from its explicit state directory, and no access to user home directories.
+CDK-created instances require IMDSv2.
+
 The manual deploy workflow expects GitHub Actions environment configuration for
 the target environment. EC2 deploys are limited to the protected `main` branch
 and the configured `staging` or `production` environments. Both environments

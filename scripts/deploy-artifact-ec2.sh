@@ -8,6 +8,10 @@ EXPECTED_GIT_SHA="${EXPECTED_GIT_SHA:-}"
 CURRENT_LINK="${CURRENT_LINK:-}"
 ENV_FILE="${ENV_FILE:-/etc/projex/projex.env}"
 SERVICE_NAME="${SERVICE_NAME:-projex}"
+DEPLOY_USER="${DEPLOY_USER:-projex-deploy}"
+DEPLOY_HOME="${DEPLOY_HOME:-/var/lib/projex-deploy}"
+DEPLOY_PATH="${DEPLOY_PATH:-/usr/local/bin:/usr/bin:/bin}"
+PNPM_BIN="${PNPM_BIN:-/usr/local/bin/pnpm}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/api/health}"
 READY_URL="${READY_URL:-http://127.0.0.1:3000/api/ready}"
 SHARED_DIR="${SHARED_DIR:-}"
@@ -16,8 +20,11 @@ HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-60}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-60}"
 HTTP_CHECK_INTERVAL_SECONDS="${HTTP_CHECK_INTERVAL_SECONDS:-2}"
 NGINX_REQUEST_LIMITS_PATH="${NGINX_REQUEST_LIMITS_PATH:-/etc/nginx/conf.d/projex-request-limits.conf}"
+SYSTEMD_SERVICE_PATH="${SYSTEMD_SERVICE_PATH:-}"
 RELEASES_DIR=""
 NEXT_LINK=""
+DEPLOY_GROUP=""
+RELEASE_OWNED_BY_DEPLOY_USER="false"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -57,6 +64,14 @@ validate_identifier() {
   fi
 }
 
+validate_system_user() {
+  local label="$1"
+  local value="$2"
+  if [[ ! "$value" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+    fail "$label must be a valid system user name"
+  fi
+}
+
 resolve_existing_path() {
   node -e \
     'process.stdout.write(require("node:fs").realpathSync(process.argv[1]))' \
@@ -73,6 +88,36 @@ read_manifest_value() {
     }
     process.stdout.write(String(value));
   ' "$1" "$2"
+}
+
+ensure_deploy_identity() {
+  if ! id -u "$DEPLOY_USER" >/dev/null 2>&1; then
+    log "Creating constrained deployment identity ${DEPLOY_USER}"
+    sudo useradd \
+      --system \
+      --user-group \
+      --home-dir "$DEPLOY_HOME" \
+      --create-home \
+      --shell /sbin/nologin \
+      "$DEPLOY_USER"
+  fi
+
+  local deploy_uid
+  deploy_uid="$(id -u "$DEPLOY_USER")"
+  if [[ "$deploy_uid" == "0" ]]; then
+    fail 'The constrained deployment identity must not be root.'
+  fi
+  DEPLOY_GROUP="$(id -gn "$DEPLOY_USER")"
+  sudo install \
+    -d \
+    -o "$DEPLOY_USER" \
+    -g "$DEPLOY_GROUP" \
+    -m 0750 \
+    "$DEPLOY_HOME"
+}
+
+run_as_deploy_user() {
+  sudo --non-interactive --user "$DEPLOY_USER" -- "$@"
 }
 
 current_release_dir() {
@@ -109,6 +154,10 @@ activate_release() {
 cleanup() {
   if [[ -n "$NEXT_LINK" && -L "$NEXT_LINK" ]]; then
     rm -f -- "$NEXT_LINK"
+  fi
+  if [[ "$RELEASE_OWNED_BY_DEPLOY_USER" == "true" && -d "$RELEASE_DIR" ]]; then
+    sudo chown -R root:root "$RELEASE_DIR" || true
+    sudo chmod -R a+rX,go-w "$RELEASE_DIR" || true
   fi
 }
 
@@ -177,10 +226,11 @@ prune_old_releases() {
   done
 }
 
-require_command pnpm
 require_command curl
 require_command sudo
 require_command node
+require_command id
+require_command systemd-analyze
 
 APP_ROOT="${APP_ROOT%/}"
 if [[ -z "$APP_ROOT" || "$APP_ROOT" == "/" || "$APP_ROOT" != /* ]]; then
@@ -192,8 +242,23 @@ CURRENT_LINK="${CURRENT_LINK:-${APP_ROOT}/current}"
 SHARED_DIR="${SHARED_DIR:-${APP_ROOT}/shared}"
 
 validate_identifier "RELEASE_ID" "$RELEASE_ID"
+validate_identifier "SERVICE_NAME" "$SERVICE_NAME"
+validate_system_user "DEPLOY_USER" "$DEPLOY_USER"
 if [[ ! "$EXPECTED_GIT_SHA" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
   fail 'EXPECTED_GIT_SHA must be a full lowercase Git object ID.'
+fi
+if [[ -z "$DEPLOY_HOME" || "$DEPLOY_HOME" == "/" || "$DEPLOY_HOME" != /* ]]; then
+  fail 'DEPLOY_HOME must be a non-root absolute path.'
+fi
+if [[ "$PNPM_BIN" != /* ]]; then
+  fail 'PNPM_BIN must be an absolute path.'
+fi
+if [[ ! -x "$PNPM_BIN" ]]; then
+  fail "PNPM_BIN must be an executable file: $PNPM_BIN"
+fi
+SYSTEMD_SERVICE_PATH="${SYSTEMD_SERVICE_PATH:-/etc/systemd/system/${SERVICE_NAME}.service}"
+if [[ "$SYSTEMD_SERVICE_PATH" != /* || "$SYSTEMD_SERVICE_PATH" == "/" ]]; then
+  fail 'SYSTEMD_SERVICE_PATH must be a non-root absolute path.'
 fi
 
 require_dir "$RELEASE_DIR"
@@ -204,6 +269,9 @@ if [[ "$RELEASE_DIR" != "$expected_release_dir" ]]; then
 fi
 validate_release_dir "$RELEASE_DIR"
 require_file "$ENV_FILE"
+if [[ -L "$ENV_FILE" ]]; then
+  fail "Environment file must not be a symlink: $ENV_FILE"
+fi
 require_file "$RELEASE_DIR/.projex-release.json"
 require_file "$RELEASE_DIR/package.json"
 require_file "$RELEASE_DIR/pnpm-lock.yaml"
@@ -217,6 +285,7 @@ require_file "$RELEASE_DIR/scripts/deploy-artifact-ec2.sh"
 require_file "$RELEASE_DIR/deploy/nginx/maintenance.html"
 require_file "$RELEASE_DIR/deploy/nginx/maintenance.js"
 require_file "$RELEASE_DIR/deploy/nginx/projex-request-limits.conf"
+require_file "$RELEASE_DIR/deploy/systemd/projex.service"
 
 manifest_release_id="$(
   read_manifest_value "$RELEASE_DIR/.projex-release.json" releaseId
@@ -231,7 +300,12 @@ if [[ "$manifest_git_sha" != "$EXPECTED_GIT_SHA" ]]; then
   fail 'Deploy manifest Git SHA does not match EXPECTED_GIT_SHA.'
 fi
 
+ensure_deploy_identity
+
 mkdir -p "$RELEASES_DIR" "$SHARED_DIR/nginx-maintenance"
+sudo chown root:root "$APP_ROOT" "$RELEASES_DIR" "$SHARED_DIR"
+sudo chmod 0755 "$APP_ROOT" "$RELEASES_DIR" "$SHARED_DIR"
+sudo chown -R root:root "$RELEASE_DIR"
 
 PREVIOUS_RELEASE_DIR="$(current_release_dir 2>/dev/null || true)"
 if [[ -n "$PREVIOUS_RELEASE_DIR" ]]; then
@@ -243,20 +317,57 @@ fi
 
 log "Installing runtime dependencies in ${RELEASE_DIR}"
 cd "$RELEASE_DIR"
-pnpm install --frozen-lockfile --prod
+sudo chown -R "$DEPLOY_USER:$DEPLOY_GROUP" "$RELEASE_DIR"
+sudo chmod -R u+rwX,go-rwx "$RELEASE_DIR"
+RELEASE_OWNED_BY_DEPLOY_USER="true"
+run_as_deploy_user \
+  env -i \
+  HOME="$DEPLOY_HOME" \
+  PATH="$DEPLOY_PATH" \
+  COREPACK_ENABLE_STRICT=1 \
+  "$PNPM_BIN" install --frozen-lockfile --prod --ignore-scripts
 
-log "Loading environment from $ENV_FILE"
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+log "Restricting environment access to the deployment identity"
+sudo chown "root:$DEPLOY_GROUP" "$ENV_FILE"
+sudo chmod 0640 "$ENV_FILE"
 
-log "Running database migrations"
-pnpm run db:migrate
+log "Running database migrations as ${DEPLOY_USER}"
+run_as_deploy_user \
+  env -i \
+  HOME="$DEPLOY_HOME" \
+  PATH="$DEPLOY_PATH" \
+  DEPLOY_PATH="$DEPLOY_PATH" \
+  ENV_FILE="$ENV_FILE" \
+  PNPM_BIN="$PNPM_BIN" \
+  /bin/bash -c '
+    set -euo pipefail
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+    export PATH="$DEPLOY_PATH"
+    exec "$PNPM_BIN" run db:migrate
+  '
+
+log "Locking the completed release to root ownership"
+sudo chown -R root:root "$RELEASE_DIR"
+sudo chmod -R a+rX,go-w "$RELEASE_DIR"
+RELEASE_OWNED_BY_DEPLOY_USER="false"
+
+log "Validating and refreshing the systemd service"
+sudo systemd-analyze verify "$RELEASE_DIR/deploy/systemd/projex.service"
+sudo install -o root -g root -m 0644 \
+  "$RELEASE_DIR/deploy/systemd/projex.service" \
+  "$SYSTEMD_SERVICE_PATH"
+sudo systemctl daemon-reload
 
 log "Refreshing shared maintenance assets"
-cp "$RELEASE_DIR/deploy/nginx/maintenance.html" "$SHARED_DIR/nginx-maintenance/maintenance.html"
-cp "$RELEASE_DIR/deploy/nginx/maintenance.js" "$SHARED_DIR/nginx-maintenance/maintenance.js"
+sudo install -o root -g root -m 0644 \
+  "$RELEASE_DIR/deploy/nginx/maintenance.html" \
+  "$SHARED_DIR/nginx-maintenance/maintenance.html"
+sudo install -o root -g root -m 0644 \
+  "$RELEASE_DIR/deploy/nginx/maintenance.js" \
+  "$SHARED_DIR/nginx-maintenance/maintenance.js"
 
 log "Refreshing nginx request limits"
 sudo install -m 0644 \
