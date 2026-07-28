@@ -1,13 +1,14 @@
-import { App } from 'aws-cdk-lib';
+import { App, Stack, aws_s3 as s3 } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { describe, expect, test } from 'vitest';
 
 import { EC2_USER_DATA_MAX_BYTES } from '../lib/hostBootstrap.ts';
 import { ProjexInfraStack } from '../lib/projex-infra-stack.ts';
+import { ProjexSecurityChecks } from '../lib/projex-security-checks.ts';
 
 type EnvironmentName = 'production' | 'staging';
 
-function synthesizeInfraTemplate(
+function createInfraStack(
   envName: EnvironmentName,
   options: {
     backupRetentionDays?: number;
@@ -31,7 +32,18 @@ function synthesizeInfraTemplate(
     dbMultiAz: options.dbMultiAz ?? false,
     sshCidr: options.sshCidr ?? '',
   });
-  return Template.fromStack(stack);
+  return { app, stack };
+}
+
+function synthesizeInfraTemplate(
+  envName: EnvironmentName,
+  options: {
+    backupRetentionDays?: number;
+    dbMultiAz?: boolean;
+    sshCidr?: string;
+  } = {}
+) {
+  return Template.fromStack(createInfraStack(envName, options).stack);
 }
 
 function onlyResource(template: Template, resourceType: string) {
@@ -45,6 +57,33 @@ function onlyResource(template: Template, resourceType: string) {
 }
 
 describe('Projex infrastructure security', () => {
+  test('passes the cdk-nag policy pack for staging and production', () => {
+    for (const envName of ['staging', 'production'] as const) {
+      const { app } = createInfraStack(envName, {
+        backupRetentionDays: envName === 'production' ? 14 : 3,
+        dbMultiAz: envName === 'production',
+      });
+      const report = new ProjexSecurityChecks(app).validateScope(app);
+
+      expect(report.success, JSON.stringify(report.violations, null, 2)).toBe(
+        true
+      );
+    }
+  });
+
+  test('fails cdk-nag when a stateful resource violates policy', () => {
+    const app = new App();
+    const stack = new Stack(app, 'UnsafeInfrastructure');
+    new s3.CfnBucket(stack, 'UnencryptedBucket');
+
+    const report = new ProjexSecurityChecks(app).validateScope(app);
+
+    expect(report.success).toBe(false);
+    expect(JSON.stringify(report.violations)).toContain(
+      'ProjexSecurity-S3Encrypted'
+    );
+  });
+
   test('requires IMDSv2 and an encrypted root volume', () => {
     const template = synthesizeInfraTemplate('staging');
 

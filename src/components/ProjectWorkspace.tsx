@@ -54,9 +54,13 @@ import BudgetPanel from './BudgetPanel';
 import PowerBiImporterPanel from './PowerBiImporterPanel';
 import ProjectSettingsPanel from './ProjectSettingsPanel';
 import { LoadingLine } from './LoadingValue';
+import ProjectWorkspaceTabList from './ProjectWorkspaceTabList';
+import {
+  resolveProjectWorkspaceTabAccess,
+  type ProjectWorkspaceTab,
+} from './projectWorkspaceTabAccess';
 import classes from '../styles/ui.module.css';
 
-type ProjectWorkspaceTab = 'budget' | 'transactions' | 'import' | 'settings';
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 type TransactionDrilldownSearch =
   | {
@@ -312,14 +316,14 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   const updateProject = useUpdateProjectMutation(companyId);
   const isOperationalProject = effectiveProjectType === 'project';
 
-  const canProjectEdit = isHydrated
-    ? initialCanProjectEdit || access.can('project:edit', projectId)
-    : initialCanProjectEdit;
-  const canImport =
-    isOperationalProject &&
-    (isHydrated
-      ? initialCanImport || access.can('project:import', projectId)
-      : initialCanImport);
+  const { canImport, canProjectEdit } = resolveProjectWorkspaceTabAccess({
+    isHydrated,
+    isOperationalProject,
+    initialCanImport,
+    initialCanProjectEdit,
+    liveCanImport: access.can('project:import', projectId),
+    liveCanProjectEdit: access.can('project:edit', projectId),
+  });
   const canEditBudgets =
     isOperationalProject &&
     (isHydrated
@@ -1142,16 +1146,10 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
           keepMounted={false}
           className={classes.softTabs}
         >
-          <Tabs.List>
-            <Tabs.Tab value="budget">Budget</Tabs.Tab>
-            <Tabs.Tab value="transactions">Transactions</Tabs.Tab>
-            <Tabs.Tab value="import" disabled={!canImport}>
-              Import
-            </Tabs.Tab>
-            <Tabs.Tab value="settings" disabled={!canProjectEdit}>
-              Settings
-            </Tabs.Tab>
-          </Tabs.List>
+          <ProjectWorkspaceTabList
+            canImport={canImport}
+            canProjectEdit={canProjectEdit}
+          />
 
           <Tabs.Panel value="transactions" pt="md">
             <TransactionsPanel

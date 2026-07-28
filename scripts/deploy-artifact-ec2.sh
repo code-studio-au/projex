@@ -126,7 +126,7 @@ render_systemd_service() {
       ["/etc/projex/projex.env", envFile],
     ]) {
       if (!service.includes(placeholder)) {
-        throw new Error(`Missing expected systemd path: ${placeholder}`);
+        throw new Error("Missing expected systemd path: " + placeholder);
       }
       service = service.replaceAll(placeholder, value);
     }
@@ -414,6 +414,7 @@ require_file "$RELEASE_DIR/patches/brace-expansion@5.0.8.patch"
 require_file "$RELEASE_DIR/scripts/start-server.mjs"
 require_file "$RELEASE_DIR/scripts/env-file.mjs"
 require_file "$RELEASE_DIR/scripts/node-runtime.mjs"
+require_file "$RELEASE_DIR/scripts/run-release-migrations.mjs"
 require_file "$RELEASE_DIR/scripts/deploy-artifact-ec2.sh"
 require_file "$RELEASE_DIR/deploy/nginx/maintenance.html"
 require_file "$RELEASE_DIR/deploy/nginx/maintenance.js"
@@ -469,18 +470,10 @@ run_as_deploy_user \
   env -i \
   HOME="$DEPLOY_HOME" \
   PATH="$DEPLOY_PATH" \
-  DEPLOY_PATH="$DEPLOY_PATH" \
-  ENV_FILE="$ENV_FILE" \
-  PNPM_BIN="$PNPM_BIN" \
-  /bin/bash -c '
-    set -euo pipefail
-    set -a
-    # shellcheck disable=SC1090
-    source "$ENV_FILE"
-    set +a
-    export PATH="$DEPLOY_PATH"
-    exec "$PNPM_BIN" run db:migrate
-  '
+  node "$RELEASE_DIR/scripts/run-release-migrations.mjs" \
+  "$ENV_FILE" \
+  "$DEPLOY_PATH" \
+  "$PNPM_BIN"
 
 log "Locking the completed release to root ownership"
 sudo chown -R root:root "$RELEASE_DIR"

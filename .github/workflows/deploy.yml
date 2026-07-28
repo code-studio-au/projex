@@ -166,11 +166,13 @@ jobs:
             pnpm run deploy:artifact:create | tail -n 1
           )"
           read -r ARTIFACT_SHA256 _ < <(sha256sum "$ARTIFACT_PATH")
-          echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
-          echo "artifact_sha256=${ARTIFACT_SHA256}" >> "$GITHUB_OUTPUT"
-          echo "release_id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
-          echo "run_attempt=${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
-          echo "artifact_path=${ARTIFACT_PATH}" >> "$GITHUB_OUTPUT"
+          {
+            echo "artifact_name=${ARTIFACT_NAME}"
+            echo "artifact_sha256=${ARTIFACT_SHA256}"
+            echo "release_id=${RELEASE_ID}"
+            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "artifact_path=${ARTIFACT_PATH}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload deploy artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

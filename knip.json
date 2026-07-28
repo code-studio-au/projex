@@ -11,11 +11,13 @@
         "src/routes/**/*.{ts,tsx}",
         "src/server/db/kysely-migrations/*.ts",
         "scripts/disposable-postgres.d.ts",
+        "scripts/run-release-migrations.mjs",
+        "tests/browser/*.spec.ts",
         "deploy/nginx/maintenance.js"
       ],
       "project": [
         "src/**/*.{ts,tsx}",
-        "tests/**/*.ts",
+        "tests/**/*.{ts,tsx}",
         "scripts/**/*.{js,mjs,ts}"
       ],
       "ignoreDependencies": ["kysely-codegen"],

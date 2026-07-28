@@ -31,5 +31,7 @@ dist-ssr
 .env.staging
 .env.production
 coverage/
+playwright-report/
+test-results/
 deploy/cdk/cdk.out/
 artifacts/

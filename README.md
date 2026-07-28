@@ -71,6 +71,8 @@ That pipeline-shaped command runs:
 - dependency audit
 - Vite-aware unit and route-level tests
 - typecheck and lint
+- pinned ShellCheck and actionlint analysis
+- CDK assertions, cdk-nag policy analysis, and synthesis
 - production build
 - disposable Postgres-backed DB integration tests
 - disposable Postgres-backed end-to-end smoke across every server smoke section
@@ -81,7 +83,7 @@ Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`,
 `pnpm run smoke:browser:disposable`. Disposable smoke now provisions a
 short-lived `https://localhost` certificate automatically so production-mode
 auth validation stays aligned locally without any manual TLS setup. Playwright
-browser smoke also requires local Chromium and Firefox installs via
+Test browser smoke also requires local Chromium and Firefox installs via
 `pnpm exec playwright install --with-deps chromium firefox` the first time you
 run it on a machine.
 
@@ -170,11 +172,14 @@ Local-only UI toggles such as `VITE_ENABLE_DEVTOOLS` live in
 The short version:
 
 - `pnpm run verify:security` for the fast non-Docker safety pass
+- `pnpm run verify:static-analysis` for pinned ShellCheck and actionlint
 - `pnpm run verify:ci` for the fuller local reproduction of CI plus deploy-artifact and CDK checks
 - `pnpm run verify:smoke:full` for the full disposable server smoke sweep across every section
 - `pnpm run verify:smoke:browser:full` for the full disposable browser smoke sweep
 - `pnpm test` for the fast Vitest app/runtime lane
-- `pnpm run coverage` for the Vitest-owned unit coverage gate and LCOV output
+- `pnpm run coverage` for selected domain coverage over the explicit
+  [Vite allowlist](vite.config.ts) and LCOV output; this is not a
+  whole-repository coverage percentage
 - `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
 - `pnpm run smoke:server:disposable` for isolated local end-to-end smoke on an auto-generated temporary `https://localhost` origin
 - `pnpm run smoke:browser:disposable` for isolated browser-driven smoke on the same temporary HTTPS origin

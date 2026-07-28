@@ -315,14 +315,21 @@ async function verifyGithubDeployOidcBoundary() {
 }
 
 async function verifyHostPrivilegeBoundaries() {
-  const [deployScript, service, infraStack, hostBootstrap, artifactScript] =
-    await Promise.all([
-      readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
-      readFile('deploy/systemd/projex.service', 'utf8'),
-      readFile('deploy/cdk/lib/projex-infra-stack.ts', 'utf8'),
-      readFile('deploy/cdk/lib/hostBootstrap.ts', 'utf8'),
-      readFile('scripts/create-deploy-artifact.sh', 'utf8'),
-    ]);
+  const [
+    deployScript,
+    migrationLauncher,
+    service,
+    infraStack,
+    hostBootstrap,
+    artifactScript,
+  ] = await Promise.all([
+    readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
+    readFile('scripts/run-release-migrations.mjs', 'utf8'),
+    readFile('deploy/systemd/projex.service', 'utf8'),
+    readFile('deploy/cdk/lib/projex-infra-stack.ts', 'utf8'),
+    readFile('deploy/cdk/lib/hostBootstrap.ts', 'utf8'),
+    readFile('scripts/create-deploy-artifact.sh', 'utf8'),
+  ]);
 
   assertCondition(
     deployScript.includes('DEPLOY_USER="${DEPLOY_USER:-projex-deploy}"') &&
@@ -332,9 +339,13 @@ async function verifyHostPrivilegeBoundaries() {
       deployScript.includes(
         '"$PNPM_BIN" install --frozen-lockfile --prod --ignore-scripts'
       ) &&
-      /Running database migrations as[\s\S]*?run_as_deploy_user[\s\S]*?run db:migrate/.test(
+      /Running database migrations as[\s\S]*?run_as_deploy_user[\s\S]*?run-release-migrations\.mjs/.test(
         deployScript
-      ),
+      ) &&
+      migrationLauncher.includes(
+        "const child = spawn(pnpmBin, ['run', 'db:migrate']"
+      ) &&
+      artifactScript.includes('scripts/run-release-migrations.mjs'),
     'On-host dependency installation and migrations must run as the constrained deployment identity'
   );
   assertCondition(

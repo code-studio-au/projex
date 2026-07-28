@@ -75,6 +75,7 @@ require_path "src"
 require_path "scripts/start-server.mjs"
 require_path "scripts/env-file.mjs"
 require_path "scripts/node-runtime.mjs"
+require_path "scripts/run-release-migrations.mjs"
 require_path "scripts/bootstrap-app-user.mjs"
 require_path "scripts/link-auth-user.mjs"
 require_path "scripts/smoke-server.mjs"
@@ -108,6 +109,7 @@ tar -czf "$ARTIFACT_PATH" \
   scripts/start-server.mjs \
   scripts/env-file.mjs \
   scripts/node-runtime.mjs \
+  scripts/run-release-migrations.mjs \
   scripts/bootstrap-app-user.mjs \
   scripts/link-auth-user.mjs \
   scripts/smoke-server.mjs \

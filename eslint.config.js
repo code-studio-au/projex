@@ -93,11 +93,19 @@ export default defineConfig([
     files: [
       'src/server/**/*.{ts,tsx}',
       'scripts/**/*.{ts,mjs}',
-      'tests/**/*.ts',
+      'tests/**/*.{ts,tsx}',
     ],
     languageOptions: {
       globals: {
         ...globals.node,
+      },
+    },
+  },
+  {
+    files: ['tests/**/*.tsx'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
       },
     },
   },
