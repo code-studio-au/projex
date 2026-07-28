@@ -206,9 +206,12 @@ If you need to point the suite at an explicit integration database yourself, use
 PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test:integration:node
 ```
 
-`pnpm run build` should not emit client chunk-size warnings. Current known
-build noise is limited to SSR dynamic/static import warnings from TanStack
-Start server route wiring around dynamic server-only adapters.
+`pnpm run build` should not emit client chunk-size warnings. The subsequent
+`pnpm run verify:bundle` gate measures both direct-load and post-root navigation
+payloads. It enforces JavaScript and CSS budgets for the root preload, company
+dashboard dependency closure, and project workspace dependency closure.
+Current known build noise is limited to SSR dynamic/static import warnings from
+TanStack Start server route wiring around dynamic server-only adapters.
 
 The request-scoped auth path now verifies the app user once at the request
 boundary, caches that result in `src/server/http/requestContext.ts`, and passes

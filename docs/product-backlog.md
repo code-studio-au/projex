@@ -78,7 +78,15 @@ Why this matters:
 Current baseline:
 
 - the root preload is approximately 140 KiB JavaScript gzip and 36 KiB CSS gzip after deferring authenticated chrome, route query modules, and data-table styles, and removing Zod from boot-time search validation
-- `verify:bundle` enforces 160 KiB JavaScript gzip and 45 KiB CSS gzip ceilings for the root preload
+- the company dashboard dependency closure is approximately 348 KiB
+  JavaScript gzip and 42 KiB CSS gzip, with approximately 208 KiB JavaScript
+  and 6 KiB CSS loaded beyond the root payload
+- the project workspace dependency closure is approximately 387 KiB
+  JavaScript gzip and 42 KiB CSS gzip, with approximately 248 KiB JavaScript
+  and 6 KiB CSS loaded beyond the root payload
+- `verify:bundle` enforces separate JavaScript and CSS ceilings for the root
+  preload, both authenticated direct loads, and both post-root navigation
+  payloads
 
 Design direction:
 

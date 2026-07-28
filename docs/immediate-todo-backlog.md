@@ -13,7 +13,9 @@ individual items are completed.
 - **Item 5 — Migration rollback compatibility:** Completed 28 July 2026.
 - **Item 6 — Invite-only authentication:** Completed 28 July 2026.
 - **Item 7 — Testing review:** Completed 28 July 2026.
-- **Items 8 onward:** Pending.
+- **Item 8 — Bundle and chunk review:** In progress; authenticated-route
+  budgets completed, lazy tab chunks pending.
+- **Items 9 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -190,6 +192,19 @@ and applies every recommendation:
 - The resulting application suite contains 62 passing Vitest files and 314
   tests, and the full generated-fixture browser suite passes in both Chromium
   and Firefox.
+
+Item 8 now measures and budgets the generated dependency closures for the
+company dashboard and project workspace in addition to the root preload:
+
+- Direct-load budgets include the root, authenticated layout, nested route
+  entries, lazy page component, transitive JavaScript imports, and route CSS.
+- Navigation budgets report and constrain the additional payload beyond the
+  root preload, so first paint and authenticated navigation cannot hide each
+  other's regressions.
+- Fixture-based regression tests cover route/dependency traversal, unsafe
+  generated asset paths, and authenticated-route budget failures.
+- Lazy-loading inactive import, settings, transaction, and other heavy tab
+  panels remains the next Item 8 change.
 
 # Full Repository Review
 
