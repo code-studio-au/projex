@@ -935,6 +935,18 @@ describe('deploy-artifact-ec2.sh', () => {
 });
 
 describe('provision-letsencrypt-cert.sh', () => {
+  test('enables and verifies the supported Certbot renewal timer', async () => {
+    const script = await readFile(letsEncryptScript, 'utf8');
+
+    expect(script).toContain(
+      'for timer in certbot-renew.timer certbot.timer; do'
+    );
+    expect(script).toContain('systemctl enable --now "$timer"');
+    expect(script).toContain('systemctl is-enabled --quiet "$timer"');
+    expect(script).toContain('systemctl is-active --quiet "$timer"');
+    expect(script).toContain('install_renew_hook\n  enable_renewal_timer');
+  });
+
   test.each([
     {
       expectedDirective: '  http2 on;',

@@ -88,6 +88,20 @@ EOF
   chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/projex-nginx-reload.sh
 }
 
+enable_renewal_timer() {
+  local timer
+  for timer in certbot-renew.timer certbot.timer; do
+    if systemctl cat "$timer" >/dev/null 2>&1; then
+      systemctl enable --now "$timer"
+      systemctl is-enabled --quiet "$timer"
+      systemctl is-active --quiet "$timer"
+      return
+    fi
+  done
+
+  fail 'Certbot installed without a supported systemd renewal timer.'
+}
+
 render_only() {
   if [[ "$#" -lt 1 ]]; then
     fail 'Usage: provision-letsencrypt-cert.sh --render-tls-config <primary-domain> [alternate-domain ...]'
@@ -148,6 +162,7 @@ main() {
 
   render_tls_config "$primary_domain" "${domains[*]}"
   install_renew_hook
+  enable_renewal_timer
 
   log 'Validating nginx TLS configuration'
   nginx -t

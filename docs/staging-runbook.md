@@ -71,6 +71,8 @@ Before cutting over or handing a deployed environment to another developer, conf
 - If the host was created through CDK, the HTTP bootstrap nginx config has been promoted to HTTPS with `/usr/local/bin/projex-provision-letsencrypt-cert`.
 - The generated HTTPS config uses the HTTP/2 syntax supported by the installed
   nginx version, and `nginx -t` succeeds.
+- The Certbot renewal timer is enabled and active, and
+  `certbot renew --dry-run --no-random-sleep-on-renew` succeeds.
 - The EC2 instance requires IMDSv2, and `systemctl show projex` reports the
   reviewed runtime sandbox properties.
 - `/api/health` returns `200` when the process is running.
