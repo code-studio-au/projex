@@ -79,6 +79,7 @@ require_path "scripts/bootstrap-app-user.mjs"
 require_path "scripts/link-auth-user.mjs"
 require_path "scripts/smoke-server.mjs"
 require_path "scripts/deploy-artifact-ssm.sh"
+require_path "deploy/systemd/projex.service"
 require_path "deploy/nginx/maintenance.html"
 require_path "deploy/nginx/maintenance.js"
 require_path "deploy/nginx/projex-request-limits.conf"
@@ -112,6 +113,7 @@ tar -czf "$ARTIFACT_PATH" \
   scripts/smoke-server.mjs \
   scripts/deploy-artifact-ssm.sh \
   scripts/deploy-artifact-ec2.sh \
+  deploy/systemd/projex.service \
   deploy/nginx \
   package.json \
   pnpm-lock.yaml \

@@ -13,10 +13,44 @@ Projex now uses a squashed app migration baseline:
 - Prefer small migrations that do one thing well and are easy to reason about in review.
 - If the history is squashed again later, do it intentionally and document the new baseline in this file.
 
-## Safety expectations
+## Deployment compatibility contract
 
-- Keep migrations as forward-only operational changes unless you have a specific tested need for `down` support.
-- Keep production-safe rollback thinking in mind, but migrations should still be written as forward fixes first.
+Projex uses forward-only database migrations. Application rollback changes the
+active release symlink; it does not and must not attempt to reverse an already
+committed database migration. Every migration shipped in release `N` must
+therefore remain compatible with both release `N` and the immediately previous
+application release `N-1`.
+
+Use an expand/migrate/contract sequence:
+
+1. **Expand:** add nullable columns, new tables, indexes, or parallel structures
+   without removing or changing anything the previous release reads or writes.
+2. **Migrate:** deploy code that can use the expanded schema, backfill data in
+   bounded and restartable operations, and stop relying on the old structure.
+3. **Contract:** remove the old structure only in a later release, after it is
+   no longer used by any deployed instance and is no longer needed by the
+   application rollback candidate.
+
+The following changes must not be introduced in the same release that first
+stops using the old contract:
+
+- dropping or renaming a table, column, constraint, enum value, or index relied
+  on by `N-1`;
+- changing a column type in a way `N-1` cannot read or write;
+- making an existing nullable column required before all rows are backfilled
+  and both releases write valid values;
+- removing compatibility reads or dual writes before the contract deployment.
+
+When a deployment fails after migration, leave the forward migration applied,
+restore `N-1`, and investigate with the schema in its expanded compatible
+state. Repair migration defects with a new forward migration. Do not improvise
+an automatic production `down` migration.
+
+Every pull request containing a schema migration must explain its expand,
+migrate, and eventual contract phases, confirm `N-1` compatibility, and include
+rollback evidence. A destructive contract migration must identify the earlier
+release that removed the dependency and prove it is no longer a rollback
+candidate.
 
 ## Operational note
 
@@ -53,6 +87,9 @@ Current runner safeguards:
 - the migration command takes a Postgres advisory lock before running Better Auth or Kysely app migrations, so concurrent deploys do not race each other
 - `pnpm run start:server` does not auto-run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly
 - production deploys should still treat `pnpm run db:migrate` as an explicit pre-restart step rather than relying on runtime startup behavior
+- deploy-path tests must continue proving that a successful migration remains
+  applied when readiness failure restores the compatible previous application
+  release
 
 Ownership migrations should prefer composite company/project foreign keys for
 live operational state. Append-only audit records are the deliberate exception:

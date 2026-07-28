@@ -26,8 +26,17 @@ const createArtifactScript = join(
 const deployWorkflow = join(repoRoot, '.github/workflows/deploy.yml');
 const ssmDeployScript = join(repoRoot, 'scripts/deploy-artifact-ssm.sh');
 const ec2DeployScript = join(repoRoot, 'scripts/deploy-artifact-ec2.sh');
+const letsEncryptScript = join(
+  repoRoot,
+  'scripts/provision-letsencrypt-cert.sh'
+);
+const nginxTlsTemplate = join(
+  repoRoot,
+  'deploy/nginx/projex.https.conf.template'
+);
 const gitSha = 'a'.repeat(40);
 const temporaryRoots: string[] = [];
+const testDeployUser = 'projex-test-deploy';
 
 type ReleaseIdentity = {
   environment: string;
@@ -50,6 +59,9 @@ async function writeExecutable(path: string, content: string) {
 
 async function createMockCommands(root: string) {
   const bin = join(root, 'bin');
+  const pnpmLog = join(root, 'pnpm.log');
+  const migrationMarker = join(root, 'migration-applied');
+  const failMigrateFlag = join(root, 'fail-migrate');
   await mkdir(bin, { recursive: true });
 
   await writeExecutable(
@@ -66,11 +78,34 @@ cp "$MOCK_ARTIFACT_SOURCE" "$destination"
   );
 
   await writeExecutable(
+    join(bin, 'id'),
+    `#!/usr/bin/env bash
+set -euo pipefail
+case "\${1:-}" in
+  -u)
+    printf '12345\\n'
+    ;;
+  -gn|-un)
+    printf '%s\\n' ${JSON.stringify(testDeployUser)}
+    ;;
+  *)
+    printf 'Unsupported mock id arguments: %s\\n' "$*" >&2
+    exit 2
+    ;;
+esac
+`
+  );
+
+  await writeExecutable(
     join(bin, 'pnpm'),
     `#!/usr/bin/env bash
 set -euo pipefail
-if [[ "\${MOCK_PNPM_FAIL_MIGRATE:-}" == "1" && "$*" == "run db:migrate" ]]; then
+printf '%s\\t%s\\n' "$(id -un)" "$*" >>${JSON.stringify(pnpmLog)}
+if [[ -f ${JSON.stringify(failMigrateFlag)} && "$*" == "run db:migrate" ]]; then
   exit 17
+fi
+if [[ "$*" == "run db:migrate" ]]; then
+  touch ${JSON.stringify(migrationMarker)}
 fi
 exit 0
 `
@@ -105,13 +140,33 @@ set -euo pipefail
 if [[ -n "\${MOCK_SUDO_LOG:-}" ]]; then
   printf '%s\\n' "$*" >>"$MOCK_SUDO_LOG"
 fi
+if [[ "$1" == "--non-interactive" ]]; then
+  shift
+  [[ "$1" == "--user" ]]
+  shift 2
+  [[ "$1" == "--" ]]
+  shift
+  exec "$@"
+fi
 if [[ "$1" == "install" ]]; then
+  if [[ " $* " == *" -d "* ]]; then
+    destination_path="\${@: -1}"
+    mkdir -p "$destination_path"
+    exit 0
+  fi
   args=("$@")
   source_path="\${args[\${#args[@]}-2]}"
   destination_path="\${args[\${#args[@]}-1]}"
   mkdir -p "$(dirname "$destination_path")"
   cp "$source_path" "$destination_path"
 fi
+exit 0
+`
+  );
+
+  await writeExecutable(
+    join(bin, 'systemd-analyze'),
+    `#!/usr/bin/env bash
 exit 0
 `
   );
@@ -185,6 +240,7 @@ async function createArtifactSourceTree(root: string) {
     'deploy/nginx/maintenance.html',
     'deploy/nginx/maintenance.js',
     'deploy/nginx/projex-request-limits.conf',
+    'deploy/systemd/projex.service',
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
@@ -259,13 +315,19 @@ async function createEc2Release(
     'deploy/nginx/maintenance.html',
     'deploy/nginx/maintenance.js',
     'deploy/nginx/projex-request-limits.conf',
+    'deploy/systemd/projex.service',
   ];
 
   await mkdir(releaseDir, { recursive: true });
   for (const relativePath of requiredFiles) {
     const path = join(releaseDir, relativePath);
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, 'test\n');
+    await writeFile(
+      path,
+      relativePath === 'deploy/systemd/projex.service'
+        ? await readFile(join(repoRoot, relativePath), 'utf8')
+        : 'test\n'
+    );
   }
   await writeFile(
     join(releaseDir, '.projex-release.json'),
@@ -301,6 +363,11 @@ function runEc2Deploy(
       ENV_FILE: join(appRoot, 'projex.env'),
       SHARED_DIR: join(appRoot, 'shared'),
       NGINX_REQUEST_LIMITS_PATH: join(appRoot, 'nginx', 'request-limits.conf'),
+      SYSTEMD_SERVICE_PATH: join(appRoot, 'systemd', 'projex.service'),
+      DEPLOY_USER: testDeployUser,
+      DEPLOY_HOME: join(appRoot, 'shared', 'deploy-home'),
+      DEPLOY_PATH: `${mockBin}:${process.env.PATH ?? ''}`,
+      PNPM_BIN: join(mockBin, 'pnpm'),
       HEALTH_URL: 'http://127.0.0.1/health',
       READY_URL: 'http://127.0.0.1/ready',
       HEALTH_TIMEOUT_SECONDS: '1',
@@ -675,6 +742,90 @@ describe('deploy-artifact-ssm.sh', () => {
 });
 
 describe('deploy-artifact-ec2.sh', () => {
+  test('installs dependencies and migrates as the constrained deployment identity', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    const pnpmLog = join(root, 'pnpm.log');
+    const sudoLog = join(root, 'sudo.log');
+    await mkdir(appRoot, { recursive: true });
+    await writeFile(join(appRoot, 'projex.env'), '');
+    const releaseId = 'staging-aaaaaaaaaaaa-run198-attempt1';
+    const releaseDir = await createEc2Release(appRoot, releaseId);
+
+    const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
+      MOCK_SUDO_LOG: sudoLog,
+      SERVICE_NAME: 'projex-custom',
+      SYSTEMD_SERVICE_PATH: join(appRoot, 'systemd', 'projex-custom.service'),
+    });
+
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    const pnpmCalls = await readFile(pnpmLog, 'utf8');
+    expect(pnpmCalls).toContain(
+      `${testDeployUser}\tinstall --frozen-lockfile --prod --ignore-scripts`
+    );
+    expect(pnpmCalls).toContain(`${testDeployUser}\trun db:migrate`);
+    const sudoCalls = await readFile(sudoLog, 'utf8');
+    expect(sudoCalls).toContain(
+      `--non-interactive --user ${testDeployUser} -- env -i`
+    );
+    expect(sudoCalls).toContain(`chown -R ${testDeployUser}:`);
+    expect(sudoCalls).toContain(`chown -R root:root ${releaseDir}`);
+    expect(sudoCalls).toContain('systemctl enable projex-custom');
+    const installedServicePath = join(
+      appRoot,
+      'systemd',
+      'projex-custom.service'
+    );
+    const installedService = await readFile(installedServicePath, 'utf8');
+    expect(installedService).toContain(
+      `WorkingDirectory=${join(appRoot, 'current')}`
+    );
+    expect(installedService).toContain(
+      `EnvironmentFile=${join(appRoot, 'projex.env')}`
+    );
+    expect(installedService).not.toContain('/opt/projex/current');
+    expect(installedService).not.toContain('/etc/projex/projex.env');
+  });
+
+  test('rejects application roots hidden by the service home-directory sandbox', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    await mkdir(appRoot, { recursive: true });
+    await writeFile(join(appRoot, 'projex.env'), '');
+    const releaseId = 'staging-aaaaaaaaaaaa-run198-attempt2';
+    const releaseDir = await createEc2Release(appRoot, releaseId);
+
+    const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
+      APP_ROOT: '/home/ec2-user/projex',
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'APP_ROOT must not be located under /home, /root, or /run/user'
+    );
+  });
+
+  test('rejects service names that already include the systemd unit suffix', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    await mkdir(appRoot, { recursive: true });
+    await writeFile(join(appRoot, 'projex.env'), '');
+    const releaseId = 'staging-aaaaaaaaaaaa-run198-attempt3';
+    const releaseDir = await createEc2Release(appRoot, releaseId);
+
+    const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
+      SERVICE_NAME: 'projex-custom.service',
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'SERVICE_NAME must omit the .service suffix'
+    );
+  });
+
   test('activates a validated release with an atomic symlink replacement', async () => {
     const root = await makeTemporaryRoot();
     const appRoot = join(root, 'app');
@@ -700,6 +851,7 @@ describe('deploy-artifact-ec2.sh', () => {
     const root = await makeTemporaryRoot();
     const appRoot = join(root, 'app');
     const mockBin = await createMockCommands(root);
+    const sudoLog = join(root, 'sudo.log');
     await mkdir(appRoot, { recursive: true });
     await writeFile(join(appRoot, 'projex.env'), '');
     const previousRelease = await createEc2Release(
@@ -709,18 +861,22 @@ describe('deploy-artifact-ec2.sh', () => {
     await symlink(previousRelease, join(appRoot, 'current'));
     const releaseId = 'staging-aaaaaaaaaaaa-run201-attempt1';
     const releaseDir = await createEc2Release(appRoot, releaseId);
+    await writeFile(join(root, 'fail-migrate'), '');
 
     const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
-      MOCK_PNPM_FAIL_MIGRATE: '1',
+      MOCK_SUDO_LOG: sudoLog,
     });
 
     expect(result.status).not.toBe(0);
     await expect(realpath(join(appRoot, 'current'))).resolves.toBe(
       previousRelease
     );
+    const sudoCalls = await readFile(sudoLog, 'utf8');
+    expect(sudoCalls).toContain(`chown -R ${testDeployUser}:`);
+    expect(sudoCalls).toContain(`chown -R root:root ${releaseDir}`);
   });
 
-  test('atomically rolls back when readiness fails after activation', async () => {
+  test('keeps a successful forward migration when readiness rollback restores the compatible previous release', async () => {
     const root = await makeTemporaryRoot();
     const appRoot = join(root, 'app');
     const mockBin = await createMockCommands(root);
@@ -733,6 +889,9 @@ describe('deploy-artifact-ec2.sh', () => {
     await symlink(previousRelease, join(appRoot, 'current'));
     const releaseId = 'staging-aaaaaaaaaaaa-run202-attempt1';
     const releaseDir = await createEc2Release(appRoot, releaseId);
+    const systemdServicePath = join(appRoot, 'systemd', 'projex.service');
+    await mkdir(dirname(systemdServicePath), { recursive: true });
+    await writeFile(systemdServicePath, 'previous systemd unit\n');
 
     const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
       READY_TIMEOUT_SECONDS: '0',
@@ -740,10 +899,14 @@ describe('deploy-artifact-ec2.sh', () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('Readiness check failed');
+    await expect(stat(join(root, 'migration-applied'))).resolves.toBeDefined();
     await expect(realpath(join(appRoot, 'current'))).resolves.toBe(
       previousRelease
     );
     await expect(realpath(releaseDir)).resolves.toBe(releaseDir);
+    await expect(readFile(systemdServicePath, 'utf8')).resolves.toBe(
+      'previous systemd unit\n'
+    );
   });
 
   test('stops a failed service when the first release rolls back', async () => {
@@ -769,6 +932,83 @@ describe('deploy-artifact-ec2.sh', () => {
     );
     await expect(realpath(releaseDir)).resolves.toBe(releaseDir);
   });
+});
+
+describe('provision-letsencrypt-cert.sh', () => {
+  test.each([
+    {
+      expectedDirective: '  http2 on;',
+      expectedListen: 'listen 443 ssl;',
+      nginxVersion: '1.28.0',
+      unexpectedListen: 'listen 443 ssl http2;',
+    },
+    {
+      expectedDirective: '  http2 on;',
+      expectedListen: 'listen 443 ssl;',
+      nginxVersion: '1.25.1',
+      unexpectedListen: 'listen 443 ssl http2;',
+    },
+    {
+      expectedDirective: '',
+      expectedListen: 'listen 443 ssl http2;',
+      nginxVersion: '1.25.0',
+      unexpectedListen: 'listen 443 ssl;',
+    },
+    {
+      expectedDirective: '',
+      expectedListen: 'listen 443 ssl http2;',
+      nginxVersion: '1.18.0',
+      unexpectedListen: 'listen 443 ssl;',
+    },
+  ])(
+    'renders HTTP/2 syntax for nginx $nginxVersion',
+    async ({
+      expectedDirective,
+      expectedListen,
+      nginxVersion,
+      unexpectedListen,
+    }) => {
+      const root = await makeTemporaryRoot();
+      const mockBin = join(root, 'bin');
+      const outputPath = join(root, 'projex.conf');
+      await mkdir(mockBin, { recursive: true });
+      await writeExecutable(
+        join(mockBin, 'nginx'),
+        `#!/usr/bin/env bash
+printf 'nginx version: nginx/%s\\n' ${JSON.stringify(nginxVersion)} >&2
+`
+      );
+      const result = spawnSync(
+        'bash',
+        [
+          letsEncryptScript,
+          '--render-tls-config',
+          'projectexpensetracker.com',
+          'www.projectexpensetracker.com',
+        ],
+        {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            NGINX_CONF_PATH: outputPath,
+            NGINX_TLS_TEMPLATE_PATH: nginxTlsTemplate,
+            PATH: `${mockBin}:${process.env.PATH ?? ''}`,
+          },
+        }
+      );
+
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+      const config = await readFile(outputPath, 'utf8');
+      expect(config).toContain(expectedListen);
+      expect(config).not.toContain(unexpectedListen);
+      if (expectedDirective) {
+        expect(config).toContain(expectedDirective);
+      } else {
+        expect(config).not.toContain('http2 on;');
+      }
+      expect(config).not.toContain('__HTTP2_');
+    }
+  );
 });
 
 describe('deploy workflow retry identity', () => {

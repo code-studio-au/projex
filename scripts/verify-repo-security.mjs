@@ -146,6 +146,34 @@ async function verifyNginxRequestLimits() {
   );
 }
 
+async function verifyNginxHttp2Syntax() {
+  const [staticConfig, tlsTemplate, provisionScript] = await Promise.all([
+    readFile('deploy/nginx/projex.conf', 'utf8'),
+    readFile('deploy/nginx/projex.https.conf.template', 'utf8'),
+    readFile('scripts/provision-letsencrypt-cert.sh', 'utf8'),
+  ]);
+
+  assertCondition(
+    staticConfig.includes('listen 443 ssl http2;') &&
+      staticConfig.includes('listen [::]:443 ssl http2;'),
+    'The static nginx config must retain the HTTP/2 syntax supported by Ubuntu 22.04 nginx'
+  );
+  assertCondition(
+    tlsTemplate.includes('listen 443 ssl__HTTP2_LISTEN_SUFFIX__;') &&
+      tlsTemplate.includes('listen [::]:443 ssl__HTTP2_LISTEN_SUFFIX__;') &&
+      tlsTemplate.includes('__HTTP2_DIRECTIVE__') &&
+      provisionScript.includes('BASH_REMATCH[2] == 25') &&
+      provisionScript.includes('BASH_REMATCH[3] >= 1') &&
+      provisionScript.includes(
+        '-e "s/__HTTP2_LISTEN_SUFFIX__/${http2_listen_suffix}/g"'
+      ) &&
+      provisionScript.includes(
+        '-e "s/__HTTP2_DIRECTIVE__/${http2_directive}/g"'
+      ),
+    'The TLS helper must render HTTP/2 syntax compatible with the installed nginx version'
+  );
+}
+
 async function verifyDeployArtifactDependencyPatches() {
   const [workspaceConfig, createArtifactScript, deployScript, patch] =
     await Promise.all([
@@ -238,6 +266,9 @@ async function verifyGithubDeployOidcBoundary() {
     readFile('deploy/cdk/lib/projex-github-identity-stack.ts', 'utf8'),
     readFile('deploy/cdk/lib/projex-github-deploy-stack.ts', 'utf8'),
   ]);
+  const identitySourceLines = new Set(
+    identityStack.split(/\r?\n/u).map((line) => line.trim())
+  );
 
   assertCondition(
     workflow.includes('vars.AWS_DEPLOY_ROLE_ARN') &&
@@ -258,8 +289,10 @@ async function verifyGithubDeployOidcBoundary() {
   }
   assertCondition(
     cdkApp.includes('ProjexGithubIdentityStack') &&
-      identityStack.includes('token.actions.githubusercontent.com') &&
-      identityStack.includes("clientIdList: ['sts.amazonaws.com']"),
+      identitySourceLines.has(
+        "url: 'https://token.actions.githubusercontent.com',"
+      ) &&
+      identitySourceLines.has("clientIdList: ['sts.amazonaws.com'],"),
     'CDK must own the account-wide GitHub Actions OIDC provider'
   );
   assertCondition(
@@ -275,13 +308,136 @@ async function verifyGithubDeployOidcBoundary() {
   );
 }
 
+async function verifyHostPrivilegeBoundaries() {
+  const [deployScript, service, infraStack, hostBootstrap, artifactScript] =
+    await Promise.all([
+      readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
+      readFile('deploy/systemd/projex.service', 'utf8'),
+      readFile('deploy/cdk/lib/projex-infra-stack.ts', 'utf8'),
+      readFile('deploy/cdk/lib/hostBootstrap.ts', 'utf8'),
+      readFile('scripts/create-deploy-artifact.sh', 'utf8'),
+    ]);
+
+  assertCondition(
+    deployScript.includes('DEPLOY_USER="${DEPLOY_USER:-projex-deploy}"') &&
+      deployScript.includes(
+        'sudo --non-interactive --user "$DEPLOY_USER" -- "$@"'
+      ) &&
+      deployScript.includes(
+        '"$PNPM_BIN" install --frozen-lockfile --prod --ignore-scripts'
+      ) &&
+      /Running database migrations as[\s\S]*?run_as_deploy_user[\s\S]*?run db:migrate/.test(
+        deployScript
+      ),
+    'On-host dependency installation and migrations must run as the constrained deployment identity'
+  );
+  assertCondition(
+    deployScript.includes('sudo chown -R root:root "$RELEASE_DIR"') &&
+      deployScript.includes(
+        'sudo chown -R "$DEPLOY_USER:$DEPLOY_GROUP" "$RELEASE_DIR"'
+      ) &&
+      deployScript.includes('sudo chmod -R a+rX,go-w "$RELEASE_DIR"') &&
+      deployScript.includes('sudo chmod 0640 "$ENV_FILE"'),
+    'Deploys must restore root ownership and restrict environment-file access'
+  );
+  assertCondition(
+    deployScript.includes('render_systemd_service') &&
+      deployScript.includes(
+        'service = service.replaceAll(placeholder, value);'
+      ) &&
+      deployScript.includes(
+        `"$source_path" "$destination_path" "$CURRENT_LINK" "$ENV_FILE"`
+      ) &&
+      deployScript.includes('validate_service_sandbox_path "APP_ROOT"') &&
+      deployScript.includes('sudo systemctl enable "$SERVICE_NAME"') &&
+      deployScript.includes('preserve_systemd_service') &&
+      deployScript.includes('restore_systemd_service') &&
+      deployScript.includes('commit_systemd_service'),
+    'The installed systemd unit must retain validated APP_ROOT and ENV_FILE overrides'
+  );
+
+  for (const directive of [
+    'NoNewPrivileges=true',
+    'PrivateMounts=true',
+    'PrivateTmp=true',
+    'ProtectHome=true',
+    'ProtectSystem=strict',
+    'ReadWritePaths=/var/lib/projex',
+    'RemoveIPC=true',
+    'CapabilityBoundingSet=',
+    'AmbientCapabilities=',
+  ]) {
+    assertCondition(
+      service.includes(directive),
+      `The Projex systemd sandbox is missing ${directive}`
+    );
+  }
+  assertCondition(
+    service.includes(
+      'ExecStart=/usr/local/bin/node --import tsx scripts/start-server.mjs'
+    ) && !/^ExecStart=.*\bpnpm\b/m.test(service),
+    'The sandboxed runtime must start Node directly without a user-home Corepack dependency'
+  );
+
+  assertCondition(
+    infraStack.includes('httpTokens: ec2.HttpTokens.REQUIRED'),
+    'The application instance must explicitly require IMDSv2'
+  );
+  assertCondition(
+    hostBootstrap.includes('projex-deploy') &&
+      hostBootstrap.includes('chown -R root:root /opt/projex') &&
+      hostBootstrap.includes('chown root:projex-deploy /etc/projex/projex.env'),
+    'Fresh hosts must provision the constrained deploy identity and root-owned release tree'
+  );
+  assertCondition(
+    artifactScript.includes('require_path "deploy/systemd/projex.service"') &&
+      artifactScript.includes('deploy/systemd/projex.service'),
+    'Deploy artifacts must carry the reviewed systemd sandbox definition'
+  );
+}
+
+async function verifyMigrationRollbackContract() {
+  const [migrationPolicy, pullRequestTemplate, deployTests] = await Promise.all(
+    [
+      readFile('docs/database-migrations.md', 'utf8'),
+      readFile('.github/pull_request_template.md', 'utf8'),
+      readFile('tests/deployArtifactScripts.test.ts', 'utf8'),
+    ]
+  );
+
+  assertCondition(
+    migrationPolicy.includes('expand/migrate/contract') &&
+      migrationPolicy.includes('release `N-1`') &&
+      migrationPolicy.includes('does not and must not attempt to reverse'),
+    'Migration guidance must retain the forward-only rollback compatibility contract'
+  );
+  assertCondition(
+    pullRequestTemplate.includes(
+      'The upgraded schema remains compatible with the immediately previous'
+    ) &&
+      pullRequestTemplate.includes(
+        'Rollback evidence confirms the previous release can run'
+      ),
+    'The pull-request template must require migration compatibility and rollback evidence'
+  );
+  assertCondition(
+    deployTests.includes(
+      'keeps a successful forward migration when readiness rollback restores the compatible previous release'
+    ) && deployTests.includes("'migration-applied'"),
+    'Deploy tests must prove that application rollback retains a committed forward migration'
+  );
+}
+
 async function main() {
   await verifyGitignoreCoverage();
   await verifyTrustedProxyClientIpHeaders();
   await verifyNginxRequestLimits();
+  await verifyNginxHttp2Syntax();
   await verifyDeployArtifactDependencyPatches();
   await verifyDeployReleaseIdentity();
   await verifyGithubDeployOidcBoundary();
+  await verifyHostPrivilegeBoundaries();
+  await verifyMigrationRollbackContract();
 
   const skipped = [];
   for (const check of checks) {

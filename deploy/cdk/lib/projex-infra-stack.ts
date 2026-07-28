@@ -90,6 +90,7 @@ export class ProjexInfraStack extends Stack {
       machineImage: ec2.MachineImage.latestAmazonLinux2023({
         cpuType: ec2.AmazonLinuxCpuType.ARM_64,
       }),
+      httpTokens: ec2.HttpTokens.REQUIRED,
       userData,
       blockDevices: [
         {

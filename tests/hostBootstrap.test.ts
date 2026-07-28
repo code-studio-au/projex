@@ -32,8 +32,17 @@ describe('buildHostBootstrapCommands', () => {
     expect(joined).toContain(
       'sudo -u ec2-user /usr/local/bin/corepack prepare pnpm@11.0.8 --activate'
     );
+    expect(joined).toContain(
+      'useradd --system --user-group --home-dir /var/lib/projex-deploy --create-home --shell /sbin/nologin projex-deploy'
+    );
+    expect(joined).toContain(
+      'sudo -u projex-deploy /usr/local/bin/corepack prepare pnpm@11.0.8 --activate'
+    );
     expect(commands).toContain('node --version');
     expect(commands).toContain('pnpm --version');
+    expect(commands).toContain(
+      'sudo -u projex-deploy /usr/local/bin/pnpm --version'
+    );
     expect(commands).toContain(
       'sudo -u ec2-user /usr/local/bin/pnpm --version'
     );
@@ -46,6 +55,9 @@ describe('buildHostBootstrapCommands', () => {
     );
     expect(joined).toContain('/var/www/certbot/.well-known/acme-challenge');
     expect(joined).toContain('/etc/projex/projex.env.example');
+    expect(joined).toContain('chown -R root:root /opt/projex');
+    expect(joined).toContain('chown root:projex-deploy /etc/projex/projex.env');
+    expect(joined).toContain('chmod 0640 /etc/projex/projex.env');
     expect(joined).toContain(
       'https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem'
     );

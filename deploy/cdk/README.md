@@ -155,12 +155,21 @@ The EC2 host created by this stack now self-prepares into a deploy-ready baselin
 - Corepack with pinned pnpm
 - nginx
 - `/opt/projex/releases` and `/opt/projex/shared/nginx-maintenance`
-- `/etc/projex/projex.env.example` and a placeholder `/etc/projex/projex.env` on first boot only
+- the non-login `projex-deploy` identity with its own pinned pnpm cache
+- root-owned application release directories
+- `/etc/projex/projex.env.example` and a `root:projex-deploy` mode-`0640`
+  placeholder `/etc/projex/projex.env` on first boot only
 - the `projex` systemd unit
 - a safe HTTP bootstrap nginx config
 - `/usr/local/bin/projex-provision-letsencrypt-cert` for the later HTTPS step
 
 That means a fresh CDK-created instance should be ready to receive the GitHub Actions artifact deploy flow without manual package installation or service-file setup.
+
+The instance explicitly requires IMDSv2. The application service runs as
+`ec2-user` with a strict systemd sandbox and a read-only release tree; only its
+state directory is writable. On-host production dependency installation and
+database migrations run as `projex-deploy`, not as the elevated SSM command
+identity.
 
 The bootstrap installs the current Node.js 24 LTS binary for the host
 architecture directly from the official Node.js release service and verifies

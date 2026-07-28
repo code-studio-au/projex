@@ -49,7 +49,8 @@ Notes:
 On EC2:
 
 ```bash
-sudo sh -c '. /etc/projex/projex.env && printf "RESEND_API_KEY=%s\nRESEND_FROM=%s\nRESEND_BASE_URL=%s\nPROJEX_AUTH_RESET_REDIRECT_URL=%s\nPROJEX_APP_BASE_URL=%s\n" "${RESEND_API_KEY:+set}" "$RESEND_FROM" "$RESEND_BASE_URL" "$PROJEX_AUTH_RESET_REDIRECT_URL" "$PROJEX_APP_BASE_URL"'
+sudo -u projex-deploy -- /bin/bash -c \
+  'source /etc/projex/projex.env && printf "RESEND_API_KEY=%s\nRESEND_FROM=%s\nRESEND_BASE_URL=%s\nPROJEX_AUTH_RESET_REDIRECT_URL=%s\nPROJEX_APP_BASE_URL=%s\n" "${RESEND_API_KEY:+set}" "$RESEND_FROM" "$RESEND_BASE_URL" "$PROJEX_AUTH_RESET_REDIRECT_URL" "$PROJEX_APP_BASE_URL"'
 ```
 
 Expected:
@@ -65,7 +66,8 @@ Expected:
 Replace the recipient email and run:
 
 ```bash
-sudo sh -c '. /etc/projex/projex.env && curl -sS -D - https://api.resend.com/emails \
+sudo -u projex-deploy -- /bin/bash -c \
+  'source /etc/projex/projex.env && curl -sS -D - https://api.resend.com/emails \
   -H "Authorization: Bearer $RESEND_API_KEY" \
   -H "Content-Type: application/json" \
   -d "{\"from\":\"$RESEND_FROM\",\"to\":[\"you@example.com\"],\"subject\":\"Projex Resend test\",\"text\":\"Resend is connected from EC2.\"}"'
