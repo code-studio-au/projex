@@ -70,6 +70,9 @@ describe('buildHostBootstrapCommands', () => {
       'PG_SSL_CA_FILE=/etc/projex/rds-global-bundle.pem'
     );
     expect(joined).toContain(
+      "RESEND_FROM='Projex <noreply@projectexpensetracker.com>'"
+    );
+    expect(joined).toContain(
       'install -o root -g root -m 0644 "$PROJEX_RDS_CA_TMP" /etc/projex/rds-global-bundle.pem'
     );
   });
