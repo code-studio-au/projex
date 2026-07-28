@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   Accordion,
   Alert,
-  Badge,
   Button,
   FileInput,
   Group,
@@ -11,17 +10,12 @@ import {
   Select,
   Stack,
   Switch,
-  Tabs,
   Text,
   TextInput,
   Textarea,
   Title,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import {
-  MantineReactTable,
-  type MRT_ColumnDef,
-} from 'mantine-react-table-open';
 
 import type { TxnImportInput, TxnImportResult } from '../api/types';
 import type {
@@ -31,22 +25,19 @@ import type {
   ImportRuleOperator,
   ProjectId,
 } from '../types';
-import { formatCurrencyFromCents } from '../utils/money';
 import {
   matchesPowerBiImportRule,
   toPowerBiExpenditureActualsRow,
 } from '../utils/powerBiImport';
-import {
-  type ImportPreviewTab,
-  usePowerBiImportWorkflow,
-} from '../hooks/usePowerBiImportWorkflow';
+import { usePowerBiImportWorkflow } from '../hooks/usePowerBiImportWorkflow';
 import {
   useCreateProjectImportRuleMutation,
   useProjectImportRulesQuery,
 } from '../queries/importRules';
 import { suggestImportExclusionRuleFromPreviewRow } from '../utils/importRuleSuggestions';
 import { showAppToast } from '../utils/toast';
-import ImportReviewDecisionActions from './ImportReviewDecisionActions';
+import ImportPreviewTabs from './importReview/ImportPreviewTabs';
+import { useImportPreviewColumns } from './importReview/useImportPreviewColumns';
 import classes from '../styles/ui.module.css';
 
 const fieldOptions: Array<{ value: ImportRuleField; label: string }> = [
@@ -100,16 +91,6 @@ function toImportRuleOperator(value: string | null): ImportRuleOperator | null {
   return operatorOptions.some((option) => option.value === value)
     ? (value as ImportRuleOperator)
     : null;
-}
-
-function displayWarningsForRow(row: ImportPreviewRow): string[] {
-  return row.warnings.filter(
-    (warning) =>
-      !(
-        row.mappingStatus === 'uncoded' &&
-        warning.startsWith('No category/subcategory could be resolved.')
-      )
-  );
 }
 
 export default function PowerBiImporterPanel(props: {
@@ -395,285 +376,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     }
   }
 
-  const previewColumns = useMemo<MRT_ColumnDef<ImportPreviewRow>[]>(
-    () => [
-      {
-        accessorKey: 'sourceRowIndex',
-        header: 'Row',
-        size: 72,
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-left txnTable-head',
-        },
-        mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      },
-      {
-        id: 'importedId',
-        header: 'Imported ID',
-        size: 140,
-        accessorFn: (row) => row.externalId ?? '',
-        Cell: ({ row }) => (
-          <Text className="table-body-left">
-            {row.original.externalId ?? '—'}
-          </Text>
-        ),
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-left txnTable-head',
-        },
-        mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      },
-      {
-        accessorKey: 'parsedDate',
-        header: 'Date',
-        size: 92,
-        Cell: ({ row }) => (
-          <Text className="table-body-left">
-            {row.original.parsedDate ?? 'Missing'}
-          </Text>
-        ),
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-left txnTable-head',
-        },
-        mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      },
-      {
-        accessorKey: 'item',
-        header: 'Item',
-        size: 150,
-        Cell: ({ row }) => (
-          <Text className="table-body-left">
-            {row.original.item ?? 'Missing item'}
-          </Text>
-        ),
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-left txnTable-head',
-        },
-        mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      },
-      {
-        accessorKey: 'description',
-        header: 'Description',
-        size: 220,
-        Cell: ({ row }) => (
-          <Text className="table-body-left">
-            {row.original.description ?? 'Missing description'}
-          </Text>
-        ),
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-left txnTable-head',
-        },
-        mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      },
-      {
-        accessorKey: 'amountCents',
-        header: 'Amount',
-        size: 112,
-        Cell: ({ row }) => (
-          <Text className="table-body-emphasis">
-            {row.original.amountCents == null
-              ? 'Missing'
-              : formatCurrencyFromCents(row.original.amountCents, currencyCode)}
-          </Text>
-        ),
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-right txnTable-head',
-        },
-        mantineTableBodyCellProps: {
-          className: 'table-body-right txnTable-cell',
-        },
-      },
-      {
-        id: 'mapping',
-        header: 'Mapping',
-        size: 220,
-        accessorFn: (row) =>
-          `${row.categoryName ?? ''} ${row.subCategoryName ?? ''} ${row.mappingStatus} ${row.duplicateReason ?? ''}`,
-        enableSorting: false,
-        Cell: ({ row }) => {
-          const reviewDecision = reviewDecisions.get(
-            row.original.sourceRowIndex
-          );
-          const isReviewRow = row.original.importAction === 'review';
-          return (
-            <Stack gap={4}>
-              <Group gap="xs" wrap="wrap">
-                {isReviewRow && !reviewDecision ? (
-                  <Badge size="sm" variant="light" color="yellow">
-                    Decision required
-                  </Badge>
-                ) : null}
-                {reviewDecision === 'import_uncoded' ? (
-                  <Badge size="sm" variant="light" color="blue">
-                    Import uncoded
-                  </Badge>
-                ) : null}
-                {reviewDecision === 'exclude' ||
-                (!isReviewRow &&
-                  excludedSourceRowIndexes.has(row.original.sourceRowIndex)) ? (
-                  <Badge size="sm" variant="light" color="gray">
-                    Excluded
-                  </Badge>
-                ) : null}
-                {row.original.importAction === 'exclude' ? (
-                  <Badge size="sm" variant="light" color="gray">
-                    Rule excluded
-                  </Badge>
-                ) : null}
-                {!isReviewRow ? (
-                  <Badge
-                    size="sm"
-                    variant="light"
-                    color={
-                      row.original.mappingStatus === 'invalid'
-                        ? 'red'
-                        : row.original.mappingStatus === 'uncoded'
-                          ? 'red'
-                          : row.original.mappingStatus === 'matched_rule'
-                            ? 'green'
-                            : row.original.mappingStatus === 'auto_created'
-                              ? 'yellow'
-                              : 'green'
-                    }
-                  >
-                    {row.original.mappingStatus === 'matched_rule'
-                      ? 'Auto-Categorise match'
-                      : row.original.mappingStatus === 'source_taxonomy'
-                        ? 'Category match'
-                        : row.original.mappingStatus === 'auto_created'
-                          ? 'Will auto-create'
-                          : row.original.mappingStatus === 'invalid'
-                            ? 'Invalid'
-                            : 'Uncoded'}
-                  </Badge>
-                ) : null}
-                {row.original.duplicate ? (
-                  <Badge size="sm" variant="light" color="orange">
-                    {row.original.duplicateReason === 'existing'
-                      ? 'Existing duplicate'
-                      : 'Import duplicate'}
-                  </Badge>
-                ) : null}
-              </Group>
-              {!isReviewRow &&
-              row.original.categoryName &&
-              row.original.subCategoryName ? (
-                <Text size="xs" c="dimmed">
-                  {row.original.categoryName} &gt;{' '}
-                  {row.original.subCategoryName}
-                </Text>
-              ) : null}
-              {row.original.importRuleName ? (
-                <Text size="xs" c="dimmed">
-                  Import rule: {row.original.importRuleName}
-                </Text>
-              ) : null}
-              {isReviewRow && reviewDecision === 'import_uncoded' ? (
-                <Text size="xs" c="dimmed">
-                  Any suggested category will be ignored so this transaction
-                  enters the coding workflow.
-                </Text>
-              ) : null}
-              {displayWarningsForRow(row.original).length ? (
-                <Stack gap={2}>
-                  {displayWarningsForRow(row.original).map((warning, index) => (
-                    <Text
-                      key={`${row.original.sourceRowIndex}-warning-${index}`}
-                      size="xs"
-                      c="dimmed"
-                    >
-                      {warning}
-                    </Text>
-                  ))}
-                </Stack>
-              ) : null}
-            </Stack>
-          );
-        },
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-left txnTable-head',
-        },
-        mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      },
-      {
-        id: 'action',
-        header: 'Action',
-        size: 220,
-        enableSorting: false,
-        Cell: ({ row }) => {
-          if (row.original.importAction === 'review') {
-            const decision = reviewDecisions.get(row.original.sourceRowIndex);
-            const cannotImport =
-              row.original.mappingStatus === 'invalid' ||
-              row.original.duplicate;
-            return (
-              <Group gap="xs" wrap="nowrap">
-                <Button
-                  size="xs"
-                  variant={decision === 'import_uncoded' ? 'filled' : 'light'}
-                  disabled={cannotImport}
-                  onClick={() =>
-                    handleReviewDecision(
-                      [row.original],
-                      'import_uncoded',
-                      'row'
-                    )
-                  }
-                >
-                  Import uncoded
-                </Button>
-                <Button
-                  size="xs"
-                  variant={decision === 'exclude' ? 'filled' : 'subtle'}
-                  color="gray"
-                  onClick={() =>
-                    handleReviewDecision([row.original], 'exclude', 'row')
-                  }
-                >
-                  Exclude
-                </Button>
-              </Group>
-            );
-          }
-
-          return (
-            <Button
-              size="xs"
-              variant={
-                excludedSourceRowIndexes.has(row.original.sourceRowIndex)
-                  ? 'light'
-                  : 'subtle'
-              }
-              color={
-                excludedSourceRowIndexes.has(row.original.sourceRowIndex)
-                  ? 'blue'
-                  : 'gray'
-              }
-              onClick={() => handleTogglePreviewRow(row.original)}
-            >
-              {excludedSourceRowIndexes.has(row.original.sourceRowIndex)
-                ? 'Include'
-                : 'Exclude'}
-            </Button>
-          );
-        },
-        mantineTableHeadCellProps: {
-          className: 'table-head-cell table-head-left txnTable-head',
-        },
-        mantineTableBodyCellProps: { className: 'txnTable-cell' },
-      },
-    ],
-    [
-      currencyCode,
-      excludedSourceRowIndexes,
-      handleReviewDecision,
-      handleTogglePreviewRow,
-      reviewDecisions,
-    ]
-  );
-
-  const excludedPreviewColumns = useMemo(
-    () => previewColumns.filter((column) => column.id !== 'mapping'),
-    [previewColumns]
-  );
+  const { previewColumns, excludedPreviewColumns } = useImportPreviewColumns({
+    currencyCode,
+    excludedSourceRowIndexes,
+    reviewDecisions,
+    onReviewDecision: handleReviewDecision,
+    onTogglePreviewRow: handleTogglePreviewRow,
+  });
 
   async function handleCommitAppend() {
     const message = await commitAppend();
@@ -857,237 +566,27 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             </Stack>
           </Paper>
 
-          <Tabs
-            value={previewTab}
-            className={classes.softTabs}
-            onChange={(value) => {
-              if (
-                value === 'included' ||
-                value === 'needsReview' ||
-                value === 'duplicate' ||
-                value === 'invalid' ||
-                value === 'excluded'
-              ) {
-                setRowSelection({});
-                setPreviewTab(value as ImportPreviewTab);
-              }
-            }}
-          >
-            <Tabs.List>
-              <Tabs.Tab value="included">
-                Included ({includedPreviewRows.length})
-              </Tabs.Tab>
-              <Tabs.Tab value="needsReview">
-                Review ({unresolvedReviewPreviewRows.length} remaining)
-              </Tabs.Tab>
-              <Tabs.Tab value="duplicate">
-                Duplicate ({duplicatePreviewRows.length})
-              </Tabs.Tab>
-              <Tabs.Tab value="invalid">
-                Invalid ({invalidPreviewRows.length})
-              </Tabs.Tab>
-              <Tabs.Tab value="excluded">
-                Excluded ({excludedPreviewRows.length})
-              </Tabs.Tab>
-            </Tabs.List>
-
-            <Tabs.Panel value="included" pt="md">
-              <div className={classes.tableWrap}>
-                <MantineReactTable
-                  columns={previewColumns}
-                  data={visiblePreviewRows}
-                  getRowId={(row) => String(row.sourceRowIndex)}
-                  state={{ pagination, sorting }}
-                  onPaginationChange={setPagination}
-                  onSortingChange={setSorting}
-                  enableColumnResizing
-                  enableSorting
-                  enableSortingRemoval={false}
-                  enableGlobalFilter
-                  enablePagination
-                  autoResetPageIndex={false}
-                  initialState={{ density: 'xs' }}
-                  mantineTableContainerProps={{
-                    className: 'financeTable txnTable',
-                  }}
-                  mantineTableProps={{
-                    highlightOnHover: true,
-                    striped: 'odd',
-                    withTableBorder: true,
-                    style: { tableLayout: 'auto' },
-                  }}
-                  enableDensityToggle={false}
-                  enableFullScreenToggle={false}
-                  mantineTableBodyRowProps={({ row }) =>
-                    row.original.mappingStatus === 'invalid'
-                      ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-                      : {}
-                  }
-                />
-              </div>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="needsReview" pt="md">
-              <ImportReviewDecisionActions
-                remainingCount={needsReviewPreviewRows.length}
-                selectedCount={selectedNeedsReviewRows.length}
-                onDecision={(decision, scope) =>
-                  handleReviewDecision(
-                    scope === 'all'
-                      ? needsReviewPreviewRows
-                      : selectedNeedsReviewRows,
-                    decision,
-                    scope
-                  )
-                }
-              />
-              <div className={classes.tableWrap}>
-                <MantineReactTable
-                  columns={previewColumns}
-                  data={visiblePreviewRows}
-                  getRowId={(row) => String(row.sourceRowIndex)}
-                  enableRowSelection
-                  state={{ pagination, rowSelection, sorting }}
-                  onPaginationChange={(updater) => {
-                    setRowSelection({});
-                    setPagination(updater);
-                  }}
-                  onRowSelectionChange={setRowSelection}
-                  onSortingChange={(updater) => {
-                    const nextSorting =
-                      typeof updater === 'function'
-                        ? updater(sorting)
-                        : updater;
-                    setRowSelection({});
-                    setSorting(nextSorting);
-                    setPagination((current) => ({
-                      ...current,
-                      pageIndex: 0,
-                    }));
-                  }}
-                  enableColumnResizing
-                  enableSorting
-                  enableSortingRemoval={false}
-                  enableGlobalFilter
-                  enablePagination
-                  autoResetPageIndex={false}
-                  initialState={{ density: 'xs' }}
-                  mantineTableContainerProps={{
-                    className: 'financeTable txnTable',
-                  }}
-                  mantineTableProps={{
-                    highlightOnHover: true,
-                    striped: 'odd',
-                    withTableBorder: true,
-                    style: { tableLayout: 'auto' },
-                  }}
-                  enableDensityToggle={false}
-                  enableFullScreenToggle={false}
-                />
-              </div>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="duplicate" pt="md">
-              <div className={classes.tableWrap}>
-                <MantineReactTable
-                  columns={previewColumns}
-                  data={visiblePreviewRows}
-                  getRowId={(row) => String(row.sourceRowIndex)}
-                  state={{ pagination, sorting }}
-                  onPaginationChange={setPagination}
-                  onSortingChange={setSorting}
-                  enableColumnResizing
-                  enableSorting
-                  enableSortingRemoval={false}
-                  enableGlobalFilter
-                  enablePagination
-                  autoResetPageIndex={false}
-                  initialState={{ density: 'xs' }}
-                  mantineTableContainerProps={{
-                    className: 'financeTable txnTable',
-                  }}
-                  mantineTableProps={{
-                    highlightOnHover: true,
-                    striped: 'odd',
-                    withTableBorder: true,
-                    style: { tableLayout: 'auto' },
-                  }}
-                  enableDensityToggle={false}
-                  enableFullScreenToggle={false}
-                />
-              </div>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="invalid" pt="md">
-              <div className={classes.tableWrap}>
-                <MantineReactTable
-                  columns={previewColumns}
-                  data={visiblePreviewRows}
-                  getRowId={(row) => String(row.sourceRowIndex)}
-                  state={{ pagination, sorting }}
-                  onPaginationChange={setPagination}
-                  onSortingChange={setSorting}
-                  enableColumnResizing
-                  enableSorting
-                  enableSortingRemoval={false}
-                  enableGlobalFilter
-                  enablePagination
-                  autoResetPageIndex={false}
-                  initialState={{ density: 'xs' }}
-                  mantineTableContainerProps={{
-                    className: 'financeTable txnTable',
-                  }}
-                  mantineTableProps={{
-                    highlightOnHover: true,
-                    striped: 'odd',
-                    withTableBorder: true,
-                    style: { tableLayout: 'auto' },
-                  }}
-                  enableDensityToggle={false}
-                  enableFullScreenToggle={false}
-                  mantineTableBodyRowProps={() => ({
-                    style: { outline: '1px solid rgba(255,0,0,0.20)' },
-                  })}
-                />
-              </div>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="excluded" pt="md">
-              <div className={classes.tableWrap}>
-                <MantineReactTable
-                  columns={excludedPreviewColumns}
-                  data={visiblePreviewRows}
-                  getRowId={(row) => String(row.sourceRowIndex)}
-                  state={{ pagination, sorting }}
-                  onPaginationChange={setPagination}
-                  onSortingChange={setSorting}
-                  enableColumnResizing
-                  enableSorting
-                  enableSortingRemoval={false}
-                  enableGlobalFilter
-                  enablePagination
-                  autoResetPageIndex={false}
-                  initialState={{ density: 'xs' }}
-                  mantineTableContainerProps={{
-                    className: 'financeTable txnTable',
-                  }}
-                  mantineTableProps={{
-                    highlightOnHover: true,
-                    striped: 'odd',
-                    withTableBorder: true,
-                    style: { tableLayout: 'auto' },
-                  }}
-                  enableDensityToggle={false}
-                  enableFullScreenToggle={false}
-                  mantineTableBodyRowProps={({ row }) =>
-                    row.original.mappingStatus === 'invalid'
-                      ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-                      : {}
-                  }
-                />
-              </div>
-            </Tabs.Panel>
-          </Tabs>
+          <ImportPreviewTabs
+            previewTab={previewTab}
+            includedCount={includedPreviewRows.length}
+            unresolvedReviewCount={unresolvedReviewPreviewRows.length}
+            duplicateCount={duplicatePreviewRows.length}
+            invalidCount={invalidPreviewRows.length}
+            excludedCount={excludedPreviewRows.length}
+            visiblePreviewRows={visiblePreviewRows}
+            needsReviewPreviewRows={needsReviewPreviewRows}
+            selectedNeedsReviewRows={selectedNeedsReviewRows}
+            previewColumns={previewColumns}
+            excludedPreviewColumns={excludedPreviewColumns}
+            pagination={pagination}
+            sorting={sorting}
+            rowSelection={rowSelection}
+            setPreviewTab={setPreviewTab}
+            setPagination={setPagination}
+            setSorting={setSorting}
+            setRowSelection={setRowSelection}
+            onReviewDecision={handleReviewDecision}
+          />
 
           <Paper className={classes.surfaceCard} radius="xl" p="md">
             <Group className={classes.footerRowBetween}>

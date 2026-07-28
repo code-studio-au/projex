@@ -238,6 +238,13 @@ the maintainability review:
   sub-project table have been extracted from `ProjectWorkspace` into a focused,
   component-tested view. The route-level coordinator now owns data, access, URL
   state, and navigation without also carrying the complete programme UI.
+- PowerBI preview tabs, table configuration, and review columns now live behind
+  focused import-review components, with component tests covering tab-scope
+  resets and bulk decision routing. `PowerBiImporterPanel` remains responsible
+  for the import workflow and exclusion-rule coordination.
+- Project budget editing, allocation/headroom presentation, and health messaging
+  now live in a component-tested summary boundary. `BudgetPanel` retains period
+  filters, rollup-row construction, column visibility, and table coordination.
 - Splitting the remaining large UI and server feature coordinators around domain
   actions and testable presentation models remains the next Item 9 checkpoint.
 

@@ -23,4 +23,26 @@ describe('maintainability boundaries', () => {
     expect(verifyCi).not.toContain('verify:security:repo');
     expect(verifyCi).not.toContain('pnpm audit');
   });
+
+  test('PowerBI import coordination delegates preview tables and columns', async () => {
+    const source = await readFile(
+      path.resolve('src/components/PowerBiImporterPanel.tsx'),
+      'utf8'
+    );
+
+    expect(source).not.toMatch(/MantineReactTable|MRT_ColumnDef/);
+    expect(source).toContain('ImportPreviewTabs');
+    expect(source).toContain('useImportPreviewColumns');
+  });
+
+  test('budget coordination delegates summary presentation and editing', async () => {
+    const source = await readFile(
+      path.resolve('src/components/BudgetPanel.tsx'),
+      'utf8'
+    );
+
+    expect(source).toContain('ProjectBudgetSummary');
+    expect(source).not.toContain('calculateBudgetPosition');
+    expect(source).not.toContain('isEditingProjectBudget');
+  });
 });
