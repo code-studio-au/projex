@@ -1,12 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 const packageManagerVersion = '11.0.8';
 const nodeReleaseBaseUrl = 'https://nodejs.org/download/release/latest-v24.x';
 const rdsGlobalCaBundlePath = '/etc/projex/rds-global-bundle.pem';
 const rdsGlobalCaBundleUrl =
   'https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem';
+const linuxUserDataShebang = '#!/bin/bash';
+
+export const EC2_USER_DATA_MAX_BYTES = 16_384;
 
 function repoRootFromCurrentFile() {
   return resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -131,4 +135,25 @@ export function buildHostBootstrapCommands() {
     'systemctl restart nginx',
     'echo "Projex instance bootstrap complete" > /var/log/projex-bootstrap.log',
   ];
+}
+
+export function buildHostBootstrapUserDataCommands() {
+  const bootstrapScript = `${buildHostBootstrapCommands().join('\n')}\n`;
+  const compressedBootstrap = gzipSync(Buffer.from(bootstrapScript), {
+    level: 9,
+  }).toString('base64');
+  const commands = [
+    'set -euxo pipefail',
+    `printf '%s' '${compressedBootstrap}' | base64 --decode | gzip --decompress | /bin/bash`,
+  ];
+  const renderedUserData = `${linuxUserDataShebang}\n${commands.join('\n')}\n`;
+  const renderedBytes = Buffer.byteLength(renderedUserData, 'utf8');
+
+  if (renderedBytes > EC2_USER_DATA_MAX_BYTES) {
+    throw new Error(
+      `EC2 user data is ${renderedBytes} bytes; the maximum is ${EC2_USER_DATA_MAX_BYTES} bytes`
+    );
+  }
+
+  return commands;
 }

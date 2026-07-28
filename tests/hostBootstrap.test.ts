@@ -1,6 +1,11 @@
+import { gunzipSync } from 'node:zlib';
 import { describe, expect, test } from 'vitest';
 
-import { buildHostBootstrapCommands } from '../deploy/cdk/lib/hostBootstrap.ts';
+import {
+  buildHostBootstrapCommands,
+  buildHostBootstrapUserDataCommands,
+  EC2_USER_DATA_MAX_BYTES,
+} from '../deploy/cdk/lib/hostBootstrap.ts';
 
 describe('buildHostBootstrapCommands', () => {
   test('installs deploy-ready host assets and cert provisioning helpers', () => {
@@ -66,6 +71,31 @@ describe('buildHostBootstrapCommands', () => {
     );
     expect(joined).toContain(
       'install -o root -g root -m 0644 "$PROJEX_RDS_CA_TMP" /etc/projex/rds-global-bundle.pem'
+    );
+  });
+
+  test('compresses the complete bootstrap within the EC2 user-data limit', () => {
+    const commands = buildHostBootstrapUserDataCommands();
+    const renderedUserData = `#!/bin/bash\n${commands.join('\n')}\n`;
+    const compressedPayload = commands
+      .join('\n')
+      .match(/printf '%s' '([A-Za-z0-9+/=]+)'/)?.[1];
+
+    expect(Buffer.byteLength(renderedUserData, 'utf8')).toBeLessThanOrEqual(
+      EC2_USER_DATA_MAX_BYTES
+    );
+    expect(compressedPayload).toBeDefined();
+
+    const bootstrapScript = gunzipSync(
+      Buffer.from(compressedPayload ?? '', 'base64')
+    ).toString('utf8');
+
+    expect(bootstrapScript).toBe(
+      `${buildHostBootstrapCommands().join('\n')}\n`
+    );
+    expect(bootstrapScript).toContain('/etc/systemd/system/projex.service');
+    expect(bootstrapScript).toContain(
+      '/usr/local/bin/projex-provision-letsencrypt-cert'
     );
   });
 });

@@ -2,6 +2,7 @@ import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { describe, expect, test } from 'vitest';
 
+import { EC2_USER_DATA_MAX_BYTES } from '../lib/hostBootstrap.ts';
 import { ProjexInfraStack } from '../lib/projex-infra-stack.ts';
 
 type EnvironmentName = 'production' | 'staging';
@@ -62,6 +63,23 @@ describe('Projex infrastructure security', () => {
         HttpTokens: 'required',
       },
     });
+  });
+
+  test('keeps rendered bootstrap data within the EC2 API limit', () => {
+    const template = synthesizeInfraTemplate('staging');
+    const instance = onlyResource(template, 'AWS::EC2::Instance');
+    const userData = instance.Properties?.UserData as
+      | { 'Fn::Base64'?: unknown }
+      | undefined;
+    const renderedUserData = userData?.['Fn::Base64'];
+
+    expect(renderedUserData).toEqual(expect.any(String));
+    expect(
+      Buffer.byteLength(String(renderedUserData), 'utf8')
+    ).toBeLessThanOrEqual(EC2_USER_DATA_MAX_BYTES);
+    expect(renderedUserData).toContain(
+      'base64 --decode | gzip --decompress | /bin/bash'
+    );
   });
 
   test('exposes only HTTP and HTTPS publicly when SSH is disabled', () => {
