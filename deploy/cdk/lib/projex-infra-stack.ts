@@ -10,7 +10,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
-import { buildHostBootstrapCommands } from './hostBootstrap.js';
+import { buildHostBootstrapUserDataCommands } from './hostBootstrap.js';
 
 type ProjexInfraStackProps = StackProps & {
   envName: string;
@@ -79,7 +79,7 @@ export class ProjexInfraStack extends Stack {
     });
 
     const userData = ec2.UserData.forLinux();
-    userData.addCommands(...buildHostBootstrapCommands());
+    userData.addCommands(...buildHostBootstrapUserDataCommands());
 
     const instance = new ec2.Instance(this, 'ProjexEc2', {
       vpc,
