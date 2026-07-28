@@ -12,7 +12,7 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
-import { tmpdir, userInfo } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,7 +28,7 @@ const ssmDeployScript = join(repoRoot, 'scripts/deploy-artifact-ssm.sh');
 const ec2DeployScript = join(repoRoot, 'scripts/deploy-artifact-ec2.sh');
 const gitSha = 'a'.repeat(40);
 const temporaryRoots: string[] = [];
-const testDeployUser = userInfo().username;
+const testDeployUser = 'projex-test-deploy';
 
 type ReleaseIdentity = {
   environment: string;
@@ -66,6 +66,25 @@ fi
 args=("$@")
 destination="\${args[\${#args[@]}-1]}"
 cp "$MOCK_ARTIFACT_SOURCE" "$destination"
+`
+  );
+
+  await writeExecutable(
+    join(bin, 'id'),
+    `#!/usr/bin/env bash
+set -euo pipefail
+case "\${1:-}" in
+  -u)
+    printf '12345\\n'
+    ;;
+  -gn|-un)
+    printf '%s\\n' ${JSON.stringify(testDeployUser)}
+    ;;
+  *)
+    printf 'Unsupported mock id arguments: %s\\n' "$*" >&2
+    exit 2
+    ;;
+esac
 `
   );
 
@@ -295,7 +314,12 @@ async function createEc2Release(
   for (const relativePath of requiredFiles) {
     const path = join(releaseDir, relativePath);
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, 'test\n');
+    await writeFile(
+      path,
+      relativePath === 'deploy/systemd/projex.service'
+        ? await readFile(join(repoRoot, relativePath), 'utf8')
+        : 'test\n'
+    );
   }
   await writeFile(
     join(releaseDir, '.projex-release.json'),
@@ -737,12 +761,16 @@ describe('deploy-artifact-ec2.sh', () => {
     );
     expect(sudoCalls).toContain(`chown -R ${testDeployUser}:`);
     expect(sudoCalls).toContain(`chown -R root:root ${releaseDir}`);
-    expect(sudoCalls).toContain(
-      `install -o root -g root -m 0644 ${join(
-        releaseDir,
-        'deploy/systemd/projex.service'
-      )}`
+    const installedServicePath = join(appRoot, 'systemd', 'projex.service');
+    const installedService = await readFile(installedServicePath, 'utf8');
+    expect(installedService).toContain(
+      `WorkingDirectory=${join(appRoot, 'current')}`
     );
+    expect(installedService).toContain(
+      `EnvironmentFile=${join(appRoot, 'projex.env')}`
+    );
+    expect(installedService).not.toContain('/opt/projex/current');
+    expect(installedService).not.toContain('/etc/projex/projex.env');
   });
 
   test('activates a validated release with an atomic symlink replacement', async () => {

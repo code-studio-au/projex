@@ -23,6 +23,7 @@ NGINX_REQUEST_LIMITS_PATH="${NGINX_REQUEST_LIMITS_PATH:-/etc/nginx/conf.d/projex
 SYSTEMD_SERVICE_PATH="${SYSTEMD_SERVICE_PATH:-}"
 RELEASES_DIR=""
 NEXT_LINK=""
+SYSTEMD_RENDER_PATH=""
 DEPLOY_GROUP=""
 RELEASE_OWNED_BY_DEPLOY_USER="false"
 
@@ -72,6 +73,14 @@ validate_system_user() {
   fi
 }
 
+validate_systemd_path() {
+  local label="$1"
+  local value="$2"
+  if [[ ! "$value" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+    fail "$label must be an absolute path containing only systemd-safe path characters"
+  fi
+}
+
 resolve_existing_path() {
   node -e \
     'process.stdout.write(require("node:fs").realpathSync(process.argv[1]))' \
@@ -88,6 +97,27 @@ read_manifest_value() {
     }
     process.stdout.write(String(value));
   ' "$1" "$2"
+}
+
+render_systemd_service() {
+  local source_path="$1"
+  local destination_path="$2"
+  node -e '
+    const fs = require("node:fs");
+    const [sourcePath, destinationPath, currentLink, envFile] =
+      process.argv.slice(1);
+    let service = fs.readFileSync(sourcePath, "utf8");
+    for (const [placeholder, value] of [
+      ["/opt/projex/current", currentLink],
+      ["/etc/projex/projex.env", envFile],
+    ]) {
+      if (!service.includes(placeholder)) {
+        throw new Error(`Missing expected systemd path: ${placeholder}`);
+      }
+      service = service.replaceAll(placeholder, value);
+    }
+    fs.writeFileSync(destinationPath, service, { flag: "wx", mode: 0o600 });
+  ' "$source_path" "$destination_path" "$CURRENT_LINK" "$ENV_FILE"
 }
 
 ensure_deploy_identity() {
@@ -154,6 +184,9 @@ activate_release() {
 cleanup() {
   if [[ -n "$NEXT_LINK" && -L "$NEXT_LINK" ]]; then
     rm -f -- "$NEXT_LINK"
+  fi
+  if [[ -n "$SYSTEMD_RENDER_PATH" ]]; then
+    rm -f -- "$SYSTEMD_RENDER_PATH"
   fi
   if [[ "$RELEASE_OWNED_BY_DEPLOY_USER" == "true" && -d "$RELEASE_DIR" ]]; then
     sudo chown -R root:root "$RELEASE_DIR" || true
@@ -237,9 +270,11 @@ if [[ -z "$APP_ROOT" || "$APP_ROOT" == "/" || "$APP_ROOT" != /* ]]; then
   fail 'APP_ROOT must be a non-root absolute path.'
 fi
 APP_ROOT="$(resolve_existing_path "$APP_ROOT")"
+validate_systemd_path "APP_ROOT" "$APP_ROOT"
 RELEASES_DIR="${APP_ROOT}/releases"
 CURRENT_LINK="${CURRENT_LINK:-${APP_ROOT}/current}"
 SHARED_DIR="${SHARED_DIR:-${APP_ROOT}/shared}"
+validate_systemd_path "CURRENT_LINK" "$CURRENT_LINK"
 
 validate_identifier "RELEASE_ID" "$RELEASE_ID"
 validate_identifier "SERVICE_NAME" "$SERVICE_NAME"
@@ -250,6 +285,7 @@ fi
 if [[ -z "$DEPLOY_HOME" || "$DEPLOY_HOME" == "/" || "$DEPLOY_HOME" != /* ]]; then
   fail 'DEPLOY_HOME must be a non-root absolute path.'
 fi
+validate_systemd_path "ENV_FILE" "$ENV_FILE"
 if [[ "$PNPM_BIN" != /* ]]; then
   fail 'PNPM_BIN must be an absolute path.'
 fi
@@ -260,6 +296,7 @@ SYSTEMD_SERVICE_PATH="${SYSTEMD_SERVICE_PATH:-/etc/systemd/system/${SERVICE_NAME
 if [[ "$SYSTEMD_SERVICE_PATH" != /* || "$SYSTEMD_SERVICE_PATH" == "/" ]]; then
   fail 'SYSTEMD_SERVICE_PATH must be a non-root absolute path.'
 fi
+validate_systemd_path "SYSTEMD_SERVICE_PATH" "$SYSTEMD_SERVICE_PATH"
 
 require_dir "$RELEASE_DIR"
 RELEASE_DIR="$(resolve_existing_path "$RELEASE_DIR")"
@@ -355,10 +392,16 @@ sudo chmod -R a+rX,go-w "$RELEASE_DIR"
 RELEASE_OWNED_BY_DEPLOY_USER="false"
 
 log "Validating and refreshing the systemd service"
-sudo systemd-analyze verify "$RELEASE_DIR/deploy/systemd/projex.service"
-sudo install -o root -g root -m 0644 \
+SYSTEMD_RENDER_PATH="${RELEASE_DIR}/.projex-systemd-${RELEASE_ID}.$$.service"
+render_systemd_service \
   "$RELEASE_DIR/deploy/systemd/projex.service" \
+  "$SYSTEMD_RENDER_PATH"
+sudo systemd-analyze verify "$SYSTEMD_RENDER_PATH"
+sudo install -o root -g root -m 0644 \
+  "$SYSTEMD_RENDER_PATH" \
   "$SYSTEMD_SERVICE_PATH"
+rm -f -- "$SYSTEMD_RENDER_PATH"
+SYSTEMD_RENDER_PATH=""
 sudo systemctl daemon-reload
 
 log "Refreshing shared maintenance assets"

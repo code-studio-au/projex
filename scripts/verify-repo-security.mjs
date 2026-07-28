@@ -328,6 +328,16 @@ async function verifyHostPrivilegeBoundaries() {
       deployScript.includes('sudo chmod 0640 "$ENV_FILE"'),
     'Deploys must restore root ownership and restrict environment-file access'
   );
+  assertCondition(
+    deployScript.includes('render_systemd_service') &&
+      deployScript.includes(
+        'service = service.replaceAll(placeholder, value);'
+      ) &&
+      deployScript.includes(
+        `"$source_path" "$destination_path" "$CURRENT_LINK" "$ENV_FILE"`
+      ),
+    'The installed systemd unit must retain validated APP_ROOT and ENV_FILE overrides'
+  );
 
   for (const directive of [
     'NoNewPrivileges=true',

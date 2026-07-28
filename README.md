@@ -106,6 +106,9 @@ release is returned to root ownership before the sandboxed `ec2-user` service
 starts it. The service has no Linux capabilities, a read-only filesystem apart
 from its explicit state directory, and no access to user home directories.
 CDK-created instances require IMDSv2.
+When deployment path overrides are configured, the installed systemd unit is
+rendered from those validated paths so activation and service startup remain
+aligned.
 
 The manual deploy workflow expects GitHub Actions environment configuration for
 the target environment. EC2 deploys are limited to the protected `main` branch

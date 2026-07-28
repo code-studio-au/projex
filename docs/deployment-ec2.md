@@ -317,6 +317,9 @@ The SSM command retains root only for verified artifact extraction, ownership,
 service configuration, symlink activation, and service control. Package hooks
 are disabled, and package installation plus application migrations execute as
 `projex-deploy`. Release contents are root-owned and read-only to the runtime.
+The service unit is rendered with the validated `EC2_APP_ROOT` and
+`EC2_ENV_FILE` values before installation, so supported path overrides cannot
+leave systemd pointing at the default release or environment file.
 
 ## 6) Health checks
 
