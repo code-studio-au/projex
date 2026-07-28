@@ -7,8 +7,8 @@
 
 - [ ] `pnpm run verify:app`
 - [ ] Relevant database and smoke lanes pass, or are noted below
-- [ ] GitHub Code Quality has no unresolved findings
-- [ ] Maintainability and reliability remain **Excellent**
+- [ ] GitHub CodeQL and dependency/security analysis have no new unresolved
+      findings
 
 ## Risk
 

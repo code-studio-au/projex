@@ -15,7 +15,8 @@ individual items are completed.
 - **Item 7 — Testing review:** Completed 28 July 2026.
 - **Item 8 — Bundle and chunk review:** Completed 28 July 2026.
 - **Item 9 — Structure and maintainability:** Completed 28 July 2026.
-- **Items 10 onward:** Pending.
+- **Item 10 — Documentation and repository hygiene:** Completed 28 July 2026.
+- **Items 11 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -260,6 +261,23 @@ the maintainability review:
   unmatching to a match-decision service. Rejection upserts and optimistic
   workflow state are shared once, while the top-level transaction dispatcher
   retains authorization, workflow locking, and action routing.
+
+Item 10 has completed the documentation and repository-hygiene recommendations:
+
+- The README badge, required CI-lane count, browser-smoke merge gate, and
+  canonical repository identity reflect the enforced `code-studio-au/projex`
+  controls.
+- CONTRIBUTING and the pull-request template describe the configured CodeQL,
+  dependency, and secret-scanning controls without referring to a nonexistent
+  quality-rating provider.
+- Full local browser verification consistently documents installation of both
+  supported Playwright browsers.
+- Dead-code guidance matches the narrow Knip configuration, and the repository
+  security gate prevents broad export ignores or the reviewed documentation
+  drift from returning.
+- The public repository now carries an explicit proprietary `LICENSE`, and the
+  private package is marked `UNLICENSED`; viewing the repository does not grant
+  reuse or redistribution rights.
 
 # Full Repository Review
 

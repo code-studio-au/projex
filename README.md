@@ -22,17 +22,14 @@ pnpm run dev
 
 Use Node `24` as pinned in `.nvmrc` and `.node-version`.
 
-Useful checks before handing work over or opening a PR:
+The standard non-Docker application gate before handing work over or opening a
+PR is:
 
 ```bash
-pnpm run test
-pnpm run coverage
-pnpm run db:verify-types
-pnpm run typecheck
-pnpm run lint
-pnpm run format:check
-pnpm run build
+pnpm run verify:app
 ```
+
+Database, CDK, and smoke changes also need their relevant lanes below.
 
 The repo now includes a GitHub Actions CI workflow at
 `.github/workflows/ci.yml`. It currently runs five required lanes:
@@ -428,3 +425,9 @@ Keep this list short. If a new note overlaps an existing item, update the existi
 - `CONTRIBUTING.md`: local setup, verification expectations, and contribution workflow.
 - `SECURITY.md`: vulnerability reporting path and deployment security expectations.
 - `deploy/cdk/README.md`: AWS CDK stack notes.
+
+## Licence
+
+Projex is proprietary software. No rights to use, copy, modify, or distribute
+the software are granted without prior written permission. See
+[LICENSE](LICENSE).

@@ -418,8 +418,9 @@ That adds:
 - disposable Postgres-backed isolated full server smoke
 - disposable Postgres-backed isolated full browser smoke
 
-If you run the browser smoke lane locally outside CI, install Chromium first:
+If you run the full browser smoke lanes locally outside CI, install Chromium
+and Firefox first:
 
 ```bash
-pnpm exec playwright install --with-deps chromium
+pnpm exec playwright install --with-deps chromium firefox
 ```

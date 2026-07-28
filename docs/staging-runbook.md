@@ -93,8 +93,9 @@ How to think about those commands:
   CDK synth verification, disposable DB integration tests, isolated full
   disposable server smoke, and isolated full disposable browser smoke.
 - Both disposable DB steps require local Docker access.
-- Local browser smoke also needs `pnpm exec playwright install --with-deps chromium`
-  the first time you run it on a machine.
+- Local browser smoke also needs
+  `pnpm exec playwright install --with-deps chromium firefox` the first time
+  you run it on a machine.
 - `pnpm run db:migrate` remains an explicit deployment step; the runtime server should be restarted only after migrations succeed.
 
 Post-deploy verification on the target runtime:
