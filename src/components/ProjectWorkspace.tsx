@@ -1,15 +1,13 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
 import type {
-  CategoryId,
   CompanyId,
   CompanySummaryProject,
   ProjectId,
   ProjectType,
-  SubCategoryId,
   TransactionDrilldownFilter,
   TxnId,
 } from '../types';
@@ -43,6 +41,12 @@ import {
   resolveProjectWorkspaceTabAccess,
   type ProjectWorkspaceTab,
 } from './projectWorkspaceTabAccess';
+import {
+  type ProjectWorkspaceEntryFocus,
+  type ProjectWorkspaceEntrySource,
+  type TransactionDrilldownSearch,
+  useProjectWorkspaceUrlSync,
+} from './projectWorkspace/useProjectWorkspaceUrlSync';
 import classes from '../styles/ui.module.css';
 
 const TransactionsPanel = lazy(() => import('./TransactionsPanel'));
@@ -50,20 +54,6 @@ const PowerBiImporterPanel = lazy(() => import('./PowerBiImporterPanel'));
 const ProjectSettingsPanel = lazy(() => import('./ProjectSettingsPanel'));
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
-type TransactionDrilldownSearch =
-  | {
-      kind: 'category';
-      categoryId: CategoryId;
-      categoryName?: string;
-    }
-  | {
-      kind: 'subcategory';
-      categoryId: CategoryId;
-      subCategoryId: SubCategoryId;
-      categoryName?: string;
-      subCategoryName?: string;
-    };
-
 function toProjectWorkspaceTab(value: string | null): ProjectWorkspaceTab {
   if (
     value === 'budget' ||
@@ -122,8 +112,8 @@ type ProjectWorkspaceProps = {
   initialTransactionSearch?: string;
   initialCommentTxnId?: TxnId | null;
   initialTransactionDrilldown?: TransactionDrilldownSearch | null;
-  initialEntrySource?: 'company-summary' | 'company-work-queue';
-  initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
+  initialEntrySource?: ProjectWorkspaceEntrySource;
+  initialEntryFocus?: ProjectWorkspaceEntryFocus;
 };
 
 type ProjectWorkspaceInnerProps = {
@@ -151,8 +141,8 @@ type ProjectWorkspaceInnerProps = {
   initialTransactionSearch: string;
   initialCommentTxnId: TxnId | null;
   initialTransactionDrilldown: TransactionDrilldownSearch | null;
-  initialEntrySource?: 'company-summary' | 'company-work-queue';
-  initialEntryFocus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
+  initialEntrySource?: ProjectWorkspaceEntrySource;
+  initialEntryFocus?: ProjectWorkspaceEntryFocus;
 };
 
 export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
@@ -355,6 +345,18 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   const transactionSearch = initialTransactionSearch;
   const [transactionDrilldown, setTransactionDrilldown] =
     useState<TransactionDrilldownSearch | null>(initialTransactionDrilldown);
+  const { pushNextUrlSync } = useProjectWorkspaceUrlSync({
+    companyId,
+    projectId,
+    activeTab,
+    yearFilter,
+    quarterFilter,
+    monthFilterKey,
+    transactionView,
+    transactionDrilldown,
+    entrySource: initialEntrySource,
+    entryFocus: initialEntryFocus,
+  });
 
   const budgets = useBudgets({
     companyId,
@@ -374,7 +376,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     canEditBudgets,
     enabled: isOperationalProject,
   });
-  const nextUrlSyncShouldReplaceRef = useRef(true);
 
   const effectiveCompanyName =
     (isHydrated ? company.data?.name : undefined) ?? initialCompanyName;
@@ -424,7 +425,7 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   }, [taxonomy.categories, taxonomy.subCategories, transactionDrilldown]);
 
   function openTransactionDrilldown(filter: TransactionDrilldownFilter) {
-    nextUrlSyncShouldReplaceRef.current = false;
+    pushNextUrlSync();
     setTransactionDrilldown(
       filter.kind === 'subcategory'
         ? {
@@ -596,120 +597,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
         return 'Opened from the company summary to review this project budget snapshot.';
     }
   }, [initialEntryFocus, initialEntrySource]);
-
-  useEffect(() => {
-    const replace = nextUrlSyncShouldReplaceRef.current;
-    nextUrlSyncShouldReplaceRef.current = true;
-    const currentSearch = router.state.location.search as Record<
-      string,
-      unknown
-    >;
-    const currentTransactionSearch =
-      typeof currentSearch.q === 'string' ? currentSearch.q : undefined;
-    const nextSearch = {
-      year: yearFilter ?? undefined,
-      quarter: quarterFilter ?? undefined,
-      tab: activeTab === 'budget' ? undefined : activeTab,
-      month: monthFilterKey ?? undefined,
-      view: transactionView === 'all' ? undefined : transactionView,
-      q: currentTransactionSearch,
-      source: initialEntrySource,
-      focus: initialEntryFocus,
-      drilldownKind: transactionDrilldown?.kind,
-      categoryId: transactionDrilldown?.categoryId,
-      categoryName: transactionDrilldown?.categoryName,
-      subCategoryId:
-        transactionDrilldown?.kind === 'subcategory'
-          ? transactionDrilldown.subCategoryId
-          : undefined,
-      subCategoryName:
-        transactionDrilldown?.kind === 'subcategory'
-          ? transactionDrilldown.subCategoryName
-          : undefined,
-    };
-    const normalizedCurrentSearch = {
-      year:
-        typeof currentSearch.year === 'string' ? currentSearch.year : undefined,
-      quarter:
-        currentSearch.quarter === 'Q1' ||
-        currentSearch.quarter === 'Q2' ||
-        currentSearch.quarter === 'Q3' ||
-        currentSearch.quarter === 'Q4'
-          ? currentSearch.quarter
-          : undefined,
-      tab:
-        currentSearch.tab === 'budget' ||
-        currentSearch.tab === 'transactions' ||
-        currentSearch.tab === 'import' ||
-        currentSearch.tab === 'settings'
-          ? currentSearch.tab
-          : undefined,
-      month:
-        typeof currentSearch.month === 'string'
-          ? currentSearch.month
-          : undefined,
-      view:
-        typeof currentSearch.view === 'string' ? currentSearch.view : undefined,
-      q: typeof currentSearch.q === 'string' ? currentSearch.q : undefined,
-      source:
-        currentSearch.source === 'company-summary' ||
-        currentSearch.source === 'company-work-queue'
-          ? currentSearch.source
-          : undefined,
-      focus:
-        currentSearch.focus === 'budget' ||
-        currentSearch.focus === 'actual' ||
-        currentSearch.focus === 'remaining' ||
-        currentSearch.focus === 'uncoded' ||
-        currentSearch.focus === 'health'
-          ? currentSearch.focus
-          : undefined,
-      drilldownKind:
-        currentSearch.drilldownKind === 'category' ||
-        currentSearch.drilldownKind === 'subcategory'
-          ? currentSearch.drilldownKind
-          : undefined,
-      categoryId:
-        typeof currentSearch.categoryId === 'string'
-          ? currentSearch.categoryId
-          : undefined,
-      categoryName:
-        typeof currentSearch.categoryName === 'string'
-          ? currentSearch.categoryName
-          : undefined,
-      subCategoryId:
-        typeof currentSearch.subCategoryId === 'string'
-          ? currentSearch.subCategoryId
-          : undefined,
-      subCategoryName:
-        typeof currentSearch.subCategoryName === 'string'
-          ? currentSearch.subCategoryName
-          : undefined,
-    };
-    if (
-      JSON.stringify(normalizedCurrentSearch) === JSON.stringify(nextSearch)
-    ) {
-      return;
-    }
-    void router.navigate({
-      to: '/c/$companyId/p/$projectId',
-      params: { companyId, projectId },
-      search: nextSearch,
-      replace,
-    });
-  }, [
-    activeTab,
-    companyId,
-    initialEntryFocus,
-    initialEntrySource,
-    yearFilter,
-    quarterFilter,
-    monthFilterKey,
-    projectId,
-    router,
-    transactionDrilldown,
-    transactionView,
-  ]);
 
   if (effectiveProjectType === 'programme') {
     return (

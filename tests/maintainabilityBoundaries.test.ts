@@ -45,4 +45,37 @@ describe('maintainability boundaries', () => {
     expect(source).not.toContain('calculateBudgetPosition');
     expect(source).not.toContain('isEditingProjectBudget');
   });
+
+  test('project workspace delegates URL synchronization', async () => {
+    const source = await readFile(
+      path.resolve('src/components/ProjectWorkspace.tsx'),
+      'utf8'
+    );
+
+    expect(source).toContain('useProjectWorkspaceUrlSync');
+    expect(source).not.toContain('nextUrlSyncShouldReplaceRef');
+    expect(source).not.toContain('normalizedCurrentSearch');
+  });
+
+  test('company settings delegates export workflow coordination', async () => {
+    const source = await readFile(
+      path.resolve('src/components/CompanySettingsPanel.tsx'),
+      'utf8'
+    );
+
+    expect(source).toContain('CompanyExportPanel');
+    expect(source).not.toContain('EXPORT_JOB_POLL_INTERVAL_MS');
+    expect(source).not.toContain('handleStartExport');
+  });
+
+  test('taxonomy management delegates destructive action workflows', async () => {
+    const source = await readFile(
+      path.resolve('src/components/TaxonomyManagerModal.tsx'),
+      'utf8'
+    );
+
+    expect(source).toContain('TaxonomyActionDialogs');
+    expect(source).not.toContain('useProjectAutoCodingRulesQuery');
+    expect(source).not.toContain('useBulkRecodeProjectTransactionsMutation');
+  });
 });

@@ -245,8 +245,17 @@ the maintainability review:
 - Project budget editing, allocation/headroom presentation, and health messaging
   now live in a component-tested summary boundary. `BudgetPanel` retains period
   filters, rollup-row construction, column visibility, and table coordination.
-- Splitting the remaining large UI and server feature coordinators around domain
-  actions and testable presentation models remains the next Item 9 checkpoint.
+- Project workspace URL normalization and navigation replacement/push semantics
+  now live in a tested hook boundary. The route coordinator no longer owns the
+  synchronization effect or its mutable navigation intent.
+- Company export polling, download, notification status, and presentation now
+  live in a focused export panel with tested file-size and audit-summary models.
+  `CompanySettingsPanel` retains company standards and membership coordination.
+- Taxonomy move, recode, and destructive-delete workflows now live in dedicated
+  action dialogs. Tested option and safe-default models keep affected
+  subcategories and auto-coding rule handling explicit.
+- Splitting the two remaining large server feature coordinators around domain
+  actions remains the next Item 9 checkpoint.
 
 # Full Repository Review
 
