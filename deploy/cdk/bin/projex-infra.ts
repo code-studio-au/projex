@@ -4,8 +4,12 @@ import * as cdk from 'aws-cdk-lib';
 import { ProjexGithubDeployStack } from '../lib/projex-github-deploy-stack.js';
 import { ProjexGithubIdentityStack } from '../lib/projex-github-identity-stack.js';
 import { ProjexInfraStack } from '../lib/projex-infra-stack.js';
+import { ProjexSecurityChecks } from '../lib/projex-security-checks.js';
 
 const app = new cdk.App();
+cdk.Validations.of(app).addPlugins(
+  new ProjexSecurityChecks(app, { verbose: true })
+);
 
 function readOptionalPositiveIntContext(key: string) {
   const raw = app.node.tryGetContext(key);

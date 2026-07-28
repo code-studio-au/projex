@@ -81,12 +81,18 @@ export default defineConfig(({ command }) => {
     plugins: [tanstackStart(), react()],
     test: {
       environment: 'node',
-      include: ['tests/**/*.test.ts', 'deploy/cdk/tests/**/*.test.ts'],
+      include: [
+        'tests/**/*.test.ts',
+        'tests/**/*.test.tsx',
+        'deploy/cdk/tests/**/*.test.ts',
+      ],
       exclude: ['tests/dbIntegration*.test.ts'],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'lcov'],
         reportsDirectory: './coverage',
+        // This deliberately reports selected domain coverage, not whole-repo
+        // coverage. Keep the public label aligned when this allowlist changes.
         include: [
           'src/server/env.ts',
           'src/server/http/security.ts',

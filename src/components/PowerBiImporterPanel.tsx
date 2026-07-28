@@ -46,6 +46,7 @@ import {
 } from '../queries/importRules';
 import { suggestImportExclusionRuleFromPreviewRow } from '../utils/importRuleSuggestions';
 import { showAppToast } from '../utils/toast';
+import ImportReviewDecisionActions from './ImportReviewDecisionActions';
 import classes from '../styles/ui.module.css';
 
 const fieldOptions: Array<{ value: ImportRuleField; label: string }> = [
@@ -927,73 +928,19 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             </Tabs.Panel>
 
             <Tabs.Panel value="needsReview" pt="md">
-              <Group justify="space-between" align="center" mb="sm" wrap="wrap">
-                <Text size="sm" c="dimmed">
-                  Every row must be imported without coding or excluded before
-                  this import can continue. The matched rule and your decision
-                  remain in the import audit trail.
-                </Text>
-                <Group gap="xs" wrap="wrap">
-                  <Button
-                    size="xs"
-                    variant="light"
-                    disabled={!needsReviewPreviewRows.length}
-                    onClick={() =>
-                      handleReviewDecision(
-                        needsReviewPreviewRows,
-                        'import_uncoded',
-                        'all'
-                      )
-                    }
-                  >
-                    Import all as uncoded
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="gray"
-                    disabled={!needsReviewPreviewRows.length}
-                    onClick={() =>
-                      handleReviewDecision(
-                        needsReviewPreviewRows,
-                        'exclude',
-                        'all'
-                      )
-                    }
-                  >
-                    Exclude all
-                  </Button>
-                  <Button
-                    size="xs"
-                    disabled={!selectedNeedsReviewRows.length}
-                    onClick={() =>
-                      handleReviewDecision(
-                        selectedNeedsReviewRows,
-                        'import_uncoded',
-                        'selected'
-                      )
-                    }
-                  >
-                    Import selected as uncoded ({selectedNeedsReviewRows.length}
-                    )
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    disabled={!selectedNeedsReviewRows.length}
-                    onClick={() =>
-                      handleReviewDecision(
-                        selectedNeedsReviewRows,
-                        'exclude',
-                        'selected'
-                      )
-                    }
-                  >
-                    Exclude selected ({selectedNeedsReviewRows.length})
-                  </Button>
-                </Group>
-              </Group>
+              <ImportReviewDecisionActions
+                remainingCount={needsReviewPreviewRows.length}
+                selectedCount={selectedNeedsReviewRows.length}
+                onDecision={(decision, scope) =>
+                  handleReviewDecision(
+                    scope === 'all'
+                      ? needsReviewPreviewRows
+                      : selectedNeedsReviewRows,
+                    decision,
+                    scope
+                  )
+                }
+              />
               <div className={classes.tableWrap}>
                 <MantineReactTable
                   columns={previewColumns}

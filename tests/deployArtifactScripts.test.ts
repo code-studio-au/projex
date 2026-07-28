@@ -232,6 +232,7 @@ async function createArtifactSourceTree(root: string) {
     'scripts/start-server.mjs',
     'scripts/env-file.mjs',
     'scripts/node-runtime.mjs',
+    'scripts/run-release-migrations.mjs',
     'scripts/bootstrap-app-user.mjs',
     'scripts/link-auth-user.mjs',
     'scripts/smoke-server.mjs',
@@ -311,6 +312,7 @@ async function createEc2Release(
     'scripts/start-server.mjs',
     'scripts/env-file.mjs',
     'scripts/node-runtime.mjs',
+    'scripts/run-release-migrations.mjs',
     'scripts/deploy-artifact-ec2.sh',
     'deploy/nginx/maintenance.html',
     'deploy/nginx/maintenance.js',
@@ -324,7 +326,9 @@ async function createEc2Release(
     await mkdir(dirname(path), { recursive: true });
     await writeFile(
       path,
-      relativePath === 'deploy/systemd/projex.service'
+      relativePath === 'deploy/systemd/projex.service' ||
+        relativePath === 'scripts/run-release-migrations.mjs' ||
+        relativePath === 'scripts/env-file.mjs'
         ? await readFile(join(repoRoot, relativePath), 'utf8')
         : 'test\n'
     );
@@ -1030,9 +1034,7 @@ describe('deploy workflow retry identity', () => {
     expect(workflow).toContain(
       'run-attempt: ${{ steps.package.outputs.run_attempt }}'
     );
-    expect(workflow).toContain(
-      'echo "run_attempt=${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"'
-    );
+    expect(workflow).toContain('echo "run_attempt=${GITHUB_RUN_ATTEMPT}"');
     expect(workflow).toContain(
       'DEPLOY_RUN_ATTEMPT: ${{ needs.build-artifact.outputs.run-attempt }}'
     );

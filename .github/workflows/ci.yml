@@ -40,11 +40,11 @@ jobs:
       - name: Run application verification gate
         run: pnpm run verify:app
 
-      - name: Upload unit coverage
+      - name: Upload selected domain coverage
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: vitest-coverage
+          name: selected-domain-coverage
           path: coverage
           if-no-files-found: ignore
 
@@ -119,6 +119,12 @@ jobs:
       - name: Run CDK verification gate
         run: pnpm run verify:cdk
 
+      - name: Run ShellCheck
+        run: pnpm run verify:shell
+
+      - name: Run actionlint
+        run: pnpm run verify:actions
+
   smoke-disposable:
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -188,3 +194,13 @@ jobs:
 
       - name: Run Firefox browser smoke verification gate
         run: pnpm run verify:smoke:browser:firefox:full:skip-build
+
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-browser-diagnostics
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

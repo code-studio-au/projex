@@ -268,13 +268,13 @@ node -e \
 STAGING_DIR=""
 
 log "Handing off to deploy-artifact-ec2.sh"
-APP_ROOT="$APP_ROOT" \
-RELEASE_ID="$RELEASE_ID" \
-RELEASE_DIR="$RELEASE_DIR" \
-EXPECTED_GIT_SHA="$EXPECTED_GIT_SHA" \
-ENV_FILE="$ENV_FILE" \
-SERVICE_NAME="$SERVICE_NAME" \
-HEALTH_URL="$HEALTH_URL" \
-READY_URL="$READY_URL" \
-KEEP_RELEASES="$KEEP_RELEASES" \
+export APP_ROOT
+export RELEASE_ID
+export RELEASE_DIR
+export EXPECTED_GIT_SHA
+export ENV_FILE
+export SERVICE_NAME
+export HEALTH_URL
+export READY_URL
+export KEEP_RELEASES
 bash "$RELEASE_DIR/scripts/deploy-artifact-ec2.sh"

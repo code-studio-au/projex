@@ -24,6 +24,7 @@
   },
   "include": [
     "auth.ts",
+    "playwright.config.ts",
     "vite.config.ts",
     "scripts/**/*.ts",
     "src/server/**/*.ts",

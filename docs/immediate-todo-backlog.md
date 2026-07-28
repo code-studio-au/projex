@@ -12,7 +12,8 @@ individual items are completed.
 - **Item 4 — On-host and runtime privileges:** Completed 28 July 2026.
 - **Item 5 — Migration rollback compatibility:** Completed 28 July 2026.
 - **Item 6 — Invite-only authentication:** Completed 28 July 2026.
-- **Items 7 onward:** Pending.
+- **Item 7 — Testing review:** Completed 28 July 2026.
+- **Items 8 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -162,6 +163,33 @@ finding retained below:
   directly tested builders.
 - Regression tests cover HTML metacharacters, attribute breakout attempts, and
   injected markup across every email-template family.
+
+Item 7 completion preserves the testing review below as a point-in-time record
+and applies every recommendation:
+
+- Coverage output, documentation, and the CI artifact consistently call the
+  allowlisted metric **selected domain coverage** and explicitly distinguish it
+  from whole-repository coverage.
+- Focused TSX component tests cover reversal submission and read-only
+  permissions, controlled project tabs, pre/post-hydration access, programme
+  restrictions, and import-review decisions.
+- Browser smoke now runs as two Playwright Test specs with reusable generated
+  fixtures and a page object. Playwright owns Chromium/Firefox execution,
+  retries, traces, screenshots, video, isolation, and reporting.
+- Deploy regression coverage exercises same-SHA releases, download and
+  integrity failures, migration failures, readiness failures, and both
+  previous-release and first-release rollback paths.
+- CDK assertions cover encrypted storage, IMDSv2, public ingress, RDS privacy,
+  backups, retention, and production deletion protection. A project-specific
+  cdk-nag pack enforces those controls during the CDK gate and includes a
+  negative test proving violations fail the analysis.
+- CI runs pinned, containerized ShellCheck and actionlint without suppressing
+  findings. The findings discovered during adoption were fixed, including
+  workflow output grouping and moving release environment loading/migration
+  launch into a constrained Node helper shipped in the deploy artifact.
+- The resulting application suite contains 62 passing Vitest files and 314
+  tests, and the full generated-fixture browser suite passes in both Chromium
+  and Firefox.
 
 # Full Repository Review
 

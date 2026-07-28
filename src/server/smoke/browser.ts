@@ -1,63 +1,14 @@
 /// <reference lib="dom" />
 
-import { chromium, firefox, type BrowserType } from 'playwright';
+import type { Page } from '@playwright/test';
 
-import {
-  cleanupSmokeFixtures,
-  createSmokeFixtures,
-  sweepSmokeFixtures,
-  type SmokeFixtures,
-} from './fixtures.ts';
-import { getSmokeConfiguredBaseUrl } from './env.ts';
+import type { SmokeFixtures } from './fixtures.ts';
 import { APP_COLOR_SCHEME_STORAGE_KEY } from '../../colorScheme.ts';
 
 type BrowserSmokeOptions = {
   generatedFixtures?: SmokeFixtures;
   onStatus?: (message: string) => void | Promise<void>;
 };
-
-type SmokeBrowserName = 'chromium' | 'firefox';
-
-function smokeBrowser(): {
-  browserName: SmokeBrowserName;
-  browserType: BrowserType;
-} {
-  const browserName = process.env.PROJEX_SMOKE_BROWSER?.trim() || 'chromium';
-  if (browserName === 'chromium') {
-    return { browserName, browserType: chromium };
-  }
-  if (browserName === 'firefox') {
-    return { browserName, browserType: firefox };
-  }
-  throw new Error(
-    `Unsupported PROJEX_SMOKE_BROWSER "${browserName}". Use chromium or firefox.`
-  );
-}
-
-function parseRequestedSections(argv: string[]) {
-  const sections = new Set<string>();
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--section') {
-      const value = argv[index + 1];
-      if (!value) throw new Error('Missing value after --section');
-      sections.add(value);
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith('--section=')) {
-      sections.add(arg.slice('--section='.length));
-    }
-  }
-
-  return sections;
-}
-
-function hasFlag(argv: string[], flag: string) {
-  return argv.includes(flag);
-}
 
 async function emit(
   options: BrowserSmokeOptions,
@@ -81,7 +32,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 async function assertApiResponseOk(
-  response: import('playwright').APIResponse,
+  response: import('@playwright/test').APIResponse,
   message: string
 ) {
   if (response.ok()) return;
@@ -122,7 +73,7 @@ function verifyServerRenderedDisabledButton(html: string, label: string) {
 }
 
 async function waitForLocation(
-  page: import('playwright').Page,
+  page: import('@playwright/test').Page,
   predicate: (location: { pathname: string; search: string }) => boolean,
   message: string
 ) {
@@ -149,7 +100,7 @@ async function waitForLocation(
 }
 
 async function waitForTabSelection(
-  page: import('playwright').Page,
+  page: import('@playwright/test').Page,
   name: string,
   message: string
 ) {
@@ -167,7 +118,7 @@ async function waitForTabSelection(
 }
 
 async function waitForColorScheme(
-  page: import('playwright').Page,
+  page: import('@playwright/test').Page,
   colorScheme: 'light' | 'dark'
 ) {
   await page.waitForFunction(
@@ -180,7 +131,7 @@ async function waitForColorScheme(
 }
 
 async function toggleColorScheme(
-  toggle: import('playwright').Locator,
+  toggle: import('@playwright/test').Locator,
   colorScheme: 'light' | 'dark'
 ) {
   // The SSR control stays disabled until React can handle the interaction.
@@ -191,8 +142,8 @@ async function toggleColorScheme(
 }
 
 async function selectOption(
-  page: import('playwright').Page,
-  dialog: import('playwright').Locator,
+  page: import('@playwright/test').Page,
+  dialog: import('@playwright/test').Locator,
   label: string,
   option: string
 ) {
@@ -205,7 +156,7 @@ function escapeRegExp(value: string) {
 }
 
 async function openTaxonomyCategory(
-  page: import('playwright').Page,
+  page: import('@playwright/test').Page,
   categoryName: string
 ) {
   await page
@@ -216,8 +167,8 @@ async function openTaxonomyCategory(
 }
 
 async function waitForStableLocator(
-  page: import('playwright').Page,
-  locator: import('playwright').Locator
+  page: import('@playwright/test').Page,
+  locator: import('@playwright/test').Locator
 ) {
   const startedAt = Date.now();
   let previousBox: Awaited<ReturnType<typeof locator.boundingBox>> = null;
@@ -244,8 +195,8 @@ async function waitForStableLocator(
 }
 
 async function clickActionMenuItem(
-  page: import('playwright').Page,
-  actionButton: import('playwright').Locator,
+  page: import('@playwright/test').Page,
+  actionButton: import('@playwright/test').Locator,
   itemName: string | RegExp
 ) {
   await actionButton.waitFor({ state: 'visible' });
@@ -263,7 +214,7 @@ async function clickActionMenuItem(
 }
 
 async function runGeneratedTaxonomyRuleFlow(
-  page: import('playwright').Page,
+  page: import('@playwright/test').Page,
   fixtures: SmokeFixtures,
   options: BrowserSmokeOptions
 ) {
@@ -345,7 +296,7 @@ async function runGeneratedTaxonomyRuleFlow(
 }
 
 async function verifyGeneratedRuleTarget(
-  page: import('playwright').Page,
+  page: import('@playwright/test').Page,
   fixtures: SmokeFixtures
 ) {
   const taxonomy = fixtures.browserTaxonomy;
@@ -360,7 +311,7 @@ async function verifyGeneratedRuleTarget(
 }
 
 async function runGeneratedRuleSuggestionFlow(
-  page: import('playwright').Page,
+  page: import('@playwright/test').Page,
   fixtures: SmokeFixtures,
   options: BrowserSmokeOptions
 ) {
@@ -412,7 +363,7 @@ async function runGeneratedRuleSuggestionFlow(
 }
 
 async function verifyGeneratedCompanyRuleSuggestionTarget(
-  page: import('playwright').Page,
+  page: import('@playwright/test').Page,
   fixtures: SmokeFixtures
 ) {
   const suggestion = fixtures.browserRuleSuggestion;
@@ -429,7 +380,7 @@ async function verifyGeneratedCompanyRuleSuggestionTarget(
 }
 
 async function runGeneratedReversalFlow(
-  page: import('playwright').Page,
+  page: import('@playwright/test').Page,
   fixtures: SmokeFixtures,
   options: BrowserSmokeOptions
 ) {
@@ -792,369 +743,269 @@ async function runGeneratedReversalFlow(
   await page.keyboard.press('Escape');
 }
 
-async function runBrowserSmoke(baseUrl: string, options: BrowserSmokeOptions) {
+export async function runBrowserSmoke(
+  page: Page,
+  baseUrl: string,
+  options: BrowserSmokeOptions
+) {
   const companyId = requireEnv('PROJEX_SMOKE_COMPANY_ID');
   const projectId = requireEnv('PROJEX_SMOKE_PROJECT_ID');
   const email = requireEnv('PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL');
   const password = requireEnv('PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD');
   const pageErrors: string[] = [];
   const consoleErrors: string[] = [];
-  const { browserName, browserType } = smokeBrowser();
+  const context = page.context();
 
-  let browser;
-  try {
-    await emit(options, `Launching Playwright ${browserName}`);
-    browser = await browserType.launch({
-      headless: process.env.PLAYWRIGHT_HEADLESS !== 'false',
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      message.includes("Executable doesn't exist")
-        ? `Playwright ${browserName} is not installed. Run \`pnpm exec playwright install ${browserName}\` first.`
-        : message
-    );
-  }
-
-  try {
-    const context = await browser.newContext({
-      baseURL: baseUrl,
-      colorScheme: 'light',
-      extraHTTPHeaders: { 'x-real-ip': '127.0.0.1' },
-      ignoreHTTPSErrors: true,
-    });
-    const page = await context.newPage();
-
-    page.on('pageerror', (error) => {
-      pageErrors.push(`${page.url()}: ${error.message}`);
-    });
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        const text = msg.text();
-        if (!text.includes('favicon')) {
-          consoleErrors.push(text);
-        }
+  page.on('pageerror', (error) => {
+    pageErrors.push(`${page.url()}: ${error.message}`);
+  });
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      const text = msg.text();
+      if (!text.includes('favicon')) {
+        consoleErrors.push(text);
       }
-    });
-
-    await emit(options, 'Opening login page');
-    const loginResponse = await page.goto('/login', {
-      waitUntil: 'domcontentloaded',
-    });
-    assert(loginResponse, 'Login page navigation did not return a response');
-    assert(loginResponse.ok(), 'Login page did not load successfully');
-    const loginHtml = await loginResponse.text();
-    verifyCsp(loginHtml, loginResponse.headers()['content-security-policy']);
-    verifyServerRenderedDisabledButton(loginHtml, 'Toggle light or dark mode');
-
-    const colorSchemeToggle = page.getByRole('button', {
-      name: 'Toggle light or dark mode',
-    });
-    await colorSchemeToggle.waitFor({ state: 'visible' });
-    await page.waitForFunction(
-      () =>
-        Array.from(document.querySelectorAll('button')).some(
-          (button) =>
-            button.getAttribute('aria-label') === 'Toggle light or dark mode' &&
-            !button.disabled
-        ),
-      undefined,
-      { timeout: 15_000 }
-    );
-    assert(
-      await colorSchemeToggle.isEnabled(),
-      'Color scheme toggle did not become interactive after hydration'
-    );
-    await toggleColorScheme(colorSchemeToggle, 'dark');
-    assert(
-      (await page.evaluate(
-        (storageKey) => globalThis.localStorage.getItem(storageKey),
-        APP_COLOR_SCHEME_STORAGE_KEY
-      )) === 'dark',
-      'Dark mode preference was not persisted'
-    );
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await waitForColorScheme(page, 'dark');
-    await colorSchemeToggle.waitFor({ state: 'visible' });
-    await toggleColorScheme(colorSchemeToggle, 'light');
-    await toggleColorScheme(colorSchemeToggle, 'dark');
-
-    await emit(options, 'Signing in through the browser session');
-    const signInResponse = await context.request.post(
-      `${baseUrl}/api/auth/sign-in/email`,
-      {
-        data: { email, password },
-        headers: {
-          origin: baseUrl,
-          referer: `${baseUrl}/login`,
-        },
-      }
-    );
-    assert(signInResponse.ok(), 'Browser-context sign-in request failed');
-
-    const companyResponse = await page.goto(`/c/${companyId}?tab=projects`, {
-      waitUntil: 'domcontentloaded',
-    });
-    assert(
-      companyResponse,
-      'Company page navigation did not return a response'
-    );
-    assert(companyResponse.ok(), 'Company page did not load successfully');
-    const companyHtml = await companyResponse.text();
-    verifyServerRenderedDisabledButton(companyHtml, 'Workspace');
-    verifyServerRenderedDisabledButton(companyHtml, 'Account');
-    await waitForLocation(
-      page,
-      ({ pathname, search }) =>
-        pathname === `/c/${companyId}` &&
-        new URLSearchParams(search).get('tab') === 'projects',
-      'Company dashboard did not open on the projects tab'
-    );
-    await waitForTabSelection(
-      page,
-      'Projects & programmes',
-      'Company dashboard did not select the projects tab'
-    );
-    await waitForLocation(
-      page,
-      ({ pathname, search }) =>
-        pathname === `/c/${companyId}` &&
-        new URLSearchParams(search).get('tab') === 'projects',
-      'Company dashboard did not keep the projects tab selected'
-    );
-    await waitForColorScheme(page, 'dark');
-
-    const accountMenuButton = page.getByRole('button', { name: 'Account' });
-    await accountMenuButton.click();
-    const colorSchemeMenuItem = page.getByRole('menuitem', {
-      name: 'Toggle light or dark mode',
-    });
-    await colorSchemeMenuItem.waitFor({ state: 'visible' });
-    assert(
-      await colorSchemeMenuItem.isEnabled(),
-      'Hydrated color scheme menu item was not interactive'
-    );
-    await colorSchemeMenuItem.click();
-    await waitForColorScheme(page, 'light');
-    await accountMenuButton.click();
-    await page
-      .getByRole('menuitem', { name: 'Toggle light or dark mode' })
-      .click();
-    await waitForColorScheme(page, 'dark');
-
-    await emit(options, 'Opening the generated project workspace');
-    await page
-      .locator(`a[href="/c/${companyId}/p/${projectId}"]`)
-      .first()
-      .click();
-    await waitForLocation(
-      page,
-      ({ pathname }) => pathname === `/c/${companyId}/p/${projectId}`,
-      'Project workspace did not open'
-    );
-
-    await page.getByRole('tab', { name: 'Transactions' }).click();
-    await waitForLocation(
-      page,
-      ({ pathname, search }) =>
-        pathname === `/c/${companyId}/p/${projectId}` &&
-        new URLSearchParams(search).get('tab') === 'transactions',
-      'Project workspace did not switch to the transactions tab'
-    );
-
-    const transactionView = page.getByRole('combobox', {
-      name: 'Workflow view',
-    });
-    await transactionView.waitFor({ state: 'visible' });
-    assert(
-      (await transactionView.inputValue()) === 'All transactions',
-      'Transaction workflow filter did not default to all transactions'
-    );
-    await page.getByText(/^0 transactions$/).waitFor({ state: 'visible' });
-
-    await transactionView.click();
-    await page.getByRole('option', { name: 'Needs review' }).click();
-    await waitForLocation(
-      page,
-      ({ pathname, search }) =>
-        pathname === `/c/${companyId}/p/${projectId}` &&
-        new URLSearchParams(search).get('tab') === 'transactions' &&
-        new URLSearchParams(search).get('view') === 'needs-review',
-      'Transaction workflow filter did not update the workspace URL'
-    );
-
-    await page.getByRole('button', { name: 'Tools' }).click();
-    await page
-      .getByRole('menuitem', { name: 'Find reversal matches' })
-      .waitFor({ state: 'visible' });
-    const manageCategoriesItem = page.getByRole('menuitem', {
-      name: 'Manage categories',
-    });
-    await manageCategoriesItem.waitFor({ state: 'visible' });
-    await manageCategoriesItem.click();
-    await page
-      .getByText('Company standards', { exact: true })
-      .waitFor({ state: 'visible' });
-    if (options.generatedFixtures) {
-      await runGeneratedTaxonomyRuleFlow(
-        page,
-        options.generatedFixtures,
-        options
-      );
-      await runGeneratedReversalFlow(page, options.generatedFixtures, options);
-    } else {
-      await page.keyboard.press('Escape');
     }
+  });
 
-    await page.getByRole('tab', { name: 'Settings' }).click();
-    await waitForLocation(
-      page,
-      ({ pathname, search }) =>
-        pathname === `/c/${companyId}/p/${projectId}` &&
-        new URLSearchParams(search).get('tab') === 'settings',
-      'Project workspace did not switch to the settings tab'
-    );
-    await page
-      .getByRole('button', { name: 'Manage Auto-Coding Rules' })
-      .click();
-    await page
-      .getByText('Project rule priority', { exact: true })
-      .waitFor({ state: 'visible' });
-    if (options.generatedFixtures) {
-      await verifyGeneratedRuleTarget(page, options.generatedFixtures);
-    }
-    await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Manage Import Rules' }).click();
-    await page
-      .getByText('Import rule priority', { exact: true })
-      .waitFor({ state: 'visible' });
-    await page.keyboard.press('Escape');
+  await emit(options, 'Opening login page');
+  const loginResponse = await page.goto('/login', {
+    waitUntil: 'domcontentloaded',
+  });
+  assert(loginResponse, 'Login page navigation did not return a response');
+  assert(loginResponse.ok(), 'Login page did not load successfully');
+  const loginHtml = await loginResponse.text();
+  verifyCsp(loginHtml, loginResponse.headers()['content-security-policy']);
+  verifyServerRenderedDisabledButton(loginHtml, 'Toggle light or dark mode');
 
-    await page.getByRole('tab', { name: 'Budget' }).click();
-    await waitForLocation(
-      page,
-      ({ pathname, search }) =>
-        pathname === `/c/${companyId}/p/${projectId}` &&
-        !new URLSearchParams(search).get('tab'),
-      'Project workspace did not switch back to the budget tab'
-    );
+  const colorSchemeToggle = page.getByRole('button', {
+    name: 'Toggle light or dark mode',
+  });
+  await colorSchemeToggle.waitFor({ state: 'visible' });
+  await page.waitForFunction(
+    () =>
+      Array.from(document.querySelectorAll('button')).some(
+        (button) =>
+          button.getAttribute('aria-label') === 'Toggle light or dark mode' &&
+          !button.disabled
+      ),
+    undefined,
+    { timeout: 15_000 }
+  );
+  assert(
+    await colorSchemeToggle.isEnabled(),
+    'Color scheme toggle did not become interactive after hydration'
+  );
+  await toggleColorScheme(colorSchemeToggle, 'dark');
+  assert(
+    (await page.evaluate(
+      (storageKey) => globalThis.localStorage.getItem(storageKey),
+      APP_COLOR_SCHEME_STORAGE_KEY
+    )) === 'dark',
+    'Dark mode preference was not persisted'
+  );
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForColorScheme(page, 'dark');
+  await colorSchemeToggle.waitFor({ state: 'visible' });
+  await toggleColorScheme(colorSchemeToggle, 'light');
+  await toggleColorScheme(colorSchemeToggle, 'dark');
 
-    await page.goto(`${baseUrl}/c/${companyId}?tab=settings`, {
-      waitUntil: 'domcontentloaded',
-    });
-    await page.getByRole('tab', { name: 'Settings' }).waitFor({
-      state: 'visible',
-    });
-    await page.getByRole('button', { name: 'Manage Categories' }).click();
-    await page
-      .getByText('Company category standards', { exact: true })
-      .waitFor({ state: 'visible' });
-    await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Manage Import Rules' }).click();
-    await page
-      .getByText('Import rule priority', { exact: true })
-      .waitFor({ state: 'visible' });
-    await page.keyboard.press('Escape');
-    if (options.generatedFixtures) {
-      await runGeneratedRuleSuggestionFlow(
-        page,
-        options.generatedFixtures,
-        options
-      );
-    }
-    await page
-      .getByRole('button', { name: 'Manage Auto-Coding Rules' })
-      .click();
-    await page
-      .getByText('Company rule priority', { exact: true })
-      .waitFor({ state: 'visible' });
-    if (options.generatedFixtures) {
-      await verifyGeneratedCompanyRuleSuggestionTarget(
-        page,
-        options.generatedFixtures
-      );
-    }
-    await page.keyboard.press('Escape');
-
-    assert(
-      pageErrors.length === 0,
-      `Browser page errors detected: ${pageErrors.join(' | ')}`
-    );
-    assert(
-      consoleErrors.length === 0,
-      `Browser console errors detected: ${consoleErrors.join(' | ')}`
-    );
-
-    await context.close();
-  } finally {
-    await browser.close();
-  }
-}
-
-async function main() {
-  const argv = process.argv.slice(2);
-  const requestedSections = parseRequestedSections(argv);
-  const useGeneratedFixtures = hasFlag(argv, '--use-generated-fixtures');
-  const sweepStaleFixtures = hasFlag(argv, '--sweep-stale-fixtures');
-  const cleanupOnly = hasFlag(argv, '--cleanup-stale-fixtures');
-  const baseUrl = getSmokeConfiguredBaseUrl();
-  let fixtures: SmokeFixtures | null = null;
-
-  if (requestedSections.size > 0) {
-    const unsupportedSections = Array.from(requestedSections).filter(
-      (section) => section !== 'basics'
-    );
-    if (unsupportedSections.length > 0) {
-      throw new Error(
-        `Browser smoke currently supports only the basics flow. Unsupported section(s): ${unsupportedSections.join(', ')}`
-      );
-    }
-  }
-
-  try {
-    if (cleanupOnly) {
-      await sweepSmokeFixtures({
-        onStatus(message) {
-          console.info(`[..] ${message}`);
-        },
-      });
-      return;
-    }
-
-    if (useGeneratedFixtures) {
-      fixtures = await createSmokeFixtures({
-        sweepStale: sweepStaleFixtures,
-        onStatus(message) {
-          console.info(`[..] ${message}`);
-        },
-      });
-    } else if (sweepStaleFixtures) {
-      await sweepSmokeFixtures({
-        onStatus(message) {
-          console.info(`[..] ${message}`);
-        },
-      });
-    }
-
-    await runBrowserSmoke(baseUrl, {
-      generatedFixtures: fixtures ?? undefined,
-      onStatus(message) {
-        console.info(`[..] ${message}`);
+  await emit(options, 'Signing in through the browser session');
+  const signInResponse = await context.request.post(
+    `${baseUrl}/api/auth/sign-in/email`,
+    {
+      data: { email, password },
+      headers: {
+        origin: baseUrl,
+        referer: `${baseUrl}/login`,
       },
-    });
-    console.info('[ok] Browser smoke flow passed');
-  } finally {
-    if (fixtures) {
-      await cleanupSmokeFixtures(fixtures, {
-        onStatus(message) {
-          console.info(`[..] ${message}`);
-        },
-      });
     }
-  }
-}
+  );
+  assert(signInResponse.ok(), 'Browser-context sign-in request failed');
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+  const companyResponse = await page.goto(`/c/${companyId}?tab=projects`, {
+    waitUntil: 'domcontentloaded',
+  });
+  assert(companyResponse, 'Company page navigation did not return a response');
+  assert(companyResponse.ok(), 'Company page did not load successfully');
+  const companyHtml = await companyResponse.text();
+  verifyServerRenderedDisabledButton(companyHtml, 'Workspace');
+  verifyServerRenderedDisabledButton(companyHtml, 'Account');
+  await waitForLocation(
+    page,
+    ({ pathname, search }) =>
+      pathname === `/c/${companyId}` &&
+      new URLSearchParams(search).get('tab') === 'projects',
+    'Company dashboard did not open on the projects tab'
+  );
+  await waitForTabSelection(
+    page,
+    'Projects & programmes',
+    'Company dashboard did not select the projects tab'
+  );
+  await waitForLocation(
+    page,
+    ({ pathname, search }) =>
+      pathname === `/c/${companyId}` &&
+      new URLSearchParams(search).get('tab') === 'projects',
+    'Company dashboard did not keep the projects tab selected'
+  );
+  await waitForColorScheme(page, 'dark');
+
+  const accountMenuButton = page.getByRole('button', { name: 'Account' });
+  await accountMenuButton.click();
+  const colorSchemeMenuItem = page.getByRole('menuitem', {
+    name: 'Toggle light or dark mode',
+  });
+  await colorSchemeMenuItem.waitFor({ state: 'visible' });
+  assert(
+    await colorSchemeMenuItem.isEnabled(),
+    'Hydrated color scheme menu item was not interactive'
+  );
+  await colorSchemeMenuItem.click();
+  await waitForColorScheme(page, 'light');
+  await accountMenuButton.click();
+  await page
+    .getByRole('menuitem', { name: 'Toggle light or dark mode' })
+    .click();
+  await waitForColorScheme(page, 'dark');
+
+  await emit(options, 'Opening the generated project workspace');
+  await page
+    .locator(`a[href="/c/${companyId}/p/${projectId}"]`)
+    .first()
+    .click();
+  await waitForLocation(
+    page,
+    ({ pathname }) => pathname === `/c/${companyId}/p/${projectId}`,
+    'Project workspace did not open'
+  );
+
+  await page.getByRole('tab', { name: 'Transactions' }).click();
+  await waitForLocation(
+    page,
+    ({ pathname, search }) =>
+      pathname === `/c/${companyId}/p/${projectId}` &&
+      new URLSearchParams(search).get('tab') === 'transactions',
+    'Project workspace did not switch to the transactions tab'
+  );
+
+  const transactionView = page.getByRole('combobox', {
+    name: 'Workflow view',
+  });
+  await transactionView.waitFor({ state: 'visible' });
+  assert(
+    (await transactionView.inputValue()) === 'All transactions',
+    'Transaction workflow filter did not default to all transactions'
+  );
+  await page.getByText(/^0 transactions$/).waitFor({ state: 'visible' });
+
+  await transactionView.click();
+  await page.getByRole('option', { name: 'Needs review' }).click();
+  await waitForLocation(
+    page,
+    ({ pathname, search }) =>
+      pathname === `/c/${companyId}/p/${projectId}` &&
+      new URLSearchParams(search).get('tab') === 'transactions' &&
+      new URLSearchParams(search).get('view') === 'needs-review',
+    'Transaction workflow filter did not update the workspace URL'
+  );
+
+  await page.getByRole('button', { name: 'Tools' }).click();
+  await page
+    .getByRole('menuitem', { name: 'Find reversal matches' })
+    .waitFor({ state: 'visible' });
+  const manageCategoriesItem = page.getByRole('menuitem', {
+    name: 'Manage categories',
+  });
+  await manageCategoriesItem.waitFor({ state: 'visible' });
+  await manageCategoriesItem.click();
+  await page
+    .getByText('Company standards', { exact: true })
+    .waitFor({ state: 'visible' });
+  if (options.generatedFixtures) {
+    await runGeneratedTaxonomyRuleFlow(
+      page,
+      options.generatedFixtures,
+      options
+    );
+    await runGeneratedReversalFlow(page, options.generatedFixtures, options);
+  } else {
+    await page.keyboard.press('Escape');
+  }
+
+  await page.getByRole('tab', { name: 'Settings' }).click();
+  await waitForLocation(
+    page,
+    ({ pathname, search }) =>
+      pathname === `/c/${companyId}/p/${projectId}` &&
+      new URLSearchParams(search).get('tab') === 'settings',
+    'Project workspace did not switch to the settings tab'
+  );
+  await page.getByRole('button', { name: 'Manage Auto-Coding Rules' }).click();
+  await page
+    .getByText('Project rule priority', { exact: true })
+    .waitFor({ state: 'visible' });
+  if (options.generatedFixtures) {
+    await verifyGeneratedRuleTarget(page, options.generatedFixtures);
+  }
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Manage Import Rules' }).click();
+  await page
+    .getByText('Import rule priority', { exact: true })
+    .waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('tab', { name: 'Budget' }).click();
+  await waitForLocation(
+    page,
+    ({ pathname, search }) =>
+      pathname === `/c/${companyId}/p/${projectId}` &&
+      !new URLSearchParams(search).get('tab'),
+    'Project workspace did not switch back to the budget tab'
+  );
+
+  await page.goto(`${baseUrl}/c/${companyId}?tab=settings`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.getByRole('tab', { name: 'Settings' }).waitFor({
+    state: 'visible',
+  });
+  await page.getByRole('button', { name: 'Manage Categories' }).click();
+  await page
+    .getByText('Company category standards', { exact: true })
+    .waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Manage Import Rules' }).click();
+  await page
+    .getByText('Import rule priority', { exact: true })
+    .waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape');
+  if (options.generatedFixtures) {
+    await runGeneratedRuleSuggestionFlow(
+      page,
+      options.generatedFixtures,
+      options
+    );
+  }
+  await page.getByRole('button', { name: 'Manage Auto-Coding Rules' }).click();
+  await page
+    .getByText('Company rule priority', { exact: true })
+    .waitFor({ state: 'visible' });
+  if (options.generatedFixtures) {
+    await verifyGeneratedCompanyRuleSuggestionTarget(
+      page,
+      options.generatedFixtures
+    );
+  }
+  await page.keyboard.press('Escape');
+
+  assert(
+    pageErrors.length === 0,
+    `Browser page errors detected: ${pageErrors.join(' | ')}`
+  );
+  assert(
+    consoleErrors.length === 0,
+    `Browser console errors detected: ${consoleErrors.join(' | ')}`
+  );
+}
