@@ -335,7 +335,9 @@ async function verifyHostPrivilegeBoundaries() {
       ) &&
       deployScript.includes(
         `"$source_path" "$destination_path" "$CURRENT_LINK" "$ENV_FILE"`
-      ),
+      ) &&
+      deployScript.includes('validate_service_sandbox_path "APP_ROOT"') &&
+      deployScript.includes('sudo systemctl enable "$SERVICE_NAME"'),
     'The installed systemd unit must retain validated APP_ROOT and ENV_FILE overrides'
   );
 

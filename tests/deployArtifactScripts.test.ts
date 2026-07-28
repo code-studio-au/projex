@@ -747,6 +747,8 @@ describe('deploy-artifact-ec2.sh', () => {
 
     const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
       MOCK_SUDO_LOG: sudoLog,
+      SERVICE_NAME: 'projex-custom',
+      SYSTEMD_SERVICE_PATH: join(appRoot, 'systemd', 'projex-custom.service'),
     });
 
     expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
@@ -761,7 +763,12 @@ describe('deploy-artifact-ec2.sh', () => {
     );
     expect(sudoCalls).toContain(`chown -R ${testDeployUser}:`);
     expect(sudoCalls).toContain(`chown -R root:root ${releaseDir}`);
-    const installedServicePath = join(appRoot, 'systemd', 'projex.service');
+    expect(sudoCalls).toContain('systemctl enable projex-custom');
+    const installedServicePath = join(
+      appRoot,
+      'systemd',
+      'projex-custom.service'
+    );
     const installedService = await readFile(installedServicePath, 'utf8');
     expect(installedService).toContain(
       `WorkingDirectory=${join(appRoot, 'current')}`
@@ -771,6 +778,25 @@ describe('deploy-artifact-ec2.sh', () => {
     );
     expect(installedService).not.toContain('/opt/projex/current');
     expect(installedService).not.toContain('/etc/projex/projex.env');
+  });
+
+  test('rejects application roots hidden by the service home-directory sandbox', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    await mkdir(appRoot, { recursive: true });
+    await writeFile(join(appRoot, 'projex.env'), '');
+    const releaseId = 'staging-aaaaaaaaaaaa-run198-attempt2';
+    const releaseDir = await createEc2Release(appRoot, releaseId);
+
+    const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
+      APP_ROOT: '/home/ec2-user/projex',
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'APP_ROOT must not be located under /home, /root, or /run/user'
+    );
   });
 
   test('activates a validated release with an atomic symlink replacement', async () => {

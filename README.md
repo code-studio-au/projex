@@ -108,7 +108,9 @@ from its explicit state directory, and no access to user home directories.
 CDK-created instances require IMDSv2.
 When deployment path overrides are configured, the installed systemd unit is
 rendered from those validated paths so activation and service startup remain
-aligned.
+aligned and the selected service is enabled for reboot. Application and
+environment paths below `/home`, `/root`, or `/run/user` are rejected because
+the service sandbox deliberately makes those locations inaccessible.
 
 The manual deploy workflow expects GitHub Actions environment configuration for
 the target environment. EC2 deploys are limited to the protected `main` branch

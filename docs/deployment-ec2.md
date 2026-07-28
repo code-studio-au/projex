@@ -319,7 +319,11 @@ are disabled, and package installation plus application migrations execute as
 `projex-deploy`. Release contents are root-owned and read-only to the runtime.
 The service unit is rendered with the validated `EC2_APP_ROOT` and
 `EC2_ENV_FILE` values before installation, so supported path overrides cannot
-leave systemd pointing at the default release or environment file.
+leave systemd pointing at the default release or environment file. The
+selected service is enabled during every deployment so custom service names
+survive a reboot. Paths below `/home`, `/root`, or `/run/user` are not
+supported for the application root or environment file because
+`ProtectHome=true` intentionally hides those locations from the service.
 
 ## 6) Health checks
 

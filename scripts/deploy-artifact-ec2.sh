@@ -81,6 +81,16 @@ validate_systemd_path() {
   fi
 }
 
+validate_service_sandbox_path() {
+  local label="$1"
+  local value="$2"
+  case "$value" in
+    /home | /home/* | /root | /root/* | /run/user | /run/user/*)
+      fail "$label must not be located under /home, /root, or /run/user because the service sandbox protects home directories"
+      ;;
+  esac
+}
+
 resolve_existing_path() {
   node -e \
     'process.stdout.write(require("node:fs").realpathSync(process.argv[1]))' \
@@ -269,12 +279,15 @@ APP_ROOT="${APP_ROOT%/}"
 if [[ -z "$APP_ROOT" || "$APP_ROOT" == "/" || "$APP_ROOT" != /* ]]; then
   fail 'APP_ROOT must be a non-root absolute path.'
 fi
+validate_service_sandbox_path "APP_ROOT" "$APP_ROOT"
 APP_ROOT="$(resolve_existing_path "$APP_ROOT")"
 validate_systemd_path "APP_ROOT" "$APP_ROOT"
+validate_service_sandbox_path "APP_ROOT" "$APP_ROOT"
 RELEASES_DIR="${APP_ROOT}/releases"
 CURRENT_LINK="${CURRENT_LINK:-${APP_ROOT}/current}"
 SHARED_DIR="${SHARED_DIR:-${APP_ROOT}/shared}"
 validate_systemd_path "CURRENT_LINK" "$CURRENT_LINK"
+validate_service_sandbox_path "CURRENT_LINK" "$CURRENT_LINK"
 
 validate_identifier "RELEASE_ID" "$RELEASE_ID"
 validate_identifier "SERVICE_NAME" "$SERVICE_NAME"
@@ -286,6 +299,7 @@ if [[ -z "$DEPLOY_HOME" || "$DEPLOY_HOME" == "/" || "$DEPLOY_HOME" != /* ]]; the
   fail 'DEPLOY_HOME must be a non-root absolute path.'
 fi
 validate_systemd_path "ENV_FILE" "$ENV_FILE"
+validate_service_sandbox_path "ENV_FILE" "$ENV_FILE"
 if [[ "$PNPM_BIN" != /* ]]; then
   fail 'PNPM_BIN must be an absolute path.'
 fi
@@ -403,6 +417,7 @@ sudo install -o root -g root -m 0644 \
 rm -f -- "$SYSTEMD_RENDER_PATH"
 SYSTEMD_RENDER_PATH=""
 sudo systemctl daemon-reload
+sudo systemctl enable "$SERVICE_NAME"
 
 log "Refreshing shared maintenance assets"
 sudo install -o root -g root -m 0644 \
