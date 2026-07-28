@@ -264,6 +264,10 @@ pnpm run smoke:browser:disposable
 pnpm run smoke:cleanup
 ```
 
+Projex is invite-only: public email/password sign-up is disabled. Use company
+invitations for normal users and the trusted `auth:create-user` plus
+`auth:bootstrap-user` workflow for first-user provisioning.
+
 In the admin Smoke dashboard, generated fixtures are now the default run mode.
 Manual smoke remains available as an advanced mode for targeted checks against
 existing accounts or long-lived data, with per-run inputs supplied in the UI

@@ -80,6 +80,9 @@ Notes:
 - Keep both `PROJEX_ENABLE_DEV_ENDPOINTS` and `PROJEX_ENABLE_SMOKE_TOOLS` disabled outside controlled local workflows.
 - `PG_SSL_MODE=require` keeps server certificate verification enabled. CDK-provisioned hosts download Amazon RDS's commercial-region CA bundle to `/etc/projex/rds-global-bundle.pem`; keep `PG_SSL_CA_FILE` pointed there for RDS. For another managed or private Postgres provider, mount that provider's CA and use its path instead. Use `no-verify` only as an explicit last-resort exception.
 - Set `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to the canonical public origin users will actually visit.
+- Public email/password sign-up is disabled. Provision normal users through
+  company invitations; reserve `pnpm run auth:create-user` for the trusted
+  operator bootstrap workflow.
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 - Better Auth trusts only the proxy-controlled `X-Real-IP` header for client-IP rate limiting. Keep the application origin private, and ensure the trusted proxy overwrites that header from the direct client address rather than forwarding a caller-provided value.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.

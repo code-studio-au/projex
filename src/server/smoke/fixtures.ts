@@ -1,8 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
-import { getBetterAuthInstance } from '../auth/betterAuthInstance.ts';
+import { provisionBetterAuthCredentialUser } from '../auth/betterAuthInstance.ts';
 import { createPgPool, type TypedPgPool } from '../db/pgPool.ts';
-import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas.ts';
 import { loadSmokeEnvFiles } from './env.ts';
 import type { SmokeManualInputs } from '../../types/index.ts';
 
@@ -134,20 +133,11 @@ async function emit(
 }
 
 async function signUpFixtureUser(user: SmokeFixtureUser): Promise<AuthUser> {
-  const auth = getBetterAuthInstance();
-  const response = await auth.api.signUpEmail({
-    body: {
-      email: user.email,
-      password: user.password,
-      name: user.name,
-    },
+  return provisionBetterAuthCredentialUser({
+    email: user.email,
+    password: user.password,
+    name: user.name,
   });
-  const payload = betterAuthSignUpResponseSchema.parse(response);
-  return {
-    id: payload.user.id,
-    email: payload.user.email ?? user.email,
-    name: payload.user.name ?? user.name,
-  };
 }
 
 async function ensureAppUser(

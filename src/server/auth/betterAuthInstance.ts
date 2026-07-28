@@ -4,10 +4,14 @@ import type { BetterAuthOptions } from 'better-auth';
 import { getDb } from '../db/db.ts';
 import { sendAuthEmail } from './email.ts';
 import { AppError } from '../../api/errors.ts';
+import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas.ts';
 
 export type BetterAuthSessionApi = ReturnType<typeof betterAuth>;
 
 let authInstance: BetterAuthSessionApi | undefined;
+let trustedProvisioningAuthInstance: BetterAuthSessionApi | undefined;
+
+type AuthInstancePurpose = 'public-handler' | 'trusted-provisioning';
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -33,7 +37,9 @@ function optionalCsvEnv(name: string): string[] {
  * - BETTER_AUTH_SECRET
  * - BETTER_AUTH_URL
  */
-export function buildBetterAuthOptions(): BetterAuthOptions {
+function buildBetterAuthOptionsForPurpose(
+  purpose: AuthInstancePurpose
+): BetterAuthOptions {
   const secret = requireEnv('BETTER_AUTH_SECRET');
   const baseURL = requireEnv('BETTER_AUTH_URL');
   const trustedOrigins = optionalCsvEnv('BETTER_AUTH_TRUSTED_ORIGINS');
@@ -58,6 +64,7 @@ export function buildBetterAuthOptions(): BetterAuthOptions {
     rateLimit: { modelName: 'ba_rate_limit' },
     emailAndPassword: {
       enabled: true,
+      disableSignUp: purpose === 'public-handler',
       async sendResetPassword({ user, url }) {
         await sendAuthEmail({
           to: user.email,
@@ -84,10 +91,45 @@ export function buildBetterAuthOptions(): BetterAuthOptions {
   };
 }
 
+export function buildBetterAuthOptions(): BetterAuthOptions {
+  return buildBetterAuthOptionsForPurpose('public-handler');
+}
+
 export function getBetterAuthInstance(): BetterAuthSessionApi {
   if (authInstance) return authInstance;
 
   authInstance = betterAuth(buildBetterAuthOptions());
 
   return authInstance;
+}
+
+function getTrustedProvisioningAuthInstance(): BetterAuthSessionApi {
+  if (trustedProvisioningAuthInstance) {
+    return trustedProvisioningAuthInstance;
+  }
+
+  trustedProvisioningAuthInstance = betterAuth(
+    buildBetterAuthOptionsForPurpose('trusted-provisioning')
+  );
+  return trustedProvisioningAuthInstance;
+}
+
+/**
+ * Creates a credential-bearing BetterAuth user from trusted server-only
+ * workflows. This auth instance is never exposed through an HTTP handler.
+ */
+export async function provisionBetterAuthCredentialUser(input: {
+  email: string;
+  password: string;
+  name: string;
+}) {
+  const response = await getTrustedProvisioningAuthInstance().api.signUpEmail({
+    body: input,
+  });
+  const payload = betterAuthSignUpResponseSchema.parse(response);
+  return {
+    id: payload.user.id,
+    email: payload.user.email ?? input.email,
+    name: payload.user.name ?? input.name,
+  };
 }

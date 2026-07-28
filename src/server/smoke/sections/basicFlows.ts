@@ -5,6 +5,7 @@ import {
 import {
   assertHtmlOk,
   assertOk,
+  assertPublicSignUpDisabled,
   authenticatePrimaryUser,
   loadPrimaryCompanyAndProject,
   parseBody,
@@ -24,6 +25,7 @@ export async function runBasicsSection(
   await recorder.step('ready', 'Checking readiness endpoint', async () => {
     assertOk(await client.request('/api/ready'), 'ready');
   });
+  await assertPublicSignUpDisabled(recorder, client);
   await authenticatePrimaryUser(recorder, client, baseUrl, {
     includePasswordReset: true,
   });
