@@ -27,3 +27,16 @@ test('Better Auth trusts only the proxy-controlled client IP header', () => {
     'x-real-ip',
   ]);
 });
+
+test('Better Auth disables public email and password sign-up', () => {
+  process.env.NODE_ENV = 'test';
+  process.env.DATABASE_URL = 'postgres://localhost/projex_test';
+  process.env.BETTER_AUTH_SECRET = 'test-secret';
+  process.env.BETTER_AUTH_URL = 'http://localhost:3000';
+  process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'http://localhost:3000';
+
+  const options = buildBetterAuthOptions();
+
+  assert.equal(options.emailAndPassword?.enabled, true);
+  assert.equal(options.emailAndPassword?.disableSignUp, true);
+});

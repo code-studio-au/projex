@@ -32,6 +32,10 @@ type Retry429Options = {
 };
 
 const defaultRateLimitBackoffsMs = [1500, 3000, 5000, 10000, 15000];
+const disabledSignUpResponseSchema = z.object({
+  code: z.literal('EMAIL_PASSWORD_SIGN_UP_DISABLED'),
+  message: z.string(),
+});
 
 export type Recorder = {
   step<T>(id: string, label: string, fn: () => Promise<T>): Promise<T>;
@@ -414,6 +418,45 @@ export async function authenticatePrimaryUser(
       'No reset email was configured.'
     );
   }
+}
+
+export async function assertPublicSignUpDisabled(
+  recorder: Recorder,
+  client: SmokeHttpClient
+) {
+  loadSmokeEnvFiles();
+  const email = process.env.PROJEX_SMOKE_EMAIL?.trim();
+  const password = process.env.PROJEX_SMOKE_PASSWORD?.trim();
+  if (!email || !password) {
+    throw new Error(
+      'Public sign-up verification requires the configured smoke user credentials.'
+    );
+  }
+
+  await recorder.step(
+    'auth-sign-up-disabled',
+    'Checking public email/password sign-up is disabled',
+    async () => {
+      const result = await client.request('/api/auth/sign-up/email', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password,
+          name: 'Public sign-up probe',
+        }),
+      });
+      if (result.res.status !== 400) {
+        throw new Error(
+          `public sign-up returned ${result.res.status}; expected 400`
+        );
+      }
+      parseBody(
+        disabledSignUpResponseSchema,
+        result.body,
+        'public sign-up rejection'
+      );
+    }
+  );
 }
 
 export async function loadPrimaryCompanyAndProject(

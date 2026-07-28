@@ -22,6 +22,7 @@ import {
   withServerBoundary,
 } from './runtime';
 import { enforceRateLimit } from '../rateLimit';
+import { buildEmailChangeVerificationMessage } from '../email/authMessages';
 
 const EMAIL_CHANGE_RATE_LIMIT = {
   limit: 5,
@@ -158,24 +159,14 @@ async function sendEmailChangeVerificationEmail(args: {
   token: string;
 }): Promise<AuthEmailDelivery> {
   const url = buildEmailChangeVerificationUrl(args.token);
+  const message = buildEmailChangeVerificationMessage({
+    currentName: args.currentName,
+    currentEmail: args.currentEmail,
+    url,
+  });
   return sendAuthEmail({
     to: args.newEmail,
-    subject: 'Confirm your new Projex email address',
-    text: [
-      `Hi ${args.currentName || args.currentEmail},`,
-      '',
-      'We received a request to change your Projex login email address.',
-      'Confirm the new email address using the link below:',
-      url,
-      '',
-      'If you did not request this change, you can ignore this email.',
-    ].join('\n'),
-    html: [
-      `<p>Hi ${args.currentName || args.currentEmail},</p>`,
-      '<p>We received a request to change your Projex login email address.</p>',
-      `<p><a href="${url}">Confirm your new email address</a></p>`,
-      '<p>If you did not request this change, you can ignore this email.</p>',
-    ].join(''),
+    ...message,
   });
 }
 

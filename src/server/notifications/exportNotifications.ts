@@ -1,14 +1,6 @@
 import type { CompanyExportJobId, CompanyId } from '../../types';
 import { sendAuthEmail, type AuthEmailDelivery } from '../auth/email';
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
+import { escapeEmailHtml } from '../email/html';
 
 function getAppBaseUrl(): string | null {
   return (
@@ -71,18 +63,18 @@ export async function sendCompanyExportReadyEmail(args: {
       .filter(Boolean)
       .join('\n'),
     html: [
-      `<p>Hi ${escapeHtml(recipientName)},</p>`,
+      `<p>Hi ${escapeEmailHtml(recipientName)},</p>`,
       '<p>Your company export is ready for download.</p>',
       '<ul>',
-      `<li><strong>Company:</strong> ${escapeHtml(args.companyName)}</li>`,
-      `<li><strong>Workbook:</strong> ${escapeHtml(args.fileName)}</li>`,
-      `<li><strong>Generated at:</strong> ${escapeHtml(args.generatedAt)}</li>`,
+      `<li><strong>Company:</strong> ${escapeEmailHtml(args.companyName)}</li>`,
+      `<li><strong>Workbook:</strong> ${escapeEmailHtml(args.fileName)}</li>`,
+      `<li><strong>Generated at:</strong> ${escapeEmailHtml(args.generatedAt)}</li>`,
       args.expiresAt
-        ? `<li><strong>Available until:</strong> ${escapeHtml(args.expiresAt)}</li>`
+        ? `<li><strong>Available until:</strong> ${escapeEmailHtml(args.expiresAt)}</li>`
         : '',
       '</ul>',
       args.readyUrl
-        ? `<p><a href="${escapeHtml(args.readyUrl)}">Open your export in Projex</a></p><p>If you are signed out, sign back in and the export will stay available until it expires.</p>`
+        ? `<p><a href="${escapeEmailHtml(args.readyUrl)}">Open your export in Projex</a></p><p>If you are signed out, sign back in and the export will stay available until it expires.</p>`
         : '<p>Open Projex and go to Company Settings to download the finished workbook.</p>',
     ].join(''),
   });

@@ -392,6 +392,11 @@ sudo -u projex-deploy -- /bin/bash -c '
 '
 ```
 
+Public email/password sign-up is disabled. This operator command uses the
+trusted server-only provisioning path and is the supported way to create the
+first credential-bearing account on a fresh deployment. Normal users should be
+created through company invitations.
+
 Bootstrap that BetterAuth user into the app as a global superadmin.
 On a fresh database, this is the required step that makes the account usable in the app and able to see `/companies`.
 

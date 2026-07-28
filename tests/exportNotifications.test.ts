@@ -116,7 +116,9 @@ test('sendCompanyExportReadyEmail composes a linked email payload with escaped h
     fileName: 'Q2 "Review".xlsx',
     generatedAt: '2026-06-26T00:00:00.000Z',
     expiresAt: '2026-06-27T00:00:00.000Z',
-    readyUrl: 'https://app.example.com/c/co_1?tab=settings&exportJob=expjob_1',
+    readyUrl:
+      `https://app.example.com/c/co_1?tab=settings&name="quoted"` +
+      `&owner='single'`,
   });
 
   assert.equal(delivery, 'email');
@@ -129,6 +131,10 @@ test('sendCompanyExportReadyEmail composes a linked email payload with escaped h
   assert.match(
     sendCall?.[0].html ?? '',
     /Pat &lt;Owner&gt;.*Acme &amp; Sons.*Q2 &quot;Review&quot;\.xlsx/s
+  );
+  assert.match(
+    sendCall?.[0].html ?? '',
+    /href="https:\/\/app\.example\.com\/c\/co_1\?tab=settings&amp;name=&quot;quoted&quot;&amp;owner=&#39;single&#39;"/
   );
 });
 

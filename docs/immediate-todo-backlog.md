@@ -11,7 +11,8 @@ individual items are completed.
 - **Item 3 — AWS deploy access via OIDC:** Completed 27 July 2026.
 - **Item 4 — On-host and runtime privileges:** Completed 28 July 2026.
 - **Item 5 — Migration rollback compatibility:** Completed 28 July 2026.
-- **Items 6 onward:** Pending.
+- **Item 6 — Invite-only authentication:** Completed 28 July 2026.
+- **Items 7 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -135,6 +136,32 @@ record and formalizes the existing forward-migration deployment model:
 - Deployment regression coverage proves that a successful forward migration
   remains applied when readiness failure atomically restores the previous
   compatible application release.
+
+Item 6 completion preserves the original finding below as a point-in-time
+record and applies these controls:
+
+- The BetterAuth instance exposed through `/api/auth/*` disables public
+  email/password sign-up in every environment.
+- Trusted credential provisioning uses a separate server-only BetterAuth
+  instance that is never exposed through an HTTP handler.
+- First-user `auth:create-user` bootstrap and generated smoke fixtures use that
+  controlled provisioning path; company invitations continue creating
+  passwordless auth identities followed by password-setup email.
+- A source-boundary regression test confines direct `signUpEmail` calls to the
+  trusted auth module.
+- Server smoke asserts that public sign-up returns BetterAuth's explicit
+  `EMAIL_PASSWORD_SIGN_UP_DISABLED` response before confirming that the
+  provisioned smoke user can still sign in.
+
+The 28 July 2026 security-review follow-up also closes the email HTML-escaping
+finding retained below:
+
+- All authentication, account, export, and transaction-comment HTML emails use
+  one shared escaping primitive for both text-node and attribute values.
+- Password-setup and email-change message composition is isolated in pure,
+  directly tested builders.
+- Regression tests cover HTML metacharacters, attribute breakout attempts, and
+  injected markup across every email-template family.
 
 # Full Repository Review
 

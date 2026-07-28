@@ -6,21 +6,13 @@ import type {
   UserId,
 } from '../../types';
 import { sendAuthEmail, type AuthEmailDelivery } from '../auth/email';
+import { escapeEmailHtml } from '../email/html';
 
 type UserEmailTarget = {
   id: UserId;
   email: string;
   name: string;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
 
 function getAppBaseUrl(): string | null {
   return (
@@ -92,19 +84,19 @@ export async function sendTransactionCommentAssignmentEmail(args: {
       .filter((line) => line !== '')
       .join('\n'),
     html: [
-      `<p>Hi ${escapeHtml(recipientName)},</p>`,
-      `<p>${escapeHtml(actorName)} mentioned or assigned you in a transaction comment.</p>`,
+      `<p>Hi ${escapeEmailHtml(recipientName)},</p>`,
+      `<p>${escapeEmailHtml(actorName)} mentioned or assigned you in a transaction comment.</p>`,
       '<ul>',
-      `<li><strong>Company:</strong> ${escapeHtml(args.companyName)}</li>`,
-      `<li><strong>Project:</strong> ${escapeHtml(args.projectName)}</li>`,
-      `<li><strong>Transaction:</strong> ${escapeHtml(txnLabel || args.txnItem || 'Transaction')}</li>`,
+      `<li><strong>Company:</strong> ${escapeEmailHtml(args.companyName)}</li>`,
+      `<li><strong>Project:</strong> ${escapeEmailHtml(args.projectName)}</li>`,
+      `<li><strong>Transaction:</strong> ${escapeEmailHtml(txnLabel || args.txnItem || 'Transaction')}</li>`,
       args.txnDescription
-        ? `<li><strong>Description:</strong> ${escapeHtml(args.txnDescription)}</li>`
+        ? `<li><strong>Description:</strong> ${escapeEmailHtml(args.txnDescription)}</li>`
         : '',
       '</ul>',
-      `<blockquote>${escapeHtml(args.commentBody)}</blockquote>`,
+      `<blockquote>${escapeEmailHtml(args.commentBody)}</blockquote>`,
       args.commentUrl
-        ? `<p><a href="${escapeHtml(args.commentUrl)}">Open the comment in Projex</a></p>`
+        ? `<p><a href="${escapeEmailHtml(args.commentUrl)}">Open the comment in Projex</a></p>`
         : '<p>Open Projex and go to the transaction comments to review this thread.</p>',
       '<p>If this was not relevant to you, you can ignore this email.</p>',
     ].join(''),
