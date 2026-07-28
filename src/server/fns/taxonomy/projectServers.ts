@@ -33,10 +33,10 @@ import {
   deleteProjectSubCategory,
   listProjectCategories,
   listProjectSubCategories,
-  promoteProjectSubCategoryToCompanyDefault,
   updateProjectCategory,
   updateProjectSubCategory,
 } from './projectCrud';
+import { promoteProjectSubCategoryToCompanyDefault } from './projectPromotion';
 import {
   requireCompanyTaxonomyContext,
   requireProjectTaxonomyContext,

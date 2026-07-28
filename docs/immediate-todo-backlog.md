@@ -14,8 +14,7 @@ individual items are completed.
 - **Item 6 — Invite-only authentication:** Completed 28 July 2026.
 - **Item 7 — Testing review:** Completed 28 July 2026.
 - **Item 8 — Bundle and chunk review:** Completed 28 July 2026.
-- **Item 9 — Structure and maintainability:** In progress; dependency and
-  consolidation findings completed, feature-coordinator splits pending.
+- **Item 9 — Structure and maintainability:** Completed 28 July 2026.
 - **Items 10 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
@@ -254,8 +253,13 @@ the maintainability review:
 - Taxonomy move, recode, and destructive-delete workflows now live in dedicated
   action dialogs. Tested option and safe-default models keep affected
   subcategories and auto-coding rule handling explicit.
-- Splitting the two remaining large server feature coordinators around domain
-  actions remains the next Item 9 checkpoint.
+- Project taxonomy CRUD now delegates company-default promotion and
+  cross-project synchronization to a dedicated service, leaving the CRUD
+  aggregate focused on project-owned category and subcategory lifecycle.
+- Reversal workflow coordination now delegates approval, rejection, and
+  unmatching to a match-decision service. Rejection upserts and optimistic
+  workflow state are shared once, while the top-level transaction dispatcher
+  retains authorization, workflow locking, and action routing.
 
 # Full Repository Review
 

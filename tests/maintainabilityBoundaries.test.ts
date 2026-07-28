@@ -78,4 +78,34 @@ describe('maintainability boundaries', () => {
     expect(source).not.toContain('useProjectAutoCodingRulesQuery');
     expect(source).not.toContain('useBulkRecodeProjectTransactionsMutation');
   });
+
+  test('taxonomy CRUD delegates company-default promotion', async () => {
+    const projectServers = await readFile(
+      path.resolve('src/server/fns/taxonomy/projectServers.ts'),
+      'utf8'
+    );
+    const projectCrud = await readFile(
+      path.resolve('src/server/fns/taxonomy/projectCrud.ts'),
+      'utf8'
+    );
+
+    expect(projectServers).toContain("from './projectPromotion'");
+    expect(projectCrud).not.toContain('syncCompanyDefaultTaxonomyChange');
+  });
+
+  test('reversal coordination delegates match decisions and shared state', async () => {
+    const workflow = await readFile(
+      path.resolve('src/server/fns/transactions/reversalWorkflowServers.ts'),
+      'utf8'
+    );
+    const bulkWorkflow = await readFile(
+      path.resolve('src/server/fns/transactions/reversalBulkServers.ts'),
+      'utf8'
+    );
+
+    expect(workflow).toContain('rejectSuggestedTxnReversalMatch');
+    expect(workflow).toContain('unmatchTxnReversal');
+    expect(workflow).not.toContain('txn_reversal_match_rejections');
+    expect(bulkWorkflow).toContain("from './reversalMatchDecisionServers'");
+  });
 });

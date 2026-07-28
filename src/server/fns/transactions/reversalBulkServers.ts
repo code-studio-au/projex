@@ -14,7 +14,7 @@ import {
   type TxnReversalRow,
 } from './reversalDomain';
 import { reconcilePendingReversalMatches } from './reversalReconciliation';
-import { approveSuggestedTxnReversalMatch } from './reversalWorkflowServers';
+import { approveSuggestedTxnReversalMatch } from './reversalMatchDecisionServers';
 
 export async function reconcilePendingTxnReversalsServer(args: {
   context: ServerFnContextInput;
