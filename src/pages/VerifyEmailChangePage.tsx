@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { apiErrorMessage } from '../api/errorResponses';
 import { Route as verifyEmailChangeRoute } from '../routes/verify-email-change';
 import { readJsonResponseOrNull } from '../utils/json';
-import { emailChangeConfirmResponseSchema } from '../validation/responseSchemas';
+import { emailChangeConfirmResponseSchema } from '../validation/accountResponseSchemas';
 import classes from '../styles/ui.module.css';
 
 type ConfirmState =

@@ -209,7 +209,8 @@ PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test:integra
 `pnpm run build` should not emit client chunk-size warnings. The subsequent
 `pnpm run verify:bundle` gate measures both direct-load and post-root navigation
 payloads. It enforces JavaScript and CSS budgets for the root preload, company
-dashboard dependency closure, and project workspace dependency closure.
+dashboard dependency closure, project workspace dependency closure, and each
+deferred authenticated-dashboard tab.
 Current known build noise is limited to SSR dynamic/static import warnings from
 TanStack Start server route wiring around dynamic server-only adapters.
 

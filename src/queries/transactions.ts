@@ -34,7 +34,7 @@ import {
 import {
   txnBulkSelectionResultResponseSchema,
   txnListPageResultResponseSchema,
-} from '../validation/responseSchemas';
+} from '../validation/transactionResponseSchemas';
 import { apiErrorFromBody } from '../api/errorResponses';
 import {
   getTransactionServerFn,

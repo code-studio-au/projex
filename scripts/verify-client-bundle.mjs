@@ -29,6 +29,32 @@ const BUNDLE_TARGETS = [
   {
     label: 'Company dashboard',
     routeId: COMPANY_DASHBOARD_ROUTE_ID,
+    componentAssetPrefix: 'CompanyDashboardPage-',
+    firstLoadBudget: {
+      js: 345 * 1024,
+      css: 48 * 1024,
+    },
+    navigationBudget: {
+      js: 200 * 1024,
+      css: 8 * 1024,
+    },
+    lazyNavigationTargets: [
+      {
+        label: 'Company summary tab',
+        assetPrefix: 'CompanySummaryPanel-',
+        budget: { js: 10 * 1024, css: 1 * 1024 },
+      },
+      {
+        label: 'Company settings tab',
+        assetPrefix: 'CompanySettingsPanel-',
+        budget: { js: 30 * 1024, css: 1 * 1024 },
+      },
+    ],
+  },
+  {
+    label: 'Project workspace',
+    routeId: PROJECT_WORKSPACE_ROUTE_ID,
+    componentAssetPrefix: 'ProjectWorkspacePage-',
     firstLoadBudget: {
       js: 370 * 1024,
       css: 48 * 1024,
@@ -37,18 +63,23 @@ const BUNDLE_TARGETS = [
       js: 225 * 1024,
       css: 8 * 1024,
     },
-  },
-  {
-    label: 'Project workspace',
-    routeId: PROJECT_WORKSPACE_ROUTE_ID,
-    firstLoadBudget: {
-      js: 415 * 1024,
-      css: 48 * 1024,
-    },
-    navigationBudget: {
-      js: 270 * 1024,
-      css: 8 * 1024,
-    },
+    lazyNavigationTargets: [
+      {
+        label: 'Transactions tab',
+        assetPrefix: 'TransactionsPanel-',
+        budget: { js: 40 * 1024, css: 1 * 1024 },
+      },
+      {
+        label: 'Import tab',
+        assetPrefix: 'PowerBiImporterPanel-',
+        budget: { js: 20 * 1024, css: 1 * 1024 },
+      },
+      {
+        label: 'Project settings tab',
+        assetPrefix: 'ProjectSettingsPanel-',
+        budget: { js: 25 * 1024, css: 1 * 1024 },
+      },
+    ],
   },
 ];
 
@@ -131,7 +162,13 @@ function findStaticDependencies(contents, assetPath) {
 function findViteMappedDependencies(contents, assetPath) {
   if (!assetPath.endsWith('.js')) return [];
 
-  const dependencies = [];
+  return findViteDependencyMaps(contents, assetPath).flat();
+}
+
+function findViteDependencyMaps(contents, assetPath) {
+  if (!assetPath.endsWith('.js')) return [];
+
+  const dependencyMaps = [];
   const mapPattern = /\b([A-Za-z_$][\w$]*)\.f\|\|\(\1\.f=(\[[^\]]*])\)/g;
   for (const match of contents.matchAll(mapPattern)) {
     let values;
@@ -144,8 +181,49 @@ function findViteMappedDependencies(contents, assetPath) {
         }`
       );
     }
-    dependencies.push(
-      ...normalizeAssetPaths(values, `Vite dependency map in ${assetPath}`)
+    dependencyMaps.push(
+      normalizeAssetPaths(values, `Vite dependency map in ${assetPath}`)
+    );
+  }
+  return dependencyMaps;
+}
+
+function findViteLazyDependencyGroup(contents, assetPath, assetPrefix) {
+  const dependencyMaps = findViteDependencyMaps(contents, assetPath);
+  if (dependencyMaps.length !== 1) {
+    throw new Error(
+      `Expected one Vite dependency map in ${assetPath}, found ${dependencyMaps.length}.`
+    );
+  }
+
+  const dependencyMap = dependencyMaps[0];
+  const dynamicImportPattern =
+    /import\(\s*[`"']\.\/([^`"']+)[`"']\s*\)\s*,\s*__vite__mapDeps\(\[([0-9,\s]+)]\)/g;
+  const matches = [...contents.matchAll(dynamicImportPattern)].filter((match) =>
+    match[1].startsWith(assetPrefix)
+  );
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected one ${assetPrefix} lazy import in ${assetPath}, found ${matches.length}.`
+    );
+  }
+
+  const importedAsset = matches[0][1];
+  const indices = matches[0][2]
+    .split(',')
+    .map((value) => Number.parseInt(value.trim(), 10));
+  const dependencies = indices.map((index) => {
+    const dependency = dependencyMap[index];
+    if (!dependency) {
+      throw new Error(
+        `Vite dependency index ${index} for ${importedAsset} is invalid in ${assetPath}.`
+      );
+    }
+    return dependency;
+  });
+  if (!dependencies.includes(importedAsset)) {
+    throw new Error(
+      `Vite dependency group for ${importedAsset} does not include its imported asset.`
     );
   }
   return dependencies;
@@ -263,6 +341,57 @@ async function collectRouteAssets(routes, routeId, rootAssets) {
   return routeAssets;
 }
 
+async function findRouteComponentAsset(routes, target) {
+  const route = routes[target.routeId];
+  const preloads = normalizeAssetPaths(
+    route.preloads ?? [],
+    `${target.routeId} preloads`
+  );
+  const matches = [];
+
+  for (const preload of preloads) {
+    const contents = await readAssetContents(preload);
+    matches.push(
+      ...findViteMappedDependencies(contents, preload).filter((assetPath) =>
+        assetPath.startsWith(target.componentAssetPrefix)
+      )
+    );
+  }
+
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected one ${target.componentAssetPrefix} route component asset, found ${matches.length}.`
+    );
+  }
+  return matches[0];
+}
+
+async function collectLazyNavigationAssets(routes, target, firstLoadAssets) {
+  if (!target.lazyNavigationTargets?.length) return [];
+
+  const componentAsset = await findRouteComponentAsset(routes, target);
+  const contents = await readAssetContents(componentAsset);
+  const reports = [];
+
+  for (const lazyTarget of target.lazyNavigationTargets ?? []) {
+    const dependencyGroup = findViteLazyDependencyGroup(
+      contents,
+      componentAsset,
+      lazyTarget.assetPrefix
+    );
+    const expandedDependencies =
+      await expandStaticDependencies(dependencyGroup);
+    const additionalAssets = new Set(
+      [...expandedDependencies].filter(
+        (assetPath) => !firstLoadAssets.has(assetPath)
+      )
+    );
+    reports.push({ target: lazyTarget, assetPaths: additionalAssets });
+  }
+
+  return reports;
+}
+
 async function measureAssets(assetPaths) {
   return Promise.all(
     [...assetPaths]
@@ -368,6 +497,28 @@ for (const target of BUNDLE_TARGETS) {
       label: `${target.label} navigation`,
       actual: navigationSummary,
       budget: target.navigationBudget,
+    });
+  }
+
+  const lazyNavigationReports = await collectLazyNavigationAssets(
+    manifest.routes,
+    target,
+    firstLoadAssetPaths
+  );
+  for (const report of lazyNavigationReports) {
+    const assets = await measureAssets(report.assetPaths);
+    const summary = summarizeAssets(assets);
+    console.log(
+      `  ${report.target.label} additional payload: ${formatSummary(summary)}`
+    );
+    console.log(
+      `  ${report.target.label} budget: ${formatSummary(report.target.budget)}`
+    );
+    appendBudgetFailures({
+      failures,
+      label: report.target.label,
+      actual: summary,
+      budget: report.target.budget,
     });
   }
 }

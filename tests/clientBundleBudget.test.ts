@@ -11,6 +11,7 @@ const temporaryDirectories: string[] = [];
 type FixtureOptions = {
   companyPageContents?: string;
   companyMappedAsset?: string;
+  companySummaryContents?: string;
 };
 
 async function createBundleFixture(options: FixtureOptions = {}) {
@@ -51,7 +52,7 @@ async function createBundleFixture(options: FixtureOptions = {}) {
   };
 
   const companyMappedAsset =
-    options.companyMappedAsset ?? 'assets/company-page.js';
+    options.companyMappedAsset ?? 'assets/CompanyDashboardPage-fixture.js';
   const assets: Record<string, string> = {
     'root.js': 'import "./vendor.js"; export const root = true;',
     'root.css': ':root { color: black; }',
@@ -61,15 +62,32 @@ async function createBundleFixture(options: FixtureOptions = {}) {
     'authed-layout.js': 'export const authed = true;',
     'company-route.js': 'export const company = true;',
     'company-dashboard-route.js': `const d=(m.f||(m.f=["${companyMappedAsset}","assets/company.css"])); export { d };`,
-    'company-page.js':
-      options.companyPageContents ??
-      'import "./company-shared.js"; export const dashboard = true;',
+    'CompanyDashboardPage-fixture.js': [
+      'import "./company-shared.js";',
+      'const d=(m.f||(m.f=["assets/CompanySummaryPanel-fixture.js","assets/CompanySettingsPanel-fixture.js"]));',
+      'const summary=()=>load(()=>import("./CompanySummaryPanel-fixture.js"),__vite__mapDeps([0]));',
+      'const settings=()=>load(()=>import("./CompanySettingsPanel-fixture.js"),__vite__mapDeps([1]));',
+      options.companyPageContents ?? '',
+      'export { d, settings, summary };',
+    ].join('\n'),
+    'CompanySummaryPanel-fixture.js':
+      options.companySummaryContents ?? 'export const summary = true;',
+    'CompanySettingsPanel-fixture.js': 'export const settings = true;',
     'company-shared.js': 'export const companyShared = true;',
     'company.css': '.company { display: block; }',
     'project-workspace-route.js':
-      'const d=(m.f||(m.f=["assets/project-page.js","assets/project.css"])); export { d };',
-    'project-page.js':
-      'import "./company-shared.js"; export const workspace = true;',
+      'const d=(m.f||(m.f=["assets/ProjectWorkspacePage-fixture.js","assets/project.css"])); export { d };',
+    'ProjectWorkspacePage-fixture.js': [
+      'import "./company-shared.js";',
+      'const d=(m.f||(m.f=["assets/TransactionsPanel-fixture.js","assets/PowerBiImporterPanel-fixture.js","assets/ProjectSettingsPanel-fixture.js"]));',
+      'const transactions=()=>load(()=>import("./TransactionsPanel-fixture.js"),__vite__mapDeps([0]));',
+      'const importer=()=>load(()=>import("./PowerBiImporterPanel-fixture.js"),__vite__mapDeps([1]));',
+      'const settings=()=>load(()=>import("./ProjectSettingsPanel-fixture.js"),__vite__mapDeps([2]));',
+      'export { d, importer, settings, transactions };',
+    ].join('\n'),
+    'TransactionsPanel-fixture.js': 'export const transactions = true;',
+    'PowerBiImporterPanel-fixture.js': 'export const importer = true;',
+    'ProjectSettingsPanel-fixture.js': 'export const settings = true;',
     'project.css': '.project { display: block; }',
   };
 
@@ -119,6 +137,8 @@ describe('client bundle budgets', () => {
     expect(result.stdout).toContain('Company dashboard');
     expect(result.stdout).toContain('Project workspace');
     expect(result.stdout).toContain('Navigation beyond root');
+    expect(result.stdout).toContain('Company summary tab additional payload');
+    expect(result.stdout).toContain('Transactions tab additional payload');
     expect(result.stdout).toContain('Client bundle budgets passed.');
   });
 
@@ -148,6 +168,19 @@ describe('client bundle budgets', () => {
     );
     expect(result.stderr).toContain(
       'Company dashboard navigation JS exceeds its budget'
+    );
+  });
+
+  test('fails when a deferred tab exceeds its budget', async () => {
+    const result = runVerifier(
+      await createBundleFixture({
+        companySummaryContents: randomBytes(40 * 1024).toString('base64'),
+      })
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'Company summary tab JS exceeds its budget'
     );
   });
 });

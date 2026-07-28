@@ -13,8 +13,7 @@ individual items are completed.
 - **Item 5 — Migration rollback compatibility:** Completed 28 July 2026.
 - **Item 6 — Invite-only authentication:** Completed 28 July 2026.
 - **Item 7 — Testing review:** Completed 28 July 2026.
-- **Item 8 — Bundle and chunk review:** In progress; authenticated-route
-  budgets completed, lazy tab chunks pending.
+- **Item 8 — Bundle and chunk review:** Completed 28 July 2026.
 - **Items 9 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
@@ -193,18 +192,27 @@ and applies every recommendation:
   tests, and the full generated-fixture browser suite passes in both Chromium
   and Firefox.
 
-Item 8 now measures and budgets the generated dependency closures for the
-company dashboard and project workspace in addition to the root preload:
+Item 8 completion preserves the bundle review below as a point-in-time record
+and applies every recommendation:
 
 - Direct-load budgets include the root, authenticated layout, nested route
   entries, lazy page component, transitive JavaScript imports, and route CSS.
 - Navigation budgets report and constrain the additional payload beyond the
   root preload, so first paint and authenticated navigation cannot hide each
   other's regressions.
+- The company summary/settings and project transactions/import/settings panels
+  load only when their tabs are selected. Each deferred payload has its own
+  JavaScript and CSS budget.
+- Response schemas are split into API, account, authentication, transaction,
+  shared primitive, and remaining domain modules. Client consumers import the
+  narrow feature modules directly, with regression tests enforcing those
+  boundaries.
 - Fixture-based regression tests cover route/dependency traversal, unsafe
-  generated asset paths, and authenticated-route budget failures.
-- Lazy-loading inactive import, settings, transaction, and other heavy tab
-  panels remains the next Item 8 change.
+  generated asset paths, authenticated-route and deferred-tab budget failures.
+- Compared with the pre-change baseline, the company dashboard direct-load
+  JavaScript fell from about 348 KiB to 322 KiB gzip and its post-root payload
+  fell from about 208 KiB to 182 KiB. The project workspace fell from about
+  387 KiB to 345 KiB direct and from about 248 KiB to 205 KiB post-root.
 
 # Full Repository Review
 

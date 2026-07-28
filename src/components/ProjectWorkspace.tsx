@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Button,
@@ -48,11 +48,8 @@ import {
 } from '../queries/admin';
 import { useProjectTransactionSummaryQuery } from '../queries/transactions';
 
-import TransactionsPanel from './TransactionsPanel';
 import type { TransactionView } from './transactions/transactionViews';
 import BudgetPanel from './BudgetPanel';
-import PowerBiImporterPanel from './PowerBiImporterPanel';
-import ProjectSettingsPanel from './ProjectSettingsPanel';
 import { LoadingLine } from './LoadingValue';
 import ProjectWorkspaceTabList from './ProjectWorkspaceTabList';
 import {
@@ -60,6 +57,10 @@ import {
   type ProjectWorkspaceTab,
 } from './projectWorkspaceTabAccess';
 import classes from '../styles/ui.module.css';
+
+const TransactionsPanel = lazy(() => import('./TransactionsPanel'));
+const PowerBiImporterPanel = lazy(() => import('./PowerBiImporterPanel'));
+const ProjectSettingsPanel = lazy(() => import('./ProjectSettingsPanel'));
 
 type QuarterOption = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 type TransactionDrilldownSearch =
@@ -1152,93 +1153,97 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
           />
 
           <Tabs.Panel value="transactions" pt="md">
-            <TransactionsPanel
-              projectId={projectId}
-              transactionActions={transactionActions}
-              taxonomy={taxonomy}
-              autoMappedPendingCount={
-                projectTransactionSummaryQ.data?.autoMappedPendingCount ?? 0
-              }
-              currencyCode={currencyCode}
-              yearFilterOptions={yearFilterOptions}
-              yearFilter={yearFilter}
-              setYearFilter={setYearFilter}
-              quarterFilterOptions={quarterFilterOptions}
-              quarterFilter={quarterFilter}
-              setQuarterFilter={setQuarterFilter}
-              monthFilterOptions={monthFilterOptions}
-              monthFilterKey={monthFilterKey}
-              setMonthFilterKey={setMonthFilterKey}
-              transactionView={transactionView}
-              setTransactionView={setTransactionView}
-              transactionSearch={transactionSearch}
-              setTransactionSearch={(value) => {
-                void router.navigate({
-                  to: '/c/$companyId/p/$projectId',
-                  params: { companyId, projectId },
-                  search: {
-                    year: yearFilter ?? undefined,
-                    quarter: quarterFilter ?? undefined,
-                    tab: activeTab === 'budget' ? undefined : activeTab,
-                    month: monthFilterKey ?? undefined,
-                    view:
-                      transactionView === 'all' ? undefined : transactionView,
-                    q: value.trim().slice(0, 200) || undefined,
-                    source: initialEntrySource,
-                    focus: initialEntryFocus,
-                    drilldownKind: transactionDrilldown?.kind,
-                    categoryId: transactionDrilldown?.categoryId,
-                    categoryName: transactionDrilldown?.categoryName,
-                    subCategoryId:
-                      transactionDrilldown?.kind === 'subcategory'
-                        ? transactionDrilldown.subCategoryId
-                        : undefined,
-                    subCategoryName:
-                      transactionDrilldown?.kind === 'subcategory'
-                        ? transactionDrilldown.subCategoryName
-                        : undefined,
-                  },
-                  replace: true,
-                });
-              }}
-              transactionDrilldown={effectiveTransactionDrilldown}
-              onClearTransactionDrilldown={() => setTransactionDrilldown(null)}
-              initialCommentTxnId={initialCommentTxnId}
-              transferOutEnabled={effectiveAllowTxnTransfers}
-              transferProjectOptions={transferProjectOptions}
-              onClearFilters={() => {
-                setYearFilter(null);
-                setQuarterFilter(null);
-                setMonthFilterKey(null);
-                setTransactionDrilldown(null);
-                void router.navigate({
-                  to: '/c/$companyId/p/$projectId',
-                  params: { companyId, projectId },
-                  search: {
-                    tab: activeTab === 'budget' ? undefined : activeTab,
-                    month: undefined,
-                    quarter: undefined,
-                    year: undefined,
-                    view:
-                      transactionView === 'all' ? undefined : transactionView,
-                    q: transactionSearch.trim() || undefined,
-                    source: undefined,
-                    focus: undefined,
-                    drilldownKind: undefined,
-                    categoryId: undefined,
-                    categoryName: undefined,
-                    subCategoryId: undefined,
-                    subCategoryName: undefined,
-                  },
-                  replace: true,
-                });
-              }}
-              canEditTaxonomy={canEditTaxonomy}
-              canManageReversals={canManageReversals}
-              canResolveUnlock={canResolveUnlock}
-              canAdminUnlock={canAdminUnlock}
-              readOnly={!canEditTxns}
-            />
+            <Suspense fallback={<LoadingLine height={180} radius="md" />}>
+              <TransactionsPanel
+                projectId={projectId}
+                transactionActions={transactionActions}
+                taxonomy={taxonomy}
+                autoMappedPendingCount={
+                  projectTransactionSummaryQ.data?.autoMappedPendingCount ?? 0
+                }
+                currencyCode={currencyCode}
+                yearFilterOptions={yearFilterOptions}
+                yearFilter={yearFilter}
+                setYearFilter={setYearFilter}
+                quarterFilterOptions={quarterFilterOptions}
+                quarterFilter={quarterFilter}
+                setQuarterFilter={setQuarterFilter}
+                monthFilterOptions={monthFilterOptions}
+                monthFilterKey={monthFilterKey}
+                setMonthFilterKey={setMonthFilterKey}
+                transactionView={transactionView}
+                setTransactionView={setTransactionView}
+                transactionSearch={transactionSearch}
+                setTransactionSearch={(value) => {
+                  void router.navigate({
+                    to: '/c/$companyId/p/$projectId',
+                    params: { companyId, projectId },
+                    search: {
+                      year: yearFilter ?? undefined,
+                      quarter: quarterFilter ?? undefined,
+                      tab: activeTab === 'budget' ? undefined : activeTab,
+                      month: monthFilterKey ?? undefined,
+                      view:
+                        transactionView === 'all' ? undefined : transactionView,
+                      q: value.trim().slice(0, 200) || undefined,
+                      source: initialEntrySource,
+                      focus: initialEntryFocus,
+                      drilldownKind: transactionDrilldown?.kind,
+                      categoryId: transactionDrilldown?.categoryId,
+                      categoryName: transactionDrilldown?.categoryName,
+                      subCategoryId:
+                        transactionDrilldown?.kind === 'subcategory'
+                          ? transactionDrilldown.subCategoryId
+                          : undefined,
+                      subCategoryName:
+                        transactionDrilldown?.kind === 'subcategory'
+                          ? transactionDrilldown.subCategoryName
+                          : undefined,
+                    },
+                    replace: true,
+                  });
+                }}
+                transactionDrilldown={effectiveTransactionDrilldown}
+                onClearTransactionDrilldown={() =>
+                  setTransactionDrilldown(null)
+                }
+                initialCommentTxnId={initialCommentTxnId}
+                transferOutEnabled={effectiveAllowTxnTransfers}
+                transferProjectOptions={transferProjectOptions}
+                onClearFilters={() => {
+                  setYearFilter(null);
+                  setQuarterFilter(null);
+                  setMonthFilterKey(null);
+                  setTransactionDrilldown(null);
+                  void router.navigate({
+                    to: '/c/$companyId/p/$projectId',
+                    params: { companyId, projectId },
+                    search: {
+                      tab: activeTab === 'budget' ? undefined : activeTab,
+                      month: undefined,
+                      quarter: undefined,
+                      year: undefined,
+                      view:
+                        transactionView === 'all' ? undefined : transactionView,
+                      q: transactionSearch.trim() || undefined,
+                      source: undefined,
+                      focus: undefined,
+                      drilldownKind: undefined,
+                      categoryId: undefined,
+                      categoryName: undefined,
+                      subCategoryId: undefined,
+                      subCategoryName: undefined,
+                    },
+                    replace: true,
+                  });
+                }}
+                canEditTaxonomy={canEditTaxonomy}
+                canManageReversals={canManageReversals}
+                canResolveUnlock={canResolveUnlock}
+                canAdminUnlock={canAdminUnlock}
+                readOnly={!canEditTxns}
+              />
+            </Suspense>
           </Tabs.Panel>
 
           <Tabs.Panel value="budget" pt="md">
@@ -1308,40 +1313,47 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
 
           <Tabs.Panel value="import" pt="md">
             <Stack gap="md">
-              <PowerBiImporterPanel
-                companyId={companyId}
-                projectId={projectId}
-                currencyCode={currencyCode}
-                canEditTaxonomy={canEditTaxonomy}
-                canEditBudgets={canEditBudgets}
-                canManageImportRules={canManageImportRules}
-                onImportComplete={(message) => {
-                  setActiveTab('transactions');
-                  showAppToast({
-                    tone: 'success',
-                    title: 'Import complete',
-                    message,
-                    autoClose: 8000,
-                  });
-                }}
-                onReplaceAll={async (options) => {
-                  return importTransactions.mutateAsync({
-                    mode: 'replaceAll',
-                    ...options,
-                  });
-                }}
-                onAppend={async (options) => {
-                  return importTransactions.mutateAsync({
-                    mode: 'append',
-                    ...options,
-                  });
-                }}
-              />
+              <Suspense fallback={<LoadingLine height={180} radius="md" />}>
+                <PowerBiImporterPanel
+                  companyId={companyId}
+                  projectId={projectId}
+                  currencyCode={currencyCode}
+                  canEditTaxonomy={canEditTaxonomy}
+                  canEditBudgets={canEditBudgets}
+                  canManageImportRules={canManageImportRules}
+                  onImportComplete={(message) => {
+                    setActiveTab('transactions');
+                    showAppToast({
+                      tone: 'success',
+                      title: 'Import complete',
+                      message,
+                      autoClose: 8000,
+                    });
+                  }}
+                  onReplaceAll={async (options) => {
+                    return importTransactions.mutateAsync({
+                      mode: 'replaceAll',
+                      ...options,
+                    });
+                  }}
+                  onAppend={async (options) => {
+                    return importTransactions.mutateAsync({
+                      mode: 'append',
+                      ...options,
+                    });
+                  }}
+                />
+              </Suspense>
             </Stack>
           </Tabs.Panel>
 
           <Tabs.Panel value="settings" pt="md">
-            <ProjectSettingsPanel companyId={companyId} projectId={projectId} />
+            <Suspense fallback={<LoadingLine height={180} radius="md" />}>
+              <ProjectSettingsPanel
+                companyId={companyId}
+                projectId={projectId}
+              />
+            </Suspense>
           </Tabs.Panel>
         </Tabs>
       </Paper>

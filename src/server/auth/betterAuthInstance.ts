@@ -4,7 +4,7 @@ import type { BetterAuthOptions } from 'better-auth';
 import { getDb } from '../db/db.ts';
 import { sendAuthEmail } from './email.ts';
 import { AppError } from '../../api/errors.ts';
-import { betterAuthSignUpResponseSchema } from '../../validation/responseSchemas.ts';
+import { betterAuthSignUpResponseSchema } from '../../validation/authResponseSchemas.ts';
 import { buildPasswordSetupEmailMessage } from '../email/authMessages.ts';
 
 export type BetterAuthSessionApi = ReturnType<typeof betterAuth>;
