@@ -7,6 +7,7 @@ import type {
 } from '../../types';
 import { sendAuthEmail, type AuthEmailDelivery } from '../auth/email';
 import { escapeEmailHtml } from '../email/html';
+import { getPublicAppBaseUrl } from '../email/urls';
 
 type UserEmailTarget = {
   id: UserId;
@@ -14,21 +15,13 @@ type UserEmailTarget = {
   name: string;
 };
 
-function getAppBaseUrl(): string | null {
-  return (
-    process.env.PROJEX_APP_BASE_URL?.trim() ||
-    process.env.BETTER_AUTH_URL?.trim() ||
-    null
-  );
-}
-
 export function buildTransactionCommentUrl(args: {
   companyId: CompanyId;
   projectId: ProjectId;
   txnId: TxnId;
   commentId: TxnCommentId;
 }): string | null {
-  const baseUrl = getAppBaseUrl();
+  const baseUrl = getPublicAppBaseUrl();
   if (!baseUrl) return null;
 
   const url = new URL(

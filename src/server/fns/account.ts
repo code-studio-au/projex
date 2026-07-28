@@ -23,6 +23,7 @@ import {
 } from './runtime';
 import { enforceRateLimit } from '../rateLimit';
 import { buildEmailChangeVerificationMessage } from '../email/authMessages';
+import { getAuthRedirectUrl } from '../email/urls';
 
 const EMAIL_CHANGE_RATE_LIMIT = {
   limit: 5,
@@ -49,16 +50,11 @@ function hashToken(token: string): string {
 }
 
 function getEmailChangeRedirectBaseUrl(): string {
-  const configured = process.env.PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL?.trim();
-  if (configured) return configured;
-  const base = process.env.BETTER_AUTH_URL?.trim();
-  if (!base) {
-    throw new AppError(
-      'INTERNAL_ERROR',
-      'Missing BETTER_AUTH_URL while preparing email change verification link'
-    );
-  }
-  return new URL('/verify-email-change', base).toString();
+  return getAuthRedirectUrl({
+    configuredUrl: process.env.PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL,
+    fallbackPath: '/verify-email-change',
+    context: 'preparing email change verification link',
+  });
 }
 
 function buildEmailChangeVerificationUrl(token: string): string {

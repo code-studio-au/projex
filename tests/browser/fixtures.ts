@@ -14,7 +14,6 @@ export const test = base.extend<SmokeTestFixtures>({
   smokeFixtures: async ({ browserName }, use) => {
     void browserName;
     const fixtures = await createSmokeFixtures({
-      sweepStale: process.env.PROJEX_SMOKE_SWEEP_STALE === 'true',
       onStatus(message) {
         console.info(`[..] ${message}`);
       },

@@ -48,7 +48,7 @@ test('company export ready links open company settings for the exact export job'
   }
 });
 
-test('company export ready links prefer the auth app origin when both are configured', () => {
+test('company export ready links prefer the explicit public app origin', () => {
   const previousAppBaseUrl = process.env.PROJEX_APP_BASE_URL;
   const previousBetterAuthUrl = process.env.BETTER_AUTH_URL;
   process.env.PROJEX_APP_BASE_URL = 'https://dev.example.com';
@@ -60,7 +60,7 @@ test('company export ready links prefer the auth app origin when both are config
         companyId: asCompanyId('co_1'),
         jobId: asCompanyExportJobId('expjob_1'),
       }),
-      'https://app.example.com/c/co_1?tab=settings&exportJob=expjob_1'
+      'https://dev.example.com/c/co_1?tab=settings&exportJob=expjob_1'
     );
   } finally {
     if (previousAppBaseUrl === undefined) {

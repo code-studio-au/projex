@@ -22,17 +22,14 @@ pnpm run dev
 
 Use Node `24` as pinned in `.nvmrc` and `.node-version`.
 
-Useful checks before handing work over or opening a PR:
+The standard non-Docker application gate before handing work over or opening a
+PR is:
 
 ```bash
-pnpm run test
-pnpm run coverage
-pnpm run db:verify-types
-pnpm run typecheck
-pnpm run lint
-pnpm run format:check
-pnpm run build
+pnpm run verify:app
 ```
+
+Database, CDK, and smoke changes also need their relevant lanes below.
 
 The repo now includes a GitHub Actions CI workflow at
 `.github/workflows/ci.yml`. It currently runs five required lanes:
@@ -206,9 +203,13 @@ If you need to point the suite at an explicit integration database yourself, use
 PROJEX_INTEGRATION_DATABASE_URL=postgres://.../projex_test pnpm run test:integration:node
 ```
 
-`pnpm run build` should not emit client chunk-size warnings. Current known
-build noise is limited to SSR dynamic/static import warnings from TanStack
-Start server route wiring around dynamic server-only adapters.
+`pnpm run build` should not emit client chunk-size warnings. The subsequent
+`pnpm run verify:bundle` gate measures both direct-load and post-root navigation
+payloads. It enforces JavaScript and CSS budgets for the root preload, company
+dashboard dependency closure, project workspace dependency closure, and each
+deferred authenticated-dashboard tab.
+Current known build noise is limited to SSR dynamic/static import warnings from
+TanStack Start server route wiring around dynamic server-only adapters.
 
 The request-scoped auth path now verifies the app user once at the request
 boundary, caches that result in `src/server/http/requestContext.ts`, and passes
@@ -424,3 +425,9 @@ Keep this list short. If a new note overlaps an existing item, update the existi
 - `CONTRIBUTING.md`: local setup, verification expectations, and contribution workflow.
 - `SECURITY.md`: vulnerability reporting path and deployment security expectations.
 - `deploy/cdk/README.md`: AWS CDK stack notes.
+
+## Licence
+
+Projex is proprietary software. No rights to use, copy, modify, or distribute
+the software are granted without prior written permission. See
+[LICENSE](LICENSE).

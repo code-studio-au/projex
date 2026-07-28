@@ -1,10 +1,13 @@
-import { ProjexSmokePage } from './ProjexSmokePage';
 import { test } from './fixtures';
+import { ApplicationShellPage } from './pages/ApplicationShellPage';
 
 test('server rendering, hydration, navigation, and protected tabs', async ({
   page,
   smokeFixtures,
 }) => {
-  void smokeFixtures;
-  await new ProjexSmokePage(page).verifyApplicationShell();
+  await new ApplicationShellPage(page, smokeFixtures, {
+    onStatus(message) {
+      console.info(`[..] ${message}`);
+    },
+  }).verify();
 });

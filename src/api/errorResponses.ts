@@ -1,5 +1,5 @@
 import { AppError, type AppErrorCode } from './errors';
-import { apiErrorResponseSchema } from '../validation/responseSchemas';
+import { apiErrorResponseSchema } from '../validation/apiResponseSchemas';
 
 export function apiErrorMessage(body: unknown, fallback: string): string {
   const parsed = apiErrorResponseSchema.safeParse(body);

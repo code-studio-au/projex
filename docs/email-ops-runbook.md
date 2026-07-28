@@ -31,7 +31,8 @@ Notes:
   do not change it to a subdomain unless that subdomain is separately verified
   and authorized for the API key.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should match the public HTTPS reset page users open from email.
-- `PROJEX_APP_BASE_URL` should match the public app origin used by transaction-comment deep links.
+- `PROJEX_APP_BASE_URL` should match the public app origin used by
+  transaction-comment and export-ready deep links.
 
 ## What The App Sends
 

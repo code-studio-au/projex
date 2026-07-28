@@ -25,7 +25,7 @@ import {
   listSyncedProjectIdsForCompany,
   planProjectStandardReconciliation,
 } from '../../sync/projectStandards';
-import { syncCompanyAutoCodingRulesToProject } from '../projectAutoCodingRules';
+import { syncCompanyAutoCodingRulesToProject } from '../projectAutoCodingRules/sync';
 import { syncCompanyImportRulesToProject } from '../importRules';
 
 type ProjectCategorySyncRow = {

@@ -93,8 +93,9 @@ How to think about those commands:
   CDK synth verification, disposable DB integration tests, isolated full
   disposable server smoke, and isolated full disposable browser smoke.
 - Both disposable DB steps require local Docker access.
-- Local browser smoke also needs `pnpm exec playwright install --with-deps chromium`
-  the first time you run it on a machine.
+- Local browser smoke also needs
+  `pnpm exec playwright install --with-deps chromium firefox` the first time
+  you run it on a machine.
 - `pnpm run db:migrate` remains an explicit deployment step; the runtime server should be restarted only after migrations succeed.
 
 Post-deploy verification on the target runtime:
@@ -438,7 +439,9 @@ If you already have an app-side template user and want to copy its memberships i
   - `RESEND_BASE_URL=https://api.resend.com`
   - `RESEND_FROM='Projex <noreply@projectexpensetracker.com>'`, matching the
     root domain verified in the production Resend account
-- Transaction comment assignment emails use `PROJEX_APP_BASE_URL` for deep links and fall back to `BETTER_AUTH_URL` when it is not set.
+- Transaction comment assignment and export-ready emails use
+  `PROJEX_APP_BASE_URL` for deep links and fall back to `BETTER_AUTH_URL` when
+  it is not set.
 - If neither Resend nor `PROJEX_AUTH_EMAIL_WEBHOOK_URL` is configured, the password setup link is logged on the server instead.
 - For email troubleshooting and direct provider checks, see `docs/email-ops-runbook.md`.
 

@@ -114,6 +114,9 @@ export function validateServerStartupEnv(): void {
   parseHttpsUrl(process.env.PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL, {
     label: 'PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL',
   });
+  parseHttpsUrl(process.env.PROJEX_APP_BASE_URL, {
+    label: 'PROJEX_APP_BASE_URL',
+  });
 
   for (const origin of trustedOrigins) {
     parseHttpsUrl(origin, {

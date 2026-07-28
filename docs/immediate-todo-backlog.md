@@ -13,7 +13,13 @@ individual items are completed.
 - **Item 5 — Migration rollback compatibility:** Completed 28 July 2026.
 - **Item 6 — Invite-only authentication:** Completed 28 July 2026.
 - **Item 7 — Testing review:** Completed 28 July 2026.
-- **Items 8 onward:** Pending.
+- **Item 8 — Bundle and chunk review:** Completed 28 July 2026.
+- **Item 9 — Structure and maintainability:** Completed 28 July 2026.
+- **Item 10 — Documentation and repository hygiene:** Completed 28 July 2026.
+- **Item 11 — Browser test isolation and CodeQL follow-up:** Completed
+  28 July 2026.
+- **Infrastructure and operational resilience:** Deferred until the application
+  moves to the organisation AWS account.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -173,9 +179,9 @@ and applies every recommendation:
 - Focused TSX component tests cover reversal submission and read-only
   permissions, controlled project tabs, pre/post-hydration access, programme
   restrictions, and import-review decisions.
-- Browser smoke now runs as two Playwright Test specs with reusable generated
-  fixtures and a page object. Playwright owns Chromium/Firefox execution,
-  retries, traces, screenshots, video, isolation, and reporting.
+- Browser smoke now runs as focused Playwright Test specs with reusable
+  generated fixtures and page objects. Playwright owns Chromium/Firefox
+  execution, retries, traces, screenshots, video, isolation, and reporting.
 - Deploy regression coverage exercises same-SHA releases, download and
   integrity failures, migration failures, readiness failures, and both
   previous-release and first-release rollback paths.
@@ -190,6 +196,109 @@ and applies every recommendation:
 - The resulting application suite contains 62 passing Vitest files and 314
   tests, and the full generated-fixture browser suite passes in both Chromium
   and Firefox.
+
+Item 8 completion preserves the bundle review below as a point-in-time record
+and applies every recommendation:
+
+- Direct-load budgets include the root, authenticated layout, nested route
+  entries, lazy page component, transitive JavaScript imports, and route CSS.
+- Navigation budgets report and constrain the additional payload beyond the
+  root preload, so first paint and authenticated navigation cannot hide each
+  other's regressions.
+- The company summary/settings and project transactions/import/settings panels
+  load only when their tabs are selected. Each deferred payload has its own
+  JavaScript and CSS budget.
+- Response schemas are split into API, account, authentication, transaction,
+  shared primitive, and remaining domain modules. Client consumers import the
+  narrow feature modules directly, with regression tests enforcing those
+  boundaries.
+- Fixture-based regression tests cover route/dependency traversal, unsafe
+  generated asset paths, authenticated-route and deferred-tab budget failures.
+- Compared with the pre-change baseline, the company dashboard direct-load
+  JavaScript fell from about 348 KiB to 322 KiB gzip and its post-root payload
+  fell from about 208 KiB to 182 KiB. The project workspace fell from about
+  387 KiB to 345 KiB direct and from about 248 KiB to 205 KiB post-root.
+
+Item 9 has completed the cross-cutting dependency and consolidation work from
+the maintainability review:
+
+- Taxonomy standards import the auto-coding sync implementation directly,
+  removing the reported circular dependency and locking the boundary with a
+  regression test.
+- Email HTML escaping remains centralized, and public-app/auth redirect URL
+  resolution now shares one implementation with consistent precedence.
+- Server, browser, and disposable smoke launchers use one tested CLI parser;
+  the parser is included in deploy artifacts.
+- One SQL migration provider now adapts the ordered canonical SQL files
+  directly to Kysely while preserving every existing migration name. The 35
+  identical TypeScript wrappers have been removed, and the fresh/upgrade
+  database gate verifies the replacement.
+- The broad Knip export ignore has been removed in favour of statically
+  analyzable imports, and its documentation now matches the configuration.
+- `verify:ci` delegates application security and audit work to `verify:app`
+  once instead of running those checks twice.
+- The programme-only presentation, period filtering, rollup cards, and
+  sub-project table have been extracted from `ProjectWorkspace` into a focused,
+  component-tested view. The route-level coordinator now owns data, access, URL
+  state, and navigation without also carrying the complete programme UI.
+- PowerBI preview tabs, table configuration, and review columns now live behind
+  focused import-review components, with component tests covering tab-scope
+  resets and bulk decision routing. `PowerBiImporterPanel` remains responsible
+  for the import workflow and exclusion-rule coordination.
+- Project budget editing, allocation/headroom presentation, and health messaging
+  now live in a component-tested summary boundary. `BudgetPanel` retains period
+  filters, rollup-row construction, column visibility, and table coordination.
+- Project workspace URL normalization and navigation replacement/push semantics
+  now live in a tested hook boundary. The route coordinator no longer owns the
+  synchronization effect or its mutable navigation intent.
+- Company export polling, download, notification status, and presentation now
+  live in a focused export panel with tested file-size and audit-summary models.
+  `CompanySettingsPanel` retains company standards and membership coordination.
+- Taxonomy move, recode, and destructive-delete workflows now live in dedicated
+  action dialogs. Tested option and safe-default models keep affected
+  subcategories and auto-coding rule handling explicit.
+- Project taxonomy CRUD now delegates company-default promotion and
+  cross-project synchronization to a dedicated service, leaving the CRUD
+  aggregate focused on project-owned category and subcategory lifecycle.
+- Reversal workflow coordination now delegates approval, rejection, and
+  unmatching to a match-decision service. Rejection upserts and optimistic
+  workflow state are shared once, while the top-level transaction dispatcher
+  retains authorization, workflow locking, and action routing.
+
+Item 10 has completed the documentation and repository-hygiene recommendations:
+
+- The README badge, required CI-lane count, browser-smoke merge gate, and
+  canonical repository identity reflect the enforced `code-studio-au/projex`
+  controls.
+- CONTRIBUTING and the pull-request template describe the configured CodeQL,
+  dependency, and secret-scanning controls without referring to a nonexistent
+  quality-rating provider.
+- Full local browser verification consistently documents installation of both
+  supported Playwright browsers.
+- Dead-code guidance matches the narrow Knip configuration, and the repository
+  security gate prevents broad export ignores or the reviewed documentation
+  drift from returning.
+- The public repository now carries an explicit proprietary `LICENSE`, and the
+  private package is marked `UNLICENSED`; viewing the repository does not grant
+  reuse or redistribution rights.
+
+Item 11 completes the remaining browser-test isolation intent and the CodeQL
+follow-up from pull request 27:
+
+- The 1,011-line shared browser runner has been removed. Application-shell,
+  taxonomy, rule-suggestion, and reversal behavior now run as four independently
+  reported Playwright specs behind focused page objects.
+- Each spec provisions and cleans its own generated company, project, users, and
+  workflow data. A single global setup performs the stale-fixture sweep before
+  workers start, avoiding destructive cross-worker cleanup.
+- Chromium and Firefox both pass with two workers, providing independent
+  retries, diagnostics, and safe parallel execution.
+- The bundle-budget fixture no longer constructs executable JavaScript from
+  serialized or interpolated values. Static manifest and dependency-map sources
+  close CodeQL alert 6 without suppression while retaining the unsafe-path and
+  oversized-payload regression cases.
+- Maintainability boundary tests prevent the monolithic browser runner or
+  single-worker configuration from returning.
 
 # Full Repository Review
 

@@ -1,20 +1,20 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { Kysely, PostgresDialect, type PostgresDialectConfig } from 'kysely';
-import { FileMigrationProvider, Migrator } from 'kysely/migration';
+import { Migrator } from 'kysely/migration';
 
 import { createPgPool, type TypedPgPool } from '../src/server/db/pgPool.ts';
+import { SqlFileMigrationProvider } from '../src/server/db/sqlFileMigrationProvider.ts';
 
 const migrationUpgradeDatabaseUrl =
   process.env.PROJEX_MIGRATION_UPGRADE_DATABASE_URL?.trim() ?? '';
 const migrationFolder = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../src/server/db/kysely-migrations'
+  '../src/server/db/migrations'
 );
 const PRE_TRANSACTION_SEARCH_MIGRATION = '0032_workflow_taxonomy_integrity.sql';
 
@@ -65,11 +65,7 @@ test(
     try {
       const migrator = new Migrator({
         db: setupDb,
-        provider: new FileMigrationProvider({
-          fs,
-          path,
-          migrationFolder,
-        }),
+        provider: new SqlFileMigrationProvider(migrationFolder),
       });
       const { error, results } = await migrator.migrateTo(
         PRE_TRANSACTION_SEARCH_MIGRATION

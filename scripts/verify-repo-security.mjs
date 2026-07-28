@@ -445,6 +445,81 @@ async function verifyMigrationRollbackContract() {
   );
 }
 
+async function verifyRepositoryDocumentation() {
+  const [
+    readme,
+    contributing,
+    pullRequestTemplate,
+    deadCodeDocumentation,
+    knipConfigurationText,
+    deploymentDocumentation,
+    stagingRunbook,
+    license,
+    packageManifestText,
+  ] = await Promise.all([
+    readFile('README.md', 'utf8'),
+    readFile('CONTRIBUTING.md', 'utf8'),
+    readFile('.github/pull_request_template.md', 'utf8'),
+    readFile('docs/dead-code-verification.md', 'utf8'),
+    readFile('knip.json', 'utf8'),
+    readFile('docs/deployment-ec2.md', 'utf8'),
+    readFile('docs/staging-runbook.md', 'utf8'),
+    readFile('LICENSE', 'utf8'),
+    readFile('package.json', 'utf8'),
+  ]);
+  const knipConfiguration = JSON.parse(knipConfigurationText);
+  const packageManifest = JSON.parse(packageManifestText);
+  const fullBrowserInstallCommand =
+    'pnpm exec playwright install --with-deps chromium firefox';
+
+  assertCondition(
+    readme.includes(
+      'https://github.com/code-studio-au/projex/actions/workflows/ci.yml'
+    ) &&
+      readme.includes('It currently runs five required lanes:') &&
+      readme.includes('The protected `main` branch requires all five lanes'),
+    'README CI ownership and required-lane documentation must remain current'
+  );
+  assertCondition(
+    !contributing.includes('GitHub Code Quality') &&
+      !contributing.includes('ratings at **Excellent**') &&
+      contributing.includes('GitHub CodeQL, Dependabot, and secret scanning'),
+    'CONTRIBUTING must describe the configured GitHub security analysis'
+  );
+  assertCondition(
+    !pullRequestTemplate.includes('GitHub Code Quality') &&
+      pullRequestTemplate.includes(
+        'GitHub CodeQL and dependency/security analysis'
+      ),
+    'The pull-request template must describe the configured security analysis'
+  );
+  assertCondition(
+    contributing.includes(fullBrowserInstallCommand) &&
+      deploymentDocumentation.includes(fullBrowserInstallCommand) &&
+      stagingRunbook.includes(fullBrowserInstallCommand),
+    'Local full-browser documentation must install both supported browsers'
+  );
+  assertCondition(
+    deadCodeDocumentation.includes(
+      'Do not use broad file or directory ignores.'
+    ) && !JSON.stringify(knipConfiguration).includes('ignoreExports'),
+    'Dead-code documentation and Knip configuration must retain narrow exceptions'
+  );
+  assertCondition(
+    packageManifest.private === true &&
+      packageManifest.license === 'UNLICENSED' &&
+      license.includes(
+        'Copyright (c) 2026 Code Studio Australia. All rights reserved.'
+      ) &&
+      license.includes(
+        'does not grant any licence or other right to the software'
+      ) &&
+      readme.includes('Projex is proprietary software.') &&
+      readme.includes('[LICENSE](LICENSE)'),
+    'The public repository must retain its explicit proprietary licence status'
+  );
+}
+
 async function main() {
   await verifyGitignoreCoverage();
   await verifyTrustedProxyClientIpHeaders();
@@ -455,6 +530,7 @@ async function main() {
   await verifyGithubDeployOidcBoundary();
   await verifyHostPrivilegeBoundaries();
   await verifyMigrationRollbackContract();
+  await verifyRepositoryDocumentation();
 
   const skipped = [];
   for (const check of checks) {

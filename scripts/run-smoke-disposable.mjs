@@ -13,14 +13,16 @@ import {
   stopChildProcess,
   waitForHttpOk,
 } from './disposable-postgres.mjs';
+import { parseCliArgs } from './cli-args.mjs';
 import { logNodeRuntime, resolveNodeExecutable } from './node-runtime.mjs';
 
-const KEEP_DB = process.argv.includes('--keep-db');
-const SKIP_BUILD = process.argv.includes('--skip-build');
-const RUN_BROWSER = process.argv.includes('--browser');
-const FORWARDED_ARGS = process.argv.filter(
-  (arg) => arg !== '--keep-db' && arg !== '--skip-build' && arg !== '--browser'
-);
+const cliArgs = parseCliArgs(process.argv.slice(2), {
+  booleanFlags: ['--browser', '--keep-db', '--skip-build'],
+});
+const KEEP_DB = cliArgs.flags.has('--keep-db');
+const SKIP_BUILD = cliArgs.flags.has('--skip-build');
+const RUN_BROWSER = cliArgs.flags.has('--browser');
+const FORWARDED_ARGS = cliArgs.passthrough;
 const DB_NAME = 'projex_smoke_test';
 const HOST = '127.0.0.1';
 const BETTER_AUTH_SECRET =

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -36,14 +36,19 @@ import {
   useDeleteProjectMutation,
   useReactivateProjectMutation,
 } from '../queries/admin';
-import CompanySummaryPanel from '../components/CompanySummaryPanel';
-import CompanySettingsPanel from '../components/CompanySettingsPanel';
 import { LoadingLine } from '../components/LoadingValue';
 import { companyRoute, landingRoute, projectRoute } from '../router';
 import { Route as companyDashboardIndexRoute } from '../routes/_authed.c.$companyId.index';
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import classes from '../styles/ui.module.css';
+
+const CompanySummaryPanel = lazy(
+  () => import('../components/CompanySummaryPanel')
+);
+const CompanySettingsPanel = lazy(
+  () => import('../components/CompanySettingsPanel')
+);
 
 type CompanyDashboardTab = 'summary' | 'projects' | 'settings';
 
@@ -745,7 +750,9 @@ export default function CompanyDashboardPage() {
 
         {canViewCompanySummary ? (
           <Tabs.Panel value="summary" pt="md">
-            <CompanySummaryPanel companyId={companyId} isMobile={isMobile} />
+            <Suspense fallback={<LoadingLine height={180} radius="md" />}>
+              <CompanySummaryPanel companyId={companyId} isMobile={isMobile} />
+            </Suspense>
           </Tabs.Panel>
         ) : null}
 
@@ -755,11 +762,13 @@ export default function CompanyDashboardPage() {
               <Text c="dimmed">Loading company settings...</Text>
             </Paper>
           ) : (
-            <CompanySettingsPanel
-              companyId={companyId}
-              initialExportJobId={dashboardSearch.exportJob ?? null}
-              initialReview={dashboardSearch.review ?? null}
-            />
+            <Suspense fallback={<LoadingLine height={180} radius="md" />}>
+              <CompanySettingsPanel
+                companyId={companyId}
+                initialExportJobId={dashboardSearch.exportJob ?? null}
+                initialReview={dashboardSearch.review ?? null}
+              />
+            </Suspense>
           )}
         </Tabs.Panel>
       </Tabs>
