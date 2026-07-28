@@ -234,8 +234,12 @@ the maintainability review:
   analyzable imports, and its documentation now matches the configuration.
 - `verify:ci` delegates application security and audit work to `verify:app`
   once instead of running those checks twice.
-- Splitting the largest UI and server feature coordinators around domain actions
-  and testable presentation models remains the next Item 9 checkpoint.
+- The programme-only presentation, period filtering, rollup cards, and
+  sub-project table have been extracted from `ProjectWorkspace` into a focused,
+  component-tested view. The route-level coordinator now owns data, access, URL
+  state, and navigation without also carrying the complete programme UI.
+- Splitting the remaining large UI and server feature coordinators around domain
+  actions and testable presentation models remains the next Item 9 checkpoint.
 
 # Full Repository Review
 

@@ -1,17 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Badge,
-  Button,
-  Group,
-  Paper,
-  Select,
-  SimpleGrid,
-  Stack,
-  Table,
-  Tabs,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
@@ -32,8 +20,6 @@ import { useBudgets } from '../hooks/useBudgets';
 import { useTransactionActions } from '../hooks/useTransactionActions';
 import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useRollups } from '../hooks/useRollups';
-import { formatCurrencyFromCents } from '../utils/money';
-import { calculateBudgetPosition } from '../utils/budgetSemantics';
 import { showAppToast } from '../utils/toast';
 
 import {
@@ -51,6 +37,7 @@ import { useProjectTransactionSummaryQuery } from '../queries/transactions';
 import type { TransactionView } from './transactions/transactionViews';
 import BudgetPanel from './BudgetPanel';
 import { LoadingLine } from './LoadingValue';
+import ProgrammeWorkspace from './ProgrammeWorkspace';
 import ProjectWorkspaceTabList from './ProjectWorkspaceTabList';
 import {
   resolveProjectWorkspaceTabAccess,
@@ -590,48 +577,6 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     !projectTransactionSummaryQ.isLoading &&
     !taxonomy.isLoading;
   const currencyCode = effectiveCurrencyCode;
-  const programmeTotals = useMemo(() => {
-    const visibleMonths = (programmeSummary?.months ?? []).filter((month) =>
-      monthKeyMatchesFilters({
-        monthKey: month.monthKey,
-        yearFilter,
-        quarterFilter,
-        monthFilterKey,
-      })
-    );
-    const budgetCents = programmeSummary?.budgetCents ?? 0;
-    const codedActualCents = visibleMonths.reduce(
-      (total, month) => total + month.actualCodedCents,
-      0
-    );
-    const uncodedCount = visibleMonths.reduce(
-      (total, month) => total + month.uncodedCount,
-      0
-    );
-    const uncodedExposureCents = visibleMonths.reduce(
-      (total, month) => total + month.uncodedAmountCents,
-      0
-    );
-    const pendingReversalCents = visibleMonths.reduce(
-      (total, month) => total + month.pendingReversalCents,
-      0
-    );
-    const pendingReversalCount = visibleMonths.reduce(
-      (total, month) => total + month.pendingReversalCount,
-      0
-    );
-    return {
-      budgetCents,
-      ...calculateBudgetPosition({
-        projectBudgetCents: budgetCents,
-        codedActualCents,
-        uncodedExposureCents,
-        uncodedCount,
-        pendingReversalCount,
-        pendingReversalCents,
-      }),
-    };
-  }, [monthFilterKey, programmeSummary, quarterFilter, yearFilter]);
   const entryMessage = useMemo(() => {
     if (initialEntrySource === 'company-work-queue') {
       return 'Opened from the company project list to resolve outstanding work.';
@@ -767,336 +712,37 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
   ]);
 
   if (effectiveProjectType === 'programme') {
-    const childProjects = programmeSummary?.children ?? [];
     return (
-      <Stack gap="lg" className={classes.pageStack}>
-        <Paper
-          className={classes.pageHero}
-          p={isMobile ? 'md' : 'lg'}
-          radius="xl"
-        >
-          <Stack gap="sm">
-            <Group justify="space-between" align="center" wrap="wrap">
-              {headerReady ? (
-                <Title order={3} className={classes.pageHeroTitle}>
-                  {effectiveCompanyName} • {effectiveProjectName}
-                </Title>
-              ) : (
-                <LoadingLine width={320} height={30} radius="md" />
-              )}
-              <Badge size={isMobile ? 'md' : 'lg'} variant="light" color="blue">
-                Programme
-              </Badge>
-            </Group>
-            <Text size="sm" c="dimmed">
-              Programmes are reporting-only containers. Budgets, imports,
-              transactions, taxonomy, and coding live in the sub-projects below.
-            </Text>
-          </Stack>
-        </Paper>
-
-        {!canViewProgrammeSummary ? (
-          <Paper className={classes.surfaceCard} radius="xl" p="lg">
-            <Text c="dimmed">
-              Programme rollups are available to company admins, executives, and
-              superadmins.
-            </Text>
-          </Paper>
-        ) : null}
-
-        {canViewProgrammeSummary ? (
-          <>
-            <Paper className={classes.surfaceCard} radius="xl" p="lg">
-              <Stack gap="md">
-                <Group justify="space-between" align="center" wrap="wrap">
-                  <Title order={5}>Programme rollup</Title>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    disabled={!yearFilter && !quarterFilter && !monthFilterKey}
-                    onClick={() => {
-                      setYearFilter(null);
-                      setQuarterFilter(null);
-                      setMonthFilterKey(null);
-                    }}
-                  >
-                    Clear filters
-                  </Button>
-                </Group>
-                <SimpleGrid cols={isMobile ? 1 : 3} spacing="md">
-                  <Select
-                    label="Year"
-                    placeholder="All years"
-                    data={yearFilterOptions}
-                    value={yearFilter}
-                    clearable
-                    onChange={(value) => {
-                      setYearFilter(value);
-                      setQuarterFilter(null);
-                      setMonthFilterKey(null);
-                    }}
-                  />
-                  <Select
-                    label="Quarter"
-                    placeholder="All quarters"
-                    data={quarterFilterOptions}
-                    value={quarterFilter}
-                    clearable
-                    onChange={(value) => {
-                      setQuarterFilter(
-                        value === 'Q1' ||
-                          value === 'Q2' ||
-                          value === 'Q3' ||
-                          value === 'Q4'
-                          ? value
-                          : null
-                      );
-                      setMonthFilterKey(null);
-                    }}
-                  />
-                  <Select
-                    label="Month"
-                    placeholder="All months"
-                    data={monthFilterOptions}
-                    value={monthFilterKey}
-                    clearable
-                    onChange={setMonthFilterKey}
-                  />
-                </SimpleGrid>
-                {monthFilterKey || quarterFilter || yearFilter ? (
-                  <Text size="xs" c="dimmed">
-                    Programme budget remains the full-programme total; spend,
-                    exposure, headroom, and health reflect the selected period.
-                  </Text>
-                ) : null}
-              </Stack>
-            </Paper>
-
-            <SimpleGrid cols={isMobile ? 1 : 4} spacing="md">
-              <Paper className={classes.statCard} withBorder={false}>
-                <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                  Sub-projects
-                </Text>
-                <Title order={3}>{childProjects.length}</Title>
-              </Paper>
-              <Paper className={classes.statCard} withBorder={false}>
-                <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                  Total budget
-                </Text>
-                <Title order={4}>
-                  {formatCurrencyFromCents(
-                    programmeTotals.budgetCents,
-                    currencyCode
-                  )}
-                </Title>
-              </Paper>
-              <Paper className={classes.statCard} withBorder={false}>
-                <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                  Recorded spend
-                </Text>
-                <Title order={4}>
-                  {formatCurrencyFromCents(
-                    programmeTotals.recordedSpendCents,
-                    currencyCode
-                  )}
-                </Title>
-                <Text size="sm" c="dimmed">
-                  Uncoded:{' '}
-                  {formatCurrencyFromCents(
-                    programmeTotals.uncodedExposureCents,
-                    currencyCode
-                  )}
-                </Text>
-              </Paper>
-              <Paper className={classes.statCard} withBorder={false}>
-                <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
-                  Budget headroom
-                </Text>
-                <Title order={4}>
-                  {formatCurrencyFromCents(
-                    programmeTotals.confirmedHeadroomCents,
-                    currencyCode
-                  )}
-                </Title>
-                <Badge
-                  variant="light"
-                  color={programmeTotals.health.color}
-                  title={programmeTotals.health.reason}
-                >
-                  {programmeTotals.health.label}
-                </Badge>
-              </Paper>
-            </SimpleGrid>
-          </>
-        ) : null}
-
-        {canViewProgrammeSummary ? (
-          <Paper className={classes.surfaceCard} radius="xl" p="lg">
-            <Stack gap="sm">
-              <Title order={5}>Sub-projects</Title>
-              {childProjects.length ? (
-                <div className="financeTable">
-                  <Table.ScrollContainer minWidth={720}>
-                    <Table striped highlightOnHover withTableBorder>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th className="table-head-cell table-head-left">
-                            Project
-                          </Table.Th>
-                          <Table.Th className="table-head-cell table-head-right">
-                            Budget
-                          </Table.Th>
-                          <Table.Th className="table-head-cell table-head-right">
-                            Recorded spend
-                          </Table.Th>
-                          <Table.Th className="table-head-cell table-head-right">
-                            Budget headroom
-                          </Table.Th>
-                          <Table.Th className="table-head-cell table-head-left">
-                            Health
-                          </Table.Th>
-                          <Table.Th className="table-head-cell table-head-left">
-                            Status
-                          </Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {childProjects.map((child) => {
-                          const visibleMonths = child.months.filter((month) =>
-                            monthKeyMatchesFilters({
-                              monthKey: month.monthKey,
-                              yearFilter,
-                              quarterFilter,
-                              monthFilterKey,
-                            })
-                          );
-                          const codedActualCents = visibleMonths.reduce(
-                            (total, month) => total + month.actualCodedCents,
-                            0
-                          );
-                          const uncodedCount = visibleMonths.reduce(
-                            (total, month) => total + month.uncodedCount,
-                            0
-                          );
-                          const uncodedExposureCents = visibleMonths.reduce(
-                            (total, month) => total + month.uncodedAmountCents,
-                            0
-                          );
-                          const pendingReversalCents = visibleMonths.reduce(
-                            (total, month) =>
-                              total + month.pendingReversalCents,
-                            0
-                          );
-                          const pendingReversalCount = visibleMonths.reduce(
-                            (total, month) =>
-                              total + month.pendingReversalCount,
-                            0
-                          );
-                          const budgetCents = child.budgetCents;
-                          const childPosition = calculateBudgetPosition({
-                            projectBudgetCents: budgetCents,
-                            codedActualCents,
-                            uncodedExposureCents,
-                            uncodedCount,
-                            pendingReversalCount,
-                            pendingReversalCents,
-                          });
-                          const canOpenChild = child.status === 'active';
-                          return (
-                            <Table.Tr key={child.id}>
-                              <Table.Td>
-                                {canOpenChild ? (
-                                  <button
-                                    type="button"
-                                    className={classes.drilldownButton}
-                                    onClick={() =>
-                                      router.navigate({
-                                        to: '/c/$companyId/p/$projectId',
-                                        params: {
-                                          companyId,
-                                          projectId: child.id,
-                                        },
-                                        search: {
-                                          year: yearFilter ?? undefined,
-                                          quarter: quarterFilter ?? undefined,
-                                          month: monthFilterKey ?? undefined,
-                                          source: 'company-summary',
-                                        },
-                                      })
-                                    }
-                                  >
-                                    <Text
-                                      component="span"
-                                      className="table-body-left-bold table-link-text"
-                                    >
-                                      {child.name}
-                                    </Text>
-                                  </button>
-                                ) : (
-                                  <Text className="table-body-left-bold">
-                                    {child.name}
-                                  </Text>
-                                )}
-                              </Table.Td>
-                              <Table.Td>
-                                <Text className="table-body-right">
-                                  {formatCurrencyFromCents(
-                                    budgetCents,
-                                    child.currency
-                                  )}
-                                </Text>
-                              </Table.Td>
-                              <Table.Td>
-                                <Text className="table-body-right">
-                                  {formatCurrencyFromCents(
-                                    childPosition.recordedSpendCents,
-                                    child.currency
-                                  )}
-                                </Text>
-                              </Table.Td>
-                              <Table.Td>
-                                <Text className="table-body-right">
-                                  {formatCurrencyFromCents(
-                                    childPosition.confirmedHeadroomCents,
-                                    child.currency
-                                  )}
-                                </Text>
-                              </Table.Td>
-                              <Table.Td>
-                                <Badge
-                                  variant="light"
-                                  color={childPosition.health.color}
-                                  title={childPosition.health.reason}
-                                >
-                                  {childPosition.health.label}
-                                </Badge>
-                              </Table.Td>
-                              <Table.Td>
-                                <Badge
-                                  variant="light"
-                                  color={
-                                    child.status === 'active' ? 'green' : 'gray'
-                                  }
-                                >
-                                  {child.status === 'active'
-                                    ? 'Active'
-                                    : 'Archived'}
-                                </Badge>
-                              </Table.Td>
-                            </Table.Tr>
-                          );
-                        })}
-                      </Table.Tbody>
-                    </Table>
-                  </Table.ScrollContainer>
-                </div>
-              ) : (
-                <Text c="dimmed">No sub-projects are assigned yet.</Text>
-              )}
-            </Stack>
-          </Paper>
-        ) : null}
-      </Stack>
+      <ProgrammeWorkspace
+        companyName={effectiveCompanyName}
+        projectName={effectiveProjectName}
+        currencyCode={currencyCode}
+        programmeSummary={programmeSummary}
+        canViewProgrammeSummary={canViewProgrammeSummary}
+        headerReady={headerReady}
+        isMobile={isMobile}
+        yearFilterOptions={yearFilterOptions}
+        yearFilter={yearFilter}
+        quarterFilterOptions={quarterFilterOptions}
+        quarterFilter={quarterFilter}
+        monthFilterOptions={monthFilterOptions}
+        monthFilterKey={monthFilterKey}
+        onYearFilterChange={setYearFilter}
+        onQuarterFilterChange={setQuarterFilter}
+        onMonthFilterChange={setMonthFilterKey}
+        onOpenProject={(childProjectId) => {
+          void router.navigate({
+            to: '/c/$companyId/p/$projectId',
+            params: { companyId, projectId: childProjectId },
+            search: {
+              year: yearFilter ?? undefined,
+              quarter: quarterFilter ?? undefined,
+              month: monthFilterKey ?? undefined,
+              source: 'company-summary',
+            },
+          });
+        }}
+      />
     );
   }
 
