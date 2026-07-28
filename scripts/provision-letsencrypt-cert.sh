@@ -47,10 +47,22 @@ install_certbot_if_missing() {
 render_tls_config() {
   local primary_domain="$1"
   local server_names="$2"
+  local http2_listen_suffix=" http2"
+  local http2_directive=""
+  local nginx_version
+
+  nginx_version="$(nginx -v 2>&1 || true)"
+  if [[ "$nginx_version" =~ nginx/([0-9]+)\.([0-9]+)\. ]] &&
+    (( BASH_REMATCH[1] > 1 || (BASH_REMATCH[1] == 1 && BASH_REMATCH[2] >= 25) )); then
+    http2_listen_suffix=""
+    http2_directive="  http2 on;"
+  fi
 
   sed \
     -e "s/__PRIMARY_DOMAIN__/${primary_domain}/g" \
     -e "s/__SERVER_NAMES__/${server_names}/g" \
+    -e "s/__HTTP2_LISTEN_SUFFIX__/${http2_listen_suffix}/g" \
+    -e "s/__HTTP2_DIRECTIVE__/${http2_directive}/g" \
     "$NGINX_TLS_TEMPLATE_PATH" > "$NGINX_CONF_PATH"
 }
 
@@ -118,4 +130,6 @@ main() {
   log "Let's Encrypt certificate installed for ${domains[*]}"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

@@ -69,6 +69,8 @@ Before cutting over or handing a deployed environment to another developer, conf
 - The public proxy uses `deploy/nginx/projex.conf` or equivalent HTTPS redirect, forwarded headers, hardening headers, and maintenance fallback behavior.
 - Nginx loads `/etc/nginx/conf.d/projex-request-limits.conf`, which keeps application request bodies bounded at `16m` while allowing validated bulk import commits.
 - If the host was created through CDK, the HTTP bootstrap nginx config has been promoted to HTTPS with `/usr/local/bin/projex-provision-letsencrypt-cert`.
+- The generated HTTPS config uses the HTTP/2 syntax supported by the installed
+  nginx version, and `nginx -t` succeeds.
 - The EC2 instance requires IMDSv2, and `systemctl show projex` reports the
   reviewed runtime sandbox properties.
 - `/api/health` returns `200` when the process is running.

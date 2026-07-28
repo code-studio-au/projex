@@ -147,19 +147,30 @@ async function verifyNginxRequestLimits() {
 }
 
 async function verifyNginxHttp2Syntax() {
-  for (const path of [
-    'deploy/nginx/projex.conf',
-    'deploy/nginx/projex.https.conf.template',
-  ]) {
-    const content = await readFile(path, 'utf8');
-    assertCondition(
-      content.includes('listen 443 ssl;') &&
-        content.includes('listen [::]:443 ssl;') &&
-        content.includes('http2 on;') &&
-        !/listen\s+(?:\[::\]:)?443\s+ssl\s+http2;/u.test(content),
-      `${path} must use the current nginx HTTP/2 directive syntax`
-    );
-  }
+  const [staticConfig, tlsTemplate, provisionScript] = await Promise.all([
+    readFile('deploy/nginx/projex.conf', 'utf8'),
+    readFile('deploy/nginx/projex.https.conf.template', 'utf8'),
+    readFile('scripts/provision-letsencrypt-cert.sh', 'utf8'),
+  ]);
+
+  assertCondition(
+    staticConfig.includes('listen 443 ssl http2;') &&
+      staticConfig.includes('listen [::]:443 ssl http2;'),
+    'The static nginx config must retain the HTTP/2 syntax supported by Ubuntu 22.04 nginx'
+  );
+  assertCondition(
+    tlsTemplate.includes('listen 443 ssl__HTTP2_LISTEN_SUFFIX__;') &&
+      tlsTemplate.includes('listen [::]:443 ssl__HTTP2_LISTEN_SUFFIX__;') &&
+      tlsTemplate.includes('__HTTP2_DIRECTIVE__') &&
+      provisionScript.includes('BASH_REMATCH[2] >= 25') &&
+      provisionScript.includes(
+        '-e "s/__HTTP2_LISTEN_SUFFIX__/${http2_listen_suffix}/g"'
+      ) &&
+      provisionScript.includes(
+        '-e "s/__HTTP2_DIRECTIVE__/${http2_directive}/g"'
+      ),
+    'The TLS helper must render HTTP/2 syntax compatible with the installed nginx version'
+  );
 }
 
 async function verifyDeployArtifactDependencyPatches() {
@@ -339,7 +350,8 @@ async function verifyHostPrivilegeBoundaries() {
       deployScript.includes('validate_service_sandbox_path "APP_ROOT"') &&
       deployScript.includes('sudo systemctl enable "$SERVICE_NAME"') &&
       deployScript.includes('preserve_systemd_service') &&
-      deployScript.includes('restore_systemd_service'),
+      deployScript.includes('restore_systemd_service') &&
+      deployScript.includes('commit_systemd_service'),
     'The installed systemd unit must retain validated APP_ROOT and ENV_FILE overrides'
   );
 

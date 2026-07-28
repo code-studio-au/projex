@@ -187,6 +187,8 @@ That script:
 - installs `certbot` if needed
 - requests/renews the certificate with HTTP-01 validation through `/var/www/certbot`
 - renders the HTTPS nginx config from `/etc/projex/projex.nginx.https.conf.template`
+- selects the HTTP/2 directive form supported by the installed nginx version,
+  including Ubuntu 22.04's nginx 1.18
 - reloads nginx
 - installs a renewal deploy hook that revalidates nginx and reloads it after renewals
 

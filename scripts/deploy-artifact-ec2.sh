@@ -193,6 +193,17 @@ restore_systemd_service() {
   fi
 }
 
+commit_systemd_service() {
+  if [[ "$SYSTEMD_UNIT_UPDATED" != "true" ]]; then
+    return
+  fi
+  if [[ -n "$SYSTEMD_BACKUP_PATH" ]]; then
+    rm -f -- "$SYSTEMD_BACKUP_PATH"
+    SYSTEMD_BACKUP_PATH=""
+  fi
+  SYSTEMD_UNIT_UPDATED="false"
+}
+
 ensure_deploy_identity() {
   if ! id -u "$DEPLOY_USER" >/dev/null 2>&1; then
     log "Creating constrained deployment identity ${DEPLOY_USER}"
@@ -532,6 +543,7 @@ if ! wait_for_http_ok "$READY_URL" "$READY_TIMEOUT_SECONDS" "readiness"; then
   rollback_release
   fail "Readiness check failed"
 fi
+commit_systemd_service
 
 log "Service status"
 sudo systemctl status "$SERVICE_NAME" --no-pager -l
@@ -541,9 +553,3 @@ sudo journalctl -u "$SERVICE_NAME" -n 40 --no-pager
 
 log "Pruning old releases"
 prune_old_releases
-
-SYSTEMD_UNIT_UPDATED="false"
-if [[ -n "$SYSTEMD_BACKUP_PATH" ]]; then
-  rm -f -- "$SYSTEMD_BACKUP_PATH"
-  SYSTEMD_BACKUP_PATH=""
-fi
