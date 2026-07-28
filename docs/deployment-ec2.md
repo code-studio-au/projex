@@ -191,6 +191,7 @@ That script:
   including Ubuntu 22.04's nginx 1.18
 - reloads nginx
 - installs a renewal deploy hook that revalidates nginx and reloads it after renewals
+- enables and starts the supported Certbot systemd renewal timer
 
 If you are working from a repo checkout on the host instead of the installed helper, the same logic also exists in `scripts/provision-letsencrypt-cert.sh`.
 

@@ -169,8 +169,14 @@ async function verifyNginxHttp2Syntax() {
       ) &&
       provisionScript.includes(
         '-e "s/__HTTP2_DIRECTIVE__/${http2_directive}/g"'
-      ),
-    'The TLS helper must render HTTP/2 syntax compatible with the installed nginx version'
+      ) &&
+      provisionScript.includes(
+        'for timer in certbot-renew.timer certbot.timer; do'
+      ) &&
+      provisionScript.includes('systemctl enable --now "$timer"') &&
+      provisionScript.includes('systemctl is-enabled --quiet "$timer"') &&
+      provisionScript.includes('systemctl is-active --quiet "$timer"'),
+    'The TLS helper must render compatible HTTP/2 syntax and enable automatic certificate renewal'
   );
 }
 
