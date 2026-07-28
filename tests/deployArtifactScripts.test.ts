@@ -943,6 +943,18 @@ describe('provision-letsencrypt-cert.sh', () => {
       unexpectedListen: 'listen 443 ssl http2;',
     },
     {
+      expectedDirective: '  http2 on;',
+      expectedListen: 'listen 443 ssl;',
+      nginxVersion: '1.25.1',
+      unexpectedListen: 'listen 443 ssl http2;',
+    },
+    {
+      expectedDirective: '',
+      expectedListen: 'listen 443 ssl http2;',
+      nginxVersion: '1.25.0',
+      unexpectedListen: 'listen 443 ssl;',
+    },
+    {
       expectedDirective: '',
       expectedListen: 'listen 443 ssl http2;',
       nginxVersion: '1.18.0',
@@ -957,22 +969,30 @@ describe('provision-letsencrypt-cert.sh', () => {
       unexpectedListen,
     }) => {
       const root = await makeTemporaryRoot();
+      const mockBin = join(root, 'bin');
       const outputPath = join(root, 'projex.conf');
+      await mkdir(mockBin, { recursive: true });
+      await writeExecutable(
+        join(mockBin, 'nginx'),
+        `#!/usr/bin/env bash
+printf 'nginx version: nginx/%s\\n' ${JSON.stringify(nginxVersion)} >&2
+`
+      );
       const result = spawnSync(
         'bash',
         [
-          '-c',
-          'source "$1"; nginx() { printf "nginx version: nginx/%s\\n" "$MOCK_NGINX_VERSION" >&2; }; render_tls_config projectexpensetracker.com "projectexpensetracker.com www.projectexpensetracker.com"',
-          'projex-nginx-render-test',
           letsEncryptScript,
+          '--render-tls-config',
+          'projectexpensetracker.com',
+          'www.projectexpensetracker.com',
         ],
         {
           encoding: 'utf8',
           env: {
             ...process.env,
-            MOCK_NGINX_VERSION: nginxVersion,
             NGINX_CONF_PATH: outputPath,
             NGINX_TLS_TEMPLATE_PATH: nginxTlsTemplate,
+            PATH: `${mockBin}:${process.env.PATH ?? ''}`,
           },
         }
       );

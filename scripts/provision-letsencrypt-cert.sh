@@ -29,6 +29,14 @@ require_file() {
   fi
 }
 
+validate_domain() {
+  local domain="$1"
+  if (( ${#domain} > 253 )) ||
+    [[ ! "$domain" =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then
+    fail "Invalid DNS domain: $domain"
+  fi
+}
+
 ensure_root() {
   if [[ "${EUID}" -ne 0 ]]; then
     fail 'Run this script as root.'
@@ -52,8 +60,11 @@ render_tls_config() {
   local nginx_version
 
   nginx_version="$(nginx -v 2>&1 || true)"
-  if [[ "$nginx_version" =~ nginx/([0-9]+)\.([0-9]+)\. ]] &&
-    (( BASH_REMATCH[1] > 1 || (BASH_REMATCH[1] == 1 && BASH_REMATCH[2] >= 25) )); then
+  if [[ "$nginx_version" =~ nginx/([0-9]+)\.([0-9]+)\.([0-9]+) ]] &&
+    (( BASH_REMATCH[1] > 1 ||
+      (BASH_REMATCH[1] == 1 &&
+        (BASH_REMATCH[2] > 25 ||
+          (BASH_REMATCH[2] == 25 && BASH_REMATCH[3] >= 1))) )); then
     http2_listen_suffix=""
     http2_directive="  http2 on;"
   fi
@@ -77,6 +88,18 @@ EOF
   chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/projex-nginx-reload.sh
 }
 
+render_only() {
+  if [[ "$#" -lt 1 ]]; then
+    fail 'Usage: provision-letsencrypt-cert.sh --render-tls-config <primary-domain> [alternate-domain ...]'
+  fi
+  local domains=("$@")
+  local domain
+  for domain in "${domains[@]}"; do
+    validate_domain "$domain"
+  done
+  render_tls_config "${domains[0]}" "${domains[*]}"
+}
+
 main() {
   ensure_root
 
@@ -87,6 +110,10 @@ main() {
   local primary_domain="$1"
   shift
   local domains=("$primary_domain" "$@")
+  local domain
+  for domain in "${domains[@]}"; do
+    validate_domain "$domain"
+  done
 
   if [[ -z "$LETSENCRYPT_EMAIL" ]]; then
     fail 'LETSENCRYPT_EMAIL must be set.'
@@ -112,7 +139,6 @@ main() {
     --keep-until-expiring
   )
 
-  local domain
   for domain in "${domains[@]}"; do
     certbot_args+=(-d "$domain")
   done
@@ -131,5 +157,10 @@ main() {
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  main "$@"
+  if [[ "${1:-}" == "--render-tls-config" ]]; then
+    shift
+    render_only "$@"
+  else
+    main "$@"
+  fi
 fi

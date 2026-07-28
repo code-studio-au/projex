@@ -162,7 +162,8 @@ async function verifyNginxHttp2Syntax() {
     tlsTemplate.includes('listen 443 ssl__HTTP2_LISTEN_SUFFIX__;') &&
       tlsTemplate.includes('listen [::]:443 ssl__HTTP2_LISTEN_SUFFIX__;') &&
       tlsTemplate.includes('__HTTP2_DIRECTIVE__') &&
-      provisionScript.includes('BASH_REMATCH[2] >= 25') &&
+      provisionScript.includes('BASH_REMATCH[2] == 25') &&
+      provisionScript.includes('BASH_REMATCH[3] >= 1') &&
       provisionScript.includes(
         '-e "s/__HTTP2_LISTEN_SUFFIX__/${http2_listen_suffix}/g"'
       ) &&
