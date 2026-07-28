@@ -3,7 +3,8 @@
 Projex now uses a squashed app migration baseline:
 
 - `src/server/db/migrations/0001_init.sql` is the current full-schema app baseline.
-- `src/server/db/kysely-migrations/0001_init.sql.ts` is the Kysely migration module that executes that baseline.
+- `src/server/db/sqlFileMigrationProvider.ts` executes that baseline and each
+  later ordered SQL migration through Kysely.
 - future app schema changes should be added as new forward-only Kysely migrations after the baseline.
 
 ## Current rule
@@ -54,7 +55,9 @@ candidate.
 
 ## Operational note
 
-`pnpm run db:migrate` applies Better Auth migrations first when auth env vars are available, then applies app migrations through Kysely using the modules in `src/server/db/kysely-migrations`.
+`pnpm run db:migrate` applies Better Auth migrations first when auth env vars are
+available, then applies the SQL files in `src/server/db/migrations` through the
+shared Kysely SQL migration provider.
 
 ## Generated DB types
 
@@ -79,7 +82,8 @@ Expectations:
 Current structure:
 
 - `src/server/db/migrations/0001_init.sql` is the canonical app baseline SQL.
-- `src/server/db/kysely-migrations/*.ts` is the Kysely migration module layer.
+- `src/server/db/sqlFileMigrationProvider.ts` adapts every ordered `.sql` file
+  directly to Kysely without a per-migration TypeScript wrapper.
 - existing local databases that were created before the squash are synced once onto the new baseline marker in `kysely_migration`.
 
 Current runner safeguards:

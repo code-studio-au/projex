@@ -14,7 +14,9 @@ individual items are completed.
 - **Item 6 — Invite-only authentication:** Completed 28 July 2026.
 - **Item 7 — Testing review:** Completed 28 July 2026.
 - **Item 8 — Bundle and chunk review:** Completed 28 July 2026.
-- **Items 9 onward:** Pending.
+- **Item 9 — Structure and maintainability:** In progress; dependency and
+  consolidation findings completed, feature-coordinator splits pending.
+- **Items 10 onward:** Pending.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -213,6 +215,27 @@ and applies every recommendation:
   JavaScript fell from about 348 KiB to 322 KiB gzip and its post-root payload
   fell from about 208 KiB to 182 KiB. The project workspace fell from about
   387 KiB to 345 KiB direct and from about 248 KiB to 205 KiB post-root.
+
+Item 9 has completed the cross-cutting dependency and consolidation work from
+the maintainability review:
+
+- Taxonomy standards import the auto-coding sync implementation directly,
+  removing the reported circular dependency and locking the boundary with a
+  regression test.
+- Email HTML escaping remains centralized, and public-app/auth redirect URL
+  resolution now shares one implementation with consistent precedence.
+- Server, browser, and disposable smoke launchers use one tested CLI parser;
+  the parser is included in deploy artifacts.
+- One SQL migration provider now adapts the ordered canonical SQL files
+  directly to Kysely while preserving every existing migration name. The 35
+  identical TypeScript wrappers have been removed, and the fresh/upgrade
+  database gate verifies the replacement.
+- The broad Knip export ignore has been removed in favour of statically
+  analyzable imports, and its documentation now matches the configuration.
+- `verify:ci` delegates application security and audit work to `verify:app`
+  once instead of running those checks twice.
+- Splitting the largest UI and server feature coordinators around domain actions
+  and testable presentation models remains the next Item 9 checkpoint.
 
 # Full Repository Review
 

@@ -73,6 +73,7 @@ require_path "dist/server/server.js"
 require_path "dist/client"
 require_path "src"
 require_path "scripts/start-server.mjs"
+require_path "scripts/cli-args.mjs"
 require_path "scripts/env-file.mjs"
 require_path "scripts/node-runtime.mjs"
 require_path "scripts/run-release-migrations.mjs"
@@ -107,6 +108,7 @@ tar -czf "$ARTIFACT_PATH" \
   dist \
   src \
   scripts/start-server.mjs \
+  scripts/cli-args.mjs \
   scripts/env-file.mjs \
   scripts/node-runtime.mjs \
   scripts/run-release-migrations.mjs \

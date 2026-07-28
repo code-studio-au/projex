@@ -230,6 +230,7 @@ async function createArtifactSourceTree(root: string) {
     'dist/client/index.html',
     'src/index.ts',
     'scripts/start-server.mjs',
+    'scripts/cli-args.mjs',
     'scripts/env-file.mjs',
     'scripts/node-runtime.mjs',
     'scripts/run-release-migrations.mjs',
@@ -428,6 +429,9 @@ describe('create-deploy-artifact.sh', () => {
       { encoding: 'utf8' }
     );
     expect(extract.status, extract.stderr).toBe(0);
+    await expect(
+      readFile(join(extractRoot, 'scripts/cli-args.mjs'), 'utf8')
+    ).resolves.toBe('test\n');
     await expect(
       readFile(join(extractRoot, '.projex-release.json'), 'utf8').then(
         (value) => JSON.parse(value) as unknown

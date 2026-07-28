@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { afterEach, test } from 'vitest';
+import { afterEach, beforeEach, test } from 'vitest';
 
 import {
   __resetServerStartupEnvValidationForTests,
@@ -11,6 +11,10 @@ import { AppError } from '../src/api/errors.ts';
 const GENERIC_STARTUP_ENV_ERROR = 'Invalid server configuration';
 
 const ORIGINAL_ENV = { ...process.env };
+
+beforeEach(() => {
+  process.env.PROJEX_APP_BASE_URL = 'https://app.example.com';
+});
 
 afterEach(() => {
   for (const key of Object.keys(process.env)) {
@@ -108,6 +112,27 @@ test('production env validation rejects trusted origins that contain only delimi
   process.env.BETTER_AUTH_SECRET = 'secret';
   process.env.BETTER_AUTH_URL = 'https://app.example.com';
   process.env.BETTER_AUTH_TRUSTED_ORIGINS = ' , , ';
+  process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
+  process.env.PROJEX_ENABLE_SMOKE_TOOLS = 'false';
+
+  assert.throws(
+    () => validateServerStartupEnv(),
+    (error) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'INTERNAL_ERROR');
+      assert.equal(error.message, GENERIC_STARTUP_ENV_ERROR);
+      return true;
+    }
+  );
+});
+
+test('production env validation rejects a non-HTTPS public app URL', () => {
+  process.env.NODE_ENV = 'production';
+  process.env.DATABASE_URL = 'postgres://localhost/projex_test';
+  process.env.BETTER_AUTH_SECRET = 'secret';
+  process.env.BETTER_AUTH_URL = 'https://app.example.com';
+  process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://app.example.com';
+  process.env.PROJEX_APP_BASE_URL = 'http://app.example.com';
   process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
   process.env.PROJEX_ENABLE_SMOKE_TOOLS = 'false';
 

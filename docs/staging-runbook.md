@@ -438,7 +438,9 @@ If you already have an app-side template user and want to copy its memberships i
   - `RESEND_BASE_URL=https://api.resend.com`
   - `RESEND_FROM='Projex <noreply@projectexpensetracker.com>'`, matching the
     root domain verified in the production Resend account
-- Transaction comment assignment emails use `PROJEX_APP_BASE_URL` for deep links and fall back to `BETTER_AUTH_URL` when it is not set.
+- Transaction comment assignment and export-ready emails use
+  `PROJEX_APP_BASE_URL` for deep links and fall back to `BETTER_AUTH_URL` when
+  it is not set.
 - If neither Resend nor `PROJEX_AUTH_EMAIL_WEBHOOK_URL` is configured, the password setup link is logged on the server instead.
 - For email troubleshooting and direct provider checks, see `docs/email-ops-runbook.md`.
 

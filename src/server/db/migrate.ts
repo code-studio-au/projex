@@ -1,18 +1,18 @@
-import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getMigrations } from 'better-auth/db/migration';
 import { Kysely, PostgresDialect, type PostgresDialectConfig } from 'kysely';
-import { FileMigrationProvider, Migrator } from 'kysely/migration';
+import { Migrator } from 'kysely/migration';
 
 import { requireDatabaseUrl } from '../env.ts';
 import { loadEnvFiles } from '../envFiles.ts';
 import { buildBetterAuthOptions } from '../auth/betterAuthInstance.ts';
 import { createPgPool, type TypedPgPool } from './pgPool.ts';
+import { SqlFileMigrationProvider } from './sqlFileMigrationProvider.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const KYSELY_MIGRATIONS_DIR = path.join(__dirname, 'kysely-migrations');
+const APP_MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 const KYSELY_MIGRATION_TABLE = 'kysely_migration';
 const KYSELY_MIGRATION_LOCK_TABLE = 'kysely_migration_lock';
 const BASELINE_MIGRATION_NAME = '0001_init.sql';
@@ -96,13 +96,10 @@ async function ensureKyselyMigrationTables(pool: Queryable) {
 }
 
 async function getCurrentAppMigrationNames(): Promise<Set<string>> {
-  const entries = await fs.readdir(KYSELY_MIGRATIONS_DIR, {
-    withFileTypes: true,
-  });
   return new Set(
-    entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.ts'))
-      .map((entry) => entry.name.replace(/\.ts$/, ''))
+    Object.keys(
+      await new SqlFileMigrationProvider(APP_MIGRATIONS_DIR).getMigrations()
+    )
   );
 }
 
@@ -176,11 +173,7 @@ async function syncExistingSchemaToBaseline(pool: Queryable) {
 async function runAppMigrations(db: Kysely<Record<string, never>>) {
   const migrator = new Migrator({
     db,
-    provider: new FileMigrationProvider({
-      fs,
-      path,
-      migrationFolder: KYSELY_MIGRATIONS_DIR,
-    }),
+    provider: new SqlFileMigrationProvider(APP_MIGRATIONS_DIR),
   });
 
   // Kysely wraps every migration selected by migrateToLatest in one

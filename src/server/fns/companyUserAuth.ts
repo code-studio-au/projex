@@ -7,6 +7,7 @@ import { uid } from '../../utils/id';
 import { getBetterAuthInstance } from '../auth/betterAuthInstance';
 import { getAuthEmailDeliveryMode } from '../auth/email.ts';
 import { getDb } from '../db/db';
+import { getAuthRedirectUrl, requireBetterAuthBaseUrl } from '../email/urls.ts';
 
 export type BetterAuthUserRow = {
   id: string;
@@ -64,28 +65,19 @@ export async function createBetterAuthUser(
 }
 
 function getResetPasswordRedirectUrl(): string {
-  const configured = process.env.PROJEX_AUTH_RESET_REDIRECT_URL?.trim();
-  if (configured) return configured;
-  const base = process.env.BETTER_AUTH_URL?.trim();
-  if (!base) {
-    throw new AppError(
-      'INTERNAL_ERROR',
-      'Missing BETTER_AUTH_URL while preparing invite password setup redirect'
-    );
-  }
-  return new URL('/reset-password', base).toString();
+  return getAuthRedirectUrl({
+    configuredUrl: process.env.PROJEX_AUTH_RESET_REDIRECT_URL,
+    fallbackPath: '/reset-password',
+    context: 'preparing invite password setup redirect',
+  });
 }
 
 export async function requestPasswordSetupEmail(
   email: string
 ): Promise<'email' | 'log'> {
-  const base = process.env.BETTER_AUTH_URL?.trim();
-  if (!base) {
-    throw new AppError(
-      'INTERNAL_ERROR',
-      'Missing BETTER_AUTH_URL while requesting invite password setup email'
-    );
-  }
+  const base = requireBetterAuthBaseUrl(
+    'requesting invite password setup email'
+  );
 
   const auth = getBetterAuthInstance();
   const endpoint = new URL('/api/auth/request-password-reset', base);

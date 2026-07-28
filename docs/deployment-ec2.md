@@ -86,7 +86,9 @@ Notes:
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 - Better Auth trusts only the proxy-controlled `X-Real-IP` header for client-IP rate limiting. Keep the application origin private, and ensure the trusted proxy overwrites that header from the direct client address rather than forwarding a caller-provided value.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.
-- `PROJEX_APP_BASE_URL` should point at the public app origin used for transaction-comment notification links; it falls back to `BETTER_AUTH_URL` when unset.
+- `PROJEX_APP_BASE_URL` should point at the public app origin used for
+  transaction-comment and export-ready notification links; it falls back to
+  `BETTER_AUTH_URL` when unset.
 - `S3_BUCKET` and `S3_REGION` are required for the export feature when using AWS S3. On AWS itself you normally do not need to set `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, or `S3_FORCE_PATH_STYLE`.
 - The production Resend account verifies `projectexpensetracker.com`, so keep
   `RESEND_FROM` set to `Projex <noreply@projectexpensetracker.com>`. A sender on

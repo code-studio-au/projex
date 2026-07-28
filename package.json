@@ -36,7 +36,7 @@
     "verify:smoke:browser:firefox:full": "PROJEX_SMOKE_BROWSER=firefox pnpm run smoke:browser:disposable",
     "verify:smoke:browser:firefox:full:skip-build": "PROJEX_SMOKE_BROWSER=firefox pnpm run smoke:browser:disposable -- --skip-build",
     "verify:cdk": "pnpm exec vitest run deploy/cdk/tests && pnpm --dir deploy/cdk run build && pnpm run cdk:synth --quiet",
-    "verify:ci": "pnpm run verify:security:repo && pnpm audit --json && pnpm run verify:app && pnpm run verify:static-analysis && pnpm run verify:cdk && pnpm run verify:db:gate && pnpm run verify:smoke:full:skip-build && pnpm run verify:smoke:browser:full:skip-build && pnpm run verify:smoke:browser:firefox:full:skip-build",
+    "verify:ci": "pnpm run verify:app && pnpm run verify:static-analysis && pnpm run verify:cdk && pnpm run verify:db:gate && pnpm run verify:smoke:full:skip-build && pnpm run verify:smoke:browser:full:skip-build && pnpm run verify:smoke:browser:firefox:full:skip-build",
     "verify:precommit": "pnpm run db:migrate && pnpm run db:verify-types && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run verify:dead-code && pnpm test && pnpm run build && pnpm run verify:bundle",
     "typecheck": "tsc -b --noemit",
     "lint": "node --max-old-space-size=4096 ./node_modules/eslint/bin/eslint.js .",

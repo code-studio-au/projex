@@ -1,5 +1,6 @@
 import type { SmokeSectionId, SmokeStepResult } from '../../types/index.ts';
 import { smokeSectionDefinitions } from '../../types/index.ts';
+import { parseCliArgs } from '../../../scripts/cli-args.mjs';
 import { getSmokeConfiguredBaseUrl } from './env.ts';
 import {
   cleanupSmokeFixtures,
@@ -17,40 +18,18 @@ function isSmokeSectionId(value: string): value is SmokeSectionId {
   return smokeSectionDefinitions.some((section) => section.id === value);
 }
 
-function parseRequestedSections(argv: string[]): Set<SmokeSectionId> {
+function parseRequestedSections(values: string[]): Set<SmokeSectionId> {
   const sections: SmokeSectionId[] = [];
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--section') {
-      const value = argv[index + 1];
-      if (!value) throw new Error('Missing value after --section');
-      if (!isSmokeSectionId(value)) {
-        throw new Error(
-          `Unknown smoke section "${value}". Valid sections: ${Array.from(validSections).join(', ')}`
-        );
-      }
-      sections.push(value);
-      index += 1;
-      continue;
+  for (const value of values) {
+    if (!isSmokeSectionId(value)) {
+      throw new Error(
+        `Unknown smoke section "${value}". Valid sections: ${Array.from(validSections).join(', ')}`
+      );
     }
-
-    if (arg.startsWith('--section=')) {
-      const value = arg.slice('--section='.length);
-      if (!isSmokeSectionId(value)) {
-        throw new Error(
-          `Unknown smoke section "${value}". Valid sections: ${Array.from(validSections).join(', ')}`
-        );
-      }
-      sections.push(value);
-    }
+    sections.push(value);
   }
 
   return new Set(sections);
-}
-
-function hasFlag(argv: string[], flag: string) {
-  return argv.includes(flag);
 }
 
 function logStep(step: SmokeStepResult) {
@@ -71,10 +50,20 @@ function logStep(step: SmokeStepResult) {
 
 async function main() {
   const argv = process.argv.slice(2);
-  const requestedSections = parseRequestedSections(argv);
-  const useGeneratedFixtures = hasFlag(argv, '--use-generated-fixtures');
-  const sweepStaleFixtures = hasFlag(argv, '--sweep-stale-fixtures');
-  const cleanupOnly = hasFlag(argv, '--cleanup-stale-fixtures');
+  const cliArgs = parseCliArgs(argv, {
+    booleanFlags: [
+      '--cleanup-stale-fixtures',
+      '--sweep-stale-fixtures',
+      '--use-generated-fixtures',
+    ],
+    valueOptions: ['--section'],
+  });
+  const requestedSections = parseRequestedSections(
+    cliArgs.getValues('--section')
+  );
+  const useGeneratedFixtures = cliArgs.flags.has('--use-generated-fixtures');
+  const sweepStaleFixtures = cliArgs.flags.has('--sweep-stale-fixtures');
+  const cleanupOnly = cliArgs.flags.has('--cleanup-stale-fixtures');
   const baseUrl = getSmokeConfiguredBaseUrl();
   let hasFailure = false;
   let fixtures: SmokeFixtures | null = null;
