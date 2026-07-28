@@ -16,7 +16,10 @@ individual items are completed.
 - **Item 8 — Bundle and chunk review:** Completed 28 July 2026.
 - **Item 9 — Structure and maintainability:** Completed 28 July 2026.
 - **Item 10 — Documentation and repository hygiene:** Completed 28 July 2026.
-- **Items 11 onward:** Pending.
+- **Item 11 — Browser test isolation and CodeQL follow-up:** Completed
+  28 July 2026.
+- **Infrastructure and operational resilience:** Deferred until the application
+  moves to the organisation AWS account.
 
 Item 1 completion retained the original review below as a point-in-time record
 and applied these controls:
@@ -176,9 +179,9 @@ and applies every recommendation:
 - Focused TSX component tests cover reversal submission and read-only
   permissions, controlled project tabs, pre/post-hydration access, programme
   restrictions, and import-review decisions.
-- Browser smoke now runs as two Playwright Test specs with reusable generated
-  fixtures and a page object. Playwright owns Chromium/Firefox execution,
-  retries, traces, screenshots, video, isolation, and reporting.
+- Browser smoke now runs as focused Playwright Test specs with reusable
+  generated fixtures and page objects. Playwright owns Chromium/Firefox
+  execution, retries, traces, screenshots, video, isolation, and reporting.
 - Deploy regression coverage exercises same-SHA releases, download and
   integrity failures, migration failures, readiness failures, and both
   previous-release and first-release rollback paths.
@@ -278,6 +281,24 @@ Item 10 has completed the documentation and repository-hygiene recommendations:
 - The public repository now carries an explicit proprietary `LICENSE`, and the
   private package is marked `UNLICENSED`; viewing the repository does not grant
   reuse or redistribution rights.
+
+Item 11 completes the remaining browser-test isolation intent and the CodeQL
+follow-up from pull request 27:
+
+- The 1,011-line shared browser runner has been removed. Application-shell,
+  taxonomy, rule-suggestion, and reversal behavior now run as four independently
+  reported Playwright specs behind focused page objects.
+- Each spec provisions and cleans its own generated company, project, users, and
+  workflow data. A single global setup performs the stale-fixture sweep before
+  workers start, avoiding destructive cross-worker cleanup.
+- Chromium and Firefox both pass with two workers, providing independent
+  retries, diagnostics, and safe parallel execution.
+- The bundle-budget fixture no longer constructs executable JavaScript from
+  serialized or interpolated values. Static manifest and dependency-map sources
+  close CodeQL alert 6 without suppression while retaining the unsafe-path and
+  oversized-payload regression cases.
+- Maintainability boundary tests prevent the monolithic browser runner or
+  single-worker configuration from returning.
 
 # Full Repository Review
 

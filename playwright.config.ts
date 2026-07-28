@@ -9,8 +9,9 @@ if (browserName !== 'chromium' && browserName !== 'firefox') {
 
 export default defineConfig({
   testDir: './tests/browser',
-  fullyParallel: false,
-  workers: 1,
+  globalSetup: './tests/browser/globalSetup.ts',
+  fullyParallel: true,
+  workers: 2,
   retries: process.env.CI ? 1 : 0,
   timeout: 120_000,
   expect: { timeout: 15_000 },

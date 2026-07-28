@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 
@@ -107,5 +107,29 @@ describe('maintainability boundaries', () => {
     expect(workflow).toContain('unmatchTxnReversal');
     expect(workflow).not.toContain('txn_reversal_match_rejections');
     expect(bulkWorkflow).toContain("from './reversalMatchDecisionServers'");
+  });
+
+  test('browser workflows stay isolated behind focused Playwright page objects', async () => {
+    const config = await readFile(path.resolve('playwright.config.ts'), 'utf8');
+    const specToPageObject = {
+      'application-shell.spec.ts': 'ApplicationShellPage',
+      'reversal-workflow.spec.ts': 'ReversalWorkflowPage',
+      'rule-suggestion-workflow.spec.ts': 'RuleSuggestionWorkflowPage',
+      'taxonomy-workflow.spec.ts': 'TaxonomyWorkflowPage',
+    };
+
+    for (const [spec, pageObject] of Object.entries(specToPageObject)) {
+      const source = await readFile(
+        path.resolve('tests/browser', spec),
+        'utf8'
+      );
+      expect(source).toContain(pageObject);
+    }
+    await expect(
+      access(path.resolve('src/server/smoke/browser.ts'))
+    ).rejects.toThrow();
+    expect(config).toContain("globalSetup: './tests/browser/globalSetup.ts'");
+    expect(config).toContain('fullyParallel: true');
+    expect(config).toContain('workers: 2');
   });
 });

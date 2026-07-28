@@ -9,9 +9,9 @@ const verifierPath = path.resolve('scripts/verify-client-bundle.mjs');
 const temporaryDirectories: string[] = [];
 
 type FixtureOptions = {
-  companyPageContents?: string;
-  companyMappedAsset?: string;
-  companySummaryContents?: string;
+  oversizedCompany?: boolean;
+  oversizedCompanySummary?: boolean;
+  unsafeCompanyMappedAsset?: boolean;
 };
 
 async function createBundleFixture(options: FixtureOptions = {}) {
@@ -24,35 +24,40 @@ async function createBundleFixture(options: FixtureOptions = {}) {
     mkdir(serverAssetsDir, { recursive: true }),
   ]);
 
-  const manifest = {
-    routes: {
-      __root__: {
-        children: ['/_authed'],
-        css: ['/assets/root.css'],
-        preloads: ['/assets/root.js'],
-      },
-      '/_authed': {
-        children: ['/_authed/c/$companyId'],
-        preloads: ['/assets/authed-route.js'],
-      },
-      '/_authed/c/$companyId': {
-        children: [
-          '/_authed/c/$companyId/',
-          '/_authed/c/$companyId/p/$projectId',
-        ],
-        preloads: ['/assets/company-route.js'],
-      },
-      '/_authed/c/$companyId/': {
-        preloads: ['/assets/company-dashboard-route.js'],
-      },
-      '/_authed/c/$companyId/p/$projectId': {
-        preloads: ['/assets/project-workspace-route.js'],
-      },
-    },
-  };
+  const manifestModuleSource = `
+    export function tsrStartManifest() {
+      return {
+        routes: {
+          "__root__": {
+            children: ["/_authed"],
+            css: ["/assets/root.css"],
+            preloads: ["/assets/root.js"]
+          },
+          "/_authed": {
+            children: ["/_authed/c/$companyId"],
+            preloads: ["/assets/authed-route.js"]
+          },
+          "/_authed/c/$companyId": {
+            children: [
+              "/_authed/c/$companyId/",
+              "/_authed/c/$companyId/p/$projectId"
+            ],
+            preloads: ["/assets/company-route.js"]
+          },
+          "/_authed/c/$companyId/": {
+            preloads: ["/assets/company-dashboard-route.js"]
+          },
+          "/_authed/c/$companyId/p/$projectId": {
+            preloads: ["/assets/project-workspace-route.js"]
+          }
+        }
+      };
+    }
+  `;
 
-  const companyMappedAsset =
-    options.companyMappedAsset ?? 'assets/CompanyDashboardPage-fixture.js';
+  const companyDashboardRouteSource = options.unsafeCompanyMappedAsset
+    ? 'const d=(m.f||(m.f=["assets/../outside.js","assets/company.css"])); export { d };'
+    : 'const d=(m.f||(m.f=["assets/CompanyDashboardPage-fixture.js","assets/company.css"])); export { d };';
   const assets: Record<string, string> = {
     'root.js': 'import "./vendor.js"; export const root = true;',
     'root.css': ':root { color: black; }',
@@ -61,17 +66,21 @@ async function createBundleFixture(options: FixtureOptions = {}) {
       'const d=(m.f||(m.f=["assets/authed-layout.js"])); export { d };',
     'authed-layout.js': 'export const authed = true;',
     'company-route.js': 'export const company = true;',
-    'company-dashboard-route.js': `const d=(m.f||(m.f=["${companyMappedAsset}","assets/company.css"])); export { d };`,
+    'company-dashboard-route.js': companyDashboardRouteSource,
     'CompanyDashboardPage-fixture.js': [
       'import "./company-shared.js";',
+      ...(options.oversizedCompany ? ['import "./company-large.js";'] : []),
       'const d=(m.f||(m.f=["assets/CompanySummaryPanel-fixture.js","assets/CompanySettingsPanel-fixture.js"]));',
       'const summary=()=>load(()=>import("./CompanySummaryPanel-fixture.js"),__vite__mapDeps([0]));',
       'const settings=()=>load(()=>import("./CompanySettingsPanel-fixture.js"),__vite__mapDeps([1]));',
-      options.companyPageContents ?? '',
       'export { d, settings, summary };',
     ].join('\n'),
-    'CompanySummaryPanel-fixture.js':
-      options.companySummaryContents ?? 'export const summary = true;',
+    'company-large.js': options.oversizedCompany
+      ? randomBytes(600 * 1024).toString('base64')
+      : 'export const companyLarge = false;',
+    'CompanySummaryPanel-fixture.js': options.oversizedCompanySummary
+      ? randomBytes(40 * 1024).toString('base64')
+      : 'export const summary = true;',
     'CompanySettingsPanel-fixture.js': 'export const settings = true;',
     'company-shared.js': 'export const companyShared = true;',
     'company.css': '.company { display: block; }',
@@ -94,7 +103,7 @@ async function createBundleFixture(options: FixtureOptions = {}) {
   await Promise.all([
     writeFile(
       path.join(serverAssetsDir, '_tanstack-start-manifest_v-test.js'),
-      `export function tsrStartManifest() { return ${JSON.stringify(manifest)}; }`
+      manifestModuleSource
     ),
     ...Object.entries(assets).map(([assetPath, contents]) =>
       writeFile(path.join(clientAssetsDir, assetPath), contents)
@@ -145,7 +154,7 @@ describe('client bundle budgets', () => {
   test('rejects unsafe generated dependency paths', async () => {
     const result = runVerifier(
       await createBundleFixture({
-        companyMappedAsset: 'assets/../outside.js',
+        unsafeCompanyMappedAsset: true,
       })
     );
 
@@ -158,7 +167,7 @@ describe('client bundle budgets', () => {
   test('fails when an authenticated route exceeds its budget', async () => {
     const result = runVerifier(
       await createBundleFixture({
-        companyPageContents: randomBytes(600 * 1024).toString('base64'),
+        oversizedCompany: true,
       })
     );
 
@@ -174,7 +183,7 @@ describe('client bundle budgets', () => {
   test('fails when a deferred tab exceeds its budget', async () => {
     const result = runVerifier(
       await createBundleFixture({
-        companySummaryContents: randomBytes(40 * 1024).toString('base64'),
+        oversizedCompanySummary: true,
       })
     );
 
