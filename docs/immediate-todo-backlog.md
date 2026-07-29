@@ -5,6 +5,7 @@ refreshed on 29 July 2026 after merging:
 
 - `8d23e9d` — `fix: enable production response compression (#28)`
 - `ee2bfea` — `fix: harden financial value editing (#29)`
+- `2061781` — `fix: enforce production asset caching (#31)`
 
 The previous 26 July review and its completed eleven-item programme are retained
 in the [documentation archive](archive/README.md).
@@ -19,8 +20,8 @@ and work awaiting business decisions remain in
 | ---: | ------------------------------------------------------------------------------ | --------------- | ----------------------------------- |
 |    1 | Production responses were not compressed                                       | Immediate       | Completed in PR 28                  |
 |    2 | Financial values were persisted on every keystroke                             | Immediate       | Completed in PR 29                  |
-|    3 | Hashed production assets have no repository-enforced cache policy              | High            | Completed in this change            |
-|    4 | Project-setting mutations have inconsistent pending and failure UX             | High            | Pending                             |
+|    3 | Hashed production assets have no repository-enforced cache policy              | High            | Completed in PR 31                  |
+|    4 | Project-setting mutations have inconsistent pending and failure UX             | High            | Completed in this change            |
 |    5 | Accessibility and small-screen behavior need systematic verification           | High            | Pending                             |
 |    6 | CI and deploy rebuild independently instead of promoting one attested artifact | Medium          | Pending                             |
 |    7 | Runtime observability stops at structured journald output                      | Medium          | Pending                             |
@@ -33,15 +34,14 @@ and work awaiting business decisions remain in
 
 ## Recommended next sequence
 
-1. Address Item 4 with a reusable mutation-feedback pattern and focused tests.
-2. Combine Items 5 and 10 into one accessibility, responsive, and component
+1. Combine Items 5 and 10 into one accessibility, responsive, and component
    test tranche.
-3. Address Item 12 before expanding log collection under Item 7.
-4. Design Items 6 and 7 together so artifact provenance, release identity,
+2. Address Item 12 before expanding log collection under Item 7.
+3. Design Items 6 and 7 together so artifact provenance, release identity,
    logs, metrics, and alerts share the same deployment metadata.
-5. Perform Items 8, 9, and 11 as measured maintenance work rather than broad
+4. Perform Items 8, 9, and 11 as measured maintenance work rather than broad
    dependency or file-size rewrites.
-6. Implement Item 13 only when the deployment moves to the organisation AWS
+5. Implement Item 13 only when the deployment moves to the organisation AWS
    account, unless staging becomes actively relied upon sooner.
 
 # Completed review items
@@ -303,11 +303,9 @@ headers, immutable HTML, immutable unhashed assets, unsafe API/auth/maintenance
 caching, manifest filtering, CDK bootstrap, managed nginx variants, release
 artifacts, and existing-host activation boundaries.
 
-# Pending review items
-
 ## Item 4 — Standardize pending, success, and failure behavior for settings
 
-### Finding
+### Original finding
 
 Financial editing now has deliberate persistence semantics, but project
 settings still mix several interaction models.
@@ -330,21 +328,56 @@ user feedback and recovery:
 Other application areas use inline alerts or `showAppToast`, but there is no
 single documented mutation-feedback contract.
 
-### Recommendation
+### Resolution
 
-- Define a shared pattern for auto-save versus explicit-save controls.
-- Use explicit Save for coupled or high-impact settings such as project type,
-  programme relationship, and visibility.
-- Auto-save simple independent switches only when pending, success, rollback,
-  and failure states are clear.
-- Disable only the field or related field group being persisted.
-- Serialize writes by stable project and setting identity where rapid writes
-  remain possible.
-- Preserve the last confirmed value and display a retryable error.
-- Ensure toasts complement rather than replace field-associated accessible
-  errors.
-- Add focused tests for slow, rejected, retried, and deliberately out-of-order
-  updates.
+[ProjectSettingControls.tsx](../src/components/settings/ProjectSettingControls.tsx)
+now defines one persistence contract for project settings:
+
+- project type and programme relationship are a coupled draft with explicit
+  Save and Cancel actions
+- currency and visibility retain local drafts and require explicit Save
+- superadmin access retains its explicit confirmation step
+- standards sync and transaction-transfer capability remain auto-save switches
+  because they are simple independent booleans
+
+Every control or related group now owns its pending state. A slow structure
+save disables only type and programme controls; independent settings remain
+available. Explicit-save failures retain the draft and expose Retry. Auto-save
+failures restore the last confirmed switch value, retain the attempted value
+for Retry, and explain the rollback next to the field.
+
+Pending and successful saves use field-associated polite status regions.
+Failures use field-associated alerts, so toast notifications are not the only
+way to discover or recover from a settings error.
+
+### Mutation ordering
+
+Each settings mutation uses a stable project-and-setting scope from
+[mutationScopes.ts](../src/queries/mutationScopes.ts). Writes to the same
+setting identity are serialized by TanStack Query, while unrelated settings
+use different scope IDs and are not unnecessarily queued behind one another.
+
+The existing generic project-update hook remains available without a settings
+scope for non-settings callers such as project budget totals.
+
+### Verification and regression protection
+
+Focused component tests cover:
+
+- coupled values remaining local until explicit Save
+- group-local disabling while a save is slow
+- successful pending and completion feedback
+- an explicit-save rejection retaining its draft
+- retrying the retained explicit draft
+- auto-save rollback after rejection
+- retrying the rejected auto-save value
+- superadmin confirmation remaining open after rejection
+
+Mutation-scope tests deliberately start a second same-setting write while the
+first is blocked and prove it cannot overtake the first. They also prove that
+independent settings can execute concurrently.
+
+# Pending review items
 
 ## Item 5 — Systematically verify accessibility and small-screen usability
 

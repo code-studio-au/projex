@@ -10,6 +10,10 @@ import type {
   TxnImportInput,
 } from '../api/types';
 import { qk } from './keys';
+import {
+  projectSettingMutationScope,
+  type ProjectSettingMutationKey,
+} from './mutationScopes';
 import { useQueryScopeUserId } from './scope';
 import { invalidateProjectTransactionQueries } from './transactions';
 import {
@@ -60,10 +64,22 @@ export function useCreateProjectMutation(companyId: CompanyId) {
   });
 }
 
-export function useUpdateProjectMutation(companyId: CompanyId) {
+export function useUpdateProjectMutation(
+  companyId: CompanyId,
+  settingScope?: {
+    projectId: ProjectId;
+    setting: ProjectSettingMutationKey;
+  }
+) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
+    scope: settingScope
+      ? projectSettingMutationScope(
+          settingScope.projectId,
+          settingScope.setting
+        )
+      : undefined,
     mutationFn: (input: ProjectUpdateInput) =>
       updateProjectServerFn({ data: input }),
     onSuccess: async (_, vars) => {
