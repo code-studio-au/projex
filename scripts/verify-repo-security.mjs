@@ -8,6 +8,7 @@ const nginxProxyConfigPaths = [
 ];
 const nginxRequestLimitsPath = 'deploy/nginx/projex-request-limits.conf';
 const nginxImportBodyLimit = 'client_max_body_size 16m;';
+const nginxCompressionPath = 'deploy/nginx/projex-compression.conf';
 const braceExpansionPatchPath = 'patches/brace-expansion@5.0.8.patch';
 
 const checks = [
@@ -143,6 +144,46 @@ async function verifyNginxRequestLimits() {
   assertCondition(
     deployScript.includes('sudo nginx -t'),
     'Artifact deploys must validate nginx before reloading it'
+  );
+}
+
+async function verifyNginxCompression() {
+  const [compression, createArtifactScript, deployScript, hostBootstrap] =
+    await Promise.all([
+      readFile(nginxCompressionPath, 'utf8'),
+      readFile('scripts/create-deploy-artifact.sh', 'utf8'),
+      readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
+      readFile('deploy/cdk/lib/hostBootstrap.ts', 'utf8'),
+    ]);
+
+  for (const requiredDirective of [
+    'gzip on;',
+    'gzip_vary on;',
+    'gzip_proxied any;',
+    'gzip_min_length 1024;',
+    'text/css',
+    'application/javascript',
+    'application/json',
+    'image/svg+xml',
+  ]) {
+    assertCondition(
+      compression.includes(requiredDirective),
+      `${nginxCompressionPath} is missing required entry: ${requiredDirective}`
+    );
+  }
+  assertCondition(
+    createArtifactScript.includes(`require_path "${nginxCompressionPath}"`),
+    'Deploy artifacts must require the managed nginx compression policy'
+  );
+  assertCondition(
+    deployScript.includes(nginxCompressionPath) &&
+      deployScript.includes('NGINX_COMPRESSION_PATH'),
+    'Artifact deploys must install the managed nginx compression policy'
+  );
+  assertCondition(
+    hostBootstrap.includes(nginxCompressionPath) &&
+      hostBootstrap.includes('/etc/nginx/conf.d/projex-compression.conf'),
+    'Fresh hosts must install the managed nginx compression policy'
   );
 }
 
@@ -524,6 +565,7 @@ async function main() {
   await verifyGitignoreCoverage();
   await verifyTrustedProxyClientIpHeaders();
   await verifyNginxRequestLimits();
+  await verifyNginxCompression();
   await verifyNginxHttp2Syntax();
   await verifyDeployArtifactDependencyPatches();
   await verifyDeployReleaseIdentity();

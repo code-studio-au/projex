@@ -53,7 +53,10 @@ describe('buildHostBootstrapCommands', () => {
     );
     expect(joined).toContain('/etc/nginx/conf.d/projex.conf');
     expect(joined).toContain('/etc/nginx/conf.d/projex-request-limits.conf');
+    expect(joined).toContain('/etc/nginx/conf.d/projex-compression.conf');
     expect(joined).toContain('client_max_body_size 16m;');
+    expect(joined).toContain('gzip_proxied any;');
+    expect(joined).toContain('gzip_vary on;');
     expect(joined).toContain('/etc/projex/projex.nginx.https.conf.template');
     expect(joined).toContain(
       '/usr/local/bin/projex-provision-letsencrypt-cert'

@@ -150,6 +150,7 @@ Recommended:
 - use the bootstrap nginx template at `deploy/nginx/projex.bootstrap.conf` for first boot
 - promote the host to the HTTPS nginx template rendered from `deploy/nginx/projex.https.conf.template` after certificate issuance
 - install `deploy/nginx/projex-request-limits.conf` under `/etc/nginx/conf.d/`; routine artifact deploys refresh this managed include automatically
+- install `deploy/nginx/projex-compression.conf` under `/etc/nginx/conf.d/`; routine artifact deploys refresh this managed include automatically
 - it includes:
   - HTTP -> HTTPS redirect
   - `server_tokens off`
@@ -164,6 +165,12 @@ their JSON request is larger than the source CSV. This bounded proxy allowance
 supports the application's validated maximum of 5,000 imported transactions
 without reverting to an effectively unlimited request body.
 
+The managed compression include enables gzip for proxied HTML and compressible
+JavaScript, CSS, JSON, XML, and SVG responses. It also emits
+`Vary: Accept-Encoding` so shared caches do not mix compressed and uncompressed
+representations. Brotli is intentionally not required because the standard
+host nginx package does not guarantee that optional module.
+
 The maintenance fallback relies on the static file:
 
 - `deploy/nginx/maintenance.html`
@@ -175,9 +182,10 @@ In the recommended artifact-based layout, nginx serves those files from:
 - `/opt/projex/shared/nginx-maintenance/maintenance.js`
 
 Each deploy refreshes those shared maintenance assets from the release bundle before the service restart.
-It also installs the managed request-limit include, validates the complete nginx
-configuration with `nginx -t`, and reloads nginx. This means existing hosts pick
-up request-limit changes without replacing their rendered TLS/domain config.
+It also installs the managed request-limit and compression includes, validates
+the complete nginx configuration with `nginx -t`, and reloads nginx. This means
+existing hosts pick up these HTTP-policy changes without replacing their
+rendered TLS/domain config.
 
 ## 5.1) Enable HTTPS with Let's Encrypt
 

@@ -241,6 +241,7 @@ async function createArtifactSourceTree(root: string) {
     'scripts/deploy-artifact-ec2.sh',
     'deploy/nginx/maintenance.html',
     'deploy/nginx/maintenance.js',
+    'deploy/nginx/projex-compression.conf',
     'deploy/nginx/projex-request-limits.conf',
     'deploy/systemd/projex.service',
     'package.json',
@@ -317,6 +318,7 @@ async function createEc2Release(
     'scripts/deploy-artifact-ec2.sh',
     'deploy/nginx/maintenance.html',
     'deploy/nginx/maintenance.js',
+    'deploy/nginx/projex-compression.conf',
     'deploy/nginx/projex-request-limits.conf',
     'deploy/systemd/projex.service',
   ];
@@ -368,6 +370,7 @@ function runEc2Deploy(
       ENV_FILE: join(appRoot, 'projex.env'),
       SHARED_DIR: join(appRoot, 'shared'),
       NGINX_REQUEST_LIMITS_PATH: join(appRoot, 'nginx', 'request-limits.conf'),
+      NGINX_COMPRESSION_PATH: join(appRoot, 'nginx', 'compression.conf'),
       SYSTEMD_SERVICE_PATH: join(appRoot, 'systemd', 'projex.service'),
       DEPLOY_USER: testDeployUser,
       DEPLOY_HOME: join(appRoot, 'shared', 'deploy-home'),
@@ -780,6 +783,9 @@ describe('deploy-artifact-ec2.sh', () => {
     expect(sudoCalls).toContain(`chown -R ${testDeployUser}:`);
     expect(sudoCalls).toContain(`chown -R root:root ${releaseDir}`);
     expect(sudoCalls).toContain('systemctl enable projex-custom');
+    await expect(
+      readFile(join(appRoot, 'nginx', 'compression.conf'), 'utf8')
+    ).resolves.toBe('test\n');
     const installedServicePath = join(
       appRoot,
       'systemd',
