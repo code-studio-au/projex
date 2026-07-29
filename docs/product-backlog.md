@@ -2,9 +2,9 @@
 
 This backlog contains only unfinished work. Completed work belongs in Git history and feature documentation, not here.
 
-The prioritized engineering and operational findings from the July 2026
-repository review are tracked in the
-[Immediate TODO Backlog](immediate-todo-backlog.md).
+The current prioritized engineering and operational review is tracked in the
+[Immediate TODO Backlog](immediate-todo-backlog.md). Superseded point-in-time
+reviews are retained in the [documentation archive](archive/README.md).
 
 ## Awaiting Product Decision
 
