@@ -11,6 +11,7 @@ import {
   listBudgetsServerFn,
   updateBudgetServerFn,
 } from '../server/start/functions/budgetReads';
+import { budgetUpdateMutationScope } from './mutationScopes';
 
 export function useBudgetsQuery(
   projectId: ProjectId,
@@ -51,6 +52,7 @@ export function useUpdateBudgetMutation(projectId: ProjectId) {
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
+    scope: budgetUpdateMutationScope(projectId),
     mutationFn: (input: BudgetUpdateInput) =>
       updateBudgetServerFn({ data: { projectId, payload: input } }),
     onSuccess: async () => {
