@@ -3,7 +3,6 @@ import {
   Badge,
   Group,
   Menu,
-  NumberInput,
   Select,
   Stack,
   Text,
@@ -21,7 +20,7 @@ import type { TaxonomyHook } from '../../hooks/useTaxonomy';
 import type { TransactionActions } from '../../hooks/useTransactionActions';
 import type { Txn, TxnComment, TxnCommentSummary } from '../../types';
 import { asCategoryId, asSubCategoryId } from '../../types/ids';
-import { formatCurrencyFromCents, fromCents, toCents } from '../../utils/money';
+import { formatCurrencyFromCents } from '../../utils/money';
 import { transactionCanBeLocked } from '../../utils/transactionWorkflow';
 import {
   isBudgetImpactTxn,
@@ -30,6 +29,7 @@ import {
 } from '../../utils/transactions';
 import TransactionCommentsCell from './TransactionCommentsCell';
 import { getTransactionRowStatus } from './transactionRowPresentation';
+import MoneyAmountEditor from '../finance/MoneyAmountEditor';
 
 type CreateTransactionColumnsArgs = {
   transactionActions: TransactionActions;
@@ -252,26 +252,23 @@ export function createTransactionColumns(
     {
       accessorKey: 'amountCents',
       header: 'Amount',
-      size: 118,
+      size: 210,
       enableEditing: (row) =>
         canEditTxnAmount({ readOnly: args.readOnly, txn: row.original }),
       Edit: ({ row, table }) => (
-        <NumberInput
-          value={fromCents(row.original.amountCents)}
-          size="xs"
-          thousandSeparator=","
-          prefix="$"
-          decimalScale={2}
-          fixedDecimalScale
-          hideControls
-          styles={{ input: { textAlign: 'right' } }}
-          onChange={(value) => {
-            void args.transactionActions
-              .updateTxn(row.original.id, {
-                amountCents: toCents(Number(value ?? 0)),
-              })
-              .then(() => table.setEditingCell(null));
+        <MoneyAmountEditor
+          amountCents={row.original.amountCents}
+          inputLabel={`Amount for ${row.original.item}`}
+          saveLabel={`Save amount for ${row.original.item}`}
+          cancelLabel={`Cancel amount edit for ${row.original.item}`}
+          alwaysShowActions
+          onSave={async (amountCents) => {
+            await args.transactionActions.updateTxn(row.original.id, {
+              amountCents,
+            });
           }}
+          onSaved={() => table.setEditingCell(null)}
+          onCancel={() => table.setEditingCell(null)}
         />
       ),
       Cell: ({ cell, row }) => {

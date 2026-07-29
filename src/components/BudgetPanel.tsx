@@ -4,7 +4,6 @@ import {
   Button,
   Group,
   Menu,
-  NumberInput,
   Paper,
   Select,
   Stack,
@@ -33,7 +32,7 @@ import {
   sum,
   type Quarter,
 } from '../utils/finance';
-import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
+import { formatCurrencyFromCents } from '../utils/money';
 import { useSessionQuery } from '../queries/session';
 import {
   loadBudgetCollapseState,
@@ -41,6 +40,7 @@ import {
 } from '../store/uiPrefs';
 import { LoadingLine } from './LoadingValue';
 import ProjectBudgetSummary from './budget/ProjectBudgetSummary';
+import MoneyAmountEditor from './finance/MoneyAmountEditor';
 import classes from '../styles/ui.module.css';
 
 type BudgetRollupRowWithTaxonomy = RollupRow & {
@@ -541,8 +541,8 @@ export default function BudgetPanel(props: {
         accessorKey: 'allocatedCents',
         header: 'Allocated',
         accessorFn: (row) => row.allocatedCents,
-        size: 132,
-        minSize: 120,
+        size: 210,
+        minSize: 196,
         mantineTableHeadCellProps: {
           className: 'table-head-cell table-head-right budgetTable-head',
         },
@@ -558,20 +558,16 @@ export default function BudgetPanel(props: {
               )}
             </Text>
           ) : (
-            <NumberInput
-              value={fromCents(row.original.allocatedCents)}
-              min={0}
-              size="xs"
-              thousandSeparator=","
-              prefix="$"
-              decimalScale={2}
-              fixedDecimalScale
-              hideControls
+            <MoneyAmountEditor
+              amountCents={row.original.allocatedCents}
+              minimumCents={0}
+              inputLabel={`Allocated budget for ${row.original.subCategoryName}`}
+              saveLabel={`Save allocated budget for ${row.original.subCategoryName}`}
+              cancelLabel={`Cancel allocated budget edit for ${row.original.subCategoryName}`}
               disabled={readOnly}
-              classNames={{ input: 'budgetTable-numberInput' }}
-              styles={{ input: { textAlign: 'right' } }}
-              onChange={(v) =>
-                void updateAllocated(row.original.id, toCents(Number(v ?? 0)))
+              inputClassName="budgetTable-numberInput"
+              onSave={(allocatedCents) =>
+                updateAllocated(row.original.id, allocatedCents)
               }
             />
           ),

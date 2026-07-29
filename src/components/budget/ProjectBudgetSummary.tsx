@@ -4,20 +4,20 @@ import {
   Alert,
   Badge,
   Group,
-  NumberInput,
   Paper,
   SimpleGrid,
   Stack,
   Text,
 } from '@mantine/core';
-import { IconCheck, IconPencil, IconX } from '@tabler/icons-react';
+import { IconPencil } from '@tabler/icons-react';
 
 import {
   calculateAllocationPosition,
   calculateBudgetPosition,
 } from '../../utils/budgetSemantics';
-import { formatCurrencyFromCents, fromCents, toCents } from '../../utils/money';
+import { formatCurrencyFromCents } from '../../utils/money';
 import { LoadingLine } from '../LoadingValue';
+import MoneyAmountEditor from '../finance/MoneyAmountEditor';
 import classes from '../../styles/ui.module.css';
 
 type ProjectBudgetSummaryProps = {
@@ -48,7 +48,6 @@ export default function ProjectBudgetSummary(props: ProjectBudgetSummaryProps) {
     canEditProjectBudgetTotal,
     onUpdateProjectBudgetTotal,
   } = props;
-  const [projectBudgetDraft, setProjectBudgetDraft] = useState<number | ''>('');
   const [isEditingProjectBudget, setIsEditingProjectBudget] = useState(false);
 
   const allocationPosition = calculateAllocationPosition({
@@ -63,32 +62,6 @@ export default function ProjectBudgetSummary(props: ProjectBudgetSummaryProps) {
     pendingReversalCount,
     pendingReversalCents,
   });
-
-  function cancelProjectBudgetEdit() {
-    setProjectBudgetDraft('');
-    setIsEditingProjectBudget(false);
-  }
-
-  async function commitProjectBudgetTotal() {
-    if (!onUpdateProjectBudgetTotal) return;
-    const nextCents = toCents(
-      Number(
-        projectBudgetDraft === ''
-          ? fromCents(projectBudgetTotalCents)
-          : projectBudgetDraft
-      )
-    );
-    if (
-      !Number.isFinite(nextCents) ||
-      nextCents < 0 ||
-      nextCents === projectBudgetTotalCents
-    ) {
-      cancelProjectBudgetEdit();
-      return;
-    }
-    await onUpdateProjectBudgetTotal(nextCents);
-    cancelProjectBudgetEdit();
-  }
 
   return (
     <Paper
@@ -118,54 +91,21 @@ export default function ProjectBudgetSummary(props: ProjectBudgetSummaryProps) {
               <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                 Project budget
               </Text>
-              {canEditProjectBudgetTotal && isEditingProjectBudget ? (
-                <Group gap="xs" align="center" wrap="nowrap">
-                  <NumberInput
-                    value={
-                      projectBudgetDraft === ''
-                        ? fromCents(projectBudgetTotalCents)
-                        : projectBudgetDraft
-                    }
-                    min={0}
-                    thousandSeparator=","
-                    prefix="$"
-                    decimalScale={2}
-                    fixedDecimalScale
-                    hideControls
-                    classNames={{ input: 'budgetSummaryInput' }}
-                    styles={{ input: { textAlign: 'right' } }}
-                    onChange={(value) =>
-                      setProjectBudgetDraft(
-                        typeof value === 'number' ? value : Number(value ?? 0)
-                      )
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        void commitProjectBudgetTotal();
-                      }
-                      if (event.key === 'Escape') {
-                        cancelProjectBudgetEdit();
-                      }
-                    }}
-                  />
-                  <ActionIcon
-                    variant="light"
-                    color="green"
-                    aria-label="Save project budget total"
-                    onClick={() => void commitProjectBudgetTotal()}
-                  >
-                    <IconCheck size={16} />
-                  </ActionIcon>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label="Cancel editing project budget total"
-                    onClick={cancelProjectBudgetEdit}
-                  >
-                    <IconX size={16} />
-                  </ActionIcon>
-                </Group>
+              {canEditProjectBudgetTotal &&
+              onUpdateProjectBudgetTotal &&
+              isEditingProjectBudget ? (
+                <MoneyAmountEditor
+                  amountCents={projectBudgetTotalCents}
+                  minimumCents={0}
+                  inputLabel="Project budget total"
+                  saveLabel="Save project budget total"
+                  cancelLabel="Cancel editing project budget total"
+                  alwaysShowActions
+                  inputClassName="budgetSummaryInput"
+                  onSave={onUpdateProjectBudgetTotal}
+                  onSaved={() => setIsEditingProjectBudget(false)}
+                  onCancel={() => setIsEditingProjectBudget(false)}
+                />
               ) : (
                 <Group gap="xs" align="center" wrap="nowrap">
                   <Text fw={800} size="xl">
@@ -179,12 +119,8 @@ export default function ProjectBudgetSummary(props: ProjectBudgetSummaryProps) {
                       variant="subtle"
                       color="gray"
                       aria-label="Edit project budget total"
-                      onClick={() => {
-                        setProjectBudgetDraft(
-                          fromCents(projectBudgetTotalCents)
-                        );
-                        setIsEditingProjectBudget(true);
-                      }}
+                      disabled={!onUpdateProjectBudgetTotal}
+                      onClick={() => setIsEditingProjectBudget(true)}
                     >
                       <IconPencil size={16} />
                     </ActionIcon>

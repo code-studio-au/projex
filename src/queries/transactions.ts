@@ -50,6 +50,7 @@ import {
   resolveTxnUnlockRequestServerFn,
 } from '../server/start/functions/transactionReads';
 import type { TxnListPageResult } from '../api/types';
+import { transactionUpdateMutationScope } from './mutationScopes';
 
 type TransactionsPageQueryParams = {
   mode: 'page';
@@ -320,6 +321,7 @@ export function useUpdateTxnMutation(projectId: ProjectId) {
   const scopeUserId = useQueryScopeUserId();
   const queryKey = qk.transactions(scopeUserId, projectId);
   return useMutation({
+    scope: transactionUpdateMutationScope(projectId),
     mutationFn: (input: TxnUpdateInput) =>
       updateTxnServerFn({ data: { projectId, payload: input } }),
     onMutate: async (input) => {

@@ -70,4 +70,46 @@ describe('ProjectBudgetSummary', () => {
       screen.queryByRole('button', { name: 'Edit project budget total' })
     ).toBeNull();
   });
+
+  it('keeps the project-budget editor open with its draft after a failed save', async () => {
+    const onUpdateProjectBudgetTotal = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Budget update failed'))
+      .mockResolvedValueOnce(undefined);
+    renderComponent(
+      <ProjectBudgetSummary
+        {...defaultProps}
+        onUpdateProjectBudgetTotal={onUpdateProjectBudgetTotal}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit project budget total' })
+    );
+    const input = screen.getByRole('textbox', {
+      name: 'Project budget total',
+    });
+    fireEvent.change(input, { target: { value: '1500.00' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save project budget total' })
+    );
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Budget update failed'
+    );
+    expect((input as HTMLInputElement).value).toBe('$1,500.00');
+    expect(
+      screen.queryByRole('button', { name: 'Edit project budget total' })
+    ).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save project budget total' })
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Edit project budget total' })
+      ).toBeTruthy()
+    );
+    expect(onUpdateProjectBudgetTotal).toHaveBeenCalledTimes(2);
+  });
 });
