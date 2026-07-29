@@ -69,6 +69,9 @@ Before cutting over or handing a deployed environment to another developer, conf
 - The public proxy uses `deploy/nginx/projex.conf` or equivalent HTTPS redirect, forwarded headers, hardening headers, and maintenance fallback behavior.
 - Nginx loads `/etc/nginx/conf.d/projex-request-limits.conf`, which keeps application request bodies bounded at `16m` while allowing validated bulk import commits.
 - Nginx loads `/etc/nginx/conf.d/projex-compression.conf`, which gzip-compresses proxied HTML, JavaScript, CSS, JSON, XML, and SVG responses and emits `Vary: Accept-Encoding`.
+- The activated Node release owns proxied `Cache-Control`: manifest-backed
+  fingerprinted assets are one-year immutable, HTML is `no-cache`, and nginx
+  owns only the explicit maintenance no-store responses.
 - If the host was created through CDK, the HTTP bootstrap nginx config has been promoted to HTTPS with `/usr/local/bin/projex-provision-letsencrypt-cert`.
 - The generated HTTPS config uses the HTTP/2 syntax supported by the installed
   nginx version, and `nginx -t` succeeds.
@@ -135,6 +138,10 @@ pnpm run verify:deploy-security
 When auth credentials are provided, the verifier also checks that sign-in sets `HttpOnly` cookies, requires `Secure` on HTTPS deployments, and that authenticated `/api/session` returns a `userId`.
 For HTTPS targets it also requires compressed HTML, JavaScript, and CSS
 responses with `Vary: Accept-Encoding`.
+For every target it requires exact immutable caching on the page's
+fingerprinted JavaScript and CSS, immediate HTML revalidation, and safe
+non-immutable behavior for unhashed, API, auth, health, readiness, and
+maintenance responses.
 
 GitHub Actions deploys expect the following configuration on the target GitHub
 environment when `deploy_target=ec2` is used:

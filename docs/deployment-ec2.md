@@ -137,6 +137,15 @@ sudo journalctl -u projex -f
 
 `start:server` validates the runtime env, serves built client assets, and starts the SSR app server (host/port via `HOST` and `PORT`, default `0.0.0.0:3000`). It does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
 
+`start:server` is also the single owner of cache headers for proxied application
+responses. The production build emits `dist/client/.vite/manifest.json`, and
+the runtime grants one-year immutable caching only to fingerprinted
+JavaScript, CSS, font, and image paths present in that manifest. HTML and
+unrecognized `/assets/` files use `no-cache`; the unhashed favicon keeps a
+short one-hour non-immutable policy. API and auth routes retain their own
+response policies. Nginx must preserve those upstream headers rather than add a
+second application cache policy.
+
 The systemd unit now points at `/opt/projex/current`, so each deploy activates a fully extracted release directory by switching that symlink after migrations succeed.
 It starts Node directly rather than resolving pnpm from a user-home Corepack
 cache. `NoNewPrivileges`, an empty capability set, home/device/tmp isolation,
@@ -170,6 +179,14 @@ JavaScript, CSS, JSON, XML, and SVG responses. It also emits
 `Vary: Accept-Encoding` so shared caches do not mix compressed and uncompressed
 representations. Brotli is intentionally not required because the standard
 host nginx package does not guarantee that optional module.
+
+The cache ownership boundary is identical for the bootstrap HTTP
+configuration, the managed HTTPS template, release artifacts, and existing
+hosts: nginx proxies application responses unchanged, while the activated
+release's Node runtime applies the manifest-backed policy. Nginx owns only the
+explicit `no-store` maintenance responses. Artifact creation and EC2 activation
+both require the client manifest and cache-policy module, preventing an
+incomplete release from reaching service activation.
 
 The maintenance fallback relies on the static file:
 
