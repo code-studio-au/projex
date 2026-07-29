@@ -47,8 +47,12 @@ function defaultProps() {
     onSaveVisibility: vi.fn().mockResolvedValue(undefined),
     onSaveSuperadminAccess: vi.fn().mockResolvedValue(undefined),
     onSuperadminAccessSaved: vi.fn(),
-    onSaveSyncCompanyDefaults: vi.fn().mockResolvedValue(undefined),
-    onSaveAllowTxnTransfers: vi.fn().mockResolvedValue(undefined),
+    onSaveSyncCompanyDefaults: vi
+      .fn()
+      .mockImplementation(async (value: boolean) => value),
+    onSaveAllowTxnTransfers: vi
+      .fn()
+      .mockImplementation(async (value: boolean) => value),
   };
 }
 
@@ -58,7 +62,7 @@ function selectOption(label: string, option: string) {
 }
 
 describe('ProjectSettingControls', () => {
-  it('keeps coupled structure changes local and disables only that group during save', async () => {
+  it('disables type-dependent settings during a slow structure save', async () => {
     const save = deferred();
     const props = defaultProps();
     props.onSaveStructure = vi.fn(() => save.promise);
@@ -86,6 +90,20 @@ describe('ProjectSettingControls', () => {
       (
         screen.getByRole('switch', {
           name: /^Sync company standards/,
+        }) as HTMLInputElement
+      ).disabled
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole('switch', {
+          name: /^Allow transaction transfers out/,
+        }) as HTMLInputElement
+      ).disabled
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole('combobox', {
+          name: 'Visibility',
         }) as HTMLInputElement
       ).disabled
     ).toBe(false);
@@ -138,7 +156,10 @@ describe('ProjectSettingControls', () => {
   it('shows pending auto-save state without blocking unrelated settings', async () => {
     const save = deferred();
     const props = defaultProps();
-    props.onSaveSyncCompanyDefaults = vi.fn(() => save.promise);
+    props.onSaveSyncCompanyDefaults = vi.fn(async (value: boolean) => {
+      await save.promise;
+      return value;
+    });
     renderComponent(<ProjectSettingControls {...props} />);
 
     const syncSwitch = screen.getByRole('switch', {
@@ -173,7 +194,7 @@ describe('ProjectSettingControls', () => {
     props.onSaveSyncCompanyDefaults = vi
       .fn()
       .mockRejectedValueOnce(new Error('Standards service unavailable'))
-      .mockResolvedValueOnce(undefined);
+      .mockResolvedValueOnce(true);
     renderComponent(<ProjectSettingControls {...props} />);
 
     const syncSwitch = screen.getByRole('switch', {
@@ -199,6 +220,55 @@ describe('ProjectSettingControls', () => {
     expect(props.onSaveSyncCompanyDefaults).toHaveBeenCalledTimes(2);
     expect(props.onSaveSyncCompanyDefaults).toHaveBeenNthCalledWith(1, true);
     expect(props.onSaveSyncCompanyDefaults).toHaveBeenNthCalledWith(2, true);
+  });
+
+  it('blocks a retained auto-save retry after the setting becomes unavailable', async () => {
+    const props = defaultProps();
+    props.onSaveSyncCompanyDefaults = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Standards service unavailable'))
+      .mockResolvedValueOnce(true);
+    const view = renderComponent(<ProjectSettingControls {...props} />);
+
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: /^Sync company standards/,
+      })
+    );
+    await screen.findByRole('alert');
+
+    view.rerender(
+      <ProjectSettingControls
+        {...props}
+        projectType="programme"
+        parentProjectId={null}
+      />
+    );
+
+    const retry = screen.getByRole('button', {
+      name: 'Retry sync company standards',
+    }) as HTMLButtonElement;
+    await waitFor(() => expect(retry.disabled).toBe(true));
+    fireEvent.click(retry);
+
+    expect(props.onSaveSyncCompanyDefaults).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the confirmed boolean returned by the server after auto-save', async () => {
+    const props = defaultProps();
+    props.onSaveSyncCompanyDefaults = vi.fn().mockResolvedValue(false);
+    renderComponent(<ProjectSettingControls {...props} />);
+
+    const syncSwitch = screen.getByRole('switch', {
+      name: /^Sync company standards/,
+    }) as HTMLInputElement;
+    fireEvent.click(syncSwitch);
+
+    await waitFor(() => expect(syncSwitch.checked).toBe(false));
+    expect(props.onSaveSyncCompanyDefaults).toHaveBeenCalledWith(true);
+    expect(screen.getByRole('status').textContent).toContain(
+      'Sync company standards saved'
+    );
   });
 
   it('keeps confirmation open with an accessible retry after a rejected access change', async () => {

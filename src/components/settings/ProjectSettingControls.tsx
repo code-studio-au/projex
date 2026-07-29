@@ -128,8 +128,8 @@ export default function ProjectSettingControls(props: {
   onSaveVisibility: (value: Project['visibility']) => Promise<void>;
   onSaveSuperadminAccess: (value: boolean) => Promise<void>;
   onSuperadminAccessSaved?: (value: boolean) => void;
-  onSaveSyncCompanyDefaults: (value: boolean) => Promise<void>;
-  onSaveAllowTxnTransfers: (value: boolean) => Promise<void>;
+  onSaveSyncCompanyDefaults: (value: boolean) => Promise<boolean>;
+  onSaveAllowTxnTransfers: (value: boolean) => Promise<boolean>;
 }) {
   const {
     projectType,
@@ -302,7 +302,11 @@ export default function ProjectSettingControls(props: {
         label="Sync company standards"
         description="When enabled, this project inherits new company categories, import rules, and auto-coding automatically."
         checked={syncCompanyDefaults}
-        disabled={!canEditCompanyStructure || projectType === 'programme'}
+        disabled={
+          !canEditCompanyStructure ||
+          structureDraft.projectType === 'programme' ||
+          structureSaving
+        }
         onSave={onSaveSyncCompanyDefaults}
         fallbackError="Unable to save company standards sync."
       />
@@ -311,7 +315,11 @@ export default function ProjectSettingControls(props: {
         label="Allow transaction transfers out"
         description="Company admins, executives, and management can enable whether this project may move transactions to another project. Programmes cannot transfer transactions."
         checked={allowTxnTransfers}
-        disabled={!canManageTransferCapability || projectType === 'programme'}
+        disabled={
+          !canManageTransferCapability ||
+          structureDraft.projectType === 'programme' ||
+          structureSaving
+        }
         onSave={onSaveAllowTxnTransfers}
         fallbackError="Unable to save transaction transfers."
       />

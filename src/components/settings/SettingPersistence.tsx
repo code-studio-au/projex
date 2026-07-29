@@ -72,7 +72,7 @@ export function AutoSaveSwitch(props: {
   description: string;
   checked: boolean;
   disabled: boolean;
-  onSave: (checked: boolean) => Promise<void>;
+  onSave: (checked: boolean) => Promise<boolean>;
   fallbackError: string;
 }) {
   const { label, description, checked, disabled, onSave, fallbackError } =
@@ -92,14 +92,14 @@ export function AutoSaveSwitch(props: {
   }, [checked]);
 
   async function persist(nextValue: boolean) {
-    if (phase === 'saving') return;
+    if (disabled || phase === 'saving') return;
     setPending(nextValue);
     setFailedValue(null);
     setError(null);
     setPhase('saving');
     try {
-      await onSave(nextValue);
-      setConfirmed(nextValue);
+      const savedValue = await onSave(nextValue);
+      setConfirmed(savedValue);
       setPending(null);
       setPhase('saved');
     } catch (saveError) {
@@ -135,6 +135,7 @@ export function AutoSaveSwitch(props: {
             <Button
               size="compact-xs"
               variant="light"
+              disabled={disabled}
               onClick={() => void persist(failedValue)}
             >
               Retry {label.toLowerCase()}

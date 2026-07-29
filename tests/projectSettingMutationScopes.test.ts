@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { projectSettingMutationScope } from '../src/queries/mutationScopes';
 import { asProjectId } from '../src/types';
 
-test('project setting scopes are stable by project and setting identity', () => {
+test('project setting scopes are stable by project and invariant group', () => {
   const projectId = asProjectId('prj_setting_scope');
 
   expect(projectSettingMutationScope(projectId, 'visibility')).toEqual({
@@ -13,10 +13,19 @@ test('project setting scopes are stable by project and setting identity', () => 
   expect(projectSettingMutationScope(projectId, 'structure')).toEqual({
     id: 'project-setting:prj_setting_scope:structure',
   });
+  expect(projectSettingMutationScope(projectId, 'currency')).toEqual(
+    projectSettingMutationScope(projectId, 'structure')
+  );
+  expect(
+    projectSettingMutationScope(projectId, 'company-standards-sync')
+  ).toEqual(projectSettingMutationScope(projectId, 'structure'));
+  expect(
+    projectSettingMutationScope(projectId, 'transaction-transfers')
+  ).toEqual(projectSettingMutationScope(projectId, 'structure'));
 });
 
 describe('scoped project setting mutations', () => {
-  test('serializes a later write that would otherwise finish first', async () => {
+  test('serializes a dependent transfer write behind a structure write', async () => {
     const projectId = asProjectId('prj_setting_order');
     const queryClient = new QueryClient({
       defaultOptions: { mutations: { retry: false } },
@@ -26,10 +35,9 @@ describe('scoped project setting mutations', () => {
     const firstGate = new Promise<void>((resolve) => {
       releaseFirst = resolve;
     });
-    const scope = projectSettingMutationScope(projectId, 'visibility');
     const mutationCache = queryClient.getMutationCache();
     const first = mutationCache.build(queryClient, {
-      scope,
+      scope: projectSettingMutationScope(projectId, 'structure'),
       mutationFn: async () => {
         events.push('first:start');
         await firstGate;
@@ -37,7 +45,7 @@ describe('scoped project setting mutations', () => {
       },
     });
     const second = mutationCache.build(queryClient, {
-      scope,
+      scope: projectSettingMutationScope(projectId, 'transaction-transfers'),
       mutationFn: async () => {
         events.push('second:start');
         events.push('second:finish');

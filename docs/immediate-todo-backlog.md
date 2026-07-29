@@ -352,10 +352,13 @@ way to discover or recover from a settings error.
 
 ### Mutation ordering
 
-Each settings mutation uses a stable project-and-setting scope from
-[mutationScopes.ts](../src/queries/mutationScopes.ts). Writes to the same
-setting identity are serialized by TanStack Query, while unrelated settings
-use different scope IDs and are not unnecessarily queued behind one another.
+Each settings mutation uses a stable project-and-invariant scope from
+[mutationScopes.ts](../src/queries/mutationScopes.ts). Project type, programme
+relationship, currency, standards sync, and transfer capability share the
+structure scope because the server validates and normalizes them together.
+TanStack Query therefore prevents these dependent writes from overtaking one
+another. Visibility and superadmin access remain independent and are not
+unnecessarily queued behind structure writes.
 
 The existing generic project-update hook remains available without a settings
 scope for non-settings callers such as project budget totals.
@@ -371,11 +374,14 @@ Focused component tests cover:
 - retrying the retained explicit draft
 - auto-save rollback after rejection
 - retrying the rejected auto-save value
+- disabling type-dependent controls during a structure save
+- blocking a retained retry after its setting becomes unavailable
+- displaying the confirmed value returned by the server after normalization
 - superadmin confirmation remaining open after rejection
 
-Mutation-scope tests deliberately start a second same-setting write while the
-first is blocked and prove it cannot overtake the first. They also prove that
-independent settings can execute concurrently.
+Mutation-scope tests deliberately start a dependent transfer write while a
+structure write is blocked and prove it cannot overtake the structure change.
+They also prove that independent settings can execute concurrently.
 
 # Pending review items
 

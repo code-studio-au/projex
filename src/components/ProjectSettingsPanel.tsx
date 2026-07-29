@@ -362,16 +362,20 @@ export default function ProjectSettingsPanel(props: {
                 });
             }}
             onSaveSyncCompanyDefaults={async (value) => {
-              await updateCompanyStandardsSync.mutateAsync({
-                id: projectId,
-                syncCompanyDefaults: value,
-              });
+              const updatedProject =
+                await updateCompanyStandardsSync.mutateAsync({
+                  id: projectId,
+                  syncCompanyDefaults: value,
+                });
+              return updatedProject.syncCompanyDefaults;
             }}
             onSaveAllowTxnTransfers={async (value) => {
-              await updateTransactionTransfers.mutateAsync({
-                id: projectId,
-                allowTxnTransfers: value,
-              });
+              const updatedProject =
+                await updateTransactionTransfers.mutateAsync({
+                  id: projectId,
+                  allowTxnTransfers: value,
+                });
+              return updatedProject.allowTxnTransfers;
             }}
           />
         </Stack>

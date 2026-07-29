@@ -20,5 +20,11 @@ export function projectSettingMutationScope(
   projectId: ProjectId,
   setting: ProjectSettingMutationKey
 ) {
-  return { id: `project-setting:${projectId}:${setting}` } as const;
+  const invariantGroup =
+    setting === 'currency' ||
+    setting === 'company-standards-sync' ||
+    setting === 'transaction-transfers'
+      ? 'structure'
+      : setting;
+  return { id: `project-setting:${projectId}:${invariantGroup}` } as const;
 }
