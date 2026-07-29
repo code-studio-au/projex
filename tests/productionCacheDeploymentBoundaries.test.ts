@@ -41,7 +41,7 @@ describe('production cache deployment boundaries', () => {
       'scripts/cache-policy.mjs',
       'dist/client/.vite/manifest.json',
     ]) {
-      expect(createArtifact).toContain(`require_path "${requiredPath}"`);
+      expect(createArtifact).toContain(`require_source_path "${requiredPath}"`);
       expect(activateArtifact).toContain(
         `require_file "$RELEASE_DIR/${requiredPath}"`
       );

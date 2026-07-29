@@ -134,7 +134,9 @@ async function verifyNginxRequestLimits() {
     `${nginxRequestLimitsPath} must retain the bounded ${nginxImportBodyLimit} import allowance`
   );
   assertCondition(
-    createArtifactScript.includes(`require_path "${nginxRequestLimitsPath}"`),
+    createArtifactScript.includes(
+      `require_tooling_path "${nginxRequestLimitsPath}"`
+    ),
     'Deploy artifacts must require the managed nginx request limits'
   );
   assertCondition(
@@ -172,7 +174,9 @@ async function verifyNginxCompression() {
     );
   }
   assertCondition(
-    createArtifactScript.includes(`require_path "${nginxCompressionPath}"`),
+    createArtifactScript.includes(
+      `require_tooling_path "${nginxCompressionPath}"`
+    ),
     'Deploy artifacts must require the managed nginx compression policy'
   );
   assertCondition(
@@ -237,7 +241,9 @@ async function verifyDeployArtifactDependencyPatches() {
     'The brace-expansion compatibility patch must stay registered with pnpm'
   );
   assertCondition(
-    createArtifactScript.includes(`require_path "${braceExpansionPatchPath}"`),
+    createArtifactScript.includes(
+      `require_source_path "${braceExpansionPatchPath}"`
+    ),
     'Deploy artifact creation must require the brace-expansion compatibility patch'
   );
   assertCondition(
@@ -282,10 +288,32 @@ async function verifyDeployReleaseIdentity() {
         'github.event.workflow_run.head_repository.full_name == github.repository'
       ) &&
       releaseWorkflow.includes(
+        'ref: ${{ github.event.workflow_run.head_sha || github.sha }}'
+      ) &&
+      releaseWorkflow.includes(
         'ref: ${{ github.event.workflow_run.head_sha || inputs.recovery_ref }}'
       ) &&
-      deployWorkflow.includes('ref: ${{ steps.release.outputs.git_sha }}'),
-    'Release builds and deployment activation must share a protected-main immutable SHA'
+      releaseWorkflow.includes('path: release-tooling') &&
+      releaseWorkflow.includes('path: application-source') &&
+      deployWorkflow.includes('ref: ${{ github.sha }}') &&
+      !deployWorkflow.includes('ref: ${{ steps.release.outputs.git_sha }}'),
+    'Releases must build immutable application source while packaging and deploying with protected workflow tooling'
+  );
+  assertCondition(
+    releaseWorkflow.includes(
+      'RELEASE_SOURCE_ROOT="$GITHUB_WORKSPACE/application-source"'
+    ) &&
+      releaseWorkflow.includes(
+        'RELEASE_TOOLING_ROOT="$GITHUB_WORKSPACE/release-tooling"'
+      ) &&
+      releaseWorkflow.includes(
+        'bash release-tooling/scripts/create-deploy-artifact.sh'
+      ) &&
+      releaseWorkflow.includes(
+        'node release-tooling/scripts/verify-release-bundle.mjs artifacts'
+      ) &&
+      deployWorkflow.includes('- name: Checkout protected deployment tooling'),
+    'Historical recovery source must not replace the current packaging, verification, or deployment tooling'
   );
   assertCondition(
     releaseWorkflow.includes('BUILD_RUN_ID="$GITHUB_RUN_ID"') &&
@@ -306,7 +334,7 @@ async function verifyDeployReleaseIdentity() {
     releaseWorkflow.includes(
       'uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4'
     ) &&
-      releaseWorkflow.includes('pnpm sbom') &&
+      releaseWorkflow.includes('pnpm --dir application-source sbom') &&
       releaseWorkflow.includes('--prod') &&
       releaseWorkflow.includes('--sbom-format spdx') &&
       releaseWorkflow.includes('retention-days: 90') &&
@@ -498,8 +526,9 @@ async function verifyHostPrivilegeBoundaries() {
     'Fresh hosts must provision the constrained deploy identity and root-owned release tree'
   );
   assertCondition(
-    artifactScript.includes('require_path "deploy/systemd/projex.service"') &&
-      artifactScript.includes('deploy/systemd/projex.service'),
+    artifactScript.includes(
+      'require_tooling_path "deploy/systemd/projex.service"'
+    ) && artifactScript.includes('deploy/systemd/projex.service'),
     'Deploy artifacts must carry the reviewed systemd sandbox definition'
   );
 }
