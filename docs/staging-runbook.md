@@ -316,8 +316,17 @@ Notes:
 After a successful CI push on `main`, the
 [Release workflow](../.github/workflows/release.yml) automatically builds and
 retains the promotable release. Trigger the manual
-[Deploy workflow](../.github/workflows/deploy.yml) with that successful
-Release run ID.
+[Deploy workflow](../.github/workflows/deploy.yml). For staging, select
+`latest-successful`, leave the optional Release run ID empty, and use
+`promote`. The workflow records the resolved Release run ID in its summary.
+For production, select `specific-run-id` and reuse that exact staging-confirmed
+run ID. Exceptional recovery releases and rollback also require
+`specific-run-id`; rollback must select the retained on-host `N-1`.
+
+The workflow derives `Deploy PR #<number> to <environment>` from squash-merge
+metadata, falling back to the short source SHA when no PR suffix is present.
+Optional deployment context is appended after whitespace normalization. The
+complete SSM comment is capped at 100 characters before AWS submission.
 
 Preferred deploy model:
 

@@ -3,9 +3,17 @@ name: Deploy
 on:
   workflow_dispatch:
     inputs:
-      release_run_id:
-        description: Successful Release workflow run ID containing the retained artifact
+      release_selection:
+        description: Use the latest verified release or provide a specific Release run ID
         required: true
+        default: latest-successful
+        type: choice
+        options:
+          - latest-successful
+          - specific-run-id
+      release_run_id:
+        description: Required for production, rollback, or specific-run-id selection
+        required: false
         type: string
       deployment_mode:
         description: Promote a release or roll back to the retained N-1 release
@@ -15,9 +23,9 @@ on:
         options:
           - promote
           - rollback
-      deployment_reason:
-        description: Auditable change, incident, or rollback reason
-        required: true
+      deployment_context:
+        description: Optional context appended to the derived PR or SHA deployment reason
+        required: false
         type: string
       environment_name:
         description: Protected deployment environment
@@ -65,20 +73,33 @@ jobs:
     steps:
       - name: Validate protected deployment request
         env:
-          DEPLOYMENT_REASON: ${{ inputs.deployment_reason }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
+          DEPLOY_MODE: ${{ inputs.deployment_mode }}
           DEPLOY_WORKFLOW_REF: ${{ github.ref }}
           RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          RELEASE_SELECTION: ${{ inputs.release_selection }}
         run: |
           if [[ "$DEPLOY_WORKFLOW_REF" != "refs/heads/main" ]]; then
             echo "EC2 deployments must be dispatched from main." >&2
             exit 1
           fi
-          if [[ ! "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
-            echo "release_run_id must be a positive GitHub Actions run ID." >&2
+          if [[ "$RELEASE_SELECTION" == "specific-run-id" ]]; then
+            if [[ ! "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+              echo "Specific release selection requires a positive Release run ID." >&2
+              exit 1
+            fi
+          elif [[ -n "${RELEASE_RUN_ID//[[:space:]]/}" ]]; then
+            echo "Leave release_run_id empty when selecting latest-successful." >&2
             exit 1
           fi
-          if [[ -z "${DEPLOYMENT_REASON//[[:space:]]/}" ]]; then
-            echo "Deployment requests require an auditable reason." >&2
+          if [[ "$DEPLOY_ENVIRONMENT" == "production" &&
+            "$RELEASE_SELECTION" != "specific-run-id" ]]; then
+            echo "Production promotion requires the specific Release run tested in staging." >&2
+            exit 1
+          fi
+          if [[ "$DEPLOY_MODE" == "rollback" &&
+            "$RELEASE_SELECTION" != "specific-run-id" ]]; then
+            echo "Rollback requires the specific retained N-1 Release run ID." >&2
             exit 1
           fi
 
@@ -87,23 +108,46 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
-      - name: Validate selected release workflow run
+      - name: Resolve and validate selected Release workflow run
+        id: selected-release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          INPUT_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          RELEASE_SELECTION: ${{ inputs.release_selection }}
         run: |
+          RELEASE_RUN_ID="$INPUT_RELEASE_RUN_ID"
+          if [[ "$RELEASE_SELECTION" == "latest-successful" ]]; then
+            RELEASE_RUN_ID="$(
+              gh api \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml/runs?branch=main&status=success&per_page=20" \
+                --jq '[
+                  .workflow_runs[]
+                  | select(
+                      .path == ".github/workflows/release.yml" and
+                      .event == "workflow_run"
+                    )
+                ][0].id // empty'
+            )"
+          fi
+          if [[ ! "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "No eligible successful Release workflow run was found." >&2
+            exit 1
+          fi
+
           RUN_DETAILS="$(
             gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RELEASE_RUN_ID}" \
-              --jq '[.path, .conclusion, .head_branch, .event] | @tsv'
+              --jq '[.id, .path, .conclusion, .head_branch, .event] | @tsv'
           )"
-          IFS=$'\t' read -r RUN_PATH RUN_CONCLUSION RUN_BRANCH RUN_EVENT <<<"$RUN_DETAILS"
-          if [[ "$RUN_PATH" != ".github/workflows/release.yml" ||
+          IFS=$'\t' read -r RUN_ID RUN_PATH RUN_CONCLUSION RUN_BRANCH RUN_EVENT <<<"$RUN_DETAILS"
+          if [[ "$RUN_ID" != "$RELEASE_RUN_ID" ||
+            "$RUN_PATH" != ".github/workflows/release.yml" ||
             "$RUN_CONCLUSION" != "success" ||
             "$RUN_BRANCH" != "main" ||
             ( "$RUN_EVENT" != "workflow_run" && "$RUN_EVENT" != "workflow_dispatch" ) ]]; then
             echo "Selected run must be a successful Release workflow run on main." >&2
             exit 1
           fi
+          echo "run_id=${RELEASE_RUN_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Download retained release bundle
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -112,11 +156,44 @@ jobs:
           merge-multiple: true
           path: artifacts
           pattern: projex-release-*
-          run-id: ${{ inputs.release_run_id }}
+          run-id: ${{ steps.selected-release.outputs.run_id }}
 
       - name: Validate retained release bundle
         id: release
         run: node scripts/verify-release-bundle.mjs artifacts
+
+      - name: Resolve auditable deployment reason
+        id: deployment
+        env:
+          DEPLOYMENT_CONTEXT: ${{ inputs.deployment_context }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
+          DEPLOY_MODE: ${{ inputs.deployment_mode }}
+          EXPECTED_GIT_SHA: ${{ steps.release.outputs.git_sha }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
+        run: |
+          DEPLOY_COMMIT_SUBJECT="$(
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${EXPECTED_GIT_SHA}" \
+              --jq '.commit.message | split("\n")[0]'
+          )"
+          export DEPLOY_COMMIT_SUBJECT
+          node scripts/deploy-request-metadata.mjs
+
+      - name: Summarize resolved deployment request
+        env:
+          DEPLOYMENT_REASON: ${{ steps.deployment.outputs.deployment_reason }}
+          EXPECTED_GIT_SHA: ${{ steps.release.outputs.git_sha }}
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
+          RELEASE_RUN_ID: ${{ steps.selected-release.outputs.run_id }}
+        run: |
+          {
+            echo "### Resolved deployment request"
+            echo
+            echo "- Release run: \`${RELEASE_RUN_ID}\`"
+            echo "- Release: \`${RELEASE_ID}\`"
+            echo "- Source: \`${EXPECTED_GIT_SHA}\`"
+            echo "- Reason: ${DEPLOYMENT_REASON}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify signed release provenance and SBOM
         env:
@@ -196,7 +273,6 @@ jobs:
           ARTIFACT_S3_URI: ${{ steps.upload-artifact-s3.outputs.artifact_s3_uri }}
           DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
           DEPLOY_MODE: ${{ inputs.deployment_mode }}
-          DEPLOYMENT_REASON: ${{ inputs.deployment_reason }}
           EC2_APP_ROOT: ${{ env.DEPLOY_EC2_APP_ROOT }}
           EC2_ENV_FILE: ${{ env.DEPLOY_EC2_ENV_FILE }}
           EC2_HEALTH_URL: ${{ env.DEPLOY_EC2_HEALTH_URL }}
@@ -209,6 +285,7 @@ jobs:
           EXPECTED_BUILD_RUN_ID: ${{ steps.release.outputs.build_run_id }}
           EXPECTED_GIT_SHA: ${{ steps.release.outputs.git_sha }}
           RELEASE_ID: ${{ steps.release.outputs.release_id }}
+          SSM_COMMENT: ${{ steps.deployment.outputs.ssm_comment }}
         run: |
           test -n "$EC2_INSTANCE_ID"
           test -n "$ARTIFACT_S3_URI"
@@ -262,7 +339,7 @@ jobs:
               --region "${{ inputs.aws_region }}" \
               --instance-ids "$EC2_INSTANCE_ID" \
               --document-name AWS-RunShellScript \
-              --comment "Projex ${DEPLOY_MODE} ${RELEASE_ID}: ${DEPLOYMENT_REASON:0:40}" \
+              --comment "$SSM_COMMENT" \
               --parameters file:///tmp/projex-ssm-commands.json \
               --query 'Command.CommandId' \
               --output text

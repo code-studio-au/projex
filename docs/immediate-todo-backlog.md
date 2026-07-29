@@ -426,6 +426,14 @@ S3/SSM handoff. The same retained bytes can therefore move through staging and
 production while each protected environment keeps its own approval and OIDC
 role.
 
+Staging can resolve the latest automatically verified retained Release without
+manual ID lookup. Exceptional recovery releases, production, and rollback
+require an explicit Release run ID, preserving the exact
+staging-to-production promotion and on-host `N-1` boundaries. Deployment
+reasons are derived from the source PR number or SHA and target environment,
+with optional normalized operator context; the complete SSM comment is capped
+at AWS's 100-character limit.
+
 Exceptional rebuilds use an explicitly labelled `recovery` mode, require an
 auditable reason and a main-reachable revision, and re-run the former deploy
 verification gates before packaging. Controlled `rollback` deployments must
@@ -450,6 +458,9 @@ activation tooling used to produce or deploy the recovery bundle.
 - recovery-boundary tests prove historical application bytes are preserved
   while obsolete packaging and deployment tooling is replaced by the trusted
   protected-main release envelope
+- deployment-request tests cover PR/SHA reason derivation, context
+  normalization, latest-versus-specific selection boundaries, and the complete
+  AWS SSM comment length limit
 - repository security verification enforces the successful-main CI boundary,
   pinned attestation action, production SBOM, 90-day retention, signed
   verification on consumption, protected environment OIDC, and the absence of

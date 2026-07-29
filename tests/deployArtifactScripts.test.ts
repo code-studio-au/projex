@@ -1228,7 +1228,9 @@ describe('deploy workflow retained release identity', () => {
   test('deploys the build identity selected from a retained release run', async () => {
     const workflow = await readFile(deployWorkflow, 'utf8');
 
-    expect(workflow).toContain('run-id: ${{ inputs.release_run_id }}');
+    expect(workflow).toContain(
+      'run-id: ${{ steps.selected-release.outputs.run_id }}'
+    );
     expect(workflow).toContain(
       'EXPECTED_BUILD_RUN_ATTEMPT: ${{ steps.release.outputs.build_run_attempt }}'
     );
@@ -1236,6 +1238,37 @@ describe('deploy workflow retained release identity', () => {
       'EXPECTED_BUILD_RUN_ID: ${{ steps.release.outputs.build_run_id }}'
     );
     expect(workflow).not.toContain('pnpm run build');
+  });
+
+  test('resolves latest staging releases while requiring explicit production and rollback identity', async () => {
+    const workflow = await readFile(deployWorkflow, 'utf8');
+
+    expect(workflow).toContain('release_selection:');
+    expect(workflow).toContain('- latest-successful');
+    expect(workflow).toContain('- specific-run-id');
+    expect(workflow).toContain(
+      'actions/workflows/release.yml/runs?branch=main&status=success&per_page=20'
+    );
+    expect(workflow).toContain(
+      'Production promotion requires the specific Release run tested in staging.'
+    );
+    expect(workflow).toContain(
+      'Rollback requires the specific retained N-1 Release run ID.'
+    );
+  });
+
+  test('derives the audit reason and bounds the complete SSM comment', async () => {
+    const workflow = await readFile(deployWorkflow, 'utf8');
+
+    expect(workflow).toContain('node scripts/deploy-request-metadata.mjs');
+    expect(workflow).toContain(
+      'DEPLOYMENT_CONTEXT: ${{ inputs.deployment_context }}'
+    );
+    expect(workflow).toContain(
+      'SSM_COMMENT: ${{ steps.deployment.outputs.ssm_comment }}'
+    );
+    expect(workflow).toContain('--comment "$SSM_COMMENT"');
+    expect(workflow).not.toContain('${DEPLOYMENT_REASON:0:40}');
   });
 
   test('keeps recovery application source separate from trusted release tooling', async () => {
