@@ -82,10 +82,10 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout protected workflow source
+      - name: Checkout protected deployment tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
 
       - name: Validate selected release workflow run
         env:
@@ -143,12 +143,6 @@ jobs:
               JSON.parse(fs.readFileSync(process.argv[2], "utf8"))
             );
           ' "$SBOM_PATH" artifacts/attested-sbom.spdx.json
-
-      - name: Checkout immutable release source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          clean: false
-          ref: ${{ steps.release.outputs.git_sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6

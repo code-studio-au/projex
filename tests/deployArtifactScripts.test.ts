@@ -24,6 +24,7 @@ const createArtifactScript = join(
   'scripts/create-deploy-artifact.sh'
 );
 const deployWorkflow = join(repoRoot, '.github/workflows/deploy.yml');
+const releaseWorkflow = join(repoRoot, '.github/workflows/release.yml');
 const ssmDeployScript = join(repoRoot, 'scripts/deploy-artifact-ssm.sh');
 const ec2DeployScript = join(repoRoot, 'scripts/deploy-artifact-ec2.sh');
 const letsEncryptScript = join(
@@ -224,8 +225,8 @@ printf '%s\\n' "$RELEASE_ID" >"$APP_ROOT/executed-release"
   };
 }
 
-async function createArtifactSourceTree(root: string) {
-  const sourceRoot = join(root, 'source');
+async function createArtifactSourceTree(root: string, name = 'source') {
+  const sourceRoot = join(root, name);
   const requiredFiles = [
     'dist/server/server.js',
     'dist/client/index.html',
@@ -488,6 +489,80 @@ describe('create-deploy-artifact.sh', () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('RELEASE_ID must match');
+  });
+
+  test('packages historical application bytes with trusted current deployment tooling', async () => {
+    const root = await makeTemporaryRoot();
+    const sourceRoot = await createArtifactSourceTree(
+      root,
+      'historical-application'
+    );
+    const toolingRoot = await createArtifactSourceTree(root, 'trusted-tooling');
+    const artifactsRoot = join(root, 'artifacts');
+    const releaseId = 'recovery-aaaaaaaaaaaa-run100-attempt1';
+    const artifactName = `projex-${releaseId}.tar.gz`;
+
+    await writeFile(
+      join(sourceRoot, 'scripts/start-server.mjs'),
+      'historical application\n'
+    );
+    await writeFile(
+      join(sourceRoot, 'scripts/deploy-artifact-ec2.sh'),
+      'obsolete schema-1 deployment tooling\n'
+    );
+    await writeFile(
+      join(toolingRoot, 'scripts/deploy-artifact-ec2.sh'),
+      'trusted schema-2 deployment tooling\n'
+    );
+    await writeFile(
+      join(toolingRoot, 'deploy/nginx/projex-compression.conf'),
+      'trusted deployment configuration\n'
+    );
+
+    const result = spawnSync('bash', [createArtifactScript], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ARTIFACTS_DIR: artifactsRoot,
+        ARTIFACT_NAME: artifactName,
+        BUILD_MODE: 'recovery',
+        BUILD_RUN_ATTEMPT: '1',
+        BUILD_RUN_ID: '100',
+        BUILD_WORKFLOW: 'release',
+        GIT_SHA: gitSha,
+        RELEASE_ID: releaseId,
+        RELEASE_SOURCE_ROOT: sourceRoot,
+        RELEASE_TOOLING_ROOT: toolingRoot,
+      },
+    });
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+
+    const extractRoot = join(root, 'recovered-release');
+    await mkdir(extractRoot);
+    const extract = spawnSync(
+      'tar',
+      ['-xzf', join(artifactsRoot, artifactName), '-C', extractRoot],
+      { encoding: 'utf8' }
+    );
+    expect(extract.status, extract.stderr).toBe(0);
+    await expect(
+      readFile(join(extractRoot, 'scripts/start-server.mjs'), 'utf8')
+    ).resolves.toBe('historical application\n');
+    await expect(
+      readFile(join(extractRoot, 'scripts/deploy-artifact-ec2.sh'), 'utf8')
+    ).resolves.toBe('trusted schema-2 deployment tooling\n');
+    await expect(
+      readFile(
+        join(extractRoot, 'deploy/nginx/projex-compression.conf'),
+        'utf8'
+      )
+    ).resolves.toBe('trusted deployment configuration\n');
+    await expect(
+      readFile(join(extractRoot, '.projex-release.json'), 'utf8').then(
+        (value) => JSON.parse(value) as { schemaVersion: number }
+      )
+    ).resolves.toMatchObject({ schemaVersion: 2 });
   });
 });
 
@@ -1161,5 +1236,29 @@ describe('deploy workflow retained release identity', () => {
       'EXPECTED_BUILD_RUN_ID: ${{ steps.release.outputs.build_run_id }}'
     );
     expect(workflow).not.toContain('pnpm run build');
+  });
+
+  test('keeps recovery application source separate from trusted release tooling', async () => {
+    const [release, deploy] = await Promise.all([
+      readFile(releaseWorkflow, 'utf8'),
+      readFile(deployWorkflow, 'utf8'),
+    ]);
+
+    expect(release).toContain('path: release-tooling');
+    expect(release).toContain(
+      'ref: ${{ github.event.workflow_run.head_sha || github.sha }}'
+    );
+    expect(release).toContain('path: application-source');
+    expect(release).toContain(
+      'ref: ${{ github.event.workflow_run.head_sha || inputs.recovery_ref }}'
+    );
+    expect(release).toContain(
+      'bash release-tooling/scripts/create-deploy-artifact.sh'
+    );
+    expect(release).toContain(
+      'node release-tooling/scripts/verify-release-bundle.mjs artifacts'
+    );
+    expect(deploy).toContain('ref: ${{ github.sha }}');
+    expect(deploy).not.toContain('ref: ${{ steps.release.outputs.git_sha }}');
   });
 });

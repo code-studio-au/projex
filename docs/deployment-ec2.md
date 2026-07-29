@@ -347,7 +347,13 @@ If the normal retained bundle is unavailable, manually dispatch
 `.github/workflows/release.yml` from `main` with a main-reachable SHA/ref and
 an auditable recovery reason. This exceptional path is labelled `recovery` in
 the manifest and reruns application, CDK, database, server-smoke, and Chromium
-browser gates before it rebuilds.
+browser gates before it rebuilds. The historical application source is checked
+out separately from the protected-main release tooling: verification and the
+production build run against the selected revision, while schema-v2 packaging,
+bundle verification, deployment scripts, systemd configuration, and nginx
+configuration come from the protected workflow revision. A recovery ref
+therefore cannot downgrade or remove the release integrity tooling needed to
+package and activate it.
 
 The deploy host does not need GitHub network access or SSH keys. The runner
 uploads the release tarball to `EC2_DEPLOY_ARTIFACT_BUCKET`, then invokes SSM,

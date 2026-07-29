@@ -65,14 +65,23 @@ jobs:
       PROJEX_ENABLE_SMOKE_TOOLS: 'false'
 
     steps:
-      - name: Checkout immutable release source
+      - name: Checkout protected release tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          path: release-tooling
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Checkout immutable application source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          path: application-source
           ref: ${{ github.event.workflow_run.head_sha || inputs.recovery_ref }}
 
       - name: Validate and resolve release source
         id: source
+        working-directory: application-source
         env:
           EVENT_NAME: ${{ github.event_name }}
           RECOVERY_REASON: ${{ inputs.recovery_reason }}
@@ -131,16 +140,20 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+          cache-dependency-path: application-source/pnpm-lock.yaml
 
       - name: Install dependencies
+        working-directory: application-source
         run: pnpm install --frozen-lockfile
 
       - name: Install recovery browser
         if: ${{ steps.source.outputs.build_mode == 'recovery' }}
+        working-directory: application-source
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Re-run verification gates for recovery build
         if: ${{ steps.source.outputs.build_mode == 'recovery' }}
+        working-directory: application-source
         run: |
           pnpm run verify:app
           pnpm run verify:cdk
@@ -149,6 +162,7 @@ jobs:
           pnpm run verify:smoke:browser:full:skip-build
 
       - name: Build production release payload
+        working-directory: application-source
         env:
           NODE_ENV: production
           PROJEX_APP_BASE_URL: https://projex.test.invalid
@@ -173,16 +187,19 @@ jobs:
           ARTIFACT_PATH="artifacts/${ARTIFACT_NAME}"
           SBOM_PATH="artifacts/projex-${RELEASE_ID}.sbom.spdx.json"
 
-          GIT_SHA="$SOURCE_GIT_SHA" \
+          RELEASE_SOURCE_ROOT="$GITHUB_WORKSPACE/application-source" \
+            RELEASE_TOOLING_ROOT="$GITHUB_WORKSPACE/release-tooling" \
+            ARTIFACTS_DIR="$GITHUB_WORKSPACE/artifacts" \
+            GIT_SHA="$SOURCE_GIT_SHA" \
             BUILD_WORKFLOW=release \
             BUILD_MODE="$BUILD_MODE" \
             BUILD_RUN_ID="$GITHUB_RUN_ID" \
             BUILD_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
             RELEASE_ID="$RELEASE_ID" \
             ARTIFACT_NAME="$ARTIFACT_NAME" \
-            pnpm run deploy:artifact:create
+            bash release-tooling/scripts/create-deploy-artifact.sh
 
-          pnpm sbom \
+          pnpm --dir application-source sbom \
             --prod \
             --sbom-format spdx \
             --sbom-type application \
@@ -191,7 +208,7 @@ jobs:
             cd artifacts
             sha256sum "$ARTIFACT_NAME" >"${ARTIFACT_NAME}.sha256"
           )
-          node scripts/verify-release-bundle.mjs artifacts
+          node release-tooling/scripts/verify-release-bundle.mjs artifacts
           {
             echo "artifact_name=${ARTIFACT_NAME}"
             echo "artifact_path=${ARTIFACT_PATH}"

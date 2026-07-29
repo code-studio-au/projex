@@ -433,6 +433,13 @@ select the on-host `previous` release recorded after the last successful
 activation. That confines application rollback to the manifest-verified `N-1`
 candidate covered by the forward-only migration compatibility contract.
 
+Recovery checks out the selected application revision separately from the
+protected workflow revision. The historical checkout owns dependency
+installation, verification, and the application build; protected-main tooling
+owns schema-v2 packaging, bundle verification, deploy scripts, systemd, and
+nginx. Historical refs therefore cannot silently replace the integrity and
+activation tooling used to produce or deploy the recovery bundle.
+
 ### Verification and regression protection
 
 - release-bundle tests cover correct provenance identity, checksum drift,
@@ -440,6 +447,9 @@ candidate covered by the forward-only migration compatibility contract.
 - deploy-script tests cover idempotent activation, retained-release
   replacement, previous-release recording, migration failure, readiness
   rollback, accepted `N-1` rollback, and rejection of older rollback targets
+- recovery-boundary tests prove historical application bytes are preserved
+  while obsolete packaging and deployment tooling is replaced by the trusted
+  protected-main release envelope
 - repository security verification enforces the successful-main CI boundary,
   pinned attestation action, production SBOM, 90-day retention, signed
   verification on consumption, protected environment OIDC, and the absence of

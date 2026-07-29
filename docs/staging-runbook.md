@@ -355,7 +355,10 @@ This is the single supported deployment path. The repo never builds on the
 host. If a retained artifact is unavailable, manually dispatch the Release
 workflow from `main`: supply a main-reachable SHA/ref and an auditable recovery
 reason. Recovery releases are distinctly labelled and re-run the full
-verification gates before rebuilding.
+verification gates before rebuilding. The workflow builds that historical
+application checkout but packages it with the protected-main schema-v2 release
+and deployment tooling. Do not copy packaging, bundle-verification, SSM/EC2,
+systemd, or nginx tooling from the historical recovery ref.
 
 ## Post-Deploy Smoke Test
 
