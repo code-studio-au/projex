@@ -48,6 +48,7 @@ export function buildHostBootstrapCommands() {
   const nginxRequestLimits = readRepoFile(
     'deploy/nginx/projex-request-limits.conf'
   );
+  const nginxCompression = readRepoFile('deploy/nginx/projex-compression.conf');
   const envExample = readRepoFile('.env.example');
   const hostEnvExample = envExample
     .replace('# PG_SSL_MODE=require', 'PG_SSL_MODE=require')
@@ -116,6 +117,11 @@ export function buildHostBootstrapCommands() {
     installFileCommand(
       '/etc/nginx/conf.d/projex-request-limits.conf',
       nginxRequestLimits,
+      '0644'
+    ),
+    installFileCommand(
+      '/etc/nginx/conf.d/projex-compression.conf',
+      nginxCompression,
       '0644'
     ),
     installFileCommand(

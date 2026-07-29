@@ -20,6 +20,7 @@ HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-60}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-60}"
 HTTP_CHECK_INTERVAL_SECONDS="${HTTP_CHECK_INTERVAL_SECONDS:-2}"
 NGINX_REQUEST_LIMITS_PATH="${NGINX_REQUEST_LIMITS_PATH:-/etc/nginx/conf.d/projex-request-limits.conf}"
+NGINX_COMPRESSION_PATH="${NGINX_COMPRESSION_PATH:-/etc/nginx/conf.d/projex-compression.conf}"
 SYSTEMD_SERVICE_PATH="${SYSTEMD_SERVICE_PATH:-}"
 RELEASES_DIR=""
 NEXT_LINK=""
@@ -418,6 +419,7 @@ require_file "$RELEASE_DIR/scripts/run-release-migrations.mjs"
 require_file "$RELEASE_DIR/scripts/deploy-artifact-ec2.sh"
 require_file "$RELEASE_DIR/deploy/nginx/maintenance.html"
 require_file "$RELEASE_DIR/deploy/nginx/maintenance.js"
+require_file "$RELEASE_DIR/deploy/nginx/projex-compression.conf"
 require_file "$RELEASE_DIR/deploy/nginx/projex-request-limits.conf"
 require_file "$RELEASE_DIR/deploy/systemd/projex.service"
 
@@ -504,12 +506,15 @@ sudo install -o root -g root -m 0644 \
   "$RELEASE_DIR/deploy/nginx/maintenance.js" \
   "$SHARED_DIR/nginx-maintenance/maintenance.js"
 
-log "Refreshing nginx request limits"
+log "Refreshing managed nginx configuration"
 sudo install -m 0644 \
   "$RELEASE_DIR/deploy/nginx/projex-request-limits.conf" \
   "$NGINX_REQUEST_LIMITS_PATH"
+sudo install -m 0644 \
+  "$RELEASE_DIR/deploy/nginx/projex-compression.conf" \
+  "$NGINX_COMPRESSION_PATH"
 if ! sudo nginx -t; then
-  fail "Nginx configuration validation failed after refreshing request limits"
+  fail "Nginx configuration validation failed after refreshing managed configuration"
 fi
 sudo systemctl reload nginx
 

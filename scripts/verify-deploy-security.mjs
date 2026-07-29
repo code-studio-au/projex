@@ -7,6 +7,21 @@ const verifyAuthPassword =
   process.env.PROJEX_VERIFY_AUTH_PASSWORD?.trim() ?? '';
 
 const baseUrl = new URL(configuredBaseUrl);
+const compressionRequirementOverride =
+  process.env.PROJEX_VERIFY_REQUIRE_COMPRESSION?.trim();
+
+function parseOptionalBoolean(value, name) {
+  if (value === undefined || value === '') return undefined;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`${name} must be true or false`);
+}
+
+const requireCompression =
+  parseOptionalBoolean(
+    compressionRequirementOverride,
+    'PROJEX_VERIFY_REQUIRE_COMPRESSION'
+  ) ?? baseUrl.protocol === 'https:';
 
 function assertCondition(condition, message) {
   if (!condition) {
@@ -23,7 +38,10 @@ async function fetchWithRedirectControl(url, init) {
 
 function requireHeader(headers, name, predicate, message) {
   const value = headers.get(name);
-  assertCondition(value !== null, `Missing required header: ${name}`);
+  assertCondition(
+    value !== null,
+    message ?? `Missing required header: ${name}`
+  );
   assertCondition(predicate(value), message ?? `Invalid header: ${name}`);
   return value;
 }
@@ -42,7 +60,9 @@ async function verifyHealthEndpoints() {
 }
 
 async function verifyHtmlHeaders() {
-  const login = await fetchWithRedirectControl(new URL('/login', baseUrl));
+  const login = await fetchWithRedirectControl(new URL('/login', baseUrl), {
+    headers: { 'accept-encoding': 'gzip, br' },
+  });
   assertCondition(login.status === 200, `/login returned ${login.status}`);
 
   const csp = requireHeader(
@@ -96,6 +116,89 @@ async function verifyHtmlHeaders() {
     requireHeader(login.headers, 'strict-transport-security', (value) =>
       value.toLowerCase().includes('max-age=')
     );
+  }
+
+  return { html, response: login };
+}
+
+function requireCompressedResponse(response, label) {
+  const contentEncoding = requireHeader(
+    response.headers,
+    'content-encoding',
+    (value) =>
+      value
+        .toLowerCase()
+        .split(',')
+        .map((encoding) => encoding.trim())
+        .some((encoding) => encoding === 'gzip' || encoding === 'br'),
+    `${label} must be served with gzip or Brotli compression`
+  );
+  requireHeader(
+    response.headers,
+    'vary',
+    (value) =>
+      value
+        .toLowerCase()
+        .split(',')
+        .map((headerName) => headerName.trim())
+        .includes('accept-encoding'),
+    `${label} must include Vary: Accept-Encoding`
+  );
+  return contentEncoding;
+}
+
+function findSameOriginAsset(html, attributeName, extension) {
+  const attributePattern =
+    attributeName === 'src'
+      ? /src\s*=\s*["']([^"']+)["']/gi
+      : /href\s*=\s*["']([^"']+)["']/gi;
+  let match;
+  while ((match = attributePattern.exec(html)) !== null) {
+    const candidate = match[1]?.replaceAll('&amp;', '&');
+    if (!candidate) continue;
+    const assetUrl = new URL(candidate, baseUrl);
+    if (
+      assetUrl.origin === baseUrl.origin &&
+      assetUrl.pathname.toLowerCase().endsWith(extension)
+    ) {
+      return assetUrl;
+    }
+  }
+  return null;
+}
+
+async function verifyResponseCompression(loginPage) {
+  if (!requireCompression) {
+    console.log(
+      'Skipping response compression verification for a non-HTTPS target.'
+    );
+    return;
+  }
+
+  requireCompressedResponse(loginPage.response, '/login');
+
+  for (const asset of [
+    { attributeName: 'src', extension: '.js', label: 'JavaScript' },
+    { attributeName: 'href', extension: '.css', label: 'CSS' },
+  ]) {
+    const assetUrl = findSameOriginAsset(
+      loginPage.html,
+      asset.attributeName,
+      asset.extension
+    );
+    assertCondition(
+      assetUrl,
+      `/login did not reference a same-origin ${asset.label} asset`
+    );
+    const response = await fetchWithRedirectControl(assetUrl, {
+      headers: { 'accept-encoding': 'gzip, br' },
+    });
+    assertCondition(
+      response.status === 200,
+      `${asset.label} asset returned ${response.status}`
+    );
+    requireCompressedResponse(response, `${asset.label} asset`);
+    await response.body?.cancel();
   }
 }
 
@@ -252,7 +355,8 @@ async function main() {
   console.log(`Verifying deployed security surface at ${baseUrl.origin}`);
   await verifyHealthEndpoints();
   await verifySessionEndpointCacheControl();
-  await verifyHtmlHeaders();
+  const loginPage = await verifyHtmlHeaders();
+  await verifyResponseCompression(loginPage);
   await verifyNonProductionEndpointsDisabled();
   await verifyAuthSessionCookies();
   await verifyHttpsRedirect();

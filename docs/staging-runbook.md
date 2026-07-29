@@ -68,6 +68,7 @@ Before cutting over or handing a deployed environment to another developer, conf
 - Unauthorized requests return `401` and scoped resources are not visible across companies/projects.
 - The public proxy uses `deploy/nginx/projex.conf` or equivalent HTTPS redirect, forwarded headers, hardening headers, and maintenance fallback behavior.
 - Nginx loads `/etc/nginx/conf.d/projex-request-limits.conf`, which keeps application request bodies bounded at `16m` while allowing validated bulk import commits.
+- Nginx loads `/etc/nginx/conf.d/projex-compression.conf`, which gzip-compresses proxied HTML, JavaScript, CSS, JSON, XML, and SVG responses and emits `Vary: Accept-Encoding`.
 - If the host was created through CDK, the HTTP bootstrap nginx config has been promoted to HTTPS with `/usr/local/bin/projex-provision-letsencrypt-cert`.
 - The generated HTTPS config uses the HTTP/2 syntax supported by the installed
   nginx version, and `nginx -t` succeeds.
@@ -132,6 +133,8 @@ pnpm run verify:deploy-security
 ```
 
 When auth credentials are provided, the verifier also checks that sign-in sets `HttpOnly` cookies, requires `Secure` on HTTPS deployments, and that authenticated `/api/session` returns a `userId`.
+For HTTPS targets it also requires compressed HTML, JavaScript, and CSS
+responses with `Vary: Accept-Encoding`.
 
 GitHub Actions deploys expect the following configuration on the target GitHub
 environment when `deploy_target=ec2` is used:
@@ -294,6 +297,8 @@ Notes:
   - site-wide security headers
   - forwarded host/proto/IP headers
   - maintenance fallback page during upstream restart windows
+- Keep the sibling `deploy/nginx/projex-compression.conf` managed include
+  installed. Standard EC2 artifact deployments refresh it automatically.
 
 ## Deploy
 
@@ -487,6 +492,29 @@ activated release manually, run:
 sudo install -m 0644 \
   /opt/projex/current/deploy/nginx/projex-request-limits.conf \
   /etc/nginx/conf.d/projex-request-limits.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+If HTML or static assets are returned without `Content-Encoding`, confirm the
+managed compression include is active:
+
+```bash
+sudo cat /etc/nginx/conf.d/projex-compression.conf
+sudo nginx -T | grep -E 'gzip(_vary|_proxied|_types)? '
+curl -sS -D - -o /dev/null \
+  -H 'Accept-Encoding: gzip, br' \
+  https://projectexpensetracker.com/login
+```
+
+The public response should include `Content-Encoding: gzip` and
+`Vary: Accept-Encoding`. Routine artifact deployment installs the include. To
+recover manually:
+
+```bash
+sudo install -m 0644 \
+  /opt/projex/current/deploy/nginx/projex-compression.conf \
+  /etc/nginx/conf.d/projex-compression.conf
 sudo nginx -t
 sudo systemctl reload nginx
 ```

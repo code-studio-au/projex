@@ -402,7 +402,7 @@ Operational defaults:
 - `package.json` override rationale lives in [docs/dependency-overrides.md](docs/dependency-overrides.md).
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
 - API responses include `x-request-id`; structured request logs are emitted server-side. Deliberate `AppError` messages form the public error contract, while unexpected exception details are replaced with a generic response and retained only in request-ID error logs.
-- Public deployments should use the nginx template at `deploy/nginx/projex.conf` for HTTPS redirects, security headers, forwarded headers, and the restart maintenance page.
+- Public deployments should use the nginx template at `deploy/nginx/projex.conf` plus the managed `deploy/nginx/projex-compression.conf` include for HTTPS redirects, security headers, forwarded headers, compressed responses, cache-safe `Vary` handling, and the restart maintenance page.
 - The Node SSR wrapper stays on the known-good `h3-v2` RC alias for now.
   `h3@2.0.0` is deprecated upstream, and swapping to the newer direct `h3`
   package line currently regresses the SSR login route in smoke verification.
