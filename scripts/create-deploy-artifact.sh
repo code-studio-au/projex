@@ -3,10 +3,11 @@ set -euo pipefail
 
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-artifacts}"
 GIT_SHA="${GIT_SHA:-$(git rev-parse HEAD)}"
-DEPLOY_ENVIRONMENT="${DEPLOY_ENVIRONMENT:-local}"
-DEPLOY_RUN_ID="${DEPLOY_RUN_ID:-local}"
-DEPLOY_RUN_ATTEMPT="${DEPLOY_RUN_ATTEMPT:-1}"
-RELEASE_ID="${RELEASE_ID:-${DEPLOY_ENVIRONMENT}-${GIT_SHA:0:12}-run${DEPLOY_RUN_ID}-attempt${DEPLOY_RUN_ATTEMPT}}"
+BUILD_WORKFLOW="${BUILD_WORKFLOW:-local}"
+BUILD_MODE="${BUILD_MODE:-local}"
+BUILD_RUN_ID="${BUILD_RUN_ID:-local}"
+BUILD_RUN_ATTEMPT="${BUILD_RUN_ATTEMPT:-1}"
+RELEASE_ID="${RELEASE_ID:-${BUILD_MODE}-${GIT_SHA:0:12}-run${BUILD_RUN_ID}-attempt${BUILD_RUN_ATTEMPT}}"
 ARTIFACT_NAME="${ARTIFACT_NAME:-projex-${RELEASE_ID}.tar.gz}"
 ARTIFACT_PATH="${ARTIFACT_PATH:-${ARTIFACTS_DIR}/${ARTIFACT_NAME}}"
 MANIFEST_DIR=""
@@ -45,9 +46,10 @@ if [[ ! "$GIT_SHA" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
   exit 1
 fi
 
-validate_identifier "DEPLOY_ENVIRONMENT" "$DEPLOY_ENVIRONMENT"
-validate_identifier "DEPLOY_RUN_ID" "$DEPLOY_RUN_ID"
-validate_identifier "DEPLOY_RUN_ATTEMPT" "$DEPLOY_RUN_ATTEMPT"
+validate_identifier "BUILD_WORKFLOW" "$BUILD_WORKFLOW"
+validate_identifier "BUILD_MODE" "$BUILD_MODE"
+validate_identifier "BUILD_RUN_ID" "$BUILD_RUN_ID"
+validate_identifier "BUILD_RUN_ATTEMPT" "$BUILD_RUN_ATTEMPT"
 validate_identifier "RELEASE_ID" "$RELEASE_ID"
 
 if [[ ! "$ARTIFACT_NAME" =~ ^projex-[a-z0-9][a-z0-9.-]{0,127}\.tar\.gz$ ]]; then
@@ -98,12 +100,13 @@ rm -f "$ARTIFACT_PATH"
 
 MANIFEST_DIR="$(mktemp -d)"
 printf \
-  '{\n  "schemaVersion": 1,\n  "releaseId": "%s",\n  "gitSha": "%s",\n  "environment": "%s",\n  "runId": "%s",\n  "runAttempt": "%s"\n}\n' \
+  '{\n  "schemaVersion": 2,\n  "releaseId": "%s",\n  "gitSha": "%s",\n  "buildWorkflow": "%s",\n  "buildMode": "%s",\n  "buildRunId": "%s",\n  "buildRunAttempt": "%s"\n}\n' \
   "$RELEASE_ID" \
   "$GIT_SHA" \
-  "$DEPLOY_ENVIRONMENT" \
-  "$DEPLOY_RUN_ID" \
-  "$DEPLOY_RUN_ATTEMPT" \
+  "$BUILD_WORKFLOW" \
+  "$BUILD_MODE" \
+  "$BUILD_RUN_ID" \
+  "$BUILD_RUN_ATTEMPT" \
   >"$MANIFEST_DIR/.projex-release.json"
 
 log "Creating deploy artifact at $ARTIFACT_PATH"

@@ -84,18 +84,18 @@ Test browser smoke also requires local Chromium and Firefox installs via
 `pnpm exec playwright install --with-deps chromium firefox` the first time you
 run it on a machine.
 
-GitHub Actions CI and the deploy-artifact workflow now enforce the full
-generated-fixture server smoke sweep plus the full supported browser smoke
-flow, so local `verify:ci` and hosted gates stay aligned on what can merge and
-ship. The single supported EC2 deployment method is artifact-based and uses
-GitHub Actions build -> S3 handoff -> SSM activation instead of on-host builds
-or SSH-based release steps.
+GitHub Actions CI enforces the generated-fixture server smoke sweep plus the
+full supported browser smoke flow. After successful `main` CI, the Release
+workflow builds one environment-neutral artifact, production SPDX SBOM, and
+signed GitHub provenance record. The manual Deploy workflow promotes that
+exact retained artifact through protected environments using S3 handoff and
+SSM activation, without rebuilding or using SSH.
 
-Each deploy resolves and propagates the full checked-out commit SHA. Its
-physical release ID also includes the GitHub run ID and attempt, so retrying the
-same commit cannot overwrite an earlier release. The runner and EC2 host verify
-the artifact SHA-256; the host then validates its embedded identity manifest in
-a fresh staging directory before atomically promoting and activating it.
+Each release propagates the full checked-out commit SHA and immutable Release
+workflow run identity. The deploy runner verifies the retained checksum,
+manifest, provenance signature, and signed SBOM before AWS handoff; the EC2
+host verifies the checksum and manifest again in a fresh staging directory
+before atomically promoting and activating it.
 
 The artifact intentionally does not ship runner-built `node_modules` to the
 Arm host. The host installs only frozen production dependencies, with
@@ -396,7 +396,10 @@ Operational defaults:
 - `pnpm run db:migrate` runs BetterAuth schema migration plus the squashed app baseline/future app migrations through Kysely's standard migrator.
 - `pnpm run db:generate-types` regenerates `src/server/db/generated/db.d.ts` from the current database schema, while `pnpm run db:verify-types` is the drift check used in local verification.
 - `pnpm run start:server` does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
-- `.github/workflows/deploy.yml` is the manual build-once deploy scaffold. It packages a prebuilt release artifact, uploads it to the deploy handoff S3 bucket, and can dispatch an SSM-based activation on EC2 without rebuilding on the instance.
+- `.github/workflows/release.yml` automatically builds and attests one retained
+  artifact after successful protected-main CI; `.github/workflows/deploy.yml`
+  selects that Release run for protected staging/production promotion or
+  controlled `N-1` rollback without rebuilding.
 - The enforced CSP intentionally retains `style-src-attr 'unsafe-inline'` for now because Mantine and current app UI still emit runtime `style=""` attributes; the rest of the policy stays nonce-based and strict.
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
 - `package.json` override rationale lives in [docs/dependency-overrides.md](docs/dependency-overrides.md).

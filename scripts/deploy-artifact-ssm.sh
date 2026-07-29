@@ -4,9 +4,11 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-/opt/projex}"
 RELEASE_ID="${RELEASE_ID:-}"
 EXPECTED_GIT_SHA="${EXPECTED_GIT_SHA:-}"
+EXPECTED_BUILD_MODE="${EXPECTED_BUILD_MODE:-}"
+EXPECTED_BUILD_RUN_ID="${EXPECTED_BUILD_RUN_ID:-}"
+EXPECTED_BUILD_RUN_ATTEMPT="${EXPECTED_BUILD_RUN_ATTEMPT:-}"
 DEPLOY_ENVIRONMENT="${DEPLOY_ENVIRONMENT:-}"
-DEPLOY_RUN_ID="${DEPLOY_RUN_ID:-}"
-DEPLOY_RUN_ATTEMPT="${DEPLOY_RUN_ATTEMPT:-}"
+DEPLOY_MODE="${DEPLOY_MODE:-promote}"
 ARTIFACT_SHA256="${ARTIFACT_SHA256:-}"
 ENV_FILE="${ENV_FILE:-/etc/projex/projex.env}"
 SERVICE_NAME="${SERVICE_NAME:-projex}"
@@ -74,17 +76,19 @@ validate_manifest_identity() {
   local manifest_schema_version
   local manifest_release_id
   local manifest_git_sha
-  local manifest_environment
-  local manifest_run_id
-  local manifest_run_attempt
+  local manifest_build_workflow
+  local manifest_build_mode
+  local manifest_build_run_id
+  local manifest_build_run_attempt
   manifest_schema_version="$(read_manifest_value "$manifest_path" schemaVersion)"
   manifest_release_id="$(read_manifest_value "$manifest_path" releaseId)"
   manifest_git_sha="$(read_manifest_value "$manifest_path" gitSha)"
-  manifest_environment="$(read_manifest_value "$manifest_path" environment)"
-  manifest_run_id="$(read_manifest_value "$manifest_path" runId)"
-  manifest_run_attempt="$(read_manifest_value "$manifest_path" runAttempt)"
+  manifest_build_workflow="$(read_manifest_value "$manifest_path" buildWorkflow)"
+  manifest_build_mode="$(read_manifest_value "$manifest_path" buildMode)"
+  manifest_build_run_id="$(read_manifest_value "$manifest_path" buildRunId)"
+  manifest_build_run_attempt="$(read_manifest_value "$manifest_path" buildRunAttempt)"
 
-  if [[ "$manifest_schema_version" != "1" ]]; then
+  if [[ "$manifest_schema_version" != "2" ]]; then
     fail "Unsupported deploy manifest schema: $manifest_schema_version"
   fi
   if [[ "$manifest_release_id" != "$RELEASE_ID" ]]; then
@@ -93,14 +97,17 @@ validate_manifest_identity() {
   if [[ "$manifest_git_sha" != "$EXPECTED_GIT_SHA" ]]; then
     fail 'Deploy manifest Git SHA does not match the immutable build revision.'
   fi
-  if [[ "$manifest_environment" != "$DEPLOY_ENVIRONMENT" ]]; then
-    fail 'Deploy manifest environment does not match the protected environment.'
+  if [[ "$manifest_build_workflow" != "release" ]]; then
+    fail 'Deploy manifest was not produced by the release workflow.'
   fi
-  if [[ "$manifest_run_id" != "$DEPLOY_RUN_ID" ]]; then
-    fail 'Deploy manifest run ID does not match the workflow run.'
+  if [[ "$manifest_build_mode" != "$EXPECTED_BUILD_MODE" ]]; then
+    fail 'Deploy manifest build mode does not match the selected release.'
   fi
-  if [[ "$manifest_run_attempt" != "$DEPLOY_RUN_ATTEMPT" ]]; then
-    fail 'Deploy manifest run attempt does not match the workflow run.'
+  if [[ "$manifest_build_run_id" != "$EXPECTED_BUILD_RUN_ID" ]]; then
+    fail 'Deploy manifest build run ID does not match the selected release.'
+  fi
+  if [[ "$manifest_build_run_attempt" != "$EXPECTED_BUILD_RUN_ATTEMPT" ]]; then
+    fail 'Deploy manifest build run attempt does not match the selected release.'
   fi
 }
 
@@ -132,17 +139,25 @@ fi
 
 validate_identifier "RELEASE_ID" "$RELEASE_ID"
 validate_identifier "DEPLOY_ENVIRONMENT" "$DEPLOY_ENVIRONMENT"
-validate_identifier "DEPLOY_RUN_ID" "$DEPLOY_RUN_ID"
-validate_identifier "DEPLOY_RUN_ATTEMPT" "$DEPLOY_RUN_ATTEMPT"
+validate_identifier "EXPECTED_BUILD_MODE" "$EXPECTED_BUILD_MODE"
+validate_identifier "EXPECTED_BUILD_RUN_ID" "$EXPECTED_BUILD_RUN_ID"
+validate_identifier "EXPECTED_BUILD_RUN_ATTEMPT" "$EXPECTED_BUILD_RUN_ATTEMPT"
+validate_identifier "DEPLOY_MODE" "$DEPLOY_MODE"
 
 if [[ "$DEPLOY_ENVIRONMENT" != "staging" && "$DEPLOY_ENVIRONMENT" != "production" ]]; then
   fail 'DEPLOY_ENVIRONMENT must be staging or production.'
 fi
-if [[ ! "$DEPLOY_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
-  fail 'DEPLOY_RUN_ID must be a positive GitHub run ID.'
+if [[ "$EXPECTED_BUILD_MODE" != "verified" && "$EXPECTED_BUILD_MODE" != "recovery" ]]; then
+  fail 'EXPECTED_BUILD_MODE must be verified or recovery.'
 fi
-if [[ ! "$DEPLOY_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
-  fail 'DEPLOY_RUN_ATTEMPT must be a positive GitHub run attempt.'
+if [[ ! "$EXPECTED_BUILD_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+  fail 'EXPECTED_BUILD_RUN_ID must be a positive GitHub run ID.'
+fi
+if [[ ! "$EXPECTED_BUILD_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+  fail 'EXPECTED_BUILD_RUN_ATTEMPT must be a positive GitHub run attempt.'
+fi
+if [[ "$DEPLOY_MODE" != "promote" && "$DEPLOY_MODE" != "rollback" ]]; then
+  fail 'DEPLOY_MODE must be promote or rollback.'
 fi
 
 if [[ ! "$EXPECTED_GIT_SHA" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
@@ -187,8 +202,25 @@ if [[ -L "$CURRENT_LINK" ]]; then
     log "Removing broken current-release symlink ${CURRENT_LINK}"
     rm -f -- "$CURRENT_LINK"
   elif [[ "$active_release_dir" == "$RELEASE_DIR" ]]; then
-    fail "Refusing to overwrite active release: $RELEASE_DIR"
+    if [[ "$DEPLOY_MODE" == "rollback" ]]; then
+      fail 'Rollback target must be the retained immediately previous release.'
+    fi
+    validate_manifest_identity "$RELEASE_DIR/.projex-release.json"
+    log "Selected release is already active; no host changes are required"
+    exit 0
   fi
+fi
+
+if [[ "$DEPLOY_MODE" == "rollback" ]]; then
+  previous_link="${APP_ROOT}/previous"
+  if [[ ! -L "$previous_link" ]]; then
+    fail 'Rollback requires a retained immediately previous release.'
+  fi
+  previous_release_dir="$(resolve_existing_path "$previous_link" 2>/dev/null || true)"
+  if [[ -z "$previous_release_dir" || "$previous_release_dir" != "$RELEASE_DIR" ]]; then
+    fail 'Rollback target must be the retained immediately previous release.'
+  fi
+  validate_manifest_identity "$previous_release_dir/.projex-release.json"
 fi
 
 if [[ -L "$RELEASE_DIR" ]]; then
@@ -272,6 +304,9 @@ export APP_ROOT
 export RELEASE_ID
 export RELEASE_DIR
 export EXPECTED_GIT_SHA
+export EXPECTED_BUILD_MODE
+export EXPECTED_BUILD_RUN_ID
+export EXPECTED_BUILD_RUN_ATTEMPT
 export ENV_FILE
 export SERVICE_NAME
 export HEALTH_URL

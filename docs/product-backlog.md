@@ -62,6 +62,58 @@ Notes:
 
 These are worthwhile future additions without a committed delivery order.
 
+### Systematic accessibility and small-screen usability
+
+Current position:
+
+- the Mantine UI has consistent focus-visible styling, responsive navigation,
+  accessible names on most controls, and keyboard coverage in browser workflows
+- browser smoke validates important behavior but is not a WCAG audit
+- dense budget, transaction, taxonomy, and membership tables remain
+  desktop-first
+- modal focus order, focus restoration, live announcements, contrast, zoom,
+  reduced motion, and a defined viewport matrix are not automated regression
+  boundaries
+
+Design direction:
+
+- add automated accessibility checks to representative login, company,
+  project, transaction, import-review, and nested-modal paths
+- add keyboard-only assertions for opening, saving, cancelling, error recovery,
+  and returning focus to the trigger
+- exercise critical paths at 320/390 px, tablet, and desktop widths
+- decide whether dense tables use responsive cards or deliberate horizontal
+  scrolling with sticky identifying and action columns
+- preserve appropriate live-region semantics for pending and successful work
+- record accepted third-party table limitations with narrow regression tests
+  instead of broad exclusions
+
+### Operational metrics, retention, and alerts
+
+Current position:
+
+- API routes and server functions emit request IDs and structured logs
+- systemd sends application output to journald
+- health, readiness, smoke, and deployed-security verification are comprehensive
+- operations still depend on manually opening an SSM session and reading
+  `journalctl`
+- centralized retention, operational dashboards, application and infrastructure
+  alarms, and explicit RTO/RPO exercises remain undecided
+
+Design direction:
+
+- add the deployed release ID and source SHA to structured runtime logs
+- forward privacy-safe structured journald output to a retained searchable
+  destination without financial text, credentials, cookies, tokens, or email
+  contents
+- add health/readiness, systemd restart, EC2, disk, RDS, and application-error
+  alarms
+- correlate deploy annotations, request IDs, export jobs, and email-provider
+  events
+- write and test a minimal incident and database-restore runbook
+- establish explicit RTO/RPO targets before choosing production backup and
+  Multi-AZ settings
+
 ### Reduce shared runtime and router bundle weight
 
 Examples:

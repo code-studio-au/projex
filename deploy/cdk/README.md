@@ -191,6 +191,12 @@ The role can upload only under that environment's deploy-artifact prefix, send
 `AWS-RunShellScript` only to that stack's EC2 instance, and read command
 results. It cannot use general S3 or SSM administration APIs.
 
+The separate protected-main Release workflow needs no AWS access. It builds
+one environment-neutral artifact after successful CI, retains the checksum and
+production SPDX SBOM, and signs GitHub provenance. The protected environment
+role is assumed only after the Deploy workflow has selected and verified that
+retained Release run.
+
 For the matching GitHub environment that will run
 `.github/workflows/deploy.yml`, set:
 
