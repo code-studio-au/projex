@@ -6,6 +6,7 @@ refreshed on 29 July 2026 after merging:
 - `8d23e9d` — `fix: enable production response compression (#28)`
 - `ee2bfea` — `fix: harden financial value editing (#29)`
 - `2061781` — `fix: enforce production asset caching (#31)`
+- `98c6700` — `fix: standardize project setting mutations (#32)`
 
 The previous 26 July review and its completed eleven-item programme are retained
 in the [documentation archive](archive/README.md).
@@ -21,10 +22,10 @@ and work awaiting business decisions remain in
 |    1 | Production responses were not compressed                                       | Immediate       | Completed in PR 28                  |
 |    2 | Financial values were persisted on every keystroke                             | Immediate       | Completed in PR 29                  |
 |    3 | Hashed production assets have no repository-enforced cache policy              | High            | Completed in PR 31                  |
-|    4 | Project-setting mutations have inconsistent pending and failure UX             | High            | Completed in this change            |
-|    5 | Accessibility and small-screen behavior need systematic verification           | High            | Pending                             |
-|    6 | CI and deploy rebuild independently instead of promoting one attested artifact | Medium          | Pending                             |
-|    7 | Runtime observability stops at structured journald output                      | Medium          | Pending                             |
+|    4 | Project-setting mutations have inconsistent pending and failure UX             | High            | Completed in PR 32                  |
+|    5 | Accessibility and small-screen behavior need systematic verification           | High            | Moved to product backlog            |
+|    6 | CI and deploy rebuild independently instead of promoting one attested artifact | Medium          | Completed in this change            |
+|    7 | Runtime observability stops at structured journald output                      | Medium          | Moved to product backlog            |
 |    8 | Framework dependency versions need coordinated lifecycle management            | Medium          | Pending                             |
 |    9 | Several feature coordinators and schema modules remain oversized               | Medium          | Pending                             |
 |   10 | Test breadth is strong, but UI and failure-path visibility remain selective    | Medium          | Pending                             |
@@ -34,14 +35,11 @@ and work awaiting business decisions remain in
 
 ## Recommended next sequence
 
-1. Combine Items 5 and 10 into one accessibility, responsive, and component
-   test tranche.
-2. Address Item 12 before expanding log collection under Item 7.
-3. Design Items 6 and 7 together so artifact provenance, release identity,
-   logs, metrics, and alerts share the same deployment metadata.
-4. Perform Items 8, 9, and 11 as measured maintenance work rather than broad
+1. Address Item 12's raw exception logging.
+2. Expand risk-based test visibility under Item 10.
+3. Perform Items 8, 9, and 11 as measured maintenance work rather than broad
    dependency or file-size rewrites.
-5. Implement Item 13 only when the deployment moves to the organisation AWS
+4. Implement Item 13 only when the deployment moves to the organisation AWS
    account, unless staging becomes actively relied upon sooner.
 
 # Completed review items
@@ -383,46 +381,9 @@ Mutation-scope tests deliberately start a dependent transfer write while a
 structure write is blocked and prove it cannot overtake the structure change.
 They also prove that independent settings can execute concurrently.
 
-# Pending review items
-
-## Item 5 — Systematically verify accessibility and small-screen usability
-
-### Finding
-
-The UI has a consistent Mantine design system, global focus-visible styling,
-many accessible labels, responsive navigation, and keyboard coverage in the
-browser workflows. Those are strong foundations.
-
-The remaining review gap is systematic evidence:
-
-- there is no automated accessibility scanner in the test dependencies
-- dense budget, transaction, taxonomy, and membership tables remain
-  desktop-first
-- the wider explicit-save money editor increases the minimum horizontal space
-  needed by financial tables
-- browser smoke validates workflows but is not a WCAG audit
-- modal focus order, focus restoration, live status announcements, contrast,
-  zoom, and reduced-motion behavior are not enforced as regression gates
-- responsive behavior is not exercised across a defined viewport matrix
-
-### Recommendation
-
-- Add automated accessibility checks to representative Playwright pages using
-  an established axe integration or equivalent.
-- Test login, company dashboard, project workspace, transaction editing,
-  import review, and nested modal paths.
-- Add keyboard-only assertions for opening, saving, cancelling, error recovery,
-  and returning focus to the trigger.
-- Add 320/390 px, tablet, and desktop viewport coverage for critical paths.
-- Decide explicitly whether dense tables use responsive cards or deliberate
-  horizontal scrolling with sticky identifying/action columns.
-- Ensure pending and success messages use appropriate live-region semantics.
-- Record any accepted third-party table limitations with narrow regression
-  tests rather than broad exclusions.
-
 ## Item 6 — Promote one verified artifact and add provenance
 
-### Finding
+### Original finding
 
 The current delivery design is secure and substantially hardened:
 
@@ -445,51 +406,47 @@ that means:
   signed GitHub artifact attestation
 - no software bill of materials is retained with a release
 
-### Recommendation
+### Resolution
 
-- Design a protected-main release workflow that builds the deploy artifact
-  once from the immutable SHA after required CI succeeds.
-- Retain the existing manifest and checksum validation.
-- Add GitHub artifact attestation or an equivalent signed provenance record.
-- Generate and retain an SBOM for the deployed production dependency graph.
-- Promote the exact verified artifact to staging and later production rather
-  than rebuilding it.
-- Preserve explicit environment approvals and environment-specific OIDC roles.
-- Keep a manual rebuild path for recovery, but label and audit it distinctly.
-- Add a controlled manual rollback workflow that selects only a retained,
-  manifest-verified, schema-compatible release.
+The new protected-main [Release workflow](../.github/workflows/release.yml)
+runs only after a successful same-repository CI push on `main`. It checks out
+that immutable SHA, builds the production payload once, and retains one
+environment-neutral release bundle for 90 days containing:
 
-## Item 7 — Add operational metrics, retention, and alerts
+- the deploy tarball with schema-v2 release manifest
+- its SHA-256 checksum
+- pnpm 11's native production-only SPDX 2.3 SBOM
+- GitHub-signed build-provenance and SBOM attestations
 
-### Finding
+The manual [Deploy workflow](../.github/workflows/deploy.yml) now accepts a
+successful Release run ID and never installs, verifies, or rebuilds source. It
+validates the selected workflow run, bundle shape, checksum, manifest,
+provenance signature, signed SBOM, and immutable source SHA before the existing
+S3/SSM handoff. The same retained bytes can therefore move through staging and
+production while each protected environment keeps its own approval and OIDC
+role.
 
-API routes and server functions emit request IDs and structured logs, while
-systemd sends stdout and stderr to journald. Health, readiness, smoke, and
-deployed-security verification are comprehensive.
+Exceptional rebuilds use an explicitly labelled `recovery` mode, require an
+auditable reason and a main-reachable revision, and re-run the former deploy
+verification gates before packaging. Controlled `rollback` deployments must
+select the on-host `previous` release recorded after the last successful
+activation. That confines application rollback to the manifest-verified `N-1`
+candidate covered by the forward-only migration compatibility contract.
 
-The production operating model still depends on manually opening an SSM
-session and reading `journalctl`. The repository does not define:
+### Verification and regression protection
 
-- centralized application-log collection and retention
-- alerting for repeated 5xx responses, auth failure spikes, readiness failure,
-  process restarts, disk pressure, or database saturation
-- dashboards for request latency, deploy version, export-job failures, or email
-  delivery failures
-- an explicit RTO/RPO and disaster-recovery exercise
+- release-bundle tests cover correct provenance identity, checksum drift,
+  missing or malformed SBOMs, and manifest/name mismatches
+- deploy-script tests cover idempotent activation, retained-release
+  replacement, previous-release recording, migration failure, readiness
+  rollback, accepted `N-1` rollback, and rejection of older rollback targets
+- repository security verification enforces the successful-main CI boundary,
+  pinned attestation action, production SBOM, 90-day retention, signed
+  verification on consumption, protected environment OIDC, and the absence of
+  any build command from deployment
+- actionlint and ShellCheck continue validating the workflow and host scripts
 
-### Recommendation
-
-- Add the deployed release ID and source SHA to every structured runtime log.
-- Forward structured journald output to a retained searchable destination.
-- Define privacy-aware retention and prevent user-entered financial text,
-  credentials, cookies, tokens, and email contents from entering logs.
-- Add health/readiness, systemd restart, EC2, disk, RDS, and application-error
-  alarms.
-- Correlate deploy annotations, request IDs, export jobs, and email provider
-  events.
-- Write and test a minimal incident and database-restore runbook.
-- Establish explicit RTO/RPO targets before selecting production backup and
-  Multi-AZ settings under Item 13.
+# Pending review items
 
 ## Item 8 — Manage framework dependencies as tested cohorts
 

@@ -25,7 +25,11 @@ Before handing this repo to another developer or team, make sure:
 - the eventual pipeline shape is clear:
   - local/CI gate: `pnpm run verify:ci`
   - GitHub Actions CI: static checks, CDK verification, DB verification, full disposable server smoke, and full disposable browser smoke
-  - GitHub Actions deploy artifact build: reruns `verify:app`, `verify:cdk`, `verify:db:gate`, full disposable server smoke, and full disposable browser smoke before packaging
+  - GitHub Actions release: after successful protected-main CI, builds one
+    environment-neutral artifact, retains its checksum and production SPDX
+    SBOM, and publishes signed provenance
+  - GitHub Actions deploy: verifies and promotes the selected retained release
+    without rebuilding it
   - deployed-environment checks: `pnpm run smoke:server` and `pnpm run verify:deploy-security`
 - normal code flow is branch -> PR -> green checks -> merge; protected `main` is not the routine delivery path
 - the first-admin bootstrap path is understood for fresh databases:
@@ -309,15 +313,21 @@ Notes:
 
 ## Deploy
 
-Preferred: trigger the manual GitHub Actions deploy workflow
-`.github/workflows/deploy.yml`.
+After a successful CI push on `main`, the
+[Release workflow](../.github/workflows/release.yml) automatically builds and
+retains the promotable release. Trigger the manual
+[Deploy workflow](../.github/workflows/deploy.yml) with that successful
+Release run ID.
 
 Preferred deploy model:
 
-- resolve the checked-out commit once and pass its immutable SHA through every
-  job
-- build once in GitHub Actions and embed the SHA, run ID, and attempt in the
-  release manifest
+- build once from the immutable SHA after every required CI job succeeds
+- embed the SHA, Release workflow run ID, build attempt, and verified/recovery
+  mode in the schema-v2 release manifest
+- retain the exact artifact, checksum, and production-only SPDX 2.3 SBOM for
+  90 days
+- sign GitHub build-provenance and SBOM attestations, then verify both before
+  deployment
 - upload the prebuilt release artifact to S3
 - dispatch an SSM command to the EC2 host
 - verify the artifact checksum and identity before atomically promoting a fresh
@@ -327,6 +337,8 @@ Preferred deploy model:
 - refresh the managed nginx request-limit include, validate nginx, and reload it
 - atomically switch the `/opt/projex/current` symlink without overwriting any
   existing release
+- record `/opt/projex/previous` only after successful readiness so controlled
+  rollback remains limited to the schema-compatible `N-1` application
 - restart the service
 
 The activated release under `/opt/projex/current` also includes the server
@@ -339,8 +351,11 @@ The deploy runner does not SSH into the box. The only moving parts are:
 - S3 deploy handoff bucket
 - SSM-enabled EC2 instance profile with access to read that bucket
 
-This is the single supported deployment path. The repo no longer supports a
-build-on-host fallback for routine or emergency releases.
+This is the single supported deployment path. The repo never builds on the
+host. If a retained artifact is unavailable, manually dispatch the Release
+workflow from `main`: supply a main-reachable SHA/ref and an auditable recovery
+reason. Recovery releases are distinctly labelled and re-run the full
+verification gates before rebuilding.
 
 ## Post-Deploy Smoke Test
 

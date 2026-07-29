@@ -3,19 +3,22 @@ name: Deploy
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: Git ref to build and package
+      release_run_id:
+        description: Successful Release workflow run ID containing the retained artifact
         required: true
-        default: main
         type: string
-      deploy_target:
-        description: Build artifact only, or build and push to EC2
+      deployment_mode:
+        description: Promote a release or roll back to the retained N-1 release
         required: true
-        default: artifact-only
+        default: promote
         type: choice
         options:
-          - artifact-only
-          - ec2
+          - promote
+          - rollback
+      deployment_reason:
+        description: Auditable change, incident, or rollback reason
+        required: true
+        type: string
       environment_name:
         description: Protected deployment environment
         required: true
@@ -38,157 +41,13 @@ permissions:
   contents: read
 
 jobs:
-  build-artifact:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: projex_deploy_gate
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d projex_deploy_gate"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/projex_deploy_gate
-      BETTER_AUTH_SECRET: projex-deploy-better-auth-secret-0123456789
-      BETTER_AUTH_URL: https://projex.test.invalid
-      BETTER_AUTH_TRUSTED_ORIGINS: https://projex.test.invalid
-      PROJEX_ENABLE_DEV_ENDPOINTS: 'false'
-      PROJEX_ENABLE_SMOKE_TOOLS: 'false'
-    outputs:
-      artifact-name: ${{ steps.package.outputs.artifact_name }}
-      artifact-sha256: ${{ steps.package.outputs.artifact_sha256 }}
-      commit-sha: ${{ steps.source.outputs.commit_sha }}
-      release-id: ${{ steps.package.outputs.release_id }}
-      run-attempt: ${{ steps.package.outputs.run_attempt }}
-
-    steps:
-      - name: Validate protected deploy source
-        if: ${{ inputs.deploy_target == 'ec2' }}
-        env:
-          DEPLOY_INPUT_REF: ${{ inputs.ref }}
-          DEPLOY_WORKFLOW_REF: ${{ github.ref }}
-        run: |
-          if [[ "$DEPLOY_INPUT_REF" != "main" || "$DEPLOY_WORKFLOW_REF" != "refs/heads/main" ]]; then
-            echo "EC2 deploys must build main from a workflow dispatched on main." >&2
-            exit 1
-          fi
-
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ inputs.ref }}
-
-      - name: Resolve immutable source revision
-        id: source
-        run: |
-          COMMIT_SHA="$(git rev-parse HEAD)"
-          if [[ ! "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "Resolved checkout is not a full lowercase Git SHA." >&2
-            exit 1
-          fi
-          echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-        with:
-          version: 11.0.8
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Run application verification gate
-        run: pnpm run verify:app
-
-      - name: Run CDK verification gate
-        run: pnpm run verify:cdk
-
-      - name: Run database verification gate
-        run: pnpm run verify:db:gate
-
-      - name: Run full smoke verification gate
-        run: pnpm run verify:smoke:full:skip-build
-
-      - name: Run browser smoke verification gate
-        run: pnpm run verify:smoke:browser:full:skip-build
-
-      - name: Rebuild production deploy artifact payload
-        env:
-          NODE_ENV: production
-          BETTER_AUTH_URL: https://projex.test.invalid
-          BETTER_AUTH_TRUSTED_ORIGINS: https://projex.test.invalid
-          PROJEX_APP_BASE_URL: https://projex.test.invalid
-          PROJEX_AUTH_RESET_REDIRECT_URL: https://projex.test.invalid/reset-password
-          PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL: https://projex.test.invalid/verify-email-change
-          PROJEX_ENABLE_DEV_ENDPOINTS: 'false'
-          PROJEX_ENABLE_SMOKE_TOOLS: 'false'
-        run: pnpm run build
-
-      - name: Create deploy artifact
-        id: package
-        env:
-          DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
-          SOURCE_GIT_SHA: ${{ steps.source.outputs.commit_sha }}
-        run: |
-          if [[ ! "$DEPLOY_ENVIRONMENT" =~ ^[a-z0-9][a-z0-9-]{0,31}$ ]]; then
-            echo "Deployment environment has an invalid identifier." >&2
-            exit 1
-          fi
-          if [[ ! "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ || ! "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
-            echo "GitHub run identity is invalid." >&2
-            exit 1
-          fi
-          RELEASE_ID="${DEPLOY_ENVIRONMENT}-${SOURCE_GIT_SHA:0:12}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
-          ARTIFACT_NAME="projex-${RELEASE_ID}.tar.gz"
-          ARTIFACT_PATH="$(
-            GIT_SHA="$SOURCE_GIT_SHA" \
-            DEPLOY_ENVIRONMENT="$DEPLOY_ENVIRONMENT" \
-            DEPLOY_RUN_ID="$GITHUB_RUN_ID" \
-            DEPLOY_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
-            RELEASE_ID="$RELEASE_ID" \
-            ARTIFACT_NAME="$ARTIFACT_NAME" \
-            pnpm run deploy:artifact:create | tail -n 1
-          )"
-          read -r ARTIFACT_SHA256 _ < <(sha256sum "$ARTIFACT_PATH")
-          {
-            echo "artifact_name=${ARTIFACT_NAME}"
-            echo "artifact_sha256=${ARTIFACT_SHA256}"
-            echo "release_id=${RELEASE_ID}"
-            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
-            echo "artifact_path=${ARTIFACT_PATH}"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Upload deploy artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: ${{ steps.package.outputs.artifact_name }}
-          path: ${{ steps.package.outputs.artifact_path }}
-          if-no-files-found: error
-
   deploy-ec2:
-    if: ${{ inputs.deploy_target == 'ec2' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs:
-      - build-artifact
     environment: ${{ inputs.environment_name }}
     permissions:
+      actions: read
+      attestations: read
       contents: read
       id-token: write
     env:
@@ -204,10 +63,92 @@ jobs:
       DEPLOY_EC2_SERVICE_NAME: ${{ secrets.EC2_SERVICE_NAME }}
 
     steps:
-      - name: Checkout repository
+      - name: Validate protected deployment request
+        env:
+          DEPLOYMENT_REASON: ${{ inputs.deployment_reason }}
+          DEPLOY_WORKFLOW_REF: ${{ github.ref }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+        run: |
+          if [[ "$DEPLOY_WORKFLOW_REF" != "refs/heads/main" ]]; then
+            echo "EC2 deployments must be dispatched from main." >&2
+            exit 1
+          fi
+          if [[ ! "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "release_run_id must be a positive GitHub Actions run ID." >&2
+            exit 1
+          fi
+          if [[ -z "${DEPLOYMENT_REASON//[[:space:]]/}" ]]; then
+            echo "Deployment requests require an auditable reason." >&2
+            exit 1
+          fi
+
+      - name: Checkout protected workflow source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.build-artifact.outputs.commit-sha }}
+          ref: main
+
+      - name: Validate selected release workflow run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+        run: |
+          RUN_DETAILS="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RELEASE_RUN_ID}" \
+              --jq '[.path, .conclusion, .head_branch, .event] | @tsv'
+          )"
+          IFS=$'\t' read -r RUN_PATH RUN_CONCLUSION RUN_BRANCH RUN_EVENT <<<"$RUN_DETAILS"
+          if [[ "$RUN_PATH" != ".github/workflows/release.yml" ||
+            "$RUN_CONCLUSION" != "success" ||
+            "$RUN_BRANCH" != "main" ||
+            ( "$RUN_EVENT" != "workflow_run" && "$RUN_EVENT" != "workflow_dispatch" ) ]]; then
+            echo "Selected run must be a successful Release workflow run on main." >&2
+            exit 1
+          fi
+
+      - name: Download retained release bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          github-token: ${{ github.token }}
+          merge-multiple: true
+          path: artifacts
+          pattern: projex-release-*
+          run-id: ${{ inputs.release_run_id }}
+
+      - name: Validate retained release bundle
+        id: release
+        run: node scripts/verify-release-bundle.mjs artifacts
+
+      - name: Verify signed release provenance and SBOM
+        env:
+          ARTIFACT_PATH: ${{ steps.release.outputs.artifact_path }}
+          GH_TOKEN: ${{ github.token }}
+          SBOM_PATH: ${{ steps.release.outputs.sbom_path }}
+        run: |
+          SIGNER_WORKFLOW="${GITHUB_REPOSITORY}/.github/workflows/release.yml"
+          gh attestation verify "$ARTIFACT_PATH" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$SIGNER_WORKFLOW"
+          gh attestation verify "$ARTIFACT_PATH" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$SIGNER_WORKFLOW" \
+            --predicate-type https://spdx.dev/Document/v2.3 \
+            --format json \
+            --jq '.[0].verificationResult.statement.predicate' \
+            >artifacts/attested-sbom.spdx.json
+          node -e '
+            const assert = require("node:assert/strict");
+            const fs = require("node:fs");
+            assert.deepEqual(
+              JSON.parse(fs.readFileSync(process.argv[1], "utf8")),
+              JSON.parse(fs.readFileSync(process.argv[2], "utf8"))
+            );
+          ' "$SBOM_PATH" artifacts/attested-sbom.spdx.json
+
+      - name: Checkout immutable release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          clean: false
+          ref: ${{ steps.release.outputs.git_sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -228,33 +169,28 @@ jobs:
           role-to-assume: ${{ env.DEPLOY_AWS_DEPLOY_ROLE_ARN }}
           role-session-name: projex-${{ github.run_id }}-${{ github.run_attempt }}
 
-      - name: Download deploy artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: ${{ needs.build-artifact.outputs.artifact-name }}
-          path: artifacts
-
-      - name: Upload artifact to deploy bucket
+      - name: Upload verified artifact to deploy bucket
         id: upload-artifact-s3
         env:
+          ARTIFACT_NAME: ${{ steps.release.outputs.artifact_name }}
+          ARTIFACT_PATH: ${{ steps.release.outputs.artifact_path }}
           AWS_REGION_DEPLOY: ${{ inputs.aws_region }}
           DEPLOY_ARTIFACT_BUCKET: ${{ env.DEPLOY_EC2_DEPLOY_ARTIFACT_BUCKET }}
           DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
-          EXPECTED_ARTIFACT_SHA256: ${{ needs.build-artifact.outputs.artifact-sha256 }}
-          EXPECTED_GIT_SHA: ${{ needs.build-artifact.outputs.commit-sha }}
-          RELEASE_ID: ${{ needs.build-artifact.outputs.release-id }}
+          EXPECTED_ARTIFACT_SHA256: ${{ steps.release.outputs.artifact_sha256 }}
+          EXPECTED_GIT_SHA: ${{ steps.release.outputs.git_sha }}
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
         run: |
           test -n "$DEPLOY_ARTIFACT_BUCKET"
-          ARTIFACT_NAME="${{ needs.build-artifact.outputs.artifact-name }}"
-          read -r ACTUAL_ARTIFACT_SHA256 _ < <(sha256sum "artifacts/${ARTIFACT_NAME}")
+          read -r ACTUAL_ARTIFACT_SHA256 _ < <(sha256sum "$ARTIFACT_PATH")
           if [[ "$ACTUAL_ARTIFACT_SHA256" != "$EXPECTED_ARTIFACT_SHA256" ]]; then
-            echo "Downloaded GitHub artifact checksum does not match the build output." >&2
+            echo "Downloaded release artifact checksum changed after validation." >&2
             exit 1
           fi
           S3_KEY="deploy-artifacts/${DEPLOY_ENVIRONMENT}/${EXPECTED_GIT_SHA}/${RELEASE_ID}/${ARTIFACT_NAME}"
           aws s3 cp \
             --region "$AWS_REGION_DEPLOY" \
-            "artifacts/${ARTIFACT_NAME}" \
+            "$ARTIFACT_PATH" \
             "s3://${DEPLOY_ARTIFACT_BUCKET}/${S3_KEY}"
           echo "artifact_s3_uri=s3://${DEPLOY_ARTIFACT_BUCKET}/${S3_KEY}" >> "$GITHUB_OUTPUT"
 
@@ -262,11 +198,11 @@ jobs:
         id: dispatch-ssm
         env:
           ARTIFACT_AWS_REGION: ${{ inputs.aws_region }}
-          ARTIFACT_SHA256: ${{ needs.build-artifact.outputs.artifact-sha256 }}
+          ARTIFACT_SHA256: ${{ steps.release.outputs.artifact_sha256 }}
           ARTIFACT_S3_URI: ${{ steps.upload-artifact-s3.outputs.artifact_s3_uri }}
           DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
-          DEPLOY_RUN_ATTEMPT: ${{ needs.build-artifact.outputs.run-attempt }}
-          DEPLOY_RUN_ID: ${{ github.run_id }}
+          DEPLOY_MODE: ${{ inputs.deployment_mode }}
+          DEPLOYMENT_REASON: ${{ inputs.deployment_reason }}
           EC2_APP_ROOT: ${{ env.DEPLOY_EC2_APP_ROOT }}
           EC2_ENV_FILE: ${{ env.DEPLOY_EC2_ENV_FILE }}
           EC2_HEALTH_URL: ${{ env.DEPLOY_EC2_HEALTH_URL }}
@@ -274,8 +210,11 @@ jobs:
           EC2_READY_URL: ${{ env.DEPLOY_EC2_READY_URL }}
           EC2_SERVICE_NAME: ${{ env.DEPLOY_EC2_SERVICE_NAME }}
           EC2_KEEP_RELEASES: ${{ env.DEPLOY_EC2_KEEP_RELEASES }}
-          EXPECTED_GIT_SHA: ${{ needs.build-artifact.outputs.commit-sha }}
-          RELEASE_ID: ${{ needs.build-artifact.outputs.release-id }}
+          EXPECTED_BUILD_MODE: ${{ steps.release.outputs.build_mode }}
+          EXPECTED_BUILD_RUN_ATTEMPT: ${{ steps.release.outputs.build_run_attempt }}
+          EXPECTED_BUILD_RUN_ID: ${{ steps.release.outputs.build_run_id }}
+          EXPECTED_GIT_SHA: ${{ steps.release.outputs.git_sha }}
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
         run: |
           test -n "$EC2_INSTANCE_ID"
           test -n "$ARTIFACT_S3_URI"
@@ -296,9 +235,11 @@ jobs:
               "APP_ROOT": os.environ["APP_ROOT"],
               "RELEASE_ID": os.environ["RELEASE_ID"],
               "EXPECTED_GIT_SHA": os.environ["EXPECTED_GIT_SHA"],
+              "EXPECTED_BUILD_MODE": os.environ["EXPECTED_BUILD_MODE"],
+              "EXPECTED_BUILD_RUN_ID": os.environ["EXPECTED_BUILD_RUN_ID"],
+              "EXPECTED_BUILD_RUN_ATTEMPT": os.environ["EXPECTED_BUILD_RUN_ATTEMPT"],
               "DEPLOY_ENVIRONMENT": os.environ["DEPLOY_ENVIRONMENT"],
-              "DEPLOY_RUN_ID": os.environ["DEPLOY_RUN_ID"],
-              "DEPLOY_RUN_ATTEMPT": os.environ["DEPLOY_RUN_ATTEMPT"],
+              "DEPLOY_MODE": os.environ["DEPLOY_MODE"],
               "ENV_FILE": os.environ["ENV_FILE"],
               "SERVICE_NAME": os.environ["SERVICE_NAME"],
               "HEALTH_URL": os.environ["HEALTH_URL"],
@@ -327,7 +268,7 @@ jobs:
               --region "${{ inputs.aws_region }}" \
               --instance-ids "$EC2_INSTANCE_ID" \
               --document-name AWS-RunShellScript \
-              --comment "Projex deploy ${RELEASE_ID}" \
+              --comment "Projex ${DEPLOY_MODE} ${RELEASE_ID}: ${DEPLOYMENT_REASON:0:40}" \
               --parameters file:///tmp/projex-ssm-commands.json \
               --query 'Command.CommandId' \
               --output text

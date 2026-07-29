@@ -1,0 +1,223 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      recovery_ref:
+        description: Full main-ancestor SHA or ref to rebuild for recovery
+        required: true
+        default: main
+        type: string
+      recovery_reason:
+        description: Auditable reason for the exceptional rebuild
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.event.workflow_run.head_sha || inputs.recovery_ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: read
+      id-token: write
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: projex_release_recovery
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d projex_release_recovery"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/projex_release_recovery
+      BETTER_AUTH_SECRET: projex-release-better-auth-secret-0123456789
+      BETTER_AUTH_URL: https://projex.test.invalid
+      BETTER_AUTH_TRUSTED_ORIGINS: https://projex.test.invalid
+      PROJEX_ENABLE_DEV_ENDPOINTS: 'false'
+      PROJEX_ENABLE_SMOKE_TOOLS: 'false'
+
+    steps:
+      - name: Checkout immutable release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || inputs.recovery_ref }}
+
+      - name: Validate and resolve release source
+        id: source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RECOVERY_REASON: ${{ inputs.recovery_reason }}
+          RELEASE_WORKFLOW_REF: ${{ github.ref }}
+          WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
+          WORKFLOW_RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_RUN_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Resolved release source is not a full lowercase Git SHA." >&2
+            exit 1
+          fi
+
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            if [[ "$WORKFLOW_RUN_CONCLUSION" != "success" ||
+              "$WORKFLOW_RUN_EVENT" != "push" ||
+              "$WORKFLOW_RUN_HEAD_BRANCH" != "main" ||
+              "$WORKFLOW_RUN_HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" ||
+              "$SOURCE_SHA" != "$WORKFLOW_RUN_HEAD_SHA" ]]; then
+              echo "Verified releases require a successful same-repository CI push on main." >&2
+              exit 1
+            fi
+            BUILD_MODE="verified"
+          else
+            if [[ "$RELEASE_WORKFLOW_REF" != "refs/heads/main" ]]; then
+              echo "Recovery releases must be dispatched from main." >&2
+              exit 1
+            fi
+            if [[ -z "${RECOVERY_REASON//[[:space:]]/}" ]]; then
+              echo "Recovery releases require an auditable reason." >&2
+              exit 1
+            fi
+            git fetch --no-tags origin main
+            if ! git merge-base --is-ancestor "$SOURCE_SHA" origin/main; then
+              echo "Recovery releases must rebuild a commit reachable from main." >&2
+              exit 1
+            fi
+            BUILD_MODE="recovery"
+          fi
+
+          {
+            echo "git_sha=${SOURCE_SHA}"
+            echo "build_mode=${BUILD_MODE}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.0.8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install recovery browser
+        if: ${{ steps.source.outputs.build_mode == 'recovery' }}
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Re-run verification gates for recovery build
+        if: ${{ steps.source.outputs.build_mode == 'recovery' }}
+        run: |
+          pnpm run verify:app
+          pnpm run verify:cdk
+          pnpm run verify:db:gate
+          pnpm run verify:smoke:full:skip-build
+          pnpm run verify:smoke:browser:full:skip-build
+
+      - name: Build production release payload
+        env:
+          NODE_ENV: production
+          PROJEX_APP_BASE_URL: https://projex.test.invalid
+          PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL: https://projex.test.invalid/verify-email-change
+          PROJEX_AUTH_RESET_REDIRECT_URL: https://projex.test.invalid/reset-password
+        run: pnpm run build
+
+      - name: Create release artifact, checksum, and production SBOM
+        id: package
+        env:
+          BUILD_MODE: ${{ steps.source.outputs.build_mode }}
+          SOURCE_GIT_SHA: ${{ steps.source.outputs.git_sha }}
+        run: |
+          if [[ ! "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ ||
+            ! "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "GitHub release run identity is invalid." >&2
+            exit 1
+          fi
+
+          RELEASE_ID="${BUILD_MODE}-${SOURCE_GIT_SHA:0:12}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
+          ARTIFACT_NAME="projex-${RELEASE_ID}.tar.gz"
+          ARTIFACT_PATH="artifacts/${ARTIFACT_NAME}"
+          SBOM_PATH="artifacts/projex-${RELEASE_ID}.sbom.spdx.json"
+
+          GIT_SHA="$SOURCE_GIT_SHA" \
+            BUILD_WORKFLOW=release \
+            BUILD_MODE="$BUILD_MODE" \
+            BUILD_RUN_ID="$GITHUB_RUN_ID" \
+            BUILD_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            RELEASE_ID="$RELEASE_ID" \
+            ARTIFACT_NAME="$ARTIFACT_NAME" \
+            pnpm run deploy:artifact:create
+
+          pnpm sbom \
+            --prod \
+            --sbom-format spdx \
+            --sbom-type application \
+            >"$SBOM_PATH"
+          (
+            cd artifacts
+            sha256sum "$ARTIFACT_NAME" >"${ARTIFACT_NAME}.sha256"
+          )
+          node scripts/verify-release-bundle.mjs artifacts
+          {
+            echo "artifact_name=${ARTIFACT_NAME}"
+            echo "artifact_path=${ARTIFACT_PATH}"
+            echo "bundle_name=projex-release-${RELEASE_ID}"
+            echo "checksum_path=${ARTIFACT_PATH}.sha256"
+            echo "sbom_path=${SBOM_PATH}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Attest release build provenance
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: ${{ steps.package.outputs.artifact_path }}
+
+      - name: Attest production dependency SBOM
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: ${{ steps.package.outputs.artifact_path }}
+          sbom-path: ${{ steps.package.outputs.sbom_path }}
+
+      - name: Retain verified release bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.package.outputs.bundle_name }}
+          path: |
+            ${{ steps.package.outputs.artifact_path }}
+            ${{ steps.package.outputs.checksum_path }}
+            ${{ steps.package.outputs.sbom_path }}
+          if-no-files-found: error
+          retention-days: 90

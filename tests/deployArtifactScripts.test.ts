@@ -186,12 +186,13 @@ async function createArtifact(
     join(payload, '.projex-release.json'),
     `${JSON.stringify(
       {
-        schemaVersion: 1,
+        schemaVersion: 2,
         releaseId: identity.releaseId,
         gitSha: identity.gitSha,
-        environment: identity.environment,
-        runId: identity.runId,
-        runAttempt: identity.runAttempt,
+        buildWorkflow: 'release',
+        buildMode: 'verified',
+        buildRunId: identity.runId,
+        buildRunAttempt: identity.runAttempt,
       },
       null,
       2
@@ -277,9 +278,11 @@ function runSsmDeploy(
       APP_ROOT: appRoot,
       RELEASE_ID: identity.releaseId,
       EXPECTED_GIT_SHA: identity.gitSha,
+      EXPECTED_BUILD_MODE: 'verified',
+      EXPECTED_BUILD_RUN_ID: identity.runId,
+      EXPECTED_BUILD_RUN_ATTEMPT: identity.runAttempt,
       DEPLOY_ENVIRONMENT: identity.environment,
-      DEPLOY_RUN_ID: identity.runId,
-      DEPLOY_RUN_ATTEMPT: identity.runAttempt,
+      DEPLOY_MODE: 'promote',
       ARTIFACT_SHA256: artifactSha256,
       ARTIFACT_S3_URI: `s3://projex-test/${identity.releaseId}.tar.gz`,
       ARTIFACT_AWS_REGION: 'ap-southeast-2',
@@ -343,12 +346,13 @@ async function createEc2Release(
   await writeFile(
     join(releaseDir, '.projex-release.json'),
     `${JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
       releaseId,
       gitSha: expectedGitSha,
-      environment: 'staging',
-      runId: '100',
-      runAttempt: '1',
+      buildWorkflow: 'release',
+      buildMode: 'verified',
+      buildRunId: '100',
+      buildRunAttempt: '1',
     })}\n`
   );
   return realpath(releaseDir);
@@ -370,6 +374,9 @@ function runEc2Deploy(
       RELEASE_ID: releaseId,
       RELEASE_DIR: releaseDir,
       EXPECTED_GIT_SHA: gitSha,
+      EXPECTED_BUILD_MODE: 'verified',
+      EXPECTED_BUILD_RUN_ID: '100',
+      EXPECTED_BUILD_RUN_ATTEMPT: '1',
       CURRENT_LINK: join(appRoot, 'current'),
       ENV_FILE: join(appRoot, 'projex.env'),
       SHARED_DIR: join(appRoot, 'shared'),
@@ -406,7 +413,7 @@ describe('create-deploy-artifact.sh', () => {
     const identity: ReleaseIdentity = {
       environment: 'staging',
       gitSha,
-      releaseId: 'staging-aaaaaaaaaaaa-run99-attempt2',
+      releaseId: 'verified-aaaaaaaaaaaa-run99-attempt2',
       runId: '99',
       runAttempt: '2',
     };
@@ -420,9 +427,10 @@ describe('create-deploy-artifact.sh', () => {
         ARTIFACTS_DIR: join(sourceRoot, 'artifacts'),
         ARTIFACT_NAME: artifactName,
         GIT_SHA: identity.gitSha,
-        DEPLOY_ENVIRONMENT: identity.environment,
-        DEPLOY_RUN_ID: identity.runId,
-        DEPLOY_RUN_ATTEMPT: identity.runAttempt,
+        BUILD_WORKFLOW: 'release',
+        BUILD_MODE: 'verified',
+        BUILD_RUN_ID: identity.runId,
+        BUILD_RUN_ATTEMPT: identity.runAttempt,
         RELEASE_ID: identity.releaseId,
       },
     });
@@ -450,12 +458,13 @@ describe('create-deploy-artifact.sh', () => {
         (value) => JSON.parse(value) as unknown
       )
     ).resolves.toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       releaseId: identity.releaseId,
       gitSha: identity.gitSha,
-      environment: identity.environment,
-      runId: identity.runId,
-      runAttempt: identity.runAttempt,
+      buildWorkflow: 'release',
+      buildMode: 'verified',
+      buildRunId: identity.runId,
+      buildRunAttempt: identity.runAttempt,
     });
   });
 
@@ -470,9 +479,9 @@ describe('create-deploy-artifact.sh', () => {
         ...process.env,
         ARTIFACTS_DIR: join(sourceRoot, 'artifacts'),
         GIT_SHA: gitSha,
-        DEPLOY_ENVIRONMENT: 'staging',
-        DEPLOY_RUN_ID: '99',
-        DEPLOY_RUN_ATTEMPT: '1',
+        BUILD_MODE: 'verified',
+        BUILD_RUN_ID: '99',
+        BUILD_RUN_ATTEMPT: '1',
         RELEASE_ID: '../active',
       },
     });
@@ -615,7 +624,7 @@ describe('deploy-artifact-ssm.sh', () => {
     await expect(stagingDirectories(appRoot)).resolves.toEqual([]);
   });
 
-  test('refuses to overwrite an existing active release directory', async () => {
+  test('treats an identity-matched active release as an idempotent deploy', async () => {
     const root = await makeTemporaryRoot();
     const appRoot = join(root, 'app');
     const mockBin = await createMockCommands(root);
@@ -630,6 +639,18 @@ describe('deploy-artifact-ssm.sh', () => {
       appRoot,
       identity.releaseId
     );
+    await writeFile(
+      join(activeRelease, '.projex-release.json'),
+      `${JSON.stringify({
+        schemaVersion: 2,
+        releaseId: identity.releaseId,
+        gitSha: identity.gitSha,
+        buildWorkflow: 'release',
+        buildMode: 'verified',
+        buildRunId: identity.runId,
+        buildRunAttempt: identity.runAttempt,
+      })}\n`
+    );
     await writeFile(join(activeRelease, 'sentinel'), 'active');
 
     const result = runSsmDeploy(
@@ -640,8 +661,8 @@ describe('deploy-artifact-ssm.sh', () => {
       'd'.repeat(64)
     );
 
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain('Refusing to overwrite active release');
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.stdout).toContain('Selected release is already active');
     await expect(
       readFile(join(activeRelease, 'sentinel'), 'utf8')
     ).resolves.toBe('active');
@@ -760,6 +781,84 @@ describe('deploy-artifact-ssm.sh', () => {
       readFile(join(failedRelease, 'sentinel'), 'utf8')
     ).resolves.toBe('preserved');
   }, 20_000);
+
+  test('allows rollback only to the retained immediately previous release', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    await createActiveRelease(appRoot, 'verified-aaaaaaaaaaaa-run119-attempt1');
+    const identity: ReleaseIdentity = {
+      environment: 'production',
+      gitSha,
+      releaseId: 'verified-aaaaaaaaaaaa-run118-attempt1',
+      runId: '118',
+      runAttempt: '1',
+    };
+    const previousRelease = join(appRoot, 'releases', identity.releaseId);
+    await mkdir(previousRelease);
+    await writeFile(
+      join(previousRelease, '.projex-release.json'),
+      `${JSON.stringify({
+        schemaVersion: 2,
+        releaseId: identity.releaseId,
+        gitSha: identity.gitSha,
+        buildWorkflow: 'release',
+        buildMode: 'verified',
+        buildRunId: identity.runId,
+        buildRunAttempt: identity.runAttempt,
+      })}\n`
+    );
+    await symlink(previousRelease, join(appRoot, 'previous'));
+    const artifact = await createArtifact(root, identity, 'rollback');
+
+    const result = runSsmDeploy(
+      appRoot,
+      mockBin,
+      identity,
+      artifact.artifactPath,
+      artifact.sha256,
+      { DEPLOY_MODE: 'rollback' }
+    );
+
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    await expect(realpath(join(appRoot, 'current'))).resolves.toBe(
+      await realpath(previousRelease)
+    );
+  });
+
+  test('rejects rollback to an artifact older than the recorded N-1 release', async () => {
+    const root = await makeTemporaryRoot();
+    const appRoot = join(root, 'app');
+    const mockBin = await createMockCommands(root);
+    await createActiveRelease(appRoot, 'verified-aaaaaaaaaaaa-run121-attempt1');
+    const actualPrevious = await createActiveRelease(
+      join(root, 'other-app'),
+      'verified-aaaaaaaaaaaa-run120-attempt1'
+    );
+    await symlink(actualPrevious, join(appRoot, 'previous'));
+    const identity: ReleaseIdentity = {
+      environment: 'production',
+      gitSha,
+      releaseId: 'verified-aaaaaaaaaaaa-run119-attempt1',
+      runId: '119',
+      runAttempt: '1',
+    };
+    const artifact = await createArtifact(root, identity, 'old-rollback');
+
+    const result = runSsmDeploy(
+      appRoot,
+      mockBin,
+      identity,
+      artifact.artifactPath,
+      artifact.sha256,
+      { DEPLOY_MODE: 'rollback' }
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'Rollback target must be the retained immediately previous release'
+    );
+  });
 });
 
 describe('deploy-artifact-ec2.sh', () => {
@@ -868,6 +967,9 @@ describe('deploy-artifact-ec2.sh', () => {
 
     expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
     await expect(realpath(join(appRoot, 'current'))).resolves.toBe(releaseDir);
+    await expect(realpath(join(appRoot, 'previous'))).resolves.toBe(
+      previousRelease
+    );
     await expect(realpath(previousRelease)).resolves.toBe(previousRelease);
   });
 
@@ -1047,19 +1149,17 @@ printf 'nginx version: nginx/%s\\n' ${JSON.stringify(nginxVersion)} >&2
   );
 });
 
-describe('deploy workflow retry identity', () => {
-  test('reuses the artifact build attempt when only failed jobs rerun', async () => {
+describe('deploy workflow retained release identity', () => {
+  test('deploys the build identity selected from a retained release run', async () => {
     const workflow = await readFile(deployWorkflow, 'utf8');
 
+    expect(workflow).toContain('run-id: ${{ inputs.release_run_id }}');
     expect(workflow).toContain(
-      'run-attempt: ${{ steps.package.outputs.run_attempt }}'
+      'EXPECTED_BUILD_RUN_ATTEMPT: ${{ steps.release.outputs.build_run_attempt }}'
     );
-    expect(workflow).toContain('echo "run_attempt=${GITHUB_RUN_ATTEMPT}"');
     expect(workflow).toContain(
-      'DEPLOY_RUN_ATTEMPT: ${{ needs.build-artifact.outputs.run-attempt }}'
+      'EXPECTED_BUILD_RUN_ID: ${{ steps.release.outputs.build_run_id }}'
     );
-    expect(workflow).not.toContain(
-      'DEPLOY_RUN_ATTEMPT: ${{ github.run_attempt }}'
-    );
+    expect(workflow).not.toContain('pnpm run build');
   });
 });

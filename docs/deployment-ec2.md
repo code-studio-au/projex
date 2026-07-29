@@ -230,7 +230,8 @@ If you are working from a repo checkout on the host instead of the installed hel
 
 ## 5.2) Repeatable deploy commands
 
-Preferred path: build the release artifact in CI and deploy that artifact onto the host.
+Preferred path: let the Release workflow build once after successful
+protected-main CI, then promote that exact retained artifact onto the host.
 
 Local packaging command:
 
@@ -239,11 +240,18 @@ pnpm run build
 pnpm run deploy:artifact:create
 ```
 
-GitHub Actions manual workflow:
+This local command is for packaging diagnostics only. Its manifest is labelled
+`local`, it has no GitHub attestation, and the Deploy workflow will not accept
+it. All promotable artifacts come from `.github/workflows/release.yml`.
 
+GitHub Actions workflows:
+
+- `.github/workflows/release.yml`
 - `.github/workflows/deploy.yml`
-- default mode: `artifact-only`
-- optional mode when environment configuration is ready: `ec2`
+
+The Release workflow automatically packages successful `main` CI revisions.
+The Deploy workflow requires the successful Release run ID, an auditable
+reason, the protected environment, and either `promote` or `rollback` mode.
 
 When enabling the `ec2` mode, set:
 
@@ -288,21 +296,25 @@ and revoke the associated IAM access key.
 
 The artifact-based release flow performs:
 
-- check out the requested ref once and resolve its full immutable Git SHA
-- build once in GitHub Actions
+- accept only a successful same-repository CI push on protected `main`
+- check out that full immutable Git SHA and build its production payload once
 - package a deploy tarball containing `dist`, runtime source, migrations,
   runtime scripts including the server smoke CLI entrypoint, nginx maintenance
   assets, and an immutable release manifest
-- name the physical release with environment, commit prefix, GitHub run ID, and
-  run attempt
+- generate pnpm's production dependency graph as an SPDX 2.3 SBOM
+- sign GitHub build-provenance and SBOM attestations
+- retain the environment-neutral artifact, checksum, and SBOM for 90 days
+- select a successful Release run for staging and later production without
+  rebuilding it
 - verify the artifact SHA-256 after GitHub artifact download
+- verify the signed provenance and signed SBOM before AWS credentials are used
 - upload the artifact to an S3 handoff bucket
 - dispatch an SSM shell command to the target EC2 instance
 - download to a temporary file and verify the same SHA-256 on the host
 - reject unsafe archive paths, extract into a unique staging directory, and
   validate the embedded release manifest
 - atomically rename the validated staging directory to
-  `/opt/projex/releases/<environment>-<sha>-run<run-id>-attempt<attempt>`
+  `/opt/projex/releases/<mode>-<sha>-run<release-run-id>-attempt<attempt>`
 - create or validate the non-login `projex-deploy` identity
 - install only frozen production dependencies with lifecycle scripts disabled,
   as `projex-deploy`
@@ -312,16 +324,30 @@ The artifact-based release flow performs:
   sandboxed systemd unit
 - refresh shared maintenance assets
 - atomically switch `/opt/projex/current`
+- record `/opt/projex/previous` after successful readiness
 - restart `projex`
 - `/api/health` and `/api/ready` checks
 - atomically roll back to the previous release symlink if restart or health
   checks fail
 
-Existing release directories are never overwritten or removed during staging.
-Retrying the same commit produces a separate physical release because
-`GITHUB_RUN_ATTEMPT` changes. Release pruning resolves the live
-`/opt/projex/current` target and excludes it, the new release, and the rollback
-release from deletion.
+Existing active release directories are never overwritten or removed during
+staging. A repeated promotion of the already-active release is idempotent; a
+Release workflow rerun produces a separate physical identity because its run
+or attempt changes. Release pruning resolves the live `/opt/projex/current`
+target and excludes it, the new release, and `/opt/projex/previous`.
+
+For controlled rollback, choose the retained Release run for the application
+currently referenced by `/opt/projex/previous` and select `rollback`. The host
+rejects any older artifact, so rollback cannot exceed the documented
+forward-only schema contract guaranteeing compatibility with `N-1`. A
+successful rollback swaps `current` and `previous`, preserving a controlled
+roll-forward path.
+
+If the normal retained bundle is unavailable, manually dispatch
+`.github/workflows/release.yml` from `main` with a main-reachable SHA/ref and
+an auditable recovery reason. This exceptional path is labelled `recovery` in
+the manifest and reruns application, CDK, database, server-smoke, and Chromium
+browser gates before it rebuilds.
 
 The deploy host does not need GitHub network access or SSH keys. The runner
 uploads the release tarball to `EC2_DEPLOY_ARTIFACT_BUCKET`, then invokes SSM,

@@ -257,30 +257,76 @@ async function verifyDeployArtifactDependencyPatches() {
 }
 
 async function verifyDeployReleaseIdentity() {
-  const [workflow, createArtifactScript, ssmScript, ec2Script] =
-    await Promise.all([
-      readFile('.github/workflows/deploy.yml', 'utf8'),
-      readFile('scripts/create-deploy-artifact.sh', 'utf8'),
-      readFile('scripts/deploy-artifact-ssm.sh', 'utf8'),
-      readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
-    ]);
+  const [
+    deployWorkflow,
+    releaseWorkflow,
+    createArtifactScript,
+    bundleVerifier,
+    ssmScript,
+    ec2Script,
+  ] = await Promise.all([
+    readFile('.github/workflows/deploy.yml', 'utf8'),
+    readFile('.github/workflows/release.yml', 'utf8'),
+    readFile('scripts/create-deploy-artifact.sh', 'utf8'),
+    readFile('scripts/verify-release-bundle.mjs', 'utf8'),
+    readFile('scripts/deploy-artifact-ssm.sh', 'utf8'),
+    readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
+  ]);
 
   assertCondition(
-    workflow.includes('COMMIT_SHA="$(git rev-parse HEAD)"') &&
-      workflow.includes('ref: ${{ needs.build-artifact.outputs.commit-sha }}'),
-    'Deploy build and activation jobs must share the resolved immutable checkout SHA'
+    releaseWorkflow.includes("github.event.workflow_run.event == 'push'") &&
+      releaseWorkflow.includes(
+        "github.event.workflow_run.head_branch == 'main'"
+      ) &&
+      releaseWorkflow.includes(
+        'github.event.workflow_run.head_repository.full_name == github.repository'
+      ) &&
+      releaseWorkflow.includes(
+        'ref: ${{ github.event.workflow_run.head_sha || inputs.recovery_ref }}'
+      ) &&
+      deployWorkflow.includes('ref: ${{ steps.release.outputs.git_sha }}'),
+    'Release builds and deployment activation must share a protected-main immutable SHA'
   );
   assertCondition(
-    workflow.includes('GITHUB_RUN_ID') &&
-      workflow.includes('GITHUB_RUN_ATTEMPT') &&
-      workflow.includes('artifact_sha256'),
-    'Physical deploy identity must include the workflow run and verified artifact checksum'
+    releaseWorkflow.includes('BUILD_RUN_ID="$GITHUB_RUN_ID"') &&
+      releaseWorkflow.includes('BUILD_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT"') &&
+      deployWorkflow.includes(
+        'ARTIFACT_SHA256: ${{ steps.release.outputs.artifact_sha256 }}'
+      ),
+    'Physical release identity must include the build run and verified artifact checksum'
   );
   assertCondition(
     createArtifactScript.includes('.projex-release.json') &&
       createArtifactScript.includes('"gitSha": "%s"') &&
-      createArtifactScript.includes('"runAttempt": "%s"'),
+      createArtifactScript.includes('"buildRunAttempt": "%s"') &&
+      !createArtifactScript.includes('"environment": "%s"'),
     'Deploy artifacts must embed their immutable release manifest'
+  );
+  assertCondition(
+    releaseWorkflow.includes(
+      'uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4'
+    ) &&
+      releaseWorkflow.includes('pnpm sbom') &&
+      releaseWorkflow.includes('--prod') &&
+      releaseWorkflow.includes('--sbom-format spdx') &&
+      releaseWorkflow.includes('retention-days: 90') &&
+      deployWorkflow.includes('gh attestation verify "$ARTIFACT_PATH"') &&
+      deployWorkflow.includes(
+        '--predicate-type https://spdx.dev/Document/v2.3'
+      ),
+    'Release artifacts must retain and verify signed provenance and a production SPDX SBOM'
+  );
+  assertCondition(
+    deployWorkflow.includes('run-id: ${{ inputs.release_run_id }}') &&
+      deployWorkflow.includes('pattern: projex-release-*') &&
+      deployWorkflow.includes(
+        'run: node scripts/verify-release-bundle.mjs artifacts'
+      ) &&
+      !deployWorkflow.includes('pnpm run build') &&
+      bundleVerifier.includes(
+        'Release bundle must contain exactly one Projex deploy artifact.'
+      ),
+    'Deployments must promote one selected retained release without rebuilding it'
   );
   assertCondition(
     ssmScript.includes(
@@ -295,14 +341,18 @@ async function verifyDeployReleaseIdentity() {
       ssmScript.includes(
         'active_release_dir="$(resolve_existing_path "$CURRENT_LINK"'
       ) &&
-      ssmScript.includes('rm -rf -- "$RELEASE_DIR"'),
+      ssmScript.includes('rm -rf -- "$RELEASE_DIR"') &&
+      ssmScript.includes(
+        'Rollback target must be the retained immediately previous release.'
+      ),
     'SSM deploys must validate in a fresh staging directory, preserve active releases, and only replace an identity-matched inactive retry'
   );
   assertCondition(
     ec2Script.includes('active_release_dir="$(current_release_dir') &&
       ec2Script.includes('activate_release "$RELEASE_DIR"') &&
+      ec2Script.includes('record_previous_release') &&
       ec2Script.includes('rm -rf -- "$dir"'),
-    'Release activation and pruning must preserve the active release'
+    'Release activation and pruning must preserve the active and immediately previous releases'
   );
 }
 

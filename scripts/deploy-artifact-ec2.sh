@@ -5,7 +5,11 @@ APP_ROOT="${APP_ROOT:-/opt/projex}"
 RELEASE_ID="${RELEASE_ID:-}"
 RELEASE_DIR="${RELEASE_DIR:-}"
 EXPECTED_GIT_SHA="${EXPECTED_GIT_SHA:-}"
+EXPECTED_BUILD_MODE="${EXPECTED_BUILD_MODE:-}"
+EXPECTED_BUILD_RUN_ID="${EXPECTED_BUILD_RUN_ID:-}"
+EXPECTED_BUILD_RUN_ATTEMPT="${EXPECTED_BUILD_RUN_ATTEMPT:-}"
 CURRENT_LINK="${CURRENT_LINK:-}"
+PREVIOUS_LINK="${PREVIOUS_LINK:-}"
 ENV_FILE="${ENV_FILE:-/etc/projex/projex.env}"
 SERVICE_NAME="${SERVICE_NAME:-projex}"
 DEPLOY_USER="${DEPLOY_USER:-projex-deploy}"
@@ -24,6 +28,7 @@ NGINX_COMPRESSION_PATH="${NGINX_COMPRESSION_PATH:-/etc/nginx/conf.d/projex-compr
 SYSTEMD_SERVICE_PATH="${SYSTEMD_SERVICE_PATH:-}"
 RELEASES_DIR=""
 NEXT_LINK=""
+NEXT_PREVIOUS_LINK=""
 SYSTEMD_RENDER_PATH=""
 SYSTEMD_BACKUP_PATH=""
 SYSTEMD_UNIT_EXISTED="false"
@@ -266,10 +271,34 @@ activate_release() {
   NEXT_LINK=""
 }
 
+record_previous_release() {
+  if [[ -z "${PREVIOUS_RELEASE_DIR:-}" ]]; then
+    rm -f -- "$PREVIOUS_LINK"
+    return
+  fi
+
+  local link_parent
+  link_parent="$(dirname "$PREVIOUS_LINK")"
+  mkdir -p "$link_parent"
+  NEXT_PREVIOUS_LINK="${link_parent}/.$(basename "$PREVIOUS_LINK").next.${RELEASE_ID}.$$"
+  if [[ -e "$NEXT_PREVIOUS_LINK" || -L "$NEXT_PREVIOUS_LINK" ]]; then
+    fail "Temporary previous-release link already exists: $NEXT_PREVIOUS_LINK"
+  fi
+  ln -s "$PREVIOUS_RELEASE_DIR" "$NEXT_PREVIOUS_LINK"
+  node -e \
+    'require("node:fs").renameSync(process.argv[1], process.argv[2])' \
+    "$NEXT_PREVIOUS_LINK" \
+    "$PREVIOUS_LINK"
+  NEXT_PREVIOUS_LINK=""
+}
+
 cleanup() {
   restore_systemd_service || true
   if [[ -n "$NEXT_LINK" && -L "$NEXT_LINK" ]]; then
     rm -f -- "$NEXT_LINK"
+  fi
+  if [[ -n "$NEXT_PREVIOUS_LINK" && -L "$NEXT_PREVIOUS_LINK" ]]; then
+    rm -f -- "$NEXT_PREVIOUS_LINK"
   fi
   if [[ -n "$SYSTEMD_RENDER_PATH" ]]; then
     rm -f -- "$SYSTEMD_RENDER_PATH"
@@ -365,9 +394,12 @@ validate_systemd_path "APP_ROOT" "$APP_ROOT"
 validate_service_sandbox_path "APP_ROOT" "$APP_ROOT"
 RELEASES_DIR="${APP_ROOT}/releases"
 CURRENT_LINK="${CURRENT_LINK:-${APP_ROOT}/current}"
+PREVIOUS_LINK="${PREVIOUS_LINK:-${APP_ROOT}/previous}"
 SHARED_DIR="${SHARED_DIR:-${APP_ROOT}/shared}"
 validate_systemd_path "CURRENT_LINK" "$CURRENT_LINK"
 validate_service_sandbox_path "CURRENT_LINK" "$CURRENT_LINK"
+validate_systemd_path "PREVIOUS_LINK" "$PREVIOUS_LINK"
+validate_service_sandbox_path "PREVIOUS_LINK" "$PREVIOUS_LINK"
 
 validate_identifier "RELEASE_ID" "$RELEASE_ID"
 validate_identifier "SERVICE_NAME" "$SERVICE_NAME"
@@ -377,6 +409,18 @@ fi
 validate_system_user "DEPLOY_USER" "$DEPLOY_USER"
 if [[ ! "$EXPECTED_GIT_SHA" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
   fail 'EXPECTED_GIT_SHA must be a full lowercase Git object ID.'
+fi
+validate_identifier "EXPECTED_BUILD_MODE" "$EXPECTED_BUILD_MODE"
+validate_identifier "EXPECTED_BUILD_RUN_ID" "$EXPECTED_BUILD_RUN_ID"
+validate_identifier "EXPECTED_BUILD_RUN_ATTEMPT" "$EXPECTED_BUILD_RUN_ATTEMPT"
+if [[ "$EXPECTED_BUILD_MODE" != "verified" && "$EXPECTED_BUILD_MODE" != "recovery" ]]; then
+  fail 'EXPECTED_BUILD_MODE must be verified or recovery.'
+fi
+if [[ ! "$EXPECTED_BUILD_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+  fail 'EXPECTED_BUILD_RUN_ID must be a positive GitHub run ID.'
+fi
+if [[ ! "$EXPECTED_BUILD_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+  fail 'EXPECTED_BUILD_RUN_ATTEMPT must be a positive GitHub run attempt.'
 fi
 if [[ -z "$DEPLOY_HOME" || "$DEPLOY_HOME" == "/" || "$DEPLOY_HOME" != /* ]]; then
   fail 'DEPLOY_HOME must be a non-root absolute path.'
@@ -431,11 +475,41 @@ manifest_release_id="$(
 manifest_git_sha="$(
   read_manifest_value "$RELEASE_DIR/.projex-release.json" gitSha
 )"
+manifest_schema_version="$(
+  read_manifest_value "$RELEASE_DIR/.projex-release.json" schemaVersion
+)"
+manifest_build_workflow="$(
+  read_manifest_value "$RELEASE_DIR/.projex-release.json" buildWorkflow
+)"
+manifest_build_mode="$(
+  read_manifest_value "$RELEASE_DIR/.projex-release.json" buildMode
+)"
+manifest_build_run_id="$(
+  read_manifest_value "$RELEASE_DIR/.projex-release.json" buildRunId
+)"
+manifest_build_run_attempt="$(
+  read_manifest_value "$RELEASE_DIR/.projex-release.json" buildRunAttempt
+)"
+if [[ "$manifest_schema_version" != "2" ]]; then
+  fail 'Deploy manifest schema is not supported.'
+fi
 if [[ "$manifest_release_id" != "$RELEASE_ID" ]]; then
   fail 'Deploy manifest release ID does not match RELEASE_ID.'
 fi
 if [[ "$manifest_git_sha" != "$EXPECTED_GIT_SHA" ]]; then
   fail 'Deploy manifest Git SHA does not match EXPECTED_GIT_SHA.'
+fi
+if [[ "$manifest_build_workflow" != "release" ]]; then
+  fail 'Deploy manifest was not produced by the release workflow.'
+fi
+if [[ "$manifest_build_mode" != "$EXPECTED_BUILD_MODE" ]]; then
+  fail 'Deploy manifest build mode does not match EXPECTED_BUILD_MODE.'
+fi
+if [[ "$manifest_build_run_id" != "$EXPECTED_BUILD_RUN_ID" ]]; then
+  fail 'Deploy manifest build run ID does not match EXPECTED_BUILD_RUN_ID.'
+fi
+if [[ "$manifest_build_run_attempt" != "$EXPECTED_BUILD_RUN_ATTEMPT" ]]; then
+  fail 'Deploy manifest build run attempt does not match EXPECTED_BUILD_RUN_ATTEMPT.'
 fi
 
 ensure_deploy_identity
@@ -544,6 +618,7 @@ if ! wait_for_http_ok "$READY_URL" "$READY_TIMEOUT_SECONDS" "readiness"; then
   fail "Readiness check failed"
 fi
 commit_systemd_service
+record_previous_release
 
 log "Service status"
 sudo systemctl status "$SERVICE_NAME" --no-pager -l
