@@ -268,6 +268,7 @@ async function verifyDeployReleaseIdentity() {
     releaseWorkflow,
     createArtifactScript,
     bundleVerifier,
+    deployRequestMetadata,
     ssmScript,
     ec2Script,
   ] = await Promise.all([
@@ -275,6 +276,7 @@ async function verifyDeployReleaseIdentity() {
     readFile('.github/workflows/release.yml', 'utf8'),
     readFile('scripts/create-deploy-artifact.sh', 'utf8'),
     readFile('scripts/verify-release-bundle.mjs', 'utf8'),
+    readFile('scripts/deploy-request-metadata.mjs', 'utf8'),
     readFile('scripts/deploy-artifact-ssm.sh', 'utf8'),
     readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
   ]);
@@ -345,7 +347,9 @@ async function verifyDeployReleaseIdentity() {
     'Release artifacts must retain and verify signed provenance and a production SPDX SBOM'
   );
   assertCondition(
-    deployWorkflow.includes('run-id: ${{ inputs.release_run_id }}') &&
+    deployWorkflow.includes(
+      'run-id: ${{ steps.selected-release.outputs.run_id }}'
+    ) &&
       deployWorkflow.includes('pattern: projex-release-*') &&
       deployWorkflow.includes(
         'run: node scripts/verify-release-bundle.mjs artifacts'
@@ -355,6 +359,33 @@ async function verifyDeployReleaseIdentity() {
         'Release bundle must contain exactly one Projex deploy artifact.'
       ),
     'Deployments must promote one selected retained release without rebuilding it'
+  );
+  assertCondition(
+    deployWorkflow.includes('release_selection:') &&
+      deployWorkflow.includes('- latest-successful') &&
+      deployWorkflow.includes('- specific-run-id') &&
+      deployWorkflow.includes(
+        'actions/workflows/release.yml/runs?branch=main&status=success&per_page=20'
+      ) &&
+      deployWorkflow.includes(
+        'Production promotion requires the specific Release run tested in staging.'
+      ) &&
+      deployWorkflow.includes(
+        'Rollback requires the specific retained N-1 Release run ID.'
+      ),
+    'Deploy selection must resolve latest staging releases while preserving explicit production and rollback identity'
+  );
+  assertCondition(
+    deployWorkflow.includes('node scripts/deploy-request-metadata.mjs') &&
+      deployWorkflow.includes('--comment "$SSM_COMMENT"') &&
+      !deployWorkflow.includes('${DEPLOYMENT_REASON:0:40}') &&
+      deployRequestMetadata.includes(
+        'export const SSM_COMMENT_MAX_LENGTH = 100'
+      ) &&
+      deployRequestMetadata.includes(
+        '`${action} ${sourceLabel} to ${normalizedEnvironment}`'
+      ),
+    'Deployment audit reasons must be derived from immutable source identity and the complete SSM comment must be bounded'
   );
   assertCondition(
     ssmScript.includes(

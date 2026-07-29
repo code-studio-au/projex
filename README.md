@@ -89,7 +89,12 @@ full supported browser smoke flow. After successful `main` CI, the Release
 workflow builds one environment-neutral artifact, production SPDX SBOM, and
 signed GitHub provenance record. The manual Deploy workflow promotes that
 exact retained artifact through protected environments using S3 handoff and
-SSM activation, without rebuilding or using SSH.
+SSM activation, without rebuilding or using SSH. Staging can resolve the
+latest automatically verified retained release; exceptional recovery
+releases, production, and rollback require an explicit Release run ID so they
+cannot silently select a different artifact. Deployment reasons are derived
+from the merged PR number or source SHA, target environment, and optional
+operator context.
 
 Each release propagates the full checked-out commit SHA and immutable Release
 workflow run identity. The deploy runner verifies the retained checksum,

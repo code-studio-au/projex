@@ -250,8 +250,27 @@ GitHub Actions workflows:
 - `.github/workflows/deploy.yml`
 
 The Release workflow automatically packages successful `main` CI revisions.
-The Deploy workflow requires the successful Release run ID, an auditable
-reason, the protected environment, and either `promote` or `rollback` mode.
+For normal staging promotion, the Deploy workflow can resolve the latest
+successful automatically verified Release. Exceptional manually rebuilt
+recovery releases, production promotion, and rollback require a specific
+successful Release run ID so production receives the exact artifact exercised
+in staging and rollback remains bound to the retained `N-1`. The workflow
+derives an auditable reason from the source PR number or SHA and target
+environment, with optional operator context.
+
+Deploy modal guidance:
+
+- staging: select `latest-successful`, leave the run ID empty, and use
+  `promote`
+- exceptional recovery release: select `specific-run-id`, enter its Release
+  run ID, and use `promote`
+- production: select `specific-run-id`, enter the Release run ID confirmed in
+  staging, and use `promote`
+- rollback: select `specific-run-id`, enter the on-host `N-1` Release run ID,
+  and use `rollback`
+- optional deployment context is normalized to one line and appended to the
+  derived reason
+- the complete AWS SSM command comment is bounded to AWS's 100-character limit
 
 When enabling the `ec2` mode, set:
 
