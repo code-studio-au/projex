@@ -54,6 +54,12 @@ describe('buildHostBootstrapCommands', () => {
     expect(joined).toContain('/etc/nginx/conf.d/projex.conf');
     expect(joined).toContain('/etc/nginx/conf.d/projex-request-limits.conf');
     expect(joined).toContain('/etc/nginx/conf.d/projex-compression.conf');
+    expect(joined).toContain(
+      'Proxied Cache-Control is owned by the Node response layer'
+    );
+    expect(joined).toContain(
+      'ExecStart=/usr/local/bin/node --import tsx scripts/start-server.mjs'
+    );
     expect(joined).toContain('client_max_body_size 16m;');
     expect(joined).toContain('gzip_proxied any;');
     expect(joined).toContain('gzip_vary on;');

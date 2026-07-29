@@ -46,6 +46,51 @@ function requireHeader(headers, name, predicate, message) {
   return value;
 }
 
+function normalizedCacheControl(response) {
+  return (
+    response.headers
+      .get('cache-control')
+      ?.toLowerCase()
+      .split(',')
+      .map((directive) => directive.trim())
+      .filter(Boolean)
+      .join(', ') ?? ''
+  );
+}
+
+function assertNotImmutable(response, label) {
+  const cacheControl = normalizedCacheControl(response);
+  assertCondition(
+    !cacheControl.split(', ').includes('immutable'),
+    `${label} must not be served with immutable caching`
+  );
+}
+
+function requireNoStore(response, label) {
+  const cacheControl = normalizedCacheControl(response);
+  assertCondition(
+    cacheControl.split(', ').includes('no-store'),
+    `${label} must be served with cache-control: no-store`
+  );
+  assertNotImmutable(response, label);
+}
+
+function requireImmediateRevalidation(response, label) {
+  const cacheControl = normalizedCacheControl(response);
+  assertCondition(
+    cacheControl === 'no-cache',
+    `${label} must be served with cache-control: no-cache`
+  );
+}
+
+function requireImmutableAssetCaching(response, label) {
+  const cacheControl = normalizedCacheControl(response);
+  assertCondition(
+    cacheControl === 'public, max-age=31536000, immutable',
+    `${label} must be served with cache-control: public, max-age=31536000, immutable`
+  );
+}
+
 async function verifyHealthEndpoints() {
   const health = await fetchWithRedirectControl(
     new URL('/api/health', baseUrl)
@@ -54,9 +99,11 @@ async function verifyHealthEndpoints() {
     health.status === 200,
     `/api/health returned ${health.status}`
   );
+  assertNotImmutable(health, '/api/health');
 
   const ready = await fetchWithRedirectControl(new URL('/api/ready', baseUrl));
   assertCondition(ready.status === 200, `/api/ready returned ${ready.status}`);
+  assertNotImmutable(ready, '/api/ready');
 }
 
 async function verifyHtmlHeaders() {
@@ -118,6 +165,8 @@ async function verifyHtmlHeaders() {
     );
   }
 
+  requireImmediateRevalidation(login, '/login');
+
   return { html, response: login };
 }
 
@@ -167,15 +216,14 @@ function findSameOriginAsset(html, attributeName, extension) {
   return null;
 }
 
-async function verifyResponseCompression(loginPage) {
-  if (!requireCompression) {
+async function verifyStaticAssetHeaders(loginPage) {
+  if (requireCompression) {
+    requireCompressedResponse(loginPage.response, '/login');
+  } else {
     console.log(
       'Skipping response compression verification for a non-HTTPS target.'
     );
-    return;
   }
-
-  requireCompressedResponse(loginPage.response, '/login');
 
   for (const asset of [
     { attributeName: 'src', extension: '.js', label: 'JavaScript' },
@@ -197,9 +245,22 @@ async function verifyResponseCompression(loginPage) {
       response.status === 200,
       `${asset.label} asset returned ${response.status}`
     );
-    requireCompressedResponse(response, `${asset.label} asset`);
+    requireImmutableAssetCaching(response, `${asset.label} asset`);
+    if (requireCompression) {
+      requireCompressedResponse(response, `${asset.label} asset`);
+    }
     await response.body?.cancel();
   }
+
+  const favicon = await fetchWithRedirectControl(
+    new URL('/favicon.svg', baseUrl)
+  );
+  assertCondition(
+    favicon.status === 200,
+    `/favicon.svg returned ${favicon.status}`
+  );
+  assertNotImmutable(favicon, '/favicon.svg');
+  await favicon.body?.cancel();
 }
 
 async function verifyNonProductionEndpointsDisabled() {
@@ -256,12 +317,37 @@ async function verifySessionEndpointCacheControl() {
     session.status === 200,
     `/api/session returned ${session.status}`
   );
-  requireHeader(
-    session.headers,
-    'cache-control',
-    (value) => value.toLowerCase().includes('no-store'),
-    '/api/session must be served with cache-control: no-store'
+  requireNoStore(session, '/api/session');
+}
+
+async function verifyAuthAndMaintenanceCacheControl() {
+  const authSession = await fetchWithRedirectControl(
+    new URL('/api/auth/get-session', baseUrl)
   );
+  assertCondition(
+    authSession.status === 200,
+    `/api/auth/get-session returned ${authSession.status}`
+  );
+  assertNotImmutable(authSession, '/api/auth/get-session');
+
+  const maintenanceScript = await fetchWithRedirectControl(
+    new URL('/__maintenance.js', baseUrl)
+  );
+  assertCondition(
+    maintenanceScript.status === 200,
+    `/__maintenance.js returned ${maintenanceScript.status}`
+  );
+  requireNoStore(maintenanceScript, '/__maintenance.js');
+  await maintenanceScript.body?.cancel();
+
+  const maintenanceReady = await fetchWithRedirectControl(
+    new URL('/__maintenance_ready', baseUrl)
+  );
+  assertCondition(
+    maintenanceReady.status === 200,
+    `/__maintenance_ready returned ${maintenanceReady.status}`
+  );
+  requireNoStore(maintenanceReady, '/__maintenance_ready');
 }
 
 async function verifyAuthSessionCookies() {
@@ -330,6 +416,19 @@ async function verifyAuthSessionCookies() {
       sessionBody.userId.length > 0,
     'Authenticated /api/session did not return a userId'
   );
+
+  const authenticatedHtml = await fetchWithRedirectControl(
+    new URL('/companies', baseUrl),
+    {
+      headers: { cookie: cookieHeader },
+    }
+  );
+  assertCondition(
+    authenticatedHtml.status === 200,
+    `/companies returned ${authenticatedHtml.status} for the authenticated verifier user`
+  );
+  requireImmediateRevalidation(authenticatedHtml, 'Authenticated HTML');
+  await authenticatedHtml.body?.cancel();
 }
 
 async function verifyHttpsRedirect() {
@@ -356,7 +455,8 @@ async function main() {
   await verifyHealthEndpoints();
   await verifySessionEndpointCacheControl();
   const loginPage = await verifyHtmlHeaders();
-  await verifyResponseCompression(loginPage);
+  await verifyStaticAssetHeaders(loginPage);
+  await verifyAuthAndMaintenanceCacheControl();
   await verifyNonProductionEndpointsDisabled();
   await verifyAuthSessionCookies();
   await verifyHttpsRedirect();

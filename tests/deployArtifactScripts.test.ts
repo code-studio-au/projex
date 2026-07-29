@@ -228,8 +228,10 @@ async function createArtifactSourceTree(root: string) {
   const requiredFiles = [
     'dist/server/server.js',
     'dist/client/index.html',
+    'dist/client/.vite/manifest.json',
     'src/index.ts',
     'scripts/start-server.mjs',
+    'scripts/cache-policy.mjs',
     'scripts/cli-args.mjs',
     'scripts/env-file.mjs',
     'scripts/node-runtime.mjs',
@@ -312,10 +314,12 @@ async function createEc2Release(
     '.pnpmfile.cjs',
     'patches/brace-expansion@5.0.8.patch',
     'scripts/start-server.mjs',
+    'scripts/cache-policy.mjs',
     'scripts/env-file.mjs',
     'scripts/node-runtime.mjs',
     'scripts/run-release-migrations.mjs',
     'scripts/deploy-artifact-ec2.sh',
+    'dist/client/.vite/manifest.json',
     'deploy/nginx/maintenance.html',
     'deploy/nginx/maintenance.js',
     'deploy/nginx/projex-compression.conf',
@@ -434,6 +438,12 @@ describe('create-deploy-artifact.sh', () => {
     expect(extract.status, extract.stderr).toBe(0);
     await expect(
       readFile(join(extractRoot, 'scripts/cli-args.mjs'), 'utf8')
+    ).resolves.toBe('test\n');
+    await expect(
+      readFile(join(extractRoot, 'scripts/cache-policy.mjs'), 'utf8')
+    ).resolves.toBe('test\n');
+    await expect(
+      readFile(join(extractRoot, 'dist/client/.vite/manifest.json'), 'utf8')
     ).resolves.toBe('test\n');
     await expect(
       readFile(join(extractRoot, '.projex-release.json'), 'utf8').then(

@@ -12,6 +12,11 @@ import {
   CSP_NONCE_REQUEST_HEADER,
   injectNonceIntoHtml,
 } from '../src/server/http/csp.ts';
+import {
+  cacheControlForClientAsset,
+  collectViteManifestAssetPaths,
+  REVALIDATE_CACHE_CONTROL,
+} from './cache-policy.mjs';
 import { loadEnvFile } from './env-file.mjs';
 import { logNodeRuntime } from './node-runtime.mjs';
 const LOCAL_DEV_ORIGIN_PATTERN = /^https?:\/\/localhost:(4173|5173)(\/|$)/i;
@@ -89,6 +94,10 @@ await recoverStaleCompanyExportJobsOnStartup();
 
 const clientDistDir = resolve('dist/client');
 const fallbackDistDir = resolve('dist');
+const clientManifestPath = join(clientDistDir, '.vite', 'manifest.json');
+const immutableClientAssetPaths = collectViteManifestAssetPaths(
+  JSON.parse(await readFile(clientManifestPath, 'utf8'))
+);
 
 const { default: server } = await import('../dist/server/server.js');
 
@@ -183,7 +192,7 @@ app.use(
     return buildStaticResponse(
       filePath,
       event.req.method,
-      'public, max-age=31536000, immutable'
+      cacheControlForClientAsset(event.url.pathname, immutableClientAssetPaths)
     );
   })
 );
@@ -220,6 +229,7 @@ app.use(
 
     const html = injectNonceIntoHtml(await response.text(), nonce);
     const headers = new Headers(response.headers);
+    headers.set('cache-control', REVALIDATE_CACHE_CONTROL);
     headers.set('content-security-policy', buildAppCsp(nonce));
 
     return new Response(request.method === 'HEAD' ? null : html, {

@@ -19,7 +19,7 @@ and work awaiting business decisions remain in
 | ---: | ------------------------------------------------------------------------------ | --------------- | ----------------------------------- |
 |    1 | Production responses were not compressed                                       | Immediate       | Completed in PR 28                  |
 |    2 | Financial values were persisted on every keystroke                             | Immediate       | Completed in PR 29                  |
-|    3 | Hashed production assets have no repository-enforced cache policy              | High            | Pending                             |
+|    3 | Hashed production assets have no repository-enforced cache policy              | High            | Completed in this change            |
 |    4 | Project-setting mutations have inconsistent pending and failure UX             | High            | Pending                             |
 |    5 | Accessibility and small-screen behavior need systematic verification           | High            | Pending                             |
 |    6 | CI and deploy rebuild independently instead of promoting one attested artifact | Medium          | Pending                             |
@@ -33,16 +33,15 @@ and work awaiting business decisions remain in
 
 ## Recommended next sequence
 
-1. Implement Item 3, including live cache-header assertions.
-2. Address Item 4 with a reusable mutation-feedback pattern and focused tests.
-3. Combine Items 5 and 10 into one accessibility, responsive, and component
+1. Address Item 4 with a reusable mutation-feedback pattern and focused tests.
+2. Combine Items 5 and 10 into one accessibility, responsive, and component
    test tranche.
-4. Address Item 12 before expanding log collection under Item 7.
-5. Design Items 6 and 7 together so artifact provenance, release identity,
+3. Address Item 12 before expanding log collection under Item 7.
+4. Design Items 6 and 7 together so artifact provenance, release identity,
    logs, metrics, and alerts share the same deployment metadata.
-6. Perform Items 8, 9, and 11 as measured maintenance work rather than broad
+5. Perform Items 8, 9, and 11 as measured maintenance work rather than broad
    dependency or file-size rewrites.
-7. Implement Item 13 only when the deployment moves to the organisation AWS
+6. Implement Item 13 only when the deployment moves to the organisation AWS
    account, unless staging becomes actively relied upon sooner.
 
 # Completed review items
@@ -201,8 +200,6 @@ The merged change passed the complete application gate: 79 Vitest files and
 ESLint, strict TypeScript, Knip, selected-domain coverage, the production build,
 and every client bundle budget.
 
-# Pending review items
-
 ## Item 3 — Enforce production caching for fingerprinted assets
 
 ### Finding
@@ -242,6 +239,71 @@ must first capture current live HTML, JavaScript, CSS, font, and image headers.
 - APIs and maintenance responses retain their existing no-store or operational
   behavior.
 - Fresh-host bootstrap and release deployment install the same reviewed policy.
+
+### Live baseline captured before implementation
+
+The public production origin was inspected on 29 July 2026 before changing the
+policy:
+
+- `/login` returned no `Cache-Control` header
+- the current content-hashed JavaScript and CSS returned
+  `public, max-age=31536000, immutable`
+- `/favicon.svg`, the only referenced image, returned
+  `public, max-age=3600`
+- the current CSS did not reference external font or image files
+- `/api/health`, `/api/ready`, and `/api/auth/get-session` returned no
+  `Cache-Control` header
+- `/api/session` returned `no-store`
+- `/__maintenance.js` returned the nginx-owned no-store policy
+
+The lowercase upstream asset header and direct runtime inspection confirmed
+that [start-server.mjs](../scripts/start-server.mjs), not nginx, already owned
+the proxied static-asset policy. The gap was narrower but still material: every
+file below `/assets/` was treated as immutable without proving that it belonged
+to Vite's fingerprinted output, HTML had no explicit revalidation policy, and
+the deployed verifier did not protect either boundary.
+
+### Resolution
+
+The Node response layer is now the documented single owner of proxied
+`Cache-Control` headers:
+
+- Vite emits a client manifest during the production build
+- the runtime derives an allowlist from manifest-backed filenames with Vite's
+  eight-character content fingerprint
+- only those JavaScript, CSS, font, and image assets receive
+  `public, max-age=31536000, immutable`
+- any other file under `/assets/` is immediately revalidatable with `no-cache`
+- HTML receives `no-cache`, so every navigation revalidates the current asset
+  graph and HTML is never immutable
+- the unhashed favicon retains its existing one-hour non-immutable policy
+- API and auth responses retain their application-defined behavior
+- nginx continues to own only the explicit maintenance no-store responses and
+  transparently preserves proxied application headers
+
+The manifest and policy module are required by artifact creation and release
+activation, so a partial artifact cannot be promoted. Fresh CDK hosts,
+managed-HTTPS hosts, and existing hosts all execute the same policy through the
+versioned `start-server.mjs` in the activated release; the three nginx variants
+document and regression-test that ownership boundary.
+
+### Verification and regression protection
+
+[verify-deploy-security.mjs](../scripts/verify-deploy-security.mjs) now requires:
+
+- exact immutable caching for the page's hashed JavaScript and CSS
+- `no-cache` for HTML
+- no immutable caching for the unhashed favicon, health, readiness, and auth
+  responses
+- `no-store` for the application session and maintenance endpoints
+- the existing compression and security-header behavior
+
+Focused tests cover the correct policy, missing and malformed immutable
+headers, immutable HTML, immutable unhashed assets, unsafe API/auth/maintenance
+caching, manifest filtering, CDK bootstrap, managed nginx variants, release
+artifacts, and existing-host activation boundaries.
+
+# Pending review items
 
 ## Item 4 — Standardize pending, success, and failure behavior for settings
 

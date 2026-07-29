@@ -71,8 +71,10 @@ ARTIFACT_PATH="${artifacts_dir_resolved}/${ARTIFACT_NAME}"
 
 require_path "dist/server/server.js"
 require_path "dist/client"
+require_path "dist/client/.vite/manifest.json"
 require_path "src"
 require_path "scripts/start-server.mjs"
+require_path "scripts/cache-policy.mjs"
 require_path "scripts/cli-args.mjs"
 require_path "scripts/env-file.mjs"
 require_path "scripts/node-runtime.mjs"
@@ -109,6 +111,7 @@ tar -czf "$ARTIFACT_PATH" \
   dist \
   src \
   scripts/start-server.mjs \
+  scripts/cache-policy.mjs \
   scripts/cli-args.mjs \
   scripts/env-file.mjs \
   scripts/node-runtime.mjs \
