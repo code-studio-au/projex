@@ -3,11 +3,9 @@ import {
   Badge,
   Button,
   Group,
-  Modal,
   Paper,
   Select,
   Stack,
-  Switch,
   Text,
   Title,
 } from '@mantine/core';
@@ -18,13 +16,7 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
-import type {
-  CompanyId,
-  Project,
-  ProjectId,
-  ProjectRole,
-  UserId,
-} from '../types';
+import type { CompanyId, ProjectId, ProjectRole, UserId } from '../types';
 import { useIsHydrated } from '../hooks/useIsHydrated';
 import { asUserId } from '../types';
 
@@ -49,6 +41,7 @@ import { companyRoute } from '../router';
 import { Route as projectWorkspaceRoute } from '../routes/_authed.c.$companyId.p.$projectId';
 import ProjectAutoCodingRulesModal from './ProjectAutoCodingRulesModal';
 import ProjectImportRulesModal from './ProjectImportRulesModal';
+import ProjectSettingControls from './settings/ProjectSettingControls';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import classes from '../styles/ui.module.css';
 import { showAppToast } from '../utils/toast';
@@ -64,18 +57,6 @@ function toProjectRole(value: string | null): ProjectRole | null {
     return value;
   }
   return null;
-}
-
-function isProjectCurrency(value: string): value is Project['currency'] {
-  return ['AUD', 'USD', 'EUR', 'GBP'].includes(value);
-}
-
-function isProjectVisibility(value: string): value is Project['visibility'] {
-  return ['private', 'company'].includes(value);
-}
-
-function isProjectType(value: string): value is Project['projectType'] {
-  return ['project', 'programme'].includes(value);
 }
 
 export default function ProjectSettingsPanel(props: {
@@ -99,7 +80,30 @@ export default function ProjectSettingsPanel(props: {
   );
 
   const access = useCompanyAccess(companyId);
-  const updateProject = useUpdateProjectMutation(companyId);
+  const updateProjectStructure = useUpdateProjectMutation(companyId, {
+    projectId,
+    setting: 'structure',
+  });
+  const updateProjectCurrency = useUpdateProjectMutation(companyId, {
+    projectId,
+    setting: 'currency',
+  });
+  const updateProjectVisibility = useUpdateProjectMutation(companyId, {
+    projectId,
+    setting: 'visibility',
+  });
+  const updateSuperadminAccess = useUpdateProjectMutation(companyId, {
+    projectId,
+    setting: 'superadmin-access',
+  });
+  const updateCompanyStandardsSync = useUpdateProjectMutation(companyId, {
+    projectId,
+    setting: 'company-standards-sync',
+  });
+  const updateTransactionTransfers = useUpdateProjectMutation(companyId, {
+    projectId,
+    setting: 'transaction-transfers',
+  });
   const effectiveProject = useMemo(
     () => ({
       id: projectId,
@@ -216,9 +220,6 @@ export default function ProjectSettingsPanel(props: {
 
   const [memberUserId, setMemberUserId] = useState<UserId | null>(null);
   const [memberRole, setMemberRole] = useState<ProjectRole | null>('member');
-  const [pendingSuperadminAccess, setPendingSuperadminAccess] = useState<
-    boolean | null
-  >(null);
   const [taxonomyModalOpen, setTaxonomyModalOpen] = useState(false);
   const [projectRulesModalOpen, setProjectRulesModalOpen] = useState(false);
   const [projectImportRulesModalOpen, setProjectImportRulesModalOpen] =
@@ -294,15 +295,6 @@ export default function ProjectSettingsPanel(props: {
     [canEditProject, del]
   );
 
-  const nextSuperadminAccess =
-    pendingSuperadminAccess ?? effectiveProject.allowSuperadminAccess;
-  const toggleLabel = nextSuperadminAccess
-    ? 'Enable superadmin access'
-    : 'Disable superadmin access';
-  const toggleDescription = nextSuperadminAccess
-    ? 'Warning: this will allow the global superadmin to view this project, its budget, transactions, and settings for support and troubleshooting. Are you sure you want to enable this access?'
-    : 'Superadmin will no longer be able to see this project, its budget, transactions, or settings unless access is re-enabled later. Are you sure you want to disable this access?';
-
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
@@ -313,123 +305,79 @@ export default function ProjectSettingsPanel(props: {
               {canEditProject ? 'Can edit project' : 'Read-only'}
             </Badge>
           </Group>
-          <Stack gap="sm" style={{ width: '100%', maxWidth: 460 }}>
-            <Select
-              label="Type"
-              description="Programmes are reporting-only; projects hold budgets, transactions, imports, and coding. Company admins/executives manage this structure."
-              value={effectiveProject.projectType}
-              onChange={(v) => {
-                if (!v || !isProjectType(v)) return;
-                updateProject.mutate({
-                  id: projectId,
-                  projectType: v,
-                  parentProjectId: v === 'programme' ? null : undefined,
-                });
-              }}
-              data={[
-                { value: 'project', label: 'Project' },
-                { value: 'programme', label: 'Programme (reporting only)' },
-              ]}
-              disabled={!canEditCompanyStructure}
-            />
-            <Select
-              label="Programme"
-              description="Optional reporting programme that this project rolls up into. Company admins/executives manage this structure."
-              value={effectiveProject.parentProjectId ?? null}
-              data={programmeOptions}
-              clearable
-              disabled={
-                !canEditCompanyStructure ||
-                effectiveProject.projectType === 'programme'
-              }
-              onChange={(v) =>
-                updateProject.mutate({
-                  id: projectId,
-                  parentProjectId: v ? (v as ProjectId) : null,
+          <ProjectSettingControls
+            projectType={effectiveProject.projectType}
+            parentProjectId={effectiveProject.parentProjectId}
+            currency={effectiveProject.currency}
+            visibility={effectiveProject.visibility}
+            allowSuperadminAccess={effectiveProject.allowSuperadminAccess}
+            syncCompanyDefaults={effectiveProject.syncCompanyDefaults}
+            allowTxnTransfers={effectiveProject.allowTxnTransfers}
+            programmeOptions={programmeOptions}
+            canEditProject={canEditProject}
+            canEditCompanyStructure={canEditCompanyStructure}
+            canManageTransferCapability={canManageTransferCapability}
+            isMobile={isMobile}
+            onSaveStructure={async (value) => {
+              await updateProjectStructure.mutateAsync({
+                id: projectId,
+                projectType: value.projectType,
+                parentProjectId: value.parentProjectId,
+              });
+            }}
+            onSaveCurrency={async (value) => {
+              await updateProjectCurrency.mutateAsync({
+                id: projectId,
+                currency: value,
+              });
+            }}
+            onSaveVisibility={async (value) => {
+              await updateProjectVisibility.mutateAsync({
+                id: projectId,
+                visibility: value,
+              });
+            }}
+            onSaveSuperadminAccess={async (value) => {
+              await updateSuperadminAccess.mutateAsync({
+                id: projectId,
+                allowSuperadminAccess: value,
+              });
+            }}
+            onSuperadminAccessSaved={(value) => {
+              if (!access.isSuperadmin || value) return;
+              void router
+                .navigate({
+                  to: companyRoute.to,
+                  params: { companyId },
                 })
-              }
-            />
-            <Select
-              label="Currency"
-              description="Controls how money is formatted throughout this project workspace."
-              value={effectiveProject.currency}
-              onChange={(v) => {
-                if (!v || !isProjectCurrency(v)) return;
-                updateProject.mutate({
-                  id: projectId,
-                  currency: v,
+                .catch((error: unknown) => {
+                  showAppToast({
+                    tone: 'error',
+                    title: 'Project access updated',
+                    message:
+                      error instanceof Error
+                        ? `Access was updated, but navigation failed: ${error.message}`
+                        : 'Access was updated, but navigation failed. Return to the company page before continuing.',
+                  });
                 });
-              }}
-              data={[
-                { value: 'AUD', label: 'AUD' },
-                { value: 'USD', label: 'USD' },
-                { value: 'EUR', label: 'EUR' },
-                { value: 'GBP', label: 'GBP' },
-              ]}
-              disabled={!canEditProject}
-            />
-            <Select
-              label="Visibility"
-              description="Controls whether non-members can see this project in the company project list. Opening still requires membership unless you are Admin/Exec/Superadmin."
-              value={effectiveProject.visibility}
-              onChange={(v) => {
-                if (!v || !isProjectVisibility(v)) return;
-                updateProject.mutate({
+            }}
+            onSaveSyncCompanyDefaults={async (value) => {
+              const updatedProject =
+                await updateCompanyStandardsSync.mutateAsync({
                   id: projectId,
-                  visibility: v,
+                  syncCompanyDefaults: value,
                 });
-              }}
-              data={[
-                { value: 'private', label: 'Private (members only)' },
-                {
-                  value: 'company',
-                  label: 'Company-wide (visible to all company users)',
-                },
-              ]}
-              disabled={!canEditProject}
-            />
-            <Switch
-              label="Allow superadmin access"
-              description="Controls whether the global superadmin can open this project for support and troubleshooting. This is on by default for now."
-              checked={effectiveProject.allowSuperadminAccess}
-              onChange={(event) =>
-                setPendingSuperadminAccess(event.currentTarget.checked)
-              }
-              disabled={!canEditProject || updateProject.isPending}
-            />
-            <Switch
-              label="Sync company standards"
-              description="When enabled, this project inherits new company categories, import rules, and auto-coding automatically."
-              checked={effectiveProject.syncCompanyDefaults}
-              onChange={(event) =>
-                updateProject.mutate({
+              return updatedProject.syncCompanyDefaults;
+            }}
+            onSaveAllowTxnTransfers={async (value) => {
+              const updatedProject =
+                await updateTransactionTransfers.mutateAsync({
                   id: projectId,
-                  syncCompanyDefaults: event.currentTarget.checked,
-                })
-              }
-              disabled={
-                !canEditCompanyStructure ||
-                effectiveProject.projectType === 'programme' ||
-                updateProject.isPending
-              }
-            />
-            <Switch
-              label="Allow transaction transfers out"
-              description="Company admins, executives, and management can enable whether this project may move transactions to another project. Programmes cannot transfer transactions."
-              checked={effectiveProject.allowTxnTransfers}
-              onChange={(event) =>
-                updateProject.mutate({
-                  id: projectId,
-                  allowTxnTransfers: event.currentTarget.checked,
-                })
-              }
-              disabled={
-                !canManageTransferCapability ||
-                effectiveProject.projectType === 'programme' ||
-                updateProject.isPending
-              }
-            />
-          </Stack>
+                  allowTxnTransfers: value,
+                });
+              return updatedProject.allowTxnTransfers;
+            }}
+          />
         </Stack>
       </Paper>
 
@@ -612,51 +560,6 @@ export default function ProjectSettingsPanel(props: {
           </div>
         </Stack>
       </Paper>
-
-      <Modal
-        opened={pendingSuperadminAccess !== null}
-        onClose={() => setPendingSuperadminAccess(null)}
-        title={toggleLabel}
-        fullScreen={isMobile}
-      >
-        <Stack>
-          <Text size="sm" c="dimmed">
-            {toggleDescription}
-          </Text>
-          <Group justify="flex-end" wrap="wrap">
-            <Button
-              variant="default"
-              onClick={() => setPendingSuperadminAccess(null)}
-              fullWidth={isMobile}
-            >
-              Cancel
-            </Button>
-            <Button
-              color={nextSuperadminAccess ? 'orange' : 'red'}
-              fullWidth={isMobile}
-              loading={updateProject.isPending}
-              onClick={async () => {
-                if (pendingSuperadminAccess === null) return;
-                await updateProject.mutateAsync({
-                  id: projectId,
-                  allowSuperadminAccess: pendingSuperadminAccess,
-                });
-                const disablingWhileSuperadmin =
-                  access.isSuperadmin && pendingSuperadminAccess === false;
-                setPendingSuperadminAccess(null);
-                if (disablingWhileSuperadmin) {
-                  await router.navigate({
-                    to: companyRoute.to,
-                    params: { companyId },
-                  });
-                }
-              }}
-            >
-              {toggleLabel}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
 
       <ProjectAutoCodingRulesModal
         opened={projectRulesModalOpen}
