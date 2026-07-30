@@ -144,9 +144,10 @@ export default function BudgetPanel(props: {
   const collapsedYears = useMemo(
     () =>
       new Set(
-        Object.keys(persistedCollapseState.collapsedYears)
-          .map((value) => Number(value))
-          .filter((value) => Number.isInteger(value))
+        Object.keys(persistedCollapseState.collapsedYears).flatMap((value) => {
+          const year = Number(value);
+          return Number.isInteger(year) ? [year] : [];
+        })
       ),
     [persistedCollapseState.collapsedYears]
   );
@@ -275,6 +276,7 @@ export default function BudgetPanel(props: {
       { quarterIds: string[]; monthIds: string[] }
     >();
     const byQuarter = new Map<string, { monthIds: string[] }>();
+    const quarterIdsByYear = new Map<number, Set<string>>();
 
     for (const mk of rollups.visibleMonthKeys) {
       const { year, month } = parseYearMonth(mk);
@@ -283,8 +285,12 @@ export default function BudgetPanel(props: {
       const monthId = `m_${mk}`;
 
       const yearEntry = byYear.get(year) ?? { quarterIds: [], monthIds: [] };
-      if (!yearEntry.quarterIds.includes(quarterId))
+      const knownQuarterIds = quarterIdsByYear.get(year) ?? new Set<string>();
+      if (!knownQuarterIds.has(quarterId)) {
+        knownQuarterIds.add(quarterId);
         yearEntry.quarterIds.push(quarterId);
+        quarterIdsByYear.set(year, knownQuarterIds);
+      }
       yearEntry.monthIds.push(monthId);
       byYear.set(year, yearEntry);
 

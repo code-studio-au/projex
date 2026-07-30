@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useReducer } from 'react';
 import {
   Accordion,
   Alert,
@@ -66,6 +66,100 @@ function canDeleteProjectStandard(item: ProjectStandardItem) {
   return item.originScope !== 'company' || item.syncStatus === 'detached';
 }
 
+type TaxonomyManagerState = {
+  error: string | null;
+  status: string | null;
+  creationMode: 'category' | 'subcategory';
+  newCategoryName: string;
+  newSubCategoryName: string;
+  newSubCategoryCategoryId: string | null;
+  creating: boolean;
+  expandedCategoryIds: string[];
+  taxonomySearch: string;
+  renameTarget: RenameTarget | null;
+  renameDraft: string;
+  renaming: boolean;
+  pendingMove: TaxonomySubCategoryActionTarget | null;
+  pendingBulkRecode: TaxonomySubCategoryActionTarget | null;
+  pendingDelete: TaxonomyDeleteTarget | null;
+};
+
+type TaxonomyManagerAction =
+  | { type: 'patch'; patch: Partial<TaxonomyManagerState> }
+  | { type: 'clearMessages' }
+  | { type: 'beginRename'; target: RenameTarget }
+  | { type: 'cancelRename' }
+  | { type: 'categoryCreated'; categoryId: string; name: string }
+  | { type: 'subcategoryCreated'; categoryId: string; name: string }
+  | { type: 'closeManager' };
+
+const initialTaxonomyManagerState: TaxonomyManagerState = {
+  error: null,
+  status: null,
+  creationMode: 'subcategory',
+  newCategoryName: '',
+  newSubCategoryName: '',
+  newSubCategoryCategoryId: null,
+  creating: false,
+  expandedCategoryIds: [],
+  taxonomySearch: '',
+  renameTarget: null,
+  renameDraft: '',
+  renaming: false,
+  pendingMove: null,
+  pendingBulkRecode: null,
+  pendingDelete: null,
+};
+
+function taxonomyManagerReducer(
+  state: TaxonomyManagerState,
+  action: TaxonomyManagerAction
+): TaxonomyManagerState {
+  if (action.type === 'patch') return { ...state, ...action.patch };
+  if (action.type === 'clearMessages') {
+    return { ...state, error: null, status: null };
+  }
+  if (action.type === 'beginRename') {
+    return {
+      ...state,
+      error: null,
+      status: null,
+      renameTarget: action.target,
+      renameDraft: action.target.name,
+    };
+  }
+  if (action.type === 'cancelRename') {
+    return { ...state, renameTarget: null, renameDraft: '', error: null };
+  }
+  if (action.type === 'categoryCreated') {
+    return {
+      ...state,
+      newCategoryName: '',
+      newSubCategoryCategoryId: action.categoryId,
+      creationMode: 'subcategory',
+      status: `Added category "${action.name}".`,
+    };
+  }
+  if (action.type === 'subcategoryCreated') {
+    return {
+      ...state,
+      newSubCategoryName: '',
+      expandedCategoryIds: state.expandedCategoryIds.includes(action.categoryId)
+        ? state.expandedCategoryIds
+        : [...state.expandedCategoryIds, action.categoryId],
+      status: `Added subcategory "${action.name}".`,
+    };
+  }
+  return {
+    ...state,
+    error: null,
+    status: null,
+    renameTarget: null,
+    renameDraft: '',
+    taxonomySearch: '',
+  };
+}
+
 export default function TaxonomyManagerModal(props: {
   opened: boolean;
   onClose: () => void;
@@ -82,28 +176,29 @@ export default function TaxonomyManagerModal(props: {
       taxonomy.companyId
     );
 
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [creationMode, setCreationMode] = useState<'category' | 'subcategory'>(
-    'subcategory'
+  const [managerState, dispatchManager] = useReducer(
+    taxonomyManagerReducer,
+    initialTaxonomyManagerState
   );
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [newSubCategoryName, setNewSubCategoryName] = useState('');
-  const [newSubCategoryCategoryId, setNewSubCategoryCategoryId] = useState<
-    string | null
-  >(null);
-  const [creating, setCreating] = useState(false);
-  const [expandedCategoryIds, setExpandedCategoryIds] = useState<string[]>([]);
-  const [taxonomySearch, setTaxonomySearch] = useState('');
-  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
-  const [renameDraft, setRenameDraft] = useState('');
-  const [renaming, setRenaming] = useState(false);
-  const [pendingMove, setPendingMove] =
-    useState<TaxonomySubCategoryActionTarget | null>(null);
-  const [pendingBulkRecode, setPendingBulkRecode] =
-    useState<TaxonomySubCategoryActionTarget | null>(null);
-  const [pendingDelete, setPendingDelete] =
-    useState<TaxonomyDeleteTarget | null>(null);
+  const {
+    error,
+    status,
+    creationMode,
+    newCategoryName,
+    newSubCategoryName,
+    newSubCategoryCategoryId,
+    creating,
+    expandedCategoryIds,
+    taxonomySearch,
+    renameTarget,
+    renameDraft,
+    renaming,
+    pendingMove,
+    pendingBulkRecode,
+    pendingDelete,
+  } = managerState;
+  const patchManager = (patch: Partial<TaxonomyManagerState>) =>
+    dispatchManager({ type: 'patch', patch });
 
   const categoryOptions = taxonomy.categoryOptions;
   const normalizedSearch = taxonomySearch.trim().toLocaleLowerCase();
@@ -128,36 +223,34 @@ export default function TaxonomyManagerModal(props: {
     : expandedCategoryIds;
 
   function clearMessages() {
-    setError(null);
-    setStatus(null);
+    dispatchManager({ type: 'clearMessages' });
   }
 
   function beginDelete(target: TaxonomyDeleteTarget) {
-    clearMessages();
-    setPendingDelete(target);
+    dispatchManager({
+      type: 'patch',
+      patch: { error: null, status: null, pendingDelete: target },
+    });
   }
 
   function beginRename(target: RenameTarget) {
-    clearMessages();
-    setRenameTarget(target);
-    setRenameDraft(target.name);
+    dispatchManager({ type: 'beginRename', target });
   }
 
   function cancelRename() {
-    setRenameTarget(null);
-    setRenameDraft('');
-    setError(null);
+    dispatchManager({ type: 'cancelRename' });
   }
 
   async function commitRename() {
     if (!renameTarget) return;
     const name = renameDraft.trim();
     if (!name) {
-      setError(
-        renameTarget.kind === 'category'
-          ? 'Category name is required.'
-          : 'Subcategory name is required.'
-      );
+      patchManager({
+        error:
+          renameTarget.kind === 'category'
+            ? 'Category name is required.'
+            : 'Subcategory name is required.',
+      });
       return;
     }
     if (name === renameTarget.name.trim()) {
@@ -167,7 +260,7 @@ export default function TaxonomyManagerModal(props: {
 
     try {
       clearMessages();
-      setRenaming(true);
+      patchManager({ renaming: true });
       if (renameTarget.kind === 'category') {
         await taxonomy.renameCategory(asCategoryId(renameTarget.id), name);
       } else {
@@ -176,16 +269,16 @@ export default function TaxonomyManagerModal(props: {
           name
         );
       }
-      setRenameTarget(null);
-      setRenameDraft('');
+      dispatchManager({ type: 'cancelRename' });
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : `Could not rename ${renameTarget.kind}.`
-      );
+      patchManager({
+        error:
+          err instanceof Error
+            ? err.message
+            : `Could not rename ${renameTarget.kind}.`,
+      });
     } finally {
-      setRenaming(false);
+      patchManager({ renaming: false });
     }
   }
 
@@ -194,16 +287,15 @@ export default function TaxonomyManagerModal(props: {
     if (!name) return;
     try {
       clearMessages();
-      setCreating(true);
+      patchManager({ creating: true });
       const categoryId = await taxonomy.addCategory(name);
-      setNewCategoryName('');
-      setNewSubCategoryCategoryId(categoryId);
-      setCreationMode('subcategory');
-      setStatus(`Added category "${name}".`);
+      dispatchManager({ type: 'categoryCreated', categoryId, name });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add category.');
+      patchManager({
+        error: err instanceof Error ? err.message : 'Could not add category.',
+      });
     } finally {
-      setCreating(false);
+      patchManager({ creating: false });
     }
   }
 
@@ -212,33 +304,28 @@ export default function TaxonomyManagerModal(props: {
     if (!name || !newSubCategoryCategoryId) return;
     try {
       clearMessages();
-      setCreating(true);
+      patchManager({ creating: true });
       await taxonomy.addSubCategory(
         asCategoryId(newSubCategoryCategoryId),
         name
       );
-      setNewSubCategoryName('');
-      setExpandedCategoryIds((current) =>
-        current.includes(newSubCategoryCategoryId)
-          ? current
-          : [...current, newSubCategoryCategoryId]
-      );
-      setStatus(`Added subcategory "${name}".`);
+      dispatchManager({
+        type: 'subcategoryCreated',
+        categoryId: newSubCategoryCategoryId,
+        name,
+      });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Could not add subcategory.'
-      );
+      patchManager({
+        error:
+          err instanceof Error ? err.message : 'Could not add subcategory.',
+      });
     } finally {
-      setCreating(false);
+      patchManager({ creating: false });
     }
   }
 
   function closeManager() {
-    setError(null);
-    setStatus(null);
-    setRenameTarget(null);
-    setRenameDraft('');
-    setTaxonomySearch('');
+    dispatchManager({ type: 'closeManager' });
     onClose();
   }
 
@@ -265,7 +352,7 @@ export default function TaxonomyManagerModal(props: {
             <Alert
               color="green"
               withCloseButton
-              onClose={() => setStatus(null)}
+              onClose={() => patchManager({ status: null })}
             >
               {status}
             </Alert>
@@ -310,10 +397,14 @@ export default function TaxonomyManagerModal(props: {
                     variant="subtle"
                     size="compact-sm"
                     onClick={() => {
-                      clearMessages();
-                      setCreationMode((current) =>
-                        current === 'subcategory' ? 'category' : 'subcategory'
-                      );
+                      patchManager({
+                        error: null,
+                        status: null,
+                        creationMode:
+                          creationMode === 'subcategory'
+                            ? 'category'
+                            : 'subcategory',
+                      });
                     }}
                   >
                     {creationMode === 'subcategory'
@@ -337,8 +428,11 @@ export default function TaxonomyManagerModal(props: {
                       disabled={categoryOptions.length === 0}
                       {...firefoxSafeModalSelectProps}
                       onChange={(value) => {
-                        clearMessages();
-                        setNewSubCategoryCategoryId(value);
+                        patchManager({
+                          error: null,
+                          status: null,
+                          newSubCategoryCategoryId: value,
+                        });
                       }}
                       className={classes.fieldGrow}
                     />
@@ -348,8 +442,11 @@ export default function TaxonomyManagerModal(props: {
                       value={newSubCategoryName}
                       disabled={categoryOptions.length === 0}
                       onChange={(event) => {
-                        clearMessages();
-                        setNewSubCategoryName(event.currentTarget.value);
+                        patchManager({
+                          error: null,
+                          status: null,
+                          newSubCategoryName: event.currentTarget.value,
+                        });
                       }}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter') {
@@ -380,8 +477,11 @@ export default function TaxonomyManagerModal(props: {
                       placeholder="e.g. Travel"
                       value={newCategoryName}
                       onChange={(event) => {
-                        clearMessages();
-                        setNewCategoryName(event.currentTarget.value);
+                        patchManager({
+                          error: null,
+                          status: null,
+                          newCategoryName: event.currentTarget.value,
+                        });
                       }}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter') {
@@ -411,7 +511,9 @@ export default function TaxonomyManagerModal(props: {
               label="Search categories"
               placeholder="Search categories or subcategories"
               value={taxonomySearch}
-              onChange={(event) => setTaxonomySearch(event.currentTarget.value)}
+              onChange={(event) =>
+                patchManager({ taxonomySearch: event.currentTarget.value })
+              }
             />
           ) : null}
 
@@ -429,7 +531,9 @@ export default function TaxonomyManagerModal(props: {
               variant="separated"
               radius="md"
               value={accordionValue}
-              onChange={setExpandedCategoryIds}
+              onChange={(expandedCategoryIds) =>
+                patchManager({ expandedCategoryIds })
+              }
               classNames={{ item: classes.taxonomyAccordionItem }}
             >
               {visibleCategories.map((category) => {
@@ -462,8 +566,10 @@ export default function TaxonomyManagerModal(props: {
                           autoFocus
                           disabled={renaming}
                           onChange={(event) => {
-                            setError(null);
-                            setRenameDraft(event.currentTarget.value);
+                            patchManager({
+                              error: null,
+                              renameDraft: event.currentTarget.value,
+                            });
                           }}
                           onKeyDown={(event) => {
                             if (event.key === 'Enter') {
@@ -579,10 +685,11 @@ export default function TaxonomyManagerModal(props: {
                                       autoFocus
                                       disabled={renaming}
                                       onChange={(event) => {
-                                        setError(null);
-                                        setRenameDraft(
-                                          event.currentTarget.value
-                                        );
+                                        patchManager({
+                                          error: null,
+                                          renameDraft:
+                                            event.currentTarget.value,
+                                        });
                                       }}
                                       onKeyDown={(event) => {
                                         if (event.key === 'Enter') {
@@ -645,12 +752,16 @@ export default function TaxonomyManagerModal(props: {
                                         <Menu.Item
                                           disabled={categoryOptions.length < 2}
                                           onClick={() => {
-                                            clearMessages();
-                                            setPendingMove({
-                                              subCategoryId: subCategory.id,
-                                              subCategoryName: subCategory.name,
-                                              currentCategoryId:
-                                                subCategory.categoryId,
+                                            patchManager({
+                                              error: null,
+                                              status: null,
+                                              pendingMove: {
+                                                subCategoryId: subCategory.id,
+                                                subCategoryName:
+                                                  subCategory.name,
+                                                currentCategoryId:
+                                                  subCategory.categoryId,
+                                              },
                                             });
                                           }}
                                         >
@@ -661,12 +772,16 @@ export default function TaxonomyManagerModal(props: {
                                             taxonomy.subCategories.length < 2
                                           }
                                           onClick={() => {
-                                            clearMessages();
-                                            setPendingBulkRecode({
-                                              subCategoryId: subCategory.id,
-                                              subCategoryName: subCategory.name,
-                                              currentCategoryId:
-                                                subCategory.categoryId,
+                                            patchManager({
+                                              error: null,
+                                              status: null,
+                                              pendingBulkRecode: {
+                                                subCategoryId: subCategory.id,
+                                                subCategoryName:
+                                                  subCategory.name,
+                                                currentCategoryId:
+                                                  subCategory.categoryId,
+                                              },
                                             });
                                           }}
                                         >
@@ -688,18 +803,20 @@ export default function TaxonomyManagerModal(props: {
                                                         subCategory.id,
                                                     }
                                                   );
-                                                setStatus(
-                                                  result.categoryCreated ||
+                                                patchManager({
+                                                  status:
+                                                    result.categoryCreated ||
                                                     result.subCategoryCreated
-                                                    ? 'Added the project taxonomy to company defaults and synced linked projects.'
-                                                    : 'The matching company default already existed; linked projects are now aligned.'
-                                                );
+                                                      ? 'Added the project taxonomy to company defaults and synced linked projects.'
+                                                      : 'The matching company default already existed; linked projects are now aligned.',
+                                                });
                                               } catch (err) {
-                                                setError(
-                                                  err instanceof Error
-                                                    ? err.message
-                                                    : 'Could not add this subcategory to company defaults.'
-                                                );
+                                                patchManager({
+                                                  error:
+                                                    err instanceof Error
+                                                      ? err.message
+                                                      : 'Could not add this subcategory to company defaults.',
+                                                });
                                               }
                                             }}
                                           >
@@ -751,12 +868,12 @@ export default function TaxonomyManagerModal(props: {
         pendingMove={pendingMove}
         pendingBulkRecode={pendingBulkRecode}
         pendingDelete={pendingDelete}
-        onCloseMove={() => setPendingMove(null)}
-        onCloseBulkRecode={() => setPendingBulkRecode(null)}
-        onCloseDelete={() => setPendingDelete(null)}
+        onCloseMove={() => patchManager({ pendingMove: null })}
+        onCloseBulkRecode={() => patchManager({ pendingBulkRecode: null })}
+        onCloseDelete={() => patchManager({ pendingDelete: null })}
         onClearMessages={clearMessages}
-        onError={setError}
-        onStatus={setStatus}
+        onError={(error) => patchManager({ error })}
+        onStatus={(status) => patchManager({ status })}
       />
     </>
   );

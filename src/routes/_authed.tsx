@@ -7,6 +7,15 @@ import {
 export const Route = createFileRoute('/_authed')({
   component: lazyRouteComponent(() => import('../components/AuthedLayout')),
   ssr: true,
+  beforeLoad: async ({ context }) => {
+    const { sessionQueryOptions } = await import('../queries/session');
+    const session = await context.queryClient.ensureQueryData(
+      sessionQueryOptions()
+    );
+    if (!session) {
+      throw redirect({ to: '/login' });
+    }
+  },
   loader: async ({ context }) => {
     const [
       { currentUserQueryOptions },
@@ -32,14 +41,5 @@ export const Route = createFileRoute('/_authed')({
     ]);
 
     return null;
-  },
-  beforeLoad: async ({ context }) => {
-    const { sessionQueryOptions } = await import('../queries/session');
-    const session = await context.queryClient.ensureQueryData(
-      sessionQueryOptions()
-    );
-    if (!session) {
-      throw redirect({ to: '/login' });
-    }
   },
 });

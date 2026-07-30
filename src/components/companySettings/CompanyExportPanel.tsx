@@ -28,6 +28,26 @@ type ExportJobState = {
   isStarting: boolean;
 };
 
+type ExportJobResponseBody =
+  | CompanyExportJob
+  | {
+      message?: string;
+    }
+  | null;
+
+async function readExportJobResponse(response: Response) {
+  if (!response.ok) {
+    return {
+      ok: false as const,
+      payload: (await response.json()) as ExportJobResponseBody,
+    };
+  }
+  return {
+    ok: true as const,
+    payload: (await response.json()) as ExportJobResponseBody,
+  };
+}
+
 export default function CompanyExportPanel(props: {
   companyId: CompanyId;
   initialExportJobId: string | null;
@@ -71,14 +91,9 @@ export default function CompanyExportPanel(props: {
           method: 'GET',
           headers: { accept: 'application/json' },
         });
-        const payload = (await response.json()) as
-          | CompanyExportJob
-          | {
-              message?: string;
-            }
-          | null;
+        const { ok, payload } = await readExportJobResponse(response);
         if (cancelled) return;
-        if (!response.ok) {
+        if (!ok) {
           if (initialExportJobId) {
             setExportJobState((current) => ({
               ...current,
@@ -131,13 +146,9 @@ export default function CompanyExportPanel(props: {
             headers: { accept: 'application/json' },
           }
         );
-        const payload = (await response.json()) as
-          | CompanyExportJob
-          | {
-              message?: string;
-            };
+        const { ok, payload } = await readExportJobResponse(response);
         if (cancelled) return;
-        if (!response.ok) {
+        if (!ok) {
           setExportJobState((current) => ({
             ...current,
             error:
@@ -206,12 +217,8 @@ export default function CompanyExportPanel(props: {
           body: JSON.stringify(currentExportOptions),
         }
       );
-      const payload = (await response.json()) as
-        | CompanyExportJob
-        | {
-            message?: string;
-          };
-      if (!response.ok) {
+      const { ok, payload } = await readExportJobResponse(response);
+      if (!ok) {
         throw new Error(
           typeof payload === 'object' && payload && 'message' in payload
             ? (payload.message ?? 'Could not start export.')

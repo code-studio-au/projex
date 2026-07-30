@@ -75,9 +75,9 @@ export const TRANSACTION_VIEW_GROUPS = (
   ['Common views', 'Specialist views'] as const
 ).map((group) => ({
   group,
-  items: TRANSACTION_VIEW_OPTIONS.filter(
-    (option) => option.group === group
-  ).map(({ value, label }) => ({ value, label })),
+  items: TRANSACTION_VIEW_OPTIONS.flatMap((option) =>
+    option.group === group ? [{ value: option.value, label: option.label }] : []
+  ),
 }));
 
 export function toTransactionView(value: string | null): TransactionView {

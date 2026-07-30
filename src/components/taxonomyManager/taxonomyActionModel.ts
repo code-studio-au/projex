@@ -13,9 +13,9 @@ export function getTaxonomyDeleteAffectedSubCategoryIds(args: {
   const { target, subCategories } = args;
   return new Set(
     target?.kind === 'category'
-      ? subCategories
-          .filter((subCategory) => subCategory.categoryId === target.id)
-          .map((subCategory) => subCategory.id)
+      ? subCategories.flatMap((subCategory) =>
+          subCategory.categoryId === target.id ? [subCategory.id] : []
+        )
       : target?.kind === 'subcategory'
         ? [target.id]
         : []
@@ -28,16 +28,16 @@ export function getTaxonomySubCategoryOptions(args: {
   excludedIds?: ReadonlySet<string>;
 }) {
   const { subCategories, categoryId, excludedIds = new Set() } = args;
-  return subCategories
-    .filter(
-      (subCategory) =>
-        subCategory.categoryId === categoryId &&
-        !excludedIds.has(subCategory.id)
-    )
-    .map((subCategory) => ({
-      value: subCategory.id,
-      label: subCategory.name,
-    }));
+  return subCategories.flatMap((subCategory) =>
+    subCategory.categoryId === categoryId && !excludedIds.has(subCategory.id)
+      ? [
+          {
+            value: subCategory.id,
+            label: subCategory.name,
+          },
+        ]
+      : []
+  );
 }
 
 export function resolveTaxonomyDeleteRuleHandling(args: {

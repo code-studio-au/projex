@@ -126,9 +126,9 @@ export default function TransactionReversalPairDetails(props: {
         { label: 'Reference', comparison: evidence.reference },
       ]
     : [];
-  const matchingEvidenceLabels = metadataEvidence
-    .filter(({ comparison }) => comparison?.outcome === 'match')
-    .map(({ label }) => label);
+  const matchingEvidenceLabels = metadataEvidence.flatMap(
+    ({ label, comparison }) => (comparison?.outcome === 'match' ? [label] : [])
+  );
   const attentionEvidence = metadataEvidence.filter(
     ({ comparison }) => comparison?.outcome !== 'match'
   );

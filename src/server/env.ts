@@ -22,7 +22,9 @@ function nonEmpty(value: string | undefined): boolean {
 }
 
 function listMissing(required: Array<{ key: string; ok: boolean }>): string[] {
-  return required.filter((r) => !r.ok).map((r) => r.key);
+  return required.flatMap((requirement) =>
+    requirement.ok ? [] : [requirement.key]
+  );
 }
 
 function parseTrustedOrigins(value: string | undefined): string[] {

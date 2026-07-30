@@ -6,7 +6,7 @@ const optionalIdSchema = z.string().trim().min(1).max(255).optional();
 const optionalNameSchema = z.string().trim().min(1).max(255).optional();
 
 export const persistedImportPreviewRowSchema = z
-  .object({
+  .strictObject({
     sourceRowIndex: z.number().int().positive(),
     importId: z.string().trim().min(1).max(255),
     externalId: z.string().trim().min(1).max(500).optional(),
@@ -43,5 +43,4 @@ export const persistedImportPreviewRowSchema = z
     rawSourceRow: z.record(z.string(), z.string()).optional(),
     warnings: z.array(z.string()),
   })
-  .strict()
   .transform((row) => row as ImportPreviewRow);

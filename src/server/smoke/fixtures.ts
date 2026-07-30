@@ -4,6 +4,7 @@ import { provisionBetterAuthCredentialUser } from '../auth/betterAuthInstance.ts
 import { createPgPool, type TypedPgPool } from '../db/pgPool.ts';
 import { loadSmokeEnvFiles } from './env.ts';
 import type { SmokeManualInputs } from '../../types/index.ts';
+import { runSequentially } from './shared.ts';
 
 type SmokeFixtureUser = {
   id: string;
@@ -724,11 +725,14 @@ export async function createSmokeFixtures(
     }
 
     await emit(options, `Creating smoke fixtures for run ${runId}`);
-    for (const [key, fixtureUser] of Object.entries(fixtures.users)) {
-      const authUser = await signUpFixtureUser(fixtureUser);
-      fixtureUser.id = authUser.id;
-      await ensureAppUser(pool, authUser, key !== 'privacyAdmin');
-    }
+    await runSequentially(
+      Object.entries(fixtures.users),
+      async ([key, fixtureUser]) => {
+        const authUser = await signUpFixtureUser(fixtureUser);
+        fixtureUser.id = authUser.id;
+        await ensureAppUser(pool, authUser, key !== 'privacyAdmin');
+      }
+    );
 
     await ensureSmokeCompanyAndProject(pool, fixtures);
     await ensureFixtureMemberships(pool, fixtures);

@@ -9,6 +9,7 @@ import { RootNotFoundComponent } from '../components/routerErrors';
 const smokeToolsEnabled = import.meta.env.VITE_ENABLE_SMOKE_TOOLS === 'true';
 
 export const Route = createFileRoute('/_authed/smoke')({
+  ssr: true,
   beforeLoad: () => {
     if (!smokeToolsEnabled) {
       throw notFound();
@@ -17,5 +18,4 @@ export const Route = createFileRoute('/_authed/smoke')({
   component: smokeToolsEnabled
     ? lazyRouteComponent(() => import('../pages/SmokeDashboardPage'))
     : RootNotFoundComponent,
-  ssr: true,
 });

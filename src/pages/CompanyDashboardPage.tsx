@@ -153,9 +153,11 @@ export default function CompanyDashboardPage() {
   const programmeNameById = useMemo(
     () =>
       new Map(
-        rows
-          .filter((project) => project.projectType === 'programme')
-          .map((project) => [project.id, project.name])
+        rows.flatMap((project) =>
+          project.projectType === 'programme'
+            ? [[project.id, project.name] as const]
+            : []
+        )
       ),
     [rows]
   );
@@ -165,9 +167,9 @@ export default function CompanyDashboardPage() {
   );
   const eligibleInitialOwnerOptions = useMemo(() => {
     const companyMemberIds = new Set(
-      memberships
-        .filter((membership) => membership.companyId === companyId)
-        .map((membership) => membership.userId)
+      memberships.flatMap((membership) =>
+        membership.companyId === companyId ? [membership.userId] : []
+      )
     );
     return (usersQ.data ?? [])
       .filter(
@@ -184,9 +186,9 @@ export default function CompanyDashboardPage() {
   const hasEligibleInitialOwners = eligibleInitialOwnerOptions.length > 0;
   const userCompanyCount = useMemo(() => {
     const ids = new Set(
-      memberships
-        .filter((m) => m.userId === access.userId)
-        .map((m) => m.companyId)
+      memberships.flatMap((membership) =>
+        membership.userId === access.userId ? [membership.companyId] : []
+      )
     );
     return ids.size;
   }, [memberships, access.userId]);

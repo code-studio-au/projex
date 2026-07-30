@@ -47,10 +47,7 @@ export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
     () => myProjectMembershipsQ.data ?? [],
     [myProjectMembershipsQ.data]
   );
-  const isGlobalSuperadmin = useMemo(
-    () => currentUserQ.data?.isGlobalSuperadmin === true,
-    [currentUserQ.data?.isGlobalSuperadmin]
-  );
+  const isGlobalSuperadmin = currentUserQ.data?.isGlobalSuperadmin === true;
 
   const companyRole = useMemo(() => {
     return getUserCompanyRole(userId, companyId, companyMemberships) ?? 'none';

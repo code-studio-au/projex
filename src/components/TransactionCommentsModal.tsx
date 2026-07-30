@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, useMemo, useReducer, useRef } from 'react';
 import {
   Alert,
   Badge,
@@ -51,6 +51,89 @@ function commentExcerpt(value: string | undefined) {
     : normalized;
 }
 
+type CommentDraftState = {
+  body: string;
+  assignedToUserId: UserId | null;
+  mentionRange: MentionRange | null;
+  activeMentionIndex: number;
+  replyToCommentId: TxnCommentId | null;
+  error: string | null;
+};
+
+type CommentDraftAction =
+  | { type: 'reset' }
+  | { type: 'startReply'; commentId: TxnCommentId }
+  | { type: 'setBody'; body: string }
+  | { type: 'setAssignee'; userId: UserId | null }
+  | { type: 'syncMention'; range: MentionRange | null }
+  | { type: 'moveMention'; index: number }
+  | { type: 'selectMention'; body: string; userId: UserId }
+  | { type: 'clearReply' }
+  | { type: 'clearError' }
+  | { type: 'fail'; message: string }
+  | { type: 'submitSuccess' };
+
+const initialCommentDraft: CommentDraftState = {
+  body: '',
+  assignedToUserId: null,
+  mentionRange: null,
+  activeMentionIndex: 0,
+  replyToCommentId: null,
+  error: null,
+};
+
+function commentDraftReducer(
+  state: CommentDraftState,
+  action: CommentDraftAction
+): CommentDraftState {
+  if (action.type === 'reset') return initialCommentDraft;
+  if (action.type === 'startReply') {
+    return {
+      ...initialCommentDraft,
+      replyToCommentId: action.commentId,
+    };
+  }
+  if (action.type === 'setBody') return { ...state, body: action.body };
+  if (action.type === 'setAssignee') {
+    return { ...state, assignedToUserId: action.userId };
+  }
+  if (action.type === 'syncMention') {
+    return {
+      ...state,
+      mentionRange: action.range,
+      activeMentionIndex:
+        action.range?.query === state.mentionRange?.query
+          ? state.activeMentionIndex
+          : 0,
+    };
+  }
+  if (action.type === 'moveMention') {
+    return { ...state, activeMentionIndex: action.index };
+  }
+  if (action.type === 'selectMention') {
+    return {
+      ...state,
+      body: action.body,
+      assignedToUserId: action.userId,
+      mentionRange: null,
+      activeMentionIndex: 0,
+    };
+  }
+  if (action.type === 'clearReply') {
+    return { ...state, replyToCommentId: null };
+  }
+  if (action.type === 'clearError') return { ...state, error: null };
+  if (action.type === 'fail') return { ...state, error: action.message };
+  return {
+    ...state,
+    body: '',
+    assignedToUserId: null,
+    mentionRange: null,
+    activeMentionIndex: 0,
+    replyToCommentId: null,
+  };
+}
+
 export default function TransactionCommentsModal(props: {
   opened: boolean;
   txn: Txn | null;
@@ -59,14 +142,18 @@ export default function TransactionCommentsModal(props: {
   const { opened, txn, onClose } = props;
   const isMobile = useMediaQuery('(max-width: 48em)');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const [body, setBody] = useState('');
-  const [assignedToUserId, setAssignedToUserId] = useState<UserId | null>(null);
-  const [mentionRange, setMentionRange] = useState<MentionRange | null>(null);
-  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
-  const [replyToCommentId, setReplyToCommentId] = useState<TxnCommentId | null>(
-    null
+  const [draft, dispatchDraft] = useReducer(
+    commentDraftReducer,
+    initialCommentDraft
   );
-  const [error, setError] = useState<string | null>(null);
+  const {
+    body,
+    assignedToUserId,
+    mentionRange,
+    activeMentionIndex,
+    replyToCommentId,
+    error,
+  } = draft;
   const projectId = txn?.projectId ?? asProjectId('__no_project__');
   const txnId = txn?.id ?? asTxnId('__no_txn__');
 
@@ -81,12 +168,7 @@ export default function TransactionCommentsModal(props: {
   const updateComment = useUpdateTransactionCommentMutation(projectId, txnId);
 
   function resetDraft() {
-    setBody('');
-    setAssignedToUserId(null);
-    setMentionRange(null);
-    setActiveMentionIndex(0);
-    setReplyToCommentId(null);
-    setError(null);
+    dispatchDraft({ type: 'reset' });
   }
 
   function close() {
@@ -143,10 +225,7 @@ export default function TransactionCommentsModal(props: {
 
   function syncMentionState(value: string, selectionStart: number) {
     const nextRange = activeMentionFromSelection(value, selectionStart);
-    if (nextRange?.query !== mentionRange?.query) {
-      setActiveMentionIndex(0);
-    }
-    setMentionRange(nextRange);
+    dispatchDraft({ type: 'syncMention', range: nextRange });
   }
 
   function selectMentionedUser(user: (typeof assignableUsers)[number]) {
@@ -156,10 +235,11 @@ export default function TransactionCommentsModal(props: {
     if (!range) return;
 
     const next = insertMention(body, range, mentionUserLabel(user));
-    setBody(next.value);
-    setAssignedToUserId(user.id);
-    setMentionRange(null);
-    setActiveMentionIndex(0);
+    dispatchDraft({
+      type: 'selectMention',
+      body: next.value,
+      userId: user.id,
+    });
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
       textareaRef.current?.setSelectionRange(next.cursor, next.cursor);
@@ -171,8 +251,7 @@ export default function TransactionCommentsModal(props: {
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      setMentionRange(null);
-      setActiveMentionIndex(0);
+      dispatchDraft({ type: 'syncMention', range: null });
       return;
     }
 
@@ -180,16 +259,21 @@ export default function TransactionCommentsModal(props: {
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setActiveMentionIndex((current) => (current + 1) % mentionOptions.length);
+      dispatchDraft({
+        type: 'moveMention',
+        index: (activeMentionIndex + 1) % mentionOptions.length,
+      });
       return;
     }
 
     if (event.key === 'ArrowUp') {
       event.preventDefault();
-      setActiveMentionIndex(
-        (current) =>
-          (current - 1 + mentionOptions.length) % mentionOptions.length
-      );
+      dispatchDraft({
+        type: 'moveMention',
+        index:
+          (activeMentionIndex - 1 + mentionOptions.length) %
+          mentionOptions.length,
+      });
       return;
     }
 
@@ -204,47 +288,54 @@ export default function TransactionCommentsModal(props: {
   async function submit() {
     if (!txn || !body.trim()) return;
     try {
-      setError(null);
+      dispatchDraft({ type: 'clearError' });
       await createComment.mutateAsync({
         txnId: txn.id,
         body,
         parentCommentId: replyToCommentId ?? undefined,
         assignedToUserId: assignedToUserId ?? null,
       });
-      setBody('');
-      setAssignedToUserId(null);
-      setMentionRange(null);
-      setActiveMentionIndex(0);
-      setReplyToCommentId(null);
+      dispatchDraft({ type: 'submitSuccess' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save comment');
+      dispatchDraft({
+        type: 'fail',
+        message: err instanceof Error ? err.message : 'Could not save comment',
+      });
     }
   }
 
   async function setResolved(comment: TxnComment, resolved: boolean) {
     if (!txn) return;
     try {
-      setError(null);
+      dispatchDraft({ type: 'clearError' });
       await updateComment.mutateAsync({ id: comment.id, resolved });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Could not update comment status'
-      );
+      dispatchDraft({
+        type: 'fail',
+        message:
+          err instanceof Error
+            ? err.message
+            : 'Could not update comment status',
+      });
     }
   }
 
   async function assignComment(comment: TxnComment, value: string | null) {
     if (!txn) return;
     try {
-      setError(null);
+      dispatchDraft({ type: 'clearError' });
       await updateComment.mutateAsync({
         id: comment.id,
         assignedToUserId: value ? asUserId(value) : null,
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Could not update comment assignee'
-      );
+      dispatchDraft({
+        type: 'fail',
+        message:
+          err instanceof Error
+            ? err.message
+            : 'Could not update comment assignee',
+      });
     }
   }
 
@@ -314,11 +405,10 @@ export default function TransactionCommentsModal(props: {
                   size="xs"
                   variant="subtle"
                   onClick={() => {
-                    setReplyToCommentId(comment.id);
-                    setBody('');
-                    setAssignedToUserId(null);
-                    setMentionRange(null);
-                    setActiveMentionIndex(0);
+                    dispatchDraft({
+                      type: 'startReply',
+                      commentId: comment.id,
+                    });
                   }}
                 >
                   Reply
@@ -400,7 +490,7 @@ export default function TransactionCommentsModal(props: {
                         size="xs"
                         variant="subtle"
                         color="gray"
-                        onClick={() => setReplyToCommentId(null)}
+                        onClick={() => dispatchDraft({ type: 'clearReply' })}
                       >
                         Cancel reply
                       </Button>
@@ -424,7 +514,7 @@ export default function TransactionCommentsModal(props: {
                   disabled={submitting}
                   onChange={(event) => {
                     const nextBody = event.currentTarget.value;
-                    setBody(nextBody);
+                    dispatchDraft({ type: 'setBody', body: nextBody });
                     syncMentionState(
                       nextBody,
                       event.currentTarget.selectionStart
@@ -438,7 +528,9 @@ export default function TransactionCommentsModal(props: {
                   }
                   onKeyDown={handleCommentKeyDown}
                   onBlur={() => {
-                    window.setTimeout(() => setMentionRange(null));
+                    window.setTimeout(() =>
+                      dispatchDraft({ type: 'syncMention', range: null })
+                    );
                   }}
                   description="Type @ to pick a project member and assign the comment."
                 />
@@ -498,7 +590,9 @@ export default function TransactionCommentsModal(props: {
                     variant="subtle"
                     color="gray"
                     disabled={submitting}
-                    onClick={() => setAssignedToUserId(null)}
+                    onClick={() =>
+                      dispatchDraft({ type: 'setAssignee', userId: null })
+                    }
                   >
                     Clear assignment
                   </Button>

@@ -104,22 +104,21 @@ export function addStructureWorksheets(args: {
       { header: 'Project status', key: 'projectStatus' },
       { header: 'Project visibility', key: 'projectVisibility' },
     ],
-    args.operationalProjects
-      .filter(
-        (row) =>
-          !!row.parent_project_id &&
-          args.projectIdSet.has(row.parent_project_id)
-      )
-      .map((row) => ({
-        programmeId: row.parent_project_id ?? '',
-        programmeName: row.parent_project_id
-          ? (args.projectById.get(row.parent_project_id)?.name ?? '')
-          : '',
-        projectId: row.id,
-        projectName: row.name,
-        projectStatus: row.status,
-        projectVisibility: row.visibility,
-      }))
+    args.operationalProjects.flatMap((row) =>
+      row.parent_project_id && args.projectIdSet.has(row.parent_project_id)
+        ? [
+            {
+              programmeId: row.parent_project_id,
+              programmeName:
+                args.projectById.get(row.parent_project_id)?.name ?? '',
+              projectId: row.id,
+              projectName: row.name,
+              projectStatus: row.status,
+              projectVisibility: row.visibility,
+            },
+          ]
+        : []
+    )
   );
 
   createWorksheet(

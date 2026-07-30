@@ -65,10 +65,12 @@ export async function splitTxnServer(args: {
       createTxnId: () => asTxnId(uid('txn')),
     });
 
-    for (const child of split.children) {
-      validateOrThrow(txnInputSchema, child);
-      await assertTransactionResourceOwnership(context, child);
-    }
+    await Promise.all(
+      split.children.map((child) => {
+        validateOrThrow(txnInputSchema, child);
+        return assertTransactionResourceOwnership(context, child);
+      })
+    );
 
     const existingRows = await db
       .selectFrom('txns')

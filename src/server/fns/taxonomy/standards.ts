@@ -136,33 +136,33 @@ async function applyCompanyTaxonomyWithPreloadedState(args: {
 
   for (const action of categoryActions) {
     if (action.kind === 'detach') {
+      const { target } = action;
       await db
         .updateTable('categories')
         .set({
           ...buildDetachedProjectStandardMetadata({
-            companyItemId: action.target.origin_company_item_id!,
-            previousSourceUpdatedAt: action.target.source_updated_at_snapshot,
+            companyItemId: target.origin_company_item_id!,
+            previousSourceUpdatedAt: target.source_updated_at_snapshot,
             nowIso: now,
           }),
           updated_at: now,
         })
         .where('project_id', '=', projectId)
-        .where('id', '=', action.target.id)
+        .where('id', '=', target.id)
         .execute();
       continue;
     }
 
     if (action.kind === 'preserve') {
-      defaultCategoryIdToProjectCategoryId.set(
-        action.source.id,
-        action.target.id
-      );
+      const { source, target } = action;
+      defaultCategoryIdToProjectCategoryId.set(source.id, target.id);
       continue;
     }
 
+    const { source } = action;
     const metadata = buildInheritedProjectStandardMetadata({
-      companyItemId: action.source.id,
-      sourceUpdatedAt: action.source.updated_at,
+      companyItemId: source.id,
+      sourceUpdatedAt: source.updated_at,
       nowIso: now,
     });
     if (action.kind === 'create') {
@@ -173,27 +173,24 @@ async function applyCompanyTaxonomyWithPreloadedState(args: {
           id: createdId,
           company_id: companyId,
           project_id: projectId,
-          name: action.source.name,
+          name: source.name,
           ...metadata,
           created_at: now,
           updated_at: now,
         })
         .execute();
-      defaultCategoryIdToProjectCategoryId.set(action.source.id, createdId);
+      defaultCategoryIdToProjectCategoryId.set(source.id, createdId);
       categoriesAdded += 1;
       continue;
     }
 
     await db
       .updateTable('categories')
-      .set({ name: action.source.name, ...metadata, updated_at: now })
+      .set({ name: source.name, ...metadata, updated_at: now })
       .where('project_id', '=', projectId)
       .where('id', '=', action.target.id)
       .execute();
-    defaultCategoryIdToProjectCategoryId.set(
-      action.source.id,
-      action.target.id
-    );
+    defaultCategoryIdToProjectCategoryId.set(source.id, action.target.id);
   }
 
   const createdBudgetTargets: Array<{
@@ -223,18 +220,19 @@ async function applyCompanyTaxonomyWithPreloadedState(args: {
   for (const action of subCategoryActions) {
     if (action.kind === 'preserve') continue;
     if (action.kind === 'detach') {
+      const { target } = action;
       await db
         .updateTable('sub_categories')
         .set({
           ...buildDetachedProjectStandardMetadata({
-            companyItemId: action.target.origin_company_item_id!,
-            previousSourceUpdatedAt: action.target.source_updated_at_snapshot,
+            companyItemId: target.origin_company_item_id!,
+            previousSourceUpdatedAt: target.source_updated_at_snapshot,
             nowIso: now,
           }),
           updated_at: now,
         })
         .where('project_id', '=', projectId)
-        .where('id', '=', action.target.id)
+        .where('id', '=', target.id)
         .execute();
       continue;
     }
@@ -268,6 +266,7 @@ async function applyCompanyTaxonomyWithPreloadedState(args: {
       continue;
     }
 
+    const targetSubCategoryId = action.target.id;
     const categoryChanged = action.target.category_id !== projectCategoryId;
     await db
       .updateTable('sub_categories')
@@ -278,20 +277,20 @@ async function applyCompanyTaxonomyWithPreloadedState(args: {
         updated_at: now,
       })
       .where('project_id', '=', projectId)
-      .where('id', '=', action.target.id)
+      .where('id', '=', targetSubCategoryId)
       .execute();
     if (categoryChanged) {
       await db
         .updateTable('budget_lines')
         .set({ category_id: projectCategoryId, updated_at: now })
         .where('project_id', '=', projectId)
-        .where('sub_category_id', '=', action.target.id)
+        .where('sub_category_id', '=', targetSubCategoryId)
         .execute();
       await db
         .updateTable('txns')
         .set({ category_id: projectCategoryId, updated_at: now })
         .where('project_id', '=', projectId)
-        .where('sub_category_id', '=', action.target.id)
+        .where('sub_category_id', '=', targetSubCategoryId)
         .where('locked_at', 'is', null)
         .execute();
     }
@@ -379,18 +378,20 @@ export async function syncCompanyTaxonomyToProjects(args: {
   const projectSubCategoriesByProjectId =
     groupProjectSubCategoryRows(projectSubCategories);
 
-  for (const projectId of args.projectIds) {
-    await applyCompanyTaxonomyWithPreloadedState({
-      db: args.db,
-      companyId: args.companyId,
-      projectId,
-      defaultCategories,
-      defaultSubCategories,
-      projectCategories: projectCategoriesByProjectId.get(projectId) ?? [],
-      projectSubCategories:
-        projectSubCategoriesByProjectId.get(projectId) ?? [],
-    });
-  }
+  await Promise.all(
+    args.projectIds.map((projectId) =>
+      applyCompanyTaxonomyWithPreloadedState({
+        db: args.db,
+        companyId: args.companyId,
+        projectId,
+        defaultCategories,
+        defaultSubCategories,
+        projectCategories: projectCategoriesByProjectId.get(projectId) ?? [],
+        projectSubCategories:
+          projectSubCategoriesByProjectId.get(projectId) ?? [],
+      })
+    )
+  );
 }
 
 export async function syncCompanyTaxonomyToSyncedProjects(args: {

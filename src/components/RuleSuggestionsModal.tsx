@@ -121,14 +121,11 @@ export default function RuleSuggestionsModal(props: {
   function subCategoryOptionsFor(
     categoryId: CompanyDefaultCategoryId | undefined
   ) {
-    return subCategories
-      .filter(
-        (subCategory) => subCategory.companyDefaultCategoryId === categoryId
-      )
-      .map((subCategory) => ({
-        value: subCategory.id,
-        label: subCategory.name,
-      }));
+    return subCategories.flatMap((subCategory) =>
+      subCategory.companyDefaultCategoryId === categoryId
+        ? [{ value: subCategory.id, label: subCategory.name }]
+        : []
+    );
   }
 
   function defaultPath(
@@ -330,30 +327,29 @@ export default function RuleSuggestionsModal(props: {
                           Suggested alternatives
                         </Text>
                         <Group gap="xs" wrap="wrap">
-                          {suggestion.matchTextAlternatives
-                            .filter(
-                              (option) =>
-                                option.toLowerCase() !==
-                                draftMatchText.trim().toLowerCase()
-                            )
-                            .map((option) => (
-                              <Button
-                                key={option}
-                                size="compact-sm"
-                                variant="default"
-                                disabled={readOnly}
-                                onClick={() => {
-                                  setError(null);
-                                  setSuccess(null);
-                                  setMatchDrafts((prev) => ({
-                                    ...prev,
-                                    [suggestion.id]: option,
-                                  }));
-                                }}
-                              >
-                                Use "{option}"
-                              </Button>
-                            ))}
+                          {suggestion.matchTextAlternatives.flatMap((option) =>
+                            option.toLowerCase() !==
+                            draftMatchText.trim().toLowerCase()
+                              ? [
+                                  <Button
+                                    key={option}
+                                    size="compact-sm"
+                                    variant="default"
+                                    disabled={readOnly}
+                                    onClick={() => {
+                                      setError(null);
+                                      setSuccess(null);
+                                      setMatchDrafts((prev) => ({
+                                        ...prev,
+                                        [suggestion.id]: option,
+                                      }));
+                                    }}
+                                  >
+                                    Use "{option}"
+                                  </Button>,
+                                ]
+                              : []
+                          )}
                         </Group>
                       </Stack>
                     ) : null}

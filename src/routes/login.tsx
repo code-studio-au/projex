@@ -6,10 +6,6 @@ import {
 
 export const Route = createFileRoute('/login')({
   component: lazyRouteComponent(() => import('../pages/LoginPage')),
-  loader: async ({ context }) => {
-    const { sessionQueryOptions } = await import('../queries/session');
-    await context.queryClient.ensureQueryData(sessionQueryOptions());
-  },
   beforeLoad: async ({ context }) => {
     const [{ sessionQueryOptions }, { getPostLoginTargetServerFn }] =
       await Promise.all([
@@ -22,5 +18,9 @@ export const Route = createFileRoute('/login')({
     if (!session) return;
     const target = await getPostLoginTargetServerFn();
     throw redirect(target);
+  },
+  loader: async ({ context }) => {
+    const { sessionQueryOptions } = await import('../queries/session');
+    await context.queryClient.ensureQueryData(sessionQueryOptions());
   },
 });

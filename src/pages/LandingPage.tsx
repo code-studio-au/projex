@@ -78,9 +78,9 @@ export default function LandingPage() {
   const userCompanyCount = useMemo(() => {
     if (!userId) return loaderData.userCompanyCount ?? 0;
     const ids = new Set(
-      (membershipsQ.data ?? [])
-        .filter((m) => m.userId === userId)
-        .map((m) => m.companyId)
+      (membershipsQ.data ?? []).flatMap((membership) =>
+        membership.userId === userId ? [membership.companyId] : []
+      )
     );
     return ids.size || (loaderData.userCompanyCount ?? 0);
   }, [loaderData.userCompanyCount, membershipsQ.data, userId]);

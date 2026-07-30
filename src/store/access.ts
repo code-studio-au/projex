@@ -25,9 +25,11 @@ function getUserCompanyRoles(
   companyId: CompanyId,
   companyMemberships: CompanyMembership[]
 ) {
-  return companyMemberships
-    .filter((m) => m.userId === userId && m.companyId === companyId)
-    .map((m) => m.role);
+  return companyMemberships.flatMap((membership) =>
+    membership.userId === userId && membership.companyId === companyId
+      ? [membership.role]
+      : []
+  );
 }
 
 export function getUserCompanyRole(
@@ -46,9 +48,9 @@ function getCompanyUserIds(
   companyId: CompanyId,
   companyMemberships: CompanyMembership[]
 ) {
-  return companyMemberships
-    .filter((m) => m.companyId === companyId)
-    .map((m) => m.userId);
+  return companyMemberships.flatMap((membership) =>
+    membership.companyId === companyId ? [membership.userId] : []
+  );
 }
 
 export function getCompanyUsers(

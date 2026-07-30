@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useReducer, useState } from 'react';
 import {
   Accordion,
   Alert,
@@ -93,6 +93,74 @@ function toImportRuleOperator(value: string | null): ImportRuleOperator | null {
     : null;
 }
 
+type ExcludeRuleDraft = {
+  row: ImportPreviewRow | null;
+  name: string;
+  field: ImportRuleField;
+  operator: ImportRuleOperator;
+  value: string;
+  error: string | null;
+};
+
+type ExcludeRuleDraftAction =
+  | {
+      type: 'open';
+      row: ImportPreviewRow;
+      name: string;
+      field: ImportRuleField;
+      operator: ImportRuleOperator;
+      value: string;
+    }
+  | { type: 'close' }
+  | { type: 'setName'; value: string }
+  | { type: 'setField'; value: ImportRuleField }
+  | { type: 'setOperator'; value: ImportRuleOperator }
+  | { type: 'setValue'; value: string }
+  | { type: 'clearError' }
+  | { type: 'fail'; message: string };
+
+const initialExcludeRuleDraft: ExcludeRuleDraft = {
+  row: null,
+  name: '',
+  field: 'source',
+  operator: 'equals',
+  value: '',
+  error: null,
+};
+
+function excludeRuleDraftReducer(
+  state: ExcludeRuleDraft,
+  action: ExcludeRuleDraftAction
+): ExcludeRuleDraft {
+  if (action.type === 'open') {
+    return {
+      row: action.row,
+      name: action.name,
+      field: action.field,
+      operator: action.operator,
+      value: action.value,
+      error: null,
+    };
+  }
+  if (action.type === 'close') {
+    return { ...state, row: null, error: null };
+  }
+  if (action.type === 'setName') {
+    return { ...state, name: action.value, error: null };
+  }
+  if (action.type === 'setField') {
+    return { ...state, field: action.value, error: null };
+  }
+  if (action.type === 'setOperator') {
+    return { ...state, operator: action.value, error: null };
+  }
+  if (action.type === 'setValue') {
+    return { ...state, value: action.value, error: null };
+  }
+  if (action.type === 'clearError') return { ...state, error: null };
+  return { ...state, error: action.message };
+}
+
 export default function PowerBiImporterPanel(props: {
   companyId: CompanyId;
   projectId: ProjectId;
@@ -177,38 +245,34 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     commitAppend,
     commitReplaceAll,
   } = importer;
-  const [excludeRuleRow, setExcludeRuleRow] = useState<ImportPreviewRow | null>(
-    null
+  const [excludeRuleDraft, dispatchExcludeRuleDraft] = useReducer(
+    excludeRuleDraftReducer,
+    initialExcludeRuleDraft
   );
-  const [excludeRuleName, setExcludeRuleName] = useState('');
-  const [excludeRuleField, setExcludeRuleField] =
-    useState<ImportRuleField>('source');
-  const [excludeRuleOperator, setExcludeRuleOperator] =
-    useState<ImportRuleOperator>('equals');
-  const [excludeRuleValue, setExcludeRuleValue] = useState('');
-  const [excludeRuleError, setExcludeRuleError] = useState<string | null>(null);
+  const {
+    row: excludeRuleRow,
+    name: excludeRuleName,
+    field: excludeRuleField,
+    operator: excludeRuleOperator,
+    value: excludeRuleValue,
+    error: excludeRuleError,
+  } = excludeRuleDraft;
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
   const openExcludeRuleModal = useCallback((row: ImportPreviewRow) => {
     const suggestion = suggestImportExclusionRuleFromPreviewRow(row);
-    if (!suggestion) {
-      setExcludeRuleRow(row);
-      setExcludeRuleName('Exclude imported row');
-      setExcludeRuleField('journalLineDescription');
-      setExcludeRuleOperator('contains');
-      setExcludeRuleValue(row.description ?? row.item ?? '');
-      return;
-    }
-    setExcludeRuleRow(row);
-    setExcludeRuleName(suggestion.name);
-    setExcludeRuleField(suggestion.field);
-    setExcludeRuleOperator(suggestion.operator);
-    setExcludeRuleValue(suggestion.value);
+    dispatchExcludeRuleDraft({
+      type: 'open',
+      row,
+      name: suggestion?.name ?? 'Exclude imported row',
+      field: suggestion?.field ?? 'journalLineDescription',
+      operator: suggestion?.operator ?? 'contains',
+      value: suggestion?.value ?? row.description ?? row.item ?? '',
+    });
   }, []);
 
   function closeExcludeRuleModal() {
-    setExcludeRuleRow(null);
-    setExcludeRuleError(null);
+    dispatchExcludeRuleDraft({ type: 'close' });
   }
 
   const selectedPreviewRows = useMemo(
@@ -239,7 +303,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
         return;
       }
 
-      setExcludeRuleError(null);
+      dispatchExcludeRuleDraft({ type: 'clearError' });
       openExcludeRuleModal(row);
     },
     [
@@ -299,16 +363,22 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     const name = excludeRuleName.trim();
     const value = excludeRuleValue.trim();
     if (!name) {
-      setExcludeRuleError('Rule name is required.');
+      dispatchExcludeRuleDraft({
+        type: 'fail',
+        message: 'Rule name is required.',
+      });
       return;
     }
     if (!value) {
-      setExcludeRuleError('Match value is required.');
+      dispatchExcludeRuleDraft({
+        type: 'fail',
+        message: 'Match value is required.',
+      });
       return;
     }
 
     try {
-      setExcludeRuleError(null);
+      dispatchExcludeRuleDraft({ type: 'clearError' });
       const previousExcludedCount = excludedPreviewRows.filter(
         (row) => row.importAction === 'exclude'
       ).length;
@@ -346,9 +416,11 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
       );
 
       if (matchedPreviewRowCount === 0) {
-        setExcludeRuleError(
-          'The exclusion rule was saved, but it did not match any preview rows. Adjust the field, operator, or value and try again.'
-        );
+        dispatchExcludeRuleDraft({
+          type: 'fail',
+          message:
+            'The exclusion rule was saved, but it did not match any preview rows. Adjust the field, operator, or value and try again.',
+        });
         showAppToast({
           tone: 'warning',
           title: 'Project import rule saved',
@@ -368,11 +440,13 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
             : `Created project import rule. It matched ${matchedPreviewRowCount} preview row${matchedPreviewRowCount === 1 ? '' : 's'} and excluded ${newlyExcludedCount} new row${newlyExcludedCount === 1 ? '' : 's'}.`,
       });
     } catch (error) {
-      setExcludeRuleError(
-        error instanceof Error
-          ? error.message
-          : 'Could not create the import exclusion rule.'
-      );
+      dispatchExcludeRuleDraft({
+        type: 'fail',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not create the import exclusion rule.',
+      });
     }
   }
 
@@ -688,10 +762,12 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
           <TextInput
             label="Rule name"
             value={excludeRuleName}
-            onChange={(event) => {
-              setExcludeRuleError(null);
-              setExcludeRuleName(event.currentTarget.value);
-            }}
+            onChange={(event) =>
+              dispatchExcludeRuleDraft({
+                type: 'setName',
+                value: event.currentTarget.value,
+              })
+            }
           />
           <Group grow align="flex-end">
             <Select
@@ -702,8 +778,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               onChange={(value) => {
                 const next = toImportRuleField(value);
                 if (!next) return;
-                setExcludeRuleError(null);
-                setExcludeRuleField(next);
+                dispatchExcludeRuleDraft({ type: 'setField', value: next });
               }}
             />
             <Select
@@ -714,18 +789,22 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
               onChange={(value) => {
                 const next = toImportRuleOperator(value);
                 if (!next) return;
-                setExcludeRuleError(null);
-                setExcludeRuleOperator(next);
+                dispatchExcludeRuleDraft({
+                  type: 'setOperator',
+                  value: next,
+                });
               }}
             />
           </Group>
           <TextInput
             label="Value"
             value={excludeRuleValue}
-            onChange={(event) => {
-              setExcludeRuleError(null);
-              setExcludeRuleValue(event.currentTarget.value);
-            }}
+            onChange={(event) =>
+              dispatchExcludeRuleDraft({
+                type: 'setValue',
+                value: event.currentTarget.value,
+              })
+            }
           />
           <Group className={classes.footerRow}>
             <Button

@@ -278,19 +278,21 @@ export async function syncCompanyAutoCodingRulesToProjects(args: {
   const projectRuleRowsByProjectId =
     groupProjectAutoCodingRuleRows(projectRuleRows);
 
-  for (const projectId of syncedProjectIds) {
-    await syncCompanyAutoCodingRulesWithPreloadedState({
-      db: args.db,
-      companyId: args.companyId,
-      projectId,
-      actorUserId: args.actorUserId,
-      companyRules,
-      projectRuleRows: projectRuleRowsByProjectId.get(projectId) ?? [],
-      defaultCategories,
-      defaultSubCategories,
-      projectCategories: projectCategoriesByProjectId.get(projectId) ?? [],
-      projectSubCategories:
-        projectSubCategoriesByProjectId.get(projectId) ?? [],
-    });
-  }
+  await Promise.all(
+    syncedProjectIds.map((projectId) =>
+      syncCompanyAutoCodingRulesWithPreloadedState({
+        db: args.db,
+        companyId: args.companyId,
+        projectId,
+        actorUserId: args.actorUserId,
+        companyRules,
+        projectRuleRows: projectRuleRowsByProjectId.get(projectId) ?? [],
+        defaultCategories,
+        defaultSubCategories,
+        projectCategories: projectCategoriesByProjectId.get(projectId) ?? [],
+        projectSubCategories:
+          projectSubCategoriesByProjectId.get(projectId) ?? [],
+      })
+    )
+  );
 }

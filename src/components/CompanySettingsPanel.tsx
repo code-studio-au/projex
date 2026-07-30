@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useReducer } from 'react';
 import {
   Alert,
   Badge,
@@ -45,6 +45,117 @@ import CompanyImportRulesModal from './CompanyImportRulesModal';
 import RuleSuggestionsModal from './RuleSuggestionsModal';
 import CompanyExportPanel from './companySettings/CompanyExportPanel';
 import classes from '../styles/ui.module.css';
+
+function toCompanyRole(value: string | null): CompanyRole | null {
+  if (
+    value === 'member' ||
+    value === 'management' ||
+    value === 'executive' ||
+    value === 'admin'
+  ) {
+    return value;
+  }
+  return null;
+}
+
+type InviteState = {
+  name: string;
+  email: string;
+  role: CompanyRole | null;
+  sendOnboardingEmail: boolean;
+  status: string | null;
+  error: string | null;
+};
+
+type InviteAction =
+  | { type: 'setName'; value: string }
+  | { type: 'setEmail'; value: string }
+  | { type: 'setRole'; value: CompanyRole | null }
+  | { type: 'setSendOnboardingEmail'; value: boolean }
+  | { type: 'start' }
+  | { type: 'success'; message: string; resetForm?: boolean }
+  | { type: 'fail'; message: string };
+
+const initialInviteState: InviteState = {
+  name: '',
+  email: '',
+  role: 'member',
+  sendOnboardingEmail: false,
+  status: null,
+  error: null,
+};
+
+function inviteReducer(state: InviteState, action: InviteAction): InviteState {
+  if (action.type === 'setName') return { ...state, name: action.value };
+  if (action.type === 'setEmail') return { ...state, email: action.value };
+  if (action.type === 'setRole') return { ...state, role: action.value };
+  if (action.type === 'setSendOnboardingEmail') {
+    return { ...state, sendOnboardingEmail: action.value };
+  }
+  if (action.type === 'start') {
+    return { ...state, status: null, error: null };
+  }
+  if (action.type === 'success') {
+    return {
+      ...(action.resetForm ? initialInviteState : state),
+      status: action.message,
+      error: null,
+    };
+  }
+  return { ...state, status: null, error: action.message };
+}
+
+type MembershipEditorState = {
+  error: string | null;
+  status: string | null;
+  userId: UserId | null;
+  role: CompanyRole | null;
+};
+
+type MembershipEditorAction =
+  | { type: 'selectUser'; userId: UserId | null }
+  | { type: 'selectRole'; role: CompanyRole | null }
+  | { type: 'start' }
+  | { type: 'success'; message: string }
+  | { type: 'fail'; message: string };
+
+const initialMembershipEditorState: MembershipEditorState = {
+  error: null,
+  status: null,
+  userId: null,
+  role: 'member',
+};
+
+function membershipEditorReducer(
+  state: MembershipEditorState,
+  action: MembershipEditorAction
+): MembershipEditorState {
+  if (action.type === 'selectUser') {
+    return { ...state, userId: action.userId };
+  }
+  if (action.type === 'selectRole') return { ...state, role: action.role };
+  if (action.type === 'start') {
+    return { ...state, status: null, error: null };
+  }
+  if (action.type === 'success') {
+    return { ...state, status: action.message, error: null };
+  }
+  return { ...state, status: null, error: action.message };
+}
+
+type CompanySettingsModal =
+  | 'defaults'
+  | 'mappings'
+  | 'importRules'
+  | 'ruleSuggestions'
+  | null;
+
+function companySettingsModalReducer(
+  _state: CompanySettingsModal,
+  next: CompanySettingsModal
+) {
+  return next;
+}
 
 export default function CompanySettingsPanel(props: {
   companyId: CompanyId;
@@ -123,20 +234,31 @@ export default function CompanySettingsPanel(props: {
     [companyUsers]
   );
 
-  const [newUserName, setNewUserName] = useState('');
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserRole, setNewUserRole] = useState<CompanyRole | null>('member');
-  const [sendOnboardingEmail, setSendOnboardingEmail] = useState(false);
-  const [inviteStatus, setInviteStatus] = useState<string | null>(null);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [membershipError, setMembershipError] = useState<string | null>(null);
-  const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
-  const [roleUserId, setRoleUserId] = useState<UserId | null>(null);
-  const [defaultsModalOpen, setDefaultsModalOpen] = useState(false);
-  const [mappingsModalOpen, setMappingsModalOpen] = useState(false);
-  const [importRulesModalOpen, setImportRulesModalOpen] = useState(false);
-  const [ruleSuggestionsModalOpen, setRuleSuggestionsModalOpen] = useState(
-    initialReview === 'rule-suggestions'
+  const [inviteState, dispatchInvite] = useReducer(
+    inviteReducer,
+    initialInviteState
+  );
+  const {
+    name: newUserName,
+    email: newUserEmail,
+    role: newUserRole,
+    sendOnboardingEmail,
+    status: inviteStatus,
+    error: inviteError,
+  } = inviteState;
+  const [membershipState, dispatchMembership] = useReducer(
+    membershipEditorReducer,
+    initialMembershipEditorState
+  );
+  const {
+    error: membershipError,
+    status: membershipStatus,
+    userId: roleUserId,
+    role: membershipCompanyRole,
+  } = membershipState;
+  const [activeModal, setActiveModal] = useReducer(
+    companySettingsModalReducer,
+    initialReview === 'rule-suggestions' ? 'ruleSuggestions' : null
   );
 
   // Derive a sensible default selection without synchronously setting state in an effect.
@@ -146,22 +268,6 @@ export default function CompanySettingsPanel(props: {
     (isHydrated && userOptions[0]?.value
       ? asUserId(userOptions[0].value)
       : null);
-
-  const [membershipCompanyRole, setMembershipCompanyRole] =
-    useState<CompanyRole | null>('member');
-
-  const toCompanyRole = (v: string | null): CompanyRole | null => {
-    if (!v) return null;
-    if (
-      v === 'member' ||
-      v === 'management' ||
-      v === 'executive' ||
-      v === 'admin'
-    ) {
-      return v;
-    }
-    return null;
-  };
 
   const highestRoleBadge = (
     <Badge variant="light">
@@ -238,23 +344,26 @@ export default function CompanySettingsPanel(props: {
               className="tableActionButton"
               disabled={!canAddCompanyUsers || sendInviteEmail.isPending}
               onClick={async () => {
-                setInviteError(null);
-                setInviteStatus(null);
+                dispatchInvite({ type: 'start' });
                 try {
                   const result = await sendInviteEmail.mutateAsync(
                     row.original.userId
                   );
-                  setInviteStatus(
-                    result.onboardingDelivery === 'email'
-                      ? `Password setup email sent to ${result.user.email}. Ask them to check spam or junk if it does not arrive soon, and to use the newest email if more than one was sent.`
-                      : `Password setup email requested for ${result.user.email}. Email delivery is not configured, so the newest setup link was logged on the server instead.`
-                  );
+                  dispatchInvite({
+                    type: 'success',
+                    message:
+                      result.onboardingDelivery === 'email'
+                        ? `Password setup email sent to ${result.user.email}. Ask them to check spam or junk if it does not arrive soon, and to use the newest email if more than one was sent.`
+                        : `Password setup email requested for ${result.user.email}. Email delivery is not configured, so the newest setup link was logged on the server instead.`,
+                  });
                 } catch (err) {
-                  setInviteError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not send password setup email.'
-                  );
+                  dispatchInvite({
+                    type: 'fail',
+                    message:
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not send password setup email.',
+                  });
                 }
               }}
             >
@@ -271,19 +380,21 @@ export default function CompanySettingsPanel(props: {
                 row.original.isOnlyAdmin
               }
               onClick={async () => {
-                setMembershipError(null);
-                setMembershipStatus(null);
+                dispatchMembership({ type: 'start' });
                 try {
                   await removeCompanyMember.mutateAsync(row.original.userId);
-                  setMembershipStatus(
-                    `${row.original.userName} was removed from the company.`
-                  );
+                  dispatchMembership({
+                    type: 'success',
+                    message: `${row.original.userName} was removed from the company.`,
+                  });
                 } catch (err) {
-                  setMembershipError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not remove company member.'
-                  );
+                  dispatchMembership({
+                    type: 'fail',
+                    message:
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not remove company member.',
+                  });
                 }
               }}
             >
@@ -357,28 +468,28 @@ export default function CompanySettingsPanel(props: {
             <Button
               variant="default"
               disabled={!canEditCompanyDefaults}
-              onClick={() => setDefaultsModalOpen(true)}
+              onClick={() => setActiveModal('defaults')}
             >
               Manage Categories
             </Button>
             <Button
               variant="default"
               disabled={!canEditCompanyDefaults}
-              onClick={() => setMappingsModalOpen(true)}
+              onClick={() => setActiveModal('mappings')}
             >
               Manage Auto-Coding Rules
             </Button>
             <Button
               variant="default"
               disabled={!canEditCompanyDefaults}
-              onClick={() => setImportRulesModalOpen(true)}
+              onClick={() => setActiveModal('importRules')}
             >
               Manage Import Rules
             </Button>
             <Button
               variant="default"
               disabled={!canEditCompanyDefaults}
-              onClick={() => setRuleSuggestionsModalOpen(true)}
+              onClick={() => setActiveModal('ruleSuggestions')}
             >
               Review Rule Suggestions
             </Button>
@@ -398,12 +509,22 @@ export default function CompanySettingsPanel(props: {
             <TextInput
               label="Name"
               value={newUserName}
-              onChange={(e) => setNewUserName(e.currentTarget.value)}
+              onChange={(e) =>
+                dispatchInvite({
+                  type: 'setName',
+                  value: e.currentTarget.value,
+                })
+              }
             />
             <TextInput
               label="Email"
               value={newUserEmail}
-              onChange={(e) => setNewUserEmail(e.currentTarget.value)}
+              onChange={(e) =>
+                dispatchInvite({
+                  type: 'setEmail',
+                  value: e.currentTarget.value,
+                })
+              }
             />
             <Select
               label="Initial company role"
@@ -414,13 +535,20 @@ export default function CompanySettingsPanel(props: {
                 { value: 'admin', label: 'admin' },
               ]}
               value={newUserRole}
-              onChange={(v) => setNewUserRole(toCompanyRole(v))}
+              onChange={(v) =>
+                dispatchInvite({ type: 'setRole', value: toCompanyRole(v) })
+              }
             />
             <Checkbox
               label="Send password setup email now"
               description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
               checked={sendOnboardingEmail}
-              onChange={(e) => setSendOnboardingEmail(e.currentTarget.checked)}
+              onChange={(e) =>
+                dispatchInvite({
+                  type: 'setSendOnboardingEmail',
+                  value: e.currentTarget.checked,
+                })
+              }
             />
             <Group>
               <Button
@@ -430,8 +558,7 @@ export default function CompanySettingsPanel(props: {
                   const name = newUserName.trim();
                   const email = newUserEmail.trim();
                   if (!name || !email) return;
-                  setInviteError(null);
-                  setInviteStatus(null);
+                  dispatchInvite({ type: 'start' });
                   try {
                     const result = await createUser.mutateAsync({
                       name,
@@ -439,33 +566,35 @@ export default function CompanySettingsPanel(props: {
                       role: newUserRole ?? 'member',
                       sendOnboardingEmail,
                     });
-                    setNewUserName('');
-                    setNewUserEmail('');
-                    setNewUserRole('member');
-                    setSendOnboardingEmail(false);
                     if (result.onboardingEmailSent) {
-                      setInviteStatus(
-                        result.createdAuthUser
+                      dispatchInvite({
+                        type: 'success',
+                        resetForm: true,
+                        message: result.createdAuthUser
                           ? result.onboardingDelivery === 'email'
                             ? `${result.user.email} was added as a new company member and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
                             : `${result.user.email} was added as a new company member. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
                           : result.onboardingDelivery === 'email'
                             ? `${result.user.email} was added to the company and sent the newest password setup email. Ask them to check spam or junk if it does not arrive soon.`
-                            : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
-                      );
+                            : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`,
+                      });
                       return;
                     }
-                    setInviteStatus(
-                      result.membershipCreated
+                    dispatchInvite({
+                      type: 'success',
+                      resetForm: true,
+                      message: result.membershipCreated
                         ? `${result.user.email} was added to the company. No email was sent. You can resend their password setup email later from the member list if they need it.`
-                        : `${result.user.email} was already in the company. Their role was updated and no email was sent.`
-                    );
+                        : `${result.user.email} was already in the company. Their role was updated and no email was sent.`,
+                    });
                   } catch (err) {
-                    setInviteError(
-                      err instanceof Error
-                        ? err.message
-                        : 'Could not invite user.'
-                    );
+                    dispatchInvite({
+                      type: 'fail',
+                      message:
+                        err instanceof Error
+                          ? err.message
+                          : 'Could not invite user.',
+                    });
                   }
                 }}
               >
@@ -501,7 +630,12 @@ export default function CompanySettingsPanel(props: {
                 label="User"
                 data={userOptions}
                 value={effectiveRoleUserId}
-                onChange={(v) => setRoleUserId(v ? asUserId(v) : null)}
+                onChange={(v) =>
+                  dispatchMembership({
+                    type: 'selectUser',
+                    userId: v ? asUserId(v) : null,
+                  })
+                }
                 searchable
                 style={{ width: '100%', maxWidth: 420 }}
               />
@@ -514,7 +648,12 @@ export default function CompanySettingsPanel(props: {
                   { value: 'admin', label: 'admin' },
                 ]}
                 value={membershipCompanyRole}
-                onChange={(v) => setMembershipCompanyRole(toCompanyRole(v))}
+                onChange={(v) =>
+                  dispatchMembership({
+                    type: 'selectRole',
+                    role: toCompanyRole(v),
+                  })
+                }
                 style={{ width: '100%', maxWidth: 220 }}
               />
               <Button
@@ -527,20 +666,24 @@ export default function CompanySettingsPanel(props: {
                 }
                 onClick={async () => {
                   if (!effectiveRoleUserId || !membershipCompanyRole) return;
-                  setMembershipError(null);
-                  setMembershipStatus(null);
+                  dispatchMembership({ type: 'start' });
                   try {
                     await upsertCompanyMembership.mutateAsync({
                       userId: effectiveRoleUserId,
                       role: membershipCompanyRole,
                     });
-                    setMembershipStatus('Company role updated.');
+                    dispatchMembership({
+                      type: 'success',
+                      message: 'Company role updated.',
+                    });
                   } catch (err) {
-                    setMembershipError(
-                      err instanceof Error
-                        ? err.message
-                        : 'Could not update company role.'
-                    );
+                    dispatchMembership({
+                      type: 'fail',
+                      message:
+                        err instanceof Error
+                          ? err.message
+                          : 'Could not update company role.',
+                    });
                   }
                 }}
               >
@@ -599,26 +742,26 @@ export default function CompanySettingsPanel(props: {
       </Paper>
 
       <CompanyDefaultTaxonomyModal
-        opened={defaultsModalOpen}
-        onClose={() => setDefaultsModalOpen(false)}
+        opened={activeModal === 'defaults'}
+        onClose={() => setActiveModal(null)}
         companyId={companyId}
         readOnly={!canEditCompanyDefaults}
       />
       <CompanyDefaultMappingsModal
-        opened={mappingsModalOpen}
-        onClose={() => setMappingsModalOpen(false)}
+        opened={activeModal === 'mappings'}
+        onClose={() => setActiveModal(null)}
         companyId={companyId}
         readOnly={!canEditCompanyDefaults}
       />
       <CompanyImportRulesModal
-        opened={importRulesModalOpen}
-        onClose={() => setImportRulesModalOpen(false)}
+        opened={activeModal === 'importRules'}
+        onClose={() => setActiveModal(null)}
         companyId={companyId}
         readOnly={!canEditCompanyDefaults}
       />
       <RuleSuggestionsModal
-        opened={ruleSuggestionsModalOpen}
-        onClose={() => setRuleSuggestionsModalOpen(false)}
+        opened={activeModal === 'ruleSuggestions'}
+        onClose={() => setActiveModal(null)}
         companyId={companyId}
         readOnly={!canEditCompanyDefaults}
       />

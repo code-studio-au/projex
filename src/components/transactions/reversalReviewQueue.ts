@@ -73,11 +73,12 @@ function unresolvedIndexInDirection(
   queue: ReversalReviewQueueState,
   direction: -1 | 1
 ) {
+  const resolvedTxnIds = new Set(queue.resolvedTxnIds);
   for (let step = 1; step < queue.txnIds.length; step += 1) {
     const index =
       (queue.currentIndex + direction * step + queue.txnIds.length) %
       queue.txnIds.length;
-    if (!queue.resolvedTxnIds.includes(queue.txnIds[index]!)) return index;
+    if (!resolvedTxnIds.has(queue.txnIds[index]!)) return index;
   }
   return null;
 }
@@ -101,11 +102,12 @@ function firstUnresolvedIndex(
   queue: ReversalReviewQueueState,
   startIndex: number
 ) {
+  const resolvedTxnIds = new Set(queue.resolvedTxnIds);
   for (let index = startIndex; index < queue.txnIds.length; index += 1) {
-    if (!queue.resolvedTxnIds.includes(queue.txnIds[index]!)) return index;
+    if (!resolvedTxnIds.has(queue.txnIds[index]!)) return index;
   }
   for (let index = 0; index < startIndex; index += 1) {
-    if (!queue.resolvedTxnIds.includes(queue.txnIds[index]!)) return index;
+    if (!resolvedTxnIds.has(queue.txnIds[index]!)) return index;
   }
   return null;
 }

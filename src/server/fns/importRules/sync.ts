@@ -209,15 +209,17 @@ export async function syncCompanyImportRulesToSyncedProjects(args: {
   ]);
 
   const projectRulesByProjectId = groupProjectImportRules(projectRules);
-  for (const projectId of syncedProjectIds) {
-    await syncCompanyImportRulesWithPreloadedState({
-      db: args.db,
-      companyId: args.companyId,
-      projectId,
-      companyRules,
-      projectRules: projectRulesByProjectId.get(projectId) ?? [],
-    });
-  }
+  await Promise.all(
+    syncedProjectIds.map((projectId) =>
+      syncCompanyImportRulesWithPreloadedState({
+        db: args.db,
+        companyId: args.companyId,
+        projectId,
+        companyRules,
+        projectRules: projectRulesByProjectId.get(projectId) ?? [],
+      })
+    )
+  );
 }
 
 export async function detachProjectImportRulesForDeletedCompanyRule(args: {

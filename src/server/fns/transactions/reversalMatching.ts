@@ -257,10 +257,11 @@ export function buildReversalAutoMatchPlan(args: {
       visitedSourceIds.add(sourceTxnId);
 
       for (const edge of edgesBySourceId.get(sourceTxnId) ?? []) {
-        if (componentCounterpartIds.has(edge.counterpartTxn.id)) continue;
-        componentCounterpartIds.add(edge.counterpartTxn.id);
+        const counterpartTxnId = edge.counterpartTxn.id;
+        if (componentCounterpartIds.has(counterpartTxnId)) continue;
+        componentCounterpartIds.add(counterpartTxnId);
         for (const counterpartEdge of edgesByCounterpartId.get(
-          edge.counterpartTxn.id
+          counterpartTxnId
         ) ?? []) {
           pendingSourceIds.push(counterpartEdge.sourceTxn.id);
         }

@@ -90,10 +90,10 @@ export function buildRuleSuggestionMatchTextOptions(args: {
 }): { proposedMatchText: string; alternatives: string[] } {
   const uniqueRawPatterns = Array.from(
     new Map(
-      args.rawPatterns
-        .map((value) => value.trim())
-        .filter(Boolean)
-        .map((value) => [value.toLowerCase(), value])
+      args.rawPatterns.flatMap((value) => {
+        const trimmed = value.trim();
+        return trimmed ? [[trimmed.toLowerCase(), trimmed]] : [];
+      })
     ).values()
   ).sort((a, b) => a.length - b.length || a.localeCompare(b));
 
@@ -106,10 +106,12 @@ export function buildRuleSuggestionMatchTextOptions(args: {
     : args.normalizedPattern;
   const alternatives = Array.from(
     new Map(
-      [proposedMatchText, args.normalizedPattern, ...uniqueRawPatterns]
-        .map((value) => value.trim())
-        .filter(Boolean)
-        .map((value) => [value.toLowerCase(), value])
+      [proposedMatchText, args.normalizedPattern, ...uniqueRawPatterns].flatMap(
+        (value) => {
+          const trimmed = value.trim();
+          return trimmed ? [[trimmed.toLowerCase(), trimmed]] : [];
+        }
+      )
     ).values()
   ).slice(0, 3);
 

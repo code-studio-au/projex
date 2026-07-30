@@ -66,11 +66,11 @@ export function useBudgets(params: {
   ) => {
     const setIds = new Set(subCategoryIds);
     await Promise.all(
-      budgets
-        .filter(
-          (budget) => budget.subCategoryId && setIds.has(budget.subCategoryId)
-        )
-        .map((budget) => del.mutateAsync(budget.id))
+      budgets.flatMap((budget) =>
+        budget.subCategoryId && setIds.has(budget.subCategoryId)
+          ? [del.mutateAsync(budget.id)]
+          : []
+      )
     );
   };
 

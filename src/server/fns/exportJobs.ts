@@ -268,12 +268,14 @@ async function cleanupExpiredExportJobs(db = getDb()) {
     )
     .execute();
 
-  for (const row of rows) {
-    await deleteStoredExportObjectIfPresent({
-      row,
-      logType: 'company_export_cleanup',
-    });
-  }
+  await Promise.all(
+    rows.map((row) =>
+      deleteStoredExportObjectIfPresent({
+        row,
+        logType: 'company_export_cleanup',
+      })
+    )
+  );
 
   if (!rows.length) return;
 

@@ -3,7 +3,7 @@ import {
   TXN_REVERSAL_SIDES,
   TXN_REVERSAL_STATUSES,
   TXN_TYPES,
-} from '../types/index.ts';
+} from '../types/domain.ts';
 import { MAX_BULK_TXN_COUNT } from '../utils/transactionLimits.ts';
 import { idSchema, transactionAmountCentsSchema } from './schemas.ts';
 import {
@@ -30,11 +30,9 @@ const codingSourceResponseSchema = z.enum([
 export const txnImportPreviewResultResponseSchema = z.object({
   importBatchId: importBatchIdResponseSchema,
   rows: z.array(
-    z
-      .object({
-        importId: idSchema,
-      })
-      .passthrough()
+    z.looseObject({
+      importId: idSchema,
+    })
   ),
 });
 

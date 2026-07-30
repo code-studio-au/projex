@@ -13,8 +13,6 @@ import { SqlFileMigrationProvider } from './sqlFileMigrationProvider.ts';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const APP_MIGRATIONS_DIR = path.join(__dirname, 'migrations');
-const KYSELY_MIGRATION_TABLE = 'kysely_migration';
-const KYSELY_MIGRATION_LOCK_TABLE = 'kysely_migration_lock';
 const BASELINE_MIGRATION_NAME = '0001_init.sql';
 const APP_SCHEMA_SENTINEL_TABLE = 'public.companies';
 const LEGACY_APP_MIGRATION_NAMES = new Set([
@@ -77,19 +75,19 @@ async function doesTableExist(pool: Queryable, tableName: string) {
 
 async function ensureKyselyMigrationTables(pool: Queryable) {
   await pool.query(`
-    create table if not exists ${KYSELY_MIGRATION_TABLE} (
+    create table if not exists kysely_migration (
       name varchar(255) primary key,
       timestamp varchar(255) not null
     )
   `);
   await pool.query(`
-    create table if not exists ${KYSELY_MIGRATION_LOCK_TABLE} (
+    create table if not exists kysely_migration_lock (
       id varchar(255) primary key,
       is_locked integer not null default 0
     )
   `);
   await pool.query(
-    `insert into ${KYSELY_MIGRATION_LOCK_TABLE}(id, is_locked)
+    `insert into kysely_migration_lock(id, is_locked)
      values ('migration_lock', 0)
      on conflict (id) do nothing`
   );
@@ -108,15 +106,14 @@ async function syncExistingSchemaToBaseline(pool: Queryable) {
   if (!hasAppSchema) return;
 
   await ensureKyselyMigrationTables(pool);
-  const hasLegacySchemaMigrations = await doesTableExist(
-    pool,
-    'public.schema_migrations'
-  );
-
-  const existing = await pool.query<KyselyMigrationRow>(
-    `select name from ${KYSELY_MIGRATION_TABLE} order by name`
-  );
-  const currentAppMigrationNames = await getCurrentAppMigrationNames();
+  const [hasLegacySchemaMigrations, existing, currentAppMigrationNames] =
+    await Promise.all([
+      doesTableExist(pool, 'public.schema_migrations'),
+      pool.query<KyselyMigrationRow>(
+        'select name from kysely_migration order by name'
+      ),
+      getCurrentAppMigrationNames(),
+    ]);
 
   if (
     existing.rows.length === 1 &&
@@ -154,9 +151,9 @@ async function syncExistingSchemaToBaseline(pool: Queryable) {
 
   await pool.query('begin');
   try {
-    await pool.query(`delete from ${KYSELY_MIGRATION_TABLE}`);
+    await pool.query('delete from kysely_migration');
     await pool.query(
-      `insert into ${KYSELY_MIGRATION_TABLE}(name, timestamp)
+      `insert into kysely_migration(name, timestamp)
        values ($1, $2)`,
       [BASELINE_MIGRATION_NAME, new Date().toISOString()]
     );

@@ -17,7 +17,7 @@ import {
   asTxnId,
   asTxnUnlockRequestId,
   asUserId,
-} from '../types/index.ts';
+} from '../types/ids.ts';
 
 import {
   budgetAllocatedCentsSchema,
@@ -742,21 +742,19 @@ const importReviewDecisionSchema = z.object({
   decision: z.enum(['import_uncoded', 'exclude']),
 });
 
-export const txnImportInputSchema = z
-  .object({
-    mode: csvImportModeSchema,
-    importBatchId: importBatchIdParamSchema,
-    skipDuplicates: z.boolean().optional(),
-    excludedSourceRowIndexes: z
-      .array(z.number().int().positive())
-      .max(MAX_IMPORT_TXN_COUNT)
-      .optional(),
-    reviewDecisions: z
-      .array(importReviewDecisionSchema)
-      .max(MAX_IMPORT_TXN_COUNT)
-      .optional(),
-  })
-  .strict();
+export const txnImportInputSchema = z.strictObject({
+  mode: csvImportModeSchema,
+  importBatchId: importBatchIdParamSchema,
+  skipDuplicates: z.boolean().optional(),
+  excludedSourceRowIndexes: z
+    .array(z.number().int().positive())
+    .max(MAX_IMPORT_TXN_COUNT)
+    .optional(),
+  reviewDecisions: z
+    .array(importReviewDecisionSchema)
+    .max(MAX_IMPORT_TXN_COUNT)
+    .optional(),
+});
 
 export const txnImportPreviewInputSchema = z.object({
   csvText: z.string().max(MAX_IMPORT_PREVIEW_CSV_TEXT_LENGTH),
