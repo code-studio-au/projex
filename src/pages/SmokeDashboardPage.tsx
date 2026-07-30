@@ -92,6 +92,9 @@ const smokeSectionIdValues = [
   'exportFlow',
   'privacyChecks',
 ] as const;
+const smokeSectionById = new Map(
+  smokeSectionDefinitions.map((section) => [section.id, section])
+);
 const manualInviteRoleOptions = [
   { value: 'member', label: 'Member' },
   { value: 'management', label: 'Management' },
@@ -441,9 +444,7 @@ function SmokeManualField(props: {
 }
 
 function createIdleSection(sectionId: SmokeSectionId): SmokeSectionView {
-  const definition = smokeSectionDefinitions.find(
-    (section) => section.id === sectionId
-  );
+  const definition = smokeSectionById.get(sectionId);
   return {
     sectionId,
     status: 'idle',
@@ -472,17 +473,41 @@ function applyStepUpdate(
   );
 
   const nextIndex = steps.findIndex((step) => step.status === 'idle');
-  if (stepResult.status !== 'failed' && nextIndex >= 0) {
-    steps[nextIndex] = {
-      ...steps[nextIndex],
-      status: 'running',
-    };
-  }
+  const nextSteps =
+    stepResult.status !== 'failed' && nextIndex >= 0
+      ? steps.map((step, index) =>
+          index === nextIndex ? { ...step, status: 'running' as const } : step
+        )
+      : steps;
 
   return {
     ...section,
-    steps,
+    steps: nextSteps,
   };
+}
+
+function sectionManualFieldDefs(sectionId: SmokeSectionId) {
+  return manualSectionFieldMap[sectionId] ?? [];
+}
+
+async function waitWithCountdown(
+  durationMs: number,
+  update: (secondsRemaining: number) => void
+) {
+  let remainingMs = durationMs;
+  while (remainingMs > 0) {
+    const secondsRemaining = Math.max(1, Math.ceil(remainingMs / 1000));
+    update(secondsRemaining);
+    const sleepMs = Math.min(1000, remainingMs);
+    await new Promise((resolve) => setTimeout(resolve, sleepMs));
+    remainingMs -= sleepMs;
+  }
+}
+
+function hasSmokeSectionResult(
+  result: SmokeSectionResult | undefined
+): result is SmokeSectionResult {
+  return Boolean(result);
 }
 
 export default function SmokeDashboardPage() {
@@ -541,10 +566,6 @@ export default function SmokeDashboardPage() {
     }));
   }
 
-  function sectionManualFieldDefs(sectionId: SmokeSectionId) {
-    return manualSectionFieldMap[sectionId] ?? [];
-  }
-
   function manualInputsForSection(
     sectionId: SmokeSectionId
   ): SmokeManualInputs | undefined {
@@ -578,20 +599,6 @@ export default function SmokeDashboardPage() {
       delete next[sectionId];
       return next;
     });
-  }
-
-  async function waitWithCountdown(
-    durationMs: number,
-    update: (secondsRemaining: number) => void
-  ) {
-    let remainingMs = durationMs;
-    while (remainingMs > 0) {
-      const secondsRemaining = Math.max(1, Math.ceil(remainingMs / 1000));
-      update(secondsRemaining);
-      const sleepMs = Math.min(1000, remainingMs);
-      await new Promise((resolve) => setTimeout(resolve, sleepMs));
-      remainingMs -= sleepMs;
-    }
   }
 
   async function runSection(
@@ -680,25 +687,24 @@ export default function SmokeDashboardPage() {
             setRunAllStatus((current) => {
               if (!current) return current;
               const sectionLabel =
-                smokeSectionDefinitions.find(
-                  (section) => section.id === sectionId
-                )?.label ?? sectionId;
+                smokeSectionById.get(sectionId)?.label ?? sectionId;
               return `${sectionLabel}: ${event.message}`;
             });
             continue;
           }
           if (event.type === 'result') {
-            sectionSucceeded = event.result.status !== 'failed';
-            retryableRateLimit = event.result.steps.some(
+            const result = event.result;
+            sectionSucceeded = result.status !== 'failed';
+            retryableRateLimit = result.steps.some(
               (step) =>
                 step.status === 'failed' && isRateLimitMessage(step.error)
             );
             resultMessage =
-              event.result.steps.find((step) => step.status === 'failed')
-                ?.error ?? undefined;
+              result.steps.find((step) => step.status === 'failed')?.error ??
+              undefined;
             setResults((current) => ({
               ...current,
-              [sectionId]: event.result,
+              [sectionId]: result,
             }));
             setViews((current) => {
               const existing =
@@ -707,16 +713,16 @@ export default function SmokeDashboardPage() {
                 ...current,
                 [sectionId]: {
                   ...existing,
-                  status: event.result.status,
-                  startedAt: event.result.startedAt,
-                  finishedAt: event.result.finishedAt,
-                  durationMs: event.result.durationMs,
+                  status: result.status,
+                  startedAt: result.startedAt,
+                  finishedAt: result.finishedAt,
+                  durationMs: result.durationMs,
                   statusMessage:
-                    event.result.status === 'failed'
+                    result.status === 'failed'
                       ? existing.statusMessage
                       : undefined,
                   steps: existing.steps.map((step) => {
-                    const completed = event.result.steps.find(
+                    const completed = result.steps.find(
                       (item) => item.id === step.id
                     );
                     return completed
@@ -853,12 +859,6 @@ export default function SmokeDashboardPage() {
   function resetSection(sectionId: SmokeSectionId) {
     resetSectionState(sectionId);
     clearRunAllState();
-  }
-
-  function hasSmokeSectionResult(
-    result: SmokeSectionResult | undefined
-  ): result is SmokeSectionResult {
-    return Boolean(result);
   }
 
   const summary = useMemo(() => {

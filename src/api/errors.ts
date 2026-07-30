@@ -63,15 +63,3 @@ export function getAppErrorCause(
 ): Readonly<{ value: unknown }> | undefined {
   return normalizedErrorCauses.get(error);
 }
-
-/** Formats private exception details for structured server logs, never responses. */
-export function serverErrorLogFields(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      error: error.message,
-      errorName: error.name,
-      ...(error.stack ? { errorStack: error.stack } : {}),
-    };
-  }
-  return { error: String(error) };
-}

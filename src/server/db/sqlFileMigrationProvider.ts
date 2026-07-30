@@ -15,8 +15,9 @@ export class SqlFileMigrationProvider implements MigrationProvider {
       withFileTypes: true,
     });
     const migrationNames = entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.sql'))
-      .map((entry) => entry.name)
+      .flatMap((entry) =>
+        entry.isFile() && entry.name.endsWith('.sql') ? [entry.name] : []
+      )
       .sort((left, right) => left.localeCompare(right));
 
     return Object.fromEntries(

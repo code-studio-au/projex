@@ -16,6 +16,7 @@ export type ServerSession = {
 };
 
 export type ServerFnContextInput = {
+  requestId?: string;
   session?: ServerSession | null;
   /**
    * True when the session has already been checked against the app users table

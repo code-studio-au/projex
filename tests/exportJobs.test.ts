@@ -300,6 +300,7 @@ async function flushBackgroundWork(iterations = 8) {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
@@ -517,6 +518,12 @@ test('createCompanyExportJobServer queues and completes a notified export job', 
 });
 
 test('createCompanyExportJobServer marks ready notification failed when delivery throws', async () => {
+  const warningLogs: string[] = [];
+  const warningSpy = vi
+    .spyOn(console, 'warn')
+    .mockImplementation((message?: unknown) => {
+      warningLogs.push(String(message));
+    });
   const runnerDb = createRunnerDb({
     userEmail: 'owner@example.com',
     userName: 'Owner',
@@ -553,6 +560,16 @@ test('createCompanyExportJobServer marks ready notification failed when delivery
 
   assert.equal(runnerDb.row.status, 'completed');
   assert.equal(runnerDb.row.ready_notification_status, 'failed');
-  assert.equal(runnerDb.row.ready_notification_error, 'SMTP down');
+  assert.equal(
+    runnerDb.row.ready_notification_error,
+    'Could not send export ready notification.'
+  );
   assert.equal(runnerDb.updateLogs.length, 3);
+  assert.equal(warningLogs.length, 1);
+  assert.match(
+    warningLogs[0] ?? '',
+    /company_export_ready_notification_failed/u
+  );
+  assert.doesNotMatch(warningLogs[0] ?? '', /SMTP down/u);
+  warningSpy.mockRestore();
 });

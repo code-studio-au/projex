@@ -113,7 +113,7 @@ export async function approveSuggestedTxnReversalsBulkServer(args: {
             .execute()
         : [];
       const lockedTxnIds = new Set(
-        involvedRows.filter((row) => row.locked_at).map((row) => row.public_id)
+        involvedRows.flatMap((row) => (row.locked_at ? [row.public_id] : []))
       );
 
       let updatedCount = 0;
@@ -121,6 +121,7 @@ export async function approveSuggestedTxnReversalsBulkServer(args: {
       let lockedCount = 0;
       let ineligibleCount = 0;
       const now = new Date().toISOString();
+      const eligibleReversals: TxnReversalRow[] = [];
       for (const reversal of uniqueReversals.values()) {
         if (
           lockedTxnIds.has(reversal.source_txn_public_id) ||
@@ -134,17 +135,22 @@ export async function approveSuggestedTxnReversalsBulkServer(args: {
           ineligibleCount += 1;
           continue;
         }
-        await approveSuggestedTxnReversalMatch({
-          db: trx,
-          companyId: context.companyId,
-          projectId: args.projectId,
-          userId: context.userId,
-          txnId: asTxnId(reversal.source_txn_public_id),
-          expectedReversalVersion: reversal.version,
-          now,
-        });
-        updatedCount += 1;
+        eligibleReversals.push(reversal);
       }
+      await Promise.all(
+        eligibleReversals.map((reversal) =>
+          approveSuggestedTxnReversalMatch({
+            db: trx,
+            companyId: context.companyId,
+            projectId: args.projectId,
+            userId: context.userId,
+            txnId: asTxnId(reversal.source_txn_public_id),
+            expectedReversalVersion: reversal.version,
+            now,
+          })
+        )
+      );
+      updatedCount = eligibleReversals.length;
       unchangedCount = Math.max(0, requestedIds.length - uniqueReversals.size);
 
       return {

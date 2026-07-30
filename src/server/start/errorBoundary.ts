@@ -1,9 +1,5 @@
-import {
-  getAppErrorCause,
-  serverErrorLogFields,
-  toAppError,
-  type AppError,
-} from '../../api/errors';
+import { getAppErrorCause, toAppError, type AppError } from '../../api/errors';
+import { logServerEvent } from '../../api/serverLogging.ts';
 
 type ServerFnMeta = {
   id: string;
@@ -29,22 +25,21 @@ export function normalizeAndLogServerFnError(args: {
   const cause = getAppErrorCause(appError);
   if (cause) {
     const url = new URL(args.request.url);
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        type: 'server_fn',
+    logServerEvent({
+      level: 'error',
+      event: 'server_fn',
+      error: cause.value,
+      fields: {
         requestId: args.requestId,
         method: args.request.method,
         path: url.pathname,
         status: 500,
         code: appError.code,
-        message: appError.message,
         serverFnId: args.serverFnMeta.id,
         serverFnName: args.serverFnMeta.name,
         serverFnFile: args.serverFnMeta.filename,
-        ...serverErrorLogFields(cause.value),
-      })
-    );
+      },
+    });
   }
   return appError;
 }

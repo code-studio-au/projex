@@ -305,9 +305,9 @@ export function usePowerBiImportWorkflow(params: {
       updatePreviewTab('included');
       setExcludedSourceRowIndexes(
         new Set(
-          preview.rows
-            .filter((row) => row.importAction === 'exclude')
-            .map((row) => row.sourceRowIndex)
+          preview.rows.flatMap((row) =>
+            row.importAction === 'exclude' ? [row.sourceRowIndex] : []
+          )
         )
       );
       setReviewDecisions(new Map());

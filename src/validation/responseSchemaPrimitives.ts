@@ -12,7 +12,7 @@ import {
   asTxnId,
   asTxnUnlockRequestId,
   asUserId,
-} from '../types/index.ts';
+} from '../types/ids.ts';
 import { idSchema } from './schemas.ts';
 
 export const companyIdResponseSchema = idSchema.transform(asCompanyId);

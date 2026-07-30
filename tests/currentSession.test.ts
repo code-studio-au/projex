@@ -24,17 +24,20 @@ afterEach(() => {
 
 test('resolveVerifiedCurrentSession returns unauthenticated when no auth session is present', async () => {
   getAuthSessionFromRequestMock.mockResolvedValue(null);
+  const request = new Request('http://localhost:3000/api/session');
 
   const { resolveVerifiedCurrentSession } =
     await import('../src/server/auth/currentSession.ts');
-  const result = await resolveVerifiedCurrentSession(
-    new Request('http://localhost:3000/api/session')
-  );
+  const result = await resolveVerifiedCurrentSession(request, 'req_session');
 
   assert.deepEqual(result, {
     session: null,
     sessionVerified: false,
   });
+  assert.deepEqual(getAuthSessionFromRequestMock.mock.calls[0], [
+    request,
+    'req_session',
+  ]);
   assert.equal(getDbMock.mock.calls.length, 0);
 });
 

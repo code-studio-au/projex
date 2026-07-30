@@ -315,38 +315,39 @@ export async function requestTxnUnlockServer(args: {
         );
       }
 
-      const request = await trx
-        .insertInto('txn_unlock_requests')
-        .values({
-          id: uid('unl'),
-          company_id: context.companyId,
-          project_id: args.projectId,
-          txn_public_id: args.input.txnId,
-          status: 'pending',
-          reason: args.input.reason.trim(),
-          requested_by_user_id: context.userId,
-          requested_at: now,
-          resolved_by_user_id: null,
-          resolved_at: null,
-          resolution_reason: null,
-          version: 1,
-          created_at: now,
-          updated_at: now,
-        })
-        .returning(unlockRequestColumns)
-        .executeTakeFirstOrThrow();
-
-      const updatedTxn = await trx
-        .updateTable('txns')
-        .set({
-          workflow_version: txn.workflow_version + 1,
-          updated_at: now,
-        })
-        .where('project_id', '=', args.projectId)
-        .where('public_id', '=', args.input.txnId)
-        .where('workflow_version', '=', args.input.expectedWorkflowVersion)
-        .returning(txnSelectColumns())
-        .executeTakeFirst();
+      const [request, updatedTxn] = await Promise.all([
+        trx
+          .insertInto('txn_unlock_requests')
+          .values({
+            id: uid('unl'),
+            company_id: context.companyId,
+            project_id: args.projectId,
+            txn_public_id: args.input.txnId,
+            status: 'pending',
+            reason: args.input.reason.trim(),
+            requested_by_user_id: context.userId,
+            requested_at: now,
+            resolved_by_user_id: null,
+            resolved_at: null,
+            resolution_reason: null,
+            version: 1,
+            created_at: now,
+            updated_at: now,
+          })
+          .returning(unlockRequestColumns)
+          .executeTakeFirstOrThrow(),
+        trx
+          .updateTable('txns')
+          .set({
+            workflow_version: txn.workflow_version + 1,
+            updated_at: now,
+          })
+          .where('project_id', '=', args.projectId)
+          .where('public_id', '=', args.input.txnId)
+          .where('workflow_version', '=', args.input.expectedWorkflowVersion)
+          .returning(txnSelectColumns())
+          .executeTakeFirst(),
+      ]);
       if (!updatedTxn) {
         throw new AppError(
           'CONFLICT',

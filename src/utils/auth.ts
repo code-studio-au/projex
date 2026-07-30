@@ -51,9 +51,11 @@ function bestCompanyRole(
   companyId: CompanyId,
   userId: UserId
 ): CompanyRole | null {
-  const roles = memberships
-    .filter((m) => m.companyId === companyId && m.userId === userId)
-    .map((m) => m.role);
+  const roles = memberships.flatMap((membership) =>
+    membership.companyId === companyId && membership.userId === userId
+      ? [membership.role]
+      : []
+  );
   if (!roles.length) return null;
   return roles.sort((a, b) => companyRank[b] - companyRank[a])[0];
 }
@@ -63,9 +65,11 @@ function bestProjectRole(
   projectId: ProjectId,
   userId: UserId
 ): ProjectRole | null {
-  const roles = memberships
-    .filter((m) => m.projectId === projectId && m.userId === userId)
-    .map((m) => m.role);
+  const roles = memberships.flatMap((membership) =>
+    membership.projectId === projectId && membership.userId === userId
+      ? [membership.role]
+      : []
+  );
   if (!roles.length) return null;
   return roles.sort((a, b) => projectRank[b] - projectRank[a])[0];
 }

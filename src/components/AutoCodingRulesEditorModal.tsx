@@ -135,22 +135,30 @@ export default function AutoCodingRulesEditorModal(props: {
 
   const newSubCategoryOptions = useMemo(
     () =>
-      adapter.subCategories
-        .filter((subCategory) => subCategory.categoryId === newCategoryId)
-        .map((subCategory) => ({
-          value: subCategory.id,
-          label: subCategory.name,
-        })),
+      adapter.subCategories.flatMap((subCategory) =>
+        subCategory.categoryId === newCategoryId
+          ? [
+              {
+                value: subCategory.id,
+                label: subCategory.name,
+              },
+            ]
+          : []
+      ),
     [adapter.subCategories, newCategoryId]
   );
   const editSubCategoryOptions = useMemo(
     () =>
-      adapter.subCategories
-        .filter((subCategory) => subCategory.categoryId === editCategoryId)
-        .map((subCategory) => ({
-          value: subCategory.id,
-          label: subCategory.name,
-        })),
+      adapter.subCategories.flatMap((subCategory) =>
+        subCategory.categoryId === editCategoryId
+          ? [
+              {
+                value: subCategory.id,
+                label: subCategory.name,
+              },
+            ]
+          : []
+      ),
     [adapter.subCategories, editCategoryId]
   );
   const categoryNameById = useMemo(

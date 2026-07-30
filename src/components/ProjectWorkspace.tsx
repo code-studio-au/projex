@@ -509,30 +509,26 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
 
   const monthFilterOptions = useMemo(
     () =>
-      allMonthKeys
-        .filter((key) => {
-          if (yearFilter && !key.startsWith(`${yearFilter}-`)) return false;
-          if (!quarterFilter) return true;
-          return quarterFromMonthKey(key) === quarterFilter;
-        })
-        .map((value) => ({ value, label: value })),
+      allMonthKeys.flatMap((value) => {
+        if (yearFilter && !value.startsWith(`${yearFilter}-`)) return [];
+        if (quarterFilter && quarterFromMonthKey(value) !== quarterFilter) {
+          return [];
+        }
+        return [{ value, label: value }];
+      }),
     [allMonthKeys, quarterFilter, yearFilter]
   );
 
   const transferProjectOptions = useMemo(
     () =>
-      (projects.data ?? [])
-        .filter(
-          (candidate) =>
-            candidate.id !== projectId &&
-            candidate.status === 'active' &&
-            candidate.projectType === 'project' &&
-            access.can('txns:edit', candidate.id)
-        )
-        .map((candidate) => ({
-          value: candidate.id,
-          label: candidate.name,
-        })),
+      (projects.data ?? []).flatMap((candidate) =>
+        candidate.id !== projectId &&
+        candidate.status === 'active' &&
+        candidate.projectType === 'project' &&
+        access.can('txns:edit', candidate.id)
+          ? [{ value: candidate.id, label: candidate.name }]
+          : []
+      ),
     [access, projectId, projects.data]
   );
 

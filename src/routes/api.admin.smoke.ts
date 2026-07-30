@@ -95,36 +95,41 @@ export const Route = createFileRoute('/api/admin/smoke')({
 
         const encoder = new TextEncoder();
         const baseUrl = new URL(request.url).origin;
-        const {
-          cleanupSmokeFixtures,
-          createSmokeFixtures,
-          manualInputsToSmokeEnv,
-          withTemporarySmokeEnv,
-        } = await loadRouteServerModule<{
-          cleanupSmokeFixtures: (
-            fixtures: unknown,
-            options: { onStatus(message: string): Promise<void> }
-          ) => Promise<void>;
-          createSmokeFixtures: (options: {
-            sweepStale: boolean;
-            onStatus(message: string): Promise<void>;
-          }) => Promise<unknown>;
-          manualInputsToSmokeEnv: (inputs: unknown) => Record<string, string>;
-          withTemporarySmokeEnv: <T>(
-            env: Record<string, string>,
-            run: () => Promise<T>
-          ) => Promise<T>;
-        }>('../server/smoke/fixtures');
-        const runSmokeSection = await loadRouteServerExport<
-          (
-            sectionId: SmokeSectionId,
-            baseUrl: string,
-            options: {
-              onStep(step: SmokeStepEvent): Promise<void>;
+        const [
+          {
+            cleanupSmokeFixtures,
+            createSmokeFixtures,
+            manualInputsToSmokeEnv,
+            withTemporarySmokeEnv,
+          },
+          runSmokeSection,
+        ] = await Promise.all([
+          loadRouteServerModule<{
+            cleanupSmokeFixtures: (
+              fixtures: unknown,
+              options: { onStatus(message: string): Promise<void> }
+            ) => Promise<void>;
+            createSmokeFixtures: (options: {
+              sweepStale: boolean;
               onStatus(message: string): Promise<void>;
-            }
-          ) => Promise<SmokeSectionResult>
-        >('../server/smoke/runSection', 'runSmokeSection');
+            }) => Promise<unknown>;
+            manualInputsToSmokeEnv: (inputs: unknown) => Record<string, string>;
+            withTemporarySmokeEnv: <T>(
+              env: Record<string, string>,
+              run: () => Promise<T>
+            ) => Promise<T>;
+          }>('../server/smoke/fixtures'),
+          loadRouteServerExport<
+            (
+              sectionId: SmokeSectionId,
+              baseUrl: string,
+              options: {
+                onStep(step: SmokeStepEvent): Promise<void>;
+                onStatus(message: string): Promise<void>;
+              }
+            ) => Promise<SmokeSectionResult>
+          >('../server/smoke/runSection', 'runSmokeSection'),
+        ]);
 
         const stream = new ReadableStream({
           async start(controller) {

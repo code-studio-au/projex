@@ -252,9 +252,21 @@ export function useTransactionsPageQuery(
 }
 
 export function useTransactionsBulkSelectionMutation(projectId: ProjectId) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (input: TxnListFilterInput) =>
       fetchTransactionsSelectionViaApi(projectId, input),
+    onSuccess: (selection, input) => {
+      qc.setQueryData(
+        qk.transactionsPage(
+          scopeUserId,
+          projectId,
+          toTransactionsSelectionQueryParams(input)
+        ),
+        selection
+      );
+    },
   });
 }
 
@@ -421,9 +433,17 @@ export function useBulkTxnActionMutation(projectId: ProjectId) {
 }
 
 export function useTxnReversalSuggestionsMutation(projectId: ProjectId) {
+  const qc = useQueryClient();
+  const scopeUserId = useQueryScopeUserId();
   return useMutation({
     mutationFn: (txnId: TxnId): Promise<TxnReversalMatchSuggestion[]> =>
       listTxnReversalMatchSuggestionsServerFn({ data: { projectId, txnId } }),
+    onSuccess: (suggestions, txnId) => {
+      qc.setQueryData(
+        qk.transactionReversalSuggestions(scopeUserId, projectId, txnId),
+        suggestions
+      );
+    },
   });
 }
 

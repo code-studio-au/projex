@@ -61,12 +61,18 @@ export default function AccountPage() {
       (companiesQ.data ?? []).map((company) => [company.id, company.name])
     );
     return (membershipsQ.data ?? [])
-      .filter((membership) => membership.userId === userId)
-      .map((membership) => ({
-        ...membership,
-        companyName:
-          companyNameById.get(membership.companyId) ?? membership.companyId,
-      }))
+      .flatMap((membership) =>
+        membership.userId === userId
+          ? [
+              {
+                ...membership,
+                companyName:
+                  companyNameById.get(membership.companyId) ??
+                  membership.companyId,
+              },
+            ]
+          : []
+      )
       .sort((a, b) => a.companyName.localeCompare(b.companyName));
   }, [companiesQ.data, membershipsQ.data, userId]);
 

@@ -249,6 +249,7 @@ export async function bulkTxnActionServer(args: {
               ])
             )
           : null;
+      const action = args.input.action;
 
       if (
         expectedWorkflowVersionByTxnId &&
@@ -262,7 +263,7 @@ export async function bulkTxnActionServer(args: {
       }
 
       for (const row of rows) {
-        if (args.input.action === 'approveAutoMappings') {
+        if (action === 'approveAutoMappings') {
           if (row.locked_at) {
             lockedCount += 1;
             continue;
@@ -295,7 +296,7 @@ export async function bulkTxnActionServer(args: {
           continue;
         }
 
-        if (args.input.action === 'delete') {
+        if (action === 'delete') {
           if (row.locked_at) {
             lockedCount += 1;
             continue;
@@ -361,7 +362,7 @@ export async function bulkTxnActionServer(args: {
           continue;
         }
 
-        if (args.input.action === 'clearCoding') {
+        if (action === 'clearCoding') {
           if (row.locked_at) {
             lockedCount += 1;
             continue;
@@ -400,7 +401,7 @@ export async function bulkTxnActionServer(args: {
           continue;
         }
 
-        if (args.input.action === 'recode') {
+        if (action === 'recode') {
           if (row.locked_at) {
             lockedCount += 1;
             continue;

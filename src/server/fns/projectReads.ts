@@ -28,9 +28,9 @@ export async function listVisibleProjectsForCompany(args: {
     .execute();
 
   if (args.isSuperadmin) {
-    return allRows
-      .filter((project) => project.allow_superadmin_access)
-      .map(toProject);
+    return allRows.flatMap((project) =>
+      project.allow_superadmin_access ? [toProject(project)] : []
+    );
   }
   if (args.companyStatus === 'deactivated') return [];
   if (args.companyRole === 'admin' || args.companyRole === 'executive') {
@@ -47,14 +47,12 @@ export async function listVisibleProjectsForCompany(args: {
     membershipRows.map((membership) => membership.project_id)
   );
 
-  return allRows
-    .filter((project) => {
-      if (project.status === 'archived') return false;
-      if (mine.has(project.id)) return true;
-      if (!isCompanyMember) return false;
-      return project.visibility === 'company';
-    })
-    .map(toProject);
+  return allRows.flatMap((project) => {
+    if (project.status === 'archived') return [];
+    if (mine.has(project.id)) return [toProject(project)];
+    if (!isCompanyMember || project.visibility !== 'company') return [];
+    return [toProject(project)];
+  });
 }
 
 export async function listProjectsServer(args: {

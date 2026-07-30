@@ -1,10 +1,7 @@
 import { createMiddleware } from '@tanstack/react-start';
 import type { z } from 'zod';
-import {
-  AppError,
-  getAppErrorCause,
-  serverErrorLogFields,
-} from '../api/errors';
+import { AppError, getAppErrorCause } from '../api/errors';
+import { logServerEvent } from '../api/serverLogging';
 import {
   parseAppEndpointInput,
   type AppEndpoint,
@@ -52,7 +49,10 @@ export type PublicApiRouteContext = {
 };
 
 type RequestContextModule = {
-  resolveRequestServerContext(request: Request): Promise<{
+  resolveRequestServerContext(
+    request: Request,
+    requestId?: string
+  ): Promise<{
     session: ServerSession | null;
     serverContext: ServerFnContextInput;
   }>;
@@ -111,8 +111,10 @@ export const apiRouteMiddleware = createMiddleware().server(
           await loadRouteServerModule<RequestContextModule>(
             '../server/http/requestContext'
           );
-        const { session, serverContext } =
-          await resolveRequestServerContext(request);
+        const { session, serverContext } = await resolveRequestServerContext(
+          request,
+          requestId
+        );
         return next({
           context: {
             session,
@@ -294,10 +296,10 @@ async function withApiCore(
     );
     const headers = new Headers(forbidden.headers);
     headers.set('x-request-id', requestId);
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        type: 'api_request',
+    logServerEvent({
+      level: 'warn',
+      event: 'api_request',
+      fields: {
         requestId,
         method: request.method,
         path: url.pathname,
@@ -305,8 +307,8 @@ async function withApiCore(
         durationMs: Date.now() - started,
         code: 'FORBIDDEN',
         reason: 'origin_not_allowed',
-      })
-    );
+      },
+    });
     for (const [k, v] of buildCorsHeaders(origin, requestOrigin).entries())
       headers.set(k, v);
     return new Response(forbidden.body, {
@@ -337,17 +339,17 @@ async function withApiCore(
           ? data.response
           : Response.json(data);
     const finalRes = withRequestId(res);
-    console.info(
-      JSON.stringify({
-        level: 'info',
-        type: 'api_request',
+    logServerEvent({
+      level: 'info',
+      event: 'api_request',
+      fields: {
         requestId,
         method: request.method,
         path: url.pathname,
         status: finalRes.status,
         durationMs: Date.now() - started,
-      })
-    );
+      },
+    });
     return finalRes;
   } catch (err) {
     if (err instanceof AppError) {
@@ -365,26 +367,27 @@ async function withApiCore(
         finalRes.headers.set('retry-after', String(retryAfterSeconds));
       }
       const logEntry = {
-        level: finalRes.status >= 500 ? 'error' : 'warn',
-        type: 'api_request',
         requestId,
         method: request.method,
         path: url.pathname,
         status: finalRes.status,
         durationMs: Date.now() - started,
         code: err.code,
-        message: err.message,
       };
       if (finalRes.status >= 500) {
         const cause = getAppErrorCause(err);
-        console.error(
-          JSON.stringify({
-            ...logEntry,
-            ...(cause ? serverErrorLogFields(cause.value) : {}),
-          })
-        );
+        logServerEvent({
+          level: 'error',
+          event: 'api_request',
+          ...(cause ? { error: cause.value } : {}),
+          fields: logEntry,
+        });
       } else {
-        console.warn(JSON.stringify(logEntry));
+        logServerEvent({
+          level: 'warn',
+          event: 'api_request',
+          fields: logEntry,
+        });
       }
       return finalRes;
     }
@@ -396,18 +399,18 @@ async function withApiCore(
       { status: 500 }
     );
     const finalRes = withRequestId(res);
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        type: 'api_request',
+    logServerEvent({
+      level: 'error',
+      event: 'api_request',
+      error: err,
+      fields: {
         requestId,
         method: request.method,
         path: url.pathname,
         status: finalRes.status,
         durationMs: Date.now() - started,
-        ...serverErrorLogFields(err),
-      })
-    );
+      },
+    });
     return finalRes;
   }
 }

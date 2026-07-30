@@ -290,9 +290,9 @@ export async function listMyProjectMembershipsServer(args: {
       .where('company_id', '=', args.companyId)
       .execute();
     if (!projectIdsInCompany.length) return [];
-    const ids = projectIdsInCompany
-      .filter((p) => !isSuperadmin || p.allow_superadmin_access)
-      .map((p) => p.id);
+    const ids = projectIdsInCompany.flatMap((project) =>
+      !isSuperadmin || project.allow_superadmin_access ? [project.id] : []
+    );
     if (!ids.length) return [];
 
     const rows = await db

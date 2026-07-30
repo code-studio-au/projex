@@ -8,6 +8,7 @@ import type {
 } from '../../types';
 import { asTxnCommentId, asTxnId } from '../../types';
 import { AppError } from '../../api/errors';
+import { logServerEvent } from '../../api/serverLogging.ts';
 import type {
   TxnCommentCreateInput,
   TxnCommentUpdateInput,
@@ -187,11 +188,19 @@ async function safelySendAssignmentNotification(args: {
   txnId: TxnId;
   comment: TxnComment;
   assignedToUserId: UserId | null | undefined;
+  requestId?: string;
 }): Promise<void> {
   try {
     await maybeSendAssignmentNotification(args);
   } catch (error) {
-    console.warn('[transaction-comments] Assignment email failed', error);
+    logServerEvent({
+      level: 'warn',
+      event: 'transaction_comment_assignment_email_failed',
+      error,
+      fields: {
+        requestId: args.requestId,
+      },
+    });
   }
 }
 
@@ -380,6 +389,7 @@ export async function createTransactionCommentServer(args: {
       txnId: args.input.txnId,
       comment,
       assignedToUserId: args.input.assignedToUserId,
+      requestId: args.context.requestId,
     });
 
     return comment;
@@ -496,6 +506,7 @@ export async function updateTransactionCommentServer(args: {
         txnId: args.txnId,
         comment,
         assignedToUserId: args.input.assignedToUserId,
+        requestId: args.context.requestId,
       });
     }
 

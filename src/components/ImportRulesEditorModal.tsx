@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useReducer } from 'react';
 import {
   Alert,
   Badge,
@@ -79,6 +79,126 @@ function actionColor(action: ImportRuleAction) {
   return 'gray';
 }
 
+type ImportRuleFormState = {
+  name: string;
+  action: ImportRuleAction;
+  field: ImportRuleField;
+  operator: ImportRuleOperator;
+  value: string;
+  enabled: boolean;
+};
+
+type ImportRulesEditorState = {
+  newRule: ImportRuleFormState;
+  editingRule: ImportRule | null;
+  editRule: ImportRuleFormState;
+  pendingDelete: ImportRule | null;
+  error: string | null;
+  success: string | null;
+};
+
+type ImportRulesEditorAction =
+  | { type: 'clearFeedback' }
+  | { type: 'success'; message: string | null }
+  | { type: 'error'; message: string | null }
+  | { type: 'updateNewRule'; patch: Partial<ImportRuleFormState> }
+  | { type: 'newRuleCreated' }
+  | { type: 'beginEdit'; rule: ImportRule }
+  | { type: 'updateEditRule'; patch: Partial<ImportRuleFormState> }
+  | { type: 'closeEdit' }
+  | { type: 'requestDelete'; rule: ImportRule | null }
+  | { type: 'closeManager' };
+
+const emptyImportRuleForm: ImportRuleFormState = {
+  name: '',
+  action: 'exclude',
+  field: 'source',
+  operator: 'equals',
+  value: '',
+  enabled: true,
+};
+
+const initialImportRulesEditorState: ImportRulesEditorState = {
+  newRule: emptyImportRuleForm,
+  editingRule: null,
+  editRule: emptyImportRuleForm,
+  pendingDelete: null,
+  error: null,
+  success: null,
+};
+
+function importRulesEditorReducer(
+  state: ImportRulesEditorState,
+  action: ImportRulesEditorAction
+): ImportRulesEditorState {
+  if (action.type === 'clearFeedback') {
+    return { ...state, error: null, success: null };
+  }
+  if (action.type === 'success') {
+    return { ...state, error: null, success: action.message };
+  }
+  if (action.type === 'error') {
+    return { ...state, error: action.message };
+  }
+  if (action.type === 'updateNewRule') {
+    return {
+      ...state,
+      newRule: { ...state.newRule, ...action.patch },
+      error: null,
+      success: null,
+    };
+  }
+  if (action.type === 'newRuleCreated') {
+    return {
+      ...state,
+      newRule: emptyImportRuleForm,
+      error: null,
+      success: 'Added import rule.',
+    };
+  }
+  if (action.type === 'beginEdit') {
+    return {
+      ...state,
+      editingRule: action.rule,
+      editRule: {
+        name: action.rule.name,
+        action: action.rule.action,
+        field: action.rule.field,
+        operator: action.rule.operator,
+        value: action.rule.value,
+        enabled: action.rule.enabled,
+      },
+      error: null,
+      success: null,
+    };
+  }
+  if (action.type === 'updateEditRule') {
+    return {
+      ...state,
+      editRule: { ...state.editRule, ...action.patch },
+      error: null,
+    };
+  }
+  if (action.type === 'closeEdit') {
+    return { ...state, editingRule: null, error: null };
+  }
+  if (action.type === 'requestDelete') {
+    return {
+      ...state,
+      pendingDelete: action.rule,
+      error: null,
+      success: action.rule ? null : state.success,
+    };
+  }
+  return {
+    ...state,
+    editingRule: null,
+    pendingDelete: null,
+    error: null,
+    success: null,
+  };
+}
+
 export default function ImportRulesEditorModal(props: {
   opened: boolean;
   onClose: () => void;
@@ -90,42 +210,42 @@ export default function ImportRulesEditorModal(props: {
   const projectScoped = adapter.scope === 'project';
   const rules = adapter.rules;
 
-  const [newName, setNewName] = useState('');
-  const [newAction, setNewAction] = useState<ImportRuleAction>('exclude');
-  const [newField, setNewField] = useState<ImportRuleField>('source');
-  const [newOperator, setNewOperator] = useState<ImportRuleOperator>('equals');
-  const [newValue, setNewValue] = useState('');
-  const [editingRule, setEditingRule] = useState<ImportRule | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editAction, setEditAction] = useState<ImportRuleAction>('exclude');
-  const [editField, setEditField] = useState<ImportRuleField>('source');
-  const [editOperator, setEditOperator] =
-    useState<ImportRuleOperator>('equals');
-  const [editValue, setEditValue] = useState('');
-  const [editEnabled, setEditEnabled] = useState(true);
-  const [pendingDelete, setPendingDelete] = useState<ImportRule | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [editorState, dispatchEditor] = useReducer(
+    importRulesEditorReducer,
+    initialImportRulesEditorState
+  );
+  const {
+    newRule: {
+      name: newName,
+      action: newAction,
+      field: newField,
+      operator: newOperator,
+      value: newValue,
+    },
+    editingRule,
+    editRule: {
+      name: editName,
+      action: editAction,
+      field: editField,
+      operator: editOperator,
+      value: editValue,
+      enabled: editEnabled,
+    },
+    pendingDelete,
+    error,
+    success,
+  } = editorState;
 
   function clearFeedback() {
-    setError(null);
-    setSuccess(null);
+    dispatchEditor({ type: 'clearFeedback' });
   }
 
   function beginEdit(rule: ImportRule) {
-    clearFeedback();
-    setEditingRule(rule);
-    setEditName(rule.name);
-    setEditAction(rule.action);
-    setEditField(rule.field);
-    setEditOperator(rule.operator);
-    setEditValue(rule.value);
-    setEditEnabled(rule.enabled);
+    dispatchEditor({ type: 'beginEdit', rule });
   }
 
   function closeEdit() {
-    setEditingRule(null);
-    setError(null);
+    dispatchEditor({ type: 'closeEdit' });
   }
 
   async function moveRule(ruleId: ImportRule['id'], direction: -1 | 1) {
@@ -144,20 +264,22 @@ export default function ImportRulesEditorModal(props: {
         id: targetRule.id,
         sortOrder: currentRule.sortOrder,
       });
-      setSuccess(
-        direction < 0 ? 'Moved import rule up.' : 'Moved import rule down.'
-      );
+      dispatchEditor({
+        type: 'success',
+        message:
+          direction < 0 ? 'Moved import rule up.' : 'Moved import rule down.',
+      });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Could not reorder import rule.'
-      );
+      dispatchEditor({
+        type: 'error',
+        message:
+          err instanceof Error ? err.message : 'Could not reorder import rule.',
+      });
     }
   }
 
   function closeManager() {
-    clearFeedback();
-    setEditingRule(null);
-    setPendingDelete(null);
+    dispatchEditor({ type: 'closeManager' });
     onClose();
   }
 
@@ -188,7 +310,7 @@ export default function ImportRulesEditorModal(props: {
             <Alert
               color="green"
               withCloseButton
-              onClose={() => setSuccess(null)}
+              onClose={() => dispatchEditor({ type: 'success', message: null })}
             >
               {success}
             </Alert>
@@ -232,10 +354,12 @@ export default function ImportRulesEditorModal(props: {
                       : 'e.g. Exclude SAL payroll source'
                   }
                   value={newName}
-                  onChange={(event) => {
-                    clearFeedback();
-                    setNewName(event.currentTarget.value);
-                  }}
+                  onChange={(event) =>
+                    dispatchEditor({
+                      type: 'updateNewRule',
+                      patch: { name: event.currentTarget.value },
+                    })
+                  }
                 />
                 <Group grow align="flex-end" wrap="wrap">
                   <Select
@@ -245,7 +369,12 @@ export default function ImportRulesEditorModal(props: {
                     {...firefoxSafeModalSelectProps}
                     onChange={(value) => {
                       const next = toImportRuleAction(value);
-                      if (next) setNewAction(next);
+                      if (next) {
+                        dispatchEditor({
+                          type: 'updateNewRule',
+                          patch: { action: next },
+                        });
+                      }
                     }}
                   />
                   <Select
@@ -256,7 +385,12 @@ export default function ImportRulesEditorModal(props: {
                     {...firefoxSafeModalSelectProps}
                     onChange={(value) => {
                       const next = toImportRuleField(value);
-                      if (next) setNewField(next);
+                      if (next) {
+                        dispatchEditor({
+                          type: 'updateNewRule',
+                          patch: { field: next },
+                        });
+                      }
                     }}
                   />
                   <Select
@@ -266,7 +400,12 @@ export default function ImportRulesEditorModal(props: {
                     {...firefoxSafeModalSelectProps}
                     onChange={(value) => {
                       const next = toImportRuleOperator(value);
-                      if (next) setNewOperator(next);
+                      if (next) {
+                        dispatchEditor({
+                          type: 'updateNewRule',
+                          patch: { operator: next },
+                        });
+                      }
                     }}
                   />
                 </Group>
@@ -278,10 +417,12 @@ export default function ImportRulesEditorModal(props: {
                       : 'e.g. SAL, EXA, payroll'
                   }
                   value={newValue}
-                  onChange={(event) => {
-                    clearFeedback();
-                    setNewValue(event.currentTarget.value);
-                  }}
+                  onChange={(event) =>
+                    dispatchEditor({
+                      type: 'updateNewRule',
+                      patch: { value: event.currentTarget.value },
+                    })
+                  }
                 />
                 <Group className={classes.footerRow}>
                   <Button
@@ -300,18 +441,15 @@ export default function ImportRulesEditorModal(props: {
                           sortOrder: nextImportRuleSortOrder(rules),
                           enabled: true,
                         });
-                        setNewName('');
-                        setNewAction('exclude');
-                        setNewField('source');
-                        setNewOperator('equals');
-                        setNewValue('');
-                        setSuccess('Added import rule.');
+                        dispatchEditor({ type: 'newRuleCreated' });
                       } catch (err) {
-                        setError(
-                          err instanceof Error
-                            ? err.message
-                            : 'Could not add import rule.'
-                        );
+                        dispatchEditor({
+                          type: 'error',
+                          message:
+                            err instanceof Error
+                              ? err.message
+                              : 'Could not add import rule.',
+                        });
                       }
                     }}
                   >
@@ -392,17 +530,20 @@ export default function ImportRulesEditorModal(props: {
                                   id: rule.id,
                                   enabled: !rule.enabled,
                                 });
-                                setSuccess(
-                                  rule.enabled
+                                dispatchEditor({
+                                  type: 'success',
+                                  message: rule.enabled
                                     ? 'Disabled import rule.'
-                                    : 'Enabled import rule.'
-                                );
+                                    : 'Enabled import rule.',
+                                });
                               } catch (err) {
-                                setError(
-                                  err instanceof Error
-                                    ? err.message
-                                    : 'Could not update import rule.'
-                                );
+                                dispatchEditor({
+                                  type: 'error',
+                                  message:
+                                    err instanceof Error
+                                      ? err.message
+                                      : 'Could not update import rule.',
+                                });
                               }
                             }}
                           >
@@ -432,15 +573,18 @@ export default function ImportRulesEditorModal(props: {
                                   const promoted = await adapter.promote?.(
                                     rule.id
                                   );
-                                  setSuccess(
-                                    `Added "${rule.name}" to company import rules as "${promoted?.name ?? rule.name}".`
-                                  );
+                                  dispatchEditor({
+                                    type: 'success',
+                                    message: `Added "${rule.name}" to company import rules as "${promoted?.name ?? rule.name}".`,
+                                  });
                                 } catch (err) {
-                                  setError(
-                                    err instanceof Error
-                                      ? err.message
-                                      : 'Could not add rule to company import rules.'
-                                  );
+                                  dispatchEditor({
+                                    type: 'error',
+                                    message:
+                                      err instanceof Error
+                                        ? err.message
+                                        : 'Could not add rule to company import rules.',
+                                  });
                                 }
                               }}
                             >
@@ -455,7 +599,10 @@ export default function ImportRulesEditorModal(props: {
                                 leftSection={<IconTrash size={15} />}
                                 onClick={() => {
                                   clearFeedback();
-                                  setPendingDelete(rule);
+                                  dispatchEditor({
+                                    type: 'requestDelete',
+                                    rule,
+                                  });
                                 }}
                               >
                                 Delete rule
@@ -494,10 +641,12 @@ export default function ImportRulesEditorModal(props: {
           <TextInput
             label="Rule name"
             value={editName}
-            onChange={(event) => {
-              setError(null);
-              setEditName(event.currentTarget.value);
-            }}
+            onChange={(event) =>
+              dispatchEditor({
+                type: 'updateEditRule',
+                patch: { name: event.currentTarget.value },
+              })
+            }
           />
           <Group grow align="flex-end" wrap="wrap">
             <Select
@@ -507,7 +656,12 @@ export default function ImportRulesEditorModal(props: {
               {...firefoxSafeModalSelectProps}
               onChange={(value) => {
                 const next = toImportRuleAction(value);
-                if (next) setEditAction(next);
+                if (next) {
+                  dispatchEditor({
+                    type: 'updateEditRule',
+                    patch: { action: next },
+                  });
+                }
               }}
             />
             <Select
@@ -518,7 +672,12 @@ export default function ImportRulesEditorModal(props: {
               {...firefoxSafeModalSelectProps}
               onChange={(value) => {
                 const next = toImportRuleField(value);
-                if (next) setEditField(next);
+                if (next) {
+                  dispatchEditor({
+                    type: 'updateEditRule',
+                    patch: { field: next },
+                  });
+                }
               }}
             />
             <Select
@@ -528,22 +687,34 @@ export default function ImportRulesEditorModal(props: {
               {...firefoxSafeModalSelectProps}
               onChange={(value) => {
                 const next = toImportRuleOperator(value);
-                if (next) setEditOperator(next);
+                if (next) {
+                  dispatchEditor({
+                    type: 'updateEditRule',
+                    patch: { operator: next },
+                  });
+                }
               }}
             />
           </Group>
           <TextInput
             label="Value"
             value={editValue}
-            onChange={(event) => {
-              setError(null);
-              setEditValue(event.currentTarget.value);
-            }}
+            onChange={(event) =>
+              dispatchEditor({
+                type: 'updateEditRule',
+                patch: { value: event.currentTarget.value },
+              })
+            }
           />
           <Switch
             label="Rule enabled"
             checked={editEnabled}
-            onChange={(event) => setEditEnabled(event.currentTarget.checked)}
+            onChange={(event) =>
+              dispatchEditor({
+                type: 'updateEditRule',
+                patch: { enabled: event.currentTarget.checked },
+              })
+            }
           />
           <Group className={classes.footerRow}>
             <Button
@@ -573,13 +744,18 @@ export default function ImportRulesEditorModal(props: {
                     sortOrder: editingRule.sortOrder,
                   });
                   closeEdit();
-                  setSuccess('Updated import rule.');
+                  dispatchEditor({
+                    type: 'success',
+                    message: 'Updated import rule.',
+                  });
                 } catch (err) {
-                  setError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not update import rule.'
-                  );
+                  dispatchEditor({
+                    type: 'error',
+                    message:
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not update import rule.',
+                  });
                 }
               }}
             >
@@ -591,7 +767,7 @@ export default function ImportRulesEditorModal(props: {
 
       <Modal
         opened={!!pendingDelete}
-        onClose={() => setPendingDelete(null)}
+        onClose={() => dispatchEditor({ type: 'requestDelete', rule: null })}
         title="Delete import rule?"
         fullScreen={isMobile}
         centered={!isMobile}
@@ -608,7 +784,9 @@ export default function ImportRulesEditorModal(props: {
               variant="default"
               fullWidth={isMobile}
               disabled={adapter.deleting}
-              onClick={() => setPendingDelete(null)}
+              onClick={() =>
+                dispatchEditor({ type: 'requestDelete', rule: null })
+              }
             >
               Cancel
             </Button>
@@ -621,14 +799,19 @@ export default function ImportRulesEditorModal(props: {
                 try {
                   clearFeedback();
                   await adapter.delete(pendingDelete.id);
-                  setPendingDelete(null);
-                  setSuccess('Deleted import rule.');
+                  dispatchEditor({ type: 'requestDelete', rule: null });
+                  dispatchEditor({
+                    type: 'success',
+                    message: 'Deleted import rule.',
+                  });
                 } catch (err) {
-                  setError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not delete import rule.'
-                  );
+                  dispatchEditor({
+                    type: 'error',
+                    message:
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not delete import rule.',
+                  });
                 }
               }}
             >

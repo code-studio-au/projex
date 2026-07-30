@@ -794,9 +794,11 @@ async function finalizeImportBatchCandidates(args: {
       .execute();
   }
 
-  const importedReviewIds = (args.reviewDecisions ?? [])
-    .filter((decision) => decision.decision === 'import_uncoded')
-    .map((decision) => String(decision.previewImportId));
+  const importedReviewIds = (args.reviewDecisions ?? []).flatMap((decision) =>
+    decision.decision === 'import_uncoded'
+      ? [String(decision.previewImportId)]
+      : []
+  );
   if (importedReviewIds.length) {
     await args.db
       .updateTable('import_candidates')

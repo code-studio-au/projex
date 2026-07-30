@@ -46,9 +46,11 @@ test('serverFnRequestId preserves supplied ids and generates missing ids', () =>
   );
 });
 
-test('native server-function errors retain private causes only in request logs', async () => {
+test('native server-function errors classify causes without logging private details', async () => {
   const logs = captureConsoleError();
-  const privateError = new Error('database secret from native server function');
+  const privateError = new Error(
+    'database secret from native server function token=private'
+  );
 
   try {
     let serverBoundaryError: unknown;
@@ -90,8 +92,7 @@ test('native server-function errors retain private causes only in request logs',
         code: parsed.data.code,
         message: parsed.data.message,
         serverFnId: parsed.data.serverFnId,
-        error: parsed.data.error,
-        errorName: parsed.data.errorName,
+        errorType: parsed.data.errorType,
       },
       {
         level: 'error',
@@ -101,12 +102,12 @@ test('native server-function errors retain private causes only in request logs',
         path: '/_serverFn/test',
         status: 500,
         code: 'INTERNAL_ERROR',
-        message: 'Unexpected server error',
+        message: undefined,
         serverFnId: 'server_fn_test_id',
-        error: 'database secret from native server function',
-        errorName: 'Error',
+        errorType: 'Error',
       }
     );
+    assert.doesNotMatch(logs.messages[0], /database secret|token=private/u);
   } finally {
     logs.restore();
   }

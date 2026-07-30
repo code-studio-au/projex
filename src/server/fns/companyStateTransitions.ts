@@ -84,14 +84,13 @@ export async function deactivateCompanyServer(args: {
       const usersWithOtherActiveCompanies = new Set(
         otherActiveMembershipRows.map((row) => row.user_id)
       );
-      const disableIds = memberRows
-        .filter((row) => !row.is_global_superadmin)
-        .filter((row) => !usersWithOtherActiveCompanies.has(row.user_id))
-        .filter(
-          (row) =>
-            !row.disabled || row.disabled_reason === 'company_deactivated'
-        )
-        .map((row) => row.user_id);
+      const disableIds = memberRows.flatMap((row) =>
+        !row.is_global_superadmin &&
+        !usersWithOtherActiveCompanies.has(row.user_id) &&
+        (!row.disabled || row.disabled_reason === 'company_deactivated')
+          ? [row.user_id]
+          : []
+      );
       if (!disableIds.length) return;
 
       await trx
@@ -163,9 +162,9 @@ export async function reactivateCompanyServer(args: {
         ])
         .where('memberships.company_id', '=', args.companyId)
         .execute();
-      const reenableIds = memberRows
-        .filter((row) => row.disabled_reason === 'company_deactivated')
-        .map((row) => row.user_id);
+      const reenableIds = memberRows.flatMap((row) =>
+        row.disabled_reason === 'company_deactivated' ? [row.user_id] : []
+      );
       if (!reenableIds.length) return;
 
       await trx
@@ -216,12 +215,14 @@ export async function deleteCompanyServer(args: {
       .where('storage_key', 'is not', null)
       .execute();
 
-    for (const row of exportObjects) {
-      await deleteCompanyExportObject({
-        bucket: row.storage_bucket!,
-        key: row.storage_key!,
-      });
-    }
+    await Promise.all(
+      exportObjects.map((row) =>
+        deleteCompanyExportObject({
+          bucket: row.storage_bucket!,
+          key: row.storage_key!,
+        })
+      )
+    );
 
     await db.transaction().execute(async (trx) => {
       const affectedUserIds = (

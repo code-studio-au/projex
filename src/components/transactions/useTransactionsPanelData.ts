@@ -206,16 +206,14 @@ export function useTransactionsPanelData(args: {
   const selectedSuggestedReversalPairs = useMemo(
     () => [
       ...new Map(
-        selectedRows
-          .filter(
-            (txn) =>
-              !txn.locked &&
-              txn.reversal &&
-              (txn.reversal.status === 'auto_matched_pending_approval' ||
-                txn.reversal.status ===
-                  'auto_matched_ambiguous_pending_approval')
-          )
-          .map((txn) => [txn.reversal!.id, txn.reversal!] as const)
+        selectedRows.flatMap((txn) =>
+          !txn.locked &&
+          txn.reversal &&
+          (txn.reversal.status === 'auto_matched_pending_approval' ||
+            txn.reversal.status === 'auto_matched_ambiguous_pending_approval')
+            ? [[txn.reversal.id, txn.reversal] as const]
+            : []
+        )
       ).values(),
     ],
     [selectedRows]

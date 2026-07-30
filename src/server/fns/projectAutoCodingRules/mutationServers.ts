@@ -123,16 +123,15 @@ export async function createProjectAutoCodingRuleServer(args: {
       }
 
       const txns = await listProjectTransactions(trx, args.projectId);
-      const matchedTxnIds = txns
-        .filter((txn: Txn) => {
-          if (txn.lockedAt || !txn.categorisable) return false;
-          if (txn.subCategoryId) return false;
-          return textRuleMatches({
-            haystack: transactionRuleHaystack(txn),
-            needle: matchText,
-          });
+      const matchedTxnIds = txns.flatMap((txn: Txn) => {
+        if (txn.lockedAt || !txn.categorisable || txn.subCategoryId) return [];
+        return textRuleMatches({
+          haystack: transactionRuleHaystack(txn),
+          needle: matchText,
         })
-        .map((txn: Txn) => txn.id);
+          ? [txn.id]
+          : [];
+      });
 
       if (matchedTxnIds.length > 0) {
         await ensureBudgetLinesForProjectSubCategories({
@@ -352,6 +351,7 @@ export async function backfillProjectCodingServer(args: {
     let projectRuleMatches = 0;
     let companyRuleMatches = 0;
     let updatedCount = 0;
+    const mode = args.input.mode;
 
     await db.transaction().execute(async (trx) => {
       const budgetTargets = new Map<
@@ -361,7 +361,7 @@ export async function backfillProjectCodingServer(args: {
       for (const txn of eligibleTxns) {
         let nextTxn = txn;
 
-        if (args.input.mode === 'project_rules' || args.input.mode === 'all') {
+        if (mode === 'project_rules' || mode === 'all') {
           const matchedProjectRule = findMatchingProjectAutoCodingRule(
             nextTxn,
             [...projectScopedRules]
@@ -377,7 +377,7 @@ export async function backfillProjectCodingServer(args: {
 
         if (
           !nextTxn.subCategoryId &&
-          (args.input.mode === 'company_rules' || args.input.mode === 'all')
+          (mode === 'company_rules' || mode === 'all')
         ) {
           const matchedCompanyRule = findMatchingProjectAutoCodingRule(
             nextTxn,

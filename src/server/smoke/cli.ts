@@ -1,5 +1,5 @@
-import type { SmokeSectionId, SmokeStepResult } from '../../types/index.ts';
-import { smokeSectionDefinitions } from '../../types/index.ts';
+import type { SmokeSectionId, SmokeStepResult } from '../../types/smoke.ts';
+import { smokeSectionDefinitions } from '../../types/smoke.ts';
 import { parseCliArgs } from '../../../scripts/cli-args.mjs';
 import { getSmokeConfiguredBaseUrl } from './env.ts';
 import {
@@ -9,6 +9,7 @@ import {
   type SmokeFixtures,
 } from './fixtures.ts';
 import { runSmokeSection } from './runSection.ts';
+import { runSequentially } from './shared.ts';
 
 const validSections = new Set(
   smokeSectionDefinitions.map((section) => section.id)
@@ -93,10 +94,11 @@ async function main() {
       });
     }
 
-    for (const section of smokeSectionDefinitions) {
-      if (requestedSections.size > 0 && !requestedSections.has(section.id))
-        continue;
-
+    const selectedSections = smokeSectionDefinitions.filter(
+      (section) =>
+        requestedSections.size === 0 || requestedSections.has(section.id)
+    );
+    await runSequentially(selectedSections, async (section) => {
       console.info(`\n== ${section.label} ==`);
       const result = await runSmokeSection(section.id, baseUrl, {
         onStatus(message) {
@@ -106,11 +108,8 @@ async function main() {
           logStep(step);
         },
       });
-
-      if (result.status === 'failed') {
-        hasFailure = true;
-      }
-    }
+      if (result.status === 'failed') hasFailure = true;
+    });
   } finally {
     if (fixtures) {
       await cleanupSmokeFixtures(fixtures, {

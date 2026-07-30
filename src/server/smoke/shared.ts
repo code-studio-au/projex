@@ -4,8 +4,8 @@ import type {
   SmokeSectionId,
   SmokeSectionResult,
   SmokeStepResult,
-} from '../../types/index.ts';
-import { smokeSectionDefinitions } from '../../types/index.ts';
+} from '../../types/smoke.ts';
+import { smokeSectionDefinitions } from '../../types/smoke.ts';
 import { parseJsonOrText } from '../../utils/json.ts';
 import {
   apiMessageResponseSchema,
@@ -78,6 +78,16 @@ export function userLabel(email: string | undefined, fallbackRole: string) {
 
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function runSequentially<T>(
+  items: readonly T[],
+  visit: (item: T, index: number) => Promise<void>,
+  index = 0
+): Promise<void> {
+  if (index >= items.length) return;
+  await visit(items[index], index);
+  return runSequentially(items, visit, index + 1);
 }
 
 export function getRetryDelayMs(
@@ -203,6 +213,10 @@ export class SmokeHttpClient {
 
     const res = await fetch(`${this.baseUrl}${urlPath}`, { ...init, headers });
     this.storeSetCookie(res.headers);
+    if (!res.ok) {
+      const text = await res.text();
+      return { res, body: parseJsonOrText(text) };
+    }
     const text = await res.text();
     const body = parseJsonOrText(text);
     return { res, body };
@@ -240,6 +254,9 @@ export class SmokeHttpClient {
     if (!headers.has('x-real-ip')) headers.set('x-real-ip', '127.0.0.1');
     const res = await fetch(`${this.baseUrl}${urlPath}`, { ...init, headers });
     this.storeSetCookie(res.headers);
+    if (!res.ok) {
+      return { res, body: await res.text() };
+    }
     const body = await res.text();
     return { res, body };
   }
@@ -253,6 +270,12 @@ export class SmokeHttpClient {
     if (!headers.has('x-real-ip')) headers.set('x-real-ip', '127.0.0.1');
     const res = await fetch(`${this.baseUrl}${urlPath}`, { ...init, headers });
     this.storeSetCookie(res.headers);
+    if (!res.ok) {
+      return {
+        res,
+        bytes: new Uint8Array(await res.arrayBuffer()),
+      };
+    }
     return {
       res,
       bytes: new Uint8Array(await res.arrayBuffer()),

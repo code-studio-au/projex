@@ -93,8 +93,9 @@ function formatCurrencyGroups(groups: Map<Project['currency'], number>) {
   if (groups.size === 0) return '—';
   return (
     [...groups.entries()]
-      .filter(([, amount]) => amount !== 0)
-      .map(([currency, amount]) => formatCurrencyFromCents(amount, currency))
+      .flatMap(([currency, amount]) =>
+        amount !== 0 ? [formatCurrencyFromCents(amount, currency)] : []
+      )
       .join(' • ') || '—'
   );
 }
@@ -298,15 +299,16 @@ export default function CompanySummaryPanel(props: {
   }, [allMonthKeys, yearFilter]);
 
   const monthFilterOptions = useMemo(() => {
-    return allMonthKeys
-      .filter((key) => {
-        if (yearFilter && !key.startsWith(`${yearFilter}-`)) return false;
-        if (!quarterFilter) return true;
-        return (
-          quarterFromMonthNumber(Number(key.slice(5, 7))) === quarterFilter
-        );
-      })
-      .map((value) => ({ value, label: value }));
+    return allMonthKeys.flatMap((value) => {
+      if (yearFilter && !value.startsWith(`${yearFilter}-`)) return [];
+      if (
+        quarterFilter &&
+        quarterFromMonthNumber(Number(value.slice(5, 7))) !== quarterFilter
+      ) {
+        return [];
+      }
+      return [{ value, label: value }];
+    });
   }, [allMonthKeys, quarterFilter, yearFilter]);
 
   const rows = useMemo<ProjectSummaryRow[]>(() => {
@@ -385,16 +387,15 @@ export default function CompanySummaryPanel(props: {
   const displayedRows = useMemo(() => {
     if (projectFilter === 'all') return rows;
     const directAttentionIds = new Set(
-      rows
-        .filter(
-          (row) =>
-            row.status === 'active' &&
-            (row.uncodedCount > 0 ||
-              row.codingApprovalCount > 0 ||
-              row.reversalReviewCount > 0 ||
-              row.unlockRequestCount > 0)
-        )
-        .map((row) => row.id)
+      rows.flatMap((row) =>
+        row.status === 'active' &&
+        (row.uncodedCount > 0 ||
+          row.codingApprovalCount > 0 ||
+          row.reversalReviewCount > 0 ||
+          row.unlockRequestCount > 0)
+          ? [row.id]
+          : []
+      )
     );
     const programmeIds = new Set(
       rows.flatMap((row) =>

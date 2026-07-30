@@ -233,18 +233,30 @@ export default function ProjectSettingsPanel(props: {
   );
   const memberRows = useMemo(
     () =>
-      members
-        .filter((m) => companyUsers.some((cu) => cu.id === m.userId))
-        .map((m, idx) => {
-          const user = (usersQ.data ?? []).find((x) => x.id === m.userId);
-          return {
-            key: `${m.projectId}:${m.userId}:${m.role}:${idx}`,
-            userId: m.userId,
-            role: m.role,
-            name: user?.name ?? String(m.userId),
-            email: user?.email ?? '',
-          };
-        }),
+      members.reduce<
+        Array<{
+          key: string;
+          userId: UserId;
+          role: ProjectRole;
+          name: string;
+          email: string;
+        }>
+      >((rows, membership) => {
+        if (!companyUsers.some((user) => user.id === membership.userId)) {
+          return rows;
+        }
+        const user = (usersQ.data ?? []).find(
+          (candidate) => candidate.id === membership.userId
+        );
+        rows.push({
+          key: `${membership.projectId}:${membership.userId}:${membership.role}:${rows.length}`,
+          userId: membership.userId,
+          role: membership.role,
+          name: user?.name ?? String(membership.userId),
+          email: user?.email ?? '',
+        });
+        return rows;
+      }, []),
     [members, companyUsers, usersQ.data]
   );
 

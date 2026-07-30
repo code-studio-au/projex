@@ -67,9 +67,10 @@ export const Route = createFileRoute('/_authed/c/$companyId')({
     ]);
 
     const userCompanyCount = new Set(
-      ((companyMemberships ?? []) as CompanyMembership[])
-        .filter((membership) => membership.userId === session.userId)
-        .map((membership) => membership.companyId)
+      ((companyMemberships ?? []) as CompanyMembership[]).flatMap(
+        (membership) =>
+          membership.userId === session.userId ? [membership.companyId] : []
+      )
     ).size;
     const companyRole = getUserCompanyRole(
       session.userId,

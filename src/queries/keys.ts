@@ -56,6 +56,12 @@ export const qk = {
     projectId: string,
     params: Record<string, unknown>
   ) => ['transactions', userId, projectId, 'page', params] as const,
+  transactionReversalSuggestions: (
+    userId: string,
+    projectId: string,
+    txnId: string
+  ) =>
+    ['transactions', userId, projectId, 'reversal-suggestions', txnId] as const,
   transactionComments: (userId: string, projectId: string, txnId: string) =>
     ['transactionComments', userId, projectId, txnId] as const,
   transactionCommentSummaries: (

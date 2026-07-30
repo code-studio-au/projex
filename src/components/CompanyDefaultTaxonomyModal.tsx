@@ -142,12 +142,11 @@ export default function CompanyDefaultTaxonomyModal(props: {
     : [];
   const deleteAffectedSubCategoryIds = new Set(
     pendingDelete?.kind === 'category'
-      ? subCategories
-          .filter(
-            (subCategory) =>
-              subCategory.companyDefaultCategoryId === pendingDelete.id
-          )
-          .map((subCategory) => subCategory.id)
+      ? subCategories.flatMap((subCategory) =>
+          subCategory.companyDefaultCategoryId === pendingDelete.id
+            ? [subCategory.id]
+            : []
+        )
       : pendingDelete?.kind === 'subcategory'
         ? [pendingDelete.id]
         : []
@@ -155,16 +154,18 @@ export default function CompanyDefaultTaxonomyModal(props: {
   const deleteAffectedRules = autoCodingRules.filter((rule) =>
     deleteAffectedSubCategoryIds.has(rule.companyDefaultSubCategoryId)
   );
-  const deleteReplacementSubCategoryOptions = subCategories
-    .filter(
-      (subCategory) =>
-        subCategory.companyDefaultCategoryId === deleteReplacementCategoryId &&
-        !deleteAffectedSubCategoryIds.has(subCategory.id)
-    )
-    .map((subCategory) => ({
-      value: subCategory.id,
-      label: subCategory.name,
-    }));
+  const deleteReplacementSubCategoryOptions = subCategories.flatMap(
+    (subCategory) =>
+      subCategory.companyDefaultCategoryId === deleteReplacementCategoryId &&
+      !deleteAffectedSubCategoryIds.has(subCategory.id)
+        ? [
+            {
+              value: subCategory.id,
+              label: subCategory.name,
+            },
+          ]
+        : []
+  );
   const creating = createCategory.isPending || createSubCategory.isPending;
   const renaming = updateCategory.isPending || updateSubCategory.isPending;
   const deleting = deleteCategory.isPending || deleteSubCategory.isPending;
