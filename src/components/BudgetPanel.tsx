@@ -72,7 +72,7 @@ function toQuarter(value: string | null): Quarter | null {
  * - Renders category rollup rows plus always-visible subcategory rows.
  * - Keeps time columns aligned via explicit sizing and fixed table layout.
  */
-export default function BudgetPanel(props: {
+function useBudgetPanelController(props: {
   projectId: ProjectId;
   currencyCode: string;
   projectBudgetTotalCents: number;
@@ -626,6 +626,42 @@ export default function BudgetPanel(props: {
     timeColumns,
   ]);
 
+  return {
+    budgetColumns,
+    canEditProjectBudgetTotal,
+    columnVisibility,
+    currencyCode,
+    displayRows,
+    handleColumnVisibilityChange,
+    hasPeriodFilter,
+    isHydrated,
+    isLoading,
+    monthFilterKey,
+    monthFilterOptions,
+    onClearFilters,
+    onUpdateProjectBudgetTotal,
+    pendingReversalCents,
+    pendingReversalCount,
+    projectBudgetTotalCents,
+    quarterFilter,
+    quarterFilterOptions,
+    rollups,
+    setMonthFilterKey,
+    setQuarterFilter,
+    setYearFilter,
+    timeHierarchy,
+    toggleQuarterVisibility,
+    toggleYearVisibility,
+    uncodedSummary,
+    userColumnVisibility,
+    yearFilter,
+    yearFilterOptions,
+  };
+}
+
+type BudgetPanelController = ReturnType<typeof useBudgetPanelController>;
+
+function BudgetPanelView({ model }: { model: BudgetPanelController }) {
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <Paper className={classes.filterCard} radius="xl">
@@ -633,43 +669,45 @@ export default function BudgetPanel(props: {
           <Select
             label="Year"
             placeholder="All years"
-            data={yearFilterOptions}
-            value={yearFilter}
+            data={model.yearFilterOptions}
+            value={model.yearFilter}
             clearable
             onChange={(value) => {
-              setYearFilter(value);
-              setQuarterFilter(null);
-              setMonthFilterKey(null);
+              model.setYearFilter(value);
+              model.setQuarterFilter(null);
+              model.setMonthFilterKey(null);
             }}
             style={{ width: 140 }}
           />
           <Select
             label="Quarter"
             placeholder="All quarters"
-            data={quarterFilterOptions}
-            value={quarterFilter}
+            data={model.quarterFilterOptions}
+            value={model.quarterFilter}
             clearable
-            disabled={!yearFilter}
+            disabled={!model.yearFilter}
             onChange={(value) => {
-              setQuarterFilter(toQuarter(value));
-              setMonthFilterKey(null);
+              model.setQuarterFilter(toQuarter(value));
+              model.setMonthFilterKey(null);
             }}
             style={{ width: 150 }}
           />
           <Select
             label="Month"
             placeholder="All months"
-            data={monthFilterOptions}
-            value={monthFilterKey}
+            data={model.monthFilterOptions}
+            value={model.monthFilterKey}
             clearable
-            onChange={setMonthFilterKey}
+            onChange={model.setMonthFilterKey}
             style={{ width: 180 }}
           />
           <Button
             size="sm"
             variant="subtle"
-            disabled={!yearFilter && !quarterFilter && !monthFilterKey}
-            onClick={onClearFilters}
+            disabled={
+              !model.yearFilter && !model.quarterFilter && !model.monthFilterKey
+            }
+            onClick={model.onClearFilters}
           >
             Remove filter(s)
           </Button>
@@ -677,28 +715,28 @@ export default function BudgetPanel(props: {
       </Paper>
 
       <ProjectBudgetSummary
-        currencyCode={currencyCode}
-        projectBudgetTotalCents={projectBudgetTotalCents}
-        projectAllocatedCents={rollups.totals.allocatedCents}
-        projectActualCents={rollups.totals.actualCents}
-        uncodedSummary={uncodedSummary}
-        pendingReversalCount={pendingReversalCount}
-        pendingReversalCents={pendingReversalCents}
-        hasPeriodFilter={hasPeriodFilter}
-        isLoading={isLoading}
-        canEditProjectBudgetTotal={canEditProjectBudgetTotal}
-        onUpdateProjectBudgetTotal={onUpdateProjectBudgetTotal}
+        currencyCode={model.currencyCode}
+        projectBudgetTotalCents={model.projectBudgetTotalCents}
+        projectAllocatedCents={model.rollups.totals.allocatedCents}
+        projectActualCents={model.rollups.totals.actualCents}
+        uncodedSummary={model.uncodedSummary}
+        pendingReversalCount={model.pendingReversalCount}
+        pendingReversalCents={model.pendingReversalCents}
+        hasPeriodFilter={model.hasPeriodFilter}
+        isLoading={model.isLoading}
+        canEditProjectBudgetTotal={model.canEditProjectBudgetTotal}
+        onUpdateProjectBudgetTotal={model.onUpdateProjectBudgetTotal}
       />
 
       <div className={classes.tableBreakout}>
         <div className={classes.tableWrap}>
-          {isHydrated ? (
+          {model.isHydrated ? (
             <MantineReactTable
-              columns={budgetColumns}
-              data={displayRows}
+              columns={model.budgetColumns}
+              data={model.displayRows}
               getRowId={(row) => row.rowId}
-              state={{ columnVisibility }}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
+              state={{ columnVisibility: model.columnVisibility }}
+              onColumnVisibilityChange={model.handleColumnVisibilityChange}
               mantineTableContainerProps={{
                 className: 'financeTable budgetTable',
               }}
@@ -717,17 +755,19 @@ export default function BudgetPanel(props: {
                     </ActionIcon>
                   </Menu.Target>
                   <Menu.Dropdown className="budgetColumnMenu">
-                    {Array.from(timeHierarchy.byYear.entries())
+                    {Array.from(model.timeHierarchy.byYear.entries())
                       .sort(([a], [b]) => b - a)
                       .map(([year, entry]) => {
                         const yearId = `yt_${year}`;
                         return (
                           <Stack key={yearId} gap={4} p="xs">
                             <Switch
-                              checked={userColumnVisibility[yearId] ?? true}
+                              checked={
+                                model.userColumnVisibility[yearId] ?? true
+                              }
                               label={`${year} Total`}
                               onChange={(event) =>
-                                toggleYearVisibility(
+                                model.toggleYearVisibility(
                                   year,
                                   event.currentTarget.checked
                                 )
@@ -737,13 +777,13 @@ export default function BudgetPanel(props: {
                               <Switch
                                 key={quarterId}
                                 checked={
-                                  userColumnVisibility[quarterId] ?? true
+                                  model.userColumnVisibility[quarterId] ?? true
                                 }
                                 label={
                                   quarterId.replace(/^qt_\d+_/, '') + ' Total'
                                 }
                                 onChange={(event) =>
-                                  toggleQuarterVisibility(
+                                  model.toggleQuarterVisibility(
                                     quarterId,
                                     event.currentTarget.checked
                                   )
@@ -791,4 +831,11 @@ export default function BudgetPanel(props: {
       </div>
     </Stack>
   );
+}
+
+export default function BudgetPanel(
+  props: Parameters<typeof useBudgetPanelController>[0]
+) {
+  const model = useBudgetPanelController(props);
+  return <BudgetPanelView model={model} />;
 }

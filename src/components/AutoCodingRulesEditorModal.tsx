@@ -31,7 +31,7 @@ import {
 } from './ManagementModalUi';
 import { firefoxSafeModalSelectProps } from './modalSelectProps';
 
-export type AutoCodingRuleView = {
+type AutoCodingRuleView = {
   id: string;
   matchText: string;
   categoryId: string;
@@ -93,7 +93,7 @@ function canMoveRule(
   return scope === 'company' || rule.syncStatus === target.syncStatus;
 }
 
-export default function AutoCodingRulesEditorModal(props: {
+function useAutoCodingRulesEditorModalController(props: {
   opened: boolean;
   onClose: () => void;
   adapter: AutoCodingRulesEditorAdapter;
@@ -224,39 +224,474 @@ export default function AutoCodingRulesEditorModal(props: {
     onClose();
   }
 
+  return {
+    adapter,
+    backfillRules,
+    beginEdit,
+    categoryNameById,
+    categoryOptions,
+    clearFeedback,
+    closeEdit,
+    closeManager,
+    editCategoryId,
+    editMatchText,
+    editSubCategoryId,
+    editSubCategoryOptions,
+    editingRule,
+    error,
+    hasTaxonomy,
+    isMobile,
+    moveRule,
+    newCategoryId,
+    newMatchText,
+    newSubCategoryId,
+    newSubCategoryOptions,
+    onClose,
+    opened,
+    pendingDelete,
+    projectScoped,
+    promoteRule,
+    readOnly,
+    rules,
+    setEditCategoryId,
+    setEditMatchText,
+    setEditSubCategoryId,
+    setError,
+    setNewCategoryId,
+    setNewMatchText,
+    setNewSubCategoryId,
+    setPendingDelete,
+    setSuccess,
+    subCategoryNameById,
+    success,
+  };
+}
+
+type AutoCodingRulesEditorModalController = ReturnType<
+  typeof useAutoCodingRulesEditorModalController
+>;
+
+function AutoCodingRuleComposer({
+  model,
+}: {
+  model: AutoCodingRulesEditorModalController;
+}) {
+  return (
+    <Paper withBorder radius="md" p="md" className={classes.taxonomyCreateCard}>
+      <Stack gap="sm">
+        <Stack gap={2}>
+          <Text fw={600}>
+            Add {model.projectScoped ? 'project' : 'company'} auto-coding rule
+          </Text>
+          <Text size="sm" c="dimmed">
+            Match imported transaction text to a category and subcategory.
+          </Text>
+        </Stack>
+        <TextInput
+          label="Match text"
+          placeholder="e.g. uber, airport taxi, officeworks, flight"
+          value={model.newMatchText}
+          disabled={!model.hasTaxonomy}
+          onChange={(event) => {
+            model.clearFeedback();
+            model.setNewMatchText(event.currentTarget.value);
+          }}
+        />
+        <Group grow align="flex-end" wrap="wrap">
+          <Select
+            label="Category"
+            placeholder="Select category"
+            data={model.categoryOptions}
+            value={model.newCategoryId}
+            searchable
+            disabled={!model.hasTaxonomy}
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              model.clearFeedback();
+              model.setNewCategoryId(value);
+              model.setNewSubCategoryId(null);
+            }}
+          />
+          <Select
+            label="Subcategory"
+            placeholder={
+              model.newCategoryId
+                ? 'Select subcategory'
+                : 'Choose category first'
+            }
+            data={model.newSubCategoryOptions}
+            value={model.newSubCategoryId}
+            searchable
+            disabled={!model.newCategoryId}
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              model.clearFeedback();
+              model.setNewSubCategoryId(value);
+            }}
+          />
+        </Group>
+        <Group className={classes.footerRow}>
+          <Button
+            leftSection={<IconPlus size={16} />}
+            loading={model.adapter.creating}
+            disabled={
+              !model.hasTaxonomy ||
+              !model.newMatchText.trim() ||
+              !model.newCategoryId ||
+              !model.newSubCategoryId
+            }
+            onClick={async () => {
+              if (!model.newCategoryId || !model.newSubCategoryId) return;
+              try {
+                model.clearFeedback();
+                await model.adapter.create({
+                  matchText: model.newMatchText.trim(),
+                  subCategoryId: model.newSubCategoryId,
+                  sortOrder: model.rules.length,
+                });
+                model.setNewMatchText('');
+                model.setNewCategoryId(null);
+                model.setNewSubCategoryId(null);
+                model.setSuccess('Added auto-coding rule.');
+              } catch (err) {
+                model.setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not add auto-coding rule.'
+                );
+              }
+            }}
+          >
+            Add rule
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
+function AutoCodingRulesList({
+  model,
+}: {
+  model: AutoCodingRulesEditorModalController;
+}) {
+  const promoteRule = model.promoteRule;
+
+  return (
+    <Stack gap="xs">
+      {model.rules.map((rule, index) => {
+        const inherited = isInheritedCompanyStandard(rule);
+        const sourceBadge = model.projectScoped
+          ? getProjectStandardBadge(rule)
+          : null;
+        const canMoveUp = canMoveRule(
+          model.rules,
+          index,
+          -1,
+          model.adapter.scope
+        );
+        const canMoveDown = canMoveRule(
+          model.rules,
+          index,
+          1,
+          model.adapter.scope
+        );
+        return (
+          <ManagementListCard
+            key={rule.id}
+            title={rule.matchText}
+            badges={
+              <>
+                <Badge variant="light">Rule {index + 1}</Badge>
+                {sourceBadge ? (
+                  <Badge variant="light" color={sourceBadge.color}>
+                    {sourceBadge.label}
+                  </Badge>
+                ) : null}
+              </>
+            }
+            metadata={
+              <Text size="sm" c="dimmed">
+                {model.categoryNameById.get(rule.categoryId) ??
+                  'Unknown category'}{' '}
+                ·{' '}
+                {model.subCategoryNameById.get(rule.subCategoryId) ??
+                  'Unknown subcategory'}
+              </Text>
+            }
+            actions={
+              !model.readOnly ? (
+                <ManagementActionsMenu
+                  label={`Actions for auto-coding rule ${rule.matchText}`}
+                >
+                  <Menu.Item onClick={() => model.beginEdit(rule)}>
+                    Edit rule
+                  </Menu.Item>
+                  <Menu.Item
+                    disabled={!canMoveUp || model.adapter.updating}
+                    onClick={() => void model.moveRule(rule.id, -1)}
+                  >
+                    Move up
+                  </Menu.Item>
+                  <Menu.Item
+                    disabled={!canMoveDown || model.adapter.updating}
+                    onClick={() => void model.moveRule(rule.id, 1)}
+                  >
+                    Move down
+                  </Menu.Item>
+                  {model.projectScoped &&
+                  model.adapter.canPromote &&
+                  promoteRule &&
+                  !inherited ? (
+                    <Menu.Item
+                      disabled={model.adapter.promoting}
+                      onClick={async () => {
+                        try {
+                          model.clearFeedback();
+                          model.setSuccess(await promoteRule(rule.id));
+                        } catch (err) {
+                          model.setError(
+                            err instanceof Error
+                              ? err.message
+                              : 'Could not add rule to company defaults.'
+                          );
+                        }
+                      }}
+                    >
+                      Add to company defaults
+                    </Menu.Item>
+                  ) : null}
+                  {!inherited ? (
+                    <>
+                      <Menu.Divider />
+                      <Menu.Item
+                        color="red"
+                        leftSection={<IconTrash size={15} />}
+                        onClick={() => {
+                          model.clearFeedback();
+                          model.setPendingDelete(rule);
+                        }}
+                      >
+                        Delete rule
+                      </Menu.Item>
+                    </>
+                  ) : null}
+                </ManagementActionsMenu>
+              ) : null
+            }
+          />
+        );
+      })}
+      <Text size="xs" c="dimmed">
+        Priority runs from top to bottom. Keep broader matches below specific
+        rules.
+      </Text>
+    </Stack>
+  );
+}
+
+function EditAutoCodingRuleModal({
+  model,
+}: {
+  model: AutoCodingRulesEditorModalController;
+}) {
+  return (
+    <Modal
+      opened={!!model.editingRule}
+      onClose={model.closeEdit}
+      title="Edit auto-coding rule"
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      lockScroll={false}
+    >
+      <Stack gap="md">
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
+        {model.projectScoped && model.editingRule?.originScope === 'company' ? (
+          <Text size="sm" c="dimmed" className={classes.modalIntro}>
+            Editing this inherited rule creates a project-specific override.
+          </Text>
+        ) : null}
+        <TextInput
+          label="Match text"
+          value={model.editMatchText}
+          onChange={(event) => {
+            model.setError(null);
+            model.setEditMatchText(event.currentTarget.value);
+          }}
+        />
+        <Select
+          label="Category"
+          data={model.categoryOptions}
+          value={model.editCategoryId}
+          searchable
+          {...firefoxSafeModalSelectProps}
+          onChange={(value) => {
+            model.setError(null);
+            model.setEditCategoryId(value);
+            model.setEditSubCategoryId(null);
+          }}
+        />
+        <Select
+          label="Subcategory"
+          data={model.editSubCategoryOptions}
+          value={model.editSubCategoryId}
+          searchable
+          disabled={!model.editCategoryId}
+          {...firefoxSafeModalSelectProps}
+          onChange={(value) => {
+            model.setError(null);
+            model.setEditSubCategoryId(value);
+          }}
+        />
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            disabled={model.adapter.updating}
+            onClick={model.closeEdit}
+          >
+            Cancel
+          </Button>
+          <Button
+            fullWidth={model.isMobile}
+            loading={model.adapter.updating}
+            disabled={
+              !model.editingRule ||
+              !model.editMatchText.trim() ||
+              !model.editCategoryId ||
+              !model.editSubCategoryId
+            }
+            onClick={async () => {
+              if (
+                !model.editingRule ||
+                !model.editCategoryId ||
+                !model.editSubCategoryId
+              ) {
+                return;
+              }
+              try {
+                model.clearFeedback();
+                await model.adapter.update({
+                  id: model.editingRule.id,
+                  matchText: model.editMatchText.trim(),
+                  subCategoryId: model.editSubCategoryId,
+                });
+                model.closeEdit();
+                model.setSuccess('Updated auto-coding rule.');
+              } catch (err) {
+                model.setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not update auto-coding rule.'
+                );
+              }
+            }}
+          >
+            Save changes
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function DeleteAutoCodingRuleModal({
+  model,
+}: {
+  model: AutoCodingRulesEditorModalController;
+}) {
+  return (
+    <Modal
+      opened={!!model.pendingDelete}
+      onClose={() => model.setPendingDelete(null)}
+      title="Delete auto-coding rule?"
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      lockScroll={false}
+    >
+      <Stack gap="md">
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          Delete the rule matching “{model.pendingDelete?.matchText ?? ''}”?
+          Existing transaction coding is not changed.
+        </Text>
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            disabled={model.adapter.deleting}
+            onClick={() => model.setPendingDelete(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            fullWidth={model.isMobile}
+            loading={model.adapter.deleting}
+            onClick={async () => {
+              if (!model.pendingDelete) return;
+              try {
+                model.clearFeedback();
+                await model.adapter.delete(model.pendingDelete.id);
+                model.setPendingDelete(null);
+                model.setSuccess('Deleted auto-coding rule.');
+              } catch (err) {
+                model.setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not delete auto-coding rule.'
+                );
+              }
+            }}
+          >
+            Delete rule
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function AutoCodingRulesEditorModalView({
+  model,
+}: {
+  model: AutoCodingRulesEditorModalController;
+}) {
+  const backfillRules = model.backfillRules;
+
   return (
     <>
       <Modal
-        opened={opened}
-        onClose={closeManager}
+        opened={model.opened}
+        onClose={model.closeManager}
         title={
-          projectScoped
+          model.projectScoped
             ? 'Manage project auto-coding rules'
             : 'Manage company auto-coding rules'
         }
-        fullScreen={isMobile}
-        centered={!isMobile}
+        fullScreen={model.isMobile}
+        centered={!model.isMobile}
         size="lg"
         lockScroll={false}
         styles={{
           body: {
-            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+            maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
             overflowY: 'auto',
           },
         }}
       >
         <Stack gap="md" className={classes.modalStack}>
-          {error ? <Alert color="red">{error}</Alert> : null}
-          {success ? (
+          {model.error ? <Alert color="red">{model.error}</Alert> : null}
+          {model.success ? (
             <Alert
               color="green"
               withCloseButton
-              onClose={() => setSuccess(null)}
+              onClose={() => model.setSuccess(null)}
             >
-              {success}
+              {model.success}
             </Alert>
           ) : null}
-          {readOnly ? (
+          {model.readOnly ? (
             <Alert color="blue">
               You can view auto-coding rules, but you do not have permission to
               change them.
@@ -265,20 +700,22 @@ export default function AutoCodingRulesEditorModal(props: {
 
           <ManagementModalIntro
             title={
-              projectScoped ? 'Project rule priority' : 'Company rule priority'
+              model.projectScoped
+                ? 'Project rule priority'
+                : 'Company rule priority'
             }
             action={
-              projectScoped && backfillRules && !readOnly ? (
+              model.projectScoped && backfillRules && !model.readOnly ? (
                 <Button
                   variant="default"
                   size="compact-sm"
-                  loading={adapter.backfilling}
+                  loading={model.adapter.backfilling}
                   onClick={async () => {
                     try {
-                      clearFeedback();
-                      setSuccess(await backfillRules());
+                      model.clearFeedback();
+                      model.setSuccess(await backfillRules());
                     } catch (err) {
-                      setError(
+                      model.setError(
                         err instanceof Error
                           ? err.message
                           : 'Could not apply rules to uncoded transactions.'
@@ -291,370 +728,44 @@ export default function AutoCodingRulesEditorModal(props: {
               ) : undefined
             }
           >
-            {projectScoped
+            {model.projectScoped
               ? 'Project rules run before inherited company rules. Rules are checked from top to bottom, so keep specific matches above broader ones.'
               : 'Rules search transaction item and description text from top to bottom. The first matching rule supplies company-standard coding when that taxonomy exists in a project.'}
           </ManagementModalIntro>
 
-          {!readOnly && !hasTaxonomy ? (
+          {!model.readOnly && !model.hasTaxonomy ? (
             <Alert color="blue" className={classes.notice}>
               Add categories and subcategories first. Auto-coding rules need a
               coding target.
             </Alert>
           ) : null}
 
-          {!readOnly ? (
-            <Paper
-              withBorder
-              radius="md"
-              p="md"
-              className={classes.taxonomyCreateCard}
-            >
-              <Stack gap="sm">
-                <Stack gap={2}>
-                  <Text fw={600}>
-                    Add {projectScoped ? 'project' : 'company'} auto-coding rule
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    Match imported transaction text to a category and
-                    subcategory.
-                  </Text>
-                </Stack>
-                <TextInput
-                  label="Match text"
-                  placeholder="e.g. uber, airport taxi, officeworks, flight"
-                  value={newMatchText}
-                  disabled={!hasTaxonomy}
-                  onChange={(event) => {
-                    clearFeedback();
-                    setNewMatchText(event.currentTarget.value);
-                  }}
-                />
-                <Group grow align="flex-end" wrap="wrap">
-                  <Select
-                    label="Category"
-                    placeholder="Select category"
-                    data={categoryOptions}
-                    value={newCategoryId}
-                    searchable
-                    disabled={!hasTaxonomy}
-                    {...firefoxSafeModalSelectProps}
-                    onChange={(value) => {
-                      clearFeedback();
-                      setNewCategoryId(value);
-                      setNewSubCategoryId(null);
-                    }}
-                  />
-                  <Select
-                    label="Subcategory"
-                    placeholder={
-                      newCategoryId
-                        ? 'Select subcategory'
-                        : 'Choose category first'
-                    }
-                    data={newSubCategoryOptions}
-                    value={newSubCategoryId}
-                    searchable
-                    disabled={!newCategoryId}
-                    {...firefoxSafeModalSelectProps}
-                    onChange={(value) => {
-                      clearFeedback();
-                      setNewSubCategoryId(value);
-                    }}
-                  />
-                </Group>
-                <Group className={classes.footerRow}>
-                  <Button
-                    leftSection={<IconPlus size={16} />}
-                    loading={adapter.creating}
-                    disabled={
-                      !hasTaxonomy ||
-                      !newMatchText.trim() ||
-                      !newCategoryId ||
-                      !newSubCategoryId
-                    }
-                    onClick={async () => {
-                      if (!newCategoryId || !newSubCategoryId) return;
-                      try {
-                        clearFeedback();
-                        await adapter.create({
-                          matchText: newMatchText.trim(),
-                          subCategoryId: newSubCategoryId,
-                          sortOrder: rules.length,
-                        });
-                        setNewMatchText('');
-                        setNewCategoryId(null);
-                        setNewSubCategoryId(null);
-                        setSuccess('Added auto-coding rule.');
-                      } catch (err) {
-                        setError(
-                          err instanceof Error
-                            ? err.message
-                            : 'Could not add auto-coding rule.'
-                        );
-                      }
-                    }}
-                  >
-                    Add rule
-                  </Button>
-                </Group>
-              </Stack>
-            </Paper>
-          ) : null}
+          {!model.readOnly ? <AutoCodingRuleComposer model={model} /> : null}
 
-          {adapter.loading && rules.length === 0 ? (
+          {model.adapter.loading && model.rules.length === 0 ? (
             <Text className={classes.emptyState}>
               Loading auto-coding rules…
             </Text>
-          ) : rules.length === 0 ? (
+          ) : model.rules.length === 0 ? (
             <Text className={classes.emptyState}>
               No auto-coding rules yet.
             </Text>
           ) : (
-            <Stack gap="xs">
-              {rules.map((rule, index) => {
-                const inherited = isInheritedCompanyStandard(rule);
-                const sourceBadge = projectScoped
-                  ? getProjectStandardBadge(rule)
-                  : null;
-                const canMoveUp = canMoveRule(rules, index, -1, adapter.scope);
-                const canMoveDown = canMoveRule(rules, index, 1, adapter.scope);
-                return (
-                  <ManagementListCard
-                    key={rule.id}
-                    title={rule.matchText}
-                    badges={
-                      <>
-                        <Badge variant="light">Rule {index + 1}</Badge>
-                        {sourceBadge ? (
-                          <Badge variant="light" color={sourceBadge.color}>
-                            {sourceBadge.label}
-                          </Badge>
-                        ) : null}
-                      </>
-                    }
-                    metadata={
-                      <Text size="sm" c="dimmed">
-                        {categoryNameById.get(rule.categoryId) ??
-                          'Unknown category'}{' '}
-                        ·{' '}
-                        {subCategoryNameById.get(rule.subCategoryId) ??
-                          'Unknown subcategory'}
-                      </Text>
-                    }
-                    actions={
-                      !readOnly ? (
-                        <ManagementActionsMenu
-                          label={`Actions for auto-coding rule ${rule.matchText}`}
-                        >
-                          <Menu.Item onClick={() => beginEdit(rule)}>
-                            Edit rule
-                          </Menu.Item>
-                          <Menu.Item
-                            disabled={!canMoveUp || adapter.updating}
-                            onClick={() => void moveRule(rule.id, -1)}
-                          >
-                            Move up
-                          </Menu.Item>
-                          <Menu.Item
-                            disabled={!canMoveDown || adapter.updating}
-                            onClick={() => void moveRule(rule.id, 1)}
-                          >
-                            Move down
-                          </Menu.Item>
-                          {projectScoped &&
-                          adapter.canPromote &&
-                          promoteRule &&
-                          !inherited ? (
-                            <Menu.Item
-                              disabled={adapter.promoting}
-                              onClick={async () => {
-                                try {
-                                  clearFeedback();
-                                  setSuccess(await promoteRule(rule.id));
-                                } catch (err) {
-                                  setError(
-                                    err instanceof Error
-                                      ? err.message
-                                      : 'Could not add rule to company defaults.'
-                                  );
-                                }
-                              }}
-                            >
-                              Add to company defaults
-                            </Menu.Item>
-                          ) : null}
-                          {!inherited ? (
-                            <>
-                              <Menu.Divider />
-                              <Menu.Item
-                                color="red"
-                                leftSection={<IconTrash size={15} />}
-                                onClick={() => {
-                                  clearFeedback();
-                                  setPendingDelete(rule);
-                                }}
-                              >
-                                Delete rule
-                              </Menu.Item>
-                            </>
-                          ) : null}
-                        </ManagementActionsMenu>
-                      ) : null
-                    }
-                  />
-                );
-              })}
-              <Text size="xs" c="dimmed">
-                Priority runs from top to bottom. Keep broader matches below
-                specific rules.
-              </Text>
-            </Stack>
+            <AutoCodingRulesList model={model} />
           )}
         </Stack>
       </Modal>
 
-      <Modal
-        opened={!!editingRule}
-        onClose={closeEdit}
-        title="Edit auto-coding rule"
-        fullScreen={isMobile}
-        centered={!isMobile}
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          {projectScoped && editingRule?.originScope === 'company' ? (
-            <Text size="sm" c="dimmed" className={classes.modalIntro}>
-              Editing this inherited rule creates a project-specific override.
-            </Text>
-          ) : null}
-          <TextInput
-            label="Match text"
-            value={editMatchText}
-            onChange={(event) => {
-              setError(null);
-              setEditMatchText(event.currentTarget.value);
-            }}
-          />
-          <Select
-            label="Category"
-            data={categoryOptions}
-            value={editCategoryId}
-            searchable
-            {...firefoxSafeModalSelectProps}
-            onChange={(value) => {
-              setError(null);
-              setEditCategoryId(value);
-              setEditSubCategoryId(null);
-            }}
-          />
-          <Select
-            label="Subcategory"
-            data={editSubCategoryOptions}
-            value={editSubCategoryId}
-            searchable
-            disabled={!editCategoryId}
-            {...firefoxSafeModalSelectProps}
-            onChange={(value) => {
-              setError(null);
-              setEditSubCategoryId(value);
-            }}
-          />
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              disabled={adapter.updating}
-              onClick={closeEdit}
-            >
-              Cancel
-            </Button>
-            <Button
-              fullWidth={isMobile}
-              loading={adapter.updating}
-              disabled={
-                !editingRule ||
-                !editMatchText.trim() ||
-                !editCategoryId ||
-                !editSubCategoryId
-              }
-              onClick={async () => {
-                if (!editingRule || !editCategoryId || !editSubCategoryId) {
-                  return;
-                }
-                try {
-                  clearFeedback();
-                  await adapter.update({
-                    id: editingRule.id,
-                    matchText: editMatchText.trim(),
-                    subCategoryId: editSubCategoryId,
-                  });
-                  closeEdit();
-                  setSuccess('Updated auto-coding rule.');
-                } catch (err) {
-                  setError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not update auto-coding rule.'
-                  );
-                }
-              }}
-            >
-              Save changes
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <EditAutoCodingRuleModal model={model} />
 
-      <Modal
-        opened={!!pendingDelete}
-        onClose={() => setPendingDelete(null)}
-        title="Delete auto-coding rule?"
-        fullScreen={isMobile}
-        centered={!isMobile}
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            Delete the rule matching “{pendingDelete?.matchText ?? ''}”?
-            Existing transaction coding is not changed.
-          </Text>
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              disabled={adapter.deleting}
-              onClick={() => setPendingDelete(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              fullWidth={isMobile}
-              loading={adapter.deleting}
-              onClick={async () => {
-                if (!pendingDelete) return;
-                try {
-                  clearFeedback();
-                  await adapter.delete(pendingDelete.id);
-                  setPendingDelete(null);
-                  setSuccess('Deleted auto-coding rule.');
-                } catch (err) {
-                  setError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not delete auto-coding rule.'
-                  );
-                }
-              }}
-            >
-              Delete rule
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <DeleteAutoCodingRuleModal model={model} />
     </>
   );
+}
+
+export default function AutoCodingRulesEditorModal(
+  props: Parameters<typeof useAutoCodingRulesEditorModalController>[0]
+) {
+  const model = useAutoCodingRulesEditorModalController(props);
+  return <AutoCodingRulesEditorModalView model={model} />;
 }

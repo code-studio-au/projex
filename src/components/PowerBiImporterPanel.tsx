@@ -161,7 +161,7 @@ function excludeRuleDraftReducer(
   return { ...state, error: action.message };
 }
 
-export default function PowerBiImporterPanel(props: {
+function usePowerBiImporterPanelController(props: {
   companyId: CompanyId;
   projectId: ProjectId;
   currencyCode: 'AUD' | 'USD' | 'EUR' | 'GBP';
@@ -468,362 +468,482 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     if (message) onImportComplete(message);
   }
 
+  return {
+    autoCreateStructures,
+    canEditBudgets,
+    canEditTaxonomy,
+    clearPreview,
+    closeExcludeRuleModal,
+    confirmReplaceOpen,
+    createImportRule,
+    dispatchExcludeRuleDraft,
+    draftCsvText,
+    duplicatePreviewRows,
+    exampleCsv,
+    excludeRuleError,
+    excludeRuleField,
+    excludeRuleName,
+    excludeRuleOperator,
+    excludeRuleRow,
+    excludeRuleValue,
+    excludedPreviewColumns,
+    excludedPreviewRows,
+    file,
+    handleCommitAppend,
+    handleCommitReplaceAll,
+    handleCreateExcludeRule,
+    handleDraftCsvTextChange,
+    handleFileChange,
+    handleReviewDecision,
+    hasBlockingIssues,
+    hasReplaceAllBlockers,
+    importError,
+    includedPreviewRows,
+    invalidPreviewRows,
+    isMobile,
+    isPreviewing,
+    isReadingFile,
+    needsReviewPreviewRows,
+    pagination,
+    previewActive,
+    previewColumns,
+    previewImport,
+    previewSourceLabel,
+    previewSummary,
+    previewTab,
+    rowSelection,
+    selectedNeedsReviewRows,
+    setAutoCreateStructures,
+    setConfirmReplaceOpen,
+    setPagination,
+    setPreviewTab,
+    setRowSelection,
+    setSkipDuplicates,
+    setSorting,
+    skipDuplicates,
+    sorting,
+    unresolvedReviewPreviewRows,
+    visiblePreviewRows,
+  };
+}
+
+type PowerBiImporterPanelController = ReturnType<
+  typeof usePowerBiImporterPanelController
+>;
+
+function PowerBiUploadCard({
+  model,
+}: {
+  model: PowerBiImporterPanelController;
+}) {
   return (
-    <Stack gap="lg" className={classes.pageStack}>
-      {!previewActive ? (
-        <Paper
-          className={`${classes.surfaceCard} importPanelCard`}
-          radius="xl"
-          p="lg"
-        >
-          <Stack gap="md">
-            <Group justify="space-between" align="center" wrap="wrap">
-              <div>
-                <Text className={classes.sectionEyebrow}>Import</Text>
-                <Title order={5} mt={4}>
-                  PowerBI expenditure import
-                </Title>
-              </div>
-            </Group>
+    <Paper
+      className={`${classes.surfaceCard} importPanelCard`}
+      radius="xl"
+      p="lg"
+    >
+      <Stack gap="md">
+        <Group justify="space-between" align="center" wrap="wrap">
+          <div>
+            <Text className={classes.sectionEyebrow}>Import</Text>
+            <Title order={5} mt={4}>
+              PowerBI expenditure import
+            </Title>
+          </div>
+        </Group>
 
-            {importError ? (
-              <Alert color="red" className={classes.notice}>
-                {importError}
-              </Alert>
-            ) : null}
-            <Text size="sm" c="dimmed" className={classes.filterIntro}>
-              Upload or paste the PowerBI expenditure actuals CSV export, then
-              preview the import before committing it. Import Rules run first to
-              exclude known non-project rows or require a decision for uncertain
-              rows. EXA rows import by default so reversal candidates can be
-              matched.
-            </Text>
+        {model.importError ? (
+          <Alert color="red" className={classes.notice}>
+            {model.importError}
+          </Alert>
+        ) : null}
+        <Text size="sm" c="dimmed" className={classes.filterIntro}>
+          Upload or paste the PowerBI expenditure actuals CSV export, then
+          preview the import before committing it. Import Rules run first to
+          exclude known non-project rows or require a decision for uncertain
+          rows. EXA rows import by default so reversal candidates can be
+          matched.
+        </Text>
 
-            <FileInput
-              label="Upload PowerBI CSV"
-              placeholder="Select file"
-              value={file}
-              disabled={isPreviewing}
-              accept=".csv,text/csv"
-              onChange={handleFileChange}
-            />
+        <FileInput
+          label="Upload PowerBI CSV"
+          placeholder="Select file"
+          value={model.file}
+          disabled={model.isPreviewing}
+          accept=".csv,text/csv"
+          onChange={model.handleFileChange}
+        />
 
-            <Accordion variant="contained">
-              <Accordion.Item value="paste-csv">
-                <Accordion.Control>Paste CSV or view example</Accordion.Control>
-                <Accordion.Panel>
-                  <Stack gap="md">
-                    <Textarea
-                      label="Paste PowerBI CSV"
-                      description="Use this option instead of uploading a CSV file."
-                      minRows={8}
-                      value={draftCsvText}
-                      disabled={isPreviewing}
-                      onChange={(event) =>
-                        handleDraftCsvTextChange(event.currentTarget.value)
-                      }
-                      placeholder="Paste the exported CSV content here"
-                    />
+        <Accordion variant="contained">
+          <Accordion.Item value="paste-csv">
+            <Accordion.Control>Paste CSV or view example</Accordion.Control>
+            <Accordion.Panel>
+              <Stack gap="md">
+                <Textarea
+                  label="Paste PowerBI CSV"
+                  description="Use this option instead of uploading a CSV file."
+                  minRows={8}
+                  value={model.draftCsvText}
+                  disabled={model.isPreviewing}
+                  onChange={(event) =>
+                    model.handleDraftCsvTextChange(event.currentTarget.value)
+                  }
+                  placeholder="Paste the exported CSV content here"
+                />
 
-                    <Stack gap="xs">
-                      <Text fw={700} size="sm">
-                        Example PowerBI CSV
-                      </Text>
-                      <pre className="importExamplePre">{exampleCsv}</pre>
-                    </Stack>
-                  </Stack>
-                </Accordion.Panel>
-              </Accordion.Item>
-            </Accordion>
+                <Stack gap="xs">
+                  <Text fw={700} size="sm">
+                    Example PowerBI CSV
+                  </Text>
+                  <pre className="importExamplePre">{model.exampleCsv}</pre>
+                </Stack>
+              </Stack>
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
 
-            <Group gap="md" align="center" wrap="wrap">
-              <Switch
-                label="Auto-create new categories/subcategories and budget lines"
-                checked={autoCreateStructures}
-                disabled={isPreviewing || !canEditTaxonomy || !canEditBudgets}
-                onChange={(event) =>
-                  setAutoCreateStructures(event.currentTarget.checked)
-                }
-                className={isMobile ? classes.fieldFull : undefined}
-              />
-              <Switch
-                label="Skip duplicates (existing and within this import)"
-                checked={skipDuplicates}
-                disabled={isPreviewing}
-                onChange={(event) =>
-                  setSkipDuplicates(event.currentTarget.checked)
-                }
-                className={isMobile ? classes.fieldFull : undefined}
-              />
-            </Group>
-
-            <Group className={classes.footerRow}>
-              <Button
-                fullWidth={isMobile}
-                onClick={() => void previewImport()}
-                loading={isReadingFile || isPreviewing}
-                disabled={
-                  isReadingFile ||
-                  isPreviewing ||
-                  (!file && !draftCsvText.trim())
-                }
-              >
-                Preview import
-              </Button>
-            </Group>
-          </Stack>
-        </Paper>
-      ) : null}
-
-      {previewActive ? (
-        <Stack gap="md">
-          <Paper className={classes.surfaceCard} radius="xl" p="md">
-            <Stack gap="sm">
-              <Group justify="space-between" align="center" wrap="wrap">
-                <Group gap="sm" align="center" wrap="wrap">
-                  <Title order={5}>PowerBI import preview</Title>
-                </Group>
-                <Button variant="default" onClick={() => void clearPreview()}>
-                  Cancel preview
-                </Button>
-              </Group>
-
-              {importError ? (
-                <Alert color="red" className={classes.notice}>
-                  {importError}
-                </Alert>
-              ) : null}
-
-              <Group justify="space-between" align="center" wrap="wrap">
-                <Text size="sm" c="dimmed">
-                  Included rows are what will be committed. Excluded rows are
-                  kept separate so rule exclusions do not crowd the working
-                  table.
-                </Text>
-              </Group>
-
-              {previewSourceLabel ? (
-                <Text size="sm" c="dimmed">
-                  Preview source: {previewSourceLabel}
-                </Text>
-              ) : null}
-
-              {hasBlockingIssues ? (
-                <Alert color="red" className={classes.notice}>
-                  Complete every review decision and resolve invalid or
-                  duplicate rows before committing this import.
-                </Alert>
-              ) : null}
-
-              {!hasBlockingIssues &&
-              skipDuplicates &&
-              previewSummary.duplicate > 0 ? (
-                <Alert color="blue" className={classes.notice}>
-                  Duplicate rows will be skipped automatically during append
-                  unless you explicitly include them by turning off duplicate
-                  skipping first.
-                </Alert>
-              ) : null}
-
-              {!hasBlockingIssues && hasReplaceAllBlockers ? (
-                <Alert color="red" className={classes.notice}>
-                  Duplicate rows inside the import file will block period
-                  replacement until they are excluded.
-                </Alert>
-              ) : null}
-
-              {!previewSummary.included ? (
-                <Alert color="yellow" className={classes.notice}>
-                  All preview rows are currently excluded from import.
-                </Alert>
-              ) : null}
-            </Stack>
-          </Paper>
-
-          <ImportPreviewTabs
-            previewTab={previewTab}
-            includedCount={includedPreviewRows.length}
-            unresolvedReviewCount={unresolvedReviewPreviewRows.length}
-            duplicateCount={duplicatePreviewRows.length}
-            invalidCount={invalidPreviewRows.length}
-            excludedCount={excludedPreviewRows.length}
-            visiblePreviewRows={visiblePreviewRows}
-            needsReviewPreviewRows={needsReviewPreviewRows}
-            selectedNeedsReviewRows={selectedNeedsReviewRows}
-            previewColumns={previewColumns}
-            excludedPreviewColumns={excludedPreviewColumns}
-            pagination={pagination}
-            sorting={sorting}
-            rowSelection={rowSelection}
-            setPreviewTab={setPreviewTab}
-            setPagination={setPagination}
-            setSorting={setSorting}
-            setRowSelection={setRowSelection}
-            onReviewDecision={handleReviewDecision}
+        <Group gap="md" align="center" wrap="wrap">
+          <Switch
+            label="Auto-create new categories/subcategories and budget lines"
+            checked={model.autoCreateStructures}
+            disabled={
+              model.isPreviewing ||
+              !model.canEditTaxonomy ||
+              !model.canEditBudgets
+            }
+            onChange={(event) =>
+              model.setAutoCreateStructures(event.currentTarget.checked)
+            }
+            className={model.isMobile ? classes.fieldFull : undefined}
           />
+          <Switch
+            label="Skip duplicates (existing and within this import)"
+            checked={model.skipDuplicates}
+            disabled={model.isPreviewing}
+            onChange={(event) =>
+              model.setSkipDuplicates(event.currentTarget.checked)
+            }
+            className={model.isMobile ? classes.fieldFull : undefined}
+          />
+        </Group>
 
-          <Paper className={classes.surfaceCard} radius="xl" p="md">
-            <Group className={classes.footerRowBetween}>
-              <Text size="sm" c="dimmed">
-                Review the preview and resolve all flagged rows, then commit{' '}
-                {includedPreviewRows.length} included row(s).{' '}
-                {unresolvedReviewPreviewRows.length} review decision(s) remain.
-              </Text>
-              <Group wrap="wrap">
-                <Button
-                  variant="subtle"
-                  color="gray"
-                  onClick={() => void clearPreview()}
-                >
-                  Cancel preview
-                </Button>
-                <Button
-                  fullWidth={isMobile}
-                  disabled={hasBlockingIssues}
-                  onClick={() => void handleCommitAppend()}
-                >
-                  {previewSummary.included ? 'Append' : 'Complete import'}
-                </Button>
-                <Button
-                  color="red"
-                  fullWidth={isMobile}
-                  disabled={!previewSummary.included || hasReplaceAllBlockers}
-                  onClick={() => setConfirmReplaceOpen(true)}
-                >
-                  Replace imported period
-                </Button>
-              </Group>
+        <Group className={classes.footerRow}>
+          <Button
+            fullWidth={model.isMobile}
+            onClick={() => void model.previewImport()}
+            loading={model.isReadingFile || model.isPreviewing}
+            disabled={
+              model.isReadingFile ||
+              model.isPreviewing ||
+              (!model.file && !model.draftCsvText.trim())
+            }
+          >
+            Preview import
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
+function PowerBiImportPreview({
+  model,
+}: {
+  model: PowerBiImporterPanelController;
+}) {
+  return (
+    <Stack gap="md">
+      <Paper className={classes.surfaceCard} radius="xl" p="md">
+        <Stack gap="sm">
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Group gap="sm" align="center" wrap="wrap">
+              <Title order={5}>PowerBI import preview</Title>
             </Group>
-          </Paper>
-        </Stack>
-      ) : null}
+            <Button variant="default" onClick={() => void model.clearPreview()}>
+              Cancel preview
+            </Button>
+          </Group>
 
-      <Modal
-        opened={confirmReplaceOpen}
-        onClose={() => setConfirmReplaceOpen(false)}
-        title="Replace imported period?"
-        fullScreen={isMobile}
-        centered={!isMobile}
-        styles={{
-          body: {
-            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
-            overflowY: 'auto',
-          },
-        }}
-      >
-        <Stack gap="md">
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            This replaces PowerBI-imported transactions within the preview's
-            date range. Transactions outside that period are preserved, and
-            replacement is blocked if the period contains reviewed, locked,
-            commented, reversal-linked, or structurally related transactions.
+          {model.importError ? (
+            <Alert color="red" className={classes.notice}>
+              {model.importError}
+            </Alert>
+          ) : null}
+
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Text size="sm" c="dimmed">
+              Included rows are what will be committed. Excluded rows are kept
+              separate so rule exclusions do not crowd the working table.
+            </Text>
+          </Group>
+
+          {model.previewSourceLabel ? (
+            <Text size="sm" c="dimmed">
+              Preview source: {model.previewSourceLabel}
+            </Text>
+          ) : null}
+
+          {model.hasBlockingIssues ? (
+            <Alert color="red" className={classes.notice}>
+              Complete every review decision and resolve invalid or duplicate
+              rows before committing this import.
+            </Alert>
+          ) : null}
+
+          {!model.hasBlockingIssues &&
+          model.skipDuplicates &&
+          model.previewSummary.duplicate > 0 ? (
+            <Alert color="blue" className={classes.notice}>
+              Duplicate rows will be skipped automatically during append unless
+              you explicitly include them by turning off duplicate skipping
+              first.
+            </Alert>
+          ) : null}
+
+          {!model.hasBlockingIssues && model.hasReplaceAllBlockers ? (
+            <Alert color="red" className={classes.notice}>
+              Duplicate rows inside the import file will block period
+              replacement until they are excluded.
+            </Alert>
+          ) : null}
+
+          {!model.previewSummary.included ? (
+            <Alert color="yellow" className={classes.notice}>
+              All preview rows are currently excluded from import.
+            </Alert>
+          ) : null}
+        </Stack>
+      </Paper>
+
+      <ImportPreviewTabs
+        previewTab={model.previewTab}
+        includedCount={model.includedPreviewRows.length}
+        unresolvedReviewCount={model.unresolvedReviewPreviewRows.length}
+        duplicateCount={model.duplicatePreviewRows.length}
+        invalidCount={model.invalidPreviewRows.length}
+        excludedCount={model.excludedPreviewRows.length}
+        visiblePreviewRows={model.visiblePreviewRows}
+        needsReviewPreviewRows={model.needsReviewPreviewRows}
+        selectedNeedsReviewRows={model.selectedNeedsReviewRows}
+        previewColumns={model.previewColumns}
+        excludedPreviewColumns={model.excludedPreviewColumns}
+        pagination={model.pagination}
+        sorting={model.sorting}
+        rowSelection={model.rowSelection}
+        setPreviewTab={model.setPreviewTab}
+        setPagination={model.setPagination}
+        setSorting={model.setSorting}
+        setRowSelection={model.setRowSelection}
+        onReviewDecision={model.handleReviewDecision}
+      />
+
+      <Paper className={classes.surfaceCard} radius="xl" p="md">
+        <Group className={classes.footerRowBetween}>
+          <Text size="sm" c="dimmed">
+            Review the preview and resolve all flagged rows, then commit{' '}
+            {model.includedPreviewRows.length} included row(s).{' '}
+            {model.unresolvedReviewPreviewRows.length} review decision(s)
+            remain.
           </Text>
-          <Group className={classes.footerRow}>
+          <Group wrap="wrap">
             <Button
-              variant="default"
-              fullWidth={isMobile}
-              onClick={() => setConfirmReplaceOpen(false)}
+              variant="subtle"
+              color="gray"
+              onClick={() => void model.clearPreview()}
             >
-              Cancel
+              Cancel preview
+            </Button>
+            <Button
+              fullWidth={model.isMobile}
+              disabled={model.hasBlockingIssues}
+              onClick={() => void model.handleCommitAppend()}
+            >
+              {model.previewSummary.included ? 'Append' : 'Complete import'}
             </Button>
             <Button
               color="red"
-              fullWidth={isMobile}
-              onClick={() => void handleCommitReplaceAll()}
+              fullWidth={model.isMobile}
+              disabled={
+                !model.previewSummary.included || model.hasReplaceAllBlockers
+              }
+              onClick={() => model.setConfirmReplaceOpen(true)}
             >
               Replace imported period
             </Button>
           </Group>
-        </Stack>
-      </Modal>
-
-      <Modal
-        opened={excludeRuleRow !== null}
-        onClose={closeExcludeRuleModal}
-        title="Create import exclusion rule"
-        fullScreen={isMobile}
-        centered={!isMobile}
-        styles={{
-          body: {
-            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
-            overflowY: 'auto',
-          },
-        }}
-      >
-        <Stack gap="md">
-          {excludeRuleError ? (
-            <Alert color="red">{excludeRuleError}</Alert>
-          ) : null}
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            This row is already excluded from the current preview. Save a
-            project import rule if you want matching rows to auto-exclude on
-            future imports for this project and after preview refreshes.
-          </Text>
-          <TextInput
-            label="Rule name"
-            value={excludeRuleName}
-            onChange={(event) =>
-              dispatchExcludeRuleDraft({
-                type: 'setName',
-                value: event.currentTarget.value,
-              })
-            }
-          />
-          <Group grow align="flex-end">
-            <Select
-              label="Field"
-              data={fieldOptions}
-              value={excludeRuleField}
-              {...importRuleSelectProps}
-              onChange={(value) => {
-                const next = toImportRuleField(value);
-                if (!next) return;
-                dispatchExcludeRuleDraft({ type: 'setField', value: next });
-              }}
-            />
-            <Select
-              label="Match"
-              data={operatorOptions}
-              value={excludeRuleOperator}
-              {...importRuleSelectProps}
-              onChange={(value) => {
-                const next = toImportRuleOperator(value);
-                if (!next) return;
-                dispatchExcludeRuleDraft({
-                  type: 'setOperator',
-                  value: next,
-                });
-              }}
-            />
-          </Group>
-          <TextInput
-            label="Value"
-            value={excludeRuleValue}
-            onChange={(event) =>
-              dispatchExcludeRuleDraft({
-                type: 'setValue',
-                value: event.currentTarget.value,
-              })
-            }
-          />
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              onClick={closeExcludeRuleModal}
-            >
-              Not now
-            </Button>
-            <Button
-              fullWidth={isMobile}
-              onClick={() => void handleCreateExcludeRule()}
-              loading={createImportRule.isPending}
-            >
-              Create project rule
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        </Group>
+      </Paper>
     </Stack>
   );
+}
+
+function PowerBiExclusionRuleModal({
+  model,
+}: {
+  model: PowerBiImporterPanelController;
+}) {
+  return (
+    <Modal
+      opened={model.confirmReplaceOpen}
+      onClose={() => model.setConfirmReplaceOpen(false)}
+      title="Replace imported period?"
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      styles={{
+        body: {
+          maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+          overflowY: 'auto',
+        },
+      }}
+    >
+      <Stack gap="md">
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          This replaces PowerBI-imported transactions within the preview's date
+          range. Transactions outside that period are preserved, and replacement
+          is blocked if the period contains reviewed, locked, commented,
+          reversal-linked, or structurally related transactions.
+        </Text>
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            onClick={() => model.setConfirmReplaceOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            fullWidth={model.isMobile}
+            onClick={() => void model.handleCommitReplaceAll()}
+          >
+            Replace imported period
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function PowerBiReviewDecisionModal({
+  model,
+}: {
+  model: PowerBiImporterPanelController;
+}) {
+  return (
+    <Modal
+      opened={model.excludeRuleRow !== null}
+      onClose={model.closeExcludeRuleModal}
+      title="Create import exclusion rule"
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      styles={{
+        body: {
+          maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+          overflowY: 'auto',
+        },
+      }}
+    >
+      <Stack gap="md">
+        {model.excludeRuleError ? (
+          <Alert color="red">{model.excludeRuleError}</Alert>
+        ) : null}
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          This row is already excluded from the current preview. Save a project
+          import rule if you want matching rows to auto-exclude on future
+          imports for this project and after preview refreshes.
+        </Text>
+        <TextInput
+          label="Rule name"
+          value={model.excludeRuleName}
+          onChange={(event) =>
+            model.dispatchExcludeRuleDraft({
+              type: 'setName',
+              value: event.currentTarget.value,
+            })
+          }
+        />
+        <Group grow align="flex-end">
+          <Select
+            label="Field"
+            data={fieldOptions}
+            value={model.excludeRuleField}
+            {...importRuleSelectProps}
+            onChange={(value) => {
+              const next = toImportRuleField(value);
+              if (!next) return;
+              model.dispatchExcludeRuleDraft({
+                type: 'setField',
+                value: next,
+              });
+            }}
+          />
+          <Select
+            label="Match"
+            data={operatorOptions}
+            value={model.excludeRuleOperator}
+            {...importRuleSelectProps}
+            onChange={(value) => {
+              const next = toImportRuleOperator(value);
+              if (!next) return;
+              model.dispatchExcludeRuleDraft({
+                type: 'setOperator',
+                value: next,
+              });
+            }}
+          />
+        </Group>
+        <TextInput
+          label="Value"
+          value={model.excludeRuleValue}
+          onChange={(event) =>
+            model.dispatchExcludeRuleDraft({
+              type: 'setValue',
+              value: event.currentTarget.value,
+            })
+          }
+        />
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            onClick={model.closeExcludeRuleModal}
+          >
+            Not now
+          </Button>
+          <Button
+            fullWidth={model.isMobile}
+            onClick={() => void model.handleCreateExcludeRule()}
+            loading={model.createImportRule.isPending}
+          >
+            Create project rule
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function PowerBiImporterPanelView({
+  model,
+}: {
+  model: PowerBiImporterPanelController;
+}) {
+  return (
+    <Stack gap="lg" className={classes.pageStack}>
+      {!model.previewActive ? <PowerBiUploadCard model={model} /> : null}
+
+      {model.previewActive ? <PowerBiImportPreview model={model} /> : null}
+
+      <PowerBiExclusionRuleModal model={model} />
+
+      <PowerBiReviewDecisionModal model={model} />
+    </Stack>
+  );
+}
+
+export default function PowerBiImporterPanel(
+  props: Parameters<typeof usePowerBiImporterPanelController>[0]
+) {
+  const model = usePowerBiImporterPanelController(props);
+  return <PowerBiImporterPanelView model={model} />;
 }

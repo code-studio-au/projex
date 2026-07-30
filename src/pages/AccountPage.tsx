@@ -36,7 +36,7 @@ type EmailActivity = {
   at: string;
 };
 
-export default function AccountPage() {
+function useAccountPageController() {
   const loaderData = accountRoute.useLoaderData();
   const isHydrated = useIsHydrated();
   const session = useSessionQuery();
@@ -228,6 +228,45 @@ export default function AccountPage() {
     }
   }
 
+  return {
+    cancelEmailChange,
+    confirmPassword,
+    currentPassword,
+    currentUser,
+    emailActivity,
+    emailChangeError,
+    emailChangeMessage,
+    handleCancelEmailChange,
+    handleEmailChangeRequest,
+    handlePasswordChange,
+    handleProfileSave,
+    handleResendEmailChange,
+    isHydrated,
+    myMemberships,
+    name,
+    newEmail,
+    newPassword,
+    passwordError,
+    passwordMessage,
+    passwordPending,
+    pendingEmailChange,
+    pendingEmailChangeReady,
+    profileError,
+    profileMessage,
+    requestEmailChange,
+    resendEmailChange,
+    setConfirmPassword,
+    setCurrentPassword,
+    setName,
+    setNewEmail,
+    setNewPassword,
+    updateProfile,
+  };
+}
+
+type AccountPageController = ReturnType<typeof useAccountPageController>;
+
+function AccountPageView({ model }: { model: AccountPageController }) {
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <Paper className={classes.pageHero} radius="xl" p="lg">
@@ -245,21 +284,24 @@ export default function AccountPage() {
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="md">
           <Title order={4}>Profile</Title>
-          {profileMessage ? (
-            <Alert color="green">{profileMessage}</Alert>
+          {model.profileMessage ? (
+            <Alert color="green">{model.profileMessage}</Alert>
           ) : null}
-          {profileError ? <Alert color="red">{profileError}</Alert> : null}
+          {model.profileError ? (
+            <Alert color="red">{model.profileError}</Alert>
+          ) : null}
           <TextInput
             label="Display name"
-            value={name || currentUser?.name || ''}
-            onChange={(event) => setName(event.currentTarget.value)}
+            value={model.name || model.currentUser?.name || ''}
+            onChange={(event) => model.setName(event.currentTarget.value)}
           />
           <Group justify="flex-end">
             <Button
-              onClick={handleProfileSave}
-              loading={updateProfile.isPending}
+              onClick={model.handleProfileSave}
+              loading={model.updateProfile.isPending}
               disabled={
-                !name.trim() || name.trim() === (currentUser?.name ?? '')
+                !model.name.trim() ||
+                model.name.trim() === (model.currentUser?.name ?? '')
               }
             >
               Save profile
@@ -273,31 +315,35 @@ export default function AccountPage() {
           <Title order={4}>Email</Title>
           <TextInput
             label="Current email"
-            value={currentUser?.email ?? ''}
+            value={model.currentUser?.email ?? ''}
             readOnly
             disabled
           />
-          {emailChangeMessage ? (
-            <Alert color="green">{emailChangeMessage}</Alert>
+          {model.emailChangeMessage ? (
+            <Alert color="green">{model.emailChangeMessage}</Alert>
           ) : null}
-          {emailChangeError ? (
-            <Alert color="red">{emailChangeError}</Alert>
+          {model.emailChangeError ? (
+            <Alert color="red">{model.emailChangeError}</Alert>
           ) : null}
-          {!pendingEmailChangeReady ? (
+          {!model.pendingEmailChangeReady ? (
             <Text size="sm" c="dimmed">
               Checking for a pending email change...
             </Text>
           ) : null}
-          {pendingEmailChange ? (
+          {model.pendingEmailChange ? (
             <Alert color="blue">
               <Stack gap="xs">
                 <Text fw={600}>Pending email change</Text>
-                <Text size="sm">New email: {pendingEmailChange.newEmail}</Text>
-                <Text size="sm" c="dimmed">
-                  Requested: {formatUtcDateTime(pendingEmailChange.requestedAt)}
+                <Text size="sm">
+                  New email: {model.pendingEmailChange.newEmail}
                 </Text>
                 <Text size="sm" c="dimmed">
-                  Expires: {formatUtcDateTime(pendingEmailChange.expiresAt)}
+                  Requested:{' '}
+                  {formatUtcDateTime(model.pendingEmailChange.requestedAt)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Expires:{' '}
+                  {formatUtcDateTime(model.pendingEmailChange.expiresAt)}
                 </Text>
                 <Text size="sm" c="dimmed">
                   Check spam or junk if the email does not appear quickly. If
@@ -307,16 +353,16 @@ export default function AccountPage() {
                 <Group gap="sm" align="center">
                   <Button
                     variant="light"
-                    onClick={handleResendEmailChange}
-                    loading={resendEmailChange.isPending}
+                    onClick={model.handleResendEmailChange}
+                    loading={model.resendEmailChange.isPending}
                   >
                     Resend verification
                   </Button>
                   <Button
                     color="red"
                     variant="light"
-                    onClick={handleCancelEmailChange}
-                    loading={cancelEmailChange.isPending}
+                    onClick={model.handleCancelEmailChange}
+                    loading={model.cancelEmailChange.isPending}
                   >
                     Cancel pending change
                   </Button>
@@ -324,13 +370,13 @@ export default function AccountPage() {
               </Stack>
             </Alert>
           ) : null}
-          {emailActivity ? (
+          {model.emailActivity ? (
             <Alert color="gray" variant="light">
               <Stack gap={4}>
                 <Text fw={600}>Latest email change activity</Text>
-                <Text size="sm">{emailActivity.message}</Text>
+                <Text size="sm">{model.emailActivity.message}</Text>
                 <Text size="sm" c="dimmed">
-                  {formatUtcDateTime(emailActivity.at)}
+                  {formatUtcDateTime(model.emailActivity.at)}
                 </Text>
               </Stack>
             </Alert>
@@ -339,20 +385,24 @@ export default function AccountPage() {
             Your current login email remains active until you confirm the new
             address from your inbox.
           </Text>
-          {isHydrated ? (
+          {model.isHydrated ? (
             <>
               <TextInput
                 label="New email"
-                value={newEmail}
-                onChange={(event) => setNewEmail(event.currentTarget.value)}
+                value={model.newEmail}
+                onChange={(event) =>
+                  model.setNewEmail(event.currentTarget.value)
+                }
                 autoComplete="email"
-                disabled={Boolean(pendingEmailChange)}
+                disabled={Boolean(model.pendingEmailChange)}
               />
               <Group justify="flex-end" gap="sm">
                 <Button
-                  onClick={handleEmailChangeRequest}
-                  loading={requestEmailChange.isPending}
-                  disabled={!newEmail.trim() || Boolean(pendingEmailChange)}
+                  onClick={model.handleEmailChangeRequest}
+                  loading={model.requestEmailChange.isPending}
+                  disabled={
+                    !model.newEmail.trim() || Boolean(model.pendingEmailChange)
+                  }
                 >
                   Send verification email
                 </Button>
@@ -371,33 +421,45 @@ export default function AccountPage() {
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="md">
           <Title order={4}>Password</Title>
-          {passwordMessage ? (
-            <Alert color="green">{passwordMessage}</Alert>
+          {model.passwordMessage ? (
+            <Alert color="green">{model.passwordMessage}</Alert>
           ) : null}
-          {passwordError ? <Alert color="red">{passwordError}</Alert> : null}
+          {model.passwordError ? (
+            <Alert color="red">{model.passwordError}</Alert>
+          ) : null}
           <PasswordInput
             label="Current password"
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.currentTarget.value)}
+            value={model.currentPassword}
+            onChange={(event) =>
+              model.setCurrentPassword(event.currentTarget.value)
+            }
             autoComplete="current-password"
           />
           <PasswordInput
             label="New password"
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.currentTarget.value)}
+            value={model.newPassword}
+            onChange={(event) =>
+              model.setNewPassword(event.currentTarget.value)
+            }
             autoComplete="new-password"
           />
           <PasswordInput
             label="Confirm new password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.currentTarget.value)}
+            value={model.confirmPassword}
+            onChange={(event) =>
+              model.setConfirmPassword(event.currentTarget.value)
+            }
             autoComplete="new-password"
           />
           <Group justify="flex-end" gap="sm">
             <Button
-              onClick={handlePasswordChange}
-              loading={passwordPending}
-              disabled={!currentPassword || !newPassword || !confirmPassword}
+              onClick={model.handlePasswordChange}
+              loading={model.passwordPending}
+              disabled={
+                !model.currentPassword ||
+                !model.newPassword ||
+                !model.confirmPassword
+              }
             >
               Change password
             </Button>
@@ -408,8 +470,8 @@ export default function AccountPage() {
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="md">
           <Title order={4}>Company access</Title>
-          {myMemberships.length ? (
-            myMemberships.map((membership) => (
+          {model.myMemberships.length ? (
+            model.myMemberships.map((membership) => (
               <Group
                 key={`${membership.companyId}:${membership.role}`}
                 justify="space-between"
@@ -433,4 +495,9 @@ export default function AccountPage() {
       </Paper>
     </Stack>
   );
+}
+
+export default function AccountPage() {
+  const model = useAccountPageController();
+  return <AccountPageView model={model} />;
 }

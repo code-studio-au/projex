@@ -510,7 +510,7 @@ function hasSmokeSectionResult(
   return Boolean(result);
 }
 
-export default function SmokeDashboardPage() {
+function useSmokeDashboardController() {
   const isHydrated = useIsHydrated();
   const session = useSessionQuery();
   const currentUserQ = useCurrentUserQuery();
@@ -902,372 +902,448 @@ export default function SmokeDashboardPage() {
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [runAllActive, runningSectionId]);
 
-  if (!isHydrated) {
-    return (
-      <Stack gap="md">
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="xs">
-            <Title order={2}>System Checks</Title>
-            <Text c="dimmed" className={classes.modalIntro}>
-              Loading system checks...
-            </Text>
-          </Stack>
-        </Paper>
-      </Stack>
-    );
-  }
+  return {
+    clearRunAllState,
+    currentUserQ,
+    focusSections,
+    hasRecordedRuns,
+    isHydrated,
+    isSuperadmin,
+    manualInputs,
+    manualInputsForSection,
+    pageError,
+    resetAllSectionState,
+    resetSection,
+    resetSectionState,
+    results,
+    runAllActive,
+    runAllSectionIndex,
+    runAllStatus,
+    runFullSmoke,
+    runMode,
+    runSection,
+    runningSectionId,
+    sectionRefs,
+    session,
+    setManualInputValue,
+    setManualInputs,
+    setPageError,
+    setResults,
+    setRunAllActive,
+    setRunAllSectionIndex,
+    setRunAllStatus,
+    setRunMode,
+    setRunningSectionId,
+    setViews,
+    summary,
+    userId,
+    views,
+  };
+}
 
-  if (!isSuperadmin) {
-    return (
-      <Stack gap="lg">
-        <Paper withBorder radius="lg" p="lg">
-          <Stack gap="xs">
-            <Title order={2}>System Checks</Title>
-            <Text c="dimmed" className={classes.modalIntro}>
-              Run visual system checks from the app without SSHing into the
-              server.
-            </Text>
-          </Stack>
-        </Paper>
+type SmokeDashboardController = ReturnType<typeof useSmokeDashboardController>;
 
-        <Alert color="red" title="Restricted">
-          This dashboard is only available to the global superadmin.
-        </Alert>
-      </Stack>
-    );
-  }
-
+function SmokeDashboardLoading() {
   return (
     <Stack gap="md">
       <Paper withBorder radius="lg" p="lg">
-        <Stack gap="sm">
-          <Group justify="space-between" align="flex-start">
-            <Stack gap="xs">
-              <Title order={2}>System Checks</Title>
-              <Text c="dimmed" className={classes.modalIntro}>
-                Run each system-check section separately, inspect the exact
-                steps that passed or failed, and keep the core server checks
-                accessible from the app.
-              </Text>
-            </Stack>
-            <Group gap="xs">
-              {hasRecordedRuns ? (
-                <Button
-                  variant="subtle"
-                  color="gray"
-                  onClick={resetAllSectionState}
-                  disabled={!!runningSectionId || runAllActive}
-                >
-                  Clear results
-                </Button>
-              ) : null}
-              <Button
-                leftSection={
-                  runningSectionId ? (
-                    <IconLoader2 size={16} />
-                  ) : (
-                    <IconPlayerPlay size={16} />
-                  )
-                }
-                onClick={runFullSmoke}
-                disabled={!!runningSectionId || runMode === 'manual'}
-              >
-                Run all checks
-              </Button>
-            </Group>
-          </Group>
-          <Select
-            label="Run mode"
-            value={runMode}
-            onChange={(value) =>
-              setRunMode(value === 'manual' ? 'manual' : 'generated')
-            }
-            data={[
-              {
-                value: 'generated',
-                label: 'Generated fixtures (recommended)',
-              },
-              {
-                value: 'manual',
-                label: 'Manual advanced mode',
-              },
-            ]}
-            disabled={!!runningSectionId || runAllActive}
-          />
-          <Text size="sm" c="dimmed" className={classes.sectionCopy}>
-            {runMode === 'generated'
-              ? 'The dashboard will create disposable smoke users, a temporary company, and a temporary project for each run, then clean them up automatically. This is the default path for fresh databases and repeatable regression checks.'
-              : 'Manual mode is the advanced fallback when you want to target existing users or long-lived data. Enter only the values needed for the section you are about to run; nothing is persisted in the UI.'}
+        <Stack gap="xs">
+          <Title order={2}>System Checks</Title>
+          <Text c="dimmed" className={classes.modalIntro}>
+            Loading system checks...
           </Text>
-          <Alert color="blue" className={classes.notice}>
-            {runMode === 'generated'
-              ? 'Generated mode mirrors the disposable smoke CLI flow, but the dashboard always targets the current app origin so browser checks stay aligned with the page you are using.'
-              : 'Manual mode is intended for one-off operator checks. The Run all action stays generated-only so each advanced section can use the right per-run inputs.'}
-          </Alert>
-          {runMode === 'manual' ? (
-            <Paper withBorder radius="md" p="md">
-              <Stack gap="sm">
-                <Title order={5}>Manual Base Inputs</Title>
-                <Text size="sm" c="dimmed" className={classes.sectionCopy}>
-                  These values are reused by the auth-backed sections. Section-
-                  specific advanced inputs appear inside the relevant cards
-                  below.
-                </Text>
-                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-                  {manualBaseFieldDefs.map((field) => (
-                    <SmokeManualField
-                      key={field.key}
-                      field={field}
-                      value={manualInputs[field.key] ?? ''}
-                      onChange={(value) =>
-                        setManualInputValue(field.key, value)
-                      }
-                    />
-                  ))}
-                </SimpleGrid>
-              </Stack>
-            </Paper>
-          ) : null}
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+}
+
+function SmokeDashboardRestricted() {
+  return (
+    <Stack gap="lg">
+      <Paper withBorder radius="lg" p="lg">
+        <Stack gap="xs">
+          <Title order={2}>System Checks</Title>
+          <Text c="dimmed" className={classes.modalIntro}>
+            Run visual system checks from the app without SSHing into the
+            server.
+          </Text>
         </Stack>
       </Paper>
 
-      {runAllStatus && focusSections.current ? (
-        <Paper
-          withBorder
-          radius="lg"
-          p="lg"
-          className={classes.surfaceCard}
-          style={{
-            position: 'sticky',
-            top: RUN_ALL_FOCUS_OFFSET_PX,
-            zIndex: 20,
-          }}
-        >
-          <Stack gap="md">
-            <Group justify="space-between" align="flex-start">
-              <Stack gap={2}>
-                <Title order={4}>Run All Focus</Title>
-                <Text size="sm" c="dimmed">
-                  {runAllStatus}
-                </Text>
-              </Stack>
-              <Badge variant="light" color="blue">
-                {runAllSectionIndex != null
-                  ? `${Math.min(runAllSectionIndex + 1, smokeSectionDefinitions.length)} of ${smokeSectionDefinitions.length}`
-                  : `0 of ${smokeSectionDefinitions.length}`}
-              </Badge>
-            </Group>
-            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-              {focusSections.previous ? (
-                <FocusStripCard
-                  label="Previous"
-                  status={
-                    results[focusSections.previous.id]?.status ??
-                    views[focusSections.previous.id]?.status ??
-                    'idle'
-                  }
-                  title={focusSections.previous.label}
-                  message={
-                    views[focusSections.previous.id]?.statusMessage ??
-                    focusSections.previous.description
-                  }
-                />
-              ) : (
-                <FocusStripCard
-                  label="Previous"
-                  status="idle"
-                  title="No previous section"
-                  message="This is the first section."
-                />
-              )}
-              <FocusStripCard
-                label={runAllActive ? 'Current' : 'Previous'}
-                status={
-                  runningSectionId
-                    ? 'running'
-                    : (results[focusSections.current.id]?.status ??
-                      views[focusSections.current.id]?.status ??
-                      'idle')
-                }
-                title={focusSections.current.label}
-                message={
-                  views[focusSections.current.id]?.statusMessage ??
-                  focusSections.current.description
-                }
-                active={runAllActive}
-              />
-              {focusSections.next ? (
-                <FocusStripCard
-                  label="Next"
-                  status={
-                    results[focusSections.next.id]?.status ??
-                    views[focusSections.next.id]?.status ??
-                    'idle'
-                  }
-                  title={focusSections.next.label}
-                  message={
-                    views[focusSections.next.id]?.statusMessage ??
-                    focusSections.next.description
-                  }
-                />
-              ) : (
-                <FocusStripCard
-                  label="Summary"
-                  status={
-                    summary.failed > 0
-                      ? 'failed'
-                      : summary.totalCompleted === summary.totalConfigured
-                        ? 'passed'
-                        : 'running'
-                  }
-                  title="Run summary"
-                  message={`Completed ${summary.totalCompleted}/${summary.totalConfigured}. Passed ${summary.passed}, failed ${summary.failed}, skipped ${summary.skipped}.${summary.latestFinishedAt ? ` Last completed ${formatUtcDateTime(summary.latestFinishedAt)}.` : ''}`}
-                  active={!runAllActive}
-                />
-              )}
-            </SimpleGrid>
-          </Stack>
-        </Paper>
-      ) : null}
-
-      {pageError ? <Alert color="red">{pageError}</Alert> : null}
-
-      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md" verticalSpacing="md">
-        {smokeSectionDefinitions.map((section) => {
-          const result = results[section.id];
-          const view = views[section.id];
-          const isRunning = runningSectionId === section.id;
-
-          return (
-            <Paper
-              key={section.id}
-              withBorder
-              radius="lg"
-              p="lg"
-              ref={(node) => {
-                sectionRefs.current[section.id] = node;
-              }}
-              style={{ scrollMarginTop: SECTION_SCROLL_MARGIN_TOP_PX }}
-            >
-              <Stack gap="sm">
-                <Group justify="space-between" align="flex-start">
-                  <Stack gap={4}>
-                    <Group gap="xs">
-                      <Title order={4}>{section.label}</Title>
-                      <Badge
-                        color={statusColor(
-                          isRunning ? 'running' : (result?.status ?? 'idle')
-                        )}
-                        variant="light"
-                      >
-                        {isRunning
-                          ? 'Running'
-                          : result
-                            ? result.status
-                            : 'Idle'}
-                      </Badge>
-                    </Group>
-                    <Text size="sm" c="dimmed" className={classes.sectionCopy}>
-                      {section.description}
-                    </Text>
-                    {view?.statusMessage ? (
-                      <Text
-                        size="sm"
-                        c={view.status === 'failed' ? 'red' : 'dimmed'}
-                      >
-                        {view.statusMessage}
-                      </Text>
-                    ) : null}
-                    {runMode === 'manual' &&
-                    sectionManualFieldDefs(section.id).length > 0 ? (
-                      <Paper withBorder radius="md" p="sm">
-                        <Stack gap="sm">
-                          <Text size="sm" fw={600}>
-                            Advanced inputs for {section.label}
-                          </Text>
-                          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-                            {sectionManualFieldDefs(section.id).map((field) => (
-                              <SmokeManualField
-                                key={`${section.id}-${field.key}`}
-                                field={field}
-                                value={manualInputs[field.key] ?? ''}
-                                onChange={(value) =>
-                                  setManualInputValue(field.key, value)
-                                }
-                              />
-                            ))}
-                          </SimpleGrid>
-                        </Stack>
-                      </Paper>
-                    ) : null}
-                  </Stack>
-
-                  <Group gap="xs">
-                    <Button
-                      size="sm"
-                      variant={result || view ? 'light' : 'filled'}
-                      leftSection={
-                        isRunning ? (
-                          <IconLoader2 size={16} />
-                        ) : (
-                          <IconPlayerPlay size={16} />
-                        )
-                      }
-                      disabled={!!runningSectionId}
-                      onClick={() => {
-                        void runSection(section.id);
-                      }}
-                    >
-                      {result || view ? 'Run again' : 'Run section'}
-                    </Button>
-                    {result || view ? (
-                      <Button
-                        size="sm"
-                        variant="subtle"
-                        color="gray"
-                        disabled={isRunning}
-                        onClick={() => resetSection(section.id)}
-                      >
-                        Reset
-                      </Button>
-                    ) : null}
-                  </Group>
-                </Group>
-
-                {view ? (
-                  <>
-                    <Group gap="md">
-                      {view.finishedAt ? (
-                        <Text size="sm" c="dimmed">
-                          Last run: {formatUtcDateTime(view.finishedAt)}
-                        </Text>
-                      ) : null}
-                      {typeof view.durationMs === 'number' ? (
-                        <Text size="sm" c="dimmed">
-                          Duration: {formatDuration(view.durationMs)}
-                        </Text>
-                      ) : null}
-                    </Group>
-                    <Divider />
-                    <Stack gap="xs">
-                      {view.steps.map((step) => (
-                        <SmokeStepRow
-                          key={`${section.id}-${step.id}`}
-                          step={step}
-                        />
-                      ))}
-                    </Stack>
-                  </>
-                ) : (
-                  <Text className={classes.emptyState}>
-                    No run recorded yet.
-                  </Text>
-                )}
-              </Stack>
-            </Paper>
-          );
-        })}
-      </SimpleGrid>
+      <Alert color="red" title="Restricted">
+        This dashboard is only available to the global superadmin.
+      </Alert>
     </Stack>
   );
+}
+
+function SmokeDashboardControls({
+  model,
+}: {
+  model: SmokeDashboardController;
+}) {
+  return (
+    <Paper withBorder radius="lg" p="lg">
+      <Stack gap="sm">
+        <Group justify="space-between" align="flex-start">
+          <Stack gap="xs">
+            <Title order={2}>System Checks</Title>
+            <Text c="dimmed" className={classes.modalIntro}>
+              Run each system-check section separately, inspect the exact steps
+              that passed or failed, and keep the core server checks accessible
+              from the app.
+            </Text>
+          </Stack>
+          <Group gap="xs">
+            {model.hasRecordedRuns ? (
+              <Button
+                variant="subtle"
+                color="gray"
+                onClick={model.resetAllSectionState}
+                disabled={!!model.runningSectionId || model.runAllActive}
+              >
+                Clear results
+              </Button>
+            ) : null}
+            <Button
+              leftSection={
+                model.runningSectionId ? (
+                  <IconLoader2 size={16} />
+                ) : (
+                  <IconPlayerPlay size={16} />
+                )
+              }
+              onClick={model.runFullSmoke}
+              disabled={!!model.runningSectionId || model.runMode === 'manual'}
+            >
+              Run all checks
+            </Button>
+          </Group>
+        </Group>
+        <Select
+          label="Run mode"
+          value={model.runMode}
+          onChange={(value) =>
+            model.setRunMode(value === 'manual' ? 'manual' : 'generated')
+          }
+          data={[
+            {
+              value: 'generated',
+              label: 'Generated fixtures (recommended)',
+            },
+            {
+              value: 'manual',
+              label: 'Manual advanced mode',
+            },
+          ]}
+          disabled={!!model.runningSectionId || model.runAllActive}
+        />
+        <Text size="sm" c="dimmed" className={classes.sectionCopy}>
+          {model.runMode === 'generated'
+            ? 'The dashboard will create disposable smoke users, a temporary company, and a temporary project for each run, then clean them up automatically. This is the default path for fresh databases and repeatable regression checks.'
+            : 'Manual mode is the advanced fallback when you want to target existing users or long-lived data. Enter only the values needed for the section you are about to run; nothing is persisted in the UI.'}
+        </Text>
+        <Alert color="blue" className={classes.notice}>
+          {model.runMode === 'generated'
+            ? 'Generated mode mirrors the disposable smoke CLI flow, but the dashboard always targets the current app origin so browser checks stay aligned with the page you are using.'
+            : 'Manual mode is intended for one-off operator checks. The Run all action stays generated-only so each advanced section can use the right per-run inputs.'}
+        </Alert>
+        {model.runMode === 'manual' ? (
+          <Paper withBorder radius="md" p="md">
+            <Stack gap="sm">
+              <Title order={5}>Manual Base Inputs</Title>
+              <Text size="sm" c="dimmed" className={classes.sectionCopy}>
+                These values are reused by the auth-backed sections. Section-
+                specific advanced inputs appear inside the relevant cards below.
+              </Text>
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                {manualBaseFieldDefs.map((field) => (
+                  <SmokeManualField
+                    key={field.key}
+                    field={field}
+                    value={model.manualInputs[field.key] ?? ''}
+                    onChange={(value) =>
+                      model.setManualInputValue(field.key, value)
+                    }
+                  />
+                ))}
+              </SimpleGrid>
+            </Stack>
+          </Paper>
+        ) : null}
+      </Stack>
+    </Paper>
+  );
+}
+
+function SmokeDashboardRunFocus({
+  model,
+}: {
+  model: SmokeDashboardController;
+}) {
+  const currentSection = model.focusSections.current;
+  if (!currentSection) return null;
+
+  return (
+    <Paper
+      withBorder
+      radius="lg"
+      p="lg"
+      className={classes.surfaceCard}
+      style={{
+        position: 'sticky',
+        top: RUN_ALL_FOCUS_OFFSET_PX,
+        zIndex: 20,
+      }}
+    >
+      <Stack gap="md">
+        <Group justify="space-between" align="flex-start">
+          <Stack gap={2}>
+            <Title order={4}>Run All Focus</Title>
+            <Text size="sm" c="dimmed">
+              {model.runAllStatus}
+            </Text>
+          </Stack>
+          <Badge variant="light" color="blue">
+            {model.runAllSectionIndex != null
+              ? `${Math.min(model.runAllSectionIndex + 1, smokeSectionDefinitions.length)} of ${smokeSectionDefinitions.length}`
+              : `0 of ${smokeSectionDefinitions.length}`}
+          </Badge>
+        </Group>
+        <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+          {model.focusSections.previous ? (
+            <FocusStripCard
+              label="Previous"
+              status={
+                model.results[model.focusSections.previous.id]?.status ??
+                model.views[model.focusSections.previous.id]?.status ??
+                'idle'
+              }
+              title={model.focusSections.previous.label}
+              message={
+                model.views[model.focusSections.previous.id]?.statusMessage ??
+                model.focusSections.previous.description
+              }
+            />
+          ) : (
+            <FocusStripCard
+              label="Previous"
+              status="idle"
+              title="No previous section"
+              message="This is the first section."
+            />
+          )}
+          <FocusStripCard
+            label={model.runAllActive ? 'Current' : 'Previous'}
+            status={
+              model.runningSectionId
+                ? 'running'
+                : (model.results[currentSection.id]?.status ??
+                  model.views[currentSection.id]?.status ??
+                  'idle')
+            }
+            title={currentSection.label}
+            message={
+              model.views[currentSection.id]?.statusMessage ??
+              currentSection.description
+            }
+            active={model.runAllActive}
+          />
+          {model.focusSections.next ? (
+            <FocusStripCard
+              label="Next"
+              status={
+                model.results[model.focusSections.next.id]?.status ??
+                model.views[model.focusSections.next.id]?.status ??
+                'idle'
+              }
+              title={model.focusSections.next.label}
+              message={
+                model.views[model.focusSections.next.id]?.statusMessage ??
+                model.focusSections.next.description
+              }
+            />
+          ) : (
+            <FocusStripCard
+              label="Summary"
+              status={
+                model.summary.failed > 0
+                  ? 'failed'
+                  : model.summary.totalCompleted ===
+                      model.summary.totalConfigured
+                    ? 'passed'
+                    : 'running'
+              }
+              title="Run summary"
+              message={`Completed ${model.summary.totalCompleted}/${model.summary.totalConfigured}. Passed ${model.summary.passed}, failed ${model.summary.failed}, skipped ${model.summary.skipped}.${model.summary.latestFinishedAt ? ` Last completed ${formatUtcDateTime(model.summary.latestFinishedAt)}.` : ''}`}
+              active={!model.runAllActive}
+            />
+          )}
+        </SimpleGrid>
+      </Stack>
+    </Paper>
+  );
+}
+
+function SmokeDashboardSectionGrid({
+  model,
+}: {
+  model: SmokeDashboardController;
+}) {
+  return (
+    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md" verticalSpacing="md">
+      {smokeSectionDefinitions.map((section) => {
+        const result = model.results[section.id];
+        const view = model.views[section.id];
+        const isRunning = model.runningSectionId === section.id;
+
+        return (
+          <Paper
+            key={section.id}
+            withBorder
+            radius="lg"
+            p="lg"
+            ref={(node) => {
+              model.sectionRefs.current[section.id] = node;
+            }}
+            style={{ scrollMarginTop: SECTION_SCROLL_MARGIN_TOP_PX }}
+          >
+            <Stack gap="sm">
+              <Group justify="space-between" align="flex-start">
+                <Stack gap={4}>
+                  <Group gap="xs">
+                    <Title order={4}>{section.label}</Title>
+                    <Badge
+                      color={statusColor(
+                        isRunning ? 'running' : (result?.status ?? 'idle')
+                      )}
+                      variant="light"
+                    >
+                      {isRunning ? 'Running' : result ? result.status : 'Idle'}
+                    </Badge>
+                  </Group>
+                  <Text size="sm" c="dimmed" className={classes.sectionCopy}>
+                    {section.description}
+                  </Text>
+                  {view?.statusMessage ? (
+                    <Text
+                      size="sm"
+                      c={view.status === 'failed' ? 'red' : 'dimmed'}
+                    >
+                      {view.statusMessage}
+                    </Text>
+                  ) : null}
+                  {model.runMode === 'manual' &&
+                  sectionManualFieldDefs(section.id).length > 0 ? (
+                    <Paper withBorder radius="md" p="sm">
+                      <Stack gap="sm">
+                        <Text size="sm" fw={600}>
+                          Advanced inputs for {section.label}
+                        </Text>
+                        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                          {sectionManualFieldDefs(section.id).map((field) => (
+                            <SmokeManualField
+                              key={`${section.id}-${field.key}`}
+                              field={field}
+                              value={model.manualInputs[field.key] ?? ''}
+                              onChange={(value) =>
+                                model.setManualInputValue(field.key, value)
+                              }
+                            />
+                          ))}
+                        </SimpleGrid>
+                      </Stack>
+                    </Paper>
+                  ) : null}
+                </Stack>
+
+                <Group gap="xs">
+                  <Button
+                    size="sm"
+                    variant={result || view ? 'light' : 'filled'}
+                    leftSection={
+                      isRunning ? (
+                        <IconLoader2 size={16} />
+                      ) : (
+                        <IconPlayerPlay size={16} />
+                      )
+                    }
+                    disabled={!!model.runningSectionId}
+                    onClick={() => {
+                      void model.runSection(section.id);
+                    }}
+                  >
+                    {result || view ? 'Run again' : 'Run section'}
+                  </Button>
+                  {result || view ? (
+                    <Button
+                      size="sm"
+                      variant="subtle"
+                      color="gray"
+                      disabled={isRunning}
+                      onClick={() => model.resetSection(section.id)}
+                    >
+                      Reset
+                    </Button>
+                  ) : null}
+                </Group>
+              </Group>
+
+              {view ? (
+                <>
+                  <Group gap="md">
+                    {view.finishedAt ? (
+                      <Text size="sm" c="dimmed">
+                        Last run: {formatUtcDateTime(view.finishedAt)}
+                      </Text>
+                    ) : null}
+                    {typeof view.durationMs === 'number' ? (
+                      <Text size="sm" c="dimmed">
+                        Duration: {formatDuration(view.durationMs)}
+                      </Text>
+                    ) : null}
+                  </Group>
+                  <Divider />
+                  <Stack gap="xs">
+                    {view.steps.map((step) => (
+                      <SmokeStepRow
+                        key={`${section.id}-${step.id}`}
+                        step={step}
+                      />
+                    ))}
+                  </Stack>
+                </>
+              ) : (
+                <Text className={classes.emptyState}>No run recorded yet.</Text>
+              )}
+            </Stack>
+          </Paper>
+        );
+      })}
+    </SimpleGrid>
+  );
+}
+
+function SmokeDashboardReady({ model }: { model: SmokeDashboardController }) {
+  return (
+    <Stack gap="md">
+      <SmokeDashboardControls model={model} />
+
+      {model.runAllStatus && model.focusSections.current ? (
+        <SmokeDashboardRunFocus model={model} />
+      ) : null}
+
+      {model.pageError ? <Alert color="red">{model.pageError}</Alert> : null}
+
+      <SmokeDashboardSectionGrid model={model} />
+    </Stack>
+  );
+}
+
+export default function SmokeDashboardPage() {
+  const model = useSmokeDashboardController();
+  if (!model.isHydrated) return <SmokeDashboardLoading />;
+  if (!model.isSuperadmin) return <SmokeDashboardRestricted />;
+  return <SmokeDashboardReady model={model} />;
 }

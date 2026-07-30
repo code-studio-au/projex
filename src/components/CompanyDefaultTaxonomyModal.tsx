@@ -48,7 +48,7 @@ type PendingMove = {
   currentCategoryId: string;
 };
 
-export default function CompanyDefaultTaxonomyModal(props: {
+function useCompanyDefaultTaxonomyModalController(props: {
   opened: boolean;
   onClose: () => void;
   companyId: CompanyId;
@@ -303,35 +303,742 @@ export default function CompanyDefaultTaxonomyModal(props: {
     onClose();
   }
 
+  return {
+    accordionValue,
+    addCategory,
+    addSubCategory,
+    beginDelete,
+    beginRename,
+    cancelRename,
+    categories,
+    categoryOptions,
+    clearFeedback,
+    closeDelete,
+    closeManager,
+    companyDefaultsQ,
+    creating,
+    creationMode,
+    deleteAffectedRules,
+    deleteCategory,
+    deleteReplacementCategoryId,
+    deleteReplacementSubCategoryId,
+    deleteReplacementSubCategoryOptions,
+    deleteRuleHandling,
+    deleteSubCategory,
+    deleting,
+    error,
+    isMobile,
+    moveAffectedRules,
+    moveCategoryId,
+    moveCategoryOptions,
+    newCategoryName,
+    newSubCategoryCategoryId,
+    newSubCategoryName,
+    normalizedSearch,
+    onClose,
+    opened,
+    pendingDelete,
+    pendingMove,
+    readOnly,
+    renameDraft,
+    renameTarget,
+    renaming,
+    saveRename,
+    search,
+    setCreationMode,
+    setDeleteReplacementCategoryId,
+    setDeleteReplacementSubCategoryId,
+    setDeleteRuleHandling,
+    setError,
+    setExpandedCategoryIds,
+    setMoveCategoryId,
+    setNewCategoryName,
+    setNewSubCategoryCategoryId,
+    setNewSubCategoryName,
+    setPendingMove,
+    setRenameDraft,
+    setSearch,
+    setSuccess,
+    showSearch,
+    subCategories,
+    success,
+    updateSubCategory,
+    visibleCategories,
+  };
+}
+
+type CompanyDefaultTaxonomyModalController = ReturnType<
+  typeof useCompanyDefaultTaxonomyModalController
+>;
+
+function CompanyDefaultTaxonomyComposer({
+  model,
+}: {
+  model: CompanyDefaultTaxonomyModalController;
+}) {
+  return (
+    <Paper withBorder radius="md" p="md" className={classes.taxonomyCreateCard}>
+      <Stack gap="sm">
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+          <Stack gap={2}>
+            <Text fw={600}>
+              {model.creationMode === 'subcategory'
+                ? 'Add company subcategory'
+                : 'Add company category'}
+            </Text>
+            <Text size="sm" c="dimmed">
+              {model.creationMode === 'subcategory'
+                ? 'Create a standard coding option under an existing company category.'
+                : 'Create a new top-level category for linked projects.'}
+            </Text>
+          </Stack>
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            onClick={() => {
+              model.clearFeedback();
+              model.setCreationMode((current) =>
+                current === 'subcategory' ? 'category' : 'subcategory'
+              );
+            }}
+          >
+            {model.creationMode === 'subcategory'
+              ? 'Add category instead'
+              : 'Add subcategory instead'}
+          </Button>
+        </Group>
+
+        {model.creationMode === 'subcategory' ? (
+          <Group align="flex-end" wrap="wrap">
+            <Select
+              label="Company category"
+              placeholder={
+                model.categoryOptions.length === 0
+                  ? 'Add a category first'
+                  : 'Select category'
+              }
+              data={model.categoryOptions}
+              value={model.newSubCategoryCategoryId}
+              searchable
+              disabled={model.categoryOptions.length === 0}
+              {...firefoxSafeModalSelectProps}
+              onChange={(value) => {
+                model.clearFeedback();
+                model.setNewSubCategoryCategoryId(value);
+              }}
+              className={classes.fieldGrow}
+            />
+            <TextInput
+              label="Subcategory name"
+              placeholder="e.g. Flights"
+              value={model.newSubCategoryName}
+              disabled={model.categoryOptions.length === 0}
+              onChange={(event) => {
+                model.clearFeedback();
+                model.setNewSubCategoryName(event.currentTarget.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void model.addSubCategory();
+                }
+              }}
+              className={classes.fieldGrow}
+            />
+            <Button
+              leftSection={<IconPlus size={16} />}
+              loading={model.creating}
+              disabled={
+                !model.newSubCategoryCategoryId ||
+                !model.newSubCategoryName.trim() ||
+                model.categoryOptions.length === 0
+              }
+              fullWidth={model.isMobile}
+              onClick={() => void model.addSubCategory()}
+            >
+              Add subcategory
+            </Button>
+          </Group>
+        ) : (
+          <Group align="flex-end" wrap="wrap">
+            <TextInput
+              label="Category name"
+              placeholder="e.g. Travel"
+              value={model.newCategoryName}
+              onChange={(event) => {
+                model.clearFeedback();
+                model.setNewCategoryName(event.currentTarget.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void model.addCategory();
+                }
+              }}
+              className={classes.fieldGrow}
+            />
+            <Button
+              leftSection={<IconPlus size={16} />}
+              loading={model.creating}
+              disabled={!model.newCategoryName.trim()}
+              fullWidth={model.isMobile}
+              onClick={() => void model.addCategory()}
+            >
+              Add category
+            </Button>
+          </Group>
+        )}
+      </Stack>
+    </Paper>
+  );
+}
+
+function CompanyDefaultTaxonomyList({
+  model,
+}: {
+  model: CompanyDefaultTaxonomyModalController;
+}) {
+  return (
+    <Accordion
+      multiple
+      variant="separated"
+      radius="md"
+      value={model.accordionValue}
+      onChange={model.setExpandedCategoryIds}
+      classNames={{ item: classes.taxonomyAccordionItem }}
+    >
+      {model.visibleCategories.map((category) => {
+        const allSubCategories = model.subCategories.filter(
+          (subCategory) => subCategory.companyDefaultCategoryId === category.id
+        );
+        const categoryMatches = category.name
+          .toLocaleLowerCase()
+          .includes(model.normalizedSearch);
+        const visibleSubCategories =
+          model.normalizedSearch && !categoryMatches
+            ? allSubCategories.filter((subCategory) =>
+                subCategory.name
+                  .toLocaleLowerCase()
+                  .includes(model.normalizedSearch)
+              )
+            : allSubCategories;
+        const renamingCategory =
+          model.renameTarget?.kind === 'category' &&
+          model.renameTarget.id === category.id;
+
+        return (
+          <Accordion.Item key={category.id} value={category.id}>
+            {renamingCategory ? (
+              <Group p="sm" align="flex-end" wrap="wrap">
+                <TextInput
+                  label="Rename company category"
+                  value={model.renameDraft}
+                  autoFocus
+                  disabled={model.renaming}
+                  onChange={(event) => {
+                    model.setError(null);
+                    model.setRenameDraft(event.currentTarget.value);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void model.saveRename();
+                    }
+                    if (event.key === 'Escape') model.cancelRename();
+                  }}
+                  className={classes.fieldGrow}
+                />
+                <Button
+                  size="compact-sm"
+                  loading={model.renaming}
+                  disabled={!model.renameDraft.trim()}
+                  onClick={() => void model.saveRename()}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="compact-sm"
+                  variant="default"
+                  disabled={model.renaming}
+                  onClick={model.cancelRename}
+                >
+                  Cancel
+                </Button>
+              </Group>
+            ) : (
+              <Group gap={0} wrap="nowrap" pr="xs">
+                <Accordion.Control className={classes.taxonomyAccordionControl}>
+                  <Stack gap={3}>
+                    <Text fw={600}>{category.name}</Text>
+                    <Text size="xs" c="dimmed">
+                      {allSubCategories.length}{' '}
+                      {allSubCategories.length === 1
+                        ? 'subcategory'
+                        : 'subcategories'}
+                    </Text>
+                  </Stack>
+                </Accordion.Control>
+                {!model.readOnly ? (
+                  <ManagementActionsMenu
+                    label={`Actions for company category ${category.name}`}
+                  >
+                    <Menu.Item
+                      onClick={() =>
+                        model.beginRename({
+                          kind: 'category',
+                          id: category.id,
+                          name: category.name,
+                        })
+                      }
+                    >
+                      Rename category
+                    </Menu.Item>
+                    <Menu.Divider />
+                    <Menu.Item
+                      color="red"
+                      leftSection={<IconTrash size={15} />}
+                      onClick={() => {
+                        model.beginDelete({
+                          kind: 'category',
+                          id: category.id,
+                          name: category.name,
+                        });
+                      }}
+                    >
+                      Delete category
+                    </Menu.Item>
+                  </ManagementActionsMenu>
+                ) : null}
+              </Group>
+            )}
+
+            <Accordion.Panel>
+              {visibleSubCategories.length === 0 ? (
+                <Text className={classes.emptyState}>
+                  No subcategories yet.
+                </Text>
+              ) : (
+                <Stack gap="xs">
+                  {visibleSubCategories.map((subCategory) => {
+                    const renamingSubCategory =
+                      model.renameTarget?.kind === 'subcategory' &&
+                      model.renameTarget.id === subCategory.id;
+                    return (
+                      <Paper
+                        key={subCategory.id}
+                        withBorder
+                        radius="md"
+                        p="sm"
+                        className={classes.taxonomySubCategoryRow}
+                      >
+                        {renamingSubCategory ? (
+                          <Group align="flex-end" wrap="wrap">
+                            <TextInput
+                              label="Rename company subcategory"
+                              value={model.renameDraft}
+                              autoFocus
+                              disabled={model.renaming}
+                              onChange={(event) => {
+                                model.setError(null);
+                                model.setRenameDraft(event.currentTarget.value);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  void model.saveRename();
+                                }
+                                if (event.key === 'Escape') {
+                                  model.cancelRename();
+                                }
+                              }}
+                              className={classes.fieldGrow}
+                            />
+                            <Button
+                              size="compact-sm"
+                              loading={model.renaming}
+                              disabled={!model.renameDraft.trim()}
+                              onClick={() => void model.saveRename()}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="compact-sm"
+                              variant="default"
+                              disabled={model.renaming}
+                              onClick={model.cancelRename}
+                            >
+                              Cancel
+                            </Button>
+                          </Group>
+                        ) : (
+                          <Group
+                            justify="space-between"
+                            align="center"
+                            wrap="nowrap"
+                          >
+                            <Text fw={500}>{subCategory.name}</Text>
+                            {!model.readOnly ? (
+                              <ManagementActionsMenu
+                                label={`Actions for company subcategory ${subCategory.name}`}
+                              >
+                                <Menu.Item
+                                  onClick={() =>
+                                    model.beginRename({
+                                      kind: 'subcategory',
+                                      id: subCategory.id,
+                                      name: subCategory.name,
+                                    })
+                                  }
+                                >
+                                  Rename subcategory
+                                </Menu.Item>
+                                <Menu.Item
+                                  disabled={model.categoryOptions.length < 2}
+                                  onClick={() => {
+                                    model.clearFeedback();
+                                    model.setPendingMove({
+                                      id: subCategory.id,
+                                      name: subCategory.name,
+                                      currentCategoryId:
+                                        subCategory.companyDefaultCategoryId,
+                                    });
+                                    model.setMoveCategoryId(null);
+                                  }}
+                                >
+                                  Move to another category…
+                                </Menu.Item>
+                                <Menu.Divider />
+                                <Menu.Item
+                                  color="red"
+                                  leftSection={<IconTrash size={15} />}
+                                  onClick={() => {
+                                    model.beginDelete({
+                                      kind: 'subcategory',
+                                      id: subCategory.id,
+                                      name: subCategory.name,
+                                    });
+                                  }}
+                                >
+                                  Delete subcategory
+                                </Menu.Item>
+                              </ManagementActionsMenu>
+                            ) : null}
+                          </Group>
+                        )}
+                      </Paper>
+                    );
+                  })}
+                </Stack>
+              )}
+            </Accordion.Panel>
+          </Accordion.Item>
+        );
+      })}
+    </Accordion>
+  );
+}
+
+function MoveCompanyDefaultTaxonomyModal({
+  model,
+}: {
+  model: CompanyDefaultTaxonomyModalController;
+}) {
+  return (
+    <Modal
+      opened={!!model.pendingMove}
+      onClose={() => {
+        model.setPendingMove(null);
+        model.setMoveCategoryId(null);
+      }}
+      title="Move company subcategory"
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      lockScroll={false}
+    >
+      <Stack gap="md">
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          Move “{model.pendingMove?.name ?? ''}” to another company category.
+          Linked projects refresh inherited items automatically; project
+          overrides remain unchanged.
+        </Text>
+        {model.moveAffectedRules.length > 0 ? (
+          <Alert color="blue" title="Auto-coding impact">
+            {model.moveAffectedRules.length}{' '}
+            {model.moveAffectedRules.length === 1
+              ? 'company rule'
+              : 'company rules'}{' '}
+            targeting this exact subcategory ID will follow the move
+            automatically
+            {model.moveCategoryId
+              ? ` to ${
+                  model.categories.find(
+                    (category) => category.id === model.moveCategoryId
+                  )?.name ?? 'the selected category'
+                } > ${model.pendingMove?.name ?? ''}`
+              : ''}
+            . Inherited project copies will refresh to the same target unless
+            their taxonomy placement is overridden locally.
+          </Alert>
+        ) : null}
+        <Select
+          label="New company category"
+          placeholder="Select category"
+          data={model.moveCategoryOptions}
+          value={model.moveCategoryId}
+          searchable
+          {...firefoxSafeModalSelectProps}
+          onChange={model.setMoveCategoryId}
+        />
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            disabled={model.updateSubCategory.isPending}
+            onClick={() => {
+              model.setPendingMove(null);
+              model.setMoveCategoryId(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            fullWidth={model.isMobile}
+            loading={model.updateSubCategory.isPending}
+            disabled={!model.pendingMove || !model.moveCategoryId}
+            onClick={async () => {
+              if (!model.pendingMove || !model.moveCategoryId) return;
+              try {
+                model.clearFeedback();
+                await model.updateSubCategory.mutateAsync({
+                  id: asCompanyDefaultSubCategoryId(model.pendingMove.id),
+                  companyDefaultCategoryId: asCompanyDefaultCategoryId(
+                    model.moveCategoryId
+                  ),
+                });
+                const movedName = model.pendingMove.name;
+                model.setPendingMove(null);
+                model.setMoveCategoryId(null);
+                model.setSuccess(`Moved company subcategory "${movedName}".`);
+              } catch (err) {
+                model.setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not move company subcategory.'
+                );
+              }
+            }}
+          >
+            Move subcategory
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function DeleteCompanyDefaultTaxonomyModal({
+  model,
+}: {
+  model: CompanyDefaultTaxonomyModalController;
+}) {
+  return (
+    <Modal
+      opened={!!model.pendingDelete}
+      onClose={model.closeDelete}
+      title={
+        model.pendingDelete?.kind === 'category'
+          ? 'Delete company category?'
+          : 'Delete company subcategory?'
+      }
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      lockScroll={false}
+    >
+      <Stack gap="md">
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          {model.pendingDelete?.kind === 'category'
+            ? `Delete "${model.pendingDelete.name}" and all of its company subcategories? Linked project items are detached rather than deleting existing project coding data.`
+            : `Delete "${model.pendingDelete?.name ?? ''}" from the company categories? Linked project items are detached rather than deleting existing project coding data.`}
+        </Text>
+        {model.deleteAffectedRules.length > 0 ? (
+          <Alert color="yellow" title="Auto-coding rules affected">
+            {model.deleteAffectedRules.length}{' '}
+            {model.deleteAffectedRules.length === 1
+              ? 'company rule targets'
+              : 'company rules target'}{' '}
+            this {model.pendingDelete?.kind}. Matches:{' '}
+            {model.deleteAffectedRules.map((rule) => rule.matchText).join(', ')}
+            .
+          </Alert>
+        ) : null}
+        {model.pendingDelete?.kind === 'subcategory' &&
+        model.deleteAffectedRules.length > 0 ? (
+          <>
+            <Select
+              label="Affected rule handling"
+              data={[
+                {
+                  value: 'reassign',
+                  label: `Reassign ${model.deleteAffectedRules.length} ${
+                    model.deleteAffectedRules.length === 1 ? 'rule' : 'rules'
+                  } before deleting`,
+                },
+                {
+                  value: 'delete',
+                  label: `Delete ${model.deleteAffectedRules.length} ${
+                    model.deleteAffectedRules.length === 1 ? 'rule' : 'rules'
+                  } with the subcategory`,
+                },
+              ]}
+              value={model.deleteRuleHandling}
+              allowDeselect={false}
+              onChange={(value) => {
+                model.setDeleteRuleHandling(
+                  value === 'reassign' ? 'reassign' : 'delete'
+                );
+                model.setDeleteReplacementCategoryId(null);
+                model.setDeleteReplacementSubCategoryId(null);
+              }}
+            />
+            {model.deleteRuleHandling === 'reassign' ? (
+              <Group grow align="flex-end" wrap="wrap">
+                <Select
+                  label="Replacement company category"
+                  data={model.categoryOptions}
+                  value={model.deleteReplacementCategoryId}
+                  searchable
+                  {...firefoxSafeModalSelectProps}
+                  onChange={(value) => {
+                    model.setDeleteReplacementCategoryId(value);
+                    model.setDeleteReplacementSubCategoryId(null);
+                  }}
+                />
+                <Select
+                  label="Replacement company subcategory"
+                  placeholder={
+                    model.deleteReplacementCategoryId
+                      ? 'Select subcategory'
+                      : 'Choose category first'
+                  }
+                  data={model.deleteReplacementSubCategoryOptions}
+                  value={model.deleteReplacementSubCategoryId}
+                  searchable
+                  disabled={!model.deleteReplacementCategoryId}
+                  {...firefoxSafeModalSelectProps}
+                  onChange={model.setDeleteReplacementSubCategoryId}
+                />
+              </Group>
+            ) : null}
+          </>
+        ) : null}
+        {model.pendingDelete?.kind === 'category' &&
+        model.deleteAffectedRules.length > 0 ? (
+          <Text size="sm" c="dimmed">
+            Category deletion removes these company rules. Existing linked
+            project copies become detached local rules. To preserve the company
+            rules, cancel and reassign them before deleting the category.
+          </Text>
+        ) : null}
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            disabled={model.deleting}
+            onClick={model.closeDelete}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            fullWidth={model.isMobile}
+            loading={model.deleting}
+            disabled={
+              model.pendingDelete?.kind === 'subcategory' &&
+              model.deleteAffectedRules.length > 0 &&
+              model.deleteRuleHandling === 'reassign' &&
+              !model.deleteReplacementSubCategoryId
+            }
+            onClick={async () => {
+              if (!model.pendingDelete) return;
+              try {
+                model.clearFeedback();
+                if (model.pendingDelete.kind === 'category') {
+                  await model.deleteCategory.mutateAsync(
+                    asCompanyDefaultCategoryId(model.pendingDelete.id)
+                  );
+                } else {
+                  await model.deleteSubCategory.mutateAsync({
+                    subCategoryId: asCompanyDefaultSubCategoryId(
+                      model.pendingDelete.id
+                    ),
+                    ...(model.deleteRuleHandling === 'reassign' &&
+                    model.deleteReplacementSubCategoryId
+                      ? {
+                          replacementSubCategoryId:
+                            asCompanyDefaultSubCategoryId(
+                              model.deleteReplacementSubCategoryId
+                            ),
+                        }
+                      : {}),
+                  });
+                }
+                model.closeDelete();
+                model.setSuccess(
+                  `Deleted company ${model.pendingDelete.kind}.`
+                );
+              } catch (err) {
+                model.setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not delete company category item.'
+                );
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function CompanyDefaultTaxonomyModalView({
+  model,
+}: {
+  model: CompanyDefaultTaxonomyModalController;
+}) {
   return (
     <>
       <Modal
-        opened={opened}
-        onClose={closeManager}
+        opened={model.opened}
+        onClose={model.closeManager}
         title="Manage company categories"
-        fullScreen={isMobile}
-        centered={!isMobile}
+        fullScreen={model.isMobile}
+        centered={!model.isMobile}
         size="lg"
         lockScroll={false}
         styles={{
           body: {
-            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+            maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
             overflowY: 'auto',
           },
         }}
       >
         <Stack gap="md" className={classes.modalStack}>
-          {error ? <Alert color="red">{error}</Alert> : null}
-          {success ? (
+          {model.error ? <Alert color="red">{model.error}</Alert> : null}
+          {model.success ? (
             <Alert
               color="green"
               withCloseButton
-              onClose={() => setSuccess(null)}
+              onClose={() => model.setSuccess(null)}
             >
-              {success}
+              {model.success}
             </Alert>
           ) : null}
-          {readOnly ? (
+          {model.readOnly ? (
             <Alert color="blue">
               You can view company categories, but you do not have permission to
               change them.
@@ -344,642 +1051,48 @@ export default function CompanyDefaultTaxonomyModal(props: {
             while project-specific overrides remain local.
           </ManagementModalIntro>
 
-          {!readOnly ? (
-            <Paper
-              withBorder
-              radius="md"
-              p="md"
-              className={classes.taxonomyCreateCard}
-            >
-              <Stack gap="sm">
-                <Group justify="space-between" align="flex-start" wrap="wrap">
-                  <Stack gap={2}>
-                    <Text fw={600}>
-                      {creationMode === 'subcategory'
-                        ? 'Add company subcategory'
-                        : 'Add company category'}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      {creationMode === 'subcategory'
-                        ? 'Create a standard coding option under an existing company category.'
-                        : 'Create a new top-level category for linked projects.'}
-                    </Text>
-                  </Stack>
-                  <Button
-                    variant="subtle"
-                    size="compact-sm"
-                    onClick={() => {
-                      clearFeedback();
-                      setCreationMode((current) =>
-                        current === 'subcategory' ? 'category' : 'subcategory'
-                      );
-                    }}
-                  >
-                    {creationMode === 'subcategory'
-                      ? 'Add category instead'
-                      : 'Add subcategory instead'}
-                  </Button>
-                </Group>
-
-                {creationMode === 'subcategory' ? (
-                  <Group align="flex-end" wrap="wrap">
-                    <Select
-                      label="Company category"
-                      placeholder={
-                        categoryOptions.length === 0
-                          ? 'Add a category first'
-                          : 'Select category'
-                      }
-                      data={categoryOptions}
-                      value={newSubCategoryCategoryId}
-                      searchable
-                      disabled={categoryOptions.length === 0}
-                      {...firefoxSafeModalSelectProps}
-                      onChange={(value) => {
-                        clearFeedback();
-                        setNewSubCategoryCategoryId(value);
-                      }}
-                      className={classes.fieldGrow}
-                    />
-                    <TextInput
-                      label="Subcategory name"
-                      placeholder="e.g. Flights"
-                      value={newSubCategoryName}
-                      disabled={categoryOptions.length === 0}
-                      onChange={(event) => {
-                        clearFeedback();
-                        setNewSubCategoryName(event.currentTarget.value);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          void addSubCategory();
-                        }
-                      }}
-                      className={classes.fieldGrow}
-                    />
-                    <Button
-                      leftSection={<IconPlus size={16} />}
-                      loading={creating}
-                      disabled={
-                        !newSubCategoryCategoryId ||
-                        !newSubCategoryName.trim() ||
-                        categoryOptions.length === 0
-                      }
-                      fullWidth={isMobile}
-                      onClick={() => void addSubCategory()}
-                    >
-                      Add subcategory
-                    </Button>
-                  </Group>
-                ) : (
-                  <Group align="flex-end" wrap="wrap">
-                    <TextInput
-                      label="Category name"
-                      placeholder="e.g. Travel"
-                      value={newCategoryName}
-                      onChange={(event) => {
-                        clearFeedback();
-                        setNewCategoryName(event.currentTarget.value);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          void addCategory();
-                        }
-                      }}
-                      className={classes.fieldGrow}
-                    />
-                    <Button
-                      leftSection={<IconPlus size={16} />}
-                      loading={creating}
-                      disabled={!newCategoryName.trim()}
-                      fullWidth={isMobile}
-                      onClick={() => void addCategory()}
-                    >
-                      Add category
-                    </Button>
-                  </Group>
-                )}
-              </Stack>
-            </Paper>
+          {!model.readOnly ? (
+            <CompanyDefaultTaxonomyComposer model={model} />
           ) : null}
 
-          {showSearch ? (
+          {model.showSearch ? (
             <TextInput
               label="Search categories"
               placeholder="Search categories or subcategories"
-              value={search}
-              onChange={(event) => setSearch(event.currentTarget.value)}
+              value={model.search}
+              onChange={(event) => model.setSearch(event.currentTarget.value)}
             />
           ) : null}
 
-          {companyDefaultsQ.isPending && !companyDefaultsQ.data ? (
+          {model.companyDefaultsQ.isPending && !model.companyDefaultsQ.data ? (
             <Text className={classes.emptyState}>
               Loading company categories…
             </Text>
-          ) : categories.length === 0 ? (
+          ) : model.categories.length === 0 ? (
             <Text className={classes.emptyState}>
               No company categories yet. Add a category before creating
               subcategories.
             </Text>
-          ) : visibleCategories.length === 0 ? (
+          ) : model.visibleCategories.length === 0 ? (
             <Text className={classes.emptyState}>
-              No categories or subcategories match “{search.trim()}”.
+              No categories or subcategories match “{model.search.trim()}”.
             </Text>
           ) : (
-            <Accordion
-              multiple
-              variant="separated"
-              radius="md"
-              value={accordionValue}
-              onChange={setExpandedCategoryIds}
-              classNames={{ item: classes.taxonomyAccordionItem }}
-            >
-              {visibleCategories.map((category) => {
-                const allSubCategories = subCategories.filter(
-                  (subCategory) =>
-                    subCategory.companyDefaultCategoryId === category.id
-                );
-                const categoryMatches = category.name
-                  .toLocaleLowerCase()
-                  .includes(normalizedSearch);
-                const visibleSubCategories =
-                  normalizedSearch && !categoryMatches
-                    ? allSubCategories.filter((subCategory) =>
-                        subCategory.name
-                          .toLocaleLowerCase()
-                          .includes(normalizedSearch)
-                      )
-                    : allSubCategories;
-                const renamingCategory =
-                  renameTarget?.kind === 'category' &&
-                  renameTarget.id === category.id;
-
-                return (
-                  <Accordion.Item key={category.id} value={category.id}>
-                    {renamingCategory ? (
-                      <Group p="sm" align="flex-end" wrap="wrap">
-                        <TextInput
-                          label="Rename company category"
-                          value={renameDraft}
-                          autoFocus
-                          disabled={renaming}
-                          onChange={(event) => {
-                            setError(null);
-                            setRenameDraft(event.currentTarget.value);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                              event.preventDefault();
-                              void saveRename();
-                            }
-                            if (event.key === 'Escape') cancelRename();
-                          }}
-                          className={classes.fieldGrow}
-                        />
-                        <Button
-                          size="compact-sm"
-                          loading={renaming}
-                          disabled={!renameDraft.trim()}
-                          onClick={() => void saveRename()}
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          size="compact-sm"
-                          variant="default"
-                          disabled={renaming}
-                          onClick={cancelRename}
-                        >
-                          Cancel
-                        </Button>
-                      </Group>
-                    ) : (
-                      <Group gap={0} wrap="nowrap" pr="xs">
-                        <Accordion.Control
-                          className={classes.taxonomyAccordionControl}
-                        >
-                          <Stack gap={3}>
-                            <Text fw={600}>{category.name}</Text>
-                            <Text size="xs" c="dimmed">
-                              {allSubCategories.length}{' '}
-                              {allSubCategories.length === 1
-                                ? 'subcategory'
-                                : 'subcategories'}
-                            </Text>
-                          </Stack>
-                        </Accordion.Control>
-                        {!readOnly ? (
-                          <ManagementActionsMenu
-                            label={`Actions for company category ${category.name}`}
-                          >
-                            <Menu.Item
-                              onClick={() =>
-                                beginRename({
-                                  kind: 'category',
-                                  id: category.id,
-                                  name: category.name,
-                                })
-                              }
-                            >
-                              Rename category
-                            </Menu.Item>
-                            <Menu.Divider />
-                            <Menu.Item
-                              color="red"
-                              leftSection={<IconTrash size={15} />}
-                              onClick={() => {
-                                beginDelete({
-                                  kind: 'category',
-                                  id: category.id,
-                                  name: category.name,
-                                });
-                              }}
-                            >
-                              Delete category
-                            </Menu.Item>
-                          </ManagementActionsMenu>
-                        ) : null}
-                      </Group>
-                    )}
-
-                    <Accordion.Panel>
-                      {visibleSubCategories.length === 0 ? (
-                        <Text className={classes.emptyState}>
-                          No subcategories yet.
-                        </Text>
-                      ) : (
-                        <Stack gap="xs">
-                          {visibleSubCategories.map((subCategory) => {
-                            const renamingSubCategory =
-                              renameTarget?.kind === 'subcategory' &&
-                              renameTarget.id === subCategory.id;
-                            return (
-                              <Paper
-                                key={subCategory.id}
-                                withBorder
-                                radius="md"
-                                p="sm"
-                                className={classes.taxonomySubCategoryRow}
-                              >
-                                {renamingSubCategory ? (
-                                  <Group align="flex-end" wrap="wrap">
-                                    <TextInput
-                                      label="Rename company subcategory"
-                                      value={renameDraft}
-                                      autoFocus
-                                      disabled={renaming}
-                                      onChange={(event) => {
-                                        setError(null);
-                                        setRenameDraft(
-                                          event.currentTarget.value
-                                        );
-                                      }}
-                                      onKeyDown={(event) => {
-                                        if (event.key === 'Enter') {
-                                          event.preventDefault();
-                                          void saveRename();
-                                        }
-                                        if (event.key === 'Escape') {
-                                          cancelRename();
-                                        }
-                                      }}
-                                      className={classes.fieldGrow}
-                                    />
-                                    <Button
-                                      size="compact-sm"
-                                      loading={renaming}
-                                      disabled={!renameDraft.trim()}
-                                      onClick={() => void saveRename()}
-                                    >
-                                      Save
-                                    </Button>
-                                    <Button
-                                      size="compact-sm"
-                                      variant="default"
-                                      disabled={renaming}
-                                      onClick={cancelRename}
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </Group>
-                                ) : (
-                                  <Group
-                                    justify="space-between"
-                                    align="center"
-                                    wrap="nowrap"
-                                  >
-                                    <Text fw={500}>{subCategory.name}</Text>
-                                    {!readOnly ? (
-                                      <ManagementActionsMenu
-                                        label={`Actions for company subcategory ${subCategory.name}`}
-                                      >
-                                        <Menu.Item
-                                          onClick={() =>
-                                            beginRename({
-                                              kind: 'subcategory',
-                                              id: subCategory.id,
-                                              name: subCategory.name,
-                                            })
-                                          }
-                                        >
-                                          Rename subcategory
-                                        </Menu.Item>
-                                        <Menu.Item
-                                          disabled={categoryOptions.length < 2}
-                                          onClick={() => {
-                                            clearFeedback();
-                                            setPendingMove({
-                                              id: subCategory.id,
-                                              name: subCategory.name,
-                                              currentCategoryId:
-                                                subCategory.companyDefaultCategoryId,
-                                            });
-                                            setMoveCategoryId(null);
-                                          }}
-                                        >
-                                          Move to another category…
-                                        </Menu.Item>
-                                        <Menu.Divider />
-                                        <Menu.Item
-                                          color="red"
-                                          leftSection={<IconTrash size={15} />}
-                                          onClick={() => {
-                                            beginDelete({
-                                              kind: 'subcategory',
-                                              id: subCategory.id,
-                                              name: subCategory.name,
-                                            });
-                                          }}
-                                        >
-                                          Delete subcategory
-                                        </Menu.Item>
-                                      </ManagementActionsMenu>
-                                    ) : null}
-                                  </Group>
-                                )}
-                              </Paper>
-                            );
-                          })}
-                        </Stack>
-                      )}
-                    </Accordion.Panel>
-                  </Accordion.Item>
-                );
-              })}
-            </Accordion>
+            <CompanyDefaultTaxonomyList model={model} />
           )}
         </Stack>
       </Modal>
 
-      <Modal
-        opened={!!pendingMove}
-        onClose={() => {
-          setPendingMove(null);
-          setMoveCategoryId(null);
-        }}
-        title="Move company subcategory"
-        fullScreen={isMobile}
-        centered={!isMobile}
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            Move “{pendingMove?.name ?? ''}” to another company category. Linked
-            projects refresh inherited items automatically; project overrides
-            remain unchanged.
-          </Text>
-          {moveAffectedRules.length > 0 ? (
-            <Alert color="blue" title="Auto-coding impact">
-              {moveAffectedRules.length}{' '}
-              {moveAffectedRules.length === 1
-                ? 'company rule'
-                : 'company rules'}{' '}
-              targeting this exact subcategory ID will follow the move
-              automatically
-              {moveCategoryId
-                ? ` to ${
-                    categories.find(
-                      (category) => category.id === moveCategoryId
-                    )?.name ?? 'the selected category'
-                  } > ${pendingMove?.name ?? ''}`
-                : ''}
-              . Inherited project copies will refresh to the same target unless
-              their taxonomy placement is overridden locally.
-            </Alert>
-          ) : null}
-          <Select
-            label="New company category"
-            placeholder="Select category"
-            data={moveCategoryOptions}
-            value={moveCategoryId}
-            searchable
-            {...firefoxSafeModalSelectProps}
-            onChange={setMoveCategoryId}
-          />
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              disabled={updateSubCategory.isPending}
-              onClick={() => {
-                setPendingMove(null);
-                setMoveCategoryId(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              fullWidth={isMobile}
-              loading={updateSubCategory.isPending}
-              disabled={!pendingMove || !moveCategoryId}
-              onClick={async () => {
-                if (!pendingMove || !moveCategoryId) return;
-                try {
-                  clearFeedback();
-                  await updateSubCategory.mutateAsync({
-                    id: asCompanyDefaultSubCategoryId(pendingMove.id),
-                    companyDefaultCategoryId:
-                      asCompanyDefaultCategoryId(moveCategoryId),
-                  });
-                  const movedName = pendingMove.name;
-                  setPendingMove(null);
-                  setMoveCategoryId(null);
-                  setSuccess(`Moved company subcategory "${movedName}".`);
-                } catch (err) {
-                  setError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not move company subcategory.'
-                  );
-                }
-              }}
-            >
-              Move subcategory
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <MoveCompanyDefaultTaxonomyModal model={model} />
 
-      <Modal
-        opened={!!pendingDelete}
-        onClose={closeDelete}
-        title={
-          pendingDelete?.kind === 'category'
-            ? 'Delete company category?'
-            : 'Delete company subcategory?'
-        }
-        fullScreen={isMobile}
-        centered={!isMobile}
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            {pendingDelete?.kind === 'category'
-              ? `Delete "${pendingDelete.name}" and all of its company subcategories? Linked project items are detached rather than deleting existing project coding data.`
-              : `Delete "${pendingDelete?.name ?? ''}" from the company categories? Linked project items are detached rather than deleting existing project coding data.`}
-          </Text>
-          {deleteAffectedRules.length > 0 ? (
-            <Alert color="yellow" title="Auto-coding rules affected">
-              {deleteAffectedRules.length}{' '}
-              {deleteAffectedRules.length === 1
-                ? 'company rule targets'
-                : 'company rules target'}{' '}
-              this {pendingDelete?.kind}. Matches:{' '}
-              {deleteAffectedRules.map((rule) => rule.matchText).join(', ')}.
-            </Alert>
-          ) : null}
-          {pendingDelete?.kind === 'subcategory' &&
-          deleteAffectedRules.length > 0 ? (
-            <>
-              <Select
-                label="Affected rule handling"
-                data={[
-                  {
-                    value: 'reassign',
-                    label: `Reassign ${deleteAffectedRules.length} ${
-                      deleteAffectedRules.length === 1 ? 'rule' : 'rules'
-                    } before deleting`,
-                  },
-                  {
-                    value: 'delete',
-                    label: `Delete ${deleteAffectedRules.length} ${
-                      deleteAffectedRules.length === 1 ? 'rule' : 'rules'
-                    } with the subcategory`,
-                  },
-                ]}
-                value={deleteRuleHandling}
-                allowDeselect={false}
-                onChange={(value) => {
-                  setDeleteRuleHandling(
-                    value === 'reassign' ? 'reassign' : 'delete'
-                  );
-                  setDeleteReplacementCategoryId(null);
-                  setDeleteReplacementSubCategoryId(null);
-                }}
-              />
-              {deleteRuleHandling === 'reassign' ? (
-                <Group grow align="flex-end" wrap="wrap">
-                  <Select
-                    label="Replacement company category"
-                    data={categoryOptions}
-                    value={deleteReplacementCategoryId}
-                    searchable
-                    {...firefoxSafeModalSelectProps}
-                    onChange={(value) => {
-                      setDeleteReplacementCategoryId(value);
-                      setDeleteReplacementSubCategoryId(null);
-                    }}
-                  />
-                  <Select
-                    label="Replacement company subcategory"
-                    placeholder={
-                      deleteReplacementCategoryId
-                        ? 'Select subcategory'
-                        : 'Choose category first'
-                    }
-                    data={deleteReplacementSubCategoryOptions}
-                    value={deleteReplacementSubCategoryId}
-                    searchable
-                    disabled={!deleteReplacementCategoryId}
-                    {...firefoxSafeModalSelectProps}
-                    onChange={setDeleteReplacementSubCategoryId}
-                  />
-                </Group>
-              ) : null}
-            </>
-          ) : null}
-          {pendingDelete?.kind === 'category' &&
-          deleteAffectedRules.length > 0 ? (
-            <Text size="sm" c="dimmed">
-              Category deletion removes these company rules. Existing linked
-              project copies become detached local rules. To preserve the
-              company rules, cancel and reassign them before deleting the
-              category.
-            </Text>
-          ) : null}
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              disabled={deleting}
-              onClick={closeDelete}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              fullWidth={isMobile}
-              loading={deleting}
-              disabled={
-                pendingDelete?.kind === 'subcategory' &&
-                deleteAffectedRules.length > 0 &&
-                deleteRuleHandling === 'reassign' &&
-                !deleteReplacementSubCategoryId
-              }
-              onClick={async () => {
-                if (!pendingDelete) return;
-                try {
-                  clearFeedback();
-                  if (pendingDelete.kind === 'category') {
-                    await deleteCategory.mutateAsync(
-                      asCompanyDefaultCategoryId(pendingDelete.id)
-                    );
-                  } else {
-                    await deleteSubCategory.mutateAsync({
-                      subCategoryId: asCompanyDefaultSubCategoryId(
-                        pendingDelete.id
-                      ),
-                      ...(deleteRuleHandling === 'reassign' &&
-                      deleteReplacementSubCategoryId
-                        ? {
-                            replacementSubCategoryId:
-                              asCompanyDefaultSubCategoryId(
-                                deleteReplacementSubCategoryId
-                              ),
-                          }
-                        : {}),
-                    });
-                  }
-                  closeDelete();
-                  setSuccess(`Deleted company ${pendingDelete.kind}.`);
-                } catch (err) {
-                  setError(
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not delete company category item.'
-                  );
-                }
-              }}
-            >
-              Delete
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <DeleteCompanyDefaultTaxonomyModal model={model} />
     </>
   );
+}
+
+export default function CompanyDefaultTaxonomyModal(
+  props: Parameters<typeof useCompanyDefaultTaxonomyModalController>[0]
+) {
+  const model = useCompanyDefaultTaxonomyModalController(props);
+  return <CompanyDefaultTaxonomyModalView model={model} />;
 }

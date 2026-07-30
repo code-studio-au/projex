@@ -29,7 +29,7 @@ type TransactionsPageSummary = {
   assignedToMeCount: number;
 };
 
-export default function TransactionsOverviewCard(props: {
+function useTransactionsOverviewCardController(props: {
   pageSummary: TransactionsPageSummary;
   transactionView: TransactionView;
   currencyCode: string;
@@ -142,13 +142,76 @@ export default function TransactionsOverviewCard(props: {
     pageSummary
   );
 
+  return {
+    bulkApproveSuggestedReversalsConfirmOpen,
+    bulkDeleteConfirmOpen,
+    canAdminUnlock,
+    canEditTaxonomy,
+    canManageReversals,
+    currencyCode,
+    drilldownLabel,
+    invalidDateCount,
+    isHydrated,
+    isMobile,
+    loadingReversalReviewQueue,
+    onApproveAllAutoMappings,
+    onApproveAutoMappings,
+    onClearCoding,
+    onClearDrilldown,
+    onClearSelection,
+    onCloseBulkApproveSuggestedReversalsConfirm,
+    onCloseBulkDeleteConfirm,
+    onConfirmBulkApproveSuggestedReversals,
+    onConfirmBulkDelete,
+    onLock,
+    onMarkReviewed,
+    onMarkUnreviewed,
+    onOpenBulkApproveSuggestedReversalsConfirm,
+    onOpenBulkDeleteConfirm,
+    onOpenRecode,
+    onOpenReversalReviewQueue,
+    onOpenTaxonomyManager,
+    onReconcilePendingReversals,
+    onSelectAll,
+    onUnlock,
+    pageSummary,
+    projectAutoMappedPendingCount,
+    projectRuleError,
+    projectRulePromptOpen,
+    readOnly,
+    reconcilingPendingReversals,
+    selectableTxnCount,
+    selectedAmbiguousSuggestedReversalCount,
+    selectedAutoMappedPendingCount,
+    selectedCountLabel,
+    selectedDeletableCount,
+    selectedLockEligibleCount,
+    selectedSuggestedReversalCount,
+    selectedSuggestedReversalPairs,
+    selectedTxnCount,
+    selectedUnlockedCategorisableCount,
+    selectingAll,
+    workflowBadges,
+    workflowHeading,
+  };
+}
+
+type TransactionsOverviewCardController = ReturnType<
+  typeof useTransactionsOverviewCardController
+>;
+
+function TransactionsOverviewCardView({
+  model,
+}: {
+  model: TransactionsOverviewCardController;
+}) {
   return (
     <>
       <Stack gap="md">
         <Group justify="space-between" align="flex-start" gap="md" wrap="wrap">
           <Group gap="sm" align="center" wrap="wrap">
-            <Text fw={650}>{workflowHeading}</Text>
-            {workflowBadges.map((badge) => (
+            <Text fw={650}>{model.workflowHeading}</Text>
+            {model.workflowBadges.map((badge) => (
               <Badge
                 key={`${badge.color}-${badge.label}`}
                 variant="light"
@@ -159,56 +222,61 @@ export default function TransactionsOverviewCard(props: {
             ))}
           </Group>
 
-          {isHydrated ? (
+          {model.isHydrated ? (
             <Group
               gap="sm"
               wrap="wrap"
-              style={{ width: isMobile ? '100%' : undefined }}
+              style={{ width: model.isMobile ? '100%' : undefined }}
             >
-              {pageSummary.reversalMatchReviewCount > 0 &&
-              canManageReversals &&
-              !readOnly ? (
+              {model.pageSummary.reversalMatchReviewCount > 0 &&
+              model.canManageReversals &&
+              !model.readOnly ? (
                 <Button
                   variant="light"
                   size="sm"
-                  loading={loadingReversalReviewQueue}
-                  fullWidth={isMobile}
-                  onClick={onOpenReversalReviewQueue}
+                  loading={model.loadingReversalReviewQueue}
+                  fullWidth={model.isMobile}
+                  onClick={model.onOpenReversalReviewQueue}
                 >
-                  Review matches ({pageSummary.reversalMatchReviewCount})
+                  Review matches ({model.pageSummary.reversalMatchReviewCount})
                 </Button>
               ) : null}
               <Menu withinPortal position="bottom-end" shadow="md">
                 <Menu.Target>
-                  <Button variant="default" size="sm" fullWidth={isMobile}>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    fullWidth={model.isMobile}
+                  >
                     Tools
                   </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                  {projectAutoMappedPendingCount > 0 && !readOnly ? (
+                  {model.projectAutoMappedPendingCount > 0 &&
+                  !model.readOnly ? (
                     <>
-                      <Menu.Item onClick={onApproveAllAutoMappings}>
+                      <Menu.Item onClick={model.onApproveAllAutoMappings}>
                         Approve all project coding (
-                        {projectAutoMappedPendingCount})
+                        {model.projectAutoMappedPendingCount})
                       </Menu.Item>
                       <Menu.Divider />
                     </>
                   ) : null}
                   <Menu.Item
                     disabled={
-                      readOnly ||
-                      !canManageReversals ||
-                      reconcilingPendingReversals
+                      model.readOnly ||
+                      !model.canManageReversals ||
+                      model.reconcilingPendingReversals
                     }
-                    onClick={onReconcilePendingReversals}
+                    onClick={model.onReconcilePendingReversals}
                   >
-                    {reconcilingPendingReversals
+                    {model.reconcilingPendingReversals
                       ? 'Finding reversal matches...'
                       : 'Find reversal matches'}
                   </Menu.Item>
                   <Menu.Item
-                    disabled={readOnly || !canEditTaxonomy}
-                    onClick={onOpenTaxonomyManager}
+                    disabled={model.readOnly || !model.canEditTaxonomy}
+                    onClick={model.onOpenTaxonomyManager}
                   >
                     Manage categories
                   </Menu.Item>
@@ -218,81 +286,87 @@ export default function TransactionsOverviewCard(props: {
           ) : null}
         </Group>
 
-        {isHydrated && !readOnly && selectedTxnCount > 0 ? (
+        {model.isHydrated && !model.readOnly && model.selectedTxnCount > 0 ? (
           <TransactionBulkActionsBar
-            selectedTxnCount={selectedTxnCount}
-            selectedCountLabel={selectedCountLabel}
-            selectableTxnCount={selectableTxnCount}
-            selectingAll={selectingAll}
-            selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
-            selectedSuggestedReversalCount={selectedSuggestedReversalCount}
+            selectedTxnCount={model.selectedTxnCount}
+            selectedCountLabel={model.selectedCountLabel}
+            selectableTxnCount={model.selectableTxnCount}
+            selectingAll={model.selectingAll}
+            selectedAutoMappedPendingCount={
+              model.selectedAutoMappedPendingCount
+            }
+            selectedSuggestedReversalCount={
+              model.selectedSuggestedReversalCount
+            }
             selectedUnlockedCategorisableCount={
-              selectedUnlockedCategorisableCount
+              model.selectedUnlockedCategorisableCount
             }
-            selectedDeletableCount={selectedDeletableCount}
-            selectedLockEligibleCount={selectedLockEligibleCount}
-            canManageReversals={canManageReversals}
-            canAdminUnlock={canAdminUnlock}
-            onSelectAll={onSelectAll}
-            onClearSelection={onClearSelection}
-            onMarkReviewed={onMarkReviewed}
-            onMarkUnreviewed={onMarkUnreviewed}
-            onLock={onLock}
-            onUnlock={onUnlock}
-            onApproveAutoMappings={onApproveAutoMappings}
+            selectedDeletableCount={model.selectedDeletableCount}
+            selectedLockEligibleCount={model.selectedLockEligibleCount}
+            canManageReversals={model.canManageReversals}
+            canAdminUnlock={model.canAdminUnlock}
+            onSelectAll={model.onSelectAll}
+            onClearSelection={model.onClearSelection}
+            onMarkReviewed={model.onMarkReviewed}
+            onMarkUnreviewed={model.onMarkUnreviewed}
+            onLock={model.onLock}
+            onUnlock={model.onUnlock}
+            onApproveAutoMappings={model.onApproveAutoMappings}
             onApproveSuggestedReversals={
-              onOpenBulkApproveSuggestedReversalsConfirm
+              model.onOpenBulkApproveSuggestedReversalsConfirm
             }
-            onOpenRecode={onOpenRecode}
-            onClearCoding={onClearCoding}
-            onDeleteSelected={onOpenBulkDeleteConfirm}
+            onOpenRecode={model.onOpenRecode}
+            onClearCoding={model.onClearCoding}
+            onDeleteSelected={model.onOpenBulkDeleteConfirm}
           />
         ) : null}
 
-        {drilldownLabel ? (
+        {model.drilldownLabel ? (
           <Group gap="sm" align="center" wrap="wrap">
             <Badge variant="light" color="blue">
               Budget drilldown
             </Badge>
             <Text size="sm" c="dimmed">
-              Showing budget-impact transactions for {drilldownLabel}.
+              Showing budget-impact transactions for {model.drilldownLabel}.
             </Text>
-            <Button size="xs" variant="subtle" onClick={onClearDrilldown}>
+            <Button size="xs" variant="subtle" onClick={model.onClearDrilldown}>
               Clear drilldown
             </Button>
           </Group>
         ) : null}
 
-        {invalidDateCount > 0 ? (
+        {model.invalidDateCount > 0 ? (
           <Text size="sm" c="orange.8">
-            {invalidDateCount} transaction(s) have invalid dates and may be
-            excluded from month filters or rollups.
+            {model.invalidDateCount} transaction(s) have invalid dates and may
+            be excluded from month filters or rollups.
           </Text>
         ) : null}
 
-        {projectRuleError && !projectRulePromptOpen ? (
-          <Alert color="red">{projectRuleError}</Alert>
+        {model.projectRuleError && !model.projectRulePromptOpen ? (
+          <Alert color="red">{model.projectRuleError}</Alert>
         ) : null}
       </Stack>
 
       <Modal
-        opened={bulkApproveSuggestedReversalsConfirmOpen}
-        onClose={onCloseBulkApproveSuggestedReversalsConfirm}
+        opened={model.bulkApproveSuggestedReversalsConfirmOpen}
+        onClose={model.onCloseBulkApproveSuggestedReversalsConfirm}
         title="Approve selected reversal matches?"
         centered
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed">
-            {selectedAmbiguousSuggestedReversalCount > 0
-              ? `You have selected to approve ${selectedSuggestedReversalCount} reversal match${
-                  selectedSuggestedReversalCount === 1 ? '' : 'es'
-                }. ${selectedAmbiguousSuggestedReversalCount} ${
-                  selectedAmbiguousSuggestedReversalCount === 1 ? 'was' : 'were'
+            {model.selectedAmbiguousSuggestedReversalCount > 0
+              ? `You have selected to approve ${model.selectedSuggestedReversalCount} reversal match${
+                  model.selectedSuggestedReversalCount === 1 ? '' : 'es'
+                }. ${model.selectedAmbiguousSuggestedReversalCount} ${
+                  model.selectedAmbiguousSuggestedReversalCount === 1
+                    ? 'was'
+                    : 'were'
                 } auto-matched to the closest default matching reversal because multiple possible matches existed. Continue with the selected defaults?`
               : 'This will approve the selected auto-matched reversal review items using their recommended matches and mark them as reversed.'}
           </Text>
           <Stack gap="xs">
-            {selectedSuggestedReversalPairs.map((reversal) => (
+            {model.selectedSuggestedReversalPairs.map((reversal) => (
               <Paper key={reversal.id} withBorder radius="md" p="sm">
                 <Text size="sm" fw={600}>
                   {reversal.sourceTxn?.item ?? 'Source transaction'} to{' '}
@@ -303,7 +377,7 @@ export default function TransactionsOverviewCard(props: {
                   {reversal.sourceTxn?.amountCents !== undefined
                     ? formatCurrencyFromCents(
                         reversal.sourceTxn.amountCents,
-                        currencyCode
+                        model.currencyCode
                       )
                     : 'Unknown amount'}
                   {' -> '}
@@ -311,7 +385,7 @@ export default function TransactionsOverviewCard(props: {
                   {reversal.counterpartTxn?.amountCents !== undefined
                     ? formatCurrencyFromCents(
                         reversal.counterpartTxn.amountCents,
-                        currencyCode
+                        model.currencyCode
                       )
                     : 'Unknown amount'}
                 </Text>
@@ -333,13 +407,13 @@ export default function TransactionsOverviewCard(props: {
           <Group justify="flex-end">
             <Button
               variant="default"
-              onClick={onCloseBulkApproveSuggestedReversalsConfirm}
+              onClick={model.onCloseBulkApproveSuggestedReversalsConfirm}
             >
               Cancel
             </Button>
             <Button
               color="blue"
-              onClick={onConfirmBulkApproveSuggestedReversals}
+              onClick={model.onConfirmBulkApproveSuggestedReversals}
             >
               Approve selected matches
             </Button>
@@ -348,8 +422,8 @@ export default function TransactionsOverviewCard(props: {
       </Modal>
 
       <Modal
-        opened={bulkDeleteConfirmOpen}
-        onClose={onCloseBulkDeleteConfirm}
+        opened={model.bulkDeleteConfirmOpen}
+        onClose={model.onCloseBulkDeleteConfirm}
         title="Delete selected transactions?"
         centered
       >
@@ -359,10 +433,10 @@ export default function TransactionsOverviewCard(props: {
             are not part of a reversal workflow. This cannot be undone.
           </Text>
           <Group justify="flex-end">
-            <Button variant="default" onClick={onCloseBulkDeleteConfirm}>
+            <Button variant="default" onClick={model.onCloseBulkDeleteConfirm}>
               Cancel
             </Button>
-            <Button color="red" onClick={onConfirmBulkDelete}>
+            <Button color="red" onClick={model.onConfirmBulkDelete}>
               Delete selected
             </Button>
           </Group>
@@ -370,4 +444,11 @@ export default function TransactionsOverviewCard(props: {
       </Modal>
     </>
   );
+}
+
+export default function TransactionsOverviewCard(
+  props: Parameters<typeof useTransactionsOverviewCardController>[0]
+) {
+  const model = useTransactionsOverviewCardController(props);
+  return <TransactionsOverviewCardView model={model} />;
 }

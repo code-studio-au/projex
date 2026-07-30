@@ -157,7 +157,7 @@ function companySettingsModalReducer(
   return next;
 }
 
-export default function CompanySettingsPanel(props: {
+function useCompanySettingsPanelController(props: {
   companyId: CompanyId;
   initialExportJobId?: string | null;
   initialReview?: 'rule-suggestions' | null;
@@ -407,13 +407,407 @@ export default function CompanySettingsPanel(props: {
     [canAddCompanyUsers, removeCompanyMember, sendInviteEmail]
   );
 
+  return {
+    activeModal,
+    canAddCompanyUsers,
+    canEditCompanyDefaults,
+    canExportCompany,
+    companyDefaultsLoading,
+    companyId,
+    companyImportRulesQ,
+    createUser,
+    dispatchInvite,
+    dispatchMembership,
+    effectiveDefaults,
+    effectiveRoleUserId,
+    highestRoleBadge,
+    initialExportJobId,
+    inviteError,
+    inviteStatus,
+    isHydrated,
+    isMobile,
+    membershipColumns,
+    membershipCompanyRole,
+    membershipError,
+    membershipRows,
+    membershipStatus,
+    newUserEmail,
+    newUserName,
+    newUserRole,
+    ruleSuggestionsQ,
+    sendOnboardingEmail,
+    setActiveModal,
+    upsertCompanyMembership,
+    userOptions,
+    wouldDemoteLastAdmin,
+  };
+}
+
+type CompanySettingsPanelController = ReturnType<
+  typeof useCompanySettingsPanelController
+>;
+
+function CompanyDetailsSettingsCard({
+  model,
+}: {
+  model: CompanySettingsPanelController;
+}) {
+  return (
+    <Paper className={classes.surfaceCard} radius="xl" p="lg">
+      <Stack gap="sm">
+        <Title order={5}>Company Standards Alignment</Title>
+        <Text size="sm" c="dimmed">
+          Define the shared categories, import rules, and auto-coding used by
+          projects that sync with company standards.
+        </Text>
+        {model.companyDefaultsLoading ||
+        (model.companyImportRulesQ.isPending &&
+          !model.companyImportRulesQ.data) ||
+        (model.ruleSuggestionsQ.isPending && !model.ruleSuggestionsQ.data) ? (
+          <Text size="sm" c="dimmed">
+            Loading company standards...
+          </Text>
+        ) : (
+          <Text size="xs" c="dimmed">
+            {model.effectiveDefaults?.categories.length ?? 0} categories,{' '}
+            {model.effectiveDefaults?.subCategories.length ?? 0} subcategories,{' '}
+            {model.companyImportRulesQ.data?.length ?? 0} import rules, and{' '}
+            {model.effectiveDefaults?.mappingRules.length ?? 0} auto-coding
+            rules.
+          </Text>
+        )}
+        <Group gap="sm" wrap="wrap">
+          <Badge variant="light" color="teal">
+            Synced projects inherit these
+          </Badge>
+          {(model.ruleSuggestionsQ.data?.length ?? 0) > 0 ? (
+            <Badge variant="light" color="orange">
+              {model.ruleSuggestionsQ.data?.length ?? 0} rule suggestions
+            </Badge>
+          ) : null}
+        </Group>
+        <Text size="xs" c="dimmed">
+          Project-specific overrides stay local. Repeated manual coding can also
+          be reviewed here and promoted into reusable company rules.
+        </Text>
+        <Group gap="sm" wrap="wrap">
+          <Button
+            variant="default"
+            disabled={!model.canEditCompanyDefaults}
+            onClick={() => model.setActiveModal('defaults')}
+          >
+            Manage Categories
+          </Button>
+          <Button
+            variant="default"
+            disabled={!model.canEditCompanyDefaults}
+            onClick={() => model.setActiveModal('mappings')}
+          >
+            Manage Auto-Coding Rules
+          </Button>
+          <Button
+            variant="default"
+            disabled={!model.canEditCompanyDefaults}
+            onClick={() => model.setActiveModal('importRules')}
+          >
+            Manage Import Rules
+          </Button>
+          <Button
+            variant="default"
+            disabled={!model.canEditCompanyDefaults}
+            onClick={() => model.setActiveModal('ruleSuggestions')}
+          >
+            Review Rule Suggestions
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
+function CompanyMembershipSettingsCard({
+  model,
+}: {
+  model: CompanySettingsPanelController;
+}) {
+  return (
+    <Paper className={classes.surfaceCard} radius="xl" p="lg">
+      <Stack gap="sm">
+        <Title order={5}>Add member</Title>
+        {model.inviteError ? (
+          <Alert color="red">{model.inviteError}</Alert>
+        ) : null}
+        {model.inviteStatus ? (
+          <Alert color="green">{model.inviteStatus}</Alert>
+        ) : null}
+        <Text size="sm" c="dimmed">
+          Add someone to the company and choose their initial access level.
+        </Text>
+        <Stack gap="sm" style={{ width: '100%', maxWidth: 460 }}>
+          <TextInput
+            label="Name"
+            value={model.newUserName}
+            onChange={(e) =>
+              model.dispatchInvite({
+                type: 'setName',
+                value: e.currentTarget.value,
+              })
+            }
+          />
+          <TextInput
+            label="Email"
+            value={model.newUserEmail}
+            onChange={(e) =>
+              model.dispatchInvite({
+                type: 'setEmail',
+                value: e.currentTarget.value,
+              })
+            }
+          />
+          <Select
+            label="Initial company role"
+            data={[
+              { value: 'member', label: 'member' },
+              { value: 'management', label: 'management' },
+              { value: 'executive', label: 'executive' },
+              { value: 'admin', label: 'admin' },
+            ]}
+            value={model.newUserRole}
+            onChange={(v) =>
+              model.dispatchInvite({
+                type: 'setRole',
+                value: toCompanyRole(v),
+              })
+            }
+          />
+          <Checkbox
+            label="Send password setup email now"
+            description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
+            checked={model.sendOnboardingEmail}
+            onChange={(e) =>
+              model.dispatchInvite({
+                type: 'setSendOnboardingEmail',
+                value: e.currentTarget.checked,
+              })
+            }
+          />
+          <Group>
+            <Button
+              variant="default"
+              disabled={!model.canAddCompanyUsers || model.createUser.isPending}
+              onClick={async () => {
+                const name = model.newUserName.trim();
+                const email = model.newUserEmail.trim();
+                if (!name || !email) return;
+                model.dispatchInvite({ type: 'start' });
+                try {
+                  const result = await model.createUser.mutateAsync({
+                    name,
+                    email,
+                    role: model.newUserRole ?? 'member',
+                    sendOnboardingEmail: model.sendOnboardingEmail,
+                  });
+                  if (result.onboardingEmailSent) {
+                    model.dispatchInvite({
+                      type: 'success',
+                      resetForm: true,
+                      message: result.createdAuthUser
+                        ? result.onboardingDelivery === 'email'
+                          ? `${result.user.email} was added as a new company member and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
+                          : `${result.user.email} was added as a new company member. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
+                        : result.onboardingDelivery === 'email'
+                          ? `${result.user.email} was added to the company and sent the newest password setup email. Ask them to check spam or junk if it does not arrive soon.`
+                          : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`,
+                    });
+                    return;
+                  }
+                  model.dispatchInvite({
+                    type: 'success',
+                    resetForm: true,
+                    message: result.membershipCreated
+                      ? `${result.user.email} was added to the company. No email was sent. You can resend their password setup email later from the member list if they need it.`
+                      : `${result.user.email} was already in the company. Their role was updated and no email was sent.`,
+                  });
+                } catch (err) {
+                  model.dispatchInvite({
+                    type: 'fail',
+                    message:
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not invite user.',
+                  });
+                }
+              }}
+            >
+              Add member
+            </Button>
+          </Group>
+        </Stack>
+        <Text size="xs" c="dimmed">
+          Adding someone to the company and emailing them are now separate
+          choices. New BetterAuth accounts still get their setup email
+          automatically, while existing users can be added quietly and emailed
+          later if needed.
+        </Text>
+      </Stack>
+    </Paper>
+  );
+}
+
+function CompanyOperationsSettingsCard({
+  model,
+}: {
+  model: CompanySettingsPanelController;
+}) {
+  return (
+    <Paper className={classes.surfaceCard} radius="xl" p="lg">
+      <Stack gap="sm">
+        <Title order={5}>Current members</Title>
+        <Text size="sm" c="dimmed">
+          Update a teammate's company role or remove them from the company
+          entirely.
+        </Text>
+        {model.membershipError ? (
+          <Alert color="red">{model.membershipError}</Alert>
+        ) : null}
+        {model.membershipStatus ? (
+          <Alert color="green">{model.membershipStatus}</Alert>
+        ) : null}
+        {model.isHydrated ? (
+          <Group align="flex-end" wrap="wrap">
+            <Select
+              label="User"
+              data={model.userOptions}
+              value={model.effectiveRoleUserId}
+              onChange={(v) =>
+                model.dispatchMembership({
+                  type: 'selectUser',
+                  userId: v ? asUserId(v) : null,
+                })
+              }
+              searchable
+              style={{ width: '100%', maxWidth: 420 }}
+            />
+            <Select
+              label="Company role"
+              data={[
+                { value: 'member', label: 'member' },
+                { value: 'management', label: 'management' },
+                { value: 'executive', label: 'executive' },
+                { value: 'admin', label: 'admin' },
+              ]}
+              value={model.membershipCompanyRole}
+              onChange={(v) =>
+                model.dispatchMembership({
+                  type: 'selectRole',
+                  role: toCompanyRole(v),
+                })
+              }
+              style={{ width: '100%', maxWidth: 220 }}
+            />
+            <Button
+              size="sm"
+              variant="default"
+              disabled={
+                !model.effectiveRoleUserId ||
+                !model.membershipCompanyRole ||
+                model.wouldDemoteLastAdmin
+              }
+              onClick={async () => {
+                if (!model.effectiveRoleUserId || !model.membershipCompanyRole)
+                  return;
+                model.dispatchMembership({ type: 'start' });
+                try {
+                  await model.upsertCompanyMembership.mutateAsync({
+                    userId: model.effectiveRoleUserId,
+                    role: model.membershipCompanyRole,
+                  });
+                  model.dispatchMembership({
+                    type: 'success',
+                    message: 'Company role updated.',
+                  });
+                } catch (err) {
+                  model.dispatchMembership({
+                    type: 'fail',
+                    message:
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not update company role.',
+                  });
+                }
+              }}
+            >
+              Set
+            </Button>
+          </Group>
+        ) : (
+          <Paper className={classes.surfaceMuted} radius="xl" p="md">
+            <Text size="sm" c="dimmed">
+              Loading role controls...
+            </Text>
+          </Paper>
+        )}
+        {model.wouldDemoteLastAdmin ? (
+          <Alert color="yellow">
+            This company must retain at least one admin. Assign another admin
+            before changing this role.
+          </Alert>
+        ) : null}
+        <Divider />
+        <div className={classes.tableWrap}>
+          {model.isHydrated ? (
+            <MantineReactTable
+              columns={model.membershipColumns}
+              data={model.membershipRows}
+              getRowId={(row) => row.key}
+              mantineTableContainerProps={{ className: 'financeTable' }}
+              mantineTableProps={{
+                highlightOnHover: true,
+                striped: 'odd',
+                withTableBorder: true,
+              }}
+              mantineTableBodyCellProps={{
+                style: { verticalAlign: 'middle' },
+              }}
+              enableColumnActions={false}
+              enableColumnFilters={false}
+              enableSorting
+              enableTopToolbar={false}
+              enableDensityToggle={false}
+              enableFullScreenToggle={false}
+              initialState={{
+                density: 'xs',
+                pagination: {
+                  pageIndex: 0,
+                  pageSize: model.isMobile ? 5 : 8,
+                },
+              }}
+            />
+          ) : (
+            <Paper className={classes.surfaceMuted} radius="xl" p="md">
+              <Text size="sm" c="dimmed">
+                Loading company members...
+              </Text>
+            </Paper>
+          )}
+        </div>
+      </Stack>
+    </Paper>
+  );
+}
+
+function CompanySettingsPanelView({
+  model,
+}: {
+  model: CompanySettingsPanelController;
+}) {
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <Paper className={classes.surfaceCard} radius="xl" p="lg">
         <Stack gap="sm">
           <Group justify="space-between" align="flex-start" wrap="wrap">
             <Title order={5}>Company settings</Title>
-            {highestRoleBadge}
+            {model.highestRoleBadge}
           </Group>
           <Text size="sm" c="dimmed">
             Manage company-wide standards, access, exports, and member roles.
@@ -423,348 +817,49 @@ export default function CompanySettingsPanel(props: {
       </Paper>
 
       <CompanyExportPanel
-        companyId={companyId}
-        initialExportJobId={initialExportJobId}
-        canExportCompany={canExportCompany}
-        isHydrated={isHydrated}
+        companyId={model.companyId}
+        initialExportJobId={model.initialExportJobId}
+        canExportCompany={model.canExportCompany}
+        isHydrated={model.isHydrated}
       />
 
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Company Standards Alignment</Title>
-          <Text size="sm" c="dimmed">
-            Define the shared categories, import rules, and auto-coding used by
-            projects that sync with company standards.
-          </Text>
-          {companyDefaultsLoading ||
-          (companyImportRulesQ.isPending && !companyImportRulesQ.data) ||
-          (ruleSuggestionsQ.isPending && !ruleSuggestionsQ.data) ? (
-            <Text size="sm" c="dimmed">
-              Loading company standards...
-            </Text>
-          ) : (
-            <Text size="xs" c="dimmed">
-              {effectiveDefaults?.categories.length ?? 0} categories,{' '}
-              {effectiveDefaults?.subCategories.length ?? 0} subcategories,{' '}
-              {companyImportRulesQ.data?.length ?? 0} import rules, and{' '}
-              {effectiveDefaults?.mappingRules.length ?? 0} auto-coding rules.
-            </Text>
-          )}
-          <Group gap="sm" wrap="wrap">
-            <Badge variant="light" color="teal">
-              Synced projects inherit these
-            </Badge>
-            {(ruleSuggestionsQ.data?.length ?? 0) > 0 ? (
-              <Badge variant="light" color="orange">
-                {ruleSuggestionsQ.data?.length ?? 0} rule suggestions
-              </Badge>
-            ) : null}
-          </Group>
-          <Text size="xs" c="dimmed">
-            Project-specific overrides stay local. Repeated manual coding can
-            also be reviewed here and promoted into reusable company rules.
-          </Text>
-          <Group gap="sm" wrap="wrap">
-            <Button
-              variant="default"
-              disabled={!canEditCompanyDefaults}
-              onClick={() => setActiveModal('defaults')}
-            >
-              Manage Categories
-            </Button>
-            <Button
-              variant="default"
-              disabled={!canEditCompanyDefaults}
-              onClick={() => setActiveModal('mappings')}
-            >
-              Manage Auto-Coding Rules
-            </Button>
-            <Button
-              variant="default"
-              disabled={!canEditCompanyDefaults}
-              onClick={() => setActiveModal('importRules')}
-            >
-              Manage Import Rules
-            </Button>
-            <Button
-              variant="default"
-              disabled={!canEditCompanyDefaults}
-              onClick={() => setActiveModal('ruleSuggestions')}
-            >
-              Review Rule Suggestions
-            </Button>
-          </Group>
-        </Stack>
-      </Paper>
+      <CompanyDetailsSettingsCard model={model} />
 
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Add member</Title>
-          {inviteError ? <Alert color="red">{inviteError}</Alert> : null}
-          {inviteStatus ? <Alert color="green">{inviteStatus}</Alert> : null}
-          <Text size="sm" c="dimmed">
-            Add someone to the company and choose their initial access level.
-          </Text>
-          <Stack gap="sm" style={{ width: '100%', maxWidth: 460 }}>
-            <TextInput
-              label="Name"
-              value={newUserName}
-              onChange={(e) =>
-                dispatchInvite({
-                  type: 'setName',
-                  value: e.currentTarget.value,
-                })
-              }
-            />
-            <TextInput
-              label="Email"
-              value={newUserEmail}
-              onChange={(e) =>
-                dispatchInvite({
-                  type: 'setEmail',
-                  value: e.currentTarget.value,
-                })
-              }
-            />
-            <Select
-              label="Initial company role"
-              data={[
-                { value: 'member', label: 'member' },
-                { value: 'management', label: 'management' },
-                { value: 'executive', label: 'executive' },
-                { value: 'admin', label: 'admin' },
-              ]}
-              value={newUserRole}
-              onChange={(v) =>
-                dispatchInvite({ type: 'setRole', value: toCompanyRole(v) })
-              }
-            />
-            <Checkbox
-              label="Send password setup email now"
-              description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
-              checked={sendOnboardingEmail}
-              onChange={(e) =>
-                dispatchInvite({
-                  type: 'setSendOnboardingEmail',
-                  value: e.currentTarget.checked,
-                })
-              }
-            />
-            <Group>
-              <Button
-                variant="default"
-                disabled={!canAddCompanyUsers || createUser.isPending}
-                onClick={async () => {
-                  const name = newUserName.trim();
-                  const email = newUserEmail.trim();
-                  if (!name || !email) return;
-                  dispatchInvite({ type: 'start' });
-                  try {
-                    const result = await createUser.mutateAsync({
-                      name,
-                      email,
-                      role: newUserRole ?? 'member',
-                      sendOnboardingEmail,
-                    });
-                    if (result.onboardingEmailSent) {
-                      dispatchInvite({
-                        type: 'success',
-                        resetForm: true,
-                        message: result.createdAuthUser
-                          ? result.onboardingDelivery === 'email'
-                            ? `${result.user.email} was added as a new company member and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
-                            : `${result.user.email} was added as a new company member. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
-                          : result.onboardingDelivery === 'email'
-                            ? `${result.user.email} was added to the company and sent the newest password setup email. Ask them to check spam or junk if it does not arrive soon.`
-                            : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`,
-                      });
-                      return;
-                    }
-                    dispatchInvite({
-                      type: 'success',
-                      resetForm: true,
-                      message: result.membershipCreated
-                        ? `${result.user.email} was added to the company. No email was sent. You can resend their password setup email later from the member list if they need it.`
-                        : `${result.user.email} was already in the company. Their role was updated and no email was sent.`,
-                    });
-                  } catch (err) {
-                    dispatchInvite({
-                      type: 'fail',
-                      message:
-                        err instanceof Error
-                          ? err.message
-                          : 'Could not invite user.',
-                    });
-                  }
-                }}
-              >
-                Add member
-              </Button>
-            </Group>
-          </Stack>
-          <Text size="xs" c="dimmed">
-            Adding someone to the company and emailing them are now separate
-            choices. New BetterAuth accounts still get their setup email
-            automatically, while existing users can be added quietly and emailed
-            later if needed.
-          </Text>
-        </Stack>
-      </Paper>
+      <CompanyMembershipSettingsCard model={model} />
 
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Current members</Title>
-          <Text size="sm" c="dimmed">
-            Update a teammate's company role or remove them from the company
-            entirely.
-          </Text>
-          {membershipError ? (
-            <Alert color="red">{membershipError}</Alert>
-          ) : null}
-          {membershipStatus ? (
-            <Alert color="green">{membershipStatus}</Alert>
-          ) : null}
-          {isHydrated ? (
-            <Group align="flex-end" wrap="wrap">
-              <Select
-                label="User"
-                data={userOptions}
-                value={effectiveRoleUserId}
-                onChange={(v) =>
-                  dispatchMembership({
-                    type: 'selectUser',
-                    userId: v ? asUserId(v) : null,
-                  })
-                }
-                searchable
-                style={{ width: '100%', maxWidth: 420 }}
-              />
-              <Select
-                label="Company role"
-                data={[
-                  { value: 'member', label: 'member' },
-                  { value: 'management', label: 'management' },
-                  { value: 'executive', label: 'executive' },
-                  { value: 'admin', label: 'admin' },
-                ]}
-                value={membershipCompanyRole}
-                onChange={(v) =>
-                  dispatchMembership({
-                    type: 'selectRole',
-                    role: toCompanyRole(v),
-                  })
-                }
-                style={{ width: '100%', maxWidth: 220 }}
-              />
-              <Button
-                size="sm"
-                variant="default"
-                disabled={
-                  !effectiveRoleUserId ||
-                  !membershipCompanyRole ||
-                  wouldDemoteLastAdmin
-                }
-                onClick={async () => {
-                  if (!effectiveRoleUserId || !membershipCompanyRole) return;
-                  dispatchMembership({ type: 'start' });
-                  try {
-                    await upsertCompanyMembership.mutateAsync({
-                      userId: effectiveRoleUserId,
-                      role: membershipCompanyRole,
-                    });
-                    dispatchMembership({
-                      type: 'success',
-                      message: 'Company role updated.',
-                    });
-                  } catch (err) {
-                    dispatchMembership({
-                      type: 'fail',
-                      message:
-                        err instanceof Error
-                          ? err.message
-                          : 'Could not update company role.',
-                    });
-                  }
-                }}
-              >
-                Set
-              </Button>
-            </Group>
-          ) : (
-            <Paper className={classes.surfaceMuted} radius="xl" p="md">
-              <Text size="sm" c="dimmed">
-                Loading role controls...
-              </Text>
-            </Paper>
-          )}
-          {wouldDemoteLastAdmin ? (
-            <Alert color="yellow">
-              This company must retain at least one admin. Assign another admin
-              before changing this role.
-            </Alert>
-          ) : null}
-          <Divider />
-          <div className={classes.tableWrap}>
-            {isHydrated ? (
-              <MantineReactTable
-                columns={membershipColumns}
-                data={membershipRows}
-                getRowId={(row) => row.key}
-                mantineTableContainerProps={{ className: 'financeTable' }}
-                mantineTableProps={{
-                  highlightOnHover: true,
-                  striped: 'odd',
-                  withTableBorder: true,
-                }}
-                mantineTableBodyCellProps={{
-                  style: { verticalAlign: 'middle' },
-                }}
-                enableColumnActions={false}
-                enableColumnFilters={false}
-                enableSorting
-                enableTopToolbar={false}
-                enableDensityToggle={false}
-                enableFullScreenToggle={false}
-                initialState={{
-                  density: 'xs',
-                  pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
-                }}
-              />
-            ) : (
-              <Paper className={classes.surfaceMuted} radius="xl" p="md">
-                <Text size="sm" c="dimmed">
-                  Loading company members...
-                </Text>
-              </Paper>
-            )}
-          </div>
-        </Stack>
-      </Paper>
+      <CompanyOperationsSettingsCard model={model} />
 
       <CompanyDefaultTaxonomyModal
-        opened={activeModal === 'defaults'}
-        onClose={() => setActiveModal(null)}
-        companyId={companyId}
-        readOnly={!canEditCompanyDefaults}
+        opened={model.activeModal === 'defaults'}
+        onClose={() => model.setActiveModal(null)}
+        companyId={model.companyId}
+        readOnly={!model.canEditCompanyDefaults}
       />
       <CompanyDefaultMappingsModal
-        opened={activeModal === 'mappings'}
-        onClose={() => setActiveModal(null)}
-        companyId={companyId}
-        readOnly={!canEditCompanyDefaults}
+        opened={model.activeModal === 'mappings'}
+        onClose={() => model.setActiveModal(null)}
+        companyId={model.companyId}
+        readOnly={!model.canEditCompanyDefaults}
       />
       <CompanyImportRulesModal
-        opened={activeModal === 'importRules'}
-        onClose={() => setActiveModal(null)}
-        companyId={companyId}
-        readOnly={!canEditCompanyDefaults}
+        opened={model.activeModal === 'importRules'}
+        onClose={() => model.setActiveModal(null)}
+        companyId={model.companyId}
+        readOnly={!model.canEditCompanyDefaults}
       />
       <RuleSuggestionsModal
-        opened={activeModal === 'ruleSuggestions'}
-        onClose={() => setActiveModal(null)}
-        companyId={companyId}
-        readOnly={!canEditCompanyDefaults}
+        opened={model.activeModal === 'ruleSuggestions'}
+        onClose={() => model.setActiveModal(null)}
+        companyId={model.companyId}
+        readOnly={!model.canEditCompanyDefaults}
       />
     </Stack>
   );
+}
+
+export default function CompanySettingsPanel(
+  props: Parameters<typeof useCompanySettingsPanelController>[0]
+) {
+  const model = useCompanySettingsPanelController(props);
+  return <CompanySettingsPanelView model={model} />;
 }

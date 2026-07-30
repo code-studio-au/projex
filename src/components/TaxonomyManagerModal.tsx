@@ -160,7 +160,7 @@ function taxonomyManagerReducer(
   };
 }
 
-export default function TaxonomyManagerModal(props: {
+function useTaxonomyManagerModalController(props: {
   opened: boolean;
   onClose: () => void;
   taxonomy: TaxonomyHook;
@@ -329,35 +329,527 @@ export default function TaxonomyManagerModal(props: {
     onClose();
   }
 
+  return {
+    accordionValue,
+    beginDelete,
+    beginRename,
+    canPromoteToCompanyDefaults,
+    cancelRename,
+    categoryOptions,
+    clearMessages,
+    closeManager,
+    commitRename,
+    createCategory,
+    createSubCategory,
+    creating,
+    creationMode,
+    error,
+    expandedCategoryIds,
+    isMobile,
+    newCategoryName,
+    newSubCategoryCategoryId,
+    newSubCategoryName,
+    normalizedSearch,
+    onClose,
+    opened,
+    patchManager,
+    pendingBulkRecode,
+    pendingDelete,
+    pendingMove,
+    promoteProjectSubCategory,
+    readOnly,
+    renameDraft,
+    renameTarget,
+    renaming,
+    showSearch,
+    status,
+    taxonomy,
+    taxonomySearch,
+    visibleCategories,
+  };
+}
+
+type TaxonomyManagerModalController = ReturnType<
+  typeof useTaxonomyManagerModalController
+>;
+
+function TaxonomyComposer({
+  model,
+}: {
+  model: TaxonomyManagerModalController;
+}) {
+  return (
+    <Paper withBorder radius="md" p="md" className={classes.taxonomyCreateCard}>
+      <Stack gap="sm">
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+          <Stack gap={2}>
+            <Text fw={600}>
+              {model.creationMode === 'subcategory'
+                ? 'Add subcategory'
+                : 'Add category'}
+            </Text>
+            <Text size="sm" c="dimmed">
+              {model.creationMode === 'subcategory'
+                ? 'Create a coding option under an existing category.'
+                : 'Create a new top-level category for this project.'}
+            </Text>
+          </Stack>
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            onClick={() => {
+              model.patchManager({
+                error: null,
+                status: null,
+                creationMode:
+                  model.creationMode === 'subcategory'
+                    ? 'category'
+                    : 'subcategory',
+              });
+            }}
+          >
+            {model.creationMode === 'subcategory'
+              ? 'Add category instead'
+              : 'Add subcategory instead'}
+          </Button>
+        </Group>
+
+        {model.creationMode === 'subcategory' ? (
+          <Group align="flex-end" wrap="wrap">
+            <Select
+              label="Category"
+              placeholder={
+                model.categoryOptions.length === 0
+                  ? 'Add a category first'
+                  : 'Select category'
+              }
+              data={model.categoryOptions}
+              value={model.newSubCategoryCategoryId}
+              searchable
+              disabled={model.categoryOptions.length === 0}
+              {...firefoxSafeModalSelectProps}
+              onChange={(value) => {
+                model.patchManager({
+                  error: null,
+                  status: null,
+                  newSubCategoryCategoryId: value,
+                });
+              }}
+              className={classes.fieldGrow}
+            />
+            <TextInput
+              label="Subcategory name"
+              placeholder="e.g. Flights"
+              value={model.newSubCategoryName}
+              disabled={model.categoryOptions.length === 0}
+              onChange={(event) => {
+                model.patchManager({
+                  error: null,
+                  status: null,
+                  newSubCategoryName: event.currentTarget.value,
+                });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void model.createSubCategory();
+                }
+              }}
+              className={classes.fieldGrow}
+            />
+            <Button
+              leftSection={<IconPlus size={16} />}
+              loading={model.creating}
+              disabled={
+                !model.newSubCategoryCategoryId ||
+                !model.newSubCategoryName.trim() ||
+                model.categoryOptions.length === 0
+              }
+              fullWidth={model.isMobile}
+              onClick={() => void model.createSubCategory()}
+            >
+              Add subcategory
+            </Button>
+          </Group>
+        ) : (
+          <Group align="flex-end" wrap="wrap">
+            <TextInput
+              label="Category name"
+              placeholder="e.g. Travel"
+              value={model.newCategoryName}
+              onChange={(event) => {
+                model.patchManager({
+                  error: null,
+                  status: null,
+                  newCategoryName: event.currentTarget.value,
+                });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void model.createCategory();
+                }
+              }}
+              className={classes.fieldGrow}
+            />
+            <Button
+              leftSection={<IconPlus size={16} />}
+              loading={model.creating}
+              disabled={!model.newCategoryName.trim()}
+              fullWidth={model.isMobile}
+              onClick={() => void model.createCategory()}
+            >
+              Add category
+            </Button>
+          </Group>
+        )}
+      </Stack>
+    </Paper>
+  );
+}
+
+function TaxonomySubCategoryRow({
+  model,
+  subCategory,
+}: {
+  model: TaxonomyManagerModalController;
+  subCategory: TaxonomyManagerModalController['taxonomy']['subCategories'][number];
+}) {
+  const inherited = isInheritedCompanyStandard(subCategory);
+  const canDeleteSubCategory = canDeleteProjectStandard(subCategory);
+  const renamingSubCategory =
+    model.renameTarget?.kind === 'subcategory' &&
+    model.renameTarget.id === subCategory.id;
+
+  return (
+    <Paper
+      key={subCategory.id}
+      withBorder
+      radius="md"
+      p="sm"
+      className={classes.taxonomySubCategoryRow}
+    >
+      {renamingSubCategory ? (
+        <Group align="flex-end" wrap="wrap">
+          <TextInput
+            label="Rename subcategory"
+            value={model.renameDraft}
+            autoFocus
+            disabled={model.renaming}
+            onChange={(event) => {
+              model.patchManager({
+                error: null,
+                renameDraft: event.currentTarget.value,
+              });
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void model.commitRename();
+              }
+              if (event.key === 'Escape') {
+                model.cancelRename();
+              }
+            }}
+            className={classes.fieldGrow}
+          />
+          <Button
+            size="compact-sm"
+            loading={model.renaming}
+            disabled={!model.renameDraft.trim()}
+            onClick={() => void model.commitRename()}
+          >
+            Save
+          </Button>
+          <Button
+            size="compact-sm"
+            variant="default"
+            disabled={model.renaming}
+            onClick={model.cancelRename}
+          >
+            Cancel
+          </Button>
+        </Group>
+      ) : (
+        <Group justify="space-between" align="center" wrap="nowrap">
+          <Stack gap={3} className={classes.fieldGrow}>
+            <Text fw={500}>{subCategory.name}</Text>
+            <ProjectStandardStatus item={subCategory} />
+          </Stack>
+          {!model.readOnly ? (
+            <ManagementActionsMenu
+              label={`Actions for subcategory ${subCategory.name}`}
+            >
+              <Menu.Item
+                onClick={() =>
+                  model.beginRename({
+                    kind: 'subcategory',
+                    id: subCategory.id,
+                    name: subCategory.name,
+                  })
+                }
+              >
+                Rename subcategory
+              </Menu.Item>
+              <Menu.Item
+                disabled={model.categoryOptions.length < 2}
+                onClick={() => {
+                  model.patchManager({
+                    error: null,
+                    status: null,
+                    pendingMove: {
+                      subCategoryId: subCategory.id,
+                      subCategoryName: subCategory.name,
+                      currentCategoryId: subCategory.categoryId,
+                    },
+                  });
+                }}
+              >
+                Move to another category…
+              </Menu.Item>
+              <Menu.Item
+                disabled={model.taxonomy.subCategories.length < 2}
+                onClick={() => {
+                  model.patchManager({
+                    error: null,
+                    status: null,
+                    pendingBulkRecode: {
+                      subCategoryId: subCategory.id,
+                      subCategoryName: subCategory.name,
+                      currentCategoryId: subCategory.categoryId,
+                    },
+                  });
+                }}
+              >
+                Recode transactions using this…
+              </Menu.Item>
+              {model.canPromoteToCompanyDefaults && !inherited ? (
+                <Menu.Item
+                  disabled={model.promoteProjectSubCategory.isPending}
+                  onClick={async () => {
+                    try {
+                      model.clearMessages();
+                      const result =
+                        await model.promoteProjectSubCategory.mutateAsync({
+                          subCategoryId: subCategory.id,
+                        });
+                      model.patchManager({
+                        status:
+                          result.categoryCreated || result.subCategoryCreated
+                            ? 'Added the project taxonomy to company defaults and synced linked projects.'
+                            : 'The matching company default already existed; linked projects are now aligned.',
+                      });
+                    } catch (err) {
+                      model.patchManager({
+                        error:
+                          err instanceof Error
+                            ? err.message
+                            : 'Could not add this subcategory to company defaults.',
+                      });
+                    }
+                  }}
+                >
+                  Add to company defaults
+                </Menu.Item>
+              ) : null}
+              {canDeleteSubCategory ? (
+                <>
+                  <Menu.Divider />
+                  <Menu.Item
+                    color="red"
+                    leftSection={<IconTrash size={15} />}
+                    onClick={() => {
+                      model.beginDelete({
+                        kind: 'subcategory',
+                        id: subCategory.id,
+                        name: subCategory.name,
+                      });
+                    }}
+                  >
+                    Delete subcategory
+                  </Menu.Item>
+                </>
+              ) : null}
+            </ManagementActionsMenu>
+          ) : null}
+        </Group>
+      )}
+    </Paper>
+  );
+}
+
+function TaxonomyCategoryItem({
+  model,
+  category,
+}: {
+  model: TaxonomyManagerModalController;
+  category: TaxonomyManagerModalController['visibleCategories'][number];
+}) {
+  const allSubCategories = model.taxonomy.subCategories.filter(
+    (subCategory) => subCategory.categoryId === category.id
+  );
+  const categoryMatches = category.name
+    .toLocaleLowerCase()
+    .includes(model.normalizedSearch);
+  const visibleSubCategories =
+    model.normalizedSearch && !categoryMatches
+      ? allSubCategories.filter((subCategory) =>
+          subCategory.name.toLocaleLowerCase().includes(model.normalizedSearch)
+        )
+      : allSubCategories;
+  const canDeleteCategory = canDeleteProjectStandard(category);
+  const renamingCategory =
+    model.renameTarget?.kind === 'category' &&
+    model.renameTarget.id === category.id;
+
+  return (
+    <Accordion.Item key={category.id} value={category.id}>
+      {renamingCategory ? (
+        <Group p="sm" align="flex-end" wrap="wrap">
+          <TextInput
+            label="Rename category"
+            value={model.renameDraft}
+            autoFocus
+            disabled={model.renaming}
+            onChange={(event) => {
+              model.patchManager({
+                error: null,
+                renameDraft: event.currentTarget.value,
+              });
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void model.commitRename();
+              }
+              if (event.key === 'Escape') model.cancelRename();
+            }}
+            className={classes.fieldGrow}
+          />
+          <Button
+            size="compact-sm"
+            loading={model.renaming}
+            disabled={!model.renameDraft.trim()}
+            onClick={() => void model.commitRename()}
+          >
+            Save
+          </Button>
+          <Button
+            size="compact-sm"
+            variant="default"
+            disabled={model.renaming}
+            onClick={model.cancelRename}
+          >
+            Cancel
+          </Button>
+        </Group>
+      ) : (
+        <Group gap={0} wrap="nowrap" pr="xs">
+          <Accordion.Control className={classes.taxonomyAccordionControl}>
+            <Stack gap={3}>
+              <Text fw={600}>{category.name}</Text>
+              <Group gap="xs" wrap="wrap">
+                <Text size="xs" c="dimmed">
+                  {allSubCategories.length}{' '}
+                  {allSubCategories.length === 1
+                    ? 'subcategory'
+                    : 'subcategories'}
+                </Text>
+                <ProjectStandardStatus item={category} />
+              </Group>
+            </Stack>
+          </Accordion.Control>
+          {!model.readOnly ? (
+            <ManagementActionsMenu
+              label={`Actions for category ${category.name}`}
+            >
+              <Menu.Item
+                onClick={() =>
+                  model.beginRename({
+                    kind: 'category',
+                    id: category.id,
+                    name: category.name,
+                  })
+                }
+              >
+                Rename category
+              </Menu.Item>
+              {canDeleteCategory ? (
+                <>
+                  <Menu.Divider />
+                  <Menu.Item
+                    color="red"
+                    leftSection={<IconTrash size={15} />}
+                    onClick={() => {
+                      model.beginDelete({
+                        kind: 'category',
+                        id: category.id,
+                        name: category.name,
+                      });
+                    }}
+                  >
+                    Delete category
+                  </Menu.Item>
+                </>
+              ) : null}
+            </ManagementActionsMenu>
+          ) : null}
+        </Group>
+      )}
+
+      <Accordion.Panel>
+        {visibleSubCategories.length === 0 ? (
+          <Text className={classes.emptyState}>No subcategories yet.</Text>
+        ) : (
+          <Stack gap="xs">
+            {visibleSubCategories.map((subCategory) => (
+              <TaxonomySubCategoryRow
+                key={subCategory.id}
+                model={model}
+                subCategory={subCategory}
+              />
+            ))}
+          </Stack>
+        )}
+      </Accordion.Panel>
+    </Accordion.Item>
+  );
+}
+
+function TaxonomyManagerModalView({
+  model,
+}: {
+  model: TaxonomyManagerModalController;
+}) {
   return (
     <>
       <Modal
-        opened={opened}
-        onClose={closeManager}
+        opened={model.opened}
+        onClose={model.closeManager}
         title="Manage categories & subcategories"
-        fullScreen={isMobile}
-        centered={!isMobile}
+        fullScreen={model.isMobile}
+        centered={!model.isMobile}
         size="lg"
         lockScroll={false}
         styles={{
           body: {
-            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+            maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
             overflowY: 'auto',
           },
         }}
       >
         <Stack gap="md" className="taxonomyModal">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          {status ? (
+          {model.error ? <Alert color="red">{model.error}</Alert> : null}
+          {model.status ? (
             <Alert
               color="green"
               withCloseButton
-              onClose={() => patchManager({ status: null })}
+              onClose={() => model.patchManager({ status: null })}
             >
-              {status}
+              {model.status}
             </Alert>
           ) : null}
-          {readOnly ? (
+          {model.readOnly ? (
             <Alert color="blue">
               You can view this project taxonomy, but you do not have permission
               to change it.
@@ -372,509 +864,76 @@ export default function TaxonomyManagerModal(props: {
             project.
           </ManagementModalIntro>
 
-          {!readOnly ? (
-            <Paper
-              withBorder
-              radius="md"
-              p="md"
-              className={classes.taxonomyCreateCard}
-            >
-              <Stack gap="sm">
-                <Group justify="space-between" align="flex-start" wrap="wrap">
-                  <Stack gap={2}>
-                    <Text fw={600}>
-                      {creationMode === 'subcategory'
-                        ? 'Add subcategory'
-                        : 'Add category'}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      {creationMode === 'subcategory'
-                        ? 'Create a coding option under an existing category.'
-                        : 'Create a new top-level category for this project.'}
-                    </Text>
-                  </Stack>
-                  <Button
-                    variant="subtle"
-                    size="compact-sm"
-                    onClick={() => {
-                      patchManager({
-                        error: null,
-                        status: null,
-                        creationMode:
-                          creationMode === 'subcategory'
-                            ? 'category'
-                            : 'subcategory',
-                      });
-                    }}
-                  >
-                    {creationMode === 'subcategory'
-                      ? 'Add category instead'
-                      : 'Add subcategory instead'}
-                  </Button>
-                </Group>
+          {!model.readOnly ? <TaxonomyComposer model={model} /> : null}
 
-                {creationMode === 'subcategory' ? (
-                  <Group align="flex-end" wrap="wrap">
-                    <Select
-                      label="Category"
-                      placeholder={
-                        categoryOptions.length === 0
-                          ? 'Add a category first'
-                          : 'Select category'
-                      }
-                      data={categoryOptions}
-                      value={newSubCategoryCategoryId}
-                      searchable
-                      disabled={categoryOptions.length === 0}
-                      {...firefoxSafeModalSelectProps}
-                      onChange={(value) => {
-                        patchManager({
-                          error: null,
-                          status: null,
-                          newSubCategoryCategoryId: value,
-                        });
-                      }}
-                      className={classes.fieldGrow}
-                    />
-                    <TextInput
-                      label="Subcategory name"
-                      placeholder="e.g. Flights"
-                      value={newSubCategoryName}
-                      disabled={categoryOptions.length === 0}
-                      onChange={(event) => {
-                        patchManager({
-                          error: null,
-                          status: null,
-                          newSubCategoryName: event.currentTarget.value,
-                        });
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          void createSubCategory();
-                        }
-                      }}
-                      className={classes.fieldGrow}
-                    />
-                    <Button
-                      leftSection={<IconPlus size={16} />}
-                      loading={creating}
-                      disabled={
-                        !newSubCategoryCategoryId ||
-                        !newSubCategoryName.trim() ||
-                        categoryOptions.length === 0
-                      }
-                      fullWidth={isMobile}
-                      onClick={() => void createSubCategory()}
-                    >
-                      Add subcategory
-                    </Button>
-                  </Group>
-                ) : (
-                  <Group align="flex-end" wrap="wrap">
-                    <TextInput
-                      label="Category name"
-                      placeholder="e.g. Travel"
-                      value={newCategoryName}
-                      onChange={(event) => {
-                        patchManager({
-                          error: null,
-                          status: null,
-                          newCategoryName: event.currentTarget.value,
-                        });
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          void createCategory();
-                        }
-                      }}
-                      className={classes.fieldGrow}
-                    />
-                    <Button
-                      leftSection={<IconPlus size={16} />}
-                      loading={creating}
-                      disabled={!newCategoryName.trim()}
-                      fullWidth={isMobile}
-                      onClick={() => void createCategory()}
-                    >
-                      Add category
-                    </Button>
-                  </Group>
-                )}
-              </Stack>
-            </Paper>
-          ) : null}
-
-          {showSearch ? (
+          {model.showSearch ? (
             <TextInput
               label="Search categories"
               placeholder="Search categories or subcategories"
-              value={taxonomySearch}
+              value={model.taxonomySearch}
               onChange={(event) =>
-                patchManager({ taxonomySearch: event.currentTarget.value })
+                model.patchManager({
+                  taxonomySearch: event.currentTarget.value,
+                })
               }
             />
           ) : null}
 
-          {taxonomy.categories.length === 0 ? (
+          {model.taxonomy.categories.length === 0 ? (
             <Text className={classes.emptyState}>
               No categories yet. Add a category before creating subcategories.
             </Text>
-          ) : visibleCategories.length === 0 ? (
+          ) : model.visibleCategories.length === 0 ? (
             <Text className={classes.emptyState}>
-              No categories or subcategories match “{taxonomySearch.trim()}”.
+              No categories or subcategories match “
+              {model.taxonomySearch.trim()}”.
             </Text>
           ) : (
             <Accordion
               multiple
               variant="separated"
               radius="md"
-              value={accordionValue}
+              value={model.accordionValue}
               onChange={(expandedCategoryIds) =>
-                patchManager({ expandedCategoryIds })
+                model.patchManager({ expandedCategoryIds })
               }
               classNames={{ item: classes.taxonomyAccordionItem }}
             >
-              {visibleCategories.map((category) => {
-                const allSubCategories = taxonomy.subCategories.filter(
-                  (subCategory) => subCategory.categoryId === category.id
-                );
-                const categoryMatches = category.name
-                  .toLocaleLowerCase()
-                  .includes(normalizedSearch);
-                const visibleSubCategories =
-                  normalizedSearch && !categoryMatches
-                    ? allSubCategories.filter((subCategory) =>
-                        subCategory.name
-                          .toLocaleLowerCase()
-                          .includes(normalizedSearch)
-                      )
-                    : allSubCategories;
-                const canDeleteCategory = canDeleteProjectStandard(category);
-                const renamingCategory =
-                  renameTarget?.kind === 'category' &&
-                  renameTarget.id === category.id;
-
-                return (
-                  <Accordion.Item key={category.id} value={category.id}>
-                    {renamingCategory ? (
-                      <Group p="sm" align="flex-end" wrap="wrap">
-                        <TextInput
-                          label="Rename category"
-                          value={renameDraft}
-                          autoFocus
-                          disabled={renaming}
-                          onChange={(event) => {
-                            patchManager({
-                              error: null,
-                              renameDraft: event.currentTarget.value,
-                            });
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                              event.preventDefault();
-                              void commitRename();
-                            }
-                            if (event.key === 'Escape') cancelRename();
-                          }}
-                          className={classes.fieldGrow}
-                        />
-                        <Button
-                          size="compact-sm"
-                          loading={renaming}
-                          disabled={!renameDraft.trim()}
-                          onClick={() => void commitRename()}
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          size="compact-sm"
-                          variant="default"
-                          disabled={renaming}
-                          onClick={cancelRename}
-                        >
-                          Cancel
-                        </Button>
-                      </Group>
-                    ) : (
-                      <Group gap={0} wrap="nowrap" pr="xs">
-                        <Accordion.Control
-                          className={classes.taxonomyAccordionControl}
-                        >
-                          <Stack gap={3}>
-                            <Text fw={600}>{category.name}</Text>
-                            <Group gap="xs" wrap="wrap">
-                              <Text size="xs" c="dimmed">
-                                {allSubCategories.length}{' '}
-                                {allSubCategories.length === 1
-                                  ? 'subcategory'
-                                  : 'subcategories'}
-                              </Text>
-                              <ProjectStandardStatus item={category} />
-                            </Group>
-                          </Stack>
-                        </Accordion.Control>
-                        {!readOnly ? (
-                          <ManagementActionsMenu
-                            label={`Actions for category ${category.name}`}
-                          >
-                            <Menu.Item
-                              onClick={() =>
-                                beginRename({
-                                  kind: 'category',
-                                  id: category.id,
-                                  name: category.name,
-                                })
-                              }
-                            >
-                              Rename category
-                            </Menu.Item>
-                            {canDeleteCategory ? (
-                              <>
-                                <Menu.Divider />
-                                <Menu.Item
-                                  color="red"
-                                  leftSection={<IconTrash size={15} />}
-                                  onClick={() => {
-                                    beginDelete({
-                                      kind: 'category',
-                                      id: category.id,
-                                      name: category.name,
-                                    });
-                                  }}
-                                >
-                                  Delete category
-                                </Menu.Item>
-                              </>
-                            ) : null}
-                          </ManagementActionsMenu>
-                        ) : null}
-                      </Group>
-                    )}
-
-                    <Accordion.Panel>
-                      {visibleSubCategories.length === 0 ? (
-                        <Text className={classes.emptyState}>
-                          No subcategories yet.
-                        </Text>
-                      ) : (
-                        <Stack gap="xs">
-                          {visibleSubCategories.map((subCategory) => {
-                            const inherited =
-                              isInheritedCompanyStandard(subCategory);
-                            const canDeleteSubCategory =
-                              canDeleteProjectStandard(subCategory);
-                            const renamingSubCategory =
-                              renameTarget?.kind === 'subcategory' &&
-                              renameTarget.id === subCategory.id;
-
-                            return (
-                              <Paper
-                                key={subCategory.id}
-                                withBorder
-                                radius="md"
-                                p="sm"
-                                className={classes.taxonomySubCategoryRow}
-                              >
-                                {renamingSubCategory ? (
-                                  <Group align="flex-end" wrap="wrap">
-                                    <TextInput
-                                      label="Rename subcategory"
-                                      value={renameDraft}
-                                      autoFocus
-                                      disabled={renaming}
-                                      onChange={(event) => {
-                                        patchManager({
-                                          error: null,
-                                          renameDraft:
-                                            event.currentTarget.value,
-                                        });
-                                      }}
-                                      onKeyDown={(event) => {
-                                        if (event.key === 'Enter') {
-                                          event.preventDefault();
-                                          void commitRename();
-                                        }
-                                        if (event.key === 'Escape') {
-                                          cancelRename();
-                                        }
-                                      }}
-                                      className={classes.fieldGrow}
-                                    />
-                                    <Button
-                                      size="compact-sm"
-                                      loading={renaming}
-                                      disabled={!renameDraft.trim()}
-                                      onClick={() => void commitRename()}
-                                    >
-                                      Save
-                                    </Button>
-                                    <Button
-                                      size="compact-sm"
-                                      variant="default"
-                                      disabled={renaming}
-                                      onClick={cancelRename}
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </Group>
-                                ) : (
-                                  <Group
-                                    justify="space-between"
-                                    align="center"
-                                    wrap="nowrap"
-                                  >
-                                    <Stack
-                                      gap={3}
-                                      className={classes.fieldGrow}
-                                    >
-                                      <Text fw={500}>{subCategory.name}</Text>
-                                      <ProjectStandardStatus
-                                        item={subCategory}
-                                      />
-                                    </Stack>
-                                    {!readOnly ? (
-                                      <ManagementActionsMenu
-                                        label={`Actions for subcategory ${subCategory.name}`}
-                                      >
-                                        <Menu.Item
-                                          onClick={() =>
-                                            beginRename({
-                                              kind: 'subcategory',
-                                              id: subCategory.id,
-                                              name: subCategory.name,
-                                            })
-                                          }
-                                        >
-                                          Rename subcategory
-                                        </Menu.Item>
-                                        <Menu.Item
-                                          disabled={categoryOptions.length < 2}
-                                          onClick={() => {
-                                            patchManager({
-                                              error: null,
-                                              status: null,
-                                              pendingMove: {
-                                                subCategoryId: subCategory.id,
-                                                subCategoryName:
-                                                  subCategory.name,
-                                                currentCategoryId:
-                                                  subCategory.categoryId,
-                                              },
-                                            });
-                                          }}
-                                        >
-                                          Move to another category…
-                                        </Menu.Item>
-                                        <Menu.Item
-                                          disabled={
-                                            taxonomy.subCategories.length < 2
-                                          }
-                                          onClick={() => {
-                                            patchManager({
-                                              error: null,
-                                              status: null,
-                                              pendingBulkRecode: {
-                                                subCategoryId: subCategory.id,
-                                                subCategoryName:
-                                                  subCategory.name,
-                                                currentCategoryId:
-                                                  subCategory.categoryId,
-                                              },
-                                            });
-                                          }}
-                                        >
-                                          Recode transactions using this…
-                                        </Menu.Item>
-                                        {canPromoteToCompanyDefaults &&
-                                        !inherited ? (
-                                          <Menu.Item
-                                            disabled={
-                                              promoteProjectSubCategory.isPending
-                                            }
-                                            onClick={async () => {
-                                              try {
-                                                clearMessages();
-                                                const result =
-                                                  await promoteProjectSubCategory.mutateAsync(
-                                                    {
-                                                      subCategoryId:
-                                                        subCategory.id,
-                                                    }
-                                                  );
-                                                patchManager({
-                                                  status:
-                                                    result.categoryCreated ||
-                                                    result.subCategoryCreated
-                                                      ? 'Added the project taxonomy to company defaults and synced linked projects.'
-                                                      : 'The matching company default already existed; linked projects are now aligned.',
-                                                });
-                                              } catch (err) {
-                                                patchManager({
-                                                  error:
-                                                    err instanceof Error
-                                                      ? err.message
-                                                      : 'Could not add this subcategory to company defaults.',
-                                                });
-                                              }
-                                            }}
-                                          >
-                                            Add to company defaults
-                                          </Menu.Item>
-                                        ) : null}
-                                        {canDeleteSubCategory ? (
-                                          <>
-                                            <Menu.Divider />
-                                            <Menu.Item
-                                              color="red"
-                                              leftSection={
-                                                <IconTrash size={15} />
-                                              }
-                                              onClick={() => {
-                                                beginDelete({
-                                                  kind: 'subcategory',
-                                                  id: subCategory.id,
-                                                  name: subCategory.name,
-                                                });
-                                              }}
-                                            >
-                                              Delete subcategory
-                                            </Menu.Item>
-                                          </>
-                                        ) : null}
-                                      </ManagementActionsMenu>
-                                    ) : null}
-                                  </Group>
-                                )}
-                              </Paper>
-                            );
-                          })}
-                        </Stack>
-                      )}
-                    </Accordion.Panel>
-                  </Accordion.Item>
-                );
-              })}
+              {model.visibleCategories.map((category) => (
+                <TaxonomyCategoryItem
+                  key={category.id}
+                  model={model}
+                  category={category}
+                />
+              ))}
             </Accordion>
           )}
         </Stack>
       </Modal>
 
       <TaxonomyActionDialogs
-        taxonomy={taxonomy}
-        isMobile={isMobile}
-        error={error}
-        pendingMove={pendingMove}
-        pendingBulkRecode={pendingBulkRecode}
-        pendingDelete={pendingDelete}
-        onCloseMove={() => patchManager({ pendingMove: null })}
-        onCloseBulkRecode={() => patchManager({ pendingBulkRecode: null })}
-        onCloseDelete={() => patchManager({ pendingDelete: null })}
-        onClearMessages={clearMessages}
-        onError={(error) => patchManager({ error })}
-        onStatus={(status) => patchManager({ status })}
+        taxonomy={model.taxonomy}
+        isMobile={model.isMobile}
+        error={model.error}
+        pendingMove={model.pendingMove}
+        pendingBulkRecode={model.pendingBulkRecode}
+        pendingDelete={model.pendingDelete}
+        onCloseMove={() => model.patchManager({ pendingMove: null })}
+        onCloseBulkRecode={() =>
+          model.patchManager({ pendingBulkRecode: null })
+        }
+        onCloseDelete={() => model.patchManager({ pendingDelete: null })}
+        onClearMessages={model.clearMessages}
+        onError={(error) => model.patchManager({ error })}
+        onStatus={(status) => model.patchManager({ status })}
       />
     </>
   );
+}
+
+export default function TaxonomyManagerModal(
+  props: Parameters<typeof useTaxonomyManagerModalController>[0]
+) {
+  const model = useTaxonomyManagerModalController(props);
+  return <TaxonomyManagerModalView model={model} />;
 }

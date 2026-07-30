@@ -244,7 +244,7 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
   );
 }
 
-function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
+function useProjectWorkspaceController(props: ProjectWorkspaceInnerProps) {
   const {
     companyId,
     projectId,
@@ -594,62 +594,171 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
     }
   }, [initialEntryFocus, initialEntrySource]);
 
-  if (effectiveProjectType === 'programme') {
-    return (
-      <ProgrammeWorkspace
-        companyName={effectiveCompanyName}
-        projectName={effectiveProjectName}
-        currencyCode={currencyCode}
-        programmeSummary={programmeSummary}
-        canViewProgrammeSummary={canViewProgrammeSummary}
-        headerReady={headerReady}
-        isMobile={isMobile}
-        yearFilterOptions={yearFilterOptions}
-        yearFilter={yearFilter}
-        quarterFilterOptions={quarterFilterOptions}
-        quarterFilter={quarterFilter}
-        monthFilterOptions={monthFilterOptions}
-        monthFilterKey={monthFilterKey}
-        onYearFilterChange={setYearFilter}
-        onQuarterFilterChange={setQuarterFilter}
-        onMonthFilterChange={setMonthFilterKey}
-        onOpenProject={(childProjectId) => {
-          void router.navigate({
-            to: '/c/$companyId/p/$projectId',
-            params: { companyId, projectId: childProjectId },
-            search: {
-              year: yearFilter ?? undefined,
-              quarter: quarterFilter ?? undefined,
-              month: monthFilterKey ?? undefined,
-              source: 'company-summary',
-            },
-          });
-        }}
-      />
-    );
-  }
+  return {
+    access,
+    activeTab,
+    allMonthKeys,
+    budgets,
+    canAdminUnlock,
+    canEditBudgets,
+    canEditTaxonomy,
+    canEditTxns,
+    canImport,
+    canManageImportRules,
+    canManageReversals,
+    canProjectEdit,
+    canResolveUnlock,
+    canViewProgrammeSummary,
+    company,
+    companyId,
+    companySummary,
+    currencyCode,
+    effectiveAllowSuperadminAccess,
+    effectiveAllowTxnTransfers,
+    effectiveCompanyName,
+    effectiveCurrencyCode,
+    effectiveProjectBudgetTotalCents,
+    effectiveProjectName,
+    effectiveProjectType,
+    effectiveTransactionDrilldown,
+    entryMessage,
+    headerReady,
+    importTransactions,
+    initialAllowSuperadminAccess,
+    initialAllowTxnTransfers,
+    initialCanEditBudgets,
+    initialCanEditTaxonomy,
+    initialCanEditTxns,
+    initialCanImport,
+    initialCanProjectEdit,
+    initialCanViewProgrammeSummary,
+    initialCommentTxnId,
+    initialCompanyName,
+    initialCurrencyCode,
+    initialEntryFocus,
+    initialEntrySource,
+    initialMonthFilterKey,
+    initialProgrammeSummary,
+    initialProjectBudgetTotalCents,
+    initialProjectName,
+    initialProjectType,
+    initialQuarterFilter,
+    initialTab,
+    initialTransactionDrilldown,
+    initialTransactionSearch,
+    initialTransactionView,
+    initialYearFilter,
+    isHydrated,
+    isMobile,
+    isOperationalProject,
+    liveCanViewProgrammeSummary,
+    monthFilterKey,
+    monthFilterOptions,
+    openTransactionDrilldown,
+    operationalMonthKeys,
+    programmeMonthKeys,
+    programmeSummary,
+    project,
+    projectId,
+    projectTransactionSummaryQ,
+    projects,
+    props,
+    pushNextUrlSync,
+    quarterFilter,
+    quarterFilterOptions,
+    rollups,
+    router,
+    setActiveTab,
+    setMonthFilterKey,
+    setQuarterFilter,
+    setTransactionDrilldown,
+    setTransactionView,
+    setYearFilter,
+    summaryReady,
+    taxonomy,
+    transactionActions,
+    transactionDrilldown,
+    transactionPeriodSummary,
+    transactionSearch,
+    transactionView,
+    transferProjectOptions,
+    updateProject,
+    yearFilter,
+    yearFilterOptions,
+  };
+}
 
+type ProjectWorkspaceController = ReturnType<
+  typeof useProjectWorkspaceController
+>;
+
+function ProgrammeProjectWorkspaceView({
+  model,
+}: {
+  model: ProjectWorkspaceController;
+}) {
+  return (
+    <ProgrammeWorkspace
+      companyName={model.effectiveCompanyName}
+      projectName={model.effectiveProjectName}
+      currencyCode={model.currencyCode}
+      programmeSummary={model.programmeSummary}
+      canViewProgrammeSummary={model.canViewProgrammeSummary}
+      headerReady={model.headerReady}
+      isMobile={model.isMobile}
+      yearFilterOptions={model.yearFilterOptions}
+      yearFilter={model.yearFilter}
+      quarterFilterOptions={model.quarterFilterOptions}
+      quarterFilter={model.quarterFilter}
+      monthFilterOptions={model.monthFilterOptions}
+      monthFilterKey={model.monthFilterKey}
+      onYearFilterChange={model.setYearFilter}
+      onQuarterFilterChange={model.setQuarterFilter}
+      onMonthFilterChange={model.setMonthFilterKey}
+      onOpenProject={(childProjectId) => {
+        void model.router.navigate({
+          to: '/c/$companyId/p/$projectId',
+          params: { companyId: model.companyId, projectId: childProjectId },
+          search: {
+            year: model.yearFilter ?? undefined,
+            quarter: model.quarterFilter ?? undefined,
+            month: model.monthFilterKey ?? undefined,
+            source: 'company-summary',
+          },
+        });
+      }}
+    />
+  );
+}
+
+function OperationalProjectWorkspaceView({
+  model,
+}: {
+  model: ProjectWorkspaceController;
+}) {
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <Paper
         className={classes.pageHero}
-        p={isMobile ? 'md' : 'lg'}
+        p={model.isMobile ? 'md' : 'lg'}
         radius="xl"
       >
         <Stack gap="sm">
           <Group justify="space-between" align="center" wrap="wrap">
-            {headerReady || (initialCompanyName && initialProjectName) ? (
+            {model.headerReady ||
+            (model.initialCompanyName && model.initialProjectName) ? (
               <Title order={3} className={classes.pageHeroTitle}>
-                {effectiveCompanyName ?? ''} • {effectiveProjectName ?? ''}
+                {model.effectiveCompanyName ?? ''} •{' '}
+                {model.effectiveProjectName ?? ''}
               </Title>
             ) : (
               <LoadingLine width={320} height={30} radius="md" />
             )}
 
             <Group gap="sm" wrap="wrap">
-              {effectiveAllowSuperadminAccess ? (
+              {model.effectiveAllowSuperadminAccess ? (
                 <Badge
-                  size={isMobile ? 'md' : 'lg'}
+                  size={model.isMobile ? 'md' : 'lg'}
                   variant="light"
                   color="teal"
                 >
@@ -659,10 +768,10 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
             </Group>
           </Group>
 
-          {entryMessage ? (
+          {model.entryMessage ? (
             <Group align="center" wrap="wrap">
               <Text size="sm" c="dimmed">
-                {entryMessage}
+                {model.entryMessage}
               </Text>
             </Group>
           ) : null}
@@ -671,90 +780,107 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
 
       <Paper className={classes.surfaceCard} radius="xl" p="md">
         <Tabs
-          value={activeTab}
-          onChange={(value) => setActiveTab(toProjectWorkspaceTab(value))}
+          value={model.activeTab}
+          onChange={(value) => model.setActiveTab(toProjectWorkspaceTab(value))}
           keepMounted={false}
           className={classes.softTabs}
         >
           <ProjectWorkspaceTabList
-            canImport={canImport}
-            canProjectEdit={canProjectEdit}
+            canImport={model.canImport}
+            canProjectEdit={model.canProjectEdit}
           />
 
           <Tabs.Panel value="transactions" pt="md">
             <Suspense fallback={<LoadingLine height={180} radius="md" />}>
               <TransactionsPanel
-                projectId={projectId}
-                transactionActions={transactionActions}
-                taxonomy={taxonomy}
+                projectId={model.projectId}
+                transactionActions={model.transactionActions}
+                taxonomy={model.taxonomy}
                 autoMappedPendingCount={
-                  projectTransactionSummaryQ.data?.autoMappedPendingCount ?? 0
+                  model.projectTransactionSummaryQ.data
+                    ?.autoMappedPendingCount ?? 0
                 }
-                currencyCode={currencyCode}
-                yearFilterOptions={yearFilterOptions}
-                yearFilter={yearFilter}
-                setYearFilter={setYearFilter}
-                quarterFilterOptions={quarterFilterOptions}
-                quarterFilter={quarterFilter}
-                setQuarterFilter={setQuarterFilter}
-                monthFilterOptions={monthFilterOptions}
-                monthFilterKey={monthFilterKey}
-                setMonthFilterKey={setMonthFilterKey}
-                transactionView={transactionView}
-                setTransactionView={setTransactionView}
-                transactionSearch={transactionSearch}
+                currencyCode={model.currencyCode}
+                yearFilterOptions={model.yearFilterOptions}
+                yearFilter={model.yearFilter}
+                setYearFilter={model.setYearFilter}
+                quarterFilterOptions={model.quarterFilterOptions}
+                quarterFilter={model.quarterFilter}
+                setQuarterFilter={model.setQuarterFilter}
+                monthFilterOptions={model.monthFilterOptions}
+                monthFilterKey={model.monthFilterKey}
+                setMonthFilterKey={model.setMonthFilterKey}
+                transactionView={model.transactionView}
+                setTransactionView={model.setTransactionView}
+                transactionSearch={model.transactionSearch}
                 setTransactionSearch={(value) => {
-                  void router.navigate({
+                  void model.router.navigate({
                     to: '/c/$companyId/p/$projectId',
-                    params: { companyId, projectId },
+                    params: {
+                      companyId: model.companyId,
+                      projectId: model.projectId,
+                    },
                     search: {
-                      year: yearFilter ?? undefined,
-                      quarter: quarterFilter ?? undefined,
-                      tab: activeTab === 'budget' ? undefined : activeTab,
-                      month: monthFilterKey ?? undefined,
+                      year: model.yearFilter ?? undefined,
+                      quarter: model.quarterFilter ?? undefined,
+                      tab:
+                        model.activeTab === 'budget'
+                          ? undefined
+                          : model.activeTab,
+                      month: model.monthFilterKey ?? undefined,
                       view:
-                        transactionView === 'all' ? undefined : transactionView,
+                        model.transactionView === 'all'
+                          ? undefined
+                          : model.transactionView,
                       q: value.trim().slice(0, 200) || undefined,
-                      source: initialEntrySource,
-                      focus: initialEntryFocus,
-                      drilldownKind: transactionDrilldown?.kind,
-                      categoryId: transactionDrilldown?.categoryId,
-                      categoryName: transactionDrilldown?.categoryName,
+                      source: model.initialEntrySource,
+                      focus: model.initialEntryFocus,
+                      drilldownKind: model.transactionDrilldown?.kind,
+                      categoryId: model.transactionDrilldown?.categoryId,
+                      categoryName: model.transactionDrilldown?.categoryName,
                       subCategoryId:
-                        transactionDrilldown?.kind === 'subcategory'
-                          ? transactionDrilldown.subCategoryId
+                        model.transactionDrilldown?.kind === 'subcategory'
+                          ? model.transactionDrilldown.subCategoryId
                           : undefined,
                       subCategoryName:
-                        transactionDrilldown?.kind === 'subcategory'
-                          ? transactionDrilldown.subCategoryName
+                        model.transactionDrilldown?.kind === 'subcategory'
+                          ? model.transactionDrilldown.subCategoryName
                           : undefined,
                     },
                     replace: true,
                   });
                 }}
-                transactionDrilldown={effectiveTransactionDrilldown}
+                transactionDrilldown={model.effectiveTransactionDrilldown}
                 onClearTransactionDrilldown={() =>
-                  setTransactionDrilldown(null)
+                  model.setTransactionDrilldown(null)
                 }
-                initialCommentTxnId={initialCommentTxnId}
-                transferOutEnabled={effectiveAllowTxnTransfers}
-                transferProjectOptions={transferProjectOptions}
+                initialCommentTxnId={model.initialCommentTxnId}
+                transferOutEnabled={model.effectiveAllowTxnTransfers}
+                transferProjectOptions={model.transferProjectOptions}
                 onClearFilters={() => {
-                  setYearFilter(null);
-                  setQuarterFilter(null);
-                  setMonthFilterKey(null);
-                  setTransactionDrilldown(null);
-                  void router.navigate({
+                  model.setYearFilter(null);
+                  model.setQuarterFilter(null);
+                  model.setMonthFilterKey(null);
+                  model.setTransactionDrilldown(null);
+                  void model.router.navigate({
                     to: '/c/$companyId/p/$projectId',
-                    params: { companyId, projectId },
+                    params: {
+                      companyId: model.companyId,
+                      projectId: model.projectId,
+                    },
                     search: {
-                      tab: activeTab === 'budget' ? undefined : activeTab,
+                      tab:
+                        model.activeTab === 'budget'
+                          ? undefined
+                          : model.activeTab,
                       month: undefined,
                       quarter: undefined,
                       year: undefined,
                       view:
-                        transactionView === 'all' ? undefined : transactionView,
-                      q: transactionSearch.trim() || undefined,
+                        model.transactionView === 'all'
+                          ? undefined
+                          : model.transactionView,
+                      q: model.transactionSearch.trim() || undefined,
                       source: undefined,
                       focus: undefined,
                       drilldownKind: undefined,
@@ -766,44 +892,52 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                     replace: true,
                   });
                 }}
-                canEditTaxonomy={canEditTaxonomy}
-                canManageReversals={canManageReversals}
-                canResolveUnlock={canResolveUnlock}
-                canAdminUnlock={canAdminUnlock}
-                readOnly={!canEditTxns}
+                canEditTaxonomy={model.canEditTaxonomy}
+                canManageReversals={model.canManageReversals}
+                canResolveUnlock={model.canResolveUnlock}
+                canAdminUnlock={model.canAdminUnlock}
+                readOnly={!model.canEditTxns}
               />
             </Suspense>
           </Tabs.Panel>
 
           <Tabs.Panel value="budget" pt="md">
             <BudgetPanel
-              projectId={projectId}
-              currencyCode={currencyCode}
-              projectBudgetTotalCents={effectiveProjectBudgetTotalCents}
-              yearFilterOptions={yearFilterOptions}
-              yearFilter={yearFilter}
-              setYearFilter={setYearFilter}
-              quarterFilterOptions={quarterFilterOptions}
-              quarterFilter={quarterFilter}
-              setQuarterFilter={setQuarterFilter}
-              monthFilterOptions={monthFilterOptions}
-              monthFilterKey={monthFilterKey}
-              setMonthFilterKey={setMonthFilterKey}
+              projectId={model.projectId}
+              currencyCode={model.currencyCode}
+              projectBudgetTotalCents={model.effectiveProjectBudgetTotalCents}
+              yearFilterOptions={model.yearFilterOptions}
+              yearFilter={model.yearFilter}
+              setYearFilter={model.setYearFilter}
+              quarterFilterOptions={model.quarterFilterOptions}
+              quarterFilter={model.quarterFilter}
+              setQuarterFilter={model.setQuarterFilter}
+              monthFilterOptions={model.monthFilterOptions}
+              monthFilterKey={model.monthFilterKey}
+              setMonthFilterKey={model.setMonthFilterKey}
               onClearFilters={() => {
-                setYearFilter(null);
-                setQuarterFilter(null);
-                setMonthFilterKey(null);
-                void router.navigate({
+                model.setYearFilter(null);
+                model.setQuarterFilter(null);
+                model.setMonthFilterKey(null);
+                void model.router.navigate({
                   to: '/c/$companyId/p/$projectId',
-                  params: { companyId, projectId },
+                  params: {
+                    companyId: model.companyId,
+                    projectId: model.projectId,
+                  },
                   search: {
-                    tab: activeTab === 'budget' ? undefined : activeTab,
+                    tab:
+                      model.activeTab === 'budget'
+                        ? undefined
+                        : model.activeTab,
                     month: undefined,
                     quarter: undefined,
                     year: undefined,
                     view:
-                      transactionView === 'all' ? undefined : transactionView,
-                    q: transactionSearch.trim() || undefined,
+                      model.transactionView === 'all'
+                        ? undefined
+                        : model.transactionView,
+                    q: model.transactionSearch.trim() || undefined,
                     source: undefined,
                     focus: undefined,
                     drilldownKind: undefined,
@@ -815,28 +949,28 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                   replace: true,
                 });
               }}
-              onTransactionDrilldown={openTransactionDrilldown}
+              onTransactionDrilldown={model.openTransactionDrilldown}
               onUpdateProjectBudgetTotal={async (budgetTotalCents) => {
-                await updateProject.mutateAsync({
-                  id: projectId,
+                await model.updateProject.mutateAsync({
+                  id: model.projectId,
                   budgetTotalCents,
                 });
               }}
-              rollups={rollups}
-              budgets={budgets}
+              rollups={model.rollups}
+              budgets={model.budgets}
               uncodedSummary={{
-                count: transactionPeriodSummary.uncodedCount,
-                amountCents: transactionPeriodSummary.uncodedAmountCents,
+                count: model.transactionPeriodSummary.uncodedCount,
+                amountCents: model.transactionPeriodSummary.uncodedAmountCents,
               }}
               pendingReversalCents={
-                transactionPeriodSummary.pendingReversalCents
+                model.transactionPeriodSummary.pendingReversalCents
               }
               pendingReversalCount={
-                transactionPeriodSummary.pendingReversalCount
+                model.transactionPeriodSummary.pendingReversalCount
               }
-              isLoading={!summaryReady}
-              canEditProjectBudgetTotal={canEditBudgets}
-              readOnly={!canEditBudgets}
+              isLoading={!model.summaryReady}
+              canEditProjectBudgetTotal={model.canEditBudgets}
+              readOnly={!model.canEditBudgets}
             />
           </Tabs.Panel>
 
@@ -844,14 +978,14 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
             <Stack gap="md">
               <Suspense fallback={<LoadingLine height={180} radius="md" />}>
                 <PowerBiImporterPanel
-                  companyId={companyId}
-                  projectId={projectId}
-                  currencyCode={currencyCode}
-                  canEditTaxonomy={canEditTaxonomy}
-                  canEditBudgets={canEditBudgets}
-                  canManageImportRules={canManageImportRules}
+                  companyId={model.companyId}
+                  projectId={model.projectId}
+                  currencyCode={model.currencyCode}
+                  canEditTaxonomy={model.canEditTaxonomy}
+                  canEditBudgets={model.canEditBudgets}
+                  canManageImportRules={model.canManageImportRules}
                   onImportComplete={(message) => {
-                    setActiveTab('transactions');
+                    model.setActiveTab('transactions');
                     showAppToast({
                       tone: 'success',
                       title: 'Import complete',
@@ -860,13 +994,13 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
                     });
                   }}
                   onReplaceAll={async (options) => {
-                    return importTransactions.mutateAsync({
+                    return model.importTransactions.mutateAsync({
                       mode: 'replaceAll',
                       ...options,
                     });
                   }}
                   onAppend={async (options) => {
-                    return importTransactions.mutateAsync({
+                    return model.importTransactions.mutateAsync({
                       mode: 'append',
                       ...options,
                     });
@@ -879,13 +1013,22 @@ function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
           <Tabs.Panel value="settings" pt="md">
             <Suspense fallback={<LoadingLine height={180} radius="md" />}>
               <ProjectSettingsPanel
-                companyId={companyId}
-                projectId={projectId}
+                companyId={model.companyId}
+                projectId={model.projectId}
               />
             </Suspense>
           </Tabs.Panel>
         </Tabs>
       </Paper>
     </Stack>
+  );
+}
+
+function ProjectWorkspaceInner(props: ProjectWorkspaceInnerProps) {
+  const model = useProjectWorkspaceController(props);
+  return model.effectiveProjectType === 'programme' ? (
+    <ProgrammeProjectWorkspaceView model={model} />
+  ) : (
+    <OperationalProjectWorkspaceView model={model} />
   );
 }

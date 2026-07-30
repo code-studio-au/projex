@@ -46,7 +46,7 @@ import {
 } from './transactions/reversalReviewQueue';
 import { useTransactionSearch } from './transactions/useTransactionSearch';
 
-export default function TransactionsPanel(props: {
+function useTransactionsPanelController(props: {
   projectId: ProjectId;
   transactionActions: TransactionActions;
   taxonomy: TaxonomyHook;
@@ -390,347 +390,501 @@ export default function TransactionsPanel(props: {
     onOpenUnlock: setUnlockTxn,
   });
 
+  return {
+    activeCommentsTxn,
+    activeReversalReviewTxn,
+    activeReversalTxn,
+    autoMappedPendingCount,
+    bulkApproveSuggestedReversalsConfirmOpen,
+    bulkDeleteConfirmOpen,
+    bulkRecodeCategoryId,
+    bulkRecodeOpen,
+    bulkRecodeSubCategoryId,
+    bulkRecodeSubCategoryOptions,
+    canAdminUnlock,
+    canEditTaxonomy,
+    canManageReversals,
+    canResolveUnlock,
+    clearSelection,
+    closeReversalModal,
+    createProjectRule,
+    currencyCode,
+    drilldownLabel,
+    initialCommentTxnId,
+    isHydrated,
+    isMobile,
+    loadReversalReviewQueue,
+    manageOpen,
+    monthFilterKey,
+    monthFilterOptions,
+    onClearFilters,
+    onClearTransactionDrilldown,
+    openReversalReviewQueue,
+    pageSummary,
+    pagedTxns,
+    pagination,
+    paginationScopeKey,
+    projectId,
+    projectRuleError,
+    projectRuleMatchText,
+    projectRulePrompt,
+    quarterFilter,
+    quarterFilterOptions,
+    queueSearch,
+    readOnly,
+    reconcilePendingReversals,
+    reconcilingPendingReversals,
+    resetPage,
+    reversalModalNonce,
+    reversalReviewQueue,
+    reversalReviewQueueControls,
+    reversalReviewTxnQ,
+    reversalTxn,
+    rowSelection,
+    runBulkAction,
+    searchInput,
+    selectAllFilteredTransactions,
+    selectTransactions,
+    selectedAmbiguousSuggestedReversalCount,
+    selectedAutoMappedPendingCount,
+    selectedDeletableCount,
+    selectedLockEligibleCount,
+    selectedSuggestedReversalCount,
+    selectedSuggestedReversalIds,
+    selectedSuggestedReversalPairs,
+    selectedTxnIds,
+    selectedUnlockedCategorisableCount,
+    selectedWorkflowVersions,
+    setBulkApproveSuggestedReversalsConfirmOpen,
+    setBulkDeleteConfirmOpen,
+    setBulkRecodeCategoryId,
+    setBulkRecodeOpen,
+    setBulkRecodeSubCategoryId,
+    setCommentsTxn,
+    setDismissedLinkedCommentTxnId,
+    setManageOpen,
+    setMonthFilterKey,
+    setPagination,
+    setProjectRuleError,
+    setProjectRuleMatchText,
+    setProjectRulePrompt,
+    setQuarterFilter,
+    setRowSelection,
+    setSorting,
+    setSplitTxn,
+    setTransactionView,
+    setTransferTxn,
+    setUnlockTxn,
+    setYearFilter,
+    sorting,
+    splitTxn,
+    taxonomy,
+    transactionActions,
+    transactionDrilldown,
+    transactionSearch,
+    transactionView,
+    transactionsPageQ,
+    transferProjectOptions,
+    transferTxn,
+    txnColumns,
+    unlockTxn,
+    yearFilter,
+    yearFilterOptions,
+  };
+}
+
+type TransactionsPanelController = ReturnType<
+  typeof useTransactionsPanelController
+>;
+
+function TransactionsOverviewSection({
+  model,
+}: {
+  model: TransactionsPanelController;
+}) {
   return (
-    <Stack gap="lg" className={classes.pageStack}>
-      <Paper className={classes.surfaceCard} radius="xl" p="md">
-        <Stack gap="md">
-          <TransactionFiltersCard
-            isMobile={isMobile}
-            transactionView={transactionView}
-            setTransactionView={setTransactionView}
-            yearFilterOptions={yearFilterOptions}
-            yearFilter={yearFilter}
-            setYearFilter={setYearFilter}
-            quarterFilterOptions={quarterFilterOptions}
-            quarterFilter={quarterFilter}
-            setQuarterFilter={setQuarterFilter}
-            monthFilterOptions={monthFilterOptions}
-            monthFilterKey={monthFilterKey}
-            setMonthFilterKey={setMonthFilterKey}
-            onClearFilters={onClearFilters}
-            onResetPage={resetPage}
-            onClearSelection={clearSelection}
-            toQuarterOption={toQuarterOption}
-          />
+    <Paper className={classes.surfaceCard} radius="xl" p="md">
+      <Stack gap="md">
+        <TransactionFiltersCard
+          isMobile={model.isMobile}
+          transactionView={model.transactionView}
+          setTransactionView={model.setTransactionView}
+          yearFilterOptions={model.yearFilterOptions}
+          yearFilter={model.yearFilter}
+          setYearFilter={model.setYearFilter}
+          quarterFilterOptions={model.quarterFilterOptions}
+          quarterFilter={model.quarterFilter}
+          setQuarterFilter={model.setQuarterFilter}
+          monthFilterOptions={model.monthFilterOptions}
+          monthFilterKey={model.monthFilterKey}
+          setMonthFilterKey={model.setMonthFilterKey}
+          onClearFilters={model.onClearFilters}
+          onResetPage={model.resetPage}
+          onClearSelection={model.clearSelection}
+          toQuarterOption={toQuarterOption}
+        />
 
-          <Divider />
+        <Divider />
 
-          <TransactionsOverviewCard
-            pageSummary={pageSummary}
-            transactionView={transactionView}
-            currencyCode={currencyCode}
-            projectAutoMappedPendingCount={autoMappedPendingCount}
-            isHydrated={isHydrated}
-            isMobile={isMobile}
-            readOnly={readOnly}
-            canEditTaxonomy={canEditTaxonomy}
-            canManageReversals={canManageReversals}
-            canAdminUnlock={canAdminUnlock}
-            reconcilingPendingReversals={reconcilingPendingReversals}
-            loadingReversalReviewQueue={loadReversalReviewQueue.isPending}
-            onReconcilePendingReversals={() => {
-              void reconcilePendingReversals();
-            }}
-            onOpenReversalReviewQueue={() => {
-              void openReversalReviewQueue();
-            }}
-            onApproveAllAutoMappings={() => {
-              void runBulkAction({
-                input: {
-                  action: 'approveAllAutoMappings',
-                },
-                successLabel: 'Approved',
-                clearSelection: false,
-              });
-            }}
-            onOpenTaxonomyManager={() => setManageOpen(true)}
-            selectedTxnCount={selectedTxnIds.length}
-            selectedCountLabel={formatTxnCountLabel(selectedTxnIds.length)}
-            selectableTxnCount={pageSummary.totalCount}
-            selectingAll={selectTransactions.isPending}
-            selectedAutoMappedPendingCount={selectedAutoMappedPendingCount}
-            selectedAmbiguousSuggestedReversalCount={
-              selectedAmbiguousSuggestedReversalCount
-            }
-            selectedSuggestedReversalCount={selectedSuggestedReversalCount}
-            selectedSuggestedReversalPairs={selectedSuggestedReversalPairs}
-            selectedUnlockedCategorisableCount={
-              selectedUnlockedCategorisableCount
-            }
-            selectedDeletableCount={selectedDeletableCount}
-            selectedLockEligibleCount={selectedLockEligibleCount}
-            onSelectAll={() => void selectAllFilteredTransactions()}
-            onClearSelection={clearSelection}
-            onMarkReviewed={() => {
-              void runBulkAction({
-                input: {
-                  action: 'setReviewed',
-                  txnIds: selectedTxnIds,
-                  reviewed: true,
-                  workflowVersions: selectedWorkflowVersions,
-                },
-                successLabel: 'Reviewed',
-              });
-            }}
-            onMarkUnreviewed={() => {
-              void runBulkAction({
-                input: {
-                  action: 'setReviewed',
-                  txnIds: selectedTxnIds,
-                  reviewed: false,
-                  workflowVersions: selectedWorkflowVersions,
-                },
-                successLabel: 'Marked unreviewed for',
-              });
-            }}
-            onLock={() => {
-              void runBulkAction({
-                input: {
-                  action: 'setLocked',
-                  txnIds: selectedTxnIds,
-                  locked: true,
-                  workflowVersions: selectedWorkflowVersions,
-                },
-                successLabel: 'Locked',
-              });
-            }}
-            onUnlock={() => {
-              void runBulkAction({
-                input: {
-                  action: 'setLocked',
-                  txnIds: selectedTxnIds,
-                  locked: false,
-                  workflowVersions: selectedWorkflowVersions,
-                  reason: 'Bulk administrative unlock from transaction table',
-                },
-                successLabel: 'Unlocked',
-              });
-            }}
-            onApproveAutoMappings={() => {
-              void runBulkAction({
-                input: {
-                  action: 'approveAutoMappings',
-                  txnIds: selectedTxnIds,
-                },
-                successLabel: 'Approved',
-              });
-            }}
-            onOpenRecode={() => {
-              setBulkRecodeCategoryId(null);
-              setBulkRecodeSubCategoryId(null);
-              setBulkRecodeOpen(true);
-            }}
-            onClearCoding={() => {
-              void runBulkAction({
-                input: {
-                  action: 'clearCoding',
-                  txnIds: selectedTxnIds,
-                },
-                successLabel: 'Cleared coding for',
-              });
-            }}
-            bulkDeleteConfirmOpen={bulkDeleteConfirmOpen}
-            bulkApproveSuggestedReversalsConfirmOpen={
-              bulkApproveSuggestedReversalsConfirmOpen
-            }
-            onOpenBulkDeleteConfirm={() => setBulkDeleteConfirmOpen(true)}
-            onCloseBulkDeleteConfirm={() => setBulkDeleteConfirmOpen(false)}
-            onConfirmBulkDelete={() => {
-              void runBulkAction({
+        <TransactionsOverviewCard
+          pageSummary={model.pageSummary}
+          transactionView={model.transactionView}
+          currencyCode={model.currencyCode}
+          projectAutoMappedPendingCount={model.autoMappedPendingCount}
+          isHydrated={model.isHydrated}
+          isMobile={model.isMobile}
+          readOnly={model.readOnly}
+          canEditTaxonomy={model.canEditTaxonomy}
+          canManageReversals={model.canManageReversals}
+          canAdminUnlock={model.canAdminUnlock}
+          reconcilingPendingReversals={model.reconcilingPendingReversals}
+          loadingReversalReviewQueue={model.loadReversalReviewQueue.isPending}
+          onReconcilePendingReversals={() => {
+            void model.reconcilePendingReversals();
+          }}
+          onOpenReversalReviewQueue={() => {
+            void model.openReversalReviewQueue();
+          }}
+          onApproveAllAutoMappings={() => {
+            void model.runBulkAction({
+              input: {
+                action: 'approveAllAutoMappings',
+              },
+              successLabel: 'Approved',
+              clearSelection: false,
+            });
+          }}
+          onOpenTaxonomyManager={() => model.setManageOpen(true)}
+          selectedTxnCount={model.selectedTxnIds.length}
+          selectedCountLabel={formatTxnCountLabel(model.selectedTxnIds.length)}
+          selectableTxnCount={model.pageSummary.totalCount}
+          selectingAll={model.selectTransactions.isPending}
+          selectedAutoMappedPendingCount={model.selectedAutoMappedPendingCount}
+          selectedAmbiguousSuggestedReversalCount={
+            model.selectedAmbiguousSuggestedReversalCount
+          }
+          selectedSuggestedReversalCount={model.selectedSuggestedReversalCount}
+          selectedSuggestedReversalPairs={model.selectedSuggestedReversalPairs}
+          selectedUnlockedCategorisableCount={
+            model.selectedUnlockedCategorisableCount
+          }
+          selectedDeletableCount={model.selectedDeletableCount}
+          selectedLockEligibleCount={model.selectedLockEligibleCount}
+          onSelectAll={() => void model.selectAllFilteredTransactions()}
+          onClearSelection={model.clearSelection}
+          onMarkReviewed={() => {
+            void model.runBulkAction({
+              input: {
+                action: 'setReviewed',
+                txnIds: model.selectedTxnIds,
+                reviewed: true,
+                workflowVersions: model.selectedWorkflowVersions,
+              },
+              successLabel: 'Reviewed',
+            });
+          }}
+          onMarkUnreviewed={() => {
+            void model.runBulkAction({
+              input: {
+                action: 'setReviewed',
+                txnIds: model.selectedTxnIds,
+                reviewed: false,
+                workflowVersions: model.selectedWorkflowVersions,
+              },
+              successLabel: 'Marked unreviewed for',
+            });
+          }}
+          onLock={() => {
+            void model.runBulkAction({
+              input: {
+                action: 'setLocked',
+                txnIds: model.selectedTxnIds,
+                locked: true,
+                workflowVersions: model.selectedWorkflowVersions,
+              },
+              successLabel: 'Locked',
+            });
+          }}
+          onUnlock={() => {
+            void model.runBulkAction({
+              input: {
+                action: 'setLocked',
+                txnIds: model.selectedTxnIds,
+                locked: false,
+                workflowVersions: model.selectedWorkflowVersions,
+                reason: 'Bulk administrative unlock from transaction table',
+              },
+              successLabel: 'Unlocked',
+            });
+          }}
+          onApproveAutoMappings={() => {
+            void model.runBulkAction({
+              input: {
+                action: 'approveAutoMappings',
+                txnIds: model.selectedTxnIds,
+              },
+              successLabel: 'Approved',
+            });
+          }}
+          onOpenRecode={() => {
+            model.setBulkRecodeCategoryId(null);
+            model.setBulkRecodeSubCategoryId(null);
+            model.setBulkRecodeOpen(true);
+          }}
+          onClearCoding={() => {
+            void model.runBulkAction({
+              input: {
+                action: 'clearCoding',
+                txnIds: model.selectedTxnIds,
+              },
+              successLabel: 'Cleared coding for',
+            });
+          }}
+          bulkDeleteConfirmOpen={model.bulkDeleteConfirmOpen}
+          bulkApproveSuggestedReversalsConfirmOpen={
+            model.bulkApproveSuggestedReversalsConfirmOpen
+          }
+          onOpenBulkDeleteConfirm={() => model.setBulkDeleteConfirmOpen(true)}
+          onCloseBulkDeleteConfirm={() => model.setBulkDeleteConfirmOpen(false)}
+          onConfirmBulkDelete={() => {
+            void model
+              .runBulkAction({
                 input: {
                   action: 'delete',
-                  txnIds: selectedTxnIds,
+                  txnIds: model.selectedTxnIds,
                 },
                 successLabel: 'Deleted',
-              }).then((result) => {
+              })
+              .then((result) => {
                 if (result) {
-                  setBulkDeleteConfirmOpen(false);
+                  model.setBulkDeleteConfirmOpen(false);
                 }
               });
-            }}
-            onOpenBulkApproveSuggestedReversalsConfirm={() =>
-              setBulkApproveSuggestedReversalsConfirmOpen(true)
-            }
-            onCloseBulkApproveSuggestedReversalsConfirm={() =>
-              setBulkApproveSuggestedReversalsConfirmOpen(false)
-            }
-            onConfirmBulkApproveSuggestedReversals={() => {
-              void runBulkAction({
+          }}
+          onOpenBulkApproveSuggestedReversalsConfirm={() =>
+            model.setBulkApproveSuggestedReversalsConfirmOpen(true)
+          }
+          onCloseBulkApproveSuggestedReversalsConfirm={() =>
+            model.setBulkApproveSuggestedReversalsConfirmOpen(false)
+          }
+          onConfirmBulkApproveSuggestedReversals={() => {
+            void model
+              .runBulkAction({
                 input: {
                   action: 'approveSuggestedReversals',
-                  reversalIds: selectedSuggestedReversalIds,
+                  reversalIds: model.selectedSuggestedReversalIds,
                 },
                 successLabel: 'Approved reversal matches for',
-              }).then((result) => {
+              })
+              .then((result) => {
                 if (result) {
-                  setBulkApproveSuggestedReversalsConfirmOpen(false);
+                  model.setBulkApproveSuggestedReversalsConfirmOpen(false);
                 }
               });
-            }}
-            drilldownLabel={drilldownLabel}
-            onClearDrilldown={() => {
-              clearSelection();
-              resetPage();
-              onClearTransactionDrilldown?.();
-            }}
-            invalidDateCount={pageSummary.invalidDateCount}
-            projectRuleError={projectRuleError}
-            projectRulePromptOpen={Boolean(projectRulePrompt)}
-          />
-        </Stack>
-      </Paper>
+          }}
+          drilldownLabel={model.drilldownLabel}
+          onClearDrilldown={() => {
+            model.clearSelection();
+            model.resetPage();
+            model.onClearTransactionDrilldown?.();
+          }}
+          invalidDateCount={model.pageSummary.invalidDateCount}
+          projectRuleError={model.projectRuleError}
+          projectRulePromptOpen={Boolean(model.projectRulePrompt)}
+        />
+      </Stack>
+    </Paper>
+  );
+}
 
-      <TransactionsDataTable
-        isHydrated={isHydrated}
-        isLoading={transactionsPageQ.isLoading}
-        transactionDrilldownActive={Boolean(transactionDrilldown)}
-        paginationScopeKey={paginationScopeKey}
-        txnColumns={txnColumns}
-        pagedTxns={pagedTxns}
-        readOnly={readOnly}
-        pagination={pagination}
-        rowSelection={rowSelection}
-        sorting={sorting}
-        globalFilter={searchInput}
-        totalCount={pageSummary.totalCount}
-        showProgressBars={transactionsPageQ.isFetching}
-        emptyStateMessage={transactionEmptyStateMessage({
-          transactionView,
-          yearFilter,
-          quarterFilter,
-          monthFilterKey,
-          drilldownLabel,
-          search: transactionSearch,
-        })}
-        onPaginationChange={(updater) => {
-          clearSelection();
-          setPagination(updater);
-        }}
-        onRowSelectionChange={setRowSelection}
-        onGlobalFilterChange={(nextValue) => {
-          queueSearch(nextValue);
-        }}
-        onSortingChange={(updater) => {
-          const nextSorting =
-            typeof updater === 'function' ? updater(sorting) : updater;
-          clearSelection();
-          setSorting(nextSorting);
-          resetPage();
-        }}
-      />
+function TransactionsTableSection({
+  model,
+}: {
+  model: TransactionsPanelController;
+}) {
+  return (
+    <TransactionsDataTable
+      isHydrated={model.isHydrated}
+      isLoading={model.transactionsPageQ.isLoading}
+      transactionDrilldownActive={Boolean(model.transactionDrilldown)}
+      paginationScopeKey={model.paginationScopeKey}
+      txnColumns={model.txnColumns}
+      pagedTxns={model.pagedTxns}
+      readOnly={model.readOnly}
+      pagination={model.pagination}
+      rowSelection={model.rowSelection}
+      sorting={model.sorting}
+      globalFilter={model.searchInput}
+      totalCount={model.pageSummary.totalCount}
+      showProgressBars={model.transactionsPageQ.isFetching}
+      emptyStateMessage={transactionEmptyStateMessage({
+        transactionView: model.transactionView,
+        yearFilter: model.yearFilter,
+        quarterFilter: model.quarterFilter,
+        monthFilterKey: model.monthFilterKey,
+        drilldownLabel: model.drilldownLabel,
+        search: model.transactionSearch,
+      })}
+      onPaginationChange={(updater) => {
+        model.clearSelection();
+        model.setPagination(updater);
+      }}
+      onRowSelectionChange={model.setRowSelection}
+      onGlobalFilterChange={(nextValue) => {
+        model.queueSearch(nextValue);
+      }}
+      onSortingChange={(updater) => {
+        const nextSorting =
+          typeof updater === 'function' ? updater(model.sorting) : updater;
+        model.clearSelection();
+        model.setSorting(nextSorting);
+        model.resetPage();
+      }}
+    />
+  );
+}
 
-      <TransactionsModalStack
-        manageOpen={manageOpen}
-        onCloseManage={() => setManageOpen(false)}
-        taxonomy={taxonomy}
-        canEditTaxonomy={canEditTaxonomy}
-        splitTxn={splitTxn}
-        currencyCode={currencyCode}
-        onCloseSplit={() => setSplitTxn(null)}
-        onSplit={(children) =>
-          splitTxn
-            ? transactionActions.splitTxn(splitTxn.id, children)
-            : Promise.resolve()
+function TransactionsModalSection({
+  model,
+}: {
+  model: TransactionsPanelController;
+}) {
+  return (
+    <TransactionsModalStack
+      manageOpen={model.manageOpen}
+      onCloseManage={() => model.setManageOpen(false)}
+      taxonomy={model.taxonomy}
+      canEditTaxonomy={model.canEditTaxonomy}
+      splitTxn={model.splitTxn}
+      currencyCode={model.currencyCode}
+      onCloseSplit={() => model.setSplitTxn(null)}
+      onSplit={(children) =>
+        model.splitTxn
+          ? model.transactionActions.splitTxn(model.splitTxn.id, children)
+          : Promise.resolve()
+      }
+      transferTxn={model.transferTxn}
+      transferProjectOptions={model.transferProjectOptions}
+      onCloseTransfer={() => model.setTransferTxn(null)}
+      onTransfer={(input) =>
+        model.transferTxn
+          ? model.transactionActions.transferTxn(model.transferTxn.id, input)
+          : Promise.resolve()
+      }
+      reversalTxn={model.activeReversalTxn}
+      reversalModalNonce={model.reversalModalNonce}
+      reversalReviewQueue={model.reversalReviewQueueControls}
+      reversalReviewQueueLoading={Boolean(
+        model.reversalReviewQueue &&
+        !model.activeReversalReviewTxn &&
+        (model.reversalReviewTxnQ.isLoading ||
+          model.reversalReviewTxnQ.isFetching)
+      )}
+      reversalReviewQueueError={
+        model.reversalReviewQueue && !model.activeReversalReviewTxn
+          ? model.reversalReviewTxnQ.error instanceof Error
+            ? model.reversalReviewTxnQ.error.message
+            : model.reversalReviewTxnQ.isSuccess
+              ? 'This transaction is no longer available for review.'
+              : null
+          : null
+      }
+      canManageReversals={model.canManageReversals}
+      expectedProjectOptions={model.transferProjectOptions.filter(
+        (option) => option.value !== model.projectId
+      )}
+      onCloseReversal={model.closeReversalModal}
+      onLoadReversalSuggestions={(txnId) =>
+        model.transactionActions.getReversalSuggestions(txnId)
+      }
+      onSubmitReversalAction={(input) =>
+        model.transactionActions.runReversalAction(input)
+      }
+      activeCommentsTxn={model.activeCommentsTxn}
+      onCloseComments={() => {
+        model.setCommentsTxn(null);
+        if (model.initialCommentTxnId) {
+          model.setDismissedLinkedCommentTxnId(model.initialCommentTxnId);
         }
-        transferTxn={transferTxn}
-        transferProjectOptions={transferProjectOptions}
-        onCloseTransfer={() => setTransferTxn(null)}
-        onTransfer={(input) =>
-          transferTxn
-            ? transactionActions.transferTxn(transferTxn.id, input)
-            : Promise.resolve()
+      }}
+      bulkRecodeOpen={model.bulkRecodeOpen}
+      bulkRecodeCategoryId={model.bulkRecodeCategoryId}
+      bulkRecodeSubCategoryId={model.bulkRecodeSubCategoryId}
+      bulkRecodeSubCategoryOptions={model.bulkRecodeSubCategoryOptions}
+      onCloseBulkRecode={() => model.setBulkRecodeOpen(false)}
+      onCategoryChange={model.setBulkRecodeCategoryId}
+      onSubCategoryChange={model.setBulkRecodeSubCategoryId}
+      selectedTxnIds={model.selectedTxnIds}
+      onSubmitBulkRecode={async ({ txnIds, categoryId, subCategoryId }) =>
+        Boolean(
+          await model.runBulkAction({
+            input: {
+              action: 'recode',
+              txnIds,
+              categoryId,
+              subCategoryId,
+            },
+            successLabel: 'Recoded',
+          })
+        )
+      }
+      projectRulePrompt={model.projectRulePrompt}
+      projectRuleMatchText={model.projectRuleMatchText}
+      projectRuleError={model.projectRuleError}
+      createProjectRulePending={model.createProjectRule.isPending}
+      onCloseProjectRule={() => {
+        model.setProjectRulePrompt(null);
+        model.setProjectRuleError(null);
+      }}
+      onProjectRuleMatchTextChange={(value) => {
+        model.setProjectRuleError(null);
+        model.setProjectRuleMatchText(value);
+      }}
+      onSubmitProjectRule={async () => {
+        if (!model.projectRulePrompt) return;
+        try {
+          model.setProjectRuleError(null);
+          await model.createProjectRule.mutateAsync({
+            matchText: model.projectRuleMatchText.trim(),
+            subCategoryId: model.projectRulePrompt.subCategoryId,
+          });
+          model.setProjectRulePrompt(null);
+        } catch (error) {
+          model.setProjectRuleError(
+            error instanceof Error
+              ? error.message
+              : 'Could not create project auto-coding rule.'
+          );
         }
-        reversalTxn={activeReversalTxn}
-        reversalModalNonce={reversalModalNonce}
-        reversalReviewQueue={reversalReviewQueueControls}
-        reversalReviewQueueLoading={Boolean(
-          reversalReviewQueue &&
-          !activeReversalReviewTxn &&
-          (reversalReviewTxnQ.isLoading || reversalReviewTxnQ.isFetching)
-        )}
-        reversalReviewQueueError={
-          reversalReviewQueue && !activeReversalReviewTxn
-            ? reversalReviewTxnQ.error instanceof Error
-              ? reversalReviewTxnQ.error.message
-              : reversalReviewTxnQ.isSuccess
-                ? 'This transaction is no longer available for review.'
-                : null
-            : null
-        }
-        canManageReversals={canManageReversals}
-        expectedProjectOptions={transferProjectOptions.filter(
-          (option) => option.value !== projectId
-        )}
-        onCloseReversal={closeReversalModal}
-        onLoadReversalSuggestions={(txnId) =>
-          transactionActions.getReversalSuggestions(txnId)
-        }
-        onSubmitReversalAction={(input) =>
-          transactionActions.runReversalAction(input)
-        }
-        activeCommentsTxn={activeCommentsTxn}
-        onCloseComments={() => {
-          setCommentsTxn(null);
-          if (initialCommentTxnId) {
-            setDismissedLinkedCommentTxnId(initialCommentTxnId);
-          }
-        }}
-        bulkRecodeOpen={bulkRecodeOpen}
-        bulkRecodeCategoryId={bulkRecodeCategoryId}
-        bulkRecodeSubCategoryId={bulkRecodeSubCategoryId}
-        bulkRecodeSubCategoryOptions={bulkRecodeSubCategoryOptions}
-        onCloseBulkRecode={() => setBulkRecodeOpen(false)}
-        onCategoryChange={setBulkRecodeCategoryId}
-        onSubCategoryChange={setBulkRecodeSubCategoryId}
-        selectedTxnIds={selectedTxnIds}
-        onSubmitBulkRecode={async ({ txnIds, categoryId, subCategoryId }) =>
-          Boolean(
-            await runBulkAction({
-              input: {
-                action: 'recode',
-                txnIds,
-                categoryId,
-                subCategoryId,
-              },
-              successLabel: 'Recoded',
-            })
-          )
-        }
-        projectRulePrompt={projectRulePrompt}
-        projectRuleMatchText={projectRuleMatchText}
-        projectRuleError={projectRuleError}
-        createProjectRulePending={createProjectRule.isPending}
-        onCloseProjectRule={() => {
-          setProjectRulePrompt(null);
-          setProjectRuleError(null);
-        }}
-        onProjectRuleMatchTextChange={(value) => {
-          setProjectRuleError(null);
-          setProjectRuleMatchText(value);
-        }}
-        onSubmitProjectRule={async () => {
-          if (!projectRulePrompt) return;
-          try {
-            setProjectRuleError(null);
-            await createProjectRule.mutateAsync({
-              matchText: projectRuleMatchText.trim(),
-              subCategoryId: projectRulePrompt.subCategoryId,
-            });
-            setProjectRulePrompt(null);
-          } catch (error) {
-            setProjectRuleError(
-              error instanceof Error
-                ? error.message
-                : 'Could not create project auto-coding rule.'
-            );
-          }
-        }}
-        unlockTxn={unlockTxn}
-        canResolveUnlock={canResolveUnlock}
-        canAdminUnlock={canAdminUnlock}
-        transactionActions={transactionActions}
-        onCloseUnlock={() => setUnlockTxn(null)}
-      />
+      }}
+      unlockTxn={model.unlockTxn}
+      canResolveUnlock={model.canResolveUnlock}
+      canAdminUnlock={model.canAdminUnlock}
+      transactionActions={model.transactionActions}
+      onCloseUnlock={() => model.setUnlockTxn(null)}
+    />
+  );
+}
+
+function TransactionsPanelView({
+  model,
+}: {
+  model: TransactionsPanelController;
+}) {
+  return (
+    <Stack gap="lg" className={classes.pageStack}>
+      <TransactionsOverviewSection model={model} />
+
+      <TransactionsTableSection model={model} />
+
+      <TransactionsModalSection model={model} />
     </Stack>
   );
+}
+
+export default function TransactionsPanel(
+  props: Parameters<typeof useTransactionsPanelController>[0]
+) {
+  const model = useTransactionsPanelController(props);
+  return <TransactionsPanelView model={model} />;
 }

@@ -67,7 +67,7 @@ function actionLabel(action: RuleSuggestionAcceptanceAction) {
   return 'Create rule';
 }
 
-export default function RuleSuggestionsModal(props: {
+function useRuleSuggestionsModalController(props: {
   opened: boolean;
   onClose: () => void;
   companyId: CompanyId;
@@ -141,394 +141,458 @@ export default function RuleSuggestionsModal(props: {
     return `${categoryName} / ${subCategoryName}`;
   }
 
+  return {
+    acceptSuggestion,
+    actionDrafts,
+    categoryIdForSuggestion,
+    categoryOptions,
+    defaultPath,
+    dismissReasonDrafts,
+    dismissSuggestion,
+    error,
+    isMobile,
+    matchDrafts,
+    onClose,
+    opened,
+    readOnly,
+    setActionDrafts,
+    setCategoryDrafts,
+    setDismissReasonDrafts,
+    setError,
+    setMatchDrafts,
+    setSubCategoryDrafts,
+    setSuccess,
+    subCategoryDrafts,
+    subCategoryOptionsFor,
+    success,
+    suggestions,
+    suggestionsQ,
+  };
+}
+
+type RuleSuggestionsModalController = ReturnType<
+  typeof useRuleSuggestionsModalController
+>;
+
+function RuleSuggestionsContent({
+  model,
+}: {
+  model: RuleSuggestionsModalController;
+}) {
+  return (
+    <Stack className={classes.modalStack}>
+      {model.error ? <Alert color="red">{model.error}</Alert> : null}
+      {model.success ? <Alert color="green">{model.success}</Alert> : null}
+      {model.readOnly ? (
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          You do not have permission to action rule suggestions.
+        </Text>
+      ) : null}
+
+      <Stack gap={4}>
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          Projex identifies repeated manual coding and repeated corrections to
+          existing company rules. Every recommendation remains subject to admin
+          review.
+        </Text>
+        <Text size="xs" c="dimmed" className="panelHelperText">
+          Suggestions appear after 3 supporting transactions. Dismissed patterns
+          stay quiet for 30 days unless 3 more examples are recorded.
+        </Text>
+        <Group gap="sm" wrap="wrap">
+          <Badge variant="light">
+            {model.suggestions.length} ready for review
+          </Badge>
+          <Badge variant="light" color="gray">
+            Matching method: contains transaction text
+          </Badge>
+        </Group>
+      </Stack>
+
+      {model.suggestionsQ.isPending && !model.suggestionsQ.data ? (
+        <Text className={classes.emptyState}>Loading rule suggestions...</Text>
+      ) : model.suggestions.length === 0 ? (
+        <Text className={classes.emptyState}>
+          No rule suggestions are ready for review yet.
+        </Text>
+      ) : (
+        <Stack gap="md">
+          {model.suggestions.map((suggestion) => (
+            <RuleSuggestionCard
+              key={suggestion.id}
+              model={model}
+              suggestion={suggestion}
+            />
+          ))}
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+function RuleSuggestionEvidence({
+  suggestion,
+}: {
+  suggestion: RuleSuggestionsModalController['suggestions'][number];
+}) {
+  return (
+    <Stack gap={6}>
+      <Text size="sm" fw={600}>
+        Supporting transactions
+      </Text>
+      {suggestion.evidence.length === 0 ? (
+        <Text size="sm" c="dimmed">
+          No evidence samples available.
+        </Text>
+      ) : (
+        suggestion.evidence.map((evidence) => (
+          <Paper
+            key={`${suggestion.id}-${evidence.txnId}`}
+            radius="md"
+            p="sm"
+            className={classes.surfaceMuted}
+          >
+            <Group justify="space-between" align="flex-start">
+              <Stack gap={2}>
+                <Text size="sm" fw={600}>
+                  {evidence.item}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  {evidence.description || 'No description'}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {evidence.projectName} | {evidence.txnDate}
+                </Text>
+              </Stack>
+              <Text size="sm" fw={600}>
+                {formatCurrencyFromCents(
+                  evidence.amountCents,
+                  evidence.currency
+                )}
+              </Text>
+            </Group>
+          </Paper>
+        ))
+      )}
+    </Stack>
+  );
+}
+
+function RuleSuggestionCard({
+  model,
+  suggestion,
+}: {
+  model: RuleSuggestionsModalController;
+  suggestion: RuleSuggestionsModalController['suggestions'][number];
+}) {
+  const selectedCategoryId = model.categoryIdForSuggestion(suggestion);
+  const selectedSubCategoryId =
+    model.subCategoryDrafts[suggestion.id] ??
+    suggestion.companyDefaultSubCategoryId;
+  const subCategoryOptions = model.subCategoryOptionsFor(selectedCategoryId);
+  const draftMatchText =
+    model.matchDrafts[suggestion.id] ?? suggestion.proposedMatchText;
+  const selectedAction =
+    model.actionDrafts[suggestion.id] ?? suggestion.recommendedAction;
+  const dismissReason = model.dismissReasonDrafts[suggestion.id];
+  const isUpdateSuggestion = suggestion.suggestionType === 'update_rule';
+
+  return (
+    <Paper
+      key={suggestion.id}
+      withBorder
+      radius="md"
+      p="md"
+      className={classes.modalCard}
+    >
+      <Stack gap="md">
+        <Group justify="space-between" align="flex-start">
+          <Stack gap={5}>
+            <Group gap="xs" wrap="wrap">
+              <Badge
+                variant="light"
+                color={isUpdateSuggestion ? 'orange' : 'teal'}
+              >
+                {isUpdateSuggestion ? 'Existing rule correction' : 'New rule'}
+              </Badge>
+              <Badge
+                variant="light"
+                color={confidenceColor(suggestion.confidence)}
+              >
+                {suggestion.confidence} confidence ({suggestion.confidenceScore}
+                %)
+              </Badge>
+              <Badge variant="outline">{suggestion.sampleCount} examples</Badge>
+            </Group>
+            <Text fw={650}>{suggestion.proposedMatchText}</Text>
+            <Text size="xs" c="dimmed">
+              {suggestion.confidenceReasons.join(' | ')}. Last seen{' '}
+              {formatUtcDateTime(suggestion.lastSeenAt)}.
+            </Text>
+          </Stack>
+        </Group>
+
+        {isUpdateSuggestion && suggestion.sourceRule ? (
+          <Paper radius="md" p="sm" className={classes.surfaceMuted}>
+            <Stack gap={3}>
+              <Text size="xs" fw={700} tt="uppercase" c="dimmed">
+                Rule being corrected
+              </Text>
+              <Text size="sm" fw={600}>
+                Contains "{suggestion.sourceRule.matchText}"
+              </Text>
+              <Text size="sm" c="dimmed">
+                Currently codes to{' '}
+                {model.defaultPath(
+                  suggestion.sourceRule.companyDefaultCategoryId,
+                  suggestion.sourceRule.companyDefaultSubCategoryId
+                )}
+              </Text>
+            </Stack>
+          </Paper>
+        ) : null}
+
+        {isUpdateSuggestion ? (
+          <Stack gap={6}>
+            <Select
+              label="How should this correction be applied?"
+              description="Creating a narrower rule is safer because the current broader rule remains available for other transactions."
+              data={UPDATE_ACTION_OPTIONS}
+              value={selectedAction}
+              disabled={model.readOnly}
+              {...firefoxSafeModalSelectProps}
+              onChange={(value) => {
+                if (!value) return;
+                model.setError(null);
+                model.setSuccess(null);
+                model.setActionDrafts((prev) => ({
+                  ...prev,
+                  [suggestion.id]: value as RuleSuggestionAcceptanceAction,
+                }));
+              }}
+            />
+            {selectedAction === 'update_existing' ? (
+              <Alert color="orange" variant="light">
+                This changes the existing company rule and every synced project
+                that inherits it.
+              </Alert>
+            ) : (
+              <Alert color="blue" variant="light">
+                The new rule will be placed immediately before the current rule
+                so the more specific match wins first.
+              </Alert>
+            )}
+          </Stack>
+        ) : null}
+
+        <TextInput
+          label="Text the transaction must contain"
+          description={`Detected from the transaction ${suggestion.patternBasis.replace('_', ' + ')}.`}
+          value={draftMatchText}
+          disabled={model.readOnly}
+          onChange={(event) => {
+            const value = event.currentTarget.value;
+            model.setError(null);
+            model.setSuccess(null);
+            model.setMatchDrafts((prev) => ({
+              ...prev,
+              [suggestion.id]: value,
+            }));
+          }}
+        />
+
+        {suggestion.matchTextAlternatives.length > 1 ? (
+          <Stack gap={5}>
+            <Text size="xs" c="dimmed">
+              Suggested alternatives
+            </Text>
+            <Group gap="xs" wrap="wrap">
+              {suggestion.matchTextAlternatives.flatMap((option) =>
+                option.toLowerCase() !== draftMatchText.trim().toLowerCase()
+                  ? [
+                      <Button
+                        key={option}
+                        size="compact-sm"
+                        variant="default"
+                        disabled={model.readOnly}
+                        onClick={() => {
+                          model.setError(null);
+                          model.setSuccess(null);
+                          model.setMatchDrafts((prev) => ({
+                            ...prev,
+                            [suggestion.id]: option,
+                          }));
+                        }}
+                      >
+                        Use "{option}"
+                      </Button>,
+                    ]
+                  : []
+              )}
+            </Group>
+          </Stack>
+        ) : null}
+
+        <Group grow align="flex-end">
+          <Select
+            label="Company default category"
+            data={model.categoryOptions}
+            value={selectedCategoryId}
+            disabled={model.readOnly}
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              model.setError(null);
+              model.setSuccess(null);
+              model.setCategoryDrafts((prev) => ({
+                ...prev,
+                [suggestion.id]: value
+                  ? asCompanyDefaultCategoryId(value)
+                  : suggestion.companyDefaultCategoryId,
+              }));
+              model.setSubCategoryDrafts((prev) => {
+                const next = { ...prev };
+                delete next[suggestion.id];
+                return next;
+              });
+            }}
+          />
+          <Select
+            label="Company default subcategory"
+            data={subCategoryOptions}
+            value={selectedSubCategoryId}
+            disabled={model.readOnly || !selectedCategoryId}
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              model.setError(null);
+              model.setSuccess(null);
+              if (!value) return;
+              model.setSubCategoryDrafts((prev) => ({
+                ...prev,
+                [suggestion.id]: asCompanyDefaultSubCategoryId(value),
+              }));
+            }}
+          />
+        </Group>
+
+        <RuleSuggestionEvidence suggestion={suggestion} />
+
+        <Group justify="space-between" align="flex-end" wrap="wrap">
+          <Group align="flex-end" gap="xs" wrap="wrap">
+            <Select
+              label="Dismiss reason"
+              placeholder="Choose a reason"
+              data={DISMISS_REASON_OPTIONS}
+              value={dismissReason ?? null}
+              disabled={model.readOnly}
+              w={230}
+              {...firefoxSafeModalSelectProps}
+              onChange={(value) => {
+                if (!value) return;
+                model.setDismissReasonDrafts((prev) => ({
+                  ...prev,
+                  [suggestion.id]: value as RuleSuggestionDismissReason,
+                }));
+              }}
+            />
+            <Button
+              variant="subtle"
+              color="red"
+              disabled={
+                model.readOnly ||
+                model.dismissSuggestion.isPending ||
+                !dismissReason
+              }
+              onClick={async () => {
+                if (!dismissReason) return;
+                try {
+                  model.setError(null);
+                  model.setSuccess(null);
+                  await model.dismissSuggestion.mutateAsync({
+                    id: suggestion.id,
+                    reason: dismissReason,
+                  });
+                  model.setSuccess(
+                    'Dismissed the suggestion and started its cooldown.'
+                  );
+                } catch (err) {
+                  model.setError(
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not dismiss rule suggestion.'
+                  );
+                }
+              }}
+            >
+              Dismiss
+            </Button>
+          </Group>
+
+          <Button
+            disabled={
+              model.readOnly ||
+              model.acceptSuggestion.isPending ||
+              !draftMatchText.trim() ||
+              !selectedCategoryId ||
+              !selectedSubCategoryId
+            }
+            onClick={async () => {
+              try {
+                model.setError(null);
+                model.setSuccess(null);
+                await model.acceptSuggestion.mutateAsync({
+                  id: suggestion.id,
+                  action: selectedAction,
+                  proposedMatchText: draftMatchText.trim(),
+                  companyDefaultSubCategoryId: selectedSubCategoryId,
+                });
+                model.setSuccess(
+                  `${actionLabel(selectedAction)} accepted and synced to eligible projects.`
+                );
+              } catch (err) {
+                model.setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not accept rule suggestion.'
+                );
+              }
+            }}
+          >
+            {actionLabel(selectedAction)}
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
+function RuleSuggestionsModalView({
+  model,
+}: {
+  model: RuleSuggestionsModalController;
+}) {
   return (
     <Modal
-      opened={opened}
-      onClose={onClose}
+      opened={model.opened}
+      onClose={model.onClose}
       title="Rule Suggestions"
-      fullScreen={isMobile}
-      centered={!isMobile}
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
       size="xl"
       styles={{
         body: {
-          maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+          maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
           overflowY: 'auto',
         },
       }}
     >
-      <Stack className={classes.modalStack}>
-        {error ? <Alert color="red">{error}</Alert> : null}
-        {success ? <Alert color="green">{success}</Alert> : null}
-        {readOnly ? (
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            You do not have permission to action rule suggestions.
-          </Text>
-        ) : null}
-
-        <Stack gap={4}>
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            Projex identifies repeated manual coding and repeated corrections to
-            existing company rules. Every recommendation remains subject to
-            admin review.
-          </Text>
-          <Text size="xs" c="dimmed" className="panelHelperText">
-            Suggestions appear after 3 supporting transactions. Dismissed
-            patterns stay quiet for 30 days unless 3 more examples are recorded.
-          </Text>
-          <Group gap="sm" wrap="wrap">
-            <Badge variant="light">{suggestions.length} ready for review</Badge>
-            <Badge variant="light" color="gray">
-              Matching method: contains transaction text
-            </Badge>
-          </Group>
-        </Stack>
-
-        {suggestionsQ.isPending && !suggestionsQ.data ? (
-          <Text className={classes.emptyState}>
-            Loading rule suggestions...
-          </Text>
-        ) : suggestions.length === 0 ? (
-          <Text className={classes.emptyState}>
-            No rule suggestions are ready for review yet.
-          </Text>
-        ) : (
-          <Stack gap="md">
-            {suggestions.map((suggestion) => {
-              const selectedCategoryId = categoryIdForSuggestion(suggestion);
-              const selectedSubCategoryId =
-                subCategoryDrafts[suggestion.id] ??
-                suggestion.companyDefaultSubCategoryId;
-              const subCategoryOptions =
-                subCategoryOptionsFor(selectedCategoryId);
-              const draftMatchText =
-                matchDrafts[suggestion.id] ?? suggestion.proposedMatchText;
-              const selectedAction =
-                actionDrafts[suggestion.id] ?? suggestion.recommendedAction;
-              const dismissReason = dismissReasonDrafts[suggestion.id];
-              const isUpdateSuggestion =
-                suggestion.suggestionType === 'update_rule';
-
-              return (
-                <Paper
-                  key={suggestion.id}
-                  withBorder
-                  radius="md"
-                  p="md"
-                  className={classes.modalCard}
-                >
-                  <Stack gap="md">
-                    <Group justify="space-between" align="flex-start">
-                      <Stack gap={5}>
-                        <Group gap="xs" wrap="wrap">
-                          <Badge
-                            variant="light"
-                            color={isUpdateSuggestion ? 'orange' : 'teal'}
-                          >
-                            {isUpdateSuggestion
-                              ? 'Existing rule correction'
-                              : 'New rule'}
-                          </Badge>
-                          <Badge
-                            variant="light"
-                            color={confidenceColor(suggestion.confidence)}
-                          >
-                            {suggestion.confidence} confidence (
-                            {suggestion.confidenceScore}%)
-                          </Badge>
-                          <Badge variant="outline">
-                            {suggestion.sampleCount} examples
-                          </Badge>
-                        </Group>
-                        <Text fw={650}>{suggestion.proposedMatchText}</Text>
-                        <Text size="xs" c="dimmed">
-                          {suggestion.confidenceReasons.join(' | ')}. Last seen{' '}
-                          {formatUtcDateTime(suggestion.lastSeenAt)}.
-                        </Text>
-                      </Stack>
-                    </Group>
-
-                    {isUpdateSuggestion && suggestion.sourceRule ? (
-                      <Paper
-                        radius="md"
-                        p="sm"
-                        className={classes.surfaceMuted}
-                      >
-                        <Stack gap={3}>
-                          <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-                            Rule being corrected
-                          </Text>
-                          <Text size="sm" fw={600}>
-                            Contains "{suggestion.sourceRule.matchText}"
-                          </Text>
-                          <Text size="sm" c="dimmed">
-                            Currently codes to{' '}
-                            {defaultPath(
-                              suggestion.sourceRule.companyDefaultCategoryId,
-                              suggestion.sourceRule.companyDefaultSubCategoryId
-                            )}
-                          </Text>
-                        </Stack>
-                      </Paper>
-                    ) : null}
-
-                    {isUpdateSuggestion ? (
-                      <Stack gap={6}>
-                        <Select
-                          label="How should this correction be applied?"
-                          description="Creating a narrower rule is safer because the current broader rule remains available for other transactions."
-                          data={UPDATE_ACTION_OPTIONS}
-                          value={selectedAction}
-                          disabled={readOnly}
-                          {...firefoxSafeModalSelectProps}
-                          onChange={(value) => {
-                            if (!value) return;
-                            setError(null);
-                            setSuccess(null);
-                            setActionDrafts((prev) => ({
-                              ...prev,
-                              [suggestion.id]:
-                                value as RuleSuggestionAcceptanceAction,
-                            }));
-                          }}
-                        />
-                        {selectedAction === 'update_existing' ? (
-                          <Alert color="orange" variant="light">
-                            This changes the existing company rule and every
-                            synced project that inherits it.
-                          </Alert>
-                        ) : (
-                          <Alert color="blue" variant="light">
-                            The new rule will be placed immediately before the
-                            current rule so the more specific match wins first.
-                          </Alert>
-                        )}
-                      </Stack>
-                    ) : null}
-
-                    <TextInput
-                      label="Text the transaction must contain"
-                      description={`Detected from the transaction ${suggestion.patternBasis.replace('_', ' + ')}.`}
-                      value={draftMatchText}
-                      disabled={readOnly}
-                      onChange={(event) => {
-                        const value = event.currentTarget.value;
-                        setError(null);
-                        setSuccess(null);
-                        setMatchDrafts((prev) => ({
-                          ...prev,
-                          [suggestion.id]: value,
-                        }));
-                      }}
-                    />
-
-                    {suggestion.matchTextAlternatives.length > 1 ? (
-                      <Stack gap={5}>
-                        <Text size="xs" c="dimmed">
-                          Suggested alternatives
-                        </Text>
-                        <Group gap="xs" wrap="wrap">
-                          {suggestion.matchTextAlternatives.flatMap((option) =>
-                            option.toLowerCase() !==
-                            draftMatchText.trim().toLowerCase()
-                              ? [
-                                  <Button
-                                    key={option}
-                                    size="compact-sm"
-                                    variant="default"
-                                    disabled={readOnly}
-                                    onClick={() => {
-                                      setError(null);
-                                      setSuccess(null);
-                                      setMatchDrafts((prev) => ({
-                                        ...prev,
-                                        [suggestion.id]: option,
-                                      }));
-                                    }}
-                                  >
-                                    Use "{option}"
-                                  </Button>,
-                                ]
-                              : []
-                          )}
-                        </Group>
-                      </Stack>
-                    ) : null}
-
-                    <Group grow align="flex-end">
-                      <Select
-                        label="Company default category"
-                        data={categoryOptions}
-                        value={selectedCategoryId}
-                        disabled={readOnly}
-                        {...firefoxSafeModalSelectProps}
-                        onChange={(value) => {
-                          setError(null);
-                          setSuccess(null);
-                          setCategoryDrafts((prev) => ({
-                            ...prev,
-                            [suggestion.id]: value
-                              ? asCompanyDefaultCategoryId(value)
-                              : suggestion.companyDefaultCategoryId,
-                          }));
-                          setSubCategoryDrafts((prev) => {
-                            const next = { ...prev };
-                            delete next[suggestion.id];
-                            return next;
-                          });
-                        }}
-                      />
-                      <Select
-                        label="Company default subcategory"
-                        data={subCategoryOptions}
-                        value={selectedSubCategoryId}
-                        disabled={readOnly || !selectedCategoryId}
-                        {...firefoxSafeModalSelectProps}
-                        onChange={(value) => {
-                          setError(null);
-                          setSuccess(null);
-                          if (!value) return;
-                          setSubCategoryDrafts((prev) => ({
-                            ...prev,
-                            [suggestion.id]:
-                              asCompanyDefaultSubCategoryId(value),
-                          }));
-                        }}
-                      />
-                    </Group>
-
-                    <Stack gap={6}>
-                      <Text size="sm" fw={600}>
-                        Supporting transactions
-                      </Text>
-                      {suggestion.evidence.length === 0 ? (
-                        <Text size="sm" c="dimmed">
-                          No evidence samples available.
-                        </Text>
-                      ) : (
-                        suggestion.evidence.map((evidence) => (
-                          <Paper
-                            key={`${suggestion.id}-${evidence.txnId}`}
-                            radius="md"
-                            p="sm"
-                            className={classes.surfaceMuted}
-                          >
-                            <Group justify="space-between" align="flex-start">
-                              <Stack gap={2}>
-                                <Text size="sm" fw={600}>
-                                  {evidence.item}
-                                </Text>
-                                <Text size="sm" c="dimmed">
-                                  {evidence.description || 'No description'}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                  {evidence.projectName} | {evidence.txnDate}
-                                </Text>
-                              </Stack>
-                              <Text size="sm" fw={600}>
-                                {formatCurrencyFromCents(
-                                  evidence.amountCents,
-                                  evidence.currency
-                                )}
-                              </Text>
-                            </Group>
-                          </Paper>
-                        ))
-                      )}
-                    </Stack>
-
-                    <Group justify="space-between" align="flex-end" wrap="wrap">
-                      <Group align="flex-end" gap="xs" wrap="wrap">
-                        <Select
-                          label="Dismiss reason"
-                          placeholder="Choose a reason"
-                          data={DISMISS_REASON_OPTIONS}
-                          value={dismissReason ?? null}
-                          disabled={readOnly}
-                          w={230}
-                          {...firefoxSafeModalSelectProps}
-                          onChange={(value) => {
-                            if (!value) return;
-                            setDismissReasonDrafts((prev) => ({
-                              ...prev,
-                              [suggestion.id]:
-                                value as RuleSuggestionDismissReason,
-                            }));
-                          }}
-                        />
-                        <Button
-                          variant="subtle"
-                          color="red"
-                          disabled={
-                            readOnly ||
-                            dismissSuggestion.isPending ||
-                            !dismissReason
-                          }
-                          onClick={async () => {
-                            if (!dismissReason) return;
-                            try {
-                              setError(null);
-                              setSuccess(null);
-                              await dismissSuggestion.mutateAsync({
-                                id: suggestion.id,
-                                reason: dismissReason,
-                              });
-                              setSuccess(
-                                'Dismissed the suggestion and started its cooldown.'
-                              );
-                            } catch (err) {
-                              setError(
-                                err instanceof Error
-                                  ? err.message
-                                  : 'Could not dismiss rule suggestion.'
-                              );
-                            }
-                          }}
-                        >
-                          Dismiss
-                        </Button>
-                      </Group>
-
-                      <Button
-                        disabled={
-                          readOnly ||
-                          acceptSuggestion.isPending ||
-                          !draftMatchText.trim() ||
-                          !selectedCategoryId ||
-                          !selectedSubCategoryId
-                        }
-                        onClick={async () => {
-                          try {
-                            setError(null);
-                            setSuccess(null);
-                            await acceptSuggestion.mutateAsync({
-                              id: suggestion.id,
-                              action: selectedAction,
-                              proposedMatchText: draftMatchText.trim(),
-                              companyDefaultSubCategoryId:
-                                selectedSubCategoryId,
-                            });
-                            setSuccess(
-                              `${actionLabel(selectedAction)} accepted and synced to eligible projects.`
-                            );
-                          } catch (err) {
-                            setError(
-                              err instanceof Error
-                                ? err.message
-                                : 'Could not accept rule suggestion.'
-                            );
-                          }
-                        }}
-                      >
-                        {actionLabel(selectedAction)}
-                      </Button>
-                    </Group>
-                  </Stack>
-                </Paper>
-              );
-            })}
-          </Stack>
-        )}
-      </Stack>
+      <RuleSuggestionsContent model={model} />
     </Modal>
   );
+}
+
+export default function RuleSuggestionsModal(
+  props: Parameters<typeof useRuleSuggestionsModalController>[0]
+) {
+  const model = useRuleSuggestionsModalController(props);
+  return <RuleSuggestionsModalView model={model} />;
 }

@@ -48,7 +48,7 @@ async function readExportJobResponse(response: Response) {
   };
 }
 
-export default function CompanyExportPanel(props: {
+function useCompanyExportPanelController(props: {
   companyId: CompanyId;
   initialExportJobId: string | null;
   canExportCompany: boolean;
@@ -250,6 +250,36 @@ export default function CompanyExportPanel(props: {
     getCompanyExportNotificationMessage(exportJob);
   const exportJobSummaryRows = getCompanyExportSummaryRows(exportJob);
 
+  return {
+    canExportCompany,
+    exportDetail,
+    exportFromDate,
+    exportInFlight,
+    exportJob,
+    exportJobState,
+    exportJobSummaryRows,
+    exportNotificationMessage,
+    exportScope,
+    exportToDate,
+    handleStartExport,
+    notifyWhenReady,
+    setExportDetail,
+    setExportFromDate,
+    setExportScope,
+    setExportToDate,
+    setNotifyWhenReady,
+  };
+}
+
+type CompanyExportPanelController = ReturnType<
+  typeof useCompanyExportPanelController
+>;
+
+function CompanyExportPanelView({
+  model,
+}: {
+  model: CompanyExportPanelController;
+}) {
   return (
     <Paper className={classes.surfaceCard} radius="xl" p="lg">
       <Stack gap="sm">
@@ -268,11 +298,11 @@ export default function CompanyExportPanel(props: {
                 label: 'Active projects and programmes only',
               },
             ]}
-            value={exportScope}
+            value={model.exportScope}
             onChange={(value) =>
-              setExportScope(value === 'active' ? 'active' : 'all')
+              model.setExportScope(value === 'active' ? 'active' : 'all')
             }
-            disabled={!canExportCompany || exportInFlight}
+            disabled={!model.canExportCompany || model.exportInFlight}
           />
           <Select
             label="Workbook detail"
@@ -280,71 +310,75 @@ export default function CompanyExportPanel(props: {
               { value: 'full', label: 'Full detail workbook' },
               { value: 'summary', label: 'Summary and reporting only' },
             ]}
-            value={exportDetail}
+            value={model.exportDetail}
             onChange={(value) =>
-              setExportDetail(value === 'summary' ? 'summary' : 'full')
+              model.setExportDetail(value === 'summary' ? 'summary' : 'full')
             }
-            disabled={!canExportCompany || exportInFlight}
+            disabled={!model.canExportCompany || model.exportInFlight}
           />
           <Group grow align="flex-end" wrap="wrap">
             <TextInput
               label="Transactions from"
               type="date"
-              value={exportFromDate}
-              onChange={(event) => setExportFromDate(event.currentTarget.value)}
-              disabled={!canExportCompany || exportInFlight}
+              value={model.exportFromDate}
+              onChange={(event) =>
+                model.setExportFromDate(event.currentTarget.value)
+              }
+              disabled={!model.canExportCompany || model.exportInFlight}
             />
             <TextInput
               label="Transactions to"
               type="date"
-              value={exportToDate}
-              onChange={(event) => setExportToDate(event.currentTarget.value)}
-              disabled={!canExportCompany || exportInFlight}
+              value={model.exportToDate}
+              onChange={(event) =>
+                model.setExportToDate(event.currentTarget.value)
+              }
+              disabled={!model.canExportCompany || model.exportInFlight}
             />
           </Group>
           <Checkbox
             label="Email me when this export is ready"
-            checked={notifyWhenReady}
+            checked={model.notifyWhenReady}
             onChange={(event) =>
-              setNotifyWhenReady(event.currentTarget.checked)
+              model.setNotifyWhenReady(event.currentTarget.checked)
             }
-            disabled={!canExportCompany || exportInFlight}
+            disabled={!model.canExportCompany || model.exportInFlight}
           />
           <Text size="xs" c="dimmed">
             The email links back to this export in Company Settings and still
             respects your current sign-in and company access.
           </Text>
-          {exportJobState.error ? (
-            <Alert color="red">{exportJobState.error}</Alert>
+          {model.exportJobState.error ? (
+            <Alert color="red">{model.exportJobState.error}</Alert>
           ) : null}
-          {exportJob ? (
-            <Alert color={exportJob.status === 'failed' ? 'red' : 'blue'}>
-              {exportJob.status === 'queued'
+          {model.exportJob ? (
+            <Alert color={model.exportJob.status === 'failed' ? 'red' : 'blue'}>
+              {model.exportJob.status === 'queued'
                 ? 'Export queued. We are preparing the workbook in the background.'
-                : exportJob.status === 'running'
+                : model.exportJob.status === 'running'
                   ? 'Export in progress. The workbook will download automatically when it is ready.'
-                  : exportJob.status === 'completed'
-                    ? `Workbook ready${exportJob.fileName ? `: ${exportJob.fileName}` : ''}${typeof exportJob.fileSizeBytes === 'number' ? ` (${formatCompanyExportFileSize(exportJob.fileSizeBytes)})` : ''}.`
-                    : exportJob.status === 'expired'
+                  : model.exportJob.status === 'completed'
+                    ? `Workbook ready${model.exportJob.fileName ? `: ${model.exportJob.fileName}` : ''}${typeof model.exportJob.fileSizeBytes === 'number' ? ` (${formatCompanyExportFileSize(model.exportJob.fileSizeBytes)})` : ''}.`
+                    : model.exportJob.status === 'expired'
                       ? 'That prepared workbook expired. Start a fresh export to regenerate it.'
-                      : (exportJob.errorMessage ?? 'Export failed.')}
+                      : (model.exportJob.errorMessage ?? 'Export failed.')}
             </Alert>
           ) : null}
-          {exportNotificationMessage ? (
+          {model.exportNotificationMessage ? (
             <Alert
               color={
-                exportJob?.readyNotificationStatus === 'failed'
+                model.exportJob?.readyNotificationStatus === 'failed'
                   ? 'yellow'
                   : 'gray'
               }
             >
-              {exportNotificationMessage}
+              {model.exportNotificationMessage}
             </Alert>
           ) : null}
-          {exportJobSummaryRows.length ? (
+          {model.exportJobSummaryRows.length ? (
             <Paper withBorder radius="md" p="sm">
               <Stack gap={4}>
-                {exportJobSummaryRows.map((row) => (
+                {model.exportJobSummaryRows.map((row) => (
                   <Text key={row} size="xs" c="dimmed">
                     {row}
                   </Text>
@@ -355,21 +389,22 @@ export default function CompanyExportPanel(props: {
           <Group gap="sm" wrap="wrap">
             <Button
               variant="default"
-              disabled={!canExportCompany || exportInFlight}
-              loading={exportJobState.isStarting}
+              disabled={!model.canExportCompany || model.exportInFlight}
+              loading={model.exportJobState.isStarting}
               onClick={() => {
-                void handleStartExport();
+                void model.handleStartExport();
               }}
             >
-              {exportJob?.status === 'completed' ||
-              exportJob?.status === 'failed'
+              {model.exportJob?.status === 'completed' ||
+              model.exportJob?.status === 'failed'
                 ? 'Generate fresh export'
                 : 'Prepare company export'}
             </Button>
-            {exportJob?.status === 'completed' && exportJob.downloadPath ? (
+            {model.exportJob?.status === 'completed' &&
+            model.exportJob.downloadPath ? (
               <Button
                 component="a"
-                href={exportJob.downloadPath}
+                href={model.exportJob.downloadPath}
                 variant="default"
               >
                 Download workbook
@@ -385,4 +420,11 @@ export default function CompanyExportPanel(props: {
       </Stack>
     </Paper>
   );
+}
+
+export default function CompanyExportPanel(
+  props: Parameters<typeof useCompanyExportPanelController>[0]
+) {
+  const model = useCompanyExportPanelController(props);
+  return <CompanyExportPanelView model={model} />;
 }

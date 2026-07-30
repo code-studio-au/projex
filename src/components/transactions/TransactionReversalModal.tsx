@@ -80,7 +80,7 @@ function toTxnSummary(txn: Txn): TxnReversalTxnSummary {
   };
 }
 
-export default function TransactionReversalModal(props: {
+function useTransactionReversalModalController(props: {
   opened: boolean;
   txn: Txn;
   currencyCode: string;
@@ -229,11 +229,387 @@ export default function TransactionReversalModal(props: {
     }
   }
 
+  return {
+    canManage,
+    commentBody,
+    counterpartSummary,
+    currencyCode,
+    error,
+    expectedProjectId,
+    expectedProjectName,
+    expectedProjectOptions,
+    isAmbiguousSuggested,
+    isException,
+    isMatched,
+    isPending,
+    isSourceSide,
+    isSuggested,
+    modalTitle,
+    onClose,
+    opened,
+    reviewQueue,
+    selectedSuggestion,
+    selectedSuggestionSummary,
+    selectedSuggestionTxnId,
+    setCommentBody,
+    setExpectedProjectId,
+    setSelectedSuggestionTxnId,
+    sourceSummary,
+    submit,
+    submitting,
+    suggestions,
+    suggestionsLoading,
+    txn,
+  };
+}
+
+type TransactionReversalModalController = ReturnType<
+  typeof useTransactionReversalModalController
+>;
+
+function ReversalPairSummary({
+  model,
+}: {
+  model: TransactionReversalModalController;
+}) {
+  return (
+    <Paper withBorder radius="md" p="md">
+      <Stack gap={model.reviewQueue ? 'sm' : 2}>
+        <Stack gap={2}>
+          <Text size="sm" fw={650}>
+            {model.isAmbiguousSuggested
+              ? 'Default match selected'
+              : 'Recommended match'}
+          </Text>
+          <Text size="sm" c="dimmed">
+            {model.isAmbiguousSuggested
+              ? 'Multiple valid pairings existed, so Projex selected a deterministic default. Verify both transactions and the evidence before deciding.'
+              : 'Projex recommended this pair automatically. Verify both transactions and the evidence before deciding.'}
+          </Text>
+        </Stack>
+        {model.reviewQueue ? (
+          <>
+            <Divider />
+            <Group justify="space-between" gap="sm" wrap="wrap">
+              <Badge color="gray" variant="light">
+                Match {model.reviewQueue.currentPosition} of{' '}
+                {model.reviewQueue.totalCount}
+              </Badge>
+              <Group gap="xs">
+                <Button
+                  size="xs"
+                  variant="default"
+                  disabled={!model.reviewQueue.hasPrevious || model.submitting}
+                  onClick={model.reviewQueue.onPrevious}
+                >
+                  Previous
+                </Button>
+                <Button
+                  size="xs"
+                  variant="default"
+                  disabled={!model.reviewQueue.hasNext || model.submitting}
+                  onClick={model.reviewQueue.onNext}
+                >
+                  Next
+                </Button>
+              </Group>
+            </Group>
+          </>
+        ) : null}
+      </Stack>
+    </Paper>
+  );
+}
+
+function PendingReversalActions({
+  model,
+}: {
+  model: TransactionReversalModalController;
+}) {
+  return (
+    <>
+      <Select
+        label="Expected destination project"
+        placeholder="Optional"
+        data={model.expectedProjectOptions}
+        value={model.expectedProjectId}
+        clearable
+        searchable
+        {...containedModalSelectProps}
+        onChange={model.setExpectedProjectId}
+      />
+      <Textarea
+        label="Comment"
+        description="Required. This note is written into the transaction comment thread."
+        value={model.commentBody}
+        minRows={4}
+        onChange={(event) => model.setCommentBody(event.currentTarget.value)}
+      />
+      <Group justify="flex-end">
+        <Button
+          loading={model.submitting}
+          disabled={!model.commentBody.trim()}
+          onClick={() =>
+            void model.submit({
+              action: 'markPending',
+              txnId: model.txn.id,
+              commentBody: model.commentBody,
+              expectedProjectId:
+                (model.expectedProjectId as ProjectId | null) ?? undefined,
+            })
+          }
+        >
+          Mark pending reversal
+        </Button>
+      </Group>
+    </>
+  );
+}
+
+function SuggestedReversalActions({
+  model,
+}: {
+  model: TransactionReversalModalController;
+}) {
+  return (
+    <>
+      <Textarea
+        label={model.isException ? 'Review note' : 'Workflow note'}
+        description="Used for exception updates, clearing the state, and optional match notes."
+        value={model.commentBody}
+        minRows={4}
+        onChange={(event) => model.setCommentBody(event.currentTarget.value)}
+      />
+
+      <Stack gap="xs">
+        <Group justify="space-between" align="center">
+          <Text size="sm" fw={600}>
+            Suggested reversal matches
+          </Text>
+          {model.suggestionsLoading ? <Loader size="sm" /> : null}
+        </Group>
+        {model.suggestions.length > 0 ? (
+          <Select
+            label="Match candidate"
+            data={model.suggestions.map((suggestion) => ({
+              value: suggestion.txnId,
+              label: `${suggestion.date} · ${formatCurrencyFromCents(
+                suggestion.amountCents,
+                model.currencyCode
+              )} · ${suggestion.item}`,
+            }))}
+            value={model.selectedSuggestionTxnId}
+            onChange={model.setSelectedSuggestionTxnId}
+            searchable
+            {...containedModalSelectProps}
+          />
+        ) : (
+          <Text size="sm" c="dimmed">
+            {model.suggestionsLoading
+              ? 'Loading suggestions...'
+              : 'No candidate refund transactions were found yet.'}
+          </Text>
+        )}
+        {model.selectedSuggestion &&
+        model.selectedSuggestionSummary &&
+        model.sourceSummary ? (
+          <TransactionReversalPairDetails
+            sourceTxn={model.sourceSummary}
+            counterpartTxn={model.selectedSuggestionSummary}
+            evidence={model.selectedSuggestion.evidence}
+            currencyCode={model.currencyCode}
+            showAlternatives={false}
+          />
+        ) : null}
+      </Stack>
+
+      <Group justify="space-between" wrap="wrap">
+        <Group gap="sm">
+          {model.isException ? (
+            <Button
+              variant="light"
+              color="gray"
+              loading={model.submitting}
+              disabled={!model.commentBody.trim()}
+              onClick={() =>
+                void model.submit({
+                  action: 'clearException',
+                  txnId: model.txn.id,
+                  commentBody: model.commentBody,
+                })
+              }
+            >
+              Return to pending
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="light"
+                color="red"
+                loading={model.submitting}
+                disabled={!model.commentBody.trim()}
+                onClick={() =>
+                  void model.submit({
+                    action: 'markException',
+                    txnId: model.txn.id,
+                    commentBody: model.commentBody,
+                  })
+                }
+              >
+                Mark exception
+              </Button>
+              <Button
+                variant="light"
+                color="gray"
+                loading={model.submitting}
+                disabled={!model.commentBody.trim()}
+                onClick={() =>
+                  void model.submit({
+                    action: 'clearPending',
+                    txnId: model.txn.id,
+                    commentBody: model.commentBody,
+                  })
+                }
+              >
+                Cancel workflow
+              </Button>
+            </>
+          )}
+        </Group>
+        <Button
+          loading={model.submitting}
+          disabled={!model.selectedSuggestionTxnId}
+          onClick={() =>
+            model.selectedSuggestionTxnId
+              ? void model.submit({
+                  action: 'match',
+                  txnId: model.txn.id,
+                  reversalTxnId: model.selectedSuggestionTxnId as TxnId,
+                  commentBody: model.commentBody.trim() || undefined,
+                })
+              : undefined
+          }
+        >
+          Match selected reversal
+        </Button>
+      </Group>
+    </>
+  );
+}
+
+function ExceptionReversalActions({
+  model,
+}: {
+  model: TransactionReversalModalController;
+}) {
+  return (
+    <>
+      <Textarea
+        label="Review note (optional)"
+        value={model.commentBody}
+        autosize
+        minRows={2}
+        maxRows={4}
+        onChange={(event) => model.setCommentBody(event.currentTarget.value)}
+      />
+      <Divider />
+      <Group justify="flex-end" gap="sm" wrap="wrap">
+        <Button
+          variant="light"
+          color="gray"
+          loading={model.submitting}
+          w={{ base: '100%', sm: 'auto' }}
+          onClick={() =>
+            void model.submit(
+              {
+                action: 'rejectSuggestedMatch',
+                txnId: model.txn.id,
+                commentBody: model.commentBody.trim() || undefined,
+              },
+              model.reviewQueue ? 'rejected' : undefined
+            )
+          }
+        >
+          {model.reviewQueue
+            ? model.reviewQueue.remainingCount === 1
+              ? 'Reject and finish'
+              : 'Reject and next'
+            : model.isAmbiguousSuggested
+              ? 'Reject default match'
+              : 'Reject suggestion'}
+        </Button>
+        <Button
+          loading={model.submitting}
+          w={{ base: '100%', sm: 'auto' }}
+          onClick={() =>
+            void model.submit(
+              {
+                action: 'approveSuggestedMatch',
+                txnId: model.txn.id,
+                commentBody: model.commentBody.trim() || undefined,
+              },
+              model.reviewQueue ? 'approved' : undefined
+            )
+          }
+        >
+          {model.reviewQueue
+            ? model.reviewQueue.remainingCount === 1
+              ? 'Approve and finish'
+              : 'Approve and next'
+            : model.isAmbiguousSuggested
+              ? 'Approve default match'
+              : 'Approve auto-match'}
+        </Button>
+      </Group>
+    </>
+  );
+}
+
+function MatchedReversalActions({
+  model,
+}: {
+  model: TransactionReversalModalController;
+}) {
+  return (
+    <>
+      <Textarea
+        label="Reason"
+        description="Required. This note is written into both linked transaction threads."
+        value={model.commentBody}
+        minRows={4}
+        onChange={(event) => model.setCommentBody(event.currentTarget.value)}
+      />
+      <Group justify="flex-end">
+        <Button
+          variant="light"
+          color="red"
+          loading={model.submitting}
+          disabled={!model.commentBody.trim()}
+          onClick={() =>
+            void model.submit({
+              action: 'unmatch',
+              txnId: model.txn.id,
+              commentBody: model.commentBody,
+            })
+          }
+        >
+          Remove match
+        </Button>
+      </Group>
+    </>
+  );
+}
+
+function TransactionReversalModalView({
+  model,
+}: {
+  model: TransactionReversalModalController;
+}) {
   return (
     <Modal
-      opened={opened}
-      onClose={onClose}
-      title={modalTitle}
+      opened={model.opened}
+      onClose={model.onClose}
+      title={model.modalTitle}
       centered
       size="xl"
       lockScroll={false}
@@ -246,352 +622,79 @@ export default function TransactionReversalModal(props: {
       }}
     >
       <Stack gap="md">
-        {!isSuggested ? (
+        {!model.isSuggested ? (
           <Group justify="space-between" align="flex-start">
             <Stack gap={2}>
-              <Text fw={600}>{txn.item}</Text>
+              <Text fw={600}>{model.txn.item}</Text>
               <Text size="sm" c="dimmed">
-                {txn.description || 'No description provided'}
+                {model.txn.description || 'No description provided'}
               </Text>
               <Text size="sm" c="dimmed">
-                {txn.date} ·{' '}
-                {formatCurrencyFromCents(txn.amountCents, currencyCode)}
+                {model.txn.date} ·{' '}
+                {formatCurrencyFromCents(
+                  model.txn.amountCents,
+                  model.currencyCode
+                )}
               </Text>
             </Stack>
-            <Badge color={statusTone(txn)} variant="light">
-              {statusLabel(txn)}
+            <Badge color={statusTone(model.txn)} variant="light">
+              {statusLabel(model.txn)}
             </Badge>
           </Group>
         ) : null}
 
-        {isSuggested && canManage ? (
-          <Paper withBorder radius="md" p="md">
-            <Stack gap={reviewQueue ? 'sm' : 2}>
-              <Stack gap={2}>
-                <Text size="sm" fw={650}>
-                  {isAmbiguousSuggested
-                    ? 'Default match selected'
-                    : 'Recommended match'}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  {isAmbiguousSuggested
-                    ? 'Multiple valid pairings existed, so Projex selected a deterministic default. Verify both transactions and the evidence before deciding.'
-                    : 'Projex recommended this pair automatically. Verify both transactions and the evidence before deciding.'}
-                </Text>
-              </Stack>
-              {reviewQueue ? (
-                <>
-                  <Divider />
-                  <Group justify="space-between" gap="sm" wrap="wrap">
-                    <Badge color="gray" variant="light">
-                      Match {reviewQueue.currentPosition} of{' '}
-                      {reviewQueue.totalCount}
-                    </Badge>
-                    <Group gap="xs">
-                      <Button
-                        size="xs"
-                        variant="default"
-                        disabled={!reviewQueue.hasPrevious || submitting}
-                        onClick={reviewQueue.onPrevious}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="default"
-                        disabled={!reviewQueue.hasNext || submitting}
-                        onClick={reviewQueue.onNext}
-                      >
-                        Next
-                      </Button>
-                    </Group>
-                  </Group>
-                </>
-              ) : null}
-            </Stack>
-          </Paper>
+        {model.isSuggested && model.canManage ? (
+          <ReversalPairSummary model={model} />
         ) : null}
 
-        {sourceSummary && counterpartSummary ? (
+        {model.sourceSummary && model.counterpartSummary ? (
           <TransactionReversalPairDetails
-            sourceTxn={sourceSummary}
-            counterpartTxn={counterpartSummary}
-            evidence={txn.reversal?.matchEvidence}
-            currencyCode={currencyCode}
+            sourceTxn={model.sourceSummary}
+            counterpartTxn={model.counterpartSummary}
+            evidence={model.txn.reversal?.matchEvidence}
+            currencyCode={model.currencyCode}
           />
         ) : null}
 
-        {txn.reversal?.expectedProjectId ? (
+        {model.txn.reversal?.expectedProjectId ? (
           <Text size="sm" c="dimmed">
             Expected destination project:{' '}
-            {expectedProjectName ?? txn.reversal.expectedProjectId}
+            {model.expectedProjectName ?? model.txn.reversal.expectedProjectId}
           </Text>
         ) : null}
 
-        {!txn.reversal && canManage ? (
-          <>
-            <Select
-              label="Expected destination project"
-              placeholder="Optional"
-              data={expectedProjectOptions}
-              value={expectedProjectId}
-              clearable
-              searchable
-              {...containedModalSelectProps}
-              onChange={setExpectedProjectId}
-            />
-            <Textarea
-              label="Comment"
-              description="Required. This note is written into the transaction comment thread."
-              value={commentBody}
-              minRows={4}
-              onChange={(event) => setCommentBody(event.currentTarget.value)}
-            />
-            <Group justify="flex-end">
-              <Button
-                loading={submitting}
-                disabled={!commentBody.trim()}
-                onClick={() =>
-                  void submit({
-                    action: 'markPending',
-                    txnId: txn.id,
-                    commentBody,
-                    expectedProjectId:
-                      (expectedProjectId as ProjectId | null) ?? undefined,
-                  })
-                }
-              >
-                Mark pending reversal
-              </Button>
-            </Group>
-          </>
+        {!model.txn.reversal && model.canManage ? (
+          <PendingReversalActions model={model} />
         ) : null}
 
-        {isPending && isSourceSide && canManage ? (
-          <>
-            <Textarea
-              label={isException ? 'Review note' : 'Workflow note'}
-              description="Used for exception updates, clearing the state, and optional match notes."
-              value={commentBody}
-              minRows={4}
-              onChange={(event) => setCommentBody(event.currentTarget.value)}
-            />
-
-            <Stack gap="xs">
-              <Group justify="space-between" align="center">
-                <Text size="sm" fw={600}>
-                  Suggested reversal matches
-                </Text>
-                {suggestionsLoading ? <Loader size="sm" /> : null}
-              </Group>
-              {suggestions.length > 0 ? (
-                <Select
-                  label="Match candidate"
-                  data={suggestions.map((suggestion) => ({
-                    value: suggestion.txnId,
-                    label: `${suggestion.date} · ${formatCurrencyFromCents(
-                      suggestion.amountCents,
-                      currencyCode
-                    )} · ${suggestion.item}`,
-                  }))}
-                  value={selectedSuggestionTxnId}
-                  onChange={setSelectedSuggestionTxnId}
-                  searchable
-                  {...containedModalSelectProps}
-                />
-              ) : (
-                <Text size="sm" c="dimmed">
-                  {suggestionsLoading
-                    ? 'Loading suggestions...'
-                    : 'No candidate refund transactions were found yet.'}
-                </Text>
-              )}
-              {selectedSuggestion &&
-              selectedSuggestionSummary &&
-              sourceSummary ? (
-                <TransactionReversalPairDetails
-                  sourceTxn={sourceSummary}
-                  counterpartTxn={selectedSuggestionSummary}
-                  evidence={selectedSuggestion.evidence}
-                  currencyCode={currencyCode}
-                  showAlternatives={false}
-                />
-              ) : null}
-            </Stack>
-
-            <Group justify="space-between" wrap="wrap">
-              <Group gap="sm">
-                {isException ? (
-                  <Button
-                    variant="light"
-                    color="gray"
-                    loading={submitting}
-                    disabled={!commentBody.trim()}
-                    onClick={() =>
-                      void submit({
-                        action: 'clearException',
-                        txnId: txn.id,
-                        commentBody,
-                      })
-                    }
-                  >
-                    Return to pending
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      variant="light"
-                      color="red"
-                      loading={submitting}
-                      disabled={!commentBody.trim()}
-                      onClick={() =>
-                        void submit({
-                          action: 'markException',
-                          txnId: txn.id,
-                          commentBody,
-                        })
-                      }
-                    >
-                      Mark exception
-                    </Button>
-                    <Button
-                      variant="light"
-                      color="gray"
-                      loading={submitting}
-                      disabled={!commentBody.trim()}
-                      onClick={() =>
-                        void submit({
-                          action: 'clearPending',
-                          txnId: txn.id,
-                          commentBody,
-                        })
-                      }
-                    >
-                      Cancel workflow
-                    </Button>
-                  </>
-                )}
-              </Group>
-              <Button
-                loading={submitting}
-                disabled={!selectedSuggestionTxnId}
-                onClick={() =>
-                  selectedSuggestionTxnId
-                    ? void submit({
-                        action: 'match',
-                        txnId: txn.id,
-                        reversalTxnId: selectedSuggestionTxnId as TxnId,
-                        commentBody: commentBody.trim() || undefined,
-                      })
-                    : undefined
-                }
-              >
-                Match selected reversal
-              </Button>
-            </Group>
-          </>
+        {model.isPending && model.isSourceSide && model.canManage ? (
+          <SuggestedReversalActions model={model} />
         ) : null}
 
-        {isSuggested && canManage ? (
-          <>
-            <Textarea
-              label="Review note (optional)"
-              value={commentBody}
-              autosize
-              minRows={2}
-              maxRows={4}
-              onChange={(event) => setCommentBody(event.currentTarget.value)}
-            />
-            <Divider />
-            <Group justify="flex-end" gap="sm" wrap="wrap">
-              <Button
-                variant="light"
-                color="gray"
-                loading={submitting}
-                w={{ base: '100%', sm: 'auto' }}
-                onClick={() =>
-                  void submit(
-                    {
-                      action: 'rejectSuggestedMatch',
-                      txnId: txn.id,
-                      commentBody: commentBody.trim() || undefined,
-                    },
-                    reviewQueue ? 'rejected' : undefined
-                  )
-                }
-              >
-                {reviewQueue
-                  ? reviewQueue.remainingCount === 1
-                    ? 'Reject and finish'
-                    : 'Reject and next'
-                  : isAmbiguousSuggested
-                    ? 'Reject default match'
-                    : 'Reject suggestion'}
-              </Button>
-              <Button
-                loading={submitting}
-                w={{ base: '100%', sm: 'auto' }}
-                onClick={() =>
-                  void submit(
-                    {
-                      action: 'approveSuggestedMatch',
-                      txnId: txn.id,
-                      commentBody: commentBody.trim() || undefined,
-                    },
-                    reviewQueue ? 'approved' : undefined
-                  )
-                }
-              >
-                {reviewQueue
-                  ? reviewQueue.remainingCount === 1
-                    ? 'Approve and finish'
-                    : 'Approve and next'
-                  : isAmbiguousSuggested
-                    ? 'Approve default match'
-                    : 'Approve auto-match'}
-              </Button>
-            </Group>
-          </>
+        {model.isSuggested && model.canManage ? (
+          <ExceptionReversalActions model={model} />
         ) : null}
 
-        {isMatched && canManage ? (
-          <>
-            <Textarea
-              label="Reason"
-              description="Required. This note is written into both linked transaction threads."
-              value={commentBody}
-              minRows={4}
-              onChange={(event) => setCommentBody(event.currentTarget.value)}
-            />
-            <Group justify="flex-end">
-              <Button
-                variant="light"
-                color="red"
-                loading={submitting}
-                disabled={!commentBody.trim()}
-                onClick={() =>
-                  void submit({
-                    action: 'unmatch',
-                    txnId: txn.id,
-                    commentBody,
-                  })
-                }
-              >
-                Remove match
-              </Button>
-            </Group>
-          </>
+        {model.isMatched && model.canManage ? (
+          <MatchedReversalActions model={model} />
         ) : null}
 
-        {txn.reversal && !canManage ? (
+        {model.txn.reversal && !model.canManage ? (
           <Alert color="blue" variant="light">
             This reversal workflow is read-only for your role. The pair details
             and recorded match evidence are shown above.
           </Alert>
         ) : null}
 
-        {error ? <Alert color="red">{error}</Alert> : null}
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
       </Stack>
     </Modal>
   );
+}
+
+export default function TransactionReversalModal(
+  props: Parameters<typeof useTransactionReversalModalController>[0]
+) {
+  const model = useTransactionReversalModalController(props);
+  return <TransactionReversalModalView model={model} />;
 }

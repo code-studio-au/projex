@@ -59,7 +59,7 @@ function toCompanyDashboardTab(value: string | null): CompanyDashboardTab {
   return 'projects';
 }
 
-export default function CompanyDashboardPage() {
+function useCompanyDashboardPageController() {
   const { companyId: rawCompanyId } = companyRoute.useParams();
   const loaderData = companyRoute.useLoaderData();
   const dashboardSearch = companyDashboardIndexRoute.useSearch();
@@ -457,393 +457,501 @@ export default function CompanyDashboardPage() {
     },
   ];
 
+  return {
+    canAccessSettings,
+    canAddProjects,
+    canViewCompanySummary,
+    closeConfirm,
+    companyId,
+    companyQ,
+    confirmDescription,
+    confirmLabel,
+    confirmOpen,
+    confirmTarget,
+    confirmText,
+    createProject,
+    dashboardSearch,
+    deactivateProject,
+    deleteProject,
+    effectiveNewProjectOwnerId,
+    eligibleInitialOwnerOptions,
+    groupedProjects,
+    hasEligibleInitialOwners,
+    isConfirmMatch,
+    isHydrated,
+    isMobile,
+    loaderData,
+    newProjectApplyCompanyStandards,
+    newProjectCurrency,
+    newProjectName,
+    newProjectOpen,
+    newProjectParentId,
+    newProjectType,
+    programmeOptions,
+    projectColumns,
+    reactivateProject,
+    requiredConfirmText,
+    router,
+    rows,
+    ruleSuggestionCount,
+    safeActiveTab,
+    setConfirmText,
+    setNewProjectApplyCompanyStandards,
+    setNewProjectCurrency,
+    setNewProjectName,
+    setNewProjectOpen,
+    setNewProjectOwnerId,
+    setNewProjectParentId,
+    setNewProjectType,
+    showSwitchCompany,
+    superadminNeedsInitialOwner,
+  };
+}
+
+type CompanyDashboardPageController = ReturnType<
+  typeof useCompanyDashboardPageController
+>;
+
+function CompanyDashboardHeader({
+  model,
+}: {
+  model: CompanyDashboardPageController;
+}) {
+  return (
+    <Paper className={classes.pageHero} radius="xl">
+      <div className={classes.sectionHeader}>
+        <div>
+          <Text className={classes.sectionEyebrow}>Company workspace</Text>
+          {model.companyQ.isLoading ? (
+            model.loaderData?.companyName ? (
+              <Title order={2} className={classes.pageHeroTitle} mt={4}>
+                {model.loaderData.companyName}
+              </Title>
+            ) : (
+              <LoadingLine width={220} height={34} radius="md" />
+            )
+          ) : (
+            <Title order={2} className={classes.pageHeroTitle} mt={4}>
+              {model.companyQ.data?.name}
+            </Title>
+          )}
+          <Text className={classes.pageHeroCopy} mt="xs">
+            Review projects and programmes, switch into company settings, and
+            keep company-level reporting streamlined.
+          </Text>
+        </div>
+        <div className={classes.pageHeroActions}>
+          {model.canAddProjects && (
+            <>
+              <Button
+                variant="filled"
+                onClick={() => model.setNewProjectOpen(true)}
+              >
+                New project or programme
+              </Button>
+              <Modal
+                opened={model.newProjectOpen}
+                onClose={() => {
+                  model.setNewProjectOpen(false);
+                  model.setNewProjectApplyCompanyStandards(true);
+                  model.setNewProjectOwnerId(null);
+                }}
+                title="Create project or programme"
+              >
+                <Stack>
+                  <TextInput
+                    label={
+                      model.newProjectType === 'programme'
+                        ? 'Programme name'
+                        : 'Project name'
+                    }
+                    placeholder="e.g. Website Refresh"
+                    value={model.newProjectName}
+                    onChange={(e) =>
+                      model.setNewProjectName(e.currentTarget.value)
+                    }
+                    autoFocus
+                  />
+                  <Select
+                    label="Type"
+                    value={model.newProjectType}
+                    data={[
+                      { value: 'project', label: 'Project' },
+                      {
+                        value: 'programme',
+                        label: 'Programme (reporting only)',
+                      },
+                    ]}
+                    onChange={(value) => {
+                      const next =
+                        value === 'programme' ? 'programme' : 'project';
+                      model.setNewProjectType(next);
+                      if (next === 'programme')
+                        model.setNewProjectParentId(null);
+                    }}
+                  />
+                  <Select
+                    label="Currency"
+                    value={model.newProjectCurrency}
+                    data={[
+                      { value: 'AUD', label: 'AUD' },
+                      { value: 'USD', label: 'USD' },
+                      { value: 'EUR', label: 'EUR' },
+                      { value: 'GBP', label: 'GBP' },
+                    ]}
+                    onChange={(value) => {
+                      const next =
+                        value === 'USD' || value === 'EUR' || value === 'GBP'
+                          ? value
+                          : 'AUD';
+                      model.setNewProjectCurrency(next);
+                      model.setNewProjectParentId(null);
+                    }}
+                  />
+                  {model.superadminNeedsInitialOwner ? (
+                    <Select
+                      label="Initial project owner"
+                      description={
+                        model.hasEligibleInitialOwners
+                          ? 'Required when global superadmin creates a project or programme.'
+                          : 'Add a non-superadmin company member before creating a project or programme.'
+                      }
+                      placeholder={
+                        model.hasEligibleInitialOwners
+                          ? 'Select project owner'
+                          : 'No eligible company members'
+                      }
+                      value={model.effectiveNewProjectOwnerId}
+                      data={model.eligibleInitialOwnerOptions}
+                      disabled={!model.hasEligibleInitialOwners}
+                      searchable
+                      clearable={false}
+                      onChange={(value) => model.setNewProjectOwnerId(value)}
+                    />
+                  ) : null}
+                  <Select
+                    label="Programme"
+                    description="Optional. Assigns this project into a reporting programme."
+                    placeholder="No programme"
+                    value={model.newProjectParentId}
+                    data={model.programmeOptions}
+                    clearable
+                    disabled={model.newProjectType === 'programme'}
+                    onChange={(value) =>
+                      model.setNewProjectParentId(
+                        value ? (value as ProjectId) : null
+                      )
+                    }
+                  />
+                  <Checkbox
+                    label="Apply company standards"
+                    description="Recommended. New operational projects start with the current company categories, import rules, and auto-coding already synced in."
+                    checked={model.newProjectApplyCompanyStandards}
+                    disabled={model.newProjectType === 'programme'}
+                    onChange={(event) =>
+                      model.setNewProjectApplyCompanyStandards(
+                        event.currentTarget.checked
+                      )
+                    }
+                  />
+                  <Text size="sm" c="dimmed">
+                    Programmes are reporting-only. Projects hold budgets,
+                    imports, transactions, and coding. New records start with
+                    superadmin support access enabled.
+                  </Text>
+                  {model.superadminNeedsInitialOwner &&
+                  !model.hasEligibleInitialOwners ? (
+                    <Text size="sm" c="red">
+                      This company has no non-superadmin members yet. Add a
+                      company member before creating a project or programme.
+                    </Text>
+                  ) : null}
+                  <Group justify="flex-end">
+                    <Button
+                      variant="default"
+                      onClick={() => {
+                        model.setNewProjectOpen(false);
+                        model.setNewProjectOwnerId(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      disabled={
+                        !model.newProjectName.trim() ||
+                        model.createProject.isPending ||
+                        (model.superadminNeedsInitialOwner &&
+                          (!model.hasEligibleInitialOwners ||
+                            !model.effectiveNewProjectOwnerId))
+                      }
+                      onClick={async () => {
+                        const name = model.newProjectName.trim();
+                        if (!name) return;
+                        await model.createProject.mutateAsync({
+                          name,
+                          projectType: model.newProjectType,
+                          currency: model.newProjectCurrency,
+                          applyCompanyStandards:
+                            model.newProjectType === 'project'
+                              ? model.newProjectApplyCompanyStandards
+                              : false,
+                          initialOwnerUserId:
+                            model.superadminNeedsInitialOwner &&
+                            model.effectiveNewProjectOwnerId
+                              ? asUserId(model.effectiveNewProjectOwnerId)
+                              : undefined,
+                          parentProjectId:
+                            model.newProjectType === 'project'
+                              ? (model.newProjectParentId ?? undefined)
+                              : undefined,
+                        });
+                        model.setNewProjectName('');
+                        model.setNewProjectType('project');
+                        model.setNewProjectCurrency('AUD');
+                        model.setNewProjectParentId(null);
+                        model.setNewProjectApplyCompanyStandards(true);
+                        model.setNewProjectOwnerId(null);
+                        model.setNewProjectOpen(false);
+                      }}
+                    >
+                      Create
+                    </Button>
+                  </Group>
+                </Stack>
+              </Modal>
+            </>
+          )}
+
+          {model.showSwitchCompany && (
+            <Link to={landingRoute.to}>
+              <Button component="span" variant="default">
+                Switch company
+              </Button>
+            </Link>
+          )}
+        </div>
+      </div>
+    </Paper>
+  );
+}
+
+function CompanyDashboardTabs({
+  model,
+}: {
+  model: CompanyDashboardPageController;
+}) {
+  return (
+    <Tabs
+      value={model.safeActiveTab}
+      onChange={(value) => {
+        const nextTab = toCompanyDashboardTab(value);
+        void model.router.navigate({
+          to: companyDashboardIndexRoute.to,
+          params: { companyId: model.companyId },
+          search: (prev) => ({
+            ...prev,
+            tab: nextTab,
+          }),
+          replace: true,
+        });
+      }}
+      keepMounted={false}
+      className={classes.softTabs}
+    >
+      <Tabs.List>
+        {model.canViewCompanySummary ? (
+          <Tabs.Tab value="summary">Summary</Tabs.Tab>
+        ) : null}
+        <Tabs.Tab value="projects">Projects & programmes</Tabs.Tab>
+        <Tabs.Tab value="settings" disabled={!model.canAccessSettings}>
+          <Group gap={6} wrap="nowrap">
+            Settings
+            {model.ruleSuggestionCount > 0 ? (
+              <Badge
+                size="sm"
+                variant="light"
+                color="orange"
+                title={`${model.ruleSuggestionCount} rule ${
+                  model.ruleSuggestionCount === 1 ? 'suggestion' : 'suggestions'
+                } need review`}
+              >
+                {model.ruleSuggestionCount}
+              </Badge>
+            ) : null}
+          </Group>
+        </Tabs.Tab>
+      </Tabs.List>
+
+      <Tabs.Panel value="projects" pt="md">
+        {!model.isHydrated ? (
+          <Paper className={classes.surfaceCard} radius="xl" p="lg">
+            <Text c="dimmed">Loading projects and programmes...</Text>
+          </Paper>
+        ) : model.rows.length > 0 ? (
+          <div className={classes.tableWrap}>
+            <MantineReactTable
+              columns={model.projectColumns}
+              data={model.groupedProjects}
+              mantineTableContainerProps={{ className: 'financeTable' }}
+              enableColumnActions={false}
+              enableColumnFilters={false}
+              enableDensityToggle={false}
+              enableFullScreenToggle={false}
+              enableTopToolbar={false}
+              enablePagination
+              enableSorting
+              initialState={{
+                density: 'xs',
+                pagination: {
+                  pageIndex: 0,
+                  pageSize: model.isMobile ? 5 : 8,
+                },
+              }}
+              mantineTableProps={{
+                highlightOnHover: true,
+                striped: 'odd',
+                withTableBorder: true,
+              }}
+            />
+          </div>
+        ) : (
+          <Paper className={classes.surfaceCard} radius="xl" p="lg">
+            <Text c="dimmed">
+              No projects or programmes found for this company yet.
+            </Text>
+          </Paper>
+        )}
+      </Tabs.Panel>
+
+      {model.canViewCompanySummary ? (
+        <Tabs.Panel value="summary" pt="md">
+          <Suspense fallback={<LoadingLine height={180} radius="md" />}>
+            <CompanySummaryPanel
+              companyId={model.companyId}
+              isMobile={model.isMobile}
+            />
+          </Suspense>
+        </Tabs.Panel>
+      ) : null}
+
+      <Tabs.Panel value="settings" pt="md">
+        {!model.isHydrated ? (
+          <Paper className={classes.surfaceCard} radius="xl" p="lg">
+            <Text c="dimmed">Loading company settings...</Text>
+          </Paper>
+        ) : (
+          <Suspense fallback={<LoadingLine height={180} radius="md" />}>
+            <CompanySettingsPanel
+              companyId={model.companyId}
+              initialExportJobId={model.dashboardSearch.exportJob ?? null}
+              initialReview={model.dashboardSearch.review ?? null}
+            />
+          </Suspense>
+        )}
+      </Tabs.Panel>
+    </Tabs>
+  );
+}
+
+function ProjectLifecycleConfirmModal({
+  model,
+}: {
+  model: CompanyDashboardPageController;
+}) {
+  return (
+    <Modal
+      opened={model.confirmOpen}
+      onClose={model.closeConfirm}
+      title={model.confirmLabel}
+      fullScreen={model.isMobile}
+    >
+      <Stack>
+        <Text size="sm" c="dimmed">
+          {model.confirmDescription}
+        </Text>
+
+        <Text size="sm">
+          Type <b>{model.requiredConfirmText}</b> to confirm.
+        </Text>
+
+        <TextInput
+          value={model.confirmText}
+          onChange={(e) => model.setConfirmText(e.currentTarget.value)}
+          placeholder={
+            model.confirmTarget?.kind === 'delete_project'
+              ? 'DELETE project or programme name'
+              : 'Project or programme name'
+          }
+          autoFocus
+        />
+
+        <Group justify="flex-end" wrap="wrap">
+          <Button
+            variant="default"
+            onClick={model.closeConfirm}
+            fullWidth={model.isMobile}
+          >
+            Cancel
+          </Button>
+          <Button
+            fullWidth={model.isMobile}
+            color={
+              model.confirmTarget?.kind === 'delete_project'
+                ? 'red'
+                : model.confirmTarget?.kind === 'reactivate_project'
+                  ? 'green'
+                  : 'orange'
+            }
+            disabled={
+              !model.isConfirmMatch ||
+              model.deactivateProject.isPending ||
+              model.reactivateProject.isPending ||
+              model.deleteProject.isPending
+            }
+            onClick={async () => {
+              if (!model.confirmTarget) return;
+              if (model.confirmTarget.kind === 'deactivate_project') {
+                await model.deactivateProject.mutateAsync(
+                  model.confirmTarget.projectId
+                );
+              } else if (model.confirmTarget.kind === 'reactivate_project') {
+                await model.reactivateProject.mutateAsync(
+                  model.confirmTarget.projectId
+                );
+              } else {
+                await model.deleteProject.mutateAsync({
+                  projectId: model.confirmTarget.projectId,
+                  confirmation: model.confirmText,
+                });
+              }
+              model.closeConfirm();
+            }}
+          >
+            {model.confirmLabel}
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function CompanyDashboardPageView({
+  model,
+}: {
+  model: CompanyDashboardPageController;
+}) {
   return (
     <Stack gap="lg" className={classes.pageStack}>
-      <Paper className={classes.pageHero} radius="xl">
-        <div className={classes.sectionHeader}>
-          <div>
-            <Text className={classes.sectionEyebrow}>Company workspace</Text>
-            {companyQ.isLoading ? (
-              loaderData?.companyName ? (
-                <Title order={2} className={classes.pageHeroTitle} mt={4}>
-                  {loaderData.companyName}
-                </Title>
-              ) : (
-                <LoadingLine width={220} height={34} radius="md" />
-              )
-            ) : (
-              <Title order={2} className={classes.pageHeroTitle} mt={4}>
-                {companyQ.data?.name}
-              </Title>
-            )}
-            <Text className={classes.pageHeroCopy} mt="xs">
-              Review projects and programmes, switch into company settings, and
-              keep company-level reporting streamlined.
-            </Text>
-          </div>
-          <div className={classes.pageHeroActions}>
-            {canAddProjects && (
-              <>
-                <Button
-                  variant="filled"
-                  onClick={() => setNewProjectOpen(true)}
-                >
-                  New project or programme
-                </Button>
-                <Modal
-                  opened={newProjectOpen}
-                  onClose={() => {
-                    setNewProjectOpen(false);
-                    setNewProjectApplyCompanyStandards(true);
-                    setNewProjectOwnerId(null);
-                  }}
-                  title="Create project or programme"
-                >
-                  <Stack>
-                    <TextInput
-                      label={
-                        newProjectType === 'programme'
-                          ? 'Programme name'
-                          : 'Project name'
-                      }
-                      placeholder="e.g. Website Refresh"
-                      value={newProjectName}
-                      onChange={(e) => setNewProjectName(e.currentTarget.value)}
-                      autoFocus
-                    />
-                    <Select
-                      label="Type"
-                      value={newProjectType}
-                      data={[
-                        { value: 'project', label: 'Project' },
-                        {
-                          value: 'programme',
-                          label: 'Programme (reporting only)',
-                        },
-                      ]}
-                      onChange={(value) => {
-                        const next =
-                          value === 'programme' ? 'programme' : 'project';
-                        setNewProjectType(next);
-                        if (next === 'programme') setNewProjectParentId(null);
-                      }}
-                    />
-                    <Select
-                      label="Currency"
-                      value={newProjectCurrency}
-                      data={[
-                        { value: 'AUD', label: 'AUD' },
-                        { value: 'USD', label: 'USD' },
-                        { value: 'EUR', label: 'EUR' },
-                        { value: 'GBP', label: 'GBP' },
-                      ]}
-                      onChange={(value) => {
-                        const next =
-                          value === 'USD' || value === 'EUR' || value === 'GBP'
-                            ? value
-                            : 'AUD';
-                        setNewProjectCurrency(next);
-                        setNewProjectParentId(null);
-                      }}
-                    />
-                    {superadminNeedsInitialOwner ? (
-                      <Select
-                        label="Initial project owner"
-                        description={
-                          hasEligibleInitialOwners
-                            ? 'Required when global superadmin creates a project or programme.'
-                            : 'Add a non-superadmin company member before creating a project or programme.'
-                        }
-                        placeholder={
-                          hasEligibleInitialOwners
-                            ? 'Select project owner'
-                            : 'No eligible company members'
-                        }
-                        value={effectiveNewProjectOwnerId}
-                        data={eligibleInitialOwnerOptions}
-                        disabled={!hasEligibleInitialOwners}
-                        searchable
-                        clearable={false}
-                        onChange={(value) => setNewProjectOwnerId(value)}
-                      />
-                    ) : null}
-                    <Select
-                      label="Programme"
-                      description="Optional. Assigns this project into a reporting programme."
-                      placeholder="No programme"
-                      value={newProjectParentId}
-                      data={programmeOptions}
-                      clearable
-                      disabled={newProjectType === 'programme'}
-                      onChange={(value) =>
-                        setNewProjectParentId(
-                          value ? (value as ProjectId) : null
-                        )
-                      }
-                    />
-                    <Checkbox
-                      label="Apply company standards"
-                      description="Recommended. New operational projects start with the current company categories, import rules, and auto-coding already synced in."
-                      checked={newProjectApplyCompanyStandards}
-                      disabled={newProjectType === 'programme'}
-                      onChange={(event) =>
-                        setNewProjectApplyCompanyStandards(
-                          event.currentTarget.checked
-                        )
-                      }
-                    />
-                    <Text size="sm" c="dimmed">
-                      Programmes are reporting-only. Projects hold budgets,
-                      imports, transactions, and coding. New records start with
-                      superadmin support access enabled.
-                    </Text>
-                    {superadminNeedsInitialOwner &&
-                    !hasEligibleInitialOwners ? (
-                      <Text size="sm" c="red">
-                        This company has no non-superadmin members yet. Add a
-                        company member before creating a project or programme.
-                      </Text>
-                    ) : null}
-                    <Group justify="flex-end">
-                      <Button
-                        variant="default"
-                        onClick={() => {
-                          setNewProjectOpen(false);
-                          setNewProjectOwnerId(null);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        disabled={
-                          !newProjectName.trim() ||
-                          createProject.isPending ||
-                          (superadminNeedsInitialOwner &&
-                            (!hasEligibleInitialOwners ||
-                              !effectiveNewProjectOwnerId))
-                        }
-                        onClick={async () => {
-                          const name = newProjectName.trim();
-                          if (!name) return;
-                          await createProject.mutateAsync({
-                            name,
-                            projectType: newProjectType,
-                            currency: newProjectCurrency,
-                            applyCompanyStandards:
-                              newProjectType === 'project'
-                                ? newProjectApplyCompanyStandards
-                                : false,
-                            initialOwnerUserId:
-                              superadminNeedsInitialOwner &&
-                              effectiveNewProjectOwnerId
-                                ? asUserId(effectiveNewProjectOwnerId)
-                                : undefined,
-                            parentProjectId:
-                              newProjectType === 'project'
-                                ? (newProjectParentId ?? undefined)
-                                : undefined,
-                          });
-                          setNewProjectName('');
-                          setNewProjectType('project');
-                          setNewProjectCurrency('AUD');
-                          setNewProjectParentId(null);
-                          setNewProjectApplyCompanyStandards(true);
-                          setNewProjectOwnerId(null);
-                          setNewProjectOpen(false);
-                        }}
-                      >
-                        Create
-                      </Button>
-                    </Group>
-                  </Stack>
-                </Modal>
-              </>
-            )}
+      <CompanyDashboardHeader model={model} />
 
-            {showSwitchCompany && (
-              <Link to={landingRoute.to}>
-                <Button component="span" variant="default">
-                  Switch company
-                </Button>
-              </Link>
-            )}
-          </div>
-        </div>
-      </Paper>
+      <CompanyDashboardTabs model={model} />
 
-      <Tabs
-        value={safeActiveTab}
-        onChange={(value) => {
-          const nextTab = toCompanyDashboardTab(value);
-          void router.navigate({
-            to: companyDashboardIndexRoute.to,
-            params: { companyId },
-            search: (prev) => ({
-              ...prev,
-              tab: nextTab,
-            }),
-            replace: true,
-          });
-        }}
-        keepMounted={false}
-        className={classes.softTabs}
-      >
-        <Tabs.List>
-          {canViewCompanySummary ? (
-            <Tabs.Tab value="summary">Summary</Tabs.Tab>
-          ) : null}
-          <Tabs.Tab value="projects">Projects & programmes</Tabs.Tab>
-          <Tabs.Tab value="settings" disabled={!canAccessSettings}>
-            <Group gap={6} wrap="nowrap">
-              Settings
-              {ruleSuggestionCount > 0 ? (
-                <Badge
-                  size="sm"
-                  variant="light"
-                  color="orange"
-                  title={`${ruleSuggestionCount} rule ${
-                    ruleSuggestionCount === 1 ? 'suggestion' : 'suggestions'
-                  } need review`}
-                >
-                  {ruleSuggestionCount}
-                </Badge>
-              ) : null}
-            </Group>
-          </Tabs.Tab>
-        </Tabs.List>
-
-        <Tabs.Panel value="projects" pt="md">
-          {!isHydrated ? (
-            <Paper className={classes.surfaceCard} radius="xl" p="lg">
-              <Text c="dimmed">Loading projects and programmes...</Text>
-            </Paper>
-          ) : rows.length > 0 ? (
-            <div className={classes.tableWrap}>
-              <MantineReactTable
-                columns={projectColumns}
-                data={groupedProjects}
-                mantineTableContainerProps={{ className: 'financeTable' }}
-                enableColumnActions={false}
-                enableColumnFilters={false}
-                enableDensityToggle={false}
-                enableFullScreenToggle={false}
-                enableTopToolbar={false}
-                enablePagination
-                enableSorting
-                initialState={{
-                  density: 'xs',
-                  pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
-                }}
-                mantineTableProps={{
-                  highlightOnHover: true,
-                  striped: 'odd',
-                  withTableBorder: true,
-                }}
-              />
-            </div>
-          ) : (
-            <Paper className={classes.surfaceCard} radius="xl" p="lg">
-              <Text c="dimmed">
-                No projects or programmes found for this company yet.
-              </Text>
-            </Paper>
-          )}
-        </Tabs.Panel>
-
-        {canViewCompanySummary ? (
-          <Tabs.Panel value="summary" pt="md">
-            <Suspense fallback={<LoadingLine height={180} radius="md" />}>
-              <CompanySummaryPanel companyId={companyId} isMobile={isMobile} />
-            </Suspense>
-          </Tabs.Panel>
-        ) : null}
-
-        <Tabs.Panel value="settings" pt="md">
-          {!isHydrated ? (
-            <Paper className={classes.surfaceCard} radius="xl" p="lg">
-              <Text c="dimmed">Loading company settings...</Text>
-            </Paper>
-          ) : (
-            <Suspense fallback={<LoadingLine height={180} radius="md" />}>
-              <CompanySettingsPanel
-                companyId={companyId}
-                initialExportJobId={dashboardSearch.exportJob ?? null}
-                initialReview={dashboardSearch.review ?? null}
-              />
-            </Suspense>
-          )}
-        </Tabs.Panel>
-      </Tabs>
-
-      <Modal
-        opened={confirmOpen}
-        onClose={closeConfirm}
-        title={confirmLabel}
-        fullScreen={isMobile}
-      >
-        <Stack>
-          <Text size="sm" c="dimmed">
-            {confirmDescription}
-          </Text>
-
-          <Text size="sm">
-            Type <b>{requiredConfirmText}</b> to confirm.
-          </Text>
-
-          <TextInput
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.currentTarget.value)}
-            placeholder={
-              confirmTarget?.kind === 'delete_project'
-                ? 'DELETE project or programme name'
-                : 'Project or programme name'
-            }
-            autoFocus
-          />
-
-          <Group justify="flex-end" wrap="wrap">
-            <Button
-              variant="default"
-              onClick={closeConfirm}
-              fullWidth={isMobile}
-            >
-              Cancel
-            </Button>
-            <Button
-              fullWidth={isMobile}
-              color={
-                confirmTarget?.kind === 'delete_project'
-                  ? 'red'
-                  : confirmTarget?.kind === 'reactivate_project'
-                    ? 'green'
-                    : 'orange'
-              }
-              disabled={
-                !isConfirmMatch ||
-                deactivateProject.isPending ||
-                reactivateProject.isPending ||
-                deleteProject.isPending
-              }
-              onClick={async () => {
-                if (!confirmTarget) return;
-                if (confirmTarget.kind === 'deactivate_project') {
-                  await deactivateProject.mutateAsync(confirmTarget.projectId);
-                } else if (confirmTarget.kind === 'reactivate_project') {
-                  await reactivateProject.mutateAsync(confirmTarget.projectId);
-                } else {
-                  await deleteProject.mutateAsync({
-                    projectId: confirmTarget.projectId,
-                    confirmation: confirmText,
-                  });
-                }
-                closeConfirm();
-              }}
-            >
-              {confirmLabel}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <ProjectLifecycleConfirmModal model={model} />
     </Stack>
   );
+}
+
+export default function CompanyDashboardPage() {
+  const model = useCompanyDashboardPageController();
+  return <CompanyDashboardPageView model={model} />;
 }

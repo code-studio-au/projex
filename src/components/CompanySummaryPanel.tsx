@@ -236,7 +236,7 @@ function WorkflowBadgeLink(props: {
   );
 }
 
-export default function CompanySummaryPanel(props: {
+function useCompanySummaryPanelController(props: {
   companyId: CompanyId;
   isMobile?: boolean;
 }) {
@@ -763,6 +763,36 @@ export default function CompanySummaryPanel(props: {
     ]
   );
 
+  return {
+    columns,
+    displayedRows,
+    isLoading,
+    isMobile,
+    monthFilterKey,
+    monthFilterOptions,
+    projectFilter,
+    quarterFilter,
+    quarterFilterOptions,
+    rows,
+    setMonthFilterKey,
+    setProjectFilter,
+    setQuarterFilter,
+    setYearFilter,
+    summary,
+    yearFilter,
+    yearFilterOptions,
+  };
+}
+
+type CompanySummaryPanelController = ReturnType<
+  typeof useCompanySummaryPanelController
+>;
+
+function CompanySummaryPanelView({
+  model,
+}: {
+  model: CompanySummaryPanelController;
+}) {
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <Paper className={classes.filterCard} radius="xl">
@@ -774,64 +804,68 @@ export default function CompanySummaryPanel(props: {
                 { value: 'all', label: 'All projects' },
                 { value: 'needs-attention', label: 'Needs attention' },
               ]}
-              value={projectFilter}
+              value={model.projectFilter}
               allowDeselect={false}
               onChange={(value) =>
-                setProjectFilter(
+                model.setProjectFilter(
                   value === 'needs-attention' ? 'needs-attention' : 'all'
                 )
               }
-              style={{ width: isMobile ? '100%' : 180 }}
+              style={{ width: model.isMobile ? '100%' : 180 }}
             />
             <Select
               label="Year"
               placeholder="All years"
-              data={yearFilterOptions}
-              value={yearFilter}
+              data={model.yearFilterOptions}
+              value={model.yearFilter}
               clearable
               onChange={(value) => {
-                setYearFilter(value);
-                setQuarterFilter(null);
-                setMonthFilterKey(null);
+                model.setYearFilter(value);
+                model.setQuarterFilter(null);
+                model.setMonthFilterKey(null);
               }}
-              style={{ width: isMobile ? '100%' : 140 }}
+              style={{ width: model.isMobile ? '100%' : 140 }}
             />
             <Select
               label="Quarter"
               placeholder="All quarters"
-              data={quarterFilterOptions}
-              value={quarterFilter}
+              data={model.quarterFilterOptions}
+              value={model.quarterFilter}
               clearable
-              disabled={!yearFilter}
+              disabled={!model.yearFilter}
               onChange={(value) => {
-                setQuarterFilter(toQuarterOption(value));
-                setMonthFilterKey(null);
+                model.setQuarterFilter(toQuarterOption(value));
+                model.setMonthFilterKey(null);
               }}
-              style={{ width: isMobile ? '100%' : 150 }}
+              style={{ width: model.isMobile ? '100%' : 150 }}
             />
             <Select
               label="Month"
               placeholder="All months"
-              data={monthFilterOptions}
-              value={monthFilterKey}
+              data={model.monthFilterOptions}
+              value={model.monthFilterKey}
               clearable
-              onChange={setMonthFilterKey}
-              style={{ width: isMobile ? '100%' : 180 }}
+              onChange={model.setMonthFilterKey}
+              style={{ width: model.isMobile ? '100%' : 180 }}
             />
             <Button
               size="sm"
               variant="subtle"
-              disabled={!yearFilter && !quarterFilter && !monthFilterKey}
+              disabled={
+                !model.yearFilter &&
+                !model.quarterFilter &&
+                !model.monthFilterKey
+              }
               onClick={() => {
-                setYearFilter(null);
-                setQuarterFilter(null);
-                setMonthFilterKey(null);
+                model.setYearFilter(null);
+                model.setQuarterFilter(null);
+                model.setMonthFilterKey(null);
               }}
             >
               Remove filter(s)
             </Button>
           </Group>
-          {yearFilter || quarterFilter || monthFilterKey ? (
+          {model.yearFilter || model.quarterFilter || model.monthFilterKey ? (
             <Text size="xs" c="dimmed">
               Project budgets remain full-project totals; spend, exposure,
               headroom, health, and uncoded actions reflect the selected period.
@@ -841,13 +875,17 @@ export default function CompanySummaryPanel(props: {
         </Stack>
       </Paper>
 
-      <SimpleGrid cols={isMobile ? 1 : 3} spacing="md" verticalSpacing="md">
+      <SimpleGrid
+        cols={model.isMobile ? 1 : 3}
+        spacing="md"
+        verticalSpacing="md"
+      >
         <Paper className={classes.statCard} withBorder={false}>
           <Stack gap={4}>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Active programmes/projects
             </Text>
-            <Title order={3}>{summary.activeProjects}</Title>
+            <Title order={3}>{model.summary.activeProjects}</Title>
           </Stack>
         </Paper>
         <Paper className={classes.statCard} withBorder={false}>
@@ -855,7 +893,7 @@ export default function CompanySummaryPanel(props: {
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Project budgets
             </Text>
-            <Title order={4}>{summary.totalBudget}</Title>
+            <Title order={4}>{model.summary.totalBudget}</Title>
           </Stack>
         </Paper>
         <Paper className={classes.statCard} withBorder={false}>
@@ -863,7 +901,7 @@ export default function CompanySummaryPanel(props: {
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Recorded spend
             </Text>
-            <Title order={4}>{summary.totalRecordedSpend}</Title>
+            <Title order={4}>{model.summary.totalRecordedSpend}</Title>
           </Stack>
         </Paper>
         <Paper className={classes.statCard} withBorder={false}>
@@ -871,7 +909,7 @@ export default function CompanySummaryPanel(props: {
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Budget headroom
             </Text>
-            <Title order={4}>{summary.totalConfirmedHeadroom}</Title>
+            <Title order={4}>{model.summary.totalConfirmedHeadroom}</Title>
           </Stack>
         </Paper>
         <Paper className={classes.statCard} withBorder={false}>
@@ -879,9 +917,9 @@ export default function CompanySummaryPanel(props: {
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Uncoded exposure
             </Text>
-            <Title order={4}>{summary.totalUncodedAmount}</Title>
+            <Title order={4}>{model.summary.totalUncodedAmount}</Title>
             <Text size="sm" c="dimmed">
-              {summary.totalUncodedCount} transactions
+              {model.summary.totalUncodedCount} transactions
             </Text>
           </Stack>
         </Paper>
@@ -890,19 +928,19 @@ export default function CompanySummaryPanel(props: {
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>
               Pending reversals
             </Text>
-            <Title order={4}>{summary.totalPendingReversal}</Title>
+            <Title order={4}>{model.summary.totalPendingReversal}</Title>
             <Text size="sm" c="dimmed">
-              {summary.totalPendingReversalCount} open workflows
+              {model.summary.totalPendingReversalCount} open workflows
             </Text>
           </Stack>
         </Paper>
       </SimpleGrid>
 
-      {displayedRows.length > 0 ? (
+      {model.displayedRows.length > 0 ? (
         <div className={classes.tableWrap}>
           <MantineReactTable
-            columns={columns}
-            data={displayedRows}
+            columns={model.columns}
+            data={model.displayedRows}
             getRowId={(row) => row.id}
             mantineTableContainerProps={{
               className: 'financeTable companySummaryTable',
@@ -914,10 +952,10 @@ export default function CompanySummaryPanel(props: {
             enableTopToolbar={false}
             enablePagination
             enableSorting
-            state={{ isLoading }}
+            state={{ isLoading: model.isLoading }}
             initialState={{
               density: 'xs',
-              pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 7 },
+              pagination: { pageIndex: 0, pageSize: model.isMobile ? 5 : 7 },
             }}
             mantineTableProps={{
               highlightOnHover: true,
@@ -930,7 +968,7 @@ export default function CompanySummaryPanel(props: {
             }}
           />
         </div>
-      ) : rows.length > 0 && projectFilter === 'needs-attention' ? (
+      ) : model.rows.length > 0 && model.projectFilter === 'needs-attention' ? (
         <Paper className={classes.surfaceCard} radius="xl" p="lg">
           <Text c="dimmed">No active projects currently need attention.</Text>
         </Paper>
@@ -943,4 +981,11 @@ export default function CompanySummaryPanel(props: {
       )}
     </Stack>
   );
+}
+
+export default function CompanySummaryPanel(
+  props: Parameters<typeof useCompanySummaryPanelController>[0]
+) {
+  const model = useCompanySummaryPanelController(props);
+  return <CompanySummaryPanelView model={model} />;
 }
