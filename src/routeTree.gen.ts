@@ -9,91 +9,85 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VerifyEmailChangeRouteImport } from './routes/verify-email-change'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiUsersRouteImport } from './routes/api.users'
-import { Route as ApiSessionRouteImport } from './routes/api.session'
-import { Route as ApiReadyRouteImport } from './routes/api.ready'
-import { Route as ApiHealthRouteImport } from './routes/api.health'
-import { Route as ApiCompaniesRouteImport } from './routes/api.companies'
-import { Route as AuthedSmokeRouteImport } from './routes/_authed.smoke'
-import { Route as AuthedCompaniesRouteImport } from './routes/_authed.companies'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as VerifyEmailChangeRouteImport } from './routes/verify-email-change'
 import { Route as AuthedAccountRouteImport } from './routes/_authed.account'
-import { Route as ApiProjectsProjectIdRouteImport } from './routes/api.projects.$projectId'
-import { Route as ApiMembershipsCompaniesRouteImport } from './routes/api.memberships.companies'
-import { Route as ApiMeProfileRouteImport } from './routes/api.me.profile'
-import { Route as ApiMeEmailChangeRouteImport } from './routes/api.me.email-change'
-import { Route as ApiMeDefaultCompanyRouteImport } from './routes/api.me.default-company'
-import { Route as ApiExportJobsJobIdRouteImport } from './routes/api.export-jobs.$jobId'
-import { Route as ApiDevSessionRouteImport } from './routes/api.dev.session'
-import { Route as ApiCompaniesCompanyIdRouteImport } from './routes/api.companies.$companyId'
-import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
-import { Route as ApiAdminSmokeRouteImport } from './routes/api.admin.smoke'
+import { Route as AuthedCompaniesRouteImport } from './routes/_authed.companies'
+import { Route as AuthedSmokeRouteImport } from './routes/_authed.smoke'
+import { Route as ApiCompaniesRouteImport } from './routes/api.companies'
+import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as ApiReadyRouteImport } from './routes/api.ready'
+import { Route as ApiSessionRouteImport } from './routes/api.session'
+import { Route as ApiUsersRouteImport } from './routes/api.users'
 import { Route as AuthedCCompanyIdRouteImport } from './routes/_authed.c.$companyId'
+import { Route as ApiAdminSmokeRouteImport } from './routes/api.admin.smoke'
+import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as ApiCompaniesCompanyIdRouteImport } from './routes/api.companies.$companyId'
+import { Route as ApiDevSessionRouteImport } from './routes/api.dev.session'
+import { Route as ApiExportJobsJobIdRouteImport } from './routes/api.export-jobs.$jobId'
+import { Route as ApiMeDefaultCompanyRouteImport } from './routes/api.me.default-company'
+import { Route as ApiMeEmailChangeRouteImport } from './routes/api.me.email-change'
+import { Route as ApiMeProfileRouteImport } from './routes/api.me.profile'
+import { Route as ApiMembershipsCompaniesRouteImport } from './routes/api.memberships.companies'
+import { Route as ApiProjectsProjectIdRouteImport } from './routes/api.projects.$projectId'
 import { Route as AuthedCCompanyIdIndexRouteImport } from './routes/_authed.c.$companyId.index'
-import { Route as ApiProjectsProjectIdTransactionsRouteImport } from './routes/api.projects.$projectId.transactions'
-import { Route as ApiProjectsProjectIdSubCategoriesRouteImport } from './routes/api.projects.$projectId.sub-categories'
-import { Route as ApiProjectsProjectIdReactivateRouteImport } from './routes/api.projects.$projectId.reactivate'
-import { Route as ApiProjectsProjectIdMembershipsRouteImport } from './routes/api.projects.$projectId.memberships'
-import { Route as ApiProjectsProjectIdDeactivateRouteImport } from './routes/api.projects.$projectId.deactivate'
-import { Route as ApiProjectsProjectIdCategoriesRouteImport } from './routes/api.projects.$projectId.categories'
-import { Route as ApiProjectsProjectIdBudgetsRouteImport } from './routes/api.projects.$projectId.budgets'
-import { Route as ApiProjectsProjectIdApplyCompanyStandardsRouteImport } from './routes/api.projects.$projectId.apply-company-standards'
-import { Route as ApiMeEmailChangeResendRouteImport } from './routes/api.me.email-change.resend'
-import { Route as ApiMeEmailChangeConfirmRouteImport } from './routes/api.me.email-change.confirm'
-import { Route as ApiExportJobsJobIdDownloadRouteImport } from './routes/api.export-jobs.$jobId.download'
-import { Route as ApiCompaniesCompanyIdWorkQueueRouteImport } from './routes/api.companies.$companyId.work-queue'
-import { Route as ApiCompaniesCompanyIdUsersRouteImport } from './routes/api.companies.$companyId.users'
-import { Route as ApiCompaniesCompanyIdSummaryRouteImport } from './routes/api.companies.$companyId.summary'
-import { Route as ApiCompaniesCompanyIdReactivateRouteImport } from './routes/api.companies.$companyId.reactivate'
-import { Route as ApiCompaniesCompanyIdProjectsRouteImport } from './routes/api.companies.$companyId.projects'
-import { Route as ApiCompaniesCompanyIdMyProjectMembershipsRouteImport } from './routes/api.companies.$companyId.my-project-memberships'
-import { Route as ApiCompaniesCompanyIdMembershipsRouteImport } from './routes/api.companies.$companyId.memberships'
-import { Route as ApiCompaniesCompanyIdImportRulesRouteImport } from './routes/api.companies.$companyId.import-rules'
-import { Route as ApiCompaniesCompanyIdExportJobsRouteImport } from './routes/api.companies.$companyId.export-jobs'
-import { Route as ApiCompaniesCompanyIdExportRouteImport } from './routes/api.companies.$companyId.export'
-import { Route as ApiCompaniesCompanyIdDefaultsRouteImport } from './routes/api.companies.$companyId.defaults'
-import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport } from './routes/api.companies.$companyId.default-sub-categories'
-import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRouteImport } from './routes/api.companies.$companyId.default-mapping-rules'
-import { Route as ApiCompaniesCompanyIdDefaultCategoriesRouteImport } from './routes/api.companies.$companyId.default-categories'
 import { Route as ApiCompaniesCompanyIdDeactivateRouteImport } from './routes/api.companies.$companyId.deactivate'
-import { Route as ApiProjectsProjectIdTransactionsImportPreviewRouteImport } from './routes/api.projects.$projectId.transactions.import-preview'
-import { Route as ApiProjectsProjectIdTransactionsImportRouteImport } from './routes/api.projects.$projectId.transactions.import'
-import { Route as ApiProjectsProjectIdTransactionsCommentSummariesRouteImport } from './routes/api.projects.$projectId.transactions.comment-summaries'
-import { Route as ApiProjectsProjectIdTransactionsTxnIdRouteImport } from './routes/api.projects.$projectId.transactions.$txnId'
-import { Route as ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport } from './routes/api.projects.$projectId.sub-categories.$subCategoryId'
-import { Route as ApiProjectsProjectIdCategoriesCategoryIdRouteImport } from './routes/api.projects.$projectId.categories.$categoryId'
-import { Route as ApiProjectsProjectIdBudgetsBudgetIdRouteImport } from './routes/api.projects.$projectId.budgets.$budgetId'
-import { Route as ApiCompaniesCompanyIdImportRulesRuleIdRouteImport } from './routes/api.companies.$companyId.import-rules.$ruleId'
-import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport } from './routes/api.companies.$companyId.default-sub-categories.$subCategoryId'
-import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport } from './routes/api.companies.$companyId.default-mapping-rules.$ruleId'
-import { Route as ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport } from './routes/api.companies.$companyId.default-categories.$categoryId'
+import { Route as ApiCompaniesCompanyIdDefaultCategoriesRouteImport } from './routes/api.companies.$companyId.default-categories'
+import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRouteImport } from './routes/api.companies.$companyId.default-mapping-rules'
+import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport } from './routes/api.companies.$companyId.default-sub-categories'
+import { Route as ApiCompaniesCompanyIdDefaultsRouteImport } from './routes/api.companies.$companyId.defaults'
+import { Route as ApiCompaniesCompanyIdExportRouteImport } from './routes/api.companies.$companyId.export'
+import { Route as ApiCompaniesCompanyIdExportJobsRouteImport } from './routes/api.companies.$companyId.export-jobs'
+import { Route as ApiCompaniesCompanyIdImportRulesRouteImport } from './routes/api.companies.$companyId.import-rules'
+import { Route as ApiCompaniesCompanyIdMembershipsRouteImport } from './routes/api.companies.$companyId.memberships'
+import { Route as ApiCompaniesCompanyIdMyProjectMembershipsRouteImport } from './routes/api.companies.$companyId.my-project-memberships'
+import { Route as ApiCompaniesCompanyIdProjectsRouteImport } from './routes/api.companies.$companyId.projects'
+import { Route as ApiCompaniesCompanyIdReactivateRouteImport } from './routes/api.companies.$companyId.reactivate'
+import { Route as ApiCompaniesCompanyIdSummaryRouteImport } from './routes/api.companies.$companyId.summary'
+import { Route as ApiCompaniesCompanyIdUsersRouteImport } from './routes/api.companies.$companyId.users'
+import { Route as ApiCompaniesCompanyIdWorkQueueRouteImport } from './routes/api.companies.$companyId.work-queue'
+import { Route as ApiExportJobsJobIdDownloadRouteImport } from './routes/api.export-jobs.$jobId.download'
+import { Route as ApiMeEmailChangeConfirmRouteImport } from './routes/api.me.email-change.confirm'
+import { Route as ApiMeEmailChangeResendRouteImport } from './routes/api.me.email-change.resend'
+import { Route as ApiProjectsProjectIdApplyCompanyStandardsRouteImport } from './routes/api.projects.$projectId.apply-company-standards'
+import { Route as ApiProjectsProjectIdBudgetsRouteImport } from './routes/api.projects.$projectId.budgets'
+import { Route as ApiProjectsProjectIdCategoriesRouteImport } from './routes/api.projects.$projectId.categories'
+import { Route as ApiProjectsProjectIdDeactivateRouteImport } from './routes/api.projects.$projectId.deactivate'
+import { Route as ApiProjectsProjectIdMembershipsRouteImport } from './routes/api.projects.$projectId.memberships'
+import { Route as ApiProjectsProjectIdReactivateRouteImport } from './routes/api.projects.$projectId.reactivate'
+import { Route as ApiProjectsProjectIdSubCategoriesRouteImport } from './routes/api.projects.$projectId.sub-categories'
+import { Route as ApiProjectsProjectIdTransactionsRouteImport } from './routes/api.projects.$projectId.transactions'
 import { Route as AuthedCCompanyIdPProjectIdRouteImport } from './routes/_authed.c.$companyId.p.$projectId'
-import { Route as ApiProjectsProjectIdTransactionsTxnIdWorkflowRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.workflow'
-import { Route as ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.transfer'
-import { Route as ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.split'
-import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments'
-import { Route as ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport } from './routes/api.projects.$projectId.import-batches.$batchId.cancel'
+import { Route as ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport } from './routes/api.companies.$companyId.default-categories.$categoryId'
+import { Route as ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport } from './routes/api.companies.$companyId.default-mapping-rules.$ruleId'
+import { Route as ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport } from './routes/api.companies.$companyId.default-sub-categories.$subCategoryId'
+import { Route as ApiCompaniesCompanyIdImportRulesRuleIdRouteImport } from './routes/api.companies.$companyId.import-rules.$ruleId'
+import { Route as ApiProjectsProjectIdBudgetsBudgetIdRouteImport } from './routes/api.projects.$projectId.budgets.$budgetId'
+import { Route as ApiProjectsProjectIdCategoriesCategoryIdRouteImport } from './routes/api.projects.$projectId.categories.$categoryId'
+import { Route as ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport } from './routes/api.projects.$projectId.sub-categories.$subCategoryId'
+import { Route as ApiProjectsProjectIdTransactionsTxnIdRouteImport } from './routes/api.projects.$projectId.transactions.$txnId'
+import { Route as ApiProjectsProjectIdTransactionsCommentSummariesRouteImport } from './routes/api.projects.$projectId.transactions.comment-summaries'
+import { Route as ApiProjectsProjectIdTransactionsImportRouteImport } from './routes/api.projects.$projectId.transactions.import'
+import { Route as ApiProjectsProjectIdTransactionsImportPreviewRouteImport } from './routes/api.projects.$projectId.transactions.import-preview'
 import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
+import { Route as ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport } from './routes/api.projects.$projectId.import-batches.$batchId.cancel'
+import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments'
+import { Route as ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.split'
+import { Route as ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.transfer'
+import { Route as ApiProjectsProjectIdTransactionsTxnIdWorkflowRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.workflow'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments.$commentId'
 
-const VerifyEmailChangeRoute = VerifyEmailChangeRouteImport.update({
-  id: '/verify-email-change',
-  path: '/verify-email-change',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -101,43 +95,24 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedRoute = AuthedRouteImport.update({
-  id: '/_authed',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiUsersRoute = ApiUsersRouteImport.update({
-  id: '/api/users',
-  path: '/api/users',
+const VerifyEmailChangeRoute = VerifyEmailChangeRouteImport.update({
+  id: '/verify-email-change',
+  path: '/verify-email-change',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiSessionRoute = ApiSessionRouteImport.update({
-  id: '/api/session',
-  path: '/api/session',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiReadyRoute = ApiReadyRouteImport.update({
-  id: '/api/ready',
-  path: '/api/ready',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiHealthRoute = ApiHealthRouteImport.update({
-  id: '/api/health',
-  path: '/api/health',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiCompaniesRoute = ApiCompaniesRouteImport.update({
-  id: '/api/companies',
-  path: '/api/companies',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthedSmokeRoute = AuthedSmokeRouteImport.update({
-  id: '/smoke',
-  path: '/smoke',
+const AuthedAccountRoute = AuthedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedCompaniesRoute = AuthedCompaniesRouteImport.update({
@@ -145,59 +120,34 @@ const AuthedCompaniesRoute = AuthedCompaniesRouteImport.update({
   path: '/companies',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedAccountRoute = AuthedAccountRouteImport.update({
-  id: '/account',
-  path: '/account',
+const AuthedSmokeRoute = AuthedSmokeRouteImport.update({
+  id: '/smoke',
+  path: '/smoke',
   getParentRoute: () => AuthedRoute,
 } as any)
-const ApiProjectsProjectIdRoute = ApiProjectsProjectIdRouteImport.update({
-  id: '/api/projects/$projectId',
-  path: '/api/projects/$projectId',
+const ApiCompaniesRoute = ApiCompaniesRouteImport.update({
+  id: '/api/companies',
+  path: '/api/companies',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMembershipsCompaniesRoute = ApiMembershipsCompaniesRouteImport.update({
-  id: '/api/memberships/companies',
-  path: '/api/memberships/companies',
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMeProfileRoute = ApiMeProfileRouteImport.update({
-  id: '/api/me/profile',
-  path: '/api/me/profile',
+const ApiReadyRoute = ApiReadyRouteImport.update({
+  id: '/api/ready',
+  path: '/api/ready',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMeEmailChangeRoute = ApiMeEmailChangeRouteImport.update({
-  id: '/api/me/email-change',
-  path: '/api/me/email-change',
+const ApiSessionRoute = ApiSessionRouteImport.update({
+  id: '/api/session',
+  path: '/api/session',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMeDefaultCompanyRoute = ApiMeDefaultCompanyRouteImport.update({
-  id: '/api/me/default-company',
-  path: '/api/me/default-company',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiExportJobsJobIdRoute = ApiExportJobsJobIdRouteImport.update({
-  id: '/api/export-jobs/$jobId',
-  path: '/api/export-jobs/$jobId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDevSessionRoute = ApiDevSessionRouteImport.update({
-  id: '/api/dev/session',
-  path: '/api/dev/session',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiCompaniesCompanyIdRoute = ApiCompaniesCompanyIdRouteImport.update({
-  id: '/$companyId',
-  path: '/$companyId',
-  getParentRoute: () => ApiCompaniesRoute,
-} as any)
-const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
-  id: '/api/auth/$',
-  path: '/api/auth/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminSmokeRoute = ApiAdminSmokeRouteImport.update({
-  id: '/api/admin/smoke',
-  path: '/api/admin/smoke',
+const ApiUsersRoute = ApiUsersRouteImport.update({
+  id: '/api/users',
+  path: '/api/users',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedCCompanyIdRoute = AuthedCCompanyIdRouteImport.update({
@@ -205,151 +155,65 @@ const AuthedCCompanyIdRoute = AuthedCCompanyIdRouteImport.update({
   path: '/c/$companyId',
   getParentRoute: () => AuthedRoute,
 } as any)
+const ApiAdminSmokeRoute = ApiAdminSmokeRouteImport.update({
+  id: '/api/admin/smoke',
+  path: '/api/admin/smoke',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCompaniesCompanyIdRoute = ApiCompaniesCompanyIdRouteImport.update({
+  id: '/$companyId',
+  path: '/$companyId',
+  getParentRoute: () => ApiCompaniesRoute,
+} as any)
+const ApiDevSessionRoute = ApiDevSessionRouteImport.update({
+  id: '/api/dev/session',
+  path: '/api/dev/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExportJobsJobIdRoute = ApiExportJobsJobIdRouteImport.update({
+  id: '/api/export-jobs/$jobId',
+  path: '/api/export-jobs/$jobId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMeDefaultCompanyRoute = ApiMeDefaultCompanyRouteImport.update({
+  id: '/api/me/default-company',
+  path: '/api/me/default-company',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMeEmailChangeRoute = ApiMeEmailChangeRouteImport.update({
+  id: '/api/me/email-change',
+  path: '/api/me/email-change',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMeProfileRoute = ApiMeProfileRouteImport.update({
+  id: '/api/me/profile',
+  path: '/api/me/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMembershipsCompaniesRoute = ApiMembershipsCompaniesRouteImport.update({
+  id: '/api/memberships/companies',
+  path: '/api/memberships/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectsProjectIdRoute = ApiProjectsProjectIdRouteImport.update({
+  id: '/api/projects/$projectId',
+  path: '/api/projects/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthedCCompanyIdIndexRoute = AuthedCCompanyIdIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthedCCompanyIdRoute,
 } as any)
-const ApiProjectsProjectIdTransactionsRoute =
-  ApiProjectsProjectIdTransactionsRouteImport.update({
-    id: '/transactions',
-    path: '/transactions',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiProjectsProjectIdSubCategoriesRoute =
-  ApiProjectsProjectIdSubCategoriesRouteImport.update({
-    id: '/sub-categories',
-    path: '/sub-categories',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiProjectsProjectIdReactivateRoute =
-  ApiProjectsProjectIdReactivateRouteImport.update({
-    id: '/reactivate',
-    path: '/reactivate',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiProjectsProjectIdMembershipsRoute =
-  ApiProjectsProjectIdMembershipsRouteImport.update({
-    id: '/memberships',
-    path: '/memberships',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiProjectsProjectIdDeactivateRoute =
-  ApiProjectsProjectIdDeactivateRouteImport.update({
+const ApiCompaniesCompanyIdDeactivateRoute =
+  ApiCompaniesCompanyIdDeactivateRouteImport.update({
     id: '/deactivate',
     path: '/deactivate',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiProjectsProjectIdCategoriesRoute =
-  ApiProjectsProjectIdCategoriesRouteImport.update({
-    id: '/categories',
-    path: '/categories',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiProjectsProjectIdBudgetsRoute =
-  ApiProjectsProjectIdBudgetsRouteImport.update({
-    id: '/budgets',
-    path: '/budgets',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiProjectsProjectIdApplyCompanyStandardsRoute =
-  ApiProjectsProjectIdApplyCompanyStandardsRouteImport.update({
-    id: '/apply-company-standards',
-    path: '/apply-company-standards',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiMeEmailChangeResendRoute = ApiMeEmailChangeResendRouteImport.update({
-  id: '/resend',
-  path: '/resend',
-  getParentRoute: () => ApiMeEmailChangeRoute,
-} as any)
-const ApiMeEmailChangeConfirmRoute = ApiMeEmailChangeConfirmRouteImport.update({
-  id: '/confirm',
-  path: '/confirm',
-  getParentRoute: () => ApiMeEmailChangeRoute,
-} as any)
-const ApiExportJobsJobIdDownloadRoute =
-  ApiExportJobsJobIdDownloadRouteImport.update({
-    id: '/download',
-    path: '/download',
-    getParentRoute: () => ApiExportJobsJobIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdWorkQueueRoute =
-  ApiCompaniesCompanyIdWorkQueueRouteImport.update({
-    id: '/work-queue',
-    path: '/work-queue',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdUsersRoute =
-  ApiCompaniesCompanyIdUsersRouteImport.update({
-    id: '/users',
-    path: '/users',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdSummaryRoute =
-  ApiCompaniesCompanyIdSummaryRouteImport.update({
-    id: '/summary',
-    path: '/summary',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdReactivateRoute =
-  ApiCompaniesCompanyIdReactivateRouteImport.update({
-    id: '/reactivate',
-    path: '/reactivate',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdProjectsRoute =
-  ApiCompaniesCompanyIdProjectsRouteImport.update({
-    id: '/projects',
-    path: '/projects',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdMyProjectMembershipsRoute =
-  ApiCompaniesCompanyIdMyProjectMembershipsRouteImport.update({
-    id: '/my-project-memberships',
-    path: '/my-project-memberships',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdMembershipsRoute =
-  ApiCompaniesCompanyIdMembershipsRouteImport.update({
-    id: '/memberships',
-    path: '/memberships',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdImportRulesRoute =
-  ApiCompaniesCompanyIdImportRulesRouteImport.update({
-    id: '/import-rules',
-    path: '/import-rules',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdExportJobsRoute =
-  ApiCompaniesCompanyIdExportJobsRouteImport.update({
-    id: '/export-jobs',
-    path: '/export-jobs',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdExportRoute =
-  ApiCompaniesCompanyIdExportRouteImport.update({
-    id: '/export',
-    path: '/export',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdDefaultsRoute =
-  ApiCompaniesCompanyIdDefaultsRouteImport.update({
-    id: '/defaults',
-    path: '/defaults',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdDefaultSubCategoriesRoute =
-  ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport.update({
-    id: '/default-sub-categories',
-    path: '/default-sub-categories',
-    getParentRoute: () => ApiCompaniesCompanyIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdDefaultMappingRulesRoute =
-  ApiCompaniesCompanyIdDefaultMappingRulesRouteImport.update({
-    id: '/default-mapping-rules',
-    path: '/default-mapping-rules',
     getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
 const ApiCompaniesCompanyIdDefaultCategoriesRoute =
@@ -358,22 +222,200 @@ const ApiCompaniesCompanyIdDefaultCategoriesRoute =
     path: '/default-categories',
     getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
-const ApiCompaniesCompanyIdDeactivateRoute =
-  ApiCompaniesCompanyIdDeactivateRouteImport.update({
-    id: '/deactivate',
-    path: '/deactivate',
+const ApiCompaniesCompanyIdDefaultMappingRulesRoute =
+  ApiCompaniesCompanyIdDefaultMappingRulesRouteImport.update({
+    id: '/default-mapping-rules',
+    path: '/default-mapping-rules',
     getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
-const ApiProjectsProjectIdTransactionsImportPreviewRoute =
-  ApiProjectsProjectIdTransactionsImportPreviewRouteImport.update({
-    id: '/import-preview',
-    path: '/import-preview',
-    getParentRoute: () => ApiProjectsProjectIdTransactionsRoute,
+const ApiCompaniesCompanyIdDefaultSubCategoriesRoute =
+  ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport.update({
+    id: '/default-sub-categories',
+    path: '/default-sub-categories',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
   } as any)
-const ApiProjectsProjectIdTransactionsImportRoute =
-  ApiProjectsProjectIdTransactionsImportRouteImport.update({
-    id: '/import',
-    path: '/import',
+const ApiCompaniesCompanyIdDefaultsRoute =
+  ApiCompaniesCompanyIdDefaultsRouteImport.update({
+    id: '/defaults',
+    path: '/defaults',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdExportRoute =
+  ApiCompaniesCompanyIdExportRouteImport.update({
+    id: '/export',
+    path: '/export',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdExportJobsRoute =
+  ApiCompaniesCompanyIdExportJobsRouteImport.update({
+    id: '/export-jobs',
+    path: '/export-jobs',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdImportRulesRoute =
+  ApiCompaniesCompanyIdImportRulesRouteImport.update({
+    id: '/import-rules',
+    path: '/import-rules',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdMembershipsRoute =
+  ApiCompaniesCompanyIdMembershipsRouteImport.update({
+    id: '/memberships',
+    path: '/memberships',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdMyProjectMembershipsRoute =
+  ApiCompaniesCompanyIdMyProjectMembershipsRouteImport.update({
+    id: '/my-project-memberships',
+    path: '/my-project-memberships',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdProjectsRoute =
+  ApiCompaniesCompanyIdProjectsRouteImport.update({
+    id: '/projects',
+    path: '/projects',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdReactivateRoute =
+  ApiCompaniesCompanyIdReactivateRouteImport.update({
+    id: '/reactivate',
+    path: '/reactivate',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdSummaryRoute =
+  ApiCompaniesCompanyIdSummaryRouteImport.update({
+    id: '/summary',
+    path: '/summary',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdUsersRoute =
+  ApiCompaniesCompanyIdUsersRouteImport.update({
+    id: '/users',
+    path: '/users',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdWorkQueueRoute =
+  ApiCompaniesCompanyIdWorkQueueRouteImport.update({
+    id: '/work-queue',
+    path: '/work-queue',
+    getParentRoute: () => ApiCompaniesCompanyIdRoute,
+  } as any)
+const ApiExportJobsJobIdDownloadRoute =
+  ApiExportJobsJobIdDownloadRouteImport.update({
+    id: '/download',
+    path: '/download',
+    getParentRoute: () => ApiExportJobsJobIdRoute,
+  } as any)
+const ApiMeEmailChangeConfirmRoute = ApiMeEmailChangeConfirmRouteImport.update({
+  id: '/confirm',
+  path: '/confirm',
+  getParentRoute: () => ApiMeEmailChangeRoute,
+} as any)
+const ApiMeEmailChangeResendRoute = ApiMeEmailChangeResendRouteImport.update({
+  id: '/resend',
+  path: '/resend',
+  getParentRoute: () => ApiMeEmailChangeRoute,
+} as any)
+const ApiProjectsProjectIdApplyCompanyStandardsRoute =
+  ApiProjectsProjectIdApplyCompanyStandardsRouteImport.update({
+    id: '/apply-company-standards',
+    path: '/apply-company-standards',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
+const ApiProjectsProjectIdBudgetsRoute =
+  ApiProjectsProjectIdBudgetsRouteImport.update({
+    id: '/budgets',
+    path: '/budgets',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
+const ApiProjectsProjectIdCategoriesRoute =
+  ApiProjectsProjectIdCategoriesRouteImport.update({
+    id: '/categories',
+    path: '/categories',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
+const ApiProjectsProjectIdDeactivateRoute =
+  ApiProjectsProjectIdDeactivateRouteImport.update({
+    id: '/deactivate',
+    path: '/deactivate',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
+const ApiProjectsProjectIdMembershipsRoute =
+  ApiProjectsProjectIdMembershipsRouteImport.update({
+    id: '/memberships',
+    path: '/memberships',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
+const ApiProjectsProjectIdReactivateRoute =
+  ApiProjectsProjectIdReactivateRouteImport.update({
+    id: '/reactivate',
+    path: '/reactivate',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
+const ApiProjectsProjectIdSubCategoriesRoute =
+  ApiProjectsProjectIdSubCategoriesRouteImport.update({
+    id: '/sub-categories',
+    path: '/sub-categories',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
+const ApiProjectsProjectIdTransactionsRoute =
+  ApiProjectsProjectIdTransactionsRouteImport.update({
+    id: '/transactions',
+    path: '/transactions',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
+  } as any)
+const AuthedCCompanyIdPProjectIdRoute =
+  AuthedCCompanyIdPProjectIdRouteImport.update({
+    id: '/p/$projectId',
+    path: '/p/$projectId',
+    getParentRoute: () => AuthedCCompanyIdRoute,
+  } as any)
+const ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRoute =
+  ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport.update({
+    id: '/$categoryId',
+    path: '/$categoryId',
+    getParentRoute: () => ApiCompaniesCompanyIdDefaultCategoriesRoute,
+  } as any)
+const ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute =
+  ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport.update({
+    id: '/$ruleId',
+    path: '/$ruleId',
+    getParentRoute: () => ApiCompaniesCompanyIdDefaultMappingRulesRoute,
+  } as any)
+const ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute =
+  ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport.update({
+    id: '/$subCategoryId',
+    path: '/$subCategoryId',
+    getParentRoute: () => ApiCompaniesCompanyIdDefaultSubCategoriesRoute,
+  } as any)
+const ApiCompaniesCompanyIdImportRulesRuleIdRoute =
+  ApiCompaniesCompanyIdImportRulesRuleIdRouteImport.update({
+    id: '/$ruleId',
+    path: '/$ruleId',
+    getParentRoute: () => ApiCompaniesCompanyIdImportRulesRoute,
+  } as any)
+const ApiProjectsProjectIdBudgetsBudgetIdRoute =
+  ApiProjectsProjectIdBudgetsBudgetIdRouteImport.update({
+    id: '/$budgetId',
+    path: '/$budgetId',
+    getParentRoute: () => ApiProjectsProjectIdBudgetsRoute,
+  } as any)
+const ApiProjectsProjectIdCategoriesCategoryIdRoute =
+  ApiProjectsProjectIdCategoriesCategoryIdRouteImport.update({
+    id: '/$categoryId',
+    path: '/$categoryId',
+    getParentRoute: () => ApiProjectsProjectIdCategoriesRoute,
+  } as any)
+const ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute =
+  ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport.update({
+    id: '/$subCategoryId',
+    path: '/$subCategoryId',
+    getParentRoute: () => ApiProjectsProjectIdSubCategoriesRoute,
+  } as any)
+const ApiProjectsProjectIdTransactionsTxnIdRoute =
+  ApiProjectsProjectIdTransactionsTxnIdRouteImport.update({
+    id: '/$txnId',
+    path: '/$txnId',
     getParentRoute: () => ApiProjectsProjectIdTransactionsRoute,
   } as any)
 const ApiProjectsProjectIdTransactionsCommentSummariesRoute =
@@ -382,70 +424,34 @@ const ApiProjectsProjectIdTransactionsCommentSummariesRoute =
     path: '/comment-summaries',
     getParentRoute: () => ApiProjectsProjectIdTransactionsRoute,
   } as any)
-const ApiProjectsProjectIdTransactionsTxnIdRoute =
-  ApiProjectsProjectIdTransactionsTxnIdRouteImport.update({
-    id: '/$txnId',
-    path: '/$txnId',
+const ApiProjectsProjectIdTransactionsImportRoute =
+  ApiProjectsProjectIdTransactionsImportRouteImport.update({
+    id: '/import',
+    path: '/import',
     getParentRoute: () => ApiProjectsProjectIdTransactionsRoute,
   } as any)
-const ApiProjectsProjectIdSubCategoriesSubCategoryIdRoute =
-  ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport.update({
-    id: '/$subCategoryId',
-    path: '/$subCategoryId',
-    getParentRoute: () => ApiProjectsProjectIdSubCategoriesRoute,
+const ApiProjectsProjectIdTransactionsImportPreviewRoute =
+  ApiProjectsProjectIdTransactionsImportPreviewRouteImport.update({
+    id: '/import-preview',
+    path: '/import-preview',
+    getParentRoute: () => ApiProjectsProjectIdTransactionsRoute,
   } as any)
-const ApiProjectsProjectIdCategoriesCategoryIdRoute =
-  ApiProjectsProjectIdCategoriesCategoryIdRouteImport.update({
-    id: '/$categoryId',
-    path: '/$categoryId',
-    getParentRoute: () => ApiProjectsProjectIdCategoriesRoute,
+const ApiCompaniesCompanyIdUsersUserIdInviteRoute =
+  ApiCompaniesCompanyIdUsersUserIdInviteRouteImport.update({
+    id: '/$userId/invite',
+    path: '/$userId/invite',
+    getParentRoute: () => ApiCompaniesCompanyIdUsersRoute,
   } as any)
-const ApiProjectsProjectIdBudgetsBudgetIdRoute =
-  ApiProjectsProjectIdBudgetsBudgetIdRouteImport.update({
-    id: '/$budgetId',
-    path: '/$budgetId',
-    getParentRoute: () => ApiProjectsProjectIdBudgetsRoute,
+const ApiProjectsProjectIdImportBatchesBatchIdCancelRoute =
+  ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport.update({
+    id: '/import-batches/$batchId/cancel',
+    path: '/import-batches/$batchId/cancel',
+    getParentRoute: () => ApiProjectsProjectIdRoute,
   } as any)
-const ApiCompaniesCompanyIdImportRulesRuleIdRoute =
-  ApiCompaniesCompanyIdImportRulesRuleIdRouteImport.update({
-    id: '/$ruleId',
-    path: '/$ruleId',
-    getParentRoute: () => ApiCompaniesCompanyIdImportRulesRoute,
-  } as any)
-const ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRoute =
-  ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport.update({
-    id: '/$subCategoryId',
-    path: '/$subCategoryId',
-    getParentRoute: () => ApiCompaniesCompanyIdDefaultSubCategoriesRoute,
-  } as any)
-const ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRoute =
-  ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport.update({
-    id: '/$ruleId',
-    path: '/$ruleId',
-    getParentRoute: () => ApiCompaniesCompanyIdDefaultMappingRulesRoute,
-  } as any)
-const ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRoute =
-  ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport.update({
-    id: '/$categoryId',
-    path: '/$categoryId',
-    getParentRoute: () => ApiCompaniesCompanyIdDefaultCategoriesRoute,
-  } as any)
-const AuthedCCompanyIdPProjectIdRoute =
-  AuthedCCompanyIdPProjectIdRouteImport.update({
-    id: '/p/$projectId',
-    path: '/p/$projectId',
-    getParentRoute: () => AuthedCCompanyIdRoute,
-  } as any)
-const ApiProjectsProjectIdTransactionsTxnIdWorkflowRoute =
-  ApiProjectsProjectIdTransactionsTxnIdWorkflowRouteImport.update({
-    id: '/workflow',
-    path: '/workflow',
-    getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
-  } as any)
-const ApiProjectsProjectIdTransactionsTxnIdTransferRoute =
-  ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport.update({
-    id: '/transfer',
-    path: '/transfer',
+const ApiProjectsProjectIdTransactionsTxnIdCommentsRoute =
+  ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport.update({
+    id: '/comments',
+    path: '/comments',
     getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
   } as any)
 const ApiProjectsProjectIdTransactionsTxnIdSplitRoute =
@@ -454,23 +460,17 @@ const ApiProjectsProjectIdTransactionsTxnIdSplitRoute =
     path: '/split',
     getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
   } as any)
-const ApiProjectsProjectIdTransactionsTxnIdCommentsRoute =
-  ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport.update({
-    id: '/comments',
-    path: '/comments',
+const ApiProjectsProjectIdTransactionsTxnIdTransferRoute =
+  ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport.update({
+    id: '/transfer',
+    path: '/transfer',
     getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
   } as any)
-const ApiProjectsProjectIdImportBatchesBatchIdCancelRoute =
-  ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport.update({
-    id: '/import-batches/$batchId/cancel',
-    path: '/import-batches/$batchId/cancel',
-    getParentRoute: () => ApiProjectsProjectIdRoute,
-  } as any)
-const ApiCompaniesCompanyIdUsersUserIdInviteRoute =
-  ApiCompaniesCompanyIdUsersUserIdInviteRouteImport.update({
-    id: '/$userId/invite',
-    path: '/$userId/invite',
-    getParentRoute: () => ApiCompaniesCompanyIdUsersRoute,
+const ApiProjectsProjectIdTransactionsTxnIdWorkflowRoute =
+  ApiProjectsProjectIdTransactionsTxnIdWorkflowRouteImport.update({
+    id: '/workflow',
+    path: '/workflow',
+    getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
   } as any)
 const ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRoute =
   ApiProjectsProjectIdTransactionsTxnIdCommentsCommentIdRouteImport.update({
@@ -940,32 +940,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/verify-email-change': {
-      id: '/verify-email-change'
-      path: '/verify-email-change'
-      fullPath: '/verify-email-change'
-      preLoaderRoute: typeof VerifyEmailChangeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed': {
@@ -975,53 +954,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/users': {
-      id: '/api/users'
-      path: '/api/users'
-      fullPath: '/api/users'
-      preLoaderRoute: typeof ApiUsersRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/session': {
-      id: '/api/session'
-      path: '/api/session'
-      fullPath: '/api/session'
-      preLoaderRoute: typeof ApiSessionRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/ready': {
-      id: '/api/ready'
-      path: '/api/ready'
-      fullPath: '/api/ready'
-      preLoaderRoute: typeof ApiReadyRouteImport
+    '/verify-email-change': {
+      id: '/verify-email-change'
+      path: '/verify-email-change'
+      fullPath: '/verify-email-change'
+      preLoaderRoute: typeof VerifyEmailChangeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/health': {
-      id: '/api/health'
-      path: '/api/health'
-      fullPath: '/api/health'
-      preLoaderRoute: typeof ApiHealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/companies': {
-      id: '/api/companies'
-      path: '/api/companies'
-      fullPath: '/api/companies'
-      preLoaderRoute: typeof ApiCompaniesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authed/smoke': {
-      id: '/_authed/smoke'
-      path: '/smoke'
-      fullPath: '/smoke'
-      preLoaderRoute: typeof AuthedSmokeRouteImport
+    '/_authed/account': {
+      id: '/_authed/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthedAccountRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/companies': {
@@ -1031,81 +996,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedCompaniesRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/account': {
-      id: '/_authed/account'
-      path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof AuthedAccountRouteImport
+    '/_authed/smoke': {
+      id: '/_authed/smoke'
+      path: '/smoke'
+      fullPath: '/smoke'
+      preLoaderRoute: typeof AuthedSmokeRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/api/projects/$projectId': {
-      id: '/api/projects/$projectId'
-      path: '/api/projects/$projectId'
-      fullPath: '/api/projects/$projectId'
-      preLoaderRoute: typeof ApiProjectsProjectIdRouteImport
+    '/api/companies': {
+      id: '/api/companies'
+      path: '/api/companies'
+      fullPath: '/api/companies'
+      preLoaderRoute: typeof ApiCompaniesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/memberships/companies': {
-      id: '/api/memberships/companies'
-      path: '/api/memberships/companies'
-      fullPath: '/api/memberships/companies'
-      preLoaderRoute: typeof ApiMembershipsCompaniesRouteImport
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/me/profile': {
-      id: '/api/me/profile'
-      path: '/api/me/profile'
-      fullPath: '/api/me/profile'
-      preLoaderRoute: typeof ApiMeProfileRouteImport
+    '/api/ready': {
+      id: '/api/ready'
+      path: '/api/ready'
+      fullPath: '/api/ready'
+      preLoaderRoute: typeof ApiReadyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/me/email-change': {
-      id: '/api/me/email-change'
-      path: '/api/me/email-change'
-      fullPath: '/api/me/email-change'
-      preLoaderRoute: typeof ApiMeEmailChangeRouteImport
+    '/api/session': {
+      id: '/api/session'
+      path: '/api/session'
+      fullPath: '/api/session'
+      preLoaderRoute: typeof ApiSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/me/default-company': {
-      id: '/api/me/default-company'
-      path: '/api/me/default-company'
-      fullPath: '/api/me/default-company'
-      preLoaderRoute: typeof ApiMeDefaultCompanyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/export-jobs/$jobId': {
-      id: '/api/export-jobs/$jobId'
-      path: '/api/export-jobs/$jobId'
-      fullPath: '/api/export-jobs/$jobId'
-      preLoaderRoute: typeof ApiExportJobsJobIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/dev/session': {
-      id: '/api/dev/session'
-      path: '/api/dev/session'
-      fullPath: '/api/dev/session'
-      preLoaderRoute: typeof ApiDevSessionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/companies/$companyId': {
-      id: '/api/companies/$companyId'
-      path: '/$companyId'
-      fullPath: '/api/companies/$companyId'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdRouteImport
-      parentRoute: typeof ApiCompaniesRoute
-    }
-    '/api/auth/$': {
-      id: '/api/auth/$'
-      path: '/api/auth/$'
-      fullPath: '/api/auth/$'
-      preLoaderRoute: typeof ApiAuthSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/admin/smoke': {
-      id: '/api/admin/smoke'
-      path: '/api/admin/smoke'
-      fullPath: '/api/admin/smoke'
-      preLoaderRoute: typeof ApiAdminSmokeRouteImport
+    '/api/users': {
+      id: '/api/users'
+      path: '/api/users'
+      fullPath: '/api/users'
+      preLoaderRoute: typeof ApiUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/c/$companyId': {
@@ -1115,6 +1045,76 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedCCompanyIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/api/admin/smoke': {
+      id: '/api/admin/smoke'
+      path: '/api/admin/smoke'
+      fullPath: '/api/admin/smoke'
+      preLoaderRoute: typeof ApiAdminSmokeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/companies/$companyId': {
+      id: '/api/companies/$companyId'
+      path: '/$companyId'
+      fullPath: '/api/companies/$companyId'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdRouteImport
+      parentRoute: typeof ApiCompaniesRoute
+    }
+    '/api/dev/session': {
+      id: '/api/dev/session'
+      path: '/api/dev/session'
+      fullPath: '/api/dev/session'
+      preLoaderRoute: typeof ApiDevSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/export-jobs/$jobId': {
+      id: '/api/export-jobs/$jobId'
+      path: '/api/export-jobs/$jobId'
+      fullPath: '/api/export-jobs/$jobId'
+      preLoaderRoute: typeof ApiExportJobsJobIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/me/default-company': {
+      id: '/api/me/default-company'
+      path: '/api/me/default-company'
+      fullPath: '/api/me/default-company'
+      preLoaderRoute: typeof ApiMeDefaultCompanyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/me/email-change': {
+      id: '/api/me/email-change'
+      path: '/api/me/email-change'
+      fullPath: '/api/me/email-change'
+      preLoaderRoute: typeof ApiMeEmailChangeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/me/profile': {
+      id: '/api/me/profile'
+      path: '/api/me/profile'
+      fullPath: '/api/me/profile'
+      preLoaderRoute: typeof ApiMeProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/memberships/companies': {
+      id: '/api/memberships/companies'
+      path: '/api/memberships/companies'
+      fullPath: '/api/memberships/companies'
+      preLoaderRoute: typeof ApiMembershipsCompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/projects/$projectId': {
+      id: '/api/projects/$projectId'
+      path: '/api/projects/$projectId'
+      fullPath: '/api/projects/$projectId'
+      preLoaderRoute: typeof ApiProjectsProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authed/c/$companyId/': {
       id: '/_authed/c/$companyId/'
       path: '/'
@@ -1122,172 +1122,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedCCompanyIdIndexRouteImport
       parentRoute: typeof AuthedCCompanyIdRoute
     }
-    '/api/projects/$projectId/transactions': {
-      id: '/api/projects/$projectId/transactions'
-      path: '/transactions'
-      fullPath: '/api/projects/$projectId/transactions'
-      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/projects/$projectId/sub-categories': {
-      id: '/api/projects/$projectId/sub-categories'
-      path: '/sub-categories'
-      fullPath: '/api/projects/$projectId/sub-categories'
-      preLoaderRoute: typeof ApiProjectsProjectIdSubCategoriesRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/projects/$projectId/reactivate': {
-      id: '/api/projects/$projectId/reactivate'
-      path: '/reactivate'
-      fullPath: '/api/projects/$projectId/reactivate'
-      preLoaderRoute: typeof ApiProjectsProjectIdReactivateRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/projects/$projectId/memberships': {
-      id: '/api/projects/$projectId/memberships'
-      path: '/memberships'
-      fullPath: '/api/projects/$projectId/memberships'
-      preLoaderRoute: typeof ApiProjectsProjectIdMembershipsRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/projects/$projectId/deactivate': {
-      id: '/api/projects/$projectId/deactivate'
+    '/api/companies/$companyId/deactivate': {
+      id: '/api/companies/$companyId/deactivate'
       path: '/deactivate'
-      fullPath: '/api/projects/$projectId/deactivate'
-      preLoaderRoute: typeof ApiProjectsProjectIdDeactivateRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/projects/$projectId/categories': {
-      id: '/api/projects/$projectId/categories'
-      path: '/categories'
-      fullPath: '/api/projects/$projectId/categories'
-      preLoaderRoute: typeof ApiProjectsProjectIdCategoriesRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/projects/$projectId/budgets': {
-      id: '/api/projects/$projectId/budgets'
-      path: '/budgets'
-      fullPath: '/api/projects/$projectId/budgets'
-      preLoaderRoute: typeof ApiProjectsProjectIdBudgetsRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/projects/$projectId/apply-company-standards': {
-      id: '/api/projects/$projectId/apply-company-standards'
-      path: '/apply-company-standards'
-      fullPath: '/api/projects/$projectId/apply-company-standards'
-      preLoaderRoute: typeof ApiProjectsProjectIdApplyCompanyStandardsRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/me/email-change/resend': {
-      id: '/api/me/email-change/resend'
-      path: '/resend'
-      fullPath: '/api/me/email-change/resend'
-      preLoaderRoute: typeof ApiMeEmailChangeResendRouteImport
-      parentRoute: typeof ApiMeEmailChangeRoute
-    }
-    '/api/me/email-change/confirm': {
-      id: '/api/me/email-change/confirm'
-      path: '/confirm'
-      fullPath: '/api/me/email-change/confirm'
-      preLoaderRoute: typeof ApiMeEmailChangeConfirmRouteImport
-      parentRoute: typeof ApiMeEmailChangeRoute
-    }
-    '/api/export-jobs/$jobId/download': {
-      id: '/api/export-jobs/$jobId/download'
-      path: '/download'
-      fullPath: '/api/export-jobs/$jobId/download'
-      preLoaderRoute: typeof ApiExportJobsJobIdDownloadRouteImport
-      parentRoute: typeof ApiExportJobsJobIdRoute
-    }
-    '/api/companies/$companyId/work-queue': {
-      id: '/api/companies/$companyId/work-queue'
-      path: '/work-queue'
-      fullPath: '/api/companies/$companyId/work-queue'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdWorkQueueRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/users': {
-      id: '/api/companies/$companyId/users'
-      path: '/users'
-      fullPath: '/api/companies/$companyId/users'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdUsersRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/summary': {
-      id: '/api/companies/$companyId/summary'
-      path: '/summary'
-      fullPath: '/api/companies/$companyId/summary'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdSummaryRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/reactivate': {
-      id: '/api/companies/$companyId/reactivate'
-      path: '/reactivate'
-      fullPath: '/api/companies/$companyId/reactivate'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdReactivateRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/projects': {
-      id: '/api/companies/$companyId/projects'
-      path: '/projects'
-      fullPath: '/api/companies/$companyId/projects'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdProjectsRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/my-project-memberships': {
-      id: '/api/companies/$companyId/my-project-memberships'
-      path: '/my-project-memberships'
-      fullPath: '/api/companies/$companyId/my-project-memberships'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdMyProjectMembershipsRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/memberships': {
-      id: '/api/companies/$companyId/memberships'
-      path: '/memberships'
-      fullPath: '/api/companies/$companyId/memberships'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdMembershipsRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/import-rules': {
-      id: '/api/companies/$companyId/import-rules'
-      path: '/import-rules'
-      fullPath: '/api/companies/$companyId/import-rules'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdImportRulesRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/export-jobs': {
-      id: '/api/companies/$companyId/export-jobs'
-      path: '/export-jobs'
-      fullPath: '/api/companies/$companyId/export-jobs'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdExportJobsRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/export': {
-      id: '/api/companies/$companyId/export'
-      path: '/export'
-      fullPath: '/api/companies/$companyId/export'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdExportRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/defaults': {
-      id: '/api/companies/$companyId/defaults'
-      path: '/defaults'
-      fullPath: '/api/companies/$companyId/defaults'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultsRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/default-sub-categories': {
-      id: '/api/companies/$companyId/default-sub-categories'
-      path: '/default-sub-categories'
-      fullPath: '/api/companies/$companyId/default-sub-categories'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdRoute
-    }
-    '/api/companies/$companyId/default-mapping-rules': {
-      id: '/api/companies/$companyId/default-mapping-rules'
-      path: '/default-mapping-rules'
-      fullPath: '/api/companies/$companyId/default-mapping-rules'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteImport
+      fullPath: '/api/companies/$companyId/deactivate'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDeactivateRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
     '/api/companies/$companyId/default-categories': {
@@ -1297,25 +1136,235 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultCategoriesRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
-    '/api/companies/$companyId/deactivate': {
-      id: '/api/companies/$companyId/deactivate'
-      path: '/deactivate'
-      fullPath: '/api/companies/$companyId/deactivate'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdDeactivateRouteImport
+    '/api/companies/$companyId/default-mapping-rules': {
+      id: '/api/companies/$companyId/default-mapping-rules'
+      path: '/default-mapping-rules'
+      fullPath: '/api/companies/$companyId/default-mapping-rules'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRouteImport
       parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
-    '/api/projects/$projectId/transactions/import-preview': {
-      id: '/api/projects/$projectId/transactions/import-preview'
-      path: '/import-preview'
-      fullPath: '/api/projects/$projectId/transactions/import-preview'
-      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsImportPreviewRouteImport
-      parentRoute: typeof ApiProjectsProjectIdTransactionsRoute
+    '/api/companies/$companyId/default-sub-categories': {
+      id: '/api/companies/$companyId/default-sub-categories'
+      path: '/default-sub-categories'
+      fullPath: '/api/companies/$companyId/default-sub-categories'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
     }
-    '/api/projects/$projectId/transactions/import': {
-      id: '/api/projects/$projectId/transactions/import'
-      path: '/import'
-      fullPath: '/api/projects/$projectId/transactions/import'
-      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsImportRouteImport
+    '/api/companies/$companyId/defaults': {
+      id: '/api/companies/$companyId/defaults'
+      path: '/defaults'
+      fullPath: '/api/companies/$companyId/defaults'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultsRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/export': {
+      id: '/api/companies/$companyId/export'
+      path: '/export'
+      fullPath: '/api/companies/$companyId/export'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdExportRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/export-jobs': {
+      id: '/api/companies/$companyId/export-jobs'
+      path: '/export-jobs'
+      fullPath: '/api/companies/$companyId/export-jobs'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdExportJobsRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/import-rules': {
+      id: '/api/companies/$companyId/import-rules'
+      path: '/import-rules'
+      fullPath: '/api/companies/$companyId/import-rules'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdImportRulesRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/memberships': {
+      id: '/api/companies/$companyId/memberships'
+      path: '/memberships'
+      fullPath: '/api/companies/$companyId/memberships'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdMembershipsRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/my-project-memberships': {
+      id: '/api/companies/$companyId/my-project-memberships'
+      path: '/my-project-memberships'
+      fullPath: '/api/companies/$companyId/my-project-memberships'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdMyProjectMembershipsRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/projects': {
+      id: '/api/companies/$companyId/projects'
+      path: '/projects'
+      fullPath: '/api/companies/$companyId/projects'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdProjectsRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/reactivate': {
+      id: '/api/companies/$companyId/reactivate'
+      path: '/reactivate'
+      fullPath: '/api/companies/$companyId/reactivate'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdReactivateRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/summary': {
+      id: '/api/companies/$companyId/summary'
+      path: '/summary'
+      fullPath: '/api/companies/$companyId/summary'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdSummaryRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/users': {
+      id: '/api/companies/$companyId/users'
+      path: '/users'
+      fullPath: '/api/companies/$companyId/users'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdUsersRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/companies/$companyId/work-queue': {
+      id: '/api/companies/$companyId/work-queue'
+      path: '/work-queue'
+      fullPath: '/api/companies/$companyId/work-queue'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdWorkQueueRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdRoute
+    }
+    '/api/export-jobs/$jobId/download': {
+      id: '/api/export-jobs/$jobId/download'
+      path: '/download'
+      fullPath: '/api/export-jobs/$jobId/download'
+      preLoaderRoute: typeof ApiExportJobsJobIdDownloadRouteImport
+      parentRoute: typeof ApiExportJobsJobIdRoute
+    }
+    '/api/me/email-change/confirm': {
+      id: '/api/me/email-change/confirm'
+      path: '/confirm'
+      fullPath: '/api/me/email-change/confirm'
+      preLoaderRoute: typeof ApiMeEmailChangeConfirmRouteImport
+      parentRoute: typeof ApiMeEmailChangeRoute
+    }
+    '/api/me/email-change/resend': {
+      id: '/api/me/email-change/resend'
+      path: '/resend'
+      fullPath: '/api/me/email-change/resend'
+      preLoaderRoute: typeof ApiMeEmailChangeResendRouteImport
+      parentRoute: typeof ApiMeEmailChangeRoute
+    }
+    '/api/projects/$projectId/apply-company-standards': {
+      id: '/api/projects/$projectId/apply-company-standards'
+      path: '/apply-company-standards'
+      fullPath: '/api/projects/$projectId/apply-company-standards'
+      preLoaderRoute: typeof ApiProjectsProjectIdApplyCompanyStandardsRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
+    '/api/projects/$projectId/budgets': {
+      id: '/api/projects/$projectId/budgets'
+      path: '/budgets'
+      fullPath: '/api/projects/$projectId/budgets'
+      preLoaderRoute: typeof ApiProjectsProjectIdBudgetsRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
+    '/api/projects/$projectId/categories': {
+      id: '/api/projects/$projectId/categories'
+      path: '/categories'
+      fullPath: '/api/projects/$projectId/categories'
+      preLoaderRoute: typeof ApiProjectsProjectIdCategoriesRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
+    '/api/projects/$projectId/deactivate': {
+      id: '/api/projects/$projectId/deactivate'
+      path: '/deactivate'
+      fullPath: '/api/projects/$projectId/deactivate'
+      preLoaderRoute: typeof ApiProjectsProjectIdDeactivateRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
+    '/api/projects/$projectId/memberships': {
+      id: '/api/projects/$projectId/memberships'
+      path: '/memberships'
+      fullPath: '/api/projects/$projectId/memberships'
+      preLoaderRoute: typeof ApiProjectsProjectIdMembershipsRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
+    '/api/projects/$projectId/reactivate': {
+      id: '/api/projects/$projectId/reactivate'
+      path: '/reactivate'
+      fullPath: '/api/projects/$projectId/reactivate'
+      preLoaderRoute: typeof ApiProjectsProjectIdReactivateRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
+    '/api/projects/$projectId/sub-categories': {
+      id: '/api/projects/$projectId/sub-categories'
+      path: '/sub-categories'
+      fullPath: '/api/projects/$projectId/sub-categories'
+      preLoaderRoute: typeof ApiProjectsProjectIdSubCategoriesRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
+    '/api/projects/$projectId/transactions': {
+      id: '/api/projects/$projectId/transactions'
+      path: '/transactions'
+      fullPath: '/api/projects/$projectId/transactions'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
+    }
+    '/_authed/c/$companyId/p/$projectId': {
+      id: '/_authed/c/$companyId/p/$projectId'
+      path: '/p/$projectId'
+      fullPath: '/c/$companyId/p/$projectId'
+      preLoaderRoute: typeof AuthedCCompanyIdPProjectIdRouteImport
+      parentRoute: typeof AuthedCCompanyIdRoute
+    }
+    '/api/companies/$companyId/default-categories/$categoryId': {
+      id: '/api/companies/$companyId/default-categories/$categoryId'
+      path: '/$categoryId'
+      fullPath: '/api/companies/$companyId/default-categories/$categoryId'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdDefaultCategoriesRoute
+    }
+    '/api/companies/$companyId/default-mapping-rules/$ruleId': {
+      id: '/api/companies/$companyId/default-mapping-rules/$ruleId'
+      path: '/$ruleId'
+      fullPath: '/api/companies/$companyId/default-mapping-rules/$ruleId'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRoute
+    }
+    '/api/companies/$companyId/default-sub-categories/$subCategoryId': {
+      id: '/api/companies/$companyId/default-sub-categories/$subCategoryId'
+      path: '/$subCategoryId'
+      fullPath: '/api/companies/$companyId/default-sub-categories/$subCategoryId'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRoute
+    }
+    '/api/companies/$companyId/import-rules/$ruleId': {
+      id: '/api/companies/$companyId/import-rules/$ruleId'
+      path: '/$ruleId'
+      fullPath: '/api/companies/$companyId/import-rules/$ruleId'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdImportRulesRuleIdRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdImportRulesRoute
+    }
+    '/api/projects/$projectId/budgets/$budgetId': {
+      id: '/api/projects/$projectId/budgets/$budgetId'
+      path: '/$budgetId'
+      fullPath: '/api/projects/$projectId/budgets/$budgetId'
+      preLoaderRoute: typeof ApiProjectsProjectIdBudgetsBudgetIdRouteImport
+      parentRoute: typeof ApiProjectsProjectIdBudgetsRoute
+    }
+    '/api/projects/$projectId/categories/$categoryId': {
+      id: '/api/projects/$projectId/categories/$categoryId'
+      path: '/$categoryId'
+      fullPath: '/api/projects/$projectId/categories/$categoryId'
+      preLoaderRoute: typeof ApiProjectsProjectIdCategoriesCategoryIdRouteImport
+      parentRoute: typeof ApiProjectsProjectIdCategoriesRoute
+    }
+    '/api/projects/$projectId/sub-categories/$subCategoryId': {
+      id: '/api/projects/$projectId/sub-categories/$subCategoryId'
+      path: '/$subCategoryId'
+      fullPath: '/api/projects/$projectId/sub-categories/$subCategoryId'
+      preLoaderRoute: typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport
+      parentRoute: typeof ApiProjectsProjectIdSubCategoriesRoute
+    }
+    '/api/projects/$projectId/transactions/$txnId': {
+      id: '/api/projects/$projectId/transactions/$txnId'
+      path: '/$txnId'
+      fullPath: '/api/projects/$projectId/transactions/$txnId'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsRoute
     }
     '/api/projects/$projectId/transactions/comment-summaries': {
@@ -1325,81 +1374,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdTransactionsCommentSummariesRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsRoute
     }
-    '/api/projects/$projectId/transactions/$txnId': {
-      id: '/api/projects/$projectId/transactions/$txnId'
-      path: '/$txnId'
-      fullPath: '/api/projects/$projectId/transactions/$txnId'
-      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRouteImport
+    '/api/projects/$projectId/transactions/import': {
+      id: '/api/projects/$projectId/transactions/import'
+      path: '/import'
+      fullPath: '/api/projects/$projectId/transactions/import'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsImportRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsRoute
     }
-    '/api/projects/$projectId/sub-categories/$subCategoryId': {
-      id: '/api/projects/$projectId/sub-categories/$subCategoryId'
-      path: '/$subCategoryId'
-      fullPath: '/api/projects/$projectId/sub-categories/$subCategoryId'
-      preLoaderRoute: typeof ApiProjectsProjectIdSubCategoriesSubCategoryIdRouteImport
-      parentRoute: typeof ApiProjectsProjectIdSubCategoriesRoute
+    '/api/projects/$projectId/transactions/import-preview': {
+      id: '/api/projects/$projectId/transactions/import-preview'
+      path: '/import-preview'
+      fullPath: '/api/projects/$projectId/transactions/import-preview'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsImportPreviewRouteImport
+      parentRoute: typeof ApiProjectsProjectIdTransactionsRoute
     }
-    '/api/projects/$projectId/categories/$categoryId': {
-      id: '/api/projects/$projectId/categories/$categoryId'
-      path: '/$categoryId'
-      fullPath: '/api/projects/$projectId/categories/$categoryId'
-      preLoaderRoute: typeof ApiProjectsProjectIdCategoriesCategoryIdRouteImport
-      parentRoute: typeof ApiProjectsProjectIdCategoriesRoute
+    '/api/companies/$companyId/users/$userId/invite': {
+      id: '/api/companies/$companyId/users/$userId/invite'
+      path: '/$userId/invite'
+      fullPath: '/api/companies/$companyId/users/$userId/invite'
+      preLoaderRoute: typeof ApiCompaniesCompanyIdUsersUserIdInviteRouteImport
+      parentRoute: typeof ApiCompaniesCompanyIdUsersRoute
     }
-    '/api/projects/$projectId/budgets/$budgetId': {
-      id: '/api/projects/$projectId/budgets/$budgetId'
-      path: '/$budgetId'
-      fullPath: '/api/projects/$projectId/budgets/$budgetId'
-      preLoaderRoute: typeof ApiProjectsProjectIdBudgetsBudgetIdRouteImport
-      parentRoute: typeof ApiProjectsProjectIdBudgetsRoute
+    '/api/projects/$projectId/import-batches/$batchId/cancel': {
+      id: '/api/projects/$projectId/import-batches/$batchId/cancel'
+      path: '/import-batches/$batchId/cancel'
+      fullPath: '/api/projects/$projectId/import-batches/$batchId/cancel'
+      preLoaderRoute: typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport
+      parentRoute: typeof ApiProjectsProjectIdRoute
     }
-    '/api/companies/$companyId/import-rules/$ruleId': {
-      id: '/api/companies/$companyId/import-rules/$ruleId'
-      path: '/$ruleId'
-      fullPath: '/api/companies/$companyId/import-rules/$ruleId'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdImportRulesRuleIdRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdImportRulesRoute
-    }
-    '/api/companies/$companyId/default-sub-categories/$subCategoryId': {
-      id: '/api/companies/$companyId/default-sub-categories/$subCategoryId'
-      path: '/$subCategoryId'
-      fullPath: '/api/companies/$companyId/default-sub-categories/$subCategoryId'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesSubCategoryIdRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdDefaultSubCategoriesRoute
-    }
-    '/api/companies/$companyId/default-mapping-rules/$ruleId': {
-      id: '/api/companies/$companyId/default-mapping-rules/$ruleId'
-      path: '/$ruleId'
-      fullPath: '/api/companies/$companyId/default-mapping-rules/$ruleId'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRuleIdRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdDefaultMappingRulesRoute
-    }
-    '/api/companies/$companyId/default-categories/$categoryId': {
-      id: '/api/companies/$companyId/default-categories/$categoryId'
-      path: '/$categoryId'
-      fullPath: '/api/companies/$companyId/default-categories/$categoryId'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdDefaultCategoriesCategoryIdRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdDefaultCategoriesRoute
-    }
-    '/_authed/c/$companyId/p/$projectId': {
-      id: '/_authed/c/$companyId/p/$projectId'
-      path: '/p/$projectId'
-      fullPath: '/c/$companyId/p/$projectId'
-      preLoaderRoute: typeof AuthedCCompanyIdPProjectIdRouteImport
-      parentRoute: typeof AuthedCCompanyIdRoute
-    }
-    '/api/projects/$projectId/transactions/$txnId/workflow': {
-      id: '/api/projects/$projectId/transactions/$txnId/workflow'
-      path: '/workflow'
-      fullPath: '/api/projects/$projectId/transactions/$txnId/workflow'
-      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdWorkflowRouteImport
-      parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
-    }
-    '/api/projects/$projectId/transactions/$txnId/transfer': {
-      id: '/api/projects/$projectId/transactions/$txnId/transfer'
-      path: '/transfer'
-      fullPath: '/api/projects/$projectId/transactions/$txnId/transfer'
-      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport
+    '/api/projects/$projectId/transactions/$txnId/comments': {
+      id: '/api/projects/$projectId/transactions/$txnId/comments'
+      path: '/comments'
+      fullPath: '/api/projects/$projectId/transactions/$txnId/comments'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
     }
     '/api/projects/$projectId/transactions/$txnId/split': {
@@ -1409,26 +1416,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
     }
-    '/api/projects/$projectId/transactions/$txnId/comments': {
-      id: '/api/projects/$projectId/transactions/$txnId/comments'
-      path: '/comments'
-      fullPath: '/api/projects/$projectId/transactions/$txnId/comments'
-      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport
+    '/api/projects/$projectId/transactions/$txnId/transfer': {
+      id: '/api/projects/$projectId/transactions/$txnId/transfer'
+      path: '/transfer'
+      fullPath: '/api/projects/$projectId/transactions/$txnId/transfer'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
     }
-    '/api/projects/$projectId/import-batches/$batchId/cancel': {
-      id: '/api/projects/$projectId/import-batches/$batchId/cancel'
-      path: '/import-batches/$batchId/cancel'
-      fullPath: '/api/projects/$projectId/import-batches/$batchId/cancel'
-      preLoaderRoute: typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport
-      parentRoute: typeof ApiProjectsProjectIdRoute
-    }
-    '/api/companies/$companyId/users/$userId/invite': {
-      id: '/api/companies/$companyId/users/$userId/invite'
-      path: '/$userId/invite'
-      fullPath: '/api/companies/$companyId/users/$userId/invite'
-      preLoaderRoute: typeof ApiCompaniesCompanyIdUsersUserIdInviteRouteImport
-      parentRoute: typeof ApiCompaniesCompanyIdUsersRoute
+    '/api/projects/$projectId/transactions/$txnId/workflow': {
+      id: '/api/projects/$projectId/transactions/$txnId/workflow'
+      path: '/workflow'
+      fullPath: '/api/projects/$projectId/transactions/$txnId/workflow'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdWorkflowRouteImport
+      parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
     }
     '/api/projects/$projectId/transactions/$txnId/comments/$commentId': {
       id: '/api/projects/$projectId/transactions/$txnId/comments/$commentId'

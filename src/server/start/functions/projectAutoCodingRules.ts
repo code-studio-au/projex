@@ -19,7 +19,7 @@ export const getProjectRuleSuggestionPromptServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadProjectAutoCodingEndpoints,
       'getProjectRuleSuggestionPromptEndpoint'
@@ -36,7 +36,7 @@ export const createProjectAutoCodingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadProjectAutoCodingEndpoints,
       'createProjectAutoCodingRuleEndpoint'
@@ -53,7 +53,7 @@ export const listProjectAutoCodingRulesServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadProjectAutoCodingEndpoints,
       'listProjectAutoCodingRulesEndpoint'
@@ -70,7 +70,7 @@ export const updateProjectAutoCodingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadProjectAutoCodingEndpoints,
       'updateProjectAutoCodingRuleEndpoint'
@@ -87,7 +87,7 @@ export const deleteProjectAutoCodingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadProjectAutoCodingEndpoints,
       'deleteProjectAutoCodingRuleEndpoint'
@@ -104,7 +104,7 @@ export const backfillProjectCodingServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadProjectAutoCodingEndpoints,
       'backfillProjectCodingEndpoint'
@@ -121,7 +121,7 @@ export const promoteProjectRuleToCompanyDefaultServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadProjectAutoCodingEndpoints,
       'promoteProjectRuleToCompanyDefaultEndpoint'

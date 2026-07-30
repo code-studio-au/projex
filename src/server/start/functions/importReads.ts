@@ -15,7 +15,7 @@ const loadImportEndpoints = () =>
 
 export const listImportRulesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadImportEndpoints, 'listImportRulesEndpoint')
   )
   .handler(
@@ -27,7 +27,7 @@ export const listImportRulesServerFn = createServerFn({ method: 'GET' })
 
 export const createImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadImportEndpoints, 'createImportRuleEndpoint')
   )
   .handler(
@@ -39,7 +39,7 @@ export const createImportRuleServerFn = createServerFn({ method: 'POST' })
 
 export const listProjectImportRulesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadImportEndpoints,
       'listProjectImportRulesEndpoint'
@@ -56,7 +56,7 @@ export const createProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadImportEndpoints,
       'createProjectImportRuleEndpoint'
@@ -71,7 +71,7 @@ export const createProjectImportRuleServerFn = createServerFn({
 
 export const updateImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadImportEndpoints, 'updateImportRuleEndpoint')
   )
   .handler(
@@ -83,7 +83,7 @@ export const updateImportRuleServerFn = createServerFn({ method: 'POST' })
 
 export const deleteImportRuleServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadImportEndpoints, 'deleteImportRuleEndpoint')
   )
   .handler(
@@ -97,7 +97,7 @@ export const updateProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadImportEndpoints,
       'updateProjectImportRuleEndpoint'
@@ -114,7 +114,7 @@ export const deleteProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadImportEndpoints,
       'deleteProjectImportRuleEndpoint'
@@ -131,7 +131,7 @@ export const promoteProjectImportRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadImportEndpoints,
       'promoteProjectImportRuleEndpoint'
@@ -148,7 +148,7 @@ export const previewImportTransactionsServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadImportEndpoints,
       'previewImportTransactionsEndpoint'
@@ -163,7 +163,7 @@ export const previewImportTransactionsServerFn = createServerFn({
 
 export const cancelImportPreviewServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadImportEndpoints,
       'cancelImportPreviewEndpoint'

@@ -15,7 +15,7 @@ const loadBudgetEndpoints = () =>
 
 export const listBudgetsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadBudgetEndpoints, 'listBudgetsEndpoint')
   )
   .handler(
@@ -27,7 +27,7 @@ export const listBudgetsServerFn = createServerFn({ method: 'GET' })
 
 export const createBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadBudgetEndpoints, 'createBudgetEndpoint')
   )
   .handler(
@@ -39,7 +39,7 @@ export const createBudgetServerFn = createServerFn({ method: 'POST' })
 
 export const updateBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadBudgetEndpoints, 'updateBudgetEndpoint')
   )
   .handler(
@@ -51,7 +51,7 @@ export const updateBudgetServerFn = createServerFn({ method: 'POST' })
 
 export const deleteBudgetServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadBudgetEndpoints, 'deleteBudgetEndpoint')
   )
   .handler(

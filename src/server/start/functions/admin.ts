@@ -18,7 +18,7 @@ const loadTransactionEndpoints = () =>
 
 export const createCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'createCompanyEndpoint')
   )
   .handler(
@@ -30,7 +30,7 @@ export const createCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const createProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'createProjectEndpoint')
   )
   .handler(
@@ -42,7 +42,7 @@ export const createProjectServerFn = createServerFn({ method: 'POST' })
 
 export const updateProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'updateProjectEndpoint')
   )
   .handler(
@@ -54,7 +54,7 @@ export const updateProjectServerFn = createServerFn({ method: 'POST' })
 
 export const updateCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'updateCompanyEndpoint')
   )
   .handler(
@@ -66,7 +66,7 @@ export const updateCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const createUserInCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'createUserInCompanyEndpoint'
@@ -83,7 +83,7 @@ export const sendCompanyUserInviteEmailServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'sendCompanyUserInviteEmailEndpoint'
@@ -98,7 +98,7 @@ export const sendCompanyUserInviteEmailServerFn = createServerFn({
 
 export const importTransactionsServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'importTransactionsEndpoint'
@@ -113,7 +113,7 @@ export const importTransactionsServerFn = createServerFn({ method: 'POST' })
 
 export const deactivateCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'deactivateCompanyEndpoint'
@@ -128,7 +128,7 @@ export const deactivateCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const reactivateCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'reactivateCompanyEndpoint'
@@ -143,7 +143,7 @@ export const reactivateCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const deleteCompanyServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'deleteCompanyEndpoint')
   )
   .handler(
@@ -155,7 +155,7 @@ export const deleteCompanyServerFn = createServerFn({ method: 'POST' })
 
 export const deactivateProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'deactivateProjectEndpoint'
@@ -170,7 +170,7 @@ export const deactivateProjectServerFn = createServerFn({ method: 'POST' })
 
 export const reactivateProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'reactivateProjectEndpoint'
@@ -185,7 +185,7 @@ export const reactivateProjectServerFn = createServerFn({ method: 'POST' })
 
 export const deleteProjectServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'deleteProjectEndpoint')
   )
   .handler(

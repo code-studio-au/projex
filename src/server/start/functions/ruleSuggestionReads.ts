@@ -17,7 +17,7 @@ const loadRuleSuggestionEndpoints = () =>
 
 export const listRuleSuggestionsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadRuleSuggestionEndpoints,
       'listRuleSuggestionsEndpoint'
@@ -32,7 +32,7 @@ export const listRuleSuggestionsServerFn = createServerFn({ method: 'GET' })
 
 export const acceptRuleSuggestionServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadRuleSuggestionEndpoints,
       'acceptRuleSuggestionEndpoint'
@@ -47,7 +47,7 @@ export const acceptRuleSuggestionServerFn = createServerFn({ method: 'POST' })
 
 export const dismissRuleSuggestionServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadRuleSuggestionEndpoints,
       'dismissRuleSuggestionEndpoint'
