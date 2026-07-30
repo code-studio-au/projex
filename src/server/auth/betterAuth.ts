@@ -1,7 +1,7 @@
 import type { ServerSession } from './session';
 import { toServerSession } from './session';
 import { readDevUserIdFromRequest } from '../dev/devSession';
-import { logServerEvent } from '../../api/serverLogging';
+import { logServerEvent } from '../../api/serverLogging.ts';
 
 /**
  * Resolve the current user session directly through Better Auth.

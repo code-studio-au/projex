@@ -1,5 +1,5 @@
 import { getAppErrorCause, toAppError, type AppError } from '../../api/errors';
-import { logServerEvent } from '../../api/serverLogging';
+import { logServerEvent } from '../../api/serverLogging.ts';
 
 type ServerFnMeta = {
   id: string;

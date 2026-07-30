@@ -8,7 +8,7 @@ import type {
 } from '../../types';
 import { asTxnCommentId, asTxnId } from '../../types';
 import { AppError } from '../../api/errors';
-import { logServerEvent } from '../../api/serverLogging';
+import { logServerEvent } from '../../api/serverLogging.ts';
 import type {
   TxnCommentCreateInput,
   TxnCommentUpdateInput,

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readdir, readFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 import { afterEach, test, vi } from 'vitest';
@@ -185,5 +186,27 @@ test('production TypeScript routes all console output through the logging bounda
   assert.deepEqual(
     directConsoleFiles.sort(),
     [...ALLOWED_DIRECT_CONSOLE_FILES].sort()
+  );
+});
+
+test('the direct-Node migration graph resolves the logging boundary', () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--experimental-strip-types',
+      '--input-type=module',
+      '--eval',
+      "await import('./src/server/db/migrate.ts')",
+    ],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+    }
+  );
+
+  assert.equal(
+    result.status,
+    0,
+    `Direct migration import failed:\n${result.stderr || result.stdout}`
   );
 });

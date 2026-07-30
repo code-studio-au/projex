@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Selectable } from 'kysely';
 
 import { AppError } from '../../api/errors';
-import { logServerEvent } from '../../api/serverLogging';
+import { logServerEvent } from '../../api/serverLogging.ts';
 import type {
   CompanyExportDetail,
   CompanyExportJob,

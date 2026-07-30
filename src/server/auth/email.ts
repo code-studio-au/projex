@@ -1,4 +1,4 @@
-import { logServerEvent } from '../../api/serverLogging';
+import { logServerEvent } from '../../api/serverLogging.ts';
 
 export type AuthEmailDelivery = 'email' | 'log';
 
