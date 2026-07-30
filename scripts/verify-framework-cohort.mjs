@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { parse as parseYaml } from 'yaml';
 
 const DEFAULT_PATHS = {
   cohort: 'config/framework-dependency-cohort.json',
@@ -27,16 +28,32 @@ function packageGlobMatches(pattern, packageName) {
   return matcher.test(packageName);
 }
 
-function readReleaseAgeExclusions(workspaceConfig) {
-  const block = workspaceConfig.match(
-    /^minimumReleaseAgeExclude:\s*\n((?:[ \t]+-[^\n]*\n?)*)/mu
-  )?.[1];
-  if (!block) return [];
+function readWorkspacePolicy(workspaceConfig) {
+  let parsed;
+  try {
+    parsed = parseYaml(workspaceConfig);
+  } catch {
+    throw new Error('pnpm-workspace.yaml must contain valid YAML.');
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('pnpm-workspace.yaml must contain a YAML mapping.');
+  }
 
-  return block
-    .split(/\r?\n/u)
-    .map((line) => line.match(/^\s*-\s*['"]?([^'"]+?)['"]?\s*$/u)?.[1])
-    .filter(Boolean);
+  const exclusions = parsed.minimumReleaseAgeExclude ?? [];
+  if (
+    !Array.isArray(exclusions) ||
+    exclusions.some((entry) => typeof entry !== 'string')
+  ) {
+    throw new Error(
+      'pnpm minimumReleaseAgeExclude must be a list of package selectors.'
+    );
+  }
+
+  return {
+    minimumReleaseAge: parsed.minimumReleaseAge,
+    minimumReleaseAgeStrict: parsed.minimumReleaseAgeStrict,
+    minimumReleaseAgeExclude: exclusions,
+  };
 }
 
 function findImporterEntry(lockfile, packageName) {
@@ -105,9 +122,8 @@ export function verifyFrameworkCohort({
     throw new Error('The framework cohort selectedAt value must be ISO-8601.');
   }
 
-  const configuredReleaseAge = Number(
-    workspaceConfig.match(/^minimumReleaseAge:\s*(\d+)\s*$/mu)?.[1]
-  );
+  const workspacePolicy = readWorkspacePolicy(workspaceConfig);
+  const configuredReleaseAge = workspacePolicy.minimumReleaseAge;
   if (
     !Number.isInteger(configuredReleaseAge) ||
     configuredReleaseAge < cohort.minimumReleaseAgeMinutes
@@ -116,11 +132,11 @@ export function verifyFrameworkCohort({
       `pnpm minimumReleaseAge must be at least ${cohort.minimumReleaseAgeMinutes} minutes.`
     );
   }
-  if (!/^minimumReleaseAgeStrict:\s*true\s*$/mu.test(workspaceConfig)) {
+  if (workspacePolicy.minimumReleaseAgeStrict !== true) {
     throw new Error('pnpm minimumReleaseAgeStrict must remain enabled.');
   }
 
-  const exclusions = readReleaseAgeExclusions(workspaceConfig);
+  const exclusions = workspacePolicy.minimumReleaseAgeExclude;
   const cohortPackageNames = new Set([
     ...Object.keys(cohort.directPackages),
     ...Object.keys(cohort.singleVersionResolutions),

@@ -148,6 +148,35 @@ describe('framework dependency cohort', () => {
     );
   });
 
+  test('parses exclusions across YAML comments, blank lines, and inline comments', async () => {
+    const inputs = await readRepositoryInputs();
+    inputs.workspaceConfig = inputs.workspaceConfig.replace(
+      "  - 'brace-expansion@5.0.8'",
+      [
+        "  - 'brace-expansion@5.0.8'",
+        '',
+        '  # A valid YAML comment must not terminate the exclusion list.',
+        "  - '@tanstack/*' # inline rationale",
+      ].join('\n')
+    );
+
+    expect(() => verifyFrameworkCohort(inputs)).toThrow(
+      '@tanstack/react-router must not bypass the pnpm release-age quarantine'
+    );
+  });
+
+  test('rejects a malformed release-age exclusion structure', async () => {
+    const inputs = await readRepositoryInputs();
+    inputs.workspaceConfig = inputs.workspaceConfig.replace(
+      "minimumReleaseAgeExclude:\n  - '@types/*'\n  - 'brace-expansion@5.0.8'",
+      "minimumReleaseAgeExclude: '@tanstack/*'"
+    );
+
+    expect(() => verifyFrameworkCohort(inputs)).toThrow(
+      'pnpm minimumReleaseAgeExclude must be a list of package selectors'
+    );
+  });
+
   test('rejects the deprecated TanStack server-function validator API', async () => {
     const frameworkSources = await readFrameworkSources();
 
