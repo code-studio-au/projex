@@ -208,6 +208,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     file,
     isReadingFile,
     isPreviewing,
+    isCommitting,
     draftCsvText,
     autoCreateStructures,
     skipDuplicates,
@@ -500,6 +501,7 @@ ACTUALS,2026,4,4041 Upskilling,Research Centre,Programme Code,EXP,500.00,Payroll
     importError,
     includedPreviewRows,
     invalidPreviewRows,
+    isCommitting,
     isMobile,
     isPreviewing,
     isReadingFile,
@@ -659,7 +661,11 @@ function PowerBiImportPreview({
             <Group gap="sm" align="center" wrap="wrap">
               <Title order={5}>PowerBI import preview</Title>
             </Group>
-            <Button variant="default" onClick={() => void model.clearPreview()}>
+            <Button
+              variant="default"
+              disabled={model.isCommitting}
+              onClick={() => void model.clearPreview()}
+            >
               Cancel preview
             </Button>
           </Group>
@@ -749,13 +755,15 @@ function PowerBiImportPreview({
             <Button
               variant="subtle"
               color="gray"
+              disabled={model.isCommitting}
               onClick={() => void model.clearPreview()}
             >
               Cancel preview
             </Button>
             <Button
               fullWidth={model.isMobile}
-              disabled={model.hasBlockingIssues}
+              loading={model.isCommitting}
+              disabled={model.hasBlockingIssues || model.isCommitting}
               onClick={() => void model.handleCommitAppend()}
             >
               {model.previewSummary.included ? 'Append' : 'Complete import'}
@@ -764,7 +772,9 @@ function PowerBiImportPreview({
               color="red"
               fullWidth={model.isMobile}
               disabled={
-                !model.previewSummary.included || model.hasReplaceAllBlockers
+                model.isCommitting ||
+                !model.previewSummary.included ||
+                model.hasReplaceAllBlockers
               }
               onClick={() => model.setConfirmReplaceOpen(true)}
             >
@@ -807,6 +817,7 @@ function PowerBiExclusionRuleModal({
           <Button
             variant="default"
             fullWidth={model.isMobile}
+            disabled={model.isCommitting}
             onClick={() => model.setConfirmReplaceOpen(false)}
           >
             Cancel
@@ -814,6 +825,8 @@ function PowerBiExclusionRuleModal({
           <Button
             color="red"
             fullWidth={model.isMobile}
+            loading={model.isCommitting}
+            disabled={model.isCommitting}
             onClick={() => void model.handleCommitReplaceAll()}
           >
             Replace imported period

@@ -97,6 +97,7 @@ export default defineConfig(({ command }) => {
           'src/server/env.ts',
           'src/server/http/security.ts',
           'src/server/fns/resourceGuards.ts',
+          'src/hooks/usePowerBiImportWorkflow.ts',
           'src/store/uiPrefs.ts',
           'src/utils/auth.ts',
           'src/utils/commentMentions.ts',

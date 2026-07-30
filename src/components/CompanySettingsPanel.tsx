@@ -44,6 +44,7 @@ import CompanyDefaultMappingsModal from './CompanyDefaultMappingsModal';
 import CompanyImportRulesModal from './CompanyImportRulesModal';
 import RuleSuggestionsModal from './RuleSuggestionsModal';
 import CompanyExportPanel from './companySettings/CompanyExportPanel';
+import CompanyMembershipRoleEditor from './companySettings/CompanyMembershipRoleEditor';
 import classes from '../styles/ui.module.css';
 
 function toCompanyRole(value: string | null): CompanyRole | null {
@@ -377,7 +378,8 @@ function useCompanySettingsPanelController(props: {
               disabled={
                 !canAddCompanyUsers ||
                 row.original.isSelf ||
-                row.original.isOnlyAdmin
+                row.original.isOnlyAdmin ||
+                removeCompanyMember.isPending
               }
               onClick={async () => {
                 dispatchMembership({ type: 'start' });
@@ -674,72 +676,52 @@ function CompanyOperationsSettingsCard({
           <Alert color="green">{model.membershipStatus}</Alert>
         ) : null}
         {model.isHydrated ? (
-          <Group align="flex-end" wrap="wrap">
-            <Select
-              label="User"
-              data={model.userOptions}
-              value={model.effectiveRoleUserId}
-              onChange={(v) =>
-                model.dispatchMembership({
-                  type: 'selectUser',
-                  userId: v ? asUserId(v) : null,
+          <CompanyMembershipRoleEditor
+            userOptions={model.userOptions}
+            selectedUserId={model.effectiveRoleUserId}
+            selectedRole={model.membershipCompanyRole}
+            wouldDemoteLastAdmin={model.wouldDemoteLastAdmin}
+            isPending={model.upsertCompanyMembership.isPending}
+            onUserChange={(userId) =>
+              model.dispatchMembership({
+                type: 'selectUser',
+                userId,
+              })
+            }
+            onRoleChange={(role) =>
+              model.dispatchMembership({
+                type: 'selectRole',
+                role,
+              })
+            }
+            onSubmit={() => {
+              if (!model.effectiveRoleUserId || !model.membershipCompanyRole)
+                return;
+              const userId = model.effectiveRoleUserId;
+              const role = model.membershipCompanyRole;
+              model.dispatchMembership({ type: 'start' });
+              void model.upsertCompanyMembership
+                .mutateAsync({
+                  userId,
+                  role,
                 })
-              }
-              searchable
-              style={{ width: '100%', maxWidth: 420 }}
-            />
-            <Select
-              label="Company role"
-              data={[
-                { value: 'member', label: 'member' },
-                { value: 'management', label: 'management' },
-                { value: 'executive', label: 'executive' },
-                { value: 'admin', label: 'admin' },
-              ]}
-              value={model.membershipCompanyRole}
-              onChange={(v) =>
-                model.dispatchMembership({
-                  type: 'selectRole',
-                  role: toCompanyRole(v),
-                })
-              }
-              style={{ width: '100%', maxWidth: 220 }}
-            />
-            <Button
-              size="sm"
-              variant="default"
-              disabled={
-                !model.effectiveRoleUserId ||
-                !model.membershipCompanyRole ||
-                model.wouldDemoteLastAdmin
-              }
-              onClick={async () => {
-                if (!model.effectiveRoleUserId || !model.membershipCompanyRole)
-                  return;
-                model.dispatchMembership({ type: 'start' });
-                try {
-                  await model.upsertCompanyMembership.mutateAsync({
-                    userId: model.effectiveRoleUserId,
-                    role: model.membershipCompanyRole,
-                  });
+                .then(() =>
                   model.dispatchMembership({
                     type: 'success',
                     message: 'Company role updated.',
-                  });
-                } catch (err) {
+                  })
+                )
+                .catch((err: unknown) =>
                   model.dispatchMembership({
                     type: 'fail',
                     message:
                       err instanceof Error
                         ? err.message
                         : 'Could not update company role.',
-                  });
-                }
-              }}
-            >
-              Set
-            </Button>
-          </Group>
+                  })
+                );
+            }}
+          />
         ) : (
           <Paper className={classes.surfaceMuted} radius="xl" p="md">
             <Text size="sm" c="dimmed">
@@ -747,12 +729,6 @@ function CompanyOperationsSettingsCard({
             </Text>
           </Paper>
         )}
-        {model.wouldDemoteLastAdmin ? (
-          <Alert color="yellow">
-            This company must retain at least one admin. Assign another admin
-            before changing this role.
-          </Alert>
-        ) : null}
         <Divider />
         <div className={classes.tableWrap}>
           {model.isHydrated ? (

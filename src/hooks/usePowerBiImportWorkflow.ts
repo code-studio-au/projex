@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type {
   MRT_PaginationState,
   MRT_SortingState,
@@ -37,6 +37,7 @@ export function usePowerBiImportWorkflow(params: {
   const [fileText, setFileText] = useState('');
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const [draftCsvText, setDraftCsvText] = useState('');
   const [autoCreateStructures, setAutoCreateStructures] = useState(true);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
@@ -65,6 +66,8 @@ export function usePowerBiImportWorkflow(params: {
   const [sorting, setSorting] = useState<MRT_SortingState>([
     { id: 'sourceRowIndex', desc: false },
   ]);
+  const fileReadGenerationRef = useRef(0);
+  const commitInFlightRef = useRef(false);
 
   const previewActive = previewRows !== null;
 
@@ -200,12 +203,14 @@ export function usePowerBiImportWorkflow(params: {
     );
   }
 
-  async function loadFileText(nextFile: File) {
+  async function loadFileText(nextFile: File, generation: number) {
     setIsReadingFile(true);
     try {
       const text = await nextFile.text();
+      if (fileReadGenerationRef.current !== generation) return;
       setFileText(text);
     } catch (error) {
+      if (fileReadGenerationRef.current !== generation) return;
       setFile(null);
       setFileText('');
       setImportError(
@@ -214,16 +219,22 @@ export function usePowerBiImportWorkflow(params: {
           : 'Could not read the PowerBI CSV file.'
       );
     } finally {
-      setIsReadingFile(false);
+      if (fileReadGenerationRef.current === generation) {
+        setIsReadingFile(false);
+      }
     }
   }
 
   function handleFileChange(nextFile: File | null) {
+    const generation = fileReadGenerationRef.current + 1;
+    fileReadGenerationRef.current = generation;
     clearFeedback();
     setFile(nextFile);
     setFileText('');
     if (nextFile) {
-      void loadFileText(nextFile);
+      void loadFileText(nextFile, generation);
+    } else {
+      setIsReadingFile(false);
     }
   }
 
@@ -233,8 +244,10 @@ export function usePowerBiImportWorkflow(params: {
   }
 
   function resetImporter() {
+    fileReadGenerationRef.current += 1;
     setFile(null);
     setFileText('');
+    setIsReadingFile(false);
     setDraftCsvText('');
     setPreviewRows(null);
     setPreviewBatchId(null);
@@ -378,6 +391,9 @@ export function usePowerBiImportWorkflow(params: {
   }
 
   async function commitAppend() {
+    if (commitInFlightRef.current) return null;
+    commitInFlightRef.current = true;
+    setIsCommitting(true);
     try {
       clearFeedback();
       const result = await onAppend(importCommitOptions());
@@ -395,10 +411,16 @@ export function usePowerBiImportWorkflow(params: {
       setImportError(message);
       showAppToast({ tone: 'error', title: 'Import failed', message });
       return null;
+    } finally {
+      commitInFlightRef.current = false;
+      setIsCommitting(false);
     }
   }
 
   async function commitReplaceAll() {
+    if (commitInFlightRef.current) return null;
+    commitInFlightRef.current = true;
+    setIsCommitting(true);
     try {
       clearFeedback();
       const result = await onReplaceAll(importCommitOptions());
@@ -413,6 +435,9 @@ export function usePowerBiImportWorkflow(params: {
       setImportError(message);
       showAppToast({ tone: 'error', title: 'Import failed', message });
       return null;
+    } finally {
+      commitInFlightRef.current = false;
+      setIsCommitting(false);
     }
   }
 
@@ -420,6 +445,7 @@ export function usePowerBiImportWorkflow(params: {
     file,
     isReadingFile,
     isPreviewing,
+    isCommitting,
     draftCsvText,
     autoCreateStructures,
     skipDuplicates,
