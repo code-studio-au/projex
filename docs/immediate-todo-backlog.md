@@ -11,6 +11,8 @@ refreshed on 29 July 2026 after merging:
 - `5733eea` — `fix: preserve trusted recovery tooling (#34)`
 - `143a077` — `fix: improve deploy release selection (#35)`
 - `dd36a2f` — `fix: manage framework dependencies as a tested cohort (#36)`
+- `f6148a6` — `fix: sanitize production exception logging (#37)`
+- `12f42e5` — `refactor: decompose large React components (#38)`
 
 The previous 26 July review and its completed eleven-item programme are retained
 in the [documentation archive](archive/README.md).
@@ -31,17 +33,15 @@ and work awaiting business decisions remain in
 |    6 | CI and deploy rebuild independently instead of promoting one attested artifact | Medium          | Completed in PRs 33–35   |
 |    7 | Runtime observability stops at structured journald output                      | Medium          | Moved to product backlog |
 |    8 | Framework dependency versions need coordinated lifecycle management            | Medium          | Completed in PR 36       |
-|    9 | Several feature coordinators and schema modules remain oversized               | Medium          | Pending                  |
-|   10 | Test breadth is strong, but UI and failure-path visibility remain selective    | Medium          | Pending                  |
+|    9 | Several feature coordinators and schema modules remain oversized               | Medium          | Completed in PR 38       |
+|   10 | Test breadth is strong, but UI and failure-path visibility remain selective    | Medium          | Completed in this change |
 |   11 | Client bundles pass but have limited remaining headroom                        | Medium/ongoing  | Pending                  |
-|   12 | A few server paths still log raw exception objects                             | Medium/security | Completed in this change |
+|   12 | A few server paths still log raw exception objects                             | Medium/security | Completed in PR 37       |
 |   13 | Production infrastructure resilience remains a low-cost baseline               | Deferred        | Moved to product backlog |
 
 ## Recommended next sequence
 
-1. Expand risk-based test visibility under Item 10.
-2. Perform Items 9 and 11 as measured maintenance work rather than broad
-   file-size rewrites.
+1. Continue Item 11 as measured bundle and user-performance maintenance.
 
 # Completed review items
 
@@ -659,11 +659,9 @@ This preserves the original warning against cosmetic decomposition.
 - TypeScript, ESLint, Prettier, dead-code, build, and bundle checks validate the
   refactor as one application-wide tranche
 
-# Pending review items
-
 ## Item 10 — Expand risk-based test visibility
 
-### Finding
+### Original finding
 
 The verification system is a major strength:
 
@@ -686,17 +684,48 @@ The remaining visibility gaps are concentrated rather than broad:
 - the selected-domain coverage allowlist intentionally excludes most
   components, queries, and server orchestration
 
-### Recommendation
+### Resolution
 
-- Expand component tests around high-state UI: membership changes, taxonomy
-  destructive actions, transaction comments, and import failure recovery.
-- Keep accessibility and responsive-browser work in the product backlog rather
-  than folding it into a detached coverage campaign.
-- Add mutation-controller tests for slow and reordered responses.
-- Preserve the selected-domain label; expand the allowlist only for modules
-  where coverage produces meaningful decision visibility.
-- Keep database integration focused on constraints, concurrency, migration
-  compatibility, and multi-step transaction boundaries.
+Focused component coverage now exercises each high-state UI area identified by
+the review:
+
+- company membership role changes, including the last-admin safety boundary and
+  locked controls during a slow mutation
+- taxonomy deletion, including affected auto-coding rules, required safe
+  reassignment, slow destructive mutations, and recoverable failures
+- transaction comment failure recovery, reply threading, and assignment limited
+  to current project members
+- PowerBI preview and commit failure recovery without discarding the user's
+  source or reviewed preview
+
+The PowerBI workflow controller is now included in the explicitly labelled
+selected-domain coverage set. Its tests cover slow commits, duplicate-submit
+prevention, review decisions, replacement retries, cancellation failures, file
+read failures, and file reads completing out of order.
+
+The reordered-response case exposed a real race: an older file read could
+finish after a newer selection and replace its CSV content. File reads now use
+a generation boundary so only the current selection can update state. Import
+commits also have a synchronous in-flight guard, and commit, cancel, membership,
+and destructive-action controls remain locked until their active mutation
+settles.
+
+Accessibility and responsive-browser coverage remains in the product backlog.
+Database integration retains its existing focus on constraints, concurrency,
+migration compatibility, and multi-step transaction boundaries.
+
+### Verification and regression protection
+
+- 15 focused component and controller tests cover the four identified UI risks
+- 465 application tests pass under selected-domain coverage
+- selected-domain coverage remains honestly labelled and reports 97.45%
+  statements, 90.54% branches, 96.89% functions, and 98.75% lines
+- the newly allowlisted PowerBI workflow controller reports 91.94% statements,
+  72.16% branches, 97.61% functions, and 96.8% lines
+- the full application, static-analysis, CDK, disposable server, and disposable
+  Chromium browser gates pass
+
+# Pending review items
 
 ## Item 11 — Protect bundle headroom and measure user performance
 
