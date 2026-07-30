@@ -40,7 +40,7 @@ import {
 import { useCurrentUserQuery } from '../queries/account';
 import classes from '../styles/ui.module.css';
 
-export default function LandingPage() {
+function useLandingPageController() {
   const loaderData = companiesRoute.useLoaderData();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -291,6 +291,51 @@ export default function LandingPage() {
     </Paper>
   );
 
+  return {
+    closeConfirm,
+    companies,
+    companyColumns,
+    confirmDescription,
+    confirmError,
+    confirmLabel,
+    confirmOpen,
+    confirmTarget,
+    confirmText,
+    createCompany,
+    deactivateCompany,
+    deleteCompany,
+    isConfirmMatch,
+    isHydrated,
+    isMobile,
+    isSuperadmin,
+    isWaitingForFirstCompaniesLoad,
+    isWaitingForSession,
+    loadingCompaniesPlaceholder,
+    newCompanyAdminEmail,
+    newCompanyAdminName,
+    newCompanyError,
+    newCompanyName,
+    newCompanyOpen,
+    newCompanyStatus,
+    queryClient,
+    reactivateCompany,
+    requiredConfirmText,
+    setConfirmError,
+    setConfirmText,
+    setNewCompanyAdminEmail,
+    setNewCompanyAdminName,
+    setNewCompanyError,
+    setNewCompanyName,
+    setNewCompanyOpen,
+    setNewCompanyStatus,
+    shouldRedirect,
+    sortedCompanies,
+  };
+}
+
+type LandingPageController = ReturnType<typeof useLandingPageController>;
+
+function LandingPageView({ model }: { model: LandingPageController }) {
   return (
     <Stack gap="lg" className={classes.pageStack}>
       <Paper className={classes.pageHero} radius="xl">
@@ -306,32 +351,34 @@ export default function LandingPage() {
             </Text>
           </div>
           <div className={classes.pageHeroActions}>
-            {isSuperadmin ? (
+            {model.isSuperadmin ? (
               <>
                 <Button
                   variant="filled"
-                  onClick={() => setNewCompanyOpen(true)}
+                  onClick={() => model.setNewCompanyOpen(true)}
                 >
                   New company
                 </Button>
                 <Modal
-                  opened={newCompanyOpen}
-                  onClose={() => setNewCompanyOpen(false)}
+                  opened={model.newCompanyOpen}
+                  onClose={() => model.setNewCompanyOpen(false)}
                   title="Create company"
-                  fullScreen={isMobile}
+                  fullScreen={model.isMobile}
                 >
                   <Stack>
-                    {newCompanyError ? (
-                      <Alert color="red">{newCompanyError}</Alert>
+                    {model.newCompanyError ? (
+                      <Alert color="red">{model.newCompanyError}</Alert>
                     ) : null}
-                    {newCompanyStatus ? (
-                      <Alert color="green">{newCompanyStatus}</Alert>
+                    {model.newCompanyStatus ? (
+                      <Alert color="green">{model.newCompanyStatus}</Alert>
                     ) : null}
                     <TextInput
                       label="Company name"
                       placeholder="e.g. Northwind"
-                      value={newCompanyName}
-                      onChange={(e) => setNewCompanyName(e.currentTarget.value)}
+                      value={model.newCompanyName}
+                      onChange={(e) =>
+                        model.setNewCompanyName(e.currentTarget.value)
+                      }
                       autoFocus
                     />
                     <Text size="sm" c="dimmed">
@@ -342,66 +389,67 @@ export default function LandingPage() {
                     <TextInput
                       label="Initial admin name"
                       placeholder="e.g. Jane Admin"
-                      value={newCompanyAdminName}
+                      value={model.newCompanyAdminName}
                       onChange={(e) =>
-                        setNewCompanyAdminName(e.currentTarget.value)
+                        model.setNewCompanyAdminName(e.currentTarget.value)
                       }
                     />
                     <TextInput
                       label="Initial admin email"
                       placeholder="e.g. jane@example.com"
-                      value={newCompanyAdminEmail}
+                      value={model.newCompanyAdminEmail}
                       onChange={(e) =>
-                        setNewCompanyAdminEmail(e.currentTarget.value)
+                        model.setNewCompanyAdminEmail(e.currentTarget.value)
                       }
                     />
                     <Group justify="flex-end">
                       <Button
                         variant="default"
                         onClick={() => {
-                          setNewCompanyOpen(false);
-                          setNewCompanyError(null);
-                          setNewCompanyStatus(null);
+                          model.setNewCompanyOpen(false);
+                          model.setNewCompanyError(null);
+                          model.setNewCompanyStatus(null);
                         }}
                       >
                         Cancel
                       </Button>
                       <Button
                         disabled={
-                          !newCompanyName.trim() ||
-                          !newCompanyAdminName.trim() ||
-                          !newCompanyAdminEmail.trim() ||
-                          createCompany.isPending
+                          !model.newCompanyName.trim() ||
+                          !model.newCompanyAdminName.trim() ||
+                          !model.newCompanyAdminEmail.trim() ||
+                          model.createCompany.isPending
                         }
                         onClick={async () => {
-                          const name = newCompanyName.trim();
-                          const adminName = newCompanyAdminName.trim();
-                          const adminEmail = newCompanyAdminEmail.trim();
+                          const name = model.newCompanyName.trim();
+                          const adminName = model.newCompanyAdminName.trim();
+                          const adminEmail = model.newCompanyAdminEmail.trim();
                           if (!name) return;
                           if (!adminName || !adminEmail) {
-                            setNewCompanyError(
+                            model.setNewCompanyError(
                               'Initial admin name and email are required when creating a company.'
                             );
-                            setNewCompanyStatus(null);
+                            model.setNewCompanyStatus(null);
                             return;
                           }
-                          setNewCompanyError(null);
-                          setNewCompanyStatus(null);
+                          model.setNewCompanyError(null);
+                          model.setNewCompanyStatus(null);
                           try {
-                            const result = await createCompany.mutateAsync({
-                              name,
-                              initialAdminName: adminName || undefined,
-                              initialAdminEmail: adminEmail || undefined,
-                            });
+                            const result =
+                              await model.createCompany.mutateAsync({
+                                name,
+                                initialAdminName: adminName || undefined,
+                                initialAdminEmail: adminEmail || undefined,
+                              });
                             const company = result.company;
                             if (result.initialAdmin) {
                               await Promise.all([
-                                queryClient.invalidateQueries({
+                                model.queryClient.invalidateQueries({
                                   predicate: (q) =>
                                     Array.isArray(q.queryKey) &&
                                     q.queryKey[0] === 'users',
                                 }),
-                                queryClient.invalidateQueries({
+                                model.queryClient.invalidateQueries({
                                   predicate: (q) =>
                                     Array.isArray(q.queryKey) &&
                                     [
@@ -410,22 +458,22 @@ export default function LandingPage() {
                                     ].includes(String(q.queryKey[0])),
                                 }),
                               ]);
-                              setNewCompanyStatus(
+                              model.setNewCompanyStatus(
                                 result.initialAdmin.onboardingEmailSent
                                   ? `${company.name} was created and ${result.initialAdmin.user.email} was invited as the initial admin. A password setup email is on its way.`
                                   : `${company.name} was created and ${result.initialAdmin.user.email} was added as the initial admin. You can send their password setup email later from company settings if needed.`
                               );
                             } else {
-                              setNewCompanyStatus(
+                              model.setNewCompanyStatus(
                                 `${company.name} was created.`
                               );
                             }
-                            setNewCompanyName('');
-                            setNewCompanyAdminName('');
-                            setNewCompanyAdminEmail('');
-                            setNewCompanyOpen(false);
+                            model.setNewCompanyName('');
+                            model.setNewCompanyAdminName('');
+                            model.setNewCompanyAdminEmail('');
+                            model.setNewCompanyOpen(false);
                           } catch (err) {
-                            setNewCompanyError(
+                            model.setNewCompanyError(
                               err instanceof Error
                                 ? err.message
                                 : 'Could not create company.'
@@ -444,21 +492,21 @@ export default function LandingPage() {
         </div>
       </Paper>
 
-      {shouldRedirect ? (
+      {model.shouldRedirect ? (
         <Paper className={classes.surfaceCard} p="lg" radius="xl">
           <Text c="dimmed">Redirecting to your company...</Text>
         </Paper>
-      ) : isWaitingForSession || isWaitingForFirstCompaniesLoad ? (
-        loadingCompaniesPlaceholder
+      ) : model.isWaitingForSession || model.isWaitingForFirstCompaniesLoad ? (
+        model.loadingCompaniesPlaceholder
       ) : (
         <>
-          {!isHydrated ? (
-            loadingCompaniesPlaceholder
-          ) : companies.length > 0 ? (
+          {!model.isHydrated ? (
+            model.loadingCompaniesPlaceholder
+          ) : model.companies.length > 0 ? (
             <div className={classes.tableWrap}>
               <MantineReactTable
-                columns={companyColumns}
-                data={sortedCompanies}
+                columns={model.companyColumns}
+                data={model.sortedCompanies}
                 mantineTableContainerProps={{
                   className: 'financeTable companyListTable',
                 }}
@@ -471,7 +519,10 @@ export default function LandingPage() {
                 enableSorting
                 initialState={{
                   density: 'xs',
-                  pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
+                  pagination: {
+                    pageIndex: 0,
+                    pageSize: model.isMobile ? 5 : 8,
+                  },
                 }}
                 mantineTableProps={{
                   highlightOnHover: true,
@@ -491,26 +542,28 @@ export default function LandingPage() {
       )}
 
       <Modal
-        opened={confirmOpen}
-        onClose={closeConfirm}
-        title={confirmLabel}
-        fullScreen={isMobile}
+        opened={model.confirmOpen}
+        onClose={model.closeConfirm}
+        title={model.confirmLabel}
+        fullScreen={model.isMobile}
       >
         <Stack>
-          {confirmError ? <Alert color="red">{confirmError}</Alert> : null}
+          {model.confirmError ? (
+            <Alert color="red">{model.confirmError}</Alert>
+          ) : null}
           <Text size="sm" c="dimmed">
-            {confirmDescription}
+            {model.confirmDescription}
           </Text>
 
           <Text size="sm">
-            Type <b>{requiredConfirmText}</b> to confirm.
+            Type <b>{model.requiredConfirmText}</b> to confirm.
           </Text>
 
           <TextInput
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.currentTarget.value)}
+            value={model.confirmText}
+            onChange={(e) => model.setConfirmText(e.currentTarget.value)}
             placeholder={
-              confirmTarget?.kind === 'delete_company'
+              model.confirmTarget?.kind === 'delete_company'
                 ? 'DELETE company name'
                 : 'Company name'
             }
@@ -520,47 +573,49 @@ export default function LandingPage() {
           <Group justify="flex-end" wrap="wrap">
             <Button
               variant="default"
-              onClick={closeConfirm}
-              fullWidth={isMobile}
+              onClick={model.closeConfirm}
+              fullWidth={model.isMobile}
             >
               Cancel
             </Button>
             <Button
-              fullWidth={isMobile}
+              fullWidth={model.isMobile}
               color={
-                confirmTarget?.kind === 'delete_company'
+                model.confirmTarget?.kind === 'delete_company'
                   ? 'red'
-                  : confirmTarget?.kind === 'reactivate_company'
+                  : model.confirmTarget?.kind === 'reactivate_company'
                     ? 'green'
                     : 'orange'
               }
               disabled={
-                !isConfirmMatch ||
-                deactivateCompany.isPending ||
-                reactivateCompany.isPending ||
-                deleteCompany.isPending
+                !model.isConfirmMatch ||
+                model.deactivateCompany.isPending ||
+                model.reactivateCompany.isPending ||
+                model.deleteCompany.isPending
               }
               onClick={async () => {
-                if (!confirmTarget) return;
-                setConfirmError(null);
+                if (!model.confirmTarget) return;
+                model.setConfirmError(null);
                 try {
-                  if (confirmTarget.kind === 'deactivate_company') {
-                    await deactivateCompany.mutateAsync(
-                      confirmTarget.companyId
+                  if (model.confirmTarget.kind === 'deactivate_company') {
+                    await model.deactivateCompany.mutateAsync(
+                      model.confirmTarget.companyId
                     );
-                  } else if (confirmTarget.kind === 'reactivate_company') {
-                    await reactivateCompany.mutateAsync(
-                      confirmTarget.companyId
+                  } else if (
+                    model.confirmTarget.kind === 'reactivate_company'
+                  ) {
+                    await model.reactivateCompany.mutateAsync(
+                      model.confirmTarget.companyId
                     );
                   } else {
-                    await deleteCompany.mutateAsync({
-                      companyId: confirmTarget.companyId,
-                      confirmation: confirmText,
+                    await model.deleteCompany.mutateAsync({
+                      companyId: model.confirmTarget.companyId,
+                      confirmation: model.confirmText,
                     });
                   }
-                  closeConfirm();
+                  model.closeConfirm();
                 } catch (error) {
-                  setConfirmError(
+                  model.setConfirmError(
                     error instanceof Error
                       ? error.message
                       : 'Could not complete the company action.'
@@ -568,11 +623,16 @@ export default function LandingPage() {
                 }
               }}
             >
-              {confirmLabel}
+              {model.confirmLabel}
             </Button>
           </Group>
         </Stack>
       </Modal>
     </Stack>
   );
+}
+
+export default function LandingPage() {
+  const model = useLandingPageController();
+  return <LandingPageView model={model} />;
 }

@@ -2,7 +2,186 @@ import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 
+const componentDecompositionBoundaries = [
+  {
+    sourcePath: 'src/components/AutoCodingRulesEditorModal.tsx',
+    controller: 'useAutoCodingRulesEditorModalController',
+    views: [
+      'AutoCodingRuleComposer',
+      'AutoCodingRulesList',
+      'EditAutoCodingRuleModal',
+      'DeleteAutoCodingRuleModal',
+    ],
+  },
+  {
+    sourcePath: 'src/components/BudgetPanel.tsx',
+    controller: 'useBudgetPanelController',
+    views: ['BudgetPanelView'],
+  },
+  {
+    sourcePath: 'src/components/CompanyDefaultTaxonomyModal.tsx',
+    controller: 'useCompanyDefaultTaxonomyModalController',
+    views: [
+      'CompanyDefaultTaxonomyComposer',
+      'CompanyDefaultTaxonomyList',
+      'MoveCompanyDefaultTaxonomyModal',
+      'DeleteCompanyDefaultTaxonomyModal',
+    ],
+  },
+  {
+    sourcePath: 'src/components/CompanySettingsPanel.tsx',
+    controller: 'useCompanySettingsPanelController',
+    views: [
+      'CompanyDetailsSettingsCard',
+      'CompanyMembershipSettingsCard',
+      'CompanyOperationsSettingsCard',
+    ],
+  },
+  {
+    sourcePath: 'src/components/CompanySummaryPanel.tsx',
+    controller: 'useCompanySummaryPanelController',
+    views: ['CompanySummaryPanelView'],
+  },
+  {
+    sourcePath: 'src/components/ImportRulesEditorModal.tsx',
+    controller: 'useImportRulesEditorModalController',
+    views: [
+      'ImportRuleComposer',
+      'ImportRulesList',
+      'EditImportRuleModal',
+      'DeleteImportRuleModal',
+    ],
+  },
+  {
+    sourcePath: 'src/components/PowerBiImporterPanel.tsx',
+    controller: 'usePowerBiImporterPanelController',
+    views: [
+      'PowerBiUploadCard',
+      'PowerBiImportPreview',
+      'PowerBiExclusionRuleModal',
+      'PowerBiReviewDecisionModal',
+    ],
+  },
+  {
+    sourcePath: 'src/components/ProjectSettingsPanel.tsx',
+    controller: 'useProjectSettingsPanelController',
+    views: [
+      'ProjectStructureSettingsCard',
+      'ProjectMembershipSettingsCard',
+      'ProjectBudgetSettingsCard',
+      'ProjectTaxonomySettingsCard',
+    ],
+  },
+  {
+    sourcePath: 'src/components/ProjectWorkspace.tsx',
+    controller: 'useProjectWorkspaceController',
+    views: ['ProgrammeProjectWorkspaceView', 'OperationalProjectWorkspaceView'],
+  },
+  {
+    sourcePath: 'src/components/RuleSuggestionsModal.tsx',
+    controller: 'useRuleSuggestionsModalController',
+    views: [
+      'RuleSuggestionsContent',
+      'RuleSuggestionCard',
+      'RuleSuggestionEvidence',
+    ],
+  },
+  {
+    sourcePath: 'src/components/TaxonomyManagerModal.tsx',
+    controller: 'useTaxonomyManagerModalController',
+    views: [
+      'TaxonomyComposer',
+      'TaxonomyCategoryItem',
+      'TaxonomySubCategoryRow',
+    ],
+  },
+  {
+    sourcePath: 'src/components/TransactionCommentsModal.tsx',
+    controller: 'useTransactionCommentsModalController',
+    views: ['TransactionCommentsModalView'],
+  },
+  {
+    sourcePath: 'src/components/TransactionsPanel.tsx',
+    controller: 'useTransactionsPanelController',
+    views: [
+      'TransactionsOverviewSection',
+      'TransactionsTableSection',
+      'TransactionsModalSection',
+    ],
+  },
+  {
+    sourcePath: 'src/components/companySettings/CompanyExportPanel.tsx',
+    controller: 'useCompanyExportPanelController',
+    views: ['CompanyExportPanelView'],
+  },
+  {
+    sourcePath: 'src/components/taxonomyManager/TaxonomyActionDialogs.tsx',
+    controller: 'useTaxonomyActionDialogsController',
+    views: [
+      'MoveTaxonomyDialog',
+      'BulkRecodeTaxonomyDialog',
+      'DeleteTaxonomyDialog',
+    ],
+  },
+  {
+    sourcePath: 'src/components/transactions/TransactionReversalModal.tsx',
+    controller: 'useTransactionReversalModalController',
+    views: [
+      'ReversalPairSummary',
+      'PendingReversalActions',
+      'SuggestedReversalActions',
+      'ExceptionReversalActions',
+      'MatchedReversalActions',
+    ],
+  },
+  {
+    sourcePath: 'src/components/transactions/TransactionsOverviewCard.tsx',
+    controller: 'useTransactionsOverviewCardController',
+    views: ['TransactionsOverviewCardView'],
+  },
+  {
+    sourcePath: 'src/pages/AccountPage.tsx',
+    controller: 'useAccountPageController',
+    views: ['AccountPageView'],
+  },
+  {
+    sourcePath: 'src/pages/CompanyDashboardPage.tsx',
+    controller: 'useCompanyDashboardPageController',
+    views: [
+      'CompanyDashboardHeader',
+      'CompanyDashboardTabs',
+      'ProjectLifecycleConfirmModal',
+    ],
+  },
+  {
+    sourcePath: 'src/pages/LandingPage.tsx',
+    controller: 'useLandingPageController',
+    views: ['LandingPageView'],
+  },
+  {
+    sourcePath: 'src/pages/SmokeDashboardPage.tsx',
+    controller: 'useSmokeDashboardController',
+    views: [
+      'SmokeDashboardControls',
+      'SmokeDashboardRunFocus',
+      'SmokeDashboardSectionGrid',
+    ],
+  },
+] as const;
+
 describe('maintainability boundaries', () => {
+  test.each(componentDecompositionBoundaries)(
+    '$sourcePath keeps orchestration separate from focused views',
+    async ({ sourcePath, controller, views }) => {
+      const source = await readFile(path.resolve(sourcePath), 'utf8');
+
+      expect(source).toContain(`function ${controller}`);
+      for (const view of views) {
+        expect(source).toContain(`function ${view}`);
+      }
+    }
+  );
+
   test('taxonomy standards imports auto-coding sync directly', async () => {
     const source = await readFile(
       path.resolve('src/server/fns/taxonomy/standards.ts'),

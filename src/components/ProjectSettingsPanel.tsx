@@ -59,7 +59,7 @@ function toProjectRole(value: string | null): ProjectRole | null {
   return null;
 }
 
-export default function ProjectSettingsPanel(props: {
+function useProjectSettingsPanelController(props: {
   companyId: CompanyId;
   projectId: ProjectId;
 }) {
@@ -307,293 +307,395 @@ export default function ProjectSettingsPanel(props: {
     [canEditProject, del]
   );
 
-  return (
-    <Stack gap="lg" className={classes.pageStack}>
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Group justify="space-between" align="flex-start" wrap="wrap">
-            <Title order={5}>Project settings</Title>
-            <Badge variant="light" color={canEditProject ? 'teal' : 'red'}>
-              {canEditProject ? 'Can edit project' : 'Read-only'}
-            </Badge>
-          </Group>
-          <ProjectSettingControls
-            projectType={effectiveProject.projectType}
-            parentProjectId={effectiveProject.parentProjectId}
-            currency={effectiveProject.currency}
-            visibility={effectiveProject.visibility}
-            allowSuperadminAccess={effectiveProject.allowSuperadminAccess}
-            syncCompanyDefaults={effectiveProject.syncCompanyDefaults}
-            allowTxnTransfers={effectiveProject.allowTxnTransfers}
-            programmeOptions={programmeOptions}
-            canEditProject={canEditProject}
-            canEditCompanyStructure={canEditCompanyStructure}
-            canManageTransferCapability={canManageTransferCapability}
-            isMobile={isMobile}
-            onSaveStructure={async (value) => {
-              await updateProjectStructure.mutateAsync({
-                id: projectId,
-                projectType: value.projectType,
-                parentProjectId: value.parentProjectId,
-              });
-            }}
-            onSaveCurrency={async (value) => {
-              await updateProjectCurrency.mutateAsync({
-                id: projectId,
-                currency: value,
-              });
-            }}
-            onSaveVisibility={async (value) => {
-              await updateProjectVisibility.mutateAsync({
-                id: projectId,
-                visibility: value,
-              });
-            }}
-            onSaveSuperadminAccess={async (value) => {
-              await updateSuperadminAccess.mutateAsync({
-                id: projectId,
-                allowSuperadminAccess: value,
-              });
-            }}
-            onSuperadminAccessSaved={(value) => {
-              if (!access.isSuperadmin || value) return;
-              void router
-                .navigate({
-                  to: companyRoute.to,
-                  params: { companyId },
-                })
-                .catch((error: unknown) => {
-                  showAppToast({
-                    tone: 'error',
-                    title: 'Project access updated',
-                    message:
-                      error instanceof Error
-                        ? `Access was updated, but navigation failed: ${error.message}`
-                        : 'Access was updated, but navigation failed. Return to the company page before continuing.',
-                  });
-                });
-            }}
-            onSaveSyncCompanyDefaults={async (value) => {
-              const updatedProject =
-                await updateCompanyStandardsSync.mutateAsync({
-                  id: projectId,
-                  syncCompanyDefaults: value,
-                });
-              return updatedProject.syncCompanyDefaults;
-            }}
-            onSaveAllowTxnTransfers={async (value) => {
-              const updatedProject =
-                await updateTransactionTransfers.mutateAsync({
-                  id: projectId,
-                  allowTxnTransfers: value,
-                });
-              return updatedProject.allowTxnTransfers;
-            }}
-          />
-        </Stack>
-      </Paper>
+  return {
+    access,
+    canEditCompanyStructure,
+    canEditProject,
+    canEditTaxonomy,
+    canManageTransferCapability,
+    companyId,
+    effectiveProject,
+    isHydrated,
+    isMobile,
+    memberColumns,
+    memberRole,
+    memberRows,
+    memberUserId,
+    programmeOptions,
+    projectId,
+    projectImportRulesModalOpen,
+    projectRulesModalOpen,
+    reapplyCompanyStandards,
+    router,
+    setMemberRole,
+    setMemberUserId,
+    setProjectImportRulesModalOpen,
+    setProjectRulesModalOpen,
+    setTaxonomyModalOpen,
+    settingsTaxonomy,
+    taxonomyModalOpen,
+    updateCompanyStandardsSync,
+    updateProjectCurrency,
+    updateProjectStructure,
+    updateProjectVisibility,
+    updateSuperadminAccess,
+    updateTransactionTransfers,
+    upsert,
+    userOptions,
+  };
+}
 
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Project Standards Alignment</Title>
-          <Text size="sm" c="dimmed">
-            Synced projects can inherit company categories, import rules, and
-            auto-coding while still keeping justified project-only exceptions.
-          </Text>
-          <Group gap="sm" wrap="wrap">
-            <Badge
-              variant="light"
-              color={effectiveProject.syncCompanyDefaults ? 'teal' : 'gray'}
-            >
-              {effectiveProject.syncCompanyDefaults
-                ? 'Company standards sync on'
-                : 'Company standards sync off'}
-            </Badge>
-          </Group>
-          <Text size="xs" c="dimmed">
-            Use the category, auto-coding, and import-rule managers here to
-            review inherited, overridden, and detached standards. Stable project
-            patterns can be promoted up to the company standards set.
-          </Text>
-          <Group gap="sm" wrap="wrap">
-            <Button
-              variant="default"
-              disabled={
-                effectiveProject.projectType !== 'project' || !canEditTaxonomy
-              }
-              loading={reapplyCompanyStandards.isPending}
-              onClick={async () => {
-                try {
-                  const result = await reapplyCompanyStandards.mutateAsync();
-                  if (!result.companyDefaultsConfigured) {
-                    showAppToast({
-                      tone: 'success',
-                      title: 'Company standards reapplied',
-                      message:
-                        'Company import and auto-coding rules were resynced. No company categories are configured yet, so no categories or subcategories were added.',
-                    });
-                    return;
-                  }
+type ProjectSettingsPanelController = ReturnType<
+  typeof useProjectSettingsPanelController
+>;
+
+function ProjectStructureSettingsCard({
+  model,
+}: {
+  model: ProjectSettingsPanelController;
+}) {
+  return (
+    <Paper className={classes.surfaceCard} radius="xl" p="lg">
+      <Stack gap="sm">
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+          <Title order={5}>Project settings</Title>
+          <Badge variant="light" color={model.canEditProject ? 'teal' : 'red'}>
+            {model.canEditProject ? 'Can edit project' : 'Read-only'}
+          </Badge>
+        </Group>
+        <ProjectSettingControls
+          projectType={model.effectiveProject.projectType}
+          parentProjectId={model.effectiveProject.parentProjectId}
+          currency={model.effectiveProject.currency}
+          visibility={model.effectiveProject.visibility}
+          allowSuperadminAccess={model.effectiveProject.allowSuperadminAccess}
+          syncCompanyDefaults={model.effectiveProject.syncCompanyDefaults}
+          allowTxnTransfers={model.effectiveProject.allowTxnTransfers}
+          programmeOptions={model.programmeOptions}
+          canEditProject={model.canEditProject}
+          canEditCompanyStructure={model.canEditCompanyStructure}
+          canManageTransferCapability={model.canManageTransferCapability}
+          isMobile={model.isMobile}
+          onSaveStructure={async (value) => {
+            await model.updateProjectStructure.mutateAsync({
+              id: model.projectId,
+              projectType: value.projectType,
+              parentProjectId: value.parentProjectId,
+            });
+          }}
+          onSaveCurrency={async (value) => {
+            await model.updateProjectCurrency.mutateAsync({
+              id: model.projectId,
+              currency: value,
+            });
+          }}
+          onSaveVisibility={async (value) => {
+            await model.updateProjectVisibility.mutateAsync({
+              id: model.projectId,
+              visibility: value,
+            });
+          }}
+          onSaveSuperadminAccess={async (value) => {
+            await model.updateSuperadminAccess.mutateAsync({
+              id: model.projectId,
+              allowSuperadminAccess: value,
+            });
+          }}
+          onSuperadminAccessSaved={(value) => {
+            if (!model.access.isSuperadmin || value) return;
+            void model.router
+              .navigate({
+                to: companyRoute.to,
+                params: { companyId: model.companyId },
+              })
+              .catch((error: unknown) => {
+                showAppToast({
+                  tone: 'error',
+                  title: 'Project access updated',
+                  message:
+                    error instanceof Error
+                      ? `Access was updated, but navigation failed: ${error.message}`
+                      : 'Access was updated, but navigation failed. Return to the company page before continuing.',
+                });
+              });
+          }}
+          onSaveSyncCompanyDefaults={async (value) => {
+            const updatedProject =
+              await model.updateCompanyStandardsSync.mutateAsync({
+                id: model.projectId,
+                syncCompanyDefaults: value,
+              });
+            return updatedProject.syncCompanyDefaults;
+          }}
+          onSaveAllowTxnTransfers={async (value) => {
+            const updatedProject =
+              await model.updateTransactionTransfers.mutateAsync({
+                id: model.projectId,
+                allowTxnTransfers: value,
+              });
+            return updatedProject.allowTxnTransfers;
+          }}
+        />
+      </Stack>
+    </Paper>
+  );
+}
+
+function ProjectMembershipSettingsCard({
+  model,
+}: {
+  model: ProjectSettingsPanelController;
+}) {
+  return (
+    <Paper className={classes.surfaceCard} radius="xl" p="lg">
+      <Stack gap="sm">
+        <Title order={5}>Project Standards Alignment</Title>
+        <Text size="sm" c="dimmed">
+          Synced projects can inherit company categories, import rules, and
+          auto-coding while still keeping justified project-only exceptions.
+        </Text>
+        <Group gap="sm" wrap="wrap">
+          <Badge
+            variant="light"
+            color={model.effectiveProject.syncCompanyDefaults ? 'teal' : 'gray'}
+          >
+            {model.effectiveProject.syncCompanyDefaults
+              ? 'Company standards sync on'
+              : 'Company standards sync off'}
+          </Badge>
+        </Group>
+        <Text size="xs" c="dimmed">
+          Use the category, auto-coding, and import-rule managers here to review
+          inherited, overridden, and detached standards. Stable project patterns
+          can be promoted up to the company standards set.
+        </Text>
+        <Group gap="sm" wrap="wrap">
+          <Button
+            variant="default"
+            disabled={
+              model.effectiveProject.projectType !== 'project' ||
+              !model.canEditTaxonomy
+            }
+            loading={model.reapplyCompanyStandards.isPending}
+            onClick={async () => {
+              try {
+                const result =
+                  await model.reapplyCompanyStandards.mutateAsync();
+                if (!result.companyDefaultsConfigured) {
                   showAppToast({
                     tone: 'success',
                     title: 'Company standards reapplied',
                     message:
-                      result.categoriesAdded === 0 &&
-                      result.subCategoriesAdded === 0
-                        ? 'Project categories were refreshed and company import and auto-coding rules were resynced.'
-                        : `Added ${result.categoriesAdded} categories and ${result.subCategoriesAdded} subcategories, then resynced company import and auto-coding rules.`,
-                    autoClose: 9000,
+                      'Company import and auto-coding rules were resynced. No company categories are configured yet, so no categories or subcategories were added.',
                   });
-                } catch (error) {
-                  showAppToast({
-                    tone: 'error',
-                    title: 'Could not reapply company standards',
-                    message:
-                      error instanceof Error
-                        ? error.message
-                        : 'Please try again.',
-                  });
+                  return;
                 }
-              }}
-            >
-              Reapply Company Standards
-            </Button>
-            <Button
-              variant="default"
-              disabled={
-                effectiveProject.projectType !== 'project' || !canEditTaxonomy
-              }
-              onClick={() => setTaxonomyModalOpen(true)}
-            >
-              Manage Project Categories
-            </Button>
-            <Button
-              variant="default"
-              disabled={!canEditProject}
-              onClick={() => setProjectRulesModalOpen(true)}
-            >
-              Manage Auto-Coding Rules
-            </Button>
-            <Button
-              variant="default"
-              disabled={!canEditProject}
-              onClick={() => setProjectImportRulesModalOpen(true)}
-            >
-              Manage Import Rules
-            </Button>
-          </Group>
-        </Stack>
-      </Paper>
-
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Assign team members</Title>
-          <Group align="flex-end" wrap="wrap">
-            <Select
-              label="User (this company)"
-              data={userOptions}
-              value={memberUserId}
-              onChange={(v) => setMemberUserId(v ? asUserId(v) : null)}
-              searchable
-              style={{ width: '100%', maxWidth: 420 }}
-            />
-            <Select
-              label="Role"
-              data={[
-                { value: 'owner', label: 'owner' },
-                { value: 'lead', label: 'lead' },
-                { value: 'member', label: 'member' },
-                { value: 'viewer', label: 'viewer' },
-              ]}
-              value={memberRole}
-              onChange={(v) => setMemberRole(toProjectRole(v))}
-              style={{ width: '100%', maxWidth: 220 }}
-            />
-            <Button
-              size="sm"
-              variant="default"
-              disabled={!canEditProject || !memberUserId || !memberRole}
-              onClick={async () => {
-                if (!memberUserId || !memberRole) return;
-                await upsert.mutateAsync({
-                  userId: memberUserId,
-                  role: memberRole,
+                showAppToast({
+                  tone: 'success',
+                  title: 'Company standards reapplied',
+                  message:
+                    result.categoriesAdded === 0 &&
+                    result.subCategoriesAdded === 0
+                      ? 'Project categories were refreshed and company import and auto-coding rules were resynced.'
+                      : `Added ${result.categoriesAdded} categories and ${result.subCategoriesAdded} subcategories, then resynced company import and auto-coding rules.`,
+                  autoClose: 9000,
                 });
-              }}
-            >
-              Add to project
-            </Button>
-          </Group>
-          <Text size="sm" c="dimmed">
-            Manage membership per project. Company settings manages
-            company-level roles only.
-          </Text>
-        </Stack>
-      </Paper>
+              } catch (error) {
+                showAppToast({
+                  tone: 'error',
+                  title: 'Could not reapply company standards',
+                  message:
+                    error instanceof Error
+                      ? error.message
+                      : 'Please try again.',
+                });
+              }
+            }}
+          >
+            Reapply Company Standards
+          </Button>
+          <Button
+            variant="default"
+            disabled={
+              model.effectiveProject.projectType !== 'project' ||
+              !model.canEditTaxonomy
+            }
+            onClick={() => model.setTaxonomyModalOpen(true)}
+          >
+            Manage Project Categories
+          </Button>
+          <Button
+            variant="default"
+            disabled={!model.canEditProject}
+            onClick={() => model.setProjectRulesModalOpen(true)}
+          >
+            Manage Auto-Coding Rules
+          </Button>
+          <Button
+            variant="default"
+            disabled={!model.canEditProject}
+            onClick={() => model.setProjectImportRulesModalOpen(true)}
+          >
+            Manage Import Rules
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
 
-      <Paper className={classes.surfaceCard} radius="xl" p="lg">
-        <Stack gap="sm">
-          <Title order={5}>Current members</Title>
-          <div className={classes.tableWrap}>
-            {isHydrated ? (
-              <MantineReactTable
-                columns={memberColumns}
-                data={memberRows}
-                getRowId={(row) => row.key}
-                mantineTableContainerProps={{ className: 'financeTable' }}
-                mantineTableProps={{
-                  highlightOnHover: true,
-                  striped: 'odd',
-                  withTableBorder: true,
-                }}
-                mantineTableBodyCellProps={{
-                  style: { verticalAlign: 'middle' },
-                }}
-                enableColumnActions={false}
-                enableColumnFilters={false}
-                enableSorting
-                enableTopToolbar={false}
-                enableDensityToggle={false}
-                enableFullScreenToggle={false}
-                initialState={{
-                  density: 'xs',
-                  pagination: { pageIndex: 0, pageSize: isMobile ? 5 : 8 },
-                }}
-              />
-            ) : (
-              <Paper className={classes.surfaceMuted} radius="xl" p="md">
-                <Stack gap="sm">
-                  <Text size="sm" c="dimmed">
-                    Loading project members...
-                  </Text>
-                </Stack>
-              </Paper>
-            )}
-          </div>
-        </Stack>
-      </Paper>
+function ProjectBudgetSettingsCard({
+  model,
+}: {
+  model: ProjectSettingsPanelController;
+}) {
+  return (
+    <Paper className={classes.surfaceCard} radius="xl" p="lg">
+      <Stack gap="sm">
+        <Title order={5}>Assign team members</Title>
+        <Group align="flex-end" wrap="wrap">
+          <Select
+            label="User (this company)"
+            data={model.userOptions}
+            value={model.memberUserId}
+            onChange={(v) => model.setMemberUserId(v ? asUserId(v) : null)}
+            searchable
+            style={{ width: '100%', maxWidth: 420 }}
+          />
+          <Select
+            label="Role"
+            data={[
+              { value: 'owner', label: 'owner' },
+              { value: 'lead', label: 'lead' },
+              { value: 'member', label: 'member' },
+              { value: 'viewer', label: 'viewer' },
+            ]}
+            value={model.memberRole}
+            onChange={(v) => model.setMemberRole(toProjectRole(v))}
+            style={{ width: '100%', maxWidth: 220 }}
+          />
+          <Button
+            size="sm"
+            variant="default"
+            disabled={
+              !model.canEditProject || !model.memberUserId || !model.memberRole
+            }
+            onClick={async () => {
+              if (!model.memberUserId || !model.memberRole) return;
+              await model.upsert.mutateAsync({
+                userId: model.memberUserId,
+                role: model.memberRole,
+              });
+            }}
+          >
+            Add to project
+          </Button>
+        </Group>
+        <Text size="sm" c="dimmed">
+          Manage membership per project. Company settings manages company-level
+          roles only.
+        </Text>
+      </Stack>
+    </Paper>
+  );
+}
+
+function ProjectTaxonomySettingsCard({
+  model,
+}: {
+  model: ProjectSettingsPanelController;
+}) {
+  return (
+    <Paper className={classes.surfaceCard} radius="xl" p="lg">
+      <Stack gap="sm">
+        <Title order={5}>Current members</Title>
+        <div className={classes.tableWrap}>
+          {model.isHydrated ? (
+            <MantineReactTable
+              columns={model.memberColumns}
+              data={model.memberRows}
+              getRowId={(row) => row.key}
+              mantineTableContainerProps={{ className: 'financeTable' }}
+              mantineTableProps={{
+                highlightOnHover: true,
+                striped: 'odd',
+                withTableBorder: true,
+              }}
+              mantineTableBodyCellProps={{
+                style: { verticalAlign: 'middle' },
+              }}
+              enableColumnActions={false}
+              enableColumnFilters={false}
+              enableSorting
+              enableTopToolbar={false}
+              enableDensityToggle={false}
+              enableFullScreenToggle={false}
+              initialState={{
+                density: 'xs',
+                pagination: {
+                  pageIndex: 0,
+                  pageSize: model.isMobile ? 5 : 8,
+                },
+              }}
+            />
+          ) : (
+            <Paper className={classes.surfaceMuted} radius="xl" p="md">
+              <Stack gap="sm">
+                <Text size="sm" c="dimmed">
+                  Loading project members...
+                </Text>
+              </Stack>
+            </Paper>
+          )}
+        </div>
+      </Stack>
+    </Paper>
+  );
+}
+
+function ProjectSettingsPanelView({
+  model,
+}: {
+  model: ProjectSettingsPanelController;
+}) {
+  return (
+    <Stack gap="lg" className={classes.pageStack}>
+      <ProjectStructureSettingsCard model={model} />
+
+      <ProjectMembershipSettingsCard model={model} />
+
+      <ProjectBudgetSettingsCard model={model} />
+
+      <ProjectTaxonomySettingsCard model={model} />
 
       <ProjectAutoCodingRulesModal
-        opened={projectRulesModalOpen}
-        onClose={() => setProjectRulesModalOpen(false)}
-        companyId={companyId}
-        projectId={projectId}
-        readOnly={!canEditProject}
+        opened={model.projectRulesModalOpen}
+        onClose={() => model.setProjectRulesModalOpen(false)}
+        companyId={model.companyId}
+        projectId={model.projectId}
+        readOnly={!model.canEditProject}
       />
       <ProjectImportRulesModal
-        opened={projectImportRulesModalOpen}
-        onClose={() => setProjectImportRulesModalOpen(false)}
-        companyId={companyId}
-        projectId={projectId}
-        readOnly={!canEditProject}
+        opened={model.projectImportRulesModalOpen}
+        onClose={() => model.setProjectImportRulesModalOpen(false)}
+        companyId={model.companyId}
+        projectId={model.projectId}
+        readOnly={!model.canEditProject}
       />
 
       <TaxonomyManagerModal
-        opened={taxonomyModalOpen}
-        onClose={() => setTaxonomyModalOpen(false)}
-        taxonomy={settingsTaxonomy}
-        readOnly={!canEditTaxonomy}
+        opened={model.taxonomyModalOpen}
+        onClose={() => model.setTaxonomyModalOpen(false)}
+        taxonomy={model.settingsTaxonomy}
+        readOnly={!model.canEditTaxonomy}
       />
     </Stack>
   );
+}
+
+export default function ProjectSettingsPanel(
+  props: Parameters<typeof useProjectSettingsPanelController>[0]
+) {
+  const model = useProjectSettingsPanelController(props);
+  return <ProjectSettingsPanelView model={model} />;
 }

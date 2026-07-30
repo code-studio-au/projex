@@ -134,7 +134,7 @@ function commentDraftReducer(
   };
 }
 
-export default function TransactionCommentsModal(props: {
+function useTransactionCommentsModalController(props: {
   opened: boolean;
   txn: Txn | null;
   onClose: () => void;
@@ -431,6 +431,67 @@ export default function TransactionCommentsModal(props: {
     );
   }
 
+  return {
+    assignedToUserId,
+    body,
+    close,
+    commentsQ,
+    dispatchDraft,
+    error,
+    handleCommentKeyDown,
+    isMobile,
+    mentionOptions,
+    mentionRange,
+    onClose,
+    opened,
+    renderComment,
+    replyTarget,
+    selectMentionedUser,
+    selectedMentionIndex,
+    submit,
+    submitting,
+    syncMentionState,
+    textareaRef,
+    topLevelComments,
+    txn,
+    usersById,
+  };
+}
+
+type TransactionCommentsModalController = ReturnType<
+  typeof useTransactionCommentsModalController
+>;
+
+function TransactionCommentsModalView({
+  model,
+}: {
+  model: TransactionCommentsModalController;
+}) {
+  const {
+    assignedToUserId,
+    body,
+    close,
+    commentsQ,
+    dispatchDraft,
+    error,
+    handleCommentKeyDown,
+    isMobile,
+    mentionOptions,
+    mentionRange,
+    opened,
+    renderComment,
+    replyTarget,
+    selectMentionedUser,
+    selectedMentionIndex,
+    submit,
+    submitting,
+    syncMentionState,
+    textareaRef,
+    topLevelComments,
+    txn,
+    usersById,
+  } = model;
+
   return (
     <Modal
       opened={opened}
@@ -616,4 +677,11 @@ export default function TransactionCommentsModal(props: {
       )}
     </Modal>
   );
+}
+
+export default function TransactionCommentsModal(
+  props: Parameters<typeof useTransactionCommentsModalController>[0]
+) {
+  const model = useTransactionCommentsModalController(props);
+  return <TransactionCommentsModalView model={model} />;
 }

@@ -25,7 +25,7 @@ import {
   resolveTaxonomyDeleteRuleHandling,
 } from './taxonomyActionModel';
 
-export default function TaxonomyActionDialogs(props: {
+function useTaxonomyActionDialogsController(props: {
   taxonomy: TaxonomyHook;
   isMobile: boolean;
   error: string | null;
@@ -130,328 +130,419 @@ export default function TaxonomyActionDialogs(props: {
     onCloseDelete();
   }
 
+  return {
+    bulkRecode,
+    bulkRecodeCategoryId,
+    bulkRecodeSubCategoryId,
+    bulkRecodeSubCategoryOptions,
+    categoryOptions,
+    closeBulkRecode,
+    closeDelete,
+    closeMove,
+    deleteAffectedRules,
+    deleteReplacementCategoryId,
+    deleteReplacementSubCategoryId,
+    deleteReplacementSubCategoryOptions,
+    deleteRuleHandling,
+    deleting,
+    error,
+    isMobile,
+    moveAffectedRules,
+    moveCategoryId,
+    moveCategoryOptions,
+    moving,
+    onClearMessages,
+    onError,
+    onStatus,
+    pendingBulkRecode,
+    pendingDelete,
+    pendingMove,
+    setBulkRecodeSubCategoryId,
+    setDeleteReplacementCategoryId,
+    setDeleteReplacementSubCategoryId,
+    setDeleting,
+    setMoveCategoryId,
+    setMoving,
+    setSelectedBulkRecodeCategoryId,
+    setSelectedDeleteRuleHandling,
+    taxonomy,
+  };
+}
+
+type TaxonomyActionDialogsController = ReturnType<
+  typeof useTaxonomyActionDialogsController
+>;
+
+function MoveTaxonomyDialog({
+  model,
+}: {
+  model: TaxonomyActionDialogsController;
+}) {
+  return (
+    <Modal
+      opened={!!model.pendingMove}
+      onClose={model.closeMove}
+      title="Move subcategory"
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      lockScroll={false}
+    >
+      <Stack gap="md">
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          Move “{model.pendingMove?.subCategoryName ?? ''}” to another category.
+          Its budget line moves with it, and unlocked transactions using it will
+          be updated to the new category.
+        </Text>
+        {model.moveAffectedRules.length > 0 ? (
+          <Alert color="blue" title="Auto-coding impact">
+            {model.moveAffectedRules.length}{' '}
+            {model.moveAffectedRules.length === 1 ? 'rule' : 'rules'} targeting
+            this exact subcategory ID will follow the move automatically
+            {model.moveCategoryId
+              ? ` to ${
+                  model.taxonomy.categories.find(
+                    (category) => category.id === model.moveCategoryId
+                  )?.name ?? 'the selected category'
+                } > ${model.pendingMove?.subCategoryName ?? ''}`
+              : ''}
+            .
+          </Alert>
+        ) : null}
+        <Select
+          label="New category"
+          placeholder="Select category"
+          data={model.moveCategoryOptions}
+          value={model.moveCategoryId}
+          searchable
+          {...firefoxSafeModalSelectProps}
+          onChange={model.setMoveCategoryId}
+        />
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            disabled={model.moving}
+            onClick={model.closeMove}
+          >
+            Cancel
+          </Button>
+          <Button
+            fullWidth={model.isMobile}
+            loading={model.moving}
+            disabled={!model.pendingMove || !model.moveCategoryId}
+            onClick={async () => {
+              if (!model.pendingMove || !model.moveCategoryId) return;
+              try {
+                model.onClearMessages();
+                model.setMoving(true);
+                await model.taxonomy.moveSubCategory(
+                  asSubCategoryId(model.pendingMove.subCategoryId),
+                  asCategoryId(model.moveCategoryId)
+                );
+                const movedName = model.pendingMove.subCategoryName;
+                model.closeMove();
+                model.onStatus(`Moved subcategory "${movedName}".`);
+              } catch (caught) {
+                model.onError(
+                  caught instanceof Error
+                    ? caught.message
+                    : 'Could not move subcategory.'
+                );
+              } finally {
+                model.setMoving(false);
+              }
+            }}
+          >
+            Move subcategory
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function BulkRecodeTaxonomyDialog({
+  model,
+}: {
+  model: TaxonomyActionDialogsController;
+}) {
+  return (
+    <Modal
+      opened={!!model.pendingBulkRecode}
+      onClose={model.closeBulkRecode}
+      title="Recode transactions"
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      lockScroll={false}
+    >
+      <Stack gap="md">
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          Recode all unlocked transactions using “
+          {model.pendingBulkRecode?.subCategoryName ?? ''}” to another category
+          and subcategory. The existing subcategory remains available.
+        </Text>
+        <Select
+          label="Target category"
+          data={model.categoryOptions}
+          value={model.bulkRecodeCategoryId}
+          searchable
+          {...firefoxSafeModalSelectProps}
+          onChange={(value) => {
+            model.setSelectedBulkRecodeCategoryId(value);
+            model.setBulkRecodeSubCategoryId(null);
+          }}
+        />
+        <Select
+          label="Target subcategory"
+          placeholder={
+            model.bulkRecodeSubCategoryOptions.length === 0
+              ? 'No alternative subcategories'
+              : 'Select subcategory'
+          }
+          data={model.bulkRecodeSubCategoryOptions}
+          value={model.bulkRecodeSubCategoryId}
+          disabled={
+            !model.bulkRecodeCategoryId ||
+            model.bulkRecodeSubCategoryOptions.length === 0
+          }
+          searchable
+          {...firefoxSafeModalSelectProps}
+          onChange={model.setBulkRecodeSubCategoryId}
+        />
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            disabled={model.bulkRecode.isPending}
+            onClick={model.closeBulkRecode}
+          >
+            Cancel
+          </Button>
+          <Button
+            fullWidth={model.isMobile}
+            loading={model.bulkRecode.isPending}
+            disabled={
+              !model.pendingBulkRecode || !model.bulkRecodeSubCategoryId
+            }
+            onClick={async () => {
+              if (!model.pendingBulkRecode || !model.bulkRecodeCategoryId)
+                return;
+              if (!model.bulkRecodeSubCategoryId) return;
+              try {
+                model.onClearMessages();
+                const result = await model.bulkRecode.mutateAsync({
+                  fromSubCategoryId: asSubCategoryId(
+                    model.pendingBulkRecode.subCategoryId
+                  ),
+                  toCategoryId: asCategoryId(model.bulkRecodeCategoryId),
+                  toSubCategoryId: asSubCategoryId(
+                    model.bulkRecodeSubCategoryId
+                  ),
+                });
+                model.closeBulkRecode();
+                model.onStatus(
+                  result.updatedCount === 0
+                    ? 'No unlocked transactions needed recoding for that subcategory.'
+                    : `Recoded ${result.updatedCount} transactions.`
+                );
+              } catch (caught) {
+                model.onError(
+                  caught instanceof Error
+                    ? caught.message
+                    : 'Could not recode transactions.'
+                );
+              }
+            }}
+          >
+            Recode transactions
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function DeleteTaxonomyDialog({
+  model,
+}: {
+  model: TaxonomyActionDialogsController;
+}) {
+  return (
+    <Modal
+      opened={!!model.pendingDelete}
+      onClose={model.closeDelete}
+      title={
+        model.pendingDelete?.kind === 'category'
+          ? 'Delete category?'
+          : 'Delete subcategory?'
+      }
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      lockScroll={false}
+    >
+      <Stack gap="md">
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          {model.pendingDelete?.kind === 'category'
+            ? `Deleting "${model.pendingDelete.name}" will remove its subcategories and uncode affected transactions and budgets.`
+            : `Deleting "${model.pendingDelete?.name ?? ''}" will uncode affected transactions and budgets.`}
+        </Text>
+        {model.deleteAffectedRules.length > 0 ? (
+          <Alert color="yellow" title="Auto-coding rules affected">
+            {model.deleteAffectedRules.length}{' '}
+            {model.deleteAffectedRules.length === 1
+              ? 'rule targets'
+              : 'rules target'}{' '}
+            this {model.pendingDelete?.kind}. Matches:{' '}
+            {model.deleteAffectedRules.map((rule) => rule.matchText).join(', ')}
+            .
+          </Alert>
+        ) : null}
+        {model.pendingDelete?.kind === 'subcategory' &&
+        model.deleteAffectedRules.length > 0 ? (
+          <>
+            <Select
+              label="Affected rule handling"
+              data={[
+                {
+                  value: 'reassign',
+                  label: `Reassign ${model.deleteAffectedRules.length} ${
+                    model.deleteAffectedRules.length === 1 ? 'rule' : 'rules'
+                  } before deleting`,
+                },
+                {
+                  value: 'delete',
+                  label: `Delete ${model.deleteAffectedRules.length} ${
+                    model.deleteAffectedRules.length === 1 ? 'rule' : 'rules'
+                  } with the subcategory`,
+                },
+              ]}
+              value={model.deleteRuleHandling}
+              allowDeselect={false}
+              onChange={(value) => {
+                model.setSelectedDeleteRuleHandling(
+                  value === 'reassign' ? 'reassign' : 'delete'
+                );
+                model.setDeleteReplacementCategoryId(null);
+                model.setDeleteReplacementSubCategoryId(null);
+              }}
+            />
+            {model.deleteRuleHandling === 'reassign' ? (
+              <Group grow align="flex-end" wrap="wrap">
+                <Select
+                  label="Replacement category"
+                  data={model.categoryOptions}
+                  value={model.deleteReplacementCategoryId}
+                  searchable
+                  {...firefoxSafeModalSelectProps}
+                  onChange={(value) => {
+                    model.setDeleteReplacementCategoryId(value);
+                    model.setDeleteReplacementSubCategoryId(null);
+                  }}
+                />
+                <Select
+                  label="Replacement subcategory"
+                  placeholder={
+                    model.deleteReplacementCategoryId
+                      ? 'Select subcategory'
+                      : 'Choose category first'
+                  }
+                  data={model.deleteReplacementSubCategoryOptions}
+                  value={model.deleteReplacementSubCategoryId}
+                  searchable
+                  disabled={!model.deleteReplacementCategoryId}
+                  {...firefoxSafeModalSelectProps}
+                  onChange={model.setDeleteReplacementSubCategoryId}
+                />
+              </Group>
+            ) : null}
+          </>
+        ) : null}
+        {model.pendingDelete?.kind === 'category' &&
+        model.deleteAffectedRules.length > 0 ? (
+          <Text size="sm" c="dimmed">
+            Category deletion removes all affected rules. To preserve any of
+            them, cancel and reassign those rules before deleting the category.
+          </Text>
+        ) : null}
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            disabled={model.deleting}
+            onClick={model.closeDelete}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            fullWidth={model.isMobile}
+            loading={model.deleting}
+            disabled={
+              model.pendingDelete?.kind === 'subcategory' &&
+              model.deleteAffectedRules.length > 0 &&
+              model.deleteRuleHandling === 'reassign' &&
+              !model.deleteReplacementSubCategoryId
+            }
+            onClick={async () => {
+              if (!model.pendingDelete) return;
+              try {
+                model.onClearMessages();
+                model.setDeleting(true);
+                if (model.pendingDelete.kind === 'category') {
+                  await model.taxonomy.deleteCategory(
+                    asCategoryId(model.pendingDelete.id)
+                  );
+                } else {
+                  await model.taxonomy.deleteSubCategory(
+                    asSubCategoryId(model.pendingDelete.id),
+                    model.deleteRuleHandling === 'reassign' &&
+                      model.deleteReplacementSubCategoryId
+                      ? asSubCategoryId(model.deleteReplacementSubCategoryId)
+                      : undefined
+                  );
+                }
+                model.closeDelete();
+              } catch (caught) {
+                model.onError(
+                  caught instanceof Error
+                    ? caught.message
+                    : `Could not delete ${model.pendingDelete.kind}.`
+                );
+              } finally {
+                model.setDeleting(false);
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function TaxonomyActionDialogsView({
+  model,
+}: {
+  model: TaxonomyActionDialogsController;
+}) {
   return (
     <>
-      <Modal
-        opened={!!pendingMove}
-        onClose={closeMove}
-        title="Move subcategory"
-        fullScreen={isMobile}
-        centered={!isMobile}
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            Move “{pendingMove?.subCategoryName ?? ''}” to another category. Its
-            budget line moves with it, and unlocked transactions using it will
-            be updated to the new category.
-          </Text>
-          {moveAffectedRules.length > 0 ? (
-            <Alert color="blue" title="Auto-coding impact">
-              {moveAffectedRules.length}{' '}
-              {moveAffectedRules.length === 1 ? 'rule' : 'rules'} targeting this
-              exact subcategory ID will follow the move automatically
-              {moveCategoryId
-                ? ` to ${
-                    taxonomy.categories.find(
-                      (category) => category.id === moveCategoryId
-                    )?.name ?? 'the selected category'
-                  } > ${pendingMove?.subCategoryName ?? ''}`
-                : ''}
-              .
-            </Alert>
-          ) : null}
-          <Select
-            label="New category"
-            placeholder="Select category"
-            data={moveCategoryOptions}
-            value={moveCategoryId}
-            searchable
-            {...firefoxSafeModalSelectProps}
-            onChange={setMoveCategoryId}
-          />
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              disabled={moving}
-              onClick={closeMove}
-            >
-              Cancel
-            </Button>
-            <Button
-              fullWidth={isMobile}
-              loading={moving}
-              disabled={!pendingMove || !moveCategoryId}
-              onClick={async () => {
-                if (!pendingMove || !moveCategoryId) return;
-                try {
-                  onClearMessages();
-                  setMoving(true);
-                  await taxonomy.moveSubCategory(
-                    asSubCategoryId(pendingMove.subCategoryId),
-                    asCategoryId(moveCategoryId)
-                  );
-                  const movedName = pendingMove.subCategoryName;
-                  closeMove();
-                  onStatus(`Moved subcategory "${movedName}".`);
-                } catch (caught) {
-                  onError(
-                    caught instanceof Error
-                      ? caught.message
-                      : 'Could not move subcategory.'
-                  );
-                } finally {
-                  setMoving(false);
-                }
-              }}
-            >
-              Move subcategory
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <MoveTaxonomyDialog model={model} />
 
-      <Modal
-        opened={!!pendingBulkRecode}
-        onClose={closeBulkRecode}
-        title="Recode transactions"
-        fullScreen={isMobile}
-        centered={!isMobile}
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            Recode all unlocked transactions using “
-            {pendingBulkRecode?.subCategoryName ?? ''}” to another category and
-            subcategory. The existing subcategory remains available.
-          </Text>
-          <Select
-            label="Target category"
-            data={categoryOptions}
-            value={bulkRecodeCategoryId}
-            searchable
-            {...firefoxSafeModalSelectProps}
-            onChange={(value) => {
-              setSelectedBulkRecodeCategoryId(value);
-              setBulkRecodeSubCategoryId(null);
-            }}
-          />
-          <Select
-            label="Target subcategory"
-            placeholder={
-              bulkRecodeSubCategoryOptions.length === 0
-                ? 'No alternative subcategories'
-                : 'Select subcategory'
-            }
-            data={bulkRecodeSubCategoryOptions}
-            value={bulkRecodeSubCategoryId}
-            disabled={
-              !bulkRecodeCategoryId || bulkRecodeSubCategoryOptions.length === 0
-            }
-            searchable
-            {...firefoxSafeModalSelectProps}
-            onChange={setBulkRecodeSubCategoryId}
-          />
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              disabled={bulkRecode.isPending}
-              onClick={closeBulkRecode}
-            >
-              Cancel
-            </Button>
-            <Button
-              fullWidth={isMobile}
-              loading={bulkRecode.isPending}
-              disabled={!pendingBulkRecode || !bulkRecodeSubCategoryId}
-              onClick={async () => {
-                if (!pendingBulkRecode || !bulkRecodeCategoryId) return;
-                if (!bulkRecodeSubCategoryId) return;
-                try {
-                  onClearMessages();
-                  const result = await bulkRecode.mutateAsync({
-                    fromSubCategoryId: asSubCategoryId(
-                      pendingBulkRecode.subCategoryId
-                    ),
-                    toCategoryId: asCategoryId(bulkRecodeCategoryId),
-                    toSubCategoryId: asSubCategoryId(bulkRecodeSubCategoryId),
-                  });
-                  closeBulkRecode();
-                  onStatus(
-                    result.updatedCount === 0
-                      ? 'No unlocked transactions needed recoding for that subcategory.'
-                      : `Recoded ${result.updatedCount} transactions.`
-                  );
-                } catch (caught) {
-                  onError(
-                    caught instanceof Error
-                      ? caught.message
-                      : 'Could not recode transactions.'
-                  );
-                }
-              }}
-            >
-              Recode transactions
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <BulkRecodeTaxonomyDialog model={model} />
 
-      <Modal
-        opened={!!pendingDelete}
-        onClose={closeDelete}
-        title={
-          pendingDelete?.kind === 'category'
-            ? 'Delete category?'
-            : 'Delete subcategory?'
-        }
-        fullScreen={isMobile}
-        centered={!isMobile}
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            {pendingDelete?.kind === 'category'
-              ? `Deleting "${pendingDelete.name}" will remove its subcategories and uncode affected transactions and budgets.`
-              : `Deleting "${pendingDelete?.name ?? ''}" will uncode affected transactions and budgets.`}
-          </Text>
-          {deleteAffectedRules.length > 0 ? (
-            <Alert color="yellow" title="Auto-coding rules affected">
-              {deleteAffectedRules.length}{' '}
-              {deleteAffectedRules.length === 1
-                ? 'rule targets'
-                : 'rules target'}{' '}
-              this {pendingDelete?.kind}. Matches:{' '}
-              {deleteAffectedRules.map((rule) => rule.matchText).join(', ')}.
-            </Alert>
-          ) : null}
-          {pendingDelete?.kind === 'subcategory' &&
-          deleteAffectedRules.length > 0 ? (
-            <>
-              <Select
-                label="Affected rule handling"
-                data={[
-                  {
-                    value: 'reassign',
-                    label: `Reassign ${deleteAffectedRules.length} ${
-                      deleteAffectedRules.length === 1 ? 'rule' : 'rules'
-                    } before deleting`,
-                  },
-                  {
-                    value: 'delete',
-                    label: `Delete ${deleteAffectedRules.length} ${
-                      deleteAffectedRules.length === 1 ? 'rule' : 'rules'
-                    } with the subcategory`,
-                  },
-                ]}
-                value={deleteRuleHandling}
-                allowDeselect={false}
-                onChange={(value) => {
-                  setSelectedDeleteRuleHandling(
-                    value === 'reassign' ? 'reassign' : 'delete'
-                  );
-                  setDeleteReplacementCategoryId(null);
-                  setDeleteReplacementSubCategoryId(null);
-                }}
-              />
-              {deleteRuleHandling === 'reassign' ? (
-                <Group grow align="flex-end" wrap="wrap">
-                  <Select
-                    label="Replacement category"
-                    data={categoryOptions}
-                    value={deleteReplacementCategoryId}
-                    searchable
-                    {...firefoxSafeModalSelectProps}
-                    onChange={(value) => {
-                      setDeleteReplacementCategoryId(value);
-                      setDeleteReplacementSubCategoryId(null);
-                    }}
-                  />
-                  <Select
-                    label="Replacement subcategory"
-                    placeholder={
-                      deleteReplacementCategoryId
-                        ? 'Select subcategory'
-                        : 'Choose category first'
-                    }
-                    data={deleteReplacementSubCategoryOptions}
-                    value={deleteReplacementSubCategoryId}
-                    searchable
-                    disabled={!deleteReplacementCategoryId}
-                    {...firefoxSafeModalSelectProps}
-                    onChange={setDeleteReplacementSubCategoryId}
-                  />
-                </Group>
-              ) : null}
-            </>
-          ) : null}
-          {pendingDelete?.kind === 'category' &&
-          deleteAffectedRules.length > 0 ? (
-            <Text size="sm" c="dimmed">
-              Category deletion removes all affected rules. To preserve any of
-              them, cancel and reassign those rules before deleting the
-              category.
-            </Text>
-          ) : null}
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              disabled={deleting}
-              onClick={closeDelete}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              fullWidth={isMobile}
-              loading={deleting}
-              disabled={
-                pendingDelete?.kind === 'subcategory' &&
-                deleteAffectedRules.length > 0 &&
-                deleteRuleHandling === 'reassign' &&
-                !deleteReplacementSubCategoryId
-              }
-              onClick={async () => {
-                if (!pendingDelete) return;
-                try {
-                  onClearMessages();
-                  setDeleting(true);
-                  if (pendingDelete.kind === 'category') {
-                    await taxonomy.deleteCategory(
-                      asCategoryId(pendingDelete.id)
-                    );
-                  } else {
-                    await taxonomy.deleteSubCategory(
-                      asSubCategoryId(pendingDelete.id),
-                      deleteRuleHandling === 'reassign' &&
-                        deleteReplacementSubCategoryId
-                        ? asSubCategoryId(deleteReplacementSubCategoryId)
-                        : undefined
-                    );
-                  }
-                  closeDelete();
-                } catch (caught) {
-                  onError(
-                    caught instanceof Error
-                      ? caught.message
-                      : `Could not delete ${pendingDelete.kind}.`
-                  );
-                } finally {
-                  setDeleting(false);
-                }
-              }}
-            >
-              Delete
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <DeleteTaxonomyDialog model={model} />
     </>
   );
+}
+
+export default function TaxonomyActionDialogs(
+  props: Parameters<typeof useTaxonomyActionDialogsController>[0]
+) {
+  const model = useTaxonomyActionDialogsController(props);
+  return <TaxonomyActionDialogsView model={model} />;
 }

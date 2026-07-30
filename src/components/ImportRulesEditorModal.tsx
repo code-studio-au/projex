@@ -199,7 +199,7 @@ function importRulesEditorReducer(
   };
 }
 
-export default function ImportRulesEditorModal(props: {
+function useImportRulesEditorModalController(props: {
   opened: boolean;
   onClose: () => void;
   adapter: ImportRulesEditorAdapter;
@@ -283,39 +283,594 @@ export default function ImportRulesEditorModal(props: {
     onClose();
   }
 
+  return {
+    adapter,
+    beginEdit,
+    clearFeedback,
+    closeEdit,
+    closeManager,
+    dispatchEditor,
+    editAction,
+    editEnabled,
+    editField,
+    editName,
+    editOperator,
+    editValue,
+    editingRule,
+    error,
+    isMobile,
+    moveRule,
+    newAction,
+    newField,
+    newName,
+    newOperator,
+    newValue,
+    onClose,
+    opened,
+    pendingDelete,
+    projectScoped,
+    readOnly,
+    rules,
+    success,
+  };
+}
+
+type ImportRulesEditorModalController = ReturnType<
+  typeof useImportRulesEditorModalController
+>;
+
+function ImportRuleComposer({
+  model,
+}: {
+  model: ImportRulesEditorModalController;
+}) {
+  return (
+    <Paper withBorder radius="md" p="md" className={classes.taxonomyCreateCard}>
+      <Stack gap="sm">
+        <Stack gap={2}>
+          <Text fw={600}>
+            Add {model.projectScoped ? 'project' : 'company'} import rule
+          </Text>
+          <Text size="sm" c="dimmed">
+            Name the rule, choose its outcome, and define the matching
+            condition.
+          </Text>
+        </Stack>
+        <TextInput
+          label="Rule name"
+          placeholder={
+            model.projectScoped
+              ? 'e.g. Exclude shared service recharge rows'
+              : 'e.g. Exclude SAL payroll source'
+          }
+          value={model.newName}
+          onChange={(event) =>
+            model.dispatchEditor({
+              type: 'updateNewRule',
+              patch: { name: event.currentTarget.value },
+            })
+          }
+        />
+        <Group grow align="flex-end" wrap="wrap">
+          <Select
+            label="Action"
+            data={importRuleActionOptions}
+            value={model.newAction}
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              const next = toImportRuleAction(value);
+              if (next) {
+                model.dispatchEditor({
+                  type: 'updateNewRule',
+                  patch: { action: next },
+                });
+              }
+            }}
+          />
+          <Select
+            label="Field"
+            data={importRuleFieldOptions}
+            value={model.newField}
+            searchable
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              const next = toImportRuleField(value);
+              if (next) {
+                model.dispatchEditor({
+                  type: 'updateNewRule',
+                  patch: { field: next },
+                });
+              }
+            }}
+          />
+          <Select
+            label="Match"
+            data={importRuleOperatorOptions}
+            value={model.newOperator}
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              const next = toImportRuleOperator(value);
+              if (next) {
+                model.dispatchEditor({
+                  type: 'updateNewRule',
+                  patch: { operator: next },
+                });
+              }
+            }}
+          />
+        </Group>
+        <TextInput
+          label="Value"
+          placeholder={
+            model.projectScoped
+              ? 'e.g. payroll, SAL, recharge'
+              : 'e.g. SAL, EXA, payroll'
+          }
+          value={model.newValue}
+          onChange={(event) =>
+            model.dispatchEditor({
+              type: 'updateNewRule',
+              patch: { value: event.currentTarget.value },
+            })
+          }
+        />
+        <Group className={classes.footerRow}>
+          <Button
+            leftSection={<IconPlus size={16} />}
+            loading={model.adapter.creating}
+            disabled={!model.newName.trim() || !model.newValue.trim()}
+            onClick={async () => {
+              try {
+                model.clearFeedback();
+                await model.adapter.create({
+                  name: model.newName.trim(),
+                  action: model.newAction,
+                  field: model.newField,
+                  operator: model.newOperator,
+                  value: model.newValue.trim(),
+                  sortOrder: nextImportRuleSortOrder(model.rules),
+                  enabled: true,
+                });
+                model.dispatchEditor({ type: 'newRuleCreated' });
+              } catch (err) {
+                model.dispatchEditor({
+                  type: 'error',
+                  message:
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not add import rule.',
+                });
+              }
+            }}
+          >
+            Add rule
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
+
+function ImportRulesList({
+  model,
+}: {
+  model: ImportRulesEditorModalController;
+}) {
+  return (
+    <Stack gap="xs">
+      {model.rules.map((rule, index) => {
+        const sourceBadge = model.projectScoped
+          ? getProjectStandardBadge(rule)
+          : null;
+        const inherited = isInheritedCompanyStandard(rule);
+        const canMoveUp = canMoveImportRule({
+          rules: model.rules,
+          index,
+          direction: -1,
+          scope: model.adapter.scope,
+        });
+        const canMoveDown = canMoveImportRule({
+          rules: model.rules,
+          index,
+          direction: 1,
+          scope: model.adapter.scope,
+        });
+        return (
+          <ManagementListCard
+            key={rule.id}
+            title={rule.name}
+            badges={
+              <>
+                <Badge variant="light">Rule {index + 1}</Badge>
+                <Badge variant="light" color={rule.enabled ? 'green' : 'gray'}>
+                  {rule.enabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+                <Badge variant="light" color={actionColor(rule.action)}>
+                  {optionLabel(importRuleActionOptions, rule.action)}
+                </Badge>
+                {sourceBadge ? (
+                  <Badge variant="light" color={sourceBadge.color}>
+                    {sourceBadge.label}
+                  </Badge>
+                ) : null}
+              </>
+            }
+            metadata={
+              <Text size="sm" c="dimmed">
+                {optionLabel(importRuleFieldOptions, rule.field)} ·{' '}
+                {optionLabel(importRuleOperatorOptions, rule.operator)} · “
+                {rule.value}”
+              </Text>
+            }
+            actions={
+              !model.readOnly ? (
+                <ManagementActionsMenu
+                  label={`Actions for import rule ${rule.name}`}
+                >
+                  <Menu.Item onClick={() => model.beginEdit(rule)}>
+                    Edit rule
+                  </Menu.Item>
+                  <Menu.Item
+                    disabled={model.adapter.updating}
+                    onClick={async () => {
+                      try {
+                        model.clearFeedback();
+                        await model.adapter.update({
+                          id: rule.id,
+                          enabled: !rule.enabled,
+                        });
+                        model.dispatchEditor({
+                          type: 'success',
+                          message: rule.enabled
+                            ? 'Disabled import rule.'
+                            : 'Enabled import rule.',
+                        });
+                      } catch (err) {
+                        model.dispatchEditor({
+                          type: 'error',
+                          message:
+                            err instanceof Error
+                              ? err.message
+                              : 'Could not update import rule.',
+                        });
+                      }
+                    }}
+                  >
+                    {rule.enabled ? 'Disable rule' : 'Enable rule'}
+                  </Menu.Item>
+                  <Menu.Item
+                    disabled={!canMoveUp || model.adapter.updating}
+                    onClick={() => void model.moveRule(rule.id, -1)}
+                  >
+                    Move up
+                  </Menu.Item>
+                  <Menu.Item
+                    disabled={!canMoveDown || model.adapter.updating}
+                    onClick={() => void model.moveRule(rule.id, 1)}
+                  >
+                    Move down
+                  </Menu.Item>
+                  {model.projectScoped &&
+                  model.adapter.canPromote &&
+                  model.adapter.promote &&
+                  !inherited ? (
+                    <Menu.Item
+                      disabled={model.adapter.promoting}
+                      onClick={async () => {
+                        try {
+                          model.clearFeedback();
+                          const promoted = await model.adapter.promote?.(
+                            rule.id
+                          );
+                          model.dispatchEditor({
+                            type: 'success',
+                            message: `Added "${rule.name}" to company import rules as "${promoted?.name ?? rule.name}".`,
+                          });
+                        } catch (err) {
+                          model.dispatchEditor({
+                            type: 'error',
+                            message:
+                              err instanceof Error
+                                ? err.message
+                                : 'Could not add rule to company import rules.',
+                          });
+                        }
+                      }}
+                    >
+                      Add to company import rules
+                    </Menu.Item>
+                  ) : null}
+                  {!inherited ? (
+                    <>
+                      <Menu.Divider />
+                      <Menu.Item
+                        color="red"
+                        leftSection={<IconTrash size={15} />}
+                        onClick={() => {
+                          model.clearFeedback();
+                          model.dispatchEditor({
+                            type: 'requestDelete',
+                            rule,
+                          });
+                        }}
+                      >
+                        Delete rule
+                      </Menu.Item>
+                    </>
+                  ) : null}
+                </ManagementActionsMenu>
+              ) : null
+            }
+          />
+        );
+      })}
+      <Text size="xs" c="dimmed">
+        Priority runs from top to bottom. Disabled rules are skipped.
+      </Text>
+    </Stack>
+  );
+}
+
+function EditImportRuleModal({
+  model,
+}: {
+  model: ImportRulesEditorModalController;
+}) {
+  return (
+    <Modal
+      opened={!!model.editingRule}
+      onClose={model.closeEdit}
+      title="Edit import rule"
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      lockScroll={false}
+    >
+      <Stack gap="md">
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
+        {model.projectScoped && model.editingRule?.originScope === 'company' ? (
+          <Text size="sm" c="dimmed" className={classes.modalIntro}>
+            Editing this inherited rule creates a project-specific override.
+          </Text>
+        ) : null}
+        <TextInput
+          label="Rule name"
+          value={model.editName}
+          onChange={(event) =>
+            model.dispatchEditor({
+              type: 'updateEditRule',
+              patch: { name: event.currentTarget.value },
+            })
+          }
+        />
+        <Group grow align="flex-end" wrap="wrap">
+          <Select
+            label="Action"
+            data={importRuleActionOptions}
+            value={model.editAction}
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              const next = toImportRuleAction(value);
+              if (next) {
+                model.dispatchEditor({
+                  type: 'updateEditRule',
+                  patch: { action: next },
+                });
+              }
+            }}
+          />
+          <Select
+            label="Field"
+            data={importRuleFieldOptions}
+            value={model.editField}
+            searchable
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              const next = toImportRuleField(value);
+              if (next) {
+                model.dispatchEditor({
+                  type: 'updateEditRule',
+                  patch: { field: next },
+                });
+              }
+            }}
+          />
+          <Select
+            label="Match"
+            data={importRuleOperatorOptions}
+            value={model.editOperator}
+            {...firefoxSafeModalSelectProps}
+            onChange={(value) => {
+              const next = toImportRuleOperator(value);
+              if (next) {
+                model.dispatchEditor({
+                  type: 'updateEditRule',
+                  patch: { operator: next },
+                });
+              }
+            }}
+          />
+        </Group>
+        <TextInput
+          label="Value"
+          value={model.editValue}
+          onChange={(event) =>
+            model.dispatchEditor({
+              type: 'updateEditRule',
+              patch: { value: event.currentTarget.value },
+            })
+          }
+        />
+        <Switch
+          label="Rule enabled"
+          checked={model.editEnabled}
+          onChange={(event) =>
+            model.dispatchEditor({
+              type: 'updateEditRule',
+              patch: { enabled: event.currentTarget.checked },
+            })
+          }
+        />
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            disabled={model.adapter.updating}
+            onClick={model.closeEdit}
+          >
+            Cancel
+          </Button>
+          <Button
+            fullWidth={model.isMobile}
+            loading={model.adapter.updating}
+            disabled={
+              !model.editingRule ||
+              !model.editName.trim() ||
+              !model.editValue.trim()
+            }
+            onClick={async () => {
+              if (!model.editingRule) return;
+              try {
+                model.clearFeedback();
+                await model.adapter.update({
+                  id: model.editingRule.id,
+                  name: model.editName.trim(),
+                  action: model.editAction,
+                  field: model.editField,
+                  operator: model.editOperator,
+                  value: model.editValue.trim(),
+                  enabled: model.editEnabled,
+                  sortOrder: model.editingRule.sortOrder,
+                });
+                model.closeEdit();
+                model.dispatchEditor({
+                  type: 'success',
+                  message: 'Updated import rule.',
+                });
+              } catch (err) {
+                model.dispatchEditor({
+                  type: 'error',
+                  message:
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not update import rule.',
+                });
+              }
+            }}
+          >
+            Save changes
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function DeleteImportRuleModal({
+  model,
+}: {
+  model: ImportRulesEditorModalController;
+}) {
+  return (
+    <Modal
+      opened={!!model.pendingDelete}
+      onClose={() =>
+        model.dispatchEditor({ type: 'requestDelete', rule: null })
+      }
+      title="Delete import rule?"
+      fullScreen={model.isMobile}
+      centered={!model.isMobile}
+      lockScroll={false}
+    >
+      <Stack gap="md">
+        {model.error ? <Alert color="red">{model.error}</Alert> : null}
+        <Text size="sm" c="dimmed" className={classes.modalIntro}>
+          Delete “{model.pendingDelete?.name ?? ''}”? Previous import decisions
+          and existing transactions are not changed.
+        </Text>
+        <Group className={classes.footerRow}>
+          <Button
+            variant="default"
+            fullWidth={model.isMobile}
+            disabled={model.adapter.deleting}
+            onClick={() =>
+              model.dispatchEditor({ type: 'requestDelete', rule: null })
+            }
+          >
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            fullWidth={model.isMobile}
+            loading={model.adapter.deleting}
+            onClick={async () => {
+              if (!model.pendingDelete) return;
+              try {
+                model.clearFeedback();
+                await model.adapter.delete(model.pendingDelete.id);
+                model.dispatchEditor({ type: 'requestDelete', rule: null });
+                model.dispatchEditor({
+                  type: 'success',
+                  message: 'Deleted import rule.',
+                });
+              } catch (err) {
+                model.dispatchEditor({
+                  type: 'error',
+                  message:
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not delete import rule.',
+                });
+              }
+            }}
+          >
+            Delete rule
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+function ImportRulesEditorModalView({
+  model,
+}: {
+  model: ImportRulesEditorModalController;
+}) {
   return (
     <>
       <Modal
-        opened={opened}
-        onClose={closeManager}
+        opened={model.opened}
+        onClose={model.closeManager}
         title={
-          projectScoped
+          model.projectScoped
             ? 'Manage project import rules'
             : 'Manage company import rules'
         }
-        fullScreen={isMobile}
-        centered={!isMobile}
+        fullScreen={model.isMobile}
+        centered={!model.isMobile}
         size="lg"
         lockScroll={false}
         styles={{
           body: {
-            maxHeight: isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
+            maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',
             overflowY: 'auto',
           },
         }}
       >
         <Stack gap="md" className={classes.modalStack}>
-          {error ? <Alert color="red">{error}</Alert> : null}
-          {success ? (
+          {model.error ? <Alert color="red">{model.error}</Alert> : null}
+          {model.success ? (
             <Alert
               color="green"
               withCloseButton
-              onClose={() => dispatchEditor({ type: 'success', message: null })}
+              onClose={() =>
+                model.dispatchEditor({ type: 'success', message: null })
+              }
             >
-              {success}
+              {model.success}
             </Alert>
           ) : null}
-          {readOnly ? (
+          {model.readOnly ? (
             <Alert color="blue">
               You can view import rules, but you do not have permission to
               change them.
@@ -323,503 +878,34 @@ export default function ImportRulesEditorModal(props: {
           ) : null}
 
           <ManagementModalIntro title="Import rule priority">
-            {projectScoped
+            {model.projectScoped
               ? 'Project rules run before company rules, allowing project-specific import handling. The first enabled match wins.'
               : 'Company rules decide whether matching rows import, are excluded, or require a preview decision before auto-coding runs. The first enabled match wins.'}{' '}
             For “any of” matches, separate values with commas or new lines.
           </ManagementModalIntro>
 
-          {!readOnly ? (
-            <Paper
-              withBorder
-              radius="md"
-              p="md"
-              className={classes.taxonomyCreateCard}
-            >
-              <Stack gap="sm">
-                <Stack gap={2}>
-                  <Text fw={600}>
-                    Add {projectScoped ? 'project' : 'company'} import rule
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    Name the rule, choose its outcome, and define the matching
-                    condition.
-                  </Text>
-                </Stack>
-                <TextInput
-                  label="Rule name"
-                  placeholder={
-                    projectScoped
-                      ? 'e.g. Exclude shared service recharge rows'
-                      : 'e.g. Exclude SAL payroll source'
-                  }
-                  value={newName}
-                  onChange={(event) =>
-                    dispatchEditor({
-                      type: 'updateNewRule',
-                      patch: { name: event.currentTarget.value },
-                    })
-                  }
-                />
-                <Group grow align="flex-end" wrap="wrap">
-                  <Select
-                    label="Action"
-                    data={importRuleActionOptions}
-                    value={newAction}
-                    {...firefoxSafeModalSelectProps}
-                    onChange={(value) => {
-                      const next = toImportRuleAction(value);
-                      if (next) {
-                        dispatchEditor({
-                          type: 'updateNewRule',
-                          patch: { action: next },
-                        });
-                      }
-                    }}
-                  />
-                  <Select
-                    label="Field"
-                    data={importRuleFieldOptions}
-                    value={newField}
-                    searchable
-                    {...firefoxSafeModalSelectProps}
-                    onChange={(value) => {
-                      const next = toImportRuleField(value);
-                      if (next) {
-                        dispatchEditor({
-                          type: 'updateNewRule',
-                          patch: { field: next },
-                        });
-                      }
-                    }}
-                  />
-                  <Select
-                    label="Match"
-                    data={importRuleOperatorOptions}
-                    value={newOperator}
-                    {...firefoxSafeModalSelectProps}
-                    onChange={(value) => {
-                      const next = toImportRuleOperator(value);
-                      if (next) {
-                        dispatchEditor({
-                          type: 'updateNewRule',
-                          patch: { operator: next },
-                        });
-                      }
-                    }}
-                  />
-                </Group>
-                <TextInput
-                  label="Value"
-                  placeholder={
-                    projectScoped
-                      ? 'e.g. payroll, SAL, recharge'
-                      : 'e.g. SAL, EXA, payroll'
-                  }
-                  value={newValue}
-                  onChange={(event) =>
-                    dispatchEditor({
-                      type: 'updateNewRule',
-                      patch: { value: event.currentTarget.value },
-                    })
-                  }
-                />
-                <Group className={classes.footerRow}>
-                  <Button
-                    leftSection={<IconPlus size={16} />}
-                    loading={adapter.creating}
-                    disabled={!newName.trim() || !newValue.trim()}
-                    onClick={async () => {
-                      try {
-                        clearFeedback();
-                        await adapter.create({
-                          name: newName.trim(),
-                          action: newAction,
-                          field: newField,
-                          operator: newOperator,
-                          value: newValue.trim(),
-                          sortOrder: nextImportRuleSortOrder(rules),
-                          enabled: true,
-                        });
-                        dispatchEditor({ type: 'newRuleCreated' });
-                      } catch (err) {
-                        dispatchEditor({
-                          type: 'error',
-                          message:
-                            err instanceof Error
-                              ? err.message
-                              : 'Could not add import rule.',
-                        });
-                      }
-                    }}
-                  >
-                    Add rule
-                  </Button>
-                </Group>
-              </Stack>
-            </Paper>
-          ) : null}
+          {!model.readOnly ? <ImportRuleComposer model={model} /> : null}
 
-          {adapter.loading && rules.length === 0 ? (
+          {model.adapter.loading && model.rules.length === 0 ? (
             <Text className={classes.emptyState}>Loading import rules…</Text>
-          ) : rules.length === 0 ? (
+          ) : model.rules.length === 0 ? (
             <Text className={classes.emptyState}>No import rules yet.</Text>
           ) : (
-            <Stack gap="xs">
-              {rules.map((rule, index) => {
-                const sourceBadge = projectScoped
-                  ? getProjectStandardBadge(rule)
-                  : null;
-                const inherited = isInheritedCompanyStandard(rule);
-                const canMoveUp = canMoveImportRule({
-                  rules,
-                  index,
-                  direction: -1,
-                  scope: adapter.scope,
-                });
-                const canMoveDown = canMoveImportRule({
-                  rules,
-                  index,
-                  direction: 1,
-                  scope: adapter.scope,
-                });
-                return (
-                  <ManagementListCard
-                    key={rule.id}
-                    title={rule.name}
-                    badges={
-                      <>
-                        <Badge variant="light">Rule {index + 1}</Badge>
-                        <Badge
-                          variant="light"
-                          color={rule.enabled ? 'green' : 'gray'}
-                        >
-                          {rule.enabled ? 'Enabled' : 'Disabled'}
-                        </Badge>
-                        <Badge variant="light" color={actionColor(rule.action)}>
-                          {optionLabel(importRuleActionOptions, rule.action)}
-                        </Badge>
-                        {sourceBadge ? (
-                          <Badge variant="light" color={sourceBadge.color}>
-                            {sourceBadge.label}
-                          </Badge>
-                        ) : null}
-                      </>
-                    }
-                    metadata={
-                      <Text size="sm" c="dimmed">
-                        {optionLabel(importRuleFieldOptions, rule.field)} ·{' '}
-                        {optionLabel(importRuleOperatorOptions, rule.operator)}{' '}
-                        · “{rule.value}”
-                      </Text>
-                    }
-                    actions={
-                      !readOnly ? (
-                        <ManagementActionsMenu
-                          label={`Actions for import rule ${rule.name}`}
-                        >
-                          <Menu.Item onClick={() => beginEdit(rule)}>
-                            Edit rule
-                          </Menu.Item>
-                          <Menu.Item
-                            disabled={adapter.updating}
-                            onClick={async () => {
-                              try {
-                                clearFeedback();
-                                await adapter.update({
-                                  id: rule.id,
-                                  enabled: !rule.enabled,
-                                });
-                                dispatchEditor({
-                                  type: 'success',
-                                  message: rule.enabled
-                                    ? 'Disabled import rule.'
-                                    : 'Enabled import rule.',
-                                });
-                              } catch (err) {
-                                dispatchEditor({
-                                  type: 'error',
-                                  message:
-                                    err instanceof Error
-                                      ? err.message
-                                      : 'Could not update import rule.',
-                                });
-                              }
-                            }}
-                          >
-                            {rule.enabled ? 'Disable rule' : 'Enable rule'}
-                          </Menu.Item>
-                          <Menu.Item
-                            disabled={!canMoveUp || adapter.updating}
-                            onClick={() => void moveRule(rule.id, -1)}
-                          >
-                            Move up
-                          </Menu.Item>
-                          <Menu.Item
-                            disabled={!canMoveDown || adapter.updating}
-                            onClick={() => void moveRule(rule.id, 1)}
-                          >
-                            Move down
-                          </Menu.Item>
-                          {projectScoped &&
-                          adapter.canPromote &&
-                          adapter.promote &&
-                          !inherited ? (
-                            <Menu.Item
-                              disabled={adapter.promoting}
-                              onClick={async () => {
-                                try {
-                                  clearFeedback();
-                                  const promoted = await adapter.promote?.(
-                                    rule.id
-                                  );
-                                  dispatchEditor({
-                                    type: 'success',
-                                    message: `Added "${rule.name}" to company import rules as "${promoted?.name ?? rule.name}".`,
-                                  });
-                                } catch (err) {
-                                  dispatchEditor({
-                                    type: 'error',
-                                    message:
-                                      err instanceof Error
-                                        ? err.message
-                                        : 'Could not add rule to company import rules.',
-                                  });
-                                }
-                              }}
-                            >
-                              Add to company import rules
-                            </Menu.Item>
-                          ) : null}
-                          {!inherited ? (
-                            <>
-                              <Menu.Divider />
-                              <Menu.Item
-                                color="red"
-                                leftSection={<IconTrash size={15} />}
-                                onClick={() => {
-                                  clearFeedback();
-                                  dispatchEditor({
-                                    type: 'requestDelete',
-                                    rule,
-                                  });
-                                }}
-                              >
-                                Delete rule
-                              </Menu.Item>
-                            </>
-                          ) : null}
-                        </ManagementActionsMenu>
-                      ) : null
-                    }
-                  />
-                );
-              })}
-              <Text size="xs" c="dimmed">
-                Priority runs from top to bottom. Disabled rules are skipped.
-              </Text>
-            </Stack>
+            <ImportRulesList model={model} />
           )}
         </Stack>
       </Modal>
 
-      <Modal
-        opened={!!editingRule}
-        onClose={closeEdit}
-        title="Edit import rule"
-        fullScreen={isMobile}
-        centered={!isMobile}
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          {projectScoped && editingRule?.originScope === 'company' ? (
-            <Text size="sm" c="dimmed" className={classes.modalIntro}>
-              Editing this inherited rule creates a project-specific override.
-            </Text>
-          ) : null}
-          <TextInput
-            label="Rule name"
-            value={editName}
-            onChange={(event) =>
-              dispatchEditor({
-                type: 'updateEditRule',
-                patch: { name: event.currentTarget.value },
-              })
-            }
-          />
-          <Group grow align="flex-end" wrap="wrap">
-            <Select
-              label="Action"
-              data={importRuleActionOptions}
-              value={editAction}
-              {...firefoxSafeModalSelectProps}
-              onChange={(value) => {
-                const next = toImportRuleAction(value);
-                if (next) {
-                  dispatchEditor({
-                    type: 'updateEditRule',
-                    patch: { action: next },
-                  });
-                }
-              }}
-            />
-            <Select
-              label="Field"
-              data={importRuleFieldOptions}
-              value={editField}
-              searchable
-              {...firefoxSafeModalSelectProps}
-              onChange={(value) => {
-                const next = toImportRuleField(value);
-                if (next) {
-                  dispatchEditor({
-                    type: 'updateEditRule',
-                    patch: { field: next },
-                  });
-                }
-              }}
-            />
-            <Select
-              label="Match"
-              data={importRuleOperatorOptions}
-              value={editOperator}
-              {...firefoxSafeModalSelectProps}
-              onChange={(value) => {
-                const next = toImportRuleOperator(value);
-                if (next) {
-                  dispatchEditor({
-                    type: 'updateEditRule',
-                    patch: { operator: next },
-                  });
-                }
-              }}
-            />
-          </Group>
-          <TextInput
-            label="Value"
-            value={editValue}
-            onChange={(event) =>
-              dispatchEditor({
-                type: 'updateEditRule',
-                patch: { value: event.currentTarget.value },
-              })
-            }
-          />
-          <Switch
-            label="Rule enabled"
-            checked={editEnabled}
-            onChange={(event) =>
-              dispatchEditor({
-                type: 'updateEditRule',
-                patch: { enabled: event.currentTarget.checked },
-              })
-            }
-          />
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              disabled={adapter.updating}
-              onClick={closeEdit}
-            >
-              Cancel
-            </Button>
-            <Button
-              fullWidth={isMobile}
-              loading={adapter.updating}
-              disabled={!editingRule || !editName.trim() || !editValue.trim()}
-              onClick={async () => {
-                if (!editingRule) return;
-                try {
-                  clearFeedback();
-                  await adapter.update({
-                    id: editingRule.id,
-                    name: editName.trim(),
-                    action: editAction,
-                    field: editField,
-                    operator: editOperator,
-                    value: editValue.trim(),
-                    enabled: editEnabled,
-                    sortOrder: editingRule.sortOrder,
-                  });
-                  closeEdit();
-                  dispatchEditor({
-                    type: 'success',
-                    message: 'Updated import rule.',
-                  });
-                } catch (err) {
-                  dispatchEditor({
-                    type: 'error',
-                    message:
-                      err instanceof Error
-                        ? err.message
-                        : 'Could not update import rule.',
-                  });
-                }
-              }}
-            >
-              Save changes
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <EditImportRuleModal model={model} />
 
-      <Modal
-        opened={!!pendingDelete}
-        onClose={() => dispatchEditor({ type: 'requestDelete', rule: null })}
-        title="Delete import rule?"
-        fullScreen={isMobile}
-        centered={!isMobile}
-        lockScroll={false}
-      >
-        <Stack gap="md">
-          {error ? <Alert color="red">{error}</Alert> : null}
-          <Text size="sm" c="dimmed" className={classes.modalIntro}>
-            Delete “{pendingDelete?.name ?? ''}”? Previous import decisions and
-            existing transactions are not changed.
-          </Text>
-          <Group className={classes.footerRow}>
-            <Button
-              variant="default"
-              fullWidth={isMobile}
-              disabled={adapter.deleting}
-              onClick={() =>
-                dispatchEditor({ type: 'requestDelete', rule: null })
-              }
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              fullWidth={isMobile}
-              loading={adapter.deleting}
-              onClick={async () => {
-                if (!pendingDelete) return;
-                try {
-                  clearFeedback();
-                  await adapter.delete(pendingDelete.id);
-                  dispatchEditor({ type: 'requestDelete', rule: null });
-                  dispatchEditor({
-                    type: 'success',
-                    message: 'Deleted import rule.',
-                  });
-                } catch (err) {
-                  dispatchEditor({
-                    type: 'error',
-                    message:
-                      err instanceof Error
-                        ? err.message
-                        : 'Could not delete import rule.',
-                  });
-                }
-              }}
-            >
-              Delete rule
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <DeleteImportRuleModal model={model} />
     </>
   );
+}
+
+export default function ImportRulesEditorModal(
+  props: Parameters<typeof useImportRulesEditorModalController>[0]
+) {
+  const model = useImportRulesEditorModalController(props);
+  return <ImportRulesEditorModalView model={model} />;
 }

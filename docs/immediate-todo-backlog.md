@@ -591,11 +591,9 @@ logging.
 - a repository boundary test rejects direct console logging from production
   TypeScript while retaining the explicit CLI allowlist
 
-# Pending review items
-
 ## Item 9 — Continue responsibility-based decomposition
 
-### Finding
+### Original finding
 
 The earlier maintainability tranche removed the circular dependency, split
 response schemas, extracted major views and workflow services, removed
@@ -623,27 +621,45 @@ Line count alone is not a defect. The risk is that some of these files still
 combine data acquisition, permission decisions, mutation orchestration,
 derived models, modal state, and presentation.
 
-### Recommendation
+### Resolution
 
-- Prioritize files where one change routinely touches unrelated concerns.
-- Extract pure derivation models and mutation controllers before extracting
-  presentational fragments.
-- Keep route/page coordinators responsible for access, loader/query state, and
-  navigation, not full feature presentation.
-- Continue splitting API schemas and types by transport/domain ownership while
-  preserving shared primitive boundaries.
-- Keep server transaction boundaries in one visible orchestration layer; do not
-  fragment atomic business operations into opaque helpers.
-- Add boundary or focused tests with each extraction.
-- Avoid arbitrary maximum-line rules that encourage cosmetic file splitting.
+The current React Doctor inventory identified 21 genuine oversized React
+components. All 21 now separate state, data acquisition, permission decisions,
+derived models, and mutation orchestration into controller hooks while focused
+views own presentation.
 
-Suggested next candidates:
+The decompositions follow feature responsibilities rather than arbitrary file
+length:
 
-1. Company-default taxonomy editing and destructive action orchestration.
-2. Company summary derivation versus dashboard presentation.
-3. Project settings mutation and confirmation orchestration.
-4. Remaining import preview commit phases.
-5. The residual API schema/type modules.
+- taxonomy and rule editors separate composition, lists, evidence, move,
+  recode, edit, and delete dialogs
+- company and project settings separate details, membership, operational,
+  budget, and taxonomy cards
+- company and project dashboards separate route coordination from headers,
+  tabs, programme/operational workspaces, and lifecycle confirmation
+- transaction surfaces separate overview, table, modal, comments, reversal
+  summaries, and state-specific reversal actions
+- import and export surfaces separate workflow controllers from upload,
+  preview, decision, and status presentation
+- the system-check dashboard separates authenticated streaming and retry
+  orchestration from controls, run focus, and section results
+
+The large server transaction and schema modules were not split merely to lower
+line counts. Their atomic orchestration and shared-contract ownership remain
+visible until a concrete responsibility boundary justifies a separate change.
+This preserves the original warning against cosmetic decomposition.
+
+### Verification and regression protection
+
+- the pinned local React Doctor full scan reports zero errors and zero warnings
+- maintainability-boundary tests protect each controller/view separation
+  without enforcing a repository-wide maximum-line rule
+- existing component, workflow, lazy-panel, browser, and application gates
+  continue covering runtime behavior across the extracted boundaries
+- TypeScript, ESLint, Prettier, dead-code, build, and bundle checks validate the
+  refactor as one application-wide tranche
+
+# Pending review items
 
 ## Item 10 — Expand risk-based test visibility
 
@@ -725,7 +741,7 @@ or repeat visits.
 
 | Area                  | Assessment               | Current position                                                                                       |
 | --------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------ |
-| Architecture          | Strong                   | Clear client/server and transport boundaries; several large coordinators remain                        |
+| Architecture          | Strong                   | Clear client/server, transport, controller, and focused-view boundaries                                |
 | Financial correctness | Strong                   | Server-owned decisions, integer cents, DB constraints, and explicit financial saves                    |
 | Type and code quality | Strong                   | Strict TypeScript, no application `any`, lint, formatting, Knip, and boundary tests                    |
 | Security              | Strong                   | Central authorization, CSP, exact origins, TLS, invite-only auth, hosted scanning, and hardened deploy |
@@ -751,11 +767,11 @@ Strengths:
   enforced below the UI.
 - Hydration behavior remains centralized in `useIsHydrated`.
 
-Remaining work:
+Ongoing controls:
 
-- complete the responsibility-based decompositions in Item 9
 - retain the exact framework cohort and its verification under Item 8
 - retain direct boundary tests whenever a new server/client bridge is added
+- retain controller/view boundaries when the decomposed workflows evolve
 
 ## Security and privacy
 
