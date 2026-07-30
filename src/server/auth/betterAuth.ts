@@ -1,12 +1,14 @@
 import type { ServerSession } from './session';
 import { toServerSession } from './session';
 import { readDevUserIdFromRequest } from '../dev/devSession';
+import { logServerEvent } from '../../api/serverLogging';
 
 /**
  * Resolve the current user session directly through Better Auth.
  */
 export async function getAuthSessionFromRequest(
-  req: Request
+  req: Request,
+  requestId?: string
 ): Promise<ServerSession | null> {
   try {
     const { getBetterAuthInstance } = await import('./betterAuthInstance');
@@ -15,7 +17,17 @@ export async function getAuthSessionFromRequest(
     const normalized = toServerSession(session);
     if (normalized) return normalized;
   } catch (err) {
-    console.error('[auth] better-auth session resolution failed', err);
+    const url = new URL(req.url);
+    logServerEvent({
+      level: 'error',
+      event: 'auth_session_resolution_failed',
+      error: err,
+      fields: {
+        requestId: requestId ?? req.headers.get('x-request-id') ?? undefined,
+        method: req.method,
+        path: url.pathname,
+      },
+    });
   }
 
   // Dev-only fallback session for local server-mode auth flows.

@@ -24,15 +24,20 @@ test('resolveRequestServerContext caches resolved session state per request', as
   const request = new Request('http://localhost:3000/api/companies');
 
   const [first, second] = await Promise.all([
-    resolveRequestServerContext(request),
-    resolveRequestServerContext(request),
+    resolveRequestServerContext(request, 'req_context'),
+    resolveRequestServerContext(request, 'req_context'),
   ]);
 
   assert.equal(resolveVerifiedCurrentSessionMock.mock.calls.length, 1);
+  assert.deepEqual(resolveVerifiedCurrentSessionMock.mock.calls[0], [
+    request,
+    'req_context',
+  ]);
   assert.strictEqual(first, second);
   assert.deepEqual(first.session, { userId: asUserId('usr_1') });
   assert.equal(first.serverContext.sessionVerified, true);
   assert.strictEqual(first.serverContext.request, request);
+  assert.equal(first.serverContext.requestId, 'req_context');
   assert.deepEqual(first.serverContext.session, first.session);
 });
 

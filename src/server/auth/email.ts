@@ -1,3 +1,5 @@
+import { logServerEvent } from '../../api/serverLogging';
+
 export type AuthEmailDelivery = 'email' | 'log';
 
 type AuthEmailPayload = {
@@ -92,10 +94,10 @@ export async function sendAuthEmail(
 
   const webhookUrl = getWebhookUrl();
   if (!webhookUrl) {
-    console.info(
-      '[auth-email] Email delivery not configured; logging message instead.',
-      JSON.stringify(payload, null, 2)
-    );
+    logServerEvent({
+      level: 'info',
+      event: 'auth_email_delivery_unconfigured',
+    });
     return 'log';
   }
 

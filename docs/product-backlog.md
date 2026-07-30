@@ -58,6 +58,86 @@ Notes:
   organisation confirms its governance requirements
 - include access and privacy-oriented events explicitly, especially changes that grant or revoke superadmin troubleshooting visibility
 
+## Organisation Repository and Infrastructure Move
+
+These items should be addressed as part of making the organisation-owned
+repository and AWS account the canonical production platform.
+
+### Raise production infrastructure resilience
+
+Current position:
+
+- the AWS stack provides private encrypted RDS, encrypted non-public S3, SSM
+  instead of SSH, IMDSv2, restricted OIDC deployment roles, retained and
+  deletion-protected production database resources, and tested CDK security
+  assertions
+- defaults still favour the current low-cost baseline: one-day backup
+  retention unless overridden, Single-AZ unless overridden, no default storage
+  autoscaling, no repository-defined CloudWatch alarms, no enhanced monitoring
+  or database log exports, and no tested disaster-recovery restoration exercise
+
+Organisation-move requirements:
+
+- define production RTO and RPO
+- choose backup retention and restore-testing cadence
+- enable Multi-AZ according to the approved availability requirement
+- set storage autoscaling limits
+- add EC2, systemd, disk, RDS, readiness, and application-error alarms
+- define log retention, database log exports, and privacy boundaries
+- test a database restore and full application recovery
+- document DNS, certificate, bootstrap-superadmin, email, and rollback steps as
+  one fresh-environment exercise
+
+### Promote verified pull requests through GitHub Merge Queue
+
+Current problem:
+
+- pull-request CI verifies GitHub's temporary pull-request merge commit
+- the protected-main process then squash-merges the pull request, producing a
+  different commit SHA even when the resulting Git tree is identical
+- full CI therefore runs again on `main` so release provenance remains bound to
+  the exact protected-main revision rather than trusting a different PR commit
+- the verified-release workflow has removed redundant build and deploy work,
+  but PR and post-merge CI still repeat substantially the same verification
+
+Recommended solution:
+
+- make the organisation-owned GitHub repository the canonical repository as
+  part of the planned organisation GitHub and infrastructure move
+- enable GitHub Merge Queue and require full CI for the `merge_group` event so
+  the queued integration result is tested against the latest protected base
+- allow only a successfully verified merge-group result to land on `main`
+- replace duplicated full post-merge CI with a lightweight identity and release
+  eligibility check that proves the landed revision is the verified queue
+  result before creating the retained, attested release artifact
+- retain a safe full-verification fallback for any revision that cannot be
+  matched to a successful trusted merge-group run
+
+Why this cannot be implemented now:
+
+- the canonical `code-studio-au/projex` repository is user-owned, while GitHub
+  Merge Queue is available to organisation-owned public repositories and
+  qualifying organisation-owned private repositories
+- `InsideOutInstitute/project-expense-tracker` is currently an intentional
+  mirror rather than the canonical development and release repository
+- treating matching file trees as equivalent through custom promotion logic
+  would add a bespoke trust boundary and is not the recommended interim design
+
+Organisation-move requirements:
+
+- include canonical repository ownership, branch rulesets, required checks,
+  Merge Queue, environments, secrets, and GitHub OIDC trust in one planned
+  migration
+- add and regression-test the `merge_group` workflow path before removing the
+  existing protected-main full-CI boundary
+- update release provenance and deployment identity checks for the organisation
+  repository, including repository-bound AWS OIDC subjects
+- confirm pull-request, queued-base-update, failed-check, cancelled-run, and
+  unmatched-main-revision behavior before considering duplicate verification
+  removed
+- keep the personal repository as a mirror only after the organisation
+  repository is proven as the canonical source
+
 ## Future Features
 
 These are worthwhile future additions without a committed delivery order.
@@ -113,56 +193,6 @@ Design direction:
 - write and test a minimal incident and database-restore runbook
 - establish explicit RTO/RPO targets before choosing production backup and
   Multi-AZ settings
-
-### Promote verified pull requests through GitHub Merge Queue
-
-Current problem:
-
-- pull-request CI verifies GitHub's temporary pull-request merge commit
-- the protected-main process then squash-merges the pull request, producing a
-  different commit SHA even when the resulting Git tree is identical
-- full CI therefore runs again on `main` so release provenance remains bound to
-  the exact protected-main revision rather than trusting a different PR commit
-- the verified-release workflow has removed redundant build and deploy work,
-  but PR and post-merge CI still repeat substantially the same verification
-
-Recommended solution:
-
-- make the organisation-owned GitHub repository the canonical repository as
-  part of the planned organisation GitHub and infrastructure move
-- enable GitHub Merge Queue and require full CI for the `merge_group` event so
-  the queued integration result is tested against the latest protected base
-- allow only a successfully verified merge-group result to land on `main`
-- replace duplicated full post-merge CI with a lightweight identity and release
-  eligibility check that proves the landed revision is the verified queue
-  result before creating the retained, attested release artifact
-- retain a safe full-verification fallback for any revision that cannot be
-  matched to a successful trusted merge-group run
-
-Why this cannot be implemented now:
-
-- the canonical `code-studio-au/projex` repository is user-owned, while GitHub
-  Merge Queue is available to organisation-owned public repositories and
-  qualifying organisation-owned private repositories
-- `InsideOutInstitute/project-expense-tracker` is currently an intentional
-  mirror rather than the canonical development and release repository
-- treating matching file trees as equivalent through custom promotion logic
-  would add a bespoke trust boundary and is not the recommended interim design
-
-Organisation-move requirements:
-
-- include canonical repository ownership, branch rulesets, required checks,
-  Merge Queue, environments, secrets, and GitHub OIDC trust in one planned
-  migration
-- add and regression-test the `merge_group` workflow path before removing the
-  existing protected-main full-CI boundary
-- update release provenance and deployment identity checks for the organisation
-  repository, including repository-bound AWS OIDC subjects
-- confirm pull-request, queued-base-update, failed-check, cancelled-run, and
-  unmatched-main-revision behavior before considering duplicate verification
-  removed
-- keep the personal repository as a mirror only after the organisation
-  repository is proven as the canonical source
 
 ### Reduce shared runtime and router bundle weight
 

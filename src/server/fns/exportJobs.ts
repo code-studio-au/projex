@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Selectable } from 'kysely';
 
 import { AppError } from '../../api/errors';
+import { logServerEvent } from '../../api/serverLogging';
 import type {
   CompanyExportDetail,
   CompanyExportJob,
@@ -46,6 +47,8 @@ const EXPORT_JOB_RATE_LIMIT = {
 } as const;
 const EXPORT_JOB_STALE_MESSAGE =
   'Export job was interrupted before completion. Please retry the export.';
+const EXPORT_NOTIFICATION_FAILURE_MESSAGE =
+  'Could not send export ready notification.';
 
 type ExportJobRow = Selectable<DB['company_export_jobs']>;
 
@@ -183,14 +186,17 @@ async function sendReadyNotificationIfRequested(args: {
       .where('id', '=', args.row.id)
       .execute();
   } catch (error) {
+    logServerEvent({
+      level: 'warn',
+      event: 'company_export_ready_notification_failed',
+      error,
+      fields: { jobId: args.row.id },
+    });
     await args.db
       .updateTable('company_export_jobs')
       .set({
         ready_notification_status: 'failed',
-        ready_notification_error:
-          error instanceof Error
-            ? error.message
-            : 'Could not send export ready notification.',
+        ready_notification_error: EXPORT_NOTIFICATION_FAILURE_MESSAGE,
         updated_at: nowIso(),
       })
       .where('id', '=', args.row.id)
@@ -223,7 +229,6 @@ async function loadExportJobOrThrow(args: {
 async function deleteStoredExportObjectIfPresent(args: {
   row: Pick<ExportJobRow, 'id' | 'storage_bucket' | 'storage_key'>;
   logType: 'company_export_cleanup' | 'company_export_job_cleanup';
-  fallbackMessage: string;
 }) {
   if (!args.row.storage_bucket || !args.row.storage_key) return;
 
@@ -233,14 +238,14 @@ async function deleteStoredExportObjectIfPresent(args: {
       key: args.row.storage_key,
     });
   } catch (error) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        type: args.logType,
+    logServerEvent({
+      level: 'error',
+      event: args.logType,
+      error,
+      fields: {
         jobId: args.row.id,
-        message: error instanceof Error ? error.message : args.fallbackMessage,
-      })
-    );
+      },
+    });
   }
 }
 
@@ -267,7 +272,6 @@ async function cleanupExpiredExportJobs(db = getDb()) {
     await deleteStoredExportObjectIfPresent({
       row,
       logType: 'company_export_cleanup',
-      fallbackMessage: 'Could not delete expired export object',
     });
   }
 
@@ -299,7 +303,6 @@ export async function recoverStaleCompanyExportJobsOnStartup(db = getDb()) {
     await deleteStoredExportObjectIfPresent({
       row,
       logType: 'company_export_cleanup',
-      fallbackMessage: 'Could not delete stale export object during startup',
     });
 
     const failedAt = nowIso();
@@ -329,15 +332,13 @@ export async function recoverStaleCompanyExportJobsOnStartup(db = getDb()) {
       .execute();
   }
 
-  console.warn(
-    JSON.stringify({
-      level: 'warn',
-      type: 'company_export_job_recovery',
+  logServerEvent({
+    level: 'warn',
+    event: 'company_export_job_recovery',
+    fields: {
       recoveredCount: staleRows.length,
-      message:
-        'Recovered stale queued/running export jobs during server startup.',
-    })
-  );
+    },
+  });
 }
 
 function kickCompanyExportJob(jobId: CompanyExportJobId) {
@@ -346,17 +347,14 @@ function kickCompanyExportJob(jobId: CompanyExportJobId) {
 
   const promise = runCompanyExportJob(jobId)
     .catch((error) => {
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          type: 'company_export_job',
+      logServerEvent({
+        level: 'error',
+        event: 'company_export_job',
+        error,
+        fields: {
           jobId,
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Export job failed unexpectedly',
-        })
-      );
+        },
+      });
     })
     .finally(() => {
       activeExportJobs.delete(jobId);
@@ -437,11 +435,13 @@ async function runCompanyExportJob(jobId: CompanyExportJobId) {
   } catch (error) {
     const failedAt = nowIso();
     const message =
-      error instanceof AppError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : 'Export generation failed';
+      error instanceof AppError ? error.message : 'Export generation failed';
+    logServerEvent({
+      level: 'error',
+      event: 'company_export_job_failed',
+      error,
+      fields: { jobId },
+    });
 
     const failedRow = await db
       .selectFrom('company_export_jobs')
@@ -456,7 +456,6 @@ async function runCompanyExportJob(jobId: CompanyExportJobId) {
         storage_key: failedRow?.storage_key ?? null,
       },
       logType: 'company_export_job_cleanup',
-      fallbackMessage: 'Could not remove failed export object',
     });
 
     await db

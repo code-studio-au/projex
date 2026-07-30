@@ -1,21 +1,19 @@
 import { AppError } from '../api/errors.ts';
+import { logServerEvent, type ServerLogFields } from '../api/serverLogging.ts';
 
 const GENERIC_STARTUP_ENV_ERROR = 'Invalid server configuration';
 
-function throwStartupEnvError(
-  reason: string,
-  detail?: Record<string, unknown>
-) {
-  console.error(
-    JSON.stringify({
-      level: 'error',
-      type: 'startup_env_validation',
+function throwStartupEnvError(reason: string, fields?: ServerLogFields) {
+  logServerEvent({
+    level: 'error',
+    event: 'startup_env_validation',
+    fields: {
       reason,
       // This helper only runs from production validation paths.
       nodeEnv: process.env.NODE_ENV,
-      detail: detail ?? null,
-    })
-  );
+      ...fields,
+    },
+  });
   throw new AppError('INTERNAL_ERROR', GENERIC_STARTUP_ENV_ERROR);
 }
 
@@ -42,7 +40,7 @@ function parseHttpsUrl(
   if (!trimmed) {
     if (options?.required) {
       throwStartupEnvError('missing_required_https_url', {
-        key: options.label,
+        configKey: options.label,
       });
     }
     return null;
@@ -53,14 +51,14 @@ function parseHttpsUrl(
     parsed = new URL(trimmed);
   } catch {
     throwStartupEnvError('invalid_url_format', {
-      key: options.label,
+      configKey: options.label,
     });
     throw new Error('unreachable');
   }
 
   if (parsed.protocol !== 'https:') {
     throwStartupEnvError('non_https_url', {
-      key: options.label,
+      configKey: options.label,
       protocol: parsed.protocol,
     });
   }
@@ -101,7 +99,9 @@ export function validateServerStartupEnv(): void {
   }
 
   if (missing.length) {
-    throwStartupEnvError('missing_required_env', { missing });
+    throwStartupEnvError('missing_required_env', {
+      missingConfigCount: missing.length,
+    });
   }
 
   parseHttpsUrl(process.env.BETTER_AUTH_URL, {

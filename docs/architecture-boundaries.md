@@ -27,11 +27,23 @@ normalized server context:
 - `src/server/fns/runtime.ts` trusts `sessionVerified` when request context has
   already normalized the session.
 - `src/server/start/middleware.ts` assigns native server-function request IDs,
-  returns them as response headers, and logs private unexpected-error causes
-  before the generic `AppError` crosses the RPC boundary.
+  returns them as response headers, and classifies unexpected errors through
+  the sanitized structured logging boundary before the generic `AppError`
+  crosses the RPC boundary.
 
 Do not re-implement session-user lookups inside feature modules when normalized
 context is already available.
+
+## Server logging rule
+
+Production application code must use `src/api/serverLogging.ts` rather than
+calling console methods directly. Only stable event names, approved scalar
+metadata, and safe error classifications may reach structured logs. Never pass
+raw exception messages, stacks, headers, cookies, credentials, connection
+URLs, provider bodies, email content, reset links, or imported financial text.
+
+Migration, bootstrap-user, and smoke CLI entrypoints retain deliberate terminal
+output and are enforced as the only direct-console exceptions.
 
 ## Client-app rule
 

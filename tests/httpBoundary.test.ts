@@ -17,9 +17,7 @@ type RequestLog = {
   durationMs?: number;
   code?: string;
   message?: string;
-  error?: string;
-  errorName?: string;
-  errorStack?: string;
+  errorType?: string;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -82,9 +80,7 @@ function parseRequestLog(value: string): RequestLog {
     durationMs: optionalNumber(parsed, 'durationMs'),
     code: optionalString(parsed, 'code'),
     message: optionalString(parsed, 'message'),
-    error: optionalString(parsed, 'error'),
-    errorName: optionalString(parsed, 'errorName'),
-    errorStack: optionalString(parsed, 'errorStack'),
+    errorType: optionalString(parsed, 'errorType'),
   };
 }
 
@@ -169,7 +165,7 @@ test('withPublicApi converts AppError into request-id responses and warning logs
     assert.equal(log.path, '/api/example');
     assert.equal(log.status, 422);
     assert.equal(log.code, 'VALIDATION_ERROR');
-    assert.equal(log.message, 'Bad input');
+    assert.equal(log.message, undefined);
   } finally {
     logs.restore();
   }
@@ -204,13 +200,13 @@ test('withPublicApi maps rate-limited errors to 429 and retry-after', async () =
     assert.equal(log.level, 'warn');
     assert.equal(log.status, 429);
     assert.equal(log.code, 'RATE_LIMITED');
-    assert.equal(log.message, 'Slow down');
+    assert.equal(log.message, undefined);
   } finally {
     logs.restore();
   }
 });
 
-test('withPublicApi hides unexpected error messages from clients', async () => {
+test('withPublicApi hides unexpected error details from clients and logs', async () => {
   const logs = captureConsole('error');
   try {
     const response = await withPublicApi(
@@ -219,7 +215,14 @@ test('withPublicApi hides unexpected error messages from clients', async () => {
         headers: { 'x-request-id': 'req_test_internal' },
       }),
       async () => {
-        throw new Error('database connection exploded');
+        const error = new Error(
+          'database connection exploded authorization=Bearer secret-token'
+        );
+        Object.assign(error, {
+          headers: { cookie: 'session=private' },
+          connectionUrl: 'postgres://private-credential@database/projex',
+        });
+        throw error;
       }
     );
 
@@ -236,15 +239,14 @@ test('withPublicApi hides unexpected error messages from clients', async () => {
     assert.equal(log.requestId, 'req_test_internal');
     assert.equal(log.status, 500);
     assert.equal(log.message, undefined);
-    assert.equal(log.error, 'database connection exploded');
-    assert.equal(log.errorName, 'Error');
-    assert.match(log.errorStack ?? '', /database connection exploded/);
+    assert.equal(log.errorType, 'Error');
+    assert.doesNotMatch(logs.messages[0], /secret-token|private-credential/u);
   } finally {
     logs.restore();
   }
 });
 
-test('withPublicApi hides and logs unexpected server-boundary causes', async () => {
+test('withPublicApi hides and classifies unexpected server-boundary causes', async () => {
   const logs = captureConsole('error');
   try {
     const { withServerBoundary } = await import('../src/server/fns/runtime.ts');
@@ -276,13 +278,9 @@ test('withPublicApi hides and logs unexpected server-boundary causes', async () 
     assert.equal(log.requestId, 'req_test_server_boundary');
     assert.equal(log.status, 500);
     assert.equal(log.code, 'INTERNAL_ERROR');
-    assert.equal(log.message, 'Unexpected server error');
-    assert.equal(log.error, 'duplicate key value violates secret_constraint');
-    assert.equal(log.errorName, 'Error');
-    assert.match(
-      log.errorStack ?? '',
-      /duplicate key value violates secret_constraint/
-    );
+    assert.equal(log.message, undefined);
+    assert.equal(log.errorType, 'Error');
+    assert.doesNotMatch(logs.messages[0], /secret_constraint/u);
   } finally {
     logs.restore();
   }

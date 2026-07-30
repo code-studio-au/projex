@@ -25,9 +25,10 @@ export async function verifySessionUser(
 }
 
 export async function resolveVerifiedCurrentSession(
-  request: Request
+  request: Request,
+  requestId?: string
 ): Promise<VerifiedCurrentSession> {
-  const session = await getAuthSessionFromRequest(request);
+  const session = await getAuthSessionFromRequest(request, requestId);
   if (!session) {
     return {
       session: null,

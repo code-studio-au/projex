@@ -7,6 +7,10 @@ refreshed on 29 July 2026 after merging:
 - `ee2bfea` — `fix: harden financial value editing (#29)`
 - `2061781` — `fix: enforce production asset caching (#31)`
 - `98c6700` — `fix: standardize project setting mutations (#32)`
+- `827741d` — `fix: promote verified deploy artifacts (#33)`
+- `5733eea` — `fix: preserve trusted recovery tooling (#34)`
+- `143a077` — `fix: improve deploy release selection (#35)`
+- `dd36a2f` — `fix: manage framework dependencies as a tested cohort (#36)`
 
 The previous 26 July review and its completed eleven-item programme are retained
 in the [documentation archive](archive/README.md).
@@ -17,30 +21,27 @@ and work awaiting business decisions remain in
 
 ## Current execution status
 
-| Item | Finding                                                                        | Priority        | Status                              |
-| ---: | ------------------------------------------------------------------------------ | --------------- | ----------------------------------- |
-|    1 | Production responses were not compressed                                       | Immediate       | Completed in PR 28                  |
-|    2 | Financial values were persisted on every keystroke                             | Immediate       | Completed in PR 29                  |
-|    3 | Hashed production assets have no repository-enforced cache policy              | High            | Completed in PR 31                  |
-|    4 | Project-setting mutations have inconsistent pending and failure UX             | High            | Completed in PR 32                  |
-|    5 | Accessibility and small-screen behavior need systematic verification           | High            | Moved to product backlog            |
-|    6 | CI and deploy rebuild independently instead of promoting one attested artifact | Medium          | Completed in this change            |
-|    7 | Runtime observability stops at structured journald output                      | Medium          | Moved to product backlog            |
-|    8 | Framework dependency versions need coordinated lifecycle management            | Medium          | Pending                             |
-|    9 | Several feature coordinators and schema modules remain oversized               | Medium          | Pending                             |
-|   10 | Test breadth is strong, but UI and failure-path visibility remain selective    | Medium          | Pending                             |
-|   11 | Client bundles pass but have limited remaining headroom                        | Medium/ongoing  | Pending                             |
-|   12 | A few server paths still log raw exception objects                             | Medium/security | Pending                             |
-|   13 | Production infrastructure resilience remains a low-cost baseline               | Deferred        | Pending after organisation AWS move |
+| Item | Finding                                                                        | Priority        | Status                   |
+| ---: | ------------------------------------------------------------------------------ | --------------- | ------------------------ |
+|    1 | Production responses were not compressed                                       | Immediate       | Completed in PR 28       |
+|    2 | Financial values were persisted on every keystroke                             | Immediate       | Completed in PR 29       |
+|    3 | Hashed production assets have no repository-enforced cache policy              | High            | Completed in PR 31       |
+|    4 | Project-setting mutations have inconsistent pending and failure UX             | High            | Completed in PR 32       |
+|    5 | Accessibility and small-screen behavior need systematic verification           | High            | Moved to product backlog |
+|    6 | CI and deploy rebuild independently instead of promoting one attested artifact | Medium          | Completed in PRs 33–35   |
+|    7 | Runtime observability stops at structured journald output                      | Medium          | Moved to product backlog |
+|    8 | Framework dependency versions need coordinated lifecycle management            | Medium          | Completed in PR 36       |
+|    9 | Several feature coordinators and schema modules remain oversized               | Medium          | Pending                  |
+|   10 | Test breadth is strong, but UI and failure-path visibility remain selective    | Medium          | Pending                  |
+|   11 | Client bundles pass but have limited remaining headroom                        | Medium/ongoing  | Pending                  |
+|   12 | A few server paths still log raw exception objects                             | Medium/security | Completed in this change |
+|   13 | Production infrastructure resilience remains a low-cost baseline               | Deferred        | Moved to product backlog |
 
 ## Recommended next sequence
 
-1. Address Item 12's raw exception logging.
-2. Expand risk-based test visibility under Item 10.
-3. Perform Items 8, 9, and 11 as measured maintenance work rather than broad
-   dependency or file-size rewrites.
-4. Implement Item 13 only when the deployment moves to the organisation AWS
-   account, unless staging becomes actively relied upon sooner.
+1. Expand risk-based test visibility under Item 10.
+2. Perform Items 9 and 11 as measured maintenance work rather than broad
+   file-size rewrites.
 
 # Completed review items
 
@@ -537,6 +538,59 @@ five deprecated transitives to `exceljs@4.4.0`, not TanStack, Vite, H3, or SRVX.
 They remain an explicit ExcelJS-owned follow-up rather than being suppressed or
 forced through arbitrary overrides.
 
+## Item 12 — Route all production exceptions through structured sanitization
+
+### Original finding
+
+The main HTTP and server-function error boundaries returned generic unexpected
+errors to clients and wrote request-ID-correlated structured logs, but those
+logs still serialized raw exception messages and stacks. BetterAuth session
+resolution, assignment-email failure, and background export paths also passed
+raw exception objects or messages directly to console output.
+
+Raw provider, database, or HTTP exceptions can contain credentials, connection
+URLs, headers, response bodies, email content, imported financial text, or
+other context that operators do not need.
+
+### Resolution
+
+The shared [server logging boundary](../src/api/serverLogging.ts) now owns
+production application logging. It:
+
+- accepts stable event names and a centrally approved set of scalar metadata
+  fields
+- classifies thrown values without reading or serializing messages, stacks,
+  causes, headers, response bodies, or custom properties
+- prevents metadata from overriding the event, level, or error classification
+- safely handles malformed event names, non-scalar metadata, non-`Error`
+  thrown values, and adversarial proxy objects
+
+HTTP routes, native server functions, BetterAuth session resolution,
+transaction-comment assignment notifications, export jobs, export-ready
+notifications, authentication-email fallback, and startup environment
+validation now use that boundary.
+
+Authentication email fallback records only that delivery is unconfigured; it
+no longer prints recipients, subjects, bodies, HTML, or reset links. Unknown
+export and notification failures also persist generic user-safe messages rather
+than provider exception text.
+
+Intentional migration, bootstrap-user, and smoke CLI output remains separate
+because it is operator-invoked terminal output rather than production request
+logging.
+
+### Verification and regression protection
+
+- adversarial logging tests prove credentials, cookies, connection URLs,
+  provider data, reset links, email content, and imported financial text are
+  not serialized
+- HTTP and native server-function boundary tests prove clients and logs receive
+  only generic errors plus safe classifications
+- authentication-email and export-notification tests prove payload and provider
+  failures are not exposed
+- a repository boundary test rejects direct console logging from production
+  TypeScript while retaining the explicit CLI allowlist
+
 # Pending review items
 
 ## Item 9 — Continue responsibility-based decomposition
@@ -609,23 +663,19 @@ The verification system is a major strength:
 
 The remaining visibility gaps are concentrated rather than broad:
 
-- only eight current `.component.test.tsx` files
-- project settings auto-save and error recovery are not component-tested
-- accessibility and viewport behavior are not automated
-- production cache behavior is not asserted
-- raw logging boundaries do not have a regression test
+- component coverage remains selective around membership changes, taxonomy
+  destructive actions, transaction comments, and import failure recovery
+- browser smoke deliberately covers critical workflows rather than every
+  failure permutation
 - the selected-domain coverage allowlist intentionally excludes most
   components, queries, and server orchestration
 
 ### Recommendation
 
-- Add tests as part of Items 3, 4, 5, and 12 rather than creating a detached
-  percentage campaign.
-- Expand component tests around high-state UI: project settings, membership
-  changes, taxonomy destructive actions, transaction comments, and import
-  failure recovery.
-- Add accessibility and responsive Playwright projects without duplicating the
-  entire functional browser suite at every viewport.
+- Expand component tests around high-state UI: membership changes, taxonomy
+  destructive actions, transaction comments, and import failure recovery.
+- Keep accessibility and responsive-browser work in the product backlog rather
+  than folding it into a detached coverage campaign.
 - Add mutation-controller tests for slow and reordered responses.
 - Preserve the selected-domain label; expand the allowlist only for modules
   where coverage produces meaningful decision visibility.
@@ -668,78 +718,6 @@ or repeat visits.
   lab metrics into flaky merge blockers.
 - Prefer structural lazy-loading and dependency removal over manual chunk rules
   that create cycles or unstable filenames.
-
-## Item 12 — Route all production exceptions through structured sanitization
-
-### Finding
-
-The main HTTP and server-function error boundaries return generic unexpected
-errors to clients and write request-ID-correlated structured logs. That is the
-correct baseline.
-
-A few production paths still bypass it and pass raw exception objects directly
-to `console.error` or `console.warn`, notably:
-
-- BetterAuth session resolution in
-  [betterAuth.ts](../src/server/auth/betterAuth.ts)
-- assignment-email failure in
-  [transactionComments.ts](../src/server/fns/transactionComments.ts)
-
-Raw provider, database, or HTTP exceptions can contain more context than the
-operator needs and produce log shapes that are difficult to search. This is a
-defence-in-depth and consistency issue; no tracked secret exposure was found.
-
-### Recommendation
-
-- Add one server logging helper for sanitized exceptions, request IDs, stable
-  event names, and approved metadata.
-- Never log request headers, cookies, authorization values, connection URLs,
-  email bodies, reset links, or imported financial text.
-- Replace raw production exception logging with that helper.
-- Keep CLI errors separate where direct terminal output is intentional, but
-  avoid printing secrets there as well.
-- Add tests that pass adversarial error objects and prove sensitive fields are
-  not serialized.
-- Complete this before forwarding logs to a centralized destination under
-  Item 7.
-
-## Item 13 — Raise infrastructure resilience after the organisation AWS move
-
-### Finding
-
-The current AWS stack is an intentionally low-cost, secure baseline:
-
-- private encrypted RDS
-- encrypted non-public S3
-- SSM rather than SSH
-- IMDSv2
-- restricted OIDC deployment roles
-- retained and deletion-protected production database resources
-- tested CDK security assertions
-
-Defaults still favor cost over production resilience:
-
-- one-day backup retention unless overridden
-- Single-AZ unless overridden
-- no default storage autoscaling
-- no repository-defined CloudWatch alarms
-- no enhanced monitoring or database log exports
-- no tested disaster-recovery restoration exercise
-
-### Recommendation
-
-Defer material implementation until the application moves to the organisation
-AWS account, as previously decided. Before that move:
-
-- define production RTO and RPO
-- choose backup retention and restore-testing cadence
-- enable Multi-AZ according to the approved availability requirement
-- set storage autoscaling limits
-- add EC2, systemd, disk, RDS, readiness, and application-error alarms
-- define log retention, database log exports, and privacy boundaries
-- test a database restore and full application recovery
-- document DNS, certificate, bootstrap-superadmin, email, and rollback steps as
-  one fresh-environment exercise
 
 # Full repository review
 

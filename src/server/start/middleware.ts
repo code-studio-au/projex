@@ -16,7 +16,10 @@ export type StartApiMiddlewareContext = {
 };
 
 type RequestContextModule = {
-  resolveRequestServerContext(request: Request): Promise<{
+  resolveRequestServerContext(
+    request: Request,
+    requestId?: string
+  ): Promise<{
     session: ServerSession | null;
     serverContext: ServerFnContextInput;
   }>;
@@ -48,8 +51,10 @@ export const startApiMiddleware = createMiddleware({ type: 'function' }).server(
     try {
       setResponseHeader('x-request-id', requestId);
       const { resolveRequestServerContext } = await loadRequestContextModule();
-      const { session, serverContext } =
-        await resolveRequestServerContext(request);
+      const { session, serverContext } = await resolveRequestServerContext(
+        request,
+        requestId
+      );
 
       return await next({
         context: {

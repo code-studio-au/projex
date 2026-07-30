@@ -13,18 +13,22 @@ const requestContextCache = new WeakMap<
 >();
 
 export async function resolveRequestServerContext(
-  request: Request
+  request: Request,
+  requestId?: string
 ): Promise<ResolvedRequestServerContext> {
   const cached = requestContextCache.get(request);
   if (cached) return cached;
 
   const pending = (async () => {
-    const { session, sessionVerified } =
-      await resolveVerifiedCurrentSession(request);
+    const { session, sessionVerified } = await resolveVerifiedCurrentSession(
+      request,
+      requestId
+    );
     return {
       session,
       serverContext: {
         request,
+        requestId,
         session,
         sessionVerified,
       },
