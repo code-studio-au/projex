@@ -15,7 +15,7 @@ const loadCompanyEndpoints = () =>
 
 export const listUsersServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'listUsersEndpoint')
   )
   .handler(
@@ -24,7 +24,7 @@ export const listUsersServerFn = createServerFn({ method: 'GET' })
 
 export const listCompaniesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'listCompaniesEndpoint')
   )
   .handler(
@@ -38,7 +38,7 @@ export const getDefaultCompanyIdForUserServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'getDefaultCompanyIdForUserEndpoint'

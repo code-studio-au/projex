@@ -467,11 +467,9 @@ activation tooling used to produce or deploy the recovery bundle.
   any build command from deployment
 - actionlint and ShellCheck continue validating the workflow and host scripts
 
-# Pending review items
-
 ## Item 8 — Manage framework dependencies as tested cohorts
 
-### Finding
+### Original finding
 
 The dependency policy is strong: frozen lockfile, a seven-day release-age
 delay, no-downgrade trust policy, explicit build-script allowlisting, audit
@@ -494,20 +492,52 @@ candidate alias because a direct upstream move regressed SSR login smoke.
 Several deprecated transitive packages remain in the lockfile and should be
 traced to their owning dependency before action.
 
-### Recommendation
+### Resolution
 
-- Treat TanStack Start, Router, router devtools, Vite integration, `srvx`, and
-  `h3` as one compatibility cohort.
-- Record the exact supported cohort rather than relying on independently moving
-  caret ranges.
-- Upgrade the cohort in a dedicated pull request with full SSR, auth, browser,
-  bundle, and deploy-artifact verification.
-- Use `pnpm why` to assign deprecated transitives to direct owners; do not add
-  suppressions or arbitrary overrides.
-- Keep the `h3-v2` compatibility note and smoke reproduction until an upstream
-  version demonstrably replaces it.
-- Review package release notes before Node 26 or another framework-runtime
-  transition.
+The framework is now managed through the machine-readable
+[framework cohort](../config/framework-dependency-cohort.json) and its
+[operational policy](framework-dependency-cohort.md). Every direct member is
+exact-pinned:
+
+- React Start `1.168.32`
+- React Router `1.170.18`
+- Router Devtools `1.167.0`
+- Vite `8.0.16`
+- Vite React plugin `6.0.2`
+- SRVX `0.11.22`
+- the `h3-v2` alias at `h3@2.0.1-rc.20`
+
+The 19 July React Start release train and every other selected package had
+passed the strict seven-day release-age delay before selection. Start's
+published dependency requires Router `1.170.18`; the differing TanStack version
+numbers are therefore recorded compatibility intent rather than accidental
+drift.
+
+H3 remains at `rc.20` because the selected Start server core still resolves
+that version. Direct SRVX now matches the `0.11.22` selected by Start and H3, so
+the lockfile contains one production HTTP adapter stack. A future H3/SRVX move
+must pass the same production login, authenticated-session, API, readiness, and
+browser smoke reproduction before replacing this alias.
+
+All TanStack Start server-function bridges now use `validator()` instead of the
+deprecated `inputValidator()` spelling surfaced by the selected release.
+
+`verify:framework-cohort` protects the policy in CI. It rejects:
+
+- non-exact direct framework ranges
+- package/lockfile disagreement
+- missing, unexpected, or duplicate related package versions
+- deprecated server-function validator usage
+- a weakened strict release-age delay
+- any quarantine exclusion covering a cohort package
+- a cohort selected before its packages had aged for seven days
+
+Focused regression tests cover each failure boundary. `pnpm why` assigns all
+five deprecated transitives to `exceljs@4.4.0`, not TanStack, Vite, H3, or SRVX.
+They remain an explicit ExcelJS-owned follow-up rather than being suppressed or
+forced through arbitrary overrides.
+
+# Pending review items
 
 ## Item 9 — Continue responsibility-based decomposition
 
@@ -746,7 +776,7 @@ Strengths:
 Remaining work:
 
 - complete the responsibility-based decompositions in Item 9
-- keep the TanStack runtime cohort aligned under Item 8
+- retain the exact framework cohort and its verification under Item 8
 - retain direct boundary tests whenever a new server/client bridge is added
 
 ## Security and privacy
@@ -813,7 +843,7 @@ Strengths:
 Remaining work:
 
 - promote one attested artifact under Item 6
-- manage framework dependencies as a cohort under Item 8
+- retain the exact framework-cohort and release-age checks from Item 8
 - add production telemetry and alerts under Item 7
 
 ## Testing and verification

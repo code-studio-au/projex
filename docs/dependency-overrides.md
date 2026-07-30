@@ -30,3 +30,7 @@ Update policy:
 - keep the override list intentionally short
 - re-check overrides whenever lockfile refreshes or Dependabot opens grouped
   dependency updates
+- update the exact-pinned
+  [framework dependency cohort](framework-dependency-cohort.md) as one tested
+  unit; do not use overrides to manufacture compatibility between independently
+  selected framework versions

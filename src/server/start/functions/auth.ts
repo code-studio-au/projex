@@ -15,7 +15,7 @@ const loadAuthEndpoints = () =>
 
 export const getSessionServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadAuthEndpoints, 'getSessionEndpoint')
   )
   .handler(
@@ -24,7 +24,7 @@ export const getSessionServerFn = createServerFn({ method: 'GET' })
 
 export const getPostLoginTargetServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadAuthEndpoints, 'getPostLoginTargetEndpoint')
   )
   .handler(

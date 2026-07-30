@@ -15,7 +15,7 @@ const loadCompanyEndpoints = () =>
 
 export const getCompanyServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'getCompanyEndpoint')
   )
   .handler(
@@ -27,7 +27,7 @@ export const getCompanyServerFn = createServerFn({ method: 'GET' })
 
 export const getCompanySummaryServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'getCompanySummaryEndpoint'
@@ -42,7 +42,7 @@ export const getCompanySummaryServerFn = createServerFn({ method: 'GET' })
 
 export const getCompanyWorkQueueServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'getCompanyWorkQueueEndpoint'
@@ -57,7 +57,7 @@ export const getCompanyWorkQueueServerFn = createServerFn({ method: 'GET' })
 
 export const listProjectsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'listProjectsEndpoint')
   )
   .handler(
@@ -69,7 +69,7 @@ export const listProjectsServerFn = createServerFn({ method: 'GET' })
 
 export const getProjectServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadCompanyEndpoints, 'getProjectEndpoint')
   )
   .handler(

@@ -55,6 +55,11 @@ GitHub-owned actions plus the explicitly approved pnpm and AWS action families,
 requires immutable action pins, and enables Dependabot alerts and security
 updates, secret scanning with push protection, and CodeQL analysis.
 
+The TanStack Start, Router, Vite, H3, and SRVX runtime is managed as an
+exact-pinned [framework dependency cohort](docs/framework-dependency-cohort.md).
+Repository verification rejects independently moving framework ranges,
+duplicate internal versions, or release-age quarantine bypasses.
+
 For the most complete local reproduction of CI and deploy-artifact verification,
 use:
 

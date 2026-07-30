@@ -15,7 +15,7 @@ const loadMembershipEndpoints = () =>
 
 export const listCompanyMembershipsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadMembershipEndpoints,
       'listCompanyMembershipsEndpoint'
@@ -32,7 +32,7 @@ export const listAllCompanyMembershipsServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadMembershipEndpoints,
       'listAllCompanyMembershipsEndpoint'
@@ -47,7 +47,7 @@ export const listAllCompanyMembershipsServerFn = createServerFn({
 
 export const listProjectMembershipsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadMembershipEndpoints,
       'listProjectMembershipsEndpoint'
@@ -64,7 +64,7 @@ export const listMyProjectMembershipsServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadMembershipEndpoints,
       'listMyProjectMembershipsEndpoint'
@@ -81,7 +81,7 @@ export const upsertCompanyMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadMembershipEndpoints,
       'upsertCompanyMembershipEndpoint'
@@ -98,7 +98,7 @@ export const deleteCompanyMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadMembershipEndpoints,
       'deleteCompanyMembershipEndpoint'
@@ -115,7 +115,7 @@ export const upsertProjectMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadMembershipEndpoints,
       'upsertProjectMembershipEndpoint'
@@ -132,7 +132,7 @@ export const deleteProjectMembershipServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadMembershipEndpoints,
       'deleteProjectMembershipEndpoint'

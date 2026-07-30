@@ -19,7 +19,8 @@
     "db:generate-types": "node --experimental-strip-types scripts/generate-db-types.ts",
     "db:verify-types": "node --experimental-strip-types scripts/generate-db-types.ts --verify",
     "profile:transaction-page": "node scripts/profile-transaction-page.mjs",
-    "verify:security:repo": "node scripts/verify-repo-security.mjs",
+    "verify:security:repo": "node scripts/verify-repo-security.mjs && pnpm run verify:framework-cohort",
+    "verify:framework-cohort": "node scripts/verify-framework-cohort.mjs",
     "verify:dead-code": "knip",
     "verify:security": "pnpm run verify:security:repo && pnpm audit --json && pnpm test && pnpm run typecheck && pnpm run lint",
     "verify:coverage": "pnpm run coverage",
@@ -77,9 +78,9 @@
     "@tabler/icons-react": "^3.34.0",
     "@tanstack/react-query": "^5.62.7",
     "@tanstack/react-query-devtools": "^5.62.7",
-    "@tanstack/react-router": "^1.170.8",
-    "@tanstack/react-router-devtools": "^1.167.0",
-    "@tanstack/react-start": "^1.168.13",
+    "@tanstack/react-router": "1.170.18",
+    "@tanstack/react-router-devtools": "1.167.0",
+    "@tanstack/react-start": "1.168.32",
     "better-auth": "^1.6.22",
     "exceljs": "^4.4.0",
     "h3-v2": "npm:h3@2.0.1-rc.20",
@@ -89,7 +90,7 @@
     "pg-types": "^2.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "srvx": "^0.11.16",
+    "srvx": "0.11.22",
     "tsx": "^4.22.4",
     "zod": "^4.1.12"
   },
@@ -101,7 +102,7 @@
     "@types/node": "^24.11.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
+    "@vitejs/plugin-react": "6.0.2",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -113,7 +114,8 @@
     "prettier": "^3.8.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
-    "vite": "^8.0.16",
-    "vitest": "^4.1.9"
+    "vite": "8.0.16",
+    "vitest": "^4.1.9",
+    "yaml": "^2.9.0"
   }
 }

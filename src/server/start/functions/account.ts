@@ -18,7 +18,7 @@ const loadCompanyEndpoints = () =>
 
 export const getPendingEmailChangeServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadAccountEndpoints,
       'getPendingEmailChangeEndpoint'
@@ -33,7 +33,7 @@ export const getPendingEmailChangeServerFn = createServerFn({ method: 'GET' })
 
 export const getCurrentUserServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadAccountEndpoints, 'getCurrentUserEndpoint')
   )
   .handler(
@@ -47,7 +47,7 @@ export const updateCurrentUserProfileServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadCompanyEndpoints,
       'updateCurrentUserProfileEndpoint'
@@ -62,7 +62,7 @@ export const updateCurrentUserProfileServerFn = createServerFn({
 
 export const requestEmailChangeServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadAccountEndpoints,
       'requestEmailChangeEndpoint'
@@ -77,7 +77,7 @@ export const requestEmailChangeServerFn = createServerFn({ method: 'POST' })
 
 export const resendEmailChangeServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadAccountEndpoints,
       'resendEmailChangeEndpoint'
@@ -92,7 +92,7 @@ export const resendEmailChangeServerFn = createServerFn({ method: 'POST' })
 
 export const cancelEmailChangeServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadAccountEndpoints,
       'cancelEmailChangeEndpoint'

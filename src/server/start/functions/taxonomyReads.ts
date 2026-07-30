@@ -15,7 +15,7 @@ const loadTaxonomyEndpoints = () =>
 
 export const listCategoriesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadTaxonomyEndpoints, 'listCategoriesEndpoint')
   )
   .handler(
@@ -27,7 +27,7 @@ export const listCategoriesServerFn = createServerFn({ method: 'GET' })
 
 export const getCompanyDefaultsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'getCompanyDefaultsEndpoint'
@@ -44,7 +44,7 @@ export const listCompanyDefaultCategoriesServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'listCompanyDefaultCategoriesEndpoint'
@@ -61,7 +61,7 @@ export const listCompanyDefaultSubCategoriesServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'listCompanyDefaultSubCategoriesEndpoint'
@@ -78,7 +78,7 @@ export const listCompanyDefaultMappingRulesServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'listCompanyDefaultMappingRulesEndpoint'
@@ -93,7 +93,7 @@ export const listCompanyDefaultMappingRulesServerFn = createServerFn({
 
 export const listSubCategoriesServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'listSubCategoriesEndpoint'
@@ -108,7 +108,7 @@ export const listSubCategoriesServerFn = createServerFn({ method: 'GET' })
 
 export const createCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadTaxonomyEndpoints, 'createCategoryEndpoint')
   )
   .handler(
@@ -120,7 +120,7 @@ export const createCategoryServerFn = createServerFn({ method: 'POST' })
 
 export const updateCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadTaxonomyEndpoints, 'updateCategoryEndpoint')
   )
   .handler(
@@ -132,7 +132,7 @@ export const updateCategoryServerFn = createServerFn({ method: 'POST' })
 
 export const deleteCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadTaxonomyEndpoints, 'deleteCategoryEndpoint')
   )
   .handler(
@@ -144,7 +144,7 @@ export const deleteCategoryServerFn = createServerFn({ method: 'POST' })
 
 export const createSubCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'createSubCategoryEndpoint'
@@ -159,7 +159,7 @@ export const createSubCategoryServerFn = createServerFn({ method: 'POST' })
 
 export const updateSubCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'updateSubCategoryEndpoint'
@@ -174,7 +174,7 @@ export const updateSubCategoryServerFn = createServerFn({ method: 'POST' })
 
 export const deleteSubCategoryServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'deleteSubCategoryEndpoint'
@@ -191,7 +191,7 @@ export const createCompanyDefaultCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'createCompanyDefaultCategoryEndpoint'
@@ -208,7 +208,7 @@ export const updateCompanyDefaultCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'updateCompanyDefaultCategoryEndpoint'
@@ -225,7 +225,7 @@ export const deleteCompanyDefaultCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'deleteCompanyDefaultCategoryEndpoint'
@@ -242,7 +242,7 @@ export const createCompanyDefaultSubCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'createCompanyDefaultSubCategoryEndpoint'
@@ -259,7 +259,7 @@ export const updateCompanyDefaultSubCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'updateCompanyDefaultSubCategoryEndpoint'
@@ -276,7 +276,7 @@ export const deleteCompanyDefaultSubCategoryServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'deleteCompanyDefaultSubCategoryEndpoint'
@@ -293,7 +293,7 @@ export const createCompanyDefaultMappingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'createCompanyDefaultMappingRuleEndpoint'
@@ -310,7 +310,7 @@ export const updateCompanyDefaultMappingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'updateCompanyDefaultMappingRuleEndpoint'
@@ -327,7 +327,7 @@ export const deleteCompanyDefaultMappingRuleServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'deleteCompanyDefaultMappingRuleEndpoint'
@@ -344,7 +344,7 @@ export const applyCompanyStandardsServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'applyCompanyStandardsEndpoint'
@@ -361,7 +361,7 @@ export const bulkRecodeProjectTransactionsServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'bulkRecodeProjectTransactionsEndpoint'
@@ -380,7 +380,7 @@ export const promoteProjectSubCategoryToCompanyDefaultServerFn = createServerFn(
   }
 )
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTaxonomyEndpoints,
       'promoteProjectSubCategoryToCompanyDefaultEndpoint'

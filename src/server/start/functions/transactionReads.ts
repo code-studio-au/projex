@@ -15,7 +15,7 @@ const loadTransactionEndpoints = () =>
 
 export const listTransactionsServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'listTransactionsEndpoint'
@@ -30,7 +30,7 @@ export const listTransactionsServerFn = createServerFn({ method: 'GET' })
 
 export const getTransactionServerFn = createServerFn({ method: 'GET' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'getTransactionEndpoint'
@@ -47,7 +47,7 @@ export const listProjectTransactionSummaryServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'listProjectTransactionSummaryEndpoint'
@@ -64,7 +64,7 @@ export const listTransactionCommentsServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'listTransactionCommentsEndpoint'
@@ -81,7 +81,7 @@ export const listTransactionCommentSummariesServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'listTransactionCommentSummariesEndpoint'
@@ -98,7 +98,7 @@ export const createTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'createTransactionCommentEndpoint'
@@ -115,7 +115,7 @@ export const updateTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'updateTransactionCommentEndpoint'
@@ -132,7 +132,7 @@ export const deleteTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'deleteTransactionCommentEndpoint'
@@ -147,7 +147,7 @@ export const deleteTransactionCommentServerFn = createServerFn({
 
 export const createTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadTransactionEndpoints, 'createTxnEndpoint')
   )
   .handler(
@@ -159,7 +159,7 @@ export const createTxnServerFn = createServerFn({ method: 'POST' })
 
 export const updateTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadTransactionEndpoints, 'updateTxnEndpoint')
   )
   .handler(
@@ -171,7 +171,7 @@ export const updateTxnServerFn = createServerFn({ method: 'POST' })
 
 export const deleteTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadTransactionEndpoints, 'deleteTxnEndpoint')
   )
   .handler(
@@ -183,7 +183,7 @@ export const deleteTxnServerFn = createServerFn({ method: 'POST' })
 
 export const splitTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadTransactionEndpoints, 'splitTxnEndpoint')
   )
   .handler(
@@ -195,7 +195,7 @@ export const splitTxnServerFn = createServerFn({ method: 'POST' })
 
 export const transferTxnServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(loadTransactionEndpoints, 'transferTxnEndpoint')
   )
   .handler(
@@ -209,7 +209,7 @@ export const listTxnReversalMatchSuggestionsServerFn = createServerFn({
   method: 'GET',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'listTxnReversalMatchSuggestionsEndpoint'
@@ -226,7 +226,7 @@ export const applyTxnReversalActionServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'applyTxnReversalActionEndpoint'
@@ -243,7 +243,7 @@ export const updateTxnWorkflowStateServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'updateTxnWorkflowStateEndpoint'
@@ -258,7 +258,7 @@ export const updateTxnWorkflowStateServerFn = createServerFn({
 
 export const requestTxnUnlockServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'requestTxnUnlockEndpoint'
@@ -275,7 +275,7 @@ export const resolveTxnUnlockRequestServerFn = createServerFn({
   method: 'POST',
 })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'resolveTxnUnlockRequestEndpoint'
@@ -290,7 +290,7 @@ export const resolveTxnUnlockRequestServerFn = createServerFn({
 
 export const bulkTxnActionServerFn = createServerFn({ method: 'POST' })
   .middleware([startApiMiddleware])
-  .inputValidator(
+  .validator(
     lazyServerFnInputValidator(
       loadTransactionEndpoints,
       'bulkTxnActionEndpoint'
