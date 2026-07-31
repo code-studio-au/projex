@@ -19,7 +19,18 @@ describe('createPgPool TLS configuration', () => {
     vi.stubEnv('PG_SSL_CA_FILE', '');
 
     const pool = createPgPool(CONNECTION_STRING);
-    expect(pool.options).toMatchObject({ ssl: undefined });
+    expect(pool.options).toMatchObject({
+      ssl: undefined,
+      allowExitOnIdle: false,
+    });
+    await pool.end();
+  });
+
+  test('allows short-lived commands to exit when all clients are idle', async () => {
+    vi.stubEnv('PG_ALLOW_EXIT_ON_IDLE', 'true');
+
+    const pool = createPgPool(CONNECTION_STRING);
+    expect(pool.options).toMatchObject({ allowExitOnIdle: true });
     await pool.end();
   });
 

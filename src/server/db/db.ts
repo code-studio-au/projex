@@ -26,3 +26,13 @@ export function getDb(): Kysely<DB> {
 
   return _db;
 }
+
+/**
+ * Close the process-wide database singleton used by short-lived commands.
+ * Application servers normally retain it for their complete process lifetime.
+ */
+export async function destroyDb(): Promise<void> {
+  const db = _db;
+  _db = null;
+  await db?.destroy();
+}

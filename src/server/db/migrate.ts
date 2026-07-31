@@ -7,6 +7,7 @@ import { Migrator } from 'kysely/migration';
 import { requireDatabaseUrl } from '../env.ts';
 import { loadEnvFiles } from '../envFiles.ts';
 import { buildBetterAuthOptions } from '../auth/betterAuthInstance.ts';
+import { destroyDb } from './db.ts';
 import { createPgPool, type TypedPgPool } from './pgPool.ts';
 import { SqlFileMigrationProvider } from './sqlFileMigrationProvider.ts';
 
@@ -231,7 +232,7 @@ async function run() {
     } catch {
       // Best effort unlock on shutdown/error path.
     }
-    await db.destroy();
+    await Promise.all([db.destroy(), destroyDb()]);
   }
 }
 

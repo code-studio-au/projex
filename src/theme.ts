@@ -1,4 +1,23 @@
-import { createTheme } from '@mantine/core';
+import {
+  createTheme,
+  defaultVariantColorsResolver,
+  type VariantColorsResolver,
+} from '@mantine/core';
+
+const accessibleVariantColorsResolver: VariantColorsResolver = (input) => {
+  const colors = defaultVariantColorsResolver(input);
+
+  if (input.variant === 'filled' && input.color === 'blue') {
+    return {
+      ...colors,
+      background: 'var(--mantine-color-blue-8)',
+      hover: 'var(--mantine-color-blue-9)',
+      color: 'var(--mantine-color-white)',
+    };
+  }
+
+  return colors;
+};
 
 /**
  * App theme (styling only).
@@ -10,6 +29,7 @@ import { createTheme } from '@mantine/core';
  */
 export const theme = createTheme({
   primaryColor: 'gray',
+  variantColorResolver: accessibleVariantColorsResolver,
   defaultRadius: 'sm',
   fontFamily:
     '"Avenir Next", "Segoe UI Variable", "Inter", "Segoe UI", sans-serif',

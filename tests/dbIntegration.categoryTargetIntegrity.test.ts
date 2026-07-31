@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { ensureBudgetLinesForProjectSubCategories } from '../src/server/fns/budgets.ts';
 import { updateSubCategoryServer } from '../src/server/fns/taxonomy.ts';
 import {
-  asBudgetLineId,
   asCategoryId,
   asCompanyId,
   asProjectId,
@@ -132,19 +132,25 @@ test(
           updated_at: now,
         })
         .execute();
-      await db
-        .insertInto('budget_lines')
-        .values({
-          id: asBudgetLineId('itest_target_integrity_budget_1'),
-          company_id: companyId,
-          project_id: projectId,
-          category_id: categoryAId,
-          sub_category_id: subCategoryId,
-          allocated_cents: 0,
-          created_at: now,
-          updated_at: now,
-        })
+      await Promise.all(
+        Array.from({ length: 16 }, () =>
+          ensureBudgetLinesForProjectSubCategories({
+            db,
+            companyId,
+            projectId,
+            targets: [{ categoryId: categoryAId, subCategoryId }],
+          })
+        )
+      );
+      const provisionedBudgets = await db
+        .selectFrom('budget_lines')
+        .select(['category_id', 'sub_category_id'])
+        .where('project_id', '=', projectId)
+        .where('sub_category_id', '=', subCategoryId)
         .execute();
+      assert.deepEqual(provisionedBudgets, [
+        { category_id: categoryAId, sub_category_id: subCategoryId },
+      ]);
 
       await assert.rejects(
         db

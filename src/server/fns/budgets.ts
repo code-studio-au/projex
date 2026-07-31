@@ -43,54 +43,11 @@ export async function ensureBudgetLinesForProjectSubCategories(args: {
     ).values(),
   ];
   if (!dedupedTargets.length) return;
-
-  const existingRows = await args.db
-    .selectFrom('budget_lines')
-    .select(['id', 'category_id', 'sub_category_id'])
-    .where('project_id', '=', args.projectId)
-    .where(
-      'sub_category_id',
-      'in',
-      dedupedTargets.map((target) => target.subCategoryId)
-    )
-    .execute();
-
-  const existingBySubCategoryId = new Map(
-    existingRows
-      .filter(
-        (row): row is typeof row & { sub_category_id: string } =>
-          row.sub_category_id !== null
-      )
-      .map((row) => [asSubCategoryId(row.sub_category_id), row] as const)
-  );
-
   const now = new Date().toISOString();
-
-  for (const target of dedupedTargets) {
-    const existing = existingBySubCategoryId.get(target.subCategoryId);
-    if (!existing) continue;
-    if (existing.category_id === target.categoryId) continue;
-
-    await args.db
-      .updateTable('budget_lines')
-      .set({
-        category_id: target.categoryId,
-        updated_at: now,
-      })
-      .where('project_id', '=', args.projectId)
-      .where('id', '=', existing.id)
-      .execute();
-  }
-
-  const missingTargets = dedupedTargets.filter(
-    (target) => !existingBySubCategoryId.has(target.subCategoryId)
-  );
-  if (!missingTargets.length) return;
-
   await args.db
     .insertInto('budget_lines')
     .values(
-      missingTargets.map((target) => ({
+      dedupedTargets.map((target) => ({
         id: asBudgetLineId(uid('bud')),
         company_id: args.companyId,
         project_id: args.projectId,
@@ -100,6 +57,15 @@ export async function ensureBudgetLinesForProjectSubCategories(args: {
         created_at: now,
         updated_at: now,
       }))
+    )
+    .onConflict((conflict) =>
+      conflict
+        .columns(['project_id', 'sub_category_id'])
+        .where('sub_category_id', 'is not', null)
+        .doUpdateSet((eb) => ({
+          category_id: eb.ref('excluded.category_id'),
+          updated_at: eb.ref('excluded.updated_at'),
+        }))
     )
     .execute();
 }

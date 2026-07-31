@@ -5,7 +5,7 @@ import { logNodeRuntime } from './node-runtime.mjs';
 logNodeRuntime('smoke-browser launcher');
 
 const cliArgs = parseCliArgs(process.argv.slice(2), {
-  booleanFlags: ['--sweep-stale-fixtures'],
+  booleanFlags: ['--sweep-stale-fixtures', '--use-generated-fixtures'],
   valueOptions: ['--section'],
 });
 const requestedSections = cliArgs.getValues('--section');
@@ -15,7 +15,13 @@ if (requestedSections.some((section) => section !== 'basics')) {
 
 const child = spawn(
   process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
-  ['exec', 'playwright', 'test', '--config=playwright.config.ts'],
+  [
+    'exec',
+    'playwright',
+    'test',
+    '--config=playwright.config.ts',
+    ...cliArgs.passthrough,
+  ],
   {
     cwd: process.cwd(),
     env: {

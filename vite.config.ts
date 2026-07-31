@@ -81,6 +81,9 @@ export default defineConfig(({ command }) => {
     plugins: [tanstackStart(), react()],
     test: {
       environment: 'node',
+      ...(process.env.GITHUB_ACTIONS === 'true'
+        ? { reporters: ['default', 'github-actions'] }
+        : {}),
       include: [
         'tests/**/*.test.ts',
         'tests/**/*.test.tsx',
@@ -89,40 +92,17 @@ export default defineConfig(({ command }) => {
       exclude: ['tests/dbIntegration*.test.ts'],
       coverage: {
         provider: 'v8',
-        reporter: ['text', 'lcov'],
+        reporter: ['text-summary', 'lcov', 'json-summary'],
         reportsDirectory: './coverage',
-        // This deliberately reports selected domain coverage, not whole-repo
-        // coverage. Keep the public label aligned when this allowlist changes.
-        include: [
-          'src/server/env.ts',
-          'src/server/http/security.ts',
-          'src/server/fns/resourceGuards.ts',
-          'src/hooks/usePowerBiImportWorkflow.ts',
-          'src/store/uiPrefs.ts',
-          'src/utils/auth.ts',
-          'src/utils/commentMentions.ts',
-          'src/utils/companySummary.ts',
-          'src/utils/csv.ts',
-          'src/utils/dateTime.ts',
-          'src/utils/importPreview.ts',
-          'src/utils/importReviewPlan.ts',
-          'src/utils/importRuleSuggestions.ts',
-          'src/utils/json.ts',
-          'src/utils/powerBiImport.ts',
-          'src/utils/projectAutoCodingRules.ts',
-          'src/utils/textRuleMatching.ts',
-          'src/utils/transactionCommitPlan.ts',
-          'src/utils/transactionSplitPlan.ts',
-          'src/utils/transactionTransferPlan.ts',
-          'src/utils/transactionWorkflow.ts',
-          'src/validation/**/*.ts',
+        reportOnFailure: true,
+        // Report the whole application, while the coverage runner separately
+        // enforces the established thresholds over the selected risk domain.
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: [
+          'src/**/*.d.ts',
+          'src/routeTree.gen.ts',
+          'src/server/db/types.generated.ts',
         ],
-        thresholds: {
-          lines: 80,
-          functions: 85,
-          statements: 80,
-          branches: 65,
-        },
       },
     },
     resolve: {

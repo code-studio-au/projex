@@ -40,7 +40,7 @@ The repo now includes a GitHub Actions CI workflow at
 - a Postgres-backed lane for `db:migrate`, `db:verify-types`, and `test:integration:db`
 - an AWS CDK build and synthesis lane
 - a disposable end-to-end lane for the full generated-fixture server smoke sweep
-- a disposable browser smoke lane for the full Chromium and Firefox
+- a disposable browser smoke lane for the full Chromium, Firefox, and WebKit
   browser-driven smoke flow
 
 Normal repo flow is now branch -> pull request -> green required checks -> merge.
@@ -85,9 +85,9 @@ Docker is required for `pnpm run verify:ci`, `pnpm run test:integration:db`,
 `pnpm run smoke:browser:disposable`. Disposable smoke now provisions a
 short-lived `https://localhost` certificate automatically so production-mode
 auth validation stays aligned locally without any manual TLS setup. Playwright
-Test browser smoke also requires local Chromium and Firefox installs via
-`pnpm exec playwright install --with-deps chromium firefox` the first time you
-run it on a machine.
+Test browser smoke also requires local Chromium, Firefox, and WebKit installs
+via `pnpm exec playwright install --with-deps chromium firefox webkit` the first
+time you run it on a machine.
 
 GitHub Actions CI enforces the generated-fixture server smoke sweep plus the
 full supported browser smoke flow. After successful `main` CI, the Release
@@ -184,9 +184,8 @@ The short version:
 - `pnpm run verify:smoke:full` for the full disposable server smoke sweep across every section
 - `pnpm run verify:smoke:browser:full` for the full disposable browser smoke sweep
 - `pnpm test` for the fast Vitest app/runtime lane
-- `pnpm run coverage` for selected domain coverage over the explicit
-  [Vite allowlist](vite.config.ts) and LCOV output; this is not a
-  whole-repository coverage percentage
+- `pnpm run coverage` for whole-application coverage reporting plus enforced
+  thresholds over the selected risk domain
 - `pnpm run test:integration:db` for targeted disposable Postgres-backed integration coverage
 - `pnpm run smoke:server:disposable` for isolated local end-to-end smoke on an auto-generated temporary `https://localhost` origin
 - `pnpm run smoke:browser:disposable` for isolated browser-driven smoke on the same temporary HTTPS origin

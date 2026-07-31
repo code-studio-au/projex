@@ -201,6 +201,32 @@ describe('maintainability boundaries', () => {
     expect(verifyCi).toMatch(/^pnpm run verify:app &&/);
     expect(verifyCi).not.toContain('verify:security:repo');
     expect(verifyCi).not.toContain('pnpm audit');
+    expect(verifyCi).toContain('verify:smoke:browser:webkit:full:skip-build');
+  });
+
+  test('GitHub CI parallelizes application verification behind its stable gate', async () => {
+    const [packageManifestText, ciWorkflow, coverageRunner, viteConfig] =
+      await Promise.all([
+        readFile(path.resolve('package.json'), 'utf8'),
+        readFile(path.resolve('.github/workflows/ci.yml'), 'utf8'),
+        readFile(
+          path.resolve('scripts/run-selected-domain-coverage.mjs'),
+          'utf8'
+        ),
+        readFile(path.resolve('vite.config.ts'), 'utf8'),
+      ]);
+
+    for (const lane of ['static', 'types', 'tests', 'build']) {
+      expect(packageManifestText).toContain(`"verify:app:${lane}"`);
+      expect(ciWorkflow).toContain(`verify-${lane}:`);
+      expect(ciWorkflow).toContain(`- verify-${lane}`);
+    }
+    expect(ciWorkflow).toContain('verify:\n    name: verify\n    if: always()');
+    expect(ciWorkflow).toContain('node scripts/run-ci-summary.mjs');
+    expect(ciWorkflow).not.toMatch(/reporter.?=.?junit|reporter.?=.?json/i);
+    expect(coverageRunner).toContain("'run', 'tests', '--coverage'");
+    expect(viteConfig).toContain("include: ['src/**/*.{ts,tsx}']");
+    expect(viteConfig).toContain("['default', 'github-actions']");
   });
 
   test('PowerBI import coordination delegates preview tables and columns', async () => {
@@ -289,8 +315,21 @@ describe('maintainability boundaries', () => {
   });
 
   test('browser workflows stay isolated behind focused Playwright page objects', async () => {
-    const config = await readFile(path.resolve('playwright.config.ts'), 'utf8');
+    const [
+      config,
+      packageManifestText,
+      smokeRunner,
+      browserLauncher,
+      ciWorkflow,
+    ] = await Promise.all([
+      readFile(path.resolve('playwright.config.ts'), 'utf8'),
+      readFile(path.resolve('package.json'), 'utf8'),
+      readFile(path.resolve('scripts/run-smoke-disposable.mjs'), 'utf8'),
+      readFile(path.resolve('scripts/smoke-browser.mjs'), 'utf8'),
+      readFile(path.resolve('.github/workflows/ci.yml'), 'utf8'),
+    ]);
     const specToPageObject = {
+      'accessibility.spec.ts': 'AccessibilityPage',
       'application-shell.spec.ts': 'ApplicationShellPage',
       'reversal-workflow.spec.ts': 'ReversalWorkflowPage',
       'rule-suggestion-workflow.spec.ts': 'RuleSuggestionWorkflowPage',
@@ -309,6 +348,61 @@ describe('maintainability boundaries', () => {
     ).rejects.toThrow();
     expect(config).toContain("globalSetup: './tests/browser/globalSetup.ts'");
     expect(config).toContain('fullyParallel: true');
-    expect(config).toContain('workers: 2');
+    expect(config).toContain('workers: resolveWorkerCount()');
+    expect(config).toContain('process.env.CI ? 4 : 2');
+    expect(config).toContain('failOnFlakyTests: Boolean(process.env.CI)');
+    expect(config).toContain('forbidOnly: Boolean(process.env.CI)');
+    expect(config).toContain("['github']");
+    expect(packageManifestText).toContain(
+      '"smoke:browser:disposable": "node scripts/run-smoke-disposable.mjs --browser --browser-only"'
+    );
+    expect(smokeRunner).toContain('if (!BROWSER_ONLY)');
+    expect(browserLauncher).toContain('...cliArgs.passthrough');
+    expect(ciWorkflow).toContain(
+      'browser:\n          - chromium\n          - firefox\n          - webkit'
+    );
+    expect(ciWorkflow).toContain("if: matrix.browser == 'webkit'");
+    expect(ciWorkflow).toContain(
+      'run: pnpm exec playwright install --with-deps webkit'
+    );
+    expect(ciWorkflow).toContain(
+      'name: playwright-browser-diagnostics-${{ matrix.browser }}'
+    );
+    expect(ciWorkflow).toContain('name: smoke-browser-disposable');
+    expect(packageManifestText).toContain('"verify:smoke:browser:webkit:full"');
+  });
+
+  test('database verification owns one test-server lifecycle and closes short-lived pools', async () => {
+    const [
+      packageManifestText,
+      integrationRunner,
+      poolFactory,
+      databaseSingleton,
+      migrationCommand,
+      ciWorkflow,
+      releaseWorkflow,
+    ] = await Promise.all([
+      readFile(path.resolve('package.json'), 'utf8'),
+      readFile(path.resolve('scripts/run-db-integration.mjs'), 'utf8'),
+      readFile(path.resolve('src/server/db/pgPool.ts'), 'utf8'),
+      readFile(path.resolve('src/server/db/db.ts'), 'utf8'),
+      readFile(path.resolve('src/server/db/migrate.ts'), 'utf8'),
+      readFile(path.resolve('.github/workflows/ci.yml'), 'utf8'),
+      readFile(path.resolve('.github/workflows/release.yml'), 'utf8'),
+    ]);
+    expect(packageManifestText).toContain(
+      '"verify:db:gate": "node scripts/run-db-integration.mjs --verify-gate"'
+    );
+    expect(integrationRunner).toContain('PROJEX_TEST_DB_REUSE_SERVER');
+    expect(integrationRunner).toContain(
+      "runProjexCommand('pnpm', ['run', 'db:verify-types']"
+    );
+    expect(poolFactory).toContain('allowExitOnIdle:');
+    expect(databaseSingleton).toContain(
+      'export async function destroyDb(): Promise<void>'
+    );
+    expect(migrationCommand).toContain('db.destroy(), destroyDb()');
+    expect(ciWorkflow).toContain("PROJEX_TEST_DB_REUSE_SERVER: 'true'");
+    expect(releaseWorkflow).toContain("PROJEX_TEST_DB_REUSE_SERVER: 'true'");
   });
 });

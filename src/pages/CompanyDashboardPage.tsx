@@ -380,7 +380,7 @@ function useCompanyDashboardPageController() {
       header: 'Visibility',
       Cell: ({ row }) =>
         row.original.visibility === 'private' ? (
-          <Badge variant="light" color="orange">
+          <Badge variant="light" color="orange" className={classes.warningTone}>
             Private
           </Badge>
         ) : (
@@ -406,6 +406,7 @@ function useCompanyDashboardPageController() {
                   size="xs"
                   variant="light"
                   color="orange"
+                  className={classes.warningTone}
                   onClick={() =>
                     openConfirm({
                       kind: 'deactivate_project',
