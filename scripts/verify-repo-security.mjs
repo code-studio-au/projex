@@ -60,6 +60,24 @@ function assertCondition(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function hasMatchingImmutableAttestPins(workflow) {
+  const declaredAttestUses =
+    workflow.match(
+      /^[ \t]*uses:[ \t]+actions\/attest@[^\s#]+(?:[ \t]+#[^\r\n]*)?[ \t]*\r?$/gmu
+    ) ?? [];
+  const immutableAttestShas = [
+    ...workflow.matchAll(
+      /^[ \t]*uses:[ \t]+actions\/attest@([0-9a-f]{40})[ \t]+#[ \t]*v4[ \t]*\r?$/gmu
+    ),
+  ].map((match) => match[1]);
+
+  return (
+    declaredAttestUses.length === 2 &&
+    immutableAttestShas.length === 2 &&
+    new Set(immutableAttestShas).size === 1
+  );
+}
+
 async function verifyFile(check) {
   let content;
   try {
@@ -333,9 +351,7 @@ async function verifyDeployReleaseIdentity() {
     'Deploy artifacts must embed their immutable release manifest'
   );
   assertCondition(
-    releaseWorkflow.includes(
-      'uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4'
-    ) &&
+    hasMatchingImmutableAttestPins(releaseWorkflow) &&
       releaseWorkflow.includes('pnpm --dir application-source sbom') &&
       releaseWorkflow.includes('--prod') &&
       releaseWorkflow.includes('--sbom-format spdx') &&
@@ -344,7 +360,7 @@ async function verifyDeployReleaseIdentity() {
       deployWorkflow.includes(
         '--predicate-type https://spdx.dev/Document/v2.3'
       ),
-    'Release artifacts must retain and verify signed provenance and a production SPDX SBOM'
+    'Release artifacts must use two matching immutable actions/attest v4 pins and retain and verify signed provenance and a production SPDX SBOM'
   );
   assertCondition(
     deployWorkflow.includes(
