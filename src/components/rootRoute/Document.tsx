@@ -14,6 +14,7 @@ export default function Document({ children }: { children: ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
+        <title>Projex</title>
         {/* CSP middleware replaces this browser-redacted nonce placeholder. */}
         <ColorSchemeScript
           defaultColorScheme={APP_DEFAULT_COLOR_SCHEME}

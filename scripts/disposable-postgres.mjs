@@ -375,6 +375,7 @@ export async function runProjexMigrations({
       BETTER_AUTH_SECRET: betterAuthSecret,
       BETTER_AUTH_URL: betterAuthBaseUrl,
       BETTER_AUTH_TRUSTED_ORIGINS: betterAuthBaseUrl,
+      PG_ALLOW_EXIT_ON_IDLE: 'true',
       ...(databaseSslCaFile
         ? {
             PG_SSL_CA_FILE: databaseSslCaFile,

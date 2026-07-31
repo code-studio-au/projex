@@ -17,11 +17,12 @@ import { parseCliArgs } from './cli-args.mjs';
 import { logNodeRuntime, resolveNodeExecutable } from './node-runtime.mjs';
 
 const cliArgs = parseCliArgs(process.argv.slice(2), {
-  booleanFlags: ['--browser', '--keep-db', '--skip-build'],
+  booleanFlags: ['--browser', '--browser-only', '--keep-db', '--skip-build'],
 });
 const KEEP_DB = cliArgs.flags.has('--keep-db');
 const SKIP_BUILD = cliArgs.flags.has('--skip-build');
 const RUN_BROWSER = cliArgs.flags.has('--browser');
+const BROWSER_ONLY = cliArgs.flags.has('--browser-only');
 const FORWARDED_ARGS = cliArgs.passthrough;
 const DB_NAME = 'projex_smoke_test';
 const HOST = '127.0.0.1';
@@ -29,6 +30,10 @@ const BETTER_AUTH_SECRET =
   process.env.PROJEX_TEST_BETTER_AUTH_SECRET ||
   'projex-disposable-smoke-secret-0123456789';
 const NODE_EXECUTABLE = resolveNodeExecutable();
+
+if (BROWSER_ONLY && !RUN_BROWSER) {
+  throw new Error('--browser-only requires --browser');
+}
 
 async function reserveSmokeServerPort() {
   const explicitPort = process.env.PROJEX_SMOKE_SERVER_PORT;
@@ -255,6 +260,7 @@ async function main() {
       PROJEX_SMOKE_BASE_URL: baseUrl,
       PG_SSL_CA_FILE: tls.caCertPath,
       PG_SSL_MODE: 'require',
+      PG_ALLOW_EXIT_ON_IDLE: 'true',
       S3_BUCKET: minio.bucket,
       S3_REGION: minio.region,
       S3_ENDPOINT: minio.endpoint,
@@ -280,16 +286,18 @@ async function main() {
       ca: await readFile(tls.caCertPath, 'utf8'),
     });
 
-    runProjexCommand(
-      NODE_EXECUTABLE,
-      [
-        'scripts/smoke-server.mjs',
-        '--use-generated-fixtures',
-        '--sweep-stale-fixtures',
-        ...FORWARDED_ARGS,
-      ],
-      { env: sharedEnv }
-    );
+    if (!BROWSER_ONLY) {
+      runProjexCommand(
+        NODE_EXECUTABLE,
+        [
+          'scripts/smoke-server.mjs',
+          '--use-generated-fixtures',
+          '--sweep-stale-fixtures',
+          ...FORWARDED_ARGS,
+        ],
+        { env: sharedEnv }
+      );
+    }
 
     if (RUN_BROWSER) {
       runProjexCommand(

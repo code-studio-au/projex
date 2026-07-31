@@ -15,9 +15,10 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  verify-static:
+    name: verify-static
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -37,20 +38,148 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run application verification gate
-        run: pnpm run verify:app
+      - name: Run application static checks
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "Application static checks"
+          pnpm run verify:app:static
 
-      - name: Upload selected domain coverage
+  verify-types:
+    name: verify-types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.0.8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run application type and dead-code checks
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "TypeScript and dead-code checks"
+          pnpm run verify:app:types
+
+  verify-tests:
+    name: verify-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.0.8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run application tests and coverage
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "Application tests and coverage"
+          pnpm run verify:app:tests
+
+      - name: Upload application coverage
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: selected-domain-coverage
+          name: application-coverage
           path: coverage
           if-no-files-found: ignore
 
+  verify-build:
+    name: verify-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.0.8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run production build and bundle checks
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "Production build and bundle checks"
+          pnpm run verify:app:build
+
+  verify:
+    name: verify
+    if: always()
+    needs:
+      - verify-static
+      - verify-types
+      - verify-tests
+      - verify-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Confirm all application verification jobs passed
+        env:
+          BUILD_RESULT: ${{ needs.verify-build.result }}
+          STATIC_RESULT: ${{ needs.verify-static.result }}
+          TESTS_RESULT: ${{ needs.verify-tests.result }}
+          TYPES_RESULT: ${{ needs.verify-types.result }}
+        run: |
+          {
+            echo '## Application verification'
+            echo
+            echo '| Lane | Result |'
+            echo '| --- | --- |'
+            echo "| Static | ${STATIC_RESULT} |"
+            echo "| Types | ${TYPES_RESULT} |"
+            echo "| Tests | ${TESTS_RESULT} |"
+            echo "| Build | ${BUILD_RESULT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$STATIC_RESULT" != "success" ||
+            "$TYPES_RESULT" != "success" ||
+            "$TESTS_RESULT" != "success" ||
+            "$BUILD_RESULT" != "success" ]]; then
+            echo '::error title=Application verification failed::One or more application verification lanes did not pass.'
+            exit 1
+          fi
+
   verify-db:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
 
     services:
       postgres:
@@ -72,6 +201,7 @@ jobs:
       BETTER_AUTH_SECRET: projex-ci-better-auth-secret-0123456789
       BETTER_AUTH_URL: https://projex.test.invalid
       BETTER_AUTH_TRUSTED_ORIGINS: https://projex.test.invalid
+      PROJEX_TEST_DB_REUSE_SERVER: 'true'
 
     steps:
       - name: Checkout repository
@@ -92,11 +222,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run database verification gate
-        run: pnpm run verify:db:gate
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "Database verification"
+          pnpm run verify:db:gate
 
   verify-cdk:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
@@ -117,17 +250,26 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run CDK verification gate
-        run: pnpm run verify:cdk
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "CDK verification"
+          pnpm run verify:cdk
 
       - name: Run ShellCheck
-        run: pnpm run verify:shell
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "ShellCheck"
+          pnpm run verify:shell
 
       - name: Run actionlint
-        run: pnpm run verify:actions
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "GitHub Actions lint"
+          pnpm run verify:actions
 
   smoke-disposable:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
     env:
       BETTER_AUTH_SECRET: projex-ci-better-auth-secret-0123456789
       BETTER_AUTH_URL: https://projex.test.invalid
@@ -155,11 +297,22 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run full smoke verification gate
-        run: pnpm run verify:smoke:full
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "Disposable server smoke"
+          pnpm run verify:smoke:full
 
-  smoke-browser-disposable:
+  smoke-browser-matrix:
+    name: smoke-browser-${{ matrix.browser }}
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser:
+          - chromium
+          - firefox
+          - webkit
     env:
       BETTER_AUTH_SECRET: projex-ci-better-auth-secret-0123456789
       BETTER_AUTH_URL: https://projex.test.invalid
@@ -167,6 +320,7 @@ jobs:
       NODE_ENV: test
       PROJEX_ENABLE_DEV_ENDPOINTS: 'false'
       PROJEX_ENABLE_SMOKE_TOOLS: 'false'
+      PROJEX_SMOKE_BROWSER: ${{ matrix.browser }}
 
     steps:
       - name: Checkout repository
@@ -186,21 +340,52 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Chromium and Firefox
-        run: pnpm exec playwright install --with-deps chromium firefox
+      - name: Install Playwright Chromium headless shell
+        if: matrix.browser == 'chromium'
+        run: pnpm exec playwright install --with-deps --only-shell chromium
 
-      - name: Run Chromium browser smoke verification gate
-        run: pnpm run verify:smoke:browser:full
+      - name: Install Playwright Firefox
+        if: matrix.browser == 'firefox'
+        run: pnpm exec playwright install --with-deps firefox
 
-      - name: Run Firefox browser smoke verification gate
-        run: pnpm run verify:smoke:browser:firefox:full:skip-build
+      - name: Install Playwright WebKit
+        if: matrix.browser == 'webkit'
+        run: pnpm exec playwright install --with-deps webkit
+
+      - name: Run browser smoke verification gate
+        run: >-
+          node scripts/run-ci-summary.mjs
+          "${{ matrix.browser }} browser smoke"
+          pnpm run verify:smoke:browser:full
 
       - name: Upload browser diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: playwright-browser-diagnostics
-          path: |
-            playwright-report
-            test-results
+          name: playwright-browser-diagnostics-${{ matrix.browser }}
+          path: test-results
           if-no-files-found: ignore
+
+  smoke-browser-disposable:
+    name: smoke-browser-disposable
+    if: always()
+    needs:
+      - smoke-browser-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Confirm all browser smoke jobs passed
+        env:
+          BROWSER_MATRIX_RESULT: ${{ needs.smoke-browser-matrix.result }}
+        run: |
+          {
+            echo '## Browser smoke verification'
+            echo
+            echo "Chromium, Firefox, and WebKit matrix: ${BROWSER_MATRIX_RESULT}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$BROWSER_MATRIX_RESULT" != "success" ]]; then
+            echo "::error title=Browser smoke failed::Chromium, Firefox, and WebKit matrix result: ${BROWSER_MATRIX_RESULT}."
+            exit 1
+          fi

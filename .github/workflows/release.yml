@@ -36,7 +36,7 @@ jobs:
         github.event.workflow_run.head_repository.full_name == github.repository
       )
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 35
     permissions:
       artifact-metadata: write
       attestations: write
@@ -63,6 +63,7 @@ jobs:
       BETTER_AUTH_TRUSTED_ORIGINS: https://projex.test.invalid
       PROJEX_ENABLE_DEV_ENDPOINTS: 'false'
       PROJEX_ENABLE_SMOKE_TOOLS: 'false'
+      PROJEX_TEST_DB_REUSE_SERVER: 'true'
 
     steps:
       - name: Checkout protected release tooling

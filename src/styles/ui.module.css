@@ -111,6 +111,24 @@
   flex-wrap: wrap;
 }
 
+.warningTone {
+  --badge-bg: #ffedd5 !important;
+  --badge-color: #9a3412 !important;
+  --button-bg: #ffedd5 !important;
+  --button-bd: 1px solid #fdba74 !important;
+  --button-color: #9a3412 !important;
+  --button-hover: #fed7aa !important;
+}
+
+:global([data-mantine-color-scheme='dark']) .warningTone {
+  --badge-bg: #431407 !important;
+  --badge-color: #fed7aa !important;
+  --button-bg: #431407 !important;
+  --button-bd: 1px solid #9a3412 !important;
+  --button-color: #fed7aa !important;
+  --button-hover: #7c2d12 !important;
+}
+
 .surfaceCard {
   border: 1px solid var(--surface-border);
   border-radius: 1rem;

@@ -62,6 +62,7 @@ type PgPoolConfig = {
   max?: number;
   idleTimeoutMillis?: number;
   connectionTimeoutMillis?: number;
+  allowExitOnIdle?: boolean;
 };
 
 const { Pool } = pg as PgModule;
@@ -122,5 +123,10 @@ export function createPgPool(connectionString: string): TypedPgPool {
       'PG_CONNECTION_TIMEOUT_MS',
       5_000
     ),
+    // Short-lived migration, smoke, and test processes opt into this so idle
+    // PostgreSQL sockets do not keep the Node.js event loop alive. Long-lived
+    // application servers retain the default socket ownership semantics.
+    allowExitOnIdle:
+      process.env.PG_ALLOW_EXIT_ON_IDLE?.trim().toLowerCase() === 'true',
   });
 }
