@@ -2,8 +2,8 @@
 
 This backlog contains only unfinished work. Completed work belongs in Git history and feature documentation, not here.
 
-The current prioritized engineering and operational review is tracked in the
-[Immediate TODO Backlog](immediate-todo-backlog.md). Superseded point-in-time
+The current immediate engineering-work status is tracked in the
+[Immediate TODO Backlog](immediate-todo-backlog.md). Completed point-in-time
 reviews are retained in the [documentation archive](archive/README.md).
 
 ## Awaiting Product Decision

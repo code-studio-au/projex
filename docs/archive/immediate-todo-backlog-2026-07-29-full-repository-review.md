@@ -1,0 +1,981 @@
+# Immediate TODO — 29 July 2026 Full Repository Review
+
+This archived record closes the engineering backlog from the full repository
+review refreshed on 29 July 2026. Every finding is completed, retained as an
+ongoing repository control, or moved to the product backlog.
+
+The review was resolved after merging:
+
+- `8d23e9d` — `fix: enable production response compression (#28)`
+- `ee2bfea` — `fix: harden financial value editing (#29)`
+- `2061781` — `fix: enforce production asset caching (#31)`
+- `98c6700` — `fix: standardize project setting mutations (#32)`
+- `827741d` — `fix: promote verified deploy artifacts (#33)`
+- `5733eea` — `fix: preserve trusted recovery tooling (#34)`
+- `143a077` — `fix: improve deploy release selection (#35)`
+- `dd36a2f` — `fix: manage framework dependencies as a tested cohort (#36)`
+- `f6148a6` — `fix: sanitize production exception logging (#37)`
+- `12f42e5` — `refactor: decompose large React components (#38)`
+- `b45a3b1` — `test: expand risk-based UI coverage (#40)`
+
+The previous 26 July review and its completed eleven-item programme are retained
+in the [documentation archive](README.md).
+
+This file preserves the review findings, implementation decisions, and
+verification evidence. Product ideas and work awaiting business decisions
+remain in [product-backlog.md](../product-backlog.md).
+
+## Final execution status
+
+| Item | Finding                                                                        | Priority        | Status                       |
+| ---: | ------------------------------------------------------------------------------ | --------------- | ---------------------------- |
+|    1 | Production responses were not compressed                                       | Immediate       | Completed in PR 28           |
+|    2 | Financial values were persisted on every keystroke                             | Immediate       | Completed in PR 29           |
+|    3 | Hashed production assets have no repository-enforced cache policy              | High            | Completed in PR 31           |
+|    4 | Project-setting mutations have inconsistent pending and failure UX             | High            | Completed in PR 32           |
+|    5 | Accessibility and small-screen behavior need systematic verification           | High            | Moved to product backlog     |
+|    6 | CI and deploy rebuild independently instead of promoting one attested artifact | Medium          | Completed in PRs 33–35       |
+|    7 | Runtime observability stops at structured journald output                      | Medium          | Moved to product backlog     |
+|    8 | Framework dependency versions need coordinated lifecycle management            | Medium          | Completed in PR 36           |
+|    9 | Several feature coordinators and schema modules remain oversized               | Medium          | Completed in PR 38           |
+|   10 | Test breadth is strong, but UI and failure-path visibility remain selective    | Medium          | Completed in PR 40           |
+|   11 | Client bundles pass but have limited remaining headroom                        | Medium/ongoing  | Completed as ongoing control |
+|   12 | A few server paths still log raw exception objects                             | Medium/security | Completed in PR 37           |
+|   13 | Production infrastructure resilience remains a low-cost baseline               | Deferred        | Moved to product backlog     |
+
+## Final disposition
+
+No immediate review items remain. Future product, accessibility, operational,
+and organisation-infrastructure work is tracked in the
+[product backlog](../product-backlog.md).
+
+# Completed review items
+
+## Item 1 — Production responses were not compressed
+
+### Original finding
+
+The live server returned HTML, JavaScript, and CSS without
+`Content-Encoding`, even when the client advertised `gzip, br`.
+
+Observed uncompressed responses included approximately:
+
+- login HTML: 17 KB
+- main JavaScript: 252 KB
+- CSS: 243 KB
+
+The bundle gate measured gzip output, but the deployed nginx configuration did
+not provide that compression benefit to users.
+
+### Resolution
+
+PR 28 added one managed nginx compression policy in
+[projex-compression.conf](../../deploy/nginx/projex-compression.conf):
+
+- gzip enabled for HTML, JavaScript, CSS, JSON, XML, SVG, manifests, feeds, and
+  related text formats
+- `gzip_vary on`, producing `Vary: Accept-Encoding`
+- compression level 6
+- a 1,024-byte minimum that avoids spending CPU on very small responses
+- proxied responses included in the policy
+
+The same reviewed file is now installed by:
+
+- fresh-host CDK bootstrap in
+  [hostBootstrap.ts](../../deploy/cdk/lib/hostBootstrap.ts)
+- every release artifact
+- the EC2 deployment path, which validates nginx syntax before completing
+  activation
+
+The bootstrap HTTP configuration, managed HTTPS template, and checked-in live
+nginx example all declare that compression belongs to the sibling managed
+configuration file. This avoids three drifting copies of the policy.
+
+### Verification and regression protection
+
+[verify-deploy-security.mjs](../../scripts/verify-deploy-security.mjs) now:
+
+- advertises `Accept-Encoding: gzip, br`
+- requires `gzip` or `br` for deployed HTTPS HTML
+- discovers same-origin JavaScript and CSS assets from the returned page
+- requires accepted compression for both asset types
+- requires `Vary: Accept-Encoding`
+- permits a deliberate override for non-production/local verification
+
+Regression tests cover compressed HTML, JavaScript, and CSS; missing
+compression; missing `Vary`; invalid overrides; and non-HTTPS local behavior.
+Repository-boundary and bootstrap tests require the managed nginx file to
+remain installed and shipped.
+
+This matches nginx's documented `gzip`, `gzip_types`, and `gzip_vary`
+behavior:
+[ngx_http_gzip_module](https://nginx.org/en/docs/http/ngx_http_gzip_module.html).
+
+### Residual position
+
+Dynamic gzip is the supported baseline. Brotli is not required for correctness
+and should not be installed through an unverified third-party nginx module.
+Precompressed Brotli or gzip can be reconsidered only if measurements show a
+worthwhile gain beyond the long-lived hashed-asset cache policy established in
+Item 3.
+
+## Item 2 — Financial values were persisted on every keystroke
+
+### Original finding
+
+Budget allocation editing and transaction amount editing called their server
+mutations directly from `NumberInput.onChange`.
+
+That behavior was unsafe because Mantine represents valid editing states as
+both numbers and strings. Empty input, a standalone minus sign, trailing
+decimals such as `0.`, and other intermediate values could therefore be
+converted into unintended numeric updates.
+
+It also allowed:
+
+- overlapping slow requests
+- responses completing out of order
+- a transaction editor closing when an earlier request completed while a newer
+  edit was unresolved
+- rejected values being difficult to recover or retry
+
+Mantine documents the mixed `number | string` value contract in its
+[NumberInput documentation](https://mantine.dev/core/number-input/).
+
+### Resolution
+
+PR 29 introduced the shared
+[MoneyAmountEditor.tsx](../../src/components/finance/MoneyAmountEditor.tsx) and
+[moneyAmountDraft.ts](../../src/components/finance/moneyAmountDraft.ts).
+
+The editor now:
+
+- keeps the entered value in local component state
+- preserves Mantine's intermediate string values without converting them
+- validates complete amounts to integer cents
+- rejects incomplete input and more than two decimal places
+- supports non-negative budgets while retaining valid negative transaction
+  amounts
+- saves only through an explicit Save action or Enter
+- cancels and restores the persisted value through Cancel or Escape
+- disables editing while the save is pending
+- prevents a second write from the same editor while the first is unresolved
+- keeps the editor and draft open when persistence fails
+- exposes an accessible inline error and allows a retry
+- closes an inline transaction editor only after successful persistence
+
+The shared behavior is used by:
+
+- budget allocation rows in [BudgetPanel.tsx](../../src/components/BudgetPanel.tsx)
+- transaction amount editing in
+  [transactionTableColumns.tsx](../../src/components/transactions/transactionTableColumns.tsx)
+- project budget totals in
+  [ProjectBudgetSummary.tsx](../../src/components/budget/ProjectBudgetSummary.tsx)
+
+### Mutation ordering
+
+Budget and transaction update mutations now use stable project-scoped mutation
+IDs from [mutationScopes.ts](../../src/queries/mutationScopes.ts). TanStack Query
+serializes mutations sharing a `scope.id`, so a later write cannot overtake an
+earlier project mutation. This follows the documented
+[TanStack Query mutation-scope behavior](https://tanstack.com/query/latest/docs/framework/react/guides/mutations#mutation-scopes).
+
+The project scope is deliberately conservative. If measured queueing becomes a
+real usability problem, the scope can be narrowed to a stable resource and
+field identity, but ordering safety must not be removed.
+
+### Verification and regression protection
+
+Focused tests prove:
+
+- typing does not persist
+- Enter and Save persist the complete amount once
+- incomplete values do not persist
+- negative transaction amounts remain valid
+- negative budgets are rejected
+- a slow request disables the editor and prevents overlap
+- a rejected request preserves the draft and editor
+- retry after rejection succeeds
+- the transaction table editor closes only after success
+- requests with the same TanStack mutation scope execute in order even when
+  the second would otherwise finish first
+
+The merged change passed the complete application gate: 79 Vitest files and
+373 tests, repository security checks, zero dependency advisories, formatting,
+ESLint, strict TypeScript, Knip, selected-domain coverage, the production build,
+and every client bundle budget.
+
+## Item 3 — Enforce production caching for fingerprinted assets
+
+### Finding
+
+The repository now enforces compression, but its nginx configurations proxy all
+application traffic through Node and do not express a cache policy for Vite's
+content-hashed assets. The deployed-security verifier checks compression and
+security headers but does not currently assert cache behavior.
+
+The asset filenames are fingerprinted, so long-lived immutable caching is safe
+for those files. HTML and data responses must remain independently
+revalidatable so a deployment can advertise the new asset graph immediately.
+
+This is a repository-enforcement gap rather than a confirmed claim that every
+live asset lacks a cache header: the runtime may add one. The implementation
+must first capture current live HTML, JavaScript, CSS, font, and image headers.
+
+### Recommendation
+
+- Establish one explicit policy for fingerprinted client assets, preferably
+  `Cache-Control: public, max-age=31536000, immutable`.
+- Keep HTML non-immutable and suitable for immediate revalidation.
+- Do not apply immutable caching to API, auth, readiness, maintenance, or
+  unhashed files.
+- Decide whether nginx or the Node static handler owns the header; do not allow
+  competing policies.
+- Add `ETag` or `Last-Modified` assertions where revalidation is expected.
+- Extend deployed-security tests to prove both sides of the boundary.
+- Add an nginx syntax/bootstrap regression test for the cache configuration.
+- Measure repeat-visit transferred bytes before and after the change.
+
+### Acceptance criteria
+
+- A deployed hashed JavaScript and CSS asset returns the approved immutable
+  policy.
+- `/login` and authenticated HTML do not return an immutable policy.
+- APIs and maintenance responses retain their existing no-store or operational
+  behavior.
+- Fresh-host bootstrap and release deployment install the same reviewed policy.
+
+### Live baseline captured before implementation
+
+The public production origin was inspected on 29 July 2026 before changing the
+policy:
+
+- `/login` returned no `Cache-Control` header
+- the current content-hashed JavaScript and CSS returned
+  `public, max-age=31536000, immutable`
+- `/favicon.svg`, the only referenced image, returned
+  `public, max-age=3600`
+- the current CSS did not reference external font or image files
+- `/api/health`, `/api/ready`, and `/api/auth/get-session` returned no
+  `Cache-Control` header
+- `/api/session` returned `no-store`
+- `/__maintenance.js` returned the nginx-owned no-store policy
+
+The lowercase upstream asset header and direct runtime inspection confirmed
+that [start-server.mjs](../../scripts/start-server.mjs), not nginx, already owned
+the proxied static-asset policy. The gap was narrower but still material: every
+file below `/assets/` was treated as immutable without proving that it belonged
+to Vite's fingerprinted output, HTML had no explicit revalidation policy, and
+the deployed verifier did not protect either boundary.
+
+### Resolution
+
+The Node response layer is now the documented single owner of proxied
+`Cache-Control` headers:
+
+- Vite emits a client manifest during the production build
+- the runtime derives an allowlist from manifest-backed filenames with Vite's
+  eight-character content fingerprint
+- only those JavaScript, CSS, font, and image assets receive
+  `public, max-age=31536000, immutable`
+- any other file under `/assets/` is immediately revalidatable with `no-cache`
+- HTML receives `no-cache`, so every navigation revalidates the current asset
+  graph and HTML is never immutable
+- the unhashed favicon retains its existing one-hour non-immutable policy
+- API and auth responses retain their application-defined behavior
+- nginx continues to own only the explicit maintenance no-store responses and
+  transparently preserves proxied application headers
+
+The manifest and policy module are required by artifact creation and release
+activation, so a partial artifact cannot be promoted. Fresh CDK hosts,
+managed-HTTPS hosts, and existing hosts all execute the same policy through the
+versioned `start-server.mjs` in the activated release; the three nginx variants
+document and regression-test that ownership boundary.
+
+### Verification and regression protection
+
+[verify-deploy-security.mjs](../../scripts/verify-deploy-security.mjs) now requires:
+
+- exact immutable caching for the page's hashed JavaScript and CSS
+- `no-cache` for HTML
+- no immutable caching for the unhashed favicon, health, readiness, and auth
+  responses
+- `no-store` for the application session and maintenance endpoints
+- the existing compression and security-header behavior
+
+Focused tests cover the correct policy, missing and malformed immutable
+headers, immutable HTML, immutable unhashed assets, unsafe API/auth/maintenance
+caching, manifest filtering, CDK bootstrap, managed nginx variants, release
+artifacts, and existing-host activation boundaries.
+
+## Item 4 — Standardize pending, success, and failure behavior for settings
+
+### Original finding
+
+Financial editing now has deliberate persistence semantics, but project
+settings still mix several interaction models.
+
+In [ProjectSettingsPanel.tsx](../../src/components/ProjectSettingsPanel.tsx),
+project type, programme, currency, visibility, standards sync, and transfer
+capability call `updateProject.mutate(...)` directly from select or switch
+changes. These are complete values rather than intermediate financial strings,
+so they do not share Item 2's data-conversion defect. The remaining problem is
+user feedback and recovery:
+
+- most fields have no local error message
+- pending state is not consistently visible at field level
+- some controls remain enabled while a related update is pending
+- rapid changes share one mutation observer without an explicit ordering
+  policy
+- a rejected change can appear to snap back without explaining why
+- successful auto-save is not consistently acknowledged
+
+Other application areas use inline alerts or `showAppToast`, but there is no
+single documented mutation-feedback contract.
+
+### Resolution
+
+[ProjectSettingControls.tsx](../../src/components/settings/ProjectSettingControls.tsx)
+now defines one persistence contract for project settings:
+
+- project type and programme relationship are a coupled draft with explicit
+  Save and Cancel actions
+- currency and visibility retain local drafts and require explicit Save
+- superadmin access retains its explicit confirmation step
+- standards sync and transaction-transfer capability remain auto-save switches
+  because they are simple independent booleans
+
+Every control or related group now owns its pending state. A slow structure
+save disables only type and programme controls; independent settings remain
+available. Explicit-save failures retain the draft and expose Retry. Auto-save
+failures restore the last confirmed switch value, retain the attempted value
+for Retry, and explain the rollback next to the field.
+
+Pending and successful saves use field-associated polite status regions.
+Failures use field-associated alerts, so toast notifications are not the only
+way to discover or recover from a settings error.
+
+### Mutation ordering
+
+Each settings mutation uses a stable project-and-invariant scope from
+[mutationScopes.ts](../../src/queries/mutationScopes.ts). Project type, programme
+relationship, currency, standards sync, and transfer capability share the
+structure scope because the server validates and normalizes them together.
+TanStack Query therefore prevents these dependent writes from overtaking one
+another. Visibility and superadmin access remain independent and are not
+unnecessarily queued behind structure writes.
+
+The existing generic project-update hook remains available without a settings
+scope for non-settings callers such as project budget totals.
+
+### Verification and regression protection
+
+Focused component tests cover:
+
+- coupled values remaining local until explicit Save
+- group-local disabling while a save is slow
+- successful pending and completion feedback
+- an explicit-save rejection retaining its draft
+- retrying the retained explicit draft
+- auto-save rollback after rejection
+- retrying the rejected auto-save value
+- disabling type-dependent controls during a structure save
+- blocking a retained retry after its setting becomes unavailable
+- displaying the confirmed value returned by the server after normalization
+- superadmin confirmation remaining open after rejection
+
+Mutation-scope tests deliberately start a dependent transfer write while a
+structure write is blocked and prove it cannot overtake the structure change.
+They also prove that independent settings can execute concurrently.
+
+## Item 6 — Promote one verified artifact and add provenance
+
+### Original finding
+
+The current delivery design is secure and substantially hardened:
+
+- GitHub actions are SHA-pinned
+- EC2 deployment is restricted to protected `main`
+- OIDC replaces static AWS keys
+- source SHA and physical release identity are immutable
+- release manifests and SHA-256 checks are verified across GitHub, S3, and EC2
+- extraction and activation are atomic
+- failed readiness restores the previous compatible application
+
+CI and the manual deploy workflow still install, build, and verify
+independently. The deploy workflow protects itself by rerunning application,
+CDK, database, server-smoke, and Chromium browser gates before packaging, but
+that means:
+
+- CI and deployment spend substantial duplicate time and compute
+- the artifact verified in CI is not the artifact later promoted
+- provenance is represented by internal manifests and checksums but not a
+  signed GitHub artifact attestation
+- no software bill of materials is retained with a release
+
+### Resolution
+
+The new protected-main [Release workflow](../../.github/workflows/release.yml)
+runs only after a successful same-repository CI push on `main`. It checks out
+that immutable SHA, builds the production payload once, and retains one
+environment-neutral release bundle for 90 days containing:
+
+- the deploy tarball with schema-v2 release manifest
+- its SHA-256 checksum
+- pnpm 11's native production-only SPDX 2.3 SBOM
+- GitHub-signed build-provenance and SBOM attestations
+
+The manual [Deploy workflow](../../.github/workflows/deploy.yml) now accepts a
+successful Release run ID and never installs, verifies, or rebuilds source. It
+validates the selected workflow run, bundle shape, checksum, manifest,
+provenance signature, signed SBOM, and immutable source SHA before the existing
+S3/SSM handoff. The same retained bytes can therefore move through staging and
+production while each protected environment keeps its own approval and OIDC
+role.
+
+Staging can resolve the latest automatically verified retained Release without
+manual ID lookup. Exceptional recovery releases, production, and rollback
+require an explicit Release run ID, preserving the exact
+staging-to-production promotion and on-host `N-1` boundaries. Deployment
+reasons are derived from the source PR number or SHA and target environment,
+with optional normalized operator context; the complete SSM comment is capped
+at AWS's 100-character limit.
+
+Exceptional rebuilds use an explicitly labelled `recovery` mode, require an
+auditable reason and a main-reachable revision, and re-run the former deploy
+verification gates before packaging. Controlled `rollback` deployments must
+select the on-host `previous` release recorded after the last successful
+activation. That confines application rollback to the manifest-verified `N-1`
+candidate covered by the forward-only migration compatibility contract.
+
+Recovery checks out the selected application revision separately from the
+protected workflow revision. The historical checkout owns dependency
+installation, verification, and the application build; protected-main tooling
+owns schema-v2 packaging, bundle verification, deploy scripts, systemd, and
+nginx. Historical refs therefore cannot silently replace the integrity and
+activation tooling used to produce or deploy the recovery bundle.
+
+### Verification and regression protection
+
+- release-bundle tests cover correct provenance identity, checksum drift,
+  missing or malformed SBOMs, and manifest/name mismatches
+- deploy-script tests cover idempotent activation, retained-release
+  replacement, previous-release recording, migration failure, readiness
+  rollback, accepted `N-1` rollback, and rejection of older rollback targets
+- recovery-boundary tests prove historical application bytes are preserved
+  while obsolete packaging and deployment tooling is replaced by the trusted
+  protected-main release envelope
+- deployment-request tests cover PR/SHA reason derivation, context
+  normalization, latest-versus-specific selection boundaries, and the complete
+  AWS SSM comment length limit
+- repository security verification enforces the successful-main CI boundary,
+  pinned attestation action, production SBOM, 90-day retention, signed
+  verification on consumption, protected environment OIDC, and the absence of
+  any build command from deployment
+- actionlint and ShellCheck continue validating the workflow and host scripts
+
+## Item 8 — Manage framework dependencies as tested cohorts
+
+### Original finding
+
+The dependency policy is strong: frozen lockfile, a seven-day release-age
+delay, no-downgrade trust policy, explicit build-script allowlisting, audit
+gates, and documented overrides.
+
+The TanStack declarations currently span different versions:
+
+- `@tanstack/react-start` — `^1.168.13`
+- `@tanstack/react-router` — `^1.170.8`
+- `@tanstack/react-router-devtools` — `^1.167.0`
+
+The lockfile also resolves related internal plugin packages across several
+nearby versions. This is not a demonstrated runtime defect, but it makes
+compatibility intent harder to review because TanStack Start is powered by
+TanStack Router and remains a release-candidate framework. See the official
+[TanStack Start overview](https://tanstack.com/start/latest/docs/framework/react/overview).
+
+The repository also intentionally retains the known-good `h3-v2` release
+candidate alias because a direct upstream move regressed SSR login smoke.
+Several deprecated transitive packages remain in the lockfile and should be
+traced to their owning dependency before action.
+
+### Resolution
+
+The framework is now managed through the machine-readable
+[framework cohort](../../config/framework-dependency-cohort.json) and its
+[operational policy](../framework-dependency-cohort.md). Every direct member is
+exact-pinned:
+
+- React Start `1.168.32`
+- React Router `1.170.18`
+- Router Devtools `1.167.0`
+- Vite `8.0.16`
+- Vite React plugin `6.0.2`
+- SRVX `0.11.22`
+- the `h3-v2` alias at `h3@2.0.1-rc.20`
+
+The 19 July React Start release train and every other selected package had
+passed the strict seven-day release-age delay before selection. Start's
+published dependency requires Router `1.170.18`; the differing TanStack version
+numbers are therefore recorded compatibility intent rather than accidental
+drift.
+
+H3 remains at `rc.20` because the selected Start server core still resolves
+that version. Direct SRVX now matches the `0.11.22` selected by Start and H3, so
+the lockfile contains one production HTTP adapter stack. A future H3/SRVX move
+must pass the same production login, authenticated-session, API, readiness, and
+browser smoke reproduction before replacing this alias.
+
+All TanStack Start server-function bridges now use `validator()` instead of the
+deprecated `inputValidator()` spelling surfaced by the selected release.
+
+`verify:framework-cohort` protects the policy in CI. It rejects:
+
+- non-exact direct framework ranges
+- package/lockfile disagreement
+- missing, unexpected, or duplicate related package versions
+- deprecated server-function validator usage
+- a weakened strict release-age delay
+- any quarantine exclusion covering a cohort package
+- a cohort selected before its packages had aged for seven days
+
+Focused regression tests cover each failure boundary. `pnpm why` assigns all
+five deprecated transitives to `exceljs@4.4.0`, not TanStack, Vite, H3, or SRVX.
+They remain an explicit ExcelJS-owned follow-up rather than being suppressed or
+forced through arbitrary overrides.
+
+## Item 12 — Route all production exceptions through structured sanitization
+
+### Original finding
+
+The main HTTP and server-function error boundaries returned generic unexpected
+errors to clients and wrote request-ID-correlated structured logs, but those
+logs still serialized raw exception messages and stacks. BetterAuth session
+resolution, assignment-email failure, and background export paths also passed
+raw exception objects or messages directly to console output.
+
+Raw provider, database, or HTTP exceptions can contain credentials, connection
+URLs, headers, response bodies, email content, imported financial text, or
+other context that operators do not need.
+
+### Resolution
+
+The shared [server logging boundary](../../src/api/serverLogging.ts) now owns
+production application logging. It:
+
+- accepts stable event names and a centrally approved set of scalar metadata
+  fields
+- classifies thrown values without reading or serializing messages, stacks,
+  causes, headers, response bodies, or custom properties
+- prevents metadata from overriding the event, level, or error classification
+- safely handles malformed event names, non-scalar metadata, non-`Error`
+  thrown values, and adversarial proxy objects
+
+HTTP routes, native server functions, BetterAuth session resolution,
+transaction-comment assignment notifications, export jobs, export-ready
+notifications, authentication-email fallback, and startup environment
+validation now use that boundary.
+
+Authentication email fallback records only that delivery is unconfigured; it
+no longer prints recipients, subjects, bodies, HTML, or reset links. Unknown
+export and notification failures also persist generic user-safe messages rather
+than provider exception text.
+
+Intentional migration, bootstrap-user, and smoke CLI output remains separate
+because it is operator-invoked terminal output rather than production request
+logging.
+
+### Verification and regression protection
+
+- adversarial logging tests prove credentials, cookies, connection URLs,
+  provider data, reset links, email content, and imported financial text are
+  not serialized
+- HTTP and native server-function boundary tests prove clients and logs receive
+  only generic errors plus safe classifications
+- authentication-email and export-notification tests prove payload and provider
+  failures are not exposed
+- a repository boundary test rejects direct console logging from production
+  TypeScript while retaining the explicit CLI allowlist
+
+## Item 9 — Continue responsibility-based decomposition
+
+### Original finding
+
+The earlier maintainability tranche removed the circular dependency, split
+response schemas, extracted major views and workflow services, removed
+duplicate migration wrappers, and established regression boundaries. The
+architecture is materially healthier.
+
+Current production hotspots still include:
+
+- `CompanyDefaultTaxonomyModal.tsx` — approximately 984 lines
+- `CompanySummaryPanel.tsx` — approximately 945 lines
+- `ProjectWorkspace.tsx` — approximately 895 lines
+- `CompanyDashboardPage.tsx` — approximately 847 lines
+- `transactions/importServers.ts` — approximately 819 lines
+- `transactions/importPreviewCommit.ts` — approximately 814 lines
+- `validation/apiSchemas.ts` — approximately 802 lines
+- `BudgetPanel.tsx` — approximately 788 lines
+- `taxonomy/companyDefaultServers.ts` — approximately 778 lines
+- `taxonomy/projectCrud.ts` — approximately 771 lines
+- `TaxonomyManagerModal.tsx` — approximately 763 lines
+- `PowerBiImporterPanel.tsx` — approximately 750 lines
+- `TransactionsPanel.tsx` — approximately 736 lines
+- `api/types.ts` — approximately 720 lines
+
+Line count alone is not a defect. The risk is that some of these files still
+combine data acquisition, permission decisions, mutation orchestration,
+derived models, modal state, and presentation.
+
+### Resolution
+
+The current React Doctor inventory identified 21 genuine oversized React
+components. All 21 now separate state, data acquisition, permission decisions,
+derived models, and mutation orchestration into controller hooks while focused
+views own presentation.
+
+The decompositions follow feature responsibilities rather than arbitrary file
+length:
+
+- taxonomy and rule editors separate composition, lists, evidence, move,
+  recode, edit, and delete dialogs
+- company and project settings separate details, membership, operational,
+  budget, and taxonomy cards
+- company and project dashboards separate route coordination from headers,
+  tabs, programme/operational workspaces, and lifecycle confirmation
+- transaction surfaces separate overview, table, modal, comments, reversal
+  summaries, and state-specific reversal actions
+- import and export surfaces separate workflow controllers from upload,
+  preview, decision, and status presentation
+- the system-check dashboard separates authenticated streaming and retry
+  orchestration from controls, run focus, and section results
+
+The large server transaction and schema modules were not split merely to lower
+line counts. Their atomic orchestration and shared-contract ownership remain
+visible until a concrete responsibility boundary justifies a separate change.
+This preserves the original warning against cosmetic decomposition.
+
+### Verification and regression protection
+
+- the pinned local React Doctor full scan reports zero errors and zero warnings
+- maintainability-boundary tests protect each controller/view separation
+  without enforcing a repository-wide maximum-line rule
+- existing component, workflow, lazy-panel, browser, and application gates
+  continue covering runtime behavior across the extracted boundaries
+- TypeScript, ESLint, Prettier, dead-code, build, and bundle checks validate the
+  refactor as one application-wide tranche
+
+## Item 10 — Expand risk-based test visibility
+
+### Original finding
+
+The verification system is a major strength:
+
+- 79 Vitest files and 373 passing application tests in the latest gate
+- 24 database-integration files
+- fresh migration and generated-type verification
+- four isolated Playwright Test workflow specs
+- Chromium and Firefox browser smoke in CI
+- deploy-script, CDK assertion, ShellCheck, actionlint, security, dead-code, and
+  bundle gates
+- selected-domain coverage clearly labelled rather than represented as
+  whole-repository coverage
+
+The remaining visibility gaps are concentrated rather than broad:
+
+- component coverage remains selective around membership changes, taxonomy
+  destructive actions, transaction comments, and import failure recovery
+- browser smoke deliberately covers critical workflows rather than every
+  failure permutation
+- the selected-domain coverage allowlist intentionally excludes most
+  components, queries, and server orchestration
+
+### Resolution
+
+Focused component coverage now exercises each high-state UI area identified by
+the review:
+
+- company membership role changes, including the last-admin safety boundary and
+  locked controls during a slow mutation
+- taxonomy deletion, including affected auto-coding rules, required safe
+  reassignment, slow destructive mutations, and recoverable failures
+- transaction comment failure recovery, reply threading, and assignment limited
+  to current project members
+- PowerBI preview and commit failure recovery without discarding the user's
+  source or reviewed preview
+
+The PowerBI workflow controller is now included in the explicitly labelled
+selected-domain coverage set. Its tests cover slow commits, duplicate-submit
+prevention, review decisions, replacement retries, cancellation failures, file
+read failures, and file reads completing out of order.
+
+The reordered-response case exposed a real race: an older file read could
+finish after a newer selection and replace its CSV content. File reads now use
+a generation boundary so only the current selection can update state. Import
+commits also have a synchronous in-flight guard, and commit, cancel, membership,
+and destructive-action controls remain locked until their active mutation
+settles.
+
+Accessibility and responsive-browser coverage remains in the product backlog.
+Database integration retains its existing focus on constraints, concurrency,
+migration compatibility, and multi-step transaction boundaries.
+
+### Verification and regression protection
+
+- 15 focused component and controller tests cover the four identified UI risks
+- 465 application tests pass under selected-domain coverage
+- selected-domain coverage remains honestly labelled and reports 97.45%
+  statements, 90.54% branches, 96.89% functions, and 98.75% lines
+- the newly allowlisted PowerBI workflow controller reports 91.94% statements,
+  72.16% branches, 97.61% functions, and 96.8% lines
+- the full application, static-analysis, CDK, disposable server, and disposable
+  Chromium browser gates pass
+
+# Completed ongoing controls
+
+## Item 11 — Protect bundle headroom and measure user performance
+
+### Finding
+
+All current bundle budgets pass. The latest measured first-load closures were:
+
+| Target                                  |        Current |  Budget |
+| --------------------------------------- | -------------: | ------: |
+| Root JavaScript                         | 139.9 KiB gzip | 160 KiB |
+| Root CSS                                |  36.2 KiB gzip |  45 KiB |
+| Company dashboard JavaScript            | 322.4 KiB gzip | 345 KiB |
+| Project workspace JavaScript            | 346.0 KiB gzip | 370 KiB |
+| Company post-root navigation JavaScript | 182.5 KiB gzip | 200 KiB |
+| Project post-root navigation JavaScript | 206.1 KiB gzip | 225 KiB |
+
+The earlier chunk refactor delivered substantial improvement and now budgets
+direct routes, navigation payloads, and lazy feature panels. The remaining
+headroom is roughly 6–13 percent across the primary JavaScript budgets, so a
+single large dependency can consume it quickly.
+
+Bundle bytes also do not directly measure parse/execute time, responsiveness,
+or repeat visits.
+
+### Recommendation
+
+- Keep existing budgets fixed unless a reviewed user benefit justifies a
+  measured increase.
+- Investigate remaining shared root/runtime and CSS weight before adding
+  another UI framework or editor dependency.
+- Prefer structural lazy-loading and dependency removal over manual chunk rules
+  that create cycles or unstable filenames.
+
+### Resolution
+
+The existing fixed bundle budgets remain the ongoing regression control. They
+cover root JavaScript and CSS, direct company and project loads, post-root
+navigation payloads, and lazy feature panels. The bundle verifier has focused
+regression tests for both accepted output and budget failures, and it runs as
+part of the protected application verification gate.
+
+Per-PR bundle-diff artifacts and a synthetic browser performance baseline are
+not being added without a specific decision they would support. They would add
+maintenance and potentially noisy data while the current deterministic budgets
+already stop material payload regressions. A targeted before-and-after bundle
+comparison remains appropriate when adding a large dependency, editor, or
+framework feature, or when a fixed budget approaches exhaustion.
+
+Budget increases require an explicit, measured user benefit. Structural
+lazy-loading or dependency removal remains preferred over raising a limit
+merely to pass CI. Item 11 is therefore complete as an ongoing repository
+control rather than a one-time implementation.
+
+# Full repository review
+
+## Executive assessment
+
+| Area                  | Assessment               | Current position                                                                                       |
+| --------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Architecture          | Strong                   | Clear client/server, transport, controller, and focused-view boundaries                                |
+| Financial correctness | Strong                   | Server-owned decisions, integer cents, DB constraints, and explicit financial saves                    |
+| Type and code quality | Strong                   | Strict TypeScript, no application `any`, lint, formatting, Knip, and boundary tests                    |
+| Security              | Strong                   | Central authorization, CSP, exact origins, TLS, invite-only auth, hosted scanning, and hardened deploy |
+| CI                    | Strong                   | Five protected lanes, pinned actions, DB/CDK/static/browser coverage                                   |
+| Deployment            | Strong                   | OIDC, immutable releases, atomic activation, rollback, constrained host identities, and compression    |
+| Testing               | Strong                   | Broad unit/integration/smoke coverage; selective component, accessibility, and viewport evidence       |
+| Client performance    | Strong ongoing control   | Fixed route and panel budgets pass; immutable fingerprinted-asset caching is enforced                  |
+| UI and usability      | Good                     | Consistent design and accessible foundations; dense mobile workflows and mutation feedback need work   |
+| Operations            | Functional               | Excellent runbooks and health gates; centralized telemetry, alerts, and DR exercises remain            |
+| Infrastructure        | Secure low-cost baseline | Higher availability is deferred until the organisation AWS move                                        |
+| Documentation         | Strong                   | Current and historical reviews now have separate sources of truth                                      |
+
+## Architecture and boundaries
+
+Strengths:
+
+- TanStack Start server functions are exposed through explicit bridge modules.
+- Browser-compilable code cannot import arbitrary server infrastructure.
+- API routes remain transport-focused and delegate to server adapters.
+- Validation and response contracts are centralized and tested.
+- Authorization is server-owned and scoped to company/project resources.
+- Migration, transaction, reversal, import-preview, and audit invariants are
+  enforced below the UI.
+- Hydration behavior remains centralized in `useIsHydrated`.
+
+Ongoing controls:
+
+- retain the exact framework cohort and its verification under Item 8
+- retain direct boundary tests whenever a new server/client bridge is added
+- retain controller/view boundaries when the decomposed workflows evolve
+
+## Security and privacy
+
+Strengths:
+
+- no tracked credentials, environment files, certificates, or private keys
+  were identified
+- dependency audit is clean
+- GitHub secret scanning, push protection, Dependabot, and CodeQL are enabled
+- public sign-up is disabled; trusted provisioning is server-only
+- session, company, project, and workflow authorization are centralized
+- exact-origin enforcement, HTTPS validation, PostgreSQL certificate
+  verification, CSP, rate limiting, and request-size controls are present
+- deploy access uses environment-scoped GitHub OIDC
+- the runtime and deployment users are constrained independently
+- HTML email escaping is shared and regression-tested
+
+Residual risks and actions:
+
+- complete raw log sanitization in Item 12
+- retain the documented Mantine `style-src 'unsafe-inline'` residual risk
+- reassess CSP only when the UI stack can remove runtime inline styles
+- add accessibility security/privacy checks for information exposure at narrow
+  viewports
+
+## Database and financial integrity
+
+Strengths:
+
+- money is represented as integer cents at application boundaries
+- financial import previews and workflow decisions are server-owned
+- database constraints, row/advisory locks, optimistic workflow versions, and
+  transaction boundaries protect concurrent work
+- migrations are forward-only with explicit `N`/`N-1` compatibility
+- deploy regression tests prove migration-bearing readiness rollback
+- generated Kysely types are checked against migrated schemas
+- reversal provenance and audit history are extensively tested
+
+Remaining work:
+
+- retain Item 2's explicit draft-and-save pattern for all future financial
+  inputs
+- do not widen mutation scopes or add optimistic financial writes without
+  concurrency tests
+- keep destructive schema contracts delayed until the previous release is no
+  longer a rollback candidate
+
+## CI, deploy, and supply chain
+
+Strengths:
+
+- required application, database, CDK/static, server-smoke, and dual-browser
+  lanes
+- immutable action SHAs
+- frozen pnpm lockfile and delayed dependency adoption
+- OIDC-only AWS deployment
+- immutable source and physical release identities
+- manifest/checksum verification at every artifact handoff
+- archive traversal protection, atomic activation, safe pruning, and readiness
+  rollback
+- nginx, systemd, runtime-user, and IMDSv2 hardening
+
+Remaining work:
+
+- promote one attested artifact under Item 6
+- retain the exact framework-cohort and release-age checks from Item 8
+- add production telemetry and alerts under Item 7
+
+## Testing and verification
+
+Strengths:
+
+- unit, component, database, deploy-script, CDK, smoke, and browser layers
+- Chromium and Firefox coverage
+- isolated generated fixtures and Playwright page objects
+- selected-domain coverage is honestly labelled
+- bundle budgets walk route and dependency closures
+- ShellCheck and actionlint run in CI
+
+Remaining work:
+
+- risk-based component and failure-path tests in Item 10
+- accessibility and viewport projects in Item 5
+- cache-header and log-sanitization regression tests in Items 3 and 12
+
+## Client performance and chunking
+
+Strengths:
+
+- root, authenticated routes, navigation payloads, and deferred panels have
+  separate budgets
+- heavy panels load only when their tabs are selected
+- response contracts and feature modules have narrower client boundaries
+- production compression is enforced
+
+Remaining work:
+
+- preserve fixed budget headroom and measure targeted changes when warranted
+- treat Brotli as an optional measured optimization, not a required package
+  installation
+
+## UI design and usability
+
+Strengths:
+
+- consistent Mantine surfaces, spacing, badges, tables, modals, and feedback
+- a shared visible focus treatment
+- responsive application navigation
+- accessible names on most icon-only controls
+- explicit destructive confirmations
+- improved financial-editing recovery and keyboard actions
+
+Remaining work:
+
+- standard mutation feedback under Item 4
+- mobile table and modal behavior under Item 5
+- automated accessibility evidence, focus restoration, and status
+  announcements
+- maintain clear read-only and permission-denied states after hydration
+
+## Documentation and repository hygiene
+
+Strengths:
+
+- README, contributing guidance, deployment, migration, email, permission,
+  architecture, and staging sources of truth are extensive
+- proprietary licensing is explicit
+- repository security checks prevent earlier documentation and workflow drift
+- the old completed review is now archived rather than mixed with current work
+
+Ongoing rule:
+
+- update this file when a current review item changes state
+- move completed review generations to the archive when a new full review
+  supersedes them
+- keep product ideas in `product-backlog.md`
+- keep operational procedures in their existing runbooks instead of copying
+  them into the backlog
+
+## Review evidence
+
+The review used the repository at merged commit `ee2bfea` and the latest
+successful application verification associated with PR 29:
+
+- `pnpm run verify:app` passed
+- 79 Vitest files / 373 tests passed
+- selected-domain coverage passed at 99.18 percent lines
+- repository security checks and dependency audit passed with zero advisories
+- formatting, ESLint, strict TypeScript, and Knip passed
+- production client and server builds passed
+- all root, authenticated-route, navigation, and deferred-panel bundle budgets
+  passed
+- the worktree was clean before this documentation update
+
+This review did not claim that the deferred infrastructure improvements are
+already present, nor that selected-domain coverage represents whole-repository
+coverage.
