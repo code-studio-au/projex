@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { requireAt } from './helpers/assertions.ts';
+
 import {
   acceptRuleSuggestionServer,
   dismissRuleSuggestionServer,
@@ -255,7 +257,7 @@ test(
       await db
         .insertInto('txns')
         .values({
-          public_id: txnIds[0],
+          public_id: requireAt(txnIds, 0),
           external_id: 'rule-suggest-second-project-ext',
           company_id: companyId,
           project_id: secondProjectId,
@@ -290,7 +292,7 @@ test(
         context: { session: { userId } },
         projectId: secondProjectId,
         input: {
-          id: txnIds[0],
+          id: requireAt(txnIds, 0),
           categoryId: secondCategoryId,
           subCategoryId: secondSubCategoryId,
           companyDefaultMappingRuleId: null,

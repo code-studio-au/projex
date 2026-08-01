@@ -1,5 +1,12 @@
 {
-  "tsconfig.strict.app.json": 127,
-  "tsconfig.strict.node.json": 160,
-  "tsconfig.strict.tests.json": 384
+  "exactOptionalPropertyTypes": {
+    "tsconfig.app.json": 107,
+    "tsconfig.node.json": 139,
+    "tsconfig.tests.json": 203
+  },
+  "noUncheckedIndexedAccess": {
+    "tsconfig.app.json": 0,
+    "tsconfig.node.json": 0,
+    "tsconfig.tests.json": 0
+  }
 }

@@ -3,6 +3,7 @@ import { afterEach, test, vi } from 'vitest';
 
 import { AppError } from '../src/api/errors.ts';
 import { asCompanyId, asUserId } from '../src/types/index.ts';
+import { requireAt } from './helpers/assertions.ts';
 
 type UpdateLog = {
   table: string;
@@ -239,12 +240,12 @@ test('deactivateCompanyServer archives projects and disables only eligible membe
   });
 
   assert.equal(currentDb.updateLogs.length, 3);
-  assert.equal(currentDb.updateLogs[0].table, 'companies');
-  assert.equal(currentDb.updateLogs[0].values.status, 'deactivated');
-  assert.equal(currentDb.updateLogs[1].table, 'projects');
-  assert.equal(currentDb.updateLogs[1].values.status, 'archived');
-  assert.equal(currentDb.updateLogs[2].table, 'users');
-  assert.deepEqual(currentDb.updateLogs[2].wheres[0], [
+  assert.equal(requireAt(currentDb.updateLogs, 0).table, 'companies');
+  assert.equal(requireAt(currentDb.updateLogs, 0).values.status, 'deactivated');
+  assert.equal(requireAt(currentDb.updateLogs, 1).table, 'projects');
+  assert.equal(requireAt(currentDb.updateLogs, 1).values.status, 'archived');
+  assert.equal(requireAt(currentDb.updateLogs, 2).table, 'users');
+  assert.deepEqual(requireAt(requireAt(currentDb.updateLogs, 2).wheres, 0), [
     'id',
     'in',
     ['usr_disable'],
@@ -269,9 +270,9 @@ test('reactivateCompanyServer only re-enables users disabled by company deactiva
   });
 
   assert.equal(currentDb.updateLogs.length, 3);
-  assert.equal(currentDb.updateLogs[0].values.status, 'active');
-  assert.equal(currentDb.updateLogs[1].values.status, 'active');
-  assert.deepEqual(currentDb.updateLogs[2].wheres[0], [
+  assert.equal(requireAt(currentDb.updateLogs, 0).values.status, 'active');
+  assert.equal(requireAt(currentDb.updateLogs, 1).values.status, 'active');
+  assert.deepEqual(requireAt(requireAt(currentDb.updateLogs, 2).wheres, 0), [
     'id',
     'in',
     ['usr_reenable'],
@@ -322,10 +323,13 @@ test('deleteCompanyServer removes stored export objects before deleting company 
   });
 
   assert.equal(deleteCompanyExportObjectMock.mock.calls.length, 2);
-  assert.deepEqual(deleteCompanyExportObjectMock.mock.calls[0][0], {
-    bucket: 'exports',
-    key: 'co_1/job_1.xlsx',
-  });
-  assert.equal(currentDb.deleteLogs[0].table, 'companies');
-  assert.equal(currentDb.deleteLogs[1].table, 'users');
+  assert.deepEqual(
+    requireAt(requireAt(deleteCompanyExportObjectMock.mock.calls, 0), 0),
+    {
+      bucket: 'exports',
+      key: 'co_1/job_1.xlsx',
+    }
+  );
+  assert.equal(requireAt(currentDb.deleteLogs, 0).table, 'companies');
+  assert.equal(requireAt(currentDb.deleteLogs, 1).table, 'users');
 });

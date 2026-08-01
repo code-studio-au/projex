@@ -214,7 +214,7 @@ function useBudgetPanelController(props: {
       {
         categoryId: CategoryId;
         categoryName: string;
-        rows: BudgetRollupRowWithTaxonomy[];
+        rows: [BudgetRollupRowWithTaxonomy, ...BudgetRollupRowWithTaxonomy[]];
       }
     >();
 
@@ -225,17 +225,21 @@ function useBudgetPanelController(props: {
 
     for (const row of visibleRollupRows) {
       const key = row.categoryId;
-      const existing = grouped.get(key) ?? {
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.rows.push(row);
+        continue;
+      }
+      grouped.set(key, {
         categoryId: row.categoryId,
         categoryName: row.categoryName.trim(),
-        rows: [] as BudgetRollupRowWithTaxonomy[],
-      };
-      existing.rows.push(row);
-      grouped.set(key, existing);
+        rows: [row],
+      });
     }
 
     return Array.from(grouped.values()).flatMap(
       ({ categoryId, categoryName, rows }) => {
+        const firstRow = rows[0];
         const actualByMonthKey = Object.fromEntries(
           rollups.visibleMonthKeys.map((mk) => [
             mk,
@@ -244,8 +248,8 @@ function useBudgetPanelController(props: {
         );
 
         const categoryRow: BudgetDisplayRow = {
-          ...rows[0],
-          id: rows[0].id,
+          ...firstRow,
+          id: firstRow.id,
           categoryName,
           subCategoryName: 'Total',
           allocatedCents: sum(rows.map((row) => row.allocatedCents)),

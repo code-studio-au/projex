@@ -57,7 +57,7 @@ function bestCompanyRole(
       : []
   );
   if (!roles.length) return null;
-  return roles.sort((a, b) => companyRank[b] - companyRank[a])[0];
+  return roles.sort((a, b) => companyRank[b] - companyRank[a]).at(0) ?? null;
 }
 
 function bestProjectRole(
@@ -71,7 +71,7 @@ function bestProjectRole(
       : []
   );
   if (!roles.length) return null;
-  return roles.sort((a, b) => projectRank[b] - projectRank[a])[0];
+  return roles.sort((a, b) => projectRank[b] - projectRank[a]).at(0) ?? null;
 }
 
 /**

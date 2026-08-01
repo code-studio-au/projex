@@ -23,7 +23,7 @@ export function activeMentionFromSelection(
   return {
     start: beforeCursor.lastIndexOf('@'),
     end: selectionStart,
-    query: match[1],
+    query: match[1] ?? '',
   };
 }
 

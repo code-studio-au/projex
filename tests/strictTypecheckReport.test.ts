@@ -3,6 +3,7 @@ import {
   formatStrictTypecheckSummary,
   parseTypeScriptDiagnostics,
   summarizeDiagnosticCodes,
+  summarizeUniqueDiagnostics,
 } from '../scripts/strict-typecheck-report.mjs';
 
 describe('strict TypeScript reporting', () => {
@@ -56,6 +57,8 @@ describe('strict TypeScript reporting', () => {
     expect(
       formatStrictTypecheckSummary([
         {
+          flagKey: 'noUncheckedIndexedAccess',
+          flagLabel: 'Unchecked indexed access',
           label: 'Application',
           baseline: 10,
           total: 12,
@@ -63,6 +66,50 @@ describe('strict TypeScript reporting', () => {
           diagnostics: [],
         },
       ])
-    ).toContain('| Application | 12 | 10 | +2 | 3 |');
+    ).toContain(
+      '| Unchecked indexed access | Application | 12 | 10 | +2 | 3 |'
+    );
+  });
+
+  test('deduplicates findings repeated across compilation projects', () => {
+    const diagnostic = {
+      file: 'src/example.ts',
+      line: 4,
+      column: 9,
+      code: 'TS2532',
+      message: "Object is possibly 'undefined'.",
+    };
+
+    expect(
+      summarizeUniqueDiagnostics([
+        {
+          flagKey: 'noUncheckedIndexedAccess',
+          flagLabel: 'Unchecked indexed access',
+          label: 'Application',
+          baseline: 1,
+          total: 1,
+          fileCount: 1,
+          diagnostics: [diagnostic],
+        },
+        {
+          flagKey: 'noUncheckedIndexedAccess',
+          flagLabel: 'Unchecked indexed access',
+          label: 'Tests',
+          baseline: 1,
+          total: 1,
+          fileCount: 1,
+          diagnostics: [diagnostic],
+        },
+      ])
+    ).toEqual([
+      {
+        flagKey: 'noUncheckedIndexedAccess',
+        flagLabel: 'Unchecked indexed access',
+        total: 1,
+        production: 1,
+        tests: 0,
+        fileCount: 1,
+      },
+    ]);
   });
 });

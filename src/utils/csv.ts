@@ -70,15 +70,19 @@ export function parseCsv(text: string): Record<string, string>[] {
   // final row if any content
   if (row.length > 1 || row.some((c) => c.trim() !== '')) rows.push(row);
 
-  if (!rows.length) return [];
+  const headerRow = rows[0];
+  if (!headerRow) return [];
 
-  const headers = rows[0].map((h) => h.trim());
+  const headers = headerRow.map((h) => h.trim());
   const out: Record<string, string>[] = [];
   for (const r of rows.slice(1)) {
     if (r.every((c) => c.trim() === '')) continue;
     const obj: Record<string, string> = {};
-    for (let i = 0; i < headers.length; i++)
-      obj[headers[i]] = (r[i] ?? '').trim();
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i];
+      if (header === undefined) continue;
+      obj[header] = (r[i] ?? '').trim();
+    }
     out.push(obj);
   }
   return out;

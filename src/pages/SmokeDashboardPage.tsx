@@ -790,8 +790,7 @@ function useSmokeDashboardController() {
     setRunAllStatus('Preparing full smoke run...');
     setRunAllSectionIndex(0);
     let failedSectionLabel: string | null = null;
-    for (let index = 0; index < smokeSectionDefinitions.length; index += 1) {
-      const section = smokeSectionDefinitions[index];
+    for (const [index, section] of smokeSectionDefinitions.entries()) {
       setRunAllSectionIndex(index);
       let attempts = 0;
 

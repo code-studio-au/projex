@@ -17,6 +17,7 @@ import {
   asSubCategoryId,
 } from '../src/types/index.ts';
 import { buildImportPreview } from '../src/utils/importPreview.ts';
+import { requireAt } from './helpers/assertions.ts';
 
 const companyId = asCompanyId('co_1');
 const projectId = asProjectId('prj_1');
@@ -81,10 +82,10 @@ test('buildImportPreview auto-creates taxonomy and budgets when allowed', () => 
     canEditBudgets: true,
   });
 
-  assert.equal(rows[0].mappingStatus, 'auto_created');
-  assert.equal(rows[0].willCreateCategory, true);
-  assert.equal(rows[0].willCreateSubCategory, true);
-  assert.equal(rows[0].willCreateBudgetLine, true);
+  assert.equal(requireAt(rows, 0).mappingStatus, 'auto_created');
+  assert.equal(requireAt(rows, 0).willCreateCategory, true);
+  assert.equal(requireAt(rows, 0).willCreateSubCategory, true);
+  assert.equal(requireAt(rows, 0).willCreateBudgetLine, true);
 });
 
 test('buildImportPreview warns when provided taxonomy cannot be resolved and skips rule fallback', () => {
@@ -106,9 +107,12 @@ test('buildImportPreview warns when provided taxonomy cannot be resolved and ski
     canEditBudgets: false,
   });
 
-  assert.equal(rows[0].mappingStatus, 'uncoded');
-  assert.equal(rows[0].categoryId, undefined);
-  assert.match(rows[0].warnings.join('\n'), /left for manual review/);
+  assert.equal(requireAt(rows, 0).mappingStatus, 'uncoded');
+  assert.equal(requireAt(rows, 0).categoryId, undefined);
+  assert.match(
+    requireAt(rows, 0).warnings.join('\n'),
+    /left for manual review/
+  );
 });
 
 test('buildImportPreview creates budget lines for existing subcategories without budgets and marks duplicates and review actions', () => {
@@ -145,10 +149,10 @@ test('buildImportPreview creates budget lines for existing subcategories without
     canEditBudgets: true,
   });
 
-  assert.equal(rows[0].willCreateBudgetLine, true);
-  assert.match(rows[0].warnings.join('\n'), /Needs project review/);
-  assert.equal(rows[1].duplicateReason, 'existing');
-  assert.match(rows[1].warnings.join('\n'), /existing transaction/);
+  assert.equal(requireAt(rows, 0).willCreateBudgetLine, true);
+  assert.match(requireAt(rows, 0).warnings.join('\n'), /Needs project review/);
+  assert.equal(requireAt(rows, 1).duplicateReason, 'existing');
+  assert.match(requireAt(rows, 1).warnings.join('\n'), /existing transaction/);
 });
 
 test('buildImportPreview warns on uncoded valid rows and exclude actions', () => {
@@ -169,10 +173,13 @@ test('buildImportPreview warns on uncoded valid rows and exclude actions', () =>
     canEditBudgets: false,
   });
 
-  assert.equal(rows[0].mappingStatus, 'uncoded');
-  assert.match(rows[0].warnings.join('\n'), /No category\/subcategory/);
+  assert.equal(requireAt(rows, 0).mappingStatus, 'uncoded');
   assert.match(
-    rows[0].warnings.join('\n'),
+    requireAt(rows, 0).warnings.join('\n'),
+    /No category\/subcategory/
+  );
+  assert.match(
+    requireAt(rows, 0).warnings.join('\n'),
     /Excluded by import rule: Noise row/
   );
 });
@@ -198,12 +205,12 @@ test('buildImportPreview normalizes blank identifiers and uses the default revie
     canEditBudgets: false,
   });
 
-  assert.equal(rows[0].externalId, undefined);
-  assert.equal(rows[0].item, null);
-  assert.equal(rows[0].description, null);
-  assert.equal(rows[0].duplicate, false);
+  assert.equal(requireAt(rows, 0).externalId, undefined);
+  assert.equal(requireAt(rows, 0).item, null);
+  assert.equal(requireAt(rows, 0).description, null);
+  assert.equal(requireAt(rows, 0).duplicate, false);
   assert.match(
-    rows[0].warnings.join('\n'),
+    requireAt(rows, 0).warnings.join('\n'),
     /Needs project review: Rule matched/
   );
 });
@@ -234,14 +241,14 @@ test('buildImportPreview resolves provided project taxonomy and flags duplicate 
     canEditBudgets: false,
   });
 
-  assert.equal(rows[0].mappingStatus, 'source_taxonomy');
-  assert.equal(rows[0].categoryId, category.id);
-  assert.equal(rows[0].subCategoryId, subCategory.id);
-  assert.equal(rows[0].duplicateReason, undefined);
+  assert.equal(requireAt(rows, 0).mappingStatus, 'source_taxonomy');
+  assert.equal(requireAt(rows, 0).categoryId, category.id);
+  assert.equal(requireAt(rows, 0).subCategoryId, subCategory.id);
+  assert.equal(requireAt(rows, 0).duplicateReason, undefined);
 
-  assert.equal(rows[1].duplicateReason, 'import');
+  assert.equal(requireAt(rows, 1).duplicateReason, 'import');
   assert.match(
-    rows[1].warnings.join('\n'),
+    requireAt(rows, 1).warnings.join('\n'),
     /Duplicates another row in this import/
   );
 });
@@ -265,12 +272,15 @@ test('buildImportPreview warns when a source subcategory is provided without a r
     canEditBudgets: false,
   });
 
-  assert.equal(rows[0].mappingStatus, 'uncoded');
+  assert.equal(requireAt(rows, 0).mappingStatus, 'uncoded');
   assert.match(
-    rows[0].warnings.join('\n'),
+    requireAt(rows, 0).warnings.join('\n'),
     /provided without a project category that could be resolved/
   );
-  assert.match(rows[0].warnings.join('\n'), /left for manual review/);
+  assert.match(
+    requireAt(rows, 0).warnings.join('\n'),
+    /left for manual review/
+  );
 });
 
 test('buildImportPreview warns when a source subcategory does not exist under a resolved category', () => {
@@ -292,7 +302,13 @@ test('buildImportPreview warns when a source subcategory does not exist under a 
     canEditBudgets: false,
   });
 
-  assert.equal(rows[0].mappingStatus, 'uncoded');
-  assert.match(rows[0].warnings.join('\n'), /does not exist under "Travel"/);
-  assert.match(rows[0].warnings.join('\n'), /left for manual review/);
+  assert.equal(requireAt(rows, 0).mappingStatus, 'uncoded');
+  assert.match(
+    requireAt(rows, 0).warnings.join('\n'),
+    /does not exist under "Travel"/
+  );
+  assert.match(
+    requireAt(rows, 0).warnings.join('\n'),
+    /left for manual review/
+  );
 });

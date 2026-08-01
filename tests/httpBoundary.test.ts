@@ -4,6 +4,7 @@ import { afterEach, test } from 'vitest';
 import { AppError } from '../src/api/errors.ts';
 import { withPublicApi } from '../src/routes/-api-shared.ts';
 import { safeParseJson } from '../src/utils/json.ts';
+import { requireAt } from './helpers/assertions.ts';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -122,7 +123,7 @@ test('withPublicApi propagates request ids and emits structured success logs', a
     assert.deepEqual(await response.json(), { ok: true });
 
     assert.equal(logs.messages.length, 1);
-    const log = parseRequestLog(logs.messages[0]);
+    const log = parseRequestLog(requireAt(logs.messages, 0));
     assert.equal(log.level, 'info');
     assert.equal(log.type, 'api_request');
     assert.equal(log.requestId, 'req_test_success');
@@ -157,7 +158,7 @@ test('withPublicApi converts AppError into request-id responses and warning logs
     });
 
     assert.equal(logs.messages.length, 1);
-    const log = parseRequestLog(logs.messages[0]);
+    const log = parseRequestLog(requireAt(logs.messages, 0));
     assert.equal(log.level, 'warn');
     assert.equal(log.type, 'api_request');
     assert.equal(log.requestId, 'req_test_validation');
@@ -196,7 +197,7 @@ test('withPublicApi maps rate-limited errors to 429 and retry-after', async () =
     });
 
     assert.equal(logs.messages.length, 1);
-    const log = parseRequestLog(logs.messages[0]);
+    const log = parseRequestLog(requireAt(logs.messages, 0));
     assert.equal(log.level, 'warn');
     assert.equal(log.status, 429);
     assert.equal(log.code, 'RATE_LIMITED');
@@ -234,13 +235,16 @@ test('withPublicApi hides unexpected error details from clients and logs', async
     });
 
     assert.equal(logs.messages.length, 1);
-    const log = parseRequestLog(logs.messages[0]);
+    const log = parseRequestLog(requireAt(logs.messages, 0));
     assert.equal(log.level, 'error');
     assert.equal(log.requestId, 'req_test_internal');
     assert.equal(log.status, 500);
     assert.equal(log.message, undefined);
     assert.equal(log.errorType, 'Error');
-    assert.doesNotMatch(logs.messages[0], /secret-token|private-credential/u);
+    assert.doesNotMatch(
+      requireAt(logs.messages, 0),
+      /secret-token|private-credential/u
+    );
   } finally {
     logs.restore();
   }
@@ -273,14 +277,14 @@ test('withPublicApi hides and classifies unexpected server-boundary causes', asy
     });
 
     assert.equal(logs.messages.length, 1);
-    const log = parseRequestLog(logs.messages[0]);
+    const log = parseRequestLog(requireAt(logs.messages, 0));
     assert.equal(log.level, 'error');
     assert.equal(log.requestId, 'req_test_server_boundary');
     assert.equal(log.status, 500);
     assert.equal(log.code, 'INTERNAL_ERROR');
     assert.equal(log.message, undefined);
     assert.equal(log.errorType, 'Error');
-    assert.doesNotMatch(logs.messages[0], /secret_constraint/u);
+    assert.doesNotMatch(requireAt(logs.messages, 0), /secret_constraint/u);
   } finally {
     logs.restore();
   }
@@ -311,7 +315,7 @@ test('withPublicApi rejects disallowed cross-origin browser requests', async () 
     });
 
     assert.equal(logs.messages.length, 1);
-    const log = parseRequestLog(logs.messages[0]);
+    const log = parseRequestLog(requireAt(logs.messages, 0));
     assert.equal(log.level, 'warn');
     assert.equal(log.status, 403);
     assert.equal(log.code, 'FORBIDDEN');

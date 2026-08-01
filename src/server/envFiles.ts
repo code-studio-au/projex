@@ -24,7 +24,9 @@ export function loadEnvFiles(
       const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
       if (!match) continue;
 
-      const [, key, rawValue] = match;
+      const key = match[1];
+      const rawValue = match[2];
+      if (!key || rawValue === undefined) continue;
       let value = rawValue.trim();
       if (
         (value.startsWith('"') && value.endsWith('"')) ||

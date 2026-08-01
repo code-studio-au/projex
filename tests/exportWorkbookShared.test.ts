@@ -13,6 +13,7 @@ import {
   type ProjectExportRow,
 } from '../src/server/fns/exportWorkbookShared.ts';
 import { asProjectId, type CompanySummaryProject } from '../src/types/index.ts';
+import { requireAt } from './helpers/assertions.ts';
 
 test('buildExportFileName slugifies company names and includes active/date filters', () => {
   const fileName = buildExportFileName({
@@ -112,11 +113,11 @@ test('flattenSummaryProjects and sumProjectMonths handle nested company summary 
     ['prog_1', 'prj_1']
   );
   assert.equal(
-    sumProjectMonths(flat[1], (month) => month.actualCodedCents),
+    sumProjectMonths(requireAt(flat, 1), (month) => month.actualCodedCents),
     250
   );
   assert.equal(
-    sumProjectMonths(flat[1], (month) => month.uncodedAmountCents),
+    sumProjectMonths(requireAt(flat, 1), (month) => month.uncodedAmountCents),
     75
   );
 });

@@ -73,7 +73,7 @@ jobs:
           "TypeScript and dead-code checks"
           pnpm run verify:app:types
 
-      - name: Report opt-in TypeScript strictness
+      - name: Enforce TypeScript strictness ratchet
         run: >-
           node scripts/run-ci-summary.mjs
           "Opt-in TypeScript strictness"

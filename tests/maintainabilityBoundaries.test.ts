@@ -228,7 +228,7 @@ describe('maintainability boundaries', () => {
     expect(viteConfig).toContain("include: ['src/**/*.{ts,tsx}']");
     expect(viteConfig).toContain("['default', 'github-actions']");
     expect(packageManifestText).toContain('"typecheck:strict:report"');
-    expect(ciWorkflow).toContain('Report opt-in TypeScript strictness');
+    expect(ciWorkflow).toContain('Enforce TypeScript strictness ratchet');
     expect(ciWorkflow).toContain('pnpm run typecheck:strict:report');
   });
 
@@ -253,7 +253,7 @@ describe('maintainability boundaries', () => {
         }))
       ),
       readFile(path.resolve('strict-typecheck-baseline.json'), 'utf8').then(
-        (source) => JSON.parse(source) as Record<string, number>
+        (source) => JSON.parse(source) as Record<string, Record<string, number>>
       ),
     ]);
 
@@ -262,9 +262,18 @@ describe('maintainability boundaries', () => {
         exactOptionalPropertyTypes: true,
         noUncheckedIndexedAccess: true,
       });
-      expect(baseline[configPath]).toBeGreaterThanOrEqual(0);
+      for (const flag of [
+        'exactOptionalPropertyTypes',
+        'noUncheckedIndexedAccess',
+      ]) {
+        const baseConfigPath = configPath.replace('.strict', '');
+        expect(baseline[flag]?.[baseConfigPath]).toBeGreaterThanOrEqual(0);
+      }
     }
-    expect(Object.keys(baseline).sort()).toEqual(configPaths.sort());
+    expect(Object.keys(baseline).sort()).toEqual([
+      'exactOptionalPropertyTypes',
+      'noUncheckedIndexedAccess',
+    ]);
   });
 
   test('PowerBI import coordination delegates preview tables and columns', async () => {
