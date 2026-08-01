@@ -80,8 +80,7 @@ test('transaction comment emails escape all dynamic HTML content', async () => {
   });
 
   const sendCall = sendAuthEmailMock.mock.calls[0] as
-    | [Record<string, string>]
-    | undefined;
+    [Record<string, string>] | undefined;
   const html = sendCall?.[0].html ?? '';
   assert.doesNotMatch(html, /<img|<a href="https:\/\/evil\.example"/);
   assert.match(html, /Recipient &lt;Admin&gt;/);

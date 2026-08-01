@@ -58,8 +58,7 @@ export default function AuthedLayout() {
       // Search from deepest match outward.
       for (let i = s.matches.length - 1; i >= 0; i--) {
         const params = s.matches[i]?.params as
-          | Record<string, unknown>
-          | undefined;
+          Record<string, unknown> | undefined;
         const raw = params?.companyId;
         if (typeof raw === 'string') return asCompanyId(raw);
       }

@@ -1,8 +1,5 @@
 export type ProjectWorkspaceTab =
-  | 'budget'
-  | 'transactions'
-  | 'import'
-  | 'settings';
+  'budget' | 'transactions' | 'import' | 'settings';
 
 export function resolveProjectWorkspaceTabAccess(args: {
   isHydrated: boolean;

@@ -41,11 +41,7 @@ export type ImportTxnWithTaxonomy = ImportTxn & {
 };
 
 type ImportPreviewMappingStatus =
-  | 'matched_rule'
-  | 'source_taxonomy'
-  | 'auto_created'
-  | 'uncoded'
-  | 'invalid';
+  'matched_rule' | 'source_taxonomy' | 'auto_created' | 'uncoded' | 'invalid';
 
 type ImportPreviewDuplicateReason = 'existing' | 'import';
 

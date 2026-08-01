@@ -1,8 +1,7 @@
 import type { z } from 'zod';
 
 export type JsonParseResult<T = unknown> =
-  | { success: true; data: T }
-  | { success: false; error: SyntaxError };
+  { success: true; data: T } | { success: false; error: SyntaxError };
 
 export function safeParseJson(text: string): JsonParseResult {
   try {

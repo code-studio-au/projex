@@ -145,11 +145,7 @@ function membershipEditorReducer(
 }
 
 type CompanySettingsModal =
-  | 'defaults'
-  | 'mappings'
-  | 'importRules'
-  | 'ruleSuggestions'
-  | null;
+  'defaults' | 'mappings' | 'importRules' | 'ruleSuggestions' | null;
 
 function companySettingsModalReducer(
   _state: CompanySettingsModal,

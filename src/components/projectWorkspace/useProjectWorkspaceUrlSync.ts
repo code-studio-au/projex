@@ -11,14 +11,9 @@ import type { TransactionView } from '../transactions/transactionViews';
 import type { ProjectWorkspaceTab } from '../projectWorkspaceTabAccess';
 
 export type ProjectWorkspaceEntrySource =
-  | 'company-summary'
-  | 'company-work-queue';
+  'company-summary' | 'company-work-queue';
 export type ProjectWorkspaceEntryFocus =
-  | 'budget'
-  | 'actual'
-  | 'remaining'
-  | 'uncoded'
-  | 'health';
+  'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 
 export type TransactionDrilldownSearch =
   | {

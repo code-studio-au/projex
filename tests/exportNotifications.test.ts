@@ -123,8 +123,7 @@ test('sendCompanyExportReadyEmail composes a linked email payload with escaped h
 
   assert.equal(delivery, 'email');
   const sendCall = sendAuthEmailMock.mock.calls[0] as
-    | [Record<string, string>]
-    | undefined;
+    [Record<string, string>] | undefined;
   assert.equal(sendCall?.[0].to, 'owner@example.com');
   assert.match(sendCall?.[0].subject ?? '', /Acme & Sons/);
   assert.match(sendCall?.[0].text ?? '', /Open your export in Projex:/);
@@ -152,8 +151,7 @@ test('sendCompanyExportReadyEmail falls back to the email address and no-link co
 
   assert.equal(delivery, 'log');
   const sendCall = sendAuthEmailMock.mock.calls[0] as
-    | [Record<string, string>]
-    | undefined;
+    [Record<string, string>] | undefined;
   assert.match(sendCall?.[0].text ?? '', /owner@example\.com/);
   assert.match(
     sendCall?.[0].text ?? '',

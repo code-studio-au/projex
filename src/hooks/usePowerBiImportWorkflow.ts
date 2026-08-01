@@ -18,11 +18,7 @@ import {
 
 type PowerBiImportCommitOptions = Omit<TxnImportInput, 'mode'>;
 export type ImportPreviewTab =
-  | 'included'
-  | 'needsReview'
-  | 'duplicate'
-  | 'invalid'
-  | 'excluded';
+  'included' | 'needsReview' | 'duplicate' | 'invalid' | 'excluded';
 
 export function usePowerBiImportWorkflow(params: {
   projectId: ProjectId;
