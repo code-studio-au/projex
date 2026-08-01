@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 
 import pg from 'pg';
-import pgTypes from 'pg-types';
 
 type PgCommand = 'UPDATE' | 'DELETE' | 'INSERT' | 'SELECT' | 'MERGE';
 
@@ -47,6 +46,9 @@ export type TypedPgPool = {
 
 type PgModule = {
   Pool: new (config: PgPoolConfig) => TypedPgPool;
+  types: {
+    setTypeParser(oid: number, parser: (value: string) => unknown): void;
+  };
 };
 
 type PgPoolSslConfig =
@@ -65,7 +67,7 @@ type PgPoolConfig = {
   allowExitOnIdle?: boolean;
 };
 
-const { Pool } = pg as PgModule;
+const { Pool, types: pgTypes } = pg as PgModule;
 
 const PG_DATE_OID = 1082;
 let dateParserConfigured = false;

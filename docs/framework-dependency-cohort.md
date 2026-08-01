@@ -18,8 +18,8 @@ SRVX package.
 | `@tanstack/react-start`           | `1.168.32`           | SSR, server functions, route and production builds                |
 | `@tanstack/react-router`          | `1.170.18`           | Router version required by React Start `1.168.32`                 |
 | `@tanstack/react-router-devtools` | `1.167.0`            | Development diagnostics with a compatible Router peer range       |
-| `vite`                            | `8.0.16`             | Framework build integration                                       |
-| `@vitejs/plugin-react`            | `6.0.2`              | React transform matched to Vite 8                                 |
+| `vite`                            | `8.1.5`              | Framework build integration                                       |
+| `@vitejs/plugin-react`            | `6.0.4`              | React transform matched to Vite 8                                 |
 | `srvx`                            | `0.11.22`            | Node HTTP adapter used by the production SSR server               |
 | `h3-v2`                           | `npm:h3@2.0.1-rc.20` | H3 release candidate selected by the Start server-core dependency |
 
@@ -28,7 +28,9 @@ published dependencies select Router `1.170.18` and the internal Start and
 Router versions recorded in the cohort file. The direct H3 alias remains on
 `rc.20` because that is also the version selected by the Start server core.
 SRVX `0.11.22` matches the Start plugin and H3 resolution, leaving one H3/SRVX
-runtime stack in the lockfile.
+runtime stack in the lockfile. Vite `8.1.5` and its React plugin `6.0.4` are the
+release-age-eligible build pair verified against this framework train; changing
+either still requires updating and exercising the whole recorded cohort.
 
 ## Enforcement
 
