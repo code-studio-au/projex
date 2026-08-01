@@ -18,6 +18,7 @@ import {
   updateTxnCommentInputSchema,
   updateTxnInputSchema,
 } from '../../validation/apiSchemas';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import {
   applyTxnReversalActionServer,
   createTxnServer,
@@ -88,7 +89,7 @@ export const createTxnEndpoint = defineAppEndpoint({
     createTxnServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -101,7 +102,7 @@ export const updateTxnEndpoint = defineAppEndpoint({
     updateTxnServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -127,7 +128,10 @@ export const splitTxnEndpoint = defineAppEndpoint({
     splitTxnServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: {
+        txnId: input.payload.txnId,
+        children: input.payload.children.map(omitUndefinedProperties),
+      },
     }),
 });
 
@@ -140,7 +144,7 @@ export const transferTxnEndpoint = defineAppEndpoint({
     transferTxnServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -166,7 +170,7 @@ export const applyTxnReversalActionEndpoint = defineAppEndpoint({
     applyTxnReversalActionServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -179,7 +183,7 @@ export const updateTxnWorkflowStateEndpoint = defineAppEndpoint({
     updateTxnWorkflowStateServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -218,7 +222,7 @@ export const bulkTxnActionEndpoint = defineAppEndpoint({
     bulkTxnActionServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -233,9 +237,11 @@ export const importTransactionsEndpoint = defineAppEndpoint({
       projectId: input.projectId,
       mode: input.payload.mode,
       importBatchId: input.payload.importBatchId,
-      skipDuplicates: input.payload.skipDuplicates,
-      excludedSourceRowIndexes: input.payload.excludedSourceRowIndexes,
-      reviewDecisions: input.payload.reviewDecisions,
+      ...omitUndefinedProperties({
+        skipDuplicates: input.payload.skipDuplicates,
+        excludedSourceRowIndexes: input.payload.excludedSourceRowIndexes,
+        reviewDecisions: input.payload.reviewDecisions,
+      }),
     }),
 });
 
@@ -261,7 +267,7 @@ export const listTransactionCommentSummariesEndpoint = defineAppEndpoint({
     listTransactionCommentSummariesServer({
       context,
       projectId: input.projectId,
-      txnIds: input.payload?.txnIds,
+      ...omitUndefinedProperties({ txnIds: input.payload?.txnIds }),
     }),
 });
 
@@ -274,7 +280,7 @@ export const createTransactionCommentEndpoint = defineAppEndpoint({
     createTransactionCommentServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -289,7 +295,7 @@ export const updateTransactionCommentEndpoint = defineAppEndpoint({
       context,
       projectId: input.projectId,
       txnId: input.txnId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 

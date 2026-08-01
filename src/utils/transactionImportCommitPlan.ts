@@ -12,6 +12,7 @@ import type {
 import { txnInputSchema } from '../validation/schemas';
 import { validateOrThrow } from '../validation/validate';
 import { applyProjectAutoCodingRule } from './projectAutoCodingRules';
+import { omitUndefinedProperties } from './optionalProperties';
 import {
   assertUniqueTransactionKeysInProject,
   normalizeExternalId,
@@ -52,22 +53,25 @@ export function planTransactionImportCommit(args: {
 
     return {
       forceUncoded,
-      txn: withStandardTxnAccountingMetadata({
-        ...txn,
-        externalId: normalizeExternalId(txn.externalId),
-      }),
+      txn: withStandardTxnAccountingMetadata(
+        omitUndefinedProperties({
+          ...txn,
+          externalId: normalizeExternalId(txn.externalId),
+        })
+      ),
     };
   });
 
   const importedTransactions = normalizedIncoming.map(
     ({ forceUncoded, txn }) => {
       if (forceUncoded) {
+        const uncodedTxn = { ...txn };
+        delete uncodedTxn.categoryId;
+        delete uncodedTxn.subCategoryId;
+        delete uncodedTxn.companyDefaultMappingRuleId;
+        delete uncodedTxn.codingSource;
         return {
-          ...txn,
-          categoryId: undefined,
-          subCategoryId: undefined,
-          companyDefaultMappingRuleId: undefined,
-          codingSource: undefined,
+          ...uncodedTxn,
           codingPendingApproval: false,
         };
       }

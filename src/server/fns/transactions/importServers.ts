@@ -13,6 +13,7 @@ import type {
 } from '../../../api/types';
 import { uid } from '../../../utils/id';
 import { planImportPreview } from '../../../utils/importPreviewPlan';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { planTransactionImportCommit } from '../../../utils/transactionImportCommitPlan';
 import { isAuthorized, requireAuthorized } from '../../auth/authorize';
 import {
@@ -93,10 +94,12 @@ export async function importTransactionsServer(args: {
         importBatchId: args.importBatchId,
         mode: args.mode,
         skipDuplicates: args.skipDuplicates ?? true,
-        excludedSourceRowIndexes: args.excludedSourceRowIndexes,
-        reviewDecisions: args.reviewDecisions,
         canEditTaxonomy,
         canEditBudgets,
+        ...omitUndefinedProperties({
+          excludedSourceRowIndexes: args.excludedSourceRowIndexes,
+          reviewDecisions: args.reviewDecisions,
+        }),
       })
     );
   });
@@ -126,10 +129,12 @@ export async function importTrustedTransactionsServer(args: {
     );
     const { db, userId, companyId } = context;
     const importBatchId = importBatchIdForCommit({
-      explicitImportBatchId: args.importBatchId,
       incomingTransactions: args.txns,
-      excludedImportIds: args.excludedImportIds,
-      reviewDecisions: args.reviewDecisions,
+      ...omitUndefinedProperties({
+        explicitImportBatchId: args.importBatchId,
+        excludedImportIds: args.excludedImportIds,
+        reviewDecisions: args.reviewDecisions,
+      }),
     });
     const incomingTransactions = importBatchId
       ? args.txns.map((txn) => ({ ...txn, importBatchId }))
@@ -173,10 +178,12 @@ export async function importTrustedTransactionsServer(args: {
         await assertImportPreviewCommit({
           db: trx,
           projectId: args.projectId,
-          importBatchId,
           incomingTransactions,
-          excludedImportIds: args.excludedImportIds,
-          reviewDecisions: args.reviewDecisions,
+          ...omitUndefinedProperties({
+            importBatchId,
+            excludedImportIds: args.excludedImportIds,
+            reviewDecisions: args.reviewDecisions,
+          }),
         });
         const codedBudgetTargets = [
           ...new Map(
@@ -259,11 +266,13 @@ export async function importTrustedTransactionsServer(args: {
         await finalizeImportBatchCandidates({
           db: trx,
           importedTransactions: plan.importedTransactions,
-          importBatchId,
-          excludedImportIds: args.excludedImportIds,
-          reviewDecisions: args.reviewDecisions,
           userId,
           now,
+          ...omitUndefinedProperties({
+            importBatchId,
+            excludedImportIds: args.excludedImportIds,
+            reviewDecisions: args.reviewDecisions,
+          }),
         });
       });
       return { count: plan.importedTransactions.length };
@@ -275,10 +284,12 @@ export async function importTrustedTransactionsServer(args: {
         await assertImportPreviewCommit({
           db: trx,
           projectId: args.projectId,
-          importBatchId,
           incomingTransactions,
-          excludedImportIds: args.excludedImportIds,
-          reviewDecisions: args.reviewDecisions,
+          ...omitUndefinedProperties({
+            importBatchId,
+            excludedImportIds: args.excludedImportIds,
+            reviewDecisions: args.reviewDecisions,
+          }),
         });
         const codedBudgetTargets = [
           ...new Map(
@@ -364,11 +375,13 @@ export async function importTrustedTransactionsServer(args: {
         await finalizeImportBatchCandidates({
           db: trx,
           importedTransactions: plan.importedTransactions,
-          importBatchId,
-          excludedImportIds: args.excludedImportIds,
-          reviewDecisions: args.reviewDecisions,
           userId,
           now,
+          ...omitUndefinedProperties({
+            importBatchId,
+            excludedImportIds: args.excludedImportIds,
+            reviewDecisions: args.reviewDecisions,
+          }),
         });
       });
     }
@@ -432,7 +445,9 @@ export async function previewImportTransactionsServer(args: {
     const preview = planImportPreview({
       csvText: args.csvText,
       importRules: importContext.importRules,
-      existingTransactions: importContext.existingTransactions,
+      existingTransactions: importContext.existingTransactions.map((txn) =>
+        omitUndefinedProperties(txn)
+      ),
       categories: importContext.projectCategories,
       subCategories: importContext.projectSubCategories,
       budgets: importContext.budgets,
