@@ -17,15 +17,15 @@ movement of client-side orchestration into router/query primitives.
 
 ### Priority summary
 
-| Priority     | Recommendation                                                         | Rationale                                                                                                    |
-| ------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| High         | Move the single-company redirect into route loading                    | Avoid an avoidable hydrated landing-page paint and client redirect                                           |
-| High/ongoing | Preserve and tighten route/panel bundle budgets                        | Current authenticated bundles have deliberately limited headroom                                             |
-| Medium       | Migrate export polling and modal reads to TanStack Query               | Gain cancellation, deduplication, cache ownership, retry policy, and fewer hand-written effects              |
-| Medium       | Add an opt-in strict TypeScript lane                                   | Introduce `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` without destabilizing the release gate |
-| Medium       | Establish a repeatable dependency freshness report                     | The framework cohort is controlled, but all direct packages need recorded upgrade decisions                  |
-| Medium       | Consolidate repeated period aggregates in `ProjectWorkspace`           | Four reductions over the same collection can be one typed accumulator                                        |
-| Low          | Raise emitted-language targets only from runtime/browserslist evidence | `ES2026` is not currently a TypeScript target contract; avoid a cosmetic target change                       |
+| Priority     | Recommendation                                                         | Rationale                                                                                                  |
+| ------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| High         | Move the single-company redirect into route loading                    | Avoid an avoidable hydrated landing-page paint and client redirect                                         |
+| High/ongoing | Preserve and tighten route/panel bundle budgets                        | Current authenticated bundles have deliberately limited headroom                                           |
+| Medium       | Migrate export polling and modal reads to TanStack Query               | Gain cancellation, deduplication, cache ownership, retry policy, and fewer hand-written effects            |
+| Medium       | Burn down the opt-in strict TypeScript lane                            | Promote `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` without destabilizing the release gate |
+| Medium       | Establish a repeatable dependency freshness report                     | The framework cohort is controlled, but all direct packages need recorded upgrade decisions                |
+| Medium       | Consolidate repeated period aggregates in `ProjectWorkspace`           | Four reductions over the same collection can be one typed accumulator                                      |
+| Low          | Raise emitted-language targets only from runtime/browserslist evidence | `ES2026` is not currently a TypeScript target contract; avoid a cosmetic target change                     |
 
 ## Scope and method
 
@@ -194,12 +194,14 @@ supported runtime is Node 24. Raising targets can reduce transforms, but target
 selection must reflect the oldest supported browser/runtime and measured
 output—not the calendar year.
 
-TypeScript 5.9 does not define a stable `ES2026` compiler target/library
-contract. Therefore:
+The repository now pins TypeScript 6.0.3. TypeScript 6 defines a stable
+`ES2025` compiler target/library contract, but it does not define `ES2026`.
+Therefore:
 
 - do **not** label the project `ES2026` by substituting `ESNext`; `ESNext`
   deliberately moves over time and weakens reproducibility;
-- evaluate `ES2024` for Node 24 code first, with build/test/deploy verification;
+- evaluate `ES2025` for Node 24 code separately, with build/test/deploy
+  verification;
 - keep the browser target at `ES2022` until an explicit browser support policy
   and Vite compatibility build prove a newer baseline is safe;
 - revisit a named `ES2026` target only after the installed TypeScript version
