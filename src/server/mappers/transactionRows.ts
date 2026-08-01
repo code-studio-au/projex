@@ -22,6 +22,7 @@ import {
   asUserId,
 } from '../../types';
 import { dateOnlyFromInput } from '../../utils/finance';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import { normalizeExternalId } from '../../utils/transactions';
 
 export type TxnRow = {
@@ -97,11 +98,11 @@ function toReversalTxnSummary(
   value: TxnReversalTxnSummary | null | undefined
 ): TxnReversalTxnSummary | undefined {
   if (!value) return undefined;
-  return {
+  return omitUndefinedProperties({
     ...value,
     txnId: asTxnId(value.txnId),
     amountCents: Number(value.amountCents),
-  };
+  });
 }
 
 export function toTxn(row: TxnRow): Txn {
@@ -113,7 +114,7 @@ export function toTxn(row: TxnRow): Txn {
     );
   }
 
-  return {
+  return omitUndefinedProperties({
     id: asTxnId(row.public_id),
     internalId: row.id,
     externalId: normalizeExternalId(row.external_id),
@@ -164,21 +165,21 @@ export function toTxn(row: TxnRow): Txn {
       row.unlock_request_requested_by_user_id &&
       row.unlock_request_requested_at &&
       row.unlock_request_version != null
-        ? {
+        ? omitUndefinedProperties({
             id: asTxnUnlockRequestId(row.unlock_request_id),
             txnId: asTxnId(row.public_id),
-            status: 'pending',
+            status: 'pending' as const,
             reason: row.unlock_request_reason,
             requestedByUserId: asUserId(
               row.unlock_request_requested_by_user_id
             ),
             requestedAt: row.unlock_request_requested_at,
             version: Number(row.unlock_request_version),
-          }
+          })
         : undefined,
     reversal:
       row.reversal_id && row.reversal_status && row.reversal_side
-        ? {
+        ? omitUndefinedProperties({
             id: row.reversal_id,
             status: row.reversal_status,
             side: row.reversal_side,
@@ -217,17 +218,17 @@ export function toTxn(row: TxnRow): Txn {
               : undefined,
             createdAt: row.reversal_created_at ?? undefined,
             updatedAt: row.reversal_updated_at ?? undefined,
-          }
+          })
         : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 export function toBudgetLine(row: BudgetLineRow): BudgetLine | null {
   if (!row.category_id) return null;
 
-  return {
+  return omitUndefinedProperties({
     id: asBudgetLineId(row.id),
     companyId: asCompanyId(row.company_id),
     projectId: asProjectId(row.project_id),
@@ -238,7 +239,7 @@ export function toBudgetLine(row: BudgetLineRow): BudgetLine | null {
     allocatedCents: Number(row.allocated_cents),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 export function toBudgetLines(rows: BudgetLineRow[]): BudgetLine[] {

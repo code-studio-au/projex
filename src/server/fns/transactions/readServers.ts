@@ -15,6 +15,7 @@ import type {
 } from '../../../api/types';
 import { AppError } from '../../../api/errors';
 import { MAX_BULK_TXN_COUNT } from '../../../utils/transactionLimits';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { toTxn } from '../../mappers/transactionRows';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
@@ -164,27 +165,29 @@ export async function listTransactionsSelectionServer(args: {
     }
 
     return {
-      rows: rows.map((row) => ({
-        id: asTxnId(row.public_id),
-        categorisable: row.categorisable,
-        subCategoryId: row.sub_category_id
-          ? asSubCategoryId(row.sub_category_id)
-          : undefined,
-        codingPendingApproval: row.coding_pending_approval,
-        locked: Boolean(row.locked_at),
-        workflowVersion: row.workflow_version,
-        reversal: row.reversal_id
-          ? {
-              id: row.reversal_id,
-              status: row.reversal_status!,
-              side: row.reversal_side,
-              version: row.reversal_version!,
-              matchMethod: row.reversal_match_method ?? undefined,
-              sourceTxn: row.reversal_source_snapshot ?? undefined,
-              counterpartTxn: row.reversal_counterpart_snapshot ?? undefined,
-            }
-          : undefined,
-      })),
+      rows: rows.map((row) =>
+        omitUndefinedProperties({
+          id: asTxnId(row.public_id),
+          categorisable: row.categorisable,
+          subCategoryId: row.sub_category_id
+            ? asSubCategoryId(row.sub_category_id)
+            : undefined,
+          codingPendingApproval: row.coding_pending_approval,
+          locked: Boolean(row.locked_at),
+          workflowVersion: row.workflow_version,
+          reversal: row.reversal_id
+            ? omitUndefinedProperties({
+                id: row.reversal_id,
+                status: row.reversal_status!,
+                side: row.reversal_side,
+                version: row.reversal_version!,
+                matchMethod: row.reversal_match_method ?? undefined,
+                sourceTxn: row.reversal_source_snapshot ?? undefined,
+                counterpartTxn: row.reversal_counterpart_snapshot ?? undefined,
+              })
+            : undefined,
+        })
+      ),
     };
   });
 }

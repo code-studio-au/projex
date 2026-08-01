@@ -27,7 +27,7 @@ export class AppError extends Error {
     super(message);
     this.name = 'AppError';
     this.code = code;
-    this.meta = meta;
+    if (meta !== undefined) this.meta = meta;
   }
 }
 

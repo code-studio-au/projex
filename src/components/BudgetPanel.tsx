@@ -608,7 +608,10 @@ function useBudgetPanelController(props: {
         Cell: ({ cell }) => {
           const v = cell.getValue<number>();
           return (
-            <Text className="table-body-emphasis" c={v < 0 ? 'red' : undefined}>
+            <Text
+              className="table-body-emphasis"
+              {...(v < 0 ? { c: 'red' } : {})}
+            >
               {formatCurrencyFromCents(v, currencyCode)}
             </Text>
           );
@@ -729,7 +732,9 @@ function BudgetPanelView({ model }: { model: BudgetPanelController }) {
         hasPeriodFilter={model.hasPeriodFilter}
         isLoading={model.isLoading}
         canEditProjectBudgetTotal={model.canEditProjectBudgetTotal}
-        onUpdateProjectBudgetTotal={model.onUpdateProjectBudgetTotal}
+        {...(model.onUpdateProjectBudgetTotal
+          ? { onUpdateProjectBudgetTotal: model.onUpdateProjectBudgetTotal }
+          : {})}
       />
 
       <div className={classes.tableBreakout}>

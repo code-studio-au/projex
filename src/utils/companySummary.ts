@@ -5,6 +5,7 @@ import type {
   SubCategoryId,
 } from '../types';
 import { monthKeyFromDateOnlyInput, type DateOnlyInput } from './finance';
+import { omitUndefinedProperties } from './optionalProperties';
 
 type CompanySummaryMonthBucket = {
   actualCodedCents: number;
@@ -97,7 +98,7 @@ export function buildCompanySummaryProjects(args: {
     const monthBuckets =
       monthBucketsByProject.get(project.id) ??
       new Map<string, CompanySummaryMonthBucket>();
-    return {
+    return omitUndefinedProperties({
       id: project.id,
       name: project.name,
       projectType: project.projectType,
@@ -110,7 +111,7 @@ export function buildCompanySummaryProjects(args: {
       months: [...monthBuckets.entries()]
         .sort(([a], [b]) => b.localeCompare(a))
         .map(([monthKey, bucket]) => ({ monthKey, ...bucket })),
-    };
+    });
   });
 
   const byId = new Map(summaries.map((project) => [project.id, project]));

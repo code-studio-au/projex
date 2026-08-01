@@ -150,8 +150,10 @@ function TransactionSplitModalContent(props: {
       setError(null);
       await onSplit(
         rows.map((row) => ({
-          item: row.item.trim() || undefined,
-          description: row.description.trim() || undefined,
+          ...(row.item.trim() ? { item: row.item.trim() } : {}),
+          ...(row.description.trim()
+            ? { description: row.description.trim() }
+            : {}),
           amountCents: row.amountCents,
           categoryId: row.categoryId,
           subCategoryId: row.subCategoryId,
@@ -242,8 +244,7 @@ function TransactionSplitModalContent(props: {
                   <NumberInput
                     label="Amount"
                     value={fromCents(row.amountCents)}
-                    min={txn.amountCents < 0 ? undefined : 0}
-                    max={txn.amountCents < 0 ? 0 : undefined}
+                    {...(txn.amountCents < 0 ? { max: 0 } : { min: 0 })}
                     thousandSeparator=","
                     prefix="$"
                     decimalScale={2}

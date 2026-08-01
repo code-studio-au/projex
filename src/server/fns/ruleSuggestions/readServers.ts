@@ -14,6 +14,7 @@ import {
   ruleSuggestionConfidenceLevel,
   ruleSuggestionConfidenceReasons,
 } from '../../../utils/ruleSuggestions';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { requireAuthorized } from '../../auth/authorize';
 import { getDb } from '../../db/db';
 import {
@@ -165,57 +166,59 @@ export async function listRuleSuggestionsServer(args: {
       ])
     );
 
-    return suggestions.map((row) => ({
-      id: asRuleSuggestionId(row.id),
-      companyId: row.company_id as CompanyId,
-      status: row.status,
-      suggestionType: row.suggestion_type,
-      sourceRuleId: row.source_rule_id
-        ? asCompanyDefaultMappingRuleId(row.source_rule_id)
-        : undefined,
-      patternBasis: row.pattern_basis,
-      patternTextNormalized: row.pattern_text_normalized,
-      proposedMatchText: row.proposed_match_text,
-      matchTextAlternatives: row.match_text_alternatives,
-      companyDefaultCategoryId: asCompanyDefaultCategoryId(
-        row.company_default_category_id
-      ),
-      companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
-        row.company_default_sub_category_id
-      ),
-      sampleCount: row.sample_count,
-      distinctTxnDateCount: row.distinct_txn_date_count,
-      distinctProjectCount: row.distinct_project_count,
-      confidenceScore: row.confidence_score,
-      confidence: ruleSuggestionConfidenceLevel(row.confidence_score),
-      confidenceReasons: ruleSuggestionConfidenceReasons({
+    return suggestions.map((row) =>
+      omitUndefinedProperties({
+        id: asRuleSuggestionId(row.id),
+        companyId: row.company_id as CompanyId,
+        status: row.status,
+        suggestionType: row.suggestion_type,
+        sourceRuleId: row.source_rule_id
+          ? asCompanyDefaultMappingRuleId(row.source_rule_id)
+          : undefined,
+        patternBasis: row.pattern_basis,
+        patternTextNormalized: row.pattern_text_normalized,
+        proposedMatchText: row.proposed_match_text,
+        matchTextAlternatives: row.match_text_alternatives,
+        companyDefaultCategoryId: asCompanyDefaultCategoryId(
+          row.company_default_category_id
+        ),
+        companyDefaultSubCategoryId: asCompanyDefaultSubCategoryId(
+          row.company_default_sub_category_id
+        ),
         sampleCount: row.sample_count,
         distinctTxnDateCount: row.distinct_txn_date_count,
         distinctProjectCount: row.distinct_project_count,
-        patternBasis: row.pattern_basis,
-      }),
-      recommendedAction: row.recommended_action,
-      firstSeenAt: row.first_seen_at,
-      lastSeenAt: row.last_seen_at,
-      acceptedRuleId: row.accepted_rule_id
-        ? asCompanyDefaultMappingRuleId(row.accepted_rule_id)
-        : undefined,
-      acceptedAction: row.accepted_action ?? undefined,
-      acceptedAt: row.accepted_at ?? undefined,
-      acceptedByUserId: row.accepted_by_user_id
-        ? (row.accepted_by_user_id as UserId)
-        : undefined,
-      dismissedAt: row.dismissed_at ?? undefined,
-      dismissedReason: row.dismissed_reason ?? undefined,
-      dismissedByUserId: row.dismissed_by_user_id
-        ? (row.dismissed_by_user_id as UserId)
-        : undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      evidence: evidenceBySuggestion.get(row.id) ?? [],
-      sourceRule: row.source_rule_id
-        ? sourceRuleById.get(row.source_rule_id)
-        : undefined,
-    }));
+        confidenceScore: row.confidence_score,
+        confidence: ruleSuggestionConfidenceLevel(row.confidence_score),
+        confidenceReasons: ruleSuggestionConfidenceReasons({
+          sampleCount: row.sample_count,
+          distinctTxnDateCount: row.distinct_txn_date_count,
+          distinctProjectCount: row.distinct_project_count,
+          patternBasis: row.pattern_basis,
+        }),
+        recommendedAction: row.recommended_action,
+        firstSeenAt: row.first_seen_at,
+        lastSeenAt: row.last_seen_at,
+        acceptedRuleId: row.accepted_rule_id
+          ? asCompanyDefaultMappingRuleId(row.accepted_rule_id)
+          : undefined,
+        acceptedAction: row.accepted_action ?? undefined,
+        acceptedAt: row.accepted_at ?? undefined,
+        acceptedByUserId: row.accepted_by_user_id
+          ? (row.accepted_by_user_id as UserId)
+          : undefined,
+        dismissedAt: row.dismissed_at ?? undefined,
+        dismissedReason: row.dismissed_reason ?? undefined,
+        dismissedByUserId: row.dismissed_by_user_id
+          ? (row.dismissed_by_user_id as UserId)
+          : undefined,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        evidence: evidenceBySuggestion.get(row.id) ?? [],
+        sourceRule: row.source_rule_id
+          ? sourceRuleById.get(row.source_rule_id)
+          : undefined,
+      })
+    );
   });
 }

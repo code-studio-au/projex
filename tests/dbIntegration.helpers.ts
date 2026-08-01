@@ -251,9 +251,13 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
         context,
         input: {
           name: input.name,
-          id: input.id ? asCompanyId(input.id) : undefined,
-          initialAdminName: input.initialAdminName,
-          initialAdminEmail: input.initialAdminEmail,
+          ...(input.id ? { id: asCompanyId(input.id) } : {}),
+          ...(input.initialAdminName
+            ? { initialAdminName: input.initialAdminName }
+            : {}),
+          ...(input.initialAdminEmail
+            ? { initialAdminEmail: input.initialAdminEmail }
+            : {}),
         },
       }),
     getCompany: (companyId: ReturnType<typeof asCompanyId>) =>
@@ -303,7 +307,9 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
         name: input.name,
         email: input.email,
         role: input.role,
-        sendOnboardingEmail: input.sendOnboardingEmail,
+        ...(input.sendOnboardingEmail === undefined
+          ? {}
+          : { sendOnboardingEmail: input.sendOnboardingEmail }),
       }),
     sendCompanyUserInviteEmail: (
       companyId: ReturnType<typeof asCompanyId>,
@@ -466,7 +472,7 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
       listTransactionCommentSummariesServer({
         context,
         projectId,
-        txnIds: txnIds ? [...txnIds] : undefined,
+        ...(txnIds ? { txnIds: [...txnIds] } : {}),
       }),
     listProjectTransactionSummary: (
       projectId: ReturnType<typeof asProjectId>
@@ -498,9 +504,11 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
         context,
         projectId,
         csvText: input.csvText,
-        sourceType: input.sourceType,
-        fileName: input.fileName,
-        autoCreateStructures: input.autoCreateStructures,
+        ...(input.sourceType ? { sourceType: input.sourceType } : {}),
+        ...(input.fileName ? { fileName: input.fileName } : {}),
+        ...(input.autoCreateStructures === undefined
+          ? {}
+          : { autoCreateStructures: input.autoCreateStructures }),
       }),
     importTransactions: (
       projectId: ReturnType<typeof asProjectId>,
@@ -511,9 +519,15 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
         projectId,
         mode: input.mode,
         importBatchId: input.importBatchId,
-        skipDuplicates: input.skipDuplicates,
-        excludedSourceRowIndexes: input.excludedSourceRowIndexes,
-        reviewDecisions: input.reviewDecisions,
+        ...(input.skipDuplicates === undefined
+          ? {}
+          : { skipDuplicates: input.skipDuplicates }),
+        ...(input.excludedSourceRowIndexes
+          ? { excludedSourceRowIndexes: input.excludedSourceRowIndexes }
+          : {}),
+        ...(input.reviewDecisions
+          ? { reviewDecisions: input.reviewDecisions }
+          : {}),
       }),
     cancelImportPreview: (
       projectId: ReturnType<typeof asProjectId>,

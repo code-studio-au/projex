@@ -1,6 +1,7 @@
 import { AppError } from '../api/errors';
 import type { TxnUpdateInput } from '../api/types';
 import type { Txn, TxnId } from '../types';
+import { omitUndefinedProperties } from './optionalProperties';
 
 type TxnAccountingMetadata = Pick<
   Txn,
@@ -15,13 +16,33 @@ type TxnAccountingMetadata = Pick<
 function standardTxnAccountingMetadata(): TxnAccountingMetadata {
   return {
     txnType: 'standard',
-    parentTxnId: undefined,
-    sourceTxnId: undefined,
-    transferProjectId: undefined,
     budgetImpact: true,
     categorisable: true,
   };
 }
+
+type NormalizedTxnPatchValues = Omit<
+  Txn,
+  | 'id'
+  | 'internalId'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'txnType'
+  | 'parentTxnId'
+  | 'sourceTxnId'
+  | 'transferProjectId'
+  | 'budgetImpact'
+  | 'categorisable'
+>;
+
+type ClearableTxnPatchKey =
+  'externalId' | 'categoryId' | 'subCategoryId' | 'companyDefaultMappingRuleId';
+
+export type NormalizedTxnPatch = Partial<
+  Omit<NormalizedTxnPatchValues, ClearableTxnPatchKey>
+> & {
+  [K in ClearableTxnPatchKey]?: NormalizedTxnPatchValues[K] | undefined;
+} & { id: TxnId };
 
 export function withStandardTxnAccountingMetadata<T extends object>(
   txn: T
@@ -38,6 +59,15 @@ export function isBudgetImpactTxn(txn: Pick<Txn, 'budgetImpact'>): boolean {
 
 export function isCategorisableTxn(txn: Pick<Txn, 'categorisable'>): boolean {
   return txn.categorisable;
+}
+
+export function withoutTxnCoding(txn: Txn): Txn {
+  const next = { ...txn };
+  delete next.categoryId;
+  delete next.subCategoryId;
+  delete next.companyDefaultMappingRuleId;
+  delete next.codingSource;
+  return { ...next, codingPendingApproval: false };
 }
 
 export function assertTxnCodingAllowed(
@@ -89,10 +119,8 @@ export function normalizeExternalId(
   return next ? next : undefined;
 }
 
-export function normalizeTxnPatch(
-  input: TxnUpdateInput
-): Partial<Txn> & { id: TxnId } {
-  const next: Partial<Txn> & { id: TxnId } = { id: input.id };
+export function normalizeTxnPatch(input: TxnUpdateInput): NormalizedTxnPatch {
+  const next: NormalizedTxnPatch = { id: input.id };
   if (typeof input.companyId !== 'undefined') next.companyId = input.companyId;
   if (typeof input.projectId !== 'undefined') next.projectId = input.projectId;
   if (typeof input.date !== 'undefined') next.date = input.date;
@@ -111,7 +139,7 @@ export function normalizeTxnPatch(
     next.codingPendingApproval = input.codingPendingApproval;
   }
   if (Object.prototype.hasOwnProperty.call(input, 'externalId')) {
-    next.externalId = input.externalId ?? undefined;
+    next.externalId = normalizeExternalId(input.externalId);
   }
   if (Object.prototype.hasOwnProperty.call(input, 'categoryId')) {
     next.categoryId = input.categoryId ?? undefined;
@@ -120,6 +148,13 @@ export function normalizeTxnPatch(
     next.subCategoryId = input.subCategoryId ?? undefined;
   }
   return next;
+}
+
+export function applyNormalizedTxnPatch(
+  txn: Txn,
+  patch: NormalizedTxnPatch
+): Txn {
+  return omitUndefinedProperties({ ...txn, ...patch });
 }
 
 export function assertUniqueTransactionKeysInProject(

@@ -1,5 +1,6 @@
 import type { ProjectAutoCodingRule, Txn } from '../types';
 import { asCompanyDefaultMappingRuleId } from '../types';
+import { omitUndefinedProperties } from './optionalProperties';
 import { textRuleMatches, transactionRuleHaystack } from './textRuleMatching';
 
 export function findMatchingProjectAutoCodingRule(
@@ -36,14 +37,14 @@ export function applyProjectAutoCodingRule(args: {
     rule.originCompanyItemId
       ? asCompanyDefaultMappingRuleId(rule.originCompanyItemId)
       : undefined;
-  return {
+  return omitUndefinedProperties({
     ...args.txn,
     categoryId: rule.categoryId,
     subCategoryId: rule.subCategoryId,
     companyDefaultMappingRuleId: inheritedCompanyRuleId,
     codingSource: inheritedCompanyRuleId
-      ? 'company_default_rule'
-      : 'project_rule',
+      ? ('company_default_rule' as const)
+      : ('project_rule' as const),
     codingPendingApproval: true,
-  };
+  });
 }

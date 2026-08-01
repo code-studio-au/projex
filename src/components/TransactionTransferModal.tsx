@@ -82,8 +82,8 @@ function TransactionTransferModalContent(props: {
       setError(null);
       await onTransfer({
         destinationProjectId,
-        item: item.trim() || undefined,
-        description: description.trim() || undefined,
+        ...(item.trim() ? { item: item.trim() } : {}),
+        ...(description.trim() ? { description: description.trim() } : {}),
       });
       onClose();
     } catch (err) {

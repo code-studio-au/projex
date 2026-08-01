@@ -157,7 +157,8 @@ export function isInviteResendRateLimited(result: HttpResult) {
 export class SmokeHttpClient {
   private readonly baseUrl: string;
   private readonly cookieJar = new Map<string, string>();
-  private readonly onStatus?: (message: string) => void | Promise<void>;
+  private readonly onStatus:
+    ((message: string) => void | Promise<void>) | undefined;
 
   constructor(
     baseUrl: string,

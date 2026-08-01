@@ -245,12 +245,9 @@ test('suggestImportExclusionRuleFromPreviewRow compacts long vendor labels', () 
 });
 
 test('suggestImportExclusionRuleFromPreviewRow can fall back without a raw source row', () => {
-  const suggestion = suggestImportExclusionRuleFromPreviewRow(
-    previewRow({
-      item: '  Travel recharge  ',
-      rawSourceRow: undefined,
-    })
-  );
+  const row = previewRow({ item: '  Travel recharge  ' });
+  delete row.rawSourceRow;
+  const suggestion = suggestImportExclusionRuleFromPreviewRow(row);
 
   assert.deepEqual(suggestion, {
     name: 'Exclude Travel recharge rows',

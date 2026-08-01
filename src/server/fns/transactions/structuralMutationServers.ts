@@ -8,6 +8,7 @@ import type {
   TxnTransferResult,
 } from '../../../api/types';
 import { uid } from '../../../utils/id';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { txnInputSchema } from '../../../validation/schemas';
 import { validateOrThrow } from '../../../validation/validate';
 import { planTransactionSplit } from '../../../utils/transactionSplitPlan';
@@ -78,10 +79,12 @@ export async function splitTxnServer(args: {
       .where('project_id', '=', args.projectId)
       .execute();
     assertUniqueTransactionKeysInProject([
-      ...existingRows.map((row) => ({
-        id: asTxnId(row.public_id),
-        externalId: normalizeExternalId(row.external_id),
-      })),
+      ...existingRows.map((row) =>
+        omitUndefinedProperties({
+          id: asTxnId(row.public_id),
+          externalId: normalizeExternalId(row.external_id),
+        })
+      ),
       ...split.children,
     ]);
 
@@ -287,10 +290,12 @@ export async function transferTxnServer(args: {
       .where('project_id', '=', args.input.destinationProjectId)
       .execute();
     assertUniqueTransactionKeysInProject([
-      ...destinationRows.map((row) => ({
-        id: asTxnId(row.public_id),
-        externalId: normalizeExternalId(row.external_id),
-      })),
+      ...destinationRows.map((row) =>
+        omitUndefinedProperties({
+          id: asTxnId(row.public_id),
+          externalId: normalizeExternalId(row.external_id),
+        })
+      ),
       transfer.destination,
     ]);
 

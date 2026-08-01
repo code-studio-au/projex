@@ -6,6 +6,7 @@ import {
   asTxnId,
   asUserId,
 } from '../../types';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 
 export type TxnCommentRow = {
   id: string;
@@ -24,7 +25,7 @@ export type TxnCommentRow = {
 };
 
 export function toTxnComment(row: TxnCommentRow): TxnComment {
-  return {
+  return omitUndefinedProperties({
     id: asTxnCommentId(row.id),
     companyId: asCompanyId(row.company_id),
     projectId: asProjectId(row.project_id),
@@ -44,5 +45,5 @@ export function toTxnComment(row: TxnCommentRow): TxnComment {
       : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }

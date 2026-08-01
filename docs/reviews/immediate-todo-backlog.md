@@ -37,19 +37,13 @@ repository control.
 
 Item 4 is complete. Whole-application coverage is reported alongside enforced
 risk-domain thresholds. `noUncheckedIndexedAccess` has now been burned down and
-promoted into the application, Node/server, and test TypeScript gates. CI
-separately ratchets `exactOptionalPropertyTypes` findings by compilation
-boundary so existing debt is visible and any baseline change requires explicit
-review before that final flag is promoted. The first exact-optional cohort now
-omits undefined route and search properties at navigation boundaries, reducing
-the unique findings from 247 to 225 and the application/test project baselines
-from 107/203 to 85/181. The second cohort now omits undefined properties from
-validated taxonomy and transaction command DTOs, reducing the unique findings
-from 225 to 202 and the Node/server baseline from 139 to 116. The third cohort
-now omits absent transaction-import options and normalized identifiers across
-preview, trusted commit, and planning boundaries, reducing the unique findings
-from 202 to 185 and the application/Node/test baselines from 85/116/181 to
-80/100/165.
+promoted into the application, Node/server, and test TypeScript gates.
+`exactOptionalPropertyTypes` has also been burned down from 247 unique findings
+to zero and promoted into all three enforced compilation boundaries. Domain,
+API, persistence, validation, query, route, component, and test-fixture objects
+now omit absent optional keys instead of representing absence with explicit
+`undefined`. The strictness report retains zero baselines for both flags so any
+regression fails CI.
 
 Item 5 is complete. The
 [1 August dependency freshness report](../dependencies/dependency-freshness-2026-08-01.md)

@@ -31,7 +31,9 @@ import { planTransactionImportCommit } from '../src/utils/transactionImportCommi
 import { planTransactionSplit } from '../src/utils/transactionSplitPlan.ts';
 import { planTransactionTransfer } from '../src/utils/transactionTransferPlan.ts';
 import {
+  applyNormalizedTxnPatch,
   assertTxnCodingAllowed,
+  normalizeTxnPatch,
   withStandardTxnAccountingMetadata,
 } from '../src/utils/transactions.ts';
 import { buildCompanySummaryProjects } from '../src/utils/companySummary.ts';
@@ -275,6 +277,14 @@ test('transaction import commit keeps selected review rows uncoded', () => {
     requireAt(result.importedTransactions, 0).codingPendingApproval,
     false
   );
+  assert.equal(
+    Object.hasOwn(requireAt(result.importedTransactions, 0), 'categoryId'),
+    false
+  );
+  assert.equal(
+    Object.hasOwn(requireAt(result.importedTransactions, 0), 'codingSource'),
+    false
+  );
   assert.deepEqual(result.budgetTargetsToCreate, []);
 });
 
@@ -442,7 +452,6 @@ test('company summary excludes non-budget-impact transaction markers', () => {
       id: projectId,
       name: 'Project One',
       projectType: 'project' as const,
-      parentProjectId: undefined,
       status: 'active' as const,
       visibility: 'company' as const,
       currency: 'AUD' as const,
@@ -490,7 +499,6 @@ test('company summary rolls sub-project totals into programmes', () => {
         id: programmeId,
         name: 'Programme One',
         projectType: 'programme' as const,
-        parentProjectId: undefined,
         status: 'active' as const,
         visibility: 'company' as const,
         currency: 'AUD' as const,
@@ -542,7 +550,6 @@ test('company summary tracks pending reversal totals separately from adjusted ac
         id: projectId,
         name: 'Project One',
         projectType: 'project' as const,
-        parentProjectId: undefined,
         status: 'active' as const,
         visibility: 'company' as const,
         currency: 'AUD' as const,
@@ -598,7 +605,6 @@ test('company summary does not subtract an imported reversal candidate twice', (
         id: projectId,
         name: 'Project One',
         projectType: 'project' as const,
-        parentProjectId: undefined,
         status: 'active' as const,
         visibility: 'company' as const,
         currency: 'AUD' as const,
@@ -651,7 +657,6 @@ test('company summary keeps active sub-projects visible when programme is archiv
         id: programmeId,
         name: 'Archived Programme',
         projectType: 'programme' as const,
-        parentProjectId: undefined,
         status: 'archived' as const,
         visibility: 'company' as const,
         currency: 'AUD' as const,
@@ -703,7 +708,6 @@ test('company summary sorts project months and programme children predictably', 
         id: programmeId,
         name: 'Programme One',
         projectType: 'programme' as const,
-        parentProjectId: undefined,
         status: 'active' as const,
         visibility: 'company' as const,
         currency: 'AUD' as const,
@@ -733,7 +737,6 @@ test('company summary sorts project months and programme children predictably', 
         id: projectId,
         name: 'Standalone Project',
         projectType: 'project' as const,
-        parentProjectId: undefined,
         status: 'active' as const,
         visibility: 'company' as const,
         currency: 'AUD' as const,
@@ -828,6 +831,36 @@ test('transaction coding guard rejects source markers with coding metadata', () 
   );
 });
 
+test('normalized transaction patches omit optional fields selected for clearing', () => {
+  const existing = txn({
+    externalId: 'bank-1',
+    categoryId: category.id,
+    subCategoryId: subCategory.id,
+    companyDefaultMappingRuleId: mappingRule.id,
+    codingSource: 'company_default_rule',
+  });
+  const patch = normalizeTxnPatch({
+    id: existing.id,
+    externalId: '   ',
+    categoryId: null,
+    subCategoryId: null,
+    companyDefaultMappingRuleId: null,
+    description: 'Updated description',
+  });
+
+  const updated = applyNormalizedTxnPatch(existing, patch);
+
+  assert.equal(updated.description, 'Updated description');
+  assert.equal(updated.externalId, undefined);
+  assert.equal(updated.categoryId, undefined);
+  assert.equal(updated.subCategoryId, undefined);
+  assert.equal(updated.companyDefaultMappingRuleId, undefined);
+  assert.equal(Object.hasOwn(updated, 'externalId'), false);
+  assert.equal(Object.hasOwn(updated, 'categoryId'), false);
+  assert.equal(Object.hasOwn(updated, 'subCategoryId'), false);
+  assert.equal(Object.hasOwn(updated, 'companyDefaultMappingRuleId'), false);
+});
+
 test('transaction split plan creates a non-budget parent and budget-impact children', () => {
   const result = planTransactionSplit({
     parent: txn(),
@@ -854,6 +887,8 @@ test('transaction split plan creates a non-budget parent and budget-impact child
   assert.equal(result.parent.categorisable, false);
   assert.equal(result.parent.categoryId, undefined);
   assert.equal(result.parent.subCategoryId, undefined);
+  assert.equal(Object.hasOwn(result.parent, 'categoryId'), false);
+  assert.equal(Object.hasOwn(result.parent, 'codingSource'), false);
 
   assert.equal(result.children.length, 2);
   assert.equal(requireAt(result.children, 0).txnType, 'split_child');
@@ -963,6 +998,8 @@ test('transaction transfer plan creates a source marker and uncoded destination 
   assert.equal(result.source.categorisable, false);
   assert.equal(result.source.categoryId, undefined);
   assert.equal(result.source.subCategoryId, undefined);
+  assert.equal(Object.hasOwn(result.source, 'categoryId'), false);
+  assert.equal(Object.hasOwn(result.source, 'codingSource'), false);
 
   assert.equal(result.destination.id, asTxnId('txn_transfer_child'));
   assert.equal(result.destination.projectId, destinationProjectId);

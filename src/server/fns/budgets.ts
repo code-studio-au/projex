@@ -11,6 +11,7 @@ import {
   asSubCategoryId,
 } from '../../types';
 import { uid } from '../../utils/id';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import { budgetAllocatedCentsSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import type { BudgetLineTable } from '../db/schema';
@@ -71,7 +72,7 @@ export async function ensureBudgetLinesForProjectSubCategories(args: {
 }
 
 function toBudget(row: BudgetRow): BudgetLine {
-  return {
+  return omitUndefinedProperties({
     id: asBudgetLineId(row.id),
     companyId: asCompanyId(row.company_id),
     projectId: asProjectId(row.project_id),
@@ -82,7 +83,7 @@ function toBudget(row: BudgetRow): BudgetLine {
     allocatedCents: Number(row.allocated_cents),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 export async function listBudgetsServer(args: {
@@ -141,7 +142,7 @@ export async function createBudgetServer(args: {
         db,
         projectId: args.projectId,
         subCategoryId: args.input.subCategoryId,
-        categoryId: args.input.categoryId,
+        ...(args.input.categoryId ? { categoryId: args.input.categoryId } : {}),
       });
     }
 
@@ -282,7 +283,7 @@ export async function updateBudgetServer(args: {
         db,
         projectId: args.projectId,
         subCategoryId: nextSubCategoryId,
-        categoryId: nextCategoryId,
+        ...(nextCategoryId ? { categoryId: nextCategoryId } : {}),
       });
     }
 

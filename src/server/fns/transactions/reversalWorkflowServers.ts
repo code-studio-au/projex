@@ -7,6 +7,7 @@ import type {
   TxnReversalActionResult,
 } from '../../../api/types';
 import { uid } from '../../../utils/id';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import type { TxnReversalTable } from '../../db/schema';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
@@ -77,9 +78,11 @@ export async function applyTxnReversalActionServer(args: {
         await assertExpectedProject({
           context: args.context,
           sourceProjectId: args.projectId,
-          expectedProjectId: args.input.expectedProjectId,
           db: trx,
           companyId: context.companyId,
+          ...omitUndefinedProperties({
+            expectedProjectId: args.input.expectedProjectId,
+          }),
         });
 
         const current = await getSourceReversalRow({
@@ -242,7 +245,9 @@ export async function applyTxnReversalActionServer(args: {
             txnIds: [args.input.txnId],
             userId: context.userId,
             now,
-            commentBody: args.input.commentBody,
+            ...omitUndefinedProperties({
+              commentBody: args.input.commentBody,
+            }),
           }),
           recordReversalTransition({
             db: trx,
@@ -510,7 +515,9 @@ export async function applyTxnReversalActionServer(args: {
             txnIds: [args.input.txnId, args.input.reversalTxnId],
             userId: context.userId,
             now,
-            commentBody: args.input.commentBody,
+            ...omitUndefinedProperties({
+              commentBody: args.input.commentBody,
+            }),
           }),
           recordReversalTransition({
             db: trx,
@@ -548,9 +555,11 @@ export async function applyTxnReversalActionServer(args: {
           projectId: args.projectId,
           userId: context.userId,
           txnId: args.input.txnId,
-          commentBody: args.input.commentBody,
-          expectedReversalVersion: args.input.expectedReversalVersion,
           now,
+          ...omitUndefinedProperties({
+            commentBody: args.input.commentBody,
+            expectedReversalVersion: args.input.expectedReversalVersion,
+          }),
         });
       }
 
@@ -561,9 +570,11 @@ export async function applyTxnReversalActionServer(args: {
           projectId: args.projectId,
           userId: context.userId,
           txnId: args.input.txnId,
-          commentBody: args.input.commentBody,
-          expectedReversalVersion: args.input.expectedReversalVersion,
           now,
+          ...omitUndefinedProperties({
+            commentBody: args.input.commentBody,
+            expectedReversalVersion: args.input.expectedReversalVersion,
+          }),
         });
       }
 
@@ -574,8 +585,10 @@ export async function applyTxnReversalActionServer(args: {
         userId: context.userId,
         txnId: args.input.txnId,
         commentBody: args.input.commentBody,
-        expectedReversalVersion: args.input.expectedReversalVersion,
         now,
+        ...omitUndefinedProperties({
+          expectedReversalVersion: args.input.expectedReversalVersion,
+        }),
       });
     });
   });

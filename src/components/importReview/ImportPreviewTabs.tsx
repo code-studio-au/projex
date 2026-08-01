@@ -59,7 +59,7 @@ function PreviewTable(props: PreviewTableProps) {
   } = props;
   return (
     <div className={classes.tableWrap}>
-      <MantineReactTable
+      <MantineReactTable<ImportPreviewRow>
         {...sharedTableProps}
         columns={columns}
         data={rows}
@@ -67,14 +67,14 @@ function PreviewTable(props: PreviewTableProps) {
         state={{ pagination, sorting }}
         onPaginationChange={setPagination}
         onSortingChange={setSorting}
-        mantineTableBodyRowProps={
-          outlineInvalidRows
-            ? ({ row }) =>
+        {...(outlineInvalidRows
+          ? {
+              mantineTableBodyRowProps: ({ row }) =>
                 row.original.mappingStatus === 'invalid'
                   ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
-                  : {}
-            : undefined
-        }
+                  : {},
+            }
+          : {})}
       />
     </div>
   );

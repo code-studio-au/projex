@@ -4,6 +4,7 @@ import { afterEach, test } from 'vitest';
 import { AppError } from '../src/api/errors.ts';
 import { withPublicApi } from '../src/routes/-api-shared.ts';
 import { safeParseJson } from '../src/utils/json.ts';
+import { omitUndefinedProperties } from '../src/utils/optionalProperties.ts';
 import { requireAt } from './helpers/assertions.ts';
 
 const ORIGINAL_ENV = { ...process.env };
@@ -71,7 +72,7 @@ function parseRequestLog(value: string): RequestLog {
   if (!parseResult.success) throw new Error('Expected valid JSON log entry');
   const parsed = parseResult.data;
   assert.ok(isRecord(parsed));
-  return {
+  return omitUndefinedProperties({
     level: requiredString(parsed, 'level'),
     type: requiredString(parsed, 'type'),
     requestId: requiredString(parsed, 'requestId'),
@@ -82,7 +83,7 @@ function parseRequestLog(value: string): RequestLog {
     code: optionalString(parsed, 'code'),
     message: optionalString(parsed, 'message'),
     errorType: optionalString(parsed, 'errorType'),
-  };
+  });
 }
 
 function captureConsole(method: 'info' | 'warn' | 'error') {

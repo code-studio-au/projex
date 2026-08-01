@@ -11,6 +11,7 @@ import { toTxn } from '../../mappers/transactionRows';
 import { requireAuthorized } from '../../auth/authorize';
 import { recordAuditEvent } from '../../audit/auditEvents';
 import { uid } from '../../../utils/id';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
   assertContextProvided,
@@ -33,13 +34,13 @@ function workflowState(row: {
   locked_by_user_id: string | null;
   workflow_version: number;
 }) {
-  return {
+  return omitUndefinedProperties({
     reviewedAt: row.reviewed_at,
     reviewedByUserId: row.reviewed_by_user_id,
     lockedAt: row.locked_at,
     lockedByUserId: row.locked_by_user_id,
     workflowVersion: row.workflow_version,
-  };
+  });
 }
 
 function workflowEvent(input: TxnWorkflowStateInput) {
@@ -55,10 +56,10 @@ function workflowEvent(input: TxnWorkflowStateInput) {
   if (input.reviewed === true) {
     return { type: 'transaction.reviewed', reason: 'Transaction reviewed' };
   }
-  return {
+  return omitUndefinedProperties({
     type: 'transaction.reopened',
     reason: input.reason?.trim() || 'Reopened for further review',
-  };
+  });
 }
 
 function toUnlockRequest(row: {
@@ -73,7 +74,7 @@ function toUnlockRequest(row: {
   resolution_reason: string | null;
   version: number;
 }): TxnUnlockRequest {
-  return {
+  return omitUndefinedProperties({
     id: asTxnUnlockRequestId(row.id),
     txnId: asTxnId(row.txn_public_id),
     status: row.status,
@@ -86,7 +87,7 @@ function toUnlockRequest(row: {
     resolvedAt: row.resolved_at ?? undefined,
     resolutionReason: row.resolution_reason ?? undefined,
     version: row.version,
-  };
+  });
 }
 
 const unlockRequestColumns = [
@@ -172,7 +173,7 @@ export async function updateTxnWorkflowStateServer(args: {
       }
 
       const patch = planTxnWorkflowState({
-        current: {
+        current: omitUndefinedProperties({
           reviewedAt: existing.reviewed_at ?? undefined,
           reviewedByUserId: existing.reviewed_by_user_id
             ? asUserId(existing.reviewed_by_user_id)
@@ -181,11 +182,13 @@ export async function updateTxnWorkflowStateServer(args: {
           lockedByUserId: existing.locked_by_user_id
             ? asUserId(existing.locked_by_user_id)
             : undefined,
-        },
-        reviewed: args.input.reviewed,
-        locked: args.input.locked,
+        }),
         actorUserId: context.userId,
         now,
+        ...omitUndefinedProperties({
+          reviewed: args.input.reviewed,
+          locked: args.input.locked,
+        }),
       });
       if (workflowPatchIsNoop({ row: existing, patch })) {
         return toTxn(existing);

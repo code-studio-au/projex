@@ -7,6 +7,7 @@ import type {
   UserId,
 } from '../../types';
 import { asCompanyId, asProjectId } from '../../types';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import { getDb } from '../db/db';
 
 export type ProjectRow = {
@@ -42,7 +43,7 @@ export const projectSelectFields = [
 ] as const;
 
 export function toProject(row: ProjectRow): Project {
-  return {
+  return omitUndefinedProperties({
     id: asProjectId(row.id),
     companyId: asCompanyId(row.company_id),
     name: row.name,
@@ -58,7 +59,7 @@ export function toProject(row: ProjectRow): Project {
     allowSuperadminAccess: row.allow_superadmin_access,
     syncCompanyDefaults: row.sync_company_defaults,
     allowTxnTransfers: row.allow_txn_transfers,
-  };
+  });
 }
 
 export async function assertValidProjectHierarchy(args: {

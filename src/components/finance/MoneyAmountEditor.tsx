@@ -82,9 +82,11 @@ export default function MoneyAmountEditor(props: {
       <Group gap={4} wrap="nowrap">
         <NumberInput
           aria-label={inputLabel}
-          aria-describedby={error ? errorId : undefined}
+          {...(error ? { 'aria-describedby': errorId } : {})}
           value={displayedDraft}
-          min={minimumCents === undefined ? undefined : fromCents(minimumCents)}
+          {...(minimumCents === undefined
+            ? {}
+            : { min: fromCents(minimumCents) })}
           allowNegative={minimumCents === undefined || minimumCents < 0}
           size="xs"
           thousandSeparator=","
@@ -93,10 +95,10 @@ export default function MoneyAmountEditor(props: {
           fixedDecimalScale
           hideControls
           disabled={disabled || isSaving}
-          classNames={inputClassName ? { input: inputClassName } : undefined}
+          {...(inputClassName ? { classNames: { input: inputClassName } } : {})}
           styles={{ input: { textAlign: 'right' } }}
           onChange={(value) => {
-            setDraft(value);
+            setDraft(typeof value === 'bigint' ? Number(value) : value);
             setError(null);
           }}
           onKeyDown={(event) => {

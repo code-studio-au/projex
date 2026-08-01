@@ -227,7 +227,7 @@ export function createTransactionColumns(
 
         return (
           <TransactionCommentsCell
-            summary={summary}
+            {...(summary ? { summary } : {})}
             expanded={isExpanded}
             comments={
               isExpanded && args.expandedCommentsTxn?.id === row.original.id
@@ -349,7 +349,7 @@ export function createTransactionColumns(
         return (
           <Text
             className="table-body-left"
-            c={row.original.categoryId ? undefined : 'dimmed'}
+            {...(row.original.categoryId ? {} : { c: 'dimmed' })}
           >
             {row.original.categoryId ? categoryName : 'Not assigned'}
           </Text>
@@ -421,7 +421,7 @@ export function createTransactionColumns(
         return (
           <Text
             className="table-body-left"
-            c={row.original.subCategoryId ? undefined : 'dimmed'}
+            {...(row.original.subCategoryId ? {} : { c: 'dimmed' })}
           >
             {row.original.subCategoryId ? subCategoryName : 'Not assigned'}
           </Text>
@@ -467,7 +467,9 @@ export function createTransactionColumns(
             categorisable: row.original.categorisable,
             hasValidSubCategory,
             codingPendingApproval: Boolean(row.original.codingPendingApproval),
-            reversalStatus: row.original.reversal?.status,
+            ...(row.original.reversal
+              ? { reversalStatus: row.original.reversal.status }
+              : {}),
           });
         return (
           <Menu withinPortal position="bottom-end" shadow="md">

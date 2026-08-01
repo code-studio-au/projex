@@ -185,7 +185,9 @@ export async function deleteSubCategoryServer(args: {
     await deleteProjectSubCategory({
       projectId: args.projectId,
       subCategoryId: args.subCategoryId,
-      replacementSubCategoryId: args.replacementSubCategoryId,
+      ...(args.replacementSubCategoryId
+        ? { replacementSubCategoryId: args.replacementSubCategoryId }
+        : {}),
     });
   });
 }

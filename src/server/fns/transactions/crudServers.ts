@@ -7,10 +7,12 @@ import type {
   TxnUpdateResult,
 } from '../../../api/types';
 import { uid } from '../../../utils/id';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { txnInputSchema } from '../../../validation/schemas';
 import { validateOrThrow } from '../../../validation/validate';
 import {
   assertUniqueTransactionKeysInProject,
+  applyNormalizedTxnPatch,
   normalizeExternalId,
   normalizeTxnPatch,
   withStandardTxnAccountingMetadata,
@@ -62,13 +64,15 @@ export async function createTxnServer(args: {
 
     validateOrThrow(txnInputSchema, args.input);
 
-    const next: Txn = withStandardTxnAccountingMetadata({
-      ...args.input,
-      id: args.input.id ?? asTxnId(uid('txn')),
-      externalId: normalizeExternalId(args.input.externalId),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    const next: Txn = withStandardTxnAccountingMetadata(
+      omitUndefinedProperties({
+        ...args.input,
+        id: args.input.id ?? asTxnId(uid('txn')),
+        externalId: normalizeExternalId(args.input.externalId),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+    );
     await assertTransactionResourceOwnership(context, next);
 
     const existingRows = await db
@@ -76,10 +80,12 @@ export async function createTxnServer(args: {
       .select(['public_id', 'external_id'])
       .where('project_id', '=', args.projectId)
       .execute();
-    const existingForCheck = existingRows.map((row) => ({
-      id: asTxnId(row.public_id),
-      externalId: normalizeExternalId(row.external_id),
-    }));
+    const existingForCheck = existingRows.map((row) =>
+      omitUndefinedProperties({
+        id: asTxnId(row.public_id),
+        externalId: normalizeExternalId(row.external_id),
+      })
+    );
     assertUniqueTransactionKeysInProject([...existingForCheck, next]);
 
     const row = await db
@@ -192,19 +198,12 @@ export async function updateTxnServer(args: {
             : 'Transferred-in amount cannot be edited directly. Split it if you need to reallocate it.'
       );
     }
-    const nextExternalId = Object.prototype.hasOwnProperty.call(
-      normalizedInput,
-      'externalId'
-    )
-      ? normalizeExternalId(normalizedInput.externalId ?? undefined)
-      : normalizeExternalId(prev.externalId);
     const now = new Date().toISOString();
     const next: Txn = {
-      ...prev,
-      ...normalizedInput,
-      externalId: nextExternalId,
+      ...applyNormalizedTxnPatch(prev, normalizedInput),
       updatedAt: now,
     };
+    const nextExternalId = normalizeExternalId(next.externalId);
 
     validateOrThrow(txnInputSchema, next);
     await assertTransactionResourceOwnership(context, next);
@@ -214,12 +213,19 @@ export async function updateTxnServer(args: {
       .select(['public_id', 'external_id'])
       .where('project_id', '=', args.projectId)
       .execute();
-    const forCheck = existingRows.map((row) => ({
-      id: asTxnId(row.public_id),
-      externalId: normalizeExternalId(row.external_id),
-    }));
+    const forCheck = existingRows.map((row) =>
+      omitUndefinedProperties({
+        id: asTxnId(row.public_id),
+        externalId: normalizeExternalId(row.external_id),
+      })
+    );
     const idx = forCheck.findIndex((row) => row.id === next.id);
-    if (idx >= 0) forCheck[idx] = { id: next.id, externalId: next.externalId };
+    if (idx >= 0) {
+      forCheck[idx] = omitUndefinedProperties({
+        id: next.id,
+        externalId: next.externalId,
+      });
+    }
     assertUniqueTransactionKeysInProject(forCheck);
 
     const patch = {

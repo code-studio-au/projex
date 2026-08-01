@@ -88,7 +88,7 @@ export async function isAuthorized(params: {
     db,
     userId,
     companyId,
-    projectId,
+    ...(projectId ? { projectId } : {}),
   });
   const isSuperadmin = snap.isGlobalSuperadmin;
 
@@ -101,7 +101,7 @@ export async function isAuthorized(params: {
     userId,
     action,
     companyId,
-    projectId,
+    ...(projectId ? { projectId } : {}),
     isGlobalSuperadmin: snap.isGlobalSuperadmin,
     companyMemberships: snap.companyMemberships,
     projectMemberships: snap.projectMemberships,
@@ -116,6 +116,12 @@ export async function requireAuthorized(params: {
   projectId?: ProjectId;
 }): Promise<void> {
   const { db, userId, action, companyId, projectId } = params;
-  const ok = await isAuthorized({ db, userId, action, companyId, projectId });
+  const ok = await isAuthorized({
+    db,
+    userId,
+    action,
+    companyId,
+    ...(projectId ? { projectId } : {}),
+  });
   if (!ok) throw new AppError('FORBIDDEN', 'Forbidden');
 }

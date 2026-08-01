@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import {
   companyIdSchema,
   createImportRuleInputSchema,
@@ -46,7 +47,7 @@ export const createImportRuleEndpoint = defineAppEndpoint({
     createImportRuleServer({
       context,
       companyId: input.companyId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -70,7 +71,7 @@ export const createProjectImportRuleEndpoint = defineAppEndpoint({
     createProjectImportRuleServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -83,7 +84,7 @@ export const updateImportRuleEndpoint = defineAppEndpoint({
     updateImportRuleServer({
       context,
       companyId: input.companyId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -109,7 +110,7 @@ export const updateProjectImportRuleEndpoint = defineAppEndpoint({
     updateProjectImportRuleServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -149,9 +150,11 @@ export const previewImportTransactionsEndpoint = defineAppEndpoint({
       context,
       projectId: input.projectId,
       csvText: input.payload.csvText,
-      sourceType: input.payload.sourceType,
-      fileName: input.payload.fileName,
-      autoCreateStructures: input.payload.autoCreateStructures,
+      ...omitUndefinedProperties({
+        sourceType: input.payload.sourceType,
+        fileName: input.payload.fileName,
+        autoCreateStructures: input.payload.autoCreateStructures,
+      }),
     }),
 });
 

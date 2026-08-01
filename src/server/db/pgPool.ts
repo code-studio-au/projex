@@ -116,9 +116,10 @@ function pgSslConfig(): PgPoolSslConfig | undefined {
 
 export function createPgPool(connectionString: string): TypedPgPool {
   configureDateOnlyParser();
+  const ssl = pgSslConfig();
   return new Pool({
     connectionString,
-    ssl: pgSslConfig(),
+    ...(ssl === undefined ? {} : { ssl }),
     max: parsePositiveIntEnv('PG_POOL_MAX', 10),
     idleTimeoutMillis: parsePositiveIntEnv('PG_IDLE_TIMEOUT_MS', 30_000),
     connectionTimeoutMillis: parsePositiveIntEnv(

@@ -1,8 +1,8 @@
 {
   "exactOptionalPropertyTypes": {
-    "tsconfig.app.json": 80,
-    "tsconfig.node.json": 100,
-    "tsconfig.tests.json": 165
+    "tsconfig.app.json": 0,
+    "tsconfig.node.json": 0,
+    "tsconfig.tests.json": 0
   },
   "noUncheckedIndexedAccess": {
     "tsconfig.app.json": 0,

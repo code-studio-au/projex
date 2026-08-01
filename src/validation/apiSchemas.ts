@@ -37,6 +37,7 @@ import {
   MAX_IMPORT_TXN_COUNT,
 } from '../utils/importLimits.ts';
 import { MAX_BULK_TXN_COUNT } from '../utils/transactionLimits.ts';
+import { omitUndefinedProperties } from '../utils/optionalProperties.ts';
 export const companyIdSchema = idSchema.transform(asCompanyId);
 export const projectIdSchema = idSchema.transform(asProjectId);
 export const userIdSchema = idSchema.transform(asUserId);
@@ -188,6 +189,7 @@ export const smokeSectionInputSchema = z.object({
       privacySuperadminPassword: z.string().trim().min(1).optional(),
     })
     .partial()
+    .transform(omitUndefinedProperties)
     .optional(),
 });
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import {
   backfillProjectCodingInputSchema,
   createProjectAutoCodingRuleInputSchema,
@@ -66,7 +67,7 @@ export const updateProjectAutoCodingRuleEndpoint = defineAppEndpoint({
     updateProjectAutoCodingRuleServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 

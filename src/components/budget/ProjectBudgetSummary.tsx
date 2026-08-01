@@ -242,9 +242,9 @@ export default function ProjectBudgetSummary(props: ProjectBudgetSummaryProps) {
                 component="div"
                 fw={800}
                 size="lg"
-                c={
-                  budgetPosition.confirmedHeadroomCents < 0 ? 'red' : undefined
-                }
+                {...(budgetPosition.confirmedHeadroomCents < 0
+                  ? { c: 'red' }
+                  : {})}
               >
                 {isLoading ? (
                   <LoadingLine width={120} height={28} radius="md" />

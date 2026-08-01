@@ -375,7 +375,6 @@ test(
           codingPendingApproval: true,
           locked: false,
           workflowVersion: 0,
-          reversal: undefined,
         },
       ]);
     } finally {

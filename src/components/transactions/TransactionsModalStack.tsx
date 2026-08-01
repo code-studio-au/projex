@@ -159,7 +159,7 @@ export default function TransactionsModalStack(props: {
           currencyCode={currencyCode}
           expectedProjectOptions={expectedProjectOptions}
           canManage={canManageReversals}
-          reviewQueue={reversalReviewQueue}
+          {...(reversalReviewQueue ? { reviewQueue: reversalReviewQueue } : {})}
           onClose={onCloseReversal}
           onLoadSuggestions={onLoadReversalSuggestions}
           onSubmitAction={onSubmitReversalAction}

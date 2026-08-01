@@ -4,6 +4,7 @@ import type {
   TxnReversalMatchEvidence,
   TxnReversalTxnSummary,
 } from '../../../types';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 
 type SourceMeta = Record<string, string>;
 
@@ -70,7 +71,7 @@ export function normalizeReversalMatchValue(value: string | undefined | null) {
 
 export function toReversalMatchFacts(txn: Txn): ReversalMatchFacts {
   const meta = txn.importSourceMeta as SourceMeta | undefined;
-  return {
+  return omitUndefinedProperties({
     sourceType: txn.importSourceType,
     sourceSystem:
       firstMetaValue(meta, MATCH_META_ALIASES.sourceSystem) ??
@@ -81,12 +82,12 @@ export function toReversalMatchFacts(txn: Txn): ReversalMatchFacts {
     ),
     reference: firstMetaValue(meta, MATCH_META_ALIASES.reference),
     costCentre: firstMetaValue(meta, MATCH_META_ALIASES.costCentre),
-  };
+  });
 }
 
 export function toTxnReversalTxnSummary(txn: Txn): TxnReversalTxnSummary {
   const facts = toReversalMatchFacts(txn);
-  return {
+  return omitUndefinedProperties({
     txnId: txn.id,
     externalId: txn.externalId,
     date: txn.date,
@@ -98,7 +99,7 @@ export function toTxnReversalTxnSummary(txn: Txn): TxnReversalTxnSummary {
     journalDescription: facts.journalDescription,
     reference: facts.reference,
     costCentre: facts.costCentre,
-  };
+  });
 }
 
 export function reversalDayDelta(args: {
@@ -119,17 +120,22 @@ function comparison(
   const normalizedSource = normalizeReversalMatchValue(sourceValue);
   const normalizedCounterpart = normalizeReversalMatchValue(counterpartValue);
   if (!normalizedSource || !normalizedCounterpart) {
-    return {
+    return omitUndefinedProperties({
       sourceValue,
       counterpartValue,
-      outcome: options.required ? 'missing' : 'not_applicable',
-    };
+      outcome: options.required
+        ? ('missing' as const)
+        : ('not_applicable' as const),
+    });
   }
-  return {
+  return omitUndefinedProperties({
     sourceValue,
     counterpartValue,
-    outcome: normalizedSource === normalizedCounterpart ? 'match' : 'mismatch',
-  };
+    outcome:
+      normalizedSource === normalizedCounterpart
+        ? ('match' as const)
+        : ('mismatch' as const),
+  });
 }
 
 export function buildReversalMatchEvidence(args: {
@@ -183,7 +189,7 @@ export function buildReversalMatchEvidence(args: {
     ...(costCentre.outcome === 'match' ? ['Same cost centre'] : []),
   ];
 
-  return {
+  return omitUndefinedProperties({
     amountExact,
     oppositeSign,
     dayDelta: Number.isFinite(dayDelta) ? dayDelta : undefined,
@@ -199,5 +205,5 @@ export function buildReversalMatchEvidence(args: {
       .slice(0, 10)
       .map(toTxnReversalTxnSummary),
     reasons,
-  };
+  });
 }

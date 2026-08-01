@@ -1,6 +1,7 @@
 import { S3Client } from '@aws-sdk/client-s3';
 
 import { AppError } from '../../api/errors.ts';
+import { omitUndefinedProperties } from '../../utils/optionalProperties.ts';
 
 const DEFAULT_EXPORT_PREFIX = 'company-exports';
 
@@ -50,7 +51,7 @@ export function requireExportStorageConfig(): ExportStorageConfig {
     );
   }
 
-  cachedConfig = {
+  const config = omitUndefinedProperties({
     bucket,
     region,
     endpoint,
@@ -58,27 +59,30 @@ export function requireExportStorageConfig(): ExportStorageConfig {
     secretAccessKey,
     forcePathStyle: parseBooleanEnv('S3_FORCE_PATH_STYLE'),
     keyPrefix,
-  };
+  });
 
-  return cachedConfig;
+  cachedConfig = config;
+  return config;
 }
 
 export function getExportStorageClient() {
   if (cachedClient) return cachedClient;
 
   const config = requireExportStorageConfig();
-  cachedClient = new S3Client({
-    region: config.region,
-    endpoint: config.endpoint,
-    forcePathStyle: config.forcePathStyle,
-    credentials:
-      config.accessKeyId && config.secretAccessKey
-        ? {
-            accessKeyId: config.accessKeyId,
-            secretAccessKey: config.secretAccessKey,
-          }
-        : undefined,
-  });
+  cachedClient = new S3Client(
+    omitUndefinedProperties({
+      region: config.region,
+      endpoint: config.endpoint,
+      forcePathStyle: config.forcePathStyle,
+      credentials:
+        config.accessKeyId && config.secretAccessKey
+          ? {
+              accessKeyId: config.accessKeyId,
+              secretAccessKey: config.secretAccessKey,
+            }
+          : undefined,
+    })
+  );
 
   return cachedClient;
 }
