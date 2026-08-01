@@ -28,8 +28,7 @@ export default function TransactionsDataTable(props: {
   emptyStateMessage: string;
   onPaginationChange: (
     updater:
-      | MRT_PaginationState
-      | ((prev: MRT_PaginationState) => MRT_PaginationState)
+      MRT_PaginationState | ((prev: MRT_PaginationState) => MRT_PaginationState)
   ) => void;
   onRowSelectionChange: NonNullable<
     Parameters<typeof MantineReactTable<Txn>>[0]['onRowSelectionChange']

@@ -17,10 +17,7 @@ export type AuditEventClass =
   | 'inheritance';
 
 export type AuditRetentionClass =
-  | 'financial'
-  | 'security'
-  | 'operational'
-  | 'diagnostic';
+  'financial' | 'security' | 'operational' | 'diagnostic';
 
 export type AuditDb = Kysely<DB> | Transaction<DB>;
 

@@ -18,7 +18,7 @@ Product ideas and work awaiting business decisions remain in the
 |    2 | Consolidate the repeated `visiblePeriods` aggregates                             | Medium       | Pending  |
 |    3 | Convert export polling and reversal-suggestion reads to TanStack Query           | Medium       | Pending  |
 |    4 | Add non-blocking TypeScript strictness and whole-repository coverage reporting   | Medium       | Complete |
-|    5 | Run the network-enabled dependency freshness and framework-cohort review         | Medium       | Pending  |
+|    5 | Run the network-enabled dependency freshness and framework-cohort review         | Medium       | Complete |
 |    6 | Continue bundle-budget and browser-performance maintenance using measured traces | High/ongoing | Ongoing  |
 
 The previous review's Item 11 is closed as a standalone backlog item. Its
@@ -32,9 +32,7 @@ repository control.
 2. Consolidate the `visiblePeriods` aggregates and add a pure-model unit test.
 3. Convert export job reads and polling to TanStack Query, then convert reversal
    suggestions using the same cancellation and error conventions.
-4. Run the network-enabled dependency freshness and framework-cohort review,
-   recording upgrade and hold decisions.
-5. Continue bundle and browser-performance maintenance using measured route
+4. Continue bundle and browser-performance maintenance using measured route
    budgets and traces.
 
 Item 4 is complete. Whole-application coverage is reported alongside enforced
@@ -42,6 +40,12 @@ risk-domain thresholds, and CI now publishes a non-blocking, baseline-tracked
 strictness report for `noUncheckedIndexedAccess` and
 `exactOptionalPropertyTypes`. The main TypeScript gate remains authoritative
 until each diagnostic family is burned down and promoted independently.
+
+Item 5 is complete. The
+[1 August dependency freshness report](dependency-freshness-2026-08-01.md)
+records the verified direct upgrades, exact framework/tooling holds, the
+React Query WebKit regression hold, and the transitive provenance downgrade
+that remains blocked without weakening the repository trust policy.
 
 ## Definition of done
 

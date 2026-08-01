@@ -64,10 +64,7 @@ type ProjectSummaryRow = {
 };
 
 type ProjectWorkflowView =
-  | 'uncoded'
-  | 'auto-mapped-pending'
-  | 'reversal-review'
-  | 'unlock-requests';
+  'uncoded' | 'auto-mapped-pending' | 'reversal-review' | 'unlock-requests';
 
 function quarterFromMonthNumber(month: number): QuarterOption {
   if (month <= 3) return 'Q1';

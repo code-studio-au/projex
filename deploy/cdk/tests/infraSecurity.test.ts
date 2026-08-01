@@ -108,8 +108,7 @@ describe('Projex infrastructure security', () => {
     const template = synthesizeInfraTemplate('staging');
     const instance = onlyResource(template, 'AWS::EC2::Instance');
     const userData = instance.Properties?.UserData as
-      | { 'Fn::Base64'?: unknown }
-      | undefined;
+      { 'Fn::Base64'?: unknown } | undefined;
     const renderedUserData = userData?.['Fn::Base64'];
 
     expect(renderedUserData).toEqual(expect.any(String));

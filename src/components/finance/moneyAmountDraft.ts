@@ -3,8 +3,7 @@ import { fromCents } from '../../utils/money';
 export type MoneyDraft = number | string;
 
 export type ParsedMoneyDraft =
-  | { valid: true; amountCents: number }
-  | { valid: false; message: string };
+  { valid: true; amountCents: number } | { valid: false; message: string };
 
 export function parseMoneyAmountDraft(
   draft: MoneyDraft,

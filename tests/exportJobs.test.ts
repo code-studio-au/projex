@@ -23,8 +23,7 @@ const withServerBoundaryMock = vi.fn(async (fn: () => Promise<unknown>) =>
 const enforceRateLimitMock = vi.fn();
 
 let currentDb:
-  | ReturnType<typeof createMockDb>
-  | ReturnType<typeof createRunnerDb>;
+  ReturnType<typeof createMockDb> | ReturnType<typeof createRunnerDb>;
 const getDbMock = vi.fn(() => currentDb);
 
 vi.mock('../src/server/storage/exportObjectStore.ts', () => ({
@@ -366,8 +365,7 @@ test('getCompanyExportJobServer returns normalized job metadata for completed ro
   assert.equal(result.downloadPath, '/api/export-jobs/expjob_99/download');
   assert.equal(requireAuthorizedMock.mock.calls.length, 1);
   const authCall = requireAuthorizedMock.mock.calls[0] as
-    | [Record<string, unknown>]
-    | undefined;
+    [Record<string, unknown>] | undefined;
   assert.equal(authCall?.[0].companyId, 'co_9');
 });
 
@@ -512,8 +510,7 @@ test('createCompanyExportJobServer queues and completes a notified export job', 
   assert.equal(runnerDb.row.ready_notification_delivery, 'email');
   assert.equal(runnerDb.updateLogs.length, 3);
   const notificationCall = sendCompanyExportReadyEmailMock.mock.calls[0] as
-    | [Record<string, unknown>]
-    | undefined;
+    [Record<string, unknown>] | undefined;
   assert.equal(notificationCall?.[0].toEmail, 'owner@example.com');
 });
 

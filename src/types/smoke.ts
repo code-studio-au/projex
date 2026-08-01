@@ -27,17 +27,9 @@ export type SmokeManualInputs = {
 };
 
 export type SmokeStepStatus =
-  | 'idle'
-  | 'running'
-  | 'passed'
-  | 'failed'
-  | 'skipped';
+  'idle' | 'running' | 'passed' | 'failed' | 'skipped';
 export type SmokeSectionStatus =
-  | 'idle'
-  | 'running'
-  | 'passed'
-  | 'failed'
-  | 'skipped';
+  'idle' | 'running' | 'passed' | 'failed' | 'skipped';
 
 export type SmokeStepTemplate = {
   id: string;

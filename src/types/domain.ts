@@ -22,10 +22,7 @@ import type { CompanyRole, ProjectRole } from './roles.ts';
 export type CompanyStatus = 'active' | 'deactivated';
 export type ProjectStandardOriginScope = 'company' | 'project';
 export type ProjectStandardSyncStatus =
-  | 'local'
-  | 'inherited'
-  | 'overridden'
-  | 'detached';
+  'local' | 'inherited' | 'overridden' | 'detached';
 
 export type Company = {
   id: CompanyId;
@@ -223,15 +220,9 @@ export type ImportCandidateStatus =
 export type RuleSuggestionType = 'create_rule' | 'update_rule';
 type RuleSuggestionStatus = 'open' | 'accepted' | 'dismissed';
 export type RuleSuggestionAcceptanceAction =
-  | 'create_rule'
-  | 'update_existing'
-  | 'create_narrower';
+  'create_rule' | 'update_existing' | 'create_narrower';
 export type RuleSuggestionDismissReason =
-  | 'noise'
-  | 'one_off'
-  | 'too_broad'
-  | 'intentional_manual'
-  | 'other';
+  'noise' | 'one_off' | 'too_broad' | 'intentional_manual' | 'other';
 type RuleSuggestionConfidence = 'low' | 'medium' | 'high';
 export type RuleSuggestion = {
   id: RuleSuggestionId;
@@ -285,16 +276,9 @@ export type RuleSuggestionReviewItem = RuleSuggestion & {
 export type CompanyExportScope = 'all' | 'active';
 export type CompanyExportDetail = 'full' | 'summary';
 export type CompanyExportJobStatus =
-  | 'queued'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'expired';
+  'queued' | 'running' | 'completed' | 'failed' | 'expired';
 export type CompanyExportReadyNotificationStatus =
-  | 'not_requested'
-  | 'pending'
-  | 'sent'
-  | 'failed';
+  'not_requested' | 'pending' | 'sent' | 'failed';
 export type CompanyExportReadyNotificationDelivery = 'email' | 'log';
 
 export type CompanyExportOptions = {

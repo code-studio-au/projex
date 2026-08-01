@@ -3,9 +3,7 @@ import type { Txn } from '../types';
 export const MIN_RULE_SUGGESTION_SAMPLE_COUNT = 3;
 
 export type RuleSuggestionPatternBasis =
-  | 'item'
-  | 'description'
-  | 'item_description';
+  'item' | 'description' | 'item_description';
 
 const REFERENCE_LABEL_PATTERN =
   /\b(invoice|inv|reference|ref|receipt|order|po)\s*[#:-]?\s*[a-z0-9-]{4,}\b/gi;

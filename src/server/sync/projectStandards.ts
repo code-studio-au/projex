@@ -6,10 +6,7 @@ import { asProjectId } from '../../types';
 
 export type ProjectStandardOriginScope = 'company' | 'project';
 export type ProjectStandardSyncStatus =
-  | 'local'
-  | 'inherited'
-  | 'overridden'
-  | 'detached';
+  'local' | 'inherited' | 'overridden' | 'detached';
 
 export type ProjectStandardsDb = Kysely<DB> | Transaction<DB>;
 

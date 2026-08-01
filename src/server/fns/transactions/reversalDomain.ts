@@ -26,8 +26,7 @@ export function isOpenReversalStatus(
 export function isSuggestedReversalStatus(
   status: TxnReversalStatus
 ): status is
-  | 'auto_matched_pending_approval'
-  | 'auto_matched_ambiguous_pending_approval' {
+  'auto_matched_pending_approval' | 'auto_matched_ambiguous_pending_approval' {
   return (
     status === 'auto_matched_pending_approval' ||
     status === 'auto_matched_ambiguous_pending_approval'
