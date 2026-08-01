@@ -1,7 +1,27 @@
 import { useSyncExternalStore } from 'react';
 
-const subscribe = () => () => {};
-const getClientSnapshot = () => true;
+type HydrationListener = () => void;
+
+const hydrationListeners = new Set<HydrationListener>();
+let hydrated = false;
+
+const subscribe = (listener: HydrationListener) => {
+  hydrationListeners.add(listener);
+
+  if (!hydrated) {
+    hydrated = true;
+    queueMicrotask(() => {
+      for (const hydrationListener of hydrationListeners) {
+        hydrationListener();
+      }
+    });
+  }
+
+  return () => {
+    hydrationListeners.delete(listener);
+  };
+};
+const getClientSnapshot = () => hydrated;
 const getServerSnapshot = () => false;
 
 /**
