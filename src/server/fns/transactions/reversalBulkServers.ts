@@ -116,8 +116,6 @@ export async function approveSuggestedTxnReversalsBulkServer(args: {
         involvedRows.flatMap((row) => (row.locked_at ? [row.public_id] : []))
       );
 
-      let updatedCount = 0;
-      let unchangedCount = 0;
       let lockedCount = 0;
       let ineligibleCount = 0;
       const now = new Date().toISOString();
@@ -150,8 +148,11 @@ export async function approveSuggestedTxnReversalsBulkServer(args: {
           })
         )
       );
-      updatedCount = eligibleReversals.length;
-      unchangedCount = Math.max(0, requestedIds.length - uniqueReversals.size);
+      const updatedCount = eligibleReversals.length;
+      const unchangedCount = Math.max(
+        0,
+        requestedIds.length - uniqueReversals.size
+      );
 
       return {
         action: 'approveSuggestedReversals',

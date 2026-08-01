@@ -491,8 +491,6 @@ export async function promoteProjectRuleToCompanyDefaultServer(args: {
     const now = new Date().toISOString();
 
     return db.transaction().execute(async (trx) => {
-      let categoryCreated = false;
-      let subCategoryCreated = false;
       let ruleCreated = false;
 
       const existingCategory = await trx
@@ -525,7 +523,7 @@ export async function promoteProjectRuleToCompanyDefaultServer(args: {
               ])
               .executeTakeFirstOrThrow()
           );
-      categoryCreated = !existingCategory;
+      const categoryCreated = !existingCategory;
 
       const existingSubCategory = await trx
         .selectFrom('company_default_sub_categories')
@@ -567,7 +565,7 @@ export async function promoteProjectRuleToCompanyDefaultServer(args: {
               ])
               .executeTakeFirstOrThrow()
           );
-      subCategoryCreated = !existingSubCategory;
+      const subCategoryCreated = !existingSubCategory;
 
       const existingRule = await trx
         .selectFrom('company_default_mapping_rules')

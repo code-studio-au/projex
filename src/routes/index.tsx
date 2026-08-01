@@ -1,11 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 
-function HomeRedirect() {
-  return null;
-}
-
 export const Route = createFileRoute('/')({
-  component: HomeRedirect,
+  component: () => null,
   beforeLoad: async ({ context }) => {
     const [{ sessionQueryOptions }, { getPostLoginTargetServerFn }] =
       await Promise.all([
