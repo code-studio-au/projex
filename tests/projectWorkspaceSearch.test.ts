@@ -5,6 +5,7 @@ import {
   parseCompanyDashboardSearch,
   parseProjectWorkspaceSearch,
   parseResetPasswordSearch,
+  parseVerifyEmailChangeSearch,
 } from '../src/routes/-routeSearchValidation.ts';
 
 test('project workspace search keeps valid fields when another field is invalid', () => {
@@ -18,7 +19,6 @@ test('project workspace search keeps valid fields when another field is invalid'
     }),
     {
       tab: 'transactions',
-      year: undefined,
       month: '2026-07',
       view: 'needs-review',
       q: 'apiko',
@@ -27,9 +27,7 @@ test('project workspace search keeps valid fields when another field is invalid'
 });
 
 test('project workspace search discards incomplete transaction searches', () => {
-  assert.deepEqual(parseProjectWorkspaceSearch({ q: 'a' }), {
-    q: undefined,
-  });
+  assert.deepEqual(parseProjectWorkspaceSearch({ q: 'a' }), {});
 });
 
 test('route search validation trims values and strips unknown fields', () => {
@@ -68,4 +66,20 @@ test('password-link search preserves optional and fallback behaviour', () => {
       error: '',
     }
   );
+});
+
+test('route search validation omits explicitly undefined values', () => {
+  assert.deepEqual(
+    parseProjectWorkspaceSearch({ tab: undefined, q: undefined }),
+    {}
+  );
+  assert.deepEqual(
+    parseCompanyDashboardSearch({ tab: undefined, exportJob: undefined }),
+    {}
+  );
+  assert.deepEqual(
+    parseResetPasswordSearch({ token: undefined, error: undefined }),
+    {}
+  );
+  assert.deepEqual(parseVerifyEmailChangeSearch({ token: undefined }), {});
 });

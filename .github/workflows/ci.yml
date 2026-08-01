@@ -76,7 +76,7 @@ jobs:
       - name: Enforce TypeScript strictness ratchet
         run: >-
           node scripts/run-ci-summary.mjs
-          "Opt-in TypeScript strictness"
+          "TypeScript strictness ratchet"
           pnpm run typecheck:strict:report
 
   verify-tests:

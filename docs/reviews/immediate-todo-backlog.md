@@ -17,7 +17,7 @@ Product ideas and work awaiting business decisions remain in the
 |    1 | Move the single-company redirect into route loading                              | High         | Pending  |
 |    2 | Consolidate the repeated `visiblePeriods` aggregates                             | Medium       | Pending  |
 |    3 | Convert export polling and reversal-suggestion reads to TanStack Query           | Medium       | Pending  |
-|    4 | Add non-blocking TypeScript strictness and whole-repository coverage reporting   | Medium       | Complete |
+|    4 | Enforce TypeScript strictness ratchets and whole-repository coverage reporting   | Medium       | Complete |
 |    5 | Run the network-enabled dependency freshness and framework-cohort review         | Medium       | Complete |
 |    6 | Continue bundle-budget and browser-performance maintenance using measured traces | High/ongoing | Ongoing  |
 
@@ -40,7 +40,10 @@ risk-domain thresholds. `noUncheckedIndexedAccess` has now been burned down and
 promoted into the application, Node/server, and test TypeScript gates. CI
 separately ratchets `exactOptionalPropertyTypes` findings by compilation
 boundary so existing debt is visible and any baseline change requires explicit
-review before that final flag is promoted.
+review before that final flag is promoted. The first exact-optional cohort now
+omits undefined route and search properties at navigation boundaries, reducing
+the unique findings from 247 to 225 and the application/test project baselines
+from 107/203 to 85/181; the Node/server baseline remains 139.
 
 Item 5 is complete. The
 [1 August dependency freshness report](../dependencies/dependency-freshness-2026-08-01.md)
