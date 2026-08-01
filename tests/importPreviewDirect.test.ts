@@ -121,7 +121,6 @@ test('buildImportPreview creates budget lines for existing subcategories without
     companyId,
     projectId,
     categoryId: category.id,
-    subCategoryId: undefined,
     allocatedCents: 0,
   };
   const rows = buildImportPreview({

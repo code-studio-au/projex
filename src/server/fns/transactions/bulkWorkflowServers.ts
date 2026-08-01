@@ -8,6 +8,7 @@ import type {
 import type { ProjectId } from '../../../types';
 import { asUserId } from '../../../types';
 import { planTxnWorkflowState } from '../../../utils/transactionWorkflow';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { requireAuthorized } from '../../auth/authorize';
 import { recordAuditEvent } from '../../audit/auditEvents';
 import type { DB } from '../../db/schema';
@@ -101,8 +102,10 @@ export async function bulkTxnActionServer(args: {
       return approveSuggestedTxnReversalsBulkServer({
         context: args.context,
         projectId: args.projectId,
-        reversalIds: args.input.reversalIds,
-        txnIds: args.input.txnIds,
+        ...omitUndefinedProperties({
+          reversalIds: args.input.reversalIds,
+          txnIds: args.input.txnIds,
+        }),
       });
     }
     if (args.input.action === 'reconcilePendingReversals') {
@@ -451,7 +454,7 @@ export async function bulkTxnActionServer(args: {
         }
         const workflowInput = args.input;
         const patch = planTxnWorkflowState({
-          current: {
+          current: omitUndefinedProperties({
             reviewedAt: row.reviewed_at ?? undefined,
             reviewedByUserId: row.reviewed_by_user_id
               ? asUserId(row.reviewed_by_user_id)
@@ -460,17 +463,19 @@ export async function bulkTxnActionServer(args: {
             lockedByUserId: row.locked_by_user_id
               ? asUserId(row.locked_by_user_id)
               : undefined,
-          },
-          reviewed:
-            workflowInput.action === 'setReviewed'
-              ? workflowInput.reviewed
-              : undefined,
-          locked:
-            workflowInput.action === 'setLocked'
-              ? workflowInput.locked
-              : undefined,
+          }),
           actorUserId: context.userId,
           now,
+          ...omitUndefinedProperties({
+            reviewed:
+              workflowInput.action === 'setReviewed'
+                ? workflowInput.reviewed
+                : undefined,
+            locked:
+              workflowInput.action === 'setLocked'
+                ? workflowInput.locked
+                : undefined,
+          }),
         });
         const expectedWorkflowVersion = expectedWorkflowVersionByTxnId?.get(
           row.public_id

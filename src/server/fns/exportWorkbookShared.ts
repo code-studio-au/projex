@@ -6,6 +6,7 @@ import type {
   Project,
 } from '../../types';
 import { asCompanyId, asProjectId } from '../../types';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 
 export type WorksheetRowValue = string | number | boolean | null | undefined;
 
@@ -234,7 +235,7 @@ export function buildExportFileName(args: {
 }
 
 export function toProject(row: ProjectExportRow): Project {
-  return {
+  return omitUndefinedProperties({
     id: asProjectId(row.id),
     companyId: asCompanyId(row.company_id),
     name: row.name,
@@ -250,7 +251,7 @@ export function toProject(row: ProjectExportRow): Project {
     allowSuperadminAccess: row.allow_superadmin_access,
     syncCompanyDefaults: row.sync_company_defaults,
     allowTxnTransfers: row.allow_txn_transfers,
-  };
+  });
 }
 
 export function flattenSummaryProjects(

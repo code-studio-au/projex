@@ -23,6 +23,7 @@ import {
   subCategoryIdResponseSchema,
   userIdResponseSchema,
 } from './responseSchemaPrimitives.ts';
+import { omitUndefinedProperties } from '../utils/optionalProperties.ts';
 
 export * from './accountResponseSchemas.ts';
 export * from './apiResponseSchemas.ts';
@@ -53,25 +54,27 @@ const companySummaryMonthResponseSchema = z.object({
 });
 
 export const companySummaryProjectResponseSchema: z.ZodType<CompanySummaryProject> =
-  z.object({
-    id: projectIdResponseSchema,
-    name: z.string(),
-    projectType: projectTypeResponseSchema,
-    parentProjectId: projectIdResponseSchema.optional(),
-    status: z.enum(['active', 'archived']),
-    visibility: z.enum(['company', 'private']),
-    currency: z.enum(['AUD', 'USD', 'EUR', 'GBP']),
-    budgetCents: projectBudgetTotalCentsSchema,
-    months: z.array(companySummaryMonthResponseSchema),
-    children: z
-      .array(
-        z.lazy(
-          (): z.ZodType<CompanySummaryProject> =>
-            companySummaryProjectResponseSchema
+  z
+    .object({
+      id: projectIdResponseSchema,
+      name: z.string(),
+      projectType: projectTypeResponseSchema,
+      parentProjectId: projectIdResponseSchema.optional(),
+      status: z.enum(['active', 'archived']),
+      visibility: z.enum(['company', 'private']),
+      currency: z.enum(['AUD', 'USD', 'EUR', 'GBP']),
+      budgetCents: projectBudgetTotalCentsSchema,
+      months: z.array(companySummaryMonthResponseSchema),
+      children: z
+        .array(
+          z.lazy(
+            (): z.ZodType<CompanySummaryProject> =>
+              companySummaryProjectResponseSchema
+          )
         )
-      )
-      .optional(),
-  });
+        .optional(),
+    })
+    .transform(omitUndefinedProperties);
 
 export const companySummaryResponseSchema = z.object({
   projects: z.array(companySummaryProjectResponseSchema),
@@ -80,18 +83,20 @@ export const companySummaryResponseSchema = z.object({
 export const companyWorkQueueResponseSchema: z.ZodType<CompanyWorkQueue> =
   z.object({
     projects: z.array(
-      z.object({
-        projectId: projectIdResponseSchema,
-        projectName: z.string(),
-        needsCodingCount: z.number().int().nonnegative(),
-        oldestNeedsCodingDate: z.string().optional(),
-        codingApprovalCount: z.number().int().nonnegative(),
-        oldestCodingApprovalDate: z.string().optional(),
-        reversalReviewCount: z.number().int().nonnegative(),
-        oldestReversalReviewDate: z.string().optional(),
-        unlockRequestCount: z.number().int().nonnegative(),
-        oldestUnlockRequestAt: optionalIsoTimestampResponseSchema,
-      })
+      z
+        .object({
+          projectId: projectIdResponseSchema,
+          projectName: z.string(),
+          needsCodingCount: z.number().int().nonnegative(),
+          oldestNeedsCodingDate: z.string().optional(),
+          codingApprovalCount: z.number().int().nonnegative(),
+          oldestCodingApprovalDate: z.string().optional(),
+          reversalReviewCount: z.number().int().nonnegative(),
+          oldestReversalReviewDate: z.string().optional(),
+          unlockRequestCount: z.number().int().nonnegative(),
+          oldestUnlockRequestAt: optionalIsoTimestampResponseSchema,
+        })
+        .transform(omitUndefinedProperties)
     ),
     ruleSuggestionCount: z.number().int().nonnegative(),
   });

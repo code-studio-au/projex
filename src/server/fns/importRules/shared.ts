@@ -5,6 +5,7 @@ import type {
 import type { CompanyId, ImportRule, ProjectId } from '../../../types';
 import { asCompanyId, asImportRuleId, asProjectId } from '../../../types';
 import { AppError } from '../../../api/errors';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { getDb } from '../../db/db';
 import { requireServerUserId, type ServerFnContextInput } from '../runtime';
 
@@ -29,10 +30,10 @@ export type ImportRuleRow = {
 };
 
 export function toImportRule(row: ImportRuleRow): ImportRule {
-  return {
+  return omitUndefinedProperties({
     id: asImportRuleId(row.id),
     companyId: asCompanyId(row.company_id),
-    scope: row.project_id ? 'project' : 'company',
+    scope: row.project_id ? ('project' as const) : ('company' as const),
     projectId: row.project_id ? asProjectId(row.project_id) : undefined,
     name: row.name,
     originScope: row.origin_scope ?? undefined,
@@ -48,7 +49,7 @@ export function toImportRule(row: ImportRuleRow): ImportRule {
     enabled: row.enabled,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 export function importRuleSelectColumns() {

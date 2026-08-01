@@ -773,7 +773,9 @@ function TransactionsModalSection({
       }
       reversalTxn={model.activeReversalTxn}
       reversalModalNonce={model.reversalModalNonce}
-      reversalReviewQueue={model.reversalReviewQueueControls}
+      {...(model.reversalReviewQueueControls
+        ? { reversalReviewQueue: model.reversalReviewQueueControls }
+        : {})}
       reversalReviewQueueLoading={Boolean(
         model.reversalReviewQueue &&
         !model.activeReversalReviewTxn &&

@@ -12,6 +12,7 @@ import type {
 } from '../../types';
 import { asCompanyId, asProjectId, asUserId } from '../../types';
 import { buildCompanySummaryProjects } from '../../utils/companySummary';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import { MIN_RULE_SUGGESTION_SAMPLE_COUNT } from '../../utils/ruleSuggestions';
 import { userNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
@@ -350,7 +351,7 @@ export async function getCompanyWorkQueueServer(args: {
       }
 
       return [
-        {
+        omitUndefinedProperties({
           projectId: project.id,
           projectName: project.name,
           needsCodingCount,
@@ -366,7 +367,7 @@ export async function getCompanyWorkQueueServer(args: {
           oldestUnlockRequestAt: toIsoTimestamp(
             unlocks?.oldest_unlock_request_at
           ),
-        },
+        }),
       ];
     });
 
@@ -392,13 +393,15 @@ export async function listUsersServer(args: {
         .select(['id', 'email', 'name', 'disabled', 'is_global_superadmin'])
         .orderBy('name', 'asc')
         .execute();
-      return rows.map((row) => ({
-        id: asUserId(row.id),
-        email: row.email,
-        name: row.name,
-        disabled: row.disabled || undefined,
-        isGlobalSuperadmin: row.is_global_superadmin || undefined,
-      }));
+      return rows.map((row) =>
+        omitUndefinedProperties({
+          id: asUserId(row.id),
+          email: row.email,
+          name: row.name,
+          disabled: row.disabled || undefined,
+          isGlobalSuperadmin: row.is_global_superadmin || undefined,
+        })
+      );
     }
 
     const companyRows = await db
@@ -432,13 +435,13 @@ export async function listUsersServer(args: {
       .orderBy('u.name', 'asc')
       .execute();
 
-    return rows.map((row) => ({
-      id: asUserId(row.id),
-      email: row.email,
-      name: row.name,
-      disabled: undefined,
-      isGlobalSuperadmin: undefined,
-    }));
+    return rows.map((row) =>
+      omitUndefinedProperties({
+        id: asUserId(row.id),
+        email: row.email,
+        name: row.name,
+      })
+    );
   });
 }
 
@@ -563,11 +566,11 @@ export async function updateCurrentUserProfileServer(args: {
 
     if (!row) throw new AppError('NOT_FOUND', 'Unknown user');
 
-    return {
+    return omitUndefinedProperties({
       id: asUserId(row.id),
       email: row.email,
       name: row.name,
       disabled: row.disabled || undefined,
-    };
+    });
   });
 }

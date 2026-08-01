@@ -19,10 +19,8 @@ describe('createPgPool TLS configuration', () => {
     vi.stubEnv('PG_SSL_CA_FILE', '');
 
     const pool = createPgPool(CONNECTION_STRING);
-    expect(pool.options).toMatchObject({
-      ssl: undefined,
-      allowExitOnIdle: false,
-    });
+    expect(pool.options).toMatchObject({ allowExitOnIdle: false });
+    expect(Object.hasOwn(pool.options, 'ssl')).toBe(false);
     await pool.end();
   });
 

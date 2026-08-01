@@ -16,6 +16,7 @@ import type {
   UserId,
 } from '../../types';
 import { asCompanyExportJobId, asCompanyId, asUserId } from '../../types';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import { requireAuthorized } from '../auth/authorize';
 import { getDb } from '../db/db';
 import type { DB } from '../db/schema';
@@ -92,12 +93,12 @@ function isStaleQueuedJob(row: Pick<ExportJobRow, 'status' | 'requested_at'>) {
 }
 
 function toCompanyExportOptions(row: ExportJobRow): CompanyExportOptions {
-  return {
+  return omitUndefinedProperties({
     scope: row.scope as CompanyExportScope,
     detail: row.detail as CompanyExportDetail,
     fromDate: row.from_date ?? undefined,
     toDate: row.to_date ?? undefined,
-  };
+  });
 }
 
 function toCompanyExportJob(row: ExportJobRow): CompanyExportJob {
@@ -105,7 +106,7 @@ function toCompanyExportJob(row: ExportJobRow): CompanyExportJob {
     ? 'expired'
     : (row.status as Exclude<CompanyExportJobStatus, 'expired'>);
 
-  return {
+  return omitUndefinedProperties({
     id: asCompanyExportJobId(row.id),
     companyId: asCompanyId(row.company_id),
     createdByUserId: asUserId(row.created_by_user_id),
@@ -135,7 +136,7 @@ function toCompanyExportJob(row: ExportJobRow): CompanyExportJob {
       undefined,
     readyNotificationSentAt: row.ready_notification_sent_at ?? undefined,
     readyNotificationError: row.ready_notification_error ?? undefined,
-  };
+  });
 }
 
 async function sendReadyNotificationIfRequested(args: {

@@ -19,6 +19,7 @@ import {
 import type { CompanyId, Project } from '../types';
 import { formatCurrencyFromCents } from '../utils/money';
 import { sum } from '../utils/finance';
+import { omitUndefinedProperties } from '../utils/optionalProperties';
 import {
   calculateBudgetPosition,
   type BudgetHealth,
@@ -123,7 +124,7 @@ function buildProjectDrilldownSearch(args: {
     | 'assigned-to-me';
   focus?: 'budget' | 'actual' | 'remaining' | 'uncoded' | 'health';
 }) {
-  return {
+  return omitUndefinedProperties({
     year: args.yearFilter ?? undefined,
     quarter: args.quarterFilter ?? undefined,
     tab: args.tab === 'budget' ? undefined : args.tab,
@@ -131,7 +132,7 @@ function buildProjectDrilldownSearch(args: {
     view: args.view && args.view !== 'all' ? args.view : undefined,
     source: 'company-summary' as const,
     focus: args.focus,
-  };
+  });
 }
 
 function SummaryDrilldownLink(props: {
@@ -171,14 +172,16 @@ function SummaryDrilldownLink(props: {
     <Link
       to={projectRoute.to}
       params={{ companyId, projectId }}
-      search={buildProjectDrilldownSearch({
-        yearFilter,
-        quarterFilter,
-        monthFilterKey,
-        tab,
-        view,
-        focus,
-      })}
+      search={buildProjectDrilldownSearch(
+        omitUndefinedProperties({
+          yearFilter,
+          quarterFilter,
+          monthFilterKey,
+          tab,
+          view,
+          focus,
+        })
+      )}
       className={classes.plainLink}
     >
       <Text className={className} c={color}>
@@ -346,7 +349,7 @@ function useCompanySummaryPanelController(props: {
         pendingReversalCents,
       });
       const workflow = workQueueByProjectId.get(project.id);
-      return {
+      return omitUndefinedProperties({
         id: project.id,
         name: project.name,
         projectType: project.projectType,
@@ -366,7 +369,7 @@ function useCompanySummaryPanelController(props: {
         recordedSpendCents: position.recordedSpendCents,
         confirmedHeadroomCents: position.confirmedHeadroomCents,
         health: position.health,
-      };
+      });
     };
 
     return summaryProjects.flatMap((project) => [
@@ -560,11 +563,9 @@ function useCompanySummaryPanelController(props: {
             monthFilterKey={monthFilterKey}
             tab="budget"
             focus="remaining"
-            color={
-              row.original.confirmedHeadroomCents < 0
-                ? 'var(--danger-copy)'
-                : undefined
-            }
+            {...(row.original.confirmedHeadroomCents < 0
+              ? { color: 'var(--danger-copy)' }
+              : {})}
             className="table-body-right"
           >
             {formatCurrencyFromCents(

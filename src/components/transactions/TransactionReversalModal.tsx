@@ -22,6 +22,7 @@ import type {
 import type { ProjectId, Txn, TxnId } from '../../types';
 import type { TxnReversalTxnSummary } from '../../types';
 import { formatCurrencyFromCents } from '../../utils/money';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import { firefoxSafeModalSelectProps } from '../modalSelectProps';
 import TransactionReversalPairDetails from './TransactionReversalPairDetails';
 
@@ -69,7 +70,7 @@ function statusLabel(txn: Txn) {
 }
 
 function toTxnSummary(txn: Txn): TxnReversalTxnSummary {
-  return {
+  return omitUndefinedProperties({
     txnId: txn.id,
     externalId: txn.externalId,
     date: txn.date,
@@ -77,7 +78,7 @@ function toTxnSummary(txn: Txn): TxnReversalTxnSummary {
     description: txn.description,
     amountCents: txn.amountCents,
     sourceType: txn.importSourceType,
-  };
+  });
 }
 
 function useTransactionReversalModalController(props: {
@@ -179,14 +180,14 @@ function useTransactionReversalModalController(props: {
     txn.reversal?.counterpartTxn ??
     (txn.reversal?.side === 'reversal' ? toTxnSummary(txn) : undefined);
   const selectedSuggestionSummary = selectedSuggestion
-    ? {
+    ? omitUndefinedProperties({
         txnId: selectedSuggestion.txnId,
         externalId: selectedSuggestion.externalId,
         date: selectedSuggestion.date,
         item: selectedSuggestion.item,
         description: selectedSuggestion.description,
         amountCents: selectedSuggestion.amountCents,
-      }
+      })
     : null;
   const expectedProjectName =
     expectedProjectOptions.find(
@@ -209,10 +210,12 @@ function useTransactionReversalModalController(props: {
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmitAction({
-        ...input,
-        expectedReversalVersion: txn.reversal?.version,
-      });
+      await onSubmitAction(
+        omitUndefinedProperties({
+          ...input,
+          expectedReversalVersion: txn.reversal?.version,
+        })
+      );
       if (queueOutcome && reviewQueue) {
         reviewQueue.onResolved(queueOutcome);
       } else {
@@ -350,13 +353,16 @@ function PendingReversalActions({
           loading={model.submitting}
           disabled={!model.commentBody.trim()}
           onClick={() =>
-            void model.submit({
-              action: 'markPending',
-              txnId: model.txn.id,
-              commentBody: model.commentBody,
-              expectedProjectId:
-                (model.expectedProjectId as ProjectId | null) ?? undefined,
-            })
+            void model.submit(
+              omitUndefinedProperties({
+                action: 'markPending' as const,
+                txnId: model.txn.id,
+                commentBody: model.commentBody,
+                ...(model.expectedProjectId
+                  ? { expectedProjectId: model.expectedProjectId as ProjectId }
+                  : {}),
+              })
+            )
           }
         >
           Mark pending reversal
@@ -416,7 +422,9 @@ function SuggestedReversalActions({
           <TransactionReversalPairDetails
             sourceTxn={model.sourceSummary}
             counterpartTxn={model.selectedSuggestionSummary}
-            evidence={model.selectedSuggestion.evidence}
+            {...(model.selectedSuggestion.evidence
+              ? { evidence: model.selectedSuggestion.evidence }
+              : {})}
             currencyCode={model.currencyCode}
             showAlternatives={false}
           />
@@ -481,12 +489,14 @@ function SuggestedReversalActions({
           disabled={!model.selectedSuggestionTxnId}
           onClick={() =>
             model.selectedSuggestionTxnId
-              ? void model.submit({
-                  action: 'match',
-                  txnId: model.txn.id,
-                  reversalTxnId: model.selectedSuggestionTxnId as TxnId,
-                  commentBody: model.commentBody.trim() || undefined,
-                })
+              ? void model.submit(
+                  omitUndefinedProperties({
+                    action: 'match' as const,
+                    txnId: model.txn.id,
+                    reversalTxnId: model.selectedSuggestionTxnId as TxnId,
+                    commentBody: model.commentBody.trim() || undefined,
+                  })
+                )
               : undefined
           }
         >
@@ -521,11 +531,11 @@ function ExceptionReversalActions({
           w={{ base: '100%', sm: 'auto' }}
           onClick={() =>
             void model.submit(
-              {
-                action: 'rejectSuggestedMatch',
+              omitUndefinedProperties({
+                action: 'rejectSuggestedMatch' as const,
                 txnId: model.txn.id,
                 commentBody: model.commentBody.trim() || undefined,
-              },
+              }),
               model.reviewQueue ? 'rejected' : undefined
             )
           }
@@ -543,11 +553,11 @@ function ExceptionReversalActions({
           w={{ base: '100%', sm: 'auto' }}
           onClick={() =>
             void model.submit(
-              {
-                action: 'approveSuggestedMatch',
+              omitUndefinedProperties({
+                action: 'approveSuggestedMatch' as const,
                 txnId: model.txn.id,
                 commentBody: model.commentBody.trim() || undefined,
-              },
+              }),
               model.reviewQueue ? 'approved' : undefined
             )
           }
@@ -651,7 +661,9 @@ function TransactionReversalModalView({
           <TransactionReversalPairDetails
             sourceTxn={model.sourceSummary}
             counterpartTxn={model.counterpartSummary}
-            evidence={model.txn.reversal?.matchEvidence}
+            {...(model.txn.reversal?.matchEvidence
+              ? { evidence: model.txn.reversal.matchEvidence }
+              : {})}
             currencyCode={model.currencyCode}
           />
         ) : null}

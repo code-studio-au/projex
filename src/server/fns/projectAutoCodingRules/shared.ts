@@ -7,6 +7,7 @@ import type {
 } from '../../../types';
 import { asProjectAutoCodingRuleId, asSubCategoryId } from '../../../types';
 import { resolveCompanyDefaultRuleToProjectTaxonomy } from '../../../utils/companyDefaultMappings';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { canonicalizeRuleText } from '../../../utils/textRuleMatching';
 import type { DB } from '../../db/schema';
 import {
@@ -61,7 +62,7 @@ export function projectAutoCodingRuleSelectColumns() {
 export function toProjectAutoCodingRule(
   row: ProjectAutoCodingRuleRow
 ): ProjectAutoCodingRule {
-  return {
+  return omitUndefinedProperties({
     id: asProjectAutoCodingRuleId(row.id),
     companyId: row.company_id as ProjectAutoCodingRule['companyId'],
     projectId: row.project_id as ProjectId,
@@ -80,7 +81,7 @@ export function toProjectAutoCodingRule(
         : (row.created_by_user_id as ProjectAutoCodingRule['createdByUserId']),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 export function projectAutoCodingRuleFingerprint(

@@ -41,6 +41,7 @@ import type {
 } from '../types';
 import { smokeSectionDefinitions } from '../types';
 import { formatUtcDateTime } from '../utils/dateTime';
+import { omitUndefinedProperties } from '../utils/optionalProperties';
 import { parseJsonWithSchema, readJsonResponseOrNull } from '../utils/json';
 import { z } from 'zod';
 import classes from '../styles/ui.module.css';
@@ -102,14 +103,16 @@ const manualInviteRoleOptions = [
   { value: 'admin', label: 'Admin' },
 ] as const;
 
-const smokeStepResultSchema = z.object({
-  id: z.string(),
-  label: z.string(),
-  status: z.enum(['passed', 'failed', 'skipped']),
-  durationMs: z.number(),
-  error: z.string().optional(),
-  detail: z.string().optional(),
-});
+const smokeStepResultSchema = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    status: z.enum(['passed', 'failed', 'skipped']),
+    durationMs: z.number(),
+    error: z.string().optional(),
+    detail: z.string().optional(),
+  })
+  .transform(omitUndefinedProperties);
 
 const isoTimestampSchema = z.iso.datetime({ offset: true });
 
@@ -462,13 +465,13 @@ function applyStepUpdate(
 ): SmokeSectionView {
   const steps = section.steps.map((step) =>
     step.id === stepResult.id
-      ? {
+      ? omitUndefinedProperties({
           ...step,
           status: stepResult.status,
           durationMs: stepResult.durationMs,
           error: stepResult.error,
           detail: stepResult.detail,
-        }
+        })
       : step
   );
 
@@ -750,11 +753,11 @@ function useSmokeDashboardController() {
           }
         }
       }
-      return {
+      return omitUndefinedProperties({
         ok: sectionSucceeded,
         retryableRateLimit,
         message: resultMessage,
-      };
+      });
     } catch (error) {
       const message =
         error instanceof Error

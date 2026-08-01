@@ -106,9 +106,9 @@ export default defineConfig(({ command }) => {
       },
     },
     resolve: {
-      alias: useExplicitMacOsServeOptimizer
-        ? createMacOsServeOptimizerAlias()
-        : undefined,
+      ...(useExplicitMacOsServeOptimizer
+        ? { alias: createMacOsServeOptimizerAlias() }
+        : {}),
       tsconfigPaths: true,
     },
     build: {
@@ -129,18 +129,18 @@ export default defineConfig(({ command }) => {
         },
       },
     },
-    optimizeDeps:
-      command === 'serve'
-        ? {
+    ...(command === 'serve'
+      ? {
+          optimizeDeps: {
             // Rolldown's scan-based dep optimizer currently trips over macOS
             // watcher-native transitive deps like fsevents. On macOS, switch dev
             // to an explicit prebundle allowlist instead of discovery so startup
             // stays deterministic without pulling native watcher binaries into
             // the browser dep graph.
             noDiscovery: useExplicitMacOsServeOptimizer,
-            include: useExplicitMacOsServeOptimizer
-              ? macOsServeOptimizerIncludes
-              : undefined,
+            ...(useExplicitMacOsServeOptimizer
+              ? { include: macOsServeOptimizerIncludes }
+              : {}),
             exclude: [
               'fsevents',
               'chokidar',
@@ -152,7 +152,8 @@ export default defineConfig(({ command }) => {
               '@tanstack/start-client-core',
               '@tanstack/start-server-core',
             ],
-          }
-        : undefined,
+          },
+        }
+      : {}),
   };
 });

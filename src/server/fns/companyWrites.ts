@@ -7,6 +7,7 @@ import type {
 import type { Company } from '../../types';
 import { asCompanyId } from '../../types';
 import { uid } from '../../utils/id';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import {
   companyNameSchema,
   emailSchema,
@@ -117,10 +118,10 @@ export async function createCompanyServer(args: {
       };
     }
 
-    return {
+    return omitUndefinedProperties({
       company,
       initialAdmin: initialAdminResult,
-    };
+    });
   });
 }
 

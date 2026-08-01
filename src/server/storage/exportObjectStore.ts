@@ -6,6 +6,7 @@ import {
 } from '@aws-sdk/client-s3';
 
 import { AppError } from '../../api/errors.ts';
+import { omitUndefinedProperties } from '../../utils/optionalProperties.ts';
 import type { CompanyExportJobId } from '../../types/index.ts';
 import {
   getExportStorageClient,
@@ -106,13 +107,13 @@ export async function putCompanyExportObject(args: {
     })
   );
 
-  return {
+  return omitUndefinedProperties({
     bucket: config.bucket,
     key,
     etag: normalizeEtag(response.ETag),
     contentType: args.contentType,
     sizeBytes: args.bytes.byteLength,
-  };
+  });
 }
 
 export async function getCompanyExportObject(args: {
@@ -129,7 +130,7 @@ export async function getCompanyExportObject(args: {
       })
     );
 
-    return {
+    return omitUndefinedProperties({
       bucket: args.bucket,
       key: args.key,
       etag: normalizeEtag(response.ETag),
@@ -139,7 +140,7 @@ export async function getCompanyExportObject(args: {
       sizeBytes:
         typeof response.ContentLength === 'number' ? response.ContentLength : 0,
       bytes: await bodyToBytes(response.Body),
-    };
+    });
   } catch (error) {
     if (
       error instanceof S3ServiceException &&

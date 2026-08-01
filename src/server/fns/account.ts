@@ -10,6 +10,7 @@ import type {
 } from '../../api/types';
 import type { User } from '../../types';
 import { asUserId } from '../../types';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import { uid } from '../../utils/id';
 import { emailSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
@@ -81,13 +82,13 @@ async function requireCurrentUserRow(userId: string) {
 function toCurrentUser(
   row: Awaited<ReturnType<typeof requireCurrentUserRow>>
 ): User {
-  return {
+  return omitUndefinedProperties({
     id: asUserId(row.id),
     email: row.email,
     name: row.name,
     disabled: row.disabled || undefined,
     isGlobalSuperadmin: row.is_global_superadmin || undefined,
-  };
+  });
 }
 
 function toPendingEmailChange(row: EmailChangeRow): PendingEmailChange {

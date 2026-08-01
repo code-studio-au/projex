@@ -1,6 +1,8 @@
 import { AppError } from '../api/errors';
 import type { TxnSplitChildInput } from '../api/types';
 import type { Txn, TxnId } from '../types';
+import { omitUndefinedProperties } from './optionalProperties';
+import { withoutTxnCoding } from './transactions';
 
 export function planTransactionSplit(args: {
   parent: Txn;
@@ -55,22 +57,17 @@ export function planTransactionSplit(args: {
     );
   }
 
-  const parent: Txn = {
+  const parent: Txn = withoutTxnCoding({
     ...args.parent,
     txnType: 'split_parent',
     budgetImpact: false,
     categorisable: false,
-    categoryId: undefined,
-    subCategoryId: undefined,
-    companyDefaultMappingRuleId: undefined,
-    codingSource: undefined,
-    codingPendingApproval: false,
     updatedAt: args.now,
-  };
+  });
 
   const children = args.children.map((child, index): Txn => {
     const hasCoding = Boolean(child.categoryId || child.subCategoryId);
-    return {
+    return omitUndefinedProperties({
       id: child.id ?? args.createTxnId(),
       companyId: args.parent.companyId,
       projectId: args.parent.projectId,
@@ -78,7 +75,7 @@ export function planTransactionSplit(args: {
       item: child.item ?? `${args.parent.item} split ${index + 1}`,
       description: child.description ?? args.parent.description,
       amountCents: child.amountCents,
-      txnType: 'split_child',
+      txnType: 'split_child' as const,
       parentTxnId: args.parent.id,
       sourceTxnId: args.parent.sourceTxnId,
       transferProjectId: args.parent.transferProjectId,
@@ -86,11 +83,11 @@ export function planTransactionSplit(args: {
       categorisable: true,
       categoryId: child.categoryId ?? undefined,
       subCategoryId: child.subCategoryId ?? undefined,
-      codingSource: hasCoding ? 'manual' : undefined,
+      codingSource: hasCoding ? ('manual' as const) : undefined,
       codingPendingApproval: false,
       createdAt: args.now,
       updatedAt: args.now,
-    };
+    });
   });
 
   return { parent, children };

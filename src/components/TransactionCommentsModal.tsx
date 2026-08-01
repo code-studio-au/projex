@@ -292,7 +292,7 @@ function useTransactionCommentsModalController(props: {
       await createComment.mutateAsync({
         txnId: txn.id,
         body,
-        parentCommentId: replyToCommentId ?? undefined,
+        ...(replyToCommentId ? { parentCommentId: replyToCommentId } : {}),
         assignedToUserId: assignedToUserId ?? null,
       });
       dispatchDraft({ type: 'submitSuccess' });

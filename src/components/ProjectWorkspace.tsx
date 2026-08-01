@@ -19,6 +19,7 @@ import { useTransactionActions } from '../hooks/useTransactionActions';
 import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useRollups } from '../hooks/useRollups';
 import { showAppToast } from '../utils/toast';
+import { omitUndefinedProperties } from '../utils/optionalProperties';
 
 import {
   useCompanyQuery,
@@ -238,8 +239,8 @@ export default function ProjectWorkspace(props: ProjectWorkspaceProps) {
       initialTransactionSearch={initialTransactionSearch}
       initialCommentTxnId={initialCommentTxnId}
       initialTransactionDrilldown={initialTransactionDrilldown}
-      initialEntrySource={initialEntrySource}
-      initialEntryFocus={initialEntryFocus}
+      {...(initialEntrySource ? { initialEntrySource } : {})}
+      {...(initialEntryFocus ? { initialEntryFocus } : {})}
     />
   );
 }
@@ -345,18 +346,20 @@ function useProjectWorkspaceController(props: ProjectWorkspaceInnerProps) {
   const transactionSearch = initialTransactionSearch;
   const [transactionDrilldown, setTransactionDrilldown] =
     useState<TransactionDrilldownSearch | null>(initialTransactionDrilldown);
-  const { pushNextUrlSync } = useProjectWorkspaceUrlSync({
-    companyId,
-    projectId,
-    activeTab,
-    yearFilter,
-    quarterFilter,
-    monthFilterKey,
-    transactionView,
-    transactionDrilldown,
-    entrySource: initialEntrySource,
-    entryFocus: initialEntryFocus,
-  });
+  const { pushNextUrlSync } = useProjectWorkspaceUrlSync(
+    omitUndefinedProperties({
+      companyId,
+      projectId,
+      activeTab,
+      yearFilter,
+      quarterFilter,
+      monthFilterKey,
+      transactionView,
+      transactionDrilldown,
+      entrySource: initialEntrySource,
+      entryFocus: initialEntryFocus,
+    })
+  );
 
   const budgets = useBudgets({
     companyId,
@@ -719,12 +722,12 @@ function ProgrammeProjectWorkspaceView({
         void model.router.navigate({
           to: '/c/$companyId/p/$projectId',
           params: { companyId: model.companyId, projectId: childProjectId },
-          search: {
+          search: omitUndefinedProperties({
             year: model.yearFilter ?? undefined,
             quarter: model.quarterFilter ?? undefined,
             month: model.monthFilterKey ?? undefined,
-            source: 'company-summary',
-          },
+            source: 'company-summary' as const,
+          }),
         });
       }}
     />
@@ -820,7 +823,7 @@ function OperationalProjectWorkspaceView({
                       companyId: model.companyId,
                       projectId: model.projectId,
                     },
-                    search: {
+                    search: omitUndefinedProperties({
                       year: model.yearFilter ?? undefined,
                       quarter: model.quarterFilter ?? undefined,
                       tab:
@@ -846,7 +849,7 @@ function OperationalProjectWorkspaceView({
                         model.transactionDrilldown?.kind === 'subcategory'
                           ? model.transactionDrilldown.subCategoryName
                           : undefined,
-                    },
+                    }),
                     replace: true,
                   });
                 }}
@@ -868,7 +871,7 @@ function OperationalProjectWorkspaceView({
                       companyId: model.companyId,
                       projectId: model.projectId,
                     },
-                    search: {
+                    search: omitUndefinedProperties({
                       tab:
                         model.activeTab === 'budget'
                           ? undefined
@@ -888,7 +891,7 @@ function OperationalProjectWorkspaceView({
                       categoryName: undefined,
                       subCategoryId: undefined,
                       subCategoryName: undefined,
-                    },
+                    }),
                     replace: true,
                   });
                 }}
@@ -925,7 +928,7 @@ function OperationalProjectWorkspaceView({
                     companyId: model.companyId,
                     projectId: model.projectId,
                   },
-                  search: {
+                  search: omitUndefinedProperties({
                     tab:
                       model.activeTab === 'budget'
                         ? undefined
@@ -945,7 +948,7 @@ function OperationalProjectWorkspaceView({
                     categoryName: undefined,
                     subCategoryId: undefined,
                     subCategoryName: undefined,
-                  },
+                  }),
                   replace: true,
                 });
               }}

@@ -5,6 +5,7 @@ import type { TxnReversalActionResult } from '../../../api/types';
 import type { CompanyId, ProjectId, TxnId, UserId } from '../../../types';
 import { asTxnId } from '../../../types';
 import { uid } from '../../../utils/id';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import type { DB } from '../../db/schema';
 import { assertTxnUnlocked } from './shared';
 import { recordReversalTransition } from './reversalAudit';
@@ -164,7 +165,7 @@ export async function approveSuggestedTxnReversalMatch(
       txnIds: [sourceTxnId, counterpartTxnId],
       userId: args.userId,
       now: args.now,
-      commentBody: args.commentBody,
+      ...omitUndefinedProperties({ commentBody: args.commentBody }),
     }),
     recordReversalTransition({
       db: args.db,

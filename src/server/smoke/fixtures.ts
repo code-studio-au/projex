@@ -4,6 +4,7 @@ import { provisionBetterAuthCredentialUser } from '../auth/betterAuthInstance.ts
 import { createPgPool, type TypedPgPool } from '../db/pgPool.ts';
 import { loadSmokeEnvFiles } from './env.ts';
 import type { SmokeManualInputs } from '../../types/index.ts';
+import { omitUndefinedProperties } from '../../utils/optionalProperties.ts';
 import { runSequentially } from './shared.ts';
 
 type SmokeFixtureUser = {
@@ -638,7 +639,7 @@ export function manualInputsToSmokeEnv(
 ): SmokeEnvOverrides {
   if (!inputs) return {};
 
-  return {
+  return omitUndefinedProperties({
     PROJEX_SMOKE_COMPANY_ID: inputs.companyId,
     PROJEX_SMOKE_PROJECT_ID: inputs.projectId,
     PROJEX_SMOKE_EMAIL: inputs.email,
@@ -652,7 +653,7 @@ export function manualInputsToSmokeEnv(
     PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD: inputs.privacyAdminPassword,
     PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL: inputs.privacySuperadminEmail,
     PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD: inputs.privacySuperadminPassword,
-  };
+  });
 }
 
 export async function withTemporarySmokeEnv<T>(

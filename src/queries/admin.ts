@@ -74,12 +74,14 @@ export function useUpdateProjectMutation(
   const qc = useQueryClient();
   const scopeUserId = useQueryScopeUserId();
   return useMutation({
-    scope: settingScope
-      ? projectSettingMutationScope(
-          settingScope.projectId,
-          settingScope.setting
-        )
-      : undefined,
+    ...(settingScope
+      ? {
+          scope: projectSettingMutationScope(
+            settingScope.projectId,
+            settingScope.setting
+          ),
+        }
+      : {}),
     mutationFn: (input: ProjectUpdateInput) =>
       updateProjectServerFn({ data: input }),
     onSuccess: async (_, vars) => {

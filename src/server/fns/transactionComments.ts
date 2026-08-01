@@ -305,9 +305,6 @@ export async function listTransactionCommentSummariesServer(args: {
           unresolvedCount: 0,
           resolvedCount: 0,
           assignedToMeUnresolvedCount: 0,
-          latestCommentBody: undefined,
-          latestCommentCreatedAt: undefined,
-          latestCommentAuthorName: undefined,
         } satisfies TxnCommentSummary);
       current.totalCount += 1;
       current.latestCommentBody = row.body;
@@ -389,7 +386,7 @@ export async function createTransactionCommentServer(args: {
       txnId: args.input.txnId,
       comment,
       assignedToUserId: args.input.assignedToUserId,
-      requestId: args.context.requestId,
+      ...(args.context.requestId ? { requestId: args.context.requestId } : {}),
     });
 
     return comment;
@@ -506,7 +503,9 @@ export async function updateTransactionCommentServer(args: {
         txnId: args.txnId,
         comment,
         assignedToUserId: args.input.assignedToUserId,
-        requestId: args.context.requestId,
+        ...(args.context.requestId
+          ? { requestId: args.context.requestId }
+          : {}),
       });
     }
 

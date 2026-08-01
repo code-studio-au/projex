@@ -43,10 +43,8 @@ function rule(
     categoryId: asCategoryId('cat_1'),
     subCategoryId: asSubCategoryId('sub_1'),
     sortOrder: 1,
-    createdByUserId: undefined,
     createdAt: '2026-01-01T00:00:00.000Z',
     originScope: 'project',
-    originCompanyItemId: undefined,
     syncStatus: 'local',
     ...overrides,
   };
@@ -139,13 +137,13 @@ test('applyProjectAutoCodingRule falls back to project provenance when company i
     rules: [
       rule({
         originScope: 'company',
-        originCompanyItemId: undefined,
         syncStatus: 'inherited',
       }),
     ],
   });
 
   assert.equal(autoCoded.companyDefaultMappingRuleId, undefined);
+  assert.equal(Object.hasOwn(autoCoded, 'companyDefaultMappingRuleId'), false);
   assert.equal(autoCoded.codingSource, 'project_rule');
 });
 

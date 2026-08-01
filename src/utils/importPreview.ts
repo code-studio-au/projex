@@ -9,6 +9,7 @@ import type {
 import { asCompanyDefaultMappingRuleId } from '../types';
 import { assignStableIds } from './csv';
 import { findMatchingProjectAutoCodingRule } from './projectAutoCodingRules';
+import { omitUndefinedProperties } from './optionalProperties';
 import { txnInputSchema } from '../validation/schemas';
 
 function sanitizeImportDate(value: string): string {
@@ -71,11 +72,15 @@ export function buildImportPreview(args: {
       ? txn.amountCents
       : null;
 
-    const dedupeKey = dedupeKeyForTxn({
-      id: String(txn.id ?? ''),
-      externalId: txn.externalId?.trim() || undefined,
-    });
-    const duplicateReason = seenKeys.has(dedupeKey)
+    const dedupeKey = dedupeKeyForTxn(
+      omitUndefinedProperties({
+        id: String(txn.id ?? ''),
+        externalId: txn.externalId?.trim() || undefined,
+      })
+    );
+    const duplicateReason: ImportPreviewRow['duplicateReason'] = seenKeys.has(
+      dedupeKey
+    )
       ? args.existingKeys.has(dedupeKey)
         ? 'existing'
         : 'import'
@@ -250,7 +255,7 @@ export function buildImportPreview(args: {
       );
     }
 
-    return {
+    return omitUndefinedProperties({
       sourceRowIndex: index + 1,
       importId: String(txn.id ?? ''),
       externalId: txn.externalId?.trim() || undefined,
@@ -278,6 +283,6 @@ export function buildImportPreview(args: {
       sourceType: txn.importSourceType,
       rawSourceRow: txn.rawSourceRow,
       warnings,
-    };
+    });
   });
 }

@@ -555,7 +555,7 @@ function ImportRulesList({
                   model.adapter.promote &&
                   !inherited ? (
                     <Menu.Item
-                      disabled={model.adapter.promoting}
+                      disabled={Boolean(model.adapter.promoting)}
                       onClick={async () => {
                         try {
                           model.clearFeedback();

@@ -11,6 +11,7 @@ import {
   asSubCategoryId,
   asTxnId,
 } from '../types';
+import { omitUndefinedProperties } from '../utils/optionalProperties';
 
 export default function ProjectWorkspacePage() {
   // Route params are required by the route definition (c/$companyId/p/$projectId).
@@ -43,13 +44,15 @@ export default function ProjectWorkspacePage() {
       initialCanEditTxns={loaderData?.canEditTxns ?? false}
       initialCanEditTaxonomy={loaderData?.canEditTaxonomy ?? false}
       initialCanProjectEdit={loaderData?.canProjectEdit ?? false}
-      initialTab={
-        search.tab ?? (search.commentTxn ? 'transactions' : undefined)
-      }
+      {...(search.tab || search.commentTxn
+        ? {
+            initialTab: search.tab ?? ('transactions' as const),
+          }
+        : {})}
       initialYearFilter={search.year ?? null}
       initialQuarterFilter={search.quarter ?? null}
       initialMonthFilterKey={search.month ?? null}
-      initialTransactionView={search.view}
+      {...(search.view ? { initialTransactionView: search.view } : {})}
       initialTransactionSearch={search.q ?? ''}
       initialCommentTxnId={
         search.commentTxn ? asTxnId(search.commentTxn) : null
@@ -58,23 +61,23 @@ export default function ProjectWorkspacePage() {
         search.drilldownKind === 'subcategory' &&
         search.categoryId &&
         search.subCategoryId
-          ? {
-              kind: 'subcategory',
+          ? omitUndefinedProperties({
+              kind: 'subcategory' as const,
               categoryId: asCategoryId(search.categoryId),
               subCategoryId: asSubCategoryId(search.subCategoryId),
               categoryName: search.categoryName,
               subCategoryName: search.subCategoryName,
-            }
+            })
           : search.drilldownKind === 'category' && search.categoryId
-            ? {
-                kind: 'category',
+            ? omitUndefinedProperties({
+                kind: 'category' as const,
                 categoryId: asCategoryId(search.categoryId),
                 categoryName: search.categoryName,
-              }
+              })
             : null
       }
-      initialEntrySource={search.source}
-      initialEntryFocus={search.focus}
+      {...(search.source ? { initialEntrySource: search.source } : {})}
+      {...(search.focus ? { initialEntryFocus: search.focus } : {})}
     />
   );
 }

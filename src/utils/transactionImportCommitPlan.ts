@@ -16,6 +16,7 @@ import { omitUndefinedProperties } from './optionalProperties';
 import {
   assertUniqueTransactionKeysInProject,
   normalizeExternalId,
+  withoutTxnCoding,
   withStandardTxnAccountingMetadata,
 } from './transactions';
 
@@ -65,15 +66,7 @@ export function planTransactionImportCommit(args: {
   const importedTransactions = normalizedIncoming.map(
     ({ forceUncoded, txn }) => {
       if (forceUncoded) {
-        const uncodedTxn = { ...txn };
-        delete uncodedTxn.categoryId;
-        delete uncodedTxn.subCategoryId;
-        delete uncodedTxn.companyDefaultMappingRuleId;
-        delete uncodedTxn.codingSource;
-        return {
-          ...uncodedTxn,
-          codingPendingApproval: false,
-        };
+        return withoutTxnCoding(txn);
       }
       return applyProjectAutoCodingRule({
         txn,

@@ -17,6 +17,7 @@ import {
   asUserId,
 } from '../../types';
 import { normalizeExternalId } from '../../utils/transactions';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import { toBudgetLines, toTxn } from '../mappers/transactionRows';
 import { compareProjectStandards } from '../sync/projectStandards';
 import {
@@ -94,10 +95,12 @@ export async function loadTransactionImportPreviewContext(
   ]);
 
   return {
-    existingTransactions: existingRows.map((txn) => ({
-      id: asTxnId(txn.public_id),
-      externalId: normalizeExternalId(txn.external_id),
-    })) satisfies Array<Pick<Txn, 'id' | 'externalId'>>,
+    existingTransactions: existingRows.map((txn) =>
+      omitUndefinedProperties({
+        id: asTxnId(txn.public_id),
+        externalId: normalizeExternalId(txn.external_id),
+      })
+    ) satisfies Array<Pick<Txn, 'id' | 'externalId'>>,
     defaultCategories: defaultCategoriesRows.map(toCompanyDefaultCategory),
     defaultSubCategories: defaultSubCategoriesRows.map(
       toCompanyDefaultSubCategory
@@ -218,10 +221,10 @@ function selectProjectAutoCodingRules(db: Kysely<DB>, projectId: ProjectId) {
 function toImportRule(
   row: Awaited<ReturnType<typeof selectProjectImportRules>>[number]
 ): ImportRule {
-  return {
+  return omitUndefinedProperties({
     id: asImportRuleId(row.id),
     companyId: asCompanyId(row.company_id),
-    scope: row.project_id ? 'project' : 'company',
+    scope: row.project_id ? ('project' as const) : ('company' as const),
     projectId: row.project_id ? (row.project_id as ProjectId) : undefined,
     name: row.name,
     originScope: row.origin_scope ?? undefined,
@@ -237,13 +240,13 @@ function toImportRule(
     enabled: row.enabled,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 function toProjectAutoCodingRule(
   row: Awaited<ReturnType<typeof selectProjectAutoCodingRules>>[number]
 ): ProjectAutoCodingRule {
-  return {
+  return omitUndefinedProperties({
     id: asProjectAutoCodingRuleId(row.id),
     companyId: asCompanyId(row.company_id),
     projectId: row.project_id as ProjectId,
@@ -259,7 +262,7 @@ function toProjectAutoCodingRule(
     createdByUserId: asUserId(row.created_by_user_id),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 function selectProjectCategories(db: Kysely<DB>, projectId: ProjectId) {

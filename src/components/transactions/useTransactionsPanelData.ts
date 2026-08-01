@@ -13,6 +13,7 @@ import type {
 } from '../../types';
 import { asCategoryId, asTxnId } from '../../types/ids';
 import { transactionCanBeLocked } from '../../utils/transactionWorkflow';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import {
   useTransactionCommentsQuery,
   useTransactionCommentSummariesQuery,
@@ -52,7 +53,7 @@ export function useTransactionsPanelData(args: {
       args.sorting[0]?.id === 'date'
         ? args.sorting[0].id
         : 'date';
-    return {
+    return omitUndefinedProperties({
       pageIndex: args.pagination.pageIndex,
       pageSize: args.pagination.pageSize,
       sort: {
@@ -76,7 +77,7 @@ export function useTransactionsPanelData(args: {
               categoryId: args.transactionDrilldown.categoryId,
             }
         : undefined,
-    };
+    });
   }, [
     args.monthFilterKey,
     args.pagination.pageIndex,
@@ -139,25 +140,27 @@ export function useTransactionsPanelData(args: {
     () =>
       (
         args.bulkSelectionRows ??
-        pagedTxns.map((txn) => ({
-          id: txn.id,
-          categorisable: txn.categorisable,
-          subCategoryId: txn.subCategoryId,
-          codingPendingApproval: Boolean(txn.codingPendingApproval),
-          locked: Boolean(txn.lockedAt),
-          workflowVersion: txn.workflowVersion ?? 0,
-          reversal: txn.reversal
-            ? {
-                id: txn.reversal.id,
-                status: txn.reversal.status,
-                side: txn.reversal.side,
-                version: txn.reversal.version,
-                matchMethod: txn.reversal.matchMethod,
-                sourceTxn: txn.reversal.sourceTxn,
-                counterpartTxn: txn.reversal.counterpartTxn,
-              }
-            : undefined,
-        }))
+        pagedTxns.map((txn) =>
+          omitUndefinedProperties({
+            id: txn.id,
+            categorisable: txn.categorisable,
+            subCategoryId: txn.subCategoryId,
+            codingPendingApproval: Boolean(txn.codingPendingApproval),
+            locked: Boolean(txn.lockedAt),
+            workflowVersion: txn.workflowVersion ?? 0,
+            reversal: txn.reversal
+              ? omitUndefinedProperties({
+                  id: txn.reversal.id,
+                  status: txn.reversal.status,
+                  side: txn.reversal.side,
+                  version: txn.reversal.version,
+                  matchMethod: txn.reversal.matchMethod,
+                  sourceTxn: txn.reversal.sourceTxn,
+                  counterpartTxn: txn.reversal.counterpartTxn,
+                })
+              : undefined,
+          })
+        )
       ).filter((txn) => args.rowSelection[txn.id]),
     [args.bulkSelectionRows, args.rowSelection, pagedTxns]
   );
@@ -250,7 +253,7 @@ export function useTransactionsPanelData(args: {
               !!txn.subCategoryId &&
               args.taxonomy.validSubIds.has(txn.subCategoryId),
             codingPendingApproval: txn.codingPendingApproval,
-            reversalStatus: txn.reversal?.status,
+            ...(txn.reversal ? { reversalStatus: txn.reversal.status } : {}),
           })
       ).length,
     [selectedRows, args.taxonomy.validSubIds]

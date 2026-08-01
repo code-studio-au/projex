@@ -26,7 +26,10 @@ import type {
   TxnUnlockRequestInput,
   TxnUnlockResolutionInput,
 } from '../api/types';
-import { normalizeTxnPatch } from '../utils/transactions';
+import {
+  applyNormalizedTxnPatch,
+  normalizeTxnPatch,
+} from '../utils/transactions';
 import {
   readJsonResponseOrNull,
   readJsonResponseWithSchema,
@@ -51,6 +54,7 @@ import {
 } from '../server/start/functions/transactionReads';
 import type { TxnListPageResult } from '../api/types';
 import { transactionUpdateMutationScope } from './mutationScopes';
+import { omitUndefinedProperties } from '../utils/optionalProperties';
 
 type TransactionsPageQueryParams = {
   mode: 'page';
@@ -76,7 +80,7 @@ type TransactionsSelectionQueryParams = Omit<
 function toTransactionsPageQueryParams(
   input: TxnListPageInput
 ): TransactionsPageQueryParams {
-  return {
+  return omitUndefinedProperties({
     mode: 'page' as const,
     pageIndex: input.pageIndex,
     pageSize: input.pageSize,
@@ -93,14 +97,14 @@ function toTransactionsPageQueryParams(
       input.drilldown?.kind === 'subcategory'
         ? input.drilldown.subCategoryId
         : undefined,
-  };
+  });
 }
 
 function toTransactionsSelectionQueryParams(
   input: TxnListFilterInput
 ): TransactionsSelectionQueryParams {
-  return {
-    mode: 'selection',
+  return omitUndefinedProperties({
+    mode: 'selection' as const,
     sortField: input.sort?.field,
     sortDirection: input.sort?.direction,
     yearFilter: input.yearFilter ?? undefined,
@@ -114,7 +118,7 @@ function toTransactionsSelectionQueryParams(
       input.drilldown?.kind === 'subcategory'
         ? input.drilldown.subCategoryId
         : undefined,
-  };
+  });
 }
 
 async function fetchTransactionsPageViaApi(
@@ -344,7 +348,9 @@ export function useUpdateTxnMutation(projectId: ProjectId) {
         qc.setQueryData<Txn[]>(
           queryKey,
           previous.map((txn) =>
-            txn.id === normalizedInput.id ? { ...txn, ...normalizedInput } : txn
+            txn.id === normalizedInput.id
+              ? applyNormalizedTxnPatch(txn, normalizedInput)
+              : txn
           )
         );
       }

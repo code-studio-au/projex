@@ -444,7 +444,7 @@ function AutoCodingRulesList({
                   promoteRule &&
                   !inherited ? (
                     <Menu.Item
-                      disabled={model.adapter.promoting}
+                      disabled={Boolean(model.adapter.promoting)}
                       onClick={async () => {
                         try {
                           model.clearFeedback();
@@ -709,7 +709,7 @@ function AutoCodingRulesEditorModalView({
                 <Button
                   variant="default"
                   size="compact-sm"
-                  loading={model.adapter.backfilling}
+                  loading={Boolean(model.adapter.backfilling)}
                   onClick={async () => {
                     try {
                       model.clearFeedback();

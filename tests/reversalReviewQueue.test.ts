@@ -11,6 +11,7 @@ import {
   reversalReviewQueueSummary,
 } from '../src/components/transactions/reversalReviewQueue.ts';
 import { asTxnId } from '../src/types/index.ts';
+import { omitUndefinedProperties } from '../src/utils/optionalProperties.ts';
 
 function row(
   suffix: string,
@@ -24,7 +25,7 @@ function row(
     locked?: boolean;
   } = {}
 ): TxnBulkSelectionRow {
-  return {
+  return omitUndefinedProperties({
     id: asTxnId(`txn_${suffix}`),
     categorisable: true,
     codingPendingApproval: false,
@@ -38,7 +39,7 @@ function row(
           version: 1,
         }
       : undefined,
-  };
+  });
 }
 
 test('reversal review queue keeps one unlocked source per suggested pair', () => {

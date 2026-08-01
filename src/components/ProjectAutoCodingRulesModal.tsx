@@ -12,6 +12,7 @@ import {
 import { useCategoriesQuery, useSubCategoriesQuery } from '../queries/taxonomy';
 import type { CompanyId, ProjectId } from '../types';
 import { asProjectAutoCodingRuleId, asSubCategoryId } from '../types';
+import { omitUndefinedProperties } from '../utils/optionalProperties';
 import AutoCodingRulesEditorModal from './AutoCodingRulesEditorModal';
 
 export default function ProjectAutoCodingRulesModal(props: {
@@ -51,15 +52,17 @@ export default function ProjectAutoCodingRulesModal(props: {
   );
   const rules = useMemo(
     () =>
-      (rulesQ.data ?? []).map((rule) => ({
-        id: rule.id,
-        matchText: rule.matchText,
-        categoryId: rule.categoryId,
-        subCategoryId: rule.subCategoryId,
-        sortOrder: rule.sortOrder,
-        originScope: rule.originScope,
-        syncStatus: rule.syncStatus,
-      })),
+      (rulesQ.data ?? []).map((rule) =>
+        omitUndefinedProperties({
+          id: rule.id,
+          matchText: rule.matchText,
+          categoryId: rule.categoryId,
+          subCategoryId: rule.subCategoryId,
+          sortOrder: rule.sortOrder,
+          originScope: rule.originScope,
+          syncStatus: rule.syncStatus,
+        })
+      ),
     [rulesQ.data]
   );
 

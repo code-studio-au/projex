@@ -58,7 +58,7 @@ export function useCompanyAccess(companyId: CompanyId): CompanyAccess {
       can({
         userId,
         companyId,
-        projectId,
+        ...(projectId ? { projectId } : {}),
         action,
         isGlobalSuperadmin,
         companyMemberships,

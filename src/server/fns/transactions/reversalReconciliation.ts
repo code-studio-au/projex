@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from 'node:util';
 import type { TxnReversalMatchSuggestion } from '../../../api/types';
 import type { CompanyId, ProjectId, Txn, TxnId, UserId } from '../../../types';
 import { asTxnId } from '../../../types';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { toTxn } from '../../mappers/transactionRows';
 import type { DB } from '../../db/schema';
 import { requireOperationalProjectForAction } from '../resourceGuards';
@@ -76,7 +77,7 @@ function buildSuggestion(args: {
   }
   reasons.push('Same project', 'Same absolute amount', 'Opposite sign');
 
-  return {
+  return omitUndefinedProperties({
     txnId: args.candidateTxn.id,
     externalId: args.candidateTxn.externalId,
     date: args.candidateTxn.date,
@@ -89,7 +90,7 @@ function buildSuggestion(args: {
       sourceTxn: args.sourceTxn,
       counterpartTxn: args.candidateTxn,
     }),
-  };
+  });
 }
 
 async function markAutoMatchPlanForReview(args: {

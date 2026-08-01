@@ -28,7 +28,7 @@ export async function resolveRequestServerContext(
       session,
       serverContext: {
         request,
-        requestId,
+        ...(requestId ? { requestId } : {}),
         session,
         sessionVerified,
       },

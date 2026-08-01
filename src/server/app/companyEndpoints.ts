@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import {
   companyIdSchema,
   createCompanyInputSchema,
@@ -60,7 +61,7 @@ export const createCompanyEndpoint = defineAppEndpoint({
   execute: ({ context, input }) =>
     createCompanyServer({
       context,
-      input,
+      input: omitUndefinedProperties(input),
     }),
 });
 
@@ -104,7 +105,7 @@ export const updateCompanyEndpoint = defineAppEndpoint({
   execute: ({ context, input }) =>
     updateCompanyServer({
       context,
-      input,
+      input: omitUndefinedProperties(input),
     }),
 });
 
@@ -162,7 +163,7 @@ export const createProjectEndpoint = defineAppEndpoint({
     createProjectServer({
       context,
       companyId: input.companyId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -184,7 +185,7 @@ export const updateProjectEndpoint = defineAppEndpoint({
   execute: ({ context, input }) =>
     updateProjectServer({
       context,
-      input,
+      input: omitUndefinedProperties(input),
     }),
 });
 
@@ -234,7 +235,9 @@ export const createUserInCompanyEndpoint = defineAppEndpoint({
       name: input.payload.name,
       email: input.payload.email,
       role: input.payload.role,
-      sendOnboardingEmail: input.payload.sendOnboardingEmail,
+      ...omitUndefinedProperties({
+        sendOnboardingEmail: input.payload.sendOnboardingEmail,
+      }),
     }),
 });
 

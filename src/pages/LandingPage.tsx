@@ -438,8 +438,8 @@ function LandingPageView({ model }: { model: LandingPageController }) {
                             const result =
                               await model.createCompany.mutateAsync({
                                 name,
-                                initialAdminName: adminName || undefined,
-                                initialAdminEmail: adminEmail || undefined,
+                                initialAdminName: adminName,
+                                initialAdminEmail: adminEmail,
                               });
                             const company = result.company;
                             if (result.initialAdmin) {

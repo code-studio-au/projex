@@ -22,6 +22,7 @@ import {
   toPowerBiExpenditureActualsRow,
 } from './powerBiImport';
 import { normalizeExternalId } from './transactions';
+import { omitUndefinedProperties } from './optionalProperties';
 
 function transactionImportKey(txn: Pick<Txn, 'id' | 'externalId'>) {
   const normalizedExternalId = normalizeExternalId(txn.externalId);
@@ -55,18 +56,20 @@ export function planImportPreview(args: {
   );
 
   return {
-    rows: buildImportPreview({
-      importTxns,
-      existingKeys,
-      categories: args.categories,
-      subCategories: args.subCategories,
-      budgets: args.budgets,
-      projectAutoCodingRules: args.projectAutoCodingRules,
-      autoCreateTaxonomy: args.autoCreateStructures,
-      canEditTaxonomy: args.canEditTaxonomy,
-      autoCreateBudgets: args.autoCreateStructures,
-      canEditBudgets: args.canEditBudgets,
-    }),
+    rows: buildImportPreview(
+      omitUndefinedProperties({
+        importTxns,
+        existingKeys,
+        categories: args.categories,
+        subCategories: args.subCategories,
+        budgets: args.budgets,
+        projectAutoCodingRules: args.projectAutoCodingRules,
+        autoCreateTaxonomy: args.autoCreateStructures,
+        canEditTaxonomy: args.canEditTaxonomy,
+        autoCreateBudgets: args.autoCreateStructures,
+        canEditBudgets: args.canEditBudgets,
+      })
+    ),
   };
 }
 
@@ -78,19 +81,19 @@ function rowsToPowerBiImportTxns(
     const row = toPowerBiExpenditureActualsRow(rawRow);
     const decision = decidePowerBiImportRule({ row, rules: importRules });
 
-    return {
+    return omitUndefinedProperties({
       externalId: powerBiExternalId(row) || undefined,
       date: powerBiTransactionDate(row),
       item: powerBiItem(row),
       description: powerBiDescription(row),
       amountCents: powerBiAmountCents(row),
-      importSourceType: 'powerbi_expenditure_actuals',
+      importSourceType: 'powerbi_expenditure_actuals' as const,
       importSourceMeta: row.raw,
       importAction: decision.action,
       importRuleId: decision.matchedRule?.id,
       importRuleName: decision.matchedRule?.name,
       importDecisionReason: decision.reason,
       rawSourceRow: row.raw,
-    };
+    });
   });
 }

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import {
   budgetLineIdSchema,
   createBudgetInputSchema,
@@ -34,7 +35,7 @@ export const createBudgetEndpoint = defineAppEndpoint({
     createBudgetServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -47,7 +48,7 @@ export const updateBudgetEndpoint = defineAppEndpoint({
     updateBudgetServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 

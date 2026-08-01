@@ -14,6 +14,7 @@ import {
   asProjectId,
   asSubCategoryId,
 } from '../../types';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 
 export type CategoryRow = {
   id: string;
@@ -73,7 +74,7 @@ export type CompanyDefaultMappingRuleRow = {
 };
 
 export function toCategory(row: CategoryRow): Category {
-  return {
+  return omitUndefinedProperties({
     id: asCategoryId(row.id),
     companyId: asCompanyId(row.company_id),
     projectId: asProjectId(row.project_id),
@@ -85,11 +86,11 @@ export function toCategory(row: CategoryRow): Category {
     sourceUpdatedAtSnapshot: row.source_updated_at_snapshot ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 export function toSubCategory(row: SubCategoryRow): SubCategory {
-  return {
+  return omitUndefinedProperties({
     id: asSubCategoryId(row.id),
     companyId: asCompanyId(row.company_id),
     projectId: asProjectId(row.project_id),
@@ -102,7 +103,7 @@ export function toSubCategory(row: SubCategoryRow): SubCategory {
     sourceUpdatedAtSnapshot: row.source_updated_at_snapshot ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 export function toCompanyDefaultCategory(

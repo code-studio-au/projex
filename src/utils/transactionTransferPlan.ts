@@ -1,6 +1,7 @@
 import { AppError } from '../api/errors';
 import type { TxnTransferInput } from '../api/types';
 import type { CompanyId, Txn, TxnId } from '../types';
+import { withoutTxnCoding } from './transactions';
 
 export function planTransactionTransfer(args: {
   source: Txn;
@@ -40,19 +41,14 @@ export function planTransactionTransfer(args: {
     );
   }
 
-  const source: Txn = {
+  const source: Txn = withoutTxnCoding({
     ...args.source,
     txnType: 'transfer_source',
     transferProjectId: args.input.destinationProjectId,
     budgetImpact: false,
     categorisable: false,
-    categoryId: undefined,
-    subCategoryId: undefined,
-    companyDefaultMappingRuleId: undefined,
-    codingSource: undefined,
-    codingPendingApproval: false,
     updatedAt: args.now,
-  };
+  });
 
   const destination: Txn = {
     id: args.input.destinationTxnId ?? args.createTxnId(),

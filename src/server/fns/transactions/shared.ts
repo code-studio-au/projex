@@ -6,6 +6,7 @@ import {
 } from 'kysely';
 
 import { AppError } from '../../../api/errors';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import type {
   ImportCandidateStatus,
   ImportPreviewRow,
@@ -565,7 +566,7 @@ export async function assertTransactionResourceOwnership(
       db: context.db,
       projectId: context.projectId,
       subCategoryId: txn.subCategoryId,
-      categoryId: txn.categoryId,
+      ...omitUndefinedProperties({ categoryId: txn.categoryId }),
     });
   }
 

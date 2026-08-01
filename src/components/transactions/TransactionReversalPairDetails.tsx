@@ -36,7 +36,7 @@ function TransactionCard(props: {
           <Text
             size="sm"
             fw={650}
-            c={transaction.amountCents < 0 ? 'red' : undefined}
+            {...(transaction.amountCents < 0 ? { c: 'red' } : {})}
           >
             {formatCurrencyFromCents(transaction.amountCents, currencyCode)}
           </Text>
@@ -187,7 +187,11 @@ export default function TransactionReversalPairDetails(props: {
               />
             ) : null}
             {attentionEvidence.map(({ label, comparison }) => (
-              <EvidenceRow key={label} label={label} comparison={comparison} />
+              <EvidenceRow
+                key={label}
+                label={label}
+                {...(comparison ? { comparison } : {})}
+              />
             ))}
           </Stack>
         </Paper>

@@ -696,15 +696,18 @@ function CompanyDashboardHeader({
                             model.newProjectType === 'project'
                               ? model.newProjectApplyCompanyStandards
                               : false,
-                          initialOwnerUserId:
-                            model.superadminNeedsInitialOwner &&
-                            model.effectiveNewProjectOwnerId
-                              ? asUserId(model.effectiveNewProjectOwnerId)
-                              : undefined,
-                          parentProjectId:
-                            model.newProjectType === 'project'
-                              ? (model.newProjectParentId ?? undefined)
-                              : undefined,
+                          ...(model.superadminNeedsInitialOwner &&
+                          model.effectiveNewProjectOwnerId
+                            ? {
+                                initialOwnerUserId: asUserId(
+                                  model.effectiveNewProjectOwnerId
+                                ),
+                              }
+                            : {}),
+                          ...(model.newProjectType === 'project' &&
+                          model.newProjectParentId
+                            ? { parentProjectId: model.newProjectParentId }
+                            : {}),
                         });
                         model.setNewProjectName('');
                         model.setNewProjectType('project');
