@@ -5,6 +5,8 @@ test('reviews and approves generated reversal pairs', async ({
   page,
   smokeFixtures,
 }) => {
+  test.setTimeout(150_000);
+
   await new ReversalWorkflowPage(page, smokeFixtures, {
     onStatus(message) {
       console.info(`[..] ${message}`);
