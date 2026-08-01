@@ -15,6 +15,7 @@ import {
 } from '../src/types/index.ts';
 import { formatUtcDate, formatUtcDateTime } from '../src/utils/dateTime.ts';
 import { dateOnlyFromInput } from '../src/utils/finance.ts';
+import { requireAt } from './helpers/assertions.ts';
 
 test('dateOnlyFromInput uses UTC parts for Date input', () => {
   const value = new Date('2026-06-01T23:30:00-05:00');
@@ -97,5 +98,5 @@ test('company summary response schema supports nested child projects', async () 
     ],
   });
 
-  assert.equal(parsed.children?.[0].id, 'prj_1');
+  assert.equal(requireAt(parsed.children ?? [], 0).id, 'prj_1');
 });

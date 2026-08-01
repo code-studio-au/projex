@@ -69,8 +69,8 @@ test(
         .insertInto('projects')
         .values(
           [
-            [sourceProjectId, 'Lineage Source'],
-            [destinationProjectId, 'Lineage Destination'],
+            [sourceProjectId, 'Lineage Source'] as const,
+            [destinationProjectId, 'Lineage Destination'] as const,
           ].map(([id, name]) => ({
             id,
             company_id: companyId,

@@ -7,6 +7,7 @@ import {
   verifyFrameworkApiUsage,
   verifyFrameworkCohort,
 } from '../scripts/verify-framework-cohort.mjs';
+import { requireDefined } from './helpers/assertions.ts';
 
 async function readRepositoryInputs() {
   const [cohortSource, packageSource, lockfile, workspaceConfig] =
@@ -50,7 +51,8 @@ describe('framework dependency cohort', () => {
 
   test('rejects an independently moving direct dependency range', async () => {
     const inputs = await readRepositoryInputs();
-    inputs.packageJson.dependencies['@tanstack/react-start'] = '^1.168.32';
+    requireDefined(inputs.packageJson.dependencies)['@tanstack/react-start'] =
+      '^1.168.32';
 
     expect(() => verifyFrameworkCohort(inputs)).toThrow(
       '@tanstack/react-start must be exact-pinned to 1.168.32'
@@ -96,8 +98,9 @@ describe('framework dependency cohort', () => {
   test('rejects a cohort selected before its release-age quarantine elapsed', async () => {
     const inputs = await readRepositoryInputs();
     inputs.cohort = structuredClone(inputs.cohort);
-    inputs.cohort.directPackages['@tanstack/react-start'].publishedAt =
-      inputs.cohort.selectedAt;
+    requireDefined(
+      inputs.cohort.directPackages['@tanstack/react-start']
+    ).publishedAt = inputs.cohort.selectedAt;
 
     expect(() => verifyFrameworkCohort(inputs)).toThrow(
       '@tanstack/react-start@1.168.32 had not passed the configured release-age delay'

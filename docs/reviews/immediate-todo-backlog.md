@@ -36,10 +36,11 @@ repository control.
    budgets and traces.
 
 Item 4 is complete. Whole-application coverage is reported alongside enforced
-risk-domain thresholds, and CI now publishes a non-blocking, baseline-tracked
-strictness report for `noUncheckedIndexedAccess` and
-`exactOptionalPropertyTypes`. The main TypeScript gate remains authoritative
-until each diagnostic family is burned down and promoted independently.
+risk-domain thresholds. `noUncheckedIndexedAccess` has now been burned down and
+promoted into the application, Node/server, and test TypeScript gates. CI
+separately ratchets `exactOptionalPropertyTypes` findings by compilation
+boundary so existing debt is visible and any baseline change requires explicit
+review before that final flag is promoted.
 
 Item 5 is complete. The
 [1 August dependency freshness report](../dependencies/dependency-freshness-2026-08-01.md)

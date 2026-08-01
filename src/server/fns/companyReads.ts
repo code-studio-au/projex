@@ -483,7 +483,8 @@ export async function getDefaultCompanyIdForUserServer(args: {
     );
     if (activePrimary) return asCompanyId(activePrimary.company_id);
 
-    return asCompanyId(ranked[0].company_id);
+    const primary = ranked[0];
+    return primary ? asCompanyId(primary.company_id) : null;
   });
 }
 

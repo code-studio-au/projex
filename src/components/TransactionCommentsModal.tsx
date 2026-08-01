@@ -279,9 +279,9 @@ function useTransactionCommentsModalController(props: {
 
     if (event.key === 'Enter' || event.key === 'Tab') {
       event.preventDefault();
-      selectMentionedUser(
-        mentionOptions[selectedMentionIndex] ?? mentionOptions[0]
-      );
+      const selectedUser =
+        mentionOptions[selectedMentionIndex] ?? mentionOptions[0];
+      if (selectedUser) selectMentionedUser(selectedUser);
     }
   }
 

@@ -23,8 +23,10 @@ export function parseISODate(iso: string) {
   // Accept yyyy-mm-dd OR yyyy-mm (treated as first of month).
   // Use UTC to avoid local timezone/DST surprises when deriving month keys.
   const d = iso.length === 7 ? `${iso}-01` : iso;
-  const [y, m, day] = d.split('-').map((x) => Number(x));
-  return new Date(Date.UTC(y, m - 1, day));
+  const year = Number(d.slice(0, 4));
+  const month = Number(d.slice(5, 7));
+  const day = Number(d.slice(8, 10));
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 export function monthStart(d: Date) {

@@ -85,8 +85,9 @@ export async function runSequentially<T>(
   visit: (item: T, index: number) => Promise<void>,
   index = 0
 ): Promise<void> {
-  if (index >= items.length) return;
-  await visit(items[index], index);
+  const item = items[index];
+  if (item === undefined) return;
+  await visit(item, index);
   return runSequentially(items, visit, index + 1);
 }
 
@@ -181,6 +182,7 @@ export class SmokeHttpClient {
     for (const raw of setCookies) {
       if (!raw) continue;
       const first = raw.split(';')[0];
+      if (!first) continue;
       const eq = first.indexOf('=');
       if (eq < 0) continue;
       const name = first.slice(0, eq).trim();
@@ -233,7 +235,9 @@ export class SmokeHttpClient {
       result = await this.request(urlPath, init);
       if (result.res.status !== 429) break;
       if (attempt === backoffsMs.length) break;
-      const retryDelayMs = getRetryDelayMs(result.res, backoffsMs[attempt]);
+      const fallbackMs = backoffsMs[attempt];
+      if (fallbackMs === undefined) break;
+      const retryDelayMs = getRetryDelayMs(result.res, fallbackMs);
       await this.emitStatus(
         `${options.label} was rate-limited. Retrying in ${(retryDelayMs / 1000).toFixed(1)}s.`
       );
@@ -293,7 +297,9 @@ export class SmokeHttpClient {
       });
       if (login.res.status !== 429) break;
       if (attempt === backoffsMs.length) break;
-      const retryDelayMs = getRetryDelayMs(login.res, backoffsMs[attempt]);
+      const fallbackMs = backoffsMs[attempt];
+      if (fallbackMs === undefined) break;
+      const retryDelayMs = getRetryDelayMs(login.res, fallbackMs);
       await this.emitStatus(
         `${label} was rate-limited. Retrying in ${(retryDelayMs / 1000).toFixed(1)}s.`
       );

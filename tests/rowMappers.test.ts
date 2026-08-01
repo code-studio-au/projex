@@ -15,6 +15,7 @@ import {
   toCompanyDefaultMappingRule,
   toSubCategory,
 } from '../src/server/mappers/taxonomyRows.ts';
+import { requireAt } from './helpers/assertions.ts';
 
 test('toTxn normalizes nullable fields and trims external ids', () => {
   const row: TxnRow = {
@@ -127,14 +128,14 @@ test('budget line mappers skip uncategorized rows and preserve categorized ones'
     },
   ];
 
-  const direct = toBudgetLine(rows[0]);
+  const direct = toBudgetLine(requireAt(rows, 0));
   const all = toBudgetLines(rows);
 
   assert.equal(direct?.id, 'budget_1');
   assert.equal(direct?.categoryId, 'cat_1');
   assert.equal(direct?.subCategoryId, 'sub_1');
   assert.equal(all.length, 1);
-  assert.equal(all[0].id, 'budget_1');
+  assert.equal(requireAt(all, 0).id, 'budget_1');
 });
 
 test('taxonomy and comment mappers preserve optional origin and assignment fields', () => {

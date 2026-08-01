@@ -35,6 +35,7 @@ import {
   withStandardTxnAccountingMetadata,
 } from '../src/utils/transactions.ts';
 import { buildCompanySummaryProjects } from '../src/utils/companySummary.ts';
+import { requireAt } from './helpers/assertions.ts';
 
 const companyId = asCompanyId('co_1');
 const projectId = asProjectId('prj_1');
@@ -193,17 +194,26 @@ test('transaction import commit applies company defaults and creates missing bud
   const result = planImport({ autoCreateBudgets: true });
 
   assert.equal(result.importedTransactions.length, 1);
-  assert.equal(result.importedTransactions[0].categoryId, category.id);
-  assert.equal(result.importedTransactions[0].subCategoryId, subCategory.id);
   assert.equal(
-    result.importedTransactions[0].companyDefaultMappingRuleId,
+    requireAt(result.importedTransactions, 0).categoryId,
+    category.id
+  );
+  assert.equal(
+    requireAt(result.importedTransactions, 0).subCategoryId,
+    subCategory.id
+  );
+  assert.equal(
+    requireAt(result.importedTransactions, 0).companyDefaultMappingRuleId,
     mappingRule.id
   );
   assert.equal(
-    result.importedTransactions[0].codingSource,
+    requireAt(result.importedTransactions, 0).codingSource,
     'company_default_rule'
   );
-  assert.equal(result.importedTransactions[0].codingPendingApproval, true);
+  assert.equal(
+    requireAt(result.importedTransactions, 0).codingPendingApproval,
+    true
+  );
   assert.deepEqual(result.budgetTargetsToCreate, [
     { categoryId: category.id, subCategoryId: subCategory.id },
   ]);
@@ -215,17 +225,26 @@ test('transaction import commit prioritizes project auto-coding rules over compa
   });
 
   assert.equal(result.importedTransactions.length, 1);
-  assert.equal(result.importedTransactions[0].categoryId, category.id);
   assert.equal(
-    result.importedTransactions[0].subCategoryId,
+    requireAt(result.importedTransactions, 0).categoryId,
+    category.id
+  );
+  assert.equal(
+    requireAt(result.importedTransactions, 0).subCategoryId,
     hotelSubCategory.id
   );
   assert.equal(
-    result.importedTransactions[0].companyDefaultMappingRuleId,
+    requireAt(result.importedTransactions, 0).companyDefaultMappingRuleId,
     undefined
   );
-  assert.equal(result.importedTransactions[0].codingSource, 'project_rule');
-  assert.equal(result.importedTransactions[0].codingPendingApproval, true);
+  assert.equal(
+    requireAt(result.importedTransactions, 0).codingSource,
+    'project_rule'
+  );
+  assert.equal(
+    requireAt(result.importedTransactions, 0).codingPendingApproval,
+    true
+  );
 });
 
 test('transaction import commit keeps selected review rows uncoded', () => {
@@ -243,10 +262,19 @@ test('transaction import commit keeps selected review rows uncoded', () => {
     ],
   });
 
-  assert.equal(result.importedTransactions[0].categoryId, undefined);
-  assert.equal(result.importedTransactions[0].subCategoryId, undefined);
-  assert.equal(result.importedTransactions[0].codingSource, undefined);
-  assert.equal(result.importedTransactions[0].codingPendingApproval, false);
+  assert.equal(requireAt(result.importedTransactions, 0).categoryId, undefined);
+  assert.equal(
+    requireAt(result.importedTransactions, 0).subCategoryId,
+    undefined
+  );
+  assert.equal(
+    requireAt(result.importedTransactions, 0).codingSource,
+    undefined
+  );
+  assert.equal(
+    requireAt(result.importedTransactions, 0).codingPendingApproval,
+    false
+  );
   assert.deepEqual(result.budgetTargetsToCreate, []);
 });
 
@@ -289,15 +317,15 @@ test('transaction import commit resolves company defaults via inherited taxonomy
 
   assert.equal(result.importedTransactions.length, 1);
   assert.equal(
-    result.importedTransactions[0].categoryId,
+    requireAt(result.importedTransactions, 0).categoryId,
     renamedInheritedCategory.id
   );
   assert.equal(
-    result.importedTransactions[0].subCategoryId,
+    requireAt(result.importedTransactions, 0).subCategoryId,
     renamedInheritedSubCategory.id
   );
   assert.equal(
-    result.importedTransactions[0].companyDefaultMappingRuleId,
+    requireAt(result.importedTransactions, 0).companyDefaultMappingRuleId,
     mappingRule.id
   );
 });
@@ -349,12 +377,12 @@ test('import preview marks existing duplicates and invalid rows', () => {
   });
 
   assert.equal(result.rows.length, 2);
-  assert.equal(result.rows[0].duplicate, true);
-  assert.equal(result.rows[0].duplicateReason, 'existing');
-  assert.equal(result.rows[0].mappingStatus, 'matched_rule');
-  assert.equal(result.rows[1].mappingStatus, 'invalid');
+  assert.equal(requireAt(result.rows, 0).duplicate, true);
+  assert.equal(requireAt(result.rows, 0).duplicateReason, 'existing');
+  assert.equal(requireAt(result.rows, 0).mappingStatus, 'matched_rule');
+  assert.equal(requireAt(result.rows, 1).mappingStatus, 'invalid');
   assert.match(
-    result.rows[1].warnings.join('\n'),
+    requireAt(result.rows, 1).warnings.join('\n'),
     /Transaction date must be YYYY-MM-DD/
   );
 });
@@ -376,11 +404,11 @@ test('import preview labels project auto-coding matches correctly', () => {
   });
 
   assert.equal(result.rows.length, 1);
-  assert.equal(result.rows[0].mappingStatus, 'matched_rule');
-  assert.equal(result.rows[0].subCategoryId, hotelSubCategory.id);
-  assert.equal(result.rows[0].ruleId, undefined);
-  assert.equal(result.rows[0].codingSource, 'project_rule');
-  assert.equal(result.rows[0].codingPendingApproval, true);
+  assert.equal(requireAt(result.rows, 0).mappingStatus, 'matched_rule');
+  assert.equal(requireAt(result.rows, 0).subCategoryId, hotelSubCategory.id);
+  assert.equal(requireAt(result.rows, 0).ruleId, undefined);
+  assert.equal(requireAt(result.rows, 0).codingSource, 'project_rule');
+  assert.equal(requireAt(result.rows, 0).codingPendingApproval, true);
 });
 
 test('import preview excludes PowerBI footer rows without transaction fields', () => {
@@ -400,12 +428,12 @@ test('import preview excludes PowerBI footer rows without transaction fields', (
   });
 
   assert.equal(result.rows.length, 1);
-  assert.equal(result.rows[0].importAction, 'exclude');
+  assert.equal(requireAt(result.rows, 0).importAction, 'exclude');
   assert.equal(
-    result.rows[0].importDecisionReason,
+    requireAt(result.rows, 0).importDecisionReason,
     'Ledger is not ACTUAL/ACTUALS'
   );
-  assert.equal(result.rows[0].amountCents, null);
+  assert.equal(requireAt(result.rows, 0).amountCents, null);
 });
 
 test('company summary excludes non-budget-impact transaction markers', () => {
@@ -445,10 +473,13 @@ test('company summary excludes non-budget-impact transaction markers', () => {
     ],
   });
 
-  assert.equal(result[0].months.length, 1);
-  assert.equal(result[0].months[0].actualCodedCents, 12500);
-  assert.equal(result[0].months[0].uncodedCount, 0);
-  assert.equal(result[0].months[0].uncodedAmountCents, 0);
+  assert.equal(requireAt(result, 0).months.length, 1);
+  assert.equal(
+    requireAt(requireAt(result, 0).months, 0).actualCodedCents,
+    12500
+  );
+  assert.equal(requireAt(requireAt(result, 0).months, 0).uncodedCount, 0);
+  assert.equal(requireAt(requireAt(result, 0).months, 0).uncodedAmountCents, 0);
 });
 
 test('company summary rolls sub-project totals into programmes', () => {
@@ -491,11 +522,17 @@ test('company summary rolls sub-project totals into programmes', () => {
   });
 
   assert.equal(result.length, 1);
-  assert.equal(result[0].projectType, 'programme');
-  assert.equal(result[0].budgetCents, 75000);
-  assert.equal(result[0].months[0].actualCodedCents, 15000);
-  assert.equal(result[0].children?.length, 1);
-  assert.equal(result[0].children?.[0].id, childProjectId);
+  assert.equal(requireAt(result, 0).projectType, 'programme');
+  assert.equal(requireAt(result, 0).budgetCents, 75000);
+  assert.equal(
+    requireAt(requireAt(result, 0).months, 0).actualCodedCents,
+    15000
+  );
+  assert.equal(requireAt(result, 0).children?.length, 1);
+  assert.equal(
+    requireAt(requireAt(result, 0).children ?? [], 0).id,
+    childProjectId
+  );
 });
 
 test('company summary tracks pending reversal totals separately from adjusted actuals', () => {
@@ -535,11 +572,23 @@ test('company summary tracks pending reversal totals separately from adjusted ac
     ],
   });
 
-  assert.equal(result[0].months.length, 1);
-  assert.equal(result[0].months[0].actualCodedCents, 17500);
-  assert.equal(result[0].months[0].pendingReversalCount, 1);
-  assert.equal(result[0].months[0].pendingReversalCents, 12500);
-  assert.equal(result[0].months[0].adjustedActualCodedCents, 5000);
+  assert.equal(requireAt(result, 0).months.length, 1);
+  assert.equal(
+    requireAt(requireAt(result, 0).months, 0).actualCodedCents,
+    17500
+  );
+  assert.equal(
+    requireAt(requireAt(result, 0).months, 0).pendingReversalCount,
+    1
+  );
+  assert.equal(
+    requireAt(requireAt(result, 0).months, 0).pendingReversalCents,
+    12500
+  );
+  assert.equal(
+    requireAt(requireAt(result, 0).months, 0).adjustedActualCodedCents,
+    5000
+  );
 });
 
 test('company summary does not subtract an imported reversal candidate twice', () => {
@@ -579,10 +628,19 @@ test('company summary does not subtract an imported reversal candidate twice', (
     ],
   });
 
-  assert.equal(result[0].months[0].actualCodedCents, 0);
-  assert.equal(result[0].months[0].pendingReversalCount, 1);
-  assert.equal(result[0].months[0].pendingReversalCents, 0);
-  assert.equal(result[0].months[0].adjustedActualCodedCents, 0);
+  assert.equal(requireAt(requireAt(result, 0).months, 0).actualCodedCents, 0);
+  assert.equal(
+    requireAt(requireAt(result, 0).months, 0).pendingReversalCount,
+    1
+  );
+  assert.equal(
+    requireAt(requireAt(result, 0).months, 0).pendingReversalCents,
+    0
+  );
+  assert.equal(
+    requireAt(requireAt(result, 0).months, 0).adjustedActualCodedCents,
+    0
+  );
 });
 
 test('company summary keeps active sub-projects visible when programme is archived', () => {
@@ -625,11 +683,14 @@ test('company summary keeps active sub-projects visible when programme is archiv
   });
 
   assert.equal(result.length, 2);
-  assert.equal(result[0].projectType, 'programme');
-  assert.deepEqual(result[0].children, []);
-  assert.equal(result[1].id, childProjectId);
-  assert.equal(result[1].budgetCents, 75000);
-  assert.equal(result[1].months[0].actualCodedCents, 15000);
+  assert.equal(requireAt(result, 0).projectType, 'programme');
+  assert.deepEqual(requireAt(result, 0).children, []);
+  assert.equal(requireAt(result, 1).id, childProjectId);
+  assert.equal(requireAt(result, 1).budgetCents, 75000);
+  assert.equal(
+    requireAt(requireAt(result, 1).months, 0).actualCodedCents,
+    15000
+  );
 });
 
 test('company summary sorts project months and programme children predictably', () => {
@@ -735,8 +796,8 @@ test('company summary sorts project months and programme children predictably', 
     standalone.months.map((month) => month.monthKey),
     ['2026-05', '2026-03']
   );
-  assert.equal(standalone.months[0].uncodedCount, 2);
-  assert.equal(standalone.months[0].uncodedAmountCents, 12000);
+  assert.equal(requireAt(standalone.months, 0).uncodedCount, 2);
+  assert.equal(requireAt(standalone.months, 0).uncodedAmountCents, 12000);
 
   const programme = result.find((project) => project.id === programmeId);
   assert.ok(programme);
@@ -795,13 +856,13 @@ test('transaction split plan creates a non-budget parent and budget-impact child
   assert.equal(result.parent.subCategoryId, undefined);
 
   assert.equal(result.children.length, 2);
-  assert.equal(result.children[0].txnType, 'split_child');
-  assert.equal(result.children[0].parentTxnId, result.parent.id);
-  assert.equal(result.children[0].budgetImpact, true);
-  assert.equal(result.children[0].categorisable, true);
-  assert.equal(result.children[0].codingSource, 'manual');
-  assert.equal(result.children[1].item, 'Hotel');
-  assert.equal(result.children[1].codingSource, undefined);
+  assert.equal(requireAt(result.children, 0).txnType, 'split_child');
+  assert.equal(requireAt(result.children, 0).parentTxnId, result.parent.id);
+  assert.equal(requireAt(result.children, 0).budgetImpact, true);
+  assert.equal(requireAt(result.children, 0).categorisable, true);
+  assert.equal(requireAt(result.children, 0).codingSource, 'manual');
+  assert.equal(requireAt(result.children, 1).item, 'Hotel');
+  assert.equal(requireAt(result.children, 1).codingSource, undefined);
 });
 
 test('transaction split plan rejects remainder amounts', () => {

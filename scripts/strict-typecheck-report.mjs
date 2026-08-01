@@ -31,20 +31,71 @@ export function summarizeDiagnosticCodes(diagnostics) {
   );
 }
 
+export function summarizeUniqueDiagnostics(results) {
+  const summaries = new Map();
+  for (const result of results) {
+    const current = summaries.get(result.flagKey) ?? {
+      flagKey: result.flagKey,
+      flagLabel: result.flagLabel,
+      diagnostics: new Map(),
+    };
+    for (const diagnostic of result.diagnostics) {
+      const key = [
+        diagnostic.file,
+        diagnostic.line,
+        diagnostic.column,
+        diagnostic.code,
+        diagnostic.message,
+      ].join(':');
+      current.diagnostics.set(key, diagnostic);
+    }
+    summaries.set(result.flagKey, current);
+  }
+
+  return [...summaries.values()].map((summary) => {
+    const diagnostics = [...summary.diagnostics.values()];
+    return {
+      flagKey: summary.flagKey,
+      flagLabel: summary.flagLabel,
+      total: diagnostics.length,
+      production: diagnostics.filter(
+        (diagnostic) => !diagnostic.file.startsWith('tests/')
+      ).length,
+      tests: diagnostics.filter((diagnostic) =>
+        diagnostic.file.startsWith('tests/')
+      ).length,
+      fileCount: new Set(diagnostics.map((diagnostic) => diagnostic.file)).size,
+    };
+  });
+}
+
 export function formatStrictTypecheckSummary(results) {
   const lines = [
-    '## Opt-in TypeScript strictness',
+    '## TypeScript strictness ratchet',
     '',
-    '`noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` are reported here without blocking the required TypeScript gate.',
+    '`noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` are evaluated independently. Recorded findings are allowed, while any baseline change must be reviewed and committed.',
     '',
-    '| Project | Diagnostics | Baseline | Change | Files |',
-    '| --- | ---: | ---: | ---: | ---: |',
+    '| Flag | Project | Diagnostics | Baseline | Change | Files |',
+    '| --- | --- | ---: | ---: | ---: | ---: |',
   ];
 
   for (const result of results) {
     const delta = result.total - result.baseline;
     lines.push(
-      `| ${result.label} | ${result.total} | ${result.baseline} | ${delta > 0 ? '+' : ''}${delta} | ${result.fileCount} |`
+      `| ${result.flagLabel} | ${result.label} | ${result.total} | ${result.baseline} | ${delta > 0 ? '+' : ''}${delta} | ${result.fileCount} |`
+    );
+  }
+
+  lines.push(
+    '',
+    '### Unique findings across overlapping projects',
+    '',
+    '| Flag | Unique | Production | Test-only | Files |',
+    '| --- | ---: | ---: | ---: | ---: |'
+  );
+  for (const summary of summarizeUniqueDiagnostics(results)) {
+    lines.push(
+      `| ${summary.flagLabel} | ${summary.total} | ${summary.production} | ${summary.tests} | ${summary.fileCount} |`
     );
   }
 
@@ -54,7 +105,9 @@ export function formatStrictTypecheckSummary(results) {
       .slice(0, 5)
       .map(([code, count]) => `${code} (${count})`)
       .join(', ');
-    lines.push(`- **${result.label}:** ${codes || 'No diagnostics'}`);
+    lines.push(
+      `- **${result.flagLabel}, ${result.label}:** ${codes || 'No diagnostics'}`
+    );
   }
   lines.push('');
   return lines.join('\n');

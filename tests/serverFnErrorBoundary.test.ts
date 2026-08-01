@@ -8,6 +8,7 @@ import {
   serverFnRequestId,
 } from '../src/server/start/errorBoundary.ts';
 import { safeParseJson } from '../src/utils/json.ts';
+import { requireAt } from './helpers/assertions.ts';
 
 const serverFnMeta = {
   id: 'server_fn_test_id',
@@ -77,7 +78,7 @@ test('native server-function errors classify causes without logging private deta
     assert.equal(publicError.meta, undefined);
 
     assert.equal(logs.messages.length, 1);
-    const parsed = safeParseJson(logs.messages[0]);
+    const parsed = safeParseJson(requireAt(logs.messages, 0));
     assert.equal(parsed.success, true);
     if (!parsed.success) return;
     assert.ok(isRecord(parsed.data));
@@ -107,7 +108,10 @@ test('native server-function errors classify causes without logging private deta
         errorType: 'Error',
       }
     );
-    assert.doesNotMatch(logs.messages[0], /database secret|token=private/u);
+    assert.doesNotMatch(
+      requireAt(logs.messages, 0),
+      /database secret|token=private/u
+    );
   } finally {
     logs.restore();
   }
