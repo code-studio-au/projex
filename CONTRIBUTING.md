@@ -79,10 +79,10 @@ pnpm run smoke:browser:disposable -- --section=basics
 - Request/session verification should flow through normalized request context
   rather than duplicate user/session checks inside feature modules.
 
-See [docs/architecture-boundaries.md](docs/architecture-boundaries.md).
+See the [architecture boundaries](docs/architecture/architecture-boundaries.md).
 
 Database schema changes must follow the forward-only expand/migrate/contract
-policy in [docs/database-migrations.md](docs/database-migrations.md). A
+policy in [database migrations](docs/development/database-migrations.md). A
 migration-bearing release must remain compatible with the immediately previous
 application release because application rollback does not reverse committed
 database migrations.

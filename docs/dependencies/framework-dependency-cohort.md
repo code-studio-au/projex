@@ -6,7 +6,7 @@ train, so alignment means preserving the exact set published and exercised
 together, not forcing matching version numbers.
 
 The machine-readable source of truth is
-[framework-dependency-cohort.json](../config/framework-dependency-cohort.json).
+[framework-dependency-cohort.json](../../config/framework-dependency-cohort.json).
 The root `package.json` exact-pins every direct member, and
 `pnpm-lock.yaml` records one version of each related TanStack, Vite, H3, and
 SRVX package.

@@ -56,7 +56,7 @@ requires immutable action pins, and enables Dependabot alerts and security
 updates, secret scanning with push protection, and CodeQL analysis.
 
 The TanStack Start, Router, Vite, H3, and SRVX runtime is managed as an
-exact-pinned [framework dependency cohort](docs/framework-dependency-cohort.md).
+exact-pinned [framework dependency cohort](docs/dependencies/framework-dependency-cohort.md).
 Repository verification rejects independently moving framework ranges,
 duplicate internal versions, or release-age quarantine bypasses.
 
@@ -138,13 +138,14 @@ bypass. At minimum configure:
   `EC2_ENV_FILE`, `EC2_SERVICE_NAME`, `EC2_HEALTH_URL`, `EC2_READY_URL`, and
   `EC2_KEEP_RELEASES`
 
-See [docs/staging-runbook.md](docs/staging-runbook.md) and
-[docs/deployment-ec2.md](docs/deployment-ec2.md) for the full deploy setup.
+See the [staging and production runbook](docs/operations/staging-runbook.md) and
+[EC2 deployment guide](docs/operations/deployment-ec2.md) for the full deploy setup.
 
-For a reproducible local dependency stack with Postgres and MinIO, use [docs/local-services.md](docs/local-services.md).
+For a reproducible local dependency stack with Postgres and MinIO, use the
+[local services guide](docs/development/local-services.md).
 
 For the month-to-month pending reversal and auto-match workflow, use
-[docs/reversal-workflow.md](docs/reversal-workflow.md).
+[reversal workflow](docs/architecture/reversal-workflow.md).
 
 On the company Summary tab, uncoded counts and amounts remain part of each
 project's financial position. The project list adds an **Action required**
@@ -159,11 +160,11 @@ category names. Search combines with workflow and period filters, applies to
 bulk selection, and is preserved in the project URL.
 
 For the canonical project budget, allocation, recorded spend, headroom, and
-health definitions, use [docs/budget-semantics.md](docs/budget-semantics.md).
+health definitions, use [budget semantics](docs/architecture/budget-semantics.md).
 
 For server-owned imports, category targets, structural lineage, versioned
 review/unlock transitions, immutable audit events, and company-standard
-provenance, use [docs/transaction-integrity.md](docs/transaction-integrity.md).
+provenance, use [transaction integrity](docs/architecture/transaction-integrity.md).
 
 Env example files are now split by purpose:
 
@@ -198,9 +199,12 @@ deployed EC2 host can run `pnpm run smoke:server` or
 `pnpm run smoke:server:generated` directly from `/opt/projex/current` after a
 release activates.
 
-For the full operational verification workflow, use [docs/staging-runbook.md](docs/staging-runbook.md).
+For the full operational verification workflow, use the
+[staging and production runbook](docs/operations/staging-runbook.md).
 
-For EC2 provisioning and bootstrap specifics, including the self-preparing CDK host baseline and the Let's Encrypt promotion step, use [docs/deployment-ec2.md](docs/deployment-ec2.md).
+For EC2 provisioning and bootstrap specifics, including the self-preparing CDK
+host baseline and the Let's Encrypt promotion step, use the
+[EC2 deployment guide](docs/operations/deployment-ec2.md).
 
 `pnpm test` now runs the Vite-owned app/runtime suite under Vitest. DB-backed integration remains a separate Node/disposable lane so route loading and `import.meta` behavior stay aligned with the actual app runtime. For the normal local workflow, prefer the automated disposable runner:
 
@@ -290,7 +294,9 @@ Manual smoke remains available as an advanced mode for targeted checks against
 existing accounts or long-lived data, with per-run inputs supplied in the UI
 instead of relying on repo-local smoke env files.
 
-Command semantics and deploy-time verification details live in [docs/staging-runbook.md](docs/staging-runbook.md) and [docs/database-migrations.md](docs/database-migrations.md).
+Command semantics and deploy-time verification details live in the
+[staging and production runbook](docs/operations/staging-runbook.md) and
+[database migration policy](docs/development/database-migrations.md).
 
 ## Product Model
 
@@ -388,7 +394,7 @@ Projex now supports a production-ready full company Excel export. Remaining work
   code cannot rely on Node globals leaking through mixed imports.
 
 The detailed source of truth for these rules is
-[docs/architecture-boundaries.md](docs/architecture-boundaries.md).
+[architecture boundaries](docs/architecture/architecture-boundaries.md).
 
 ## Server Runtime Notes
 
@@ -413,7 +419,8 @@ Operational defaults:
   controlled `N-1` rollback without rebuilding.
 - The enforced CSP intentionally retains `style-src-attr 'unsafe-inline'` for now because Mantine and current app UI still emit runtime `style=""` attributes; the rest of the policy stays nonce-based and strict.
 - `pnpm-workspace.yaml` enforces a 7-day `minimumReleaseAge`, `minimumReleaseAgeStrict: true`, `trustPolicy: no-downgrade`, and `blockExoticSubdeps: true` to reduce exposure to newly published supply-chain attacks.
-- `package.json` override rationale lives in [docs/dependency-overrides.md](docs/dependency-overrides.md).
+- `package.json` override rationale lives in the
+  [dependency override policy](docs/dependencies/dependency-overrides.md).
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
 - API responses include `x-request-id`; structured request logs are emitted server-side. Deliberate `AppError` messages form the public error contract, while unexpected exception details are replaced with a generic response and retained only in request-ID error logs.
 - Public deployments should use the nginx template at `deploy/nginx/projex.conf` plus the managed `deploy/nginx/projex-compression.conf` include for HTTPS redirects, security headers, forwarded headers, compressed responses, cache-safe `Vary` handling, and the restart maintenance page.
@@ -423,24 +430,10 @@ Operational defaults:
 
 ## Documentation Map
 
-Keep this list short. If a new note overlaps an existing item, update the existing source of truth instead of adding another markdown file.
-
-- `docs/staging-runbook.md`: operational runbook, readiness checklist, deploy verification, first-admin bootstrap, and troubleshooting.
-- `docs/database-migrations.md`: migration strategy, baseline rules, runner expectations, and generated Kysely DB typing workflow.
-- `docs/architecture-boundaries.md`: allowed bridge modules, route adapter rules, and client/server import boundaries.
-- `docs/deployment-ec2.md`: first-time EC2/RDS host provisioning only. Ongoing deploy operations belong in the runbook.
-- `docs/email-ops-runbook.md`: email provider configuration, the verified
-  `noreply@projectexpensetracker.com` sender preset, Resend checks, and email
-  troubleshooting.
-- `docs/permissions-matrix.md`: current company/project/comment permission model and superadmin rules.
-- `docs/immediate-todo-backlog.md`: current immediate engineering-work status;
-  completed full-repository reviews are retained under `docs/archive/`.
-- `docs/product-backlog.md`: product/admin backlog and non-priority ideas.
-- `docs/rule-suggestions-design.md`: design for deriving company rule suggestions from repeated manual coding.
-- `docs/verified-email-change-design.md`: design record for verified email-change behavior.
-- `CONTRIBUTING.md`: local setup, verification expectations, and contribution workflow.
-- `SECURITY.md`: vulnerability reporting path and deployment security expectations.
-- `deploy/cdk/README.md`: AWS CDK stack notes.
+Use the [documentation index](docs/README.md) to find architecture,
+development, dependency, operations, product, review, and archived material.
+If a new note overlaps an existing source of truth, update that document instead
+of creating a competing one.
 
 ## Licence
 

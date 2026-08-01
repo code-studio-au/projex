@@ -23,7 +23,7 @@ in the [documentation archive](README.md).
 
 This file preserves the review findings, implementation decisions, and
 verification evidence. Product ideas and work awaiting business decisions
-remain in [product-backlog.md](../product-backlog.md).
+remain in the [product backlog](../../product/product-backlog.md).
 
 ## Final execution status
 
@@ -47,7 +47,7 @@ remain in [product-backlog.md](../product-backlog.md).
 
 No immediate review items remain. Future product, accessibility, operational,
 and organisation-infrastructure work is tracked in the
-[product backlog](../product-backlog.md).
+[product backlog](../../product/product-backlog.md).
 
 # Completed review items
 
@@ -70,7 +70,7 @@ not provide that compression benefit to users.
 ### Resolution
 
 PR 28 added one managed nginx compression policy in
-[projex-compression.conf](../../deploy/nginx/projex-compression.conf):
+[projex-compression.conf](../../../deploy/nginx/projex-compression.conf):
 
 - gzip enabled for HTML, JavaScript, CSS, JSON, XML, SVG, manifests, feeds, and
   related text formats
@@ -82,7 +82,7 @@ PR 28 added one managed nginx compression policy in
 The same reviewed file is now installed by:
 
 - fresh-host CDK bootstrap in
-  [hostBootstrap.ts](../../deploy/cdk/lib/hostBootstrap.ts)
+  [hostBootstrap.ts](../../../deploy/cdk/lib/hostBootstrap.ts)
 - every release artifact
 - the EC2 deployment path, which validates nginx syntax before completing
   activation
@@ -93,7 +93,7 @@ configuration file. This avoids three drifting copies of the policy.
 
 ### Verification and regression protection
 
-[verify-deploy-security.mjs](../../scripts/verify-deploy-security.mjs) now:
+[verify-deploy-security.mjs](../../../scripts/verify-deploy-security.mjs) now:
 
 - advertises `Accept-Encoding: gzip, br`
 - requires `gzip` or `br` for deployed HTTPS HTML
@@ -145,8 +145,8 @@ Mantine documents the mixed `number | string` value contract in its
 ### Resolution
 
 PR 29 introduced the shared
-[MoneyAmountEditor.tsx](../../src/components/finance/MoneyAmountEditor.tsx) and
-[moneyAmountDraft.ts](../../src/components/finance/moneyAmountDraft.ts).
+[MoneyAmountEditor.tsx](../../../src/components/finance/MoneyAmountEditor.tsx) and
+[moneyAmountDraft.ts](../../../src/components/finance/moneyAmountDraft.ts).
 
 The editor now:
 
@@ -166,16 +166,16 @@ The editor now:
 
 The shared behavior is used by:
 
-- budget allocation rows in [BudgetPanel.tsx](../../src/components/BudgetPanel.tsx)
+- budget allocation rows in [BudgetPanel.tsx](../../../src/components/BudgetPanel.tsx)
 - transaction amount editing in
-  [transactionTableColumns.tsx](../../src/components/transactions/transactionTableColumns.tsx)
+  [transactionTableColumns.tsx](../../../src/components/transactions/transactionTableColumns.tsx)
 - project budget totals in
-  [ProjectBudgetSummary.tsx](../../src/components/budget/ProjectBudgetSummary.tsx)
+  [ProjectBudgetSummary.tsx](../../../src/components/budget/ProjectBudgetSummary.tsx)
 
 ### Mutation ordering
 
 Budget and transaction update mutations now use stable project-scoped mutation
-IDs from [mutationScopes.ts](../../src/queries/mutationScopes.ts). TanStack Query
+IDs from [mutationScopes.ts](../../../src/queries/mutationScopes.ts). TanStack Query
 serializes mutations sharing a `scope.id`, so a later write cannot overtake an
 earlier project mutation. This follows the documented
 [TanStack Query mutation-scope behavior](https://tanstack.com/query/latest/docs/framework/react/guides/mutations#mutation-scopes).
@@ -262,7 +262,7 @@ policy:
 - `/__maintenance.js` returned the nginx-owned no-store policy
 
 The lowercase upstream asset header and direct runtime inspection confirmed
-that [start-server.mjs](../../scripts/start-server.mjs), not nginx, already owned
+that [start-server.mjs](../../../scripts/start-server.mjs), not nginx, already owned
 the proxied static-asset policy. The gap was narrower but still material: every
 file below `/assets/` was treated as immutable without proving that it belonged
 to Vite's fingerprinted output, HTML had no explicit revalidation policy, and
@@ -294,7 +294,7 @@ document and regression-test that ownership boundary.
 
 ### Verification and regression protection
 
-[verify-deploy-security.mjs](../../scripts/verify-deploy-security.mjs) now requires:
+[verify-deploy-security.mjs](../../../scripts/verify-deploy-security.mjs) now requires:
 
 - exact immutable caching for the page's hashed JavaScript and CSS
 - `no-cache` for HTML
@@ -315,7 +315,7 @@ artifacts, and existing-host activation boundaries.
 Financial editing now has deliberate persistence semantics, but project
 settings still mix several interaction models.
 
-In [ProjectSettingsPanel.tsx](../../src/components/ProjectSettingsPanel.tsx),
+In [ProjectSettingsPanel.tsx](../../../src/components/ProjectSettingsPanel.tsx),
 project type, programme, currency, visibility, standards sync, and transfer
 capability call `updateProject.mutate(...)` directly from select or switch
 changes. These are complete values rather than intermediate financial strings,
@@ -335,7 +335,7 @@ single documented mutation-feedback contract.
 
 ### Resolution
 
-[ProjectSettingControls.tsx](../../src/components/settings/ProjectSettingControls.tsx)
+[ProjectSettingControls.tsx](../../../src/components/settings/ProjectSettingControls.tsx)
 now defines one persistence contract for project settings:
 
 - project type and programme relationship are a coupled draft with explicit
@@ -358,7 +358,7 @@ way to discover or recover from a settings error.
 ### Mutation ordering
 
 Each settings mutation uses a stable project-and-invariant scope from
-[mutationScopes.ts](../../src/queries/mutationScopes.ts). Project type, programme
+[mutationScopes.ts](../../../src/queries/mutationScopes.ts). Project type, programme
 relationship, currency, standards sync, and transfer capability share the
 structure scope because the server validates and normalizes them together.
 TanStack Query therefore prevents these dependent writes from overtaking one
@@ -415,7 +415,7 @@ that means:
 
 ### Resolution
 
-The new protected-main [Release workflow](../../.github/workflows/release.yml)
+The new protected-main [Release workflow](../../../.github/workflows/release.yml)
 runs only after a successful same-repository CI push on `main`. It checks out
 that immutable SHA, builds the production payload once, and retains one
 environment-neutral release bundle for 90 days containing:
@@ -425,7 +425,7 @@ environment-neutral release bundle for 90 days containing:
 - pnpm 11's native production-only SPDX 2.3 SBOM
 - GitHub-signed build-provenance and SBOM attestations
 
-The manual [Deploy workflow](../../.github/workflows/deploy.yml) now accepts a
+The manual [Deploy workflow](../../../.github/workflows/deploy.yml) now accepts a
 successful Release run ID and never installs, verifies, or rebuilds source. It
 validates the selected workflow run, bundle shape, checksum, manifest,
 provenance signature, signed SBOM, and immutable source SHA before the existing
@@ -502,8 +502,8 @@ traced to their owning dependency before action.
 ### Resolution
 
 The framework is now managed through the machine-readable
-[framework cohort](../../config/framework-dependency-cohort.json) and its
-[operational policy](../framework-dependency-cohort.md). Every direct member is
+[framework cohort](../../../config/framework-dependency-cohort.json) and its
+[operational policy](../../dependencies/framework-dependency-cohort.md). Every direct member is
 exact-pinned:
 
 - React Start `1.168.32`
@@ -560,7 +560,7 @@ other context that operators do not need.
 
 ### Resolution
 
-The shared [server logging boundary](../../src/api/serverLogging.ts) now owns
+The shared [server logging boundary](../../../src/api/serverLogging.ts) now owns
 production application logging. It:
 
 - accepts stable event names and a centrally approved set of scalar metadata

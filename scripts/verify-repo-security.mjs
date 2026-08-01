@@ -583,7 +583,7 @@ async function verifyHostPrivilegeBoundaries() {
 async function verifyMigrationRollbackContract() {
   const [migrationPolicy, pullRequestTemplate, deployTests] = await Promise.all(
     [
-      readFile('docs/database-migrations.md', 'utf8'),
+      readFile('docs/development/database-migrations.md', 'utf8'),
       readFile('.github/pull_request_template.md', 'utf8'),
       readFile('tests/deployArtifactScripts.test.ts', 'utf8'),
     ]
@@ -627,10 +627,10 @@ async function verifyRepositoryDocumentation() {
     readFile('README.md', 'utf8'),
     readFile('CONTRIBUTING.md', 'utf8'),
     readFile('.github/pull_request_template.md', 'utf8'),
-    readFile('docs/dead-code-verification.md', 'utf8'),
+    readFile('docs/development/dead-code-verification.md', 'utf8'),
     readFile('knip.json', 'utf8'),
-    readFile('docs/deployment-ec2.md', 'utf8'),
-    readFile('docs/staging-runbook.md', 'utf8'),
+    readFile('docs/operations/deployment-ec2.md', 'utf8'),
+    readFile('docs/operations/staging-runbook.md', 'utf8'),
     readFile('LICENSE', 'utf8'),
     readFile('package.json', 'utf8'),
   ]);
@@ -710,7 +710,7 @@ async function main() {
       console.log(`Skipping optional env file check: ${reason}`);
     }
   }
-  console.log('Override rationale: docs/dependency-overrides.md');
+  console.log('Override rationale: docs/dependencies/dependency-overrides.md');
   console.log('Repo security config checks passed.');
 }
 

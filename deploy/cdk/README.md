@@ -229,4 +229,4 @@ SSM, not SSH.
 - The export bucket includes a lifecycle rule as a safety net for stale objects, but the application still performs primary 24-hour job/object cleanup itself.
 - Non-production stack uses destructive defaults on destroy (`RemovalPolicy.DESTROY` for DB).
 - Production stack still retains DB (`RemovalPolicy.RETAIN`) and enables deletion protection, but it no longer forces Multi-AZ. If you need higher resilience, opt back into `-c dbMultiAz=true`.
-- Instance bootstraps Node 24, pnpm, systemd, bootstrap nginx, and the Let's Encrypt helper; application deploy remains the repo's artifact-based EC2 flow described in `docs/deployment-ec2.md` and `docs/staging-runbook.md`.
+- Instance bootstraps Node 24, pnpm, systemd, bootstrap nginx, and the Let's Encrypt helper; application deploy remains the repo's artifact-based EC2 flow described in `docs/operations/deployment-ec2.md` and `docs/operations/staging-runbook.md`.
