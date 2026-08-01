@@ -227,6 +227,44 @@ describe('maintainability boundaries', () => {
     expect(coverageRunner).toContain("'run', 'tests', '--coverage'");
     expect(viteConfig).toContain("include: ['src/**/*.{ts,tsx}']");
     expect(viteConfig).toContain("['default', 'github-actions']");
+    expect(packageManifestText).toContain('"typecheck:strict:report"');
+    expect(ciWorkflow).toContain('Report opt-in TypeScript strictness');
+    expect(ciWorkflow).toContain('pnpm run typecheck:strict:report');
+  });
+
+  test('opt-in TypeScript strictness covers every compilation boundary', async () => {
+    const configPaths = [
+      'tsconfig.strict.app.json',
+      'tsconfig.strict.node.json',
+      'tsconfig.strict.tests.json',
+    ];
+    const [configs, baseline] = await Promise.all([
+      Promise.all(
+        configPaths.map(async (configPath) => ({
+          configPath,
+          config: JSON.parse(
+            await readFile(path.resolve(configPath), 'utf8')
+          ) as {
+            compilerOptions: {
+              exactOptionalPropertyTypes?: boolean;
+              noUncheckedIndexedAccess?: boolean;
+            };
+          },
+        }))
+      ),
+      readFile(path.resolve('strict-typecheck-baseline.json'), 'utf8').then(
+        (source) => JSON.parse(source) as Record<string, number>
+      ),
+    ]);
+
+    for (const { configPath, config } of configs) {
+      expect(config.compilerOptions).toMatchObject({
+        exactOptionalPropertyTypes: true,
+        noUncheckedIndexedAccess: true,
+      });
+      expect(baseline[configPath]).toBeGreaterThanOrEqual(0);
+    }
+    expect(Object.keys(baseline).sort()).toEqual(configPaths.sort());
   });
 
   test('PowerBI import coordination delegates preview tables and columns', async () => {

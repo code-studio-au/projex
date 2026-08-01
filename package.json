@@ -47,6 +47,7 @@
     "verify:ci": "pnpm run verify:app && pnpm run verify:static-analysis && pnpm run verify:cdk && pnpm run verify:db:gate && pnpm run verify:smoke:full:skip-build && pnpm run verify:smoke:browser:full:skip-build && pnpm run verify:smoke:browser:firefox:full:skip-build && pnpm run verify:smoke:browser:webkit:full:skip-build",
     "verify:precommit": "pnpm run db:migrate && pnpm run db:verify-types && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run verify:dead-code && pnpm test && pnpm run build && pnpm run verify:bundle",
     "typecheck": "tsc -b --noemit",
+    "typecheck:strict:report": "node scripts/run-strict-typecheck-report.mjs",
     "lint": "node --max-old-space-size=4096 ./node_modules/eslint/bin/eslint.js .",
     "db:migrate": "node --experimental-strip-types src/server/db/migrate.ts",
     "auth:create-user": "node --experimental-strip-types src/server/auth/createAuthUser.ts",

@@ -180,6 +180,8 @@ The short version:
 
 - `pnpm run verify:security` for the fast non-Docker safety pass
 - `pnpm run verify:static-analysis` for pinned ShellCheck and actionlint
+- `pnpm run typecheck:strict:report` for the non-blocking
+  `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` burn-down report
 - `pnpm run verify:ci` for the fuller local reproduction of CI plus deploy-artifact and CDK checks
 - `pnpm run verify:smoke:full` for the full disposable server smoke sweep across every section
 - `pnpm run verify:smoke:browser:full` for the full disposable browser smoke sweep
