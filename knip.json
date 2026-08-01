@@ -4,7 +4,6 @@
     ".": {
       "entry": [
         "auth.ts",
-        "src/router.tsx",
         "src/routes/**/*.{ts,tsx}",
         "scripts/run-release-migrations.mjs",
         "tests/browser/*.spec.ts",

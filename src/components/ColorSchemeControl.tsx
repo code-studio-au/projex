@@ -11,6 +11,9 @@ import { useIsHydrated } from '../hooks/useIsHydrated';
 import classes from './ColorSchemeControl.module.css';
 
 const COLOR_SCHEME_CONTROL_LABEL = 'Toggle light or dark mode';
+const DISABLE_FIREFOX_BUTTON_STATE_RESTORATION = {
+  autoComplete: 'off',
+} as const;
 
 function useColorSchemeControl() {
   const computedColorScheme = useComputedColorScheme('light');
@@ -42,6 +45,7 @@ export function ColorSchemeToggle() {
         variant="default"
         size="lg"
         aria-label={COLOR_SCHEME_CONTROL_LABEL}
+        {...DISABLE_FIREFOX_BUTTON_STATE_RESTORATION}
         onClick={toggle}
         disabled={!isHydrated}
       >
