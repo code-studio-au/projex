@@ -314,9 +314,9 @@ Notes:
 ## Deploy
 
 After a successful CI push on `main`, the
-[Release workflow](../.github/workflows/release.yml) automatically builds and
+[Release workflow](../../.github/workflows/release.yml) automatically builds and
 retains the promotable release. Trigger the manual
-[Deploy workflow](../.github/workflows/deploy.yml). For staging, select
+[Deploy workflow](../../.github/workflows/deploy.yml). For staging, select
 `latest-successful`, leave the optional Release run ID empty, and use
 `promote`. The workflow records the resolved Release run ID in its summary.
 For production, select `specific-run-id` and reuse that exact staging-confirmed
@@ -482,7 +482,8 @@ If you already have an app-side template user and want to copy its memberships i
   `PROJEX_APP_BASE_URL` for deep links and fall back to `BETTER_AUTH_URL` when
   it is not set.
 - If neither Resend nor `PROJEX_AUTH_EMAIL_WEBHOOK_URL` is configured, the password setup link is logged on the server instead.
-- For email troubleshooting and direct provider checks, see `docs/email-ops-runbook.md`.
+- For email troubleshooting and direct provider checks, see the
+  [email operations runbook](email-ops-runbook.md).
 
 ## Rotate BetterAuth Secret
 

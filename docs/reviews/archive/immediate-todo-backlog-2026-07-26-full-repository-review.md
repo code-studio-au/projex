@@ -45,7 +45,7 @@ and applied these controls:
 - The manual EC2 deploy workflow limits its environment choices to `staging`
   and `production` and rejects artifacts built from any source other than a
   workflow dispatched on protected `main`.
-- [README.md](../../README.md) now matches the enforced controls.
+- [README.md](../../../README.md) now matches the enforced controls.
 
 Item 2 completion retained the original finding below as a point-in-time record
 and applied these changes:
@@ -358,14 +358,14 @@ Recommended change: require all five CI checks, conversation resolution, and
 at least one approval where practical. Add environment approval and
 protected-branch/tag restrictions for deployed environments.
 
-The documentation overstated enforcement in [README.md](../../README.md).
+The documentation overstated enforcement in [README.md](../../../README.md).
 
 ### 2. Deploy release identity is not reliably tied to the built checkout
 
 The workflow checks out arbitrary `${{ inputs.ref }}`, but creates the release
 ID from `GITHUB_SHA`, which represents the workflow invocation ref rather than
 necessarily the checked-out input ref. See
-[deploy.yml](../../.github/workflows/deploy.yml).
+[deploy.yml](../../../.github/workflows/deploy.yml).
 
 Consequences:
 
@@ -379,7 +379,7 @@ Consequences:
 
 The SSM script deletes that release directory before downloading the
 replacement in
-[deploy-artifact-ssm.sh](../../scripts/deploy-artifact-ssm.sh). If that directory
+[deploy-artifact-ssm.sh](../../../scripts/deploy-artifact-ssm.sh). If that directory
 is currently active and the download or extraction fails,
 `/opt/projex/current` can be left pointing at a deleted directory.
 
@@ -396,7 +396,7 @@ Recommended design:
 ### 3. The successful deploy used long-lived AWS credentials
 
 The reviewed deploy run skipped OIDC and used the static-secret credential path
-defined in [deploy.yml](../../.github/workflows/deploy.yml).
+defined in [deploy.yml](../../../.github/workflows/deploy.yml).
 
 This should be migrated to GitHub OIDC with a narrowly scoped deployment role.
 Once verified, remove the static-key fallback and rotate/revoke the existing
@@ -413,7 +413,7 @@ The SSM deploy path does not drop privileges before running:
 - environment loading
 - database migrations
 
-See [deploy-artifact-ec2.sh](../../scripts/deploy-artifact-ec2.sh).
+See [deploy-artifact-ec2.sh](../../../scripts/deploy-artifact-ec2.sh).
 
 That means dependency lifecycle scripts and application migrations may run with
 the elevated identity used by SSM. Prefer a preassembled runtime
@@ -421,7 +421,7 @@ artifact/container, or explicitly execute package installation and migrations
 as a constrained deployment user.
 
 The systemd service correctly runs as `ec2-user`, but has no service sandboxing
-in [projex.service](../../deploy/systemd/projex.service). Test adding:
+in [projex.service](../../../deploy/systemd/projex.service). Test adding:
 
 - `NoNewPrivileges=true`
 - `PrivateTmp=true`
@@ -431,7 +431,7 @@ in [projex.service](../../deploy/systemd/projex.service). Test adding:
 - capability restrictions
 
 CDK also does not explicitly require IMDSv2 on the instance in
-[projex-infra-stack.ts](../../deploy/cdk/lib/projex-infra-stack.ts).
+[projex-infra-stack.ts](../../../deploy/cdk/lib/projex-infra-stack.ts).
 
 ### 5. Application rollback does not roll back database migrations
 
@@ -455,7 +455,7 @@ Recommended change:
 ### 6. Invite-only authentication still exposes public sign-up
 
 Email/password authentication is enabled without `disableSignUp` in
-[betterAuthInstance.ts](../../src/server/auth/betterAuthInstance.ts). The
+[betterAuthInstance.ts](../../../src/server/auth/betterAuthInstance.ts). The
 surrounding product and email flow appear invitation-oriented.
 
 Unlinked BetterAuth accounts do not gain application authorization, but public
@@ -493,8 +493,8 @@ Remaining issues:
 - Current email HTML is inconsistently escaped. Notification emails escape
   dynamic values, but password-reset and email-change templates interpolate
   names and URLs directly in
-  [betterAuthInstance.ts](../../src/server/auth/betterAuthInstance.ts) and
-  [account.ts](../../src/server/fns/account.ts).
+  [betterAuthInstance.ts](../../../src/server/auth/betterAuthInstance.ts) and
+  [account.ts](../../../src/server/fns/account.ts).
 - `style-src 'unsafe-inline'` remains an accepted Mantine SSR constraint and
   should continue to be documented as residual CSP risk.
 
@@ -509,14 +509,14 @@ Current breadth is excellent:
 - Chromium and Firefox browser smoke.
 - Public deployment security and authenticated-cookie verification.
 - Hydration regression enforcement ensures only
-  [useIsHydrated.ts](../../src/hooks/useIsHydrated.ts) owns
+  [useIsHydrated.ts](../../../src/hooks/useIsHydrated.ts) owns
   `useSyncExternalStore`.
 
 The main weakness is how coverage is presented. The reported result—99.18%
 lines—is calculated over a selected set of roughly 859 instrumented lines,
 primarily pure utilities, validation, environment and resource guards. It is
 not whole-repository coverage; the include list is explicit in
-[vite.config.ts](../../vite.config.ts).
+[vite.config.ts](../../../vite.config.ts).
 
 There are no `.tsx` component tests. Complex UI state is therefore protected
 mainly by one large browser flow.
@@ -542,7 +542,7 @@ The root budget passes:
 - JavaScript: 139.9 KiB gzip against 160 KiB
 - CSS: 36.2 KiB gzip against 45 KiB
 
-However, [verify-client-bundle.mjs](../../scripts/verify-client-bundle.mjs) budgets
+However, [verify-client-bundle.mjs](../../../scripts/verify-client-bundle.mjs) budgets
 only root-route preloads.
 
 Measured from the generated dependency maps:
@@ -555,8 +555,8 @@ Measured from the generated dependency maps:
 
 Both dashboards unmount inactive tabs, which is good, but their panels are
 statically imported. See
-[ProjectWorkspace.tsx](../../src/components/ProjectWorkspace.tsx) and
-[CompanyDashboardPage.tsx](../../src/pages/CompanyDashboardPage.tsx).
+[ProjectWorkspace.tsx](../../../src/components/ProjectWorkspace.tsx) and
+[CompanyDashboardPage.tsx](../../../src/pages/CompanyDashboardPage.tsx).
 
 Recommended improvements:
 
@@ -564,7 +564,7 @@ Recommended improvements:
 - Lazy-load import/settings/transactions panels by active tab.
 - Split the 590-line response-schema module by feature. The tiny error helper
   imports the entire module in
-  [errorResponses.ts](../../src/api/errorResponses.ts), contributing an
+  [errorResponses.ts](../../../src/api/errorResponses.ts), contributing an
   approximately 21 KiB gzip chunk.
 - Track both first-load payload and navigation payload.
 
@@ -594,7 +594,7 @@ A static import scan found one circular dependency:
 projectAutoCodingRules.ts → mutationServers.ts`
 
 The barrel import in
-[standards.ts](../../src/server/fns/taxonomy/standards.ts) should import the sync
+[standards.ts](../../../src/server/fns/taxonomy/standards.ts) should import the sync
 implementation directly.
 
 Other smaller consolidation opportunities:
@@ -603,7 +603,7 @@ Other smaller consolidation opportunities:
 - Shared CLI flag parsing for server and browser smoke.
 - A reusable SQL-file migration adapter instead of 35 near-identical Kysely
   wrappers.
-- Narrow the broad Knip export ignore in [knip.json](../../knip.json); it
+- Narrow the broad Knip export ignore in [knip.json](../../../knip.json); it
   currently ignores every export in `disposable-postgres.mjs`, while the
   documentation claims one narrow exception.
 - Remove duplicated security/audit work inside `verify:ci`.
@@ -625,7 +625,7 @@ For a finance-oriented production environment, defaults remain weak:
 
 These defaults are explicitly documented as a cost choice, but production
 should override them. See
-[projex-infra.ts](../../deploy/cdk/bin/projex-infra.ts).
+[projex-infra.ts](../../../deploy/cdk/bin/projex-infra.ts).
 
 The CDK gate currently passes but emits Node loader/deprecation warnings and
 reports 81 unconfigured CDK feature flags. This is maintenance debt rather than

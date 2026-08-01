@@ -25,5 +25,5 @@ Security-sensitive expectations for deployed environments:
 - `BETTER_AUTH_URL` and `BETTER_AUTH_TRUSTED_ORIGINS` use HTTPS origins
 - committed env examples never contain live secrets
 
-See [docs/staging-runbook.md](docs/staging-runbook.md)
+See the [staging and production runbook](docs/operations/staging-runbook.md)
 for deployment-hardening guidance.

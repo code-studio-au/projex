@@ -1,7 +1,7 @@
 # Dependency Overrides
 
 Projex keeps a small root `overrides` block in
-[pnpm-workspace.yaml](../pnpm-workspace.yaml) to pin transitive dependencies
+[pnpm-workspace.yaml](../../pnpm-workspace.yaml) to pin transitive dependencies
 when upstream trees lag behind known-good or security-fixed releases. pnpm 11
 reads dependency-resolution settings from the workspace configuration rather
 than the `pnpm` field in `package.json`.
@@ -14,7 +14,7 @@ Current overrides:
   minimum-release-age quarantine because it is the security release. A local
   compatibility patch preserves the callable CommonJS export required by
   legacy consumers while retaining the patched expansion implementation. See
-  [the dependency patch note](../patches/README.md) for the exact behavior,
+  [the dependency patch note](../../patches/README.md) for the exact behavior,
   security constraints, and removal procedure.
 - `js-yaml@>=4.0.0 <4.3.0`
   Keep TanStack Start and tooling YAML parsing on the patched 4.3.x line for

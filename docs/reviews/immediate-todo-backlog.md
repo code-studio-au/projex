@@ -8,7 +8,7 @@ The completed 29 July review, including its implementation decisions and
 verification evidence, is retained in the
 [documentation archive](archive/immediate-todo-backlog-2026-07-29-full-repository-review.md).
 Product ideas and work awaiting business decisions remain in the
-[product backlog](product-backlog.md).
+[product backlog](../product/product-backlog.md).
 
 ## Current execution status
 
@@ -42,7 +42,7 @@ strictness report for `noUncheckedIndexedAccess` and
 until each diagnostic family is burned down and promoted independently.
 
 Item 5 is complete. The
-[1 August dependency freshness report](dependency-freshness-2026-08-01.md)
+[1 August dependency freshness report](../dependencies/dependency-freshness-2026-08-01.md)
 records the verified direct upgrades, exact framework/tooling holds, the
 React Query WebKit regression hold, and the transitive provenance downgrade
 that remains blocked without weakening the repository trust policy.

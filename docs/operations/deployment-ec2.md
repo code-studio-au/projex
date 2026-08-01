@@ -1,6 +1,9 @@
 # EC2 Deployment Guide
 
-Use this guide for first-time EC2/RDS host provisioning. Once the host, nginx, systemd service, environment file, and HTTPS certificate are ready, use `docs/staging-runbook.md` as the ongoing operational source of truth.
+Use this guide for first-time EC2/RDS host provisioning. Once the host, nginx,
+systemd service, environment file, and HTTPS certificate are ready, use the
+[staging and production runbook](staging-runbook.md) as the ongoing operational
+source of truth.
 
 ## 1) Provision
 
@@ -464,7 +467,8 @@ Why this matters:
 
 ## 6) Ongoing Operations
 
-For post-deploy verification, first-admin bootstrap, smoke usage, and troubleshooting, use [docs/staging-runbook.md](staging-runbook.md).
+For post-deploy verification, first-admin bootstrap, smoke usage, and
+troubleshooting, use the [staging and production runbook](staging-runbook.md).
 
 For local pre-deploy security hygiene before you even have staging up, run:
 

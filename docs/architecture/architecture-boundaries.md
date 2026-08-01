@@ -156,7 +156,8 @@ are server-owned relational state. Browser code may submit decisions, never a
 reconstructed financial transaction. Subcategory identity owns category
 identity, and split or transfer relationships must be represented by balanced
 `txn_links` created in the same transaction as their rows. See
-`docs/transaction-integrity.md` for the persisted contracts.
+the [transaction integrity contract](transaction-integrity.md) for the
+persisted rules.
 
 Preview row decisions use the persisted source-row index, not a future
 transaction ID. Project-scoped operational tables use composite
