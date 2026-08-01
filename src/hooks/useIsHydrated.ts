@@ -1,32 +1,7 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 
-type HydrationListener = () => void;
-
-function createHydrationStore() {
-  const hydrationListeners = new Set<HydrationListener>();
-  let hydrated = false;
-
-  return {
-    getSnapshot: () => hydrated,
-    subscribe: (listener: HydrationListener) => {
-      hydrationListeners.add(listener);
-
-      if (!hydrated) {
-        hydrated = true;
-        queueMicrotask(() => {
-          for (const hydrationListener of hydrationListeners) {
-            hydrationListener();
-          }
-        });
-      }
-
-      return () => {
-        hydrationListeners.delete(listener);
-      };
-    },
-  };
-}
-
+const subscribe = () => () => {};
+const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 
 /**
@@ -34,11 +9,5 @@ const getServerSnapshot = () => false;
  * once React has attached client behavior.
  */
 export function useIsHydrated() {
-  const [hydrationStore] = useState(createHydrationStore);
-
-  return useSyncExternalStore(
-    hydrationStore.subscribe,
-    hydrationStore.getSnapshot,
-    getServerSnapshot
-  );
+  return useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
 }
