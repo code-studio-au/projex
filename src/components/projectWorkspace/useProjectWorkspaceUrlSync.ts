@@ -29,6 +29,14 @@ export type TransactionDrilldownSearch =
       subCategoryName?: string;
     };
 
+function omitUndefinedSearchValues<T extends Record<string, unknown>>(
+  search: T
+): { [K in keyof T]?: Exclude<T[K], undefined> } {
+  return Object.fromEntries(
+    Object.entries(search).filter((entry) => entry[1] !== undefined)
+  ) as { [K in keyof T]?: Exclude<T[K], undefined> };
+}
+
 export function normalizeProjectWorkspaceSearchForSync(
   search: Record<string, unknown>
 ) {
@@ -82,6 +90,12 @@ export function normalizeProjectWorkspaceSearchForSync(
         ? search.subCategoryName
         : undefined,
   };
+}
+
+export function compactProjectWorkspaceSearchForNavigation<
+  T extends ReturnType<typeof normalizeProjectWorkspaceSearchForSync>,
+>(search: T) {
+  return omitUndefinedSearchValues(search);
 }
 
 export function useProjectWorkspaceUrlSync(args: {
@@ -148,7 +162,7 @@ export function useProjectWorkspaceUrlSync(args: {
     void router.navigate({
       to: '/c/$companyId/p/$projectId',
       params: { companyId, projectId },
-      search: nextSearch,
+      search: compactProjectWorkspaceSearchForNavigation(nextSearch),
       replace,
     });
   }, [

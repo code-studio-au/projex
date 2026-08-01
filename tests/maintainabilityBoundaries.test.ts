@@ -205,16 +205,22 @@ describe('maintainability boundaries', () => {
   });
 
   test('GitHub CI parallelizes application verification behind its stable gate', async () => {
-    const [packageManifestText, ciWorkflow, coverageRunner, viteConfig] =
-      await Promise.all([
-        readFile(path.resolve('package.json'), 'utf8'),
-        readFile(path.resolve('.github/workflows/ci.yml'), 'utf8'),
-        readFile(
-          path.resolve('scripts/run-selected-domain-coverage.mjs'),
-          'utf8'
-        ),
-        readFile(path.resolve('vite.config.ts'), 'utf8'),
-      ]);
+    const [
+      packageManifestText,
+      ciWorkflow,
+      coverageRunner,
+      viteConfig,
+      readme,
+    ] = await Promise.all([
+      readFile(path.resolve('package.json'), 'utf8'),
+      readFile(path.resolve('.github/workflows/ci.yml'), 'utf8'),
+      readFile(
+        path.resolve('scripts/run-selected-domain-coverage.mjs'),
+        'utf8'
+      ),
+      readFile(path.resolve('vite.config.ts'), 'utf8'),
+      readFile(path.resolve('README.md'), 'utf8'),
+    ]);
 
     for (const lane of ['static', 'types', 'tests', 'build']) {
       expect(packageManifestText).toContain(`"verify:app:${lane}"`);
@@ -229,7 +235,14 @@ describe('maintainability boundaries', () => {
     expect(viteConfig).toContain("['default', 'github-actions']");
     expect(packageManifestText).toContain('"typecheck:strict:report"');
     expect(ciWorkflow).toContain('Enforce TypeScript strictness ratchet');
+    expect(ciWorkflow).toContain('"TypeScript strictness ratchet"');
     expect(ciWorkflow).toContain('pnpm run typecheck:strict:report');
+    expect(readme).toMatch(
+      /the command fails when any project count differs\s+from `strict-typecheck-baseline\.json`/
+    );
+    expect(readme).not.toContain(
+      '`pnpm run typecheck:strict:report` for the non-blocking'
+    );
   });
 
   test('opt-in TypeScript strictness covers every compilation boundary', async () => {

@@ -107,72 +107,71 @@ export function parseProjectWorkspaceSearch(
 ): ProjectWorkspaceSearch {
   const parsed: ProjectWorkspaceSearch = {};
 
-  if (hasOwn(search, 'tab')) {
-    parsed.tab = optionalEnum(search.tab, PROJECT_WORKSPACE_TABS);
-  }
-  if (hasOwn(search, 'year')) {
-    parsed.year = optionalTrimmedString(search.year, {
-      pattern: /^\d{4}$/,
-      trim: false,
-    });
-  }
-  if (hasOwn(search, 'quarter')) {
-    parsed.quarter = optionalEnum(search.quarter, QUARTERS);
-  }
-  if (hasOwn(search, 'month')) {
-    parsed.month = optionalTrimmedString(search.month, {
-      pattern: /^\d{4}-\d{2}$/,
-      trim: false,
-    });
-  }
-  if (hasOwn(search, 'view')) {
-    parsed.view = optionalEnum(search.view, TRANSACTION_VIEWS);
-  }
-  if (hasOwn(search, 'q')) {
-    parsed.q = optionalTrimmedString(search.q, {
-      minLength: 2,
-      maxLength: 200,
-    });
-  }
-  if (hasOwn(search, 'commentTxn')) {
-    parsed.commentTxn = optionalTrimmedString(search.commentTxn, {
-      minLength: 1,
-    });
-  }
-  if (hasOwn(search, 'commentId')) {
-    parsed.commentId = optionalTrimmedString(search.commentId, {
-      minLength: 1,
-    });
-  }
-  if (hasOwn(search, 'source')) {
-    parsed.source = optionalEnum(search.source, PROJECT_WORKSPACE_SOURCES);
-  }
-  if (hasOwn(search, 'focus')) {
-    parsed.focus = optionalEnum(search.focus, PROJECT_WORKSPACE_FOCUSES);
-  }
-  if (hasOwn(search, 'drilldownKind')) {
-    parsed.drilldownKind = optionalEnum(search.drilldownKind, DRILLDOWN_KINDS);
-  }
-  if (hasOwn(search, 'categoryId')) {
-    parsed.categoryId = optionalTrimmedString(search.categoryId, {
-      minLength: 1,
-    });
-  }
-  if (hasOwn(search, 'subCategoryId')) {
-    parsed.subCategoryId = optionalTrimmedString(search.subCategoryId, {
-      minLength: 1,
-    });
-  }
-  if (hasOwn(search, 'categoryName')) {
-    parsed.categoryName = optionalTrimmedString(search.categoryName, {
-      minLength: 1,
-    });
-  }
-  if (hasOwn(search, 'subCategoryName')) {
-    parsed.subCategoryName = optionalTrimmedString(search.subCategoryName, {
-      minLength: 1,
-    });
-  }
+  const tab = optionalEnum(search.tab, PROJECT_WORKSPACE_TABS);
+  if (tab !== undefined) parsed.tab = tab;
+
+  const year = optionalTrimmedString(search.year, {
+    pattern: /^\d{4}$/,
+    trim: false,
+  });
+  if (year !== undefined) parsed.year = year;
+
+  const quarter = optionalEnum(search.quarter, QUARTERS);
+  if (quarter !== undefined) parsed.quarter = quarter;
+
+  const month = optionalTrimmedString(search.month, {
+    pattern: /^\d{4}-\d{2}$/,
+    trim: false,
+  });
+  if (month !== undefined) parsed.month = month;
+
+  const view = optionalEnum(search.view, TRANSACTION_VIEWS);
+  if (view !== undefined) parsed.view = view;
+
+  const query = optionalTrimmedString(search.q, {
+    minLength: 2,
+    maxLength: 200,
+  });
+  if (query !== undefined) parsed.q = query;
+
+  const commentTxn = optionalTrimmedString(search.commentTxn, {
+    minLength: 1,
+  });
+  if (commentTxn !== undefined) parsed.commentTxn = commentTxn;
+
+  const commentId = optionalTrimmedString(search.commentId, {
+    minLength: 1,
+  });
+  if (commentId !== undefined) parsed.commentId = commentId;
+
+  const source = optionalEnum(search.source, PROJECT_WORKSPACE_SOURCES);
+  if (source !== undefined) parsed.source = source;
+
+  const focus = optionalEnum(search.focus, PROJECT_WORKSPACE_FOCUSES);
+  if (focus !== undefined) parsed.focus = focus;
+
+  const drilldownKind = optionalEnum(search.drilldownKind, DRILLDOWN_KINDS);
+  if (drilldownKind !== undefined) parsed.drilldownKind = drilldownKind;
+
+  const categoryId = optionalTrimmedString(search.categoryId, {
+    minLength: 1,
+  });
+  if (categoryId !== undefined) parsed.categoryId = categoryId;
+
+  const subCategoryId = optionalTrimmedString(search.subCategoryId, {
+    minLength: 1,
+  });
+  if (subCategoryId !== undefined) parsed.subCategoryId = subCategoryId;
+
+  const categoryName = optionalTrimmedString(search.categoryName, {
+    minLength: 1,
+  });
+  if (categoryName !== undefined) parsed.categoryName = categoryName;
+
+  const subCategoryName = optionalTrimmedString(search.subCategoryName, {
+    minLength: 1,
+  });
+  if (subCategoryName !== undefined) parsed.subCategoryName = subCategoryName;
 
   return parsed;
 }
@@ -182,30 +181,20 @@ export function parseCompanyDashboardSearch(
 ): CompanyDashboardSearch {
   const parsed: CompanyDashboardSearch = {};
 
-  if (hasOwn(search, 'tab')) {
-    if (search.tab === undefined) {
-      parsed.tab = undefined;
-    } else {
-      const tab = optionalEnum(search.tab, COMPANY_DASHBOARD_TABS);
-      if (!tab) return {};
-      parsed.tab = tab;
-    }
+  if (hasOwn(search, 'tab') && search.tab !== undefined) {
+    const tab = optionalEnum(search.tab, COMPANY_DASHBOARD_TABS);
+    if (!tab) return {};
+    parsed.tab = tab;
   }
-  if (hasOwn(search, 'exportJob')) {
-    if (search.exportJob === undefined) {
-      parsed.exportJob = undefined;
-    } else {
-      const exportJob = optionalTrimmedString(search.exportJob, {
-        minLength: 1,
-      });
-      if (!exportJob) return {};
-      parsed.exportJob = exportJob;
-    }
+  if (hasOwn(search, 'exportJob') && search.exportJob !== undefined) {
+    const exportJob = optionalTrimmedString(search.exportJob, {
+      minLength: 1,
+    });
+    if (!exportJob) return {};
+    parsed.exportJob = exportJob;
   }
-  if (hasOwn(search, 'review')) {
-    if (search.review === undefined) {
-      parsed.review = undefined;
-    } else if (search.review === 'rule-suggestions') {
+  if (hasOwn(search, 'review') && search.review !== undefined) {
+    if (search.review === 'rule-suggestions') {
       parsed.review = search.review;
     } else {
       return {};
@@ -225,10 +214,12 @@ export function parseResetPasswordSearch(
 ): PasswordLinkSearch {
   const parsed: PasswordLinkSearch = {};
   if (hasOwn(search, 'token')) {
-    parsed.token = parsePasswordLinkValue(search.token);
+    const token = parsePasswordLinkValue(search.token);
+    if (token !== undefined) parsed.token = token;
   }
   if (hasOwn(search, 'error')) {
-    parsed.error = parsePasswordLinkValue(search.error);
+    const error = parsePasswordLinkValue(search.error);
+    if (error !== undefined) parsed.error = error;
   }
   return parsed;
 }
@@ -238,7 +229,8 @@ export function parseVerifyEmailChangeSearch(
 ): Pick<PasswordLinkSearch, 'token'> {
   const parsed: Pick<PasswordLinkSearch, 'token'> = {};
   if (hasOwn(search, 'token')) {
-    parsed.token = parsePasswordLinkValue(search.token);
+    const token = parsePasswordLinkValue(search.token);
+    if (token !== undefined) parsed.token = token;
   }
   return parsed;
 }

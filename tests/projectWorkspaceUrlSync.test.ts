@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
-import { normalizeProjectWorkspaceSearchForSync } from '../src/components/projectWorkspace/useProjectWorkspaceUrlSync';
+import {
+  compactProjectWorkspaceSearchForNavigation,
+  normalizeProjectWorkspaceSearchForSync,
+} from '../src/components/projectWorkspace/useProjectWorkspaceUrlSync';
 
 describe('project workspace URL synchronization', () => {
   test('retains supported values and the transaction query', () => {
@@ -38,23 +41,23 @@ describe('project workspace URL synchronization', () => {
   });
 
   test('normalizes unsupported values without discarding independent fields', () => {
-    expect(
-      normalizeProjectWorkspaceSearchForSync({
-        year: 2026,
-        quarter: 'Q5',
-        tab: 'admin',
-        month: false,
-        view: 1,
-        q: 'supplier',
-        source: 'email',
-        focus: 'forecast',
-        drilldownKind: 'project',
-        categoryId: null,
-        categoryName: 12,
-        subCategoryId: [],
-        subCategoryName: {},
-      })
-    ).toEqual({
+    const normalized = normalizeProjectWorkspaceSearchForSync({
+      year: 2026,
+      quarter: 'Q5',
+      tab: 'admin',
+      month: false,
+      view: 1,
+      q: 'supplier',
+      source: 'email',
+      focus: 'forecast',
+      drilldownKind: 'project',
+      categoryId: null,
+      categoryName: 12,
+      subCategoryId: [],
+      subCategoryName: {},
+    });
+
+    expect(normalized).toEqual({
       year: undefined,
       quarter: undefined,
       tab: undefined,
@@ -68,6 +71,9 @@ describe('project workspace URL synchronization', () => {
       categoryName: undefined,
       subCategoryId: undefined,
       subCategoryName: undefined,
+    });
+    expect(compactProjectWorkspaceSearchForNavigation(normalized)).toEqual({
+      q: 'supplier',
     });
   });
 });
