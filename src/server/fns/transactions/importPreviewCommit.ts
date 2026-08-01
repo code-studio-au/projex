@@ -15,6 +15,7 @@ import type {
 } from '../../../types';
 import { asCategoryId, asSubCategoryId, asTxnId } from '../../../types';
 import { uid } from '../../../utils/id';
+import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import {
   assertUniqueTransactionKeysInProject,
   normalizeExternalId,
@@ -99,10 +100,12 @@ export async function commitImportPreviewBatch(args: {
   })) satisfies LockedCandidate[];
   const selection = resolveCommitSelection({
     candidates: lockedCandidates,
-    excludedSourceRowIndexes: args.excludedSourceRowIndexes,
-    reviewDecisions: args.reviewDecisions,
     mode: args.mode,
     skipDuplicates: args.skipDuplicates,
+    ...omitUndefinedProperties({
+      excludedSourceRowIndexes: args.excludedSourceRowIndexes,
+      reviewDecisions: args.reviewDecisions,
+    }),
   });
 
   const createsTaxonomy = selection.rows.some(
@@ -569,10 +572,15 @@ async function resolveImportTaxonomy(args: {
     if (!category || (row.subCategoryName && !subCategory)) {
       throw staleTaxonomyError();
     }
-    resolved.set(row.sourceRowIndex, {
-      categoryId: asCategoryId(category.id),
-      subCategoryId: subCategory ? asSubCategoryId(subCategory.id) : undefined,
-    });
+    resolved.set(
+      row.sourceRowIndex,
+      omitUndefinedProperties({
+        categoryId: asCategoryId(category.id),
+        subCategoryId: subCategory
+          ? asSubCategoryId(subCategory.id)
+          : undefined,
+      })
+    );
   }
 
   return resolved;
@@ -590,28 +598,30 @@ function transactionFromPreviewRow(args: {
   >;
 }): Txn {
   const target = args.taxonomy.get(args.row.sourceRowIndex) ?? {};
-  const txn = withStandardTxnAccountingMetadata({
-    id: asTxnId(args.row.importId),
-    externalId: normalizeExternalId(args.row.externalId),
-    companyId: args.companyId,
-    projectId: args.projectId,
-    date: args.row.parsedDate ?? '',
-    item: args.row.item ?? '',
-    description: args.row.description ?? '',
-    amountCents: args.row.amountCents ?? 0,
-    categoryId: args.importUncoded ? undefined : target.categoryId,
-    subCategoryId: args.importUncoded ? undefined : target.subCategoryId,
-    companyDefaultMappingRuleId: args.importUncoded
-      ? undefined
-      : args.row.ruleId,
-    codingSource: args.importUncoded ? undefined : args.row.codingSource,
-    codingPendingApproval: args.importUncoded
-      ? false
-      : args.row.codingPendingApproval,
-    importBatchId: args.importBatchId,
-    importSourceType: args.row.sourceType,
-    importSourceMeta: args.row.rawSourceRow,
-  });
+  const txn = withStandardTxnAccountingMetadata(
+    omitUndefinedProperties({
+      id: asTxnId(args.row.importId),
+      externalId: normalizeExternalId(args.row.externalId),
+      companyId: args.companyId,
+      projectId: args.projectId,
+      date: args.row.parsedDate ?? '',
+      item: args.row.item ?? '',
+      description: args.row.description ?? '',
+      amountCents: args.row.amountCents ?? 0,
+      categoryId: args.importUncoded ? undefined : target.categoryId,
+      subCategoryId: args.importUncoded ? undefined : target.subCategoryId,
+      companyDefaultMappingRuleId: args.importUncoded
+        ? undefined
+        : args.row.ruleId,
+      codingSource: args.importUncoded ? undefined : args.row.codingSource,
+      codingPendingApproval: args.importUncoded
+        ? false
+        : args.row.codingPendingApproval,
+      importBatchId: args.importBatchId,
+      importSourceType: args.row.sourceType,
+      importSourceMeta: args.row.rawSourceRow,
+    })
+  );
   validateOrThrow(txnInputSchema, txn);
   return txn;
 }
@@ -712,10 +722,12 @@ async function loadExistingTransactionKeys(args: {
   if (args.excludingIds.length) {
     query = query.where('public_id', 'not in', args.excludingIds);
   }
-  return (await query.execute()).map((txn) => ({
-    id: asTxnId(txn.public_id),
-    externalId: normalizeExternalId(txn.external_id),
-  }));
+  return (await query.execute()).map((txn) =>
+    omitUndefinedProperties({
+      id: asTxnId(txn.public_id),
+      externalId: normalizeExternalId(txn.external_id),
+    })
+  );
 }
 
 function applyCommitDuplicatePolicy(args: {

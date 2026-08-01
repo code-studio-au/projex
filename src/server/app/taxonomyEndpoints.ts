@@ -21,6 +21,7 @@ import {
   updateCompanyDefaultSubCategoryInputSchema,
   updateSubCategoryInputSchema,
 } from '../../validation/apiSchemas';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import {
   applyCompanyStandardsServer,
   bulkRecodeProjectTransactionsServer,
@@ -124,7 +125,7 @@ export const createCategoryEndpoint = defineAppEndpoint({
     createCategoryServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -137,7 +138,7 @@ export const updateCategoryEndpoint = defineAppEndpoint({
     updateCategoryServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -163,7 +164,7 @@ export const createSubCategoryEndpoint = defineAppEndpoint({
     createSubCategoryServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -176,7 +177,7 @@ export const updateSubCategoryEndpoint = defineAppEndpoint({
     updateSubCategoryServer({
       context,
       projectId: input.projectId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -191,7 +192,9 @@ export const deleteSubCategoryEndpoint = defineAppEndpoint({
       context,
       projectId: input.projectId,
       subCategoryId: input.subCategoryId,
-      replacementSubCategoryId: input.replacementSubCategoryId,
+      ...omitUndefinedProperties({
+        replacementSubCategoryId: input.replacementSubCategoryId,
+      }),
     }),
 });
 
@@ -204,7 +207,7 @@ export const createCompanyDefaultCategoryEndpoint = defineAppEndpoint({
     createCompanyDefaultCategoryServer({
       context,
       companyId: input.companyId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -217,7 +220,7 @@ export const updateCompanyDefaultCategoryEndpoint = defineAppEndpoint({
     updateCompanyDefaultCategoryServer({
       context,
       companyId: input.companyId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -243,7 +246,7 @@ export const createCompanyDefaultSubCategoryEndpoint = defineAppEndpoint({
     createCompanyDefaultSubCategoryServer({
       context,
       companyId: input.companyId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -256,7 +259,7 @@ export const updateCompanyDefaultSubCategoryEndpoint = defineAppEndpoint({
     updateCompanyDefaultSubCategoryServer({
       context,
       companyId: input.companyId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -271,7 +274,9 @@ export const deleteCompanyDefaultSubCategoryEndpoint = defineAppEndpoint({
       context,
       companyId: input.companyId,
       subCategoryId: input.subCategoryId,
-      replacementSubCategoryId: input.replacementSubCategoryId,
+      ...omitUndefinedProperties({
+        replacementSubCategoryId: input.replacementSubCategoryId,
+      }),
     }),
 });
 
@@ -284,7 +289,7 @@ export const createCompanyDefaultMappingRuleEndpoint = defineAppEndpoint({
     createCompanyDefaultMappingRuleServer({
       context,
       companyId: input.companyId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
@@ -297,7 +302,7 @@ export const updateCompanyDefaultMappingRuleEndpoint = defineAppEndpoint({
     updateCompanyDefaultMappingRuleServer({
       context,
       companyId: input.companyId,
-      input: input.payload,
+      input: omitUndefinedProperties(input.payload),
     }),
 });
 
