@@ -14,6 +14,14 @@ export const qk = {
   companyWorkQueues: (userId: string) => ['companyWorkQueue', userId] as const,
   companyWorkQueue: (userId: string, companyId: string) =>
     ['companyWorkQueue', userId, companyId] as const,
+  companyExportJob: (
+    userId: string,
+    companyId: string,
+    jobId: string | null
+  ) =>
+    jobId
+      ? (['companyExportJob', userId, companyId, 'by-id', jobId] as const)
+      : (['companyExportJob', userId, companyId, 'latest'] as const),
   companyDefaults: (userId: string, companyId: string) =>
     ['companyDefaults', userId, companyId] as const,
   companyMemberships: (userId: string, companyId: string) =>

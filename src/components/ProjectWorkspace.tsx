@@ -20,6 +20,7 @@ import { useTaxonomy } from '../hooks/useTaxonomy';
 import { useRollups } from '../hooks/useRollups';
 import { showAppToast } from '../utils/toast';
 import { omitUndefinedProperties } from '../utils/optionalProperties';
+import { summarizeProjectTransactionPeriods } from '../utils/projectTransactionSummary';
 
 import {
   useCompanyQuery,
@@ -536,34 +537,16 @@ function useProjectWorkspaceController(props: ProjectWorkspaceInnerProps) {
   );
 
   const transactionPeriodSummary = useMemo(() => {
-    const visiblePeriods = (
-      projectTransactionSummaryQ.data?.periodSummaries ?? []
-    ).filter((period) =>
-      monthKeyMatchesFilters({
-        monthKey: period.monthKey,
-        yearFilter,
-        quarterFilter,
-        monthFilterKey,
-      })
+    return summarizeProjectTransactionPeriods(
+      projectTransactionSummaryQ.data?.periodSummaries ?? [],
+      (period) =>
+        monthKeyMatchesFilters({
+          monthKey: period.monthKey,
+          yearFilter,
+          quarterFilter,
+          monthFilterKey,
+        })
     );
-    return {
-      uncodedCount: visiblePeriods.reduce(
-        (total, period) => total + period.uncodedCount,
-        0
-      ),
-      uncodedAmountCents: visiblePeriods.reduce(
-        (total, period) => total + period.uncodedAmountCents,
-        0
-      ),
-      pendingReversalCents: visiblePeriods.reduce(
-        (total, period) => total + period.pendingReversalCents,
-        0
-      ),
-      pendingReversalCount: visiblePeriods.reduce(
-        (total, period) => total + period.pendingReversalCount,
-        0
-      ),
-    };
   }, [
     monthFilterKey,
     projectTransactionSummaryQ.data?.periodSummaries,

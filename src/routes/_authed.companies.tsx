@@ -1,6 +1,11 @@
-import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
-import type { UserId } from '../types';
+import {
+  createFileRoute,
+  lazyRouteComponent,
+  redirect,
+} from '@tanstack/react-router';
+import type { CompanyMembership, UserId } from '../types';
 import type { RouterContext } from '../router-context';
+import { getSingleCompanyRedirectId } from './-companiesRouteModel';
 
 async function loadCompaniesRouteData(context: RouterContext) {
   const [
@@ -20,7 +25,7 @@ async function loadCompaniesRouteData(context: RouterContext) {
     userId: UserId;
   } | null;
   if (!session?.userId) {
-    return { isSuperadmin: false, userId: null, userCompanyCount: 0 };
+    return { isSuperadmin: false, userId: null, companies: [] };
   }
 
   const [companyMemberships, companies, currentUser] = await Promise.all([
@@ -32,16 +37,22 @@ async function loadCompaniesRouteData(context: RouterContext) {
       currentUserQueryOptions(session.userId)
     ),
   ]);
-  const userCompanyCount = new Set(
-    (companyMemberships ?? []).flatMap((membership) =>
-      membership.userId === session.userId ? [membership.companyId] : []
-    )
-  ).size;
+  const isSuperadmin = currentUser.isGlobalSuperadmin === true;
+  const redirectCompanyId = getSingleCompanyRedirectId({
+    userId: session.userId,
+    isSuperadmin,
+    memberships: (companyMemberships ?? []) as CompanyMembership[],
+  });
+  if (redirectCompanyId) {
+    throw redirect({
+      to: '/c/$companyId',
+      params: { companyId: redirectCompanyId },
+    });
+  }
 
   return {
-    isSuperadmin: currentUser.isGlobalSuperadmin === true,
+    isSuperadmin,
     userId: session.userId,
-    userCompanyCount,
     companies,
   };
 }

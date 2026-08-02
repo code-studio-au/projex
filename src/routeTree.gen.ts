@@ -76,6 +76,7 @@ import { Route as ApiProjectsProjectIdTransactionsImportPreviewRouteImport } fro
 import { Route as ApiCompaniesCompanyIdUsersUserIdInviteRouteImport } from './routes/api.companies.$companyId.users.$userId.invite'
 import { Route as ApiProjectsProjectIdImportBatchesBatchIdCancelRouteImport } from './routes/api.projects.$projectId.import-batches.$batchId.cancel'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.comments'
+import { Route as ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.reversal-suggestions'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.split'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdTransferRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.transfer'
 import { Route as ApiProjectsProjectIdTransactionsTxnIdWorkflowRouteImport } from './routes/api.projects.$projectId.transactions.$txnId.workflow'
@@ -454,6 +455,12 @@ const ApiProjectsProjectIdTransactionsTxnIdCommentsRoute =
     path: '/comments',
     getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
   } as any)
+const ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRoute =
+  ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRouteImport.update({
+    id: '/reversal-suggestions',
+    path: '/reversal-suggestions',
+    getParentRoute: () => ApiProjectsProjectIdTransactionsTxnIdRoute,
+  } as any)
 const ApiProjectsProjectIdTransactionsTxnIdSplitRoute =
   ApiProjectsProjectIdTransactionsTxnIdSplitRouteImport.update({
     id: '/split',
@@ -546,6 +553,7 @@ export interface FileRoutesByFullPath {
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
   '/api/projects/$projectId/import-batches/$batchId/cancel': typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
+  '/api/projects/$projectId/transactions/$txnId/reversal-suggestions': typeof ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRoute
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
   '/api/projects/$projectId/transactions/$txnId/workflow': typeof ApiProjectsProjectIdTransactionsTxnIdWorkflowRoute
@@ -617,6 +625,7 @@ export interface FileRoutesByTo {
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
   '/api/projects/$projectId/import-batches/$batchId/cancel': typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
+  '/api/projects/$projectId/transactions/$txnId/reversal-suggestions': typeof ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRoute
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
   '/api/projects/$projectId/transactions/$txnId/workflow': typeof ApiProjectsProjectIdTransactionsTxnIdWorkflowRoute
@@ -691,6 +700,7 @@ export interface FileRoutesById {
   '/api/companies/$companyId/users/$userId/invite': typeof ApiCompaniesCompanyIdUsersUserIdInviteRoute
   '/api/projects/$projectId/import-batches/$batchId/cancel': typeof ApiProjectsProjectIdImportBatchesBatchIdCancelRoute
   '/api/projects/$projectId/transactions/$txnId/comments': typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
+  '/api/projects/$projectId/transactions/$txnId/reversal-suggestions': typeof ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRoute
   '/api/projects/$projectId/transactions/$txnId/split': typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   '/api/projects/$projectId/transactions/$txnId/transfer': typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
   '/api/projects/$projectId/transactions/$txnId/workflow': typeof ApiProjectsProjectIdTransactionsTxnIdWorkflowRoute
@@ -765,6 +775,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/users/$userId/invite'
     | '/api/projects/$projectId/import-batches/$batchId/cancel'
     | '/api/projects/$projectId/transactions/$txnId/comments'
+    | '/api/projects/$projectId/transactions/$txnId/reversal-suggestions'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
     | '/api/projects/$projectId/transactions/$txnId/workflow'
@@ -836,6 +847,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/users/$userId/invite'
     | '/api/projects/$projectId/import-batches/$batchId/cancel'
     | '/api/projects/$projectId/transactions/$txnId/comments'
+    | '/api/projects/$projectId/transactions/$txnId/reversal-suggestions'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
     | '/api/projects/$projectId/transactions/$txnId/workflow'
@@ -909,6 +921,7 @@ export interface FileRouteTypes {
     | '/api/companies/$companyId/users/$userId/invite'
     | '/api/projects/$projectId/import-batches/$batchId/cancel'
     | '/api/projects/$projectId/transactions/$txnId/comments'
+    | '/api/projects/$projectId/transactions/$txnId/reversal-suggestions'
     | '/api/projects/$projectId/transactions/$txnId/split'
     | '/api/projects/$projectId/transactions/$txnId/transfer'
     | '/api/projects/$projectId/transactions/$txnId/workflow'
@@ -1409,6 +1422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteImport
       parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
     }
+    '/api/projects/$projectId/transactions/$txnId/reversal-suggestions': {
+      id: '/api/projects/$projectId/transactions/$txnId/reversal-suggestions'
+      path: '/reversal-suggestions'
+      fullPath: '/api/projects/$projectId/transactions/$txnId/reversal-suggestions'
+      preLoaderRoute: typeof ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRouteImport
+      parentRoute: typeof ApiProjectsProjectIdTransactionsTxnIdRoute
+    }
     '/api/projects/$projectId/transactions/$txnId/split': {
       id: '/api/projects/$projectId/transactions/$txnId/split'
       path: '/split'
@@ -1689,6 +1709,7 @@ const ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren =
 
 interface ApiProjectsProjectIdTransactionsTxnIdRouteChildren {
   ApiProjectsProjectIdTransactionsTxnIdCommentsRoute: typeof ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren
+  ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRoute: typeof ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRoute
   ApiProjectsProjectIdTransactionsTxnIdSplitRoute: typeof ApiProjectsProjectIdTransactionsTxnIdSplitRoute
   ApiProjectsProjectIdTransactionsTxnIdTransferRoute: typeof ApiProjectsProjectIdTransactionsTxnIdTransferRoute
   ApiProjectsProjectIdTransactionsTxnIdWorkflowRoute: typeof ApiProjectsProjectIdTransactionsTxnIdWorkflowRoute
@@ -1698,6 +1719,8 @@ const ApiProjectsProjectIdTransactionsTxnIdRouteChildren: ApiProjectsProjectIdTr
   {
     ApiProjectsProjectIdTransactionsTxnIdCommentsRoute:
       ApiProjectsProjectIdTransactionsTxnIdCommentsRouteWithChildren,
+    ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRoute:
+      ApiProjectsProjectIdTransactionsTxnIdReversalSuggestionsRoute,
     ApiProjectsProjectIdTransactionsTxnIdSplitRoute:
       ApiProjectsProjectIdTransactionsTxnIdSplitRoute,
     ApiProjectsProjectIdTransactionsTxnIdTransferRoute:

@@ -77,23 +77,6 @@ export const listTransactionCommentsServerFn = createServerFn({
     )
   );
 
-export const listTransactionCommentSummariesServerFn = createServerFn({
-  method: 'GET',
-})
-  .middleware([startApiMiddleware])
-  .validator(
-    lazyServerFnInputValidator(
-      loadTransactionEndpoints,
-      'listTransactionCommentSummariesEndpoint'
-    )
-  )
-  .handler(
-    createLazyServerFnEndpointHandler(
-      loadTransactionEndpoints,
-      'listTransactionCommentSummariesEndpoint'
-    )
-  );
-
 export const createTransactionCommentServerFn = createServerFn({
   method: 'POST',
 })
@@ -202,23 +185,6 @@ export const transferTxnServerFn = createServerFn({ method: 'POST' })
     createLazyServerFnEndpointHandler(
       loadTransactionEndpoints,
       'transferTxnEndpoint'
-    )
-  );
-
-export const listTxnReversalMatchSuggestionsServerFn = createServerFn({
-  method: 'GET',
-})
-  .middleware([startApiMiddleware])
-  .validator(
-    lazyServerFnInputValidator(
-      loadTransactionEndpoints,
-      'listTxnReversalMatchSuggestionsEndpoint'
-    )
-  )
-  .handler(
-    createLazyServerFnEndpointHandler(
-      loadTransactionEndpoints,
-      'listTxnReversalMatchSuggestionsEndpoint'
     )
   );
 

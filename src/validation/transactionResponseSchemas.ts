@@ -278,6 +278,50 @@ const txnReversalSelectionSummaryResponseSchema = z
   })
   .transform(omitUndefinedProperties);
 
+const txnReversalMatchComparisonResponseSchema = z
+  .object({
+    sourceValue: z.string().optional(),
+    counterpartValue: z.string().optional(),
+    outcome: z.enum(['match', 'missing', 'mismatch', 'not_applicable']),
+  })
+  .transform(omitUndefinedProperties);
+
+const txnReversalMatchEvidenceResponseSchema = z
+  .object({
+    amountExact: z.boolean().optional(),
+    oppositeSign: z.boolean().optional(),
+    dayDelta: z.number().int().optional(),
+    withinAutoWindow: z.boolean().optional(),
+    sourceSystem: txnReversalMatchComparisonResponseSchema.optional(),
+    journalDescription: txnReversalMatchComparisonResponseSchema.optional(),
+    reference: txnReversalMatchComparisonResponseSchema.optional(),
+    costCentre: txnReversalMatchComparisonResponseSchema.optional(),
+    sourceCandidateCount: z.number().int().nonnegative().optional(),
+    counterpartCandidateCount: z.number().int().nonnegative().optional(),
+    alternativeCounterparts: z
+      .array(txnReversalSelectionSummaryResponseSchema)
+      .optional(),
+    reasons: z.array(z.string()),
+    legacy: z.boolean().optional(),
+  })
+  .transform(omitUndefinedProperties);
+
+export const txnReversalMatchSuggestionsResponseSchema = z.array(
+  z
+    .object({
+      txnId: txnIdResponseSchema,
+      externalId: z.string().optional(),
+      date: z.string(),
+      item: z.string(),
+      description: z.string(),
+      amountCents: transactionAmountCentsSchema,
+      score: z.number(),
+      reasons: z.array(z.string()),
+      evidence: txnReversalMatchEvidenceResponseSchema,
+    })
+    .transform(omitUndefinedProperties)
+);
+
 export const txnBulkSelectionResultResponseSchema = z
   .object({
     rows: z
@@ -327,3 +371,18 @@ export const txnCommentResponseSchema = z.object({
   createdAt: isoTimestampResponseSchema,
   updatedAt: isoTimestampResponseSchema,
 });
+
+export const txnCommentSummariesResponseSchema = z.array(
+  z
+    .object({
+      txnId: txnIdResponseSchema,
+      totalCount: z.number().int().nonnegative(),
+      unresolvedCount: z.number().int().nonnegative(),
+      resolvedCount: z.number().int().nonnegative(),
+      assignedToMeUnresolvedCount: z.number().int().nonnegative(),
+      latestCommentBody: z.string().optional(),
+      latestCommentCreatedAt: isoTimestampResponseSchema.optional(),
+      latestCommentAuthorName: z.string().optional(),
+    })
+    .transform(omitUndefinedProperties)
+);

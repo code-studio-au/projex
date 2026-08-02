@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import TransactionReversalModal from '../src/components/transactions/TransactionReversalModal';
+import { qk } from '../src/queries/keys';
 import type { Txn } from '../src/types';
 import { asCompanyId, asProjectId, asTxnId } from '../src/types';
 import {
@@ -29,10 +32,20 @@ function createTxn(): Txn {
   };
 }
 
+function renderModal(element: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  queryClient.setQueryData(qk.session(), { userId: 'user-component-test' });
+  return renderComponent(
+    <QueryClientProvider client={queryClient}>{element}</QueryClientProvider>
+  );
+}
+
 describe('TransactionReversalModal', () => {
   it('requires a comment before marking a transaction pending', async () => {
     const onSubmitAction = vi.fn().mockResolvedValue({});
-    renderComponent(
+    renderModal(
       <TransactionReversalModal
         opened
         txn={createTxn()}
@@ -40,7 +53,6 @@ describe('TransactionReversalModal', () => {
         expectedProjectOptions={[]}
         canManage
         onClose={vi.fn()}
-        onLoadSuggestions={vi.fn().mockResolvedValue([])}
         onSubmitAction={onSubmitAction}
       />
     );
@@ -76,7 +88,7 @@ describe('TransactionReversalModal', () => {
       version: 3,
     };
 
-    renderComponent(
+    renderModal(
       <TransactionReversalModal
         opened
         txn={txn}
@@ -84,7 +96,6 @@ describe('TransactionReversalModal', () => {
         expectedProjectOptions={[]}
         canManage={false}
         onClose={vi.fn()}
-        onLoadSuggestions={vi.fn().mockResolvedValue([])}
         onSubmitAction={vi.fn()}
       />
     );

@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { asTxnId } from '../types';
-
 import {
   apiRouteMiddleware,
   executeLazyApiEndpoint,
@@ -9,27 +8,23 @@ import {
 } from './-api-shared';
 
 export const Route = createFileRoute(
-  '/api/projects/$projectId/transactions/comment-summaries'
+  '/api/projects/$projectId/transactions/$txnId/reversal-suggestions'
 )({
   server: {
     middleware: [apiRouteMiddleware],
     handlers: {
-      GET: async ({ context, request, params }) => {
-        const txnIds = new URL(request.url).searchParams
-          .getAll('txnId')
-          .map(asTxnId);
-        return jsonApi(
+      GET: async ({ context, params }) =>
+        jsonApi(
           await executeLazyApiEndpoint({
             specifier: '../server/app/transactionEndpoints',
-            exportName: 'listTransactionCommentSummariesEndpoint',
+            exportName: 'listTxnReversalMatchSuggestionsEndpoint',
             context,
             input: {
               projectId: params.projectId,
-              ...(txnIds.length > 0 ? { payload: { txnIds } } : {}),
+              txnId: asTxnId(params.txnId),
             },
           })
-        );
-      },
+        ),
     },
   },
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -11,7 +11,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { Link, useRouter } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import {
   MantineReactTable,
   type MRT_ColumnDef,
@@ -25,12 +25,8 @@ import type { CompanyId } from '../types';
 
 import { companyRoute } from '../router';
 import { Route as companiesRoute } from '../routes/_authed.companies';
-import {
-  getDefaultCompanyIdForUser,
-  useCompaniesQuery,
-} from '../queries/reference';
+import { useCompaniesQuery } from '../queries/reference';
 import { useSessionQuery } from '../queries/session';
-import { useAllCompanyMembershipsQuery } from '../queries/memberships';
 import {
   useCreateCompanyMutation,
   useDeactivateCompanyMutation,
@@ -42,7 +38,6 @@ import classes from '../styles/ui.module.css';
 
 function useLandingPageController() {
   const loaderData = companiesRoute.useLoaderData();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 48em)');
   const isHydrated = useIsHydrated();
@@ -52,7 +47,6 @@ function useLandingPageController() {
 
   const companiesQ = useCompaniesQuery(userId);
   const currentUserQ = useCurrentUserQuery();
-  const membershipsQ = useAllCompanyMembershipsQuery();
   const isWaitingForSession =
     sessionQ.fetchStatus === 'fetching' && sessionQ.data == null;
   const isWaitingForFirstCompaniesLoad =
@@ -75,32 +69,6 @@ function useLandingPageController() {
   );
   const isSuperadmin =
     currentUserQ.data?.isGlobalSuperadmin ?? loaderData.isSuperadmin;
-  const userCompanyCount = useMemo(() => {
-    if (!userId) return loaderData.userCompanyCount ?? 0;
-    const ids = new Set(
-      (membershipsQ.data ?? []).flatMap((membership) =>
-        membership.userId === userId ? [membership.companyId] : []
-      )
-    );
-    return ids.size || (loaderData.userCompanyCount ?? 0);
-  }, [loaderData.userCompanyCount, membershipsQ.data, userId]);
-  const shouldRedirect = useMemo(
-    () => !!userId && !isSuperadmin && userCompanyCount === 1,
-    [isSuperadmin, userCompanyCount, userId]
-  );
-
-  useEffect(() => {
-    if (!shouldRedirect || !userId) return;
-    let cancelled = false;
-    void (async () => {
-      const companyId = await getDefaultCompanyIdForUser();
-      if (!companyId || cancelled) return;
-      await router.navigate({ to: companyRoute.to, params: { companyId } });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [router, shouldRedirect, userId]);
 
   const deactivateCompany = useDeactivateCompanyMutation();
   const reactivateCompany = useReactivateCompanyMutation();
@@ -328,7 +296,6 @@ function useLandingPageController() {
     setNewCompanyName,
     setNewCompanyOpen,
     setNewCompanyStatus,
-    shouldRedirect,
     sortedCompanies,
   };
 }
@@ -492,11 +459,7 @@ function LandingPageView({ model }: { model: LandingPageController }) {
         </div>
       </Paper>
 
-      {model.shouldRedirect ? (
-        <Paper className={classes.surfaceCard} p="lg" radius="xl">
-          <Text c="dimmed">Redirecting to your company...</Text>
-        </Paper>
-      ) : model.isWaitingForSession || model.isWaitingForFirstCompaniesLoad ? (
+      {model.isWaitingForSession || model.isWaitingForFirstCompaniesLoad ? (
         model.loadingCompaniesPlaceholder
       ) : (
         <>
