@@ -388,6 +388,7 @@ export const DB_TABLES = [
   'ba_session',
   'ba_user',
   'ba_verification',
+  'audit_events',
   'budget_lines',
   'categories',
   'companies',

@@ -56,7 +56,7 @@ function runProductionMigrationPath(connectionString: string) {
 }
 
 test(
-  'production migrations upgrade populated data and remove legacy audit storage',
+  'production migrations preserve and forward-repair N-1 audit compatibility',
   { skip: !migrationUpgradeDatabaseUrl },
   async () => {
     const setupPool = createPgPool(migrationUpgradeDatabaseUrl);
@@ -126,6 +126,34 @@ test(
           '{"Reference Num":"UPGRADE-REFERENCE"}'::jsonb
         )
       `);
+      await setupPool.query(`
+        insert into audit_events (
+          id,
+          company_id,
+          project_id,
+          actor_user_id,
+          event_class,
+          event_type,
+          entity_type,
+          entity_id,
+          reason,
+          retention_class,
+          created_at
+        )
+        values (
+          'itest_upgrade_audit_preserved',
+          'itest_upgrade_company',
+          'itest_upgrade_project',
+          'itest_upgrade_actor',
+          'workflow',
+          'transaction.reviewed',
+          'transaction',
+          'itest_upgrade_txn',
+          'Legacy rollback compatibility fixture',
+          'financial',
+          now()
+        )
+      `);
     } finally {
       await setupDb.destroy();
     }
@@ -171,16 +199,126 @@ test(
       assert.deepEqual(constraintResult.rows, [{ convalidated: true }]);
 
       const auditStorageResult = await verificationPool.query<{
-        audit_table: string | null;
-        audit_mutation_function: string | null;
+        audit_table_exists: boolean;
+        audit_mutation_function_exists: boolean;
+        preserved_event_count: string;
       }>(`
         select
-          to_regclass('public.audit_events')::text as audit_table,
-          to_regprocedure('public.prevent_audit_event_mutation()')::text
-            as audit_mutation_function
+          to_regclass('public.audit_events') is not null
+            as audit_table_exists,
+          to_regprocedure('public.prevent_audit_event_mutation()') is not null
+            as audit_mutation_function_exists,
+          (
+            select count(*)::text
+            from audit_events
+            where id = 'itest_upgrade_audit_preserved'
+          ) as preserved_event_count
       `);
       assert.deepEqual(auditStorageResult.rows, [
-        { audit_table: null, audit_mutation_function: null },
+        {
+          audit_table_exists: true,
+          audit_mutation_function_exists: true,
+          preserved_event_count: '1',
+        },
+      ]);
+
+      await verificationPool.query(`
+        insert into audit_events (
+          id,
+          company_id,
+          actor_user_id,
+          event_class,
+          event_type,
+          entity_type,
+          entity_id,
+          reason,
+          retention_class,
+          created_at
+        )
+        values (
+          'itest_upgrade_audit_n1_write',
+          'itest_upgrade_company',
+          'itest_upgrade_actor',
+          'lifecycle',
+          'company.updated',
+          'company',
+          'itest_upgrade_company',
+          'N-1 write after logger release migration',
+          'security',
+          now()
+        )
+      `);
+
+      // Reproduce an environment that already applied the original destructive
+      // 0036, then prove the next forward migration repairs the N-1 contract.
+      await verificationPool.query('drop table audit_events');
+      await verificationPool.query(
+        'drop function if exists prevent_audit_event_mutation()'
+      );
+      await verificationPool.query(`
+        delete from kysely_migration
+        where name = '0037_restore_audit_n1_compatibility.sql'
+      `);
+
+      runProductionMigrationPath(migrationUpgradeDatabaseUrl);
+
+      await verificationPool.query(`
+        insert into audit_events (
+          id,
+          company_id,
+          actor_user_id,
+          event_class,
+          event_type,
+          entity_type,
+          entity_id,
+          reason,
+          retention_class,
+          created_at
+        )
+        values (
+          'itest_upgrade_audit_repaired_write',
+          'itest_upgrade_company',
+          'itest_upgrade_actor',
+          'workflow',
+          'transaction.reopened',
+          'transaction',
+          'itest_upgrade_txn',
+          'N-1 write after forward repair',
+          'financial',
+          now()
+        )
+      `);
+      await assert.rejects(
+        verificationPool.query(`
+          update audit_events
+          set reason = 'Mutation must remain blocked'
+          where id = 'itest_upgrade_audit_repaired_write'
+        `),
+        /audit events are immutable/u
+      );
+
+      const repairedAuditStorageResult = await verificationPool.query<{
+        audit_table_exists: boolean;
+        audit_mutation_function_exists: boolean;
+        repaired_event_count: string;
+      }>(`
+        select
+          to_regclass('public.audit_events') is not null
+            as audit_table_exists,
+          to_regprocedure('public.prevent_audit_event_mutation()') is not null
+            as audit_mutation_function_exists,
+          (
+            select count(*)::text
+            from audit_events
+            where id = 'itest_upgrade_audit_repaired_write'
+          ) as repaired_event_count
+      `);
+      assert.deepEqual(repairedAuditStorageResult.rows, [
+        {
+          audit_table_exists: true,
+          audit_mutation_function_exists: true,
+          repaired_event_count: '1',
+        },
       ]);
 
       const historyResult = await verificationPool.query<{ name: string }>(`
@@ -189,7 +327,8 @@ test(
         where name in (
           '0033_transaction_search.sql',
           '0034_project_company_ownership.sql',
-          '0036_drop_audit_events.sql'
+          '0036_drop_audit_events.sql',
+          '0037_restore_audit_n1_compatibility.sql'
         )
         order by name
       `);
@@ -199,6 +338,7 @@ test(
           '0033_transaction_search.sql',
           '0034_project_company_ownership.sql',
           '0036_drop_audit_events.sql',
+          '0037_restore_audit_n1_compatibility.sql',
         ]
       );
     } finally {
