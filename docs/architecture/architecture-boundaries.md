@@ -162,16 +162,24 @@ persisted rules.
 Preview row decisions use the persisted source-row index, not a future
 transaction ID. Project-scoped operational tables use composite
 `(company_id, project_id)` foreign keys as defense-in-depth against cross-tenant
-references. Immutable audit events intentionally keep soft entity references
-because they can outlive deleted projects.
+references.
 
 ## Audit and workflow rule
 
 Protected financial and administrative mutations must use
-`src/server/audit/auditEvents.ts` from inside the mutation transaction. Keep
-editable comments separate from immutable audit history, select an event class
-for its retention policy, and include meaningful previous/resulting state rather
-than storing presentation text as evidence.
+`recordAuditLogEvent` inside `withAuditLoggingTransaction`, normally through
+`executeAuditedTransaction`. The wrapper buffers reviewed scalar identifiers and
+emits them through the central structured logger only after the database
+transaction commits. Rolled-back operations emit nothing. Audit telemetry is
+best-effort operational output, not a durable product audit trail; domain state
+and user-entered reasons must remain in their authoritative relational records.
+Never add raw request bodies, comments, email addresses, imported financial
+text, or state snapshots to log fields.
+
+`PROJEX_AUDIT_LOGGING` independently enables audit-category output and
+`PROJEX_LOG_LEVEL` controls operational output. Both paths write sanitized JSON
+to stdout/stderr for journald collection. They must not write logs to the
+application database or call a vendor SDK directly.
 
 Transaction workflow commands must lock the row and compare
 `workflow_version` before changing review or lock state. Unlock requests are
@@ -193,7 +201,7 @@ the pure transition planner in `src/server/sync/projectStandards.ts`. Persistenc
 adapters remain entity-specific, but they must share the local, inherited,
 overridden, and detached lifecycle, adopt exact local duplicates, preserve
 overrides, and detach missing sources. Company propagation must remain
-transactional and emit an inheritance audit event.
+transactional and emit an inheritance audit log after commit when enabled.
 
 ## Feature UI rule
 

@@ -13,6 +13,7 @@ import {
 } from '../../../types';
 import { uid } from '../../../utils/id';
 import { getDb } from '../../db/db';
+import { executeAuditedTransaction } from '../../db/auditedTransaction';
 import { buildInheritedProjectStandardMetadata } from '../../sync/projectStandards';
 import {
   companyDefaultCategorySelectColumns,
@@ -47,7 +48,7 @@ export async function promoteProjectSubCategoryToCompanyDefault(args: {
   const normalizedSubCategoryName = subCategory.sub_name.trim();
   const now = new Date().toISOString();
 
-  return db.transaction().execute(async (trx) => {
+  return executeAuditedTransaction(db, async (trx) => {
     let categoryCreated = false;
     let subCategoryCreated = false;
 

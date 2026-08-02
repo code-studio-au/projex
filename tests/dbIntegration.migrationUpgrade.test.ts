@@ -56,7 +56,7 @@ function runProductionMigrationPath(connectionString: string) {
 }
 
 test(
-  'production migrations upgrade populated data across 0033 and 0034',
+  'production migrations upgrade populated data and remove legacy audit storage',
   { skip: !migrationUpgradeDatabaseUrl },
   async () => {
     const setupPool = createPgPool(migrationUpgradeDatabaseUrl);
@@ -170,18 +170,36 @@ test(
       `);
       assert.deepEqual(constraintResult.rows, [{ convalidated: true }]);
 
+      const auditStorageResult = await verificationPool.query<{
+        audit_table: string | null;
+        audit_mutation_function: string | null;
+      }>(`
+        select
+          to_regclass('public.audit_events')::text as audit_table,
+          to_regprocedure('public.prevent_audit_event_mutation()')::text
+            as audit_mutation_function
+      `);
+      assert.deepEqual(auditStorageResult.rows, [
+        { audit_table: null, audit_mutation_function: null },
+      ]);
+
       const historyResult = await verificationPool.query<{ name: string }>(`
         select name
         from kysely_migration
         where name in (
           '0033_transaction_search.sql',
-          '0034_project_company_ownership.sql'
+          '0034_project_company_ownership.sql',
+          '0036_drop_audit_events.sql'
         )
         order by name
       `);
       assert.deepEqual(
         historyResult.rows.map((row) => row.name),
-        ['0033_transaction_search.sql', '0034_project_company_ownership.sql']
+        [
+          '0033_transaction_search.sql',
+          '0034_project_company_ownership.sql',
+          '0036_drop_audit_events.sql',
+        ]
       );
     } finally {
       await verificationPool.end();

@@ -86,6 +86,38 @@ test('production env validation rejects dev and smoke tooling flags', () => {
   );
 });
 
+test('production env validation rejects invalid logging switches', () => {
+  process.env.NODE_ENV = 'production';
+  process.env.DATABASE_URL = 'postgres://localhost/projex_test';
+  process.env.BETTER_AUTH_SECRET = 'secret';
+  process.env.BETTER_AUTH_URL = 'https://app.example.com';
+  process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://app.example.com';
+  process.env.PROJEX_AUTH_RESET_REDIRECT_URL =
+    'https://app.example.com/reset-password';
+  process.env.PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL =
+    'https://app.example.com/verify-email-change';
+  process.env.PROJEX_ENABLE_DEV_ENDPOINTS = 'false';
+  process.env.PROJEX_ENABLE_SMOKE_TOOLS = 'false';
+
+  process.env.PROJEX_LOG_LEVEL = 'debug';
+  assert.throws(
+    () => validateServerStartupEnv(),
+    /Invalid server configuration/u
+  );
+
+  __resetServerStartupEnvValidationForTests();
+  process.env.PROJEX_LOG_LEVEL = 'warn';
+  process.env.PROJEX_AUDIT_LOGGING = 'sometimes';
+  assert.throws(
+    () => validateServerStartupEnv(),
+    /Invalid server configuration/u
+  );
+
+  __resetServerStartupEnvValidationForTests();
+  process.env.PROJEX_AUDIT_LOGGING = 'true';
+  assert.doesNotThrow(() => validateServerStartupEnv());
+});
+
 test('production env validation requires trusted auth origins', () => {
   process.env.NODE_ENV = 'production';
   process.env.DATABASE_URL = 'postgres://localhost/projex_test';

@@ -488,6 +488,7 @@ async function verifyHostPrivilegeBoundaries() {
     infraStack,
     hostBootstrap,
     artifactScript,
+    journaldConfig,
   ] = await Promise.all([
     readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
     readFile('scripts/run-release-migrations.mjs', 'utf8'),
@@ -495,6 +496,7 @@ async function verifyHostPrivilegeBoundaries() {
     readFile('deploy/cdk/lib/projex-infra-stack.ts', 'utf8'),
     readFile('deploy/cdk/lib/hostBootstrap.ts', 'utf8'),
     readFile('scripts/create-deploy-artifact.sh', 'utf8'),
+    readFile('deploy/systemd/projex-journald.conf', 'utf8'),
   ]);
 
   assertCondition(
@@ -561,6 +563,15 @@ async function verifyHostPrivilegeBoundaries() {
     ) && !/^ExecStart=.*\bpnpm\b/m.test(service),
     'The sandboxed runtime must start Node directly without a user-home Corepack dependency'
   );
+  assertCondition(
+    service.includes('LogRateLimitIntervalSec=30s') &&
+      service.includes('LogRateLimitBurst=1000') &&
+      journaldConfig.includes('SystemMaxUse=512M') &&
+      journaldConfig.includes('SystemKeepFree=2G') &&
+      journaldConfig.includes('MaxRetentionSec=7day') &&
+      deployScript.includes('systemctl restart systemd-journald'),
+    'Structured logs must have per-service rate limits and bounded host retention'
+  );
 
   assertCondition(
     infraStack.includes('httpTokens: ec2.HttpTokens.REQUIRED'),
@@ -575,8 +586,13 @@ async function verifyHostPrivilegeBoundaries() {
   assertCondition(
     artifactScript.includes(
       'require_tooling_path "deploy/systemd/projex.service"'
-    ) && artifactScript.includes('deploy/systemd/projex.service'),
-    'Deploy artifacts must carry the reviewed systemd sandbox definition'
+    ) &&
+      artifactScript.includes(
+        'require_tooling_path "deploy/systemd/projex-journald.conf"'
+      ) &&
+      artifactScript.includes('deploy/systemd/projex.service') &&
+      artifactScript.includes('deploy/systemd/projex-journald.conf'),
+    'Deploy artifacts must carry the reviewed systemd and journald definitions'
   );
 }
 

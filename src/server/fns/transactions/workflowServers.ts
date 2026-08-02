@@ -9,7 +9,8 @@ import type {
 import { planTxnWorkflowState } from '../../../utils/transactionWorkflow';
 import { toTxn } from '../../mappers/transactionRows';
 import { requireAuthorized } from '../../auth/authorize';
-import { recordAuditEvent } from '../../audit/auditEvents';
+import { executeAuditedTransaction } from '../../db/auditedTransaction';
+import { recordAuditLogEvent } from '../../logging/auditLogger';
 import { uid } from '../../../utils/id';
 import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { requireOperationalProjectForAction } from '../resourceGuards';
@@ -27,39 +28,17 @@ import { lockProjectReversalWorkflow } from './reversalConcurrency';
 
 export { bulkTxnActionServer } from './bulkWorkflowServers';
 
-function workflowState(row: {
-  reviewed_at: string | null;
-  reviewed_by_user_id: string | null;
-  locked_at: string | null;
-  locked_by_user_id: string | null;
-  workflow_version: number;
-}) {
-  return omitUndefinedProperties({
-    reviewedAt: row.reviewed_at,
-    reviewedByUserId: row.reviewed_by_user_id,
-    lockedAt: row.locked_at,
-    lockedByUserId: row.locked_by_user_id,
-    workflowVersion: row.workflow_version,
-  });
-}
-
-function workflowEvent(input: TxnWorkflowStateInput) {
+function workflowEventType(input: TxnWorkflowStateInput): string {
   if (input.locked === true) {
-    return { type: 'transaction.locked', reason: 'Transaction locked' };
+    return 'transaction.locked';
   }
   if (input.locked === false) {
-    return {
-      type: 'transaction.admin_unlocked',
-      reason: input.reason?.trim() ?? '',
-    };
+    return 'transaction.admin_unlocked';
   }
   if (input.reviewed === true) {
-    return { type: 'transaction.reviewed', reason: 'Transaction reviewed' };
+    return 'transaction.reviewed';
   }
-  return omitUndefinedProperties({
-    type: 'transaction.reopened',
-    reason: input.reason?.trim() || 'Reopened for further review',
-  });
+  return 'transaction.reopened';
 }
 
 function toUnlockRequest(row: {
@@ -131,7 +110,7 @@ export async function updateTxnWorkflowStateServer(args: {
       }
     }
 
-    return context.db.transaction().execute(async (trx) => {
+    return executeAuditedTransaction(context.db, async (trx) => {
       await lockProjectReversalWorkflow({
         db: trx,
         projectId: args.projectId,
@@ -194,7 +173,6 @@ export async function updateTxnWorkflowStateServer(args: {
         return toTxn(existing);
       }
 
-      let resolvedRequestId: string | undefined;
       if (args.input.locked === false) {
         const pendingRequest = await trx
           .selectFrom('txn_unlock_requests')
@@ -205,7 +183,6 @@ export async function updateTxnWorkflowStateServer(args: {
           .forUpdate()
           .executeTakeFirst();
         if (pendingRequest) {
-          resolvedRequestId = pendingRequest.id;
           await trx
             .updateTable('txn_unlock_requests')
             .set({
@@ -245,23 +222,14 @@ export async function updateTxnWorkflowStateServer(args: {
         );
       }
 
-      const event = workflowEvent(args.input);
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId: context.companyId,
         projectId: args.projectId,
         actorUserId: context.userId,
         eventClass: 'workflow',
-        eventType: event.type,
+        eventType: workflowEventType(args.input),
         entityType: 'transaction',
         entityId: args.input.txnId,
-        reason: event.reason,
-        previousState: workflowState(existing),
-        resultingState: workflowState(updated),
-        metadata: resolvedRequestId
-          ? { unlockRequestId: resolvedRequestId }
-          : {},
-        nowIso: now,
       });
       return toTxn(updated);
     });
@@ -281,7 +249,7 @@ export async function requestTxnUnlockServer(args: {
       'txns:edit'
     );
 
-    return context.db.transaction().execute(async (trx) => {
+    return executeAuditedTransaction(context.db, async (trx) => {
       const now = new Date().toISOString();
       const txn = await trx
         .selectFrom('txns')
@@ -358,8 +326,7 @@ export async function requestTxnUnlockServer(args: {
         );
       }
 
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId: context.companyId,
         projectId: args.projectId,
         actorUserId: context.userId,
@@ -367,14 +334,6 @@ export async function requestTxnUnlockServer(args: {
         eventType: 'transaction.unlock_requested',
         entityType: 'transaction',
         entityId: args.input.txnId,
-        reason: args.input.reason,
-        previousState: workflowState(txn),
-        resultingState: {
-          ...workflowState(updatedTxn),
-          unlockRequestId: request.id,
-          unlockRequestStatus: request.status,
-        },
-        nowIso: now,
       });
       return toUnlockRequest(request);
     });
@@ -394,7 +353,7 @@ export async function resolveTxnUnlockRequestServer(args: {
       'txns:resolve_unlock'
     );
 
-    return context.db.transaction().execute(async (trx) => {
+    return executeAuditedTransaction(context.db, async (trx) => {
       const now = new Date().toISOString();
       const request = await trx
         .selectFrom('txn_unlock_requests')
@@ -472,8 +431,7 @@ export async function resolveTxnUnlockRequestServer(args: {
         );
       }
 
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId: context.companyId,
         projectId: args.projectId,
         actorUserId: context.userId,
@@ -484,18 +442,6 @@ export async function resolveTxnUnlockRequestServer(args: {
             : 'transaction.unlock_rejected',
         entityType: 'transaction',
         entityId: request.txn_public_id,
-        reason: args.input.reason,
-        previousState: {
-          ...workflowState(txn),
-          unlockRequestId: request.id,
-          unlockRequestStatus: request.status,
-        },
-        resultingState: {
-          ...workflowState(updatedTxn),
-          unlockRequestId: updatedRequest.id,
-          unlockRequestStatus: updatedRequest.status,
-        },
-        nowIso: now,
       });
       return toTxn(updatedTxn);
     });

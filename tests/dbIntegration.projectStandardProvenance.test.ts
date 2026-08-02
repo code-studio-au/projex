@@ -19,6 +19,15 @@ test(
   { skip: !integrationDatabaseUrl },
   async () => {
     const db = createIntegrationDb();
+    const auditLogs: Array<Record<string, unknown>> = [];
+    const originalConsoleInfo = console.info;
+    const originalAuditLogging = process.env.PROJEX_AUDIT_LOGGING;
+    process.env.PROJEX_AUDIT_LOGGING = 'true';
+    console.info = (message?: unknown) => {
+      if (typeof message === 'string') {
+        auditLogs.push(JSON.parse(message) as Record<string, unknown>);
+      }
+    };
     const companyId = asCompanyId('itest_provenance_co_1');
     const projectId = asProjectId('itest_provenance_prj_1');
     const userId = asUserId('itest_provenance_usr_1');
@@ -151,14 +160,20 @@ test(
       assert.equal(inheritedRows[0]?.origin_scope, 'company');
       assert.equal(inheritedRows[0]?.sync_status, 'inherited');
 
-      const auditCount = await db
-        .selectFrom('audit_events')
-        .select(({ fn }) => fn.countAll<number>().as('count'))
-        .where('project_id', '=', projectId)
-        .where('event_type', '=', 'company_standards.reconciled')
-        .executeTakeFirstOrThrow();
-      assert.ok(Number(auditCount.count) >= 2);
+      const standardLogs = auditLogs.filter(
+        (row) =>
+          row.category === 'audit' &&
+          row.projectId === projectId &&
+          row.type === 'company_standards.reconciled'
+      );
+      assert.ok(standardLogs.length >= 2);
     } finally {
+      console.info = originalConsoleInfo;
+      if (typeof originalAuditLogging === 'undefined') {
+        delete process.env.PROJEX_AUDIT_LOGGING;
+      } else {
+        process.env.PROJEX_AUDIT_LOGGING = originalAuditLogging;
+      }
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();
       await db.destroy();

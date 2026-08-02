@@ -163,7 +163,7 @@ For the canonical project budget, allocation, recorded spend, headroom, and
 health definitions, use [budget semantics](docs/architecture/budget-semantics.md).
 
 For server-owned imports, category targets, structural lineage, versioned
-review/unlock transitions, immutable audit events, and company-standard
+review/unlock transitions, post-commit audit telemetry, and company-standard
 provenance, use [transaction integrity](docs/architecture/transaction-integrity.md).
 
 Env example files are now split by purpose:
@@ -330,7 +330,8 @@ Command semantics and deploy-time verification details live in the
   suggested again.
 - Reversal-linked transaction identity, deletion, splitting, and transfer are
   protected until the workflow is cancelled or unmatched. Every reversal
-  transition is versioned and recorded in the immutable workflow audit trail.
+  transition is versioned in relational workflow state and emits sanitized
+  post-commit audit telemetry when audit logging is enabled.
 - Reversal comments are reserved for human notes rather than duplicating status
   pills or match details. Pending notes close automatically when a match is
   accepted, while unrelated transaction comments remain open.

@@ -17,7 +17,7 @@ import { asCategoryId, asSubCategoryId } from '../../../types';
 import { uid } from '../../../utils/id';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import { getDb } from '../../db/db';
-import { recordAuditEvent } from '../../audit/auditEvents';
+import { recordAuditLogEvent } from '../../logging/auditLogger';
 import type { DB } from '../../db/schema';
 import {
   buildDetachedProjectStandardMetadata,
@@ -431,8 +431,7 @@ export async function applyCompanyStandardsToProject(args: {
     projectId: args.projectId,
     actorUserId: args.actorUserId,
   });
-  await recordAuditEvent({
-    db: args.db,
+  await recordAuditLogEvent({
     companyId: args.companyId,
     projectId: args.projectId,
     actorUserId: args.actorUserId,
@@ -440,13 +439,6 @@ export async function applyCompanyStandardsToProject(args: {
     eventType: 'company_standards.reconciled',
     entityType: 'project',
     entityId: args.projectId,
-    reason: 'Applied company standards to project',
-    resultingState: {
-      categoriesAdded: result.categoriesAdded,
-      subCategoriesAdded: result.subCategoriesAdded,
-      importRulesSynced: true,
-      autoCodingRulesSynced: true,
-    },
   });
   return {
     ...result,

@@ -47,6 +47,10 @@ describe('projex systemd service', () => {
       'CapabilityBoundingSet=',
       'AmbientCapabilities=',
       'SystemCallArchitectures=native',
+      'StandardOutput=journal',
+      'StandardError=journal',
+      'LogRateLimitIntervalSec=30s',
+      'LogRateLimitBurst=1000',
     ]) {
       expect(directives.has(directive), directive).toBe(true);
     }

@@ -55,6 +55,7 @@ test('BetterAuth session failures retain request correlation without private exc
   assert.deepEqual(parsed.data, {
     level: 'error',
     type: 'auth_session_resolution_failed',
+    category: 'operational',
     requestId: 'req_auth_failure',
     method: 'GET',
     path: '/api/session',

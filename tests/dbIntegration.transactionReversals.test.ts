@@ -32,6 +32,15 @@ test(
   { skip: !integrationDatabaseUrl },
   async () => {
     const db = createIntegrationDb();
+    const auditLogs: Array<Record<string, unknown>> = [];
+    const originalConsoleInfo = console.info;
+    const originalAuditLogging = process.env.PROJEX_AUDIT_LOGGING;
+    process.env.PROJEX_AUDIT_LOGGING = 'true';
+    console.info = (message?: unknown) => {
+      if (typeof message === 'string') {
+        auditLogs.push(JSON.parse(message) as Record<string, unknown>);
+      }
+    };
     const companyId = asCompanyId('itest_txn_reversal_co_1');
     const userId = asUserId('itest_txn_reversal_usr_1');
     const sourceProjectId = asProjectId('itest_txn_reversal_prj_1');
@@ -331,15 +340,14 @@ test(
         'matched reversal counterpart cannot be deleted independently'
       );
 
-      const reversalAuditEvents = await db
-        .selectFrom('audit_events')
-        .select('event_type')
-        .where('project_id', '=', sourceProjectId)
-        .where('entity_type', '=', 'txn_reversal')
-        .orderBy('created_at', 'asc')
-        .execute();
+      const reversalAuditEvents = auditLogs.filter(
+        (event) =>
+          event.category === 'audit' &&
+          event.projectId === sourceProjectId &&
+          event.entityType === 'txn_reversal'
+      );
       assert.deepEqual(
-        reversalAuditEvents.map((event) => event.event_type),
+        reversalAuditEvents.map((event) => event.type),
         ['txn_reversal.pending_created', 'txn_reversal.matched_manually']
       );
 
@@ -479,6 +487,12 @@ test(
         },
       ]);
     } finally {
+      console.info = originalConsoleInfo;
+      if (typeof originalAuditLogging === 'undefined') {
+        delete process.env.PROJEX_AUDIT_LOGGING;
+      } else {
+        process.env.PROJEX_AUDIT_LOGGING = originalAuditLogging;
+      }
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db.deleteFrom('users').where('id', '=', userId).execute();
       await db.destroy();

@@ -16,6 +16,7 @@ import type {
   SubCategory,
 } from '../../../types';
 import { getDb } from '../../db/db';
+import { executeAuditedTransaction } from '../../db/auditedTransaction';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -204,16 +205,14 @@ export async function applyCompanyStandardsServer(args: {
       args.projectId,
       'taxonomy:edit'
     );
-    return getDb()
-      .transaction()
-      .execute((trx) =>
-        applyCompanyStandardsToProject({
-          db: trx,
-          companyId,
-          projectId: args.projectId,
-          actorUserId: userId,
-        })
-      );
+    return executeAuditedTransaction(getDb(), (trx) =>
+      applyCompanyStandardsToProject({
+        db: trx,
+        companyId,
+        projectId: args.projectId,
+        actorUserId: userId,
+      })
+    );
   });
 }
 

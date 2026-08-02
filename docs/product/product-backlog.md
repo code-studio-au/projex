@@ -9,11 +9,12 @@ point-in-time reviews are retained in the
 
 ## Awaiting Product Decision
 
-### Expand audit logging into a first-class product feature
+### Decide whether a first-class audit product is required
 
 Standing TODO: confirm the organisation's audit-retention, access, privacy, and
-export requirements before expanding the current immutable event history into
-an administrator-facing product.
+export requirements before building an administrator-facing audit product. The
+current centralized audit-category logger is deliberately best-effort
+operational telemetry and does not claim to be a durable compliance record.
 
 Examples:
 
@@ -33,10 +34,14 @@ Why this matters:
 
 - gives company admins visibility into who changed what and when
 - improves support and debugging without relying on memory or chat history
-- creates a defensible audit trail for sensitive finance and admin workflows
+- may create a defensible audit trail for sensitive finance and admin workflows
+  if governance requirements justify durable storage
 
 Design direction:
 
+- keep current telemetry sanitized, scalar-only, and independently switchable
+- if a durable audit product is approved, design its storage separately from
+  operational logging
 - audit broadly across meaningful user-entered, user-approved, and system-driven actions
 - show the audit trail to company admins
 - support retention policies by event class rather than one global retention window
@@ -51,9 +56,9 @@ Examples of retention strategy:
 
 Notes:
 
-- immutable workflow events already support important transaction review,
-  locking, import, reversal proposal/approval, and structural-integrity paths
-- remaining work needs careful event-coverage, schema, indexing, retention,
+- centralized audit-category telemetry already covers important transaction
+  review, locking, import, reversal, and structural-integrity paths when enabled
+- a durable product would need careful event coverage, schema, indexing, retention,
   access, export, and admin-UI design
 - do not choose retention periods or expose a broad audit UI until the
   organisation confirms its governance requirements

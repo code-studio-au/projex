@@ -11,9 +11,10 @@ import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import { getDb } from '../db/db';
+import { executeAuditedTransaction } from '../db/auditedTransaction';
 import { requireCompanyMember } from './resourceGuards';
 import { applyCompanyStandardsToProject } from './taxonomy/standards';
-import { recordAuditEvent } from '../audit/auditEvents';
+import { recordAuditLogEvent } from '../logging/auditLogger';
 import {
   assertContextProvided,
   requireServerUserId,
@@ -104,7 +105,7 @@ export async function createProjectServer(args: {
       parentProjectId,
     });
 
-    const row = await db.transaction().execute(async (trx) => {
+    const row = await executeAuditedTransaction(db, async (trx) => {
       const created = await trx
         .insertInto('projects')
         .values({
@@ -307,7 +308,7 @@ export async function updateProjectServer(args: {
 
     if (!Object.keys(patch).length) return toProject(existing);
 
-    const updated = await db.transaction().execute(async (trx) => {
+    const updated = await executeAuditedTransaction(db, async (trx) => {
       const nextProject = await trx
         .updateTable('projects')
         .set(patch)
@@ -328,8 +329,7 @@ export async function updateProjectServer(args: {
       }
 
       if (typeof args.input.allowSuperadminAccess !== 'undefined') {
-        await recordAuditEvent({
-          db: trx,
+        await recordAuditLogEvent({
           companyId,
           projectId,
           actorUserId: userId,
@@ -337,13 +337,6 @@ export async function updateProjectServer(args: {
           eventType: 'project.superadmin_access_changed',
           entityType: 'project',
           entityId: projectId,
-          reason: 'Changed project superadmin access',
-          previousState: {
-            allowSuperadminAccess: existing.allow_superadmin_access,
-          },
-          resultingState: {
-            allowSuperadminAccess: args.input.allowSuperadminAccess,
-          },
         });
       }
 

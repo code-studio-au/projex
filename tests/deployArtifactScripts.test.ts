@@ -248,6 +248,7 @@ async function createArtifactSourceTree(root: string, name = 'source') {
     'deploy/nginx/projex-compression.conf',
     'deploy/nginx/projex-request-limits.conf',
     'deploy/systemd/projex.service',
+    'deploy/systemd/projex-journald.conf',
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
@@ -329,6 +330,7 @@ async function createEc2Release(
     'deploy/nginx/projex-compression.conf',
     'deploy/nginx/projex-request-limits.conf',
     'deploy/systemd/projex.service',
+    'deploy/systemd/projex-journald.conf',
   ];
 
   await mkdir(releaseDir, { recursive: true });
@@ -338,6 +340,7 @@ async function createEc2Release(
     await writeFile(
       path,
       relativePath === 'deploy/systemd/projex.service' ||
+        relativePath === 'deploy/systemd/projex-journald.conf' ||
         relativePath === 'scripts/run-release-migrations.mjs' ||
         relativePath === 'scripts/env-file.mjs'
         ? await readFile(join(repoRoot, relativePath), 'utf8')
@@ -384,6 +387,12 @@ function runEc2Deploy(
       NGINX_REQUEST_LIMITS_PATH: join(appRoot, 'nginx', 'request-limits.conf'),
       NGINX_COMPRESSION_PATH: join(appRoot, 'nginx', 'compression.conf'),
       SYSTEMD_SERVICE_PATH: join(appRoot, 'systemd', 'projex.service'),
+      JOURNALD_CONFIG_PATH: join(
+        appRoot,
+        'systemd',
+        'journald',
+        '60-projex-limits.conf'
+      ),
       DEPLOY_USER: testDeployUser,
       DEPLOY_HOME: join(appRoot, 'shared', 'deploy-home'),
       DEPLOY_PATH: `${mockBin}:${process.env.PATH ?? ''}`,

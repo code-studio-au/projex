@@ -183,18 +183,11 @@ async function markAutoMatchPlanForReview(args: {
       if (!updated) return 0;
 
       await recordReversalTransition({
-        db: args.db,
         companyId: args.companyId,
         projectId: args.projectId,
         actorUserId: args.userId,
         reversalId: updated.id,
         eventType: 'txn_reversal.match_suggested',
-        reason: match.ambiguous
-          ? 'Created a deterministic default reversal proposal for an ambiguous candidate group'
-          : 'Created an unambiguous automatic reversal proposal',
-        previous,
-        resulting: updated as TxnReversalRow,
-        now,
       });
       return 1;
     })
@@ -251,16 +244,11 @@ async function resetUnselectedSuggestions(args: {
         .executeTakeFirst();
       if (!reset) return;
       await recordReversalTransition({
-        db: args.db,
         companyId: args.companyId,
         projectId: args.projectId,
         actorUserId: args.userId,
         reversalId: suggestion.id,
         eventType: 'txn_reversal.proposal_withdrawn',
-        reason: 'No compatible counterpart remained after full reconciliation',
-        previous: suggestion,
-        resulting: reset as TxnReversalRow,
-        now,
       });
     })
   );

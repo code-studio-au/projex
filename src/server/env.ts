@@ -34,6 +34,15 @@ function parseTrustedOrigins(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function validateOptionalEnumEnv(
+  name: string,
+  allowedValues: readonly string[]
+): void {
+  const value = process.env[name]?.trim().toLowerCase();
+  if (!value || allowedValues.includes(value)) return;
+  throwStartupEnvError('invalid_config_value', { configKey: name });
+}
+
 function parseHttpsUrl(
   value: string | undefined,
   options: { required?: boolean; label: string }
@@ -99,6 +108,9 @@ export function validateServerStartupEnv(): void {
   if (process.env.PROJEX_ENABLE_SMOKE_TOOLS === 'true') {
     throwStartupEnvError('smoke_tools_enabled');
   }
+
+  validateOptionalEnumEnv('PROJEX_LOG_LEVEL', ['off', 'error', 'warn', 'info']);
+  validateOptionalEnumEnv('PROJEX_AUDIT_LOGGING', ['true', 'false']);
 
   if (missing.length) {
     throwStartupEnvError('missing_required_env', {

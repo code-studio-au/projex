@@ -107,6 +107,11 @@ describe('buildHostBootstrapCommands', () => {
     );
     expect(bootstrapScript).toContain('/etc/systemd/system/projex.service');
     expect(bootstrapScript).toContain(
+      '/etc/systemd/journald.conf.d/60-projex-limits.conf'
+    );
+    expect(bootstrapScript).toContain('SystemMaxUse=512M');
+    expect(bootstrapScript).toContain('systemctl restart systemd-journald');
+    expect(bootstrapScript).toContain(
       '/usr/local/bin/projex-provision-letsencrypt-cert'
     );
   });

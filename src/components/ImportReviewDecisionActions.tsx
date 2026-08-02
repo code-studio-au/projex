@@ -17,8 +17,8 @@ export default function ImportReviewDecisionActions(props: {
     <Group justify="space-between" align="center" mb="sm" wrap="wrap">
       <Text size="sm" c="dimmed">
         Every row must be imported without coding or excluded before this import
-        can continue. The matched rule and your decision remain in the import
-        audit trail.
+        can continue. The matched rule and your decision remain with the import
+        batch.
       </Text>
       <Group gap="xs" wrap="wrap">
         <Button
