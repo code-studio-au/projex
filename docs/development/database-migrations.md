@@ -97,4 +97,9 @@ Current runner safeguards:
 
 Ownership migrations should prefer composite company/project foreign keys for
 live operational state. Operational audit telemetry belongs in the central
-structured logger, not in new application database tables.
+structured logger, not in new application database tables. The retired
+`audit_events` table is temporarily retained only because the current N-1
+rollback candidate still writes it. Migration `0036` is therefore a
+non-destructive compatibility marker, and `0037` forward-repairs any environment
+that applied the original drop. Remove the table in a later contract release
+only after a logger-only release is active and retained as N-1.

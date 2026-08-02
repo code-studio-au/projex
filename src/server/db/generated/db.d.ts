@@ -26,6 +26,24 @@ export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
+export interface AuditEvents {
+  actor_user_id: string;
+  company_id: string;
+  created_at: Timestamp;
+  entity_id: string;
+  entity_type: string;
+  event_class: string;
+  event_type: string;
+  id: string;
+  metadata: Generated<Json>;
+  previous_state: Generated<Json>;
+  project_id: string | null;
+  reason: string;
+  resulting_state: Generated<Json>;
+  retain_until: Timestamp | null;
+  retention_class: string;
+}
+
 export interface BaAccount {
   accessToken: string | null;
   accessTokenExpiresAt: Timestamp | null;
@@ -474,6 +492,7 @@ export interface Users {
 }
 
 export interface DB {
+  audit_events: AuditEvents;
   ba_account: BaAccount;
   ba_session: BaSession;
   ba_user: BaUser;

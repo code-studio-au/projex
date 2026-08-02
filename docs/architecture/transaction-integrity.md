@@ -99,7 +99,10 @@ only after it commits. A rejected transaction discards its buffer. Entries
 contain reviewed scalar identifiers and stable classifications only; they omit
 free-form reasons, state snapshots, request bodies, comments, and financial
 payloads. Output is best effort and is not a durable compliance record. The
-application database has no audit-log table.
+current application does not write audit telemetry to the database. A retired
+`audit_events` table remains temporarily as a write-compatible surface for N-1
+rollback only; it must be removed in a later contract release after the
+logger-only application is no longer the rollback candidate.
 
 On the current EC2 host, stdout and stderr are collected by journald with a
 512 MiB persistent cap, 2 GiB free-space reserve, seven-day maximum retention,
