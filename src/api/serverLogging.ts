@@ -1,6 +1,6 @@
 export type ServerLogLevel = 'info' | 'warn' | 'error';
 
-export type ServerLogCategory = 'operational' | 'audit';
+type ServerLogCategory = 'operational' | 'audit';
 
 type ServerLogFieldValue = string | number | boolean | null;
 
