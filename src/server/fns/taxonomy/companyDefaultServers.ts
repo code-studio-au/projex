@@ -26,6 +26,7 @@ import {
 } from '../../../validation/schemas';
 import { validateOrThrow } from '../../../validation/validate';
 import { getDb } from '../../db/db';
+import { executeAuditedTransaction } from '../../db/auditedTransaction';
 import {
   assertContextProvided,
   type ServerFnContextInput,
@@ -144,7 +145,7 @@ export async function createCompanyDefaultCategoryServer(args: {
 
     const id = args.input.id ?? asCompanyDefaultCategoryId(uid('ccat'));
     const now = new Date().toISOString();
-    const row = await db.transaction().execute(async (trx) => {
+    const row = await executeAuditedTransaction(db, async (trx) => {
       const created = await trx
         .insertInto('company_default_categories')
         .values({
@@ -223,7 +224,7 @@ export async function updateCompanyDefaultCategoryServer(args: {
       patch.name = args.input.name.trim();
     }
     patch.updated_at = new Date().toISOString();
-    const updated = await db.transaction().execute(async (trx) => {
+    const updated = await executeAuditedTransaction(db, async (trx) => {
       const row = await trx
         .updateTable('company_default_categories')
         .set(patch)
@@ -265,7 +266,7 @@ export async function deleteCompanyDefaultCategoryServer(args: {
       'company:manage_defaults'
     );
     const db = getDb();
-    await db.transaction().execute(async (trx) => {
+    await executeAuditedTransaction(db, async (trx) => {
       await trx
         .deleteFrom('company_default_categories')
         .where('company_id', '=', args.companyId)
@@ -327,7 +328,7 @@ export async function createCompanyDefaultSubCategoryServer(args: {
 
     const id = args.input.id ?? asCompanyDefaultSubCategoryId(uid('csub'));
     const now = new Date().toISOString();
-    const row = await db.transaction().execute(async (trx) => {
+    const row = await executeAuditedTransaction(db, async (trx) => {
       const created = await trx
         .insertInto('company_default_sub_categories')
         .values({
@@ -429,7 +430,7 @@ export async function updateCompanyDefaultSubCategoryServer(args: {
       patch.company_default_category_id = args.input.companyDefaultCategoryId;
     }
     patch.updated_at = new Date().toISOString();
-    const updated = await db.transaction().execute(async (trx) => {
+    const updated = await executeAuditedTransaction(db, async (trx) => {
       const row = await trx
         .updateTable('company_default_sub_categories')
         .set(patch)
@@ -519,7 +520,7 @@ export async function deleteCompanyDefaultSubCategoryServer(args: {
       }
     }
 
-    await db.transaction().execute(async (trx) => {
+    await executeAuditedTransaction(db, async (trx) => {
       if (replacement) {
         await trx
           .updateTable('company_default_mapping_rules')
@@ -608,7 +609,7 @@ export async function createCompanyDefaultMappingRuleServer(args: {
         ? args.input.sortOrder
         : Number(maxSort?.max_sort_order ?? -1) + 1;
     const now = new Date().toISOString();
-    const row = await db.transaction().execute(async (trx) => {
+    const row = await executeAuditedTransaction(db, async (trx) => {
       const created = await trx
         .insertInto('company_default_mapping_rules')
         .values({
@@ -718,7 +719,7 @@ export async function updateCompanyDefaultMappingRuleServer(args: {
       patch.sort_order = args.input.sortOrder;
     }
 
-    const updated = await db.transaction().execute(async (trx) => {
+    const updated = await executeAuditedTransaction(db, async (trx) => {
       const row = await trx
         .updateTable('company_default_mapping_rules')
         .set(patch)
@@ -760,7 +761,7 @@ export async function deleteCompanyDefaultMappingRuleServer(args: {
       'company:manage_defaults'
     );
     const db = getDb();
-    await db.transaction().execute(async (trx) => {
+    await executeAuditedTransaction(db, async (trx) => {
       await trx
         .deleteFrom('company_default_mapping_rules')
         .where('company_id', '=', args.companyId)

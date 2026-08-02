@@ -14,10 +14,19 @@ import {
 } from './dbIntegration.helpers';
 
 test(
-  'unlock requests separate editor and reviewer permissions with immutable versioned audit events',
+  'unlock requests separate permissions and emit post-commit audit telemetry',
   { skip: !integrationDatabaseUrl },
   async () => {
     const db = createIntegrationDb();
+    const auditLogs: Array<Record<string, unknown>> = [];
+    const originalConsoleInfo = console.info;
+    const originalAuditLogging = process.env.PROJEX_AUDIT_LOGGING;
+    process.env.PROJEX_AUDIT_LOGGING = 'true';
+    console.info = (message?: unknown) => {
+      if (typeof message === 'string') {
+        auditLogs.push(JSON.parse(message) as Record<string, unknown>);
+      }
+    };
     const companyId = asCompanyId('itest_workflow_audit_co_1');
     const projectId = asProjectId('itest_workflow_audit_prj_1');
     const memberUserId = asUserId('itest_workflow_audit_member_1');
@@ -209,35 +218,36 @@ test(
           error.code === 'CONFLICT'
       );
 
-      const auditRows = await db
-        .selectFrom('audit_events')
-        .select(['id', 'event_type', 'reason', 'retention_class'])
-        .where('company_id', '=', companyId)
-        .where('entity_type', '=', 'transaction')
-        .where('entity_id', '=', txnId)
-        .where('created_at', '>=', startedAt)
-        .orderBy('created_at', 'asc')
-        .execute();
+      const auditRows = auditLogs.filter(
+        (row) =>
+          row.category === 'audit' &&
+          row.companyId === companyId &&
+          row.entityType === 'transaction' &&
+          row.entityId === txnId
+      );
       assert.deepEqual(
-        auditRows.map((row) => row.event_type),
+        auditRows.map((row) => row.type),
         [
           'transaction.locked',
           'transaction.unlock_requested',
           'transaction.unlock_approved',
         ]
       );
-      assert.equal(auditRows[1]?.reason, 'Coding needs to be corrected');
-      assert.ok(auditRows.every((row) => row.retention_class === 'financial'));
-
-      await assert.rejects(
-        db
-          .updateTable('audit_events')
-          .set({ reason: 'Attempted audit rewrite' })
-          .where('id', '=', auditRows[0]!.id)
-          .execute(),
-        /audit events are immutable/
+      assert.ok(
+        auditRows.every(
+          (row) =>
+            row.level === 'info' &&
+            row.outcome === 'succeeded' &&
+            !('reason' in row)
+        )
       );
     } finally {
+      console.info = originalConsoleInfo;
+      if (typeof originalAuditLogging === 'undefined') {
+        delete process.env.PROJEX_AUDIT_LOGGING;
+      } else {
+        process.env.PROJEX_AUDIT_LOGGING = originalAuditLogging;
+      }
       await db.deleteFrom('companies').where('id', '=', companyId).execute();
       await db
         .deleteFrom('users')

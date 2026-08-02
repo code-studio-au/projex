@@ -18,7 +18,8 @@ import {
   normalizeExternalId,
 } from '../../../utils/transactions';
 import { toTxn } from '../../mappers/transactionRows';
-import { recordAuditEvent } from '../../audit/auditEvents';
+import { executeAuditedTransaction } from '../../db/auditedTransaction';
+import { recordAuditLogEvent } from '../../logging/auditLogger';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
@@ -88,7 +89,7 @@ export async function splitTxnServer(args: {
       ...split.children,
     ]);
 
-    return db.transaction().execute(async (trx) => {
+    return executeAuditedTransaction(db, async (trx) => {
       await lockProjectReversalWorkflow({
         db: trx,
         projectId: args.projectId,
@@ -198,8 +199,7 @@ export async function splitTxnServer(args: {
           })),
       });
 
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId: context.companyId,
         projectId: args.projectId,
         actorUserId: context.userId,
@@ -207,18 +207,7 @@ export async function splitTxnServer(args: {
         eventType: 'transaction.split',
         entityType: 'transaction',
         entityId: split.parent.id,
-        reason: 'Split transaction into balanced child transactions',
-        previousState: {
-          txnType: parentTxn.txnType,
-          amountCents: parentTxn.amountCents,
-          budgetImpact: parentTxn.budgetImpact,
-        },
-        resultingState: {
-          txnType: split.parent.txnType,
-          childTxnIds: split.children.map((child) => child.id),
-          childAmountCents: split.children.map((child) => child.amountCents),
-        },
-        nowIso: now,
+        affectedCount: split.children.length,
       });
 
       return { parent: toTxn(parent), children: children.map(toTxn) };
@@ -299,7 +288,7 @@ export async function transferTxnServer(args: {
       transfer.destination,
     ]);
 
-    return db.transaction().execute(async (trx) => {
+    return executeAuditedTransaction(db, async (trx) => {
       await lockProjectReversalWorkflow({
         db: trx,
         projectId: args.projectId,
@@ -386,8 +375,7 @@ export async function transferTxnServer(args: {
         })
         .execute();
 
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId: sourceContext.companyId,
         projectId: args.projectId,
         actorUserId: sourceContext.userId,
@@ -395,19 +383,6 @@ export async function transferTxnServer(args: {
         eventType: 'transaction.transferred',
         entityType: 'transaction',
         entityId: transfer.source.id,
-        reason: 'Transferred transaction to another project',
-        previousState: {
-          projectId: args.projectId,
-          txnType: sourceTxn.txnType,
-          amountCents: sourceTxn.amountCents,
-        },
-        resultingState: {
-          sourceTxnType: transfer.source.txnType,
-          destinationProjectId: args.input.destinationProjectId,
-          destinationTxnId: transfer.destination.id,
-          amountCents: transfer.destination.amountCents,
-        },
-        nowIso: now,
       });
 
       return { source: toTxn(source), destination: toTxn(destination) };

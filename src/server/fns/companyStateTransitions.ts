@@ -1,7 +1,8 @@
 import { AppError } from '../../api/errors';
 import type { CompanyId } from '../../types';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
-import { recordAuditEvent } from '../audit/auditEvents';
+import { executeAuditedTransaction } from '../db/auditedTransaction';
+import { recordAuditLogEvent } from '../logging/auditLogger';
 import { getDb } from '../db/db';
 import { deleteCompanyExportObject } from '../storage/exportObjectStore.ts';
 import {
@@ -31,25 +32,20 @@ export async function deactivateCompanyServer(args: {
     if (company.status === 'deactivated') return;
 
     const now = new Date().toISOString();
-    await db.transaction().execute(async (trx) => {
+    await executeAuditedTransaction(db, async (trx) => {
       await trx
         .updateTable('companies')
         .set({ status: 'deactivated', deactivated_at: now })
         .where('id', '=', args.companyId)
         .execute();
 
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId: args.companyId,
         actorUserId: sessionUserId,
         eventClass: 'lifecycle',
         eventType: 'company.deactivated',
         entityType: 'company',
         entityId: args.companyId,
-        reason: 'Deactivated company and archived active projects',
-        previousState: { status: company.status },
-        resultingState: { status: 'deactivated' },
-        nowIso: now,
       });
 
       await trx
@@ -124,26 +120,20 @@ export async function reactivateCompanyServer(args: {
     if (!company) throw new AppError('NOT_FOUND', 'Company not found');
     if (company.status === 'active') return;
 
-    await db.transaction().execute(async (trx) => {
-      const now = new Date().toISOString();
+    await executeAuditedTransaction(db, async (trx) => {
       await trx
         .updateTable('companies')
         .set({ status: 'active', deactivated_at: null })
         .where('id', '=', args.companyId)
         .execute();
 
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId: args.companyId,
         actorUserId: sessionUserId,
         eventClass: 'lifecycle',
         eventType: 'company.reactivated',
         entityType: 'company',
         entityId: args.companyId,
-        reason: 'Reactivated company and archived projects',
-        previousState: { status: company.status },
-        resultingState: { status: 'active' },
-        nowIso: now,
       });
 
       await trx
@@ -224,7 +214,7 @@ export async function deleteCompanyServer(args: {
       )
     );
 
-    await db.transaction().execute(async (trx) => {
+    await executeAuditedTransaction(db, async (trx) => {
       const affectedUserIds = (
         await trx
           .selectFrom('company_memberships')
@@ -234,17 +224,13 @@ export async function deleteCompanyServer(args: {
           .execute()
       ).map((row) => row.user_id);
 
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId: args.companyId,
         actorUserId: sessionUserId,
         eventClass: 'lifecycle',
         eventType: 'company.deleted',
         entityType: 'company',
         entityId: args.companyId,
-        reason: 'Permanently deleted deactivated company',
-        previousState: { name: company.name, status: company.status },
-        resultingState: { deleted: true },
       });
 
       await trx

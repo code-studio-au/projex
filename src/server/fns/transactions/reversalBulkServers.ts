@@ -2,6 +2,7 @@ import { AppError } from '../../../api/errors';
 import type { TxnBulkActionResult } from '../../../api/types';
 import type { ProjectId, TxnId } from '../../../types';
 import { asTxnId } from '../../../types';
+import { executeAuditedTransaction } from '../../db/auditedTransaction';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
   assertContextProvided,
@@ -27,7 +28,7 @@ export async function reconcilePendingTxnReversalsServer(args: {
       args.projectId,
       'txns:manage_reversals'
     );
-    const result = await context.db.transaction().execute((trx) =>
+    const result = await executeAuditedTransaction(context.db, (trx) =>
       reconcilePendingReversalMatches({
         db: trx,
         companyId: context.companyId,
@@ -61,8 +62,11 @@ export async function approveSuggestedTxnReversalsBulkServer(args: {
       'txns:manage_reversals'
     );
 
-    return context.db.transaction().execute(async (trx) => {
-      await lockProjectReversalWorkflow({ db: trx, projectId: args.projectId });
+    return executeAuditedTransaction(context.db, async (trx) => {
+      await lockProjectReversalWorkflow({
+        db: trx,
+        projectId: args.projectId,
+      });
       const requestedIds = args.reversalIds ?? args.txnIds ?? [];
       if (!requestedIds.length) {
         throw new AppError(

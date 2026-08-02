@@ -21,7 +21,6 @@ import {
   getReversalRowForAnyTxn,
   getTxnOrThrow,
   isSuggestedReversalStatus,
-  type TxnReversalRow,
 } from './reversalDomain';
 import {
   assertExpectedReversalVersion,
@@ -128,9 +127,6 @@ export async function approveSuggestedTxnReversalMatch(
   assertSourceTxnEligible(sourceTxn);
   assertCounterpartTxnEligible({ sourceTxn, counterpartTxn });
   assertSuggestedMatchMetadataCompatible({ sourceTxn, counterpartTxn });
-  const isAmbiguousSuggested =
-    reversal.status === 'auto_matched_ambiguous_pending_approval';
-
   const updated = await args.db
     .updateTable('txn_reversals')
     .set({
@@ -168,18 +164,11 @@ export async function approveSuggestedTxnReversalMatch(
       ...omitUndefinedProperties({ commentBody: args.commentBody }),
     }),
     recordReversalTransition({
-      db: args.db,
       companyId: args.companyId,
       projectId: args.projectId,
       actorUserId: args.userId,
       reversalId: reversal.id,
       eventType: 'txn_reversal.match_approved',
-      reason: isAmbiguousSuggested
-        ? 'Approved the deterministic default reversal proposal'
-        : 'Approved the automatic reversal proposal',
-      previous: reversal,
-      resulting: updated as TxnReversalRow,
-      now: args.now,
     }),
   ]);
 
@@ -239,9 +228,6 @@ export async function rejectSuggestedTxnReversalMatch(
   ]);
   assertTxnUnlocked(sourceTxn);
   assertTxnUnlocked(counterpartTxn);
-  const isAmbiguousSuggested =
-    reversal.status === 'auto_matched_ambiguous_pending_approval';
-
   await recordRejectedReversalPair({
     ...args,
     sourceTxnId,
@@ -285,18 +271,11 @@ export async function rejectSuggestedTxnReversalMatch(
       body: args.commentBody ?? '',
     }),
     recordReversalTransition({
-      db: args.db,
       companyId: args.companyId,
       projectId: args.projectId,
       actorUserId: args.userId,
       reversalId: reversal.id,
       eventType: 'txn_reversal.match_rejected',
-      reason: isAmbiguousSuggested
-        ? 'Rejected the deterministic default reversal proposal'
-        : 'Rejected the automatic reversal proposal',
-      previous: reversal,
-      resulting: updated as TxnReversalRow,
-      now: args.now,
     }),
   ]);
 
@@ -402,17 +381,11 @@ export async function unmatchTxnReversal(
       body: args.commentBody,
     }),
     recordReversalTransition({
-      db: args.db,
       companyId: args.companyId,
       projectId: args.projectId,
       actorUserId: args.userId,
       reversalId: reversal.id,
       eventType: 'txn_reversal.unmatched',
-      reason:
-        'Removed the approved reversal match and returned the source to pending',
-      previous: reversal,
-      resulting: updated as TxnReversalRow,
-      now: args.now,
     }),
   ]);
 

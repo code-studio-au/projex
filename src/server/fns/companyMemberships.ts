@@ -5,7 +5,8 @@ import { asUserId } from '../../types';
 import { emailSchema, userNameSchema } from '../../validation/schemas';
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
-import { recordAuditEvent } from '../audit/auditEvents';
+import { executeAuditedTransaction } from '../db/auditedTransaction';
+import { recordAuditLogEvent } from '../logging/auditLogger';
 import { getDb } from '../db/db';
 import { enforceRateLimit } from '../rateLimit';
 import {
@@ -112,7 +113,7 @@ export async function createUserInCompanyServer(args: {
         'Too many company invite actions. Please wait a few minutes and try again.',
     });
 
-    const membership = await db.transaction().execute(async (trx) => {
+    const membership = await executeAuditedTransaction(db, async (trx) => {
       const result = await ensureCompanyUserMembership({
         db: trx,
         companyId: args.companyId,
@@ -120,8 +121,7 @@ export async function createUserInCompanyServer(args: {
         email: args.email,
         role: args.role,
       });
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId: args.companyId,
         actorUserId: sessionUserId,
         eventClass: 'membership',
@@ -130,11 +130,6 @@ export async function createUserInCompanyServer(args: {
           : 'company_membership.role_changed',
         entityType: 'company_membership',
         entityId: `${args.companyId}:${result.user.id}`,
-        reason: result.membershipCreated
-          ? 'Added user to company'
-          : 'Updated company membership role',
-        previousState: { role: result.previousRole },
-        resultingState: { role: args.role, userId: result.user.id },
       });
       return result;
     });

@@ -89,8 +89,9 @@ reversal has not been imported yet.
 - Linked transaction identity is immutable while a reversal workflow exists.
   Users must cancel or unmatch the workflow before changing matching fields,
   deleting, splitting, or transferring either side.
-- Every proposal and state transition increments an optimistic version and
-  writes an immutable financial workflow audit event in the same transaction.
+- Every proposal and state transition increments an optimistic version and,
+  when audit logging is enabled, emits sanitized audit telemetry only after the
+  transaction commits.
 - Transaction comments contain human notes rather than repeating the reversal
   status, pair details, or internal IDs. Automatic suggestions do not create
   comments because their state and evidence are already visible in the table

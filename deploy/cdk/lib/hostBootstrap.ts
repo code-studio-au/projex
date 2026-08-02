@@ -41,6 +41,7 @@ chmod ${mode} ${targetPath}`;
 
 export function buildHostBootstrapCommands() {
   const systemdService = readRepoFile('deploy/systemd/projex.service');
+  const journaldConfig = readRepoFile('deploy/systemd/projex-journald.conf');
   const bootstrapNginx = readRepoFile('deploy/nginx/projex.bootstrap.conf');
   const httpsNginxTemplate = readRepoFile(
     'deploy/nginx/projex.https.conf.template'
@@ -91,7 +92,7 @@ export function buildHostBootstrapCommands() {
     'sudo -u ec2-user /usr/local/bin/pnpm --version',
     'rm -rf -- "$PROJEX_NODE_TMP"',
     'trap - EXIT',
-    'install -d -m 0755 /opt/projex/releases /opt/projex/shared/nginx-maintenance /etc/projex /var/www/certbot/.well-known/acme-challenge',
+    'install -d -m 0755 /opt/projex/releases /opt/projex/shared/nginx-maintenance /etc/projex /etc/systemd/journald.conf.d /var/www/certbot/.well-known/acme-challenge',
     'PROJEX_RDS_CA_TMP="$(mktemp /etc/projex/.rds-global-bundle.pem.XXXXXX)"',
     'trap \'rm -f -- "$PROJEX_RDS_CA_TMP"\' EXIT',
     `curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 ${rdsGlobalCaBundleUrl} --output "$PROJEX_RDS_CA_TMP"`,
@@ -111,6 +112,11 @@ export function buildHostBootstrapCommands() {
     installFileCommand(
       '/etc/systemd/system/projex.service',
       systemdService,
+      '0644'
+    ),
+    installFileCommand(
+      '/etc/systemd/journald.conf.d/60-projex-limits.conf',
+      journaldConfig,
       '0644'
     ),
     installFileCommand('/etc/nginx/conf.d/projex.conf', bootstrapNginx, '0644'),
@@ -135,6 +141,7 @@ export function buildHostBootstrapCommands() {
       '0755'
     ),
     'systemctl daemon-reload',
+    'systemctl restart systemd-journald',
     'systemctl enable projex',
     'systemctl enable nginx',
     'nginx -t',

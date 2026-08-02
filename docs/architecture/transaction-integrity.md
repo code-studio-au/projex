@@ -63,13 +63,13 @@ lineage links atomically.
 
 ## Review, Lock, And Unlock Workflow
 
-Transaction review state is a fast projection backed by an immutable workflow
-history. Every transition increments `txns.workflow_version`; callers must send
-the version they read, and stale commands fail without partially changing the
-transaction.
+Transaction review state is a versioned relational projection. Every transition
+increments `txns.workflow_version`; callers must send the version they read, and
+stale commands fail without partially changing the transaction.
 
-- Review and reopen transitions record the actor, reason, previous state, and
-  resulting state in `audit_events`.
+- Review and reopen transitions emit sanitized audit telemetry after commit
+  when audit logging is enabled. User-entered reasons remain in their dedicated
+  workflow records and are never copied into logs.
 - A transaction can be locked only after valid coding is complete, coding
   approval is resolved, and any reversal workflow is fully matched.
 - Locking protects the transaction from coding, taxonomy, deletion, and
@@ -83,24 +83,28 @@ transaction.
   provide a reason.
 
 Pending unlock requests are included in the transaction `Needs review` view.
-Requests, decisions, and direct administrative unlocks are distinct events, so
-discussion comments are never used as the authoritative history.
+Requests, decisions, and direct administrative unlocks remain distinct domain
+transitions. Discussion comments are not used as authoritative workflow state.
 
-## Immutable Audit Events
+## Structured Audit Telemetry
 
-`audit_events` is the shared append-only boundary for workflow, imports, coding,
-taxonomy, structural changes, rules, membership, access, lifecycle, and company
-standard inheritance. Financial and security events are retained for seven
-years; operational taxonomy, rule, and inheritance events are retained for two
-years. Database triggers reject updates and ordinary deletes, including changes
-made outside the application layer.
+Workflow, import, coding, taxonomy, structural, rule, membership, access,
+lifecycle, and company-standard inheritance events share the central structured
+server logger. `PROJEX_AUDIT_LOGGING=false` disables this category without
+affecting application behavior; `PROJEX_LOG_LEVEL` independently controls
+operational logs.
 
-Events are written inside the same database transaction as their protected
-mutation. Each event identifies its company, optional project, actor, entity,
-reason, previous state, resulting state, and retention class. User comments
-remain editable discussion and do not replace this immutable record.
-Entity IDs are historical soft references rather than cascading foreign keys,
-allowing the immutable event to survive an intentional project deletion.
+Mutation events are buffered while their database transaction runs and emitted
+only after it commits. A rejected transaction discards its buffer. Entries
+contain reviewed scalar identifiers and stable classifications only; they omit
+free-form reasons, state snapshots, request bodies, comments, and financial
+payloads. Output is best effort and is not a durable compliance record. The
+application database has no audit-log table.
+
+On the current EC2 host, stdout and stderr are collected by journald with a
+512 MiB persistent cap, 2 GiB free-space reserve, seven-day maximum retention,
+compression, and per-service rate limiting. A future Datadog Agent may collect
+the same journal stream without changing application call sites.
 
 ## Tenant Ownership
 
@@ -130,4 +134,5 @@ foreign-key validation while sharing this transition model.
 
 Company-standard synchronization preloads source and project state in batches,
 then reconciles each project within the calling transaction. Manual application
-and automatic propagation both emit inheritance audit events.
+and automatic propagation both emit inheritance audit logs after commit when
+enabled.

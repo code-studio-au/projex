@@ -10,7 +10,8 @@ import { asUserId } from '../../../types';
 import { planTxnWorkflowState } from '../../../utils/transactionWorkflow';
 import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { requireAuthorized } from '../../auth/authorize';
-import { recordAuditEvent } from '../../audit/auditEvents';
+import { executeAuditedTransaction } from '../../db/auditedTransaction';
+import { recordAuditLogEvent } from '../../logging/auditLogger';
 import type { DB } from '../../db/schema';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import {
@@ -135,9 +136,12 @@ export async function bulkTxnActionServer(args: {
       }
     }
 
-    return context.db.transaction().execute(async (trx) => {
+    return executeAuditedTransaction(context.db, async (trx) => {
       const now = new Date().toISOString();
-      await lockProjectReversalWorkflow({ db: trx, projectId: args.projectId });
+      await lockProjectReversalWorkflow({
+        db: trx,
+        projectId: args.projectId,
+      });
 
       if (args.input.action === 'approveAllAutoMappings') {
         const validSubCategory = txnValidSubCategorySql('txns');
@@ -157,8 +161,7 @@ export async function bulkTxnActionServer(args: {
           .execute();
 
         if (updatedRows.length) {
-          await recordAuditEvent({
-            db: trx,
+          await recordAuditLogEvent({
             companyId: context.companyId,
             projectId: args.projectId,
             actorUserId: context.userId,
@@ -166,11 +169,7 @@ export async function bulkTxnActionServer(args: {
             eventType: 'transaction_coding.bulk_approved',
             entityType: 'project',
             entityId: args.projectId,
-            reason: 'Approved all eligible automatic coding',
-            resultingState: {
-              updatedTxnIds: updatedRows.map((row) => row.public_id),
-            },
-            nowIso: now,
+            affectedCount: updatedRows.length,
           });
         }
 
@@ -554,15 +553,7 @@ export async function bulkTxnActionServer(args: {
             : workflowInput.locked
               ? 'transaction.locked'
               : 'transaction.admin_unlocked';
-        const reason =
-          workflowInput.reason?.trim() ||
-          (eventType === 'transaction.reviewed'
-            ? 'Bulk transaction review'
-            : eventType === 'transaction.reopened'
-              ? 'Bulk reopen for further review'
-              : 'Bulk transaction lock');
-        await recordAuditEvent({
-          db: trx,
+        await recordAuditLogEvent({
           companyId: context.companyId,
           projectId: args.projectId,
           actorUserId: context.userId,
@@ -570,22 +561,6 @@ export async function bulkTxnActionServer(args: {
           eventType,
           entityType: 'transaction',
           entityId: row.public_id,
-          reason,
-          previousState: {
-            reviewedAt: row.reviewed_at,
-            reviewedByUserId: row.reviewed_by_user_id,
-            lockedAt: row.locked_at,
-            lockedByUserId: row.locked_by_user_id,
-            workflowVersion: row.workflow_version,
-          },
-          resultingState: {
-            reviewedAt: patch.reviewed_at,
-            reviewedByUserId: patch.reviewed_by_user_id,
-            lockedAt: patch.locked_at,
-            lockedByUserId: patch.locked_by_user_id,
-            workflowVersion: row.workflow_version + 1,
-          },
-          nowIso: now,
         });
         updatedCount += 1;
       }
@@ -610,8 +585,7 @@ export async function bulkTxnActionServer(args: {
           args.input.action === 'clearCoding' ||
           args.input.action === 'recode')
       ) {
-        await recordAuditEvent({
-          db: trx,
+        await recordAuditLogEvent({
           companyId: context.companyId,
           projectId: args.projectId,
           actorUserId: context.userId,
@@ -619,15 +593,7 @@ export async function bulkTxnActionServer(args: {
           eventType: `transaction_coding.${args.input.action}`,
           entityType: 'project',
           entityId: args.projectId,
-          reason:
-            args.input.action === 'recode'
-              ? 'Bulk recoded selected transactions'
-              : args.input.action === 'clearCoding'
-                ? 'Cleared coding from selected transactions'
-                : 'Approved automatic coding for selected transactions',
-          previousState: { requestedTxnIds: args.input.txnIds },
-          resultingState: { updatedCount },
-          nowIso: now,
+          affectedCount: updatedCount,
         });
       }
 

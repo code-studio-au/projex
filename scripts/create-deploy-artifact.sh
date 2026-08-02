@@ -106,6 +106,7 @@ require_source_path "patches/brace-expansion@5.0.8.patch"
 require_tooling_path "scripts/deploy-artifact-ssm.sh"
 require_tooling_path "scripts/deploy-artifact-ec2.sh"
 require_tooling_path "deploy/systemd/projex.service"
+require_tooling_path "deploy/systemd/projex-journald.conf"
 require_tooling_path "deploy/nginx/maintenance.html"
 require_tooling_path "deploy/nginx/maintenance.js"
 require_tooling_path "deploy/nginx/projex-compression.conf"
@@ -147,6 +148,7 @@ tar -czf "$ARTIFACT_PATH" \
   scripts/deploy-artifact-ssm.sh \
   scripts/deploy-artifact-ec2.sh \
   deploy/systemd/projex.service \
+  deploy/systemd/projex-journald.conf \
   deploy/nginx \
   -C "$MANIFEST_DIR" \
   .projex-release.json

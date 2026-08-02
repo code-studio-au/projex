@@ -96,6 +96,5 @@ Current runner safeguards:
   release
 
 Ownership migrations should prefer composite company/project foreign keys for
-live operational state. Append-only audit records are the deliberate exception:
-their entity IDs remain historical soft references so project deletion cannot
-erase or invalidate immutable history.
+live operational state. Operational audit telemetry belongs in the central
+structured logger, not in new application database tables.

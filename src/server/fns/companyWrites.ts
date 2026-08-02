@@ -16,7 +16,8 @@ import {
 import { validateOrThrow } from '../../validation/validate';
 import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
-import { recordAuditEvent } from '../audit/auditEvents';
+import { executeAuditedTransaction } from '../db/auditedTransaction';
+import { recordAuditLogEvent } from '../logging/auditLogger';
 import { getDb } from '../db/db';
 import { seedCompanyImportRuleBaseline } from './importRules';
 import {
@@ -56,7 +57,7 @@ export async function createCompanyServer(args: {
     const trimmedCompanyName = args.input.name.trim();
     let initialAdminResult: CompanyCreateResult['initialAdmin'];
 
-    const company = await db.transaction().execute(async (trx) => {
+    const company = await executeAuditedTransaction(db, async (trx) => {
       await trx
         .insertInto('companies')
         .values({
@@ -87,20 +88,13 @@ export async function createCompanyServer(args: {
         onboardingDelivery: 'none',
       };
 
-      await recordAuditEvent({
-        db: trx,
+      await recordAuditLogEvent({
         companyId,
         actorUserId: userId,
         eventClass: 'lifecycle',
         eventType: 'company.created',
         entityType: 'company',
         entityId: companyId,
-        reason: 'Created company',
-        resultingState: {
-          name: trimmedCompanyName,
-          status: 'active',
-          initialAdminUserId: membership.user.id,
-        },
       });
 
       return {

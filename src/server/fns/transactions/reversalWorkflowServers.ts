@@ -9,6 +9,7 @@ import type {
 import { uid } from '../../../utils/id';
 import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import type { TxnReversalTable } from '../../db/schema';
+import { executeAuditedTransaction } from '../../db/auditedTransaction';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
   assertContextProvided,
@@ -61,7 +62,7 @@ export async function applyTxnReversalActionServer(args: {
       'txns:manage_reversals'
     );
 
-    return context.db.transaction().execute(async (trx) => {
+    return executeAuditedTransaction(context.db, async (trx) => {
       const now = new Date().toISOString();
       await lockProjectReversalWorkflow({
         db: trx,
@@ -161,7 +162,6 @@ export async function applyTxnReversalActionServer(args: {
             }),
           }),
           recordReversalTransition({
-            db: trx,
             companyId: context.companyId,
             projectId: args.projectId,
             actorUserId: context.userId,
@@ -169,12 +169,6 @@ export async function applyTxnReversalActionServer(args: {
             eventType: current
               ? 'txn_reversal.pending_updated'
               : 'txn_reversal.pending_created',
-            reason: current
-              ? 'Updated the pending reversal details'
-              : 'Marked the source transaction as awaiting reversal',
-            previous: current,
-            resulting: updatedReversal,
-            now,
           }),
         ]);
 
@@ -250,16 +244,11 @@ export async function applyTxnReversalActionServer(args: {
             }),
           }),
           recordReversalTransition({
-            db: trx,
             companyId: context.companyId,
             projectId: args.projectId,
             actorUserId: context.userId,
             reversalId: current.id,
             eventType: 'txn_reversal.cancelled',
-            reason: 'Cancelled the reversal workflow',
-            previous: current,
-            resulting: null,
-            now,
           }),
         ]);
         return {
@@ -329,17 +318,11 @@ export async function applyTxnReversalActionServer(args: {
             body: args.input.commentBody,
           }),
           recordReversalTransition({
-            db: trx,
             companyId: context.companyId,
             projectId: args.projectId,
             actorUserId: context.userId,
             reversalId: current.id,
             eventType: 'txn_reversal.exception_marked',
-            reason:
-              'Marked the pending reversal as an exception requiring manual review',
-            previous: current,
-            resulting: updated as TxnReversalRow,
-            now,
           }),
         ]);
         return {
@@ -410,16 +393,11 @@ export async function applyTxnReversalActionServer(args: {
             body: args.input.commentBody,
           }),
           recordReversalTransition({
-            db: trx,
             companyId: context.companyId,
             projectId: args.projectId,
             actorUserId: context.userId,
             reversalId: current.id,
             eventType: 'txn_reversal.exception_returned_to_pending',
-            reason: 'Returned the exception to the pending reversal queue',
-            previous: current,
-            resulting: updated as TxnReversalRow,
-            now,
           }),
         ]);
         return {
@@ -520,16 +498,11 @@ export async function applyTxnReversalActionServer(args: {
             }),
           }),
           recordReversalTransition({
-            db: trx,
             companyId: context.companyId,
             projectId: args.projectId,
             actorUserId: context.userId,
             reversalId: current.id,
             eventType: 'txn_reversal.matched_manually',
-            reason: 'Manually matched the source and reversal transactions',
-            previous: current,
-            resulting: updated as TxnReversalRow,
-            now,
           }),
         ]);
 

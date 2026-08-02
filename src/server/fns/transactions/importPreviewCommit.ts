@@ -25,7 +25,7 @@ import { persistedImportPreviewRowSchema } from '../../../validation/importPrevi
 import { txnInputSchema } from '../../../validation/schemas';
 import { validateOrThrow } from '../../../validation/validate';
 import type { DB } from '../../db/schema';
-import { recordAuditEvent } from '../../audit/auditEvents';
+import { recordAuditLogEvent } from '../../logging/auditLogger';
 import { buildLocalProjectStandardMetadata } from '../../sync/projectStandards';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import { reconcilePendingReversalMatches } from './reversalServers';
@@ -272,8 +272,7 @@ export async function commitImportPreviewBatch(args: {
     now,
   });
 
-  await recordAuditEvent({
-    db: args.db,
+  await recordAuditLogEvent({
     companyId: args.companyId,
     projectId: args.projectId,
     actorUserId: args.userId,
@@ -281,19 +280,7 @@ export async function commitImportPreviewBatch(args: {
     eventType: 'transaction_import.committed',
     entityType: 'import_batch',
     entityId: args.importBatchId,
-    reason: 'Accepted server-owned import preview',
-    previousState: { status: 'previewed' },
-    resultingState: {
-      status: 'imported',
-      importedCount: deduped.transactions.length,
-      replacedCount: replacementIds.length,
-    },
-    metadata: {
-      mode: args.mode,
-      skippedCount: selection.previewDuplicateCount + deduped.skipped,
-      excludedCount: selection.excludedSourceRows.length,
-    },
-    nowIso: now,
+    affectedCount: deduped.transactions.length,
   });
 
   return {

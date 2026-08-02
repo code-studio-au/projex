@@ -26,6 +26,7 @@ HTTP_CHECK_INTERVAL_SECONDS="${HTTP_CHECK_INTERVAL_SECONDS:-2}"
 NGINX_REQUEST_LIMITS_PATH="${NGINX_REQUEST_LIMITS_PATH:-/etc/nginx/conf.d/projex-request-limits.conf}"
 NGINX_COMPRESSION_PATH="${NGINX_COMPRESSION_PATH:-/etc/nginx/conf.d/projex-compression.conf}"
 SYSTEMD_SERVICE_PATH="${SYSTEMD_SERVICE_PATH:-}"
+JOURNALD_CONFIG_PATH="${JOURNALD_CONFIG_PATH:-/etc/systemd/journald.conf.d/60-projex-limits.conf}"
 RELEASES_DIR=""
 NEXT_LINK=""
 NEXT_PREVIOUS_LINK=""
@@ -438,6 +439,7 @@ if [[ "$SYSTEMD_SERVICE_PATH" != /* || "$SYSTEMD_SERVICE_PATH" == "/" ]]; then
   fail 'SYSTEMD_SERVICE_PATH must be a non-root absolute path.'
 fi
 validate_systemd_path "SYSTEMD_SERVICE_PATH" "$SYSTEMD_SERVICE_PATH"
+validate_systemd_path "JOURNALD_CONFIG_PATH" "$JOURNALD_CONFIG_PATH"
 
 require_dir "$RELEASE_DIR"
 RELEASE_DIR="$(resolve_existing_path "$RELEASE_DIR")"
@@ -468,6 +470,7 @@ require_file "$RELEASE_DIR/deploy/nginx/maintenance.js"
 require_file "$RELEASE_DIR/deploy/nginx/projex-compression.conf"
 require_file "$RELEASE_DIR/deploy/nginx/projex-request-limits.conf"
 require_file "$RELEASE_DIR/deploy/systemd/projex.service"
+require_file "$RELEASE_DIR/deploy/systemd/projex-journald.conf"
 
 manifest_release_id="$(
   read_manifest_value "$RELEASE_DIR/.projex-release.json" releaseId
@@ -573,6 +576,13 @@ rm -f -- "$SYSTEMD_RENDER_PATH"
 SYSTEMD_RENDER_PATH=""
 sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE_NAME"
+
+log "Refreshing bounded journald storage policy"
+sudo install -d -o root -g root -m 0755 "$(dirname "$JOURNALD_CONFIG_PATH")"
+sudo install -o root -g root -m 0644 \
+  "$RELEASE_DIR/deploy/systemd/projex-journald.conf" \
+  "$JOURNALD_CONFIG_PATH"
+sudo systemctl restart systemd-journald
 
 log "Refreshing shared maintenance assets"
 sudo install -o root -g root -m 0644 \

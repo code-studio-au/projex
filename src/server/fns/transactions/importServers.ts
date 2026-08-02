@@ -16,12 +16,14 @@ import { planImportPreview } from '../../../utils/importPreviewPlan';
 import { omitUndefinedProperties } from '../../../utils/optionalProperties';
 import { planTransactionImportCommit } from '../../../utils/transactionImportCommitPlan';
 import { isAuthorized, requireAuthorized } from '../../auth/authorize';
+import { executeAuditedTransaction } from '../../db/auditedTransaction';
 import {
   loadTransactionImportCommitContext,
   loadTransactionImportPreviewContext,
 } from '../../loaders/importContext';
 import { ensureBudgetLinesForProjectSubCategories } from '../budgets';
 import { enforceRateLimit } from '../../rateLimit';
+import { withAuditLoggingTransaction } from '../../logging/auditLogger';
 import type { ProjectActionContext } from '../resourceGuards';
 import { requireOperationalProjectForAction } from '../resourceGuards';
 import {
@@ -85,22 +87,24 @@ export async function importTransactionsServer(args: {
       }),
     ]);
 
-    return db.transaction().execute((trx) =>
-      commitImportPreviewBatch({
-        db: trx,
-        companyId,
-        projectId: args.projectId,
-        userId,
-        importBatchId: args.importBatchId,
-        mode: args.mode,
-        skipDuplicates: args.skipDuplicates ?? true,
-        canEditTaxonomy,
-        canEditBudgets,
-        ...omitUndefinedProperties({
-          excludedSourceRowIndexes: args.excludedSourceRowIndexes,
-          reviewDecisions: args.reviewDecisions,
-        }),
-      })
+    return withAuditLoggingTransaction(() =>
+      db.transaction().execute((trx) =>
+        commitImportPreviewBatch({
+          db: trx,
+          companyId,
+          projectId: args.projectId,
+          userId,
+          importBatchId: args.importBatchId,
+          mode: args.mode,
+          skipDuplicates: args.skipDuplicates ?? true,
+          canEditTaxonomy,
+          canEditBudgets,
+          ...omitUndefinedProperties({
+            excludedSourceRowIndexes: args.excludedSourceRowIndexes,
+            reviewDecisions: args.reviewDecisions,
+          }),
+        })
+      )
     );
   });
 }
@@ -174,7 +178,7 @@ export async function importTrustedTransactionsServer(args: {
 
     if (args.mode === 'replaceAll') {
       const now = new Date().toISOString();
-      await db.transaction().execute(async (trx) => {
+      await executeAuditedTransaction(db, async (trx) => {
         await assertImportPreviewCommit({
           db: trx,
           projectId: args.projectId,
@@ -280,7 +284,7 @@ export async function importTrustedTransactionsServer(args: {
 
     if (plan.importedTransactions.length || importBatchId) {
       const now = new Date().toISOString();
-      await db.transaction().execute(async (trx) => {
+      await executeAuditedTransaction(db, async (trx) => {
         await assertImportPreviewCommit({
           db: trx,
           projectId: args.projectId,

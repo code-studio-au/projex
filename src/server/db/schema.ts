@@ -1,5 +1,4 @@
 import type {
-  AuditEvents,
   BudgetLines,
   Categories,
   Companies,
@@ -56,7 +55,6 @@ import type {
   TxnType,
 } from '../../types';
 import type {
-  JsonObjectColumn,
   NullableJsonColumn,
   NullableStringRecordJsonColumn,
   StringRecordJsonColumn,
@@ -143,29 +141,6 @@ export type TxnUnlockRequestTable = Override<
     created_at: Generated<string>;
     updated_at: Generated<string>;
     version: Generated<number>;
-  }
->;
-
-export type AuditEventTable = Override<
-  AuditEvents,
-  {
-    event_class:
-      | 'workflow'
-      | 'import'
-      | 'coding'
-      | 'taxonomy'
-      | 'structural'
-      | 'rules'
-      | 'membership'
-      | 'access'
-      | 'lifecycle'
-      | 'inheritance';
-    previous_state: JsonObjectColumn;
-    resulting_state: JsonObjectColumn;
-    metadata: JsonObjectColumn;
-    retention_class: 'financial' | 'security' | 'operational' | 'diagnostic';
-    retain_until: string | null;
-    created_at: Generated<string>;
   }
 >;
 
@@ -387,7 +362,6 @@ type AppTableOverrides = {
   txn_comments: TxnCommentTable;
   txn_links: TxnLinkTable;
   txn_unlock_requests: TxnUnlockRequestTable;
-  audit_events: AuditEventTable;
   txn_reversal_match_rejections: TxnReversalMatchRejectionTable;
   txn_reversals: TxnReversalTable;
   budget_lines: BudgetLineTable;
@@ -414,7 +388,6 @@ export const DB_TABLES = [
   'ba_session',
   'ba_user',
   'ba_verification',
-  'audit_events',
   'budget_lines',
   'categories',
   'companies',
