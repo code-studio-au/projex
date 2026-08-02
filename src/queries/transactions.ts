@@ -1,5 +1,6 @@
 import {
   keepPreviousData,
+  queryOptions,
   useMutation,
   useQuery,
   useQueryClient,
@@ -37,6 +38,7 @@ import {
 import {
   txnBulkSelectionResultResponseSchema,
   txnListPageResultResponseSchema,
+  txnReversalMatchSuggestionsResponseSchema,
 } from '../validation/transactionResponseSchemas';
 import { apiErrorFromBody } from '../api/errorResponses';
 import {
@@ -46,7 +48,6 @@ import {
   transferTxnServerFn,
   bulkTxnActionServerFn,
   applyTxnReversalActionServerFn,
-  listTxnReversalMatchSuggestionsServerFn,
   updateTxnServerFn,
   updateTxnWorkflowStateServerFn,
   requestTxnUnlockServerFn,
@@ -313,6 +314,15 @@ export async function invalidateProjectTransactionQueries(args: {
     }),
     args.qc.invalidateQueries({
       queryKey: [
+        'transactions',
+        args.scopeUserId,
+        args.projectId,
+        'reversal-suggestions',
+      ],
+      exact: false,
+    }),
+    args.qc.invalidateQueries({
+      queryKey: [
         'transactionCommentSummaries',
         args.scopeUserId,
         args.projectId,
@@ -438,19 +448,65 @@ export function useBulkTxnActionMutation(projectId: ProjectId) {
   });
 }
 
-export function useTxnReversalSuggestionsMutation(projectId: ProjectId) {
-  const qc = useQueryClient();
-  const scopeUserId = useQueryScopeUserId();
-  return useMutation({
-    mutationFn: (txnId: TxnId): Promise<TxnReversalMatchSuggestion[]> =>
-      listTxnReversalMatchSuggestionsServerFn({ data: { projectId, txnId } }),
-    onSuccess: (suggestions, txnId) => {
-      qc.setQueryData(
-        qk.transactionReversalSuggestions(scopeUserId, projectId, txnId),
-        suggestions
+export function txnReversalSuggestionsQueryOptions(args: {
+  userId: string;
+  projectId: ProjectId;
+  txnId: TxnId;
+  enabled: boolean;
+}) {
+  return queryOptions({
+    queryKey: qk.transactionReversalSuggestions(
+      args.userId,
+      args.projectId,
+      args.txnId
+    ),
+    enabled: args.enabled,
+    queryFn: async ({ signal }): Promise<TxnReversalMatchSuggestion[]> => {
+      const response = await fetch(
+        `/api/projects/${encodeURIComponent(args.projectId)}/transactions/${encodeURIComponent(args.txnId)}/reversal-suggestions`,
+        {
+          method: 'GET',
+          credentials: 'same-origin',
+          headers: { accept: 'application/json' },
+          signal,
+        }
       );
+      if (!response.ok) {
+        throw apiErrorFromBody(
+          await readJsonResponseOrNull(response),
+          'Could not load reversal suggestions.'
+        );
+      }
+      const payload = await readJsonResponseWithSchema(
+        response,
+        txnReversalMatchSuggestionsResponseSchema
+      );
+      if (!payload.success) {
+        throw apiErrorFromBody(
+          null,
+          'Reversal suggestions response was not valid JSON'
+        );
+      }
+      return payload.data satisfies TxnReversalMatchSuggestion[];
     },
+    retry: false,
   });
+}
+
+export function useTxnReversalSuggestionsQuery(
+  projectId: ProjectId,
+  txnId: TxnId,
+  options: { enabled: boolean }
+) {
+  const scopeUserId = useQueryScopeUserId();
+  return useQuery(
+    txnReversalSuggestionsQueryOptions({
+      userId: scopeUserId,
+      projectId,
+      txnId,
+      enabled: options.enabled,
+    })
+  );
 }
 
 export function useTxnReversalActionMutation(projectId: ProjectId) {

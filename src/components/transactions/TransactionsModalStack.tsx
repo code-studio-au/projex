@@ -2,7 +2,6 @@ import type {
   ProjectRuleSuggestionPrompt,
   TxnReversalActionInput,
   TxnReversalActionResult,
-  TxnReversalMatchSuggestion,
   TxnSplitInput,
   TxnTransferInput,
 } from '../../api/types';
@@ -42,9 +41,6 @@ export default function TransactionsModalStack(props: {
   canManageReversals: boolean;
   expectedProjectOptions: Array<{ value: ProjectId; label: string }>;
   onCloseReversal: () => void;
-  onLoadReversalSuggestions: (
-    txnId: TxnId
-  ) => Promise<TxnReversalMatchSuggestion[]>;
   onSubmitReversalAction: (
     input: TxnReversalActionInput
   ) => Promise<TxnReversalActionResult>;
@@ -97,7 +93,6 @@ export default function TransactionsModalStack(props: {
     canManageReversals,
     expectedProjectOptions,
     onCloseReversal,
-    onLoadReversalSuggestions,
     onSubmitReversalAction,
     activeCommentsTxn,
     onCloseComments,
@@ -161,7 +156,6 @@ export default function TransactionsModalStack(props: {
           canManage={canManageReversals}
           {...(reversalReviewQueue ? { reviewQueue: reversalReviewQueue } : {})}
           onClose={onCloseReversal}
-          onLoadSuggestions={onLoadReversalSuggestions}
           onSubmitAction={onSubmitReversalAction}
         />
       ) : null}

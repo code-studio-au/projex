@@ -4,7 +4,6 @@ import type {
   TxnBulkActionResult,
   TxnReversalActionInput,
   TxnReversalActionResult,
-  TxnReversalMatchSuggestion,
   TxnSplitInput,
   TxnTransferInput,
   TxnUpdateInput,
@@ -16,7 +15,6 @@ import {
   useBulkTxnActionMutation,
   useSplitTxnMutation,
   useTxnReversalActionMutation,
-  useTxnReversalSuggestionsMutation,
   useTransferTxnMutation,
   useUpdateTxnMutation,
   useUpdateTxnWorkflowStateMutation,
@@ -49,9 +47,6 @@ export type TransactionActions = {
   runReversalAction: (
     input: TxnReversalActionInput
   ) => Promise<TxnReversalActionResult>;
-  getReversalSuggestions: (
-    txnId: TxnId
-  ) => Promise<TxnReversalMatchSuggestion[]>;
 };
 
 export function useTransactionActions(
@@ -65,7 +60,6 @@ export function useTransactionActions(
   const requestUnlock = useRequestTxnUnlockMutation(projectId);
   const resolveUnlock = useResolveTxnUnlockRequestMutation(projectId);
   const reversalAction = useTxnReversalActionMutation(projectId);
-  const reversalSuggestions = useTxnReversalSuggestionsMutation(projectId);
 
   return {
     updateTxn: (id, patch) => update.mutateAsync({ id, ...patch }),
@@ -86,6 +80,5 @@ export function useTransactionActions(
     },
     runBulkAction: (input) => bulkTxnAction.mutateAsync(input),
     runReversalAction: (input) => reversalAction.mutateAsync(input),
-    getReversalSuggestions: (txnId) => reversalSuggestions.mutateAsync(txnId),
   };
 }

@@ -12,41 +12,18 @@ import {
   Title,
 } from '@mantine/core';
 
-import type { CompanyExportJob, CompanyId } from '../../types';
+import type { CompanyId } from '../../types';
+import {
+  useCompanyExportJobQuery,
+  useCreateCompanyExportJobMutation,
+} from '../../queries/companyExports';
 import classes from '../../styles/ui.module.css';
+import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import {
   formatCompanyExportFileSize,
   getCompanyExportNotificationMessage,
   getCompanyExportSummaryRows,
 } from './companyExportPresentation';
-
-const EXPORT_JOB_POLL_INTERVAL_MS = 2000;
-
-type ExportJobState = {
-  job: CompanyExportJob | null;
-  error: string | null;
-  isStarting: boolean;
-};
-
-type ExportJobResponseBody =
-  | CompanyExportJob
-  | {
-      message?: string;
-    }
-  | null;
-
-async function readExportJobResponse(response: Response) {
-  if (!response.ok) {
-    return {
-      ok: false as const,
-      payload: (await response.json()) as ExportJobResponseBody,
-    };
-  }
-  return {
-    ok: true as const,
-    payload: (await response.json()) as ExportJobResponseBody,
-  };
-}
 
 function useCompanyExportPanelController(props: {
   companyId: CompanyId;
@@ -60,190 +37,74 @@ function useCompanyExportPanelController(props: {
   const [exportFromDate, setExportFromDate] = useState('');
   const [exportToDate, setExportToDate] = useState('');
   const [notifyWhenReady, setNotifyWhenReady] = useState(false);
-  const [exportJobState, setExportJobState] = useState<ExportJobState>({
-    job: null,
-    error: null,
-    isStarting: false,
+  const [startedExport, setStartedExport] = useState<{
+    companyId: CompanyId;
+    jobId: string;
+    routeJobId: string | null;
+  } | null>(null);
+  const autoDownloadTargetJobIdRef = useRef<string | null>(null);
+
+  const selectedJobId =
+    startedExport?.companyId === companyId &&
+    startedExport.routeJobId === initialExportJobId
+      ? startedExport.jobId
+      : initialExportJobId;
+  const exportJobQuery = useCompanyExportJobQuery({
+    companyId,
+    jobId: selectedJobId,
+    enabled: isHydrated && canExportCompany,
   });
-  const autoDownloadJobIdRef = useRef<string | null>(null);
+  const createExportJob = useCreateCompanyExportJobMutation(companyId);
 
   const currentExportOptions = useMemo(
-    () => ({
-      scope: exportScope,
-      detail: exportDetail,
-      from: exportFromDate || undefined,
-      to: exportToDate || undefined,
-      notifyWhenReady,
-    }),
+    () =>
+      omitUndefinedProperties({
+        scope: exportScope,
+        detail: exportDetail,
+        from: exportFromDate || undefined,
+        to: exportToDate || undefined,
+        notifyWhenReady,
+      }),
     [exportDetail, exportFromDate, exportScope, exportToDate, notifyWhenReady]
   );
 
-  useEffect(() => {
-    if (!isHydrated || !canExportCompany) return;
-
-    let cancelled = false;
-    void (async () => {
-      const endpoint = initialExportJobId
-        ? `/api/export-jobs/${encodeURIComponent(initialExportJobId)}`
-        : `/api/companies/${encodeURIComponent(companyId)}/export-jobs`;
-      try {
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: { accept: 'application/json' },
-        });
-        const { ok, payload } = await readExportJobResponse(response);
-        if (cancelled) return;
-        if (!ok) {
-          if (initialExportJobId) {
-            setExportJobState((current) => ({
-              ...current,
-              error:
-                typeof payload === 'object' && payload && 'message' in payload
-                  ? (payload.message ?? 'Could not load the requested export.')
-                  : 'Could not load the requested export.',
-            }));
-          }
-          return;
-        }
-        if (!payload) return;
-        autoDownloadJobIdRef.current = (payload as CompanyExportJob).id;
-        setExportJobState((current) => ({
-          ...current,
-          job: payload as CompanyExportJob,
-        }));
-      } catch {
-        if (cancelled) return;
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [canExportCompany, companyId, initialExportJobId, isHydrated]);
-
-  const polledExportJobId = exportJobState.job?.id;
-  const polledExportJobStatus = exportJobState.job?.status;
+  const exportJob = exportJobQuery.data ?? null;
 
   useEffect(() => {
-    if (!polledExportJobId) return;
-    if (
-      polledExportJobStatus !== 'queued' &&
-      polledExportJobStatus !== 'running'
-    ) {
-      return;
-    }
-
-    const jobId = polledExportJobId;
-    let timeoutId: number | null = null;
-    let cancelled = false;
-
-    async function pollExportJob() {
-      try {
-        const response = await fetch(
-          `/api/export-jobs/${encodeURIComponent(jobId)}`,
-          {
-            method: 'GET',
-            headers: { accept: 'application/json' },
-          }
-        );
-        const { ok, payload } = await readExportJobResponse(response);
-        if (cancelled) return;
-        if (!ok) {
-          setExportJobState((current) => ({
-            ...current,
-            error:
-              typeof payload === 'object' && payload && 'message' in payload
-                ? (payload.message ?? 'Could not refresh export job status.')
-                : 'Could not refresh export job status.',
-          }));
-          return;
-        }
-        setExportJobState((current) => ({
-          ...current,
-          job: payload as CompanyExportJob,
-        }));
-      } catch {
-        if (cancelled) return;
-        setExportJobState((current) => ({
-          ...current,
-          error: 'Could not refresh export job status.',
-        }));
-      } finally {
-        if (!cancelled) {
-          timeoutId = window.setTimeout(() => {
-            void pollExportJob();
-          }, EXPORT_JOB_POLL_INTERVAL_MS);
-        }
-      }
-    }
-
-    timeoutId = window.setTimeout(() => {
-      void pollExportJob();
-    }, EXPORT_JOB_POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [polledExportJobId, polledExportJobStatus]);
-
-  useEffect(() => {
-    const job = exportJobState.job;
+    const job = exportJob;
     if (!job || job.status !== 'completed' || !job.downloadPath) return;
-    if (autoDownloadJobIdRef.current === job.id) return;
+    if (autoDownloadTargetJobIdRef.current !== job.id) return;
 
-    autoDownloadJobIdRef.current = job.id;
+    autoDownloadTargetJobIdRef.current = null;
     window.location.assign(job.downloadPath);
-  }, [exportJobState.job]);
+  }, [exportJob]);
 
   async function handleStartExport() {
-    setExportJobState((current) => ({
-      ...current,
-      error: null,
-      isStarting: true,
-    }));
-
     try {
-      const response = await fetch(
-        `/api/companies/${encodeURIComponent(companyId)}/export-jobs`,
-        {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            accept: 'application/json',
-          },
-          body: JSON.stringify(currentExportOptions),
-        }
-      );
-      const { ok, payload } = await readExportJobResponse(response);
-      if (!ok) {
-        throw new Error(
-          typeof payload === 'object' && payload && 'message' in payload
-            ? (payload.message ?? 'Could not start export.')
-            : 'Could not start export.'
-        );
-      }
-      autoDownloadJobIdRef.current = null;
-      setExportJobState({
-        job: payload as CompanyExportJob,
-        error: null,
-        isStarting: false,
+      const job = await createExportJob.mutateAsync(currentExportOptions);
+      autoDownloadTargetJobIdRef.current = job.id;
+      setStartedExport({
+        companyId,
+        jobId: job.id,
+        routeJobId: initialExportJobId,
       });
-    } catch (error) {
-      setExportJobState((current) => ({
-        ...current,
-        isStarting: false,
-        error:
-          error instanceof Error ? error.message : 'Could not start export.',
-      }));
+    } catch {
+      // Mutation state owns the user-facing error.
     }
   }
 
-  const exportJob = exportJobState.job;
+  const exportError = createExportJob.error ?? exportJobQuery.error;
+  const exportJobState = {
+    error:
+      exportError instanceof Error
+        ? exportError.message
+        : exportError
+          ? 'Could not load export status.'
+          : null,
+    isStarting: createExportJob.isPending,
+  };
   const exportInFlight =
-    exportJobState.isStarting ||
+    createExportJob.isPending ||
     exportJob?.status === 'queued' ||
     exportJob?.status === 'running';
   const exportNotificationMessage =

@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Badge,
@@ -17,10 +17,10 @@ import {
 import type {
   TxnReversalActionInput,
   TxnReversalActionResult,
-  TxnReversalMatchSuggestion,
 } from '../../api/types';
 import type { ProjectId, Txn, TxnId } from '../../types';
 import type { TxnReversalTxnSummary } from '../../types';
+import { useTxnReversalSuggestionsQuery } from '../../queries/transactions';
 import { formatCurrencyFromCents } from '../../utils/money';
 import { omitUndefinedProperties } from '../../utils/optionalProperties';
 import { firefoxSafeModalSelectProps } from '../modalSelectProps';
@@ -89,7 +89,6 @@ function useTransactionReversalModalController(props: {
   canManage: boolean;
   reviewQueue?: ReversalReviewQueueControls;
   onClose: () => void;
-  onLoadSuggestions: (txnId: TxnId) => Promise<TxnReversalMatchSuggestion[]>;
   onSubmitAction: (
     input: TxnReversalActionInput
   ) => Promise<TxnReversalActionResult>;
@@ -102,61 +101,40 @@ function useTransactionReversalModalController(props: {
     canManage,
     reviewQueue,
     onClose,
-    onLoadSuggestions,
     onSubmitAction,
   } = props;
   const [commentBody, setCommentBody] = useState('');
   const [expectedProjectId, setExpectedProjectId] = useState<string | null>(
     txn.reversal?.expectedProjectId ?? null
   );
-  const [selectedSuggestionTxnId, setSelectedSuggestionTxnId] = useState<
-    string | null
-  >(null);
-  const [suggestions, setSuggestions] = useState<TxnReversalMatchSuggestion[]>(
-    []
-  );
+  const [selectedSuggestionTxnIdOverride, setSelectedSuggestionTxnId] =
+    useState<string | null>(null);
   const shouldLoadSuggestions =
     txn.reversal?.side !== 'reversal' &&
     (txn.reversal?.status === 'pending_reversal' ||
       txn.reversal?.status === 'reversal_exception');
-  const [suggestionsLoading, setSuggestionsLoading] = useState(
-    shouldLoadSuggestions
+  const suggestionsQuery = useTxnReversalSuggestionsQuery(
+    txn.projectId,
+    txn.id,
+    { enabled: opened && shouldLoadSuggestions }
   );
+  const suggestions = suggestionsQuery.data ?? [];
+  const selectedSuggestionTxnId = suggestions.some(
+    (suggestion) => suggestion.txnId === selectedSuggestionTxnIdOverride
+  )
+    ? selectedSuggestionTxnIdOverride
+    : (suggestions[0]?.txnId ?? null);
+  const suggestionsLoading =
+    shouldLoadSuggestions && suggestionsQuery.isLoading;
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const loadSuggestions = useEffectEvent((txnId: TxnId) =>
-    onLoadSuggestions(txnId)
-  );
-
-  useEffect(() => {
-    if (!opened || !shouldLoadSuggestions) return;
-    let cancelled = false;
-
-    void loadSuggestions(txn.id)
-      .then((next) => {
-        if (cancelled) return;
-        setSuggestions(next);
-        setSelectedSuggestionTxnId(next[0]?.txnId ?? null);
-      })
-      .catch((nextError) => {
-        if (cancelled) return;
-        setError(
-          nextError instanceof Error
-            ? nextError.message
-            : 'Could not load reversal suggestions.'
-        );
-        setSuggestions([]);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setSuggestionsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [opened, shouldLoadSuggestions, txn.id]);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const error =
+    actionError ??
+    (suggestionsQuery.error instanceof Error
+      ? suggestionsQuery.error.message
+      : suggestionsQuery.isError
+        ? 'Could not load reversal suggestions.'
+        : null);
 
   const isSourceSide = txn.reversal?.side !== 'reversal';
   const isPending =
@@ -208,7 +186,7 @@ function useTransactionReversalModalController(props: {
     queueOutcome?: 'approved' | 'rejected'
   ) {
     setSubmitting(true);
-    setError(null);
+    setActionError(null);
     try {
       await onSubmitAction(
         omitUndefinedProperties({
@@ -222,7 +200,7 @@ function useTransactionReversalModalController(props: {
         onClose();
       }
     } catch (nextError) {
-      setError(
+      setActionError(
         nextError instanceof Error
           ? nextError.message
           : 'Could not update reversal workflow.'

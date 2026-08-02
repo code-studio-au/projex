@@ -7,6 +7,17 @@ export type SmokePageOptions = {
   onStatus?: (message: string) => void | Promise<void>;
 };
 
+export function isExpectedWebKitServerFnCancellation(
+  browserName: string,
+  message: string
+) {
+  return (
+    browserName === 'webkit' &&
+    message.includes('/_serverFn/') &&
+    message.endsWith(' due to access control checks.')
+  );
+}
+
 export abstract class AuthenticatedSmokePage {
   protected readonly baseUrl = getSmokeConfiguredBaseUrl();
   protected readonly page: Page;
@@ -25,6 +36,14 @@ export abstract class AuthenticatedSmokePage {
     this.onStatus = options.onStatus;
 
     page.on('pageerror', (error) => {
+      const browserName =
+        page.context().browser()?.browserType().name() ?? 'unknown';
+      // WebKit reports same-origin server-function fetches cancelled by a
+      // navigation/query replacement as page errors with this exact wording.
+      // Other browsers and every non-server-function page error remain fatal.
+      if (isExpectedWebKitServerFnCancellation(browserName, error.message)) {
+        return;
+      }
       this.pageErrors.push(`${page.url()}: ${error.message}`);
     });
     page.on('console', (message) => {
@@ -155,7 +174,7 @@ export abstract class AuthenticatedSmokePage {
     throw new Error(`${message}. Current URL: ${this.page.url()}`);
   }
 
-  private async waitForAuthenticatedHydration() {
+  protected async waitForAuthenticatedHydration() {
     const accountButton = this.page.getByRole('button', { name: 'Account' });
     await accountButton.waitFor({ state: 'visible' });
     await this.page.waitForFunction(

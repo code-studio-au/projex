@@ -796,9 +796,6 @@ function TransactionsModalSection({
         (option) => option.value !== model.projectId
       )}
       onCloseReversal={model.closeReversalModal}
-      onLoadReversalSuggestions={(txnId) =>
-        model.transactionActions.getReversalSuggestions(txnId)
-      }
       onSubmitReversalAction={(input) =>
         model.transactionActions.runReversalAction(input)
       }

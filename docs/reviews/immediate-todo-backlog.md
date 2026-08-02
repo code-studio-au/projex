@@ -14,9 +14,9 @@ Product ideas and work awaiting business decisions remain in the
 
 | Item | Recommendation                                                                   | Priority     | Status   |
 | ---: | -------------------------------------------------------------------------------- | ------------ | -------- |
-|    1 | Move the single-company redirect into route loading                              | High         | Pending  |
-|    2 | Consolidate the repeated `visiblePeriods` aggregates                             | Medium       | Pending  |
-|    3 | Convert export polling and reversal-suggestion reads to TanStack Query           | Medium       | Pending  |
+|    1 | Move the single-company redirect into route loading                              | High         | Complete |
+|    2 | Consolidate the repeated `visiblePeriods` aggregates                             | Medium       | Complete |
+|    3 | Convert export polling and reversal-suggestion reads to TanStack Query           | Medium       | Complete |
 |    4 | Enforce TypeScript strictness ratchets and whole-repository coverage reporting   | Medium       | Complete |
 |    5 | Run the network-enabled dependency freshness and framework-cohort review         | Medium       | Complete |
 |    6 | Continue bundle-budget and browser-performance maintenance using measured traces | High/ongoing | Ongoing  |
@@ -27,13 +27,22 @@ repository control.
 
 ## Recommended delivery sequence
 
-1. Move the single-company redirect to route loading and add an SSR/browser
-   regression proving that the landing UI is not painted first.
-2. Consolidate the `visiblePeriods` aggregates and add a pure-model unit test.
-3. Convert export job reads and polling to TanStack Query, then convert reversal
-   suggestions using the same cancellation and error conventions.
-4. Continue bundle and browser-performance maintenance using measured route
+1. Continue bundle and browser-performance maintenance using measured route
    budgets and traces.
+
+Items 1 and 2 are complete. The companies route now redirects a regular user
+with one company membership during route loading, before the landing page can
+render. The browser smoke suite asserts both the destination SSR response and
+the absence of the landing-page heading. Project transaction workflow totals
+now filter and aggregate period summaries in one model traversal, backed by a
+pure unit test.
+
+Item 3 is complete. Export job reads and polling are owned by TanStack Query
+with user/company/job-scoped keys, request cancellation through the query
+`AbortSignal`, cache seeding after creation, and polling that stops for terminal
+states. Reversal-suggestion reads now use the same query ownership, scoped keys,
+response validation, cancellation, and error conventions. The modal keeps only
+the user's selected candidate and action state locally.
 
 Item 4 is complete. Whole-application coverage is reported alongside enforced
 risk-domain thresholds. `noUncheckedIndexedAccess` has now been burned down and

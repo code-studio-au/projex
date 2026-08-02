@@ -19,6 +19,7 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
   async verify() {
     await this.verifyLoginHydrationAndColorScheme();
     await this.signIn();
+    await this.verifySingleCompanyServerRedirect();
     await this.verifyCompanyAndProjectNavigation();
     await this.verifyProjectToolsAndTabs();
     await this.verifyCompanySettings();
@@ -112,6 +113,30 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
         `/c/${this.fixtures.companyId}/p/${this.fixtures.projectId}`,
       'Project workspace did not open'
     );
+  }
+
+  private async verifySingleCompanyServerRedirect() {
+    await this.emit('Verifying the single-company server redirect');
+    const response = await this.page.goto('/companies', {
+      waitUntil: 'domcontentloaded',
+    });
+    this.assert(response, 'Companies route did not return a response');
+    this.assert(response.ok(), 'Companies route redirect did not load');
+    this.assert(
+      new URL(response.url()).pathname === `/c/${this.fixtures.companyId}`,
+      'Single-company user was not redirected before company rendering'
+    );
+
+    const html = await response.text();
+    this.assert(
+      !/<h2\b[^>]*>\s*Companies\s*<\/h2>/i.test(html),
+      'Single-company redirect painted the companies landing page'
+    );
+    this.assert(
+      html.includes('Projects &amp; programmes'),
+      'Redirect response did not server-render the company dashboard'
+    );
+    await this.waitForAuthenticatedHydration();
   }
 
   private async verifyCompanySettings() {

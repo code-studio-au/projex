@@ -1,5 +1,6 @@
 import {
   keepPreviousData,
+  queryOptions,
   useMutation,
   useQuery,
   useQueryClient,
@@ -13,12 +14,17 @@ import type {
   TxnCommentSummariesInput,
   TxnCommentUpdateInput,
 } from '../api/types';
+import { apiErrorFromBody } from '../api/errorResponses';
 import {
   createTransactionCommentServerFn,
-  listTransactionCommentSummariesServerFn,
   listTransactionCommentsServerFn,
   updateTransactionCommentServerFn,
 } from '../server/start/functions/transactionReads';
+import {
+  readJsonResponseOrNull,
+  readJsonResponseWithSchema,
+} from '../utils/json';
+import { txnCommentSummariesResponseSchema } from '../validation/transactionResponseSchemas';
 
 export function useTransactionCommentsQuery(
   projectId: ProjectId,
@@ -55,25 +61,55 @@ function txnIdsKey(txnIds?: TxnId[]) {
   return txnIds?.length ? [...txnIds].sort().join(',') : 'all';
 }
 
-function transactionCommentSummariesQueryOptions(
+export function transactionCommentSummariesQueryOptions(
   userId: string,
   projectId: ProjectId,
   input: TxnCommentSummariesInput,
   options: { enabled?: boolean } = {}
 ) {
-  return {
+  return queryOptions({
     queryKey: qk.transactionCommentSummaries(
       userId,
       projectId,
       txnIdsKey(input.txnIds)
     ),
-    queryFn: () =>
-      listTransactionCommentSummariesServerFn({
-        data: { projectId, payload: input },
-      }),
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams();
+      for (const txnId of [...(input.txnIds ?? [])].sort()) {
+        params.append('txnId', txnId);
+      }
+      const query = params.size > 0 ? `?${params.toString()}` : '';
+      const response = await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/transactions/comment-summaries${query}`,
+        {
+          method: 'GET',
+          credentials: 'same-origin',
+          headers: { accept: 'application/json' },
+          signal,
+        }
+      );
+      if (!response.ok) {
+        throw apiErrorFromBody(
+          await readJsonResponseOrNull(response),
+          'Could not load transaction comment summaries.'
+        );
+      }
+      const payload = await readJsonResponseWithSchema(
+        response,
+        txnCommentSummariesResponseSchema
+      );
+      if (!payload.success) {
+        throw apiErrorFromBody(
+          null,
+          'Transaction comment summaries response was not valid JSON'
+        );
+      }
+      return payload.data;
+    },
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
-  } as const;
+    retry: false,
+  });
 }
 
 export function useCreateTransactionCommentMutation(projectId: ProjectId) {
