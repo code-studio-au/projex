@@ -1,10 +1,8 @@
 # Product Backlog
 
-This backlog contains only unfinished work. Completed work belongs in Git history and feature documentation, not here.
-
-The current immediate engineering-work status is tracked in the
-[Immediate TODO Backlog](../reviews/immediate-todo-backlog.md). Completed
-point-in-time reviews are retained in the
+This backlog contains only unfinished work. Completed work belongs in Git
+history and feature documentation, not here. The completed 31 July engineering
+programme and other point-in-time reviews are retained in the
 [documentation archive](../reviews/archive/README.md).
 
 ## Awaiting Product Decision
@@ -68,6 +66,16 @@ Notes:
 
 These items should be addressed as part of making the organisation-owned
 repository and AWS account the canonical production platform.
+
+Current deployment boundary:
+
+- the personal repository and AWS account currently provide the verified
+  staging environment
+- production is intentionally not ready and must not be promoted from the
+  personal infrastructure
+- production cutover begins only after the organisation repository, AWS
+  account, protected environments, OIDC roles, secrets, DNS, certificates,
+  monitoring, backup policy, and recovery procedure are validated together
 
 ### Raise production infrastructure resilience
 

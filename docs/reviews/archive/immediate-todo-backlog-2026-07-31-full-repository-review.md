@@ -1,16 +1,16 @@
 # Immediate TODO Backlog
 
-This is the current engineering implementation backlog from the
+This archived backlog records the engineering implementation follow-up from the
 [31 July 2026 full repository review](full-repository-review-2026-07-31.md).
-It contains only active follow-up work from that review.
+It is retained as point-in-time evidence and is no longer an active work queue.
 
 The completed 29 July review, including its implementation decisions and
 verification evidence, is retained in the
-[documentation archive](archive/immediate-todo-backlog-2026-07-29-full-repository-review.md).
+[documentation archive](immediate-todo-backlog-2026-07-29-full-repository-review.md).
 Product ideas and work awaiting business decisions remain in the
-[product backlog](../product/product-backlog.md).
+[product backlog](../../product/product-backlog.md).
 
-## Current execution status
+## Status at archival
 
 | Item | Recommendation                                                                   | Priority     | Status   |
 | ---: | -------------------------------------------------------------------------------- | ------------ | -------- |
@@ -25,7 +25,7 @@ The previous review's Item 11 is closed as a standalone backlog item. Its
 bundle-headroom concern remains enforced through Item 6 as an ongoing
 repository control.
 
-## Recommended delivery sequence
+## Retained maintenance direction
 
 1. Continue bundle and browser-performance maintenance using measured route
    budgets and traces.
@@ -55,7 +55,7 @@ now omit absent optional keys instead of representing absence with explicit
 regression fails CI.
 
 Item 5 is complete. The
-[1 August dependency freshness report](../dependencies/dependency-freshness-2026-08-01.md)
+[1 August dependency freshness report](../../dependencies/dependency-freshness-2026-08-01.md)
 records the verified direct upgrades, exact framework/tooling holds, the
 React Query WebKit regression hold, and the transitive provenance downgrade
 that remains blocked without weakening the repository trust policy.

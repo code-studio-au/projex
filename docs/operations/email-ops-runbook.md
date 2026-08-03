@@ -1,6 +1,8 @@
 # Email Ops Runbook
 
-This runbook covers invite, password-reset, and transaction-comment notification delivery for the live Resend-backed setup.
+This runbook covers invite, password-reset, verified-email-change,
+transaction-comment, and export-ready delivery for the deployed Resend-backed
+setup.
 
 ## Purpose
 
@@ -8,6 +10,7 @@ Use this when:
 
 - invite emails are not arriving
 - forgot-password emails are delayed
+- email-change verification messages are not arriving
 - resend-invite behavior is unclear
 - transaction comment assignment emails are not arriving
 - you need to verify email delivery from EC2
@@ -21,6 +24,7 @@ RESEND_API_KEY=...
 RESEND_BASE_URL=https://api.resend.com
 RESEND_FROM='Projex <noreply@projectexpensetracker.com>'
 PROJEX_AUTH_RESET_REDIRECT_URL=https://projectexpensetracker.com/reset-password
+PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL=https://projectexpensetracker.com/verify-email-change
 PROJEX_APP_BASE_URL=https://projectexpensetracker.com
 ```
 
@@ -31,6 +35,8 @@ Notes:
   do not change it to a subdomain unless that subdomain is separately verified
   and authorized for the API key.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should match the public HTTPS reset page users open from email.
+- `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL` should match the public HTTPS
+  confirmation page opened from verified-email-change messages.
 - `PROJEX_APP_BASE_URL` should match the public app origin used by
   transaction-comment and export-ready deep links.
 
@@ -44,6 +50,11 @@ Notes:
   - requests another password-setup/reset email for an existing company member
 - Forgot password:
   - requests a password reset email for the entered address
+- Verified email change:
+  - sends a one-hour, single-purpose verification link to the requested new
+    address
+  - supports resend and cancellation while leaving the active login address
+    unchanged until confirmation
 - Transaction comment assignment:
   - sends a notification to the assigned project member
   - includes a deep link back to the project transactions tab and comment thread
@@ -54,7 +65,7 @@ On EC2:
 
 ```bash
 sudo -u projex-deploy -- /bin/bash -c \
-  'source /etc/projex/projex.env && printf "RESEND_API_KEY=%s\nRESEND_FROM=%s\nRESEND_BASE_URL=%s\nPROJEX_AUTH_RESET_REDIRECT_URL=%s\nPROJEX_APP_BASE_URL=%s\n" "${RESEND_API_KEY:+set}" "$RESEND_FROM" "$RESEND_BASE_URL" "$PROJEX_AUTH_RESET_REDIRECT_URL" "$PROJEX_APP_BASE_URL"'
+  'source /etc/projex/projex.env && printf "RESEND_API_KEY=%s\nRESEND_FROM=%s\nRESEND_BASE_URL=%s\nPROJEX_AUTH_RESET_REDIRECT_URL=%s\nPROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL=%s\nPROJEX_APP_BASE_URL=%s\n" "${RESEND_API_KEY:+set}" "$RESEND_FROM" "$RESEND_BASE_URL" "$PROJEX_AUTH_RESET_REDIRECT_URL" "$PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL" "$PROJEX_APP_BASE_URL"'
 ```
 
 Expected:
@@ -64,6 +75,7 @@ Expected:
 - `RESEND_FROM=Projex <noreply@projectexpensetracker.com>`
 - `PROJEX_APP_BASE_URL=https://projectexpensetracker.com`
 - `PROJEX_AUTH_RESET_REDIRECT_URL=https://projectexpensetracker.com/reset-password`
+- `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL=https://projectexpensetracker.com/verify-email-change`
 
 ## Direct Resend Test From EC2
 
@@ -102,6 +114,13 @@ Useful things to look for:
   - `POST /api/companies/<companyId>/users/<userId>/invite`
 - forgot password request succeeded:
   - `POST /api/auth/request-password-reset`
+- email-change request or resend succeeded:
+  - `POST /api/me/email-change`
+  - `POST /api/me/email-change/resend`
+
+Structured logs deliberately omit email addresses, raw verification tokens,
+links, provider bodies, and message contents. Use request IDs and route outcomes
+to correlate application behavior with the Resend provider dashboard.
 
 ## Expected Behavior
 

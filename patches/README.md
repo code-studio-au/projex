@@ -6,10 +6,9 @@ Projex forces transitive `brace-expansion` versions onto `5.0.8`, the patched
 release for `GHSA-mh99-v99m-4gvg`. Do not downgrade the package or suppress the
 advisory.
 
-The current dependency graph still contains legacy Minimatch 3 and 5 consumers:
-
-- ESLint 9 uses Minimatch 3 through its configuration packages.
-- ExcelJS 4.4 uses Minimatch 3 and 5 through `archiver`, `glob`, and `unzipper`.
+The current dependency graph still contains legacy Minimatch 3 and 5 consumers
+through ExcelJS 4.4's `archiver`, `glob`, and `unzipper` tree. ESLint 10 uses
+Minimatch 10 and does not depend on this compatibility patch.
 
 Those Minimatch releases load `brace-expansion` as a callable CommonJS module:
 

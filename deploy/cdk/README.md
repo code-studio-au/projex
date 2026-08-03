@@ -12,6 +12,12 @@ This CDK app provisions a staging/prod baseline:
 - Security groups (DB only accessible from app SG)
 - Secrets Manager DB credentials
 
+Current rollout status: the personal repository and AWS account use this
+baseline for staging only. Production deployment is intentionally blocked until
+the organisation-owned repository and AWS account become canonical and their
+identity, resilience, monitoring, DNS, certificate, backup, and recovery
+controls are verified together.
+
 ## Prereqs
 
 - AWS account + IAM permissions for VPC/EC2/RDS/S3/SecretsManager/CloudFormation
@@ -162,6 +168,8 @@ The EC2 host created by this stack now self-prepares into a deploy-ready baselin
   `RESEND_FROM='Projex <noreply@projectexpensetracker.com>'`, while the API key
   remains intentionally blank and must be supplied securely
 - the `projex` systemd unit
+- the bounded journald policy used by the structured operational and optional
+  audit-category logger
 - a safe HTTP bootstrap nginx config
 - `/usr/local/bin/projex-provision-letsencrypt-cert` for the later HTTPS step
 
@@ -172,6 +180,11 @@ The instance explicitly requires IMDSv2. The application service runs as
 state directory is writable. On-host production dependency installation and
 database migrations run as `projex-deploy`, not as the elevated SSM command
 identity.
+
+Routine artifact activation refreshes the persistent journald policy from
+`deploy/systemd/projex-journald.conf`: compression, a 512 MiB cap, 2 GiB free
+space reserve, and seven-day retention. The systemd service independently
+limits bursts to 1,000 messages per 30 seconds.
 
 The bootstrap installs the current Node.js 24 LTS binary for the host
 architecture directly from the official Node.js release service and verifies

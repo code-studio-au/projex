@@ -491,17 +491,15 @@ Shipped defaults:
 
 ## Auditing Expectations
 
-We are not building the broader audit feature yet, but this design should leave
-space for later auditability.
-
-At minimum, store:
+The suggestion tables retain their own authoritative business provenance:
 
 - who triggered the manual coding signal
 - who accepted or dismissed the suggestion
 - which rule was created from acceptance
 
-This can live on the suggestion records now and later feed the fuller audit
-system.
+Those fields are domain state, not a general audit log. Request processing uses
+the central sanitized operational logger, while any future durable,
+administrator-facing audit product remains a separate governance decision.
 
 ## Delivery Plan
 

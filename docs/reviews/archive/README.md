@@ -12,6 +12,13 @@ the current implementation backlog.
 - [Immediate TODO — 29 July 2026 full repository review](immediate-todo-backlog-2026-07-29-full-repository-review.md)
   records the closed thirteen-item review, including work moved to the
   product backlog and the retained bundle-budget control.
+- [Full repository review — 31 July 2026](full-repository-review-2026-07-31.md)
+  records the senior-level architecture, security, performance, dependency,
+  testing, deployment, and SDLC assessment that produced the final Immediate
+  TODO programme.
+- [Immediate TODO — 31 July 2026 full repository review](immediate-todo-backlog-2026-07-31-full-repository-review.md)
+  records the completed implementation cohorts and the remaining
+  bundle-performance work retained as an ongoing repository control.
 
-The current immediate-work status is maintained at
-[Immediate TODO Backlog](../immediate-todo-backlog.md).
+Current product decisions and unfinished feature work are maintained in the
+[product backlog](../../product/product-backlog.md).

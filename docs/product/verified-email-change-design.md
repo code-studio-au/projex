@@ -1,245 +1,135 @@
-# Verified Email Change Design
+# Verified Email Change
+
+This document records the shipped verified-email-change workflow and its
+security boundaries.
+
+## Status
+
+The feature is implemented. A signed-in user can request a new login email from
+Account settings, inspect the pending request, resend the verification message,
+cancel it, and confirm ownership through the emailed link. The active login
+email does not change until confirmation succeeds.
+
+## Product Flow
+
+1. The signed-in user submits a syntactically valid email different from their
+   current address.
+2. The server checks both the application `users` table and BetterAuth's
+   `ba_user` table for conflicts.
+3. The server replaces any older pending request for that user, stores a hash
+   of a new verification token, and sends the raw token only in the link to the
+   requested address.
+4. Account settings shows the pending address and expiry and offers resend and
+   cancel actions.
+5. The `/verify-email-change` page submits the token to the confirmation
+   endpoint.
+6. Confirmation rechecks expiry, one-time use, and address availability, then
+   updates the application and BetterAuth email rows in one database
+   transaction and removes the pending request.
+
+Future sign-ins and password resets use the new address. The current
+implementation does not explicitly revoke existing sessions when confirmation
+succeeds.
+
+## Routes And Ownership
+
+- `src/pages/AccountPage.tsx` owns the request, pending, resend, and cancel UI.
+- `src/pages/VerifyEmailChangePage.tsx` owns confirmation-link feedback.
+- `src/routes/api.me.email-change.ts` exposes pending-read, request, and cancel
+  HTTP behavior.
+- `src/routes/api.me.email-change.resend.ts` exposes resend behavior.
+- `src/routes/api.me.email-change.confirm.ts` exposes token confirmation.
+- `src/server/fns/account.ts` owns validation, availability checks, token
+  lifecycle, delivery, and the atomic identity update.
+- `src/server/email/authMessages.ts` owns the escaped verification message.
+- `email_change_requests` stores pending requests; the raw token is never
+  stored.
+
+The Account route preloads the current user and pending request through the
+shared query boundary. Response bodies are validated by the account response
+schemas before the UI consumes them.
+
+## Security Contract
+
+### Request ownership
+
+Reading, creating, resending, and cancelling a pending request requires the
+verified current user. Confirmation is intentionally authenticated by the
+single-purpose token so the emailed link can work without relying on an
+existing browser session.
+
+### Token handling
+
+- Tokens contain 32 random bytes and are represented as hexadecimal text.
+- Only a SHA-256 token hash is stored in Postgres.
+- Requests expire after one hour.
+- Creating or resending a request invalidates the previous token by replacing
+  the user's pending request.
+- Successful confirmation deletes the request, preventing replay.
+- Missing, expired, consumed, or unknown tokens return the same safe conflict
+  response.
+
+### Conflict and consistency handling
+
+The target address is checked case-insensitively against both identity tables
+when the request is created and again when it is confirmed. Conflicts use the
+privacy-safe message `That email address is not available.`
+
+Confirmation updates `users.email` and `ba_user.email` and removes the pending
+request in one Postgres transaction. A failure therefore cannot commit only one
+identity update.
+
+### Rate limiting
+
+Request and resend operations are independently limited to five attempts per
+ten minutes for the verified user. The confirmation token's entropy and
+one-hour lifetime are the primary protection for the public confirmation
+endpoint.
+
+### Email and URL handling
+
+`PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL` selects the public confirmation page
+and falls back to `${BETTER_AUTH_URL}/verify-email-change`. Delivery uses the
+shared Resend or webhook auth-email boundary, and the HTML message escapes
+user-controlled values.
+
+Never log the requested email, raw token, verification URL, provider body, or
+email contents. Normal request outcomes may use the centralized sanitized
+operational logger. Email-change-specific audit-category events are not
+currently emitted; durable administrator-facing audit history remains a
+separate product and governance decision.
+
+## User-Visible States
 
-This note defines the intended design for letting a signed-in user change their login email safely.
+Account settings provides:
 
-It is intentionally a design/spec document, not an implementation plan to rush straight into code.
+- a new-email input and `Send verification email` action
+- a pending panel showing the requested address, request time, and expiry
+- `Resend verification` and `Cancel request` actions
+- the latest success or failure feedback
 
-## Goal
+The confirmation page distinguishes a missing token, an invalid or expired
+link, and a successful change without exposing account-conflict detail.
 
-Allow a logged-in user to change their account email without:
+## Current Verification
 
-- breaking BetterAuth identity state
-- losing app-level user linkage
-- creating ambiguous duplicate accounts
-- switching login/recovery email before the new address is proven to be under the user's control
+Repository verification covers:
 
-## Why This Needs More Care Than Display Name Or Password
+- email-change request and response schemas
+- redirect environment validation
+- HTML escaping in the verification message
+- server smoke for request, pending-state read, resend, cancel, and cleanup
+- route and response-boundary inclusion
 
-Email is not just profile data in Projex. It is also:
+The token-confirmation transaction, replay, expiry, and late-conflict paths do
+not yet have a dedicated database integration test. Add that coverage before
+changing token storage, confirmation authentication, identity-table updates,
+or session behavior.
 
-- the BetterAuth login identifier
-- the address used for password reset and invite/setup email
-- duplicated in app-level `users.email`
+## Intentional Non-Goals
 
-A naive update would risk:
-
-- locking the user out because of a typo
-- moving login to an unverified or mistyped address
-- drifting BetterAuth and app-domain user records out of sync
-- creating collisions with an existing account using the target email
-
-## Recommended Product Flow
-
-### 1. Start request from Account settings
-
-The signed-in user enters a new email address from the `Account` page.
-
-Validation:
-
-- require a syntactically valid email
-- reject if it matches the current email
-- reject obvious duplicates if the target email is already in use
-
-### 2. Create a pending email-change request
-
-Do not immediately mutate the active account email.
-
-Instead:
-
-- create a short-lived pending email-change record tied to the current user
-- store:
-  - user id
-  - current email
-  - requested new email
-  - verification token hash
-  - requested at
-  - expires at
-  - consumed at
-
-### 3. Send verification email to the new address
-
-Send a message to the requested email with a single-purpose verification link.
-
-The link should confirm:
-
-- the user controls the new inbox
-- the email-change request is still valid
-
-Suggested message:
-
-- "Confirm your new Projex email address"
-
-### 4. Confirm via the emailed link
-
-When the user opens the verification link:
-
-- verify token validity
-- verify request is unexpired and unused
-- verify the target email is still available
-
-Only then:
-
-- update BetterAuth email
-- update app `users.email`
-- mark the request consumed
-
-### 5. Show a clear post-confirmation state
-
-After success:
-
-- show a confirmation page
-- instruct the user that future sign-ins and password resets now use the new email
-
-## Data Consistency Rules
-
-The BetterAuth user row and app `users` row must be updated together as one logical operation.
-
-Preferred rule:
-
-- if either update fails, treat the whole operation as failed and do not leave partial state behind
-
-This likely means:
-
-- one server-side function that performs all checks
-- one transaction for app-domain state
-- careful sequencing around the BetterAuth update if it lives in the same database
-
-## Conflict Rules
-
-The flow should explicitly reject:
-
-- new email already belongs to another BetterAuth user
-- new email already belongs to another app user
-- stale verification link where the email is no longer available
-
-The user-facing message should stay privacy-safe, for example:
-
-- "That email address is not available."
-
-## Security Requirements
-
-### Verify the new email before switching
-
-This is mandatory.
-
-Do not:
-
-- immediately overwrite the active email
-- allow unverified new email to become the login identifier
-
-### Require the user to already be signed in to request the change
-
-This is a self-service account action, not a public unauthenticated flow.
-
-### Expire requests quickly
-
-Recommended:
-
-- 30 to 60 minutes
-
-### Allow only the latest active request
-
-When a new email-change request is created for the same user:
-
-- invalidate or supersede older pending requests
-
-This prevents confusion from multiple valid links.
-
-### Audit later
-
-When the audit system is built, add events for:
-
-- email change requested
-- email change confirmed
-- email change failed due to conflict/expiry
-
-## Suggested UI States
-
-### Account page
-
-- editable "New email" input
-- button: `Send verification email`
-- note that the active login email does not change until verified
-
-### Pending state
-
-After request:
-
-- show the requested email
-- show a message like:
-  - "Check your new inbox to confirm the change."
-
-Optional later:
-
-- allow resend verification
-- allow cancel pending change
-
-### Confirmation page
-
-If the link is valid:
-
-- complete the update
-- show success
-
-If invalid/expired:
-
-- show a safe error
-- point the user back to Account settings to start again
-
-## Edge Cases
-
-### User is already signed in elsewhere
-
-This should not block the email change.
-
-However, after confirmation:
-
-- existing sessions may need to stay valid or be reviewed deliberately later
-
-Recommended first pass:
-
-- keep existing sessions valid
-- future logins use the new email
-
-### User mistypes new email
-
-This is exactly why verification is required before mutation.
-
-### User never clicks the link
-
-No account change should occur.
-
-Expired pending requests can be cleaned up later.
-
-### New email receives invite/reset emails before confirmation
-
-Do not route account ownership to the new email until verification is complete.
-
-## Implementation Shape
-
-When we build this, the likely pieces are:
-
-1. Account page form update
-2. new server route/function to create pending email-change request
-3. email template + send function for verification email
-4. new confirmation route/page
-5. server function to consume token and switch email
-6. DB table for pending email-change requests
-7. later audit events
-
-## Out Of Scope For First Pass
-
-- changing email without verification
-- admin-forced email reassignment
-- multi-step approval flows
-- session invalidation across all devices
-
-## Recommendation
-
-When we implement this, we should build it as:
-
-- a verified new-email flow
-- with an explicit pending state
-- with BetterAuth and app-domain email updates kept in sync
-
-That is the simplest version that is still secure and supportable.
+- changing an email without verifying the new inbox
+- administrator-forced identity reassignment
+- keeping multiple pending requests valid
+- automatically invalidating every existing session
+- treating operational logs as a durable email-change audit trail
