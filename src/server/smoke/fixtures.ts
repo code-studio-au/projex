@@ -257,6 +257,36 @@ async function ensureBrowserTaxonomyFixtures(
   );
 
   await pool.query(
+    `insert into categories (
+       id,
+       company_id,
+       project_id,
+       name,
+       origin_scope,
+       origin_company_item_id,
+       sync_status,
+       last_synced_at,
+       source_updated_at_snapshot,
+       created_at,
+       updated_at
+     )
+     select
+       'cat_smoke_browser_scroll_' || $1 || '_' || ordinal,
+       $2,
+       $3,
+       'Smoke Scroll Category ' || lpad(ordinal::text, 2, '0') || ' ' || $1,
+       'project',
+       null,
+       'local',
+       $4,
+       null,
+       $4,
+       $4
+     from generate_series(1, 12) as ordinal`,
+    [fixtures.runId, fixtures.companyId, fixtures.projectId, now]
+  );
+
+  await pool.query(
     `insert into sub_categories (
        id,
        company_id,

@@ -7,7 +7,6 @@ import {
   Menu,
   Modal,
   Paper,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -34,7 +33,7 @@ import {
   ManagementActionsMenu,
   ManagementModalIntro,
 } from './ManagementModalUi';
-import { firefoxSafeModalSelectProps } from './modalSelectProps';
+import ModalSelect from './ModalSelect';
 
 type TaxonomyTarget = {
   kind: 'category' | 'subcategory';
@@ -410,7 +409,7 @@ function CompanyDefaultTaxonomyComposer({
 
         {model.creationMode === 'subcategory' ? (
           <Group align="flex-end" wrap="wrap">
-            <Select
+            <ModalSelect
               label="Company category"
               placeholder={
                 model.categoryOptions.length === 0
@@ -421,7 +420,6 @@ function CompanyDefaultTaxonomyComposer({
               value={model.newSubCategoryCategoryId}
               searchable
               disabled={model.categoryOptions.length === 0}
-              {...firefoxSafeModalSelectProps}
               onChange={(value) => {
                 model.clearFeedback();
                 model.setNewSubCategoryCategoryId(value);
@@ -753,7 +751,6 @@ function MoveCompanyDefaultTaxonomyModal({
       title="Move company subcategory"
       fullScreen={model.isMobile}
       centered={!model.isMobile}
-      lockScroll={false}
     >
       <Stack gap="md">
         {model.error ? <Alert color="red">{model.error}</Alert> : null}
@@ -781,13 +778,12 @@ function MoveCompanyDefaultTaxonomyModal({
             their taxonomy placement is overridden locally.
           </Alert>
         ) : null}
-        <Select
+        <ModalSelect
           label="New company category"
           placeholder="Select category"
           data={model.moveCategoryOptions}
           value={model.moveCategoryId}
           searchable
-          {...firefoxSafeModalSelectProps}
           onChange={model.setMoveCategoryId}
         />
         <Group className={classes.footerRow}>
@@ -853,7 +849,6 @@ function DeleteCompanyDefaultTaxonomyModal({
       }
       fullScreen={model.isMobile}
       centered={!model.isMobile}
-      lockScroll={false}
     >
       <Stack gap="md">
         {model.error ? <Alert color="red">{model.error}</Alert> : null}
@@ -876,7 +871,7 @@ function DeleteCompanyDefaultTaxonomyModal({
         {model.pendingDelete?.kind === 'subcategory' &&
         model.deleteAffectedRules.length > 0 ? (
           <>
-            <Select
+            <ModalSelect
               label="Affected rule handling"
               data={[
                 {
@@ -904,18 +899,17 @@ function DeleteCompanyDefaultTaxonomyModal({
             />
             {model.deleteRuleHandling === 'reassign' ? (
               <Group grow align="flex-end" wrap="wrap">
-                <Select
+                <ModalSelect
                   label="Replacement company category"
                   data={model.categoryOptions}
                   value={model.deleteReplacementCategoryId}
                   searchable
-                  {...firefoxSafeModalSelectProps}
                   onChange={(value) => {
                     model.setDeleteReplacementCategoryId(value);
                     model.setDeleteReplacementSubCategoryId(null);
                   }}
                 />
-                <Select
+                <ModalSelect
                   label="Replacement company subcategory"
                   placeholder={
                     model.deleteReplacementCategoryId
@@ -926,7 +920,6 @@ function DeleteCompanyDefaultTaxonomyModal({
                   value={model.deleteReplacementSubCategoryId}
                   searchable
                   disabled={!model.deleteReplacementCategoryId}
-                  {...firefoxSafeModalSelectProps}
                   onChange={model.setDeleteReplacementSubCategoryId}
                 />
               </Group>
@@ -1019,7 +1012,6 @@ function CompanyDefaultTaxonomyModalView({
         fullScreen={model.isMobile}
         centered={!model.isMobile}
         size="lg"
-        lockScroll={false}
         styles={{
           body: {
             maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',

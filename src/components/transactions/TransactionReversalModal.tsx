@@ -8,7 +8,6 @@ import {
   Loader,
   Modal,
   Paper,
-  Select,
   Stack,
   Text,
   Textarea,
@@ -23,14 +22,8 @@ import type { TxnReversalTxnSummary } from '../../types';
 import { useTxnReversalSuggestionsQuery } from '../../queries/transactions';
 import { formatCurrencyFromCents } from '../../utils/money';
 import { omitUndefinedProperties } from '../../utils/optionalProperties';
-import { firefoxSafeModalSelectProps } from '../modalSelectProps';
+import ModalSelect from '../ModalSelect';
 import TransactionReversalPairDetails from './TransactionReversalPairDetails';
-
-const containedModalSelectProps = {
-  ...firefoxSafeModalSelectProps,
-  // Keep wheel events inside the modal's scroll-lock boundary.
-  comboboxProps: { withinPortal: false },
-} as const;
 
 export type ReversalReviewQueueControls = {
   currentPosition: number;
@@ -309,14 +302,13 @@ function PendingReversalActions({
 }) {
   return (
     <>
-      <Select
+      <ModalSelect
         label="Expected destination project"
         placeholder="Optional"
         data={model.expectedProjectOptions}
         value={model.expectedProjectId}
         clearable
         searchable
-        {...containedModalSelectProps}
         onChange={model.setExpectedProjectId}
       />
       <Textarea
@@ -373,7 +365,7 @@ function SuggestedReversalActions({
           {model.suggestionsLoading ? <Loader size="sm" /> : null}
         </Group>
         {model.suggestions.length > 0 ? (
-          <Select
+          <ModalSelect
             label="Match candidate"
             data={model.suggestions.map((suggestion) => ({
               value: suggestion.txnId,
@@ -385,7 +377,6 @@ function SuggestedReversalActions({
             value={model.selectedSuggestionTxnId}
             onChange={model.setSelectedSuggestionTxnId}
             searchable
-            {...containedModalSelectProps}
           />
         ) : (
           <Text size="sm" c="dimmed">
@@ -600,7 +591,6 @@ function TransactionReversalModalView({
       title={model.modalTitle}
       centered
       size="xl"
-      lockScroll={false}
       styles={{
         body: {
           maxHeight: 'calc(100dvh - 10rem)',

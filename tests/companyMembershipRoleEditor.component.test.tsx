@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import CompanyMembershipRoleEditor from '../src/components/companySettings/CompanyMembershipRoleEditor';
@@ -20,12 +20,14 @@ function defaultProps() {
       { value: asUserId('usr_member'), label: 'Member User' },
     ],
     selectedUserId: asUserId('usr_member'),
+    currentRole: 'member' as const,
     selectedRole: 'member' as const,
+    selectedUserIsSelf: false,
     wouldDemoteLastAdmin: false,
     isPending: false,
     onUserChange: vi.fn(),
     onRoleChange: vi.fn(),
-    onSubmit: vi.fn(),
+    onSubmit: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -35,35 +37,70 @@ function selectOption(label: string, option: string) {
 }
 
 describe('CompanyMembershipRoleEditor', () => {
-  it('routes explicit user and role changes to the membership controller', () => {
+  it('reviews an explicit role change before routing it to the controller', async () => {
+    const props = defaultProps();
+    const view = renderComponent(<CompanyMembershipRoleEditor {...props} />);
+
+    selectOption('User', 'Admin User');
+    selectOption('Company role', 'Executive');
+    expect(props.onUserChange).toHaveBeenCalledWith(asUserId('usr_admin'));
+    expect(props.onRoleChange).toHaveBeenCalledWith('executive');
+
+    view.rerender(
+      <CompanyMembershipRoleEditor
+        {...props}
+        selectedUserId={asUserId('usr_admin')}
+        currentRole="admin"
+        selectedRole="executive"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Review change' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('Confirm company role change');
+    expect(dialog.textContent).toContain('from Admin to Executive');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirm role change' })
+    );
+
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalledOnce());
+  });
+
+  it('does not offer a write while the selected role is unchanged', () => {
     const props = defaultProps();
     renderComponent(<CompanyMembershipRoleEditor {...props} />);
 
-    selectOption('User', 'Admin User');
-    selectOption('Company role', 'executive');
-    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
-
-    expect(props.onUserChange).toHaveBeenCalledWith(asUserId('usr_admin'));
-    expect(props.onRoleChange).toHaveBeenCalledWith('executive');
-    expect(props.onSubmit).toHaveBeenCalledOnce();
+    expect(
+      (
+        screen.getByRole('button', {
+          name: 'Review change',
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+    expect(screen.getByText(/No database write will occur/)).toBeTruthy();
   });
 
   it('blocks the only company admin from being demoted', () => {
     const props = {
       ...defaultProps(),
       selectedUserId: asUserId('usr_admin'),
+      currentRole: 'admin' as const,
+      selectedRole: 'member' as const,
       wouldDemoteLastAdmin: true,
     };
     renderComponent(<CompanyMembershipRoleEditor {...props} />);
 
     expect(screen.getByRole('alert').textContent).toContain(
-      'must retain at least one admin'
+      'must retain at least one Admin'
     );
     expect(
-      (screen.getByRole('button', { name: 'Set' }) as HTMLButtonElement)
-        .disabled
+      (
+        screen.getByRole('button', {
+          name: 'Review change',
+        }) as HTMLButtonElement
+      ).disabled
     ).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review change' }));
     expect(props.onSubmit).not.toHaveBeenCalled();
   });
 
@@ -83,8 +120,11 @@ describe('CompanyMembershipRoleEditor', () => {
       ).disabled
     ).toBe(true);
     expect(
-      (screen.getByRole('button', { name: 'Set' }) as HTMLButtonElement)
-        .disabled
+      (
+        screen.getByRole('button', {
+          name: 'Review change',
+        }) as HTMLButtonElement
+      ).disabled
     ).toBe(true);
   });
 });

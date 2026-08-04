@@ -6,7 +6,6 @@ import {
   Group,
   Modal,
   Paper,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -33,7 +32,7 @@ import {
 } from '../queries/ruleSuggestions';
 import { formatUtcDateTime } from '../utils/dateTime';
 import { formatCurrencyFromCents } from '../utils/money';
-import { firefoxSafeModalSelectProps } from './modalSelectProps';
+import ModalSelect from './ModalSelect';
 import classes from '../styles/ui.module.css';
 
 const UPDATE_ACTION_OPTIONS = [
@@ -354,13 +353,12 @@ function RuleSuggestionCard({
 
         {isUpdateSuggestion ? (
           <Stack gap={6}>
-            <Select
+            <ModalSelect
               label="How should this correction be applied?"
               description="Creating a narrower rule is safer because the current broader rule remains available for other transactions."
               data={UPDATE_ACTION_OPTIONS}
               value={selectedAction}
               disabled={model.readOnly}
-              {...firefoxSafeModalSelectProps}
               onChange={(value) => {
                 if (!value) return;
                 model.setError(null);
@@ -434,12 +432,11 @@ function RuleSuggestionCard({
         ) : null}
 
         <Group grow align="flex-end">
-          <Select
+          <ModalSelect
             label="Company default category"
             data={model.categoryOptions}
             value={selectedCategoryId}
             disabled={model.readOnly}
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               model.setError(null);
               model.setSuccess(null);
@@ -456,12 +453,11 @@ function RuleSuggestionCard({
               });
             }}
           />
-          <Select
+          <ModalSelect
             label="Company default subcategory"
             data={subCategoryOptions}
             value={selectedSubCategoryId}
             disabled={model.readOnly || !selectedCategoryId}
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               model.setError(null);
               model.setSuccess(null);
@@ -478,14 +474,13 @@ function RuleSuggestionCard({
 
         <Group justify="space-between" align="flex-end" wrap="wrap">
           <Group align="flex-end" gap="xs" wrap="wrap">
-            <Select
+            <ModalSelect
               label="Dismiss reason"
               placeholder="Choose a reason"
               data={DISMISS_REASON_OPTIONS}
               value={dismissReason ?? null}
               disabled={model.readOnly}
               w={230}
-              {...firefoxSafeModalSelectProps}
               onChange={(value) => {
                 if (!value) return;
                 model.setDismissReasonDrafts((prev) => ({

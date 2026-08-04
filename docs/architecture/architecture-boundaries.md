@@ -34,6 +34,21 @@ normalized server context:
 Do not re-implement session-user lookups inside feature modules when normalized
 context is already available.
 
+## Password-reset account switch rule
+
+A successful password reset is also a single-use proof of control of the reset
+account. `src/server/auth/passwordResetAccountSwitch.ts` captures the token's
+user ID before BetterAuth consumes it, waits for the reset endpoint to succeed,
+then creates one fresh session and replaces the browser's signed session cookie.
+BetterAuth revokes the reset account's older sessions as part of the same reset
+flow; sessions belonging to a different account on other devices are not
+revoked.
+
+The browser must clear all protected TanStack Query data before discovering the
+new session and routing to that account. Do not put account email addresses in
+reset URLs, switch on a failed reset, or preserve cached data from the account
+that previously occupied the browser cookie.
+
 ## Server logging rule
 
 Production application code must use `src/api/serverLogging.ts` rather than
@@ -213,3 +228,18 @@ reference for loading state, result notifications, and selection cleanup. The
 shared import-rule editor is the reference for one editor receiving thin
 company/project data adapters while pure option, dirty-state, and ordering
 decisions remain independently testable.
+
+## Modal selection rule
+
+Use `src/components/ModalSelect.tsx` for every Mantine `Select` rendered inside
+a modal. It keeps the combobox dropdown inside the modal's DOM and scroll-lock
+boundary, uses a bounded native-scrolling option list, and contains wheel
+overscroll. Keep Mantine's default modal background scroll lock enabled; do not
+add `lockScroll={false}` to work around dropdown behavior.
+
+Use the ordinary Mantine `Select` outside modals. Choose `NativeSelect` only
+when browser-native selection semantics fit the product interaction, not as a
+Firefox-specific fallback. The taxonomy browser workflow is the regression
+boundary for dropdown scrolling, continued modal scrolling after dropdown use,
+and preventing either interaction from scrolling the background page across
+Chromium, Firefox, and WebKit.

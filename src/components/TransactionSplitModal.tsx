@@ -8,7 +8,6 @@ import {
   Modal,
   NumberInput,
   Paper,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -19,7 +18,7 @@ import type { TxnSplitInput } from '../api/types';
 import type { CategoryId, SubCategoryId, Txn } from '../types';
 import { asCategoryId, asSubCategoryId } from '../types';
 import type { TaxonomyHook } from '../hooks/useTaxonomy';
-import { firefoxSafeModalSelectProps } from './modalSelectProps';
+import ModalSelect from './ModalSelect';
 import { formatCurrencyFromCents, fromCents, toCents } from '../utils/money';
 import classes from '../styles/ui.module.css';
 
@@ -260,7 +259,7 @@ function TransactionSplitModalContent(props: {
                 </Group>
 
                 <Group align="flex-start" gap="sm" grow>
-                  <Select
+                  <ModalSelect
                     label="Category"
                     data={taxonomy.categoryOptions}
                     value={row.categoryId}
@@ -268,7 +267,6 @@ function TransactionSplitModalContent(props: {
                     clearable
                     searchable
                     disabled={submitting}
-                    {...firefoxSafeModalSelectProps}
                     onChange={(value) =>
                       updateRow(row.key, {
                         categoryId: value ? asCategoryId(value) : null,
@@ -276,7 +274,7 @@ function TransactionSplitModalContent(props: {
                       })
                     }
                   />
-                  <Select
+                  <ModalSelect
                     label="Subcategory"
                     data={subCategoryOptions}
                     value={row.subCategoryId}
@@ -286,7 +284,6 @@ function TransactionSplitModalContent(props: {
                     clearable
                     searchable
                     disabled={!row.categoryId || submitting}
-                    {...firefoxSafeModalSelectProps}
                     onChange={(value) =>
                       updateRow(row.key, {
                         subCategoryId: value ? asSubCategoryId(value) : null,

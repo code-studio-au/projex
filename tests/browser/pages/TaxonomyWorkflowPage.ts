@@ -19,9 +19,99 @@ export class TaxonomyWorkflowPage extends AuthenticatedSmokePage {
     await this.signIn();
     await this.gotoProject('tab=transactions');
     await this.openProjectTaxonomy();
+    await this.verifyModalSelectScrolling();
     await this.moveAndDeleteSubcategory();
     await this.verifyReassignedRuleTarget();
     this.assertNoBrowserErrors();
+  }
+
+  private async verifyModalSelectScrolling() {
+    await this.emit('Verifying contained modal Select scrolling');
+    const dialog = this.page.getByRole('dialog', {
+      name: 'Manage categories & subcategories',
+    });
+    const modalBody = dialog.locator('.mantine-Modal-body');
+    const pageScrollTop = await this.page.evaluate(() => window.scrollY);
+
+    this.assert(
+      await this.page.evaluate(() =>
+        document.body.hasAttribute('data-scroll-locked')
+      ),
+      'Opening the taxonomy modal did not lock background page scrolling'
+    );
+
+    const categorySelect = dialog.getByRole('combobox', {
+      name: 'Category',
+    });
+    await categorySelect.click();
+    const dropdownId = await categorySelect.getAttribute('aria-controls');
+    this.assert(
+      dropdownId,
+      'Taxonomy category Select did not expose a dropdown'
+    );
+    const listbox = dialog.locator(`[id="${dropdownId}"]`);
+    const dropdown = listbox.locator('..');
+    await dropdown.waitFor({ state: 'visible' });
+
+    const dropdownScroll = await dropdown.evaluate<
+      { clientHeight: number; scrollHeight: number; scrollTop: number },
+      HTMLElement
+    >((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+    }));
+    this.assert(
+      dropdownScroll.scrollHeight > dropdownScroll.clientHeight,
+      'Taxonomy category Select did not create a scrollable dropdown'
+    );
+    await dropdown.hover();
+    await this.page.mouse.wheel(0, 300);
+    await this.page.waitForTimeout(100);
+    const dropdownScrollTop = await dropdown.evaluate<number, HTMLElement>(
+      (element) => element.scrollTop
+    );
+    this.assert(
+      dropdownScrollTop > dropdownScroll.scrollTop,
+      'Taxonomy category Select did not respond to wheel scrolling'
+    );
+    this.assert(
+      (await this.page.evaluate(() => window.scrollY)) === pageScrollTop,
+      'Scrolling the contained Select moved the background page'
+    );
+
+    await this.page.keyboard.press('Escape');
+    await dropdown.waitFor({ state: 'hidden' });
+
+    const modalScroll = await modalBody.evaluate<
+      { clientHeight: number; scrollHeight: number; scrollTop: number },
+      HTMLElement
+    >((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+    }));
+    this.assert(
+      modalScroll.scrollHeight > modalScroll.clientHeight,
+      'Taxonomy modal did not create an internal scroll region'
+    );
+    await modalBody.hover();
+    await this.page.mouse.wheel(0, 500);
+    await this.page.waitForTimeout(100);
+    const modalScrollTop = await modalBody.evaluate<number, HTMLElement>(
+      (element) => element.scrollTop
+    );
+    this.assert(
+      modalScrollTop > modalScroll.scrollTop,
+      'Taxonomy modal stopped responding to wheel scrolling after Select use'
+    );
+    this.assert(
+      (await this.page.evaluate(() => window.scrollY)) === pageScrollTop,
+      'Scrolling the taxonomy modal moved the background page'
+    );
+    await modalBody.evaluate((element) => {
+      element.scrollTop = 0;
+    });
   }
 
   private async moveAndDeleteSubcategory() {

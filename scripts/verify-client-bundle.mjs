@@ -47,7 +47,9 @@ const BUNDLE_TARGETS = [
       {
         label: 'Company settings tab',
         assetPrefix: 'CompanySettingsPanel-',
-        budget: { js: 30 * 1024, css: 1 * 1024 },
+        // Includes the deliberate role-capability summaries and access-change
+        // confirmation boundary used by company administration.
+        budget: { js: 31 * 1024, css: 1 * 1024 },
       },
     ],
   },
@@ -77,7 +79,9 @@ const BUNDLE_TARGETS = [
       {
         label: 'Project settings tab',
         assetPrefix: 'ProjectSettingsPanel-',
-        budget: { js: 25 * 1024, css: 1 * 1024 },
+        // Includes the deliberate role-capability summaries and access-change
+        // confirmation boundary used by project administration.
+        budget: { js: 26 * 1024, css: 1 * 1024 },
       },
     ],
   },

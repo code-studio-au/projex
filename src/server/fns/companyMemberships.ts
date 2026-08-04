@@ -62,19 +62,23 @@ export async function ensureCompanyUserMembership(args: {
     .where('user_id', '=', user.id)
     .executeTakeFirst();
 
-  await args.db
-    .insertInto('company_memberships')
-    .values({
-      company_id: args.companyId,
-      user_id: user.id,
-      role: args.role,
-    })
-    .onConflict((oc) =>
-      oc.columns(['company_id', 'user_id']).doUpdateSet({
+  if (existingMembership && existingMembership.role !== args.role) {
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'This user is already a company member. Review role changes in Current members.'
+    );
+  }
+
+  if (!existingMembership) {
+    await args.db
+      .insertInto('company_memberships')
+      .values({
+        company_id: args.companyId,
+        user_id: user.id,
         role: args.role,
       })
-    )
-    .execute();
+      .execute();
+  }
 
   return {
     user,
@@ -121,16 +125,17 @@ export async function createUserInCompanyServer(args: {
         email: args.email,
         role: args.role,
       });
-      await recordAuditLogEvent({
-        companyId: args.companyId,
-        actorUserId: sessionUserId,
-        eventClass: 'membership',
-        eventType: result.membershipCreated
-          ? 'company_membership.created'
-          : 'company_membership.role_changed',
-        entityType: 'company_membership',
-        entityId: `${args.companyId}:${result.user.id}`,
-      });
+      if (result.membershipCreated) {
+        await recordAuditLogEvent({
+          companyId: args.companyId,
+          actorUserId: sessionUserId,
+          eventClass: 'membership',
+          eventType: 'company_membership.created',
+          entityType: 'company_membership',
+          entityId: `${args.companyId}:${result.user.id}`,
+          reasonCode: `assigned_${args.role}`,
+        });
+      }
       return result;
     });
 

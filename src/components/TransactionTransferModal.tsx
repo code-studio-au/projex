@@ -6,7 +6,6 @@ import {
   Group,
   Modal,
   Paper,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -14,7 +13,7 @@ import {
 
 import type { ProjectId, Txn } from '../types';
 import { asProjectId } from '../types';
-import { firefoxSafeModalSelectProps } from './modalSelectProps';
+import ModalSelect from './ModalSelect';
 import { formatCurrencyFromCents } from '../utils/money';
 import classes from '../styles/ui.module.css';
 
@@ -123,14 +122,13 @@ function TransactionTransferModalContent(props: {
         </Alert>
       ) : null}
 
-      <Select
+      <ModalSelect
         label="Destination project"
         placeholder="Choose project"
         data={projectOptions}
         value={destinationProjectId}
         searchable
         disabled={submitting}
-        {...firefoxSafeModalSelectProps}
         onChange={(value) =>
           setDestinationProjectId(value ? asProjectId(value) : null)
         }

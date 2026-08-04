@@ -416,6 +416,11 @@ systemd, or nginx tooling from the historical recovery ref.
    - request a reset email
    - open the link
    - set a new password
+   - confirm the browser automatically switches to the reset account and lands
+     on that account's normal post-login destination
+   - if a different account was active in this browser, confirm its cached
+     company/project data is no longer visible; sessions on that account's
+     other devices should remain active
 8. Prefer generated fixture smoke for the default repeatable full pass without long-lived smoke users:
    - run `pnpm run smoke:server:generated`
    - use `pnpm run smoke:server:generated -- --section=...` when rerunning only one generated-fixture workflow

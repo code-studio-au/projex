@@ -7,7 +7,6 @@ import {
   Menu,
   Modal,
   Paper,
-  Select,
   Stack,
   Switch,
   Text,
@@ -42,7 +41,7 @@ import {
   ManagementListCard,
   ManagementModalIntro,
 } from './ManagementModalUi';
-import { firefoxSafeModalSelectProps } from './modalSelectProps';
+import ModalSelect from './ModalSelect';
 
 type ImportRuleEditorDraft = Pick<
   ImportRule,
@@ -352,11 +351,10 @@ function ImportRuleComposer({
           }
         />
         <Group grow align="flex-end" wrap="wrap">
-          <Select
+          <ModalSelect
             label="Action"
             data={importRuleActionOptions}
             value={model.newAction}
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               const next = toImportRuleAction(value);
               if (next) {
@@ -367,12 +365,11 @@ function ImportRuleComposer({
               }
             }}
           />
-          <Select
+          <ModalSelect
             label="Field"
             data={importRuleFieldOptions}
             value={model.newField}
             searchable
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               const next = toImportRuleField(value);
               if (next) {
@@ -383,11 +380,10 @@ function ImportRuleComposer({
               }
             }}
           />
-          <Select
+          <ModalSelect
             label="Match"
             data={importRuleOperatorOptions}
             value={model.newOperator}
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               const next = toImportRuleOperator(value);
               if (next) {
@@ -623,7 +619,6 @@ function EditImportRuleModal({
       title="Edit import rule"
       fullScreen={model.isMobile}
       centered={!model.isMobile}
-      lockScroll={false}
     >
       <Stack gap="md">
         {model.error ? <Alert color="red">{model.error}</Alert> : null}
@@ -643,11 +638,10 @@ function EditImportRuleModal({
           }
         />
         <Group grow align="flex-end" wrap="wrap">
-          <Select
+          <ModalSelect
             label="Action"
             data={importRuleActionOptions}
             value={model.editAction}
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               const next = toImportRuleAction(value);
               if (next) {
@@ -658,12 +652,11 @@ function EditImportRuleModal({
               }
             }}
           />
-          <Select
+          <ModalSelect
             label="Field"
             data={importRuleFieldOptions}
             value={model.editField}
             searchable
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               const next = toImportRuleField(value);
               if (next) {
@@ -674,11 +667,10 @@ function EditImportRuleModal({
               }
             }}
           />
-          <Select
+          <ModalSelect
             label="Match"
             data={importRuleOperatorOptions}
             value={model.editOperator}
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               const next = toImportRuleOperator(value);
               if (next) {
@@ -779,7 +771,6 @@ function DeleteImportRuleModal({
       title="Delete import rule?"
       fullScreen={model.isMobile}
       centered={!model.isMobile}
-      lockScroll={false}
     >
       <Stack gap="md">
         {model.error ? <Alert color="red">{model.error}</Alert> : null}
@@ -849,7 +840,6 @@ function ImportRulesEditorModalView({
         fullScreen={model.isMobile}
         centered={!model.isMobile}
         size="lg"
-        lockScroll={false}
         styles={{
           body: {
             maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',

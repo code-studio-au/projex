@@ -7,7 +7,6 @@ import {
   Group,
   Modal,
   Paper,
-  Select,
   Stack,
   Switch,
   Text,
@@ -38,6 +37,7 @@ import { suggestImportExclusionRuleFromPreviewRow } from '../utils/importRuleSug
 import { showAppToast } from '../utils/toast';
 import ImportPreviewTabs from './importReview/ImportPreviewTabs';
 import { useImportPreviewColumns } from './importReview/useImportPreviewColumns';
+import ModalSelect from './ModalSelect';
 import classes from '../styles/ui.module.css';
 
 const fieldOptions: Array<{ value: ImportRuleField; label: string }> = [
@@ -62,16 +62,6 @@ const operatorOptions: Array<{ value: ImportRuleOperator; label: string }> = [
   { value: 'ends_with', label: 'Ends with' },
   { value: 'ends_with_any', label: 'Ends with any of' },
 ];
-
-const importRuleSelectProps = {
-  withScrollArea: false,
-  styles: {
-    dropdown: {
-      maxHeight: 180,
-      overflowY: 'auto',
-    },
-  },
-} as const;
 
 type PowerBiImportCommitOptions = Pick<
   TxnImportInput,
@@ -876,11 +866,10 @@ function PowerBiReviewDecisionModal({
           }
         />
         <Group grow align="flex-end">
-          <Select
+          <ModalSelect
             label="Field"
             data={fieldOptions}
             value={model.excludeRuleField}
-            {...importRuleSelectProps}
             onChange={(value) => {
               const next = toImportRuleField(value);
               if (!next) return;
@@ -890,11 +879,10 @@ function PowerBiReviewDecisionModal({
               });
             }}
           />
-          <Select
+          <ModalSelect
             label="Match"
             data={operatorOptions}
             value={model.excludeRuleOperator}
-            {...importRuleSelectProps}
             onChange={(value) => {
               const next = toImportRuleOperator(value);
               if (!next) return;

@@ -7,7 +7,6 @@ import {
   Group,
   Modal,
   Paper,
-  Select,
   Stack,
   Text,
   Textarea,
@@ -35,6 +34,7 @@ import {
   mentionUserLabel,
   type MentionRange,
 } from '../utils/commentMentions';
+import ModalSelect from './ModalSelect';
 import classes from '../styles/ui.module.css';
 
 function commentInitials(name: string) {
@@ -381,7 +381,7 @@ function useTransactionCommentsModalController(props: {
             </div>
 
             <div className={classes.commentActionRow}>
-              <Select
+              <ModalSelect
                 size="xs"
                 placeholder={resolved ? 'Closed' : 'Assign'}
                 data={userOptions}

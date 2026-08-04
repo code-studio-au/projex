@@ -10,6 +10,8 @@ import type {
 } from '../../types';
 import { asCompanyId, asProjectId, asUserId } from '../../types';
 import { getDb } from '../db/db';
+import { executeAuditedTransaction } from '../db/auditedTransaction';
+import { recordAuditLogEvent } from '../logging/auditLogger';
 import { requireAuthorized } from '../auth/authorize';
 import { isGlobalSuperadminUser } from '../auth/globalSuperadmin';
 import {
@@ -131,42 +133,67 @@ export async function upsertCompanyMembershipServer(args: {
       .executeTakeFirst();
     if (!userExists) throw new AppError('NOT_FOUND', 'Unknown user');
 
-    const existingMembership = await db
-      .selectFrom('company_memberships')
-      .select(['role'])
-      .where('company_id', '=', args.companyId)
-      .where('user_id', '=', args.userId)
-      .executeTakeFirst();
-
-    if (existingMembership?.role === 'admin' && args.role !== 'admin') {
-      const adminCountRow = await db
-        .selectFrom('company_memberships')
-        .select((eb) => eb.fn.countAll<number>().as('count'))
-        .where('company_id', '=', args.companyId)
-        .where('role', '=', 'admin')
+    await executeAuditedTransaction(db, async (trx) => {
+      await trx
+        .selectFrom('companies')
+        .select('id')
+        .where('id', '=', args.companyId)
+        .forUpdate()
         .executeTakeFirstOrThrow();
 
-      if (Number(adminCountRow.count) <= 1) {
-        throw new AppError(
-          'VALIDATION_ERROR',
-          'Company must retain at least one admin'
-        );
-      }
-    }
+      const existingMembership = await trx
+        .selectFrom('company_memberships')
+        .select(['role'])
+        .where('company_id', '=', args.companyId)
+        .where('user_id', '=', args.userId)
+        .executeTakeFirst();
 
-    await db
-      .insertInto('company_memberships')
-      .values({
-        company_id: args.companyId,
-        user_id: args.userId,
-        role: args.role,
-      })
-      .onConflict((oc) =>
-        oc.columns(['company_id', 'user_id']).doUpdateSet({
+      if (existingMembership?.role === args.role) return;
+
+      if (existingMembership?.role === 'admin' && args.role !== 'admin') {
+        const adminCountRow = await trx
+          .selectFrom('company_memberships')
+          .select((eb) => eb.fn.countAll<number>().as('count'))
+          .where('company_id', '=', args.companyId)
+          .where('role', '=', 'admin')
+          .executeTakeFirstOrThrow();
+
+        if (Number(adminCountRow.count) <= 1) {
+          throw new AppError(
+            'VALIDATION_ERROR',
+            'Company must retain at least one admin'
+          );
+        }
+      }
+
+      await trx
+        .insertInto('company_memberships')
+        .values({
+          company_id: args.companyId,
+          user_id: args.userId,
           role: args.role,
         })
-      )
-      .execute();
+        .onConflict((oc) =>
+          oc.columns(['company_id', 'user_id']).doUpdateSet({
+            role: args.role,
+          })
+        )
+        .execute();
+
+      await recordAuditLogEvent({
+        companyId: args.companyId,
+        actorUserId: sessionUserId,
+        eventClass: 'membership',
+        eventType: existingMembership
+          ? 'company_membership.role_changed'
+          : 'company_membership.created',
+        entityType: 'company_membership',
+        entityId: `${args.companyId}:${args.userId}`,
+        reasonCode: existingMembership
+          ? `${existingMembership.role}_to_${args.role}`
+          : `assigned_${args.role}`,
+      });
+    });
 
     return {
       companyId: args.companyId,
@@ -191,31 +218,45 @@ export async function deleteCompanyMembershipServer(args: {
       action: 'company:manage_members',
       companyId: args.companyId,
     });
-
-    const existingMembership = await db
-      .selectFrom('company_memberships')
-      .select(['role'])
-      .where('company_id', '=', args.companyId)
-      .where('user_id', '=', args.userId)
-      .executeTakeFirst();
-
-    if (existingMembership?.role === 'admin') {
-      const adminCountRow = await db
-        .selectFrom('company_memberships')
-        .select((eb) => eb.fn.countAll<number>().as('count'))
-        .where('company_id', '=', args.companyId)
-        .where('role', '=', 'admin')
-        .executeTakeFirstOrThrow();
-
-      if (Number(adminCountRow.count) <= 1) {
-        throw new AppError(
-          'VALIDATION_ERROR',
-          'Company must retain at least one admin'
-        );
-      }
+    if (sessionUserId === args.userId) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'You cannot remove your own company membership'
+      );
     }
 
-    await db.transaction().execute(async (trx) => {
+    await executeAuditedTransaction(db, async (trx) => {
+      await trx
+        .selectFrom('companies')
+        .select('id')
+        .where('id', '=', args.companyId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+
+      const existingMembership = await trx
+        .selectFrom('company_memberships')
+        .select(['role'])
+        .where('company_id', '=', args.companyId)
+        .where('user_id', '=', args.userId)
+        .executeTakeFirst();
+      if (!existingMembership) return;
+
+      if (existingMembership.role === 'admin') {
+        const adminCountRow = await trx
+          .selectFrom('company_memberships')
+          .select((eb) => eb.fn.countAll<number>().as('count'))
+          .where('company_id', '=', args.companyId)
+          .where('role', '=', 'admin')
+          .executeTakeFirstOrThrow();
+
+        if (Number(adminCountRow.count) <= 1) {
+          throw new AppError(
+            'VALIDATION_ERROR',
+            'Company must retain at least one admin'
+          );
+        }
+      }
+
       const projectIds = await trx
         .selectFrom('projects')
         .select('id')
@@ -239,6 +280,16 @@ export async function deleteCompanyMembershipServer(args: {
         .where('company_id', '=', args.companyId)
         .where('user_id', '=', args.userId)
         .execute();
+
+      await recordAuditLogEvent({
+        companyId: args.companyId,
+        actorUserId: sessionUserId,
+        eventClass: 'membership',
+        eventType: 'company_membership.removed',
+        entityType: 'company_membership',
+        entityId: `${args.companyId}:${args.userId}`,
+        reasonCode: `removed_${existingMembership.role}`,
+      });
     });
   });
 }
@@ -342,19 +393,70 @@ export async function upsertProjectMembershipServer(args: {
       userId: args.userId,
     });
 
-    await db
-      .insertInto('project_memberships')
-      .values({
-        project_id: args.projectId,
-        user_id: args.userId,
-        role: args.role,
-      })
-      .onConflict((oc) =>
-        oc.columns(['project_id', 'user_id']).doUpdateSet({
+    await executeAuditedTransaction(db, async (trx) => {
+      await trx
+        .selectFrom('projects')
+        .select('id')
+        .where('id', '=', args.projectId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+
+      const existingMembership = await trx
+        .selectFrom('project_memberships')
+        .select('role')
+        .where('project_id', '=', args.projectId)
+        .where('user_id', '=', args.userId)
+        .executeTakeFirst();
+      if (existingMembership?.role === args.role) return;
+
+      const ownerCountRow = await trx
+        .selectFrom('project_memberships')
+        .select((eb) => eb.fn.countAll<number>().as('count'))
+        .where('project_id', '=', args.projectId)
+        .where('role', '=', 'owner')
+        .executeTakeFirstOrThrow();
+      const ownerCount = Number(ownerCountRow.count);
+      if (
+        (existingMembership?.role === 'owner' &&
+          args.role !== 'owner' &&
+          ownerCount <= 1) ||
+        (ownerCount === 0 && args.role !== 'owner')
+      ) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'Project must retain at least one owner'
+        );
+      }
+
+      await trx
+        .insertInto('project_memberships')
+        .values({
+          project_id: args.projectId,
+          user_id: args.userId,
           role: args.role,
         })
-      )
-      .execute();
+        .onConflict((oc) =>
+          oc.columns(['project_id', 'user_id']).doUpdateSet({
+            role: args.role,
+          })
+        )
+        .execute();
+
+      await recordAuditLogEvent({
+        companyId: asCompanyId(project.company_id),
+        projectId: args.projectId,
+        actorUserId: sessionUserId,
+        eventClass: 'membership',
+        eventType: existingMembership
+          ? 'project_membership.role_changed'
+          : 'project_membership.created',
+        entityType: 'project_membership',
+        entityId: `${args.projectId}:${args.userId}`,
+        reasonCode: existingMembership
+          ? `${existingMembership.role}_to_${args.role}`
+          : `assigned_${args.role}`,
+      });
+    });
 
     return {
       projectId: args.projectId,
@@ -389,11 +491,54 @@ export async function deleteProjectMembershipServer(args: {
       projectId: args.projectId,
     });
 
-    await db
-      .deleteFrom('project_memberships')
-      .where('project_id', '=', args.projectId)
-      .where('user_id', '=', args.userId)
-      .where('role', '=', args.role)
-      .execute();
+    await executeAuditedTransaction(db, async (trx) => {
+      await trx
+        .selectFrom('projects')
+        .select('id')
+        .where('id', '=', args.projectId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+
+      const existingMembership = await trx
+        .selectFrom('project_memberships')
+        .select('role')
+        .where('project_id', '=', args.projectId)
+        .where('user_id', '=', args.userId)
+        .executeTakeFirst();
+      if (!existingMembership || existingMembership.role !== args.role) return;
+
+      if (existingMembership.role === 'owner') {
+        const ownerCountRow = await trx
+          .selectFrom('project_memberships')
+          .select((eb) => eb.fn.countAll<number>().as('count'))
+          .where('project_id', '=', args.projectId)
+          .where('role', '=', 'owner')
+          .executeTakeFirstOrThrow();
+        if (Number(ownerCountRow.count) <= 1) {
+          throw new AppError(
+            'VALIDATION_ERROR',
+            'Project must retain at least one owner'
+          );
+        }
+      }
+
+      await trx
+        .deleteFrom('project_memberships')
+        .where('project_id', '=', args.projectId)
+        .where('user_id', '=', args.userId)
+        .where('role', '=', args.role)
+        .execute();
+
+      await recordAuditLogEvent({
+        companyId: asCompanyId(project.company_id),
+        projectId: args.projectId,
+        actorUserId: sessionUserId,
+        eventClass: 'membership',
+        eventType: 'project_membership.removed',
+        entityType: 'project_membership',
+        entityId: `${args.projectId}:${args.userId}`,
+        reasonCode: `removed_${existingMembership.role}`,
+      });
+    });
   });
 }

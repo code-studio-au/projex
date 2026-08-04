@@ -83,11 +83,11 @@ function useCompanyDashboardPageController() {
   const deactivateProject = useDeactivateProjectMutation(companyId);
   const reactivateProject = useReactivateProjectMutation(companyId);
   const deleteProject = useDeleteProjectMutation(companyId);
-  const canAccessSettings =
-    loaderData?.canAccessSettings ??
-    (canUpdateCompanyDetails ||
+  const canAccessSettings = isHydrated
+    ? canUpdateCompanyDetails ||
       canManageCompanyMembers ||
-      canManageCompanyDefaults);
+      canManageCompanyDefaults
+    : (loaderData?.canAccessSettings ?? false);
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -192,26 +192,27 @@ function useCompanyDashboardPageController() {
     );
     return ids.size;
   }, [memberships, access.userId]);
-  const isGlobalSuperadmin =
-    (usersQ.data ?? []).find((user) => user.id === access.userId)
-      ?.isGlobalSuperadmin ??
-    loaderData?.isGlobalSuperadmin ??
-    false;
+  const isGlobalSuperadmin = isHydrated
+    ? ((usersQ.data ?? []).find((user) => user.id === access.userId)
+        ?.isGlobalSuperadmin ?? access.isSuperadmin)
+    : (loaderData?.isGlobalSuperadmin ?? false);
   const superadminNeedsInitialOwner = isGlobalSuperadmin;
-  const canViewCompanySummary =
-    loaderData?.canViewCompanySummary ??
-    (access.isAdmin ||
+  const canViewCompanySummary = isHydrated
+    ? access.isAdmin ||
       access.isExecutive ||
-      (isGlobalSuperadmin && rows.length > 0));
+      (isGlobalSuperadmin && rows.length > 0)
+    : (loaderData?.canViewCompanySummary ?? false);
   const companyWorkQueueQ = useCompanyWorkQueueQuery(companyId, {
     enabled: canViewCompanySummary,
   });
   const ruleSuggestionCount = companyWorkQueueQ.data?.ruleSuggestionCount ?? 0;
-  const showSwitchCompany =
-    (loaderData?.isGlobalSuperadmin ?? isGlobalSuperadmin) ||
-    (loaderData?.userCompanyCount ?? userCompanyCount) > 1;
-  const canAddProjects =
-    loaderData?.canCreateProjects ?? access.can('project:create');
+  const showSwitchCompany = isHydrated
+    ? isGlobalSuperadmin || userCompanyCount > 1
+    : (loaderData?.isGlobalSuperadmin ?? false) ||
+      (loaderData?.userCompanyCount ?? 0) > 1;
+  const canAddProjects = isHydrated
+    ? access.can('project:create')
+    : (loaderData?.canCreateProjects ?? false);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -300,13 +301,11 @@ function useCompanyDashboardPageController() {
         : 'projects'
   ) as CompanyDashboardTab;
   const safeActiveTab: 'summary' | 'projects' | 'settings' =
-    canViewCompanySummary
-      ? resolvedActiveTab === 'settings'
-        ? 'settings'
-        : resolvedActiveTab === 'projects'
-          ? 'projects'
-          : 'summary'
-      : resolvedActiveTab === 'summary'
+    resolvedActiveTab === 'settings' && !canAccessSettings
+      ? canViewCompanySummary
+        ? 'summary'
+        : 'projects'
+      : resolvedActiveTab === 'summary' && !canViewCompanySummary
         ? 'projects'
         : resolvedActiveTab;
 

@@ -20,8 +20,7 @@ export function resolveProjectWorkspaceTabAccess(args: {
 
   return {
     canImport:
-      isOperationalProject &&
-      (initialCanImport || (isHydrated && liveCanImport)),
-    canProjectEdit: initialCanProjectEdit || (isHydrated && liveCanProjectEdit),
+      isOperationalProject && (isHydrated ? liveCanImport : initialCanImport),
+    canProjectEdit: isHydrated ? liveCanProjectEdit : initialCanProjectEdit,
   };
 }
