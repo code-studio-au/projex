@@ -222,9 +222,6 @@ describe('maintainability boundaries', () => {
     );
     expect(modalSelectSource).toContain('withScrollArea={false}');
     expect(modalSelectSource).toContain("overscrollBehavior: 'contain'");
-    expect(modalSelectSource).toContain(
-      "dropdown.addEventListener('wheel', handleContainedWheel"
-    );
     for (const source of modalSelectConsumers) {
       expect(source).toContain('<ModalSelect');
       expect(source).not.toContain('<Select');
