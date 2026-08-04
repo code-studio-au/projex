@@ -9,7 +9,7 @@ const nginxProxyConfigPaths = [
 const nginxRequestLimitsPath = 'deploy/nginx/projex-request-limits.conf';
 const nginxImportBodyLimit = 'client_max_body_size 16m;';
 const nginxCompressionPath = 'deploy/nginx/projex-compression.conf';
-const braceExpansionPatchPath = 'patches/brace-expansion@5.0.8.patch';
+const braceExpansionPatchPath = 'patches/brace-expansion@5.0.9.patch';
 
 const checks = [
   {
@@ -254,7 +254,7 @@ async function verifyDeployArtifactDependencyPatches() {
 
   assertCondition(
     workspaceConfig.includes(
-      `brace-expansion@5.0.8: ${braceExpansionPatchPath}`
+      `brace-expansion@5.0.9: ${braceExpansionPatchPath}`
     ),
     'The brace-expansion compatibility patch must stay registered with pnpm'
   );
@@ -384,12 +384,18 @@ async function verifyDeployReleaseIdentity() {
         'actions/workflows/release.yml/runs?branch=main&status=success&per_page=20'
       ) &&
       deployWorkflow.includes(
+        'PRODUCTION_DEPLOY_ENABLED: ${{ vars.PROJEX_PRODUCTION_DEPLOY_ENABLED }}'
+      ) &&
+      deployWorkflow.includes(
+        'Production deployment is disabled. Set PROJEX_PRODUCTION_DEPLOY_ENABLED=true only in the protected production environment after organisation cutover.'
+      ) &&
+      deployWorkflow.includes(
         'Production promotion requires the specific Release run tested in staging.'
       ) &&
       deployWorkflow.includes(
         'Rollback requires the specific retained N-1 Release run ID.'
       ),
-    'Deploy selection must resolve latest staging releases while preserving explicit production and rollback identity'
+    'Deploy selection must default-deny production while preserving explicit release and rollback identity'
   );
   assertCondition(
     deployWorkflow.includes('node scripts/deploy-request-metadata.mjs') &&

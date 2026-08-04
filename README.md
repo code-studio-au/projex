@@ -143,9 +143,11 @@ See the [staging and production runbook](docs/operations/staging-runbook.md) and
 
 Current rollout status: the personal repository and AWS account host the
 verified staging environment only. Production promotion is intentionally
-blocked until the organisation-owned repository and AWS infrastructure become
-the canonical platform. The production workflow path documents and enforces
-the target promotion model; its presence does not mean production is ready.
+default-denied by the Deploy workflow unless the selected protected production
+environment explicitly sets `PROJEX_PRODUCTION_DEPLOY_ENABLED=true`. Do not set
+that flag until the organisation-owned repository and AWS infrastructure are
+the canonical platform. The production workflow path documents the target
+promotion model; its presence does not mean production is ready.
 
 For a reproducible local dependency stack with Postgres and MinIO, use the
 [local services guide](docs/development/local-services.md).

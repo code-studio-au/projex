@@ -253,7 +253,7 @@ async function createArtifactSourceTree(root: string, name = 'source') {
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     '.pnpmfile.cjs',
-    'patches/brace-expansion@5.0.8.patch',
+    'patches/brace-expansion@5.0.9.patch',
   ];
 
   for (const relativePath of requiredFiles) {
@@ -317,7 +317,7 @@ async function createEc2Release(
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     '.pnpmfile.cjs',
-    'patches/brace-expansion@5.0.8.patch',
+    'patches/brace-expansion@5.0.9.patch',
     'scripts/start-server.mjs',
     'scripts/cache-policy.mjs',
     'scripts/env-file.mjs',
@@ -1249,7 +1249,7 @@ describe('deploy workflow retained release identity', () => {
     expect(workflow).not.toContain('pnpm run build');
   });
 
-  test('resolves latest staging releases while requiring explicit production and rollback identity', async () => {
+  test('defaults production off while requiring explicit production and rollback identity', async () => {
     const workflow = await readFile(deployWorkflow, 'utf8');
 
     expect(workflow).toContain('release_selection:');
@@ -1257,6 +1257,12 @@ describe('deploy workflow retained release identity', () => {
     expect(workflow).toContain('- specific-run-id');
     expect(workflow).toContain(
       'actions/workflows/release.yml/runs?branch=main&status=success&per_page=20'
+    );
+    expect(workflow).toContain(
+      'PRODUCTION_DEPLOY_ENABLED: ${{ vars.PROJEX_PRODUCTION_DEPLOY_ENABLED }}'
+    );
+    expect(workflow).toContain(
+      'Production deployment is disabled. Set PROJEX_PRODUCTION_DEPLOY_ENABLED=true only in the protected production environment after organisation cutover.'
     );
     expect(workflow).toContain(
       'Production promotion requires the specific Release run tested in staging.'

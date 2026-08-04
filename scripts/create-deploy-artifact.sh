@@ -101,7 +101,7 @@ require_source_path "package.json"
 require_source_path "pnpm-lock.yaml"
 require_source_path "pnpm-workspace.yaml"
 require_source_path ".pnpmfile.cjs"
-require_source_path "patches/brace-expansion@5.0.8.patch"
+require_source_path "patches/brace-expansion@5.0.9.patch"
 
 require_tooling_path "scripts/deploy-artifact-ssm.sh"
 require_tooling_path "scripts/deploy-artifact-ec2.sh"

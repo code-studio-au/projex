@@ -73,6 +73,9 @@ Current deployment boundary:
   staging environment
 - production is intentionally not ready and must not be promoted from the
   personal infrastructure
+- the Deploy workflow default-denies production until the selected protected
+  environment explicitly sets `PROJEX_PRODUCTION_DEPLOY_ENABLED=true`; that
+  enablement is a cutover action, not a staging setting
 - production cutover begins only after the organisation repository, AWS
   account, protected environments, OIDC roles, secrets, DNS, certificates,
   monitoring, backup policy, and recovery procedure are validated together

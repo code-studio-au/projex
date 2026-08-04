@@ -48,10 +48,12 @@ Before handing this repo to another developer or team, make sure:
 - Its nginx-fronted HTTPS origin is `https://projectexpensetracker.com`; do not
   use direct `:3000` access for normal operation.
 - Production is intentionally not ready. Do not dispatch a production
-  promotion until the organisation-owned repository and AWS infrastructure,
-  protected environments, OIDC roles, secrets, DNS, certificates, monitoring,
-  backup policy, and recovery procedure have been validated as the canonical
-  platform.
+  promotion. The Deploy workflow default-denies production while
+  `PROJEX_PRODUCTION_DEPLOY_ENABLED` is unset. Set it to `true` only in the
+  selected protected production environment after the organisation-owned
+  repository and AWS infrastructure, OIDC roles, secrets, DNS, certificates,
+  monitoring, backup policy, and recovery procedure have been validated as the
+  canonical platform.
 - The production workflow path below is target-state guidance, not evidence of
   a completed production cutover.
 
@@ -346,9 +348,11 @@ For production, select `specific-run-id` and reuse that exact staging-confirmed
 run ID. Exceptional recovery releases and rollback also require
 `specific-run-id`; rollback must select the retained on-host `N-1`.
 
-Do not use the production option on the current personal infrastructure. It is
-reserved for the organisation-owned production platform after the handoff
-requirements in the product backlog are complete.
+The production path is default-deny. The validation step exits before release
+selection unless the selected protected production environment sets
+`PROJEX_PRODUCTION_DEPLOY_ENABLED=true`. Leave it unset on the current personal
+infrastructure. Add it only to the organisation-owned production environment
+after the handoff requirements in the product backlog are complete.
 
 The workflow derives `Deploy PR #<number> to <environment>` from squash-merge
 metadata, falling back to the short source SHA when no PR suffix is present.

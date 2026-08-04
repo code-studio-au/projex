@@ -37,6 +37,7 @@ unmet compatibility trigger.
 | ------------------------------------ | ------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@tanstack/react-query` and devtools | `5.100.14`                | `5.101.4`                | Two WebKit runs on `5.101.4` reproducibly raised a page error when navigation cancelled a transaction-comment summary server-function request. The same suite passed on `5.100.14` with the rest of the upgrade batch retained.     | Upgrade React Query and its devtools together after a newer release or upstream fix addresses the cancellation path. Acceptance requires the full CI gate and a clean authenticated navigation run in Chromium, Firefox, and WebKit, with particular attention to server-function cancellation during route changes.                  |
 | H3 and Srvx                          | `2.0.1-rc.20` / `0.11.22` | `2.0.1-rc.26` / `0.12.4` | The current TanStack Start server packages still resolve H3 `rc.20` and Srvx `0.11.22`. Updating only the direct production wrapper creates two HTTP stacks in the lockfile, which the framework-cohort verifier correctly rejects. | Upgrade when a release-age-eligible TanStack Start train selects the newer pair, or a coordinated framework upgrade otherwise produces exactly one H3 and one Srvx resolution. Re-run framework enforcement, production SSR build, release-artifact verification, auth/readiness/server smoke, all browsers, and nginx-facing checks. |
+| PostCSS                              | `8.5.23`                  | `8.5.25`                 | `8.5.23` is the release-age-eligible security floor for `GHSA-fxqj-rqcc-2cmp`. The newer patch was published on 29 July and remained inside the seven-day quarantine when the advisory repair was prepared.                         | Re-resolve to `8.5.25` or newer after 5 August 2026 at 13:01 UTC, provided the release remains trusted and audit, static verification, production build, and framework-cohort checks pass. The `<8.5.23` security floor remains until upstream ranges cannot select a vulnerable version.                                             |
 | TypeScript                           | `6.0.3`                   | `7.0.2`                  | The repository has only just moved to TypeScript 6, and `typescript-eslint` `8.65.0` currently declares TypeScript support below `6.1.0`; TypeScript 7 is therefore outside the installed lint toolchain's peer contract.           | The strictness burn-down is complete. Upgrade only after the TypeScript ESLint cohort and the repository's build, test, code-generation, and framework tooling declare or demonstrate TypeScript 7 support; then migrate in a dedicated PR and run the full CI and deployment gates.                                                  |
 | Node types                           | `24.13.3`                 | `26.1.1`                 | EC2 bootstrap, Docker, GitHub Actions, CDK documentation, and the root engine contract all run Node 24. Node 26 declarations could allow APIs that do not exist on the deployed runtime.                                            | Upgrade with a deliberate Node 26 runtime migration, never independently. Change the root engine, version files, Docker images, CI/release jobs, EC2 bootstrap, and operational documentation together; rebuild a release artifact and pass CDK, database, server, browser, and nginx-fronted deployment verification.                |
 
@@ -45,11 +46,30 @@ listed trigger becomes true, or earlier for a relevant security advisory. The
 framework cohort remains governed by
 [its coordinated upgrade policy](framework-dependency-cohort.md).
 
+## 4 August security advisory follow-up
+
+Registry advisories published after the original review required an immediate
+transitive refresh. The repository now enforces these safe compatible releases:
+
+- `brace-expansion@5.0.9`, with the existing legacy CommonJS compatibility
+  behavior carried forward
+- `fast-uri@3.1.5` for React Doctor's Ajv tree
+- `postcss@8.5.23` as the new minimum safe Vite/PostCSS floor
+- `undici@7.29.0` for jsdom and Vitest
+
+Only `brace-expansion@5.0.9` and `fast-uri@3.1.5` require temporary exact
+release-age exceptions. Their removal times and the continuing pin rationale
+are recorded in the
+[dependency override policy](dependency-overrides.md). The other direct and
+cohort holds above are unchanged.
+
 ## Trust-policy result
 
 `pnpm update --recursive` was intentionally not forced through. Re-resolving
 all transitive packages encountered a provenance downgrade for `semver@6.3.1`
 through `eslint-plugin-react-hooks` and Babel. Direct dependency updates and the
-frozen lockfile remain reproducible, and the audit reported zero advisories.
-The transitive refresh should be retried after its evidence is no longer a
-downgrade; the trust policy must not be bypassed or suppressed.
+frozen lockfile remained reproducible, and the audit reported zero advisories
+at the time of the review. The 4 August advisory response above updates only
+the newly vulnerable paths; the broader transitive refresh should be retried
+after its evidence is no longer a downgrade. The trust policy must not be
+bypassed or suppressed.

@@ -2,9 +2,11 @@ packages:
   - deploy/cdk
 
 overrides:
-  'brace-expansion@<5.0.8': 5.0.8
+  'brace-expansion@<5.0.9': 5.0.9
+  'fast-uri@>=3.0.0 <3.1.5': 3.1.5
   'js-yaml@>=4.0.0 <4.3.0': 4.3.0
-  'postcss@<8.5.18': 8.5.18
+  'postcss@<8.5.23': 8.5.23
+  'undici@>=7.0.0 <7.29.0': 7.29.0
 
 # Delay dependency resolution for newly published packages to reduce
 # exposure to fresh supply-chain compromises and registry hijacks.
@@ -12,7 +14,8 @@ minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   - '@types/*'
-  - 'brace-expansion@5.0.8'
+  - 'brace-expansion@5.0.9'
+  - 'fast-uri@3.1.5'
 
 # Refuse weaker trust evidence than previous releases and block exotic
 # dependency specs unless we opt into them deliberately.
@@ -21,4 +24,4 @@ blockExoticSubdeps: true
 allowBuilds:
   esbuild: true
 patchedDependencies:
-  brace-expansion@5.0.8: patches/brace-expansion@5.0.8.patch
+  brace-expansion@5.0.9: patches/brace-expansion@5.0.9.patch
