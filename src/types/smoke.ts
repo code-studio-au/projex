@@ -264,7 +264,7 @@ export const smokeSectionDefinitions: Array<{
     id: 'inviteFlow',
     label: 'Invite Flow',
     description:
-      'Invites a brand-new user, verifies existing-member updates stay quiet by default, and checks the immediate resend-invite path, including rate-limit handling.',
+      'Invites a brand-new user, verifies add-member cannot silently replace an existing role, and checks the immediate resend-invite path, including rate-limit handling.',
     steps: [
       { id: 'login-page', label: 'Checking login page HTML' },
       { id: 'auth-login', label: 'Logging in with smoke credentials' },
@@ -274,7 +274,7 @@ export const smokeSectionDefinitions: Array<{
       { id: 'invite-user', label: 'Inviting a user to the company' },
       {
         id: 'update-existing-member',
-        label: 'Updating the existing member without sending email',
+        label: 'Rejecting an existing-member role replacement',
       },
       { id: 'resend-invite', label: 'Attempting immediate invite resend' },
       {

@@ -997,6 +997,7 @@ function OperationalProjectWorkspaceView({
               <ProjectSettingsPanel
                 companyId={model.companyId}
                 projectId={model.projectId}
+                onSettingsAccessLost={() => model.setActiveTab('budget')}
               />
             </Suspense>
           </Tabs.Panel>

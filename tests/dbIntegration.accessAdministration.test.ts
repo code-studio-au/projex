@@ -125,16 +125,59 @@ test(
         role: 'member',
       });
 
+      await assertAppError(
+        () =>
+          deleteCompanyMembershipServer({
+            context,
+            companyId,
+            userId: teammateUserId,
+          }),
+        'VALIDATION_ERROR',
+        'Project must retain at least one owner'
+      );
+
+      const retainedTeammateProjectMembership = await db
+        .selectFrom('project_memberships')
+        .select('role')
+        .where('project_id', '=', projectId)
+        .where('user_id', '=', teammateUserId)
+        .executeTakeFirst();
+      const retainedTeammateCompanyMembership = await db
+        .selectFrom('company_memberships')
+        .select('role')
+        .where('company_id', '=', companyId)
+        .where('user_id', '=', teammateUserId)
+        .executeTakeFirst();
+      assert.deepEqual(retainedTeammateProjectMembership, { role: 'owner' });
+      assert.deepEqual(retainedTeammateCompanyMembership, { role: 'member' });
+
+      await upsertProjectMembershipServer({
+        context,
+        projectId,
+        userId: adminUserId,
+        role: 'owner',
+      });
+      await deleteCompanyMembershipServer({
+        context,
+        companyId,
+        userId: teammateUserId,
+      });
+
       const memberships = await db
         .selectFrom('project_memberships')
         .select(['user_id', 'role'])
         .where('project_id', '=', projectId)
         .orderBy('user_id')
         .execute();
-      assert.deepEqual(memberships, [
-        { user_id: adminUserId, role: 'member' },
-        { user_id: teammateUserId, role: 'owner' },
-      ]);
+      assert.deepEqual(memberships, [{ user_id: adminUserId, role: 'owner' }]);
+
+      const teammateCompanyMembership = await db
+        .selectFrom('company_memberships')
+        .select('user_id')
+        .where('company_id', '=', companyId)
+        .where('user_id', '=', teammateUserId)
+        .executeTakeFirst();
+      assert.equal(teammateCompanyMembership, undefined);
     } finally {
       await deleteTestRowsByIds({
         db,

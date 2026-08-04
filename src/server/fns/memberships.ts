@@ -261,17 +261,48 @@ export async function deleteCompanyMembershipServer(args: {
         .selectFrom('projects')
         .select('id')
         .where('company_id', '=', args.companyId)
+        .orderBy('id')
+        .forUpdate()
         .execute();
 
       if (projectIds.length) {
+        const projectIdValues = projectIds.map((project) => project.id);
+        const targetOwnerProjects = await trx
+          .selectFrom('project_memberships')
+          .select('project_id')
+          .where('user_id', '=', args.userId)
+          .where('role', '=', 'owner')
+          .where('project_id', 'in', projectIdValues)
+          .execute();
+
+        if (targetOwnerProjects.length) {
+          const ownerCounts = await trx
+            .selectFrom('project_memberships')
+            .select([
+              'project_id',
+              (eb) => eb.fn.countAll<number>().as('count'),
+            ])
+            .where(
+              'project_id',
+              'in',
+              targetOwnerProjects.map((project) => project.project_id)
+            )
+            .where('role', '=', 'owner')
+            .groupBy('project_id')
+            .execute();
+
+          if (ownerCounts.some((row) => Number(row.count) <= 1)) {
+            throw new AppError(
+              'VALIDATION_ERROR',
+              'Project must retain at least one owner'
+            );
+          }
+        }
+
         await trx
           .deleteFrom('project_memberships')
           .where('user_id', '=', args.userId)
-          .where(
-            'project_id',
-            'in',
-            projectIds.map((p) => p.id)
-          )
+          .where('project_id', 'in', projectIdValues)
           .execute();
       }
 

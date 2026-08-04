@@ -42,8 +42,9 @@ import { getProjectRoleDefinition } from '../access/roleDefinitions';
 function useProjectSettingsPanelController(props: {
   companyId: CompanyId;
   projectId: ProjectId;
+  onSettingsAccessLost: () => void;
 }) {
-  const { companyId, projectId } = props;
+  const { companyId, onSettingsAccessLost, projectId } = props;
   const loaderData = projectWorkspaceRoute.useLoaderData();
   const isMobile = useMediaQuery('(max-width: 48em)');
   const isHydrated = useIsHydrated();
@@ -356,6 +357,7 @@ function useProjectSettingsPanelController(props: {
     memberRows,
     memberUserId,
     ownerCount,
+    onSettingsAccessLost,
     programmeOptions,
     projectId,
     projectImportRulesModalOpen,
@@ -619,26 +621,7 @@ function ProjectBudgetSettingsCard({
               role: model.memberRole,
             });
             if (shouldLeaveSettings) {
-              try {
-                await model.router.navigate({
-                  to: '/c/$companyId/p/$projectId',
-                  params: {
-                    companyId: model.companyId,
-                    projectId: model.projectId,
-                  },
-                  search: (previous) => ({ ...previous, tab: 'budget' }),
-                  replace: true,
-                });
-              } catch (error) {
-                showAppToast({
-                  tone: 'error',
-                  title: 'Project role updated',
-                  message:
-                    error instanceof Error
-                      ? `Access was updated, but navigation failed: ${error.message}`
-                      : 'Access was updated, but navigation failed. Leave project settings before continuing.',
-                });
-              }
+              model.onSettingsAccessLost();
             }
           }}
         />

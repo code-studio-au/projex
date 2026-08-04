@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import type { SmokeFixtures } from '../../../src/server/smoke/fixtures';
 import {
@@ -65,16 +65,21 @@ export class TaxonomyWorkflowPage extends AuthenticatedSmokePage {
       dropdownScroll.scrollHeight > dropdownScroll.clientHeight,
       'Taxonomy category Select did not create a scrollable dropdown'
     );
-    await dropdown.hover();
-    await this.page.mouse.wheel(0, 300);
-    await this.page.waitForTimeout(100);
-    const dropdownScrollTop = await dropdown.evaluate<number, HTMLElement>(
-      (element) => element.scrollTop
-    );
-    this.assert(
-      dropdownScrollTop > dropdownScroll.scrollTop,
-      'Taxonomy category Select did not respond to wheel scrolling'
-    );
+    await expect
+      .poll(
+        async () => {
+          await dropdown.hover();
+          await this.page.mouse.wheel(0, 300);
+          return dropdown.evaluate<number, HTMLElement>(
+            (element) => element.scrollTop
+          );
+        },
+        {
+          message: 'Taxonomy category Select should respond to wheel scrolling',
+          timeout: 2_000,
+        }
+      )
+      .toBeGreaterThan(dropdownScroll.scrollTop);
     this.assert(
       (await this.page.evaluate(() => window.scrollY)) === pageScrollTop,
       'Scrolling the contained Select moved the background page'
@@ -95,16 +100,22 @@ export class TaxonomyWorkflowPage extends AuthenticatedSmokePage {
       modalScroll.scrollHeight > modalScroll.clientHeight,
       'Taxonomy modal did not create an internal scroll region'
     );
-    await modalBody.hover();
-    await this.page.mouse.wheel(0, 500);
-    await this.page.waitForTimeout(100);
-    const modalScrollTop = await modalBody.evaluate<number, HTMLElement>(
-      (element) => element.scrollTop
-    );
-    this.assert(
-      modalScrollTop > modalScroll.scrollTop,
-      'Taxonomy modal stopped responding to wheel scrolling after Select use'
-    );
+    await expect
+      .poll(
+        async () => {
+          await modalBody.hover();
+          await this.page.mouse.wheel(0, 500);
+          return modalBody.evaluate<number, HTMLElement>(
+            (element) => element.scrollTop
+          );
+        },
+        {
+          message:
+            'Taxonomy modal should keep responding to wheel scrolling after Select use',
+          timeout: 2_000,
+        }
+      )
+      .toBeGreaterThan(modalScroll.scrollTop);
     this.assert(
       (await this.page.evaluate(() => window.scrollY)) === pageScrollTop,
       'Scrolling the taxonomy modal moved the background page'

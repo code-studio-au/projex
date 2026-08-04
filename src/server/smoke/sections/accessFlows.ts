@@ -1,5 +1,7 @@
 import {
+  apiErrorResponseSchema,
   companiesResponseSchema,
+  companyMembershipsResponseSchema,
   companyExportJobResponseSchema,
   companyUserInviteResultResponseSchema,
   projectResponseSchema,
@@ -92,7 +94,7 @@ export async function runInviteFlowSection(
 
   await recorder.step(
     'update-existing-member',
-    `Updating existing member ${inviteEmail} to role ${followUpRole} without sending email`,
+    `Rejecting an add-member role change for existing member ${inviteEmail}`,
     async () => {
       const result = await client.request(
         `/api/companies/${encodeURIComponent(company.id)}/users`,
@@ -106,25 +108,40 @@ export async function runInviteFlowSection(
           }),
         }
       );
-      assertOk(result, 'update existing member');
-      const body = parseBody(
-        companyUserInviteResultResponseSchema,
+      if (result.res.status !== 422) {
+        throw new Error(
+          `existing member role replacement returned ${result.res.status}, expected 422: ${JSON.stringify(result.body)}`
+        );
+      }
+      const error = parseBody(
+        apiErrorResponseSchema,
         result.body,
-        'update existing member'
+        'reject existing member role replacement'
       );
-      if (body.user?.id !== invitedUserId) {
+      if (error.code !== 'VALIDATION_ERROR') {
         throw new Error(
-          `Existing member update returned a different user id: ${JSON.stringify(body)}`
+          `Existing member role replacement returned an unexpected error: ${JSON.stringify(error)}`
         );
       }
-      if (body.onboardingEmailSent) {
+
+      const membershipsResult = await client.request(
+        `/api/companies/${encodeURIComponent(company.id)}/memberships`
+      );
+      assertOk(
+        membershipsResult,
+        'list memberships after rejected role change'
+      );
+      const memberships = parseBody(
+        companyMembershipsResponseSchema,
+        membershipsResult.body,
+        'list memberships after rejected role change'
+      );
+      const membership = memberships.find(
+        (candidate) => candidate.userId === invitedUserId
+      );
+      if (membership?.role !== inviteRole) {
         throw new Error(
-          'Existing member update unexpectedly sent an onboarding email.'
-        );
-      }
-      if (body.membershipCreated) {
-        throw new Error(
-          'Existing member update unexpectedly reported a new membership.'
+          `Rejected role replacement changed the membership: ${JSON.stringify(membership)}`
         );
       }
     }
