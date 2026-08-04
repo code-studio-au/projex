@@ -384,18 +384,12 @@ async function verifyDeployReleaseIdentity() {
         'actions/workflows/release.yml/runs?branch=main&status=success&per_page=20'
       ) &&
       deployWorkflow.includes(
-        'PRODUCTION_DEPLOY_ENABLED: ${{ vars.PROJEX_PRODUCTION_DEPLOY_ENABLED }}'
-      ) &&
-      deployWorkflow.includes(
-        'Production deployment is disabled. Set PROJEX_PRODUCTION_DEPLOY_ENABLED=true only in the protected production environment after organisation cutover.'
-      ) &&
-      deployWorkflow.includes(
         'Production promotion requires the specific Release run tested in staging.'
       ) &&
       deployWorkflow.includes(
         'Rollback requires the specific retained N-1 Release run ID.'
       ),
-    'Deploy selection must default-deny production while preserving explicit release and rollback identity'
+    'Deploy selection must resolve latest staging releases while preserving explicit production and rollback identity'
   );
   assertCondition(
     deployWorkflow.includes('node scripts/deploy-request-metadata.mjs') &&

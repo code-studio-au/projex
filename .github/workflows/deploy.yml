@@ -75,7 +75,6 @@ jobs:
         env:
           DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
           DEPLOY_MODE: ${{ inputs.deployment_mode }}
-          PRODUCTION_DEPLOY_ENABLED: ${{ vars.PROJEX_PRODUCTION_DEPLOY_ENABLED }}
           DEPLOY_WORKFLOW_REF: ${{ github.ref }}
           RELEASE_RUN_ID: ${{ inputs.release_run_id }}
           RELEASE_SELECTION: ${{ inputs.release_selection }}
@@ -91,11 +90,6 @@ jobs:
             fi
           elif [[ -n "${RELEASE_RUN_ID//[[:space:]]/}" ]]; then
             echo "Leave release_run_id empty when selecting latest-successful." >&2
-            exit 1
-          fi
-          if [[ "$DEPLOY_ENVIRONMENT" == "production" &&
-            "$PRODUCTION_DEPLOY_ENABLED" != "true" ]]; then
-            echo "Production deployment is disabled. Set PROJEX_PRODUCTION_DEPLOY_ENABLED=true only in the protected production environment after organisation cutover." >&2
             exit 1
           fi
           if [[ "$DEPLOY_ENVIRONMENT" == "production" &&

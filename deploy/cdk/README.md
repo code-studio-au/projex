@@ -13,12 +13,11 @@ This CDK app provisions a staging/prod baseline:
 - Secrets Manager DB credentials
 
 Current rollout status: the personal repository and AWS account use this
-baseline for staging only. Production deployment is default-denied by the
-Deploy workflow until its selected protected environment explicitly sets
-`PROJEX_PRODUCTION_DEPLOY_ENABLED=true`. Set that flag only after the
-organisation-owned repository and AWS account become canonical and their
-identity, resilience, monitoring, DNS, certificate, backup, and recovery
-controls are verified together.
+baseline for staging only. The Deploy workflow retains production as an
+operator-selected protected environment and does not enforce the cutover.
+Operators must not select it until the organisation-owned repository and AWS
+account become canonical and their identity, resilience, monitoring, DNS,
+certificate, backup, and recovery controls are verified together.
 
 ## Prereqs
 
@@ -217,9 +216,6 @@ For the matching GitHub environment that will run
 
 - environment variable
   `AWS_DEPLOY_ROLE_ARN=<GithubDeployRoleArn output>`
-- production only, after organisation cutover: environment variable
-  `PROJEX_PRODUCTION_DEPLOY_ENABLED=true`; leave it unset for staging and on
-  the current personal infrastructure
 - `EC2_INSTANCE_ID=<Ec2InstanceId output>`
 - `EC2_DEPLOY_ARTIFACT_BUCKET=<DeployArtifactBucketName output>`
 - `EC2_PUBLIC_BASE_URL=https://your-public-hostname`

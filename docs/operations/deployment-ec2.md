@@ -296,18 +296,15 @@ Deploy modal guidance:
 - the complete AWS SSM command comment is bounded to AWS's 100-character limit
 
 The production option is reserved for the organisation-owned production
-platform. The workflow exits before release selection unless its selected
-protected production environment defines
-`PROJEX_PRODUCTION_DEPLOY_ENABLED=true`. Leave that variable unset on the
-current personal infrastructure; its explicit enablement is part of the
-organisation cutover, not merely an operator convention.
+platform. It remains technically selectable by an operator and the workflow
+does not enforce the organisation cutover. Do not select it on the current
+personal infrastructure; this is an explicit operational prohibition until
+the organisation platform is ready.
 
 When enabling the `ec2` mode, set:
 
 - GitHub environment variable
   `AWS_DEPLOY_ROLE_ARN=<GithubDeployRoleArn CDK output>`
-- production only, after organisation cutover: GitHub environment variable
-  `PROJEX_PRODUCTION_DEPLOY_ENABLED=true`
 - `EC2_INSTANCE_ID`
 - `EC2_DEPLOY_ARTIFACT_BUCKET`
 - `EC2_PUBLIC_BASE_URL`

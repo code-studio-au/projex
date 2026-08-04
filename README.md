@@ -142,12 +142,12 @@ See the [staging and production runbook](docs/operations/staging-runbook.md) and
 [EC2 deployment guide](docs/operations/deployment-ec2.md) for the full deploy setup.
 
 Current rollout status: the personal repository and AWS account host the
-verified staging environment only. Production promotion is intentionally
-default-denied by the Deploy workflow unless the selected protected production
-environment explicitly sets `PROJEX_PRODUCTION_DEPLOY_ENABLED=true`. Do not set
-that flag until the organisation-owned repository and AWS infrastructure are
-the canonical platform. The production workflow path documents the target
-promotion model; its presence does not mean production is ready.
+verified staging environment only. The Deploy workflow keeps production
+available as an operator-selected protected environment, but it does not
+enforce the infrastructure cutover. Operators must not select production until
+the organisation-owned repository and AWS infrastructure are the canonical
+platform. The workflow capability does not mean production is currently ready
+or deployed.
 
 For a reproducible local dependency stack with Postgres and MinIO, use the
 [local services guide](docs/development/local-services.md).
