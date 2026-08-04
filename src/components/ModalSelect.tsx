@@ -42,6 +42,7 @@ export default function ModalSelect(props: ModalSelectProps) {
       window.cancelAnimationFrame(attachFrameRef.current);
       attachFrameRef.current = null;
     }
+    dropdownRef.current?.removeAttribute('data-contained-wheel-scroll');
     dropdownRef.current?.removeEventListener('wheel', handleContainedWheel);
     dropdownRef.current = null;
   }, []);
@@ -61,6 +62,7 @@ export default function ModalSelect(props: ModalSelectProps) {
       dropdown.addEventListener('wheel', handleContainedWheel, {
         passive: false,
       });
+      dropdown.setAttribute('data-contained-wheel-scroll', '');
       dropdownRef.current = dropdown;
     });
   };

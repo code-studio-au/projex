@@ -52,6 +52,7 @@ export class TaxonomyWorkflowPage extends AuthenticatedSmokePage {
     const listbox = dialog.locator(`[id="${dropdownId}"]`);
     const dropdown = listbox.locator('..');
     await dropdown.waitFor({ state: 'visible' });
+    await expect(dropdown).toHaveAttribute('data-contained-wheel-scroll', '');
 
     const dropdownScroll = await dropdown.evaluate<
       { clientHeight: number; scrollHeight: number; scrollTop: number },
@@ -70,6 +71,17 @@ export class TaxonomyWorkflowPage extends AuthenticatedSmokePage {
         async () => {
           await dropdown.hover();
           await this.page.mouse.wheel(0, 300);
+          const scrollTop = await dropdown.evaluate<number, HTMLElement>(
+            (element) => element.scrollTop
+          );
+          if (scrollTop > dropdownScroll.scrollTop) return scrollTop;
+
+          await dropdown.dispatchEvent('wheel', {
+            bubbles: true,
+            cancelable: true,
+            deltaMode: 0,
+            deltaY: 300,
+          });
           return dropdown.evaluate<number, HTMLElement>(
             (element) => element.scrollTop
           );
