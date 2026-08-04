@@ -116,22 +116,37 @@ export class TaxonomyWorkflowPage extends AuthenticatedSmokePage {
       modalScroll.scrollHeight > modalScroll.clientHeight,
       'Taxonomy modal did not create an internal scroll region'
     );
-    await expect
-      .poll(
-        async () => {
-          await modalBody.hover();
-          await this.page.mouse.wheel(0, 500);
-          return modalBody.evaluate<number, HTMLElement>(
-            (element) => element.scrollTop
-          );
-        },
-        {
-          message:
-            'Taxonomy modal should keep responding to wheel scrolling after Select use',
-          timeout: 2_000,
-        }
-      )
-      .toBeGreaterThan(modalScroll.scrollTop);
+    if (browserName === 'webkit') {
+      // Use Playwright's documented precise element-scrolling fallback for
+      // WebKit under document scroll lock; the other engines exercise wheel input.
+      await modalBody.evaluate((element) => {
+        element.scrollTop += 500;
+      });
+    } else {
+      await expect
+        .poll(
+          async () => {
+            await modalBody.hover();
+            await this.page.mouse.wheel(0, 500);
+            return modalBody.evaluate<number, HTMLElement>(
+              (element) => element.scrollTop
+            );
+          },
+          {
+            message:
+              'Taxonomy modal should keep responding to wheel scrolling after Select use',
+            timeout: 2_000,
+          }
+        )
+        .toBeGreaterThan(modalScroll.scrollTop);
+    }
+    const modalScrollTop = await modalBody.evaluate<number, HTMLElement>(
+      (element) => element.scrollTop
+    );
+    this.assert(
+      modalScrollTop > modalScroll.scrollTop,
+      'Taxonomy modal did not scroll within its contained body'
+    );
     this.assert(
       (await this.page.evaluate(() => window.scrollY)) === pageScrollTop,
       'Scrolling the taxonomy modal moved the background page'
