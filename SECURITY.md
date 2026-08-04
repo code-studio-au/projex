@@ -23,6 +23,9 @@ Security-sensitive expectations for deployed environments:
 - `PROJEX_ENABLE_DEV_ENDPOINTS=false`
 - `PROJEX_ENABLE_SMOKE_TOOLS=false`
 - `BETTER_AUTH_URL` and `BETTER_AUTH_TRUSTED_ORIGINS` use HTTPS origins
+- `PROJEX_LOG_LEVEL` and `PROJEX_AUDIT_LOGGING` are chosen explicitly for each
+  environment; audit-category output is sanitized operational telemetry, not a
+  durable compliance record
 - committed env examples never contain live secrets
 
 See the [staging and production runbook](docs/operations/staging-runbook.md)

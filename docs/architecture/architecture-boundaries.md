@@ -129,8 +129,10 @@ server-function boundary, but separate their domain implementation:
 - `reversalDomain.ts` owns workflow invariants and persisted-row lookup.
 - `reversalComments.ts` owns human reversal notes and their workflow lifecycle;
   transaction status belongs to the reversal record and immutable history
-  belongs to `reversalAudit.ts`.
-- `reversalAudit.ts` owns immutable reversal transition audit records.
+  belongs to the versioned reversal rows.
+- `reversalAudit.ts` maps successful reversal transitions into sanitized
+  post-commit audit-category telemetry; it does not persist a second workflow
+  history.
 - `reversalWorkflowServers.ts` owns individual workflow transitions.
 - `reversalBulkServers.ts` owns project recovery and atomic bulk approval.
 - `bulkWorkflowServers.ts` owns non-reversal bulk transaction commands.

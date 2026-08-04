@@ -1,9 +1,11 @@
 # Dead-code verification
 
-`pnpm run verify:dead-code` runs Knip across the application, scripts, database
-migrations, tests, nginx maintenance script, and CDK workspace. It is part of
-both `verify:app` and `verify:precommit` so orphan files and accidental public
-exports fail CI.
+`pnpm run verify:dead-code` runs Knip across the application, TypeScript and
+JavaScript scripts, tests, nginx maintenance script, and CDK workspace. It is
+part of both `verify:app` and `verify:precommit` so orphan files and accidental
+public exports fail CI. Ordered SQL migrations are discovered dynamically by
+the migration provider and are validated by the repository and database gates,
+not by Knip.
 
 The configuration keeps these narrow exceptions that static analysis cannot
 infer:

@@ -36,7 +36,7 @@ Provisioning, deployment, runtime operations, and incident-oriented guidance:
 
 - [EC2 deployment guide](operations/deployment-ec2.md)
 - [Email operations runbook](operations/email-ops-runbook.md)
-- [Staging and production runbook](operations/staging-runbook.md)
+- [Staging and future-production runbook](operations/staging-runbook.md)
 
 ## Product
 
@@ -48,10 +48,10 @@ Product backlog and feature design records:
 
 ## Reviews
 
-Active engineering follow-up and repository-review evidence:
+Historical repository-review evidence:
 
-- [Immediate TODO backlog](reviews/immediate-todo-backlog.md)
-- [Full repository review — 31 July 2026](reviews/full-repository-review-2026-07-31.md)
+- [Immediate TODO — 31 July 2026](reviews/archive/immediate-todo-backlog-2026-07-31-full-repository-review.md)
+- [Full repository review — 31 July 2026](reviews/archive/full-repository-review-2026-07-31.md)
 - [Archived reviews](reviews/archive/README.md)
 
 ## Repository-level guidance

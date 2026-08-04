@@ -238,7 +238,7 @@ describe('maintainability boundaries', () => {
     expect(ciWorkflow).toContain('"TypeScript strictness ratchet"');
     expect(ciWorkflow).toContain('pnpm run typecheck:strict:report');
     expect(readme).toMatch(
-      /the command fails when any project count differs\s+from `strict-typecheck-baseline\.json`/
+      /both flags are enabled in every TypeScript project and the command fails if\s+any diagnostic returns or the recorded zero baselines drift/
     );
     expect(readme).not.toContain(
       '`pnpm run typecheck:strict:report` for the non-blocking'

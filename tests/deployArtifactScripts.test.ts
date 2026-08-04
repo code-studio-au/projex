@@ -253,7 +253,7 @@ async function createArtifactSourceTree(root: string, name = 'source') {
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     '.pnpmfile.cjs',
-    'patches/brace-expansion@5.0.8.patch',
+    'patches/brace-expansion@5.0.9.patch',
   ];
 
   for (const relativePath of requiredFiles) {
@@ -317,7 +317,7 @@ async function createEc2Release(
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     '.pnpmfile.cjs',
-    'patches/brace-expansion@5.0.8.patch',
+    'patches/brace-expansion@5.0.9.patch',
     'scripts/start-server.mjs',
     'scripts/cache-policy.mjs',
     'scripts/env-file.mjs',

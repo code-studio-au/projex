@@ -10,6 +10,7 @@ This document is the source of truth for the current role model used by `src/uti
 | `company:update_details`  | Yes   | Yes       | Yes        | No     |
 | `company:manage_members`  | Yes   | No        | No         | No     |
 | `company:manage_defaults` | Yes   | Yes       | No         | No     |
+| `company:export`          | Yes   | Yes       | No         | No     |
 | `project:create`          | Yes   | Yes       | No         | No     |
 
 ## Project roles
@@ -26,6 +27,9 @@ Company `admin` and `executive` users can view and edit all company projects. Pr
 | `taxonomy:edit`                 | Yes                                     | Yes                                     | No     | No     |
 | `budget:edit`                   | Yes                                     | Yes                                     | Yes    | No     |
 | `txns:edit`                     | Yes                                     | Yes                                     | Yes    | No     |
+| `txns:resolve_unlock`           | Yes                                     | Yes                                     | No     | No     |
+| `txns:admin_unlock`             | No, unless also company admin/executive | No, unless also company admin/executive | No     | No     |
+| `txns:manage_reversals`         | Yes                                     | Yes                                     | No     | No     |
 | `comments:create`               | Yes                                     | Yes                                     | Yes    | No     |
 | `comments:assign`               | Yes                                     | Yes                                     | No     | No     |
 | `comments:resolve`              | Yes                                     | Yes                                     | No     | No     |
@@ -39,6 +43,8 @@ Company `admin` and `executive` users can view and edit all company projects. Pr
 
 ## Notes
 
-- `company:update_details`, `company:manage_defaults`, and `project:create` were split to avoid the old broad `company:edit` bucket.
+- `company:update_details`, `company:manage_defaults`, `company:export`, and
+  `project:create` remain separate capabilities rather than one broad
+  `company:edit` bucket.
 - Comment permissions were split so viewers cannot create comments, and only leads/owners or company admins/executives can assign, resolve, or moderate them.
 - If the product model changes, update this file and the authorization tests together.

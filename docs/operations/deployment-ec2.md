@@ -5,6 +5,11 @@ systemd service, environment file, and HTTPS certificate are ready, use the
 [staging and production runbook](staging-runbook.md) as the ongoing operational
 source of truth.
 
+Current rollout boundary: this guide describes reusable staging and future
+production infrastructure. The personal repository and AWS account currently
+host staging only. Production must not be promoted until the organisation-owned
+repository and AWS platform are validated as canonical.
+
 ## 1) Provision
 
 - EC2 instance (Amazon Linux 2023 or Ubuntu 22.04+)
@@ -69,11 +74,16 @@ RESEND_FROM='Projex <noreply@projectexpensetracker.com>'
 PROJEX_AUTH_EMAIL_WEBHOOK_URL=
 PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN=
 PROJEX_AUTH_RESET_REDIRECT_URL=https://app.example.com/reset-password
+PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL=https://app.example.com/verify-email-change
 PROJEX_APP_BASE_URL=https://app.example.com
 
 # Must remain false in staging/production
 PROJEX_ENABLE_DEV_ENDPOINTS=false
 PROJEX_ENABLE_SMOKE_TOOLS=false
+
+# Sanitized structured output to bounded journald storage.
+PROJEX_LOG_LEVEL=error
+PROJEX_AUDIT_LOGGING=false
 ```
 
 Notes:
@@ -89,9 +99,14 @@ Notes:
 - If nginx or another proxy fronts the app on `80/443`, use that public origin here rather than `:3000`.
 - Better Auth trusts only the proxy-controlled `X-Real-IP` header for client-IP rate limiting. Keep the application origin private, and ensure the trusted proxy overwrites that header from the direct client address rather than forwarding a caller-provided value.
 - `PROJEX_AUTH_RESET_REDIRECT_URL` should point at the public reset page users will open from invite/reset emails.
+- `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL` should point at the public
+  `/verify-email-change` page opened from verified-email-change messages.
 - `PROJEX_APP_BASE_URL` should point at the public app origin used for
   transaction-comment and export-ready notification links; it falls back to
   `BETTER_AUTH_URL` when unset.
+- Choose `PROJEX_LOG_LEVEL` and `PROJEX_AUDIT_LOGGING` independently for each
+  environment. Audit-category output is sanitized, best-effort telemetry and
+  is not persisted to Postgres by current releases.
 - `S3_BUCKET` and `S3_REGION` are required for the export feature when using AWS S3. On AWS itself you normally do not need to set `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, or `S3_FORCE_PATH_STYLE`.
 - The production Resend account verifies `projectexpensetracker.com`, so keep
   `RESEND_FROM` set to `Projex <noreply@projectexpensetracker.com>`. A sender on
@@ -137,6 +152,11 @@ Check logs:
 ```bash
 sudo journalctl -u projex -f
 ```
+
+Artifact deployment also installs `deploy/systemd/projex-journald.conf` and
+restarts journald. The managed policy compresses persistent logs, caps them at
+512 MiB, keeps 2 GiB free, and retains at most seven days. The `projex` service
+limits bursts to 1,000 messages per 30 seconds.
 
 `start:server` validates the runtime env, serves built client assets, and starts the SSR app server (host/port via `HOST` and `PORT`, default `0.0.0.0:3000`). It does not run migrations unless `PROJEX_RUN_MIGRATIONS=true` is set explicitly.
 
@@ -274,6 +294,12 @@ Deploy modal guidance:
 - optional deployment context is normalized to one line and appended to the
   derived reason
 - the complete AWS SSM command comment is bounded to AWS's 100-character limit
+
+The production option is reserved for the organisation-owned production
+platform. It remains technically selectable by an operator and the workflow
+does not enforce the organisation cutover. Do not select it on the current
+personal infrastructure; this is an explicit operational prohibition until
+the organisation platform is ready.
 
 When enabling the `ec2` mode, set:
 
@@ -498,9 +524,9 @@ That adds:
 - disposable Postgres-backed isolated full server smoke
 - disposable Postgres-backed isolated full browser smoke
 
-If you run the full browser smoke lanes locally outside CI, install Chromium
-and Firefox first:
+If you run the full browser smoke lanes locally outside CI, install Chromium,
+Firefox, and WebKit first:
 
 ```bash
-pnpm exec playwright install --with-deps chromium firefox
+pnpm exec playwright install --with-deps chromium firefox webkit
 ```

@@ -14,7 +14,12 @@ Before handing this repo to another developer or team, make sure:
   - `BETTER_AUTH_SECRET`
   - `BETTER_AUTH_URL`
   - `BETTER_AUTH_TRUSTED_ORIGINS`
+  - `PROJEX_AUTH_RESET_REDIRECT_URL`
+  - `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL`
+  - `PROJEX_APP_BASE_URL`
   - `CORS_ALLOWED_ORIGINS`
+  - `PROJEX_LOG_LEVEL`
+  - `PROJEX_AUDIT_LOGGING`
   - export-storage envs when company export is enabled: `S3_BUCKET`, `S3_REGION`, and any endpoint/credential overrides
 - production-only expectations are understood:
   - `PROJEX_ENABLE_DEV_ENDPOINTS=false`
@@ -36,15 +41,20 @@ Before handing this repo to another developer or team, make sure:
   - `pnpm run auth:create-user`
   - `pnpm run auth:bootstrap-user`
 
-## Checkpoint
+## Current Environment Status
 
-- Last known stable checkpoint tag: `staging-auth-stable-2026-03-17`
-
-## Canonical Production URL
-
-- Use the public nginx-fronted HTTPS origin, not direct `:3000`, for normal access.
-- Canonical URL:
-  - `https://projectexpensetracker.com`
+- The currently deployed public environment is staging, hosted from the
+  personal repository and AWS account.
+- Its nginx-fronted HTTPS origin is `https://projectexpensetracker.com`; do not
+  use direct `:3000` access for normal operation.
+- Production is intentionally not ready. Do not dispatch a production
+  promotion. Production remains operator-selectable and the workflow does not
+  enforce this restriction. Wait until the organisation-owned repository and
+  AWS infrastructure, OIDC roles, secrets, DNS, certificates, monitoring,
+  backup policy, and recovery procedure have been validated as the canonical
+  platform.
+- The production workflow path below is target-state guidance, not evidence of
+  a completed production cutover.
 
 ## Auth Model
 
@@ -63,8 +73,14 @@ Before cutting over or handing a deployed environment to another developer, conf
 - `BETTER_AUTH_SECRET` is present and generated from a strong random value.
 - `BETTER_AUTH_URL` is the canonical public origin users will visit.
 - `BETTER_AUTH_TRUSTED_ORIGINS` contains only the canonical public origin(s) that should be allowed to complete auth flows.
+- `PROJEX_AUTH_RESET_REDIRECT_URL`,
+  `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL`, and `PROJEX_APP_BASE_URL` use the
+  same intended public HTTPS origin.
 - `PROJEX_ENABLE_DEV_ENDPOINTS` is `false` or unset outside controlled local workflows.
 - `PROJEX_ENABLE_SMOKE_TOOLS` is `false` or unset outside controlled local workflows.
+- `PROJEX_LOG_LEVEL` and `PROJEX_AUDIT_LOGGING` are explicitly chosen for the
+  environment; audit-category output is operational telemetry, not a durable
+  audit product.
 - `CORS_ALLOWED_ORIGINS` only includes explicit trusted browser origins.
 - `pnpm run db:migrate` has run successfully against the target database.
 - `pnpm run db:verify-types` passes locally after any schema change before handoff or deploy.
@@ -102,8 +118,8 @@ How to think about those commands:
   disposable server smoke, and isolated full disposable browser smoke.
 - Both disposable DB steps require local Docker access.
 - Local browser smoke also needs
-  `pnpm exec playwright install --with-deps chromium firefox` the first time
-  you run it on a machine.
+  `pnpm exec playwright install --with-deps chromium firefox webkit` the first
+  time you run it on a machine.
 - `pnpm run db:migrate` remains an explicit deployment step; the runtime server should be restarted only after migrations succeed.
 
 Post-deploy verification on the target runtime:
@@ -250,7 +266,7 @@ Use the smoke commands like this:
 - `pnpm run smoke:server` is the advanced manual path for targeted runtime verification against a real deployed environment.
 - In the admin Smoke dashboard, generated fixtures are the default run mode. Manual mode is the advanced fallback and accepts per-run inputs in the UI rather than requiring repo-local smoke env values.
 
-## Required Production Env
+## Required Deployed-Environment Env
 
 `/etc/projex/projex.env` should include at least:
 
@@ -278,10 +294,15 @@ RESEND_FROM='Projex <noreply@projectexpensetracker.com>'
 PROJEX_AUTH_EMAIL_WEBHOOK_URL=
 PROJEX_AUTH_EMAIL_WEBHOOK_BEARER_TOKEN=
 PROJEX_AUTH_RESET_REDIRECT_URL=https://projectexpensetracker.com/reset-password
+PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL=https://projectexpensetracker.com/verify-email-change
 PROJEX_APP_BASE_URL=https://projectexpensetracker.com
 
 PROJEX_ENABLE_DEV_ENDPOINTS=false
 PROJEX_ENABLE_SMOKE_TOOLS=false
+
+# Sanitized structured output to journald.
+PROJEX_LOG_LEVEL=error
+PROJEX_AUDIT_LOGGING=true
 
 # Company export object storage
 S3_BUCKET=projex-exports
@@ -300,6 +321,9 @@ Notes:
   - `BETTER_AUTH_TRUSTED_ORIGINS`
   - `CORS_ALLOWED_ORIGINS`
 - For normal production use, prefer the canonical public origin only.
+- `PROJEX_AUDIT_LOGGING=true` is safe for the current staging host because
+  current releases do not write audit telemetry to Postgres and journald is
+  bounded. Choose the production value explicitly during organisation cutover.
 - Company export readiness depends on the configured object-storage bucket existing and being reachable from the app runtime.
 - Leave `PG_SSL_MODE=require` in normal production/staging. CDK-provisioned hosts install Amazon RDS's commercial-region CA bundle at `/etc/projex/rds-global-bundle.pem`; keep `PG_SSL_CA_FILE` pointed there for RDS. For another provider, use its mounted CA path. Reserve `no-verify` for an explicit last-resort exception.
 - Use the nginx template at `deploy/nginx/projex.conf` as the baseline reverse-proxy config for:
@@ -322,6 +346,12 @@ retains the promotable release. Trigger the manual
 For production, select `specific-run-id` and reuse that exact staging-confirmed
 run ID. Exceptional recovery releases and rollback also require
 `specific-run-id`; rollback must select the retained on-host `N-1`.
+
+The production path remains available as an operator selection and requires a
+specific staging-confirmed Release run ID. It does not technically enforce the
+organisation handoff. Do not select production on the current personal
+infrastructure; begin using it only after the handoff requirements in the
+product backlog are complete.
 
 The workflow derives `Deploy PR #<number> to <environment>` from squash-merge
 metadata, falling back to the short source SHA when no PR suffix is present.
@@ -395,22 +425,34 @@ systemd, or nginx tooling from the historical recovery ref.
    - run `pnpm run smoke:server`
    - use `pnpm run smoke:server -- --section=...` when rerunning only one manual workflow
 10. Optional configured-credential invite smoke:
-
-- set `PROJEX_SMOKE_INVITE_EMAIL`
-- run `pnpm run smoke:server -- --section=inviteFlow`
-- confirm invite + resend-invite requests both succeed
-
+    - set `PROJEX_SMOKE_INVITE_EMAIL`
+    - run `pnpm run smoke:server -- --section=inviteFlow`
+    - confirm invite + resend-invite requests both succeed
 11. Optional configured-credential email-change smoke:
-
-- set `PROJEX_SMOKE_EMAIL_CHANGE_TO`
-- run `pnpm run smoke:server -- --section=emailChange`
-- confirm the script can request, detect, resend, and cancel a pending email change
-
-12. Optional configured-credential privacy-toggle smoke: set `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`, `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`, `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run `pnpm run smoke:server -- --section=privacyChecks`.
+    - set `PROJEX_SMOKE_EMAIL_CHANGE_TO`
+    - run `pnpm run smoke:server -- --section=emailChange`
+    - confirm the script can request, detect, resend, and cancel a pending email change
+12. Optional configured-credential privacy-toggle smoke: set
+    `PROJEX_SMOKE_PRIVACY_ADMIN_EMAIL`,
+    `PROJEX_SMOKE_PRIVACY_ADMIN_PASSWORD`,
+    `PROJEX_SMOKE_PRIVACY_SUPERADMIN_EMAIL`, and
+    `PROJEX_SMOKE_PRIVACY_SUPERADMIN_PASSWORD`, then run
+    `pnpm run smoke:server -- --section=privacyChecks`.
 13. Optional company export smoke:
+    - run `pnpm run smoke:server -- --section=exportFlow`
+    - confirm the export completes, reports positive file metadata, and downloads from object storage successfully
+14. When audit-category logging is enabled, perform a reversible staging
+    mutation and confirm sanitized post-commit output:
 
-- run `pnpm run smoke:server -- --section=exportFlow`
-- confirm the export completes, reports positive file metadata, and downloads from object storage successfully
+    ```bash
+    sudo journalctl -u projex --since "2 minutes ago" -f -o cat \
+      | grep --line-buffered '"category":"audit"'
+    ```
+
+    Mark an eligible test transaction reviewed and then reopen it. Expect
+    `transaction.reviewed` followed by `transaction.reopened`, with scalar IDs
+    and classifications only. Stop the live tail with `Ctrl+C`; stopping the
+    reader does not disable logging.
 
 ## Create The First Global Superadmin
 
@@ -484,6 +526,31 @@ If you already have an app-side template user and want to copy its memberships i
 - If neither Resend nor `PROJEX_AUTH_EMAIL_WEBHOOK_URL` is configured, the password setup link is logged on the server instead.
 - For email troubleshooting and direct provider checks, see the
   [email operations runbook](email-ops-runbook.md).
+
+## Structured Logging Operations
+
+- `PROJEX_LOG_LEVEL` accepts `off`, `error`, `warn`, or `info` and controls
+  operational events.
+- `PROJEX_AUDIT_LOGGING=true` independently enables sanitized audit-category
+  events after protected mutations commit.
+- Both categories write JSON to stdout/stderr for journald collection. They do
+  not call Datadog directly and current application releases do not persist
+  audit telemetry in Postgres.
+- The deployed journald policy uses persistent compressed storage capped at
+  512 MiB, keeps 2 GiB free, retains at most seven days, and applies a
+  per-service burst limit of 1,000 messages per 30 seconds.
+- This is best-effort operational telemetry. Rate limiting or host failure can
+  lose entries, so it must not be represented as a compliance audit trail.
+
+Inspect recent audit-category events without exposing the environment file:
+
+```bash
+sudo journalctl -u projex --since "30 minutes ago" -o cat \
+  | grep '"category":"audit"'
+```
+
+A future Datadog Agent should collect this existing journal stream rather than
+introducing vendor calls into application mutation paths.
 
 ## Rotate BetterAuth Secret
 

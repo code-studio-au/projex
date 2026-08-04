@@ -42,8 +42,9 @@ reversal has not been imported yet.
   selector. Selecting both rows of one pair still counts as one approval.
 - Individual and bulk review show the original and reversal side by side,
   including date, amount, description, source metadata, evidence, and any
-  alternative candidates. Internal IDs remain in audit records and exports but
-  are omitted from the primary review cards.
+  alternative candidates. Internal IDs remain in authoritative workflow rows,
+  sanitized audit telemetry, and exports but are omitted from the primary
+  review cards.
 - A selected bulk approval is atomic: if any suggested pair has become invalid,
   none of the selected pairs, reviewer notes, or audit transitions are
   committed.

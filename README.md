@@ -90,7 +90,7 @@ via `pnpm exec playwright install --with-deps chromium firefox webkit` the first
 time you run it on a machine.
 
 GitHub Actions CI enforces the generated-fixture server smoke sweep plus the
-full supported browser smoke flow. After successful `main` CI, the Release
+full supported Chromium, Firefox, and WebKit smoke flow. After successful `main` CI, the Release
 workflow builds one environment-neutral artifact, production SPDX SBOM, and
 signed GitHub provenance record. The manual Deploy workflow promotes that
 exact retained artifact through protected environments using S3 handoff and
@@ -141,6 +141,14 @@ bypass. At minimum configure:
 See the [staging and production runbook](docs/operations/staging-runbook.md) and
 [EC2 deployment guide](docs/operations/deployment-ec2.md) for the full deploy setup.
 
+Current rollout status: the personal repository and AWS account host the
+verified staging environment only. The Deploy workflow keeps production
+available as an operator-selected protected environment, but it does not
+enforce the infrastructure cutover. Operators must not select production until
+the organisation-owned repository and AWS infrastructure are the canonical
+platform. The workflow capability does not mean production is currently ready
+or deployed.
+
 For a reproducible local dependency stack with Postgres and MinIO, use the
 [local services guide](docs/development/local-services.md).
 
@@ -182,9 +190,9 @@ The short version:
 - `pnpm run verify:security` for the fast non-Docker safety pass
 - `pnpm run verify:static-analysis` for pinned ShellCheck and actionlint
 - `pnpm run typecheck:strict:report` for the enforced per-flag
-  `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` ratchet; recorded
-  findings are allowed, but the command fails when any project count differs
-  from `strict-typecheck-baseline.json`, so review and commit baseline changes
+  `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` zero baseline;
+  both flags are enabled in every TypeScript project and the command fails if
+  any diagnostic returns or the recorded zero baselines drift
 - `pnpm run verify:ci` for the fuller local reproduction of CI plus deploy-artifact and CDK checks
 - `pnpm run verify:smoke:full` for the full disposable server smoke sweep across every section
 - `pnpm run verify:smoke:browser:full` for the full disposable browser smoke sweep
@@ -409,7 +417,10 @@ Production/staging server mode requires:
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
 - `BETTER_AUTH_TRUSTED_ORIGINS`
+- `PROJEX_AUTH_EMAIL_CHANGE_REDIRECT_URL` for the verified email-change link
 - `PROJEX_ENABLE_DEV_ENDPOINTS=false`
+- `PROJEX_ENABLE_SMOKE_TOOLS=false`
+- an intentional `PROJEX_LOG_LEVEL` and `PROJEX_AUDIT_LOGGING` choice
 
 Operational defaults:
 
@@ -426,6 +437,11 @@ Operational defaults:
   [dependency override policy](docs/dependencies/dependency-overrides.md).
 - Cross-origin browser requests are denied unless `CORS_ALLOWED_ORIGINS` explicitly allowlists the origin.
 - API responses include `x-request-id`; structured request logs are emitted server-side. Deliberate `AppError` messages form the public error contract, while unexpected exception details are replaced with a generic response and retained only in request-ID error logs.
+- Audit-category telemetry uses the same sanitized structured logger, is emitted
+  only after protected mutations commit, and is independently controlled by
+  `PROJEX_AUDIT_LOGGING`. Current releases do not persist audit telemetry in
+  Postgres; the legacy `audit_events` table remains temporarily for N-1
+  rollback compatibility only.
 - Public deployments should use the nginx template at `deploy/nginx/projex.conf` plus the managed `deploy/nginx/projex-compression.conf` include for HTTPS redirects, security headers, forwarded headers, compressed responses, cache-safe `Vary` handling, and the restart maintenance page.
 - The Node SSR wrapper stays on the known-good `h3-v2` RC alias for now.
   `h3@2.0.0` is deprecated upstream, and swapping to the newer direct `h3`

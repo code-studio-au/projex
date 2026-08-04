@@ -72,9 +72,9 @@ Upgrade the cohort only in a dedicated pull request:
    creation and verification, static analysis, and CDK synthesis.
 
 An H3 or SRVX transition is accepted only after the production server passes
-login, authenticated session, API, readiness, Chromium, and Firefox smoke
-coverage. Keep the `h3-v2` alias and this reproduction boundary until a tested
-upstream release replaces it.
+login, authenticated session, API, readiness, Chromium, Firefox, and WebKit
+smoke coverage. Keep the `h3-v2` alias and this reproduction boundary until a
+tested upstream release replaces it.
 
 The currently deprecated `fstream`, `glob@7`, `inflight`, `lodash.isequal`, and
 `rimraf@2` transitives are owned by `exceljs@4.4.0`, not the framework cohort.

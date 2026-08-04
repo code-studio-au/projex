@@ -52,7 +52,7 @@ later cleanup.
 Before running the browser smoke lane locally for the first time on a machine:
 
 ```bash
-pnpm exec playwright install --with-deps chromium firefox
+pnpm exec playwright install --with-deps chromium firefox webkit
 ```
 
 Targeted useful commands:
