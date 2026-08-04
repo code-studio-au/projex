@@ -1,4 +1,6 @@
-import { Button, Group, Modal, Select, Stack, Text } from '@mantine/core';
+import { Button, Group, Modal, Stack, Text } from '@mantine/core';
+
+import ModalSelect from '../ModalSelect';
 
 export default function TransactionBulkRecodeModal(props: {
   opened: boolean;
@@ -29,7 +31,6 @@ export default function TransactionBulkRecodeModal(props: {
       onClose={onClose}
       title="Bulk recode selected transactions"
       centered
-      lockScroll={false}
     >
       <Stack gap="md">
         <Text size="sm" c="dimmed">
@@ -37,7 +38,7 @@ export default function TransactionBulkRecodeModal(props: {
           category and subcategory. Locked or ineligible rows will be skipped
           and reported in the result.
         </Text>
-        <Select
+        <ModalSelect
           label="Category"
           data={categoryOptions}
           value={categoryId}
@@ -49,7 +50,7 @@ export default function TransactionBulkRecodeModal(props: {
             onSubCategoryChange(null);
           }}
         />
-        <Select
+        <ModalSelect
           label="Subcategory"
           data={subCategoryOptions}
           value={subCategoryId}

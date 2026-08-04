@@ -53,6 +53,18 @@ async function clearProtectedDataAfterLogout(queryClient: QueryClient) {
   });
 }
 
+/**
+ * Replace an authenticated cache boundary before discovering the new session.
+ * This is stricter than a normal anonymous-to-authenticated login: no query
+ * belonging to the previous account may survive or refetch under the new
+ * account's cookie.
+ */
+export async function refreshAfterAccountSwitch(queryClient: QueryClient) {
+  await clearProtectedDataAfterLogout(queryClient);
+  queryClient.setQueryData(qk.session(), null);
+  await queryClient.invalidateQueries({ queryKey: qk.session() });
+}
+
 export function useLogoutMutation() {
   const queryClient = useQueryClient();
 

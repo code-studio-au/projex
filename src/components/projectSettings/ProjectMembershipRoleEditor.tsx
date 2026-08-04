@@ -10,29 +10,31 @@ import {
 } from '@mantine/core';
 
 import {
-  companyRoleOptions,
-  getCompanyRoleDefinition,
+  getProjectRoleDefinition,
+  projectRoleOptions,
 } from '../../access/roleDefinitions';
-import type { CompanyRole, UserId } from '../../types';
+import type { ProjectRole, UserId } from '../../types';
 import { asUserId } from '../../types';
 import RolePermissionSummary from '../access/RolePermissionSummary';
 
-function toCompanyRole(value: string | null): CompanyRole | null {
-  return companyRoleOptions.some((option) => option.value === value)
-    ? (value as CompanyRole)
+function toProjectRole(value: string | null): ProjectRole | null {
+  return projectRoleOptions.some((option) => option.value === value)
+    ? (value as ProjectRole)
     : null;
 }
 
-export default function CompanyMembershipRoleEditor(props: {
+export default function ProjectMembershipRoleEditor(props: {
   userOptions: Array<{ value: UserId; label: string }>;
   selectedUserId: UserId | null;
-  currentRole: CompanyRole | null;
-  selectedRole: CompanyRole | null;
+  currentRole: ProjectRole | null;
+  selectedRole: ProjectRole | null;
   selectedUserIsSelf: boolean;
-  wouldDemoteLastAdmin: boolean;
+  wouldRemoveLastOwner: boolean;
+  wouldLoseSettingsAccess: boolean;
+  canEdit: boolean;
   isPending: boolean;
   onUserChange: (userId: UserId | null) => void;
-  onRoleChange: (role: CompanyRole | null) => void;
+  onRoleChange: (role: ProjectRole | null) => void;
   onSubmit: () => Promise<void>;
 }) {
   const {
@@ -41,7 +43,9 @@ export default function CompanyMembershipRoleEditor(props: {
     currentRole,
     selectedRole,
     selectedUserIsSelf,
-    wouldDemoteLastAdmin,
+    wouldRemoveLastOwner,
+    wouldLoseSettingsAccess,
+    canEdit,
     isPending,
     onUserChange,
     onRoleChange,
@@ -50,11 +54,11 @@ export default function CompanyMembershipRoleEditor(props: {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const selectedUserLabel =
     userOptions.find((option) => option.value === selectedUserId)?.label ??
-    'this member';
+    'this user';
   const hasChange =
     !!selectedUserId && !!selectedRole && currentRole !== selectedRole;
   const selectedDefinition = selectedRole
-    ? getCompanyRoleDefinition(selectedRole)
+    ? getProjectRoleDefinition(selectedRole)
     : null;
 
   return (
@@ -62,7 +66,7 @@ export default function CompanyMembershipRoleEditor(props: {
       <Stack gap="sm">
         <Group align="flex-end" wrap="wrap">
           <Select
-            label="User"
+            label="User (this company)"
             data={userOptions}
             value={selectedUserId}
             disabled={isPending}
@@ -71,35 +75,38 @@ export default function CompanyMembershipRoleEditor(props: {
             style={{ width: '100%', maxWidth: 420 }}
           />
           <Select
-            label="Company role"
-            data={companyRoleOptions}
+            label="Project role"
+            data={projectRoleOptions}
             value={selectedRole}
             disabled={isPending || !selectedUserId}
-            onChange={(value) => onRoleChange(toCompanyRole(value))}
+            onChange={(value) => onRoleChange(toProjectRole(value))}
             style={{ width: '100%', maxWidth: 220 }}
           />
           <Button
             size="sm"
             variant="default"
+            disabled={
+              !canEdit || isPending || !hasChange || wouldRemoveLastOwner
+            }
             loading={isPending}
-            disabled={isPending || !hasChange || wouldDemoteLastAdmin}
             onClick={() => setConfirmationOpen(true)}
           >
-            Review change
+            {currentRole ? 'Review role change' : 'Review assignment'}
           </Button>
         </Group>
         {selectedDefinition ? (
           <RolePermissionSummary definition={selectedDefinition} />
         ) : null}
-        {selectedUserId && !hasChange && !wouldDemoteLastAdmin ? (
+        {selectedUserId && !hasChange && !wouldRemoveLastOwner ? (
           <Text size="xs" c="dimmed">
-            Select a different role to review a change. No database write will
-            occur while the role is unchanged.
+            {currentRole
+              ? 'This user already has the selected role. No database write will occur.'
+              : 'Select a project role to review this assignment.'}
           </Text>
         ) : null}
-        {wouldDemoteLastAdmin ? (
+        {wouldRemoveLastOwner ? (
           <Alert color="yellow">
-            This company must retain at least one Admin. Assign another Admin
+            This project must retain at least one Owner. Assign another Owner
             before changing this role.
           </Alert>
         ) : null}
@@ -108,7 +115,11 @@ export default function CompanyMembershipRoleEditor(props: {
       <Modal
         opened={confirmationOpen}
         onClose={() => setConfirmationOpen(false)}
-        title="Confirm company role change"
+        title={
+          currentRole
+            ? 'Confirm project role change'
+            : 'Confirm project assignment'
+        }
         centered
         closeOnClickOutside={!isPending}
         closeOnEscape={!isPending}
@@ -116,18 +127,25 @@ export default function CompanyMembershipRoleEditor(props: {
       >
         <Stack gap="md">
           <Text>
-            Change <strong>{selectedUserLabel}</strong> from{' '}
-            <strong>
-              {currentRole
-                ? getCompanyRoleDefinition(currentRole).label
-                : 'no company role'}
-            </strong>{' '}
+            {currentRole ? 'Change' : 'Assign'}{' '}
+            <strong>{selectedUserLabel}</strong>
+            {currentRole ? (
+              <>
+                {' '}
+                from{' '}
+                <strong>{getProjectRoleDefinition(currentRole).label}</strong>
+              </>
+            ) : null}{' '}
             to <strong>{selectedDefinition?.label}</strong>?
           </Text>
-          {selectedUserIsSelf ? (
+          {wouldLoseSettingsAccess ? (
+            <Alert color="yellow" title="Project settings access will end">
+              This is your own role. After confirmation, you will leave project
+              settings because Members and Viewers cannot administer them.
+            </Alert>
+          ) : selectedUserIsSelf ? (
             <Alert color="yellow" title="This is your own role">
-              Your available company and project administration controls will
-              update immediately after this change.
+              Your project capabilities will update immediately.
             </Alert>
           ) : null}
           {selectedDefinition ? (
@@ -143,18 +161,18 @@ export default function CompanyMembershipRoleEditor(props: {
             </Button>
             <Button
               loading={isPending}
-              disabled={!hasChange || wouldDemoteLastAdmin}
+              disabled={!hasChange || wouldRemoveLastOwner}
               onClick={async () => {
                 try {
                   await onSubmit();
                   setConfirmationOpen(false);
                 } catch {
-                  // The parent renders the mutation error and the dialog stays
-                  // open so the administrator can review or retry safely.
+                  // The parent owns the visible error and the confirmation
+                  // remains open for a deliberate retry.
                 }
               }}
             >
-              Confirm role change
+              {currentRole ? 'Confirm role change' : 'Confirm assignment'}
             </Button>
           </Group>
         </Stack>

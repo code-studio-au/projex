@@ -12,18 +12,23 @@ import {
 } from '@mantine/core';
 import { useRouter } from '@tanstack/react-router';
 import { useMediaQuery } from '@mantine/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { apiErrorMessage } from '../api/errorResponses';
-import { accountRoute, loginRoute } from '../router';
-import { useSessionQuery } from '../queries/session';
+import { loginRoute } from '../router';
+import {
+  refreshAfterAccountSwitch,
+  sessionQueryOptions,
+} from '../queries/session';
+import { getPostLoginTargetServerFn } from '../server/start/functions/auth';
 import { Route as resetPasswordRoute } from '../routes/reset-password';
 import { readJsonResponseOrNull } from '../utils/json';
 import classes from '../styles/ui.module.css';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const sessionQ = useSessionQuery();
   const { token = '', error: searchError = '' } =
     resetPasswordRoute.useSearch();
   const [password, setPassword] = useState('');
@@ -63,10 +68,28 @@ export default function ResetPasswordPage() {
         return;
       }
       setSuccess(
-        'Your password has been set. Return to sign in with your updated credentials.'
+        'Your password has been set. Securely switching this browser to the updated account…'
       );
       setPassword('');
       setConfirmPassword('');
+
+      try {
+        await refreshAfterAccountSwitch(queryClient);
+        const session = await queryClient.fetchQuery({
+          ...sessionQueryOptions(),
+          staleTime: 0,
+        });
+        if (!session?.userId) {
+          throw new Error('The new session was not ready.');
+        }
+        const target = await getPostLoginTargetServerFn();
+        await router.invalidate();
+        await router.navigate(target);
+      } catch {
+        setSuccess(
+          'Your password was updated, but automatic account switching could not be confirmed. Sign in once with your updated password.'
+        );
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Could not set your password.'
@@ -101,29 +124,15 @@ export default function ResetPasswordPage() {
           {success ? (
             <>
               <Alert color="green">{success}</Alert>
-              {sessionQ.data ? (
-                <Alert color="yellow">
-                  Another user is currently signed in in this browser. Sign out
-                  first, then return to sign in with the account whose password
-                  you just updated.
-                </Alert>
-              ) : null}
               <Text c="dimmed" className={classes.modalIntro}>
-                If you were testing with multiple accounts, use Return to sign
-                in so you can start a fresh login with the updated password.
+                The reset link proves ownership of the updated account. Any
+                other account previously active in this browser is replaced; its
+                server-side sessions on other devices are not affected.
               </Text>
               <Group className={classes.footerRowBetween}>
                 <Button onClick={() => router.navigate({ to: loginRoute.to })}>
-                  Return to sign in
+                  Sign in manually
                 </Button>
-                {sessionQ.data ? (
-                  <Button
-                    variant="light"
-                    onClick={() => router.navigate({ to: accountRoute.to })}
-                  >
-                    Stay with current session
-                  </Button>
-                ) : null}
               </Group>
             </>
           ) : (

@@ -7,7 +7,6 @@ import {
   Menu,
   Modal,
   Paper,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -29,7 +28,7 @@ import {
   ManagementListCard,
   ManagementModalIntro,
 } from './ManagementModalUi';
-import { firefoxSafeModalSelectProps } from './modalSelectProps';
+import ModalSelect from './ModalSelect';
 
 type AutoCodingRuleView = {
   id: string;
@@ -298,21 +297,20 @@ function AutoCodingRuleComposer({
           }}
         />
         <Group grow align="flex-end" wrap="wrap">
-          <Select
+          <ModalSelect
             label="Category"
             placeholder="Select category"
             data={model.categoryOptions}
             value={model.newCategoryId}
             searchable
             disabled={!model.hasTaxonomy}
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               model.clearFeedback();
               model.setNewCategoryId(value);
               model.setNewSubCategoryId(null);
             }}
           />
-          <Select
+          <ModalSelect
             label="Subcategory"
             placeholder={
               model.newCategoryId
@@ -323,7 +321,6 @@ function AutoCodingRuleComposer({
             value={model.newSubCategoryId}
             searchable
             disabled={!model.newCategoryId}
-            {...firefoxSafeModalSelectProps}
             onChange={(value) => {
               model.clearFeedback();
               model.setNewSubCategoryId(value);
@@ -502,7 +499,6 @@ function EditAutoCodingRuleModal({
       title="Edit auto-coding rule"
       fullScreen={model.isMobile}
       centered={!model.isMobile}
-      lockScroll={false}
     >
       <Stack gap="md">
         {model.error ? <Alert color="red">{model.error}</Alert> : null}
@@ -519,25 +515,23 @@ function EditAutoCodingRuleModal({
             model.setEditMatchText(event.currentTarget.value);
           }}
         />
-        <Select
+        <ModalSelect
           label="Category"
           data={model.categoryOptions}
           value={model.editCategoryId}
           searchable
-          {...firefoxSafeModalSelectProps}
           onChange={(value) => {
             model.setError(null);
             model.setEditCategoryId(value);
             model.setEditSubCategoryId(null);
           }}
         />
-        <Select
+        <ModalSelect
           label="Subcategory"
           data={model.editSubCategoryOptions}
           value={model.editSubCategoryId}
           searchable
           disabled={!model.editCategoryId}
-          {...firefoxSafeModalSelectProps}
           onChange={(value) => {
             model.setError(null);
             model.setEditSubCategoryId(value);
@@ -607,7 +601,6 @@ function DeleteAutoCodingRuleModal({
       title="Delete auto-coding rule?"
       fullScreen={model.isMobile}
       centered={!model.isMobile}
-      lockScroll={false}
     >
       <Stack gap="md">
         {model.error ? <Alert color="red">{model.error}</Alert> : null}
@@ -672,7 +665,6 @@ function AutoCodingRulesEditorModalView({
         fullScreen={model.isMobile}
         centered={!model.isMobile}
         size="lg"
-        lockScroll={false}
         styles={{
           body: {
             maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',

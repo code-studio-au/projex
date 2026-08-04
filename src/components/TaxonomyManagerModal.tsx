@@ -8,7 +8,6 @@ import {
   Menu,
   Modal,
   Paper,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -28,7 +27,7 @@ import {
   ManagementActionsMenu,
   ManagementModalIntro,
 } from './ManagementModalUi';
-import { firefoxSafeModalSelectProps } from './modalSelectProps';
+import ModalSelect from './ModalSelect';
 import TaxonomyActionDialogs from './taxonomyManager/TaxonomyActionDialogs';
 import type {
   TaxonomyDeleteTarget,
@@ -416,7 +415,7 @@ function TaxonomyComposer({
 
         {model.creationMode === 'subcategory' ? (
           <Group align="flex-end" wrap="wrap">
-            <Select
+            <ModalSelect
               label="Category"
               placeholder={
                 model.categoryOptions.length === 0
@@ -427,7 +426,6 @@ function TaxonomyComposer({
               value={model.newSubCategoryCategoryId}
               searchable
               disabled={model.categoryOptions.length === 0}
-              {...firefoxSafeModalSelectProps}
               onChange={(value) => {
                 model.patchManager({
                   error: null,
@@ -830,7 +828,6 @@ function TaxonomyManagerModalView({
         fullScreen={model.isMobile}
         centered={!model.isMobile}
         size="lg"
-        lockScroll={false}
         styles={{
           body: {
             maxHeight: model.isMobile ? '100dvh' : 'calc(100dvh - 10rem)',

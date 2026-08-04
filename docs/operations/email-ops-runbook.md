@@ -50,6 +50,11 @@ Notes:
   - requests another password-setup/reset email for an existing company member
 - Forgot password:
   - requests a password reset email for the entered address
+  - after a successful reset, revokes the reset account's older sessions and
+    replaces the current browser session with one fresh session for that
+    account
+  - clears protected browser cache data before routing to the reset account;
+    sessions for a different account on other devices are unaffected
 - Verified email change:
   - sends a one-hour, single-purpose verification link to the requested new
     address

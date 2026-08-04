@@ -6,6 +6,7 @@ import { sendAuthEmail } from './email.ts';
 import { AppError } from '../../api/errors.ts';
 import { betterAuthSignUpResponseSchema } from '../../validation/authResponseSchemas.ts';
 import { buildPasswordSetupEmailMessage } from '../email/authMessages.ts';
+import { createPasswordResetAccountSwitchHooks } from './passwordResetAccountSwitch.ts';
 
 export type BetterAuthSessionApi = ReturnType<typeof betterAuth>;
 
@@ -66,6 +67,7 @@ function buildBetterAuthOptionsForPurpose(
     emailAndPassword: {
       enabled: true,
       disableSignUp: purpose === 'public-handler',
+      revokeSessionsOnPasswordReset: true,
       async sendResetPassword({ user, url }) {
         const message = buildPasswordSetupEmailMessage({
           recipientName: user.name,
@@ -78,6 +80,7 @@ function buildBetterAuthOptionsForPurpose(
         });
       },
     },
+    hooks: createPasswordResetAccountSwitchHooks(),
     plugins: [tanstackStartCookies()],
   };
 }

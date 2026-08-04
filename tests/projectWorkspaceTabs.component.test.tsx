@@ -108,4 +108,17 @@ describe('ProjectWorkspaceTabList', () => {
       })
     ).toEqual({ canImport: false, canProjectEdit: true });
   });
+
+  it('drops server-rendered privileges when live membership access is revoked', () => {
+    expect(
+      resolveProjectWorkspaceTabAccess({
+        isHydrated: true,
+        isOperationalProject: true,
+        initialCanImport: true,
+        initialCanProjectEdit: true,
+        liveCanImport: false,
+        liveCanProjectEdit: false,
+      })
+    ).toEqual({ canImport: false, canProjectEdit: false });
+  });
 });

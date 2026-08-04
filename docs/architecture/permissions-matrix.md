@@ -41,6 +41,28 @@ Company `admin` and `executive` users can view and edit all company projects. Pr
 - Project-scoped access still respects `projects.allow_superadmin_access`.
 - If `allow_superadmin_access=false`, project-scoped reads and writes are blocked even for global superadmins.
 
+## Access administration invariants
+
+- `src/access/roleDefinitions.ts` is the client-facing explanation of this
+  matrix. Role selectors show the resulting capabilities and require an
+  explicit confirmation before changing access.
+- A company must retain at least one Admin. The final Admin cannot be demoted
+  or removed, and an administrator cannot remove their own company membership.
+- A project must retain at least one Owner. Assigning an existing project
+  member replaces that member's one persisted project role; it does not create
+  a second role row. Owner and Lead currently have the same application
+  permissions, but Owner records project accountability and preserves the
+  administration invariant.
+- Company membership removal also removes the user's explicit project
+  memberships in that company. Company Admin and Executive access continues to
+  override project membership as shown above.
+- Company and project role changes lock their parent row and enforce the final
+  Admin or Owner check in the same database transaction as the write. UI checks
+  are explanatory safeguards, not the security boundary.
+- After hydration, live permission data replaces the server-rendered permission
+  snapshot. A user who removes their own project-settings access is navigated
+  away and cannot retain stale controls from the original page load.
+
 ## Notes
 
 - `company:update_details`, `company:manage_defaults`, `company:export`, and

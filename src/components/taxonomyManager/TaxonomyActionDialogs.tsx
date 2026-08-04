@@ -1,20 +1,12 @@
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Modal,
-  Select,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
 
 import type { TaxonomyHook } from '../../hooks/useTaxonomy';
 import { useProjectAutoCodingRulesQuery } from '../../queries/projectAutoCodingRules';
 import { useBulkRecodeProjectTransactionsMutation } from '../../queries/taxonomy';
 import classes from '../../styles/ui.module.css';
 import { asCategoryId, asSubCategoryId } from '../../types/ids';
-import { firefoxSafeModalSelectProps } from '../modalSelectProps';
+import ModalSelect from '../ModalSelect';
 import type {
   TaxonomyDeleteTarget,
   TaxonomySubCategoryActionTarget,
@@ -185,7 +177,6 @@ function MoveTaxonomyDialog({
       title="Move subcategory"
       fullScreen={model.isMobile}
       centered={!model.isMobile}
-      lockScroll={false}
     >
       <Stack gap="md">
         {model.error ? <Alert color="red">{model.error}</Alert> : null}
@@ -209,13 +200,12 @@ function MoveTaxonomyDialog({
             .
           </Alert>
         ) : null}
-        <Select
+        <ModalSelect
           label="New category"
           placeholder="Select category"
           data={model.moveCategoryOptions}
           value={model.moveCategoryId}
           searchable
-          {...firefoxSafeModalSelectProps}
           onChange={model.setMoveCategoryId}
         />
         <Group className={classes.footerRow}>
@@ -274,7 +264,6 @@ function BulkRecodeTaxonomyDialog({
       title="Recode transactions"
       fullScreen={model.isMobile}
       centered={!model.isMobile}
-      lockScroll={false}
     >
       <Stack gap="md">
         {model.error ? <Alert color="red">{model.error}</Alert> : null}
@@ -283,18 +272,17 @@ function BulkRecodeTaxonomyDialog({
           {model.pendingBulkRecode?.subCategoryName ?? ''}” to another category
           and subcategory. The existing subcategory remains available.
         </Text>
-        <Select
+        <ModalSelect
           label="Target category"
           data={model.categoryOptions}
           value={model.bulkRecodeCategoryId}
           searchable
-          {...firefoxSafeModalSelectProps}
           onChange={(value) => {
             model.setSelectedBulkRecodeCategoryId(value);
             model.setBulkRecodeSubCategoryId(null);
           }}
         />
-        <Select
+        <ModalSelect
           label="Target subcategory"
           placeholder={
             model.bulkRecodeSubCategoryOptions.length === 0
@@ -308,7 +296,6 @@ function BulkRecodeTaxonomyDialog({
             model.bulkRecodeSubCategoryOptions.length === 0
           }
           searchable
-          {...firefoxSafeModalSelectProps}
           onChange={model.setBulkRecodeSubCategoryId}
         />
         <Group className={classes.footerRow}>
@@ -380,7 +367,6 @@ function DeleteTaxonomyDialog({
       }
       fullScreen={model.isMobile}
       centered={!model.isMobile}
-      lockScroll={false}
     >
       <Stack gap="md">
         {model.error ? <Alert color="red">{model.error}</Alert> : null}
@@ -403,7 +389,7 @@ function DeleteTaxonomyDialog({
         {model.pendingDelete?.kind === 'subcategory' &&
         model.deleteAffectedRules.length > 0 ? (
           <>
-            <Select
+            <ModalSelect
               label="Affected rule handling"
               data={[
                 {
@@ -431,18 +417,17 @@ function DeleteTaxonomyDialog({
             />
             {model.deleteRuleHandling === 'reassign' ? (
               <Group grow align="flex-end" wrap="wrap">
-                <Select
+                <ModalSelect
                   label="Replacement category"
                   data={model.categoryOptions}
                   value={model.deleteReplacementCategoryId}
                   searchable
-                  {...firefoxSafeModalSelectProps}
                   onChange={(value) => {
                     model.setDeleteReplacementCategoryId(value);
                     model.setDeleteReplacementSubCategoryId(null);
                   }}
                 />
-                <Select
+                <ModalSelect
                   label="Replacement subcategory"
                   placeholder={
                     model.deleteReplacementCategoryId
@@ -453,7 +438,6 @@ function DeleteTaxonomyDialog({
                   value={model.deleteReplacementSubCategoryId}
                   searchable
                   disabled={!model.deleteReplacementCategoryId}
-                  {...firefoxSafeModalSelectProps}
                   onChange={model.setDeleteReplacementSubCategoryId}
                 />
               </Group>

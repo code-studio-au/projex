@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import type { SmokeFixtures } from '../../../src/server/smoke/fixtures';
 import {
@@ -19,9 +19,141 @@ export class TaxonomyWorkflowPage extends AuthenticatedSmokePage {
     await this.signIn();
     await this.gotoProject('tab=transactions');
     await this.openProjectTaxonomy();
+    await this.verifyModalSelectScrolling();
     await this.moveAndDeleteSubcategory();
     await this.verifyReassignedRuleTarget();
     this.assertNoBrowserErrors();
+  }
+
+  private async verifyModalSelectScrolling() {
+    await this.emit('Verifying contained modal Select scrolling');
+    const dialog = this.page.getByRole('dialog', {
+      name: 'Manage categories & subcategories',
+    });
+    const modalBody = dialog.locator('.mantine-Modal-body');
+    const pageScrollTop = await this.page.evaluate(() => window.scrollY);
+
+    this.assert(
+      await this.page.evaluate(() =>
+        document.body.hasAttribute('data-scroll-locked')
+      ),
+      'Opening the taxonomy modal did not lock background page scrolling'
+    );
+
+    const categorySelect = dialog.getByRole('combobox', {
+      name: 'Category',
+    });
+    await categorySelect.click();
+    const dropdownId = await categorySelect.getAttribute('aria-controls');
+    this.assert(
+      dropdownId,
+      'Taxonomy category Select did not expose a dropdown'
+    );
+    const listbox = dialog.locator(`[id="${dropdownId}"]`);
+    const dropdown = listbox.locator('..');
+    await dropdown.waitFor({ state: 'visible' });
+
+    const dropdownScroll = await dropdown.evaluate<
+      { clientHeight: number; scrollHeight: number; scrollTop: number },
+      HTMLElement
+    >((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+    }));
+    this.assert(
+      dropdownScroll.scrollHeight > dropdownScroll.clientHeight,
+      'Taxonomy category Select did not create a scrollable dropdown'
+    );
+    const browserName = this.page.context().browser()?.browserType().name();
+    if (browserName === 'webkit') {
+      // Playwright WebKit does not reliably deliver wheel events to a nested
+      // overflow element under document scroll lock. Exercise the real WebKit
+      // scroll container through Playwright's element-scrolling primitive.
+      await listbox.getByRole('option').last().scrollIntoViewIfNeeded();
+    } else {
+      await expect
+        .poll(
+          async () => {
+            await dropdown.hover();
+            await this.page.mouse.wheel(0, 300);
+            return dropdown.evaluate<number, HTMLElement>(
+              (element) => element.scrollTop
+            );
+          },
+          {
+            message:
+              'Taxonomy category Select should respond to wheel scrolling',
+            timeout: 2_000,
+          }
+        )
+        .toBeGreaterThan(dropdownScroll.scrollTop);
+    }
+    const dropdownScrollTop = await dropdown.evaluate<number, HTMLElement>(
+      (element) => element.scrollTop
+    );
+    this.assert(
+      dropdownScrollTop > dropdownScroll.scrollTop,
+      'Taxonomy category Select did not scroll within its contained dropdown'
+    );
+    this.assert(
+      (await this.page.evaluate(() => window.scrollY)) === pageScrollTop,
+      'Scrolling the contained Select moved the background page'
+    );
+
+    await this.page.keyboard.press('Escape');
+    await dropdown.waitFor({ state: 'hidden' });
+
+    const modalScroll = await modalBody.evaluate<
+      { clientHeight: number; scrollHeight: number; scrollTop: number },
+      HTMLElement
+    >((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+    }));
+    this.assert(
+      modalScroll.scrollHeight > modalScroll.clientHeight,
+      'Taxonomy modal did not create an internal scroll region'
+    );
+    if (browserName === 'webkit') {
+      // Use Playwright's documented precise element-scrolling fallback for
+      // WebKit under document scroll lock; the other engines exercise wheel input.
+      await modalBody.evaluate((element) => {
+        element.scrollTop += 500;
+      });
+    } else {
+      await expect
+        .poll(
+          async () => {
+            await modalBody.hover();
+            await this.page.mouse.wheel(0, 500);
+            return modalBody.evaluate<number, HTMLElement>(
+              (element) => element.scrollTop
+            );
+          },
+          {
+            message:
+              'Taxonomy modal should keep responding to wheel scrolling after Select use',
+            timeout: 2_000,
+          }
+        )
+        .toBeGreaterThan(modalScroll.scrollTop);
+    }
+    const modalScrollTop = await modalBody.evaluate<number, HTMLElement>(
+      (element) => element.scrollTop
+    );
+    this.assert(
+      modalScrollTop > modalScroll.scrollTop,
+      'Taxonomy modal did not scroll within its contained body'
+    );
+    this.assert(
+      (await this.page.evaluate(() => window.scrollY)) === pageScrollTop,
+      'Scrolling the taxonomy modal moved the background page'
+    );
+    await modalBody.evaluate((element) => {
+      element.scrollTop = 0;
+    });
   }
 
   private async moveAndDeleteSubcategory() {

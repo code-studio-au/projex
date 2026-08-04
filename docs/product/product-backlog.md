@@ -325,37 +325,6 @@ Why this matters:
 
 - the executive summary is now useful, but deeper reporting will likely be needed as companies use more projects over time
 
-### Safer role and access administration UX
-
-Examples:
-
-- clearer role comparison/help text
-- more obvious consequences of role changes
-- permission summary views for admins
-
-Why this matters:
-
-- access control is much stronger now, but role changes are sensitive enough that more clarity will reduce admin mistakes
-
-### Review modal/select scroll behavior in Zen/Firefox
-
-Examples:
-
-- revisit taxonomy and import-rule modal interactions where opening or wheel-scrolling Mantine `Select` dropdowns can interfere with page or modal scrolling in Zen/Firefox
-- confirm whether the current targeted fixes should stay as-is, be narrowed further, or be replaced with a more durable cross-browser pattern
-- verify whether specific high-risk flows should use Mantine `Select`, `NativeSelect`, or a different editor shape entirely
-
-Why this matters:
-
-- the current implementation is stable, but part of that stability comes from a pragmatic workaround rather than an ideal UX outcome
-- in Zen/Firefox, Mantine modal scroll locking and combobox dropdown scrolling can interact badly enough to freeze scrolling after dropdown use
-
-Design direction:
-
-- reproduce the issue in an isolated Mantine modal/select harness on current Firefox and Zen releases
-- compare a Mantine upgrade, a more surgical modal configuration, and moving complex taxonomy editors out of modal context
-- retain a targeted workaround only if the isolated test confirms it remains necessary
-
 ### Search and filtering maturity
 
 Examples:
@@ -386,7 +355,6 @@ Why this matters:
 
 - large table-layer replacement work beyond the current Mantine 9 + `mantine-react-table-open` stack unless the fork becomes unmaintained or product needs outgrow it
 - replacing the app company model with BetterAuth organizations
-- automatic account switching after password reset
 - large visual redesign work
 
 Those can wait unless product requirements change.

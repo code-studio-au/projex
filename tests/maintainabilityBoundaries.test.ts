@@ -192,6 +192,43 @@ describe('maintainability boundaries', () => {
     expect(source).not.toMatch(/from ['"]\.\.\/projectAutoCodingRules['"]/);
   });
 
+  test('modal Selects stay inside the default scroll-lock boundary', async () => {
+    const modalSelectSource = await readFile(
+      path.resolve('src/components/ModalSelect.tsx'),
+      'utf8'
+    );
+    const modalSelectConsumerPaths = [
+      'src/components/AutoCodingRulesEditorModal.tsx',
+      'src/components/CompanyDefaultTaxonomyModal.tsx',
+      'src/components/ImportRulesEditorModal.tsx',
+      'src/components/PowerBiImporterPanel.tsx',
+      'src/components/RuleSuggestionsModal.tsx',
+      'src/components/TaxonomyManagerModal.tsx',
+      'src/components/TransactionCommentsModal.tsx',
+      'src/components/TransactionSplitModal.tsx',
+      'src/components/TransactionTransferModal.tsx',
+      'src/components/taxonomyManager/TaxonomyActionDialogs.tsx',
+      'src/components/transactions/TransactionBulkRecodeModal.tsx',
+      'src/components/transactions/TransactionReversalModal.tsx',
+    ];
+    const modalSelectConsumers = await Promise.all(
+      modalSelectConsumerPaths.map((sourcePath) =>
+        readFile(path.resolve(sourcePath), 'utf8')
+      )
+    );
+
+    expect(modalSelectSource).toContain(
+      'comboboxProps={{ withinPortal: false }}'
+    );
+    expect(modalSelectSource).toContain('withScrollArea={false}');
+    expect(modalSelectSource).toContain("overscrollBehavior: 'contain'");
+    for (const source of modalSelectConsumers) {
+      expect(source).toContain('<ModalSelect');
+      expect(source).not.toContain('<Select');
+      expect(source).not.toContain('lockScroll={false}');
+    }
+  });
+
   test('the complete CI script delegates shared app checks only once', async () => {
     const packageJson = JSON.parse(
       await readFile(path.resolve('package.json'), 'utf8')

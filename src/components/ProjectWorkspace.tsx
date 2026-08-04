@@ -306,18 +306,14 @@ function useProjectWorkspaceController(props: ProjectWorkspaceInnerProps) {
   });
   const canEditBudgets =
     isOperationalProject &&
-    (isHydrated
-      ? initialCanEditBudgets || access.can('budget:edit', projectId)
-      : initialCanEditBudgets);
+    (isHydrated ? access.can('budget:edit', projectId) : initialCanEditBudgets);
   const canEditTxns =
     isOperationalProject &&
-    (isHydrated
-      ? initialCanEditTxns || access.can('txns:edit', projectId)
-      : initialCanEditTxns);
+    (isHydrated ? access.can('txns:edit', projectId) : initialCanEditTxns);
   const canEditTaxonomy =
     isOperationalProject &&
     (isHydrated
-      ? initialCanEditTaxonomy || access.can('taxonomy:edit', projectId)
+      ? access.can('taxonomy:edit', projectId)
       : initialCanEditTaxonomy);
   const canManageReversals =
     isOperationalProject &&
@@ -1001,6 +997,7 @@ function OperationalProjectWorkspaceView({
               <ProjectSettingsPanel
                 companyId={model.companyId}
                 projectId={model.projectId}
+                onSettingsAccessLost={() => model.setActiveTab('budget')}
               />
             </Suspense>
           </Tabs.Panel>

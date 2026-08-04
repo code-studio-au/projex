@@ -40,3 +40,17 @@ test('Better Auth disables public email and password sign-up', () => {
   assert.equal(options.emailAndPassword?.enabled, true);
   assert.equal(options.emailAndPassword?.disableSignUp, true);
 });
+
+test('Better Auth replaces the browser account only after a successful password reset', () => {
+  process.env.NODE_ENV = 'test';
+  process.env.DATABASE_URL = 'postgres://localhost/projex_test';
+  process.env.BETTER_AUTH_SECRET = 'test-secret';
+  process.env.BETTER_AUTH_URL = 'http://localhost:3000';
+  process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'http://localhost:3000';
+
+  const options = buildBetterAuthOptions();
+
+  assert.equal(options.emailAndPassword?.revokeSessionsOnPasswordReset, true);
+  assert.equal(typeof options.hooks?.before, 'function');
+  assert.equal(typeof options.hooks?.after, 'function');
+});
