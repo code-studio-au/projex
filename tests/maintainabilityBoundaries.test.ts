@@ -446,7 +446,10 @@ describe('maintainability boundaries', () => {
     expect(config).toContain("globalSetup: './tests/browser/globalSetup.ts'");
     expect(config).toContain('fullyParallel: true');
     expect(config).toContain('workers: resolveWorkerCount()');
-    expect(config).toContain('process.env.CI ? 4 : 2');
+    expect(config).toContain(
+      "if (!process.env.CI || browserName === 'webkit') return 2"
+    );
+    expect(config).toContain('return 4');
     expect(config).toContain('failOnFlakyTests: Boolean(process.env.CI)');
     expect(config).toContain('forbidOnly: Boolean(process.env.CI)');
     expect(config).toContain("['github']");

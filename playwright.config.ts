@@ -13,7 +13,10 @@ if (
 
 function resolveWorkerCount(): number {
   const configured = process.env.PROJEX_SMOKE_BROWSER_WORKERS?.trim();
-  if (!configured) return process.env.CI ? 4 : 2;
+  if (!configured) {
+    if (!process.env.CI || browserName === 'webkit') return 2;
+    return 4;
+  }
 
   const workers = Number.parseInt(configured, 10);
   if (!Number.isSafeInteger(workers) || workers < 1) {
