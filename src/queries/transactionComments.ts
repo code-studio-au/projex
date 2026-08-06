@@ -73,10 +73,7 @@ export function transactionCommentSummariesQueryOptions(
       projectId,
       txnIdsKey(input.txnIds)
     ),
-    // The exact visible transaction ids are part of the query key, so an older
-    // response cannot replace the current page. Let this bounded request finish:
-    // WebKit reports aborting it during a view change as a browser page error.
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const params = new URLSearchParams();
       for (const txnId of [...(input.txnIds ?? [])].sort()) {
         params.append('txnId', txnId);
@@ -88,6 +85,7 @@ export function transactionCommentSummariesQueryOptions(
           method: 'GET',
           credentials: 'same-origin',
           headers: { accept: 'application/json' },
+          signal,
         }
       );
       if (!response.ok) {

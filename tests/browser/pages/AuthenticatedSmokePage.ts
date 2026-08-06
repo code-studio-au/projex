@@ -7,14 +7,22 @@ export type SmokePageOptions = {
   onStatus?: (message: string) => void | Promise<void>;
 };
 
-export function isExpectedWebKitServerFnCancellation(
+const webKitCancellationSuffix = ' due to access control checks.';
+const transactionCommentSummariesUrl =
+  /^(?:(?:https?:\/\/[^/\s]+)|(?:\/?localhost(?::\d+)?))?\/api\/projects\/[^/?#]+\/transactions\/comment-summaries(?:\?[^#\s]*)?$/;
+
+export function isExpectedWebKitNavigationCancellation(
   browserName: string,
   message: string
 ) {
+  if (browserName !== 'webkit' || !message.endsWith(webKitCancellationSuffix)) {
+    return false;
+  }
+
+  const requestUrl = message.slice(0, -webKitCancellationSuffix.length);
   return (
-    browserName === 'webkit' &&
-    message.includes('/_serverFn/') &&
-    message.endsWith(' due to access control checks.')
+    requestUrl.includes('/_serverFn/') ||
+    transactionCommentSummariesUrl.test(requestUrl)
   );
 }
 
@@ -38,10 +46,10 @@ export abstract class AuthenticatedSmokePage {
     page.on('pageerror', (error) => {
       const browserName =
         page.context().browser()?.browserType().name() ?? 'unknown';
-      // WebKit reports same-origin server-function fetches cancelled by a
-      // navigation/query replacement as page errors with this exact wording.
-      // Other browsers and every non-server-function page error remain fatal.
-      if (isExpectedWebKitServerFnCancellation(browserName, error.message)) {
+      // WebKit reports specific same-origin fetches cancelled by a navigation
+      // or query replacement as page errors with this exact wording. Keep the
+      // exception limited to known endpoints; all other page errors stay fatal.
+      if (isExpectedWebKitNavigationCancellation(browserName, error.message)) {
         return;
       }
       this.pageErrors.push(`${page.url()}: ${error.message}`);

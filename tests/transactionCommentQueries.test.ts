@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 describe('transaction comment queries', () => {
-  test('loads scoped summaries without aborting an obsolete visible-row request', async () => {
+  test('loads scoped summaries through the API with query cancellation', async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         void input;
@@ -44,6 +44,6 @@ describe('transaction comment queries', () => {
       method: 'GET',
       credentials: 'same-origin',
     });
-    expect(call[1]?.signal).toBeUndefined();
+    expect(call[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 });
