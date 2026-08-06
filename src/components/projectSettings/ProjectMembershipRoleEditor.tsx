@@ -24,12 +24,21 @@ function toProjectRole(value: string | null): ProjectRole | null {
     : null;
 }
 
+function mutationErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message.trim()
+    ? error.message
+    : fallback;
+}
+
+type AssignmentDataState = 'loading' | 'ready' | 'error';
+
 export function ProjectMembershipAssignmentEditor(props: {
   userOptions: Array<{ value: UserId; label: string }>;
   selectedUserId: UserId | null;
   selectedRole: ProjectRole | null;
   canEdit: boolean;
   isPending: boolean;
+  dataState: AssignmentDataState;
   onUserChange: (userId: UserId | null) => void;
   onRoleChange: (role: ProjectRole | null) => void;
   onSubmit: () => Promise<void>;
@@ -40,17 +49,27 @@ export function ProjectMembershipAssignmentEditor(props: {
     selectedRole,
     canEdit,
     isPending,
+    dataState,
     onUserChange,
     onRoleChange,
     onSubmit,
   } = props;
   const [confirmationOpen, setConfirmationOpen] = useState(false);
-  const selectedUserLabel =
-    userOptions.find((option) => option.value === selectedUserId)?.label ??
-    'this user';
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const selectedUserOption = userOptions.find(
+    (option) => option.value === selectedUserId
+  );
+  const selectedUserIsAssignable = Boolean(selectedUserOption);
+  const selectedUserLabel = selectedUserOption?.label ?? 'this user';
   const selectedDefinition = selectedRole
     ? getProjectRoleDefinition(selectedRole)
     : null;
+  const controlsDisabled = isPending || dataState !== 'ready';
+
+  function closeConfirmation() {
+    setMutationError(null);
+    setConfirmationOpen(false);
+  }
 
   return (
     <>
@@ -59,7 +78,7 @@ export function ProjectMembershipAssignmentEditor(props: {
           label="User (this company)"
           data={userOptions}
           value={selectedUserId}
-          disabled={isPending}
+          disabled={controlsDisabled}
           onChange={(value) => onUserChange(value ? asUserId(value) : null)}
           searchable
           style={{ width: '100%', maxWidth: 420 }}
@@ -68,23 +87,41 @@ export function ProjectMembershipAssignmentEditor(props: {
           label="Initial project role"
           data={projectRoleOptions}
           value={selectedRole}
-          disabled={isPending || !selectedUserId}
+          disabled={controlsDisabled || !selectedUserIsAssignable}
           onChange={(value) => onRoleChange(toProjectRole(value))}
           style={{ width: '100%', maxWidth: 220 }}
         />
         <Button
           size="sm"
           variant="default"
-          disabled={!canEdit || isPending || !selectedUserId || !selectedRole}
-          onClick={() => setConfirmationOpen(true)}
+          disabled={
+            !canEdit ||
+            controlsDisabled ||
+            !selectedUserIsAssignable ||
+            !selectedRole
+          }
+          onClick={() => {
+            setMutationError(null);
+            setConfirmationOpen(true);
+          }}
         >
           Add Project User
         </Button>
       </Group>
 
+      {dataState === 'loading' ? (
+        <Text size="sm" c="dimmed">
+          Loading company and project users...
+        </Text>
+      ) : dataState === 'error' ? (
+        <Alert color="red" title="Could not load project users">
+          Refresh the page before assigning project access.
+        </Alert>
+      ) : null}
+
       <Modal
         opened={confirmationOpen}
-        onClose={() => setConfirmationOpen(false)}
+        onClose={closeConfirmation}
         title="Review project user access"
         centered
         closeOnClickOutside={!isPending}
@@ -99,24 +136,38 @@ export function ProjectMembershipAssignmentEditor(props: {
           {selectedDefinition ? (
             <RolePermissionSummary definition={selectedDefinition} />
           ) : null}
+          {mutationError ? (
+            <Alert color="red" title="Could not add project user">
+              {mutationError}
+            </Alert>
+          ) : null}
           <Group justify="flex-end">
             <Button
               variant="default"
               disabled={isPending}
-              onClick={() => setConfirmationOpen(false)}
+              onClick={closeConfirmation}
             >
               Cancel
             </Button>
             <Button
               loading={isPending}
-              disabled={!selectedUserId || !selectedRole}
+              disabled={
+                dataState !== 'ready' ||
+                !selectedUserIsAssignable ||
+                !selectedRole
+              }
               onClick={async () => {
+                setMutationError(null);
                 try {
                   await onSubmit();
-                  setConfirmationOpen(false);
-                } catch {
-                  // The parent owns the mutation error and the confirmation
-                  // remains open for a deliberate retry.
+                  closeConfirmation();
+                } catch (error) {
+                  setMutationError(
+                    mutationErrorMessage(
+                      error,
+                      'The project user could not be added. Please try again.'
+                    )
+                  );
                 }
               }}
             >
@@ -151,6 +202,7 @@ export default function ProjectMembershipRoleEditor(props: {
   } = props;
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<ProjectRole>(currentRole);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const hasChange = currentRole !== selectedRole;
   const wouldRemoveLastOwner =
     isOnlyOwner && currentRole === 'owner' && selectedRole !== 'owner';
@@ -163,7 +215,13 @@ export default function ProjectMembershipRoleEditor(props: {
 
   function openConfirmation() {
     setSelectedRole(currentRole);
+    setMutationError(null);
     setConfirmationOpen(true);
+  }
+
+  function closeConfirmation() {
+    setMutationError(null);
+    setConfirmationOpen(false);
   }
 
   return (
@@ -182,7 +240,7 @@ export default function ProjectMembershipRoleEditor(props: {
           cannot swallow the user's first parent-page scroll gesture. */}
       <Modal
         opened={confirmationOpen}
-        onClose={() => setConfirmationOpen(false)}
+        onClose={closeConfirmation}
         title="Confirm project role change"
         centered
         lockScroll={confirmationOpen}
@@ -198,7 +256,10 @@ export default function ProjectMembershipRoleEditor(props: {
             disabled={isPending}
             onChange={(value) => {
               const role = toProjectRole(value);
-              if (role) setSelectedRole(role);
+              if (role) {
+                setMutationError(null);
+                setSelectedRole(role);
+              }
             }}
           />
           <Text>
@@ -223,11 +284,16 @@ export default function ProjectMembershipRoleEditor(props: {
             </Alert>
           ) : null}
           <RolePermissionSummary definition={selectedDefinition} />
+          {mutationError ? (
+            <Alert color="red" title="Could not change project role">
+              {mutationError}
+            </Alert>
+          ) : null}
           <Group justify="flex-end">
             <Button
               variant="default"
               disabled={isPending}
-              onClick={() => setConfirmationOpen(false)}
+              onClick={closeConfirmation}
             >
               Cancel
             </Button>
@@ -235,12 +301,17 @@ export default function ProjectMembershipRoleEditor(props: {
               loading={isPending}
               disabled={!hasChange || wouldRemoveLastOwner}
               onClick={async () => {
+                setMutationError(null);
                 try {
                   await onSubmit(selectedRole);
-                  setConfirmationOpen(false);
-                } catch {
-                  // The parent owns the mutation error and the confirmation
-                  // remains open for a deliberate retry.
+                  closeConfirmation();
+                } catch (error) {
+                  setMutationError(
+                    mutationErrorMessage(
+                      error,
+                      'The project role could not be changed. Please try again.'
+                    )
+                  );
                 }
               }}
             >

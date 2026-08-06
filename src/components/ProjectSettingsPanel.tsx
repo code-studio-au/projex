@@ -234,9 +234,28 @@ function useProjectSettingsPanelController(props: {
     [members, companyUsers, usersQ.data]
   );
   const userOptions = useMemo(
-    () => getAssignableProjectUserOptions(companyUsers, members),
-    [companyUsers, members]
+    () =>
+      usersQ.isSuccess &&
+      companyMembershipsQ.isSuccess &&
+      projectMembershipsQ.isSuccess
+        ? getAssignableProjectUserOptions(companyUsers, members)
+        : [],
+    [
+      companyMembershipsQ.isSuccess,
+      companyUsers,
+      members,
+      projectMembershipsQ.isSuccess,
+      usersQ.isSuccess,
+    ]
   );
+  const projectUserAssignmentDataState: 'loading' | 'ready' | 'error' =
+    usersQ.isError || companyMembershipsQ.isError || projectMembershipsQ.isError
+      ? 'error'
+      : usersQ.isSuccess &&
+          companyMembershipsQ.isSuccess &&
+          projectMembershipsQ.isSuccess
+        ? 'ready'
+        : 'loading';
   const ownerCount = useMemo(
     () => memberRows.filter((membership) => membership.role === 'owner').length,
     [memberRows]
@@ -385,6 +404,7 @@ function useProjectSettingsPanelController(props: {
     memberUserId,
     programmeOptions,
     projectId,
+    projectUserAssignmentDataState,
     projectImportRulesModalOpen,
     projectRulesModalOpen,
     reapplyCompanyStandards,
@@ -624,6 +644,7 @@ function ProjectUserAssignmentSettingsCard({
           selectedRole={model.memberRole}
           canEdit={model.canEditProject}
           isPending={model.upsert.isPending}
+          dataState={model.projectUserAssignmentDataState}
           onUserChange={model.setMemberUserId}
           onRoleChange={model.setMemberRole}
           onSubmit={async () => {

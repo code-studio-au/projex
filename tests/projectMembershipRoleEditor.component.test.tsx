@@ -98,6 +98,28 @@ describe('ProjectMembershipRoleEditor', () => {
       /you will leave project settings/i
     );
   });
+
+  it('surfaces a role mutation failure and keeps the review modal open', async () => {
+    const message =
+      'This project membership changed. Refresh before trying again.';
+    const props = {
+      ...roleProps(),
+      onSubmit: vi.fn().mockRejectedValue(new Error(message)),
+    };
+    renderComponent(<ProjectMembershipRoleEditor {...props} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Change role for Member User' })
+    );
+    await screen.findByRole('dialog');
+    await selectRole('Project role', 'Lead');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirm role change' })
+    );
+
+    expect(await screen.findByText(message)).toBeTruthy();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
 });
 
 describe('ProjectMembershipAssignmentEditor', () => {
@@ -110,6 +132,7 @@ describe('ProjectMembershipAssignmentEditor', () => {
         selectedRole="member"
         canEdit
         isPending={false}
+        dataState="ready"
         onUserChange={vi.fn()}
         onRoleChange={vi.fn()}
         onSubmit={onSubmit}
@@ -126,5 +149,66 @@ describe('ProjectMembershipAssignmentEditor', () => {
     );
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+  });
+
+  it('does not offer assignment controls before access data loads', () => {
+    renderComponent(
+      <ProjectMembershipAssignmentEditor
+        userOptions={[]}
+        selectedUserId={null}
+        selectedRole="member"
+        canEdit
+        isPending={false}
+        dataState="loading"
+        onUserChange={vi.fn()}
+        onRoleChange={vi.fn()}
+        onSubmit={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    expect(
+      screen.getByText('Loading company and project users...')
+    ).toBeTruthy();
+    expect(
+      (
+        screen.getByRole('combobox', {
+          name: 'User (this company)',
+        }) as HTMLInputElement
+      ).disabled
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole('button', {
+          name: 'Add Project User',
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+  });
+
+  it('surfaces an assignment mutation failure in the review modal', async () => {
+    const message = 'This user already has project access.';
+    const onSubmit = vi.fn().mockRejectedValue(new Error(message));
+    renderComponent(
+      <ProjectMembershipAssignmentEditor
+        userOptions={[{ value: asUserId('usr_member'), label: 'Member User' }]}
+        selectedUserId={asUserId('usr_member')}
+        selectedRole="member"
+        canEdit
+        isPending={false}
+        dataState="ready"
+        onUserChange={vi.fn()}
+        onRoleChange={vi.fn()}
+        onSubmit={onSubmit}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Project User' }));
+    await screen.findByRole('dialog');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirm and add user' })
+    );
+
+    expect(await screen.findByText(message)).toBeTruthy();
+    expect(screen.getByRole('dialog')).toBeTruthy();
   });
 });
