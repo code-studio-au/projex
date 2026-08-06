@@ -138,6 +138,13 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
       'Redirect response did not server-render the company dashboard'
     );
     await this.waitForAuthenticatedHydration();
+    // The next check deliberately performs a full-document navigation. Wait
+    // for the redirected Summary panel's lazy module to finish hydrating first
+    // so WebKit does not cancel that import and report a test-induced module
+    // load failure while the new document replaces it.
+    await this.page
+      .getByRole('combobox', { name: 'Show' })
+      .waitFor({ state: 'visible' });
   }
 
   private async verifyCompanySettings() {
