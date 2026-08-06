@@ -62,29 +62,26 @@ export async function ensureCompanyUserMembership(args: {
     .where('user_id', '=', user.id)
     .executeTakeFirst();
 
-  if (existingMembership && existingMembership.role !== args.role) {
+  if (existingMembership) {
     throw new AppError(
       'VALIDATION_ERROR',
-      'This user is already a company member. Review role changes in Current members.'
+      'This email already belongs to a company user. Use the Users table to manage their access.'
     );
   }
 
-  if (!existingMembership) {
-    await args.db
-      .insertInto('company_memberships')
-      .values({
-        company_id: args.companyId,
-        user_id: user.id,
-        role: args.role,
-      })
-      .execute();
-  }
+  await args.db
+    .insertInto('company_memberships')
+    .values({
+      company_id: args.companyId,
+      user_id: user.id,
+      role: args.role,
+    })
+    .execute();
 
   return {
     user,
     createdAuthUser,
-    membershipCreated: !existingMembership,
-    previousRole: existingMembership?.role ?? null,
+    membershipCreated: true,
     trimmedEmail,
   };
 }
@@ -139,8 +136,7 @@ export async function createUserInCompanyServer(args: {
       return result;
     });
 
-    const shouldSendOnboardingEmail =
-      membership.createdAuthUser || !!args.sendOnboardingEmail;
+    const shouldSendOnboardingEmail = args.sendOnboardingEmail === true;
     const onboardingDelivery = shouldSendOnboardingEmail
       ? await requestPasswordSetupEmail(membership.trimmedEmail)
       : 'none';

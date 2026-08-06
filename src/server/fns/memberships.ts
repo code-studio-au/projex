@@ -392,6 +392,7 @@ export async function upsertProjectMembershipServer(args: {
   projectId: ProjectId;
   userId: UserId;
   role: ProjectRole;
+  operation: 'assign' | 'change';
 }): Promise<ProjectMembership> {
   return withServerBoundary(async () => {
     assertContextProvided(args.context);
@@ -438,6 +439,19 @@ export async function upsertProjectMembershipServer(args: {
         .where('project_id', '=', args.projectId)
         .where('user_id', '=', args.userId)
         .executeTakeFirst();
+
+      if (args.operation === 'assign' && existingMembership) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          'This user already has project access. Use the Users table to manage their role.'
+        );
+      }
+      if (args.operation === 'change' && !existingMembership) {
+        throw new AppError(
+          'CONFLICT',
+          'This project membership no longer exists. Refresh before trying again.'
+        );
+      }
       if (existingMembership?.role === args.role) return;
 
       const ownerCountRow = await trx

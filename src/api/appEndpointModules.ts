@@ -267,7 +267,12 @@ export type MembershipEndpointsModule = {
     void
   >;
   upsertProjectMembershipEndpoint: AppEndpoint<
-    { projectId: ProjectId; userId: UserId; role: ProjectMembership['role'] },
+    {
+      projectId: ProjectId;
+      userId: UserId;
+      role: ProjectMembership['role'];
+      operation: 'assign' | 'change';
+    },
     ProjectMembership
   >;
   deleteProjectMembershipEndpoint: AppEndpoint<

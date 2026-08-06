@@ -5,6 +5,7 @@ export default function AccessRemovalButton(props: {
   userLabel: string;
   scopeLabel: string;
   consequence: string;
+  disabled?: boolean | undefined;
   disabledReason?: string | undefined;
   isPending: boolean;
   onConfirm: () => Promise<void>;
@@ -13,6 +14,7 @@ export default function AccessRemovalButton(props: {
     userLabel,
     scopeLabel,
     consequence,
+    disabled = false,
     disabledReason,
     isPending,
     onConfirm,
@@ -27,7 +29,7 @@ export default function AccessRemovalButton(props: {
           color="red"
           variant="light"
           className="tableActionButton"
-          disabled={!!disabledReason || isPending}
+          disabled={disabled || !!disabledReason || isPending}
           title={disabledReason}
           onClick={() => setOpened(true)}
         >

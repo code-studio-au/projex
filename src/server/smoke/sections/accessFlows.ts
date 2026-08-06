@@ -31,12 +31,6 @@ export async function runInviteFlowSection(
   const inviteName =
     process.env.PROJEX_SMOKE_INVITE_NAME?.trim() || 'Smoke Invite';
   const inviteRole = process.env.PROJEX_SMOKE_INVITE_ROLE?.trim() || 'member';
-  const followUpRole =
-    inviteRole === 'member'
-      ? 'management'
-      : inviteRole === 'management'
-        ? 'executive'
-        : 'member';
 
   await authenticatePrimaryUser(recorder, client, baseUrl);
   const { company } = await loadPrimaryCompanyAndProject(recorder, client);
@@ -62,6 +56,7 @@ export async function runInviteFlowSection(
             name: inviteName,
             email: inviteEmail,
             role: inviteRole,
+            sendOnboardingEmail: true,
           }),
         }
       );
@@ -93,8 +88,8 @@ export async function runInviteFlowSection(
   }
 
   await recorder.step(
-    'update-existing-member',
-    `Rejecting an add-member role change for existing member ${inviteEmail}`,
+    'reject-existing-company-user',
+    `Rejecting an add-user request for existing company email ${inviteEmail}`,
     async () => {
       const result = await client.request(
         `/api/companies/${encodeURIComponent(company.id)}/users`,
@@ -103,24 +98,24 @@ export async function runInviteFlowSection(
           body: JSON.stringify({
             name: inviteName,
             email: inviteEmail,
-            role: followUpRole,
+            role: inviteRole,
             sendOnboardingEmail: false,
           }),
         }
       );
       if (result.res.status !== 422) {
         throw new Error(
-          `existing member role replacement returned ${result.res.status}, expected 422: ${JSON.stringify(result.body)}`
+          `existing company email returned ${result.res.status}, expected 422: ${JSON.stringify(result.body)}`
         );
       }
       const error = parseBody(
         apiErrorResponseSchema,
         result.body,
-        'reject existing member role replacement'
+        'reject existing company email'
       );
       if (error.code !== 'VALIDATION_ERROR') {
         throw new Error(
-          `Existing member role replacement returned an unexpected error: ${JSON.stringify(error)}`
+          `Existing company email returned an unexpected error: ${JSON.stringify(error)}`
         );
       }
 
@@ -129,19 +124,19 @@ export async function runInviteFlowSection(
       );
       assertOk(
         membershipsResult,
-        'list memberships after rejected role change'
+        'list memberships after rejected duplicate email'
       );
       const memberships = parseBody(
         companyMembershipsResponseSchema,
         membershipsResult.body,
-        'list memberships after rejected role change'
+        'list memberships after rejected duplicate email'
       );
       const membership = memberships.find(
         (candidate) => candidate.userId === invitedUserId
       );
       if (membership?.role !== inviteRole) {
         throw new Error(
-          `Rejected role replacement changed the membership: ${JSON.stringify(membership)}`
+          `Rejected duplicate email changed the membership: ${JSON.stringify(membership)}`
         );
       }
     }

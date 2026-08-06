@@ -55,4 +55,22 @@ describe('AccessRemovalButton', () => {
     expect((button as HTMLButtonElement).disabled).toBe(true);
     expect(button.getAttribute('title')).toBe('Assign another Owner first.');
   });
+
+  it('can keep a protected removal unavailable without adjacent helper text', () => {
+    renderComponent(
+      <AccessRemovalButton
+        userLabel="Only Admin"
+        scopeLabel="the company"
+        consequence="Access would be removed."
+        disabled
+        isPending={false}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: 'Remove' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(button.getAttribute('title')).toBeNull();
+    expect(screen.queryByText(/another company Admin/)).toBeNull();
+  });
 });

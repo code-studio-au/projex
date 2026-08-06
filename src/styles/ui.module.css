@@ -140,6 +140,15 @@
   background: var(--surface-muted);
 }
 
+.formValidationError {
+  color: var(--mantine-color-red-8);
+  font-weight: 600;
+}
+
+:global([data-mantine-color-scheme='dark']) .formValidationError {
+  color: var(--mantine-color-red-3);
+}
+
 .bulkActionsBar {
   background: var(--surface-muted);
   border-color: var(--surface-border);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import {
   MantineReactTable,
@@ -35,7 +35,10 @@ import ProjectSettingControls from './settings/ProjectSettingControls';
 import TaxonomyManagerModal from './TaxonomyManagerModal';
 import classes from '../styles/ui.module.css';
 import { showAppToast } from '../utils/toast';
-import ProjectMembershipRoleEditor from './projectSettings/ProjectMembershipRoleEditor';
+import ProjectMembershipRoleEditor, {
+  ProjectMembershipAssignmentEditor,
+} from './projectSettings/ProjectMembershipRoleEditor';
+import { getAssignableProjectUserOptions } from './projectSettings/projectUserOptions';
 import AccessRemovalButton from './access/AccessRemovalButton';
 import { getProjectRoleDefinition } from '../access/roleDefinitions';
 
@@ -189,15 +192,6 @@ function useProjectSettingsPanelController(props: {
     [companyId, usersQ.data, companyMembershipsQ.data]
   );
 
-  const userOptions = useMemo(
-    () =>
-      companyUsers.map((u) => ({
-        value: u.id,
-        label: `${u.name} (${u.email})`,
-      })),
-    [companyUsers]
-  );
-
   const [memberUserId, setMemberUserId] = useState<UserId | null>(null);
   const [memberRole, setMemberRole] = useState<ProjectRole | null>('member');
   const [taxonomyModalOpen, setTaxonomyModalOpen] = useState(false);
@@ -239,28 +233,37 @@ function useProjectSettingsPanelController(props: {
       }, []),
     [members, companyUsers, usersQ.data]
   );
-  const selectedMember = useMemo(
-    () =>
-      memberRows.find((membership) => membership.userId === memberUserId) ??
-      null,
-    [memberRows, memberUserId]
+  const userOptions = useMemo(
+    () => getAssignableProjectUserOptions(companyUsers, members),
+    [companyUsers, members]
   );
   const ownerCount = useMemo(
     () => memberRows.filter((membership) => membership.role === 'owner').length,
     [memberRows]
   );
-  const selectedMemberIsSelf = memberUserId === access.userId;
-  const wouldRemoveLastOwner =
-    selectedMember?.role === 'owner' &&
-    ownerCount <= 1 &&
-    memberRole !== 'owner';
-  const wouldLoseSettingsAccess =
-    selectedMemberIsSelf &&
-    (selectedMember?.role === 'owner' || selectedMember?.role === 'lead') &&
-    (memberRole === 'member' || memberRole === 'viewer') &&
-    !access.isAdmin &&
-    !access.isExecutive &&
-    !access.isSuperadmin;
+
+  const updateProjectMemberRole = useCallback(
+    async (
+      row: (typeof memberRows)[number],
+      role: ProjectRole
+    ): Promise<void> => {
+      const shouldLeaveSettings =
+        row.userId === access.userId &&
+        (row.role === 'owner' || row.role === 'lead') &&
+        (role === 'member' || role === 'viewer') &&
+        !access.isAdmin &&
+        !access.isExecutive &&
+        !access.isSuperadmin;
+
+      await upsert.mutateAsync({
+        userId: row.userId,
+        role,
+        operation: 'change',
+      });
+      if (shouldLeaveSettings) onSettingsAccessLost();
+    },
+    [access, onSettingsAccessLost, upsert]
+  );
 
   const memberColumns = useMemo<MRT_ColumnDef<(typeof memberRows)[number]>[]>(
     () => [
@@ -291,6 +294,8 @@ function useProjectSettingsPanelController(props: {
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
+        size: 240,
+        minSize: 240,
         Cell: ({ row }) => {
           const isOnlyOwner = row.original.role === 'owner' && ownerCount <= 1;
           const wouldRemoveOwnProjectAccess =
@@ -299,47 +304,69 @@ function useProjectSettingsPanelController(props: {
             !access.isExecutive &&
             !access.isSuperadmin;
           return (
-            <AccessRemovalButton
-              userLabel={row.original.name}
-              scopeLabel="this project"
-              consequence={`${row.original.name} will lose their explicit project role. A company Admin or Executive may still retain company-level access.`}
-              disabledReason={
-                !canEditProject
-                  ? 'You cannot administer this project.'
-                  : isOnlyOwner
-                    ? 'Assign another project Owner before removing the only Owner.'
-                    : undefined
-              }
-              isPending={del.isPending}
-              onConfirm={async () => {
-                await del.mutateAsync({
-                  userId: row.original.userId,
-                  role: row.original.role,
-                });
-                if (wouldRemoveOwnProjectAccess) {
-                  try {
-                    await router.navigate({
-                      to: companyRoute.to,
-                      params: { companyId },
-                    });
-                  } catch (error) {
-                    showAppToast({
-                      tone: 'error',
-                      title: 'Project access removed',
-                      message:
-                        error instanceof Error
-                          ? `Access was removed, but navigation failed: ${error.message}`
-                          : 'Access was removed, but navigation failed. Return to the company page before continuing.',
-                    });
-                  }
+            <Group gap="xs" wrap="wrap" className="tableActionGroup">
+              <ProjectMembershipRoleEditor
+                userLabel={row.original.name}
+                currentRole={row.original.role}
+                isSelf={row.original.userId === access.userId}
+                isOnlyOwner={isOnlyOwner}
+                hasCompanyWideProjectAccess={
+                  access.isAdmin || access.isExecutive || access.isSuperadmin
                 }
-              }}
-            />
+                canEdit={canEditProject}
+                isPending={upsert.isPending}
+                onSubmit={(role) => updateProjectMemberRole(row.original, role)}
+              />
+              <AccessRemovalButton
+                userLabel={row.original.name}
+                scopeLabel="this project"
+                consequence={`${row.original.name} will lose their explicit project role. A company Admin or Executive may still retain company-level access.`}
+                disabled={isOnlyOwner}
+                disabledReason={
+                  !canEditProject
+                    ? 'You cannot administer this project.'
+                    : undefined
+                }
+                isPending={del.isPending}
+                onConfirm={async () => {
+                  await del.mutateAsync({
+                    userId: row.original.userId,
+                    role: row.original.role,
+                  });
+                  if (wouldRemoveOwnProjectAccess) {
+                    try {
+                      await router.navigate({
+                        to: companyRoute.to,
+                        params: { companyId },
+                      });
+                    } catch (error) {
+                      showAppToast({
+                        tone: 'error',
+                        title: 'Project access removed',
+                        message:
+                          error instanceof Error
+                            ? `Access was removed, but navigation failed: ${error.message}`
+                            : 'Access was removed, but navigation failed. Return to the company page before continuing.',
+                      });
+                    }
+                  }
+                }}
+              />
+            </Group>
           );
         },
       },
     ],
-    [access, canEditProject, companyId, del, ownerCount, router]
+    [
+      access,
+      canEditProject,
+      companyId,
+      del,
+      ownerCount,
+      router,
+      updateProjectMemberRole,
+      upsert.isPending,
+    ]
   );
 
   return {
@@ -356,8 +383,6 @@ function useProjectSettingsPanelController(props: {
     memberRole,
     memberRows,
     memberUserId,
-    ownerCount,
-    onSettingsAccessLost,
     programmeOptions,
     projectId,
     projectImportRulesModalOpen,
@@ -369,8 +394,6 @@ function useProjectSettingsPanelController(props: {
     setProjectImportRulesModalOpen,
     setProjectRulesModalOpen,
     setTaxonomyModalOpen,
-    selectedMember,
-    selectedMemberIsSelf,
     settingsTaxonomy,
     taxonomyModalOpen,
     updateCompanyStandardsSync,
@@ -381,8 +404,6 @@ function useProjectSettingsPanelController(props: {
     updateTransactionTransfers,
     upsert,
     userOptions,
-    wouldLoseSettingsAccess,
-    wouldRemoveLastOwner,
   };
 }
 
@@ -585,7 +606,7 @@ function ProjectMembershipSettingsCard({
   );
 }
 
-function ProjectBudgetSettingsCard({
+function ProjectUserAssignmentSettingsCard({
   model,
 }: {
   model: ProjectSettingsPanelController;
@@ -593,49 +614,35 @@ function ProjectBudgetSettingsCard({
   return (
     <Paper className={classes.surfaceCard} radius="xl" p="lg">
       <Stack gap="sm">
-        <Title order={5}>Assign team members</Title>
-        <ProjectMembershipRoleEditor
+        <Title order={5}>Add project user</Title>
+        <Text size="sm" c="dimmed">
+          Assign a company user their initial access level for this project.
+        </Text>
+        <ProjectMembershipAssignmentEditor
           userOptions={model.userOptions}
           selectedUserId={model.memberUserId}
-          currentRole={model.selectedMember?.role ?? null}
           selectedRole={model.memberRole}
-          selectedUserIsSelf={model.selectedMemberIsSelf}
-          wouldRemoveLastOwner={model.wouldRemoveLastOwner}
-          wouldLoseSettingsAccess={model.wouldLoseSettingsAccess}
           canEdit={model.canEditProject}
           isPending={model.upsert.isPending}
-          onUserChange={(userId) => {
-            model.setMemberUserId(userId);
-            model.setMemberRole(
-              model.memberRows.find(
-                (membership) => membership.userId === userId
-              )?.role ?? 'member'
-            );
-          }}
+          onUserChange={model.setMemberUserId}
           onRoleChange={model.setMemberRole}
           onSubmit={async () => {
             if (!model.memberUserId || !model.memberRole) return;
-            const shouldLeaveSettings = model.wouldLoseSettingsAccess;
             await model.upsert.mutateAsync({
               userId: model.memberUserId,
               role: model.memberRole,
+              operation: 'assign',
             });
-            if (shouldLeaveSettings) {
-              model.onSettingsAccessLost();
-            }
+            model.setMemberUserId(null);
+            model.setMemberRole('member');
           }}
         />
-        <Text size="sm" c="dimmed">
-          New assignments and changes to existing roles use the same database
-          membership row. Every change is reviewed before it is saved. Company
-          settings manages company-level roles separately.
-        </Text>
       </Stack>
     </Paper>
   );
 }
 
-function ProjectTaxonomySettingsCard({
+function ProjectUsersSettingsCard({
   model,
 }: {
   model: ProjectSettingsPanelController;
@@ -643,7 +650,7 @@ function ProjectTaxonomySettingsCard({
   return (
     <Paper className={classes.surfaceCard} radius="xl" p="lg">
       <Stack gap="sm">
-        <Title order={5}>Current members</Title>
+        <Title order={5}>Users</Title>
         <div className={classes.tableWrap}>
           {model.isHydrated ? (
             <MantineReactTable
@@ -699,9 +706,9 @@ function ProjectSettingsPanelView({
 
       <ProjectMembershipSettingsCard model={model} />
 
-      <ProjectBudgetSettingsCard model={model} />
+      <ProjectUserAssignmentSettingsCard model={model} />
 
-      <ProjectTaxonomySettingsCard model={model} />
+      <ProjectUsersSettingsCard model={model} />
 
       <ProjectAutoCodingRulesModal
         opened={model.projectRulesModalOpen}

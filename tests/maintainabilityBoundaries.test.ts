@@ -34,7 +34,7 @@ const componentDecompositionBoundaries = [
     views: [
       'CompanyDetailsSettingsCard',
       'CompanyMembershipSettingsCard',
-      'CompanyOperationsSettingsCard',
+      'CompanyUsersSettingsCard',
     ],
   },
   {
@@ -68,8 +68,8 @@ const componentDecompositionBoundaries = [
     views: [
       'ProjectStructureSettingsCard',
       'ProjectMembershipSettingsCard',
-      'ProjectBudgetSettingsCard',
-      'ProjectTaxonomySettingsCard',
+      'ProjectUserAssignmentSettingsCard',
+      'ProjectUsersSettingsCard',
     ],
   },
   {
