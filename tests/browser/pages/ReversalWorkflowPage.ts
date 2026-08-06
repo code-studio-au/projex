@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import type { SmokeFixtures } from '../../../src/server/smoke/fixtures';
 import {
@@ -370,14 +370,18 @@ export class ReversalWorkflowPage extends AuthenticatedSmokePage {
     );
     await reviewModalBody.hover();
     await this.page.mouse.wheel(0, 500);
-    await this.page.waitForTimeout(100);
-    const scrolledTop = await reviewModalBody.evaluate<number, HTMLElement>(
-      (element) => element.scrollTop
-    );
-    this.assert(
-      scrolledTop > initialScroll.scrollTop,
-      'Reversal review modal did not respond to wheel scrolling'
-    );
+    await expect
+      .poll(
+        () =>
+          reviewModalBody.evaluate<number, HTMLElement>(
+            (element) => element.scrollTop
+          ),
+        {
+          message: 'Reversal review modal should respond to wheel scrolling',
+          timeout: 5_000,
+        }
+      )
+      .toBeGreaterThan(initialScroll.scrollTop);
     await reviewModalBody.evaluate((element) => {
       element.scrollTop = 0;
     });

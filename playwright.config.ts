@@ -14,7 +14,8 @@ if (
 function resolveWorkerCount(): number {
   const configured = process.env.PROJEX_SMOKE_BROWSER_WORKERS?.trim();
   if (!configured) {
-    if (!process.env.CI || browserName === 'webkit') return 2;
+    if (!process.env.CI) return 2;
+    if (browserName === 'webkit') return 1;
     return 4;
   }
 
