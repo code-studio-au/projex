@@ -22,6 +22,7 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
     await this.verifySingleCompanyServerRedirect();
     await this.verifyCompanyAndProjectNavigation();
     await this.verifyProjectToolsAndTabs();
+    await this.verifyProjectRoleModalReleasesPageScroll();
     await this.verifyCompanySettings();
     this.assertNoBrowserErrors();
   }
@@ -291,6 +292,56 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
           `/c/${this.fixtures.companyId}/p/${this.fixtures.projectId}` &&
         !new URLSearchParams(search).get('tab'),
       'Project workspace did not switch back to the budget tab'
+    );
+  }
+
+  private async verifyProjectRoleModalReleasesPageScroll() {
+    await this.emit('Verifying project role modal releases page scrolling');
+    await this.page.getByRole('tab', { name: 'Settings' }).click();
+    await this.waitForLocation(
+      ({ pathname, search }) =>
+        pathname ===
+          `/c/${this.fixtures.companyId}/p/${this.fixtures.projectId}` &&
+        new URLSearchParams(search).get('tab') === 'settings',
+      'Project workspace did not switch to the settings tab'
+    );
+
+    const memberRow = this.page
+      .getByRole('row')
+      .filter({ hasText: this.fixtures.users.primary.email });
+    await memberRow
+      .getByRole('button', {
+        name: `Change role for ${this.fixtures.users.primary.name}`,
+      })
+      .click();
+
+    const dialog = this.page.getByRole('dialog', {
+      name: 'Confirm project role change',
+    });
+    await dialog.waitFor({ state: 'visible' });
+    await this.selectOption(dialog, 'Project role', 'Member');
+    const settingsScrollTop = await this.page.evaluate(() => window.scrollY);
+    this.assert(
+      settingsScrollTop > 0,
+      'Opening the project member row did not establish a parent-page scroll position'
+    );
+
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    // Send the wheel event immediately, while the modal is beginning to close.
+    // Waiting for the exit transition masks a retained document scroll lock
+    // that can swallow the user's entire first wheel or trackpad gesture.
+    await this.page.mouse.wheel(0, -600);
+    await dialog.waitFor({ state: 'hidden' });
+    await this.page.waitForFunction(
+      (previousScrollTop) => window.scrollY < previousScrollTop,
+      settingsScrollTop,
+      { timeout: 2_000 }
+    );
+    this.assert(
+      !(await this.page.evaluate(() =>
+        document.body.hasAttribute('data-scroll-locked')
+      )),
+      'Closing the project role modal left the page scroll lock active'
     );
   }
 

@@ -149,9 +149,18 @@ export function useUpsertProjectMembershipMutation(projectId: ProjectId) {
   const scopeUserId = useQueryScopeUserId();
 
   return useMutation({
-    mutationFn: (vars: { userId: UserId; role: ProjectRole }) =>
+    mutationFn: (vars: {
+      userId: UserId;
+      role: ProjectRole;
+      operation: 'assign' | 'change';
+    }) =>
       upsertProjectMembershipServerFn({
-        data: { projectId, userId: vars.userId, role: vars.role },
+        data: {
+          projectId,
+          userId: vars.userId,
+          role: vars.role,
+          operation: vars.operation,
+        },
       }),
     onSuccess: async () => {
       await Promise.all([

@@ -518,8 +518,11 @@ If you already have an app-side template user and want to copy its memberships i
   - create or reuse a BetterAuth user
   - reconcile/link the app `users` row to the BetterAuth user id
   - add company membership
-  - send a password setup email
+  - send the initial password setup email when **Send invite email** remains
+    selected; it is selected by default
 - Existing company members can also be re-sent an invite email from company settings.
+- An email already present in the company must be managed from the **Users**
+  table rather than submitted through **Add company user** again.
 - Prefer direct Resend delivery with:
   - `RESEND_API_KEY`
   - `RESEND_BASE_URL=https://api.resend.com`

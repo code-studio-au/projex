@@ -273,8 +273,8 @@ export const smokeSectionDefinitions: Array<{
       { id: 'projects', label: 'Loading projects for a company' },
       { id: 'invite-user', label: 'Inviting a user to the company' },
       {
-        id: 'update-existing-member',
-        label: 'Rejecting an existing-member role replacement',
+        id: 'reject-existing-company-user',
+        label: 'Rejecting an existing company email',
       },
       { id: 'resend-invite', label: 'Attempting immediate invite resend' },
       {

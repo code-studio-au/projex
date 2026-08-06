@@ -99,6 +99,7 @@ export const upsertProjectMembershipEndpoint = defineAppEndpoint({
       projectId: input.projectId,
       userId: input.userId,
       role: input.role,
+      operation: input.operation,
     }),
 });
 

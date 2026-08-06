@@ -6,6 +6,7 @@ import {
   deleteProjectMembershipServer,
   upsertProjectMembershipServer,
 } from '../src/server/fns/memberships.ts';
+import { createUserInCompanyServer } from '../src/server/fns/companyMemberships.ts';
 import { asCompanyId, asProjectId, asUserId } from '../src/types/index.ts';
 import {
   assertAppError,
@@ -25,6 +26,7 @@ test(
     const adminUserId = asUserId('itest_access_admin_usr_admin');
     const teammateUserId = asUserId('itest_access_admin_usr_teammate');
     const context = { session: { userId: adminUserId } } as const;
+    const inviteRateLimitBucket = `company-membership-create:${companyId}:${adminUserId}`;
 
     try {
       await deleteTestRowsByIds({
@@ -32,6 +34,11 @@ test(
         companies: [companyId],
         users: [adminUserId, teammateUserId],
       });
+      await db
+        .deleteFrom('request_rate_limits')
+        .where('bucket', '=', inviteRateLimitBucket)
+        .execute();
+      await db.deleteFrom('ba_user').where('id', '=', teammateUserId).execute();
       await insertTestRows(db, 'companies', {
         id: companyId,
         name: 'Access Administration Company',
@@ -56,6 +63,16 @@ test(
           is_global_superadmin: false,
         },
       ]);
+      await db
+        .insertInto('ba_user')
+        .values({
+          id: teammateUserId,
+          email: 'access-teammate@example.com',
+          emailVerified: true,
+          image: null,
+          name: 'Access Teammate',
+        })
+        .execute();
       await insertTestRows(db, 'company_memberships', [
         { company_id: companyId, user_id: adminUserId, role: 'admin' },
         { company_id: companyId, user_id: teammateUserId, role: 'member' },
@@ -81,11 +98,39 @@ test(
 
       await assertAppError(
         () =>
+          createUserInCompanyServer({
+            context,
+            companyId,
+            name: 'Access Teammate',
+            email: ' ACCESS-TEAMMATE@example.com ',
+            role: 'member',
+            sendOnboardingEmail: true,
+          }),
+        'VALIDATION_ERROR',
+        'This email already belongs to a company user. Use the Users table to manage their access.'
+      );
+
+      await assertAppError(
+        () =>
+          upsertProjectMembershipServer({
+            context,
+            projectId,
+            userId: teammateUserId,
+            role: 'owner',
+            operation: 'assign',
+          }),
+        'VALIDATION_ERROR',
+        'This user already has project access. Use the Users table to manage their role.'
+      );
+
+      await assertAppError(
+        () =>
           upsertProjectMembershipServer({
             context,
             projectId,
             userId: adminUserId,
             role: 'member',
+            operation: 'change',
           }),
         'VALIDATION_ERROR',
         'Project must retain at least one owner'
@@ -117,12 +162,14 @@ test(
         projectId,
         userId: teammateUserId,
         role: 'owner',
+        operation: 'change',
       });
       await upsertProjectMembershipServer({
         context,
         projectId,
         userId: adminUserId,
         role: 'member',
+        operation: 'change',
       });
 
       await assertAppError(
@@ -156,6 +203,7 @@ test(
         projectId,
         userId: adminUserId,
         role: 'owner',
+        operation: 'change',
       });
       await deleteCompanyMembershipServer({
         context,
@@ -184,6 +232,11 @@ test(
         companies: [companyId],
         users: [adminUserId, teammateUserId],
       });
+      await db
+        .deleteFrom('request_rate_limits')
+        .where('bucket', '=', inviteRateLimitBucket)
+        .execute();
+      await db.deleteFrom('ba_user').where('id', '=', teammateUserId).execute();
       await db.destroy();
     }
   }

@@ -276,6 +276,7 @@ export const deleteCompanyMembershipQuerySchema = z.object({
 export const upsertProjectMembershipBodySchema = z.object({
   userId: userIdSchema,
   role: projectRoleSchema,
+  operation: z.enum(['assign', 'change']),
 });
 
 export const deleteProjectMembershipQuerySchema = z.object({

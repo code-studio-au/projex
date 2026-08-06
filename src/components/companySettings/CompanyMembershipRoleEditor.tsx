@@ -1,21 +1,13 @@
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Modal,
-  Select,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
 
 import {
   companyRoleOptions,
   getCompanyRoleDefinition,
 } from '../../access/roleDefinitions';
-import type { CompanyRole, UserId } from '../../types';
-import { asUserId } from '../../types';
+import type { CompanyRole } from '../../types';
 import RolePermissionSummary from '../access/RolePermissionSummary';
+import ModalSelect from '../ModalSelect';
 
 function toCompanyRole(value: string | null): CompanyRole | null {
   return companyRoleOptions.some((option) => option.value === value)
@@ -24,110 +16,87 @@ function toCompanyRole(value: string | null): CompanyRole | null {
 }
 
 export default function CompanyMembershipRoleEditor(props: {
-  userOptions: Array<{ value: UserId; label: string }>;
-  selectedUserId: UserId | null;
-  currentRole: CompanyRole | null;
-  selectedRole: CompanyRole | null;
-  selectedUserIsSelf: boolean;
-  wouldDemoteLastAdmin: boolean;
+  userLabel: string;
+  currentRole: CompanyRole;
+  isSelf: boolean;
+  isOnlyAdmin: boolean;
+  canEdit: boolean;
   isPending: boolean;
-  onUserChange: (userId: UserId | null) => void;
-  onRoleChange: (role: CompanyRole | null) => void;
-  onSubmit: () => Promise<void>;
+  onSubmit: (role: CompanyRole) => Promise<void>;
 }) {
   const {
-    userOptions,
-    selectedUserId,
+    userLabel,
     currentRole,
-    selectedRole,
-    selectedUserIsSelf,
-    wouldDemoteLastAdmin,
+    isSelf,
+    isOnlyAdmin,
+    canEdit,
     isPending,
-    onUserChange,
-    onRoleChange,
     onSubmit,
   } = props;
   const [confirmationOpen, setConfirmationOpen] = useState(false);
-  const selectedUserLabel =
-    userOptions.find((option) => option.value === selectedUserId)?.label ??
-    'this member';
-  const hasChange =
-    !!selectedUserId && !!selectedRole && currentRole !== selectedRole;
+  const [selectedRole, setSelectedRole] = useState<CompanyRole>(currentRole);
+  const hasChange = currentRole !== selectedRole;
+  const wouldDemoteLastAdmin =
+    isOnlyAdmin && currentRole === 'admin' && selectedRole !== 'admin';
   const selectedDefinition = selectedRole
     ? getCompanyRoleDefinition(selectedRole)
     : null;
 
+  function openConfirmation() {
+    setSelectedRole(currentRole);
+    setConfirmationOpen(true);
+  }
+
   return (
     <>
-      <Stack gap="sm">
-        <Group align="flex-end" wrap="wrap">
-          <Select
-            label="User"
-            data={userOptions}
-            value={selectedUserId}
-            disabled={isPending}
-            onChange={(value) => onUserChange(value ? asUserId(value) : null)}
-            searchable
-            style={{ width: '100%', maxWidth: 420 }}
-          />
-          <Select
-            label="Company role"
-            data={companyRoleOptions}
-            value={selectedRole}
-            disabled={isPending || !selectedUserId}
-            onChange={(value) => onRoleChange(toCompanyRole(value))}
-            style={{ width: '100%', maxWidth: 220 }}
-          />
-          <Button
-            size="sm"
-            variant="default"
-            loading={isPending}
-            disabled={isPending || !hasChange || wouldDemoteLastAdmin}
-            onClick={() => setConfirmationOpen(true)}
-          >
-            Review change
-          </Button>
-        </Group>
-        {selectedDefinition ? (
-          <RolePermissionSummary definition={selectedDefinition} />
-        ) : null}
-        {selectedUserId && !hasChange && !wouldDemoteLastAdmin ? (
-          <Text size="xs" c="dimmed">
-            Select a different role to review a change. No database write will
-            occur while the role is unchanged.
-          </Text>
-        ) : null}
-        {wouldDemoteLastAdmin ? (
-          <Alert color="yellow">
-            This company must retain at least one Admin. Assign another Admin
-            before changing this role.
-          </Alert>
-        ) : null}
-      </Stack>
+      <Button
+        size="xs"
+        variant="default"
+        aria-label={`Change role for ${userLabel}`}
+        disabled={!canEdit || isPending}
+        onClick={openConfirmation}
+      >
+        Change role
+      </Button>
 
+      {/* Release the document lock as closing starts so the exit animation
+          cannot swallow the user's first parent-page scroll gesture. */}
       <Modal
         opened={confirmationOpen}
         onClose={() => setConfirmationOpen(false)}
         title="Confirm company role change"
         centered
+        lockScroll={confirmationOpen}
         closeOnClickOutside={!isPending}
         closeOnEscape={!isPending}
         withCloseButton={!isPending}
       >
         <Stack gap="md">
+          <ModalSelect
+            label="Company role"
+            data={companyRoleOptions}
+            value={selectedRole}
+            disabled={isPending}
+            onChange={(value) => {
+              const role = toCompanyRole(value);
+              if (role) setSelectedRole(role);
+            }}
+          />
           <Text>
-            Change <strong>{selectedUserLabel}</strong> from{' '}
-            <strong>
-              {currentRole
-                ? getCompanyRoleDefinition(currentRole).label
-                : 'no company role'}
-            </strong>{' '}
-            to <strong>{selectedDefinition?.label}</strong>?
+            Change <strong>{userLabel}</strong> from{' '}
+            <strong>{getCompanyRoleDefinition(currentRole).label}</strong> to{' '}
+            <strong>{selectedDefinition?.label}</strong>?
           </Text>
-          {selectedUserIsSelf ? (
+          {isSelf ? (
             <Alert color="yellow" title="This is your own role">
               Your available company and project administration controls will
               update immediately after this change.
+            </Alert>
+          ) : null}
+          {wouldDemoteLastAdmin ? (
+            <Alert color="yellow">
+              This company must retain at least one Admin. Assign another Admin
+              before changing this role.
             </Alert>
           ) : null}
           {selectedDefinition ? (
@@ -146,7 +115,7 @@ export default function CompanyMembershipRoleEditor(props: {
               disabled={!hasChange || wouldDemoteLastAdmin}
               onClick={async () => {
                 try {
-                  await onSubmit();
+                  await onSubmit(selectedRole);
                   setConfirmationOpen(false);
                 } catch {
                   // The parent renders the mutation error and the dialog stays

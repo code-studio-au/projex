@@ -45,9 +45,12 @@ Notes:
 - Company invite:
   - creates or reuses a BetterAuth user
   - adds the user to the company
-  - requests a password-setup/reset email
+  - requests the initial password-setup email when **Send invite email** is
+    selected; the company-settings form selects it by default
 - Resend invite:
   - requests another password-setup/reset email for an existing company member
+  - is the only follow-up email action; the add-user checkbox applies only to
+    the initial invite
 - Forgot password:
   - requests a password reset email for the entered address
   - after a successful reset, revokes the reset account's older sessions and

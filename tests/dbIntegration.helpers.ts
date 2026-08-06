@@ -389,7 +389,14 @@ export function createRouteApi(userId?: ReturnType<typeof asUserId> | null) {
       projectId: ReturnType<typeof asProjectId>,
       userId: ReturnType<typeof asUserId>,
       role: ProjectRole
-    ) => upsertProjectMembershipServer({ context, projectId, userId, role }),
+    ) =>
+      upsertProjectMembershipServer({
+        context,
+        projectId,
+        userId,
+        role,
+        operation: 'assign',
+      }),
     deleteProjectMembership: (
       projectId: ReturnType<typeof asProjectId>,
       userId: ReturnType<typeof asUserId>,

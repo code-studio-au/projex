@@ -1,10 +1,9 @@
-import { useMemo, useReducer } from 'react';
+import { useCallback, useMemo, useReducer } from 'react';
 import {
   Alert,
   Badge,
   Button,
   Checkbox,
-  Divider,
   Group,
   Modal,
   Paper,
@@ -21,9 +20,8 @@ import {
 import { useMediaQuery } from '@mantine/hooks';
 import { useRouter } from '@tanstack/react-router';
 
-import type { CompanyId, CompanyRole, UserId } from '../types';
+import type { CompanyId, CompanyRole } from '../types';
 import { useIsHydrated } from '../hooks/useIsHydrated';
-import { asUserId } from '../types';
 
 import { useCompanyAccess } from '../hooks/useCompanyAccess';
 import { getCompanyUsers } from '../store/access';
@@ -48,6 +46,7 @@ import CompanyImportRulesModal from './CompanyImportRulesModal';
 import RuleSuggestionsModal from './RuleSuggestionsModal';
 import CompanyExportPanel from './companySettings/CompanyExportPanel';
 import CompanyMembershipRoleEditor from './companySettings/CompanyMembershipRoleEditor';
+import { validateNewCompanyUserEmail } from './companySettings/companyUserValidation';
 import AccessRemovalButton from './access/AccessRemovalButton';
 import RolePermissionSummary from './access/RolePermissionSummary';
 import {
@@ -76,6 +75,7 @@ type InviteState = {
   sendOnboardingEmail: boolean;
   status: string | null;
   error: string | null;
+  emailError: string | null;
 };
 
 type InviteAction =
@@ -85,33 +85,46 @@ type InviteAction =
   | { type: 'setSendOnboardingEmail'; value: boolean }
   | { type: 'start' }
   | { type: 'success'; message: string; resetForm?: boolean }
+  | { type: 'failEmail'; message: string }
   | { type: 'fail'; message: string };
 
 const initialInviteState: InviteState = {
   name: '',
   email: '',
   role: 'member',
-  sendOnboardingEmail: false,
+  sendOnboardingEmail: true,
   status: null,
   error: null,
+  emailError: null,
 };
 
 function inviteReducer(state: InviteState, action: InviteAction): InviteState {
   if (action.type === 'setName') return { ...state, name: action.value };
-  if (action.type === 'setEmail') return { ...state, email: action.value };
+  if (action.type === 'setEmail') {
+    return {
+      ...state,
+      email: action.value,
+      emailError: null,
+      status: null,
+    };
+  }
   if (action.type === 'setRole') return { ...state, role: action.value };
   if (action.type === 'setSendOnboardingEmail') {
     return { ...state, sendOnboardingEmail: action.value };
   }
   if (action.type === 'start') {
-    return { ...state, status: null, error: null };
+    return { ...state, status: null, error: null, emailError: null };
   }
   if (action.type === 'success') {
     return {
       ...(action.resetForm ? initialInviteState : state),
       status: action.message,
       error: null,
+      emailError: null,
     };
+  }
+  if (action.type === 'failEmail') {
+    return { ...state, status: null, error: null, emailError: action.message };
   }
   return { ...state, status: null, error: action.message };
 }
@@ -119,17 +132,9 @@ function inviteReducer(state: InviteState, action: InviteAction): InviteState {
 type MembershipEditorState = {
   error: string | null;
   status: string | null;
-  userId: UserId | null;
-  role: CompanyRole | null;
 };
 
 type MembershipEditorAction =
-  | {
-      type: 'selectUser';
-      userId: UserId | null;
-      currentRole: CompanyRole | null;
-    }
-  | { type: 'selectRole'; role: CompanyRole | null }
   | { type: 'start' }
   | { type: 'success'; message: string }
   | { type: 'fail'; message: string };
@@ -137,24 +142,12 @@ type MembershipEditorAction =
 const initialMembershipEditorState: MembershipEditorState = {
   error: null,
   status: null,
-  userId: null,
-  role: null,
 };
 
 function membershipEditorReducer(
   state: MembershipEditorState,
   action: MembershipEditorAction
 ): MembershipEditorState {
-  if (action.type === 'selectUser') {
-    return {
-      ...state,
-      error: null,
-      status: null,
-      userId: action.userId,
-      role: action.currentRole,
-    };
-  }
-  if (action.type === 'selectRole') return { ...state, role: action.role };
   if (action.type === 'start') {
     return { ...state, status: null, error: null };
   }
@@ -242,15 +235,9 @@ function useCompanySettingsPanelController(props: {
       companyMembershipsQ.data ?? []
     );
   }, [companyId, usersQ.data, companyMembershipsQ.data]);
-
-  const userOptions = useMemo(
-    () =>
-      companyUsers.map((u) => ({
-        value: u.id,
-        label: `${u.name} (${u.email})`,
-      })),
-    [companyUsers]
-  );
+  const companyUsersLoading =
+    (usersQ.isPending && !usersQ.data) ||
+    (companyMembershipsQ.isPending && !companyMembershipsQ.data);
 
   const [inviteState, dispatchInvite] = useReducer(
     inviteReducer,
@@ -263,29 +250,17 @@ function useCompanySettingsPanelController(props: {
     sendOnboardingEmail,
     status: inviteStatus,
     error: inviteError,
+    emailError: inviteEmailError,
   } = inviteState;
   const [membershipState, dispatchMembership] = useReducer(
     membershipEditorReducer,
     initialMembershipEditorState
   );
-  const {
-    error: membershipError,
-    status: membershipStatus,
-    userId: roleUserId,
-    role: membershipCompanyRole,
-  } = membershipState;
+  const { error: membershipError, status: membershipStatus } = membershipState;
   const [activeModal, setActiveModal] = useReducer(
     companySettingsModalReducer,
     initialReview === 'rule-suggestions' ? 'ruleSuggestions' : null
   );
-
-  // Derive a sensible default selection without synchronously setting state in an effect.
-  // This avoids cascading renders and keeps `react-hooks/set-state-in-effect` happy.
-  const effectiveRoleUserId: UserId | null =
-    roleUserId ??
-    (isHydrated && userOptions[0]?.value
-      ? asUserId(userOptions[0].value)
-      : null);
 
   const highestRoleBadge = (
     <Badge variant="light">
@@ -312,21 +287,19 @@ function useCompanySettingsPanelController(props: {
     });
   }, [access.userId, companyMembershipsQ.data, usersQ.data]);
 
-  const selectedMembership = useMemo(
-    () =>
-      membershipRows.find((row) => row.userId === effectiveRoleUserId) ?? null,
-    [effectiveRoleUserId, membershipRows]
-  );
-  const effectiveMembershipCompanyRole =
-    membershipCompanyRole ?? selectedMembership?.role ?? null;
-  const wouldDemoteLastAdmin =
-    !!selectedMembership &&
-    selectedMembership.role === 'admin' &&
-    selectedMembership.isOnlyAdmin &&
-    effectiveMembershipCompanyRole !== 'admin';
-  const selectedMembershipIsSelf = selectedMembership?.userId === access.userId;
-  const wouldLoseCompanySettingsAccess =
-    selectedMembershipIsSelf && effectiveMembershipCompanyRole === 'member';
+  function reviewCompanyInvite() {
+    const emailError = validateNewCompanyUserEmail(newUserEmail, companyUsers);
+    if (emailError) {
+      dispatchInvite({
+        type: 'failEmail',
+        message: emailError,
+      });
+      return;
+    }
+
+    dispatchInvite({ type: 'start' });
+    setActiveModal('invite');
+  }
 
   async function submitCompanyInvite() {
     const name = newUserName.trim();
@@ -345,22 +318,17 @@ function useCompanySettingsPanelController(props: {
         dispatchInvite({
           type: 'success',
           resetForm: true,
-          message: result.createdAuthUser
-            ? result.onboardingDelivery === 'email'
-              ? `${result.user.email} was added as a new company member and sent a password setup email. Ask them to check spam or junk if it does not arrive soon.`
-              : `${result.user.email} was added as a new company member. Email delivery is not configured, so the newest password setup link was logged on the server instead.`
-            : result.onboardingDelivery === 'email'
-              ? `${result.user.email} was added to the company and sent the newest password setup email. Ask them to check spam or junk if it does not arrive soon.`
-              : `${result.user.email} was added to the company. Email delivery is not configured, so the newest password setup link was logged on the server instead.`,
+          message:
+            result.onboardingDelivery === 'email'
+              ? `${result.user.email} was added to the company and sent an invite email. Ask them to check spam or junk if it does not arrive soon.`
+              : `${result.user.email} was added to the company. Email delivery is not configured, so the invite link was logged on the server instead.`,
         });
         return;
       }
       dispatchInvite({
         type: 'success',
         resetForm: true,
-        message: result.membershipCreated
-          ? `${result.user.email} was added to the company. No email was sent. You can resend their password setup email later from the member list if they need it.`
-          : `${result.user.email} was already in the company with this role. No access was changed and no email was sent.`,
+        message: `${result.user.email} was added to the company. No invite email was sent. You can use Resend invite from the Users table later if needed.`,
       });
     } catch (err) {
       dispatchInvite({
@@ -371,6 +339,58 @@ function useCompanySettingsPanelController(props: {
       throw err;
     }
   }
+
+  const updateCompanyMemberRole = useCallback(
+    async (
+      row: (typeof membershipRows)[number],
+      role: CompanyRole
+    ): Promise<void> => {
+      const shouldLeaveSettings = row.isSelf && role === 'member';
+      dispatchMembership({ type: 'start' });
+      try {
+        await upsertCompanyMembership.mutateAsync({
+          userId: row.userId,
+          role,
+        });
+        dispatchMembership({
+          type: 'success',
+          message: `${row.userName}'s company role was updated.`,
+        });
+        if (shouldLeaveSettings) {
+          try {
+            await router.navigate({
+              to: companyDashboardIndexRoute.to,
+              params: { companyId },
+              search: (previous) => ({
+                ...previous,
+                tab: 'projects',
+              }),
+              replace: true,
+            });
+          } catch (error) {
+            showAppToast({
+              tone: 'error',
+              title: 'Company role updated',
+              message:
+                error instanceof Error
+                  ? `Access was updated, but navigation failed: ${error.message}`
+                  : 'Access was updated, but navigation failed. Return to the company projects tab before continuing.',
+            });
+          }
+        }
+      } catch (err) {
+        dispatchMembership({
+          type: 'fail',
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Could not update company role.',
+        });
+        throw err;
+      }
+    },
+    [companyId, router, upsertCompanyMembership]
+  );
 
   const membershipColumns = useMemo<
     MRT_ColumnDef<(typeof membershipRows)[number]>[]
@@ -405,10 +425,19 @@ function useCompanySettingsPanelController(props: {
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
-        size: 280,
-        minSize: 280,
+        size: 360,
+        minSize: 360,
         Cell: ({ row }) => (
           <Group gap="xs" wrap="wrap" className="tableActionGroup">
+            <CompanyMembershipRoleEditor
+              userLabel={row.original.userName}
+              currentRole={row.original.role}
+              isSelf={row.original.isSelf}
+              isOnlyAdmin={row.original.isOnlyAdmin}
+              canEdit={canAddCompanyUsers}
+              isPending={upsertCompanyMembership.isPending}
+              onSubmit={(role) => updateCompanyMemberRole(row.original, role)}
+            />
             <Button
               size="xs"
               variant="light"
@@ -444,14 +473,13 @@ function useCompanySettingsPanelController(props: {
               userLabel={row.original.userName}
               scopeLabel="the company"
               consequence={`${row.original.userName} will lose company access and every explicit project assignment in this company.`}
+              disabled={row.original.isOnlyAdmin}
               disabledReason={
                 !canAddCompanyUsers
                   ? 'Only company Admins can remove company members.'
                   : row.original.isSelf
                     ? 'You cannot remove your own company membership.'
-                    : row.original.isOnlyAdmin
-                      ? 'Assign another company Admin before removing the only Admin.'
-                      : undefined
+                    : undefined
               }
               isPending={removeCompanyMember.isPending}
               onConfirm={async () => {
@@ -478,7 +506,13 @@ function useCompanySettingsPanelController(props: {
         ),
       },
     ],
-    [canAddCompanyUsers, removeCompanyMember, sendInviteEmail]
+    [
+      canAddCompanyUsers,
+      removeCompanyMember,
+      sendInviteEmail,
+      updateCompanyMemberRole,
+      upsertCompanyMembership.isPending,
+    ]
   );
 
   return {
@@ -489,36 +523,29 @@ function useCompanySettingsPanelController(props: {
     companyDefaultsLoading,
     companyId,
     companyImportRulesQ,
+    companyUsersLoading,
     createUser,
     dispatchInvite,
-    dispatchMembership,
     effectiveDefaults,
-    effectiveRoleUserId,
     highestRoleBadge,
     initialExportJobId,
+    inviteEmailError,
     inviteError,
     inviteStatus,
     isHydrated,
     isMobile,
     membershipColumns,
-    effectiveMembershipCompanyRole,
     membershipError,
     membershipRows,
     membershipStatus,
     newUserEmail,
     newUserName,
     newUserRole,
+    reviewCompanyInvite,
     ruleSuggestionsQ,
-    router,
     sendOnboardingEmail,
     submitCompanyInvite,
-    selectedMembership,
-    selectedMembershipIsSelf,
     setActiveModal,
-    upsertCompanyMembership,
-    userOptions,
-    wouldDemoteLastAdmin,
-    wouldLoseCompanySettingsAccess,
   };
 }
 
@@ -612,7 +639,7 @@ function CompanyMembershipSettingsCard({
   return (
     <Paper className={classes.surfaceCard} radius="xl" p="lg">
       <Stack gap="sm">
-        <Title order={5}>Add member</Title>
+        <Title order={5}>Add company user</Title>
         {model.inviteError ? (
           <Alert color="red">{model.inviteError}</Alert>
         ) : null}
@@ -636,6 +663,8 @@ function CompanyMembershipSettingsCard({
           <TextInput
             label="Email"
             value={model.newUserEmail}
+            error={model.inviteEmailError}
+            classNames={{ error: classes.formValidationError }}
             onChange={(e) =>
               model.dispatchInvite({
                 type: 'setEmail',
@@ -655,8 +684,7 @@ function CompanyMembershipSettingsCard({
             }
           />
           <Checkbox
-            label="Send password setup email now"
-            description="Brand-new users will still receive their setup email automatically. Turn this on when you also want to send the newest setup email to an existing account."
+            label="Send invite email"
             checked={model.sendOnboardingEmail}
             onChange={(e) =>
               model.dispatchInvite({
@@ -670,32 +698,22 @@ function CompanyMembershipSettingsCard({
               variant="default"
               disabled={
                 !model.canAddCompanyUsers ||
+                model.companyUsersLoading ||
                 model.createUser.isPending ||
                 !model.newUserName.trim() ||
                 !model.newUserEmail.trim() ||
                 !model.newUserRole
               }
-              onClick={() => model.setActiveModal('invite')}
+              onClick={model.reviewCompanyInvite}
             >
-              Review member access
+              Add Company User
             </Button>
           </Group>
         </Stack>
-        <Text size="xs" c="dimmed">
-          Adding someone to the company and emailing them are now separate
-          choices. New BetterAuth accounts still get their setup email
-          automatically, while existing users can be added quietly and emailed
-          later if needed.
-        </Text>
-        {model.newUserRole ? (
-          <RolePermissionSummary
-            definition={getCompanyRoleDefinition(model.newUserRole)}
-          />
-        ) : null}
         <Modal
           opened={model.activeModal === 'invite'}
           onClose={() => model.setActiveModal(null)}
-          title="Confirm company access"
+          title="Review company user access"
           centered
           closeOnClickOutside={!model.createUser.isPending}
           closeOnEscape={!model.createUser.isPending}
@@ -712,11 +730,6 @@ function CompanyMembershipSettingsCard({
               </strong>
               ?
             </Text>
-            <Alert color="blue" title="Existing accounts">
-              If this email already belongs to a company member, no role will be
-              changed here. Use Current members to review and confirm an
-              existing member's role change.
-            </Alert>
             {model.newUserRole ? (
               <RolePermissionSummary
                 definition={getCompanyRoleDefinition(model.newUserRole)}
@@ -742,7 +755,7 @@ function CompanyMembershipSettingsCard({
                   }
                 }}
               >
-                Confirm member access
+                Confirm and add user
               </Button>
             </Group>
           </Stack>
@@ -752,7 +765,7 @@ function CompanyMembershipSettingsCard({
   );
 }
 
-function CompanyOperationsSettingsCard({
+function CompanyUsersSettingsCard({
   model,
 }: {
   model: CompanySettingsPanelController;
@@ -760,10 +773,10 @@ function CompanyOperationsSettingsCard({
   return (
     <Paper className={classes.surfaceCard} radius="xl" p="lg">
       <Stack gap="sm">
-        <Title order={5}>Current members</Title>
+        <Title order={5}>Users</Title>
         <Text size="sm" c="dimmed">
-          Update a teammate's company role or remove them from the company
-          entirely.
+          Change company roles, resend invites, or remove users from the
+          company.
         </Text>
         {model.membershipError ? (
           <Alert color="red">{model.membershipError}</Alert>
@@ -771,91 +784,6 @@ function CompanyOperationsSettingsCard({
         {model.membershipStatus ? (
           <Alert color="green">{model.membershipStatus}</Alert>
         ) : null}
-        {model.isHydrated ? (
-          <CompanyMembershipRoleEditor
-            userOptions={model.userOptions}
-            selectedUserId={model.effectiveRoleUserId}
-            currentRole={model.selectedMembership?.role ?? null}
-            selectedRole={model.effectiveMembershipCompanyRole}
-            selectedUserIsSelf={model.selectedMembershipIsSelf}
-            wouldDemoteLastAdmin={model.wouldDemoteLastAdmin}
-            isPending={model.upsertCompanyMembership.isPending}
-            onUserChange={(userId) =>
-              model.dispatchMembership({
-                type: 'selectUser',
-                userId,
-                currentRole:
-                  model.membershipRows.find((row) => row.userId === userId)
-                    ?.role ?? null,
-              })
-            }
-            onRoleChange={(role) =>
-              model.dispatchMembership({
-                type: 'selectRole',
-                role,
-              })
-            }
-            onSubmit={async () => {
-              if (
-                !model.effectiveRoleUserId ||
-                !model.effectiveMembershipCompanyRole
-              )
-                return;
-              const userId = model.effectiveRoleUserId;
-              const role = model.effectiveMembershipCompanyRole;
-              const shouldLeaveSettings = model.wouldLoseCompanySettingsAccess;
-              model.dispatchMembership({ type: 'start' });
-              try {
-                await model.upsertCompanyMembership.mutateAsync({
-                  userId,
-                  role,
-                });
-                model.dispatchMembership({
-                  type: 'success',
-                  message: 'Company role updated.',
-                });
-                if (shouldLeaveSettings) {
-                  try {
-                    await model.router.navigate({
-                      to: companyDashboardIndexRoute.to,
-                      params: { companyId: model.companyId },
-                      search: (previous) => ({
-                        ...previous,
-                        tab: 'projects',
-                      }),
-                      replace: true,
-                    });
-                  } catch (error) {
-                    showAppToast({
-                      tone: 'error',
-                      title: 'Company role updated',
-                      message:
-                        error instanceof Error
-                          ? `Access was updated, but navigation failed: ${error.message}`
-                          : 'Access was updated, but navigation failed. Return to the company projects tab before continuing.',
-                    });
-                  }
-                }
-              } catch (err) {
-                model.dispatchMembership({
-                  type: 'fail',
-                  message:
-                    err instanceof Error
-                      ? err.message
-                      : 'Could not update company role.',
-                });
-                throw err;
-              }
-            }}
-          />
-        ) : (
-          <Paper className={classes.surfaceMuted} radius="xl" p="md">
-            <Text size="sm" c="dimmed">
-              Loading role controls...
-            </Text>
-          </Paper>
-        )}
-        <Divider />
         <div className={classes.tableWrap}>
           {model.isHydrated ? (
             <MantineReactTable
@@ -929,7 +857,7 @@ function CompanySettingsPanelView({
 
       <CompanyMembershipSettingsCard model={model} />
 
-      <CompanyOperationsSettingsCard model={model} />
+      <CompanyUsersSettingsCard model={model} />
 
       <CompanyDefaultTaxonomyModal
         opened={model.activeModal === 'defaults'}

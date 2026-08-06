@@ -443,6 +443,7 @@ test(
             projectId: activeProjectId,
             userId: viewerUserId,
             role: 'member',
+            operation: 'change',
           }),
         'FORBIDDEN',
         'Forbidden'
