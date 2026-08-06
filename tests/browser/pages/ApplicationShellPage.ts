@@ -387,7 +387,8 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
   }
 
   private async closeDialog(dialog: Locator) {
-    await dialog.getByRole('button', { name: 'Close modal' }).click();
+    await dialog.waitFor({ state: 'visible' });
+    await this.page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'hidden' });
   }
 
