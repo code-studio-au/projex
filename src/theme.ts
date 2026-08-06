@@ -121,6 +121,9 @@ export const theme = createTheme({
       defaultProps: {
         radius: 'md',
         centered: true,
+        closeButtonProps: {
+          'aria-label': 'Close modal',
+        },
         overlayProps: {
           backgroundOpacity: 0.55,
           blur: 2,
