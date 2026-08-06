@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import { APP_COLOR_SCHEME_STORAGE_KEY } from '../../../src/colorScheme';
 import type { SmokeFixtures } from '../../../src/server/smoke/fixtures';
@@ -138,13 +138,26 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
       'Redirect response did not server-render the company dashboard'
     );
     await this.waitForAuthenticatedHydration();
-    // The next check deliberately performs a full-document navigation. Wait
-    // for the redirected Summary panel's lazy module to finish hydrating first
-    // so WebKit does not cancel that import and report a test-induced module
-    // load failure while the new document replaces it.
+    // The next check deliberately performs a full-document navigation. Prove
+    // that the redirected Summary panel's lazy boundary has hydrated by using
+    // its filter; visibility alone can be satisfied by server-rendered HTML.
+    const showFilter = this.page.getByRole('combobox', { name: 'Show' });
+    const needsAttentionOption = this.page.getByRole('option', {
+      name: 'Needs attention',
+      exact: true,
+    });
+    await expect(async () => {
+      await showFilter.click();
+      await expect(needsAttentionOption).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
+    await needsAttentionOption.click();
+    await expect(showFilter).toHaveValue('Needs attention');
+
+    await showFilter.click();
     await this.page
-      .getByRole('combobox', { name: 'Show' })
-      .waitFor({ state: 'visible' });
+      .getByRole('option', { name: 'All projects', exact: true })
+      .click();
+    await expect(showFilter).toHaveValue('All projects');
   }
 
   private async verifyCompanySettings() {
