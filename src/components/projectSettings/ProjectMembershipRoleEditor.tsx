@@ -8,11 +8,13 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 
 import {
   getProjectRoleDefinition,
   projectRoleOptions,
 } from '../../access/roleDefinitions';
+import classes from '../../styles/ui.module.css';
 import type { ProjectRole, UserId } from '../../types';
 import { asUserId } from '../../types';
 import RolePermissionSummary from '../access/RolePermissionSummary';
@@ -200,6 +202,7 @@ export default function ProjectMembershipRoleEditor(props: {
     isPending,
     onSubmit,
   } = props;
+  const isMobile = useMediaQuery('(max-width: 48em)');
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<ProjectRole>(currentRole);
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -236,14 +239,12 @@ export default function ProjectMembershipRoleEditor(props: {
         Change role
       </Button>
 
-      {/* Release the document lock as closing starts so the exit animation
-          cannot swallow the user's first parent-page scroll gesture. */}
       <Modal
         opened={confirmationOpen}
         onClose={closeConfirmation}
         title="Confirm project role change"
-        centered
-        lockScroll={confirmationOpen}
+        fullScreen={isMobile}
+        centered={!isMobile}
         closeOnClickOutside={!isPending}
         closeOnEscape={!isPending}
         withCloseButton={!isPending}
@@ -289,15 +290,17 @@ export default function ProjectMembershipRoleEditor(props: {
               {mutationError}
             </Alert>
           ) : null}
-          <Group justify="flex-end">
+          <Group className={classes.footerRow}>
             <Button
               variant="default"
+              fullWidth={isMobile}
               disabled={isPending}
               onClick={closeConfirmation}
             >
               Cancel
             </Button>
             <Button
+              fullWidth={isMobile}
               loading={isPending}
               disabled={!hasChange || wouldRemoveLastOwner}
               onClick={async () => {
