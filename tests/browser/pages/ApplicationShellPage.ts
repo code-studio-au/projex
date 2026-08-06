@@ -166,24 +166,31 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
       state: 'visible',
     });
     await this.page.getByRole('button', { name: 'Manage Categories' }).click();
+    const categoriesDialog = this.getDialog('Manage company categories');
     await this.page
       .getByText('Company category standards', { exact: true })
       .waitFor({ state: 'visible' });
-    await this.page.keyboard.press('Escape');
+    await this.closeDialog(categoriesDialog);
+
     await this.page
       .getByRole('button', { name: 'Manage Import Rules' })
       .click();
+    const importRulesDialog = this.getDialog('Manage company import rules');
     await this.page
       .getByText('Import rule priority', { exact: true })
       .waitFor({ state: 'visible' });
-    await this.page.keyboard.press('Escape');
+    await this.closeDialog(importRulesDialog);
+
     await this.page
       .getByRole('button', { name: 'Manage Auto-Coding Rules' })
       .click();
+    const autoCodingRulesDialog = this.getDialog(
+      'Manage company auto-coding rules'
+    );
     await this.page
       .getByText('Company rule priority', { exact: true })
       .waitFor({ state: 'visible' });
-    await this.page.keyboard.press('Escape');
+    await this.closeDialog(autoCodingRulesDialog);
   }
 
   private async verifyLoginHydrationAndColorScheme() {
@@ -277,10 +284,13 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
     await this.page
       .getByRole('menuitem', { name: 'Manage categories' })
       .click();
+    const categoriesDialog = this.getDialog(
+      'Manage categories & subcategories'
+    );
     await this.page
       .getByText('Company standards', { exact: true })
       .waitFor({ state: 'visible' });
-    await this.page.keyboard.press('Escape');
+    await this.closeDialog(categoriesDialog);
 
     await this.page.getByRole('tab', { name: 'Settings' }).click();
     await this.waitForLocation(
@@ -293,17 +303,22 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
     await this.page
       .getByRole('button', { name: 'Manage Auto-Coding Rules' })
       .click();
+    const autoCodingRulesDialog = this.getDialog(
+      'Manage project auto-coding rules'
+    );
     await this.page
       .getByText('Project rule priority', { exact: true })
       .waitFor({ state: 'visible' });
-    await this.page.keyboard.press('Escape');
+    await this.closeDialog(autoCodingRulesDialog);
+
     await this.page
       .getByRole('button', { name: 'Manage Import Rules' })
       .click();
+    const importRulesDialog = this.getDialog('Manage project import rules');
     await this.page
       .getByText('Import rule priority', { exact: true })
       .waitFor({ state: 'visible' });
-    await this.page.keyboard.press('Escape');
+    await this.closeDialog(importRulesDialog);
 
     await this.page.getByRole('tab', { name: 'Budget' }).click();
     await this.waitForLocation(
@@ -363,6 +378,18 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
       )),
       'Closing the project role modal left the page scroll lock active'
     );
+  }
+
+  private getDialog(title: string) {
+    return this.page.getByRole('dialog').filter({
+      has: this.page.getByRole('heading', { name: title, exact: true }),
+    });
+  }
+
+  private async closeDialog(dialog: Locator) {
+    await dialog.waitFor({ state: 'visible' });
+    await this.page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'hidden' });
   }
 
   private async waitForColorScheme(colorScheme: 'light' | 'dark') {
