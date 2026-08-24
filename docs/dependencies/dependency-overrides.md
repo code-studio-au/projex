@@ -10,22 +10,20 @@ Current overrides:
 
 - `brace-expansion@<5.0.9`
   Keep transitive archive and lint tooling on the patched release for
-  `GHSA-mh99-v99m-4gvg` and `GHSA-rgw5-rvv9-x895`. Version `5.0.9` is
-  explicitly exempted from the minimum-release-age quarantine because it is
-  the security release. Remove that release-age exception after 6 August 2026
-  at 10:00 UTC; retain the override and compatibility patch until the legacy
-  CommonJS consumers are gone. See
+  `GHSA-mh99-v99m-4gvg` and `GHSA-rgw5-rvv9-x895`. Retain the override and
+  compatibility patch until the legacy CommonJS consumers are gone. See
   [the dependency patch note](../../patches/README.md) for the exact behavior,
   security constraints, and removal procedure.
 - `fast-uri@>=3.0.0 <3.1.5`
   Keep React Doctor's Ajv tree on the patched compatible-major release for
-  `GHSA-7p8r-x3mc-p8w7`. Version `3.1.5` is temporarily exempted from the
-  minimum-release-age quarantine because the high-severity advisory requires
-  it. Remove that exception after 7 August 2026 at 09:16 UTC. Ajv's declared
-  major-three range means this is not permission to force `fast-uri` 4.
-- `js-yaml@>=4.0.0 <4.3.0`
+  `GHSA-7p8r-x3mc-p8w7`. Ajv's declared major-three range means this is not
+  permission to force `fast-uri` 4.
+- `js-yaml@>=4.0.0 <4.3.1`
   Keep TanStack Start and tooling YAML parsing on the patched 4.3.x line for
-  `GHSA-52cp-r559-cp3m`.
+  `GHSA-52cp-r559-cp3m` and `GHSA-5p4m-2wfm-xmqj`.
+- `nanoid@<3.3.18`
+  Keep Vite and PostCSS identifier generation on the patched compatible-major
+  release for `GHSA-2v37-7h3g-55p8`.
 - `postcss@<8.5.23`
   Keep Vite and its consumers at or above the patched PostCSS floor for
   `GHSA-fxqj-rqcc-2cmp` as well as the earlier

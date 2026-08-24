@@ -22,7 +22,7 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
     await this.verifySingleCompanyServerRedirect();
     await this.verifyCompanyAndProjectNavigation();
     await this.verifyProjectToolsAndTabs();
-    await this.verifyProjectRoleModalReleasesPageScroll();
+    await this.verifyProjectRoleModalRestoresPageScroll();
     await this.verifyCompanySettings();
     this.assertNoBrowserErrors();
   }
@@ -330,8 +330,8 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
     );
   }
 
-  private async verifyProjectRoleModalReleasesPageScroll() {
-    await this.emit('Verifying project role modal releases page scrolling');
+  private async verifyProjectRoleModalRestoresPageScroll() {
+    await this.emit('Verifying project role modal restores page scrolling');
     await this.page.getByRole('tab', { name: 'Settings' }).click();
     await this.waitForLocation(
       ({ pathname, search }) =>
@@ -355,29 +355,53 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
     });
     await dialog.waitFor({ state: 'visible' });
     await this.selectOption(dialog, 'Project role', 'Member');
-    const settingsScrollTop = await this.page.evaluate(() => window.scrollY);
+
+    const settingsScroll = await this.page.evaluate(() => ({
+      scrollY: window.scrollY,
+      maxScrollY: document.documentElement.scrollHeight - window.innerHeight,
+    }));
     this.assert(
-      settingsScrollTop > 0,
+      settingsScroll.maxScrollY > 0,
+      'Project settings page is not scrollable'
+    );
+    this.assert(
+      settingsScroll.scrollY > 0,
       'Opening the project member row did not establish a parent-page scroll position'
+    );
+    this.assert(
+      await this.page.evaluate(() =>
+        document.body.hasAttribute('data-scroll-locked')
+      ),
+      'Project role modal did not lock the background page'
     );
 
     await dialog.getByRole('button', { name: 'Cancel' }).click();
-    // Send the wheel event immediately, while the modal is beginning to close.
-    // Waiting for the exit transition masks a retained document scroll lock
-    // that can swallow the user's entire first wheel or trackpad gesture.
+    // Exercise the gesture during the exit transition. The explicit
+    // opened-state lock must release as closing starts, rather than swallowing
+    // the user's first wheel or trackpad gesture.
     await this.page.mouse.wheel(0, -600);
     await dialog.waitFor({ state: 'hidden' });
-    await this.page.waitForFunction(
-      (previousScrollTop) => window.scrollY < previousScrollTop,
-      settingsScrollTop,
-      { timeout: 2_000 }
-    );
-    this.assert(
-      !(await this.page.evaluate(() =>
-        document.body.hasAttribute('data-scroll-locked')
-      )),
-      'Closing the project role modal left the page scroll lock active'
-    );
+    await expect
+      .poll(
+        () =>
+          this.page.evaluate(() =>
+            document.body.hasAttribute('data-scroll-locked')
+          ),
+        {
+          message:
+            'Project role modal should release the document lock after its exit transition',
+          timeout: 2_000,
+        }
+      )
+      .toBe(false);
+
+    await expect
+      .poll(() => this.page.evaluate(() => window.scrollY), {
+        message:
+          'Project settings page should scroll after the role modal closes',
+        timeout: 2_000,
+      })
+      .toBeLessThan(settingsScroll.scrollY);
   }
 
   private getDialog(title: string) {
