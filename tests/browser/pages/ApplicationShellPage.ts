@@ -376,6 +376,10 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
     );
 
     await dialog.getByRole('button', { name: 'Cancel' }).click();
+    // Exercise the gesture during the exit transition. The explicit
+    // opened-state lock must release as closing starts, rather than swallowing
+    // the user's first wheel or trackpad gesture.
+    await this.page.mouse.wheel(0, -600);
     await dialog.waitFor({ state: 'hidden' });
     await expect
       .poll(
@@ -391,15 +395,13 @@ export class ApplicationShellPage extends AuthenticatedSmokePage {
       )
       .toBe(false);
 
-    const scrollTopBeforeWheel = await this.page.evaluate(() => window.scrollY);
-    await this.page.mouse.wheel(0, -600);
     await expect
       .poll(() => this.page.evaluate(() => window.scrollY), {
         message:
           'Project settings page should scroll after the role modal closes',
         timeout: 2_000,
       })
-      .toBeLessThan(scrollTopBeforeWheel);
+      .toBeLessThan(settingsScroll.scrollY);
   }
 
   private getDialog(title: string) {

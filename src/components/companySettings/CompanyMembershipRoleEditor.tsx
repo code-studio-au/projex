@@ -68,6 +68,7 @@ export default function CompanyMembershipRoleEditor(props: {
         title="Confirm company role change"
         fullScreen={isMobile}
         centered={!isMobile}
+        lockScroll={confirmationOpen}
         closeOnClickOutside={!isPending}
         closeOnEscape={!isPending}
         withCloseButton={!isPending}

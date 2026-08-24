@@ -245,6 +245,7 @@ export default function ProjectMembershipRoleEditor(props: {
         title="Confirm project role change"
         fullScreen={isMobile}
         centered={!isMobile}
+        lockScroll={confirmationOpen}
         closeOnClickOutside={!isPending}
         closeOnEscape={!isPending}
         withCloseButton={!isPending}
