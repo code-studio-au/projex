@@ -13,14 +13,21 @@ HTTP routes stay transport-only and dynamically load server-only adapters from
 
 ## Quick Start
 
+Use Node `26` as pinned in `.nvmrc` and `.node-version`. Node 26 does not bundle
+Corepack, so install the repository's pinned Corepack release before pnpm:
+
 ```bash
-corepack enable
+npm install --global corepack@0.35.0
+corepack prepare pnpm@11.22.0 --activate
 pnpm install
 cp .env.local.example .env.local
 pnpm run dev
 ```
 
-Use Node `24` as pinned in `.nvmrc` and `.node-version`.
+`pnpm run typecheck` runs TypeScript 7 first and then the TypeScript 6
+compatibility compiler. The `tsc` executable is TypeScript 7; `tsc6` and the
+importable `typescript` API remain TypeScript 6 for tools that have not yet
+migrated to the native compiler API.
 
 The standard non-Docker application gate before handing work over or opening a
 PR is:

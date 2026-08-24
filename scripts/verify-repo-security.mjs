@@ -244,13 +244,19 @@ async function verifyNginxHttp2Syntax() {
 }
 
 async function verifyDeployArtifactDependencyPatches() {
-  const [workspaceConfig, createArtifactScript, deployScript, patch] =
-    await Promise.all([
-      readFile('pnpm-workspace.yaml', 'utf8'),
-      readFile('scripts/create-deploy-artifact.sh', 'utf8'),
-      readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
-      readFile(braceExpansionPatchPath, 'utf8'),
-    ]);
+  const [
+    workspaceConfig,
+    createArtifactScript,
+    deployScript,
+    dockerfile,
+    patch,
+  ] = await Promise.all([
+    readFile('pnpm-workspace.yaml', 'utf8'),
+    readFile('scripts/create-deploy-artifact.sh', 'utf8'),
+    readFile('scripts/deploy-artifact-ec2.sh', 'utf8'),
+    readFile('Dockerfile', 'utf8'),
+    readFile(braceExpansionPatchPath, 'utf8'),
+  ]);
 
   assertCondition(
     workspaceConfig.includes(
@@ -273,6 +279,10 @@ async function verifyDeployArtifactDependencyPatches() {
       `require_file "$RELEASE_DIR/${braceExpansionPatchPath}"`
     ),
     'Artifact deploys must verify the brace-expansion compatibility patch before installing dependencies'
+  );
+  assertCondition(
+    dockerfile.match(/^COPY patches \.\/patches$/gmu)?.length === 2,
+    'Docker dependency stages must copy registered dependency patches before installation'
   );
   assertCondition(
     patch.includes('module.exports = Object.assign(expand, exports);'),

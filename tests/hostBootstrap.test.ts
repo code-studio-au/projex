@@ -12,15 +12,16 @@ describe('buildHostBootstrapCommands', () => {
     const commands = buildHostBootstrapCommands();
 
     expect(commands).toContain(
-      'corepack enable pnpm --install-directory /usr/local/bin'
+      'npm install --global --prefix /usr/local corepack@0.35.0'
     );
+    expect(commands).toContain('test -x /usr/local/bin/corepack');
     expect(commands).toContain('systemctl enable projex');
     expect(commands).toContain('systemctl restart nginx');
 
     const joined = commands.join('\n');
     expect(joined).not.toContain('rpm.nodesource.com');
     expect(joined).toContain(
-      'https://nodejs.org/download/release/latest-v24.x/SHASUMS256.txt'
+      'https://nodejs.org/download/release/latest-v26.x/SHASUMS256.txt'
     );
     expect(joined).toContain('aarch64) PROJEX_NODE_ARCH=arm64');
     expect(joined).toContain('x86_64) PROJEX_NODE_ARCH=x64');
@@ -35,13 +36,13 @@ describe('buildHostBootstrapCommands', () => {
       'chown -R root:root "/usr/local/lib/nodejs/$PROJEX_NODE_RELEASE_DIR"'
     );
     expect(joined).toContain(
-      'sudo -u ec2-user /usr/local/bin/corepack prepare pnpm@11.0.8 --activate'
+      'sudo -u ec2-user /usr/local/bin/corepack prepare pnpm@11.22.0 --activate'
     );
     expect(joined).toContain(
       'useradd --system --user-group --home-dir /var/lib/projex-deploy --create-home --shell /sbin/nologin projex-deploy'
     );
     expect(joined).toContain(
-      'sudo -u projex-deploy /usr/local/bin/corepack prepare pnpm@11.0.8 --activate'
+      'sudo -u projex-deploy /usr/local/bin/corepack prepare pnpm@11.22.0 --activate'
     );
     expect(commands).toContain('node --version');
     expect(commands).toContain('pnpm --version');

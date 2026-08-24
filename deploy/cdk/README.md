@@ -31,8 +31,9 @@ certificate, backup, and recovery controls are verified together.
   IAM Identity Center (`aws sso login`) is the preferred team setup. Do not
   configure a root or IAM-user access key for routine CDK work.
 
-- Node.js 24 on your machine, matching the root repo `.nvmrc`, `.node-version`,
-  and CI/deploy workflows
+- Node.js 26 on your machine, matching the root repo `.nvmrc`, `.node-version`,
+  and CI/deploy workflows, with the pinned Corepack and pnpm releases installed
+  as described in the root README
 
 ## Install
 
@@ -41,6 +42,9 @@ From repo root:
 ```bash
 pnpm run cdk:install
 ```
+
+CDK build verification emits with TypeScript 7 and then checks the same sources
+with the TypeScript 6 compatibility compiler used by `ts-node`.
 
 ## Bootstrap CDK (once per account/region)
 
@@ -243,4 +247,4 @@ SSM, not SSH.
 - The export bucket includes a lifecycle rule as a safety net for stale objects, but the application still performs primary 24-hour job/object cleanup itself.
 - Non-production stack uses destructive defaults on destroy (`RemovalPolicy.DESTROY` for DB).
 - Production stack still retains DB (`RemovalPolicy.RETAIN`) and enables deletion protection, but it no longer forces Multi-AZ. If you need higher resilience, opt back into `-c dbMultiAz=true`.
-- Instance bootstraps Node 24, pnpm, systemd, bootstrap nginx, and the Let's Encrypt helper; application deploy remains the repo's artifact-based EC2 flow described in `docs/operations/deployment-ec2.md` and `docs/operations/staging-runbook.md`.
+- Instance bootstraps Node 26, Corepack, pnpm, systemd, bootstrap nginx, and the Let's Encrypt helper; application deploy remains the repo's artifact-based EC2 flow described in `docs/operations/deployment-ec2.md` and `docs/operations/staging-runbook.md`.

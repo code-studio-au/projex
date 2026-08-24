@@ -3,8 +3,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-const packageManagerVersion = '11.0.8';
-const nodeReleaseBaseUrl = 'https://nodejs.org/download/release/latest-v24.x';
+const corepackVersion = '0.35.0';
+const packageManagerVersion = '11.22.0';
+const nodeReleaseBaseUrl = 'https://nodejs.org/download/release/latest-v26.x';
 const rdsGlobalCaBundlePath = '/etc/projex/rds-global-bundle.pem';
 const rdsGlobalCaBundleUrl =
   'https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem';
@@ -69,7 +70,7 @@ export function buildHostBootstrapCommands() {
     'PROJEX_NODE_TMP="$(mktemp -d /tmp/projex-node-install.XXXXXX)"',
     'trap \'rm -rf -- "$PROJEX_NODE_TMP"\' EXIT',
     `curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 ${nodeReleaseBaseUrl}/SHASUMS256.txt --output "$PROJEX_NODE_TMP/SHASUMS256.txt"`,
-    'PROJEX_NODE_ARCHIVE="$(awk -v arch="$PROJEX_NODE_ARCH" \'$2 ~ ("^node-v24[.][0-9]+[.][0-9]+-linux-" arch "[.]tar[.]xz$") { print $2 }\' "$PROJEX_NODE_TMP/SHASUMS256.txt")"',
+    'PROJEX_NODE_ARCHIVE="$(awk -v arch="$PROJEX_NODE_ARCH" \'$2 ~ ("^node-v26[.][0-9]+[.][0-9]+-linux-" arch "[.]tar[.]xz$") { print $2 }\' "$PROJEX_NODE_TMP/SHASUMS256.txt")"',
     'test -n "$PROJEX_NODE_ARCHIVE"',
     'test "$(printf \'%s\\n\' "$PROJEX_NODE_ARCHIVE" | wc -l)" -eq 1',
     'grep -F "  $PROJEX_NODE_ARCHIVE" "$PROJEX_NODE_TMP/SHASUMS256.txt" > "$PROJEX_NODE_TMP/SHASUMS256-linux.txt"',
@@ -79,8 +80,9 @@ export function buildHostBootstrapCommands() {
     'install -d -m 0755 /usr/local/lib/nodejs',
     'tar --extract --xz --no-same-owner --file "$PROJEX_NODE_TMP/$PROJEX_NODE_ARCHIVE" --directory /usr/local/lib/nodejs',
     'chown -R root:root "/usr/local/lib/nodejs/$PROJEX_NODE_RELEASE_DIR"',
-    'for PROJEX_NODE_BINARY in node npm npx corepack; do ln -sfn "/usr/local/lib/nodejs/$PROJEX_NODE_RELEASE_DIR/bin/$PROJEX_NODE_BINARY" "/usr/local/bin/$PROJEX_NODE_BINARY"; done',
-    'corepack enable pnpm --install-directory /usr/local/bin',
+    'for PROJEX_NODE_BINARY in node npm npx; do ln -sfn "/usr/local/lib/nodejs/$PROJEX_NODE_RELEASE_DIR/bin/$PROJEX_NODE_BINARY" "/usr/local/bin/$PROJEX_NODE_BINARY"; done',
+    `npm install --global --prefix /usr/local corepack@${corepackVersion}`,
+    'test -x /usr/local/bin/corepack',
     `corepack prepare pnpm@${packageManagerVersion} --activate`,
     'if ! id -u projex-deploy >/dev/null 2>&1; then useradd --system --user-group --home-dir /var/lib/projex-deploy --create-home --shell /sbin/nologin projex-deploy; fi',
     'install -d -o projex-deploy -g projex-deploy -m 0750 /var/lib/projex-deploy',
