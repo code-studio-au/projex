@@ -4,6 +4,7 @@ import {
   MantineReactTable,
   type MRT_ColumnDef,
   type MRT_PaginationState,
+  type MRT_Row,
   type MRT_RowSelectionState,
   type MRT_SortingState,
 } from 'mantine-react-table-open';
@@ -69,7 +70,11 @@ function PreviewTable(props: PreviewTableProps) {
         onSortingChange={setSorting}
         {...(outlineInvalidRows
           ? {
-              mantineTableBodyRowProps: ({ row }) =>
+              mantineTableBodyRowProps: ({
+                row,
+              }: {
+                row: MRT_Row<ImportPreviewRow>;
+              }) =>
                 row.original.mappingStatus === 'invalid'
                   ? { style: { outline: '1px solid rgba(255,0,0,0.20)' } }
                   : {},

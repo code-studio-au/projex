@@ -1,31 +1,31 @@
 {
   "schemaVersion": 1,
-  "selectedAt": "2026-08-01T08:40:50.000Z",
+  "selectedAt": "2026-08-24T03:18:26.000Z",
   "minimumReleaseAgeMinutes": 10080,
   "directPackages": {
     "@tanstack/react-router": {
       "section": "dependencies",
-      "specifier": "1.170.18",
-      "lockVersion": "1.170.18",
-      "publishedAt": "2026-07-13T21:35:09.791Z"
+      "specifier": "1.170.29",
+      "lockVersion": "1.170.29",
+      "publishedAt": "2026-08-14T22:14:57.435Z"
     },
     "@tanstack/react-router-devtools": {
       "section": "dependencies",
-      "specifier": "1.167.0",
-      "lockVersion": "1.167.0",
-      "publishedAt": "2026-05-15T19:27:44.262Z"
+      "specifier": "1.167.1",
+      "lockVersion": "1.167.1",
+      "publishedAt": "2026-08-04T20:39:46.971Z"
     },
     "@tanstack/react-start": {
       "section": "dependencies",
-      "specifier": "1.168.32",
-      "lockVersion": "1.168.32",
-      "publishedAt": "2026-07-19T14:33:37.265Z"
+      "specifier": "1.168.46",
+      "lockVersion": "1.168.46",
+      "publishedAt": "2026-08-14T22:14:56.866Z"
     },
     "@vitejs/plugin-react": {
       "section": "devDependencies",
-      "specifier": "6.0.4",
-      "lockVersion": "6.0.4",
-      "publishedAt": "2026-07-22T04:16:52.683Z"
+      "specifier": "6.0.5",
+      "lockVersion": "6.0.5",
+      "publishedAt": "2026-07-30T10:12:02.149Z"
     },
     "h3-v2": {
       "section": "dependencies",
@@ -41,35 +41,35 @@
     },
     "vite": {
       "section": "devDependencies",
-      "specifier": "8.1.5",
-      "lockVersion": "8.1.5",
-      "publishedAt": "2026-07-16T06:51:13.015Z"
+      "specifier": "8.2.1",
+      "lockVersion": "8.2.1",
+      "publishedAt": "2026-08-06T13:47:48.588Z"
     }
   },
   "singleVersionResolutions": {
-    "@tanstack/history": "1.162.0",
-    "@tanstack/react-router": "1.170.18",
-    "@tanstack/react-router-devtools": "1.167.0",
-    "@tanstack/react-start": "1.168.32",
-    "@tanstack/react-start-client": "1.168.16",
-    "@tanstack/react-start-rsc": "0.1.31",
-    "@tanstack/react-start-server": "1.167.22",
+    "@tanstack/history": "1.162.1",
+    "@tanstack/react-router": "1.170.29",
+    "@tanstack/react-router-devtools": "1.167.1",
+    "@tanstack/react-start": "1.168.46",
+    "@tanstack/react-start-client": "1.168.27",
+    "@tanstack/react-start-rsc": "0.1.45",
+    "@tanstack/react-start-server": "1.167.34",
     "@tanstack/react-store": "0.9.3",
-    "@tanstack/router-core": "1.171.15",
-    "@tanstack/router-devtools-core": "1.168.0",
-    "@tanstack/router-generator": "1.167.21",
-    "@tanstack/router-plugin": "1.168.23",
+    "@tanstack/router-core": "1.171.24",
+    "@tanstack/router-devtools-core": "1.168.1",
+    "@tanstack/router-generator": "1.167.30",
+    "@tanstack/router-plugin": "1.168.32",
     "@tanstack/router-utils": "1.162.2",
-    "@tanstack/start-client-core": "1.170.14",
+    "@tanstack/start-client-core": "1.170.24",
     "@tanstack/start-fn-stubs": "1.162.0",
-    "@tanstack/start-plugin-core": "1.171.24",
-    "@tanstack/start-server-core": "1.169.17",
-    "@tanstack/start-storage-context": "1.167.17",
+    "@tanstack/start-plugin-core": "1.171.36",
+    "@tanstack/start-server-core": "1.169.28",
+    "@tanstack/start-storage-context": "1.167.26",
     "@tanstack/store": "0.9.3",
     "@tanstack/virtual-file-routes": "1.162.0",
-    "@vitejs/plugin-react": "6.0.4",
+    "@vitejs/plugin-react": "6.0.5",
     "h3": "2.0.1-rc.20",
     "srvx": "0.11.22",
-    "vite": "8.1.5"
+    "vite": "8.2.1"
   }
 }

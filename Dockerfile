@@ -1,12 +1,14 @@
-FROM node:24-alpine AS base
+FROM node:26-alpine AS base
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.0.8 --activate
+RUN npm install --global corepack@0.35.0 && \
+    corepack prepare pnpm@11.22.0 --activate
 
 FROM base AS deps
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs ./
+COPY patches ./patches
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
@@ -17,9 +19,10 @@ RUN pnpm run build
 FROM base AS prod-deps
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs ./
+COPY patches ./patches
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 
 WORKDIR /app
 

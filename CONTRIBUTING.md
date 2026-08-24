@@ -9,14 +9,20 @@
 
 ## Setup
 
+Use Node `26` as pinned in `.nvmrc` and `.node-version`. Node 26 does not bundle
+Corepack, so install the repository's pinned Corepack release before pnpm:
+
 ```bash
-corepack enable
+npm install --global corepack@0.35.0
+corepack prepare pnpm@11.22.0 --activate
 pnpm install
 cp .env.local.example .env.local
 pnpm run dev
 ```
 
-Use Node `24` as pinned in `.nvmrc` and `.node-version`.
+`pnpm run typecheck` must stay a dual-compiler gate: TypeScript 7 runs through
+`tsc` first, followed by the TypeScript 6 compatibility executable `tsc6`.
+Tooling that imports the `typescript` API continues to receive TypeScript 6.
 
 Optional manual smoke setup:
 
