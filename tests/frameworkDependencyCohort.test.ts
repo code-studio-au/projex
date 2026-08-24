@@ -154,9 +154,9 @@ describe('framework dependency cohort', () => {
   test('parses exclusions across YAML comments, blank lines, and inline comments', async () => {
     const inputs = await readRepositoryInputs();
     inputs.workspaceConfig = inputs.workspaceConfig.replace(
-      "  - 'brace-expansion@5.0.9'",
+      "  - '@types/*'",
       [
-        "  - 'brace-expansion@5.0.9'",
+        "  - '@types/*'",
         '',
         '  # A valid YAML comment must not terminate the exclusion list.',
         "  - '@tanstack/*' # inline rationale",
@@ -171,7 +171,7 @@ describe('framework dependency cohort', () => {
   test('rejects a malformed release-age exclusion structure', async () => {
     const inputs = await readRepositoryInputs();
     inputs.workspaceConfig = inputs.workspaceConfig.replace(
-      "minimumReleaseAgeExclude:\n  - '@types/*'\n  - 'brace-expansion@5.0.9'\n  - 'fast-uri@3.1.5'",
+      "minimumReleaseAgeExclude:\n  - '@types/*'",
       "minimumReleaseAgeExclude: '@tanstack/*'"
     );
 
