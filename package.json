@@ -90,7 +90,7 @@
     "@tanstack/react-query-devtools": "5.100.14",
     "@tanstack/react-router": "1.170.29",
     "@tanstack/react-router-devtools": "1.167.1",
-    "@tanstack/react-start": "1.168.46",
+    "@tanstack/react-start": "1.168.60",
     "better-auth": "^1.6.29",
     "exceljs": "^4.4.0",
     "h3-v2": "npm:h3@2.0.1-rc.20",
