@@ -9,7 +9,7 @@ const nginxProxyConfigPaths = [
 const nginxRequestLimitsPath = 'deploy/nginx/projex-request-limits.conf';
 const nginxImportBodyLimit = 'client_max_body_size 16m;';
 const nginxCompressionPath = 'deploy/nginx/projex-compression.conf';
-const braceExpansionPatchPath = 'patches/brace-expansion@5.0.9.patch';
+const braceExpansionPatchPath = 'patches/brace-expansion@5.0.13.patch';
 
 const checks = [
   {
@@ -260,7 +260,7 @@ async function verifyDeployArtifactDependencyPatches() {
 
   assertCondition(
     workspaceConfig.includes(
-      `brace-expansion@5.0.9: ${braceExpansionPatchPath}`
+      `brace-expansion@5.0.13: ${braceExpansionPatchPath}`
     ),
     'The brace-expansion compatibility patch must stay registered with pnpm'
   );

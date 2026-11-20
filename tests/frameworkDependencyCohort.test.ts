@@ -52,22 +52,22 @@ describe('framework dependency cohort', () => {
   test('rejects an independently moving direct dependency range', async () => {
     const inputs = await readRepositoryInputs();
     requireDefined(inputs.packageJson.dependencies)['@tanstack/react-start'] =
-      '^1.168.46';
+      '^1.168.60';
 
     expect(() => verifyFrameworkCohort(inputs)).toThrow(
-      '@tanstack/react-start must be exact-pinned to 1.168.46'
+      '@tanstack/react-start must be exact-pinned to 1.168.60'
     );
   });
 
   test('rejects package and root lockfile importer disagreement', async () => {
     const inputs = await readRepositoryInputs();
     inputs.lockfile = inputs.lockfile.replace(
-      'specifier: 1.168.46',
-      'specifier: ^1.168.46'
+      'specifier: 1.168.60',
+      'specifier: ^1.168.60'
     );
 
     expect(() => verifyFrameworkCohort(inputs)).toThrow(
-      'pnpm-lock.yaml must pin @tanstack/react-start with specifier 1.168.46'
+      'pnpm-lock.yaml must pin @tanstack/react-start with specifier 1.168.60'
     );
   });
 
@@ -79,7 +79,7 @@ describe('framework dependency cohort', () => {
     );
 
     expect(() => verifyFrameworkCohort(inputs)).toThrow(
-      '@tanstack/router-core must resolve once at 1.171.24'
+      '@tanstack/router-core must resolve once at 1.171.34'
     );
   });
 
@@ -103,7 +103,7 @@ describe('framework dependency cohort', () => {
     ).publishedAt = inputs.cohort.selectedAt;
 
     expect(() => verifyFrameworkCohort(inputs)).toThrow(
-      '@tanstack/react-start@1.168.46 had not passed the configured release-age delay'
+      '@tanstack/react-start@1.168.60 had not passed the configured release-age delay'
     );
   });
 

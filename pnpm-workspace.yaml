@@ -4,9 +4,10 @@ packages:
 overrides:
   '@babel/core@7.29.7>semver': 7.8.5
   '@babel/helper-compilation-targets@7.29.7>semver': 7.8.5
-  'brace-expansion@<5.0.9': 5.0.9
-  'fast-uri@>=3.0.0 <3.1.5': 3.1.5
-  'js-yaml@>=4.0.0 <4.3.1': 4.3.1
+  'brace-expansion@<5.0.13': 5.0.13
+  'fast-uri@>=3.0.0 <3.1.9': 3.1.9
+  'js-yaml@>=4.0.0 <4.3.2': 4.3.2
+  'minimatch@>=7.0.0 <11.0.1': 11.0.8
   'nanoid@<3.3.18': 3.3.18
   'undici@>=7.0.0 <7.29.0': 7.29.0
 
@@ -24,4 +25,4 @@ blockExoticSubdeps: true
 allowBuilds:
   esbuild: true
 patchedDependencies:
-  brace-expansion@5.0.9: patches/brace-expansion@5.0.9.patch
+  brace-expansion@5.0.13: patches/brace-expansion@5.0.13.patch
