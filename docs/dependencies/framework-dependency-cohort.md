@@ -13,29 +13,26 @@ SRVX package.
 
 ## Supported cohort
 
-| Package                           | Exact version        | Role                                                              |
-| --------------------------------- | -------------------- | ----------------------------------------------------------------- |
-| `@tanstack/react-start`           | `1.168.60`           | SSR, server functions, route and production builds                |
-| `@tanstack/react-router`          | `1.170.41`           | Router version required by React Start `1.168.60`                 |
-| `@tanstack/react-router-devtools` | `1.167.1`            | Development diagnostics with a compatible Router peer range       |
-| `vite`                            | `8.2.4`              | Framework build integration                                       |
-| `@vitejs/plugin-react`            | `6.1.0`              | React transform matched to Vite 8                                 |
-| `srvx`                            | `0.11.22`            | Node HTTP adapter used by the production SSR server               |
-| `h3-v2`                           | `npm:h3@2.0.1-rc.20` | H3 release candidate selected by the Start server-core dependency |
+| Package                           | Exact version  | Role                                                      |
+| --------------------------------- | -------------- | --------------------------------------------------------- |
+| `@tanstack/react-start`           | `1.169.5`      | SSR, server functions, routes and production builds       |
+| `@tanstack/react-router`          | `1.170.46`     | Router required by the selected Start release             |
+| `@tanstack/react-router-devtools` | `1.167.3`      | Development router diagnostics                            |
+| `vite`                            | `8.3.8`        | Framework build integration                               |
+| `@vitejs/plugin-react`            | `6.3.0`        | React transform matched to Vite 8                         |
+| `srvx`                            | `1.0.8`        | Node HTTP adapter used by the production SSR server       |
+| `h3-v2`                           | `npm:h3@2.0.8` | Stable H3 implementation behind the existing import alias |
 
-React Start `1.168.60` is the 30 September 2026 security-fix train. It fixes `GHSA-qx66-fv34-fjm8` and has passed the seven-day quarantine. Its
-published dependencies select Router `1.170.41` and the internal Start and
-Router versions recorded in the cohort file. The direct H3 alias remains on
-`rc.20` because that is also the version selected by the Start server core.
-SRVX `0.11.22` matches the Start plugin and H3 resolution, leaving one H3/SRVX
-runtime stack in the lockfile. Vite `8.2.4` and its React plugin `6.1.0` are the
-release-age-eligible build pair verified against this framework train; changing
-either still requires updating and exercising the whole recorded cohort.
+The November 2026 cohort keeps the exact upstream Start/Router dependency
+versions recorded in the cohort file. Every direct package has passed the
+seven-day quarantine, as verified against official registry publication times.
 
-The standalone SRVX `0.12.7` Dependabot update is deferred: both H3 `rc.20`
-and the recorded Start plugin resolve SRVX `0.11.22`. Updating only the direct
-adapter adds a second runtime version and violates the single-version gate.
-Revisit it with a compatible upstream H3/Start cohort.
+The selected Start plugin uses SRVX `1.0.8`. H3 `2.0.8` replaces the earlier
+`rc.20` adapter so both resolve the same SRVX version. This accepts the SRVX
+upgrade as part of a tested H3/Start cohort rather than adding an independently
+versioned adapter beside the old H3 runtime. The `h3-v2` import alias remains
+to keep application and release tooling imports stable. Server and browser
+smoke checks qualify login, sessions, APIs, static assets, CSP and readiness.
 
 ## Enforcement
 
