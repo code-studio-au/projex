@@ -13,7 +13,7 @@
     "typecheck:ts6": "tsc6 -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "aws-cdk-lib": "^2.266.0",
+    "aws-cdk-lib": "^2.276.0",
     "cdk-nag": "3.0.2",
     "constructs": "^10.8.1",
     "source-map-support": "^0.5.21"
@@ -21,7 +21,7 @@
   "devDependencies": {
     "@typescript/native": "npm:typescript@7.0.2",
     "@types/node": "^26.2.0",
-    "aws-cdk": "^2.1138.0",
+    "aws-cdk": "^2.1148.1",
     "ts-node": "^10.9.2",
     "typescript": "npm:@typescript/typescript6@6.0.2"
   }
