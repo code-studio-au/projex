@@ -457,9 +457,8 @@ Operational defaults:
   Postgres; the legacy `audit_events` table remains temporarily for N-1
   rollback compatibility only.
 - Public deployments should use the nginx template at `deploy/nginx/projex.conf` plus the managed `deploy/nginx/projex-compression.conf` include for HTTPS redirects, security headers, forwarded headers, compressed responses, cache-safe `Vary` handling, and the restart maintenance page.
-- The Node SSR wrapper stays on the known-good `h3-v2` RC alias for now.
-  `h3@2.0.0` is deprecated upstream, and swapping to the newer direct `h3`
-  package line currently regresses the SSR login route in smoke verification.
+- The Node SSR wrapper retains the `h3-v2` import alias, now pinned to stable
+  H3 `2.0.8` alongside SRVX `1.0.8` in the tested framework cohort.
 
 ## Documentation Map
 

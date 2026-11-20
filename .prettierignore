@@ -1,4 +1,6 @@
 node_modules
+# Keep the generated lockfile in pnpm's canonical format, including Dependabot updates.
+pnpm-lock.yaml
 dist
 dist-ssr
 .vite
