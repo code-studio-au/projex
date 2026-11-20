@@ -457,7 +457,9 @@ require_file "$RELEASE_DIR/package.json"
 require_file "$RELEASE_DIR/pnpm-lock.yaml"
 require_file "$RELEASE_DIR/pnpm-workspace.yaml"
 require_file "$RELEASE_DIR/.pnpmfile.cjs"
-require_file "$RELEASE_DIR/patches/brace-expansion@5.0.13.patch"
+# The frozen pnpm install below validates the release's registered patch files.
+# Historical recovery releases can register different dependency versions.
+require_dir "$RELEASE_DIR/patches"
 require_file "$RELEASE_DIR/scripts/start-server.mjs"
 require_file "$RELEASE_DIR/scripts/cache-policy.mjs"
 require_file "$RELEASE_DIR/scripts/env-file.mjs"

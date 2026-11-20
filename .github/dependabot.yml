@@ -5,9 +5,21 @@ updates:
     schedule:
       interval: weekly
     groups:
-      tanstack:
+      framework:
         patterns:
           - '@tanstack/*'
+          - '@vitejs/plugin-react'
+          - vite
+          - srvx
+          - h3-v2
+      vitest:
+        patterns:
+          - vitest
+          - '@vitest/*'
+      aws-cdk:
+        patterns:
+          - aws-cdk
+          - aws-cdk-lib
       mantine:
         patterns:
           - '@mantine/*'

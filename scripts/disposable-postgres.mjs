@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { get as getHttps } from 'node:https';
+import { fileURLToPath } from 'node:url';
 import {
   CreateBucketCommand,
   HeadBucketCommand,
@@ -11,8 +12,9 @@ const DEFAULT_IMAGE = process.env.PROJEX_TEST_DB_IMAGE || 'postgres:16-alpine';
 const DEFAULT_USER = process.env.PROJEX_TEST_DB_USER || 'postgres';
 const DEFAULT_PASSWORD = process.env.PROJEX_TEST_DB_PASSWORD || 'postgres';
 const DEFAULT_HOST = '127.0.0.1';
+const BUILT_MINIO_IMAGE = 'projex-test-minio:2025-10-15-1';
 const DEFAULT_MINIO_IMAGE =
-  process.env.PROJEX_TEST_S3_IMAGE || 'minio/minio:latest';
+  process.env.PROJEX_TEST_S3_IMAGE || BUILT_MINIO_IMAGE;
 const DEFAULT_MINIO_ACCESS_KEY =
   process.env.PROJEX_TEST_S3_ACCESS_KEY || 'minioadmin';
 const DEFAULT_MINIO_SECRET_KEY =
@@ -236,6 +238,21 @@ export async function startDisposableMinio(options = {}) {
   ensureDockerAvailable();
 
   const image = options.image ?? DEFAULT_MINIO_IMAGE;
+  if (image === BUILT_MINIO_IMAGE) {
+    const inspect = spawnSync('docker', ['image', 'inspect', image], {
+      stdio: 'ignore',
+    });
+    if (inspect.status !== 0) {
+      runCommand('docker', [
+        'build',
+        '--tag',
+        image,
+        '--file',
+        fileURLToPath(new URL('../docker/minio.Dockerfile', import.meta.url)),
+        fileURLToPath(new URL('../docker/', import.meta.url)),
+      ]);
+    }
+  }
   const accessKey = options.accessKey ?? DEFAULT_MINIO_ACCESS_KEY;
   const secretKey = options.secretKey ?? DEFAULT_MINIO_SECRET_KEY;
   const bucket = options.bucket ?? 'projex-exports';
