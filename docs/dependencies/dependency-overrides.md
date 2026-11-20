@@ -16,19 +16,31 @@ Current overrides:
   parent-scoped overrides until the TanStack/Babel tree declares SemVer 7 or
   moves to Babel 8; do not weaken the workspace trust policy to restore the
   old package.
-- `brace-expansion@<5.0.9`
+- `brace-expansion@<5.0.13`
   Keep transitive archive and lint tooling on the patched release for
-  `GHSA-mh99-v99m-4gvg` and `GHSA-rgw5-rvv9-x895`. Retain the override and
+  `GHSA-mh99-v99m-4gvg`, `GHSA-rgw5-rvv9-x895`, `GHSA-q2hr-2g5m-vwhr`,
+  `GHSA-qhr7-859c-m2p7`, and `GHSA-6j4f-fj2g-mc7p`. Retain the override and
   compatibility patch until the legacy CommonJS consumers are gone. See
   [the dependency patch note](../../patches/README.md) for the exact behavior,
   security constraints, and removal procedure.
-- `fast-uri@>=3.0.0 <3.1.5`
+- `fast-uri@>=3.0.0 <3.1.9`
   Keep React Doctor's Ajv tree on the patched compatible-major release for
-  `GHSA-7p8r-x3mc-p8w7`. Ajv's declared major-three range means this is not
-  permission to force `fast-uri` 4.
-- `js-yaml@>=4.0.0 <4.3.1`
+  the URI normalization, scheme spoofing, host confusion, and SSRF advisories
+  through `GHSA-w74x-v6f9-j3xg`, `GHSA-xhq7-xmqj-769h`,
+  `GHSA-wjr9-j795-jxcr`, and `GHSA-333x-w4r6-6crp`. Ajv's declared
+  major-three range means this is not permission to force `fast-uri` 4.
+- `js-yaml@>=4.0.0 <4.3.2`
   Keep TanStack Start and tooling YAML parsing on the patched 4.3.x line for
-  `GHSA-52cp-r559-cp3m` and `GHSA-5p4m-2wfm-xmqj`.
+  `GHSA-52cp-r559-cp3m`, `GHSA-5p4m-2wfm-xmqj`, and
+  `GHSA-2883-xcg3-v3hh`.
+- `minimatch@>=7.0.0 <11.0.1`
+  Use `11.0.8` for the glob-pattern amplification fix in
+  `GHSA-g3hv-75wg-m249`. The affected ESLint, TypeScript ESLint, and React
+  Doctor consumers still declare Minimatch 10; Minimatch 11 retains their
+  named-export API and supports the project's Node 26 runtime. Keep this
+  override scoped to affected versions so ExcelJS's callable Minimatch 3/5
+  consumers retain their existing API. Remove it when the tooling declares
+  patched Minimatch versions directly.
 - `nanoid@<3.3.18`
   Keep Vite and PostCSS identifier generation on the patched compatible-major
   release for `GHSA-2v37-7h3g-55p8`.

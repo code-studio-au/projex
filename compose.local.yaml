@@ -18,7 +18,10 @@ services:
       - ./.local/postgres/data:/var/lib/postgresql/data
 
   minio:
-    image: minio/minio:RELEASE.2025-10-15T17-29-55Z
+    image: projex-test-minio:2025-10-15-1
+    build:
+      context: ./docker
+      dockerfile: minio.Dockerfile
     container_name: projex-minio
     restart: unless-stopped
     ports:

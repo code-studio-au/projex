@@ -225,7 +225,11 @@ printf '%s\\n' "$RELEASE_ID" >"$APP_ROOT/executed-release"
   };
 }
 
-async function createArtifactSourceTree(root: string, name = 'source') {
+async function createArtifactSourceTree(
+  root: string,
+  name = 'source',
+  patchVersion = '5.0.13'
+) {
   const sourceRoot = join(root, name);
   const requiredFiles = [
     'dist/server/server.js',
@@ -253,7 +257,7 @@ async function createArtifactSourceTree(root: string, name = 'source') {
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     '.pnpmfile.cjs',
-    'patches/brace-expansion@5.0.9.patch',
+    `patches/brace-expansion@${patchVersion}.patch`,
   ];
 
   for (const relativePath of requiredFiles) {
@@ -261,6 +265,16 @@ async function createArtifactSourceTree(root: string, name = 'source') {
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, 'test\n');
   }
+  await writeFile(
+    join(sourceRoot, 'pnpm-workspace.yaml'),
+    `patchedDependencies:\n  brace-expansion@${patchVersion}: patches/brace-expansion@${patchVersion}.patch\n`
+  );
+  await writeFile(join(sourceRoot, 'package.json'), '{}\n');
+  await symlink(
+    join(repoRoot, 'node_modules'),
+    join(sourceRoot, 'node_modules'),
+    'dir'
+  );
   return sourceRoot;
 }
 
@@ -317,7 +331,7 @@ async function createEc2Release(
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     '.pnpmfile.cjs',
-    'patches/brace-expansion@5.0.9.patch',
+    'patches/brace-expansion@5.0.13.patch',
     'scripts/start-server.mjs',
     'scripts/cache-policy.mjs',
     'scripts/env-file.mjs',
@@ -417,6 +431,28 @@ afterEach(async () => {
 });
 
 describe('create-deploy-artifact.sh', () => {
+  test.each(['patches/missing.patch', '../outside.patch'])(
+    'rejects unavailable or unsafe registered patch %s',
+    async (patch) => {
+      const root = await makeTemporaryRoot();
+      const sourceRoot = await createArtifactSourceTree(root);
+      await writeFile(
+        join(sourceRoot, 'pnpm-workspace.yaml'),
+        `patchedDependencies:\n  example@1.0.0: ${patch}\n`
+      );
+      const result = spawnSync('bash', [createArtifactScript], {
+        cwd: sourceRoot,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GIT_SHA: gitSha,
+          ARTIFACTS_DIR: join(root, 'artifacts'),
+        },
+      });
+      expect(result.status).not.toBe(0);
+      expect(await readdir(join(root, 'artifacts'))).toEqual([]);
+    }
+  );
   test('embeds the immutable release identity manifest', async () => {
     const root = await makeTemporaryRoot();
     const sourceRoot = await createArtifactSourceTree(root);
@@ -504,7 +540,8 @@ describe('create-deploy-artifact.sh', () => {
     const root = await makeTemporaryRoot();
     const sourceRoot = await createArtifactSourceTree(
       root,
-      'historical-application'
+      'historical-application',
+      '5.0.9'
     );
     const toolingRoot = await createArtifactSourceTree(root, 'trusted-tooling');
     const artifactsRoot = join(root, 'artifacts');
@@ -555,6 +592,9 @@ describe('create-deploy-artifact.sh', () => {
       { encoding: 'utf8' }
     );
     expect(extract.status, extract.stderr).toBe(0);
+    await expect(
+      readFile(join(extractRoot, 'patches/brace-expansion@5.0.9.patch'), 'utf8')
+    ).resolves.toBe('test\n');
     await expect(
       readFile(join(extractRoot, 'scripts/start-server.mjs'), 'utf8')
     ).resolves.toBe('historical application\n');
@@ -956,6 +996,13 @@ describe('deploy-artifact-ec2.sh', () => {
     await writeFile(join(appRoot, 'projex.env'), '');
     const releaseId = 'staging-aaaaaaaaaaaa-run198-attempt1';
     const releaseDir = await createEc2Release(appRoot, releaseId);
+
+    // Recovery releases can carry patches for older dependency versions.
+    await writeFile(
+      join(releaseDir, 'patches/brace-expansion@5.0.9.patch'),
+      'historical patch\n'
+    );
+    await rm(join(releaseDir, 'patches/brace-expansion@5.0.13.patch'));
 
     const result = runEc2Deploy(appRoot, mockBin, releaseId, releaseDir, {
       MOCK_SUDO_LOG: sudoLog,

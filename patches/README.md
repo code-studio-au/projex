@@ -1,11 +1,12 @@
 # Dependency Patches
 
-## `brace-expansion@5.0.9` CommonJS compatibility
+## `brace-expansion@5.0.13` CommonJS compatibility
 
-Projex forces vulnerable transitive `brace-expansion` versions onto `5.0.9`,
-the patched release for `GHSA-mh99-v99m-4gvg` and
-`GHSA-rgw5-rvv9-x895`. Do not downgrade the package or suppress either
-advisory.
+Projex forces vulnerable transitive `brace-expansion` versions onto `5.0.13`,
+the patched release covering `GHSA-mh99-v99m-4gvg`,
+`GHSA-rgw5-rvv9-x895`, `GHSA-q2hr-2g5m-vwhr`, `GHSA-qhr7-859c-m2p7`,
+and `GHSA-6j4f-fj2g-mc7p`. Do not downgrade the package or suppress these
+advisories.
 
 The current dependency graph still contains legacy Minimatch 3 and 5 consumers
 through ExcelJS 4.4's `archiver`, `glob`, and `unzipper` tree. ESLint 10 and the
@@ -21,24 +22,26 @@ expand(pattern);
 ```
 
 `brace-expansion` 5 exposes named exports instead. The local
-[`brace-expansion@5.0.9.patch`](brace-expansion@5.0.9.patch) restores the
+[`brace-expansion@5.0.13.patch`](brace-expansion@5.0.13.patch) restores the
 callable CommonJS shape with:
 
 ```js
 module.exports = Object.assign(expand, exports);
 ```
 
-The secure 5.0.9 expansion implementation and its expansion limits remain
+The secure 5.0.13 expansion implementation and its expansion limits remain
 unchanged. `Object.assign` also retains the named exports for current
 consumers.
 
 ### How it is applied
 
-[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) contains three related settings:
+[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) contains two related settings:
 
-- an override that resolves vulnerable `brace-expansion` versions to `5.0.9`
-- an exact minimum-release-age exception for the security release
+- an override that resolves vulnerable `brace-expansion` versions to `5.0.13`
 - a `patchedDependencies` entry for the compatibility patch
+
+Version `5.0.13` has passed the seven-day release-age policy and needs no
+quarantine exception.
 
 The lockfile records the patch hash. Do not edit the patch or its lockfile hash
 independently; regenerate them with `pnpm patch` and `pnpm patch-commit`.
@@ -52,8 +55,8 @@ consumer that expects the callable legacy export. Check the graph with:
 pnpm why minimatch --recursive
 ```
 
-After removing the override, patch entry, release-age exception, and patch
-file, verify all of the following:
+After removing the override, patch entry, and patch file, verify all of the
+following:
 
 ```sh
 pnpm install --frozen-lockfile

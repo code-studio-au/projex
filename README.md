@@ -96,6 +96,13 @@ Test browser smoke also requires local Chromium, Firefox, and WebKit installs
 via `pnpm exec playwright install --with-deps chromium firefox webkit` the first
 time you run it on a machine.
 
+The test-only S3 image is built on first use from checksum-verified MinIO
+source and pinned Go/Alpine images in `docker/minio.Dockerfile`. Later runs
+reuse `projex-test-minio:2025-10-15-1`; no removed MinIO registry image is needed.
+`PROJEX_TEST_S3_IMAGE` can select an existing compatible test image. Networks
+with a private certificate authority can prebuild it with
+`docker build --secret id=build-ca,src=/path/to/ca-bundle.pem -t projex-test-minio:2025-10-15-1 -f docker/minio.Dockerfile docker`.
+
 GitHub Actions CI enforces the generated-fixture server smoke sweep plus the
 full supported Chromium, Firefox, and WebKit smoke flow. After successful `main` CI, the Release
 workflow builds one environment-neutral artifact, production SPDX SBOM, and

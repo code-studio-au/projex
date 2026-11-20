@@ -101,7 +101,26 @@ require_source_path "package.json"
 require_source_path "pnpm-lock.yaml"
 require_source_path "pnpm-workspace.yaml"
 require_source_path ".pnpmfile.cjs"
-require_source_path "patches/brace-expansion@5.0.9.patch"
+# Recovery builds use the historical source's patch registrations.
+node --input-type=module - "$release_source_root_resolved" <<'NODE'
+import { createRequire } from 'node:module';
+import { readFileSync, realpathSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
+const require = createRequire(resolve(process.argv[2], 'package.json'));
+const { parse } = require('yaml');
+const root = realpathSync(process.argv[2]);
+const workspace = parse(readFileSync(resolve(root, 'pnpm-workspace.yaml'), 'utf8'));
+for (const patch of Object.values(workspace?.patchedDependencies ?? {})) {
+  if (typeof patch !== 'string' || !patch.startsWith('patches/')) {
+    throw new Error('Dependency patches must be files inside the source patches directory.');
+  }
+  const path = realpathSync(resolve(root, patch));
+  if (!path.startsWith(`${root}${sep}patches${sep}`)) {
+    throw new Error(`Dependency patch escapes the source patches directory: ${patch}`);
+  }
+  readFileSync(path);
+}
+NODE
 
 require_tooling_path "scripts/deploy-artifact-ssm.sh"
 require_tooling_path "scripts/deploy-artifact-ec2.sh"

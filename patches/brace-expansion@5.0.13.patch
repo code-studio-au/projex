@@ -1,8 +1,8 @@
 diff --git a/dist/commonjs/index.js b/dist/commonjs/index.js
-index 869a6bee23807b9f01c18c99ab8e952b4b242f97..994a36c58d09a516f5776e8ee812dee0bc657300 100644
+index 7397d297b371e68b1fadebb41efbabf7111a89a6..6a02763f60fad5a9977d8c4b2a4aeb770c419568 100644
 --- a/dist/commonjs/index.js
 +++ b/dist/commonjs/index.js
-@@ -286,4 +286,8 @@ function expand_(str, max, maxLength, isTop) {
+@@ -516,4 +516,8 @@ function expand_(str, max, maxLength, maxDepth, depth, maxRewrites, budget, isTo
      }
      return acc;
  }
